@@ -6,7 +6,7 @@ packages = [
 ]
 
 version = "0.1.0"
-description = "This package anonymizes sensitive name data in images and extract the contents."
+description = "This package anonymizes sensitive name data in images and extracts the contents."
 authors = ["maxhild <58726316+maxhild@users.noreply.github.com>"]
 license = "MIT"
 readme = "README.md"
@@ -25,13 +25,12 @@ flair = "0.13.0"
 gender-guesser = "0.4.0"
 PyPDF2 = "3.0.1"
 reportlab = "4.1.0"
-torch = "^2.2.2" # torch = "^1.10.0"
+torch = "^2.2.2"
 gensim = "^4.1.2"
 djangorestframework = "^3.14.0"
 django-bootstrap5 = "^23.4"
 agl-anonymizer-pipeline = "^0.1.2"
 opencv-python-headless = "^4.10.0.84"
-
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.3"

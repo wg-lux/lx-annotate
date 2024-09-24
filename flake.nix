@@ -1,88 +1,128 @@
 {
-  description = "Flake for the Django based `agl-anonymizer` service";
+  description = "Flake for the Django-based `agl-anonymizer` service with CUDA support";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.05";
-    nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixos-unstable";
-    
+    # Use a single nixpkgs input to avoid conflicts
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+
+    # poetry2nix should follow the same nixpkgs
     poetry2nix.url = "github:nix-community/poetry2nix";
     poetry2nix.inputs.nixpkgs.follows = "nixpkgs";
-
   };
 
-  outputs = { nixpkgs, poetry2nix, ... } @ inputs: 
-  let 
+  outputs = { self, nixpkgs, poetry2nix, ... }:
+  let
     system = "x86_64-linux";
-    self = inputs.self;
-    version = "0.1.${pkgs.lib.substring 0 8 inputs.self.lastModifiedDate}.${inputs.self.shortRev or "dirty"}";
-    python_version = "311";
-  
-    raw-pkgs = import nixpkgs {
+
+    # Import nixpkgs with desired configuration
+    pkgs = import nixpkgs {
       inherit system;
-      config.allowUnfree = true;
+      config = {
+        allowUnfree = true;
+        cudaSupport = true;
+      };
     };
 
-    pkgs-unstable = inputs.nixpkgs-unstable.legacyPackages.x86_64-linux;
-
-    pkgs = raw-pkgs.extend poetry2nix.overlays.default;
     lib = pkgs.lib;
 
-    # Include setuptools in buildInputs
-    poetryApplication = pkgs.poetry2nix.mkPoetryApplication {
+    # Define the poetry-based application with CUDA support
+    poetryApplication = poetry2nix.packages.${system}.mkPoetryApplication {
       projectDir = ./.;
       src = lib.cleanSource ./.;
-      python = pkgs."python${python_version}Full";
-      
-      # Add setuptools to buildInputs
-      buildInputs = with pkgs.python311Packages; [
-        setuptools
-      ];
-    };       
-    
-  in
-  {
+      python = pkgs.python311Full;
 
-    # Create Default DevShell
-    # https://ryantm.github.io/nixpkgs/builders/special/mkshell/
-    devShells.x86_64-linux.default = pkgs.mkShell {
-      buildInputs = with pkgs; [
-        python311Full
-        poetry
-      ];
-
-      packages = [
-        pkgs.python311Full 
-
-        pkgs.python311Packages.django
-        pkgs.python311Packages.numpy
-        pkgs.python311Packages.gensim
-        pkgs.python311Packages.scipy
-        pkgs.python311Packages.dulwich
-        pkgs.python311Packages.pandas
-        pkgs.python311Packages.pytesseract
-        pkgs.python311Packages.numpy
-        pkgs.python311Packages.imutils
-        pkgs.python311Packages.pip
-        pkgs.python311Packages.djangorestframework-guardian2
-        pkgs.python311Packages.django-cors-headers
-        pkgs.python311Packages.pillow
-        pkgs.python311Packages.requests
-        pkgs.python311Packages.gunicorn
-        pkgs.python311Packages.psycopg2
-
+      # Include necessary native build inputs
+      nativeBuildInputs = with pkgs; [
+        stdenv.cc.cc.lib
+        autoPatchelfHook
+        cudaPackages.cudatoolkit
+        cudaPackages.cudnn
+        opencv4
+        gcc11
+        gcc
+        libGLU
+        libGL
+        glibc
+        zlib
+        glib
+        xorg.libXi
+        xorg.libXmu
+        freeglut
+        xorg.libXext
+        xorg.libX11
+        xorg.libXv
+        xorg.libXrandr
+        ncurses5
+        binutils
+        pam
       ];
 
-      inputsFrom = [];
+      # Set environment variables during build using preBuild
+      preBuild = ''
+        export CUDA_PATH=${pkgs.cudaPackages.cudatoolkit}
+        export LD_LIBRARY_PATH="${pkgs.linuxPackages.nvidia_x11}/lib:${pkgs.zlib.out}/lib:${pkgs.stdenv.cc.cc.lib}/lib:${pkgs.libGL}/lib:${pkgs.libGLU}/lib:${pkgs.glib}/lib:${pkgs.glibc}/lib:$LD_LIBRARY_PATH"
+        export EXTRA_LDFLAGS="-L/lib -L${pkgs.linuxPackages.nvidia_x11}/lib"
+        export EXTRA_CCFLAGS="-I/usr/include"
+        export CUDA_NVCC_FLAGS="--compiler-bindir=$(which gcc)"
+      '';
+
+      # Handle local dependencies
+      poetryOverrides = self: super: {
+        # Adjust the path to your local dependency
+        "agl-anonymizer-pipeline" = super."agl-anonymizer-pipeline".overridePythonAttrs (old: rec {
+          src = ../agl_anonymizer_pipeline;
+        });
+      };
     };
 
-    packages.x86_64-linux.default = poetryApplication;
+  in {
+    # Define the development shell
+    devShells.${system}.default = pkgs.mkShell {
+      buildInputs = with pkgs; [
+        poetry
+        python311Full
+        stdenv.cc.cc.lib
+        autoPatchelfHook
+        cudaPackages.cudatoolkit
+        cudaPackages.cudnn
+        opencv4
+        gcc11
+        gcc
+        libGLU
+        libGL
+        glibc
+        zlib
+        glib
+        xorg.libXi
+        xorg.libXmu
+        freeglut
+        xorg.libXext
+        xorg.libX11
+        xorg.libXv
+        xorg.libXrandr
+        ncurses5
+        binutils
+        pam
+        nginx
+      ];
 
-    # Create python App
-    apps.x86_64-linux.default = {
-        type = "app";
-        # replace <script> with the name in the [tool.poetry.scripts] section of your pyproject.toml
-        program = "${poetryApplication}/bin/django-server";
-      };
-  
+      # Set environment variables in shellHook
+      shellHook = ''
+        export CUDA_PATH=${pkgs.cudaPackages.cudatoolkit}
+        export LD_LIBRARY_PATH="${pkgs.linuxPackages.nvidia_x11}/lib:${pkgs.zlib.out}/lib:${pkgs.stdenv.cc.cc.lib}/lib:${pkgs.libGL}/lib:${pkgs.libGLU}/lib:${pkgs.glib}/lib:${pkgs.glibc}/lib:$LD_LIBRARY_PATH"
+        export EXTRA_LDFLAGS="-L/lib -L${pkgs.linuxPackages.nvidia_x11}/lib"
+        export EXTRA_CCFLAGS="-I/usr/include"
+        export CUDA_NVCC_FLAGS="--compiler-bindir=$(which gcc)"
+      '';
+    };
+
+    # Define the package
+    packages.${system}.default = poetryApplication;
+
+    # Define the application entry point
+    apps.${system}.default = {
+      type = "app";
+      program = "${poetryApplication}/bin/django-server";
+    };
   };
 }
