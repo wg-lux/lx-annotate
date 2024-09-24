@@ -1,0 +1,28 @@
+[tool.poetry]
+name = "agl_monitor_flake"
+
+packages = [
+    { include = "agl_monitor_flake" }
+]
+
+version = "0.1.0"
+description = ""
+authors = ["Thomas J. Lux"]
+license = "MIT"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+django = "~4.2"
+gunicorn = "^23.0.0"
+
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3.3"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+django-server = "run_gunicorn:main"
