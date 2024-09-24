@@ -1,13 +1,13 @@
 [tool.poetry]
-name = "agl_monitor_flake"
+name = "agl-anonymizer"
 
 packages = [
-    { include = "agl_monitor_flake" }
+    { include = "agl_anonymizer" }
 ]
 
 version = "0.1.0"
-description = ""
-authors = ["Thomas J. Lux"]
+description = "This package anonymizes sensitive name data in images and extract the contents."
+authors = ["maxhild <58726316+maxhild@users.noreply.github.com>"]
 license = "MIT"
 readme = "README.md"
 
@@ -15,6 +15,22 @@ readme = "README.md"
 python = "^3.11"
 django = "~4.2"
 gunicorn = "^23.0.0"
+transformers = "^4.20.0"
+Pillow = "^9.0.0"
+PyMuPDF = "^1.20.0"
+numpy = "1.26.4"
+spacy = "^3.4.0"
+requests = "2.31.0"
+flair = "0.13.0"
+gender-guesser = "0.4.0"
+PyPDF2 = "3.0.1"
+reportlab = "4.1.0"
+torch = "^2.2.2" # torch = "^1.10.0"
+gensim = "^4.1.2"
+djangorestframework = "^3.14.0"
+django-bootstrap5 = "^23.4"
+agl-anonymizer-pipeline = "^0.1.2"
+opencv-python-headless = "^4.10.0.84"
 
 
 [tool.poetry.group.dev.dependencies]
@@ -25,4 +41,4 @@ requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
-django-server = "agl_monitor_flake.run_gunicorn:main"
+django-server = "agl_anonymizer_flake.run_gunicorn:main"

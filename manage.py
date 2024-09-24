@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/nix/store/lpi16513bai8kg2bd841745vzk72475x-python3-3.11.9/bin/python
 """Django's command-line utility for administrative tasks."""
 import os
 import sys
@@ -6,7 +6,7 @@ import sys
 
 def main():
     """Run administrative tasks."""
-    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'agl_monitor_flake.settings')
+    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'agl_anonymizer.settings')
     try:
         from django.core.management import execute_from_command_line
     except ImportError as exc:
