@@ -25,4 +25,4 @@ requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
-django-server = "run_gunicorn:main"
+django-server = "agl_monitor_flake.run_gunicorn:main"
