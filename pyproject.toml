@@ -18,7 +18,7 @@ gunicorn = "^23.0.0"
 requests = "2.31.0"
 djangorestframework = "^3.14.0"
 django-bootstrap5 = "^23.4"
-agl-anonymizer-pipeline = "^0.1"
+agl-anonymizer-pipeline = "^0.1.5"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.3"

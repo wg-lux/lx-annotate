@@ -10,18 +10,18 @@
     poetry2nix.inputs.nixpkgs.follows = "nixpkgs";
   };
 
-  outputs = { nixpkgs, poetry2nix, ... } @ inputs: 
+  outputs = { nixpkgs, poetry2nix, ... } @ inputs:
   let
     system = "x86_64-linux";
     self = inputs.self;
-    version = "0.1.${pkgs.lib.substring 0 8 inputs.self.lastModifiedDate}.${inputs.self.shortRev or "dirty"}";
-
 
     # Import nixpkgs with desired configuration
     raw-pkgs = import nixpkgs {
       inherit system;
-      config.allowUnfree = true;
-      config.cudaSupport = true;    
+      config = {
+        allowUnfree = true;
+        cudaSupport = true;
+      };
     };
 
     pkgs = raw-pkgs.extend poetry2nix.overlays.default;
@@ -39,10 +39,18 @@
       builtins.mapAttrs (package: build-requirements:
         (builtins.getAttr package prev).overridePythonAttrs (old: {
           buildInputs = (old.buildInputs or [ ]) ++ (
-            builtins.map (pkg: if builtins.isString pkg then builtins.getAttr pkg prev else pkg
-          ) build-requirements);
+            builtins.map (pkg:
+              if builtins.isString pkg then builtins.getAttr pkg prev else pkg
+            ) build-requirements
+          );
         })
       ) pypkgs-build-requirements
+      // {
+        pytorch = prev.pytorch.override {
+          cudaSupport = true;
+          cudatoolkit = pkgs.cudatoolkit; # Adjust this version if necessary
+        };
+      }
     );
 
     # Define the poetry-based application with CUDA support
@@ -51,25 +59,14 @@
       src = lib.cleanSource ./.;
       python = pkgs.python311Full;
       overrides = p2n-overrides;
-      # Include necessary native build inputs
-      nativeBuildInputs = with pkgs; [];
-
-      # # Handle local dependencies
-      # poetryOverrides = self: super: {
-      #     # Adjust the path to your local dependency
-      #     "agl-anonymizer-pipeline" = super."agl-anonymizer-pipeline".overridePythonAttrs (old: rec {
-      #       src = ../agl_anonymizer_pipeline;
-      #     });
-      #   };
+      nativeBuildInputs = with pkgs; [ pkgs.cudatoolkit ];
+      buildInputs = with pkgs; [ pkgs.cudatoolkit ];
     };
 
   in {
     # Define the development shell
     devShells.${system}.default = pkgs.mkShell {
-      buildInputs = with pkgs; [];
-
-      # Set environment variables in shellHook
-      # shellHook = '''';
+      buildInputs = with pkgs; [ pkgs.cudatoolkit ];
     };
 
     # Define the package
