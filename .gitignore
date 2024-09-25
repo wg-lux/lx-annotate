@@ -6,7 +6,10 @@ __pycache__/
 *$py.class
 *.kate-swp
 db.sqlite3
-
+.direnv/
+logs/
+.env
+result
 
 # C extensions
 *.so
