@@ -32,6 +32,7 @@
       conllu = [ "setuptools" ];
       janome = [ "setuptools" ];
       pptree = [ "setuptools" ];
+      wikipedia-api = [ "setuptools" ];
       safetensors = [ "maturin" ];
     };
 
@@ -57,16 +58,39 @@
     poetryApplication = pkgs.poetry2nix.mkPoetryApplication {
       projectDir = ./.;
       src = lib.cleanSource ./.;
-      python = pkgs.python311Full;
+      python = (pkgs.python3.buildEnv.override {
+        extraLibs = with pkgs.python3Packages; [ cudatoolkit ];
+      }).env;
+      preferWheels = true;
       overrides = p2n-overrides;
-      nativeBuildInputs = with pkgs; [ pkgs.cudatoolkit ];
-      buildInputs = with pkgs; [ pkgs.cudatoolkit ];
+      #nativeBuildInputs = with pkgs; [ pkgs.cudaPackages.cudatoolkit ];
+      #buildInputs = with pkgs; [ pkgs.cudaPackages.cudatoolkit ];
+      #propagatedBuildInputs = with pkgs; [
+      #  pkgs.cudaPackages.cudatoolkit   
+      #  pkgs.cudaPackages.cudnn
+      #  pkgs.linuxPackages.nvidia_x11
+      #  pkgs.glibc pkgs.glib
+      #  pkgs.libGLU pkgs.libGL
+      #  pkgs.xorg.libXi pkgs.xorg.libXmu pkgs.freeglut
+      #  pkgs.xorg.libXext pkgs.xorg.libX11 pkgs.xorg.libXv pkgs.xorg.libXrandr pkgs.zlib
+      #  pkgs.ncurses5 pkgs.stdenv.cc pkgs.binutils
+      #];
+      ##postShellHook = ''
+      ##  export CUDA_PATH=${pkgs.cudaPackages.cudatoolkit}
+      ##  export LD_LIBRARY_PATH="${pkgs.linuxPackages.nvidia_x11}/lib:${pkgs.zlib}/lib:${pkgs.stdenv.cc.cc.lib}/lib:${pkgs.libGL}/lib:${pkgs.libGLU}/lib:${pkgs.glib}/lib:${pkgs.glibc}/lib:$LD_LIBRARY_PATH"
+      ##  export EXTRA_LDFLAGS="-L/lib -L${pkgs.linuxPackages.nvidia_x11}/lib"
+      ##  export EXTRA_CCFLAGS="-I/usr/include"
+      ##  export CC=${pkgs.cudaPackages.cudatoolkit.cc}/bin/gcc CXX=${pkgs.cudaPackages.cudatoolkit.cc}/bin/g++
+      ##  export CUDA_NVCC_FLAGS="--compiler-bindir=$(which gcc)"
+##
+      ##'';
     };
 
   in {
     # Define the development shell
     devShells.${system}.default = pkgs.mkShell {
-      buildInputs = with pkgs; [ pkgs.cudatoolkit ];
+      buildInputs = with pkgs; [ pkgs.cudaPackages.cudatoolkit ];
+      
     };
 
     # Define the package
