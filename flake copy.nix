@@ -12,6 +12,7 @@
       ];
     extra-substituters = "https://cache.nixos.org https://nix-community.cachix.org https://cuda-maintainers.cachix.org";
     extra-trusted-public-keys = "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs= cuda-maintainers.cachix.org-1:0dq3bujKpuEPMCX6U4WylrUDZ9JyUG0VpVZa7CNfq5E=";
+
   };
 
 
@@ -22,27 +23,15 @@
     # poetry2nix should follow the same nixpkgs
     poetry2nix.url = "github:nix-community/poetry2nix";
     poetry2nix.inputs.nixpkgs.follows = "nixpkgs";
-
-    cachix = {
-      url = "github:cachix/cachix";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
   };
 
-  outputs = { nixpkgs, cachix, ... } @ inputs:
+  outputs = { nixpkgs, ... } @ inputs:
   let
-    nvidiaCache = cachix.lib.mkCachixCache {
-        inherit (pkgs) lib;
-        name = "nvidia";
-        publicKey = "nvidia.cachix.org-1:dSyZxI8geDCJrwgvBfPH3zHMC+PO6y/BT7O6zLBOv0w=";
-        secretKey = null;  # not needed for pulling from the cache
-      };
-
     system = "x86_64-linux";
     self = inputs.self;
 
     # Import nixpkgs with desired configuration
-    pkgs = import nixpkgs {
+    raw-pkgs = import nixpkgs {
       inherit system;
       config = {
         allowUnfree = true;
@@ -50,18 +39,21 @@
       };
     };
 
+    # pkgs = nixpkgs.legacyPackages.${system};
+
+    # pkgs = raw-pkgs.extend poetry2nix.overlays.default;
+    poetry2nix = inputs.poetry2nix.lib.mkPoetry2Nix { inherit pkgs;};
+
+    lib = pkgs.lib;
+
     pypkgs-build-requirements = {
       gender-guesser = [ "setuptools" ];
       conllu = [ "setuptools" ];
       janome = [ "setuptools" ];
       pptree = [ "setuptools" ];
       wikipedia-api = [ "setuptools" ];
+      safetensors = [ "maturin" ];
     };
-
-
-    poetry2nix = inputs.poetry2nix.lib.mkPoetry2Nix { inherit pkgs;};
-
-    lib = pkgs.lib;
 
     p2n-overrides = poetry2nix.defaultPoetryOverrides.extend (final: prev:
       builtins.mapAttrs (package: build-requirements:
@@ -81,39 +73,66 @@
       }
     );
 
-
-  in {
-
-    packages.x86_64-linux.poetryApp = poetry2nix.mkPoetryApplication {
-      python = pkgs.python311;
+    poetryEnv = poetry2nix.mkPoetryEnv {
       projectDir = ./.;
-      src = lib.cleanSource ./.;
-      propagatedBuildInputs =  with pkgs.python311Packages; [
-        
-        torch-bin
-        torchvision-bin
-        torchaudio-bin
-        # transformers
-      ];
+      python = pkgs.python311Full;
+      # preferWheels = true;
+      overrides = p2n-overrides;
+
+
+
+      # extraPackages = (ps: [
+      #   ps.torch-bin
+      #   ps.torchvision-bin
+      #   ps.torchaudio-bin
+      # ]);
+
+      # # Example of custom installPhase, passed through until it reaches mkDerivation
+      # installPhase = ''
+      #   mkdir -p "$out/bin"
+      #   echo "#! ${stdenv.shell}" >> "$out/bin/hello"
+      #   echo "exec $(which hello)" >> "$out/bin/hello"
+      #   chmod 0755 "$out/bin/hello"
+      # '';
     };
 
+    # Define the poetry-based application with CUDA support
+    poetryApplication = poetry2nix.mkPoetryApplication {
+      projectDir = ./.;
+      src = lib.cleanSource ./.;
+      python = pkgs.python311Full;
+      preferWheels = true;
+      overrides = p2n-overrides;
+      # buildInputs = with pkgs; [
+      #   poetryEnv
+      #   pkgs.cudaPackages.cudatoolkit
+      # ];
+    };
 
-    nixConfig = {
-        binary-caches = [
-          nvidiaCache.binaryCachePublicUrl
-        ];
-        binary-cache-public-keys = [
-          nvidiaCache.publicKey
-        ];
-        # enable cuda support
-        cudaSupport = true;
+  in {
+    # Define the development shell
+    # devShells.${system}.default = pkgs.mkShell {
+    #   buildInputs = with pkgs; [ pkgs.cudaPackages.cudatoolkit ];
+    # };
 
-      };
+    devShells.${system}.default =  poetryEnv;
 
+    # devShells.${system}.default = pkgs.mkShell {
+    #   buildInputs = with pkgs; [
+    #     poetryEnv
+    #     pkgs.cudaPackages.cudatoolkit
+    #   ];
+    # };
 
-    devShells.x86_64-linux.default = pkgs.mkShell {
-      inputsFrom = [ self.packages.x86_64-linux.poetryApp ];
-      packages = [ pkgs.poetry ];
+    # Define the package
+    packages.${system}.default = poetryApplication;
+
+    packages.${system}.test = 
+
+    # Define the application entry point
+    apps.${system}.default = {
+      type = "app";
+      program = "${poetryApplication}/bin/django-server";
     };
   };
 }
