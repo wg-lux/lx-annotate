@@ -4,6 +4,10 @@ agl_anonymizer/models/frozen_east_text_detection.pb
 __pycache__/
 *.py[cod]
 *$py.class
+*.kate-swp
+db.sqlite3
+*/flake-profile*
+.direnv/
 
 # C extensions
 *.so

@@ -10,110 +10,66 @@
     poetry2nix.inputs.nixpkgs.follows = "nixpkgs";
   };
 
-  outputs = { self, nixpkgs, poetry2nix, ... }:
+  outputs = { nixpkgs, poetry2nix, ... } @ inputs: 
   let
     system = "x86_64-linux";
+    self = inputs.self;
+    version = "0.1.${pkgs.lib.substring 0 8 inputs.self.lastModifiedDate}.${inputs.self.shortRev or "dirty"}";
+
 
     # Import nixpkgs with desired configuration
-    pkgs = import nixpkgs {
+    raw-pkgs = import nixpkgs {
       inherit system;
-      config = {
-        allowUnfree = true;
-        cudaSupport = true;
-      };
+      config.allowUnfree = true;
+      config.cudaSupport = true;    
     };
 
+    pkgs = raw-pkgs.extend poetry2nix.overlays.default;
     lib = pkgs.lib;
 
+    pypkgs-build-requirements = {
+      gender-guesser = [ "setuptools" ];
+      conllu = [ "setuptools" ];
+      janome = [ "setuptools" ];
+      pptree = [ "setuptools" ];
+      safetensors = [ "maturin" ];
+    };
+
+    p2n-overrides = pkgs.poetry2nix.defaultPoetryOverrides.extend (final: prev:
+      builtins.mapAttrs (package: build-requirements:
+        (builtins.getAttr package prev).overridePythonAttrs (old: {
+          buildInputs = (old.buildInputs or [ ]) ++ (
+            builtins.map (pkg: if builtins.isString pkg then builtins.getAttr pkg prev else pkg
+          ) build-requirements);
+        })
+      ) pypkgs-build-requirements
+    );
+
     # Define the poetry-based application with CUDA support
-    poetryApplication = poetry2nix.packages.${system}.mkPoetryApplication {
+    poetryApplication = pkgs.poetry2nix.mkPoetryApplication {
       projectDir = ./.;
       src = lib.cleanSource ./.;
       python = pkgs.python311Full;
-
+      overrides = p2n-overrides;
       # Include necessary native build inputs
-      nativeBuildInputs = with pkgs; [
-        stdenv.cc.cc.lib
-        autoPatchelfHook
-        cudaPackages.cudatoolkit
-        cudaPackages.cudnn
-        opencv4
-        gcc11
-        gcc
-        libGLU
-        libGL
-        glibc
-        zlib
-        glib
-        xorg.libXi
-        xorg.libXmu
-        freeglut
-        xorg.libXext
-        xorg.libX11
-        xorg.libXv
-        xorg.libXrandr
-        ncurses5
-        binutils
-        pam
-      ];
+      nativeBuildInputs = with pkgs; [];
 
-      # Set environment variables during build using preBuild
-      preBuild = ''
-        export CUDA_PATH=${pkgs.cudaPackages.cudatoolkit}
-        export LD_LIBRARY_PATH="${pkgs.linuxPackages.nvidia_x11}/lib:${pkgs.zlib.out}/lib:${pkgs.stdenv.cc.cc.lib}/lib:${pkgs.libGL}/lib:${pkgs.libGLU}/lib:${pkgs.glib}/lib:${pkgs.glibc}/lib:$LD_LIBRARY_PATH"
-        export EXTRA_LDFLAGS="-L/lib -L${pkgs.linuxPackages.nvidia_x11}/lib"
-        export EXTRA_CCFLAGS="-I/usr/include"
-        export CUDA_NVCC_FLAGS="--compiler-bindir=$(which gcc)"
-      '';
-
-      # Handle local dependencies
-      poetryOverrides = self: super: {
-        # Adjust the path to your local dependency
-        "agl-anonymizer-pipeline" = super."agl-anonymizer-pipeline".overridePythonAttrs (old: rec {
-          src = ../agl_anonymizer_pipeline;
-        });
-      };
+      # # Handle local dependencies
+      # poetryOverrides = self: super: {
+      #     # Adjust the path to your local dependency
+      #     "agl-anonymizer-pipeline" = super."agl-anonymizer-pipeline".overridePythonAttrs (old: rec {
+      #       src = ../agl_anonymizer_pipeline;
+      #     });
+      #   };
     };
 
   in {
     # Define the development shell
     devShells.${system}.default = pkgs.mkShell {
-      buildInputs = with pkgs; [
-        poetry
-        python311Full
-        stdenv.cc.cc.lib
-        autoPatchelfHook
-        cudaPackages.cudatoolkit
-        cudaPackages.cudnn
-        opencv4
-        gcc11
-        gcc
-        libGLU
-        libGL
-        glibc
-        zlib
-        glib
-        xorg.libXi
-        xorg.libXmu
-        freeglut
-        xorg.libXext
-        xorg.libX11
-        xorg.libXv
-        xorg.libXrandr
-        ncurses5
-        binutils
-        pam
-        nginx
-      ];
+      buildInputs = with pkgs; [];
 
       # Set environment variables in shellHook
-      shellHook = ''
-        export CUDA_PATH=${pkgs.cudaPackages.cudatoolkit}
-        export LD_LIBRARY_PATH="${pkgs.linuxPackages.nvidia_x11}/lib:${pkgs.zlib.out}/lib:${pkgs.stdenv.cc.cc.lib}/lib:${pkgs.libGL}/lib:${pkgs.libGLU}/lib:${pkgs.glib}/lib:${pkgs.glibc}/lib:$LD_LIBRARY_PATH"
-        export EXTRA_LDFLAGS="-L/lib -L${pkgs.linuxPackages.nvidia_x11}/lib"
-        export EXTRA_CCFLAGS="-I/usr/include"
-        export CUDA_NVCC_FLAGS="--compiler-bindir=$(which gcc)"
-      '';
+      # shellHook = '''';
     };
 
     # Define the package
