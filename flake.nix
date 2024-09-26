@@ -205,7 +205,7 @@
           };
         };
 
-        config = lib.mkIf self.enable {
+        config = lib.mkIf self.options.services.agl-anonymizer.enable {
           systemd.services.agl-anonymizer = {
             description = "AGL Anonymizer service";
             after = [ "network.target" ];
