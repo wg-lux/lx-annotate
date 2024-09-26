@@ -13,17 +13,11 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.11"
-django = "~4.2"
+django = "^5.1.1"
 gunicorn = "^23.0.0"
-requests = "2.31.0"
-djangorestframework = "^3.14.0"
-django-bootstrap5 = "^23.4"
-# agl-anonymizer-pipeline = "^0.1.5"
 
-[tool.poetry.group.cuda.dependencies]
-torch = "2.3.0"
-torchvision = "0.18.0"
-torchaudio = "2.3.0"
+[tool.poetry.group.nixProvided.dependencies]
+agl_anonymizer_pipeline = "0.1.6"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.3"
@@ -33,4 +27,24 @@ requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
-django-server = "agl_anonymizer_flake.run_gunicorn:main"
+django-server = "agl_anonymizer.run_gunicorn:main"
+
+
+# opencv-python-headless = "^4.10.0.84"
+# django = "^5.1.1"
+
+# flake8 = "^3.9.2"
+## agl-report-reader deps
+# Faker = "^19.10.0"
+
+# gunicorn = "^23.0.0"
+# requests = "^2.32.3"
+
+# django-celery-beat = "^2.7.0"
+# django-redis = "^5.1.0"
+# django-flat-theme = "^1.1.4"
+# django-celery-results = "^2.5.1"
+# whitenoise = {extras = ["brotli"], version = "^6.7.0"}
+# celery = "^5.4.0"
+# spacy = "^3.7.6"
+# transformers = "^4.45.0"

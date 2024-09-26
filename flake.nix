@@ -23,13 +23,16 @@
     poetry2nix.url = "github:nix-community/poetry2nix";
     poetry2nix.inputs.nixpkgs.follows = "nixpkgs";
 
+    agl_anonymizer_pipeline.url = "github:wg-lux/agl_anonymizer_pipeline";
+    agl_anonymizer_pipeline.inputs.nixpkgs.follows = "nixpkgs";
+
     cachix = {
       url = "github:cachix/cachix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };
 
-  outputs = { nixpkgs, cachix, ... } @ inputs:
+  outputs = { nixpkgs, cachix, agl_anonymizer_pipeline, ... } @ inputs:
   let
     nvidiaCache = cachix.lib.mkCachixCache {
         inherit (pkgs) lib;
@@ -56,6 +59,9 @@
       janome = [ "setuptools" ];
       pptree = [ "setuptools" ];
       wikipedia-api = [ "setuptools" ];
+      django-flat-theme = [ "setuptools" ];
+      django-flat-responsive = [ "setuptools" ];
+      # transformers = [ "maturin" ];
     };
 
 
@@ -73,30 +79,31 @@
           );
         })
       ) pypkgs-build-requirements
-      // {
-        pytorch = prev.pytorch.override {
-          cudaSupport = true;
-          cudatoolkit = pkgs.cudatoolkit; # Adjust this version if necessary
-        };
-      }
     );
 
-
-  in {
-
-    packages.x86_64-linux.poetryApp = poetry2nix.mkPoetryApplication {
+    poetryApp = poetry2nix.mkPoetryApplication {
       python = pkgs.python311;
       projectDir = ./.;
       src = lib.cleanSource ./.;
-      propagatedBuildInputs =  with pkgs.python311Packages; [
-        
-        torch-bin
-        torchvision-bin
-        torchaudio-bin
-        # transformers
+      # groups = ["dev"];
+      overrides = p2n-overrides;
+      
+      preferWheels = true; # required for transformers via p2n
+
+      propagatedBuildInputs =  with pkgs.python311Packages; [];
+
+      nativeBuildInputs = with pkgs; [
+        python311Packages.pip
+        python311Packages.setuptools
+        python311Packages.torch-bin
+        python311Packages.torchvision-bin
+        python311Packages.torchaudio-bin
+
+        agl_anonymizer_pipeline.packages.x86_64-linux.poetryApp
       ];
     };
-
+    
+  in {
 
     nixConfig = {
         binary-caches = [
@@ -107,13 +114,24 @@
         ];
         # enable cuda support
         cudaSupport = true;
-
       };
+
+    
+
+    packages.x86_64-linux.poetryApp = poetryApp;
+    packages.x86_64-linux.default = poetryApp;
+
+    apps.x86_64-linux.default = {
+      type = "app";
+      program = "${poetryApp}/bin/django-server";
+    };
 
 
     devShells.x86_64-linux.default = pkgs.mkShell {
       inputsFrom = [ self.packages.x86_64-linux.poetryApp ];
       packages = [ pkgs.poetry ];
     };
+
+
   };
 }
