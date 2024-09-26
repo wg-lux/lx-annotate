@@ -34,6 +34,17 @@
 
   outputs = { nixpkgs, cachix, agl_anonymizer_pipeline, ... } @ inputs:
   let
+
+    anonymizer_dir = "/etc/anonymizer";
+
+    anonymizer_config = {
+      tmp_dir = "${anonymizer_dir}/tmp";
+      blurred_dir = "${anonymizer_dir}/blurred";
+      csv_dir = "${anonymizer_dir}/csv";
+      results_dir = "${anonymizer_dir}/results";
+      models_dir = "${anonymizer_dir}/models";
+    };
+
     nvidiaCache = cachix.lib.mkCachixCache {
         inherit (pkgs) lib;
         name = "nvidia";
@@ -101,6 +112,28 @@
 
         agl_anonymizer_pipeline.packages.x86_64-linux.poetryApp
       ];
+
+      # create directories for the anonymizer if they dont exist (from anonymizer_config)
+      # installPhase = ''
+      #   ${pkgs.sudo}/sudo mkdir -p ${anonymizer_dir}
+      #   sudo chown -R $USER ${anonymizer_dir}
+      #   sudo chgrp -R $USER ${anonymizer_dir}
+
+
+      #   echo "Creating directories for the anonymizer"
+      #   mkdir -p ${anonymizer_config.tmp_dir}
+      #   mkdir -p ${anonymizer_config.blurred_dir}
+      #   mkdir -p ${anonymizer_config.csv_dir}
+      #   mkdir -p ${anonymizer_config.results_dir}
+      #   mkdir -p ${anonymizer_config.models_dir}
+
+      #   echo Successfully created directories for the anonymizer:
+      #   echo "tmp_dir: ${anonymizer_config.tmp_dir}"
+      #   echo "blurred_dir: ${anonymizer_config.blurred_dir}"
+      #   echo "csv_dir: ${anonymizer_config.csv_dir}"
+      #   echo "results_dir: ${anonymizer_config.results_dir}"
+      #   echo "models_dir: ${anonymizer_config.models_dir}"
+      # '';
     };
     
   in {
@@ -130,6 +163,69 @@
     devShells.x86_64-linux.default = pkgs.mkShell {
       inputsFrom = [ self.packages.x86_64-linux.poetryApp ];
       packages = [ pkgs.poetry ];
+    };
+
+    nixosModules = {
+      agl-anonymizer = { ... }: {
+        options.services.agl-anonymizer = {
+          enable = lib.mkOption {
+            default = false;
+            description = "Enable the AGL Anonymizer service";
+          };
+
+          
+          config = lib.mkOption {
+            default = {
+              tmp_dir = "${anonymizer_dir}/tmp";
+              blurred_dir = "${anonymizer_dir}/blurred";
+              csv_dir = "${anonymizer_dir}/csv";
+              results_dir = "${anonymizer_dir}/results";
+              models_dir = "${anonymizer_dir}/models";
+            };
+            description = "Configuration for the AGL Anonymizer service";
+          };
+
+          user = lib.mkOption {
+            default = "anonymizer";
+            description = "User to run the AGL Anonymizer service as";
+          };
+
+          group = lib.mkOption {
+            default = "service-user";
+            description = "Group to run the AGL Anonymizer service as";
+          };
+
+          django-config = lib.mkOption {
+            description = "Django configuration (debug, settings-modulem etc.)";
+            default = {
+              debug = false;
+              settings_module = "agl_anonymizer.settings";
+              port = 9123;
+            };
+          };
+        };
+
+        config = lib.mkIf self.enable {
+          systemd.services.agl-anonymizer = {
+            description = "AGL Anonymizer service";
+            after = [ "network.target" ];
+            wantedBy = [ "multi-user.target" ];
+            serviceConfig = {
+              Type = "always"; # or "simple"
+              User = self.user;
+              Group = self.group;
+              ExecStart = "${poetryApp}/bin/django-server runserver"; # ADD ARGUMENTS ${config.services.agl-anonymizer.django-config.port}";
+              WorkingDirectory = ./.;
+              Environment = [
+                # "DJANGO_DEBUG=${toString config.services.agl-anonymizer.django-config.debug}"
+                # "DJANGO_SETTINGS_MODULE=${config.services.agl-anonymizer.django-config.settings_module}"
+              ];
+            };
+          };
+        };
+
+
+      };
     };
 
 
