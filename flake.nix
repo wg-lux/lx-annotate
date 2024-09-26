@@ -211,9 +211,9 @@
             after = [ "network.target" ];
             wantedBy = [ "multi-user.target" ];
             serviceConfig = {
-              Type = "always"; # or "simple"
+              Restart = "always";
               User = config.services.agl-anonymizer.user;
-              Group = config.services.agl-anonymizer.group;
+              # Group = config.services.agl-anonymizer.group;
               ExecStart = "${poetryApp}/bin/django-server runserver"; # ADD ARGUMENTS ${config.services.agl-anonymizer.django-config.port}";
               WorkingDirectory = ./.;
               Environment = [
