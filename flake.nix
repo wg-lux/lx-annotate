@@ -166,7 +166,7 @@
     };
 
     nixosModules = {
-      agl-anonymizer = { ... }: {
+      agl-anonymizer = { config, pkgs, lib, ... }: {
         options.services.agl-anonymizer = {
           enable = lib.mkOption {
             default = false;
@@ -205,7 +205,7 @@
           };
         };
 
-        config = lib.mkIf options.services.agl-anonymizer.enable {
+        config = lib.mkIf config.services.agl-anonymizer.enable {
           systemd.services.agl-anonymizer = {
             description = "AGL Anonymizer service";
             after = [ "network.target" ];
