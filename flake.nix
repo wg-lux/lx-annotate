@@ -17,7 +17,7 @@
 
   inputs = {
     # Use a single nixpkgs input to avoid conflicts
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.05";
 
     # poetry2nix should follow the same nixpkgs
     poetry2nix.url = "github:nix-community/poetry2nix";
