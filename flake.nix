@@ -112,6 +112,8 @@
         python311Packages.django
         python311Packages.djangorestframework
 
+        python311Packages.django
+
         agl_anonymizer_pipeline.packages.x86_64-linux.poetryApp
       ];
 
