@@ -163,6 +163,11 @@
     devShells.x86_64-linux.default = pkgs.mkShell {
       inputsFrom = [ self.packages.x86_64-linux.poetryApp ];
       packages = [ pkgs.poetry ];
+        shellHook = ''
+          export CUDA_PATH=${pkgs.cudaPackages.cudatoolkit}
+          export CUDA_NVCC_FLAGS="--compiler-bindir=$(which gcc)"
+          export PATH="${pkgs.cudaPackages.cudatoolkit}/bin:$PATH"
+        '';
     };
 
     nixosModules = {
