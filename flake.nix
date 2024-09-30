@@ -109,6 +109,8 @@
         python311Packages.torch-bin
         python311Packages.torchvision-bin
         python311Packages.torchaudio-bin
+        python311Packages.django
+        python311Packages.djangorestframework
 
         agl_anonymizer_pipeline.packages.x86_64-linux.poetryApp
       ];
