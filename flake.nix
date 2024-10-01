@@ -179,8 +179,7 @@
             default = false;
             description = "Enable the AGL Anonymizer service";
           };
-
-          
+    
           config = lib.mkOption {
             default = {
               tmp_dir = "${anonymizer_dir}/tmp";
