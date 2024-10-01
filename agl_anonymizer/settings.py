@@ -189,3 +189,7 @@ LOGGING = {
 #         'rest_framework.permissions.IsAuthenticated',
 #     ],
 # }
+
+# Media files settings
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')

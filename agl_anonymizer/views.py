@@ -22,8 +22,10 @@ class ProcessFileView(APIView):
             file = serializer.validated_data['file']
             validation = request.POST.get('validation', 'false').lower() in ['true', '1']
 
-            # Save the uploaded file to a temporary location
-            temp_file_path = os.path.join(settings.MEDIA_ROOT, file.name)
+            # Save the uploaded file to a temporary location within MEDIA_ROOT
+            temp_file_name = f"{uuid.uuid4()}_{file.name}"
+            temp_file_path = os.path.join(settings.MEDIA_ROOT, 'temp', temp_file_name)
+            os.makedirs(os.path.dirname(temp_file_path), exist_ok=True)
             with open(temp_file_path, 'wb') as temp_file:
                 for chunk in file.chunks():
                     temp_file.write(chunk)
@@ -35,14 +37,19 @@ class ProcessFileView(APIView):
                     raise FileNotFoundError(f"Model file not found: {east_model_path}")
 
                 # Call the main processing function
-                output_path, stats, original_img_path = main(temp_file_path, east_path=east_model_path, device=device, validation=validation)
+                output_path, stats, original_img_path = main(
+                    temp_file_path,
+                    east_path=east_model_path,
+                    device=device,
+                    validation=validation
+                )
 
                 if validation:
                     # Prepare the data to be sent to the endoreg client manager
                     data_to_send = {
                         'image_name': os.path.basename(temp_file_path),
                         'original_image_url': original_img_path,
-                        'polyp_count': 0,  # Placeholder, model tba from 'polyp_count' to 0
+                        'polyp_count': 0,  # Placeholder, model to be added
                         'comments': "Generated during anonymization",
                         'gender_pars': stats['gender_pars'],
                         'processed_file': output_path
@@ -62,22 +69,26 @@ class ProcessFileView(APIView):
                         'api_response': response.json(),
                     }, status=status.HTTP_200_OK)
                 else:
-                    # When validation is False, return the output paths as URLs
+                    # When validation is False, save the output files to MEDIA_ROOT and return their URLs
 
                     # Generate unique filenames to avoid conflicts
                     processed_filename = f"{uuid.uuid4()}_{os.path.basename(output_path)}"
                     original_filename = f"{uuid.uuid4()}_{os.path.basename(original_img_path)}"
 
-                    processed_file_destination = os.path.join(settings.MEDIA_ROOT, processed_filename)
-                    original_file_destination = os.path.join(settings.MEDIA_ROOT, original_filename)
+                    processed_file_destination = os.path.join(settings.MEDIA_ROOT, 'processed', processed_filename)
+                    original_file_destination = os.path.join(settings.MEDIA_ROOT, 'original', original_filename)
+
+                    # Ensure the directories exist
+                    os.makedirs(os.path.dirname(processed_file_destination), exist_ok=True)
+                    os.makedirs(os.path.dirname(original_file_destination), exist_ok=True)
 
                     # Copy the files to MEDIA_ROOT
                     copyfile(output_path, processed_file_destination)
                     copyfile(original_img_path, original_file_destination)
 
                     # Build URLs to access the files
-                    processed_file_url = request.build_absolute_uri(settings.MEDIA_URL + processed_filename)
-                    original_image_url = request.build_absolute_uri(settings.MEDIA_URL + original_filename)
+                    processed_file_url = request.build_absolute_uri(settings.MEDIA_URL + 'processed/' + processed_filename)
+                    original_image_url = request.build_absolute_uri(settings.MEDIA_URL + 'original/' + original_filename)
 
                     return JsonResponse({
                         'status': 'success',
@@ -88,7 +99,9 @@ class ProcessFileView(APIView):
                     }, status=status.HTTP_200_OK)
 
             except Exception as e:
-                return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                import traceback
+                traceback_str = traceback.format_exc()
+                return Response({'error': str(e), 'traceback': traceback_str}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
             finally:
                 if os.path.exists(temp_file_path):
                     os.remove(temp_file_path)
