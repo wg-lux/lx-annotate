@@ -5,15 +5,14 @@
     substituters = [
         "https://cache.nixos.org"
         "https://cuda-maintainers.cachix.org"
-      ];
+    ];
     trusted-public-keys = [
         "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
         "cuda-maintainers.cachix.org-1:0dq3bujKpuEPMCX6U4WylrUDZ9JyUG0VpVZa7CNfq5E="
-      ];
+    ];
     extra-substituters = "https://cache.nixos.org https://nix-community.cachix.org https://cuda-maintainers.cachix.org";
     extra-trusted-public-keys = "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs= cuda-maintainers.cachix.org-1:0dq3bujKpuEPMCX6U4WylrUDZ9JyUG0VpVZa7CNfq5E=";
   };
-
 
   inputs = {
     # Use a single nixpkgs input to avoid conflicts
@@ -34,7 +33,6 @@
 
   outputs = { nixpkgs, cachix, agl_anonymizer_pipeline, ... } @ inputs:
   let
-
     anonymizer_dir = "/etc/anonymizer";
 
     anonymizer_config = {
@@ -46,11 +44,11 @@
     };
 
     nvidiaCache = cachix.lib.mkCachixCache {
-        inherit (pkgs) lib;
-        name = "nvidia";
-        publicKey = "nvidia.cachix.org-1:dSyZxI8geDCJrwgvBfPH3zHMC+PO6y/BT7O6zLBOv0w=";
-        secretKey = null;  # not needed for pulling from the cache
-      };
+      inherit (pkgs) lib;
+      name = "nvidia";
+      publicKey = "nvidia.cachix.org-1:dSyZxI8geDCJrwgvBfPH3zHMC+PO6y/BT7O6zLBOv0w=";
+      secretKey = null;  # not needed for pulling from the cache
+    };
 
     system = "x86_64-linux";
     self = inputs.self;
@@ -72,11 +70,9 @@
       wikipedia-api = [ "setuptools" ];
       django-flat-theme = [ "setuptools" ];
       django-flat-responsive = [ "setuptools" ];
-      # transformers = [ "maturin" ];
     };
 
-
-    poetry2nix = inputs.poetry2nix.lib.mkPoetry2Nix { inherit pkgs;};
+    poetry2nix = inputs.poetry2nix.lib.mkPoetry2Nix { inherit pkgs; };
 
     lib = pkgs.lib;
 
@@ -96,12 +92,16 @@
       python = pkgs.python311;
       projectDir = ./.;
       src = lib.cleanSource ./.;
-      # groups = ["dev"];
       overrides = p2n-overrides;
       
       preferWheels = true; # required for transformers via p2n
 
-      propagatedBuildInputs =  with pkgs.python311Packages; [];
+    packages.${system}.agl_anonymizer_pipeline = poetry2nix.mkPoetryApplication {
+      python = pkgs.python311;
+      projectDir = "${agl_anonymizer_pipeline}";
+      src = agl_anonymizer_pipeline;
+    };
+
 
       nativeBuildInputs = with pkgs; [
         python311Packages.pip
@@ -109,48 +109,20 @@
         python311Packages.torch-bin
         python311Packages.torchvision-bin
         python311Packages.torchaudio-bin
-        
-
-        agl_anonymizer_pipeline.packages.x86_64-linux.poetryApp
       ];
-
-      # create directories for the anonymizer if they dont exist (from anonymizer_config)
-      # installPhase = ''
-      #   ${pkgs.sudo}/sudo mkdir -p ${anonymizer_dir}
-      #   sudo chown -R $USER ${anonymizer_dir}
-      #   sudo chgrp -R $USER ${anonymizer_dir}
-
-
-      #   echo "Creating directories for the anonymizer"
-      #   mkdir -p ${anonymizer_config.tmp_dir}
-      #   mkdir -p ${anonymizer_config.blurred_dir}
-      #   mkdir -p ${anonymizer_config.csv_dir}
-      #   mkdir -p ${anonymizer_config.results_dir}
-      #   mkdir -p ${anonymizer_config.models_dir}
-
-      #   echo Successfully created directories for the anonymizer:
-      #   echo "tmp_dir: ${anonymizer_config.tmp_dir}"
-      #   echo "blurred_dir: ${anonymizer_config.blurred_dir}"
-      #   echo "csv_dir: ${anonymizer_config.csv_dir}"
-      #   echo "results_dir: ${anonymizer_config.results_dir}"
-      #   echo "models_dir: ${anonymizer_config.models_dir}"
-      # '';
     };
-    
+
   in {
 
     nixConfig = {
-        binary-caches = [
-          nvidiaCache.binaryCachePublicUrl
-        ];
-        binary-cache-public-keys = [
-          nvidiaCache.publicKey
-        ];
-        # enable cuda support
-        cudaSupport = true;
-      };
-
-    
+      binary-caches = [
+        nvidiaCache.binaryCachePublicUrl
+      ];
+      binary-cache-public-keys = [
+        nvidiaCache.publicKey
+      ];
+      cudaSupport = true;  # enable CUDA support
+    };
 
     packages.x86_64-linux.poetryApp = poetryApp;
     packages.x86_64-linux.default = poetryApp;
@@ -160,7 +132,6 @@
       program = "${poetryApp}/bin/django-server";
     };
 
-
     devShells.x86_64-linux.default = pkgs.mkShell {
       inputsFrom = [ self.packages.x86_64-linux.poetryApp ];
       packages = [ pkgs.poetry ];
@@ -168,10 +139,8 @@
         export CUDA_PATH=${pkgs.cudaPackages_11.cudatoolkit}
         export CUDA_NVCC_FLAGS="--compiler-bindir=$(which gcc)"
         export PATH="${pkgs.cudaPackages_11.cudatoolkit}/bin:$PATH"
-        
       '';
     };
-
 
     nixosModules = {
       agl-anonymizer = { config, pkgs, lib, ... }: {
@@ -203,7 +172,7 @@
           };
 
           django-config = lib.mkOption {
-            description = "Django configuration (debug, settings-modulem etc.)";
+            description = "Django configuration (debug, settings-module, etc.)";
             default = {
               debug = false;
               settings_module = "agl_anonymizer.settings";
@@ -220,21 +189,16 @@
             serviceConfig = {
               Restart = "always";
               User = config.services.agl-anonymizer.user;
-              # Group = config.services.agl-anonymizer.group;
-              ExecStart = "${poetryApp}/bin/django-server runserver"; # ADD ARGUMENTS ${config.services.agl-anonymizer.django-config.port}";
+              ExecStart = "${poetryApp}/bin/django-server runserver ${config.services.agl-anonymizer.django-config.port}";
               WorkingDirectory = ./.;
               Environment = [
-                # "DJANGO_DEBUG=${toString config.services.agl-anonymizer.django-config.debug}"
-                # "DJANGO_SETTINGS_MODULE=${config.services.agl-anonymizer.django-config.settings_module}"
+                "DJANGO_DEBUG=${toString config.services.agl-anonymizer.django-config.debug}"
+                "DJANGO_SETTINGS_MODULE=${config.services.agl-anonymizer.django-config.settings_module}"
               ];
             };
           };
         };
-
-
       };
     };
-
-
   };
 }
