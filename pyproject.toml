@@ -30,8 +30,8 @@ build-backend = "poetry.core.masonry.api"
 django-server = "agl_anonymizer.run_gunicorn:main"
 
 
-# opencv-python-headless = "^4.10.0.84"
-# django = "^5.1.1"
+#opencv-python-headless = "^4.10.0.84"
+#django = "^5.1.1"
 
 # flake8 = "^3.9.2"
 ## agl-report-reader deps
