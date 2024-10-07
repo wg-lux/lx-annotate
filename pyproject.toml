@@ -15,8 +15,6 @@ readme = "README.md"
 python = "^3.11"
 django = "^5.1.1"
 gunicorn = "^23.0.0"
-
-[tool.poetry.group.nixProvided.dependencies]
 agl_anonymizer_pipeline = "0.1.6"
 
 [tool.poetry.group.dev.dependencies]
