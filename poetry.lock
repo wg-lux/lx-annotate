@@ -2,13 +2,13 @@
 
 [[package]]
 name = "accelerate"
-version = "0.34.2"
+version = "1.0.0"
 description = "Accelerate"
 optional = false
 python-versions = ">=3.8.0"
 files = [
-    {file = "accelerate-0.34.2-py3-none-any.whl", hash = "sha256:d69159e2c4e4a473d14443b27d2d732929254e826b3ab4813b3785b5ac616c7c"},
-    {file = "accelerate-0.34.2.tar.gz", hash = "sha256:98c1ebe1f5a45c0a3af02dc60b5bb8b7d58d60c3326a326a06ce6d956b18ca5b"},
+    {file = "accelerate-1.0.0-py3-none-any.whl", hash = "sha256:6fc65cd7a43c41530e3cf8ffb1fbe3ac6e416ec3f4c9a55ddf407d374b887b68"},
+    {file = "accelerate-1.0.0.tar.gz", hash = "sha256:e39c99327d37c4583b4e6b70946915072b56f892836942eca22e1d25b71d6d4b"},
 ]
 
 [package.dependencies]
@@ -22,8 +22,8 @@ torch = ">=1.10.0"
 
 [package.extras]
 deepspeed = ["deepspeed"]
-dev = ["bitsandbytes", "black (>=23.1,<24.0)", "datasets", "diffusers", "evaluate", "hf-doc-builder (>=0.3.0)", "parameterized", "pytest (>=7.2.0,<=8.0.0)", "pytest-subtests", "pytest-xdist", "rich", "ruff (>=0.2.1,<0.3.0)", "scikit-learn", "scipy", "timm", "torchdata (>=0.8.0)", "torchpippy (>=0.2.0)", "tqdm", "transformers"]
-quality = ["black (>=23.1,<24.0)", "hf-doc-builder (>=0.3.0)", "ruff (>=0.2.1,<0.3.0)"]
+dev = ["bitsandbytes", "black (>=23.1,<24.0)", "datasets", "diffusers", "evaluate", "hf-doc-builder (>=0.3.0)", "parameterized", "pytest (>=7.2.0,<=8.0.0)", "pytest-subtests", "pytest-xdist", "rich", "ruff (>=0.6.4,<0.7.0)", "scikit-learn", "scipy", "timm", "torchdata (>=0.8.0)", "torchpippy (>=0.2.0)", "tqdm", "transformers"]
+quality = ["black (>=23.1,<24.0)", "hf-doc-builder (>=0.3.0)", "ruff (>=0.6.4,<0.7.0)"]
 rich = ["rich"]
 sagemaker = ["sagemaker"]
 test-dev = ["bitsandbytes", "datasets", "diffusers", "evaluate", "scikit-learn", "scipy", "timm", "torchdata (>=0.8.0)", "torchpippy (>=0.2.0)", "tqdm", "transformers"]
@@ -188,17 +188,17 @@ numpy = {version = ">=1.19.0", markers = "python_version >= \"3.9\""}
 
 [[package]]
 name = "boto3"
-version = "1.35.33"
+version = "1.35.34"
 description = "The AWS SDK for Python"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "boto3-1.35.33-py3-none-any.whl", hash = "sha256:4064e95d4035d4d3dd4eb59eaa5908d14d194b512d1dc1d271647b0c661fbdbb"},
-    {file = "boto3-1.35.33.tar.gz", hash = "sha256:d206e8295e856ded7c8fab086784dc17863ed9d735458145c2ef5b25604aef69"},
+    {file = "boto3-1.35.34-py3-none-any.whl", hash = "sha256:291e7b97a34967ed93297e6171f1bebb8529e64633dd48426760e3fdef1cdea8"},
+    {file = "boto3-1.35.34.tar.gz", hash = "sha256:57e6ee8504e7929bc094bb2afc879943906064179a1e88c23b4812e2c6f61532"},
 ]
 
 [package.dependencies]
-botocore = ">=1.35.33,<1.36.0"
+botocore = ">=1.35.34,<1.36.0"
 jmespath = ">=0.7.1,<2.0.0"
 s3transfer = ">=0.10.0,<0.11.0"
 
@@ -207,13 +207,13 @@ crt = ["botocore[crt] (>=1.21.0,<2.0a0)"]
 
 [[package]]
 name = "botocore"
-version = "1.35.33"
+version = "1.35.34"
 description = "Low-level, data-driven core of boto 3."
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "botocore-1.35.33-py3-none-any.whl", hash = "sha256:b7b1ed59a224616912c7546fa19ffd542c745818179ee0640a8a00b155bcd9cd"},
-    {file = "botocore-1.35.33.tar.gz", hash = "sha256:b149940c59aa318e020191c9e5644361b2371e77d0346a3819728b49d3fa2e4e"},
+    {file = "botocore-1.35.34-py3-none-any.whl", hash = "sha256:ccb0fe397b11b81c9abc0c87029d17298e17bf658d8db5c0c5a551a12a207e7a"},
+    {file = "botocore-1.35.34.tar.gz", hash = "sha256:789b6501a3bb4a9591c1fe10da200cc315c1fa5df5ada19c720d8ef06439b3e3"},
 ]
 
 [package.dependencies]
