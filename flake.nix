@@ -49,8 +49,8 @@
     clangStdEnv = pkgs.stdenvAdapters.overrideCC llvmPkgs.stdenv (llvmPkgs.clang.override {
       gccForLibs = gccPkg;  # Link Clang with libstdc++ from GCC
     });
-    anonymizer_temp_dir = "/var/tmp/anonymizer";
-    anonymizer_dir = "/var/anonymizer";
+    anonymizer_dir = "/etc/agl-anonymizer";
+    anonymizer_temp_dir = "/etc/agl-anonymizer-temp";
     anonymizer_config = {
       anonymizer_temp_dir = anonymizer_temp_dir;
       anonymizer_dir = anonymizer_dir;
@@ -302,6 +302,9 @@ nixosModules = {
             "AGL_ANONYMIZER_CSV_DIR=${config.services.agl-anonymizer.config.csv_dir}"
             "AGL_ANONYMIZER_RESULTS_DIR=${config.services.agl-anonymizer.config.results_dir}"
             "AGL_ANONYMIZER_MODELS_DIR=${config.services.agl-anonymizer.config.models_dir}"
+            "AGL_ANONYMIZER_INPUT_DIR=${config.services.agl-anonymizer.config.input_dir}"
+            "AGL_ANONYMIZER_MAIN_DIR=${config.services.agl-anonymizer.config.anonymizer_dir}"
+            "AGL_ANONYMIZER_TEMP_DIR=${config.services.agl-anonymizer.config.anonymizer_temp_dir}"
           ];
         };
       };
