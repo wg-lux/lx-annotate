@@ -182,6 +182,7 @@
         agl_anonymizer_pipeline.packages.x86_64-linux.poetryApp
       ];
 
+#      buildInputs = with pkgs; [
 #    installPhase = ''
 #      echo "Creating directories for the anonymizer"
 #
