@@ -30,12 +30,15 @@
       url = "github:cachix/cachix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    agl-network-config = {
+      url = "github:wg-lux/nix-config";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs = { nixpkgs, cachix, agl_anonymizer_pipeline, ... } @ inputs:
   let
-    anonymizer_temp_dir = "/var/tmp/anonymizer";
-    anonymizer_dir = "/var/anonymizer";
+    agl-network-config = agl-network-config.configurations.agl-gpu-client-dev;
     # Define the C++ toolchain with Clang and GCC
     clangVersion = "16";   # Version of Clang
     gccVersion = "13";     # Version of GCC
@@ -46,9 +49,11 @@
     clangStdEnv = pkgs.stdenvAdapters.overrideCC llvmPkgs.stdenv (llvmPkgs.clang.override {
       gccForLibs = gccPkg;  # Link Clang with libstdc++ from GCC
     });
-
-
+    anonymizer_temp_dir = "/var/tmp/anonymizer";
+    anonymizer_dir = "/var/anonymizer";
     anonymizer_config = {
+      anonymizer_temp_dir = anonymizer_temp_dir;
+      anonymizer_dir = anonymizer_dir;
       tmp_dir = "${anonymizer_temp_dir}/temp";
       blurred_dir = "${anonymizer_dir}/blurred_results";
       csv_dir = "${anonymizer_dir}/csv_training_data";
@@ -57,6 +62,56 @@
       # needs to be implemented
       input_dir = "${anonymizer_dir}/input";
     };
+    conf = agl-network-config.custom-logs;
+  
+    service-user = conf.owner;
+    service-group = conf.group;
+    custom-log-dir = conf.dir;
+    
+    dirSetupScript = pkgs.writeShellScriptBin "setup-agl-anonymizer-directory" ''
+        # Ensure the main directory exists
+        if [ ! -d "${anonymizer_config.anonymizer_dir}" ]; then
+            mkdir -p "${anonymizer_dir}"
+        fi
+        if [ ! -d "${anonymizer_config.tmp_dir}" ]; then
+            mkdir -p "${anonymizer_config.tmp_dir}"
+        fi
+
+        if [ ! -d "${anonymizer_config.blurred_dir}" ]; then
+            mkdir -p "${anonymizer_config.blurred_dir}"
+        fi
+
+        if [ ! -d "${anonymizer_config.csv_dir}" ]; then
+            mkdir -p "${anonymizer_config.csv_dir}"
+        fi
+
+        if [ ! -d "${anonymizer_config.results_dir}" ]; then
+            mkdir -p "${anonymizer_config.results_dir}"
+        fi
+
+        if [ ! -d "${anonymizer_config.models_dir}" ]; then
+            mkdir -p "${anonymizer_config.models_dir}"
+        fi
+
+        # Ensure the correct owner, group, and permissions
+        chown ${service-user}:${service-group} "${anonymizer_dir}"
+        chmod 775 "${anonymizer_dir}"
+
+        chown ${service-user}:${service-group} "${anonymizer_config.tmp_dir}"
+        chmod 775 "${anonymizer_config.tmp_dir}"
+
+        chown ${service-user}:${service-group} "${anonymizer_config.blurred_dir}"
+        chmod 775 "${anonymizer_config.blurred_dir}"
+
+        chown ${service-user}:${service-group} "${anonymizer_config.csv_dir}"
+        chmod 775 "${anonymizer_config.csv_dir}"
+
+        chown ${service-user}:${service-group} "${anonymizer_config.results_dir}"
+        chmod 775 "${anonymizer_config.results_dir}"
+
+        chown ${service-user}:${service-group} "${anonymizer_config.models_dir}"
+        chmod 775 "${anonymizer_config.models_dir}"
+    '';
 
     nvidiaCache = cachix.lib.mkCachixCache {
         inherit (pkgs) lib;
@@ -150,6 +205,23 @@
       };
     
   in {
+       # Define the new service that sets up the directory structure
+    systemd.services.custom-log-directory-setup = {
+        description = "Ensure the custom directory tree is available and has correct ownership and permissions";
+        serviceConfig = {
+            ExecStart = "${dirSetupScript}/bin/setup-custom-log-directory";
+            User = "root";  # Run as root to ensure directory creation and permissions are correct
+            Group = "root";
+            Type = "oneshot";  # Runs once at boot
+        };
+        wantedBy = [ "multi-user.target" ];  # Ensure this runs during boot
+        before = [ "agl-anonymizer" ];  # Ensure it runs before the logger service
+    };
+
+    # Ensure the scripts are available in system packages
+    environment.systemPackages = with pkgs; [
+        dirSetupScript
+    ];
 
     nixConfig = {
         binary-caches = [
@@ -190,17 +262,6 @@ nixosModules = {
       enable = lib.mkOption {
         default = false;
         description = "Enable the AGL Anonymizer service";
-      };
-
-      config = lib.mkOption {
-        default = {
-          tmp_dir = "${anonymizer_dir}/tmp";
-          blurred_dir = "${anonymizer_dir}/blurred";
-          csv_dir = "${anonymizer_dir}/csv";
-          results_dir = "${anonymizer_dir}/results";
-          models_dir = "${anonymizer_dir}/models";
-        };
-        description = "Configuration for the AGL Anonymizer service";
       };
 
       user = lib.mkOption {
