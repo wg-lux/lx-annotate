@@ -52,7 +52,7 @@ To use the AGL Anonymizer API, follow these steps:
    Place the images you want to process in a designated folder.
 
 2. **Configure Settings**:
-   Adjust settings in the configuration file (if applicable) to suit your anonymizing and blurring needs.
+   Adjust settings in the settings.py file
 
 3. **Run the Django Server**:
     ```bash
@@ -94,9 +94,81 @@ To use the AGL Anonymizer API, follow these steps:
     print(response.json())  # Assuming the server returns a JSON response
     ```
 
-## API Endpoints
+# API Endpoint: Process File
 
-- **/process/**: Endpoint to upload images and receive anonymized results.
+This API endpoint allows users to upload a file (image) for anonymization and further processing. The file can be processed in two modes:
+
+Validation Mode: When enabled, the processed data will be sent to the Endoreg Client Manager for validation and saving.
+Non-validation Mode: The processed file and the original image are saved, and their URLs are returned in the response.
+
+## URL
+
+POST /process-file/
+
+## Parameters
+
+1. file: The image file to be processed (required).
+2. device: The device name (optional). Default is olympus_cv_1500.
+3. validation: A flag to indicate if the validation mode is enabled (optional). Can be true or false. Default is false.
+
+## Request Example (Non-validation Mode)
+
+```bash
+curl -X POST http://<your-server>/process-file/ \
+    -F "file=@/path/to/your/image.jpg" \
+    -F "device=olympus_cv_1500" \
+    -F "validation=false"
+```
+## Request Example (Validation Mode)
+
+```bash
+curl -X POST http://<your-server>/process-file/ \
+    -F "file=@/path/to/your/image.jpg" \
+    -F "device=olympus_cv_1500" \
+    -F "validation=true"
+Response (Non-validation Mode)
+```
+
+If the validation mode is disabled, the API will return URLs for both the processed file and the original image.
+
+
+```json
+{
+  "status": "success",
+  "message": "Processing completed",
+  "processed_file_url": "<url-to-processed-file>",
+  "original_image_url": "<url-to-original-image>",
+  "gender_pars": { 
+    "male": 0.6, 
+    "female": 0.4 
+  }
+}```
+
+##Response (Validation Mode)
+
+If validation mode is enabled, the processed data will be sent to the Endoreg Client Manager to be displayed later once the user logs into the AGL Validator. The API will return the following response:
+
+**-> For this to work, the correct url must be defined inside of settings.py **
+
+```json
+{
+  "status": "success",
+  "message": "Processing completed and data sent to endoreg client manager",
+  "api_response": {
+    "status": "ok",
+    "message": "Data saved successfully"
+  }
+}
+
+## Error Handling
+
+If the API encounters any error during processing, it will return a response with the error message and the stack trace for debugging purposes.
+
+```json
+{
+  "error": "Description of the error",
+  "traceback": "Detailed traceback for debugging"
+}```
 
 
 
