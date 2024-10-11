@@ -263,14 +263,14 @@ nixosModules = {
         default = "/etc/agl-anonymizer";
       };
 
-      anonymizer-temp_dir = lib.mkOption {
-        description = "Directory for temporary files";
-        default = "/etc/agl-anonymizer-temp/temp";
-      };
-
       anonymizer-temp-root = lib.mkOption {
         description = "Directory for temporary files";
         default = "/etc/agl-anonymizer-temp";
+      };
+
+      anonymizer-temp_dir = lib.mkOption {
+        description = "Directory for temporary files";
+        default = "/etc/agl-anonymizer-temp/temp";
       };
 
       anonymizer-blurred_dir = lib.mkOption {
@@ -296,10 +296,6 @@ nixosModules = {
 
     config = lib.mkIf config.services.agl-anonymizer.enable {
 
-      environment.systemPackages = with pkgs; [
-          dirSetupScript
-      ];
-      
       systemd.services.setup-agl-anonymizer-directories = {
         description = "Ensure the custom directory tree is available and has correct ownership and permissions";
         serviceConfig = {
