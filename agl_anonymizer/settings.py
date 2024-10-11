@@ -173,10 +173,10 @@ LOGGING = {
             'level': 'INFO',  # Adjust Django's default logging level
             'propagate': False,
         },
-        'myapp': {  # Replace 'myapp' with your actual app name
+        'agl_anonymizer_pipeline': { 
             'handlers': ['console'],
             'level': 'DEBUG',  # Set desired level for your app's logs
-            'propagate': False,
+            'propagate': True,
         },
     },
 }
