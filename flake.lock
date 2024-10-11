@@ -9,11 +9,11 @@
         "poetry2nix": "poetry2nix_2"
       },
       "locked": {
-        "lastModified": 1728641084,
-        "narHash": "sha256-DYvH5lA9aWtFSWsXVouwZeaOsypcVPFJgUW0n7566fY=",
+        "lastModified": 1728644369,
+        "narHash": "sha256-aKo+gwbVNvPG+mf0ez1baq5bmUOBILQUlvZuWMg1LJA=",
         "owner": "wg-lux",
         "repo": "agl_anonymizer_pipeline",
-        "rev": "7d782a73cdbc5dcd7fc1b2abb10735db4823bc66",
+        "rev": "13e30446c8cf564c652f82b7e0664c11ea5f7089",
         "type": "github"
       },
       "original": {
