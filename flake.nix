@@ -30,15 +30,12 @@
       url = "github:cachix/cachix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    agl-network-config = {
-      url = "github:wg-lux/nix-config";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
   };
 
   outputs = { nixpkgs, cachix, agl_anonymizer_pipeline, ... } @ inputs:
+
+
   let
-    agl-network-config = agl-network-config.configurations.agl-gpu-client-dev;
     # Define the C++ toolchain with Clang and GCC
     clangVersion = "16";   # Version of Clang
     gccVersion = "13";     # Version of GCC
@@ -49,32 +46,33 @@
     clangStdEnv = pkgs.stdenvAdapters.overrideCC llvmPkgs.stdenv (llvmPkgs.clang.override {
       gccForLibs = gccPkg;  # Link Clang with libstdc++ from GCC
     });
+
     anonymizer_dir = "/etc/agl-anonymizer";
     anonymizer_temp_dir = "/etc/agl-anonymizer-temp";
+
     anonymizer_config = {
       anonymizer_temp_dir = anonymizer_temp_dir;
       anonymizer_dir = anonymizer_dir;
-      tmp_dir = "${anonymizer_temp_dir}/temp";
+      settings_module = "agl_anonymizer.settings";
+      temp_dir = "${anonymizer_temp_dir}/temp";
       blurred_dir = "${anonymizer_dir}/blurred_results";
       csv_dir = "${anonymizer_dir}/csv_training_data";
       results_dir = "${anonymizer_dir}/results";
       models_dir = "${anonymizer_dir}/models";
       # needs to be implemented
       input_dir = "${anonymizer_dir}/input";
+      
     };
-    conf = agl-network-config.custom-logs;
-  
-    service-user = conf.owner;
-    service-group = conf.group;
-    custom-log-dir = conf.dir;
-    
+    service-user = "root";
+    service-group = "root";
+ 
     dirSetupScript = pkgs.writeShellScriptBin "setup-agl-anonymizer-directory" ''
         # Ensure the main directory exists
         if [ ! -d "${anonymizer_config.anonymizer_dir}" ]; then
             mkdir -p "${anonymizer_dir}"
         fi
-        if [ ! -d "${anonymizer_config.tmp_dir}" ]; then
-            mkdir -p "${anonymizer_config.tmp_dir}"
+        if [ ! -d "${anonymizer_config.temp_dir}" ]; then
+            mkdir -p "${anonymizer_config.temp_dir}"
         fi
 
         if [ ! -d "${anonymizer_config.blurred_dir}" ]; then
@@ -97,8 +95,8 @@
         chown ${service-user}:${service-group} "${anonymizer_dir}"
         chmod 775 "${anonymizer_dir}"
 
-        chown ${service-user}:${service-group} "${anonymizer_config.tmp_dir}"
-        chmod 775 "${anonymizer_config.tmp_dir}"
+        chown ${service-user}:${service-group} "${anonymizer_config.temp_dir}"
+        chmod 775 "${anonymizer_config.temp_dir}"
 
         chown ${service-user}:${service-group} "${anonymizer_config.blurred_dir}"
         chmod 775 "${anonymizer_config.blurred_dir}"
@@ -143,7 +141,6 @@
       # transformers = [ "maturin" ];
     };
 
-
     poetry2nix = inputs.poetry2nix.lib.mkPoetry2Nix { inherit pkgs;};
 
     lib = pkgs.lib;
@@ -181,47 +178,14 @@
         agl_anonymizer_pipeline.packages.x86_64-linux.poetryApp
       ];
 
-#      buildInputs = with pkgs; [
-#    installPhase = ''
-#      echo "Creating directories for the anonymizer"
-#
-#      cd var/temp
-#      
-#      mkdir -p ${anonymizer_config.tmp_dir}
-#      mkdir -p ${anonymizer_config.blurred_dir}
-#      mkdir -p ${anonymizer_config.csv_dir}
-#      mkdir -p ${anonymizer_config.results_dir}
-#      mkdir -p ${anonymizer_config.models_dir}
-#      
-#      echo "Successfully created directories for the anonymizer:"
-#      echo "tmp_dir: ${anonymizer_config.tmp_dir}"
-#      echo "blurred_dir: ${anonymizer_config.blurred_dir}"
-#      echo "csv_dir: ${anonymizer_config.csv_dir}"
-#      echo "results_dir: ${anonymizer_config.results_dir}"
-#      echo "models_dir: ${anonymizer_config.models_dir}"
-#
-#    '';
+
 
       };
+
+
+
     
   in {
-       # Define the new service that sets up the directory structure
-    systemd.services.custom-log-directory-setup = {
-        description = "Ensure the custom directory tree is available and has correct ownership and permissions";
-        serviceConfig = {
-            ExecStart = "${dirSetupScript}/bin/setup-custom-log-directory";
-            User = "root";  # Run as root to ensure directory creation and permissions are correct
-            Group = "root";
-            Type = "oneshot";  # Runs once at boot
-        };
-        wantedBy = [ "multi-user.target" ];  # Ensure this runs during boot
-        before = [ "agl-anonymizer" ];  # Ensure it runs before the logger service
-    };
-
-    # Ensure the scripts are available in system packages
-    environment.systemPackages = with pkgs; [
-        dirSetupScript
-    ];
 
     nixConfig = {
         binary-caches = [
@@ -247,11 +211,22 @@
 
     devShells.x86_64-linux.default = pkgs.mkShell {
       inputsFrom = [ self.packages.x86_64-linux.poetryApp ];
-      packages = [ pkgs.poetry ];
+      packages = [ 
+        pkgs.poetry
+      ];
       shellHook = ''
         export CUDA_PATH=${pkgs.cudaPackages_11.cudatoolkit}
-        export PATH="${pkgs.cudaPackages_11.cudatoolkit}/bin:$PATH"
-        
+        export PATH="${dirSetupScript}/bin:${pkgs.cudaPackages_11.cudatoolkit}/bin:$PATH"
+        export DJANGO_DEBUG=True
+        export DJANGO_SETTINGS_MODULE=${anonymizer_config.settings_module}
+        export AGL_ANONYMIZER_TEMP_DIR="${anonymizer_config.temp_dir}"
+        export AGL_ANONYMIZER_BLURRED_DIR="${anonymizer_config.blurred_dir}"
+        export AGL_ANONYMIZER_CSV_DIR="${anonymizer_config.csv_dir}"
+        export AGL_ANONYMIZER_RESULTS_DIR="${anonymizer_config.results_dir}"
+        export AGL_ANONYMIZER_MODELS_DIR="${anonymizer_config.models_dir}"
+        export AGL_ANONYMIZER_INPUT_DIR="${anonymizer_config.input_dir}"
+        export AGL_ANONYMIZER_DEFAULT_MAIN_DIR="${anonymizer_config.anonymizer_dir}"
+        export AGL_ANONYMIZER_DEFAULT_TEMP_DIR="${anonymizer_config.anonymizer_temp_dir}"
       '';
     };
 
@@ -285,6 +260,22 @@ nixosModules = {
     };
 
     config = lib.mkIf config.services.agl-anonymizer.enable {
+
+      environment.systemPackages = with pkgs; [
+          dirSetupScript
+      ];
+      
+      systemd.services.setup-agl-anonymizer-directories = {
+        description = "Ensure the custom directory tree is available and has correct ownership and permissions";
+        serviceConfig = {
+            ExecStart = "${dirSetupScript}/bin/setup-agl-anonymizer-directories";
+            User = "root";  # Run as root to ensure directory creation and permissions are correct
+            Group = "root";
+            Type = "oneshot";  # Runs once at boot
+        };
+        wantedBy = [ "multi-user.target" ];  # Ensure this runs during boot
+        before = [ "agl-anonymizer" ];  # Ensure it runs before the logger service
+      };
       systemd.services.agl-anonymizer = {
         description = "AGL Anonymizer service";
         after = [ "network.target" ];
@@ -293,7 +284,7 @@ nixosModules = {
           Restart = "always";
           User = config.services.agl-anonymizer.user;
           ExecStart = "${poetryApp}/bin/django-server runserver ${config.services.agl-anonymizer.django-config.port}";
-          WorkingDirectory = "/var/anonymizer";
+          WorkingDirectory = config.services.agl-anonymizer.config.anonymizer_dir;
           Environment = [
             "DJANGO_DEBUG=${toString config.services.agl-anonymizer.django-config.debug}"
             "DJANGO_SETTINGS_MODULE=${config.services.agl-anonymizer.django-config.settings_module}"
@@ -308,6 +299,7 @@ nixosModules = {
           ];
         };
       };
+
     };
   };
 };
