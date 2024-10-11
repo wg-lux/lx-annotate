@@ -257,6 +257,41 @@ nixosModules = {
           port = 9123;
         };
       };
+
+      anonymizer-root = lib.mkOption {
+        description = "Directory for the AGL Anonymizer service";
+        default = "/etc/agl-anonymizer";
+      };
+
+      anonymizer-temp_dir = lib.mkOption {
+        description = "Directory for temporary files";
+        default = "/etc/agl-anonymizer-temp/temp";
+      };
+
+      anonymizer-temp-root = lib.mkOption {
+        description = "Directory for temporary files";
+        default = "/etc/agl-anonymizer-temp";
+      };
+
+      anonymizer-blurred_dir = lib.mkOption {
+        description = "Directory for blurred images";
+        default = "${anonymizer_dir}/blurred_results";
+      };
+
+      anonymizer-csv_dir = lib.mkOption {
+        description = "Directory for CSV training data";
+        default = "${anonymizer_dir}/csv_training_data";
+      };
+
+      anonymizer-models_dir = lib.mkOption {
+        description = "Directory for models";
+        default = "${anonymizer_dir}/models";
+      };
+
+      anonymizer-results_dir = lib.mkOption {
+        description = "Directory for results";
+        default = "${anonymizer_dir}/results";
+      };
     };
 
     config = lib.mkIf config.services.agl-anonymizer.enable {
@@ -288,14 +323,14 @@ nixosModules = {
           Environment = [
             "DJANGO_DEBUG=${toString config.services.agl-anonymizer.django-config.debug}"
             "DJANGO_SETTINGS_MODULE=${config.services.agl-anonymizer.django-config.settings_module}"
-            "AGL_ANONYMIZER_TMP_DIR=${config.services.agl-anonymizer.config.tmp_dir}"
-            "AGL_ANONYMIZER_BLURRED_DIR=${config.services.agl-anonymizer.config.blurred_dir}"
-            "AGL_ANONYMIZER_CSV_DIR=${config.services.agl-anonymizer.config.csv_dir}"
-            "AGL_ANONYMIZER_RESULTS_DIR=${config.services.agl-anonymizer.config.results_dir}"
-            "AGL_ANONYMIZER_MODELS_DIR=${config.services.agl-anonymizer.config.models_dir}"
-            "AGL_ANONYMIZER_INPUT_DIR=${config.services.agl-anonymizer.config.input_dir}"
-            "AGL_ANONYMIZER_MAIN_DIR=${config.services.agl-anonymizer.config.anonymizer_dir}"
-            "AGL_ANONYMIZER_TEMP_DIR=${config.services.agl-anonymizer.config.anonymizer_temp_dir}"
+            "AGL_ANONYMIZER_TEMP_DIR=${config.services.agl-anonymizer.anonymizer-temp-root}"
+            "AGL_ANONYMIZER_BLURRED_DIR=${config.services.agl-anonymizer.anonymizer-blurred_dir}"
+            "AGL_ANONYMIZER_CSV_DIR=${config.services.agl-anonymizer.anonymizer-csv_dir}"
+            "AGL_ANONYMIZER_RESULTS_DIR=${config.services.agl-anonymizer.anonymizer-results_dir}"
+            "AGL_ANONYMIZER_MODELS_DIR=${config.services.agl-anonymizer.anonymizer-models_dir}"
+            "AGL_ANONYMIZER_INPUT_DIR=${config.services.agl-anonymizer.anonymizer-input_dir}"
+            "AGL_ANONYMIZER_DEFAULT_MAIN_DIR=${config.services.agl-anonymizer.anonymizer-root}"
+            "AGL_ANONYMIZER_DEFAULT_TEMP_DIR=${config.services.agl-anonymizer.anonymizer-temp-root}"
           ];
         };
       };
