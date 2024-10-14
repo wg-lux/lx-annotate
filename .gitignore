@@ -10,6 +10,8 @@ db.sqlite3
 logs/
 .env
 result
+result/
+result/*
 
 # C extensions
 *.so
