@@ -6,6 +6,8 @@ let
   buildInputs = with pkgs; [
     python311Full
     stdenv.cc.cc
+    git
+    direnv
   ];
 
 

@@ -1,0 +1,9 @@
+/home/admin/dev/lx-annotate/.env
+/home/admin/dev/lx-annotate/devenv/processes/default.nix
+/home/admin/dev/lx-annotate/devenv/scripts/default.nix
+/home/admin/dev/lx-annotate/devenv/scripts/django.nix
+/home/admin/dev/lx-annotate/devenv/tasks/default.nix
+/home/admin/dev/lx-annotate/devenv/tasks/endoreg-db.nix
+/home/admin/dev/lx-annotate/devenv.lock
+/home/admin/dev/lx-annotate/devenv.nix
+/home/admin/dev/lx-annotate/devenv.yaml

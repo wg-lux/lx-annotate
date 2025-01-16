@@ -1,48 +1,20 @@
-[tool.poetry]
-name = "agl-anonymizer"
+[project]
+name = "lxAnnotate"
 
-packages = [
-    { include = "agl_anonymizer" }
-]
-
-version = "0.1.0"
-description = "This package anonymizes sensitive name data in images and extracts the contents."
+version = "0.0.1"
+description = "This webapp provides a frontend interface for annotating AI generated output."
 authors = ["maxhild <58726316+maxhild@users.noreply.github.com>"]
 license = "MIT"
 readme = "README.md"
+requires-python = "~=3.11"
 
-[tool.poetry.dependencies]
-python = "^3.11"
-django = "^5.1.1"
-gunicorn = "^23.0.0"
-agl_anonymizer_pipeline = "0.1.6"
+dependencies = [
+    "django>=5.1.1",
+    "gunicorn>=23.0.0"
+    "djangorestframework>=3.12.4"
+]
 
-[tool.poetry.group.dev.dependencies]
-pytest = "^8.3.3"
-
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
-
-[tool.poetry.scripts]
-django-server = "agl_anonymizer.run_gunicorn:main"
+[tool.setuptools]
+packages = ["lx_webapp"]
 
 
-#opencv-python-headless = "^4.10.0.84"
-#django = "^5.1.1"
-
-# flake8 = "^3.9.2"
-## agl-report-reader deps
-# Faker = "^19.10.0"
-
-# gunicorn = "^23.0.0"
-# requests = "^2.32.3"
-
-# django-celery-beat = "^2.7.0"
-# django-redis = "^5.1.0"
-# django-flat-theme = "^1.1.4"
-# django-celery-results = "^2.5.1"
-# whitenoise = {extras = ["brotli"], version = "^6.7.0"}
-# celery = "^5.4.0"
-# spacy = "^3.7.6"
-# transformers = "^4.45.0"

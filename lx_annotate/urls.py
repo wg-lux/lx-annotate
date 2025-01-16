@@ -7,6 +7,7 @@ from django.conf.urls.static import static
 urlpatterns = [
     path('process-file/', ProcessFileView.as_view(), name='process_file'),
     path('api/token/', obtain_auth_token, name='api_token_auth'),
+    path('validation/', Validate.as_view(), name='validation'),
 ]
 
 if settings.DEBUG:

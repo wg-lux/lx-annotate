@@ -6,7 +6,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from .serializers import FileUploadSerializer
-from agl_anonymizer_pipeline.main import main
+from lx_anonymizer import main
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from shutil import copyfile
@@ -31,27 +31,23 @@ class ProcessFileView(APIView):
                     temp_file.write(chunk)
 
             try:
-                # Get the path to the EAST model
-                east_model_path = os.path.join(settings.BASE_DIR, 'agl_anonymizer', 'models', 'frozen_east_text_detection.pb')
-                if not os.path.exists(east_model_path):
-                    raise FileNotFoundError(f"Model file not found: {east_model_path}")
 
                 # Call the main processing function
-                output_path, stats, original_img_path = main(
+                output_path, data, original_img_path = main(
                     temp_file_path,
-                    east_path=east_model_path,
                     device=device,
                     validation=validation
                 )
 
                 if validation:
+                    anonymized_data = None
                     # Prepare the data to be sent to the endoreg client manager
                     data_to_send = {
                         'image_name': os.path.basename(temp_file_path),
                         'original_image_url': original_img_path,
                         'polyp_count': 0,  # Placeholder, model to be added
                         'comments': "Generated during anonymization",
-                        'gender_pars': stats['gender_pars'],
+                        'gender_pars': data['gender_pars'],
                         'processed_file': output_path
                     }
 

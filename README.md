@@ -1,6 +1,6 @@
-# AGL Anonymizer - API built from flake.nix
+## lxAnonymizer - API
 
-AGL Anonymizer is a Django-based API that interacts with the AGL Anonymizer Pipeline. This API is designed to facilitate the seamless integration of the anonymization functionalities in agl_anonymizer_pipeline into new applications, ensuring privacy and compliance with data protection regulations.
+lxAnonymizer is a Django-based API that interacts with the lxAnonymizer Pipeline. This API is designed to facilitate the seamless integration of the anonymization functionalities in lxAnonymizer into new applications, ensuring privacy and compliance with data protection regulations.
 
 ## Disclaimer
 
@@ -21,12 +21,12 @@ When this project is started, a Django REST API is set up. This API can be calle
  
 ## Installation
 
-AGL Anonymizer is set up by a comprehensive flake.nix. This file defines all inputs to the program, enables CUDA on the system and then sets up a python environment containing all the dependencies. To start the installation follow these steps:
+lxAnonymizer is set up by a comprehensive flake.nix. This file defines all inputs to the program, enables CUDA on the system and then sets up a python environment containing all the dependencies. To start the installation follow these steps:
 
 1. **Clone the Repository**:
     ```bash
-    git clone https://github.com/wg-lux/agl_anonymizer.git
-    cd agl_anonymizer
+    git clone https://github.com/wg-lux/lx-annotate.git
+    cd lx-annotate
     ```
 
 2. **Set Up the Development Environment**:
@@ -46,7 +46,7 @@ AGL Anonymizer is set up by a comprehensive flake.nix. This file defines all inp
 
 ## Usage
 
-To use the AGL Anonymizer API, follow these steps:
+To use the lxAnonymizer API, follow these steps:
 
 1. **Prepare Your Images**:
    Place the images you want to process in a designated folder.
@@ -60,7 +60,7 @@ To use the AGL Anonymizer API, follow these steps:
     ```
 
 4. **Make API Requests**:
-   Use an API client like Postman, cURL, or the `requests` library in Python to interact with the AGL Anonymizer API. Example request using the `requests` library:
+   Use an API client like Postman, cURL, or the `requests` library in Python to interact with the lxAnonymizer API. Example request using the `requests` library:
 
     ```python
     import requests
