@@ -2,6 +2,7 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
+
   };
 
   outputs = { self, nixpkgs, flake-utils }: flake-utils.lib.eachDefaultSystem (system:
@@ -35,8 +36,8 @@
 
       # Default package definition
       defaultPackage = pkgs.stdenv.mkDerivation {
-        name = "lx-annotate";
-        src = ./lx-annotate;
+        name = "frontend";
+        src = ./frontend;
 
         buildInputs = commonBuildInputs;
         shellHook = commonShellHook;

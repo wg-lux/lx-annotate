@@ -1,0 +1,20 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../endoreg-db"
+		},
+		{
+			"path": "../lx-django-template"
+		},
+		{
+			"path": "../lx-check"
+		},
+		{
+			"path": "../lx-anonymizer-api"
+		}
+	],
+	"settings": {}
+}
