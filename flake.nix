@@ -35,8 +35,8 @@
 
       # Default package definition
       defaultPackage = pkgs.stdenv.mkDerivation {
-        name = "frontend";
-        src = ./frontend;
+        name = "lx-annotate";
+        src = ./lx-annotate;
 
         buildInputs = commonBuildInputs;
         shellHook = commonShellHook;
