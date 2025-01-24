@@ -9,8 +9,16 @@ let
     git
     direnv
     nodejs_22
+    yarn
+    nodePackages_latest.gulp
   ];
 
+  languages.javascript.enable = true;
+  languages.javascript.package = pkgs.nodejs_22; # Specify the Node.js version
+  # Define the shellHook for convenience
+  commonShellHook = ''
+    export PATH="$PATH:$(yarn global bin)"
+  '';
 
 
 
@@ -77,6 +85,8 @@ in
       lib.makeLibraryPath buildInputs
     }:/run/opengl-driver/lib:/run/opengl-driver-32/lib";
 
+    
+
   };
 
 
@@ -90,6 +100,8 @@ in
 
   enterShell = ''
     . .devenv/state/venv/bin/activate
+    uv sync
+    nix flake build
   '';
 
   processes = customProcesses;

@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'webpack_loader',
     'lx_annotate',
+    'endoreg_db'
 ]
 
 WEBPACK_LOADER = {
