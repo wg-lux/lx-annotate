@@ -84,7 +84,7 @@ TEMPLATES = [
   },
 ]
 
-WSGI_APPLICATION = 'lx-annotate.wsgi.application'
+WSGI_APPLICATION = 'lx_annotate.wsgi.application'
 
 
 

@@ -27,7 +27,7 @@ class AnnotatedFile(models.Model):
         return f"Annotated anonymized version od {self.original_file.original_file.name}"
     
 class AnonymizedBox(models.Model):
-    file = models.ForeignKey("app.AnonymizedFile", verbose_name=("box"), on_delete=models.CASCADE, related_name=("anonymized_boxes"))
+    file = models.ForeignKey("lx_annotate.AnonymizedFile", verbose_name=("box"), on_delete=models.CASCADE, related_name=("anonymized_boxes"))
     text_recognized = models.CharField(max_length=255, blank=True, null=True)
     tag = models.CharField(max_length=255, blank=True, null=True)
     ner_entity_text = models.CharField(max_length=255, blank=True, null=True)
@@ -62,7 +62,7 @@ class AnonymizedBox(models.Model):
         return f"Anonymized Box ({self.x}, {self.y}), size ({self.width}x{self.height}, automatic recognitiion: {self.text_recognized}, manual imputation: {self.text_imputed}, tag: {self.tag})"        
 
 class AnnotatedBox(models.Model):
-    file = models.ForeignKey("app.AnonymizedBox", verbose_name=("annotated_box"), on_delete=models.CASCADE, related_name=("annotated_boxes"))
+    file = models.ForeignKey("lx_annotate.AnonymizedBox", verbose_name=("annotated_box"), on_delete=models.CASCADE, related_name=("annotated_boxes"))
     annotated_text = models.CharField(max_length=255, blank=True, null=True)    
     new_x = models.IntegerField()
     new_y = models.IntegerField()

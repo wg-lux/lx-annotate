@@ -11,6 +11,6 @@ print("WSGI config started")
 import os
 from django.core.wsgi import get_wsgi_application
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'lx-anonymizer.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'lx_annotate.settings')
 
 application = get_wsgi_application()

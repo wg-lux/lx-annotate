@@ -6,11 +6,14 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from .serializers import FileUploadSerializer
-from lx_anonymizer import main
+#from lx_anonymizer import main
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from shutil import copyfile
 
+
+
+'''
 class ProcessFileView(APIView):
     # permission_classes = [IsAuthenticated]  # Optional, for secure API access
 
@@ -103,3 +106,4 @@ class ProcessFileView(APIView):
                     os.remove(temp_file_path)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+'''
