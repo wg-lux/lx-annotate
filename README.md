@@ -1,4 +1,4 @@
-## lxAnonymizer - API
+## lx-annotate - API
 
 lxAnonymizer is a Django-based API that interacts with the lxAnonymizer Pipeline. This API is designed to facilitate the seamless integration of the anonymization functionalities in lxAnonymizer into new applications, ensuring privacy and compliance with data protection regulations.
 
@@ -21,7 +21,7 @@ When this project is started, a Django REST API is set up. This API can be calle
  
 ## Installation
 
-lxAnonymizer is set up by a comprehensive flake.nix. This file defines all inputs to the program, enables CUDA on the system and then sets up a python environment containing all the dependencies. To start the installation follow these steps:
+ Lx-annotate is set up by a devenv.nix and uv2nix automatically. This file defines all inputs to the program, enables CUDA on the system and then sets up a python environment containing all the dependencies. To start the installation follow these steps:
 
 1. **Clone the Repository**:
     ```bash
@@ -29,24 +29,19 @@ lxAnonymizer is set up by a comprehensive flake.nix. This file defines all input
     cd lx-annotate
     ```
 
-2. **Set Up the Development Environment**:
+2. **Adding packages**:
+    First you need to add the packages to pyproject.toml,
+    then uv will handle the installation through devenv
     ```bash
-    nix develop
+    uv sync
     ```
-
-3. **Install Dependencies**:
-    Ensure you have all required dependencies installed. Refer to `pypoetry.toml` for a list of dependencies.
-    test the python environment by typing
-   ```bash
-   poetry update
-   ``
 
 5. **Download the Text Detection Model**:
     If the automatic download from github fails, ownload a text detection model, such as `frozen_east_text_detection.pb`, and place it in the appropriate directory of a local version of agl_anonymizer       pipeline. All models are downloaded automatically.
 
 ## Usage
 
-To use the lxAnonymizer API, follow these steps:
+To use the lx-anonymizer API, follow these steps:
 
 1. **Prepare Your Images**:
    Place the images you want to process in a designated folder.

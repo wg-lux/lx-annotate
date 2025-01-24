@@ -1,7 +1,7 @@
 from django.apps import AppConfig
 
 
-class lxAnonymizerConfig(AppConfig):
-    default_auto_field = 'django.db.models.BigAutoField'
-    name = 'lx-anonymizer'
+#class lxAnonymizerConfig(AppConfig):
+#    default_auto_field = 'django.db.models.BigAutoField'
+#    name = 'lx-anonymizer'
     

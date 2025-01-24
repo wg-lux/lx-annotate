@@ -1,5 +1,5 @@
 [project]
-name = "lxAnnotate"
+name = "lx-annotate"
 
 version = "0.0.1"
 description = "This webapp provides a frontend interface for annotating AI generated output."
@@ -13,9 +13,10 @@ dependencies = [
     "gunicorn>=23.0.0",
     "djangorestframework>=3.12.4",
     "django-cors-headers>=4.0.0",
+    "django-webpack-loader>=0.7.0",
 ]
 
 [tool.setuptools]
-packages = ["lx_webapp"]
+packages = ["lx-webpack"]
 
 

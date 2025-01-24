@@ -1,0 +1,18 @@
+{% load render_bundle from webpack_loader %}
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Django <3 Vue.js</title>
+  </head>
+
+  <body>
+    <div id="app">
+      <app></app>
+    </div>
+
+    {% render_bundle 'app' %}
+
+    <!-- built files will be auto injected -->
+  </body>
+</html>

@@ -8,6 +8,7 @@ let
     stdenv.cc.cc
     git
     direnv
+    nodejs_22
   ];
 
 

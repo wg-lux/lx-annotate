@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 """
 
 from pathlib import Path
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -29,6 +30,9 @@ ALLOWED_HOSTS = [
     "*"
 ]
 
+TEMPLATES_DIR = os.path.join(BASE_DIR, 'templates')
+FRONTEND_DIR = os.path.join(BASE_DIR, 'frontend')
+
 
 # Application definition
 
@@ -39,9 +43,17 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'agl_anonymizer_pipeline',
-    'django.contrib.gis'
+    'webpack_loader',
+    'lx_annotate',
 ]
+
+WEBPACK_LOADER = {
+  'DEFAULT': {
+  'CACHE': DEBUG,
+  'BUNDLE_DIR_NAME': '/bundles/',
+  'STATS_FILE': os.path.join(FRONTEND_DIR, 'webpack-stats.json'),
+  }
+}
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -53,22 +65,23 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-ROOT_URLCONF = 'lx-annotate.urls'
+ROOT_URLCONF = 'lx_annotate.urls'
 
-TEMPLATES = [
-    {
-        'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
-        'APP_DIRS': True,
-        'OPTIONS': {
-            'context_processors': [
-                'django.template.context_processors.debug',
-                'django.template.context_processors.request',
-                'django.contrib.auth.context_processors.auth',
-                'django.contrib.messages.context_processors.messages',
-            ],
-        },
+
+TEMPLATES = [    
+  {        
+    'BACKEND': 'django.template.backends.django.DjangoTemplates',        
+    'DIRS': [TEMPLATES_DIR,],        
+    'APP_DIRS': True,        
+    'OPTIONS': {            
+      'context_processors': [                
+      'django.template.context_processors.debug',                
+      'django.template.context_processors.request',                
+      'django.contrib.auth.context_processors.auth',                
+      'django.contrib.messages.context_processors.messages', 
+      ],
     },
+  },
 ]
 
 WSGI_APPLICATION = 'lx-annotate.wsgi.application'
@@ -173,12 +186,15 @@ LOGGING = {
             'handlers': ['console'],
             'level': 'INFO',  # Adjust Django's default logging level
             'propagate': False,
-        },
-        'agl_anonymizer_pipeline': { 
-            'handlers': ['console'],
-            'level': 'DEBUG',  # Set desired level for your app's logs
-            'propagate': True,
-        },
+        }
+        
+        #
+        #'lx-anonymizer': { 
+        #    'handlers': ['console'],
+        #    'level': 'DEBUG',  # Set desired level for your app's logs
+        #    'propagate': True,
+        #},
+        
     },
 }
 
