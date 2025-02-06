@@ -74,6 +74,9 @@ in
   packages = with pkgs; [
     cudaPackages.cuda_nvcc
     stdenv.cc.cc
+    nodejs_22
+    yarn
+    python311Full
   ];
 
   env = {
@@ -101,7 +104,6 @@ in
   enterShell = ''
     . .devenv/state/venv/bin/activate
     uv sync
-    nix flake build
   '';
 
   processes = customProcesses;

@@ -13,5 +13,4 @@ app.component('AuthCheck', AuthCheck)
 
 app.use(createPinia());
 app.use(router);
-
 app.mount('#app');

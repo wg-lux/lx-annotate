@@ -16,6 +16,7 @@ dependencies = [
     "django-webpack-loader>=0.7.0",
     "requests>=2.32.3",
     "endoreg-db>=0.5.3",
+    "django-vite>=3.0.6",
 ]
 
 [tool.setuptools]

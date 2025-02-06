@@ -7,7 +7,7 @@ def main():
         "gunicorn",               # Gunicorn command
         "agl_anonymizer.wsgi:application", # WSGI application
         "--workers", "1",          # Default number of workers
-        "--bind", "0.0.0.0:1290"   # Default binding to 0.0.0.0:8000
+        "--bind", "0.0.0.0:8000"   # Default binding to 0.0.0.0:8000
     ]
 
     # Append any command-line arguments provided during execution
