@@ -1,0 +1,1 @@
+import{_ as e,c as s,a as t,o as r}from"./main.js";const n={name:"Profil",components:{}},a={class:"about"};function c(l,o,p,f,i,_){return r(),s("div",a,o[0]||(o[0]=[t("h1",null,"Userprofil",-1)]))}const m=e(n,[["render",c]]);export{m as default};

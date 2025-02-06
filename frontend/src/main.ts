@@ -3,7 +3,7 @@ import { createPinia } from 'pinia';
 import App from './App.vue';
 import router from './router';
 import AuthCheck from './components/AuthCheck.vue';
-
+import 'vite/modulepreload-polyfill';
 import './assets/css/nucleo-icons.css';
 import './assets/css/nucleo-svg.css';
 import './assets/css/material-dashboard.css?v=3.1.0';

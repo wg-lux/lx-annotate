@@ -1,0 +1,1 @@
+import{_ as s,c as o,a as t,o as n}from"./main-CVvakEgE.js";const a={name:"UeberUns",components:{}},r={class:"about"};function c(p,e,_,i,d,l){return n(),o("div",r,e[0]||(e[0]=[t("h1",null,"This is an about page",-1)]))}const f=s(a,[["render",c]]);export{f as default};
