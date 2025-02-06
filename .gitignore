@@ -13,7 +13,8 @@ result
 result/
 result/*
 
-
+static/*
+staticfiles/*
 
 # C extensions
 *.so
