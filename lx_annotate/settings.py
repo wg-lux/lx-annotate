@@ -15,8 +15,23 @@ import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
-STATIC_ROOT = os.path.join(BASE_DIR)
-VITE_APP_DIR = BASE_DIR / "src"
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+VITE_APP_DIR = BASE_DIR / "frontend"
+# Static files (CSS, JavaScript, Images)
+# https://docs.djangoproject.com/en/4.2/howto/static-files/
+
+STATIC_URL = '/static/'
+STATICFILES_DIRS = [
+    BASE_DIR / 'static/',
+    BASE_DIR / 'static' / 'dist/',
+    VITE_APP_DIR / 'public/',
+]
+DJANGO_VITE = {
+    "default": {
+        "dev_mode": False,  # Enable dev_mode only if you run the Vite dev server manually
+        "manifest_path": BASE_DIR / 'static' / 'dist' / 'manifest.json',
+    }
+}
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
@@ -73,14 +88,6 @@ WHITENOISE_MIMETYPES = {
     '.mjs': 'application/javascript',
     '.ts': 'application/typescript',
     '.html': 'text/html'
-}
-
-
-DJANGO_VITE = {
-  "default": {
-    "dev_mode": False,
-    "manifest_path": os.path.join(BASE_DIR, 'frontend', 'assets', 'manifest.json'),
-  }
 }
 
 ROOT_URLCONF = 'lx_annotate.urls'
@@ -146,14 +153,6 @@ USE_I18N = True
 
 USE_TZ = True
 
-
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/4.2/howto/static-files/
-
-STATIC_URL = '/static/'
-STATCFILES_DIRS = [
-    VITE_APP_DIR /
-]
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field

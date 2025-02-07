@@ -1,0 +1,20 @@
+{% load django_vite %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>My Django Vite App</title>
+    {% vite_hmr_client %}
+    {% vite_asset 'src/main.ts' %}
+    {% load static %}
+<link rel="stylesheet" href="{% static 'assets/css/material-dashboard.css?v=3.1.0' %}">
+<link rel="stylesheet" href="{% static 'assets/css/material-dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'assets/css/material-dashboard.css.map' %}">
+
+
+</head>
+<body>
+    <div id="app"></div>
+</body>
+</html>

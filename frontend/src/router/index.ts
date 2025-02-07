@@ -6,7 +6,7 @@ const router = createRouter({
     {
       path: '/annotationen',
       name: 'Annotationen',
-      component: () => import('../views/AnnotationenDashboard.vue'),
+      component: () => import('src/views/AnnotationenDashboard.vue'),
         meta: {
           description: 'Hier können Sie alle Ihre Annotationen einsehen und verwalten.'
         }
@@ -14,7 +14,7 @@ const router = createRouter({
     {
       path: '/video-annotation',
       name: 'Video Annotation',
-      component: () => import('../views/VideoAnnotation.vue'),
+      component: () => import('src/views/VideoAnnotation.vue'),
       meta: {
         description: 'Hier können Sie Videos annotieren.'
         }
@@ -22,7 +22,7 @@ const router = createRouter({
     {
       path: '/frame-annotation',
       name: 'Frame Annotation',
-      component: () => import('../views/FrameAnnotation.vue'),
+      component: () => import('src/views/FrameAnnotation.vue'),
       meta: {
         description: 'Hier können Sie Frames annotieren.'
         }
@@ -30,7 +30,7 @@ const router = createRouter({
     {
       path: '/',
       name: 'Dashboard',
-      component: () => import('../views/Dashboard.vue'),
+      component: () => import('src/views/Dashboard.vue'),
       meta: {
         description: 'Hier finden Sie alle wichtigen Informationen zu Ihren Annotationen.'
         }
@@ -38,7 +38,7 @@ const router = createRouter({
     {
       path: '/ueber-uns',
       name: 'Über Uns',
-      component: () => import('../views/UeberUns.vue'),
+      component: () => import('src/views/UeberUns.vue'),
       meta: {
         description: 'Hier finden Sie Informationen über uns.'
         }
@@ -56,7 +56,7 @@ const router = createRouter({
     {
       path: '/profil',
       name: 'Profil',
-      component: () => import('../views/Profil.vue'),
+      component: () => import('src/views/Profil.vue'),
       meta: {
         description: 'Hier können Sie Ihr Profil einsehen und bearbeiten.'
         }
@@ -64,7 +64,7 @@ const router = createRouter({
     {
       path: '/validierung',
       name: 'Validierung',
-      component: () => import('../views/Validierung.vue'),
+      component: () => import('src/views/Validierung.vue'),
       meta: {
         description: 'Hier können Sie Annotationen validieren.'
         }

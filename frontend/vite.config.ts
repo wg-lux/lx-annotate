@@ -6,10 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { resolve } from 'path';
 
 export default defineConfig({
-  base: process.env.NODE_ENV === 'production' ? '/static/' : '/',
-  server: {
-    cors: true,
-  },
+  base: '/static/',
   plugins: [
     vue(),
     vueJsx(),
@@ -17,31 +14,41 @@ export default defineConfig({
   ],
   build: {
     manifest: "manifest.json",
-    // Make sure the outDir is a folder that Django will collect from (see your STATICFILES_DIRS)
-    outDir: resolve("./assets"),
+    // Ensure the outDir is where Django collects static files
+    outDir: resolve(__dirname, '../static/dist'),
     rollupOptions: {
+      // Adjust the entry point as needed (e.g., main.ts)
       input: {
-        // Use a key that matches what you reference in Django
-        'main': './src/main.ts',
-      },
+        'main.js': resolve(__dirname, 'src/main.ts'),
+            },      
       output: {
-        // Override the default filename pattern to produce a stable name without a hash.
-        // This will output a file named "main.ts.js"
+        // Override filename pattern for a stable name without a hash
         entryFileNames: '[name].js',
         chunkFileNames: '[name].js',
         assetFileNames: '[name].[ext]'
       }
     },
+    // Optionally, if you really want to empty outDir (be cautious)
+    // emptyOutDir: true,
+  },
+  server: {
+    cors: true,
+    port: 3000,
+    hmr: {
+      host: 'localhost',
+    },
   },
   resolve: {
     alias: {
+      // Merged alias definitions:
+      'src': resolve(__dirname, 'src'),
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
   css: {
     preprocessorOptions: {
       scss: {
-        additionalData: `@import "@/assets/scss/material-dashboard/_variables.scss";`,
+        additionalData: `@import "@/public/assets/scss/material-dashboard/_variables.scss";`,
       },
     },
   },

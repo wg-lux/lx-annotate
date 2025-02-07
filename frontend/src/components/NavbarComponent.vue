@@ -46,31 +46,31 @@
   </nav>
 </template>
 
-<script>
+<script lang="ts">
+import { defineComponent } from 'vue';
 import { useRouter } from 'vue-router';
-import { useAuthStore } from '../stores/auth.ts';
+import { useAuthStore } from '../stores/auth';
+// Optionally import the exported AuthState if you need it
+// import type { AuthState } from '../stores/auth';
 
-export default {
+export default defineComponent({
   name: 'NavbarComponent',
   setup() {
-    const authStore = useAuthStore();
+    // Here, the explicit type annotation helps avoid leaking private types.
+    const authStore = useAuthStore(); // Type inferred as ReturnType<typeof useAuthStore>
     const router = useRouter();
     return { authStore, router };
   },
   computed: {
-    isAuthenticated() {
+    isAuthenticated(): boolean {
       return this.authStore.isAuthenticated;
     },
-    username() {
-      return this.authStore.user?.name || 'Unbekannt';
+    username(): string {
+      return this.authStore.user?.username || 'Unbekannt';
     },
-    currentRouteName() {
-      // Get the current route name and format it for display
-      const name = this.$route.name;
-      if (!name) return 'Dashboard';
-      
-      // Convert route name to display format (e.g., 'home' -> 'Home')
-      return name.charAt(0).toUpperCase() + name.slice(1);
+    currentRouteName(): string {
+      const name = this.$route.name as string;
+      return !name ? 'Dashboard' : name.charAt(0).toUpperCase() + name.slice(1);
     }
   },
   methods: {
@@ -81,14 +81,14 @@ export default {
       this.authStore.logout();
     }
   }
-};
+});
 </script>
 
 <style scoped>
+/* your styles */
 .breadcrumb-item + .breadcrumb-item::before {
   content: ">";
 }
-
 .breadcrumb-item.active {
   font-weight: 600;
 }
