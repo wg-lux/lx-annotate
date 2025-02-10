@@ -1,4 +1,4 @@
-from django.urls import path, include
+from django.urls import path, include, re_path
 from django.views.generic import TemplateView 
 from rest_framework.authtoken.views import obtain_auth_token
 from django.conf import settings
@@ -14,6 +14,7 @@ urlpatterns = [
     path('', TemplateView.as_view(template_name='base.html'), name='app'),
     path('admin/', admin.site.urls),
     path('api/<str:endpoint>/', ProxyView.as_view(), name='proxy_view'),
+    re_path(r'^(?!api/|admin/).*$', TemplateView.as_view(template_name='base.html'), name='vue_spa'),
 ]
 
 if settings.DEBUG:

@@ -3,13 +3,15 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>LX Annotation Interface</title>
 
+    <!-- Favicon and Icons -->
     <link rel="apple-touch-icon" sizes="76x76" href="/assets/img/apple-icon.png">
     <link rel="icon" type="image/png" href="/assets/img/favicon.png">
 
     <title>AGL G-Play Validator</title>
 
-    <!-- Fonts and icons -->
+    <!-- Fonts and Icons -->
     <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700,900|Roboto+Slab:400,700" />
     <link href="/assets/css/nucleo-icons.css" rel="stylesheet" />
     <link href="/assets/css/nucleo-svg.css" rel="stylesheet" />
@@ -17,7 +19,13 @@
 
     <!-- Material Dashboard CSS -->
     <link id="pagestyle" href="/assets/css/material-dashboard.css?v=3.1.0" rel="stylesheet" />
+
+    <!-- Django-Vite Integration -->
+    {% load django_vite %}
+    {% vite_hmr_client %}
+    {% vite_asset 'main' %}
   </head>
+
   <body>
     <div id="app"></div>
 
@@ -29,8 +37,6 @@
 
     <!-- Control Center for Material Dashboard -->
     <script src="/assets/js/material-dashboard.min.js?v=3.1.0"></script>
-    
-    <!-- Vite Injected Module -->
-    <script type="module" src="/src/main.ts"></script>
+
   </body>
 </html>

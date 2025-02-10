@@ -16,13 +16,12 @@ import os
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
-VITE_APP_DIR = BASE_DIR / "frontend"
+VITE_APP_DIR = BASE_DIR / "frontend" 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 
 STATIC_URL = '/static/'
 STATICFILES_DIRS = [
-    BASE_DIR / 'static',
     BASE_DIR / 'static' / 'dist',
     VITE_APP_DIR / 'public',
 ]
