@@ -11,6 +11,48 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from shutil import copyfile
 
+import json
+import requests
+from django.http import JsonResponse
+from django.views import View
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
+
+# Use the BACKEND_API_BASE_URL from your settings
+BACKEND_API_BASE_URL = getattr(settings, 'BACKEND_API_BASE_URL', 'http://127.0.0.1:8000/api/')
+
+@method_decorator(csrf_exempt, name='dispatch')
+class ProxyView(View):
+    def get(self, request, endpoint, *args, **kwargs):
+        """
+        Forward GET requests.
+        """
+        target_url = f"{BACKEND_API_BASE_URL}{endpoint}/"
+        # Forward query parameters from the original request
+        response = requests.get(target_url, params=request.GET)
+        try:
+            data = response.json()
+        except ValueError:
+            data = response.text
+        return JsonResponse(data, status=response.status_code, safe=False)
+
+    def post(self, request, endpoint, *args, **kwargs):
+        """
+        Forward POST requests.
+        """
+        target_url = f"{BACKEND_API_BASE_URL}{endpoint}/"
+        # Determine the payload based on the content type
+        if request.content_type == 'application/json':
+            payload = json.loads(request.body.decode('utf-8'))
+            response = requests.post(target_url, json=payload)
+        else:
+            # For form-encoded or multipart, forward POST data as-is
+            response = requests.post(target_url, data=request.POST)
+        try:
+            data = response.json()
+        except ValueError:
+            data = response.text
+        return JsonResponse(data, status=response.status_code, safe=False)
 
 
 '''

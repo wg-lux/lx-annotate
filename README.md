@@ -37,7 +37,7 @@ When this project is started, a Django REST API is set up. This API can be calle
     ```
 
 5. **Download the Text Detection Model**:
-    If the automatic download from github fails, ownload a text detection model, such as `frozen_east_text_detection.pb`, and place it in the appropriate directory of a local version of agl_anonymizer       pipeline. All models are downloaded automatically.
+    If the automatic download from github fails, ownload a text detection model, such as `frozen_east_text_detection.pb`, and place it in the appropriate directory of a local version of agl_anonymizer_pipeline. All models are downloaded automatically.
 
 ## Usage
 

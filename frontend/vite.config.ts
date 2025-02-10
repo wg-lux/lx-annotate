@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { resolve } from 'path';
 
 export default defineConfig({
-  base: '/static/',
+  base: '/',
   plugins: [
     vue(),
     vueJsx(),

@@ -22,9 +22,9 @@ VITE_APP_DIR = BASE_DIR / "frontend"
 
 STATIC_URL = '/static/'
 STATICFILES_DIRS = [
-    BASE_DIR / 'static/',
-    BASE_DIR / 'static' / 'dist/',
-    VITE_APP_DIR / 'public/',
+    BASE_DIR / 'static',
+    BASE_DIR / 'static' / 'dist',
+    VITE_APP_DIR / 'public',
 ]
 DJANGO_VITE = {
     "default": {
@@ -62,6 +62,8 @@ INSTALLED_APPS = [
     'django_vite',
     'lx_annotate',
     'endoreg_db',
+    'rest_framework',
+    'django_extensions',
 ]
 
 MIDDLEWARE = [

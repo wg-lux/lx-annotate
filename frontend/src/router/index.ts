@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router';
 
 const router = createRouter({
+
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     {
@@ -43,20 +44,29 @@ const router = createRouter({
         description: 'Hier finden Sie Informationen über uns.'
         }
     },
-  /*
+  
     {
       path: '/fallgenerator',
       name: 'Fallgenerator',
-      component: () => import('../views/Fallgenerator.vue'),
+      component: () => import('src/views/Fallgenerator.vue'),
         meta: {
-    description: 'Hier können Sie Fälle generieren.'
-    }
-},
-  */
+      description: 'Hier können Sie Fälle generieren.'
+      }
+    },
+
+
+    {
+      path: '/patient',
+      name: 'Patient hinzufügen',
+      component: () => import('src/views/PatientAdder.vue'),
+      meta: {
+        description: 'Hier können Sie Patienten hinzufügen.'
+        }
+    },
     {
       path: '/profil',
       name: 'Profil',
-      component: () => import('src/views/Profil.vue'),
+      component: () => import('@/views/Profil.vue'),
       meta: {
         description: 'Hier können Sie Ihr Profil einsehen und bearbeiten.'
         }
