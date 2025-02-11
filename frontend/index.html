@@ -24,6 +24,9 @@
     {% load django_vite %}
     {% vite_hmr_client %}
     {% vite_asset 'main' %}
+    {% load static %}
+    <img src="{% static 'assets/img/ukw.svg' %}" alt="Logo">
+
   </head>
 
   <body>

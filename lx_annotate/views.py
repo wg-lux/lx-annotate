@@ -19,7 +19,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 
 # Use the BACKEND_API_BASE_URL from your settings
-BACKEND_API_BASE_URL = getattr(settings, 'BACKEND_API_BASE_URL', 'http://127.0.0.1:8000/api/')
+BACKEND_API_BASE_URL = getattr(settings, 'BACKEND_API_BASE_URL', 'http://127.0.0.1:8000/endoreg_db/api/')
 
 @method_decorator(csrf_exempt, name='dispatch')
 class ProxyView(View):
