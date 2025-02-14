@@ -50,6 +50,17 @@ To use the lx-anonymizer API, follow these steps:
 2. **Configure Settings**:
    Adjust settings in the settings.py file
 
+2.5. **Setup Frontend**
+
+    ```bash
+        direnv allow
+        cd frontend
+        direnv allow
+        npm install
+        npm run build
+        cd ..
+    ```
+
 3. **Run the Django Server**:
 
    ```bash
