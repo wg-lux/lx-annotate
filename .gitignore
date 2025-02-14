@@ -12,6 +12,16 @@ logs/
 result
 result/
 result/*
+data/
+
+.devenv/
+.direnv/
+.devenv.flake.nix
+devenv.lock
+.devenv.nix
+.env
+uv.lock
+flake.json
 
 static/
 staticfiles/
