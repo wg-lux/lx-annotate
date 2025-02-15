@@ -14,6 +14,7 @@
     "format": "prettier --write src/"
   },
   "dependencies": {
+    "js-cookie": "^3.0.5",
     "material-dashboard": "^3.0.9",
     "pinia": "^2.1.7",
     "uuid": "^11.0.3",
@@ -23,6 +24,7 @@
   "devDependencies": {
     "@rushstack/eslint-patch": "^1.8.0",
     "@tsconfig/node20": "^20.1.4",
+    "@types/js-cookie": "^3.0.6",
     "@types/jsdom": "^21.1.7",
     "@types/node": "^20.17.9",
     "@vitejs/plugin-vue": "^5.0.5",
@@ -43,6 +45,6 @@
     "vite": "^5.3.1",
     "vite-plugin-vue-devtools": "^7.3.1",
     "vitest": "^1.6.0",
-    "vue-tsc": "^2.0.21"
+    "vue-tsc": "^2.2.0"
   }
 }

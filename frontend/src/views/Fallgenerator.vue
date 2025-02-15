@@ -12,7 +12,7 @@
   </template>
 
 <script>
-    import ReportOverview from '../components/CaseGenerator/ReportOverviewComponent.vue';
+    import ReportOverview from '../components/CaseGenerator/PatientOverviewComponent.vue';
 
   export default {
     name: 'Fallgenerator',
@@ -24,7 +24,6 @@
   
   <style>
   @import url('https://fonts.googleapis.com/css?family=Roboto:300,400,500,700,900|Roboto+Slab:400,700');
-  @import url('../assets/css/material-dashboard.css?v=3.1.0');
   
   
   </style>
