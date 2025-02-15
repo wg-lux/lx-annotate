@@ -1,0 +1,11 @@
+{
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "types": ["node"],
+    "composite": true,
+    "noEmit": false,
+    "outDir": "./types",
+    "declarationDir": "./types",
+  }
+}
