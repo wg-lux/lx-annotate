@@ -53,6 +53,10 @@ class ProxyView(View):
         except ValueError:
             data = response.text
         return JsonResponse(data, status=response.status_code, safe=False)
+    def put(self, request, endpoint):
+        target_url = f"{BACKEND_API_BASE_URL}{endpoint}/"
+        if request.content_type == 'applications/json':
+            payload = json.loads(request)
 
 
 '''

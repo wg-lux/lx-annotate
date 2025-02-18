@@ -25,7 +25,6 @@ VITE_APP_DIR = BASE_DIR / "frontend"
 STATIC_URL = '/static/'
 STATICFILES_DIRS = [
     BASE_DIR / 'static' / 'dist',
-    VITE_APP_DIR / 'public',
     VITE_APP_DIR / 'src' / 'assets',
 ]
 DJANGO_VITE = {
