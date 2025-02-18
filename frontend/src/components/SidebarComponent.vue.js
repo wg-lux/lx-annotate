@@ -34,7 +34,7 @@ function __VLS_template() {
         ...{ class: ("sidenav-header-inner text-center") },
     });
     __VLS_elementAsFunction(__VLS_intrinsicElements.img, __VLS_intrinsicElements.img)({
-        src: ("/public/assets/img/ukw.svg"),
+        src: ("@/assets/public/img/Universitaetsklinikum_Wuerzburg.jpg"),
     });
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: ("ms-1 font-weight-bold text-white text-center") },
