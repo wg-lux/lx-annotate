@@ -17,6 +17,13 @@ from django.http import JsonResponse
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
+from django.views import View
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
+import json
+import requests
+from django.conf import settings
 
 # Use the BACKEND_API_BASE_URL from your settings
 BACKEND_API_BASE_URL = getattr(settings, 'BACKEND_API_BASE_URL', 'http://127.0.0.1:8000/endoreg_db/api/')
@@ -28,35 +35,53 @@ class ProxyView(View):
         Forward GET requests.
         """
         target_url = f"{BACKEND_API_BASE_URL}{endpoint}/"
-        # Forward query parameters from the original request
         response = requests.get(target_url, params=request.GET)
-        try:
-            data = response.json()
-        except ValueError:
-            data = response.text
-        return JsonResponse(data, status=response.status_code, safe=False)
+        return self._build_response(response)
 
     def post(self, request, endpoint, *args, **kwargs):
         """
         Forward POST requests.
         """
         target_url = f"{BACKEND_API_BASE_URL}{endpoint}/"
-        # Determine the payload based on the content type
+        payload = self._get_payload(request)
+        response = requests.post(target_url, **payload)
+        return self._build_response(response)
+
+    def put(self, request, endpoint, *args, **kwargs):
+        """
+        Forward PUT requests.
+        """
+        target_url = f"{BACKEND_API_BASE_URL}{endpoint}/"
+        payload = self._get_payload(request)
+        response = requests.put(target_url, **payload)
+        return self._build_response(response)
+
+    def delete(self, request, endpoint, *args, **kwargs):
+        """
+        Forward DELETE requests.
+        """
+        target_url = f"{BACKEND_API_BASE_URL}{endpoint}/"
+        response = requests.delete(target_url, params=request.GET)
+        return self._build_response(response)
+
+    def _get_payload(self, request):
+        """
+        Extract payload from the request based on content type.
+        """
         if request.content_type == 'application/json':
-            payload = json.loads(request.body.decode('utf-8'))
-            response = requests.post(target_url, json=payload)
+            return {'json': json.loads(request.body.decode('utf-8'))}
         else:
-            # For form-encoded or multipart, forward POST data as-is
-            response = requests.post(target_url, data=request.POST)
+            return {'data': request.POST}
+
+    def _build_response(self, response):
+        """
+        Build a JsonResponse from the proxied response.
+        """
         try:
             data = response.json()
         except ValueError:
             data = response.text
         return JsonResponse(data, status=response.status_code, safe=False)
-    def put(self, request, endpoint):
-        target_url = f"{BACKEND_API_BASE_URL}{endpoint}/"
-        if request.content_type == 'applications/json':
-            payload = json.loads(request)
 
 
 '''
