@@ -34,11 +34,27 @@ Lx-annotate is set up by a devenv.nix and uv2nix automatically. This file define
    then uv will handle the installation through devenv
 
    ```bash
+   direnv allow
+   ```
+
+   Fallback:
+
+   ```bash
    uv sync
    ```
 
-3. **Download the Text Detection Model**:
-   If the automatic download from github fails, ownload a text detection model, such as `frozen_east_text_detection.pb`, and place it in the appropriate directory of a local version of agl_anonymizer_pipeline. All models are downloaded automatically.
+
+
+3. ** Using the Frontend
+  The Frontend is compiled to the static folder of django.
+
+      ```bash
+        direnv allow
+        cd frontend
+        direnv allow
+        npm install
+        npm run build
+        cd ..
 
 ## Usage
 
