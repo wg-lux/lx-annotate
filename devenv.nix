@@ -69,7 +69,7 @@ in
   dotenv.enable = true;
   dotenv.disableHint = true;
 
-  files."django-settings.json".json = djangoSettings;
+  files."django-settings.json" = { json = (djangoSettings)."${DEPLOYMENT_MODE}"; };
 
   packages = with pkgs; [
     cudaPackages.cuda_nvcc
