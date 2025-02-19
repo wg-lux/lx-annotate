@@ -24,7 +24,8 @@ uv.lock
 flake.json
 
 static/
-staticfiles/
+.staticfiles/
+staticfiles
 
 # C extensions
 *.so
