@@ -7,7 +7,7 @@ import 'vite/modulepreload-polyfill';
 /* Ensure assets are loaded correctly from `public/` */
 import '@/assets/css/nucleo-icons.css';
 import '@/assets/css/nucleo-svg.css';
-import '@/assets/css/material-dashboard.css';
+import '@/assets/css/material-dashboard.min.css';
 import axios from 'axios';
 import Cookies from 'js-cookie';
 const app = createApp(App);

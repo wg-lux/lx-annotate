@@ -54,6 +54,15 @@ const router = createRouter({
       }
     },
 
+    {
+      path: '/befund',
+      name: 'Befund',
+      component: () => import('src/views/Report.vue'),
+      meta: {
+        description: 'Hier können Sie Befunde erstellen.'
+      }
+    },
+
 
     {
       path: '/patient',
