@@ -15,7 +15,4 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/<str:endpoint>/', ProxyView.as_view(), name='proxy_view'),
     re_path(r'^(?!api/|admin/).*$', TemplateView.as_view(template_name='base.html'), name='vue_spa'),
-]
-
-if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+]  + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

@@ -9,9 +9,18 @@
     {% vite_hmr_client %}
     {% vite_asset 'src/main.ts' %}
     {% load static %}
+    <link rel="stylesheet" href="{% static 'main.css' %}">
+    <script src="{% static 'main.js' %}" defer></script>
+    {% block extra_head %}{% endblock %}
+    {% block extra_css %}{% endblock %}
+    {% block extra_js %}{% endblock %}
 
 </head>
 <body>
     <div id="app"></div>
 </body>
+<script>
+    window.STATIC_URL = "{{ STATIC_URL }}";
+</script>
+  
 </html>

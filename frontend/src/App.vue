@@ -54,13 +54,20 @@ axios.defaults.baseURL = '/';
 
 export default {
   name: 'App',
+  data() {
+    return {
+      staticUrl: window.STATIC_URL || '/static/'
+    }
+  },
   components: {
     NavbarComponent,
     SidebarComponent,
     DashboardComponent,
     LoginComponent
   },
+
 };
+
 </script>
 
 <style>

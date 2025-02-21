@@ -25,6 +25,7 @@ VITE_APP_DIR = BASE_DIR / "frontend"
 STATIC_URL = '/static/'
 STATICFILES_DIRS = [
     BASE_DIR / 'static' / 'dist',
+    BASE_DIR / 'static' / 'assets',
     VITE_APP_DIR / 'src' / 'assets',
 ]
 DJANGO_VITE = {
@@ -75,23 +76,47 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',  # if you want to use WhiteNoise
+    'whitenoise.middleware.WhiteNoiseMiddleware',
 ]
 
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 import re
 
+STORAGE = {
+    "static": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    }
 def immutable_file_test(path, url):
     # This regex matches filenames with a hash, e.g. some_file-CSliV9zW.js
     return re.match(r"^.+[.-][0-9a-zA-Z_-]{8,12}\..+$", url)
 
 WHITENOISE_IMMUTABLE_FILE_TEST = immutable_file_test
 WHITENOISE_MIMETYPES = {
-    '.js': 'application/javascript',
-    '.mjs': 'application/javascript',
+    '.css': 'text/css',
+    '.scss': 'text/x-scss',            # Only if you really intend to serve SCSS (typically you compile these to CSS)
     '.ts': 'application/typescript',
-    '.html': 'text/html'
+    '.tsx': 'application/typescript',
+    '.js': 'application/javascript',
+    '.vue': 'application/javascript',
+    '.mjs': 'application/javascript',
+    '.html': 'text/html',
+    '.json': 'application/json',
+    '.xml': 'application/xml',
+    '.svg': 'image/svg+xml',
+    '.eot': 'application/vnd.ms-fontobject',
+    '.ttf': 'font/ttf',
+    '.woff': 'font/woff',
+    '.woff2': 'font/woff2',
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.png': 'image/png',
+    '.gif': 'image/gif',
+    '.ico': 'image/x-icon',
+    '.webp': 'image/webp',
+    '.mp4': 'video/mp4',
+    '.webm': 'video/webm',
+    '.ogv': 'video/ogg',
 }
+
 
 ROOT_URLCONF = 'lx_annotate.urls'
 

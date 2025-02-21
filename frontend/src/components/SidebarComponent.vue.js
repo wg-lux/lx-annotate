@@ -1,5 +1,10 @@
 export default (await import('vue')).defineComponent({
-    name: 'SidebarComponent'
+    name: 'SidebarComponent',
+    data() {
+        return {
+            staticUrl: window.STATIC_URL || '/static/'
+        };
+    }
 }); /* PartiallyEnd: #3632/script.vue */
 function __VLS_template() {
     const __VLS_ctx = {};
@@ -34,7 +39,8 @@ function __VLS_template() {
         ...{ class: ("sidenav-header-inner text-center") },
     });
     __VLS_elementAsFunction(__VLS_intrinsicElements.img, __VLS_intrinsicElements.img)({
-        src: ("@/assets/public/img/Universitaetsklinikum_Wuerzburg.jpg"),
+        src: ((__VLS_ctx.staticUrl + 'img/Universitaetsklinikum_Wuerzburg.jpg')),
+        alt: ("Logo"),
     });
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: ("ms-1 font-weight-bold text-white text-center") },

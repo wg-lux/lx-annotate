@@ -45,8 +45,8 @@ Lx-annotate is set up by a devenv.nix and uv2nix automatically. This file define
 
 
 
-3. ** Using the Frontend
-  The Frontend is compiled to the static folder of django.
+3. **Using the Frontend
+  requires compiling to the static folder of django.
 
       ```bash
         direnv allow
@@ -56,7 +56,13 @@ Lx-annotate is set up by a devenv.nix and uv2nix automatically. This file define
         npm run build
         cd ..
 
-## Usage
+
+## Implementing new components
+
+1. Create the Component inside of frontend/src/components
+2. Register it in the 
+
+## Usage of lx-anonymizer
 
 To use the lx-anonymizer API, follow these steps:
 

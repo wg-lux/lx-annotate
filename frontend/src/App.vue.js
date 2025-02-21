@@ -6,6 +6,11 @@ import axios from 'axios';
 axios.defaults.baseURL = '/';
 export default (await import('vue')).defineComponent({
     name: 'App',
+    data() {
+        return {
+            staticUrl: window.STATIC_URL || '/static/'
+        };
+    },
     components: {
         NavbarComponent,
         SidebarComponent,
