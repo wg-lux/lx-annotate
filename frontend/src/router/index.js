@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router';
 const router = createRouter({
-    history: createWebHistory(import.meta.env.BASE_URL),
+    history: createWebHistory(import.meta.env.BASE_URL || '/'),
     routes: [
         {
             path: '/annotationen',
@@ -82,6 +82,11 @@ const router = createRouter({
                 description: 'Hier können Sie Annotationen validieren.'
             }
         },
+        // Catch-all redirect to Dashboard for any unmatched route
+        {
+            path: '/:catchAll(.*)',
+            redirect: '/'
+        }
     ]
 });
 export default router;

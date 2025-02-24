@@ -1,87 +1,107 @@
 <template>
-  <header>
-    <link rel="stylesheet" type="text/css" href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700|Roboto+Slab:400,700|Material+Icons" />
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/latest/css/font-awesome.min.css">
-  </header>
-  <div class="sidenav-header">
-    <i class="fas fa-times p-3 cursor-pointer text-white opacity-5 position-absolute end-0 top-0 d-none d-xl-none" aria-hidden="true" id="iconSidenav"></i>
-    <a class="navbar-brand m-0" href="/">
-      <div class="sidenav-header-inner text-center">
-        <img :src="staticUrl + 'img/Universitaetsklinikum_Wuerzburg.jpg'" alt="Logo">
+  <div>
+    <!-- Header with font and icon links -->
+    <header>
+      <link
+        rel="stylesheet"
+        type="text/css"
+        href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700|Roboto+Slab:400,700|Material+Icons"
+      />
+      <link
+        rel="stylesheet"
+        href="https://maxcdn.bootstrapcdn.com/font-awesome/latest/css/font-awesome.min.css"
+      />
+    </header>
+
+    <!-- Hamburger toggle button: only visible on mobile -->
+    <button class="navbar-toggler d-block d-xl-none" @click="toggleSidebar">
+      <i class="fas fa-bars"></i>
+    </button>
+
+    <!-- Sidebar container: toggled on mobile, always visible on desktop -->
+    <div :class="['sidenav', { open: isSidebarOpen }]">
+      <div class="sidenav-header">
+        <!-- Close icon: visible on mobile -->
+        <i
+          class="fas fa-times p-3 cursor-pointer text-white opacity-5 position-absolute end-0 top-0 d-block d-xl-none"
+          aria-hidden="true"
+          @click="toggleSidebar"
+        ></i>
+        <a class="navbar-brand m-0" href="/">
+          <div class="sidenav-header-inner text-center">
+            <img :src="staticUrl + 'img/ag_lux_logo_light_grey.svg'" alt="Logo" />
+          </div>
+          <div class="ms-1 font-weight-bold text-white text-center">AG Lux</div>
+        </a>
+        <div class="collapse navbar-collapse w-auto max-height-vh-100" id="sidenav-collapse-main">
+          <ul class="navbar-nav">
+            <li class="nav-item">
+              <router-link to="/" class="nav-link" :class="{ active: $route.path === '/' }">
+                <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
+                  <i class="material-icons opacity-10">dashboard</i>
+                </div>
+                <span class="nav-link-text ms-1">Dashboard</span>
+              </router-link>
+            </li>
+            <li class="nav-item">
+              <router-link to="/annotationen" class="nav-link" :class="{ active: $route.path === '/annotationen' }">
+                <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
+                  <i class="material-icons opacity-10">note_add</i>
+                </div>
+                <span class="nav-link-text ms-1">Annotationen Übersicht</span>
+              </router-link>
+            </li>
+            <li class="nav-item">
+              <router-link to="/video-annotation" class="nav-link" :class="{ active: $route.path === '/video-annotation' }">
+                <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
+                  <i class="material-icons opacity-10">note_add</i>
+                </div>
+                <span class="nav-link-text ms-1">Video Annotation</span>
+              </router-link>
+            </li>
+            <li class="nav-item">
+              <router-link to="/frame-annotation" class="nav-link" :class="{ active: $route.path === '/frame-annotation' }">
+                <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
+                  <i class="material-icons opacity-10">note_add</i>
+                </div>
+                <span class="nav-link-text ms-1">Frame Annotation</span>
+              </router-link>
+            </li>
+            <li class="nav-item">
+              <router-link to="/fallgenerator" class="nav-link" :class="{ active: $route.path === '/fallgenerator' }">
+                <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
+                  <i class="material-icons opacity-10">check_circle</i>
+                </div>
+                <span class="nav-link-text ms-1">Fallgenerator</span>
+              </router-link>
+            </li>
+            <li class="nav-item">
+              <router-link to="/befund" class="nav-link" :class="{ active: $route.path === '/befund' }">
+                <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
+                  <i class="material-icons opacity-10">check_circle</i>
+                </div>
+                <span class="nav-link-text ms-1">Befunde</span>
+              </router-link>
+            </li>
+            <li class="nav-item">
+              <router-link to="/profil" class="nav-link" :class="{ active: $route.path === '/profil' }">
+                <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
+                  <i class="material-icons opacity-10">person</i>
+                </div>
+                <span class="nav-link-text ms-1">Profil</span>
+              </router-link>
+            </li>
+            <li class="nav-item">
+              <router-link to="/ueber-uns" class="nav-link" :class="{ active: $route.path === '/ueber-uns' }">
+                <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
+                  <i class="material-icons opacity-10">people</i>
+                </div>
+                <span class="nav-link-text ms-1">Über Uns</span>
+              </router-link>
+            </li>
+          </ul>
+        </div>
       </div>
-      <div class="ms-1 font-weight-bold text-white text-center">AG Lux</div>
-
-    </a>
-    
-    <div class="collapse navbar-collapse w-auto max-height-vh-100" id="sidenav-collapse-main">
-      <ul class="navbar-nav">
-        <li class="nav-item">
-          <router-link to="/" class="nav-link" :class="{ active: $route.path === '/' }">
-            <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
-              <i class="material-icons opacity-10">dashboard</i>
-            </div>
-            <span class="nav-link-text ms-1">Dashboard</span>
-          </router-link>
-        </li>
-
-        <li class="nav-item">
-          <router-link to="/annotationen" class="nav-link" :class="{ active: $route.path === '/annotationen' }">
-            <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
-              <i class="material-icons opacity-10">note_add</i>
-            </div>
-            <span class="nav-link-text ms-1">Annotationen Übersicht</span>
-          </router-link>
-        </li>
-        <li class="nav-item">
-          <router-link to="/video-annotation" class="nav-link" :class="{ active: $route.path === '/video-annotation' }">
-            <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
-              <i class="material-icons opacity-10">note_add</i>
-            </div>
-            <span class="nav-link-text ms-1">Video Annotation</span>
-          </router-link>
-        </li>
-        <li class="nav-item">
-          <router-link to="/frame-annotation" class="nav-link" :class="{ active: $route.path === '/frame-annotation' }">
-            <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
-              <i class="material-icons opacity-10">note_add</i>
-            </div>
-            <span class="nav-link-text ms-1">Frame Annotation</span>
-          </router-link>
-        </li>
-
-        <li class="nav-item">
-          <router-link to="/fallgenerator" class="nav-link" :class="{ active: $route.path === '/fallgenerator' }">
-            <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
-              <i class="material-icons opacity-10">check_circle</i>
-            </div>
-            <span class="nav-link-text ms-1">Fallgenerator</span>
-          </router-link>
-        </li>
-        <li class="nav-item">
-          <router-link to="/befund" class="nav-link" :class="{ active: $route.path === '/befund' }">
-            <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
-              <i class="material-icons opacity-10">check_circle</i>
-            </div>
-            <span class="nav-link-text ms-1">Befunde</span>
-          </router-link>
-        </li>
-        <li class="nav-item">
-          <router-link to="/profil" class="nav-link" :class="{ active: $route.path === '/profil' }">
-            <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
-              <i class="material-icons opacity-10">person</i>
-            </div>
-            <span class="nav-link-text ms-1">Profil</span>
-          </router-link>
-        </li>
-        <li class="nav-item">
-          <router-link to="/ueber-uns" class="nav-link" :class="{ active: $route.path === '/ueber-uns' }">
-            <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
-              <i class="material-icons opacity-10">people</i>
-            </div>
-            <span class="nav-link-text ms-1">Über Uns</span>
-          </router-link>
-        </li>
-      </ul>
     </div>
   </div>
 </template>
@@ -90,17 +110,21 @@
 export default {
   name: 'SidebarComponent',
   data() {
-  return {
-    staticUrl: window.STATIC_URL || '/static/'
+    return {
+      staticUrl: window.STATIC_URL || '/static/',
+      isSidebarOpen: false
+    }
+  },
+  methods: {
+    toggleSidebar() {
+      this.isSidebarOpen = !this.isSidebarOpen;
+    }
   }
-}
 }
 </script>
 
 <style scoped>
-.sidenav-header {
-}
-
+/* Preserve original desktop sidebar styles */
 .sidenav-header-inner {
   padding: 0.5rem 1rem;
   margin-bottom: 1.5rem;
@@ -160,7 +184,53 @@ hr.horizontal.light {
   background-image: linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,.4), rgba(255,255,255,0));
   height: 1px;
   border: 0;
-  opacity: .25;
+  opacity: 0.25;
   margin: 1rem 0;
+}
+
+.img {
+  object-fit: contain;
+}
+
+/* Hamburger button styling */
+.navbar-toggler {
+  background: primary;
+  border: none;
+  font-size: 1.5rem;
+  color: #fff;
+  position: fixed;
+  top: 10px;
+  margin-left: auto;
+  left: 50px;
+  z-index: 1050;
+}
+
+/* Responsive sidebar behavior */
+.sidenav {
+  transition: transform 0.3s ease;
+  transform: translateX(-100%);
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 250px; /* adjust width as needed */
+  background-color: #344767; /* desktop sidebar background */
+  z-index: 1040;
+}
+
+/* When toggled open on mobile */
+.sidenav.open {
+  transform: translateX(0);
+}
+
+/* On larger screens, keep the sidebar visible and use original layout */
+@media (min-width: 1200px) {
+  .sidenav {
+    transform: none;
+    position: static;
+    width: auto;
+    height: auto;
+    background: none;
+  }
 }
 </style>

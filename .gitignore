@@ -1,5 +1,4 @@
 #frozen_east_text_detection.pb
-agl_anonymizer/models/frozen_east_text_detection.pb
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -26,6 +25,7 @@ flake.json
 static/
 .staticfiles/
 staticfiles
+./frontend/public/video.mp4
 
 # C extensions
 *.so

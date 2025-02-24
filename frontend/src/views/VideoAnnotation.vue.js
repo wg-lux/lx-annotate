@@ -1,15 +1,15 @@
-import VideoAnnotation from '../components/VideoAnnotation.vue';
+import ConceptDemo from '../components/EndoAI/ConceptDemo.vue';
 export default (await import('vue')).defineComponent({
     name: 'Dashboard',
     components: {
-        VideoAnnotation
+        ConceptDemo,
     },
 });
 ; /* PartiallyEnd: #3632/script.vue */
 function __VLS_template() {
     const __VLS_ctx = {};
     const __VLS_componentsOption = {
-        VideoAnnotation
+        ConceptDemo,
     };
     let __VLS_components;
     let __VLS_directives;
@@ -24,8 +24,8 @@ function __VLS_template() {
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: ("col-12") },
     });
-    const __VLS_0 = {}.VideoAnnotation;
-    /** @type { [typeof __VLS_components.VideoAnnotation, ] } */ ;
+    const __VLS_0 = {}.ConceptDemo;
+    /** @type { [typeof __VLS_components.ConceptDemo, ] } */ ;
     // @ts-ignore
     const __VLS_1 = __VLS_asFunctionalComponent(__VLS_0, new __VLS_0({}));
     const __VLS_2 = __VLS_1({}, ...__VLS_functionalComponentArgsRest(__VLS_1));

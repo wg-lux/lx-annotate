@@ -22743,31 +22743,31 @@ label,
 }
 
 .bg-gradient-primary {
-  background-image: linear-gradient(195deg, #EC407A 0%, #D81B60 100%);
+  background-image: linear-gradient(195deg, #596CFF 0%, #2D3047 100%);
 }
 
 .bg-gradient-secondary {
-  background-image: linear-gradient(195deg, #747b8a 0%, #495361 100%);
+  background-image: linear-gradient(195deg, #2D3047 0%, #000000 100%);
 }
 
 .bg-gradient-success {
-  background-image: linear-gradient(195deg, #66BB6A 0%, #43A047 100%);
+  background-image: linear-gradient(195deg, #CBEDCA 0%, #004953 100%);
 }
 
 .bg-gradient-info {
-  background-image: linear-gradient(195deg, #49a3f1 0%, #1A73E8 100%);
+  background-image: linear-gradient(195deg, #596CFF 0%, #2D3047 100%);
 }
 
 .bg-gradient-warning {
-  background-image: linear-gradient(195deg, #FFA726 0%, #FB8C00 100%);
+  background-image: linear-gradient(195deg, #D72638 0%, #D72638 100%);
 }
 
 .bg-gradient-danger {
-  background-image: linear-gradient(195deg, #EF5350 0%, #E53935 100%);
+  background-image: linear-gradient(195deg, #D72638 0%, #D72638 100%);
 }
 
 .bg-gradient-light {
-  background-image: linear-gradient(195deg, #EBEFF4 0%, #CED4DA 100%);
+  background-image: linear-gradient(195deg, #596CFF 0%, #596CFF 100%);
 }
 
 .bg-gradient-dark {
@@ -22775,7 +22775,7 @@ label,
 }
 
 .bg-gradient-faded-primary {
-  background-image: radial-gradient(370px circle at 80% 50%, rgba(89, 108, 255, 0.6) 0, #c1134e 100%);
+  background-image: radial-gradient(370px circle at 80% 50%, rgba(89, 108, 255, 0.6) 0, #2D3047 100%);
 }
 
 .bg-gradient-faded-secondary {

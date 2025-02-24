@@ -3,9 +3,12 @@ let
   endoregTasks = (
     import ./endoreg-db.nix { }
   );
+  vueTasks = (
+    import ./vue.nix { }
+  );
 
   customTasks = {
     
-  } // endoregTasks;
+  } // vueTasks;
 
 in customTasks 

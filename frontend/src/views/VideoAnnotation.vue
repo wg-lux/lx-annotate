@@ -3,7 +3,7 @@
     <div class="container-fluid h-100 w-100 py-1 px-4">
       <div class="row">
         <div class="col-12">
-          <VideoAnnotation />
+          <ConceptDemo />
         </div>
       </div>
     </div>
@@ -11,13 +11,13 @@
 </template>
 
 <script>
-import VideoAnnotation from '../components/VideoAnnotation.vue';
+import ConceptDemo from '../components/EndoAI/ConceptDemo.vue';
 
 
 export default {
 name: 'Dashboard',
 components: {
-    VideoAnnotation
+    ConceptDemo,
 },
 };
 </script>
