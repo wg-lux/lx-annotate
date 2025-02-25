@@ -1,7 +1,7 @@
 <template>
   <div class="container mt-4">
-    <div class="card">
-      <div class="bg-gradient-primary text-white">
+    <div class="container">
+      <div class="container bg-gradient-primary text-white">
         <h2 class="mb-0">Patientendaten</h2>
       </div>
       <div class="container">

@@ -31,7 +31,7 @@
           <table class="table table-striped table-hover">
             <thead>
               <tr>
-                <th class="custom-segments">{{segment.label}}</th>
+                <th class="custom-segments">{{segment.label_display}}</th>
               </tr>
             </thead>
             <tbody>
@@ -61,7 +61,7 @@
             </thead>
             <tbody>
               <tr v-for="segment in segments" :key="segment.id" @click="jumpTo(segment)" style="cursor: pointer;">
-                <td :style="{ backgroundColor: getColorForLabel(segment.label), color: '#fff' }">{{ segment.label }}</td>
+                <td :style="{ backgroundColor: getColorForLabel(segment.label), color: '#fff' }">{{ segment.label_display }}</td>
                 <td>{{ formatTime(segment.startTime) }}</td>
                 <td>{{ formatTime(segment.endTime) }}</td>
                 <td>{{ (segment.avgConfidence * 100).toFixed(1) }}%</td>
@@ -171,21 +171,24 @@ return 100 - calculateLeftPercent(segment) - calculateWidthPercent(segment);
     segments.value = [
       {
         id: 'segment1',
-        label: 'Außerhalb',
+        label: 'outside',
+        label_display: 'Außerhalb',
         startTime: 0,
         endTime: 20,
         avgConfidence: 0.85,
       },
       {
         id: 'segment2',
-        label: 'Blut',
+        label: 'blood',
+        label_display: 'Blut',
         startTime: 25,
         endTime: 35,
         avgConfidence: 0.9,
       },
       {
         id: 'segment3',
-        label: 'Nadel',
+        label: 'needle',
+        label_display: 'Nadel',
         startTime: 40,
         endTime: 45,
         avgConfidence: 0.7,
@@ -223,7 +226,9 @@ return 100 - calculateLeftPercent(segment) - calculateWidthPercent(segment);
     color: white;
 }
 
-  
+table td {
+  border: black;
+}
   .legend {
     font-size: 0.875rem;
   }

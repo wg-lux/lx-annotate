@@ -1,6 +1,7 @@
 export interface Segment {
     id: string;
     label: string;
+    label_display: string;
     startTime: number;
     endTime: number;
     avgConfidence: number;

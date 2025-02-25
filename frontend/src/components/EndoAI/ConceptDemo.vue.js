@@ -77,6 +77,7 @@ onMounted(() => {
         {
             id: 'segment1',
             label: 'outside',
+            label_display: 'Außerhalb',
             startTime: 0,
             endTime: 20,
             avgConfidence: 0.85,
@@ -84,6 +85,7 @@ onMounted(() => {
         {
             id: 'segment2',
             label: 'blood',
+            label_display: 'Blut',
             startTime: 25,
             endTime: 35,
             avgConfidence: 0.9,
@@ -91,6 +93,7 @@ onMounted(() => {
         {
             id: 'segment3',
             label: 'needle',
+            label_display: 'Nadel',
             startTime: 40,
             endTime: 45,
             avgConfidence: 0.7,
@@ -143,21 +146,6 @@ function __VLS_template() {
         ...{ class: ("progress-bar") },
         ...{ style: (({ width: `${(__VLS_ctx.currentTime / __VLS_ctx.duration) * 100}%` })) },
     });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("legend mb-4") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({});
-    for (const [label] of __VLS_getVForSourceType((__VLS_ctx.labelsList))) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            key: ((label)),
-            ...{ class: ("legend-item") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("legend-color") },
-            ...{ style: (({ backgroundColor: __VLS_ctx.getColorForLabel(label) })) },
-        });
-        (label);
-    }
     for (const [segment] of __VLS_getVForSourceType((__VLS_ctx.segments))) {
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ onClick: (...[$event]) => {
@@ -175,7 +163,7 @@ function __VLS_template() {
         __VLS_elementAsFunction(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({
             ...{ class: ("custom-segments") },
         });
-        (segment.label);
+        (segment.label_display);
         __VLS_elementAsFunction(__VLS_intrinsicElements.tbody, __VLS_intrinsicElements.tbody)({});
         __VLS_elementAsFunction(__VLS_intrinsicElements.tr, __VLS_intrinsicElements.tr)({});
         __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({
@@ -189,6 +177,7 @@ function __VLS_template() {
             ...{ style: (({ width: __VLS_ctx.calculateRightPercent(segment) + '%' })) },
         });
     }
+    __VLS_elementAsFunction(__VLS_intrinsicElements.h2, __VLS_intrinsicElements.h2)({});
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: ("table-responsive") },
     });
@@ -213,7 +202,7 @@ function __VLS_template() {
         __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({
             ...{ style: (({ backgroundColor: __VLS_ctx.getColorForLabel(segment.label), color: '#fff' })) },
         });
-        (segment.label);
+        (segment.label_display);
         __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
         (__VLS_ctx.formatTime(segment.startTime));
         __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
@@ -229,7 +218,7 @@ function __VLS_template() {
         ...{ class: ("btn btn-success") },
         disabled: ((!__VLS_ctx.canSave)),
     });
-    ['container-fluid', 'h-100', 'w-100', 'py-1', 'px-4', 'card-header', 'pb-0', 'mb-0', 'card-body', 'video-container', 'mb-4', 'w-100', 'timeline-container', 'mb-4', 'timeline-track', 'progress-bar', 'legend', 'mb-4', 'legend-item', 'legend-color', 'table-responsive', 'table', 'table-striped', 'table-hover', 'custom-segments', 'table-responsive', 'table', 'table-striped', 'table-hover', 'controls', 'mt-4', 'btn', 'btn-success',];
+    ['container-fluid', 'h-100', 'w-100', 'py-1', 'px-4', 'card-header', 'pb-0', 'mb-0', 'card-body', 'video-container', 'mb-4', 'w-100', 'timeline-container', 'mb-4', 'timeline-track', 'progress-bar', 'table-responsive', 'table', 'table-striped', 'table-hover', 'custom-segments', 'table-responsive', 'table', 'table-striped', 'table-hover', 'controls', 'mt-4', 'btn', 'btn-success',];
     var __VLS_slots;
     var $slots;
     let __VLS_inheritedAttrs;
@@ -258,7 +247,6 @@ const __VLS_self = (await import('vue')).defineComponent({
             segments: segments,
             currentTime: currentTime,
             duration: duration,
-            labelsList: labelsList,
             canSave: canSave,
             calculateLeftPercent: calculateLeftPercent,
             calculateWidthPercent: calculateWidthPercent,
