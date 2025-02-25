@@ -21,7 +21,7 @@ const router = createRouter({
         {
             path: '/frame-annotation',
             name: 'Frame Annotation',
-            component: () => import('src/views/FrameAnnotation.vue'),
+            component: () => import('src/views/FramesDemo.vue'),
             meta: {
                 description: 'Hier können Sie Frames annotieren.'
             }

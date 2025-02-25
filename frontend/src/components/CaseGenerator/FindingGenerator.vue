@@ -1,7 +1,81 @@
 <template>
+    <div class="container-fluid py-4">
+    <h1>Fallübersicht</h1>
+
+    <!-- Patients Section -->
+    <section class="patients-section mt-5">
+      <h2>Patienten</h2>
+      <button class="btn btn-primary mb-3" @click="openPatientForm()">Patienten hinzufügen</button>
+      <!-- Patient Form -->
+      <div v-if="showPatientForm" class="form-container mt-4">
+        <h3>{{ editingPatient ? 'Patient bearbeiten' : 'Neuer Patient' }}</h3>
+        <form @submit.prevent="submitPatientForm">
+          <div class="form-group">
+            <label for="patientFirstName">Vorname:</label>
+            <input type="text" id="patientFirstName" v-model="patientForm.first_name" class="form-control" required />
+          </div>
+          <div class="form-group">
+            <label for="patientLastName">Nachname:</label>
+            <input type="text" id="patientLastName" v-model="patientForm.last_name" class="form-control" required />
+          </div>
+          <div class="form-group">
+            <label for="patientAge">Alter:</label>
+            <input type="number" id="patientAge" v-model="patientForm.age" class="form-control" required />
+          </div>
+          <div class="form-group">
+            <label for="patientComments">Kommentar:</label>
+            <textarea id="patientComments" v-model="patientForm.comments" class="form-control"></textarea>
+          </div>
+          <div class="form-group">
+            <label>Geschlecht:</label>
+            <div>
+              <label>
+                <input type="radio" :value="1" v-model="patientForm.gender" required /> Weiblich
+              </label>
+              <label>
+                <input type="radio" :value="2" v-model="patientForm.gender" required /> Männlich
+              </label>
+              <label>
+                <input type="radio" :value="3" v-model="patientForm.gender" required /> Divers
+              </label>
+            </div>
+          </div>
+          <button type="submit" class="btn btn-success mt-2">Patient speichern</button>
+          <button type="button" class="btn btn-secondary mt-2" @click="closePatientForm">Beenden</button>
+        </form>
+      </div>
+      <table class="table table-striped">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Vorname</th>
+            <th>Nachname</th>
+            <th>Geschlecht</th>
+            <th>Alter</th>
+            <th>Kommentar</th>
+            <th>Aktionen</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="patient in patients" :key="patient.id">
+            <td>{{ patient.id }}</td>
+            <td>{{ patient.first_name }}</td>
+            <td>{{ patient.last_name }}</td>
+            <td>{{ patient.gender }}</td>
+            <td>{{ patient.age }}</td>
+            <td>{{ patient.comments }}</td>
+            <td>
+              <button class="btn btn-secondary btn-sm" @click="openPatientForm(patient)">Bearbeiten</button>
+              <button class="btn btn-danger btn-sm" @click="deletePatient(patient.id)">Löschen</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+  </div>
   <div class="container mt-4">
-    <div class="card">
-      <div class="bg-gradient-primary text-white">
+    <div class="container-fluid py-4">
+      <div>
         <h2 class="mb-0">Patientendaten</h2>
       </div>
       <div class="container">
@@ -202,30 +276,24 @@
           <!-- Interventions -->
           <h3 class="mt-4">Intervention</h3>
           <p>Wähle eine oder mehrere Interventionen:</p>
-          <div class="mb-3">
-            <div
-              v-for="intervention in interventions"
-              :key="intervention.id"
-              class="form-check"
-            >
-              <input
-                type="checkbox"
-                :value="intervention.id"
-                v-model="formData.selectedInterventions"
-                class="form-check-input"
-                :id="'intervention-' + intervention.id"
-              />
-              <label :for="'intervention-' + intervention.id" class="form-check-label">
-                {{ intervention.name }}
-              </label>
-            </div>
-          </div>
+        <div class="mb-3">
+        <div v-for="intervention in interventions" :key="intervention.id">
+          <label>
+            <input
+              type="checkbox"
+              :value="intervention.id"
+              v-model="formData.selectedInterventions"
+            />
+            {{ intervention.name }}
+          </label>
+        </div>
+      </div>
   
           <hr />
   
           <!-- Submit Button -->
           <div class="mb-3">
-            <button type="submit" id="saveData" class="btn btn-primary">
+            <button type="submit" id="saveData" class="btn btn-danger">
               Finish &amp; Generate Report
             </button>
             <div v-if="errorMessage" class="alert alert-danger mt-2">
@@ -240,6 +308,8 @@
 
 <script>
 import axios from 'axios';
+import {reportService} from '@/api/reportService.js';
+import {patientService} from '@/api/patientService.js';
 
 export default {
   data() {
@@ -253,7 +323,18 @@ export default {
       morphologyClassifications: [],
       morphologyClassificationChoices: [],
       interventions: [],
-  
+      patients: [],
+      showPatientForm: false,
+      editingPatient: null,
+      patientForm: {
+        id: null,
+        first_name: '',
+        last_name: '',
+        age: null,
+        comments: '',
+        gender: null
+      },
+      errorMessage: '',
       // Form data
       formData: {
         name: '',
@@ -287,70 +368,113 @@ export default {
     }
   },
   methods: {
+    async loadPatients() {
+      try {
+        this.patients = await patientService.getPatients();
+      } catch (error) {
+        console.error('Error loading patients:', error);
+      }
+    },
+    openPatientForm(patient = null) {
+      if (patient) {
+        this.editingPatient = patient;
+        this.patientForm = { ...patient };
+      } else {
+        this.editingPatient = null;
+        this.patientForm = { id: null, first_name: '', last_name: '', age: null, comments: '', gender: null };
+      }
+      this.showPatientForm = true;
+    },
+    closePatientForm() {
+      this.showPatientForm = false;
+      this.editingPatient = null;
+      this.patientForm = { id: null, first_name: '', last_name: '', age: null, comments: '', gender: null };
+    },
+    async submitPatientForm() {
+      try {
+        if (this.editingPatient) {
+          const response = await patientService.updatePatient(this.patientForm.id, this.patientForm);
+          const index = this.patients.findIndex(p => p.id === this.patientForm.id);
+          if (index !== -1) {
+            this.$set(this.patients, index, response.data);
+          }
+        } else {
+          const newPatient = await patientService.addPatient(this.patientForm);
+          this.patients.push(newPatient.data);
+        }
+        this.closePatientForm();
+      } catch (error) {
+        console.error('Error saving patient:', error);
+      }
+    },
+    async deletePatient(id) {
+      try {
+        await patientService.deletePatient(id);
+        this.patients = this.patients.filter(patient => patient.id !== id);
+      } catch (error) {
+        console.error('Error deleting patient:', error);
+      }
+    },
     async loadCenters() {
       try {
-        const response = await axios.get('api/centers/');
-        this.centers = response.data;
+        this.centers = await reportService.getCenters();
       } catch (error) {
         console.error('Error loading centers:', error);
       }
     },
     async loadExaminations() {
+      console.log("loadExaminations");
       try {
-        const response = await axios.get('api/examinations/');
-        this.examinations = response.data;
+        this.examinations = await reportService.getExaminations();
+        console.log(this.examinations);
       } catch (error) {
         console.error('Error loading examinations:', error);
       }
     },
     async loadFindings() {
       try {
-        const response = await axios.get('api/findings/');
-        this.findings = response.data;
+        this.findings = await reportService.getFindings();
       } catch (error) {
         console.error('Error loading findings:', error);
       }
     },
     async loadLocationClassifications() {
       try {
-        const response = await axios.get('api/location-classifications/');
-        this.locationClassifications = response.data;
+        this.locationClassifications = await reportService.getLocationClassifications();
       } catch (error) {
         console.error('Error loading location classifications:', error);
       }
     },
     async loadLocationClassificationChoices() {
       try {
-        const response = await axios.get('api/location-classification-choices/');
-        this.locationClassificationChoices = response.data;
+        this.locationClassificationChoices = await reportService.getLocationClassificationChoices();
       } catch (error) {
         console.error('Error loading location classification choices:', error);
       }
     },
     async loadMorphologyClassifications() {
       try {
-        const response = await axios.get('api/morphology-classifications/');
-        this.morphologyClassifications = response.data;
+        this.morphologyClassifications = await reportService.getMorphologyClassifications();
       } catch (error) {
         console.error('Error loading morphology classifications:', error);
       }
     },
     async loadMorphologyClassificationChoices() {
       try {
-        const response = await axios.get('api/morphology-classification-choices/');
-        this.morphologyClassificationChoices = response.data;
+        this.morphologyClassificationChoices = await reportService.getMorphologyClassificationChoices();
       } catch (error) {
         console.error('Error loading morphology classification choices:', error);
       }
     },
     async loadInterventions() {
       try {
-        const response = await axios.get('api/interventions/');
-        this.interventions = response.data;
+        this.interventions = await reportService.getInterventions();
       } catch (error) {
         console.error('Error loading interventions:', error);
       }
     },
+
+
     loadLocationChoices() {
       this.formData.locationChoiceId = '';
     },

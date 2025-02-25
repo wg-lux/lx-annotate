@@ -193,6 +193,14 @@ return 100 - calculateLeftPercent(segment) - calculateWidthPercent(segment);
         endTime: 45,
         avgConfidence: 0.7,
       },
+      {
+        id: 'segment4',
+        label: 'polyp',
+        label_display: 'Kolonpolyp',
+        startTime: 90,
+        endTime: 100,
+        avgConfidence: 0.7,
+      },
     ];
   });
   </script>
