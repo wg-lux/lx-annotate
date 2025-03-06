@@ -1,29 +1,64 @@
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { getColorForLabel, jumpToSegment as utilJumpToSegment } from '@/components/EndoAI/segments';
-import axios from 'axios';
-const staticUrl = window.STATIC_URL || '/static/';
+import axios, { AxiosError } from 'axios';
+//  Declare missing variables properly
+const videoUrl = ref('');
 const videoRef = ref(null);
-const timelineRef = ref(null);
-const segments = ref([]);
+const timelineRef = ref(null); //  
 const currentTime = ref(0);
-const duration = ref(100); // Will be updated when video loads
-const labelsList = ref([
-    "appendix",
-    "blood",
-    "diverticule",
-    "grasper",
-    "ileocaecalvalve",
-    "ileum",
-    "low_quality",
-    "nbi",
-    "needle",
-    "outside",
-    "polyp",
-    "snare",
-    "water_jet",
-    "wound",
-]);
-const canSave = ref(false);
+const duration = ref(100);
+const canSave = ref(true); //  Add missing canSave ref
+const segments = ref([]); //  Declare segments properly
+const classificationData = ref(null);
+//  Handle Video Errors
+function handleVideoError(event) {
+    console.error("Error loading the video:", event);
+    alert("Failed to load video. Please check the source URL.");
+}
+//  Fetch Video from Django API
+// Updated function to fetch video and segment data from backend
+async function fetchVideoUrl() {
+    try {
+        const response = await axios.get('http://127.0.0.1:8000/api/video/1/', {
+            headers: { 'Accept': 'application/json' }
+        });
+        if (response.data.video_url) {
+            videoUrl.value = response.data.video_url;
+            console.log("Fetched video URL:", videoUrl.value);
+        }
+        else {
+            console.error("Invalid video response:", response.data);
+        }
+        if (response.data.classification_data) {
+            // Loop through classification_data from backend and update segments array
+            segments.value = response.data.classification_data.map((classification, index) => ({
+                id: `segment${index + 1}`, // Unique ID
+                label: classification.label,
+                label_display: classification.label, // Modify if needed for translations
+                startTime: classification.start_time,
+                endTime: classification.end_time,
+                avgConfidence: classification.confidence
+            }));
+        }
+    }
+    catch (error) {
+        const axiosError = error;
+        console.error("Error loading video:", axiosError.response?.data || axiosError.message);
+    }
+}
+// Call the function on component mount
+onMounted(fetchVideoUrl);
+//  Track Current Classification Based on Video Time
+const currentClassification = computed(() => {
+    return segments.value.find(segment => currentTime.value >= segment.startTime &&
+        currentTime.value <= segment.endTime) || null; // Returns null if no matching segment is found
+});
+function handleTimeUpdate() {
+    if (videoRef.value) {
+        currentTime.value = videoRef.value.currentTime;
+    }
+}
+// Helper Functions
 function calculateLeftPercent(segment) {
     return (segment.startTime / duration.value) * 100;
 }
@@ -33,19 +68,15 @@ function calculateWidthPercent(segment) {
 function calculateRightPercent(segment) {
     return 100 - calculateLeftPercent(segment) - calculateWidthPercent(segment);
 }
-function handleTimeUpdate() {
-    if (videoRef.value) {
-        currentTime.value = videoRef.value.currentTime;
-        duration.value = videoRef.value.duration;
-    }
-}
 function handleLoadedMetadata() {
     if (videoRef.value) {
         duration.value = videoRef.value.duration;
     }
 }
 function jumpTo(segment) {
-    utilJumpToSegment(segment, videoRef.value);
+    if (videoRef.value) {
+        videoRef.value.currentTime = segment.startTime;
+    }
 }
 function handleTimelineClick(event) {
     if (timelineRef.value && videoRef.value) {
@@ -55,59 +86,37 @@ function handleTimelineClick(event) {
         videoRef.value.currentTime = percentage * duration.value;
     }
 }
-function saveAnnotations() {
-    axios.post('http://127.0.0.1:8000/api/annotations/', {
-        segments: segments.value,
-    })
-        .then(response => {
+async function saveAnnotations() {
+    try {
+        const response = await axios.post('http://127.0.0.1:8000/api/annotations/', {
+            segments: segments.value,
+        });
         console.log('Annotations saved:', response.data);
-    })
-        .catch(error => {
+    }
+    catch (error) {
         console.error('Error saving annotations:', error);
-    });
+    }
 }
 function formatTime(seconds) {
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
-onMounted(() => {
-    // For demo purposes, set some sample segments:
-    segments.value = [
-        {
-            id: 'segment1',
-            label: 'outside',
-            label_display: 'Außerhalb',
-            startTime: 0,
-            endTime: 20,
-            avgConfidence: 0.85,
-        },
-        {
-            id: 'segment2',
-            label: 'blood',
-            label_display: 'Blut',
-            startTime: 25,
-            endTime: 35,
-            avgConfidence: 0.9,
-        },
-        {
-            id: 'segment3',
-            label: 'needle',
-            label_display: 'Nadel',
-            startTime: 40,
-            endTime: 45,
-            avgConfidence: 0.7,
-        },
-        {
-            id: 'segment4',
-            label: 'polyp',
-            label_display: 'Kolonpolyp',
-            startTime: 90,
-            endTime: 100,
-            avgConfidence: 0.7,
-        },
-    ];
-});
+function getClassificationStyle() {
+    return {
+        backgroundColor: "Green", /* Standard background color */
+        color: "white",
+        fontSize: "20px",
+        fontWeight: "bold",
+        padding: "12px",
+        borderRadius: "6px",
+        textTransform: "uppercase",
+        boxShadow: "0px 4px 10px rgba(0, 0, 0, 0.5)",
+        textAlign: "center",
+        width: "100%", /* Ensure it spans the full width below the video */
+    };
+}
+//  Load video & segments on component mount
 ; /* PartiallyEnd: #3632/scriptSetup.vue */
 function __VLS_template() {
     const __VLS_ctx = {};
@@ -128,39 +137,39 @@ function __VLS_template() {
         ...{ class: ("card-body") },
     });
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("video-container mb-4") },
+        ...{ class: ("video-container mb-4 position-relative") },
     });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.video, __VLS_intrinsicElements.video)({
-        ...{ onTimeupdate: (__VLS_ctx.handleTimeUpdate) },
-        ...{ onLoadedmetadata: (__VLS_ctx.handleLoadedMetadata) },
-        ref: ("videoRef"),
-        controls: (true),
-        ...{ class: ("w-100") },
-        src: ((__VLS_ctx.staticUrl + 'video.mp4')),
-    });
-    // @ts-ignore navigation for `const videoRef = ref()`
-    /** @type { typeof __VLS_ctx.videoRef } */ ;
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("timeline-container mb-4") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ onClick: (__VLS_ctx.handleTimelineClick) },
-        ...{ class: ("timeline-track") },
-        ref: ("timelineRef"),
-    });
-    // @ts-ignore navigation for `const timelineRef = ref()`
-    /** @type { typeof __VLS_ctx.timelineRef } */ ;
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("progress-bar") },
-        ...{ style: (({ width: `${(__VLS_ctx.currentTime / __VLS_ctx.duration) * 100}%` })) },
-    });
+    if (__VLS_ctx.videoUrl) {
+        __VLS_elementAsFunction(__VLS_intrinsicElements.video, __VLS_intrinsicElements.video)({
+            ...{ onTimeupdate: (__VLS_ctx.handleTimeUpdate) },
+            ...{ onLoadedmetadata: (__VLS_ctx.handleLoadedMetadata) },
+            ...{ onError: (__VLS_ctx.handleVideoError) },
+            ref: ("videoRef"),
+            controls: (true),
+            ...{ class: ("w-100") },
+            src: ((__VLS_ctx.videoUrl)),
+        });
+        // @ts-ignore navigation for `const videoRef = ref()`
+        /** @type { typeof __VLS_ctx.videoRef } */ ;
+    }
+    else {
+        __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
+    }
+    if (__VLS_ctx.currentClassification) {
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("classification-label") },
+            ...{ style: ((__VLS_ctx.getClassificationStyle())) },
+        });
+        (__VLS_ctx.currentClassification.label);
+        ((__VLS_ctx.currentClassification.avgConfidence * 100).toFixed(1));
+    }
     for (const [segment] of __VLS_getVForSourceType((__VLS_ctx.segments))) {
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ onClick: (...[$event]) => {
                     __VLS_ctx.jumpTo(segment);
                 } },
-            ...{ class: ("table-responsive") },
             key: ((segment.id)),
+            ...{ class: ("table-responsive") },
             ...{ style: ({}) },
         });
         __VLS_elementAsFunction(__VLS_intrinsicElements.table, __VLS_intrinsicElements.table)({
@@ -180,7 +189,7 @@ function __VLS_template() {
         __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({
             ...{ style: (({ width: __VLS_ctx.calculateWidthPercent(segment) + '%', backgroundColor: __VLS_ctx.getColorForLabel(segment.label), color: '#fff' })) },
         });
-        (segment.avgConfidence);
+        ((segment.avgConfidence * 100).toFixed(1));
         __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({
             ...{ style: (({ width: __VLS_ctx.calculateRightPercent(segment) + '%' })) },
         });
@@ -226,14 +235,13 @@ function __VLS_template() {
         ...{ class: ("btn btn-success") },
         disabled: ((!__VLS_ctx.canSave)),
     });
-    ['container-fluid', 'h-100', 'w-100', 'py-1', 'px-4', 'card-header', 'pb-0', 'mb-0', 'card-body', 'video-container', 'mb-4', 'w-100', 'timeline-container', 'mb-4', 'timeline-track', 'progress-bar', 'table-responsive', 'table', 'table-striped', 'table-hover', 'custom-segments', 'table-responsive', 'table', 'table-striped', 'table-hover', 'controls', 'mt-4', 'btn', 'btn-success',];
+    ['container-fluid', 'h-100', 'w-100', 'py-1', 'px-4', 'card-header', 'pb-0', 'mb-0', 'card-body', 'video-container', 'mb-4', 'position-relative', 'w-100', 'classification-label', 'table-responsive', 'table', 'table-striped', 'table-hover', 'custom-segments', 'table-responsive', 'table', 'table-striped', 'table-hover', 'controls', 'mt-4', 'btn', 'btn-success',];
     var __VLS_slots;
     var $slots;
     let __VLS_inheritedAttrs;
     var $attrs;
     const __VLS_refs = {
         'videoRef': __VLS_nativeElements['video'],
-        'timelineRef': __VLS_nativeElements['div'],
     };
     var $refs;
     var $el;
@@ -249,22 +257,21 @@ const __VLS_self = (await import('vue')).defineComponent({
     setup() {
         return {
             getColorForLabel: getColorForLabel,
-            staticUrl: staticUrl,
+            videoUrl: videoUrl,
             videoRef: videoRef,
-            timelineRef: timelineRef,
-            segments: segments,
-            currentTime: currentTime,
-            duration: duration,
             canSave: canSave,
+            segments: segments,
+            handleVideoError: handleVideoError,
+            currentClassification: currentClassification,
+            handleTimeUpdate: handleTimeUpdate,
             calculateLeftPercent: calculateLeftPercent,
             calculateWidthPercent: calculateWidthPercent,
             calculateRightPercent: calculateRightPercent,
-            handleTimeUpdate: handleTimeUpdate,
             handleLoadedMetadata: handleLoadedMetadata,
             jumpTo: jumpTo,
-            handleTimelineClick: handleTimelineClick,
             saveAnnotations: saveAnnotations,
             formatTime: formatTime,
+            getClassificationStyle: getClassificationStyle,
         };
     },
 });

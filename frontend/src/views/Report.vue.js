@@ -4,6 +4,9 @@ export default (await import('vue')).defineComponent({
     components: {
         FindingGenerator
     },
+    mounted() {
+        console.log("----------------------------Report.vue has been loaded!---------------------");
+    }
 });
 ; /* PartiallyEnd: #3632/script.vue */
 function __VLS_template() {

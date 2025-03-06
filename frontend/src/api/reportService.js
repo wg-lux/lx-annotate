@@ -10,7 +10,7 @@ export const reportService = {
             console.error('Error getting centers:', error);
             }
         },
-    async getExaminations() {
+    /* async getExaminations() {
         console.log('getExaminations')
         try {
         const response = await axiosInstance.get('examinations/');
@@ -19,7 +19,20 @@ export const reportService = {
         } catch (error) {
         console.error('Error getting examinations:', error);
         }
+    },*/
+    async getExaminations() {
+        console.log('getExaminations called');  // Check if function runs
+        try {
+            const response = await axiosInstance.get('examinations/');
+            console.log("API Response Data:", response.data);  // Check if data is received
+            return response.data;  //  Return the fetched data
+        } catch (error) {
+            console.error('Error getting examinations:', error);
+            return [];
+        }
     },
+    
+    
     async getFindings() {
         try {
         const response = await axiosInstance.get('findings/');

@@ -1,257 +1,258 @@
 <template>
-    <div class="container-fluid h-100 w-100 py-1 px-4">
-      <!-- Header: Title -->
-      <div class="card-header pb-0">
-        <h4 class="mb-0">Video Annotation</h4>
+  <div class="container-fluid h-100 w-100 py-1 px-4">
+    <!-- Header: Title -->
+    <div class="card-header pb-0">
+      <h4 class="mb-0">Video :: Annotation</h4>
+    </div>
+
+    <!-- Body: Video and Timeline/Table -->
+    <div class="card-body">
+      <!-- Video Player -->
+      <div class="video-container mb-4 position-relative">
+        <video 
+          ref="videoRef"
+          @timeupdate="handleTimeUpdate"
+          @loadedmetadata="handleLoadedMetadata"
+          @error="handleVideoError"
+          controls
+          class="w-100"
+          v-if="videoUrl"
+          :src="videoUrl">
+        </video>
+        <p v-else>Loading video...</p>
       </div>
-  
-      <!-- Body: Video and Timeline/Table -->
-      <div class="card-body">
-        <!-- Video Player -->
-        <div class="video-container mb-4">
-          <video 
-            ref="videoRef"
-            @timeupdate="handleTimeUpdate"
-            @loadedmetadata="handleLoadedMetadata"
-            controls
-            class="w-100"
-            :src="staticUrl + 'video.mp4'">
-          </video>
-        </div>
-  
-        <!-- (Optional) Timeline for scrubbing -->
-        <div class="timeline-container mb-4">
-          <div class="timeline-track" ref="timelineRef" @click="handleTimelineClick">
-            <!-- Progress Bar for current playback -->
-            <div class="progress-bar" :style="{ width: `${(currentTime / duration) * 100}%` }"></div>
-          </div>
-        </div>
-        
-        <div class="table-responsive" v-for="segment in segments" :key="segment.id" @click="jumpTo(segment)" style="cursor: pointer;">
-          <table class="table table-striped table-hover">
-            <thead>
-              <tr>
-                <th class="custom-segments">{{segment.label_display}}</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td :style="{ width: calculateLeftPercent(segment) + '%' }"></td>
-                <td :style="{ width: calculateWidthPercent(segment) + '%', backgroundColor: getColorForLabel(segment.label), color: '#fff' }">
-                {{ segment.avgConfidence }}
-                </td>
-                <td :style="{ width: calculateRightPercent(segment) + '%' }"></td>
+        <!-- Classification Label (Dynamically appears for the correct duration) -->
+      <div 
+        v-if="currentClassification"
+        class="classification-label"
+        :style="getClassificationStyle()"
+      >
+        {{ currentClassification.label }} ({{ (currentClassification.avgConfidence * 100).toFixed(1) }}%)
+      </div>
 
-              </tr>
-            </tbody>
-          </table>
-        </div>
+      <!-- Loop through segments dynamically -->
+      <div v-for="segment in segments" :key="segment.id" @click="jumpTo(segment)" class="table-responsive" style="cursor: pointer;">
+        <table class="table table-striped table-hover">
+          <thead>
+            <tr>
+              <th class="custom-segments">{{ segment.label_display }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td :style="{ width: calculateLeftPercent(segment) + '%' }"></td>
+              <td :style="{ width: calculateWidthPercent(segment) + '%', backgroundColor: getColorForLabel(segment.label), color: '#fff' }">
+                {{ (segment.avgConfidence * 100).toFixed(1) }}%
+              </td>
+              <td :style="{ width: calculateRightPercent(segment) + '%' }"></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
 
-        <h2>Segmente des Videos</h2>
-        <!-- Table view of Segmentation Segments -->
-        <div class="table-responsive">
-          <table class="table table-striped table-hover">
-            <thead>
-              <tr>
-                <th>Label</th>
-                <th>Startzeit</th>
-                <th>Endzeit</th>
-                <th>Sicherheit</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="segment in segments" :key="segment.id" @click="jumpTo(segment)" style="cursor: pointer;">
-                <td :style="{ backgroundColor: getColorForLabel(segment.label), color: '#fff' }">{{ segment.label_display }}</td>
-                <td>{{ formatTime(segment.startTime) }}</td>
-                <td>{{ formatTime(segment.endTime) }}</td>
-                <td>{{ (segment.avgConfidence * 100).toFixed(1) }}%</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-  
-        <!-- Save Button -->
-        <div class="controls mt-4">
-          <button @click="saveAnnotations" class="btn btn-success" :disabled="!canSave">
-            Save Annotations
-          </button>
-        </div>
+      <h2>Segmente des Videos</h2>
+      <div class="table-responsive">
+        <table class="table table-striped table-hover">
+          <thead>
+            <tr>
+              <th>Label</th>
+              <th>Startzeit</th>
+              <th>Endzeit</th>
+              <th>Sicherheit</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- Loop through segments from backend -->
+            <tr v-for="segment in segments" :key="segment.id" @click="jumpTo(segment)" style="cursor: pointer;">
+              <td :style="{ backgroundColor: getColorForLabel(segment.label), color: '#fff' }">{{ segment.label_display }}</td>
+              <td>{{ formatTime(segment.startTime) }}</td>
+              <td>{{ formatTime(segment.endTime) }}</td>
+              <td>{{ (segment.avgConfidence * 100).toFixed(1) }}%</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+
+      <!-- Save Button -->
+      <div class="controls mt-4">
+        <button @click="saveAnnotations" class="btn btn-success" :disabled="!canSave">
+          Save Annotations
+        </button>
       </div>
     </div>
-  </template>
-  
-  <script setup lang="ts">
-  import { ref, onMounted } from 'vue';
-  import type { Segment } from '@/components/EndoAI/segments';
-  import { getColorForLabel, jumpToSegment as utilJumpToSegment } from '@/components/EndoAI/segments';
-  import axios from 'axios';
-  
-  const staticUrl = (window as any).STATIC_URL || '/static/';
-  const videoRef = ref<HTMLVideoElement | null>(null);
-  const timelineRef = ref<HTMLElement | null>(null);
-  const segments = ref<Segment[]>([]);
-  const currentTime = ref(0);
-  const duration = ref(100); // Will be updated when video loads
-  const labelsList = ref([
-    "appendix",
-    "blood",
-    "diverticule",
-    "grasper",
-    "ileocaecalvalve",
-    "ileum",
-    "low_quality",
-    "nbi",
-    "needle",
-    "outside",
-    "polyp",
-    "snare",
-    "water_jet",
-    "wound",
-  ]);
-  const canSave = ref(false);
+  </div>
+</template>
 
-  function calculateLeftPercent(segment: Segment): number {
+<script setup lang="ts">
+import { ref, onMounted, computed } from 'vue';
+import type { Segment } from '@/components/EndoAI/segments';
+import { getColorForLabel, jumpToSegment as utilJumpToSegment } from '@/components/EndoAI/segments';
+import axios, { AxiosError } from 'axios';
+
+//  Declare missing variables properly
+const videoUrl = ref<string>('');
+const videoRef = ref<HTMLVideoElement | null>(null);
+const timelineRef = ref<HTMLElement | null>(null); //  
+const currentTime = ref<number>(0);
+const duration = ref<number>(100);
+const canSave = ref<boolean>(true); //  Add missing canSave ref
+const segments = ref<Segment[]>([]); //  Declare segments properly
+const classificationData = ref<{ label: string; start_time: number; end_time: number; confidence: number } | null>(null);
+
+//  Handle Video Errors
+function handleVideoError(event: Event) {
+  console.error("Error loading the video:", event);
+  alert("Failed to load video. Please check the source URL.");
+}
+
+//  Fetch Video from Django API
+
+
+// Updated function to fetch video and segment data from backend
+async function fetchVideoUrl() {
+  try {
+    const response = await axios.get('http://127.0.0.1:8000/api/video/1/', {
+      headers: { 'Accept': 'application/json' }
+    });
+
+    if (response.data.video_url) {
+      videoUrl.value = response.data.video_url;
+      console.log("Fetched video URL:", videoUrl.value);
+    } else {
+      console.error("Invalid video response:", response.data);
+    }
+
+    if (response.data.classification_data) {
+      // Loop through classification_data from backend and update segments array
+      segments.value = response.data.classification_data.map((classification: { 
+        label: string; 
+        start_time: number; 
+        end_time: number; 
+        confidence: number 
+      }, index: number) => ({
+        id: `segment${index + 1}`, // Unique ID
+        label: classification.label,
+        label_display: classification.label, // Modify if needed for translations
+        startTime: classification.start_time,
+        endTime: classification.end_time,
+        avgConfidence: classification.confidence
+      }));
+
+    }
+
+  } catch (error: unknown) {
+    const axiosError = error as AxiosError;
+    console.error("Error loading video:", axiosError.response?.data || axiosError.message);
+  }
+}
+
+// Call the function on component mount
+onMounted(fetchVideoUrl);
+
+
+//  Track Current Classification Based on Video Time
+const currentClassification = computed(() => {
+  return segments.value.find(segment => 
+    currentTime.value >= segment.startTime && 
+    currentTime.value <= segment.endTime
+  ) || null; // Returns null if no matching segment is found
+});
+
+
+
+function handleTimeUpdate() {
+  if (videoRef.value) {
+    currentTime.value = videoRef.value.currentTime;
+  }
+}
+
+// Helper Functions
+function calculateLeftPercent(segment: Segment): number {
   return (segment.startTime / duration.value) * 100;
 }
 function calculateWidthPercent(segment: Segment): number {
-return ((segment.endTime - segment.startTime) / duration.value) * 100;
+  return ((segment.endTime - segment.startTime) / duration.value) * 100;
 }
 function calculateRightPercent(segment: Segment): number {
-return 100 - calculateLeftPercent(segment) - calculateWidthPercent(segment);
+  return 100 - calculateLeftPercent(segment) - calculateWidthPercent(segment);
 }
 
+function handleLoadedMetadata() {
+  if (videoRef.value) {
+    duration.value = videoRef.value.duration;
+  }
+}
+function jumpTo(segment: Segment) {
+  if (videoRef.value) {
+    videoRef.value.currentTime = segment.startTime;
+  }
+}
 
-  
-  function handleTimeUpdate() {
-    if (videoRef.value) {
-      currentTime.value = videoRef.value.currentTime;
-      duration.value = videoRef.value.duration;
-    }
+function handleTimelineClick(event: MouseEvent) {
+  if (timelineRef.value && videoRef.value) {
+    const rect = timelineRef.value.getBoundingClientRect();
+    const clickPosition = event.clientX - rect.left;
+    const percentage = clickPosition / rect.width;
+    videoRef.value.currentTime = percentage * duration.value;
   }
-  
-  function handleLoadedMetadata() {
-    if (videoRef.value) {
-      duration.value = videoRef.value.duration;
-    }
-  }
-  
-  function jumpTo(segment: Segment) {
-    utilJumpToSegment(segment, videoRef.value);
-  }
-  
-  function handleTimelineClick(event: MouseEvent) {
-    if (timelineRef.value && videoRef.value) {
-      const rect = timelineRef.value.getBoundingClientRect();
-      const clickPosition = event.clientX - rect.left;
-      const percentage = clickPosition / rect.width;
-      videoRef.value.currentTime = percentage * duration.value;
-    }
-  }
-  
-  function saveAnnotations() {
-    axios.post('http://127.0.0.1:8000/api/annotations/', {
+}
+async function saveAnnotations() {
+  try {
+    const response = await axios.post('http://127.0.0.1:8000/api/annotations/', {
       segments: segments.value,
-    })
-    .then(response => {
-      console.log('Annotations saved:', response.data);
-    })
-    .catch(error => {
-      console.error('Error saving annotations:', error);
     });
+    console.log('Annotations saved:', response.data);
+  } catch (error) {
+    console.error('Error saving annotations:', error);
   }
-  
-  function formatTime(seconds: number): string {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  }
-  
-  onMounted(() => {
-    // For demo purposes, set some sample segments:
-    segments.value = [
-      {
-        id: 'segment1',
-        label: 'outside',
-        label_display: 'Außerhalb',
-        startTime: 0,
-        endTime: 20,
-        avgConfidence: 0.85,
-      },
-      {
-        id: 'segment2',
-        label: 'blood',
-        label_display: 'Blut',
-        startTime: 25,
-        endTime: 35,
-        avgConfidence: 0.9,
-      },
-      {
-        id: 'segment3',
-        label: 'needle',
-        label_display: 'Nadel',
-        startTime: 40,
-        endTime: 45,
-        avgConfidence: 0.7,
-      },
-      {
-        id: 'segment4',
-        label: 'polyp',
-        label_display: 'Kolonpolyp',
-        startTime: 90,
-        endTime: 100,
-        avgConfidence: 0.7,
-      },
-    ];
-  });
-  </script>
-  
-  <style scoped>
-  .timeline-container {
-    position: relative;
-    height: 40px;
-    margin: 20px 0;
-    background: #f8f9fa;
-    border: 1px solid #e9ecef;
-    border-radius: 5px;
-  }
-  
-  /* The timeline-track is still used for scrubbing */
-  .timeline-track {
-    position: relative;
-    width: 100%;
-    height: 100%;
-    cursor: pointer;
-  }
-  
-  /* We no longer use absolute positioning for segments in the table view */
-  .table-responsive {
-    margin-top: 1rem;
-  }
-  
-  .custom-segments {
-  width: auto !important;
-  background-color: black;
-    color: white;
+}
+function formatTime(seconds: number): string {
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
 
-table td {
-  border: black;
+import type { CSSProperties } from 'vue';
+
+function getClassificationStyle(): CSSProperties {
+  return {
+    backgroundColor: "Green", /* Standard background color */
+    color: "white",
+    fontSize: "20px",
+    fontWeight: "bold",
+    padding: "12px",
+    borderRadius: "6px",
+    textTransform: "uppercase",
+    boxShadow: "0px 4px 10px rgba(0, 0, 0, 0.5)",
+    textAlign: "center",
+    width: "100%", /* Ensure it spans the full width below the video */
+  };
 }
-  .legend {
-    font-size: 0.875rem;
-  }
-  
-  .legend-item {
-    display: flex;
-    align-items: center;
-  }
-  
-  .legend-color {
-    width: 16px;
-    height: 16px;
-    border-radius: 50%;
-    margin-right: 5px;
-    border: 1px solid #ccc;
-  }
-  </style>
-  
+
+
+
+
+
+
+//  Load video & segments on component mount
+
+</script>
+
+<style scoped>
+::v-deep(.classification-overlay) {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background: darkgreen;
+  color: white;
+  padding: 10px;
+  border-radius: 5px;
+  font-size: 18px;
+  font-weight: bold;
+  text-transform: uppercase;
+  box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+</style>
+

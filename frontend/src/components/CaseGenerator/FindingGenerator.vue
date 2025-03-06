@@ -163,7 +163,7 @@
   
           <hr />
   
-          <!-- Examination Assignment -->
+           Examination Assignment 
           <h3 class="mt-4">Untersuchung</h3>
           <div class="mb-3">
             <label for="examTypeSelect" class="form-label">Untersuchungstyp:</label>
@@ -173,7 +173,9 @@
                 {{ exam.name }}
               </option>
             </select>
-          </div>
+          </div> 
+
+        
   
           <hr />
   
@@ -422,7 +424,7 @@ export default {
         console.error('Error loading centers:', error);
       }
     },
-    async loadExaminations() {
+     async loadExaminations() {
       console.log("loadExaminations");
       try {
         this.examinations = await reportService.getExaminations();
@@ -431,6 +433,7 @@ export default {
         console.error('Error loading examinations:', error);
       }
     },
+
     async loadFindings() {
       try {
         this.findings = await reportService.getFindings();

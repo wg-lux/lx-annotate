@@ -1,7 +1,7 @@
 {...}@inputs:
 let
   customTasks = {
-    "endoreg-db:make-migrations".after = 
+    " :make-migrations".after = 
       ["devenv:enterShell"]; 
 
     "endoreg-db:migrate".after = 

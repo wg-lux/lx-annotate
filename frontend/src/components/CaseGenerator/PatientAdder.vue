@@ -35,7 +35,7 @@
   
         <!-- Examination Assignment -->
         <h2>Untersuchung</h2>
-        <label for="examTypeSelect">Untersuchungstyp:</label>
+        <label for="examTypeSelect">Untersuchungstyp:----</label>
         <select v-model="formData.examinationId" id="examTypeSelect">
           <option disabled value="">Bitte wählen</option>
           <option v-for="exam in examinations" :key="exam.id" :value="exam.id">
