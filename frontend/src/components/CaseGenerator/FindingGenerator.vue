@@ -12,18 +12,18 @@
         <form @submit.prevent="submitPatientForm">
           <div class="form-group">
             <label for="patientFirstName">Vorname:</label>
-            <input type="text" id="patientFirstName" v-model="patientForm.first_name" class="form-control" required />
+            <input type="text" id="patientFirstName" v-model="patientForm.first_name" placeholder="Thomas" class="form-control" required />
           </div>
           <div class="form-group">
             <label for="patientLastName">Nachname:</label>
-            <input type="text" id="patientLastName" v-model="patientForm.last_name" class="form-control" required />
+            <input type="text" id="patientLastName" v-model="patientForm.last_name" placeholder="Lux" class="form-control" required />
           </div>
           <div class="form-group">
             <label for="patientAge">Alter:</label>
-            <input type="number" id="patientAge" v-model="patientForm.age" class="form-control" required />
+            <input type="number" id="patientAge" v-model="patientForm.age" placeholder="30" class="form-control" required />
           </div>
           <div class="form-group">
-            <label for="patientComments">Kommentar:</label>
+            <label for="patientComments" placeholder = "Endoskopie zur Diagnose">Kommentar:</label>
             <textarea id="patientComments" v-model="patientForm.comments" class="form-control"></textarea>
           </div>
           <div class="form-group">
@@ -91,16 +91,6 @@
             />
           </div>
           <div class="mb-3">
-            <label for="polypCount" class="form-label">Anzahl Polypen:</label>
-            <input
-              v-model="formData.polypCount"
-              id="polypCount"
-              type="number"
-              placeholder="Anzahl der Polypen"
-              class="form-control"
-            />
-          </div>
-          <div class="mb-3">
             <label for="comments" class="form-label">Kommentare:</label>
             <textarea
               v-model="formData.comments"
@@ -120,6 +110,7 @@
                 value="female"
                 v-model="formData.gender"
                 class="form-check-input"
+    
               />
               <label for="genderFemale" class="form-check-label">Weiblich</label>
             </div>
@@ -142,6 +133,7 @@
                 value="divers"
                 v-model="formData.gender"
                 class="form-check-input"
+                checked="checked"
               />
               <label for="genderDivers" class="form-check-label">Divers</label>
             </div>
@@ -154,10 +146,11 @@
           <div class="mb-3">
             <label for="centerSelect" class="form-label">Zentrum:</label>
             <select v-model="formData.centerId" id="centerSelect" class="form-select">
-              <option disabled value="">Bitte wählen</option>
-              <option v-for="center in centers" :key="center.id" :value="center.id">
-                {{ center.name }}
-              </option>
+              <option>Würzburg</option>
+              <option>Hamburg</option>
+              <option>Regensburg</option>
+              <option>Ludwigsburg</option>
+              <option>Stuttgart</option>
             </select>
           </div>
   
@@ -281,12 +274,8 @@
         <div class="mb-3">
         <div v-for="intervention in interventions" :key="intervention.id">
           <label>
-            <input
-              type="checkbox"
-              :value="intervention.id"
-              v-model="formData.selectedInterventions"
-            />
-            {{ intervention.name }}
+            <option disabled value="">Bitte wählen</option>
+              <option></option>
           </label>
         </div>
       </div>

@@ -53,11 +53,84 @@ class ProxyView(View):
         except ValueError:
             data = response.text
         return JsonResponse(data, status=response.status_code, safe=False)
-    def put(self, request, endpoint):
+    
+    def put(self, request, endpoint, *args, **kwargs):
+        """
+        Forward PUT requests.
+        """
         target_url = f"{BACKEND_API_BASE_URL}{endpoint}/"
-        if request.content_type == 'applications/json':
-            payload = json.loads(request)
+        # Check the content type and prepare payload accordingly
+        if request.content_type == 'application/json':
+            try:
+                payload = json.loads(request.body.decode('utf-8'))
+            except ValueError:
+                return JsonResponse({'error': 'Invalid JSON payload'}, status=400)
+            response = requests.put(target_url, json=payload)
+        else:
+            # For non-JSON payloads, forward data as-is (e.g., form data)
+            response = requests.put(target_url, data=request.POST)
+        try:
+            data = response.json()
+        except ValueError:
+            data = response.text
+        return JsonResponse(data, status=response.status_code, safe=False)
+    
+    def delete(self, request, endpoint, *args, **kwargs):
+        """
+        Forward DELETE requests.
+        """
+        target_url = f"{BACKEND_API_BASE_URL}{endpoint}/"
+        response = requests.delete(target_url)
+        try:
+            data = response.json()
+        except ValueError:
+            data = response.text
+        return JsonResponse(data, status=response.status_code, safe=False)
+    
+    def patch(self, request, endpoint, *args, **kwargs):
+        """
+        Forward PATCH requests.
+        """
+        target_url = f"{BACKEND_API_BASE_URL}{endpoint}/"
+        if request.content_type == 'application/json':
+            try:
+                payload = json.loads(request.body.decode('utf-8'))
+            except ValueError:
+                return JsonResponse({'error': 'Invalid JSON payload'}, status=400)
+            response = requests.patch(target_url, json=payload)
+        else:
+            response = requests.patch(target_url, data=request.POST)
+        try:
+            data = response.json()
+        except ValueError:
+            data = response.text
+        return JsonResponse(data, status=response.status_code, safe=False)
+    
+    def trace(self, request, endpoint, *args, **kwargs):
+        """
+        Forward TRACE requests.
+        """
+        target_url = f"{BACKEND_API_BASE_URL}{endpoint}/"
+        response = requests.request("TRACE", target_url, params=request.GET, data=request.body)
+        try:
+            data = response.json()
+        except ValueError:
+            data = response.text
+        return JsonResponse(data, status=response.status_code, safe=False)
 
+    def connect(self, request, endpoint, *args, **kwargs):
+        """
+        Forward CONNECT requests.
+        Note: CONNECT is typically used for tunneling (e.g., HTTPS proxies) and may not work
+        as expected in this context.
+        """
+        target_url = f"{BACKEND_API_BASE_URL}{endpoint}/"
+        response = requests.request("CONNECT", target_url, params=request.GET, data=request.body)
+        try:
+            data = response.json()
+        except ValueError:
+            data = response.text
+        return JsonResponse(data, status=response.status_code, safe=False)
 
 '''
 class ProcessFileView(APIView):
