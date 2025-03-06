@@ -1,4 +1,4 @@
-import FindingGenerator from '@/components/CaseGenerator/FindingGenerator.vue';
+import FindingGenerator from '@/components/CaseGenerator/FindingGeneratorDemo.vue';
 export default (await import('vue')).defineComponent({
     name: 'Befund',
     components: {

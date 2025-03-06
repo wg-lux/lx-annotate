@@ -7,6 +7,18 @@ declare const _default: import("vue").DefineComponent<{}, {}, {
     morphologyClassifications: never[];
     morphologyClassificationChoices: never[];
     interventions: never[];
+    patients: never[];
+    showPatientForm: boolean;
+    editingPatient: null;
+    patientForm: {
+        id: null;
+        first_name: string;
+        last_name: string;
+        age: null;
+        comments: string;
+        gender: null;
+    };
+    errorMessage: string;
     formData: {
         name: string;
         polypCount: string;
@@ -21,11 +33,15 @@ declare const _default: import("vue").DefineComponent<{}, {}, {
         morphologyChoiceId: string;
         selectedInterventions: never[];
     };
-    errorMessage: string;
 }, {
     filteredLocationChoices(): never[];
     filteredMorphologyChoices(): never[];
 }, {
+    loadPatients(): Promise<void>;
+    openPatientForm(patient?: null): void;
+    closePatientForm(): void;
+    submitPatientForm(): Promise<void>;
+    deletePatient(id: any): Promise<void>;
     loadCenters(): Promise<void>;
     loadExaminations(): Promise<void>;
     loadFindings(): Promise<void>;

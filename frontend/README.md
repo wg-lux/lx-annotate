@@ -1,4 +1,4 @@
-# agl-validator
+# agl-annotate
 
 This module is used to validate annotated names. 
 

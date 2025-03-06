@@ -1,50 +1,63 @@
 <template>
-    <div class="container-fluid py-4">
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <title>Fallübersicht - Mockup</title>
+  <!-- Include Bootstrap and Material Dashboard CSS as needed -->
+  <link rel="stylesheet" href="path/to/bootstrap.css">
+  <link rel="stylesheet" href="path/to/material-dashboard.css">
+</head>
+<body>
+  <div class="container-fluid py-4">
     <h1>Fallübersicht</h1>
 
-    <!-- Patients Section -->
+    <!-- Patienten Section -->
     <section class="patients-section mt-5">
       <h2>Patienten</h2>
-      <button class="btn btn-primary mb-3" @click="openPatientForm()">Patienten hinzufügen</button>
-      <!-- Patient Form -->
-      <div v-if="showPatientForm" class="form-container mt-4">
-        <h3>{{ editingPatient ? 'Patient bearbeiten' : 'Neuer Patient' }}</h3>
-        <form @submit.prevent="submitPatientForm">
+      <button class="btn btn-primary mb-3">Patienten hinzufügen</button>
+      
+      <!-- Patient Form (Static) -->
+      <div class="form-container mt-4">
+        <h3>Neuer Patient</h3>
+        <form>
           <div class="form-group">
             <label for="patientFirstName">Vorname:</label>
-            <input type="text" id="patientFirstName" v-model="patientForm.first_name" placeholder="Thomas" class="form-control" required />
+            <input type="text" id="patientFirstName" class="form-control" required>
           </div>
           <div class="form-group">
             <label for="patientLastName">Nachname:</label>
-            <input type="text" id="patientLastName" v-model="patientForm.last_name" placeholder="Lux" class="form-control" required />
+            <input type="text" id="patientLastName" class="form-control" required>
           </div>
           <div class="form-group">
             <label for="patientAge">Alter:</label>
-            <input type="number" id="patientAge" v-model="patientForm.age" placeholder="30" class="form-control" required />
+            <input type="number" id="patientAge" class="form-control" required>
           </div>
           <div class="form-group">
-            <label for="patientComments" placeholder = "Endoskopie zur Diagnose">Kommentar:</label>
-            <textarea id="patientComments" v-model="patientForm.comments" class="form-control"></textarea>
+            <label for="patientComments">Kommentar:</label>
+            <textarea id="patientComments" class="form-control"></textarea>
           </div>
           <div class="form-group">
             <label>Geschlecht:</label>
             <div>
               <label>
-                <input type="radio" :value="1" v-model="patientForm.gender" required /> Weiblich
+                <input type="radio" name="gender" value="weiblich" required> Weiblich
               </label>
               <label>
-                <input type="radio" :value="2" v-model="patientForm.gender" required /> Männlich
+                <input type="radio" name="gender" value="männlich" required> Männlich
               </label>
               <label>
-                <input type="radio" :value="3" v-model="patientForm.gender" required /> Divers
+                <input type="radio" name="gender" value="divers" required> Divers
               </label>
             </div>
           </div>
           <button type="submit" class="btn btn-success mt-2">Patient speichern</button>
-          <button type="button" class="btn btn-secondary mt-2" @click="closePatientForm">Beenden</button>
+          <button type="button" class="btn btn-secondary mt-2">Beenden</button>
         </form>
       </div>
-      <table class="table table-striped">
+      
+      <!-- Patienten Table (Static) -->
+      <table class="table table-striped mt-4">
         <thead>
           <tr>
             <th>ID</th>
@@ -57,242 +70,187 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="patient in patients" :key="patient.id">
-            <td>{{ patient.id }}</td>
-            <td>{{ patient.first_name }}</td>
-            <td>{{ patient.last_name }}</td>
-            <td>{{ patient.gender }}</td>
-            <td>{{ patient.age }}</td>
-            <td>{{ patient.comments }}</td>
+          <tr>
+            <td>1</td>
+            <td>Max</td>
+            <td>Mustermann</td>
+            <td>Männlich</td>
+            <td>45</td>
+            <td>Beispielkommentar</td>
             <td>
-              <button class="btn btn-secondary btn-sm" @click="openPatientForm(patient)">Bearbeiten</button>
-              <button class="btn btn-danger btn-sm" @click="deletePatient(patient.id)">Löschen</button>
+              <button class="btn btn-secondary btn-sm">Bearbeiten</button>
+              <button class="btn btn-danger btn-sm">Löschen</button>
             </td>
           </tr>
+          <!-- Weitere statische Einträge können hier eingefügt werden -->
         </tbody>
       </table>
     </section>
   </div>
+
   <div class="container mt-4">
     <div class="container-fluid py-4">
-      <div>
-        <h2 class="mb-0">Patientendaten</h2>
-      </div>
-      <div class="container">
-        <form @submit.prevent="handleSubmit">
-          <!-- Patient Information -->
-          <div class="mb-3">
-            <label for="name" class="form-label">Name:</label>
-            <input
-              v-model="formData.name"
-              id="name"
-              placeholder="Enter name"
-              class="form-control"
-            />
-          </div>
-          <div class="mb-3">
-            <label for="comments" class="form-label">Kommentare:</label>
-            <textarea
-              v-model="formData.comments"
-              id="comments"
-              placeholder="Comments"
-              class="form-control"
-              rows="3"
-            ></textarea>
-          </div>
-          <div class="mb-3">
-            <label class="form-label d-block">Geschlecht:</label>
-            <div class="form-check form-check-inline">
-              <input
-                type="radio"
-                id="genderFemale"
-                name="gender"
-                value="female"
-                v-model="formData.gender"
-                class="form-check-input"
-    
-              />
-              <label for="genderFemale" class="form-check-label">Weiblich</label>
-            </div>
-            <div class="form-check form-check-inline">
-              <input
-                type="radio"
-                id="genderMale"
-                name="gender"
-                value="male"
-                v-model="formData.gender"
-                class="form-check-input"
-              />
-              <label for="genderMale" class="form-check-label">Männlich</label>
-            </div>
-            <div class="form-check form-check-inline">
-              <input
-                type="radio"
-                id="genderDivers"
-                name="gender"
-                value="divers"
-                v-model="formData.gender"
-                class="form-check-input"
-                checked="checked"
-              />
-              <label for="genderDivers" class="form-check-label">Divers</label>
-            </div>
-          </div>
-  
-          <hr />
-  
-          <!-- Center Selection -->
-          <h3 class="mt-4">Zentrumsauswahl</h3>
-          <div class="mb-3">
-            <label for="centerSelect" class="form-label">Zentrum:</label>
-            <select v-model="formData.centerId" id="centerSelect" class="form-select">
-              <option>Würzburg</option>
-              <option>Hamburg</option>
-              <option>Regensburg</option>
-              <option>Ludwigsburg</option>
-              <option>Stuttgart</option>
-            </select>
-          </div>
-  
-          <hr />
-  
-          <!-- Examination Assignment -->
-          <h3 class="mt-4">Untersuchung</h3>
-          <div class="mb-3">
-            <label for="examTypeSelect" class="form-label">Untersuchungstyp:</label>
-            <select v-model="formData.examinationId" id="examTypeSelect" class="form-select">
-              <option disabled value="">Bitte wählen</option>
-              <option v-for="exam in examinations" :key="exam.id" :value="exam.id">
-                {{ exam.name }}
-              </option>
-            </select>
-          </div>
-  
-          <hr />
-  
-          <!-- Finding -->
-          <h3 class="mt-4">Befund</h3>
-          <div class="mb-3">
-            <label for="findingSelect" class="form-label">Befund auswählen:</label>
-            <select v-model="formData.findingId" id="findingSelect" class="form-select">
-              <option disabled value="">Bitte wählen</option>
-              <option v-for="finding in findings" :key="finding.id" :value="finding.id">
-                {{ finding.name }}
-              </option>
-            </select>
-          </div>
-  
-          <hr />
-  
-          <!-- Location Classification -->
-          <h3 class="mt-4">Lokalisations-Klassifikation</h3>
-          <div class="mb-3">
-            <label for="locationClassificationSelect" class="form-label">Klassifikation wählen:</label>
-            <select
-              v-model="formData.locationClassificationId"
-              id="locationClassificationSelect"
-              class="form-select"
-              @change="loadLocationChoices"
-            >
-              <option disabled value="">Bitte wählen</option>
-              <option
-                v-for="locClass in locationClassifications"
-                :key="locClass.id"
-                :value="locClass.id"
-              >
-                {{ locClass.name }}
-              </option>
-            </select>
-          </div>
-          <div class="mb-3">
-            <label for="locationChoiceSelect" class="form-label">Lokalisation wählen:</label>
-            <select
-              v-model="formData.locationChoiceId"
-              id="locationChoiceSelect"
-              class="form-select"
-              :disabled="filteredLocationChoices.length === 0"
-            >
-              <option disabled value="">Bitte wählen</option>
-              <option
-                v-for="choice in filteredLocationChoices"
-                :key="choice.id"
-                :value="choice.id"
-              >
-                {{ choice.name }}
-              </option>
-            </select>
-          </div>
-  
-          <hr />
-  
-          <!-- Morphology Classification -->
-          <h3 class="mt-4">Morphologie-Klassifikation</h3>
-          <div class="mb-3">
-            <label for="morphologyClassificationSelect" class="form-label">Klassifikation wählen:</label>
-            <select
-              v-model="formData.morphologyClassificationId"
-              id="morphologyClassificationSelect"
-              class="form-select"
-              @change="loadMorphologyChoices"
-            >
-              <option disabled value="">Bitte wählen</option>
-              <option
-                v-for="morphClass in morphologyClassifications"
-                :key="morphClass.id"
-                :value="morphClass.id"
-              >
-                {{ morphClass.name }}
-              </option>
-            </select>
-          </div>
-          <div class="mb-3">
-            <label for="morphologyChoiceSelect" class="form-label">Morphologie wählen:</label>
-            <select
-              v-model="formData.morphologyChoiceId"
-              id="morphologyChoiceSelect"
-              class="form-select"
-              :disabled="filteredMorphologyChoices.length === 0"
-            >
-              <option disabled value="">Bitte wählen</option>
-              <option
-                v-for="choice in filteredMorphologyChoices"
-                :key="choice.id"
-                :value="choice.id"
-              >
-                {{ choice.name }}
-              </option>
-            </select>
-          </div>
-  
-          <hr />
-  
-          <!-- Interventions -->
-          <h3 class="mt-4">Intervention</h3>
-          <p>Wähle eine oder mehrere Interventionen:</p>
+      <h2>Patientendaten</h2>
+      <form>
+        <!-- Patient Information -->
         <div class="mb-3">
-        <div v-for="intervention in interventions" :key="intervention.id">
-          <label>
-            <option disabled value="">Bitte wählen</option>
-              <option></option>
-          </label>
+          <label for="name" class="form-label">Name:</label>
+          <input id="name" placeholder="Name" class="form-control">
         </div>
-      </div>
-  
-          <hr />
-  
-          <!-- Submit Button -->
-          <div class="mb-3">
-            <button type="submit" id="saveData" class="btn btn-danger">
-              Finish &amp; Generate Report
-            </button>
-            <div v-if="errorMessage" class="alert alert-danger mt-2">
-              {{ errorMessage }}
-            </div>
+        <div class="mb-3">
+          <label for="polypCount" class="form-label">Anzahl Polypen:</label>
+          <input id="polypCount" type="number" placeholder="Anzahl der Polypen" class="form-control">
+        </div>
+        <div class="mb-3">
+          <label for="comments" class="form-label">Kommentare:</label>
+          <textarea id="comments" placeholder="Kommentare" class="form-control" rows="3"></textarea>
+        </div>
+        <hr>
+
+        <!-- Center Selection -->
+        <h3 class="mt-4">Zentrumsauswahl</h3>
+        <div class="mb-3">
+          <label for="centerSelect" class="form-label">Zentrum:</label>
+          <select id="centerSelect" class="form-select">
+            <option value="1">Würzburg</option>
+            <option value="2">Regensburg</option>
+            <option value="3">Hamburg</option>
+            <option value="2">Stuttgart</option>
+            <option value="2">Ludwigsburg</option>
+
+            <!-- Weitere Zentren -->
+          </select>
+        </div>
+        <hr>
+
+        <!-- Examination Assignment -->
+        <h3 class="mt-4">Untersuchung</h3>
+        <div class="mb-3">
+          <label for="examTypeSelect" class="form-label">Untersuchungstyp:</label>
+          <select id="examTypeSelect" class="form-select">
+            <option>Kolonoskopie</option>
+          </select>
+        </div>
+        <hr>
+
+        <!-- Finding -->
+        <h3 class="mt-4">Befund</h3>
+        <div class="mb-3">
+          <label for="findingSelect" class="form-label">Befund auswählen:</label>
+          <select id="findingSelect" class="form-select">
+            <option>Kolonpolyp</option>
+          </select>
+        </div>
+        <hr>
+
+        <!-- Location Classification -->
+        <h3 class="mt-4">Lokalisations-Klassifikation</h3>
+        <div class="mb-3">
+          <label for="locationClassificationSelect" class="form-label">Klassifikation wählen:</label>
+          <select id="locationClassificationSelect" class="form-select">
+            <option selected>Kolonoskopie default</option>
+            <!-- Weitere Klassifikationen -->
+          </select>
+        </div>
+        <div class="mb-3">
+          <label for="locationChoiceSelect" class="form-label">Lokalisation wählen:</label>
+          <select id="locationChoiceSelect" class="form-select">
+            <option>Caecum</option>
+            <option>Terminales Ileum</option>
+            <option>Rechte Flexur</option>
+            <option>Colon transversum</option>
+            <option>Colon descendens</option>
+            <option>Colon sigmoideum</option>
+            <option>Rektum</option>
+            <option>Analkanal</option>
+          </select>
+        </div>
+        <hr>
+
+        <!-- Morphology Classification -->
+        <h3 class="mt-4">Morphologie-Klassifikation</h3>
+        <div class="mb-3">
+          <label for="morphologyClassificationSelect" class="form-label">Morphologie Klassifikation wählen:</label>
+          <select id="morphologyClassificationSelect" class="form-select">
+            <option>Größenklassifikation Kolonläsion (kategorisch)</option>
+            <option>Formklassifikation Kolonläsion (kategorisch)</option>
+            <option>Kolonläsion - Oberfläche intakt</option>
+            <option>Kolonläsion - Planarität unbekannt</option>
+            <option>Kolonläsion - Zirkularität</option>
+            <option>NICE Typ 1</option>
+            <option>NICE Typ 2</option>
+            <option>NICE Typ 3</option>
+            <option>Paris Is</option>
+            <option>Paris Ip</option>
+            <option>Paris IIa</option>
+            <option>Paris IIb</option>
+            <option>Paris IIc</option>
+            <option>Paris III</option>
+            <option>Paris IIa+IIc</option>
+            <option>Paris IIb+IIc</option>
+          </select>
+        </div>
+        <div class="mb-3">
+          <label for="morphologyChoiceSelect" class="form-label">Morphologie wählen:</label>
+          <select id="morphologyChoiceSelect" class="form-select">
+            <option disabled selected>Bitte wählen</option>
+            <option>Diminutive (&lt; 6 mm)</option>
+            <option>Small (6-9 mm)</option>
+            <option>Intermediate (10-19 mm)</option>
+            <option>Large (&gt; 19 mm)</option>
+          </select>
+        </div>
+        <hr>
+
+        <!-- Interventions -->
+        <h3 class="mt-4">Intervention</h3>
+        <p>Wähle eine oder mehrere Interventionen:</p>
+        <div class="mb-3">
+          <div class="form-check">
+            <input type="checkbox" id="intervention1" class="form-check-input" value="cold-snare">
+            <label for="intervention1" class="form-check-label">Kalte Schlingenpolypektomie</label>
           </div>
-        </form>
-      </div>
+          <div class="form-check">
+            <input type="checkbox" id="intervention2" class="form-check-input" value="hot-snare">
+            <label for="intervention2" class="form-check-label">Heiße Schlingenpolypektomie</label>
+          </div>
+          <div class="form-check">
+            <input type="checkbox" id="intervention3" class="form-check-input" value="injection-liftup">
+            <label for="intervention3" class="form-check-label">Submuköse Lift-Injektion</label>
+          </div>
+          <div class="form-check">
+            <input type="checkbox" id="intervention4" class="form-check-input" value="injection-vasoactive">
+            <label for="intervention4" class="form-check-label">Vasoaktive Injektion</label>
+          </div>
+          <div class="form-check">
+            <input type="checkbox" id="intervention5" class="form-check-input" value="biopsy">
+            <label for="intervention5" class="form-check-label">Biopsie</label>
+          </div>
+          <div class="form-check">
+            <input type="checkbox" id="intervention6" class="form-check-input" value="emr">
+            <label for="intervention6" class="form-check-label">Endoskopische Mukosaresektion (EMR)</label>
+          </div>
+          <div class="form-check">
+            <input type="checkbox" id="intervention7" class="form-check-input" value="esd">
+            <label for="intervention7" class="form-check-label">Endoskopische Submukosadissektion (ESD)</label>
+          </div>
+          <div class="form-check">
+            <input type="checkbox" id="intervention8" class="form-check-input" value="clip">
+            <label for="intervention8" class="form-check-label">Clip-Applikation</label>
+          </div>
+        </div>
+        <hr>
+
+        <!-- Submit Button -->
+        <div class="mb-3">
+          <button type="submit" class="btn btn-danger">Finish &amp; Generate Report</button>
+        </div>
+      </form>
     </div>
   </div>
+</body>
+</html>
+
 </template>
 
 <script>

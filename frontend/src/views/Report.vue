@@ -11,7 +11,7 @@
     </template>
   
   <script>
-    import FindingGenerator from '@/components/CaseGenerator/FindingGenerator.vue';
+    import FindingGenerator from '@/components/CaseGenerator/FindingGeneratorDemo.vue';
   
     export default {
       name: 'Befund',
