@@ -1,7 +1,7 @@
 <template>
     <div class="card">
       <div class="card-header pb-0">
-        <h4 class="mb-0">Video Annotation</h4>
+        <h4 class="mb-0">Video - Annotation</h4>
       </div>
       
       <div class="card-body">
