@@ -19,6 +19,7 @@ dependencies = [
     "django-vite>=3.0.6",
     "whitenoise>=6.8.2",
     "django-extensions>=3.2.3",
+    "python-dotenv>=1.0.1",
 ]
 
 [tool.setuptools]

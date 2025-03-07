@@ -12,6 +12,17 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 
 from pathlib import Path
 import os
+from dotenv import load_dotenv
+from lx_logging import get_logger
+
+logger = get_logger(__name__)
+logger.debug(os.environ.get("DJANGO_SETTINGS", "dev"))
+
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY")
+if not SECRET_KEY:
+    raise Exception("The SECRET_KEY setting must not be empty.")
+DJANGO_SETTINGS = os.environ.get("DJANGO_SETTINGS", "dev")
+
 ## CHANGE THIS IN PROD TO ALLOW ONLY THE FRONTEND URL
 CORS_ALLOW_ALL_ORIGINS = True
 
@@ -38,19 +49,12 @@ DJANGO_VITE = {
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-vyl-(s(xa4v)5mn!-vyr3q76a&%bc_$1lje=dy-b4)=53scrbo'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
-
-ALLOWED_HOSTS = [
-    "*"
-]
+DEBUG = os.environ.get("DJANGO_DEBUG", "True") == "True"
 
 TEMPLATES_DIR = os.path.join(BASE_DIR, 'templates')
 FRONTEND_DIR = os.path.join(BASE_DIR, 'frontend')
-
 
 # Application definition
 
@@ -82,9 +86,7 @@ MIDDLEWARE = [
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 import re
 
-STORAGE = {
-    "static": "whitenoise.storage.CompressedManifestStaticFilesStorage",
-    }
+
 def immutable_file_test(path, url):
     # This regex matches filenames with a hash, e.g. some_file-CSliV9zW.js
     return re.match(r"^.+[.-][0-9a-zA-Z_-]{8,12}\..+$", url)
@@ -92,7 +94,7 @@ def immutable_file_test(path, url):
 WHITENOISE_IMMUTABLE_FILE_TEST = immutable_file_test
 WHITENOISE_MIMETYPES = {
     '.css': 'text/css',
-    '.scss': 'text/x-scss',            # Only if you really intend to serve SCSS (typically you compile these to CSS)
+    '.scss': 'text/x-scss',
     '.ts': 'application/typescript',
     '.tsx': 'application/typescript',
     '.js': 'application/javascript',
@@ -116,7 +118,6 @@ WHITENOISE_MIMETYPES = {
     '.webm': 'video/webm',
     '.ogv': 'video/ogg',
 }
-
 
 ROOT_URLCONF = 'lx_annotate.urls'
 

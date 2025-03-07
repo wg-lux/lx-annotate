@@ -6,9 +6,12 @@ let
   vueTasks = (
     import ./vue.nix { }
   );
+  envTasks = (
+    import ./env.nix { }
+  );
 
   customTasks = {
     
-  } // vueTasks;
+  } //envTasks;
 
 in customTasks 

@@ -10,6 +10,43 @@ const duration = ref(100);
 const canSave = ref(true); //  Add missing canSave ref
 const segments = ref([]); //  Declare segments properly
 const classificationData = ref(null);
+const isResizing = ref(false);
+const activeSegment = ref(null);
+const startX = ref(0);
+const initialWidthPercent = ref(0);
+function startResize(segment, event) {
+    isResizing.value = true;
+    activeSegment.value = segment;
+    startX.value = event.clientX;
+    // Store the initial width (in percentage) of this segment
+    initialWidthPercent.value = calculateWidthPercent(segment);
+    // Add global mousemove and mouseup listeners
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+}
+function onMouseMove(event) {
+    if (!isResizing.value || !activeSegment.value || !timelineRef.value)
+        return;
+    const timelineRect = timelineRef.value.getBoundingClientRect();
+    // Calculate how many percent of the timeline width the mouse has moved
+    const deltaPx = event.clientX - startX.value;
+    const deltaPercent = (deltaPx / timelineRect.width) * 100;
+    // Calculate new width percentage and update the segment's endTime
+    const newWidthPercent = initialWidthPercent.value + deltaPercent;
+    // Ensure newWidthPercent stays within valid bounds (e.g., >0 and not beyond timeline)
+    if (newWidthPercent > 0 && (calculateLeftPercent(activeSegment.value) + newWidthPercent) <= 100) {
+        // Update segment endTime based on new width
+        // duration.value holds total video duration
+        const segmentDuration = (newWidthPercent / 100) * duration.value;
+        activeSegment.value.endTime = activeSegment.value.startTime + segmentDuration;
+    }
+}
+function onMouseUp() {
+    isResizing.value = false;
+    activeSegment.value = null;
+    window.removeEventListener('mousemove', onMouseMove);
+    window.removeEventListener('mouseup', onMouseUp);
+}
 //  Handle Video Errors
 function handleVideoError(event) {
     console.error("Error loading the video:", event);
@@ -163,35 +200,26 @@ function __VLS_template() {
         (__VLS_ctx.currentClassification.label);
         ((__VLS_ctx.currentClassification.avgConfidence * 100).toFixed(1));
     }
+    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: ("timeline-track") },
+        ref: ("timelineRef"),
+    });
+    // @ts-ignore navigation for `const timelineRef = ref()`
+    /** @type { typeof __VLS_ctx.timelineRef } */ ;
     for (const [segment] of __VLS_getVForSourceType((__VLS_ctx.segments))) {
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ onClick: (...[$event]) => {
-                    __VLS_ctx.jumpTo(segment);
-                } },
             key: ((segment.id)),
-            ...{ class: ("table-responsive") },
-            ...{ style: ({}) },
+            ...{ class: ("timeline-segment") },
+            ...{ style: (({
+                    left: __VLS_ctx.calculateLeftPercent(segment) + '%',
+                    width: __VLS_ctx.calculateWidthPercent(segment) + '%'
+                })) },
         });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.table, __VLS_intrinsicElements.table)({
-            ...{ class: ("table table-striped table-hover") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.thead, __VLS_intrinsicElements.thead)({});
-        __VLS_elementAsFunction(__VLS_intrinsicElements.tr, __VLS_intrinsicElements.tr)({});
-        __VLS_elementAsFunction(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({
-            ...{ class: ("custom-segments") },
-        });
-        (segment.label_display);
-        __VLS_elementAsFunction(__VLS_intrinsicElements.tbody, __VLS_intrinsicElements.tbody)({});
-        __VLS_elementAsFunction(__VLS_intrinsicElements.tr, __VLS_intrinsicElements.tr)({});
-        __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({
-            ...{ style: (({ width: __VLS_ctx.calculateLeftPercent(segment) + '%' })) },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({
-            ...{ style: (({ width: __VLS_ctx.calculateWidthPercent(segment) + '%', backgroundColor: __VLS_ctx.getColorForLabel(segment.label), color: '#fff' })) },
-        });
-        ((segment.avgConfidence * 100).toFixed(1));
-        __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({
-            ...{ style: (({ width: __VLS_ctx.calculateRightPercent(segment) + '%' })) },
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ onMousedown: (...[$event]) => {
+                    __VLS_ctx.startResize(segment, $event);
+                } },
+            ...{ class: ("resize-handle") },
         });
     }
     __VLS_elementAsFunction(__VLS_intrinsicElements.h2, __VLS_intrinsicElements.h2)({});
@@ -235,13 +263,14 @@ function __VLS_template() {
         ...{ class: ("btn btn-success") },
         disabled: ((!__VLS_ctx.canSave)),
     });
-    ['container-fluid', 'h-100', 'w-100', 'py-1', 'px-4', 'card-header', 'pb-0', 'mb-0', 'card-body', 'video-container', 'mb-4', 'position-relative', 'w-100', 'classification-label', 'table-responsive', 'table', 'table-striped', 'table-hover', 'custom-segments', 'table-responsive', 'table', 'table-striped', 'table-hover', 'controls', 'mt-4', 'btn', 'btn-success',];
+    ['container-fluid', 'h-100', 'w-100', 'py-1', 'px-4', 'card-header', 'pb-0', 'mb-0', 'card-body', 'video-container', 'mb-4', 'position-relative', 'w-100', 'classification-label', 'timeline-track', 'timeline-segment', 'resize-handle', 'table-responsive', 'table', 'table-striped', 'table-hover', 'controls', 'mt-4', 'btn', 'btn-success',];
     var __VLS_slots;
     var $slots;
     let __VLS_inheritedAttrs;
     var $attrs;
     const __VLS_refs = {
         'videoRef': __VLS_nativeElements['video'],
+        'timelineRef': __VLS_nativeElements['div'],
     };
     var $refs;
     var $el;
@@ -259,14 +288,15 @@ const __VLS_self = (await import('vue')).defineComponent({
             getColorForLabel: getColorForLabel,
             videoUrl: videoUrl,
             videoRef: videoRef,
+            timelineRef: timelineRef,
             canSave: canSave,
             segments: segments,
+            startResize: startResize,
             handleVideoError: handleVideoError,
             currentClassification: currentClassification,
             handleTimeUpdate: handleTimeUpdate,
             calculateLeftPercent: calculateLeftPercent,
             calculateWidthPercent: calculateWidthPercent,
-            calculateRightPercent: calculateRightPercent,
             handleLoadedMetadata: handleLoadedMetadata,
             jumpTo: jumpTo,
             saveAnnotations: saveAnnotations,

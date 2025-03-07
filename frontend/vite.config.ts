@@ -10,14 +10,14 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
 
   return {
-    base: './',
+    base: mode === 'development' ? 'http://localhost:3000/' : './' ,
     plugins: [
       vue(),
       vueJsx(),
       vueDevTools(),
     ],
     build: {
-      manifest: "manifest.json",
+      manifest: mode === 'production' ? 'manifest.json' : false,      
       outDir: resolve(__dirname, '../static/dist'),
       rollupOptions: {
         input: {
