@@ -73,7 +73,7 @@
         <!-- Save Button -->
         <div class="controls mt-4">
           <button @click="saveAnnotations" class="btn btn-success" :disabled="!canSave">
-            Save Annotations
+            Annotationen speichern
           </button>
         </div>
       </div>
