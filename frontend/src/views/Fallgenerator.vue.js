@@ -1,4 +1,5 @@
 import ReportOverview from '../components/CaseGenerator/PatientOverviewComponent.vue';
+import CaseGenerator from '../components/CaseGenerator/FindingGenerator.vue';
 export default (await import('vue')).defineComponent({
     name: 'Fallgenerator',
     components: {
@@ -31,6 +32,11 @@ function __VLS_template() {
     // @ts-ignore
     const __VLS_1 = __VLS_asFunctionalComponent(__VLS_0, new __VLS_0({}));
     const __VLS_2 = __VLS_1({}, ...__VLS_functionalComponentArgsRest(__VLS_1));
+    const __VLS_6 = {}.CaseGenerator;
+    /** @type { [typeof __VLS_components.CaseGenerator, ] } */ ;
+    // @ts-ignore
+    const __VLS_7 = __VLS_asFunctionalComponent(__VLS_6, new __VLS_6({}));
+    const __VLS_8 = __VLS_7({}, ...__VLS_functionalComponentArgsRest(__VLS_7));
     ['container-fluid', 'py-4', 'row', 'col-12',];
     var __VLS_slots;
     var $slots;

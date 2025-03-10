@@ -8,11 +8,13 @@
         </div>
         </div>
         <ReportOverview />
+        <CaseGenerator />
     </div>
   </template>
 
 <script>
     import ReportOverview from '../components/CaseGenerator/PatientOverviewComponent.vue';
+    import CaseGenerator from '../components/CaseGenerator/FindingGenerator.vue';
 
   export default {
     name: 'Fallgenerator',
