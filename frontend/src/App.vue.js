@@ -32,10 +32,18 @@ function __VLS_template() {
     // CSS variable injection 
     // CSS variable injection end 
     __VLS_elementAsFunction(__VLS_intrinsicElements.header, __VLS_intrinsicElements.header)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.link)({
+    __VLS_elementAsFunction(__VLS_intrinsicElements.link, __VLS_intrinsicElements.link)({
+        rel: ("preconnect"),
+        href: ("https://fonts.googleapis.com"),
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.link, __VLS_intrinsicElements.link)({
+        rel: ("preconnect"),
+        href: ("https://fonts.gstatic.com"),
+        crossorigin: (true),
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.link, __VLS_intrinsicElements.link)({
+        href: ("https://fonts.googleapis.com/css2?family=Comfortaa:wght@300..700&display=swap"),
         rel: ("stylesheet"),
-        type: ("text/css"),
-        href: ("https://fonts.googleapis.com/css?family=Roboto:300,400,500,700|Roboto+Slab:400,700|Material+Icons"),
     });
     __VLS_elementAsFunction(__VLS_intrinsicElements.link, __VLS_intrinsicElements.link)({
         rel: ("stylesheet"),
