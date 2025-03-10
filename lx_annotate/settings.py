@@ -59,6 +59,7 @@ FRONTEND_DIR = os.path.join(BASE_DIR, 'frontend')
 # Application definition
 
 INSTALLED_APPS = [
+    'api',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',

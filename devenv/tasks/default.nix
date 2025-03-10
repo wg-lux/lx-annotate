@@ -12,6 +12,6 @@ let
 
   customTasks = {
     
-  } //envTasks;
+  } //envTasks //vueTasks;
 
 in customTasks 

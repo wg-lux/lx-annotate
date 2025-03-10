@@ -1,5 +1,5 @@
 """
-ASGI config for agl_anonymizer project.
+ASGI config for lx-annotate project.
 
 It exposes the ASGI callable as a module-level variable named ``application``.
 
