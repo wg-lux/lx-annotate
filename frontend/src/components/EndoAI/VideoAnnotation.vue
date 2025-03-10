@@ -2,12 +2,14 @@
   <div class="container-fluid h-100 w-100 py-1 px-4">
     <!-- Header: Title -->
     <div class="card-header pb-0">
-      <h4 class="mb-0">Video Annotation</h4>
+      <h1 class="mb-0">Video Annotation</h1>
     </div>
+    <div class="container-fluid py-4">
+
 
     <!-- Dropdown to select and edit a segment -->
     <div class="dropdown-container mb-3">
-      <label for="segmentSelect">Select a Segment:</label>
+      <label for="segmentSelect">Vorhersage auswählen</label>
       <select id="segmentSelect" v-model="selectedSegment">
         <option v-for="segment in segments" :key="segment.id" :value="segment">
           {{ segment.label_display }} ({{ formatTime(segment.startTime) }} - {{ formatTime(segment.endTime) }})
@@ -24,10 +26,11 @@
           <input type="number" v-model.number="selectedSegment.endTime" step="0.1" />
         </label>
         <!-- Save the edited segment locally -->
-        <button @click="saveSegmentState">Save Segment Locally</button>
+        <button @click="saveSegmentState">Zeiten lokal speichern</button>
       </div>
     </div>
-
+    </div>
+    <div class="container-fluid py-4">
     <!-- Video Player or Uploader -->
     <div class="video-container mb-4 position-relative">
       <video 
@@ -55,8 +58,11 @@
       </div>
       <p v-if="errorMessage">{{ errorMessage }}</p>
     </div>
+    </div>
+
 
     <!-- Classification Label -->
+    <div class="container-fluid py-4">
     <div 
       v-if="currentClassification"
       class="classification-label"
@@ -64,8 +70,16 @@
     >
       {{ currentClassification.label }} ({{ (currentClassification.avgConfidence * 100).toFixed(1) }}%)
     </div>
+    </div>
+
 
     <!-- Timeline Container -->
+    <div class="container-fluid py-4">
+    <h2>Zeitleiste</h2>
+    <div class="d-flex justify-content-between">
+      <span>{{ formatTime(currentTime) }}</span>
+      <span>{{ formatTime(duration) }}</span>
+    </div>
     <div class="timeline-track" ref="timelineRef" @click="handleTimelineClick">
       <div 
         v-for="segment in segments" 
@@ -82,6 +96,8 @@
 
     <h2>Segmente des Videos</h2>
     <!-- You might also keep the table view if desired -->
+    <div class="container-fluid py-4">
+
     <div class="table-responsive">
       <table class="table table-striped table-hover">
         <thead>
@@ -102,13 +118,17 @@
         </tbody>
       </table>
     </div>
+    </div>
 
     <!-- Final Submit Button -->
+    <div class="container-fluid py-4">
     <div class="controls mt-4">
       <button @click="submitAnnotations" class="btn btn-success" :disabled="!canSave">
-        Submit All Annotations
+        Alle Annotationen speichern
       </button>
     </div>
+    </div>
+  </div>
   </div>
 </template>
 

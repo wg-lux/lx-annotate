@@ -1,23 +1,24 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue';
-import axios, { AxiosError } from 'axios';
 import vueFilePond from 'vue-filepond';
 import 'filepond/dist/filepond.min.css';
 import { getColorForLabel } from '@/components/EndoAI/segments';
-// Register the FilePond component (no plugins added in this example)
+import { videoService } from '@/api/videoService';
+// Destructure reactive properties and functions from videoService
+const { videoUrl, errorMessage, segments, fetchVideoUrl, saveAnnotations, uploadRevert, uploadProcess } = videoService;
+// Register FilePond component
 const FilePond = vueFilePond();
-// Reactive references
-const videoUrl = ref('');
+// Local reactive references
 const videoRef = ref(null);
-const errorMessage = ref('');
 const timelineRef = ref(null);
 const currentTime = ref(0);
 const duration = ref(100);
 const canSave = ref(true);
-const segments = ref([]);
 const isResizing = ref(false);
 const activeSegment = ref(null);
 const startX = ref(0);
 const initialWidthPercent = ref(0);
+// For the dropdown
+const selectedSegment = ref(null);
 // Global event listeners for resizing
 function startResize(segment, event) {
     isResizing.value = true;
@@ -103,96 +104,35 @@ function getClassificationStyle() {
         width: "100%"
     };
 }
-// Fetch video and segment data from Django API
-async function fetchVideoUrl() {
-    try {
-        const response = await axios.get('http://127.0.0.1:8000/api/video/1/', {
-            headers: { 'Accept': 'application/json' }
-        });
-        if (response.data.video_url) {
-            videoUrl.value = response.data.video_url;
-            console.log("Fetched video URL:", videoUrl.value);
-        }
-        else {
-            console.warn("No video URL returned; waiting for upload.");
-            errorMessage.value = "Invalid video response received.";
-        }
-        if (response.data.classification_data) {
-            segments.value = response.data.classification_data.map((classification, index) => ({
-                id: `segment${index + 1}`,
-                label: classification.label,
-                label_display: classification.label,
-                startTime: classification.start_time,
-                endTime: classification.end_time,
-                avgConfidence: classification.confidence
-            }));
+// Save the edited state of the selected segment locally
+function saveSegmentState() {
+    if (selectedSegment.value) {
+        const index = segments.value.findIndex(seg => seg.id === selectedSegment.value.id);
+        if (index !== -1) {
+            // Update the segments array with the new state from selectedSegment
+            segments.value[index] = { ...selectedSegment.value };
+            console.log("Segment state saved locally:", segments.value[index]);
         }
     }
-    catch (error) {
-        const axiosError = error;
-        console.error("Error loading video:", axiosError.response?.data || axiosError.message);
-        errorMessage.value = "Error loading video. Please check the API endpoint or try again later.";
-    }
+}
+// Submit all annotations (send the updated segments to backend)
+async function submitAnnotations() {
+    await saveAnnotations();
 }
 onMounted(fetchVideoUrl);
 onUnmounted(() => {
     window.removeEventListener('mousemove', onMouseMove);
     window.removeEventListener('mouseup', onMouseUp);
 });
-// Vue FilePond uploader server endpoints configuration
-// When the user uploads a video, FilePond will send it to this Django endpoint.
-const uploadProcess = (fieldName, file, metadata, load, error) => {
-    const formData = new FormData();
-    formData.append(fieldName, file);
-    axios.post('http://127.0.0.1:8000/api/upload-video/', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-    })
-        .then(response => {
-        // Assume the Django view returns { video_url: "<url>" }
-        const url = response.data.video_url;
-        // Update our reactive videoUrl so the video tag will be shown.
-        videoUrl.value = url;
-        load(url); // Pass the URL as the server id
-    })
-        .catch(err => {
-        console.error("Upload error:", err);
-        error("Upload failed");
-    });
-};
-const uploadRevert = (uniqueFileId, load, error) => {
-    // Optionally implement revert logic if needed
-    axios.delete(`http://127.0.0.1:8000/api/upload-video/${uniqueFileId}/`)
-        .then(() => {
-        videoUrl.value = '';
-        load();
-    })
-        .catch(err => {
-        console.error("Revert error:", err);
-        error("Revert failed");
-    });
-};
-// Callback when FilePond finishes processing a file.
-// This callback can be used to do additional processing if needed.
+// FilePond callback
 function handleProcessFile(error, file) {
     if (error) {
         console.error("File processing error:", error);
         return;
     }
     console.log("File processed:", file);
-    // The server response (stored in file.serverId) is used to set the video URL.
     if (file.serverId) {
         videoUrl.value = file.serverId;
-    }
-}
-async function saveAnnotations() {
-    try {
-        const response = await axios.post('http://127.0.0.1:8000/api/annotations/', {
-            segments: segments.value,
-        });
-        console.log('Annotations saved:', response.data);
-    }
-    catch (error) {
-        console.error('Error saving annotations:', error);
     }
 }
 ; /* PartiallyEnd: #3632/scriptSetup.vue */
@@ -208,11 +148,53 @@ function __VLS_template() {
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: ("card-header pb-0") },
     });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.h4, __VLS_intrinsicElements.h4)({
+    __VLS_elementAsFunction(__VLS_intrinsicElements.h1, __VLS_intrinsicElements.h1)({
         ...{ class: ("mb-0") },
     });
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("card-body") },
+        ...{ class: ("container-fluid py-4") },
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: ("dropdown-container mb-3") },
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+        for: ("segmentSelect"),
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
+        id: ("segmentSelect"),
+        value: ((__VLS_ctx.selectedSegment)),
+    });
+    for (const [segment] of __VLS_getVForSourceType((__VLS_ctx.segments))) {
+        __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+            key: ((segment.id)),
+            value: ((segment)),
+        });
+        (segment.label_display);
+        (__VLS_ctx.formatTime(segment.startTime));
+        (__VLS_ctx.formatTime(segment.endTime));
+    }
+    if (__VLS_ctx.selectedSegment) {
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("segment-editor") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({});
+        __VLS_elementAsFunction(__VLS_intrinsicElements.input)({
+            type: ("number"),
+            step: ("0.1"),
+        });
+        (__VLS_ctx.selectedSegment.startTime);
+        __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({});
+        __VLS_elementAsFunction(__VLS_intrinsicElements.input)({
+            type: ("number"),
+            step: ("0.1"),
+        });
+        (__VLS_ctx.selectedSegment.endTime);
+        __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+            ...{ onClick: (__VLS_ctx.saveSegmentState) },
+        });
+    }
+    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: ("container-fluid py-4") },
     });
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: ("video-container mb-4 position-relative") },
@@ -268,10 +250,13 @@ function __VLS_template() {
         let __VLS_4;
         var __VLS_5;
     }
-    {
+    if (__VLS_ctx.errorMessage) {
         __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
         (__VLS_ctx.errorMessage);
     }
+    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: ("container-fluid py-4") },
+    });
     if (__VLS_ctx.currentClassification) {
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: ("classification-label") },
@@ -280,6 +265,17 @@ function __VLS_template() {
         (__VLS_ctx.currentClassification.label);
         ((__VLS_ctx.currentClassification.avgConfidence * 100).toFixed(1));
     }
+    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: ("container-fluid py-4") },
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.h2, __VLS_intrinsicElements.h2)({});
+    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: ("d-flex justify-content-between") },
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+    (__VLS_ctx.formatTime(__VLS_ctx.currentTime));
+    __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+    (__VLS_ctx.formatTime(__VLS_ctx.duration));
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ onClick: (__VLS_ctx.handleTimelineClick) },
         ...{ class: ("timeline-track") },
@@ -304,6 +300,9 @@ function __VLS_template() {
         });
     }
     __VLS_elementAsFunction(__VLS_intrinsicElements.h2, __VLS_intrinsicElements.h2)({});
+    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: ("container-fluid py-4") },
+    });
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: ("table-responsive") },
     });
@@ -337,14 +336,17 @@ function __VLS_template() {
         ((segment.avgConfidence * 100).toFixed(1));
     }
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: ("container-fluid py-4") },
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: ("controls mt-4") },
     });
     __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-        ...{ onClick: (__VLS_ctx.saveAnnotations) },
+        ...{ onClick: (__VLS_ctx.submitAnnotations) },
         ...{ class: ("btn btn-success") },
         disabled: ((!__VLS_ctx.canSave)),
     });
-    ['container-fluid', 'h-100', 'w-100', 'py-1', 'px-4', 'card-header', 'pb-0', 'mb-0', 'card-body', 'video-container', 'mb-4', 'position-relative', 'w-100', 'classification-label', 'timeline-track', 'timeline-segment', 'resize-handle', 'table-responsive', 'table', 'table-striped', 'table-hover', 'controls', 'mt-4', 'btn', 'btn-success',];
+    ['container-fluid', 'h-100', 'w-100', 'py-1', 'px-4', 'card-header', 'pb-0', 'mb-0', 'container-fluid', 'py-4', 'dropdown-container', 'mb-3', 'segment-editor', 'container-fluid', 'py-4', 'video-container', 'mb-4', 'position-relative', 'w-100', 'container-fluid', 'py-4', 'classification-label', 'container-fluid', 'py-4', 'd-flex', 'justify-content-between', 'timeline-track', 'timeline-segment', 'resize-handle', 'container-fluid', 'py-4', 'table-responsive', 'table', 'table-striped', 'table-hover', 'container-fluid', 'py-4', 'controls', 'mt-4', 'btn', 'btn-success',];
     var __VLS_slots;
     var $slots;
     let __VLS_inheritedAttrs;
@@ -368,13 +370,18 @@ const __VLS_self = (await import('vue')).defineComponent({
     setup() {
         return {
             getColorForLabel: getColorForLabel,
-            FilePond: FilePond,
             videoUrl: videoUrl,
-            videoRef: videoRef,
             errorMessage: errorMessage,
-            timelineRef: timelineRef,
-            canSave: canSave,
             segments: segments,
+            uploadRevert: uploadRevert,
+            uploadProcess: uploadProcess,
+            FilePond: FilePond,
+            videoRef: videoRef,
+            timelineRef: timelineRef,
+            currentTime: currentTime,
+            duration: duration,
+            canSave: canSave,
+            selectedSegment: selectedSegment,
             startResize: startResize,
             handleVideoError: handleVideoError,
             handleTimeUpdate: handleTimeUpdate,
@@ -386,10 +393,9 @@ const __VLS_self = (await import('vue')).defineComponent({
             formatTime: formatTime,
             currentClassification: currentClassification,
             getClassificationStyle: getClassificationStyle,
-            uploadProcess: uploadProcess,
-            uploadRevert: uploadRevert,
+            saveSegmentState: saveSegmentState,
+            submitAnnotations: submitAnnotations,
             handleProcessFile: handleProcessFile,
-            saveAnnotations: saveAnnotations,
         };
     },
 });
