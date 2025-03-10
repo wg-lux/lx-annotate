@@ -2,6 +2,11 @@
 
 LX-Annotate is a Vue-based Frontend living in a Django app. It utilizes an API to interact with the Endoreg-DB backend. This API is designed to facilitate the seamless integration of the annotation and review functionalities needed in day to day clinical work as well as for the basis of AI training.
 
+## Production TODO List
+
+- Switch out Base URL in .env - Setup is located in Tasks inside the devenv folder
+- export DJANGO_SETTINGS=prod
+- Set up NGINX and NGINX reverse proxy
 
 ## Features of the ecosystem - made available in a frontend
 
@@ -106,6 +111,13 @@ If the API encounters any error during processing, it will return a response wit
 ```
 
 Other useful information can come from the network tab in your browser.
+
+## File handling
+
+Video or image files are per default uploaded via the api. I case a local video is to be uploaded and segments are to be added, the file upload is handled by FilePond.
+
+Here, a locally stored video can be edited.
+This is especially useful in testing.
 
 
 
