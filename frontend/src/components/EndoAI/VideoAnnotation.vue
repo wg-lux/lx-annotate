@@ -1,257 +1,300 @@
 <template>
-    <div class="container-fluid h-100 w-100 py-1 px-4">
-      <!-- Header: Title -->
-      <div class="card-header pb-0">
-        <h4 class="mb-0">Video Annotation</h4>
-      </div>
-  
-      <!-- Body: Video and Timeline/Table -->
-      <div class="card-body">
-        <!-- Video Player -->
-        <div class="video-container mb-4">
-          <video 
-            ref="videoRef"
-            @timeupdate="handleTimeUpdate"
-            @loadedmetadata="handleLoadedMetadata"
-            controls
-            class="w-100"
-            :src="staticUrl + 'video.mp4'">
-          </video>
-        </div>
-  
-        <!-- (Optional) Timeline for scrubbing -->
-        <div class="timeline-container mb-4">
-          <div class="timeline-track" ref="timelineRef" @click="handleTimelineClick">
-            <!-- Progress Bar for current playback -->
-            <div class="progress-bar" :style="{ width: `${(currentTime / duration) * 100}%` }"></div>
-          </div>
-        </div>
-        
-        <div class="table-responsive" v-for="segment in segments" :key="segment.id" @click="jumpTo(segment)" style="cursor: pointer;">
-          <table class="table table-striped table-hover">
-            <thead>
-              <tr>
-                <th class="custom-segments">{{segment.label_display}}</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td :style="{ width: calculateLeftPercent(segment) + '%' }"></td>
-                <td :style="{ width: calculateWidthPercent(segment) + '%', backgroundColor: getColorForLabel(segment.label), color: '#fff' }">
-                {{ segment.avgConfidence }}
-                </td>
-                <td :style="{ width: calculateRightPercent(segment) + '%' }"></td>
+  <div class="container-fluid h-100 w-100 py-1 px-4">
+    <!-- Header: Title -->
+    <div class="card-header pb-0">
+      <h4 class="mb-0">Video Annotation</h4>
+    </div>
 
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <h2>Segmente des Videos</h2>
-        <!-- Table view of Segmentation Segments -->
-        <div class="table-responsive">
-          <table class="table table-striped table-hover">
-            <thead>
-              <tr>
-                <th>Label</th>
-                <th>Startzeit</th>
-                <th>Endzeit</th>
-                <th>Sicherheit</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="segment in segments" :key="segment.id" @click="jumpTo(segment)" style="cursor: pointer;">
-                <td :style="{ backgroundColor: getColorForLabel(segment.label), color: '#fff' }">{{ segment.label_display }}</td>
-                <td>{{ formatTime(segment.startTime) }}</td>
-                <td>{{ formatTime(segment.endTime) }}</td>
-                <td>{{ (segment.avgConfidence * 100).toFixed(1) }}%</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-  
-        <!-- Save Button -->
-        <div class="controls mt-4">
-          <button @click="saveAnnotations" class="btn btn-success" :disabled="!canSave">
-            Save Annotations
-          </button>
-        </div>
+    <!-- Dropdown to select and edit a segment -->
+    <div class="dropdown-container mb-3">
+      <label for="segmentSelect">Select a Segment:</label>
+      <select id="segmentSelect" v-model="selectedSegment">
+        <option v-for="segment in segments" :key="segment.id" :value="segment">
+          {{ segment.label_display }} ({{ formatTime(segment.startTime) }} - {{ formatTime(segment.endTime) }})
+        </option>
+      </select>
+      <!-- Example inputs to edit the selected segment (you can add more fields as needed) -->
+      <div v-if="selectedSegment" class="segment-editor">
+        <label>
+          Start Time:
+          <input type="number" v-model.number="selectedSegment.startTime" step="0.1" />
+        </label>
+        <label>
+          End Time:
+          <input type="number" v-model.number="selectedSegment.endTime" step="0.1" />
+        </label>
+        <!-- Save the edited segment locally -->
+        <button @click="saveSegmentState">Save Segment Locally</button>
       </div>
     </div>
-  </template>
-  
-  <script setup lang="ts">
-  import { ref, onMounted } from 'vue';
-  import type { Segment } from '@/components/EndoAI/segments';
-  import { getColorForLabel, jumpToSegment as utilJumpToSegment } from '@/components/EndoAI/segments';
-  import axios from 'axios';
-  
-  const staticUrl = (window as any).STATIC_URL || '/static/';
-  const videoRef = ref<HTMLVideoElement | null>(null);
-  const timelineRef = ref<HTMLElement | null>(null);
-  const segments = ref<Segment[]>([]);
-  const currentTime = ref(0);
-  const duration = ref(100); // Will be updated when video loads
-  const labelsList = ref([
-    "appendix",
-    "blood",
-    "diverticule",
-    "grasper",
-    "ileocaecalvalve",
-    "ileum",
-    "low_quality",
-    "nbi",
-    "needle",
-    "outside",
-    "polyp",
-    "snare",
-    "water_jet",
-    "wound",
-  ]);
-  const canSave = ref(false);
 
-  function calculateLeftPercent(segment: Segment): number {
+    <!-- Video Player or Uploader -->
+    <div class="video-container mb-4 position-relative">
+      <video 
+        ref="videoRef"
+        v-if="videoUrl"
+        @timeupdate="handleTimeUpdate"
+        @loadedmetadata="handleLoadedMetadata"
+        @error="handleVideoError"
+        controls
+        class="w-100"
+        :src="videoUrl">
+      </video>
+      <div v-else>
+        <FilePond
+          ref="pond"
+          :allowMultiple="false"
+          acceptedFileTypes="['video/*']"
+          labelIdle="Drag & Drop your video or <span class='filepond--label-action'>Browse</span>"
+          :server="{
+            process: uploadProcess,
+            revert: uploadRevert
+          }"
+          @processfile="handleProcessFile"
+        />
+      </div>
+      <p v-if="errorMessage">{{ errorMessage }}</p>
+    </div>
+
+    <!-- Classification Label -->
+    <div 
+      v-if="currentClassification"
+      class="classification-label"
+      :style="getClassificationStyle()"
+    >
+      {{ currentClassification.label }} ({{ (currentClassification.avgConfidence * 100).toFixed(1) }}%)
+    </div>
+
+    <!-- Timeline Container -->
+    <div class="timeline-track" ref="timelineRef" @click="handleTimelineClick">
+      <div 
+        v-for="segment in segments" 
+        :key="segment.id"
+        class="timeline-segment"
+        :style="{
+          left: calculateLeftPercent(segment) + '%',
+          width: calculateWidthPercent(segment) + '%'
+        }"
+      >
+        <div class="resize-handle" @mousedown="startResize(segment, $event)"></div>
+      </div>
+    </div>
+
+    <h2>Segmente des Videos</h2>
+    <!-- You might also keep the table view if desired -->
+    <div class="table-responsive">
+      <table class="table table-striped table-hover">
+        <thead>
+          <tr>
+            <th>Label</th>
+            <th>Startzeit</th>
+            <th>Endzeit</th>
+            <th>Sicherheit</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="segment in segments" :key="segment.id" @click="jumpTo(segment)" style="cursor: pointer;">
+            <td :style="{ backgroundColor: getColorForLabel(segment.label), color: '#fff' }">{{ segment.label_display }}</td>
+            <td>{{ formatTime(segment.startTime) }}</td>
+            <td>{{ formatTime(segment.endTime) }}</td>
+            <td>{{ (segment.avgConfidence * 100).toFixed(1) }}%</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Final Submit Button -->
+    <div class="controls mt-4">
+      <button @click="submitAnnotations" class="btn btn-success" :disabled="!canSave">
+        Submit All Annotations
+      </button>
+    </div>
+  </div>
+</template>
+
+
+<script setup lang="ts">
+import { ref, computed, onMounted, onUnmounted } from 'vue';
+import vueFilePond from 'vue-filepond';
+import 'filepond/dist/filepond.min.css';
+import type { CSSProperties } from 'vue';
+import type { Segment } from '@/components/EndoAI/segments';
+import { getColorForLabel } from '@/components/EndoAI/segments';
+import { videoService } from '@/api/videoService';
+
+// Destructure reactive properties and functions from videoService
+const { videoUrl, errorMessage, segments, fetchVideoUrl, saveAnnotations, uploadRevert, uploadProcess } = videoService;
+
+// Register FilePond component
+const FilePond = vueFilePond();
+
+// Local reactive references
+const videoRef = ref<HTMLVideoElement | null>(null);
+const timelineRef = ref<HTMLElement | null>(null);
+const currentTime = ref<number>(0);
+const duration = ref<number>(100);
+const canSave = ref<boolean>(true);
+const isResizing = ref(false);
+const activeSegment = ref<Segment | null>(null);
+const startX = ref<number>(0);
+const initialWidthPercent = ref<number>(0);
+
+// For the dropdown
+const selectedSegment = ref<Segment | null>(null);
+
+// Global event listeners for resizing
+function startResize(segment: Segment, event: MouseEvent) {
+  isResizing.value = true;
+  activeSegment.value = segment;
+  startX.value = event.clientX;
+  initialWidthPercent.value = calculateWidthPercent(segment);
+  window.addEventListener('mousemove', onMouseMove);
+  window.addEventListener('mouseup', onMouseUp);
+}
+function onMouseMove(event: MouseEvent) {
+  if (!isResizing.value || !activeSegment.value || !timelineRef.value) return;
+  const timelineRect = timelineRef.value.getBoundingClientRect();
+  const deltaPx = event.clientX - startX.value;
+  const deltaPercent = (deltaPx / timelineRect.width) * 100;
+  const newWidthPercent = initialWidthPercent.value + deltaPercent;
+  if (newWidthPercent > 0 && (calculateLeftPercent(activeSegment.value) + newWidthPercent) <= 100) {
+    const segmentDuration = (newWidthPercent / 100) * duration.value;
+    activeSegment.value.endTime = activeSegment.value.startTime + segmentDuration;
+  }
+}
+function onMouseUp() {
+  isResizing.value = false;
+  activeSegment.value = null;
+  window.removeEventListener('mousemove', onMouseMove);
+  window.removeEventListener('mouseup', onMouseUp);
+}
+
+// Video event handlers
+function handleVideoError(event: Event) {
+  console.error("Error loading the video:", event);
+  alert("Failed to load video. Please check the source URL.");
+}
+function handleTimeUpdate() {
+  if (videoRef.value) {
+    currentTime.value = videoRef.value.currentTime;
+  }
+}
+function handleLoadedMetadata() {
+  if (videoRef.value) {
+    duration.value = videoRef.value.duration;
+  }
+}
+function jumpTo(segment: Segment) {
+  if (videoRef.value) {
+    videoRef.value.currentTime = segment.startTime;
+  }
+}
+function handleTimelineClick(event: MouseEvent) {
+  if (timelineRef.value && videoRef.value) {
+    const rect = timelineRef.value.getBoundingClientRect();
+    const clickPosition = event.clientX - rect.left;
+    const percentage = clickPosition / rect.width;
+    videoRef.value.currentTime = percentage * duration.value;
+  }
+}
+
+// Helper functions for timeline
+function calculateLeftPercent(segment: Segment): number {
   return (segment.startTime / duration.value) * 100;
 }
 function calculateWidthPercent(segment: Segment): number {
-return ((segment.endTime - segment.startTime) / duration.value) * 100;
+  return ((segment.endTime - segment.startTime) / duration.value) * 100;
 }
-function calculateRightPercent(segment: Segment): number {
-return 100 - calculateLeftPercent(segment) - calculateWidthPercent(segment);
-}
-
-
-  
-  function handleTimeUpdate() {
-    if (videoRef.value) {
-      currentTime.value = videoRef.value.currentTime;
-      duration.value = videoRef.value.duration;
-    }
-  }
-  
-  function handleLoadedMetadata() {
-    if (videoRef.value) {
-      duration.value = videoRef.value.duration;
-    }
-  }
-  
-  function jumpTo(segment: Segment) {
-    utilJumpToSegment(segment, videoRef.value);
-  }
-  
-  function handleTimelineClick(event: MouseEvent) {
-    if (timelineRef.value && videoRef.value) {
-      const rect = timelineRef.value.getBoundingClientRect();
-      const clickPosition = event.clientX - rect.left;
-      const percentage = clickPosition / rect.width;
-      videoRef.value.currentTime = percentage * duration.value;
-    }
-  }
-  
-  function saveAnnotations() {
-    axios.post('http://127.0.0.1:8000/api/annotations/', {
-      segments: segments.value,
-    })
-    .then(response => {
-      console.log('Annotations saved:', response.data);
-    })
-    .catch(error => {
-      console.error('Error saving annotations:', error);
-    });
-  }
-  
-  function formatTime(seconds: number): string {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  }
-  
-  onMounted(() => {
-    // For demo purposes, set some sample segments:
-    segments.value = [
-      {
-        id: 'segment1',
-        label: 'outside',
-        label_display: 'Außerhalb',
-        startTime: 0,
-        endTime: 20,
-        avgConfidence: 0.85,
-      },
-      {
-        id: 'segment2',
-        label: 'blood',
-        label_display: 'Blut',
-        startTime: 25,
-        endTime: 35,
-        avgConfidence: 0.9,
-      },
-      {
-        id: 'segment3',
-        label: 'needle',
-        label_display: 'Nadel',
-        startTime: 40,
-        endTime: 45,
-        avgConfidence: 0.7,
-      },
-      {
-        id: 'segment4',
-        label: 'polyp',
-        label_display: 'Kolonpolyp',
-        startTime: 90,
-        endTime: 100,
-        avgConfidence: 0.7,
-      },
-    ];
-  });
-  </script>
-  
-  <style scoped>
-  .timeline-container {
-    position: relative;
-    height: 40px;
-    margin: 20px 0;
-    background: #f8f9fa;
-    border: 1px solid #e9ecef;
-    border-radius: 5px;
-  }
-  
-  /* The timeline-track is still used for scrubbing */
-  .timeline-track {
-    position: relative;
-    width: 100%;
-    height: 100%;
-    cursor: pointer;
-  }
-  
-  /* We no longer use absolute positioning for segments in the table view */
-  .table-responsive {
-    margin-top: 1rem;
-  }
-  
-  .custom-segments {
-  width: auto !important;
-  background-color: black;
-    color: white;
+function formatTime(seconds: number): string {
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
 
-table td {
-  border: black;
+// Current classification computed from segments
+const currentClassification = computed(() => {
+  return segments.value.find(segment => 
+    currentTime.value >= segment.startTime && currentTime.value <= segment.endTime
+  ) || null;
+});
+function getClassificationStyle(): CSSProperties {
+  return {
+    backgroundColor: "Green",
+    color: "white",
+    fontSize: "20px",
+    fontWeight: "bold",
+    padding: "12px",
+    borderRadius: "6px",
+    textTransform: "uppercase",
+    boxShadow: "0px 4px 10px rgba(0, 0, 0, 0.5)",
+    textAlign: "center",
+    width: "100%"
+  };
 }
-  .legend {
-    font-size: 0.875rem;
+
+// Save the edited state of the selected segment locally
+function saveSegmentState() {
+  if (selectedSegment.value) {
+    const index = segments.value.findIndex(seg => seg.id === selectedSegment.value!.id);
+    if (index !== -1) {
+      // Update the segments array with the new state from selectedSegment
+      segments.value[index] = { ...selectedSegment.value };
+      console.log("Segment state saved locally:", segments.value[index]);
+    }
   }
-  
-  .legend-item {
-    display: flex;
-    align-items: center;
+}
+
+// Submit all annotations (send the updated segments to backend)
+async function submitAnnotations() {
+  await saveAnnotations();
+}
+
+onMounted(fetchVideoUrl);
+onUnmounted(() => {
+  window.removeEventListener('mousemove', onMouseMove);
+  window.removeEventListener('mouseup', onMouseUp);
+});
+
+// FilePond callback
+function handleProcessFile(error: any, file: any) {
+  if (error) {
+    console.error("File processing error:", error);
+    return;
   }
-  
-  .legend-color {
-    width: 16px;
-    height: 16px;
-    border-radius: 50%;
-    margin-right: 5px;
-    border: 1px solid #ccc;
+  console.log("File processed:", file);
+  if (file.serverId) {
+    videoUrl.value = file.serverId;
   }
-  </style>
-  
+}
+</script>
+
+<style scoped>
+.timeline-track {
+  position: relative;
+  height: 40px;
+  background: #e9ecef;
+  border-radius: 5px;
+}
+.timeline-segment {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  background-color: #2196F3;
+  opacity: 0.5;
+}
+.resize-handle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 8px;
+  height: 100%;
+  cursor: ew-resize;
+  background: rgba(0, 0, 0, 0.5);
+}
+.classification-label {
+  position: absolute;
+  bottom: 10px;
+  left: 0;
+  z-index: 10;
+}
+</style>
