@@ -203,7 +203,6 @@ function __VLS_template() {
         __VLS_elementAsFunction(__VLS_intrinsicElements.video, __VLS_intrinsicElements.video)({
             ...{ onTimeupdate: (__VLS_ctx.handleTimeUpdate) },
             ...{ onLoadedmetadata: (__VLS_ctx.handleLoadedMetadata) },
-            ...{ onError: (__VLS_ctx.handleVideoError) },
             ref: ("videoRef"),
             controls: (true),
             ...{ class: ("w-100") },
@@ -250,6 +249,9 @@ function __VLS_template() {
         let __VLS_4;
         var __VLS_5;
     }
+    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: ("container-fluid py-4") },
+    });
     if (__VLS_ctx.errorMessage) {
         __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
         (__VLS_ctx.errorMessage);
@@ -346,7 +348,7 @@ function __VLS_template() {
         ...{ class: ("btn btn-success") },
         disabled: ((!__VLS_ctx.canSave)),
     });
-    ['container-fluid', 'h-100', 'w-100', 'py-1', 'px-4', 'card-header', 'pb-0', 'mb-0', 'container-fluid', 'py-4', 'dropdown-container', 'mb-3', 'segment-editor', 'container-fluid', 'py-4', 'video-container', 'mb-4', 'position-relative', 'w-100', 'container-fluid', 'py-4', 'classification-label', 'container-fluid', 'py-4', 'd-flex', 'justify-content-between', 'timeline-track', 'timeline-segment', 'resize-handle', 'container-fluid', 'py-4', 'table-responsive', 'table', 'table-striped', 'table-hover', 'container-fluid', 'py-4', 'controls', 'mt-4', 'btn', 'btn-success',];
+    ['container-fluid', 'h-100', 'w-100', 'py-1', 'px-4', 'card-header', 'pb-0', 'mb-0', 'container-fluid', 'py-4', 'dropdown-container', 'mb-3', 'segment-editor', 'container-fluid', 'py-4', 'video-container', 'mb-4', 'position-relative', 'w-100', 'container-fluid', 'py-4', 'container-fluid', 'py-4', 'classification-label', 'container-fluid', 'py-4', 'd-flex', 'justify-content-between', 'timeline-track', 'timeline-segment', 'resize-handle', 'container-fluid', 'py-4', 'table-responsive', 'table', 'table-striped', 'table-hover', 'container-fluid', 'py-4', 'controls', 'mt-4', 'btn', 'btn-success',];
     var __VLS_slots;
     var $slots;
     let __VLS_inheritedAttrs;
@@ -383,7 +385,6 @@ const __VLS_self = (await import('vue')).defineComponent({
             canSave: canSave,
             selectedSegment: selectedSegment,
             startResize: startResize,
-            handleVideoError: handleVideoError,
             handleTimeUpdate: handleTimeUpdate,
             handleLoadedMetadata: handleLoadedMetadata,
             jumpTo: jumpTo,

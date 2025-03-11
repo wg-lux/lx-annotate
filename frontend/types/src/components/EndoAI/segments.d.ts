@@ -8,4 +8,5 @@ export interface Segment {
 }
 export declare function getSegmentStyle(segment: Segment, duration: number): Record<string, string>;
 export declare function getColorForLabel(label: string): string;
+export declare function getTranslationForLabel(label: string): string;
 export declare function jumpToSegment(segment: Segment, videoElement: HTMLVideoElement | null): void;

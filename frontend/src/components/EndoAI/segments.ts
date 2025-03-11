@@ -38,6 +38,26 @@ export interface Segment {
     return colorMap[label] || '#757575';
   }
   
+  export function getTranslationForLabel(label: string): string {
+    const colorMap: Record<string, string> = {
+      appendix: 'Appendix',
+      blood: 'Blut',
+      diverticule: 'Divertikel',
+      grasper: 'Greifer',
+      ileocaecalvalve: 'Ileozäkalklappe',
+      ileum: 'Ileum',
+      low_quality: 'Niedrige Bildqualität',
+      nbi: 'Narrow Band Imaging',
+      needle: 'Nadel',
+      outside: 'Außerhalb',
+      polyp: 'Polyp',
+      snare: 'Snare',
+      water_jet: 'Wasserstrahl',
+      wound: 'Wunde',
+    };
+    return colorMap[label] || '#757575';
+  }
+  
   export function jumpToSegment(segment: Segment, videoElement: HTMLVideoElement | null): void {
     if (videoElement) {
       videoElement.currentTime = segment.startTime;

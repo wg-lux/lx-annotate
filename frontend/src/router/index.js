@@ -85,7 +85,7 @@ const router = createRouter({
         // Catch-all redirect to Dashboard for any unmatched route
         {
             path: '/:catchAll(.*)',
-            redirect: '/'
+            redirect: ''
         }
     ]
 });

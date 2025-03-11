@@ -27,6 +27,25 @@ export function getColorForLabel(label) {
     };
     return colorMap[label] || '#757575';
 }
+export function getTranslationForLabel(label) {
+    const colorMap = {
+        appendix: 'Appendix',
+        blood: 'Blut',
+        diverticule: 'Divertikel',
+        grasper: 'Greifer',
+        ileocaecalvalve: 'Ileozäkalklappe',
+        ileum: 'Ileum',
+        low_quality: 'Niedrige Bildqualität',
+        nbi: 'Narrow Band Imaging',
+        needle: 'Nadel',
+        outside: 'Außerhalb',
+        polyp: 'Polyp',
+        snare: 'Snare',
+        water_jet: 'Wasserstrahl',
+        wound: 'Wunde',
+    };
+    return colorMap[label] || '#757575';
+}
 export function jumpToSegment(segment, videoElement) {
     if (videoElement) {
         videoElement.currentTime = segment.startTime;

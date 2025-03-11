@@ -43,7 +43,7 @@ export const useAuthStore = defineStore('auth', {
                 this.checkAuth();
                 return;
             }
-            window.location.href = '/';
+            //window.location.href = '/';
         },
         async logout() {
             if (import.meta.env.NODE_ENV === 'development') {
@@ -53,7 +53,7 @@ export const useAuthStore = defineStore('auth', {
             }
             try {
                 await axios.post('/accounts/logout/');
-                window.location.href = '/redirect-after-logout/';
+                //window.location.href = '/redirect-after-logout/';
             }
             catch (error) {
                 this.error = 'Failed to logout';
@@ -66,5 +66,5 @@ export const useAuthStore = defineStore('auth', {
         userGroups: (state) => state.user?.groups || [],
         isLoading: (state) => state.loading,
         hasError: (state) => state.error !== null
-    }
+    },
 });

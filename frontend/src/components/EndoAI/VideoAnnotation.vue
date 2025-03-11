@@ -9,7 +9,7 @@
 
     <!-- Dropdown to select and edit a segment -->
     <div class="dropdown-container mb-3">
-      <label for="segmentSelect">Vorhersage auswählen</label>
+      <label for="segmentSelect">Segment auswählen</label>
       <select id="segmentSelect" v-model="selectedSegment">
         <option v-for="segment in segments" :key="segment.id" :value="segment">
           {{ segment.label_display }} ({{ formatTime(segment.startTime) }} - {{ formatTime(segment.endTime) }})
@@ -38,7 +38,6 @@
         v-if="videoUrl"
         @timeupdate="handleTimeUpdate"
         @loadedmetadata="handleLoadedMetadata"
-        @error="handleVideoError"
         controls
         class="w-100"
         :src="videoUrl">
@@ -56,7 +55,10 @@
           @processfile="handleProcessFile"
         />
       </div>
+      <div class="container-fluid py-4">
+
       <p v-if="errorMessage">{{ errorMessage }}</p>
+      </div> 
     </div>
     </div>
 
