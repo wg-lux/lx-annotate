@@ -2,9 +2,12 @@ import { ref, computed, onMounted, onUnmounted } from 'vue';
 import vueFilePond from 'vue-filepond';
 import 'filepond/dist/filepond.min.css';
 import { getColorForLabel } from '@/components/EndoAI/segments';
-import { videoService } from '@/api/videoService';
-// Destructure reactive properties and functions from videoService
-const { videoUrl, errorMessage, segments, fetchVideoUrl, saveAnnotations, uploadRevert, uploadProcess } = videoService;
+import { useVideoStore } from '@/stores/videoStore';
+import { storeToRefs } from 'pinia';
+// Use the video store
+const videoStore = useVideoStore();
+const { videoUrl, errorMessage, segments } = storeToRefs(videoStore);
+const { fetchVideoUrl, saveAnnotations, uploadRevert, uploadProcess } = videoStore;
 // Register FilePond component
 const FilePond = vueFilePond();
 // Local reactive references
@@ -88,7 +91,7 @@ function formatTime(seconds) {
 }
 // Current classification computed from segments
 const currentClassification = computed(() => {
-    return segments.value.find(segment => currentTime.value >= segment.startTime && currentTime.value <= segment.endTime) || null;
+    return segments.value.find((segment) => currentTime.value >= segment.startTime && currentTime.value <= segment.endTime) || null;
 });
 function getClassificationStyle() {
     return {
@@ -107,7 +110,7 @@ function getClassificationStyle() {
 // Save the edited state of the selected segment locally
 function saveSegmentState() {
     if (selectedSegment.value) {
-        const index = segments.value.findIndex(seg => seg.id === selectedSegment.value.id);
+        const index = segments.value.findIndex((seg) => seg.id === selectedSegment.value.id);
         if (index !== -1) {
             // Update the segments array with the new state from selectedSegment
             segments.value[index] = { ...selectedSegment.value };

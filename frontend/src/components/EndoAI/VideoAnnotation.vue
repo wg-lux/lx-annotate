@@ -15,7 +15,6 @@
           {{ segment.label_display }} ({{ formatTime(segment.startTime) }} - {{ formatTime(segment.endTime) }})
         </option>
       </select>
-      <!-- Example inputs to edit the selected segment (you can add more fields as needed) -->
       <div v-if="selectedSegment" class="segment-editor">
         <label>
           Start Time:
@@ -142,10 +141,13 @@ import 'filepond/dist/filepond.min.css';
 import type { CSSProperties } from 'vue';
 import type { Segment } from '@/components/EndoAI/segments';
 import { getColorForLabel } from '@/components/EndoAI/segments';
-import { videoService } from '@/api/videoService';
+import { useVideoStore } from '@/stores/videoStore';
+import { storeToRefs } from 'pinia';
 
-// Destructure reactive properties and functions from videoService
-const { videoUrl, errorMessage, segments, fetchVideoUrl, saveAnnotations, uploadRevert, uploadProcess } = videoService;
+// Use the video store
+const videoStore = useVideoStore();
+const { videoUrl, errorMessage, segments } = storeToRefs(videoStore);
+const { fetchVideoUrl, saveAnnotations, uploadRevert, uploadProcess } = videoStore;
 
 // Register FilePond component
 const FilePond = vueFilePond();
@@ -235,7 +237,7 @@ function formatTime(seconds: number): string {
 
 // Current classification computed from segments
 const currentClassification = computed(() => {
-  return segments.value.find(segment => 
+  return segments.value.find((segment: Segment) => 
     currentTime.value >= segment.startTime && currentTime.value <= segment.endTime
   ) || null;
 });
@@ -257,7 +259,7 @@ function getClassificationStyle(): CSSProperties {
 // Save the edited state of the selected segment locally
 function saveSegmentState() {
   if (selectedSegment.value) {
-    const index = segments.value.findIndex(seg => seg.id === selectedSegment.value!.id);
+    const index = segments.value.findIndex((seg: Segment) => seg.id === selectedSegment.value!.id);
     if (index !== -1) {
       // Update the segments array with the new state from selectedSegment
       segments.value[index] = { ...selectedSegment.value };
@@ -289,6 +291,7 @@ function handleProcessFile(error: any, file: any) {
   }
 }
 </script>
+
 
 <style scoped>
 .timeline-track {

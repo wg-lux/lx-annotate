@@ -20,13 +20,38 @@ export interface VideoAnnotation {
   videoID: string;
 }
 
+const translationMap: Record<string, string> = {
+    appendix: 'Appendix',
+    blood: 'Blut',
+    diverticule: 'Divertikel',
+    grasper: 'Greifer',
+    ileocaecalvalve: 'Ileozäkalklappe',
+    ileum: 'Ileum',
+    low_quality: 'Niedrige Bildqualität',
+    nbi: 'Narrow Band Imaging',
+    needle: 'Nadel',
+    outside: 'Außerhalb',
+    polyp: 'Polyp',
+    snare: 'Snare',
+    water_jet: 'Wasserstrahl',
+    wound: 'Wunde',
+  };
+
+const defaultSegments: Segment[] = Object.keys(translationMap).map((key, index) => ({
+    id: `default-${index}`,
+    label: key,
+    label_display: translationMap[key],
+    startTime: 0,
+    endTime: 0,
+    avgConfidence: 1,
+  }));
+
 export const useVideoStore = defineStore('video', () => {
   // State
   const currentVideo = ref<VideoAnnotation | null>(null);
   const errorMessage = ref('');
   const videoUrl = ref('');
-  const segments = ref<Segment[]>([]);
-  
+  const segments = ref<Segment[]>(defaultSegments);  
   // Actions
   function clearVideo(): void {
     currentVideo.value = null;
@@ -143,6 +168,43 @@ export const useVideoStore = defineStore('video', () => {
       videoElement.currentTime = segment.startTime;
     }
   }
+
+  const uploadRevert = (
+    uniqueFileId: string,
+    load: () => void,
+    error: (message: string) => void
+  ) => {
+    axiosInstance
+      .delete(`upload-video/${uniqueFileId}/`)
+      .then(() => {
+        videoUrl.value = '';
+        load();
+      })
+  }
+
+  const uploadProcess = (
+    fieldName: string,
+    file: File,
+    metadata: any,
+    load: (serverFileId: string) => void,
+    error: (message: string) => void
+  ) => {
+    const formData = new FormData();
+    formData.append(fieldName, file);
+    axiosInstance
+      .post('upload-video/', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+      .then((response: { data: { video_url: any; }; }) => {
+        const url = response.data.video_url;
+        videoUrl.value = url;
+        load(url); // Pass the URL as the server id
+      })
+      .catch((err: any) => {   
+        error("Upload failed");
+      }
+    );
+  }
   
   // Return state and actions for consumption in components
   return {
@@ -150,6 +212,8 @@ export const useVideoStore = defineStore('video', () => {
     errorMessage,
     videoUrl,
     segments,
+    uploadRevert,
+    uploadProcess,
     clearVideo,
     setVideo,
     fetchVideoUrl,
