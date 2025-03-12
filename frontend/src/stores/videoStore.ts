@@ -1,6 +1,8 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import axiosInstance from '../api/axiosInstance';
+import videoAxiosInstance from '../api/videoAxiosInstance';
+import type { VideoResponse } from '../api/videoAxiosInstance';
 import type { AxiosError } from 'axios';
 
 export interface Segment {
@@ -63,8 +65,8 @@ export const useVideoStore = defineStore('video', () => {
   
   async function fetchVideoUrl() {
     try {
-      const response = await axiosInstance.get('api/video/1/', {
-        headers: { 'Accept': 'application/json' }
+      const response = await videoAxiosInstance.get<VideoResponse>(currentVideo.value?.videoID || '1', {
+        headers: { 'Accept': 'application/json' },
       });
       if (response.data.video_url) {
         videoUrl.value = response.data.video_url;
@@ -73,6 +75,7 @@ export const useVideoStore = defineStore('video', () => {
         console.warn("No video URL returned; waiting for upload.");
         errorMessage.value = "Invalid video response received.";
       }
+  /*
       if (response.data.classification_data) {
         segments.value = response.data.classification_data.map(
           (classification: { label: string; start_time: number; end_time: number; confidence: number }, index: number) => ({
@@ -85,6 +88,7 @@ export const useVideoStore = defineStore('video', () => {
           })
         );
       }
+  */
     } catch (error: unknown) {
       const axiosError = error as AxiosError;
       console.error("Error loading video:", axiosError.response?.data || axiosError.message);

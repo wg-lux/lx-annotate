@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import axiosInstance from '../api/axiosInstance';
+import videoAxiosInstance from '../api/videoAxiosInstance';
 const translationMap = {
     appendix: 'Appendix',
     blood: 'Blut',
@@ -40,8 +41,8 @@ export const useVideoStore = defineStore('video', () => {
     }
     async function fetchVideoUrl() {
         try {
-            const response = await axiosInstance.get('api/video/1/', {
-                headers: { 'Accept': 'video/mp4' }
+            const response = await videoAxiosInstance.get(currentVideo.value?.videoID || '1', {
+                headers: { 'Accept': 'application/json' },
             });
             if (response.data.video_url) {
                 videoUrl.value = response.data.video_url;
@@ -51,16 +52,20 @@ export const useVideoStore = defineStore('video', () => {
                 console.warn("No video URL returned; waiting for upload.");
                 errorMessage.value = "Invalid video response received.";
             }
-            if (response.data.classification_data) {
-                segments.value = response.data.classification_data.map((classification, index) => ({
-                    id: `segment${index + 1}`,
-                    label: classification.label,
-                    label_display: classification.label,
-                    startTime: classification.start_time,
-                    endTime: classification.end_time,
-                    avgConfidence: classification.confidence,
-                }));
-            }
+            /*
+                if (response.data.classification_data) {
+                  segments.value = response.data.classification_data.map(
+                    (classification: { label: string; start_time: number; end_time: number; confidence: number }, index: number) => ({
+                      id: `segment${index + 1}`,
+                      label: classification.label,
+                      label_display: classification.label,
+                      startTime: classification.start_time,
+                      endTime: classification.end_time,
+                      avgConfidence: classification.confidence,
+                    })
+                  );
+                }
+            */
         }
         catch (error) {
             const axiosError = error;

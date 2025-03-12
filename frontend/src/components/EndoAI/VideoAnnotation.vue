@@ -38,7 +38,7 @@
         @timeupdate="handleTimeUpdate"
         @loadedmetadata="handleLoadedMetadata"
         controls
-        class="w-100"
+        style="max-width: 600px; width: 100%;"
         :src="videoUrl">
       </video>
       <div v-else>

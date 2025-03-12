@@ -1,4 +1,4 @@
-/// <reference types="../../node_modules/.vue-global-types/vue_3.5_false.d.ts" />
+/// <reference types="../../../node_modules/.vue-global-types/vue_3.5_false.d.ts" />
 ; /* PartiallyEnd: #3632/scriptSetup.vue */
 function __VLS_template() {
     const __VLS_ctx = {};

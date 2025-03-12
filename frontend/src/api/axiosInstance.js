@@ -1,11 +1,11 @@
 import axios, {} from 'axios';
 import Cookies from 'js-cookie';
+// This handles requests to the local Django API
 // TODO: Use URL from .env file
-// const baseURL = `${process.env.VUE_APP_BASE_URL}endoreg_db/api/`;
-const baseURL = 'http://127.0.0.1:5174/api/';
+// const baseURL = `${process.env.VUE_APP_BASE_URL}`;
+const baseURL = 'http://127.0.0.1:5174/';
 const axiosInstance = axios.create({
     baseURL, // Set automatically the base URL for the requests
-    timeout: 5000, // 5 seconds timeout
     withCredentials: true, // Ensures cookies are sent with requests
     headers: {
         'Content-Type': 'application/json',

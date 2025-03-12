@@ -68,7 +68,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
     getColorForLabel: (label: string) => string;
     getTranslationForLabel: (label: string) => string;
     jumpToSegment: (segment: Segment, videoElement: HTMLVideoElement | null) => void;
-}, "segments" | "errorMessage" | "currentVideo" | "videoUrl">>, Pick<{
+}, "segments" | "errorMessage" | "videoUrl" | "currentVideo">>, Pick<{
     currentVideo: import("vue").Ref<{
         isAnnotated: boolean;
         errorMessage: string;
@@ -178,4 +178,4 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
     getColorForLabel: (label: string) => string;
     getTranslationForLabel: (label: string) => string;
     jumpToSegment: (segment: Segment, videoElement: HTMLVideoElement | null) => void;
-}, "saveAnnotations" | "uploadRevert" | "uploadProcess" | "clearVideo" | "setVideo" | "fetchVideoUrl" | "getSegmentStyle" | "getColorForLabel" | "getTranslationForLabel" | "jumpToSegment">>;
+}, "uploadRevert" | "uploadProcess" | "clearVideo" | "setVideo" | "fetchVideoUrl" | "saveAnnotations" | "getSegmentStyle" | "getColorForLabel" | "getTranslationForLabel" | "jumpToSegment">>;

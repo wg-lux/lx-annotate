@@ -10,7 +10,6 @@ from .serializers import FileUploadSerializer
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from shutil import copyfile
-
 import json
 import requests
 from django.http import JsonResponse
@@ -35,7 +34,7 @@ class ProxyView(View):
         """
         Forward GET requests.
         """
-        target_url = urljoin(BACKEND_API_BASE_URL, f"/api/{endpoint}")        
+        target_url = urljoin(BACKEND_API_BASE_URL, f"{endpoint}")        
         # Forward query parameters from the original request
         response = requests.get(target_url, params=request.GET)
         try:
@@ -48,7 +47,7 @@ class ProxyView(View):
         """
         Forward POST requests.
         """
-        target_url = urljoin(BACKEND_API_BASE_URL, f"/api/{endpoint}/")        
+        target_url = urljoin(BACKEND_API_BASE_URL, f"{endpoint}/")        
         # Determine the payload based on the content type
         if request.content_type == 'application/json':
             payload = json.loads(request.body.decode('utf-8'))
@@ -66,7 +65,7 @@ class ProxyView(View):
         """
         Forward PUT requests.
         """
-        target_url = urljoin(BACKEND_API_BASE_URL, f"/api/{endpoint}")        
+        target_url = urljoin(BACKEND_API_BASE_URL, f"{endpoint}")        
         # Check the content type and prepare payload accordingly
         if request.content_type == 'application/json':
             try:
@@ -99,7 +98,7 @@ class ProxyView(View):
         """
         Forward DELETE requests.
         """
-        target_url = urljoin(BACKEND_API_BASE_URL, f"/api/{endpoint}")        
+        target_url = urljoin(BACKEND_API_BASE_URL, f"{endpoint}")        
         response = requests.delete(target_url)
         try:
             data = response.json()
@@ -111,7 +110,7 @@ class ProxyView(View):
         """
         Forward PATCH requests.
         """
-        target_url = urljoin(BACKEND_API_BASE_URL, f"/api/{endpoint}")        
+        target_url = urljoin(BACKEND_API_BASE_URL, f"{endpoint}")        
         if request.content_type == 'application/json':
             try:
                 payload = json.loads(request.body.decode('utf-8'))
@@ -130,7 +129,7 @@ class ProxyView(View):
         """
         Forward TRACE requests.
         """
-        target_url = urljoin(BACKEND_API_BASE_URL, f"/api/{endpoint}")        
+        target_url = urljoin(BACKEND_API_BASE_URL, f"{endpoint}")        
         response = requests.request("TRACE", target_url, params=request.GET, data=request.body)
         try:
             data = response.json()
@@ -144,7 +143,7 @@ class ProxyView(View):
         Note: CONNECT is typically used for tunneling (e.g., HTTPS proxies) and may not work
         as expected in this context.
         """
-        target_url = urljoin(BACKEND_API_BASE_URL, f"/api/{endpoint}")        
+        target_url = urljoin(BACKEND_API_BASE_URL, f"{endpoint}")        
         response = requests.request("CONNECT", target_url, params=request.GET, data=request.body)
         try:
             data = response.json()
