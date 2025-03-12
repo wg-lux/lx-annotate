@@ -17,9 +17,17 @@ from django.http import JsonResponse
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
+from urllib.parse import urljoin
+
+from django.http import FileResponse
+
+def serve_video(request):
+    # Open the video file in binary mode.
+    video_file = open('path/to/video.mp4', 'rb')
+    return FileResponse(video_file, content_type='video/mp4')
 
 # Use the BACKEND_API_BASE_URL from your settings
-BACKEND_API_BASE_URL = getattr(settings, 'BACKEND_API_BASE_URL', 'http://127.0.0.1:8000/endoreg_db/api/')
+BACKEND_API_BASE_URL = getattr(settings, 'BACKEND_API_BASE_URL', 'http://127.0.0.1:8000')
 
 @method_decorator(csrf_exempt, name='dispatch')
 class ProxyView(View):
@@ -27,7 +35,7 @@ class ProxyView(View):
         """
         Forward GET requests.
         """
-        target_url = f"{BACKEND_API_BASE_URL}{endpoint}/"
+        target_url = urljoin(BACKEND_API_BASE_URL, f"/api/{endpoint}")        
         # Forward query parameters from the original request
         response = requests.get(target_url, params=request.GET)
         try:
@@ -40,7 +48,7 @@ class ProxyView(View):
         """
         Forward POST requests.
         """
-        target_url = f"{BACKEND_API_BASE_URL}{endpoint}/"
+        target_url = urljoin(BACKEND_API_BASE_URL, f"/api/{endpoint}/")        
         # Determine the payload based on the content type
         if request.content_type == 'application/json':
             payload = json.loads(request.body.decode('utf-8'))
@@ -58,7 +66,7 @@ class ProxyView(View):
         """
         Forward PUT requests.
         """
-        target_url = f"{BACKEND_API_BASE_URL}{endpoint}/"
+        target_url = urljoin(BACKEND_API_BASE_URL, f"/api/{endpoint}")        
         # Check the content type and prepare payload accordingly
         if request.content_type == 'application/json':
             try:
@@ -66,9 +74,21 @@ class ProxyView(View):
             except ValueError:
                 return JsonResponse({'error': 'Invalid JSON payload'}, status=400)
             response = requests.put(target_url, json=payload)
+        elif request.content_type.startswith('multipart/form-data'):
+            # Build files dictionary for binary data (video files, etc.)
+            files = {
+                key: (file_obj.name, file_obj, file_obj.content_type)
+                for key, file_obj in request.FILES.items()
+            }
+            # Forward both POST data and files
+            response = requests.post(target_url, data=request.POST, files=files)
+        elif request.content_type == 'video/mp4':
+            # For binary data (e.g., video files), forward as-is
+            response = requests.put(target_url, data=request.body, headers={'Content-Type': request.content_type})
         else:
             # For non-JSON payloads, forward data as-is (e.g., form data)
             response = requests.put(target_url, data=request.POST)
+        
         try:
             data = response.json()
         except ValueError:
@@ -79,7 +99,7 @@ class ProxyView(View):
         """
         Forward DELETE requests.
         """
-        target_url = f"{BACKEND_API_BASE_URL}{endpoint}/"
+        target_url = urljoin(BACKEND_API_BASE_URL, f"/api/{endpoint}")        
         response = requests.delete(target_url)
         try:
             data = response.json()
@@ -91,7 +111,7 @@ class ProxyView(View):
         """
         Forward PATCH requests.
         """
-        target_url = f"{BACKEND_API_BASE_URL}{endpoint}/"
+        target_url = urljoin(BACKEND_API_BASE_URL, f"/api/{endpoint}")        
         if request.content_type == 'application/json':
             try:
                 payload = json.loads(request.body.decode('utf-8'))
@@ -110,7 +130,7 @@ class ProxyView(View):
         """
         Forward TRACE requests.
         """
-        target_url = f"{BACKEND_API_BASE_URL}{endpoint}/"
+        target_url = urljoin(BACKEND_API_BASE_URL, f"/api/{endpoint}")        
         response = requests.request("TRACE", target_url, params=request.GET, data=request.body)
         try:
             data = response.json()
@@ -124,7 +144,7 @@ class ProxyView(View):
         Note: CONNECT is typically used for tunneling (e.g., HTTPS proxies) and may not work
         as expected in this context.
         """
-        target_url = f"{BACKEND_API_BASE_URL}{endpoint}/"
+        target_url = urljoin(BACKEND_API_BASE_URL, f"/api/{endpoint}")        
         response = requests.request("CONNECT", target_url, params=request.GET, data=request.body)
         try:
             data = response.json()

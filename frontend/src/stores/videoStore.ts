@@ -63,7 +63,7 @@ export const useVideoStore = defineStore('video', () => {
   
   async function fetchVideoUrl() {
     try {
-      const response = await axiosInstance.get('video/1/', {
+      const response = await axiosInstance.get('api/video/1/', {
         headers: { 'Accept': 'application/json' }
       });
       if (response.data.video_url) {

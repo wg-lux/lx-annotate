@@ -11,8 +11,8 @@ const segments = ref<Segment[]>([]);
 // Fetch video and segment data from Django API
 async function fetchVideoUrl() {
   try {
-    const response = await axiosInstance.get('video/1/', {
-      headers: { 'Accept': 'application/json' }
+    const response = await axiosInstance.get('video/1', {
+      headers: { 'Accept': 'video/mp4' }
     });
     if (response.data.video_url) {
       videoUrl.value = response.data.video_url;
