@@ -1,13 +1,13 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { storeToRefs } from 'pinia';
 import vueFilePond from 'vue-filepond';
 import 'filepond/dist/filepond.min.css';
 import { getColorForLabel } from '@/components/EndoAI/segments';
 import { useVideoStore } from '@/stores/videoStore';
-import { storeToRefs } from 'pinia';
 // Use the video store
 const videoStore = useVideoStore();
-const { videoUrl, errorMessage, segments } = storeToRefs(videoStore);
-const { fetchVideoUrl, saveAnnotations, uploadRevert, uploadProcess } = videoStore;
+const { videoUrl, errorMessage, segmentsByLabel, allSegments } = storeToRefs(videoStore);
+const { fetchVideoUrl, fetchAllSegments, saveAnnotations, uploadRevert, uploadProcess } = videoStore;
 // Register FilePond component
 const FilePond = vueFilePond();
 // Local reactive references
@@ -89,10 +89,8 @@ function formatTime(seconds) {
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
-// Current classification computed from segments
-const currentClassification = computed(() => {
-    return segments.value.find((segment) => currentTime.value >= segment.startTime && currentTime.value <= segment.endTime) || null;
-});
+// Current classification computed from all segments
+const currentClassification = computed(() => allSegments.value.find((segment) => currentTime.value >= segment.startTime && currentTime.value <= segment.endTime) || null);
 function getClassificationStyle() {
     return {
         backgroundColor: "Green",
@@ -107,14 +105,16 @@ function getClassificationStyle() {
         width: "100%"
     };
 }
-// Save the edited state of the selected segment locally
-function saveSegmentState() {
+// Save the edited state of the selected segment locally by updating the store's segmentsByLabel
+function updateSegmentState() {
     if (selectedSegment.value) {
-        const index = segments.value.findIndex((seg) => seg.id === selectedSegment.value.id);
-        if (index !== -1) {
-            // Update the segments array with the new state from selectedSegment
-            segments.value[index] = { ...selectedSegment.value };
-            console.log("Segment state saved locally:", segments.value[index]);
+        for (const label in segmentsByLabel.value) {
+            const index = segmentsByLabel.value[label].findIndex((seg) => seg.id === selectedSegment.value.id);
+            if (index !== -1) {
+                segmentsByLabel.value[label][index] = { ...selectedSegment.value };
+                console.log("Segment state saved locally:", segmentsByLabel.value[label][index]);
+                break;
+            }
         }
     }
 }
@@ -122,7 +122,13 @@ function saveSegmentState() {
 async function submitAnnotations() {
     await saveAnnotations();
 }
-onMounted(fetchVideoUrl);
+onMounted(async () => {
+    await fetchVideoUrl();
+    // Fetch segments for all labels once the video is loaded.
+    // If currentVideo is not yet set, default to video id '1'
+    const videoID = videoStore.currentVideo?.videoID || '1';
+    await fetchAllSegments(videoID);
+});
 onUnmounted(() => {
     window.removeEventListener('mousemove', onMouseMove);
     window.removeEventListener('mouseup', onMouseUp);
@@ -167,7 +173,7 @@ function __VLS_template() {
         id: ("segmentSelect"),
         value: ((__VLS_ctx.selectedSegment)),
     });
-    for (const [segment] of __VLS_getVForSourceType((__VLS_ctx.segments))) {
+    for (const [segment] of __VLS_getVForSourceType((__VLS_ctx.allSegments))) {
         __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
             key: ((segment.id)),
             value: ((segment)),
@@ -193,7 +199,7 @@ function __VLS_template() {
         });
         (__VLS_ctx.selectedSegment.endTime);
         __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-            ...{ onClick: (__VLS_ctx.saveSegmentState) },
+            ...{ onClick: (__VLS_ctx.updateSegmentState) },
         });
     }
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -288,7 +294,7 @@ function __VLS_template() {
     });
     // @ts-ignore navigation for `const timelineRef = ref()`
     /** @type { typeof __VLS_ctx.timelineRef } */ ;
-    for (const [segment] of __VLS_getVForSourceType((__VLS_ctx.segments))) {
+    for (const [segment] of __VLS_getVForSourceType((__VLS_ctx.allSegments))) {
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             key: ((segment.id)),
             ...{ class: ("timeline-segment") },
@@ -321,7 +327,7 @@ function __VLS_template() {
     __VLS_elementAsFunction(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
     __VLS_elementAsFunction(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
     __VLS_elementAsFunction(__VLS_intrinsicElements.tbody, __VLS_intrinsicElements.tbody)({});
-    for (const [segment] of __VLS_getVForSourceType((__VLS_ctx.segments))) {
+    for (const [segment] of __VLS_getVForSourceType((__VLS_ctx.allSegments))) {
         __VLS_elementAsFunction(__VLS_intrinsicElements.tr, __VLS_intrinsicElements.tr)({
             ...{ onClick: (...[$event]) => {
                     __VLS_ctx.jumpTo(segment);
@@ -377,7 +383,7 @@ const __VLS_self = (await import('vue')).defineComponent({
             getColorForLabel: getColorForLabel,
             videoUrl: videoUrl,
             errorMessage: errorMessage,
-            segments: segments,
+            allSegments: allSegments,
             uploadRevert: uploadRevert,
             uploadProcess: uploadProcess,
             FilePond: FilePond,
@@ -397,7 +403,7 @@ const __VLS_self = (await import('vue')).defineComponent({
             formatTime: formatTime,
             currentClassification: currentClassification,
             getClassificationStyle: getClassificationStyle,
-            saveSegmentState: saveSegmentState,
+            updateSegmentState: updateSegmentState,
             submitAnnotations: submitAnnotations,
             handleProcessFile: handleProcessFile,
         };

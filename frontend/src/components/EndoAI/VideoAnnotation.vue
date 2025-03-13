@@ -5,149 +5,142 @@
       <h1 class="mb-0">Video Annotation</h1>
     </div>
     <div class="container-fluid py-4">
-
-
-    <!-- Dropdown to select and edit a segment -->
-    <div class="dropdown-container mb-3">
-      <label for="segmentSelect">Segment auswählen</label>
-      <select id="segmentSelect" v-model="selectedSegment">
-        <option v-for="segment in segments" :key="segment.id" :value="segment">
-          {{ segment.label_display }} ({{ formatTime(segment.startTime) }} - {{ formatTime(segment.endTime) }})
-        </option>
-      </select>
-      <div v-if="selectedSegment" class="segment-editor">
-        <label>
-          Start Time:
-          <input type="number" v-model.number="selectedSegment.startTime" step="0.1" />
-        </label>
-        <label>
-          End Time:
-          <input type="number" v-model.number="selectedSegment.endTime" step="0.1" />
-        </label>
-        <!-- Save the edited segment locally -->
-        <button @click="saveSegmentState">Zeiten lokal speichern</button>
+      <!-- Dropdown to select and edit a segment -->
+      <div class="dropdown-container mb-3">
+        <label for="segmentSelect">Segment auswählen</label>
+        <select id="segmentSelect" v-model="selectedSegment">
+          <option v-for="segment in allSegments" :key="segment.id" :value="segment">
+            {{ segment.label_display }} ({{ formatTime(segment.startTime) }} - {{ formatTime(segment.endTime) }})
+          </option>
+        </select>
+        <div v-if="selectedSegment" class="segment-editor">
+          <label>
+            Start Time:
+            <input type="number" v-model.number="selectedSegment.startTime" step="0.1" />
+          </label>
+          <label>
+            End Time:
+            <input type="number" v-model.number="selectedSegment.endTime" step="0.1" />
+          </label>
+          <!-- Save the edited segment locally -->
+          <button @click="updateSegmentState">Zeiten lokal speichern</button>
+        </div>
       </div>
-    </div>
     </div>
     <div class="container-fluid py-4">
-    <!-- Video Player or Uploader -->
-    <div class="video-container mb-4 position-relative">
-      <video 
-        ref="videoRef"
-        v-if="videoUrl"
-        @timeupdate="handleTimeUpdate"
-        @loadedmetadata="handleLoadedMetadata"
-        controls
-        style="max-width: 600px; width: 100%;"
-        :src="videoUrl">
-      </video>
-      <div v-else>
-        <FilePond
-          ref="pond"
-          :allowMultiple="false"
-          acceptedFileTypes="['video/*']"
-          labelIdle="Drag & Drop your video or <span class='filepond--label-action'>Browse</span>"
-          :server="{
-            process: uploadProcess,
-            revert: uploadRevert
-          }"
-          @processfile="handleProcessFile"
-        />
+      <!-- Video Player or Uploader -->
+      <div class="video-container mb-4 position-relative">
+        <video 
+          ref="videoRef"
+          v-if="videoUrl"
+          @timeupdate="handleTimeUpdate"
+          @loadedmetadata="handleLoadedMetadata"
+          controls
+          style="max-width: 600px; width: 100%;"
+          :src="videoUrl">
+        </video>
+        <div v-else>
+          <FilePond
+            ref="pond"
+            :allowMultiple="false"
+            acceptedFileTypes="['video/*']"
+            labelIdle="Drag & Drop your video or <span class='filepond--label-action'>Browse</span>"
+            :server="{
+              process: uploadProcess,
+              revert: uploadRevert
+            }"
+            @processfile="handleProcessFile"
+          />
+        </div>
+        <div class="container-fluid py-4">
+          <p v-if="errorMessage">{{ errorMessage }}</p>
+        </div> 
       </div>
-      <div class="container-fluid py-4">
-
-      <p v-if="errorMessage">{{ errorMessage }}</p>
-      </div> 
     </div>
-    </div>
-
 
     <!-- Classification Label -->
     <div class="container-fluid py-4">
-    <div 
-      v-if="currentClassification"
-      class="classification-label"
-      :style="getClassificationStyle()"
-    >
-      {{ currentClassification.label }} ({{ (currentClassification.avgConfidence * 100).toFixed(1) }}%)
-    </div>
-    </div>
-
-
-    <!-- Timeline Container -->
-    <div class="container-fluid py-4">
-    <h2>Zeitleiste</h2>
-    <div class="d-flex justify-content-between">
-      <span>{{ formatTime(currentTime) }}</span>
-      <span>{{ formatTime(duration) }}</span>
-    </div>
-    <div class="timeline-track" ref="timelineRef" @click="handleTimelineClick">
       <div 
-        v-for="segment in segments" 
-        :key="segment.id"
-        class="timeline-segment"
-        :style="{
-          left: calculateLeftPercent(segment) + '%',
-          width: calculateWidthPercent(segment) + '%'
-        }"
+        v-if="currentClassification"
+        class="classification-label"
+        :style="getClassificationStyle()"
       >
-        <div class="resize-handle" @mousedown="startResize(segment, $event)"></div>
+        {{ currentClassification.label }} ({{ (currentClassification.avgConfidence * 100).toFixed(1) }}%)
       </div>
     </div>
 
-    <h2>Segmente des Videos</h2>
-    <!-- You might also keep the table view if desired -->
+    <!-- Timeline Container -->
     <div class="container-fluid py-4">
+      <h2>Zeitleiste</h2>
+      <div class="d-flex justify-content-between">
+        <span>{{ formatTime(currentTime) }}</span>
+        <span>{{ formatTime(duration) }}</span>
+      </div>
+      <div class="timeline-track" ref="timelineRef" @click="handleTimelineClick">
+        <div 
+          v-for="segment in allSegments" 
+          :key="segment.id"
+          class="timeline-segment"
+          :style="{
+            left: calculateLeftPercent(segment) + '%',
+            width: calculateWidthPercent(segment) + '%'
+          }"
+        >
+          <div class="resize-handle" @mousedown="startResize(segment, $event)"></div>
+        </div>
+      </div>
 
-    <div class="table-responsive">
-      <table class="table table-striped table-hover">
-        <thead>
-          <tr>
-            <th>Label</th>
-            <th>Startzeit</th>
-            <th>Endzeit</th>
-            <th>Sicherheit</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="segment in segments" :key="segment.id" @click="jumpTo(segment)" style="cursor: pointer;">
-            <td :style="{ backgroundColor: getColorForLabel(segment.label), color: '#fff' }">{{ segment.label_display }}</td>
-            <td>{{ formatTime(segment.startTime) }}</td>
-            <td>{{ formatTime(segment.endTime) }}</td>
-            <td>{{ (segment.avgConfidence * 100).toFixed(1) }}%</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-    </div>
+      <h2>Segmente des Videos</h2>
+      <!-- Table view of segments -->
+      <div class="container-fluid py-4">
+        <div class="table-responsive">
+          <table class="table table-striped table-hover">
+            <thead>
+              <tr>
+                <th>Label</th>
+                <th>Startzeit</th>
+                <th>Endzeit</th>
+                <th>Sicherheit</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="segment in allSegments" :key="segment.id" @click="jumpTo(segment)" style="cursor: pointer;">
+                <td :style="{ backgroundColor: getColorForLabel(segment.label), color: '#fff' }">{{ segment.label_display }}</td>
+                <td>{{ formatTime(segment.startTime) }}</td>
+                <td>{{ formatTime(segment.endTime) }}</td>
+                <td>{{ (segment.avgConfidence * 100).toFixed(1) }}%</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
 
-    <!-- Final Submit Button -->
-    <div class="container-fluid py-4">
-    <div class="controls mt-4">
-      <button @click="submitAnnotations" class="btn btn-success" :disabled="!canSave">
-        Alle Annotationen speichern
-      </button>
+      <!-- Final Submit Button -->
+      <div class="container-fluid py-4">
+        <div class="controls mt-4">
+          <button @click="submitAnnotations" class="btn btn-success" :disabled="!canSave">
+            Alle Annotationen speichern
+          </button>
+        </div>
+      </div>
     </div>
-    </div>
-  </div>
   </div>
 </template>
 
-
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { storeToRefs } from 'pinia';
 import vueFilePond from 'vue-filepond';
 import 'filepond/dist/filepond.min.css';
 import type { CSSProperties } from 'vue';
 import type { Segment } from '@/components/EndoAI/segments';
 import { getColorForLabel } from '@/components/EndoAI/segments';
 import { useVideoStore } from '@/stores/videoStore';
-import { storeToRefs } from 'pinia';
 
 // Use the video store
 const videoStore = useVideoStore();
-const { videoUrl, errorMessage, segments } = storeToRefs(videoStore);
-const { fetchVideoUrl, saveAnnotations, uploadRevert, uploadProcess } = videoStore;
+const { videoUrl, errorMessage, segmentsByLabel, allSegments } = storeToRefs(videoStore);
+const { fetchVideoUrl, fetchAllSegments, saveAnnotations, uploadRevert, uploadProcess } = videoStore;
 
 // Register FilePond component
 const FilePond = vueFilePond();
@@ -235,12 +228,12 @@ function formatTime(seconds: number): string {
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
 
-// Current classification computed from segments
-const currentClassification = computed(() => {
-  return segments.value.find((segment: Segment) => 
+// Current classification computed from all segments
+const currentClassification = computed(() =>
+  allSegments.value.find((segment: Segment) =>
     currentTime.value >= segment.startTime && currentTime.value <= segment.endTime
-  ) || null;
-});
+  ) || null
+);
 function getClassificationStyle(): CSSProperties {
   return {
     backgroundColor: "Green",
@@ -256,14 +249,16 @@ function getClassificationStyle(): CSSProperties {
   };
 }
 
-// Save the edited state of the selected segment locally
-function saveSegmentState() {
+// Save the edited state of the selected segment locally by updating the store's segmentsByLabel
+function updateSegmentState() {
   if (selectedSegment.value) {
-    const index = segments.value.findIndex((seg: Segment) => seg.id === selectedSegment.value!.id);
-    if (index !== -1) {
-      // Update the segments array with the new state from selectedSegment
-      segments.value[index] = { ...selectedSegment.value };
-      console.log("Segment state saved locally:", segments.value[index]);
+    for (const label in segmentsByLabel.value) {
+      const index = segmentsByLabel.value[label].findIndex((seg: Segment) => seg.id === selectedSegment.value!.id);
+      if (index !== -1) {
+        segmentsByLabel.value[label][index] = { ...selectedSegment.value };
+        console.log("Segment state saved locally:", segmentsByLabel.value[label][index]);
+        break;
+      }
     }
   }
 }
@@ -273,7 +268,13 @@ async function submitAnnotations() {
   await saveAnnotations();
 }
 
-onMounted(fetchVideoUrl);
+onMounted(async () => {
+  await fetchVideoUrl();
+  // Fetch segments for all labels once the video is loaded.
+  // If currentVideo is not yet set, default to video id '1'
+  const videoID = videoStore.currentVideo?.videoID || '1';
+  await fetchAllSegments(videoID);
+});
 onUnmounted(() => {
   window.removeEventListener('mousemove', onMouseMove);
   window.removeEventListener('mouseup', onMouseUp);
@@ -291,7 +292,6 @@ function handleProcessFile(error: any, file: any) {
   }
 }
 </script>
-
 
 <style scoped>
 .timeline-track {

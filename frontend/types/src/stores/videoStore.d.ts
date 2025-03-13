@@ -13,6 +13,20 @@ export interface VideoAnnotation {
     videoUrl: string;
     videoID: string;
 }
+export interface VideoLabelResponse {
+    label: string;
+    time_segments: Array<{
+        segment_start: number;
+        segment_end: number;
+        start_time: number;
+        end_time: number;
+        frames: Record<string, {
+            frame_filename: string;
+            frame_file_path: string;
+            predictions: Record<string, number>;
+        }>;
+    }>;
+}
 export declare const useVideoStore: import("pinia").StoreDefinition<"video", import("pinia")._UnwrapAll<Pick<{
     currentVideo: import("vue").Ref<{
         isAnnotated: boolean;
@@ -43,32 +57,21 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
     } | null>;
     errorMessage: import("vue").Ref<string, string>;
     videoUrl: import("vue").Ref<string, string>;
-    segments: import("vue").Ref<{
-        id: string;
-        label: string;
-        label_display: string;
-        startTime: number;
-        endTime: number;
-        avgConfidence: number;
-    }[], Segment[] | {
-        id: string;
-        label: string;
-        label_display: string;
-        startTime: number;
-        endTime: number;
-        avgConfidence: number;
-    }[]>;
+    segmentsByLabel: import("vue").Ref<Record<string, Segment[]>, Record<string, Segment[]>>;
+    allSegments: import("vue").ComputedRef<Segment[]>;
     uploadRevert: (uniqueFileId: string, load: () => void, error: (message: string) => void) => void;
     uploadProcess: (fieldName: string, file: File, metadata: any, load: (serverFileId: string) => void, error: (message: string) => void) => void;
     clearVideo: () => void;
     setVideo: (video: VideoAnnotation) => void;
     fetchVideoUrl: () => Promise<void>;
+    fetchSegmentsByLabel: (videoID: string, label?: string) => Promise<void>;
+    fetchAllSegments: (videoID: string) => Promise<void>;
     saveAnnotations: () => Promise<void>;
     getSegmentStyle: (segment: Segment, duration: number) => Record<string, string>;
     getColorForLabel: (label: string) => string;
     getTranslationForLabel: (label: string) => string;
     jumpToSegment: (segment: Segment, videoElement: HTMLVideoElement | null) => void;
-}, "segments" | "errorMessage" | "videoUrl" | "currentVideo">>, Pick<{
+}, "errorMessage" | "videoUrl" | "currentVideo" | "segmentsByLabel">>, Pick<{
     currentVideo: import("vue").Ref<{
         isAnnotated: boolean;
         errorMessage: string;
@@ -98,32 +101,21 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
     } | null>;
     errorMessage: import("vue").Ref<string, string>;
     videoUrl: import("vue").Ref<string, string>;
-    segments: import("vue").Ref<{
-        id: string;
-        label: string;
-        label_display: string;
-        startTime: number;
-        endTime: number;
-        avgConfidence: number;
-    }[], Segment[] | {
-        id: string;
-        label: string;
-        label_display: string;
-        startTime: number;
-        endTime: number;
-        avgConfidence: number;
-    }[]>;
+    segmentsByLabel: import("vue").Ref<Record<string, Segment[]>, Record<string, Segment[]>>;
+    allSegments: import("vue").ComputedRef<Segment[]>;
     uploadRevert: (uniqueFileId: string, load: () => void, error: (message: string) => void) => void;
     uploadProcess: (fieldName: string, file: File, metadata: any, load: (serverFileId: string) => void, error: (message: string) => void) => void;
     clearVideo: () => void;
     setVideo: (video: VideoAnnotation) => void;
     fetchVideoUrl: () => Promise<void>;
+    fetchSegmentsByLabel: (videoID: string, label?: string) => Promise<void>;
+    fetchAllSegments: (videoID: string) => Promise<void>;
     saveAnnotations: () => Promise<void>;
     getSegmentStyle: (segment: Segment, duration: number) => Record<string, string>;
     getColorForLabel: (label: string) => string;
     getTranslationForLabel: (label: string) => string;
     jumpToSegment: (segment: Segment, videoElement: HTMLVideoElement | null) => void;
-}, never>, Pick<{
+}, "allSegments">, Pick<{
     currentVideo: import("vue").Ref<{
         isAnnotated: boolean;
         errorMessage: string;
@@ -153,29 +145,18 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
     } | null>;
     errorMessage: import("vue").Ref<string, string>;
     videoUrl: import("vue").Ref<string, string>;
-    segments: import("vue").Ref<{
-        id: string;
-        label: string;
-        label_display: string;
-        startTime: number;
-        endTime: number;
-        avgConfidence: number;
-    }[], Segment[] | {
-        id: string;
-        label: string;
-        label_display: string;
-        startTime: number;
-        endTime: number;
-        avgConfidence: number;
-    }[]>;
+    segmentsByLabel: import("vue").Ref<Record<string, Segment[]>, Record<string, Segment[]>>;
+    allSegments: import("vue").ComputedRef<Segment[]>;
     uploadRevert: (uniqueFileId: string, load: () => void, error: (message: string) => void) => void;
     uploadProcess: (fieldName: string, file: File, metadata: any, load: (serverFileId: string) => void, error: (message: string) => void) => void;
     clearVideo: () => void;
     setVideo: (video: VideoAnnotation) => void;
     fetchVideoUrl: () => Promise<void>;
+    fetchSegmentsByLabel: (videoID: string, label?: string) => Promise<void>;
+    fetchAllSegments: (videoID: string) => Promise<void>;
     saveAnnotations: () => Promise<void>;
     getSegmentStyle: (segment: Segment, duration: number) => Record<string, string>;
     getColorForLabel: (label: string) => string;
     getTranslationForLabel: (label: string) => string;
     jumpToSegment: (segment: Segment, videoElement: HTMLVideoElement | null) => void;
-}, "uploadRevert" | "uploadProcess" | "clearVideo" | "setVideo" | "fetchVideoUrl" | "saveAnnotations" | "getSegmentStyle" | "getColorForLabel" | "getTranslationForLabel" | "jumpToSegment">>;
+}, "uploadRevert" | "uploadProcess" | "clearVideo" | "setVideo" | "fetchVideoUrl" | "fetchSegmentsByLabel" | "fetchAllSegments" | "saveAnnotations" | "getSegmentStyle" | "getColorForLabel" | "getTranslationForLabel" | "jumpToSegment">>;

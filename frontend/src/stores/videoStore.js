@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import axiosInstance from '../api/axiosInstance';
 import videoAxiosInstance from '../api/videoAxiosInstance';
 const translationMap = {
@@ -18,20 +18,29 @@ const translationMap = {
     water_jet: 'Wasserstrahl',
     wound: 'Wunde',
 };
-const defaultSegments = Object.keys(translationMap).map((key, index) => ({
-    id: `default-${index}`,
-    label: key,
-    label_display: translationMap[key],
-    startTime: 0,
-    endTime: 0,
-    avgConfidence: 1,
-}));
+// Optional: default segments per label if needed at startup
+const defaultSegments = Object.keys(translationMap).reduce((acc, key) => {
+    acc[key] = [
+        {
+            id: `default-${key}`,
+            label: key,
+            label_display: translationMap[key],
+            startTime: 0,
+            endTime: 0,
+            avgConfidence: 1,
+        },
+    ];
+    return acc;
+}, {});
 export const useVideoStore = defineStore('video', () => {
     // State
     const currentVideo = ref(null);
     const errorMessage = ref('');
     const videoUrl = ref('');
-    const segments = ref(defaultSegments);
+    // Store segments keyed by label
+    const segmentsByLabel = ref({ ...defaultSegments });
+    // A computed property to combine all segments (if needed for timeline display)
+    const allSegments = computed(() => Object.values(segmentsByLabel.value).flat());
     // Actions
     function clearVideo() {
         currentVideo.value = null;
@@ -41,9 +50,7 @@ export const useVideoStore = defineStore('video', () => {
     }
     async function fetchVideoUrl() {
         try {
-            const response = await videoAxiosInstance.get(currentVideo.value?.videoID || '1', {
-                headers: { 'Accept': 'application/json' },
-            });
+            const response = await videoAxiosInstance.get(currentVideo.value?.videoID || '1', { headers: { 'Accept': 'application/json' } });
             if (response.data.video_url) {
                 videoUrl.value = response.data.video_url;
                 console.log("Fetched video URL:", videoUrl.value);
@@ -52,20 +59,6 @@ export const useVideoStore = defineStore('video', () => {
                 console.warn("No video URL returned; waiting for upload.");
                 errorMessage.value = "Invalid video response received.";
             }
-            /*
-                if (response.data.classification_data) {
-                  segments.value = response.data.classification_data.map(
-                    (classification: { label: string; start_time: number; end_time: number; confidence: number }, index: number) => ({
-                      id: `segment${index + 1}`,
-                      label: classification.label,
-                      label_display: classification.label,
-                      startTime: classification.start_time,
-                      endTime: classification.end_time,
-                      avgConfidence: classification.confidence,
-                    })
-                  );
-                }
-            */
         }
         catch (error) {
             const axiosError = error;
@@ -73,11 +66,37 @@ export const useVideoStore = defineStore('video', () => {
             errorMessage.value = "Error loading video. Please check the API endpoint or try again later.";
         }
     }
+    // Fetch segments for a specific label and store them under that label key.
+    async function fetchSegmentsByLabel(videoID, label = 'outside') {
+        try {
+            const response = await axiosInstance.get(`api/video/${videoID}/label/${label}/`, { headers: { 'Accept': 'application/json' } });
+            // Map the API response into our Segment structure.
+            const segmentsForLabel = response.data.time_segments.map((segment, index) => ({
+                id: `${label}-segment${index + 1}`,
+                label: response.data.label, // or simply use the passed label
+                label_display: getTranslationForLabel(response.data.label),
+                startTime: segment.start_time,
+                endTime: segment.end_time,
+                avgConfidence: 1, // Default value since API doesn't provide it.
+            }));
+            segmentsByLabel.value[label] = segmentsForLabel;
+        }
+        catch (error) {
+            const axiosError = error;
+            console.error("Error loading segments for label " + label + ":", axiosError.response?.data || axiosError.message);
+            errorMessage.value = `Error loading segments for label ${label}. Please check the API endpoint or try again later.`;
+        }
+    }
+    // Optionally, fetch segments for all labels concurrently.
+    async function fetchAllSegments(videoID) {
+        const labels = Object.keys(translationMap);
+        await Promise.all(labels.map(label => fetchSegmentsByLabel(videoID, label)));
+    }
     async function saveAnnotations() {
         try {
-            const response = await axiosInstance.post('annotations/', {
-                segments: segments.value,
-            });
+            // Combine all segments from all labels if needed.
+            const combinedSegments = Object.values(segmentsByLabel.value).flat();
+            const response = await axiosInstance.post('annotations/', { segments: combinedSegments });
             console.log('Annotations saved:', response.data);
         }
         catch (error) {
@@ -175,12 +194,15 @@ export const useVideoStore = defineStore('video', () => {
         currentVideo,
         errorMessage,
         videoUrl,
-        segments,
+        segmentsByLabel,
+        allSegments,
         uploadRevert,
         uploadProcess,
         clearVideo,
         setVideo,
         fetchVideoUrl,
+        fetchSegmentsByLabel,
+        fetchAllSegments,
         saveAnnotations,
         getSegmentStyle,
         getColorForLabel,
