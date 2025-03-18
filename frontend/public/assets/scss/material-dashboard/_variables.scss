@@ -4,7 +4,7 @@
 // consistent naming. Ex: $nav-link-disabled-color and $modal-content-box-shadow-xs.
 
 $soft-background-color: #ffffff !default; // Testing
-$font-color:            #7b809a !default;
+$font-color:            #2d3047 !default;
 $h-color:               #344767 !default;
 
 // Color system
@@ -54,11 +54,11 @@ $colors: (
 // scss-docs-end colors-map
 
 $primary:       #596CFF !default;
-$secondary:     #1A73E8 !default;
-$info:          #1A73E8 !default;
-$success:       #4CAF50 !default;
+$secondary:     #004953 !default;
+$info:          #004953 !default;
+$success:       #CBEDCA !default;
 $warning:       #fb8c00 !default;
-$danger:        #F44335 !default;
+$danger:        #D72638 !default;
 $light:         $gray-200 !default;
 $dark:          $h-color !default;
 $dark-blue:     #1A237E !default;
@@ -88,7 +88,7 @@ $secondary-gradient:          #747b8a !default;
 $secondary-gradient-state:    #495361 !default;
 
 $info-gradient:               #49a3f1 !default;
-$info-gradient-state:         #1A73E8 !default;
+$info-gradient-state:         #004953 !default;
 
 $success-gradient:            #66BB6A !default;
 $success-gradient-state:      #43A047 !default;

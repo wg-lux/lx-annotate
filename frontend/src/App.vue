@@ -19,20 +19,25 @@
   <AuthCheck>
     <template #unauthenticated-content>
       <template v-if="!isMenuOpen">
-        <div class="g-sidenav-hide">
+        <aside
+          class="sidenav navbar navbar-vertical navbar-expand-xs ms-3"
+          id="sidenav-main">
+        
+        <div class="g-sidenav-hidden">
         <div class="sidenav m-1">
-          <button @click="toggleMenu" class="material-icons bg-gradient-primary">menu</button>
+          <button @click="toggleMenu" class="material-icons btn btn-outline-primary border-0 my-3 btn-sm mb-0 me-3">menu</button>
         </div>
         </div>
+        </aside>
       </template>
 
       <div class="g-sidenav-show">
 
       <template v-if="isMenuOpen">
         <aside
-          class="sidenav navbar navbar-vertical navbar-expand-xs border-0 border-radius-xl my-3 fixed-start ms-3 bg-gradient-primary"
+          class="sidenav navbar navbar-vertical navbar-expand-xs border-0 border-radius-xl my-3 fixed-start ms-3 bg-gradient-dark"
           id="sidenav-main">
-          <button @click="toggleMenu" class="material-icons btn.bg-gradient-primary">close</button>
+          <button @click="toggleMenu" class="material-icons btn btn-outline-info btn-sm mb-0 me-3 bg-gradient-dark">close</button>
           <SidebarComponent/>
         </aside>
       </template>
@@ -106,5 +111,15 @@ export default {
 </script>
 
 <style>
+@media (max-width: 1200px) {
+  .sidenav {
+    transform: none !important;
+    position: static;
+    width: auto;
+    height: auto;
+    background: none;
+  }
+}
+
 
 </style>

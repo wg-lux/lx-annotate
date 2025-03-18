@@ -82,15 +82,19 @@ function __VLS_template() {
     {
         const { 'unauthenticated-content': __VLS_thisSlot } = __VLS_5.slots;
         if (!__VLS_ctx.isMenuOpen) {
+            __VLS_elementAsFunction(__VLS_intrinsicElements.aside, __VLS_intrinsicElements.aside)({
+                ...{ class: ("sidenav navbar navbar-vertical navbar-expand-xs ms-3") },
+                id: ("sidenav-main"),
+            });
             __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: ("g-sidenav-hide") },
+                ...{ class: ("g-sidenav-hidden") },
             });
             __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
                 ...{ class: ("sidenav m-1") },
             });
             __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
                 ...{ onClick: (__VLS_ctx.toggleMenu) },
-                ...{ class: ("material-icons bg-gradient-primary") },
+                ...{ class: ("material-icons btn btn-outline-primary border-0 my-3 btn-sm mb-0 me-3") },
             });
         }
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -98,12 +102,12 @@ function __VLS_template() {
         });
         if (__VLS_ctx.isMenuOpen) {
             __VLS_elementAsFunction(__VLS_intrinsicElements.aside, __VLS_intrinsicElements.aside)({
-                ...{ class: ("sidenav navbar navbar-vertical navbar-expand-xs border-0 border-radius-xl my-3 fixed-start ms-3 bg-gradient-primary") },
+                ...{ class: ("sidenav navbar navbar-vertical navbar-expand-xs border-0 border-radius-xl my-3 fixed-start ms-3 bg-gradient-dark") },
                 id: ("sidenav-main"),
             });
             __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
                 ...{ onClick: (__VLS_ctx.toggleMenu) },
-                ...{ class: ("material-icons btn.bg-gradient-primary") },
+                ...{ class: ("material-icons btn btn-outline-info btn-sm mb-0 me-3 bg-gradient-dark") },
             });
             const __VLS_6 = {}.SidebarComponent;
             /** @type { [typeof __VLS_components.SidebarComponent, ] } */ ;
@@ -157,7 +161,7 @@ function __VLS_template() {
         const __VLS_26 = __VLS_25({}, ...__VLS_functionalComponentArgsRest(__VLS_25));
     }
     var __VLS_5;
-    ['g-sidenav-hide', 'sidenav', 'm-1', 'material-icons', 'bg-gradient-primary', 'g-sidenav-show', 'sidenav', 'navbar', 'navbar-vertical', 'navbar-expand-xs', 'border-0', 'border-radius-xl', 'my-3', 'fixed-start', 'ms-3', 'bg-gradient-primary', 'material-icons', 'btn.bg-gradient-primary', 'main-content', 'position-relative', 'max-height-vh-95', 'h-100', 'border-radius-lg', 'container-fluid', 'h-100', 'w-100', 'py-1', 'px-4', 'row', 'col-12', 'g-sidenav-hidden', 'container-fluid', 'h-100', 'w-100', 'py-1', 'px-4', 'main-content', 'center', 'position-relative', 'max-width', 'max-height-vh-95', 'h-100', 'border-radius-lg',];
+    ['sidenav', 'navbar', 'navbar-vertical', 'navbar-expand-xs', 'ms-3', 'g-sidenav-hidden', 'sidenav', 'm-1', 'material-icons', 'btn', 'btn-outline-primary', 'border-0', 'my-3', 'btn-sm', 'mb-0', 'me-3', 'g-sidenav-show', 'sidenav', 'navbar', 'navbar-vertical', 'navbar-expand-xs', 'border-0', 'border-radius-xl', 'my-3', 'fixed-start', 'ms-3', 'bg-gradient-dark', 'material-icons', 'btn', 'btn-outline-info', 'btn-sm', 'mb-0', 'me-3', 'bg-gradient-dark', 'main-content', 'position-relative', 'max-height-vh-95', 'h-100', 'border-radius-lg', 'container-fluid', 'h-100', 'w-100', 'py-1', 'px-4', 'row', 'col-12', 'g-sidenav-hidden', 'container-fluid', 'h-100', 'w-100', 'py-1', 'px-4', 'main-content', 'center', 'position-relative', 'max-width', 'max-height-vh-95', 'h-100', 'border-radius-lg',];
     var __VLS_slots;
     var $slots;
     let __VLS_inheritedAttrs;
