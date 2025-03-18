@@ -1,6 +1,9 @@
 declare const _default: import("vue").DefineComponent<{}, {}, {
     staticUrl: any;
-}, {}, {}, import("vue").ComponentOptionsMixin, import("vue").ComponentOptionsMixin, {}, string, import("vue").PublicProps, Readonly<{}> & Readonly<{}>, {}, {}, {
+    isMenuOpen: boolean;
+}, {}, {
+    toggleMenu(): void;
+}, import("vue").ComponentOptionsMixin, import("vue").ComponentOptionsMixin, {}, string, import("vue").PublicProps, Readonly<{}> & Readonly<{}>, {}, {}, {
     NavbarComponent: import("vue").DefineComponent<{}, {
         authStore: import("pinia").Store<"auth", import("./stores/auth.js").AuthState, {
             username: (state: {

@@ -35,8 +35,8 @@
 
       # Default package definition
       defaultPackage = pkgs.mkDerivation {
-        name = "agl-g-play";
-        src = ./agl-g-play;
+        name = "lx-annotate";
+        src = ./lx-annotate;
 
         buildInputs = commonBuildInputs;
         shellHook = commonShellHook;
@@ -54,7 +54,6 @@
         '';
 
         # Define how to run the app
-        # Assuming you have a start script defined in package.json
         doInstallCheck = true;
         installCheckPhase = ''
           yarn start

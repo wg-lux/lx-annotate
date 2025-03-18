@@ -4,18 +4,42 @@
         <!--     Fonts and icons     -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@300..700&display=swap" rel="stylesheet">    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/latest/css/font-awesome.min.css">
-
+    <link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@300..700&display=swap" rel="stylesheet">    
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/latest/css/font-awesome.min.css">
+    <link
+        rel="stylesheet"
+        type="text/css"
+        href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700|Roboto+Slab:400,700|Material+Icons"
+      />
+    <link rel="stylesheet" href="@assets/css/custom-overrides.css">
   </header>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+
   <AuthCheck>
     <template #unauthenticated-content>
-      <div class="g-sidenav-show bg-gray-200">
-        <aside class="sidenav navbar navbar-vertical navbar-expand-xs border-0 border-radius-xl my-3 fixed-start ms-3 bg-gradient-dark" id="sidenav-main">
-          <SidebarComponent />
+      <template v-if="!isMenuOpen">
+        <div class="g-sidenav-hide">
+        <div class="sidenav m-1">
+          <button @click="toggleMenu" class="material-icons bg-gradient-primary">menu</button>
+        </div>
+        </div>
+      </template>
+
+      <div class="g-sidenav-show">
+
+      <template v-if="isMenuOpen">
+        <aside
+          class="sidenav navbar navbar-vertical navbar-expand-xs border-0 border-radius-xl my-3 fixed-start ms-3 bg-gradient-primary"
+          id="sidenav-main">
+          <button @click="toggleMenu" class="material-icons btn.bg-gradient-primary">close</button>
+          <SidebarComponent/>
         </aside>
+      </template>
+
+
         <main class="main-content position-relative max-height-vh-95 h-100 border-radius-lg">
+          
           <NavbarComponent />
           <div class="container-fluid h-100 w-100 py-1 px-4">
             <div class="row">
@@ -29,7 +53,7 @@
     </template>
 
     <template #authenticated-content>
-      <body class="g-sidenav-hidden">
+      <div class="g-sidenav-hidden">
         
         <meta name="viewport" content="width=device-width, initial-scale=1">
 
@@ -39,7 +63,7 @@
             <LoginComponent />
           </main>
         </div>
-      </body>
+      </div>
     </template>
   </AuthCheck>
 </template>
@@ -49,26 +73,34 @@ import NavbarComponent from './components/NavbarComponent.vue';
 import SidebarComponent from './components/SidebarComponent.vue';
 import DashboardComponent from './components/DashboardComponent.vue';
 import LoginComponent from './components/LoginComponent.vue';
-
+import '@/assets/custom-overrides.css';
 
 import axios from 'axios';
 axios.defaults.baseURL = '/';
 
 
 export default {
-  name: 'App',
+  name: "App",
+
   data() {
+
     return {
-      staticUrl: window.STATIC_URL || '/static/'
+      staticUrl: window.STATIC_URL || "/static/",
+      isMenuOpen: false,
+
+    };
+  },
+  methods: {
+    toggleMenu() {
+      this.isMenuOpen = !this.isMenuOpen;
     }
   },
   components: {
     NavbarComponent,
     SidebarComponent,
     DashboardComponent,
-    LoginComponent
+    LoginComponent,
   },
-
 };
 
 </script>

@@ -6,7 +6,6 @@ import { fileURLToPath } from 'node:url';
 import { resolve } from 'path';
 
 export default defineConfig(({ mode }) => {
-  // Lade alle Umgebungsvariablen basierend auf dem aktuellen Modus
   const env = loadEnv(mode, process.cwd(), '');
 
   return {
