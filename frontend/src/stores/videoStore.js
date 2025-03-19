@@ -39,6 +39,17 @@ export const useVideoStore = defineStore('video', () => {
     const videoUrl = ref('');
     // Store segments keyed by label
     const segmentsByLabel = ref({ ...defaultSegments });
+    const videoList = ref({ videos: [], labels: [] });
+    function fetchAllVideos() {
+        axiosInstance
+            .get('videos/')
+            .then((response) => {
+            videoList.value = response.data;
+        })
+            .catch((error) => {
+            console.error('Error loading videos:', error);
+        });
+    }
     // A computed property to combine all segments (if needed for timeline display)
     const allSegments = computed(() => Object.values(segmentsByLabel.value).flat());
     // Actions
@@ -196,6 +207,8 @@ export const useVideoStore = defineStore('video', () => {
         videoUrl,
         segmentsByLabel,
         allSegments,
+        videoList,
+        fetchAllVideos,
         uploadRevert,
         uploadProcess,
         clearVideo,

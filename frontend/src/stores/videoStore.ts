@@ -40,6 +40,21 @@ export interface VideoLabelResponse {
   }>;
 }
 
+export interface VideoMeta {
+  videoID: string;
+  originalFileName: string;
+}
+
+export interface LabelMeta {
+  id: string;
+  name: string;
+}
+
+export interface VideoList {
+  videos: VideoMeta[];
+  labels: LabelMeta[];
+}
+
 const translationMap: Record<string, string> = {
   appendix: 'Appendix',
   blood: 'Blut',
@@ -82,6 +97,18 @@ export const useVideoStore = defineStore('video', () => {
   const videoUrl = ref('');
   // Store segments keyed by label
   const segmentsByLabel = ref<Record<string, Segment[]>>({ ...defaultSegments });
+  const videoList = ref<VideoList>({ videos: [], labels: [] });
+
+  function fetchAllVideos() {
+    axiosInstance
+      .get('videos/')
+      .then((response: { data: VideoList | { videos: { videoID: string; originalFileName: string; }[]; labels: { id: string; name: string; }[]; }; }) => {
+        videoList.value = response.data;
+      })
+      .catch((error: any) => {
+        console.error('Error loading videos:', error);
+      });
+  }
   
   // A computed property to combine all segments (if needed for timeline display)
   const allSegments = computed(() =>
@@ -267,6 +294,8 @@ export const useVideoStore = defineStore('video', () => {
     videoUrl,
     segmentsByLabel,
     allSegments,
+    videoList,
+    fetchAllVideos,
     uploadRevert,
     uploadProcess,
     clearVideo,
