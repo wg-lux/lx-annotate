@@ -42,9 +42,19 @@ export const useVideoStore = defineStore('video', () => {
     const videoList = ref({ videos: [], labels: [] });
     function fetchAllVideos() {
         axiosInstance
-            .get('videos/')
+            .get('api/videos/')
             .then((response) => {
-            videoList.value = response.data;
+            videoList.value = {
+                videos: response.data.videos.map(video => ({
+                    id: parseInt(video.id),
+                    original_file_name: video.original_file_name,
+                })),
+                labels: response.data.labels.map(label => ({
+                    id: parseInt(label.id),
+                    name: label.name,
+                })),
+            };
+            console.log("Fetched videos:", videoList.value);
         })
             .catch((error) => {
             console.error('Error loading videos:', error);
@@ -61,7 +71,7 @@ export const useVideoStore = defineStore('video', () => {
     }
     async function fetchVideoUrl() {
         try {
-            const response = await videoAxiosInstance.get(currentVideo.value?.videoID || '1', { headers: { 'Accept': 'application/json' } });
+            const response = await videoAxiosInstance.get(currentVideo.value?.id || '1', { headers: { 'Accept': 'application/json' } });
             if (response.data.video_url) {
                 videoUrl.value = response.data.video_url;
                 console.log("Fetched video URL:", videoUrl.value);
@@ -78,9 +88,9 @@ export const useVideoStore = defineStore('video', () => {
         }
     }
     // Fetch segments for a specific label and store them under that label key.
-    async function fetchSegmentsByLabel(videoID, label = 'outside') {
+    async function fetchSegmentsByLabel(id, label = 'outside') {
         try {
-            const response = await axiosInstance.get(`api/video/${videoID}/label/${label}/`, { headers: { 'Accept': 'application/json' } });
+            const response = await axiosInstance.get(`api/video/${id}/label/${label}/`, { headers: { 'Accept': 'application/json' } });
             // Map the API response into our Segment structure.
             const segmentsForLabel = response.data.time_segments.map((segment, index) => ({
                 id: `${label}-segment${index + 1}`,
@@ -99,9 +109,9 @@ export const useVideoStore = defineStore('video', () => {
         }
     }
     // Optionally, fetch segments for all labels concurrently.
-    async function fetchAllSegments(videoID) {
+    async function fetchAllSegments(id) {
         const labels = Object.keys(translationMap);
-        await Promise.all(labels.map(label => fetchSegmentsByLabel(videoID, label)));
+        await Promise.all(labels.map(label => fetchSegmentsByLabel(id, label)));
     }
     async function saveAnnotations() {
         try {

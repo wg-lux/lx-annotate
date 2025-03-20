@@ -25,7 +25,7 @@ const selectedSegment = ref(null);
 const selectedVideo = ref(null);
 function reloadData() {
     fetchAllVideos();
-    fetchAllSegments(selectedVideo.value?.videoID || '1');
+    fetchAllSegments(String(selectedVideo.value?.id || "1"));
 }
 // Global event listeners for resizing
 function startResize(segment, event) {
@@ -132,8 +132,8 @@ onMounted(async () => {
     // Fetch segments for all labels once the video is loaded.
     // If currentVideo is not yet set, default to video id '1'
     await fetchAllVideos();
-    const videoID = videoStore.currentVideo?.videoID || '1';
-    await fetchAllSegments(videoID);
+    const id = videoStore.currentVideo?.id || '1';
+    await fetchAllSegments(id);
 });
 onUnmounted(() => {
     window.removeEventListener('mousemove', onMouseMove);
@@ -223,26 +223,10 @@ function __VLS_template() {
     });
     for (const [video] of __VLS_getVForSourceType((__VLS_ctx.videoList.videos))) {
         __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-            key: ((video.videoID)),
-            value: ((video.originalFileName)),
+            key: ((video.id)),
+            value: ((video)),
         });
-    }
-    if (__VLS_ctx.selectedSegment) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("segment-editor") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({});
-        __VLS_elementAsFunction(__VLS_intrinsicElements.input)({
-            type: ("number"),
-            step: ("0.1"),
-        });
-        (__VLS_ctx.selectedSegment.startTime);
-        __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({});
-        __VLS_elementAsFunction(__VLS_intrinsicElements.input)({
-            type: ("number"),
-            step: ("0.1"),
-        });
-        (__VLS_ctx.selectedSegment.endTime);
+        (video.original_file_name);
     }
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: ("container-fluid py-4") },
@@ -400,7 +384,7 @@ function __VLS_template() {
         ...{ class: ("btn btn-success") },
         disabled: ((!__VLS_ctx.canSave)),
     });
-    ['container-fluid', 'h-100', 'w-100', 'py-1', 'px-4', 'card-header', 'pb-0', 'mb-0', 'container-fluid', 'py-4', 'dropdown-container', 'mb-3', 'segment-editor', 'container-fluid', 'py-4', 'dropdown-container', 'mb-3', 'segment-editor', 'container-fluid', 'py-4', 'video-container', 'mb-4', 'position-relative', 'container-fluid', 'py-4', 'container-fluid', 'py-4', 'classification-label', 'container-fluid', 'py-4', 'd-flex', 'justify-content-between', 'bg-gradient-primary', 'bg-gradient-primary', 'timeline-track', 'timeline-segment', 'resize-handle', 'container-fluid', 'py-4', 'table-responsive', 'table', 'table-striped', 'table-hover', 'container-fluid', 'py-4', 'controls', 'mt-4', 'btn', 'btn-success',];
+    ['container-fluid', 'h-100', 'w-100', 'py-1', 'px-4', 'card-header', 'pb-0', 'mb-0', 'container-fluid', 'py-4', 'dropdown-container', 'mb-3', 'segment-editor', 'container-fluid', 'py-4', 'dropdown-container', 'mb-3', 'container-fluid', 'py-4', 'video-container', 'mb-4', 'position-relative', 'container-fluid', 'py-4', 'container-fluid', 'py-4', 'classification-label', 'container-fluid', 'py-4', 'd-flex', 'justify-content-between', 'bg-gradient-primary', 'bg-gradient-primary', 'timeline-track', 'timeline-segment', 'resize-handle', 'container-fluid', 'py-4', 'table-responsive', 'table', 'table-striped', 'table-hover', 'container-fluid', 'py-4', 'controls', 'mt-4', 'btn', 'btn-success',];
     var __VLS_slots;
     var $slots;
     let __VLS_inheritedAttrs;

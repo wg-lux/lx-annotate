@@ -7,7 +7,7 @@
     <div class="container-fluid py-4">
       <!-- Dropdown to select and edit a segment -->
       <div class="dropdown-container mb-3">
-        <label for="segmentSelect">Segment auswählen</label>
+        <label for="segmentSelect">Segment auswählen: </label>
         <select id="segmentSelect" v-model="selectedSegment">
           <option v-for="segment in allSegments" :key="segment.id" :value="segment">
             {{ segment.label_display }} ({{ formatTime(segment.startTime) }} - {{ formatTime(segment.endTime) }})
@@ -29,21 +29,15 @@
       <div class="container-fluid py-4">
       <!-- Dropdown to select and edit a video -->
       <div class="dropdown-container mb-3">
-        <label for="videoSelect">Video auswählen</label>
+        <label for="videoSelect">Video auswählen: </label>
         <select id="videoSelect" v-model="selectedVideo">
-          <option v-for="video in videoList.videos" :key="video.videoID" :value="video.originalFileName">
+          <option
+            v-for="video in videoList.videos"
+            :key="video.id"
+            :value="video">
+            {{ video.original_file_name }}
           </option>
         </select>
-        <div v-if="selectedSegment" class="segment-editor">
-          <label>
-            Start Time:
-            <input type="number" v-model.number="selectedSegment.startTime" step="0.1" />
-          </label>
-          <label>
-            End Time:
-            <input type="number" v-model.number="selectedSegment.endTime" step="0.1" />
-          </label>
-        </div>
       </div>
     </div>
     <div class="container-fluid py-4">
@@ -181,7 +175,7 @@ const selectedVideo = ref<VideoMeta | null>(null);
 
 function reloadData() {
   fetchAllVideos();
-  fetchAllSegments(selectedVideo.value?.videoID || '1');
+  fetchAllSegments(String(selectedVideo.value?.id || "1"));
 }
 
 // Global event listeners for resizing
@@ -299,8 +293,8 @@ onMounted(async () => {
   // Fetch segments for all labels once the video is loaded.
   // If currentVideo is not yet set, default to video id '1'
   await fetchAllVideos();
-  const videoID = videoStore.currentVideo?.videoID || '1';
-  await fetchAllSegments(videoID);
+  const id = videoStore.currentVideo?.id || '1';
+  await fetchAllSegments(id);
 });
 onUnmounted(() => {
   window.removeEventListener('mousemove', onMouseMove);
