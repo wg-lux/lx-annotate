@@ -19,7 +19,7 @@ export interface VideoAnnotation {
   errorMessage: string;
   segments: Segment[];
   videoUrl: string;
-  videoID: string;
+  id: string;
 }
 
 export interface VideoLabelResponse {
@@ -39,6 +39,22 @@ export interface VideoLabelResponse {
     >;
   }>;
 }
+
+export interface VideoMeta {
+  id: number; // API returns a number for id
+  original_file_name: string;
+}
+
+export interface LabelMeta {
+  id: number; // API returns a number for id
+  name: string;
+}
+
+export interface VideoList {
+  videos: VideoMeta[];
+  labels: LabelMeta[];
+}
+
 
 const translationMap: Record<string, string> = {
   appendix: 'Appendix',
@@ -82,6 +98,29 @@ export const useVideoStore = defineStore('video', () => {
   const videoUrl = ref('');
   // Store segments keyed by label
   const segmentsByLabel = ref<Record<string, Segment[]>>({ ...defaultSegments });
+  const videoList = ref<VideoList>({ videos: [], labels: [] });
+
+  function fetchAllVideos() {
+    axiosInstance
+      .get('api/videos/')
+      .then((response: { data: { videos: { id: string; original_file_name: string; }[]; labels: { id: string; name: string; }[]; }; }) => {
+        videoList.value = {
+          videos: response.data.videos.map(video => ({
+            id: parseInt(video.id),
+            original_file_name: video.original_file_name,
+          })),
+          labels: response.data.labels.map(label => ({
+            id: parseInt(label.id),
+            name: label.name,
+          })),
+        };
+        console.log("Fetched videos:", videoList.value);
+
+      })
+      .catch((error: any) => {
+        console.error('Error loading videos:', error);
+      });
+  }
   
   // A computed property to combine all segments (if needed for timeline display)
   const allSegments = computed(() =>
@@ -100,7 +139,7 @@ export const useVideoStore = defineStore('video', () => {
   async function fetchVideoUrl() {
     try {
       const response = await videoAxiosInstance.get<VideoResponse>(
-        currentVideo.value?.videoID || '1',
+        currentVideo.value?.id || '1',
         { headers: { 'Accept': 'application/json' } }
       );
       if (response.data.video_url) {
@@ -118,10 +157,10 @@ export const useVideoStore = defineStore('video', () => {
   }
 
   // Fetch segments for a specific label and store them under that label key.
-  async function fetchSegmentsByLabel(videoID: string, label: string = 'outside'): Promise<void> {
+  async function fetchSegmentsByLabel(id: string, label: string = 'outside'): Promise<void> {
     try {
       const response = await axiosInstance.get<VideoLabelResponse>(
-        `api/video/${videoID}/label/${label}/`,
+        `api/video/${id}/label/${label}/`,
         { headers: { 'Accept': 'application/json' } }
       );
       // Map the API response into our Segment structure.
@@ -142,9 +181,9 @@ export const useVideoStore = defineStore('video', () => {
   }
 
   // Optionally, fetch segments for all labels concurrently.
-  async function fetchAllSegments(videoID: string): Promise<void> {
+  async function fetchAllSegments(id: string): Promise<void> {
     const labels = Object.keys(translationMap);
-    await Promise.all(labels.map(label => fetchSegmentsByLabel(videoID, label)));
+    await Promise.all(labels.map(label => fetchSegmentsByLabel(id, label)));
   }
 
   async function saveAnnotations() {
@@ -183,7 +222,7 @@ export const useVideoStore = defineStore('video', () => {
       appendix: '#ff9800',
       blood: '#f44336',
       diverticule: '#9c27b0',
-      grasper: '#4caf50',
+      grasper: '#CBEDCA',
       ileocaecalvalve: '#3f51b5',
       ileum: '#2196f3',
       low_quality: '#9e9e9e',
@@ -267,6 +306,8 @@ export const useVideoStore = defineStore('video', () => {
     videoUrl,
     segmentsByLabel,
     allSegments,
+    videoList,
+    fetchAllVideos,
     uploadRevert,
     uploadProcess,
     clearVideo,

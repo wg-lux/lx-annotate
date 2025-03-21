@@ -7,7 +7,7 @@
     <div class="container-fluid py-4">
       <!-- Dropdown to select and edit a segment -->
       <div class="dropdown-container mb-3">
-        <label for="segmentSelect">Segment auswählen</label>
+        <label for="segmentSelect">Segment auswählen: </label>
         <select id="segmentSelect" v-model="selectedSegment">
           <option v-for="segment in allSegments" :key="segment.id" :value="segment">
             {{ segment.label_display }} ({{ formatTime(segment.startTime) }} - {{ formatTime(segment.endTime) }})
@@ -25,6 +25,19 @@
           <!-- Save the edited segment locally -->
           <button @click="updateSegmentState">Zeiten lokal speichern</button>
         </div>
+      </div>
+      <div class="container-fluid py-4">
+      <!-- Dropdown to select and edit a video -->
+      <div class="dropdown-container mb-3">
+        <label for="videoSelect">Video auswählen: </label>
+        <select id="videoSelect" v-model="selectedVideo">
+          <option
+            v-for="video in videoList.videos"
+            :key="video.id"
+            :value="video">
+            {{ video.original_file_name }}
+          </option>
+        </select>
       </div>
     </div>
     <div class="container-fluid py-4">
@@ -57,6 +70,7 @@
         </div> 
       </div>
     </div>
+  </div>
 
     <!-- Classification Label -->
     <div class="container-fluid py-4">
@@ -73,8 +87,8 @@
     <div class="container-fluid py-4">
       <h2>Zeitleiste</h2>
       <div class="d-flex justify-content-between">
-        <span>{{ formatTime(currentTime) }}</span>
-        <span>{{ formatTime(duration) }}</span>
+        <span class="bg-gradient-primary">{{ formatTime(currentTime) }}</span>
+        <span class="bg-gradient-primary">{{ formatTime(duration) }}</span>
       </div>
       <div class="timeline-track" ref="timelineRef" @click="handleTimelineClick">
         <div 
@@ -100,7 +114,6 @@
                 <th>Label</th>
                 <th>Startzeit</th>
                 <th>Endzeit</th>
-                <th>Sicherheit</th>
               </tr>
             </thead>
             <tbody>
@@ -108,7 +121,7 @@
                 <td :style="{ backgroundColor: getColorForLabel(segment.label), color: '#fff' }">{{ segment.label_display }}</td>
                 <td>{{ formatTime(segment.startTime) }}</td>
                 <td>{{ formatTime(segment.endTime) }}</td>
-                <td>{{ (segment.avgConfidence * 100).toFixed(1) }}%</td>
+                <!--<td>{{ (segment.avgConfidence * 100).toFixed(1) }}%</td>-->
               </tr>
             </tbody>
           </table>
@@ -133,15 +146,15 @@ import { storeToRefs } from 'pinia';
 import vueFilePond from 'vue-filepond';
 import 'filepond/dist/filepond.min.css';
 import type { CSSProperties } from 'vue';
-import type { Segment } from '@/components/EndoAI/segments';
-import { getColorForLabel } from '@/components/EndoAI/segments';
+import type { Segment } from '@/stores/videoStore';
+import type { VideoMeta } from '@/stores/videoStore';
 import { useVideoStore } from '@/stores/videoStore';
 
 // Use the video store
 const videoStore = useVideoStore();
 const { videoUrl, errorMessage, segmentsByLabel, allSegments } = storeToRefs(videoStore);
-const { fetchVideoUrl, fetchAllSegments, saveAnnotations, uploadRevert, uploadProcess } = videoStore;
-
+const { fetchAllVideos, fetchVideoUrl, fetchAllSegments, saveAnnotations, uploadRevert, uploadProcess, getColorForLabel } = videoStore;
+const videoList = videoStore.videoList;
 // Register FilePond component
 const FilePond = vueFilePond();
 
@@ -158,6 +171,12 @@ const initialWidthPercent = ref<number>(0);
 
 // For the dropdown
 const selectedSegment = ref<Segment | null>(null);
+const selectedVideo = ref<VideoMeta | null>(null);
+
+function reloadData() {
+  fetchAllVideos();
+  fetchAllSegments(String(selectedVideo.value?.id || "1"));
+}
 
 // Global event listeners for resizing
 function startResize(segment: Segment, event: MouseEvent) {
@@ -179,6 +198,7 @@ function onMouseMove(event: MouseEvent) {
     activeSegment.value.endTime = activeSegment.value.startTime + segmentDuration;
   }
 }
+
 function onMouseUp() {
   isResizing.value = false;
   activeSegment.value = null;
@@ -272,8 +292,9 @@ onMounted(async () => {
   await fetchVideoUrl();
   // Fetch segments for all labels once the video is loaded.
   // If currentVideo is not yet set, default to video id '1'
-  const videoID = videoStore.currentVideo?.videoID || '1';
-  await fetchAllSegments(videoID);
+  await fetchAllVideos();
+  const id = videoStore.currentVideo?.id || '1';
+  await fetchAllSegments(id);
 });
 onUnmounted(() => {
   window.removeEventListener('mousemove', onMouseMove);

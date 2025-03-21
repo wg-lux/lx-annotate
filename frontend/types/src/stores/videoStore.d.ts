@@ -11,7 +11,7 @@ export interface VideoAnnotation {
     errorMessage: string;
     segments: Segment[];
     videoUrl: string;
-    videoID: string;
+    id: string;
 }
 export interface VideoLabelResponse {
     label: string;
@@ -27,6 +27,18 @@ export interface VideoLabelResponse {
         }>;
     }>;
 }
+export interface VideoMeta {
+    id: number;
+    original_file_name: string;
+}
+export interface LabelMeta {
+    id: number;
+    name: string;
+}
+export interface VideoList {
+    videos: VideoMeta[];
+    labels: LabelMeta[];
+}
 export declare const useVideoStore: import("pinia").StoreDefinition<"video", import("pinia")._UnwrapAll<Pick<{
     currentVideo: import("vue").Ref<{
         isAnnotated: boolean;
@@ -40,7 +52,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
             avgConfidence: number;
         }[];
         videoUrl: string;
-        videoID: string;
+        id: string;
     } | null, VideoAnnotation | {
         isAnnotated: boolean;
         errorMessage: string;
@@ -53,25 +65,45 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
             avgConfidence: number;
         }[];
         videoUrl: string;
-        videoID: string;
+        id: string;
     } | null>;
     errorMessage: import("vue").Ref<string, string>;
     videoUrl: import("vue").Ref<string, string>;
     segmentsByLabel: import("vue").Ref<Record<string, Segment[]>, Record<string, Segment[]>>;
     allSegments: import("vue").ComputedRef<Segment[]>;
+    videoList: import("vue").Ref<{
+        videos: {
+            id: number;
+            original_file_name: string;
+        }[];
+        labels: {
+            id: number;
+            name: string;
+        }[];
+    }, VideoList | {
+        videos: {
+            id: number;
+            original_file_name: string;
+        }[];
+        labels: {
+            id: number;
+            name: string;
+        }[];
+    }>;
+    fetchAllVideos: () => void;
     uploadRevert: (uniqueFileId: string, load: () => void, error: (message: string) => void) => void;
     uploadProcess: (fieldName: string, file: File, metadata: any, load: (serverFileId: string) => void, error: (message: string) => void) => void;
     clearVideo: () => void;
     setVideo: (video: VideoAnnotation) => void;
     fetchVideoUrl: () => Promise<void>;
-    fetchSegmentsByLabel: (videoID: string, label?: string) => Promise<void>;
-    fetchAllSegments: (videoID: string) => Promise<void>;
+    fetchSegmentsByLabel: (id: string, label?: string) => Promise<void>;
+    fetchAllSegments: (id: string) => Promise<void>;
     saveAnnotations: () => Promise<void>;
     getSegmentStyle: (segment: Segment, duration: number) => Record<string, string>;
     getColorForLabel: (label: string) => string;
     getTranslationForLabel: (label: string) => string;
     jumpToSegment: (segment: Segment, videoElement: HTMLVideoElement | null) => void;
-}, "errorMessage" | "videoUrl" | "currentVideo" | "segmentsByLabel">>, Pick<{
+}, "errorMessage" | "videoUrl" | "currentVideo" | "segmentsByLabel" | "videoList">>, Pick<{
     currentVideo: import("vue").Ref<{
         isAnnotated: boolean;
         errorMessage: string;
@@ -84,7 +116,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
             avgConfidence: number;
         }[];
         videoUrl: string;
-        videoID: string;
+        id: string;
     } | null, VideoAnnotation | {
         isAnnotated: boolean;
         errorMessage: string;
@@ -97,19 +129,39 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
             avgConfidence: number;
         }[];
         videoUrl: string;
-        videoID: string;
+        id: string;
     } | null>;
     errorMessage: import("vue").Ref<string, string>;
     videoUrl: import("vue").Ref<string, string>;
     segmentsByLabel: import("vue").Ref<Record<string, Segment[]>, Record<string, Segment[]>>;
     allSegments: import("vue").ComputedRef<Segment[]>;
+    videoList: import("vue").Ref<{
+        videos: {
+            id: number;
+            original_file_name: string;
+        }[];
+        labels: {
+            id: number;
+            name: string;
+        }[];
+    }, VideoList | {
+        videos: {
+            id: number;
+            original_file_name: string;
+        }[];
+        labels: {
+            id: number;
+            name: string;
+        }[];
+    }>;
+    fetchAllVideos: () => void;
     uploadRevert: (uniqueFileId: string, load: () => void, error: (message: string) => void) => void;
     uploadProcess: (fieldName: string, file: File, metadata: any, load: (serverFileId: string) => void, error: (message: string) => void) => void;
     clearVideo: () => void;
     setVideo: (video: VideoAnnotation) => void;
     fetchVideoUrl: () => Promise<void>;
-    fetchSegmentsByLabel: (videoID: string, label?: string) => Promise<void>;
-    fetchAllSegments: (videoID: string) => Promise<void>;
+    fetchSegmentsByLabel: (id: string, label?: string) => Promise<void>;
+    fetchAllSegments: (id: string) => Promise<void>;
     saveAnnotations: () => Promise<void>;
     getSegmentStyle: (segment: Segment, duration: number) => Record<string, string>;
     getColorForLabel: (label: string) => string;
@@ -128,7 +180,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
             avgConfidence: number;
         }[];
         videoUrl: string;
-        videoID: string;
+        id: string;
     } | null, VideoAnnotation | {
         isAnnotated: boolean;
         errorMessage: string;
@@ -141,22 +193,42 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
             avgConfidence: number;
         }[];
         videoUrl: string;
-        videoID: string;
+        id: string;
     } | null>;
     errorMessage: import("vue").Ref<string, string>;
     videoUrl: import("vue").Ref<string, string>;
     segmentsByLabel: import("vue").Ref<Record<string, Segment[]>, Record<string, Segment[]>>;
     allSegments: import("vue").ComputedRef<Segment[]>;
+    videoList: import("vue").Ref<{
+        videos: {
+            id: number;
+            original_file_name: string;
+        }[];
+        labels: {
+            id: number;
+            name: string;
+        }[];
+    }, VideoList | {
+        videos: {
+            id: number;
+            original_file_name: string;
+        }[];
+        labels: {
+            id: number;
+            name: string;
+        }[];
+    }>;
+    fetchAllVideos: () => void;
     uploadRevert: (uniqueFileId: string, load: () => void, error: (message: string) => void) => void;
     uploadProcess: (fieldName: string, file: File, metadata: any, load: (serverFileId: string) => void, error: (message: string) => void) => void;
     clearVideo: () => void;
     setVideo: (video: VideoAnnotation) => void;
     fetchVideoUrl: () => Promise<void>;
-    fetchSegmentsByLabel: (videoID: string, label?: string) => Promise<void>;
-    fetchAllSegments: (videoID: string) => Promise<void>;
+    fetchSegmentsByLabel: (id: string, label?: string) => Promise<void>;
+    fetchAllSegments: (id: string) => Promise<void>;
     saveAnnotations: () => Promise<void>;
     getSegmentStyle: (segment: Segment, duration: number) => Record<string, string>;
     getColorForLabel: (label: string) => string;
     getTranslationForLabel: (label: string) => string;
     jumpToSegment: (segment: Segment, videoElement: HTMLVideoElement | null) => void;
-}, "uploadRevert" | "uploadProcess" | "clearVideo" | "setVideo" | "fetchVideoUrl" | "fetchSegmentsByLabel" | "fetchAllSegments" | "saveAnnotations" | "getSegmentStyle" | "getColorForLabel" | "getTranslationForLabel" | "jumpToSegment">>;
+}, "fetchAllVideos" | "uploadRevert" | "uploadProcess" | "clearVideo" | "setVideo" | "fetchVideoUrl" | "fetchSegmentsByLabel" | "fetchAllSegments" | "saveAnnotations" | "getSegmentStyle" | "getColorForLabel" | "getTranslationForLabel" | "jumpToSegment">>;

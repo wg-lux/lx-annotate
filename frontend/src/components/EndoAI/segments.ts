@@ -23,7 +23,7 @@ export interface Segment {
       appendix: '#ff9800',
       blood: '#f44336',
       diverticule: '#9c27b0',
-      grasper: '#4caf50',
+      grasper: '#CBEDCA',
       ileocaecalvalve: '#3f51b5',
       ileum: '#2196f3',
       low_quality: '#9e9e9e',

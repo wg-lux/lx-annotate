@@ -13,27 +13,17 @@
       />
     </header>
 
-    <!-- Hamburger toggle button: only visible on mobile -->
-    <button class="navbar-toggler d-block d-xl-none" @click="toggleSidebar">
-      <i class="fas fa-bars"></i>
-    </button>
 
-    <!-- Sidebar container: toggled on mobile, always visible on desktop -->
-    <div :class="['sidenav', { open: isSidebarOpen }]">
+    <div class="sidenav">
       <div class="sidenav-header">
-        <!-- Close icon: visible on mobile -->
-        <i
-          class="fas fa-times p-3 cursor-pointer text-white opacity-5 position-absolute end-0 top-0 d-block d-xl-none"
-          aria-hidden="true"
-          @click="toggleSidebar"
-        ></i>
+
         <a class="navbar-brand m-0" href="/">
           <div class="sidenav-header-inner text-center">
             <img :src="staticUrl + 'img/ag_lux_logo_light_grey.svg'" alt="Logo" />
           </div>
           <div class="ms-1 font-weight-bold text-white text-center">AG Lux</div>
         </a>
-        <div class="collapse navbar-collapse w-auto max-height-vh-100" id="sidenav-collapse-main">
+        <div class="w-auto max-height-vh-100" >
           <ul class="navbar-nav">
             <li class="nav-item">
               <router-link to="/" class="nav-link" :class="{ active: $route.path === '/' }">
@@ -192,45 +182,6 @@ hr.horizontal.light {
   object-fit: contain;
 }
 
-/* Hamburger button styling */
-.navbar-toggler {
-  background: primary;
-  border: none;
-  font-size: 1.5rem;
-  color: #fff;
-  position: fixed;
-  top: 10px;
-  margin-left: auto;
-  left: 50px;
-  z-index: 1050;
-}
 
-/* Responsive sidebar behavior */
-.sidenav {
-  transition: transform 0.3s ease;
-  transform: translateX(-100%);
-  position: fixed;
-  top: 0;
-  left: 0;
-  height: 100%;
-  width: 250px; /* adjust width as needed */
-  background-color: #344767; /* desktop sidebar background */
-  z-index: 1040;
-}
 
-/* When toggled open on mobile */
-.sidenav.open {
-  transform: translateX(0);
-}
-
-/* On larger screens, keep the sidebar visible and use original layout */
-@media (min-width: 1200px) {
-  .sidenav {
-    transform: none;
-    position: static;
-    width: auto;
-    height: auto;
-    background: none;
-  }
-}
 </style>
