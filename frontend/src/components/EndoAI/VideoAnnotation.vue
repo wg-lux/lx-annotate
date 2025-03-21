@@ -84,24 +84,27 @@
     </div>
 
     <!-- Timeline Container -->
-    <div class="container-fluid py-4">
-      <h2>Zeitleiste</h2>
-      <div class="d-flex justify-content-between">
-        <span class="bg-gradient-primary">{{ formatTime(currentTime) }}</span>
-        <span class="bg-gradient-primary">{{ formatTime(duration) }}</span>
-      </div>
-      <div class="timeline-track" ref="timelineRef" @click="handleTimelineClick">
-        <div 
-          v-for="segment in allSegments" 
-          :key="segment.id"
-          class="timeline-segment"
-          :style="{
-            left: calculateLeftPercent(segment) + '%',
-            width: calculateWidthPercent(segment) + '%'
-          }"
-        >
-          <div class="resize-handle" @mousedown="startResize(segment, $event)"></div>
-        </div>
+				
+			<div class="table-responsive">
+       <table class="table table-striped table-hover">
+         <thead >
+           <tr class="bg-gradient-primary">
+             <th>Label</th>
+             <th>Startzeit</th>
+             <th>Endzeit</th>
+             <th>Sicherheit</th>
+           </tr>
+         </thead>
+         <tbody class="bg-gradient-primary" opacity="0.5">
+           <tr v-for="segment in segments" :key="segment.id" @click="jumpTo(segment)" style="cursor: pointer;">
+             <td :style="{ backgroundColor: getColorForLabel(segment.label), color: '#fff' }">{{ segment.label_display }}</td>
+             <td>{{ formatTime(segment.startTime) }}</td>
+             <td>{{ formatTime(segment.endTime) }}</td>
+             <td>{{ (segment.avgConfidence * 100).toFixed(1) }}%</td>
+           </tr>
+         </tbody>
+       </table>
+     </div>
       </div>
 
       <h2>Segmente des Videos</h2>
