@@ -1,12 +1,12 @@
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watchEffect } from 'vue';
 import { storeToRefs } from 'pinia';
 import vueFilePond from 'vue-filepond';
 import 'filepond/dist/filepond.min.css';
 import { useVideoStore } from '@/stores/videoStore';
 // Use the video store
 const videoStore = useVideoStore();
-const { videoUrl, errorMessage, segmentsByLabel, allSegments } = storeToRefs(videoStore);
-const { fetchAllVideos, fetchVideoUrl, fetchAllSegments, saveAnnotations, uploadRevert, uploadProcess, getColorForLabel } = videoStore;
+const { videoUrl, errorMessage, segmentsByLabel, allSegments, currentVideo } = storeToRefs(videoStore);
+const { fetchAllVideos, fetchVideoUrl, fetchAllSegments, saveAnnotations, uploadRevert, uploadProcess, getColorForLabel, assignUserToVideo, updateVideoStatus } = videoStore;
 const videoList = videoStore.videoList;
 // Register FilePond component
 const FilePond = vueFilePond();
@@ -150,6 +150,25 @@ function handleProcessFile(error, file) {
         videoUrl.value = file.serverId;
     }
 }
+const assignedUser = ref(null);
+const videoStatus = ref('available');
+// Initialwerte setzen, wenn currentVideo sich ändert
+watchEffect(() => {
+    if (currentVideo.value) {
+        assignedUser.value = currentVideo.value.assignedUser || null;
+        videoStatus.value = currentVideo.value.status;
+    }
+});
+function updateStatus() {
+    if (currentVideo.value) {
+        updateVideoStatus(videoStatus.value);
+    }
+}
+function assignUser() {
+    if (assignedUser.value && currentVideo.value) {
+        assignUserToVideo(assignedUser.value);
+    }
+}
 ; /* PartiallyEnd: #3632/scriptSetup.vue */
 function __VLS_template() {
     const __VLS_ctx = {};
@@ -169,44 +188,46 @@ function __VLS_template() {
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: ("container-fluid py-4") },
     });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("dropdown-container mb-3") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
-        for: ("segmentSelect"),
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
-        id: ("segmentSelect"),
-        value: ((__VLS_ctx.selectedSegment)),
-    });
-    for (const [segment] of __VLS_getVForSourceType((__VLS_ctx.allSegments))) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-            key: ((segment.id)),
-            value: ((segment)),
-        });
-        (segment.label_display);
-        (__VLS_ctx.formatTime(segment.startTime));
-        (__VLS_ctx.formatTime(segment.endTime));
-    }
-    if (__VLS_ctx.selectedSegment) {
+    if (__VLS_ctx.videoUrl) {
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("segment-editor") },
+            ...{ class: ("dropdown-container mb-3") },
         });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({});
-        __VLS_elementAsFunction(__VLS_intrinsicElements.input)({
-            type: ("number"),
-            step: ("0.1"),
+        __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+            for: ("segmentSelect"),
         });
-        (__VLS_ctx.selectedSegment.startTime);
-        __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({});
-        __VLS_elementAsFunction(__VLS_intrinsicElements.input)({
-            type: ("number"),
-            step: ("0.1"),
+        __VLS_elementAsFunction(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
+            id: ("segmentSelect"),
+            value: ((__VLS_ctx.selectedSegment)),
         });
-        (__VLS_ctx.selectedSegment.endTime);
-        __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-            ...{ onClick: (__VLS_ctx.updateSegmentState) },
-        });
+        for (const [segment] of __VLS_getVForSourceType((__VLS_ctx.allSegments))) {
+            __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+                key: ((segment.id)),
+                value: ((segment)),
+            });
+            (segment.label_display);
+            (__VLS_ctx.formatTime(segment.startTime));
+            (__VLS_ctx.formatTime(segment.endTime));
+        }
+        if (__VLS_ctx.selectedSegment) {
+            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: ("segment-editor") },
+            });
+            __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({});
+            __VLS_elementAsFunction(__VLS_intrinsicElements.input)({
+                type: ("number"),
+                step: ("0.1"),
+            });
+            (__VLS_ctx.selectedSegment.startTime);
+            __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({});
+            __VLS_elementAsFunction(__VLS_intrinsicElements.input)({
+                type: ("number"),
+                step: ("0.1"),
+            });
+            (__VLS_ctx.selectedSegment.endTime);
+            __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+                ...{ onClick: (__VLS_ctx.updateSegmentState) },
+            });
+        }
     }
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: ("container-fluid py-4") },
@@ -302,89 +323,96 @@ function __VLS_template() {
         (__VLS_ctx.currentClassification.label);
         ((__VLS_ctx.currentClassification.avgConfidence * 100).toFixed(1));
     }
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("container-fluid py-4") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.h2, __VLS_intrinsicElements.h2)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("d-flex justify-content-between") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-        ...{ class: ("bg-gradient-primary") },
-    });
-    (__VLS_ctx.formatTime(__VLS_ctx.currentTime));
-    __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-        ...{ class: ("bg-gradient-primary") },
-    });
-    (__VLS_ctx.formatTime(__VLS_ctx.duration));
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ onClick: (__VLS_ctx.handleTimelineClick) },
-        ...{ class: ("timeline-track") },
-        ref: ("timelineRef"),
-    });
-    // @ts-ignore navigation for `const timelineRef = ref()`
-    /** @type { typeof __VLS_ctx.timelineRef } */ ;
-    for (const [segment] of __VLS_getVForSourceType((__VLS_ctx.allSegments))) {
+    if (__VLS_ctx.videoUrl) {
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            key: ((segment.id)),
-            ...{ class: ("timeline-segment") },
-            ...{ style: (({
-                    left: __VLS_ctx.calculateLeftPercent(segment) + '%',
-                    width: __VLS_ctx.calculateWidthPercent(segment) + '%'
-                })) },
+            ...{ class: ("container-fluid py-4") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.h2, __VLS_intrinsicElements.h2)({});
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("container-fluid py-4") },
         });
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ onMousedown: (...[$event]) => {
-                    __VLS_ctx.startResize(segment, $event);
-                } },
-            ...{ class: ("resize-handle") },
+            ...{ class: ("table-responsive") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.table, __VLS_intrinsicElements.table)({
+            ...{ class: ("table table-striped table-hover") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.thead, __VLS_intrinsicElements.thead)({});
+        __VLS_elementAsFunction(__VLS_intrinsicElements.tr, __VLS_intrinsicElements.tr)({});
+        __VLS_elementAsFunction(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
+        __VLS_elementAsFunction(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
+        __VLS_elementAsFunction(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
+        __VLS_elementAsFunction(__VLS_intrinsicElements.tbody, __VLS_intrinsicElements.tbody)({});
+        for (const [segment] of __VLS_getVForSourceType((__VLS_ctx.allSegments))) {
+            __VLS_elementAsFunction(__VLS_intrinsicElements.tr, __VLS_intrinsicElements.tr)({
+                ...{ onClick: (...[$event]) => {
+                        if (!((__VLS_ctx.videoUrl)))
+                            return;
+                        __VLS_ctx.jumpTo(segment);
+                    } },
+                key: ((segment.id)),
+                ...{ style: ({}) },
+            });
+            __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({
+                ...{ style: (({ backgroundColor: __VLS_ctx.getColorForLabel(segment.label), color: '#fff' })) },
+            });
+            (segment.label_display);
+            __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
+            (__VLS_ctx.formatTime(segment.startTime));
+            __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
+            (__VLS_ctx.formatTime(segment.endTime));
+        }
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("container-fluid py-4") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("controls mt-4") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+            ...{ onClick: (__VLS_ctx.submitAnnotations) },
+            ...{ class: ("btn btn-success") },
+            disabled: ((!__VLS_ctx.canSave)),
         });
     }
-    __VLS_elementAsFunction(__VLS_intrinsicElements.h2, __VLS_intrinsicElements.h2)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("container-fluid py-4") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("table-responsive") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.table, __VLS_intrinsicElements.table)({
-        ...{ class: ("table table-striped table-hover") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.thead, __VLS_intrinsicElements.thead)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.tr, __VLS_intrinsicElements.tr)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.tbody, __VLS_intrinsicElements.tbody)({});
-    for (const [segment] of __VLS_getVForSourceType((__VLS_ctx.allSegments))) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.tr, __VLS_intrinsicElements.tr)({
-            ...{ onClick: (...[$event]) => {
-                    __VLS_ctx.jumpTo(segment);
-                } },
-            key: ((segment.id)),
-            ...{ style: ({}) },
+    if (__VLS_ctx.currentVideo) {
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("status-container") },
         });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({
-            ...{ style: (({ backgroundColor: __VLS_ctx.getColorForLabel(segment.label), color: '#fff' })) },
+        __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+            for: ("statusSelect"),
         });
-        (segment.label_display);
-        __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
-        (__VLS_ctx.formatTime(segment.startTime));
-        __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
-        (__VLS_ctx.formatTime(segment.endTime));
+        __VLS_elementAsFunction(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
+            ...{ onChange: (__VLS_ctx.updateStatus) },
+            id: ("statusSelect"),
+            value: ((__VLS_ctx.videoStatus)),
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+            value: ("in_progress"),
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+            value: ("available"),
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+            value: ("completed"),
+        });
     }
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("container-fluid py-4") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("controls mt-4") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-        ...{ onClick: (__VLS_ctx.submitAnnotations) },
-        ...{ class: ("btn btn-success") },
-        disabled: ((!__VLS_ctx.canSave)),
-    });
-    ['container-fluid', 'h-100', 'w-100', 'py-1', 'px-4', 'card-header', 'pb-0', 'mb-0', 'container-fluid', 'py-4', 'dropdown-container', 'mb-3', 'segment-editor', 'container-fluid', 'py-4', 'dropdown-container', 'mb-3', 'container-fluid', 'py-4', 'video-container', 'mb-4', 'position-relative', 'container-fluid', 'py-4', 'container-fluid', 'py-4', 'classification-label', 'container-fluid', 'py-4', 'd-flex', 'justify-content-between', 'bg-gradient-primary', 'bg-gradient-primary', 'timeline-track', 'timeline-segment', 'resize-handle', 'container-fluid', 'py-4', 'table-responsive', 'table', 'table-striped', 'table-hover', 'container-fluid', 'py-4', 'controls', 'mt-4', 'btn', 'btn-success',];
+    if (__VLS_ctx.currentVideo) {
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("user-container") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+            for: ("userInput"),
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.input)({
+            id: ("userInput"),
+            placeholder: ("Benutzername eingeben"),
+        });
+        (__VLS_ctx.assignedUser);
+        __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+            ...{ onClick: (__VLS_ctx.assignUser) },
+        });
+    }
+    ['container-fluid', 'h-100', 'w-100', 'py-1', 'px-4', 'card-header', 'pb-0', 'mb-0', 'container-fluid', 'py-4', 'dropdown-container', 'mb-3', 'segment-editor', 'container-fluid', 'py-4', 'dropdown-container', 'mb-3', 'container-fluid', 'py-4', 'video-container', 'mb-4', 'position-relative', 'container-fluid', 'py-4', 'container-fluid', 'py-4', 'classification-label', 'container-fluid', 'py-4', 'container-fluid', 'py-4', 'table-responsive', 'table', 'table-striped', 'table-hover', 'container-fluid', 'py-4', 'controls', 'mt-4', 'btn', 'btn-success', 'status-container', 'user-container',];
     var __VLS_slots;
     var $slots;
     let __VLS_inheritedAttrs;
@@ -392,7 +420,6 @@ function __VLS_template() {
     const __VLS_refs = {
         'videoRef': __VLS_nativeElements['video'],
         'pond': __VLS_6,
-        'timelineRef': __VLS_nativeElements['div'],
     };
     var $refs;
     var $el;
@@ -410,31 +437,29 @@ const __VLS_self = (await import('vue')).defineComponent({
             videoUrl: videoUrl,
             errorMessage: errorMessage,
             allSegments: allSegments,
+            currentVideo: currentVideo,
             uploadRevert: uploadRevert,
             uploadProcess: uploadProcess,
             getColorForLabel: getColorForLabel,
             videoList: videoList,
             FilePond: FilePond,
             videoRef: videoRef,
-            timelineRef: timelineRef,
-            currentTime: currentTime,
-            duration: duration,
             canSave: canSave,
             selectedSegment: selectedSegment,
             selectedVideo: selectedVideo,
-            startResize: startResize,
             handleTimeUpdate: handleTimeUpdate,
             handleLoadedMetadata: handleLoadedMetadata,
             jumpTo: jumpTo,
-            handleTimelineClick: handleTimelineClick,
-            calculateLeftPercent: calculateLeftPercent,
-            calculateWidthPercent: calculateWidthPercent,
             formatTime: formatTime,
             currentClassification: currentClassification,
             getClassificationStyle: getClassificationStyle,
             updateSegmentState: updateSegmentState,
             submitAnnotations: submitAnnotations,
             handleProcessFile: handleProcessFile,
+            assignedUser: assignedUser,
+            videoStatus: videoStatus,
+            updateStatus: updateStatus,
+            assignUser: assignUser,
         };
     },
 });

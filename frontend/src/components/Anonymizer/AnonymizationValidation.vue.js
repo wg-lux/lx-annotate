@@ -1,26 +1,8 @@
-import NavbarComponent from '../components/NavbarComponent.vue';
-import SidebarComponent from '../components/SidebarComponent.vue';
-import DashboardComponent from '../components/DashboardComponent.vue';
-export default (await import('vue')).defineComponent({
-    name: 'Dashboard',
-    components: {
-        NavbarComponent,
-        SidebarComponent,
-        DashboardComponent,
-    },
-});
-; /* PartiallyEnd: #3632/script.vue */
+; /* PartiallyEnd: #3632/scriptSetup.vue */
 function __VLS_template() {
     const __VLS_ctx = {};
-    const __VLS_componentsOption = {
-        NavbarComponent,
-        SidebarComponent,
-        DashboardComponent,
-    };
     let __VLS_components;
     let __VLS_directives;
-    // CSS variable injection 
-    // CSS variable injection end 
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: ("container-fluid h-100 w-100 py-1 px-4") },
     });
@@ -30,8 +12,10 @@ function __VLS_template() {
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: ("col-12") },
     });
-    const __VLS_0 = {}.DashboardComponent;
-    /** @type { [typeof __VLS_components.DashboardComponent, ] } */ ;
+    __VLS_elementAsFunction(__VLS_intrinsicElements.h1, __VLS_intrinsicElements.h1)({});
+    __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
+    const __VLS_0 = {}.AnonymizationValidation;
+    /** @type { [typeof __VLS_components.AnonymizationValidation, ] } */ ;
     // @ts-ignore
     const __VLS_1 = __VLS_asFunctionalComponent(__VLS_0, new __VLS_0({}));
     const __VLS_2 = __VLS_1({}, ...__VLS_functionalComponentArgsRest(__VLS_1));
@@ -51,4 +35,15 @@ function __VLS_template() {
     };
 }
 ;
-let __VLS_self;
+const __VLS_self = (await import('vue')).defineComponent({
+    setup() {
+        return {};
+    },
+});
+export default (await import('vue')).defineComponent({
+    setup() {
+        return {};
+    },
+    __typeEl: {},
+});
+; /* PartiallyEnd: #4569/main.vue */

@@ -48,6 +48,9 @@ export const useVideoStore = defineStore('video', () => {
                 videos: response.data.videos.map(video => ({
                     id: parseInt(video.id),
                     original_file_name: video.original_file_name,
+                    status: video.status || 'available', // Default-Status falls nicht vorhanden
+                    assignedUser: null, // Default-Wert für assignedUser
+                    anonymized: video.anonymized || false // Default-Wert für anonymized ist false
                 })),
                 labels: response.data.labels.map(label => ({
                     id: parseInt(label.id),
@@ -163,27 +166,43 @@ export const useVideoStore = defineStore('video', () => {
         return colorMap[label] || '#757575';
     }
     function getTranslationForLabel(label) {
-        const translationMap = {
-            appendix: 'Appendix',
-            blood: 'Blut',
-            diverticule: 'Divertikel',
-            grasper: 'Greifer',
-            ileocaecalvalve: 'Ileozäkalklappe',
-            ileum: 'Ileum',
-            low_quality: 'Niedrige Bildqualität',
-            nbi: 'Narrow Band Imaging',
-            needle: 'Nadel',
-            outside: 'Außerhalb',
-            polyp: 'Polyp',
-            snare: 'Snare',
-            water_jet: 'Wasserstrahl',
-            wound: 'Wunde',
-        };
-        return translationMap[label] || '#757575';
+        return translationMap[label] || label;
     }
     function jumpToSegment(segment, videoElement) {
         if (videoElement) {
             videoElement.currentTime = segment.startTime;
+        }
+    }
+    async function updateVideoStatus(status) {
+        if (currentVideo.value) {
+            try {
+                currentVideo.value.status = status;
+                // Senden des aktualisierten Status an den Server
+                const response = await axiosInstance.post(`api/video/${currentVideo.value.id}/status/`, {
+                    status: status
+                });
+                console.log(`Video-Status aktualisiert: ${status}`, response.data);
+            }
+            catch (error) {
+                console.error('Fehler beim Aktualisieren des Video-Status:', error);
+                errorMessage.value = 'Fehler beim Aktualisieren des Video-Status.';
+            }
+        }
+    }
+    async function assignUserToVideo(user) {
+        if (currentVideo.value) {
+            try {
+                currentVideo.value.assignedUser = user;
+                // Senden der Benutzerzuweisung an den Server
+                const response = await axiosInstance.post(`api/video/${currentVideo.value.id}/assign/`, {
+                    user: user
+                });
+                console.log(`Benutzer ${user} wurde dem Video zugewiesen.`, response.data);
+            }
+            catch (error) {
+                console.error('Fehler bei der Benutzerzuweisung:', error);
+                errorMessage.value = 'Fehler bei der Benutzerzuweisung.';
+            }
         }
     }
     const uploadRevert = (uniqueFileId, load, error) => {
@@ -231,5 +250,7 @@ export const useVideoStore = defineStore('video', () => {
         getColorForLabel,
         getTranslationForLabel,
         jumpToSegment,
+        updateVideoStatus,
+        assignUserToVideo,
     };
 });

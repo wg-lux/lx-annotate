@@ -5,22 +5,20 @@
         <h1>G-Play-Toolkit - Annotationen</h1>
         <p>Hier finden Sie die aktuell verfügbaren Annotationen.</p>
       </div>
-      <AnnotationComponent />
-      <VideoAnnotation />
+      <VideoDashboard />
     </div>
   </div>
 </template>
 <script>
-import AnnotationComponent from '../components/AnnotationComponent.vue';
+import VideoDashboard from '@/components/EndoAI/VideoDashboard.vue';
 
 export default {
   name: 'Annotationen',
   components: {
-    AnnotationComponent,
+    VideoDashboard,
   },
 };
 </script>
 
 <style>
-/* Add relevant styles here */
 </style>

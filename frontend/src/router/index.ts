@@ -6,7 +6,7 @@ const router = createRouter({
     {
       path: '/annotationen',
       name: 'Annotationen',
-      component: () => import('src/views/AnnotationenDashboard.vue'),
+      component: () => import('src/views/AnnotationDashboard.vue'),
       meta: {
         description: 'Hier können Sie alle Ihre Annotationen einsehen und verwalten.'
       }

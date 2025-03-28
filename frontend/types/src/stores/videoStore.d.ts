@@ -12,6 +12,8 @@ export interface VideoAnnotation {
     segments: Segment[];
     videoUrl: string;
     id: string;
+    status: 'in_progress' | 'available' | 'completed';
+    assignedUser: string | null;
 }
 export interface VideoLabelResponse {
     label: string;
@@ -30,6 +32,9 @@ export interface VideoLabelResponse {
 export interface VideoMeta {
     id: number;
     original_file_name: string;
+    status: string;
+    assignedUser?: string | null;
+    anonymized: boolean;
 }
 export interface LabelMeta {
     id: number;
@@ -53,6 +58,8 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
         }[];
         videoUrl: string;
         id: string;
+        status: 'in_progress' | 'available' | 'completed';
+        assignedUser: string | null;
     } | null, VideoAnnotation | {
         isAnnotated: boolean;
         errorMessage: string;
@@ -66,6 +73,8 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
         }[];
         videoUrl: string;
         id: string;
+        status: 'in_progress' | 'available' | 'completed';
+        assignedUser: string | null;
     } | null>;
     errorMessage: import("vue").Ref<string, string>;
     videoUrl: import("vue").Ref<string, string>;
@@ -75,6 +84,9 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
         videos: {
             id: number;
             original_file_name: string;
+            status: string;
+            assignedUser?: string | null | undefined;
+            anonymized: boolean;
         }[];
         labels: {
             id: number;
@@ -84,6 +96,9 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
         videos: {
             id: number;
             original_file_name: string;
+            status: string;
+            assignedUser?: string | null | undefined;
+            anonymized: boolean;
         }[];
         labels: {
             id: number;
@@ -103,6 +118,8 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
     getColorForLabel: (label: string) => string;
     getTranslationForLabel: (label: string) => string;
     jumpToSegment: (segment: Segment, videoElement: HTMLVideoElement | null) => void;
+    updateVideoStatus: (status: 'in_progress' | 'available' | 'completed') => Promise<void>;
+    assignUserToVideo: (user: string) => Promise<void>;
 }, "errorMessage" | "videoUrl" | "currentVideo" | "segmentsByLabel" | "videoList">>, Pick<{
     currentVideo: import("vue").Ref<{
         isAnnotated: boolean;
@@ -117,6 +134,8 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
         }[];
         videoUrl: string;
         id: string;
+        status: 'in_progress' | 'available' | 'completed';
+        assignedUser: string | null;
     } | null, VideoAnnotation | {
         isAnnotated: boolean;
         errorMessage: string;
@@ -130,6 +149,8 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
         }[];
         videoUrl: string;
         id: string;
+        status: 'in_progress' | 'available' | 'completed';
+        assignedUser: string | null;
     } | null>;
     errorMessage: import("vue").Ref<string, string>;
     videoUrl: import("vue").Ref<string, string>;
@@ -139,6 +160,9 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
         videos: {
             id: number;
             original_file_name: string;
+            status: string;
+            assignedUser?: string | null | undefined;
+            anonymized: boolean;
         }[];
         labels: {
             id: number;
@@ -148,6 +172,9 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
         videos: {
             id: number;
             original_file_name: string;
+            status: string;
+            assignedUser?: string | null | undefined;
+            anonymized: boolean;
         }[];
         labels: {
             id: number;
@@ -167,6 +194,8 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
     getColorForLabel: (label: string) => string;
     getTranslationForLabel: (label: string) => string;
     jumpToSegment: (segment: Segment, videoElement: HTMLVideoElement | null) => void;
+    updateVideoStatus: (status: 'in_progress' | 'available' | 'completed') => Promise<void>;
+    assignUserToVideo: (user: string) => Promise<void>;
 }, "allSegments">, Pick<{
     currentVideo: import("vue").Ref<{
         isAnnotated: boolean;
@@ -181,6 +210,8 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
         }[];
         videoUrl: string;
         id: string;
+        status: 'in_progress' | 'available' | 'completed';
+        assignedUser: string | null;
     } | null, VideoAnnotation | {
         isAnnotated: boolean;
         errorMessage: string;
@@ -194,6 +225,8 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
         }[];
         videoUrl: string;
         id: string;
+        status: 'in_progress' | 'available' | 'completed';
+        assignedUser: string | null;
     } | null>;
     errorMessage: import("vue").Ref<string, string>;
     videoUrl: import("vue").Ref<string, string>;
@@ -203,6 +236,9 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
         videos: {
             id: number;
             original_file_name: string;
+            status: string;
+            assignedUser?: string | null | undefined;
+            anonymized: boolean;
         }[];
         labels: {
             id: number;
@@ -212,6 +248,9 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
         videos: {
             id: number;
             original_file_name: string;
+            status: string;
+            assignedUser?: string | null | undefined;
+            anonymized: boolean;
         }[];
         labels: {
             id: number;
@@ -231,4 +270,6 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
     getColorForLabel: (label: string) => string;
     getTranslationForLabel: (label: string) => string;
     jumpToSegment: (segment: Segment, videoElement: HTMLVideoElement | null) => void;
-}, "fetchAllVideos" | "uploadRevert" | "uploadProcess" | "clearVideo" | "setVideo" | "fetchVideoUrl" | "fetchSegmentsByLabel" | "fetchAllSegments" | "saveAnnotations" | "getSegmentStyle" | "getColorForLabel" | "getTranslationForLabel" | "jumpToSegment">>;
+    updateVideoStatus: (status: 'in_progress' | 'available' | 'completed') => Promise<void>;
+    assignUserToVideo: (user: string) => Promise<void>;
+}, "fetchAllVideos" | "uploadRevert" | "uploadProcess" | "clearVideo" | "setVideo" | "fetchVideoUrl" | "fetchSegmentsByLabel" | "fetchAllSegments" | "saveAnnotations" | "getSegmentStyle" | "getColorForLabel" | "getTranslationForLabel" | "jumpToSegment" | "updateVideoStatus" | "assignUserToVideo">>;

@@ -6,7 +6,7 @@
     </div>
     <div class="container-fluid py-4">
       <!-- Dropdown to select and edit a segment -->
-      <div class="dropdown-container mb-3">
+      <div v-if=videoUrl class="dropdown-container mb-3">
         <label for="segmentSelect">Segment auswählen: </label>
         <select id="segmentSelect" v-model="selectedSegment">
           <option v-for="segment in allSegments" :key="segment.id" :value="segment">
@@ -82,27 +82,7 @@
         {{ currentClassification.label }} ({{ (currentClassification.avgConfidence * 100).toFixed(1) }}%)
       </div>
     </div>
-
-    <!-- Timeline Container -->
-    <div class="container-fluid py-4">
-      <h2>Zeitleiste</h2>
-      <div class="d-flex justify-content-between">
-        <span class="bg-gradient-primary">{{ formatTime(currentTime) }}</span>
-        <span class="bg-gradient-primary">{{ formatTime(duration) }}</span>
-      </div>
-      <div class="timeline-track" ref="timelineRef" @click="handleTimelineClick">
-        <div 
-          v-for="segment in allSegments" 
-          :key="segment.id"
-          class="timeline-segment"
-          :style="{
-            left: calculateLeftPercent(segment) + '%',
-            width: calculateWidthPercent(segment) + '%'
-          }"
-        >
-          <div class="resize-handle" @mousedown="startResize(segment, $event)"></div>
-        </div>
-      </div>
+    <div class="container-fluid py-4" v-if=videoUrl>
 
       <h2>Segmente des Videos</h2>
       <!-- Table view of segments -->
@@ -137,11 +117,24 @@
         </div>
       </div>
     </div>
+    <div class="status-container" v-if="currentVideo">
+      <label for="statusSelect">Status ändern:</label>
+      <select id="statusSelect" v-model="videoStatus" @change="updateStatus">
+        <option value="in_progress">In Bearbeitung</option>
+        <option value="available">Verfügbar</option>
+        <option value="completed">Abgeschlossen</option>
+      </select>
+    </div>
+    <div class="user-container" v-if="currentVideo">
+      <label for="userInput">Benutzer zuweisen:</label>
+      <input id="userInput" v-model="assignedUser" placeholder="Benutzername eingeben" />
+      <button @click="assignUser">Zuweisen</button>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watchEffect } from 'vue';
 import { storeToRefs } from 'pinia';
 import vueFilePond from 'vue-filepond';
 import 'filepond/dist/filepond.min.css';
@@ -152,8 +145,8 @@ import { useVideoStore } from '@/stores/videoStore';
 
 // Use the video store
 const videoStore = useVideoStore();
-const { videoUrl, errorMessage, segmentsByLabel, allSegments } = storeToRefs(videoStore);
-const { fetchAllVideos, fetchVideoUrl, fetchAllSegments, saveAnnotations, uploadRevert, uploadProcess, getColorForLabel } = videoStore;
+const { videoUrl, errorMessage, segmentsByLabel, allSegments, currentVideo } = storeToRefs(videoStore);
+const { fetchAllVideos, fetchVideoUrl, fetchAllSegments, saveAnnotations, uploadRevert, uploadProcess, getColorForLabel, assignUserToVideo, updateVideoStatus } = videoStore;
 const videoList = videoStore.videoList;
 // Register FilePond component
 const FilePond = vueFilePond();
@@ -310,6 +303,29 @@ function handleProcessFile(error: any, file: any) {
   console.log("File processed:", file);
   if (file.serverId) {
     videoUrl.value = file.serverId;
+  }
+}
+
+const assignedUser = ref<string | null>(null);
+const videoStatus = ref<'in_progress' | 'available' | 'completed'>('available');
+
+// Initialwerte setzen, wenn currentVideo sich ändert
+watchEffect(() => {
+  if (currentVideo.value) {
+    assignedUser.value = currentVideo.value.assignedUser || null;
+    videoStatus.value = currentVideo.value.status;
+  }
+});
+
+function updateStatus() {
+  if (currentVideo.value) {
+    updateVideoStatus(videoStatus.value);
+  }
+}
+
+function assignUser() {
+  if (assignedUser.value && currentVideo.value) {
+    assignUserToVideo(assignedUser.value);
   }
 }
 </script>

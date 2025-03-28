@@ -19,7 +19,7 @@ export default {
   components: {
     NavbarComponent,
     SidebarComponent,
-    DashboardComponent
+    DashboardComponent,
   },
 };
 </script>

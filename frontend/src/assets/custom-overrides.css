@@ -112,6 +112,12 @@ a:hover {
 .card {
   border: 1px solid #232B3E; /* darken($secondary, 10%) computed approximately as #232B3E */
   font-family: 'Comfortaa', sans-serif;
+  transition: background-color 0.3s ease;
+
+}
+
+.card:hover {
+  background-color: #f0f0f0; /* Replace with your desired color */
 }
 
 .card .card-header {

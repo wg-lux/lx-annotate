@@ -20,6 +20,8 @@ export interface VideoAnnotation {
   segments: Segment[];
   videoUrl: string;
   id: string;
+  status: 'in_progress' | 'available' | 'completed'; // Status des Videos
+  assignedUser: string | null; // Zugewiesener Benutzer
 }
 
 export interface VideoLabelResponse {
@@ -43,6 +45,9 @@ export interface VideoLabelResponse {
 export interface VideoMeta {
   id: number; // API returns a number for id
   original_file_name: string;
+  status: string;
+  assignedUser?: string | null; // Optional, damit es mit bestehenden Daten kompatibel ist
+  anonymized: boolean; // Geändert von string zu boolean
 }
 
 export interface LabelMeta {
@@ -54,7 +59,6 @@ export interface VideoList {
   videos: VideoMeta[];
   labels: LabelMeta[];
 }
-
 
 const translationMap: Record<string, string> = {
   appendix: 'Appendix',
@@ -103,11 +107,14 @@ export const useVideoStore = defineStore('video', () => {
   function fetchAllVideos() {
     axiosInstance
       .get('api/videos/')
-      .then((response: { data: { videos: { id: string; original_file_name: string; }[]; labels: { id: string; name: string; }[]; }; }) => {
+      .then((response: { data: { videos: { id: string; original_file_name: string; status?: string; anonymized?: boolean; }[]; labels: { id: string; name: string; }[]; }; }) => {
         videoList.value = {
           videos: response.data.videos.map(video => ({
             id: parseInt(video.id),
             original_file_name: video.original_file_name,
+            status: video.status || 'available', // Default-Status falls nicht vorhanden
+            assignedUser: null, // Default-Wert für assignedUser
+            anonymized: video.anonymized || false // Default-Wert für anonymized ist false
           })),
           labels: response.data.labels.map(label => ({
             id: parseInt(label.id),
@@ -115,7 +122,6 @@ export const useVideoStore = defineStore('video', () => {
           })),
         };
         console.log("Fetched videos:", videoList.value);
-
       })
       .catch((error: any) => {
         console.error('Error loading videos:', error);
@@ -238,28 +244,44 @@ export const useVideoStore = defineStore('video', () => {
   }
   
   function getTranslationForLabel(label: string): string {
-    const translationMap: Record<string, string> = {
-      appendix: 'Appendix',
-      blood: 'Blut',
-      diverticule: 'Divertikel',
-      grasper: 'Greifer',
-      ileocaecalvalve: 'Ileozäkalklappe',
-      ileum: 'Ileum',
-      low_quality: 'Niedrige Bildqualität',
-      nbi: 'Narrow Band Imaging',
-      needle: 'Nadel',
-      outside: 'Außerhalb',
-      polyp: 'Polyp',
-      snare: 'Snare',
-      water_jet: 'Wasserstrahl',
-      wound: 'Wunde',
-    };
-    return translationMap[label] || '#757575';
+    return translationMap[label] || label;
   }
   
   function jumpToSegment(segment: Segment, videoElement: HTMLVideoElement | null): void {
     if (videoElement) {
       videoElement.currentTime = segment.startTime;
+    }
+  }
+
+  async function updateVideoStatus(status: 'in_progress' | 'available' | 'completed'): Promise<void> {
+    if (currentVideo.value) {
+      try {
+        currentVideo.value.status = status;
+        // Senden des aktualisierten Status an den Server
+        const response = await axiosInstance.post(`api/video/${currentVideo.value.id}/status/`, {
+          status: status
+        });
+        console.log(`Video-Status aktualisiert: ${status}`, response.data);
+      } catch (error) {
+        console.error('Fehler beim Aktualisieren des Video-Status:', error);
+        errorMessage.value = 'Fehler beim Aktualisieren des Video-Status.';
+      }
+    }
+  }
+
+  async function assignUserToVideo(user: string): Promise<void> {
+    if (currentVideo.value) {
+      try {
+        currentVideo.value.assignedUser = user;
+        // Senden der Benutzerzuweisung an den Server
+        const response = await axiosInstance.post(`api/video/${currentVideo.value.id}/assign/`, {
+          user: user
+        });
+        console.log(`Benutzer ${user} wurde dem Video zugewiesen.`, response.data);
+      } catch (error) {
+        console.error('Fehler bei der Benutzerzuweisung:', error);
+        errorMessage.value = 'Fehler bei der Benutzerzuweisung.';
+      }
     }
   }
 
@@ -320,5 +342,7 @@ export const useVideoStore = defineStore('video', () => {
     getColorForLabel,
     getTranslationForLabel,
     jumpToSegment,
+    updateVideoStatus,
+    assignUserToVideo,
   };
 });
