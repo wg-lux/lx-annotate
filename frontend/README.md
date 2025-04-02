@@ -1,10 +1,24 @@
-# agl-annotate
+# lx-annotate
 
-This module is used to validate annotated names. 
+This module is used to validate data from videos, reports and single images.
+
+You can use it to validate any data, as long as the api from endoreg-db or a different service is set up correctly.
+
+## Stores
+
+Stores are used to store your data client side during your frontend session. Only after finishing your annotation, the data will be sent to the backend through our local api.
+
+## Database Setup
+
+Make sure you have endoreg-db from wg-lux/endoreg-db running locally or as a service.
+
+'''
+git clone wg-lux/endoreg-db
+'''
+
+##
 
 Also a framwork for the case generator is included as well as theoption to annotate results by the machine learning pipeline.
-
-
 
 
 ## Recommended IDE Setup

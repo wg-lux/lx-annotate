@@ -1,6 +1,15 @@
-; /* PartiallyEnd: #3632/scriptSetup.vue */
+import AnonymizationValidationComponent from './AnonymizationValidationComponent.vue';
+export default (await import('vue')).defineComponent({
+    name: 'AnonymizationValidationContainer',
+    components: {
+        AnonymizationValidationComponent
+    }
+}); /* PartiallyEnd: #3632/script.vue */
 function __VLS_template() {
     const __VLS_ctx = {};
+    const __VLS_componentsOption = {
+        AnonymizationValidationComponent
+    };
     let __VLS_components;
     let __VLS_directives;
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -14,8 +23,8 @@ function __VLS_template() {
     });
     __VLS_elementAsFunction(__VLS_intrinsicElements.h1, __VLS_intrinsicElements.h1)({});
     __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
-    const __VLS_0 = {}.AnonymizationValidation;
-    /** @type { [typeof __VLS_components.AnonymizationValidation, ] } */ ;
+    const __VLS_0 = {}.AnonymizationValidationComponent;
+    /** @type { [typeof __VLS_components.AnonymizationValidationComponent, ] } */ ;
     // @ts-ignore
     const __VLS_1 = __VLS_asFunctionalComponent(__VLS_0, new __VLS_0({}));
     const __VLS_2 = __VLS_1({}, ...__VLS_functionalComponentArgsRest(__VLS_1));
@@ -35,15 +44,4 @@ function __VLS_template() {
     };
 }
 ;
-const __VLS_self = (await import('vue')).defineComponent({
-    setup() {
-        return {};
-    },
-});
-export default (await import('vue')).defineComponent({
-    setup() {
-        return {};
-    },
-    __typeEl: {},
-});
-; /* PartiallyEnd: #4569/main.vue */
+let __VLS_self;
