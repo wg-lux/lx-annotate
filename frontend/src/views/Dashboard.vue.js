@@ -1,6 +1,6 @@
 import NavbarComponent from '../components/NavbarComponent.vue';
 import SidebarComponent from '../components/SidebarComponent.vue';
-import DashboardComponent from '../components/DashboardComponent.vue';
+import DashboardComponent from '../components/Dashboard/AnnotationDashboard.vue';
 export default (await import('vue')).defineComponent({
     name: 'Dashboard',
     components: {

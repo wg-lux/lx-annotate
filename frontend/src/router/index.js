@@ -21,13 +21,13 @@ const router = createRouter({
         {
             path: '/frame-annotation',
             name: 'Frame Annotation',
-            component: () => import('src/views/FramesDemo.vue'),
+            component: () => import('src/views/FrameAnnotation.vue'),
             meta: {
                 description: 'Hier können Sie Frames annotieren.'
             }
         },
         {
-            path: '',
+            path: '/',
             name: 'Dashboard',
             component: () => import('src/views/Dashboard.vue'),
             meta: {
@@ -85,7 +85,7 @@ const router = createRouter({
         // Catch-all redirect to Dashboard for any unmatched route
         {
             path: '/:catchAll(.*)',
-            redirect: ''
+            redirect: '/'
         }
     ]
 });

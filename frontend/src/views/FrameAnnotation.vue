@@ -5,21 +5,20 @@
         <h1>G-Play-Toolkit - Annotationen</h1>
         <p>Hier finden Sie die aktuell verfügbaren Annotationen.</p>
       </div>
+      <ScrollingFrames />
       <AnnotationComponent />
-      <VideoAnnotation />
-      <RandomNameGenerator />
     </div>
   </div>
 </template>
 <script>
+import ScrollingFrames from '../components/SelectFrames/ScrollingFrames.vue';
 import AnnotationComponent from '../components/AnnotationComponent.vue';
-import RandomNameGenerator from '@/components/RandomNameGenerator.vue';
 
 export default {
   name: 'Annotationen',
   components: {
+    ScrollingFrames,
     AnnotationComponent,
-    RandomNameGenerator
   },
 };
 </script>

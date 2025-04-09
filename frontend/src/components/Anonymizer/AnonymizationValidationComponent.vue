@@ -2,7 +2,7 @@
   <div class="container-fluid py-4">
     <div class="card">
       <div class="card-header pb-0">
-        <h4 class="mb-0">Anonymisierungsvalidierung</h4>
+        <h4 class="mb-0">Anonymisierungsvalidierung und Annotationen</h4>
       </div>
       <div class="card-body">
         <!-- Loading and Error States -->
@@ -86,32 +86,37 @@
             </div>
 
             <div class="col-md-6">
-              <!-- Original Text -->
-              <div class="card mb-4">
-                <div class="card-header">
-                  <h5 class="mb-0">Originaler Text</h5>
-                </div>
+              <!-- Annotation Section -->
+              <div class="card bg-light">
                 <div class="card-body">
-                  <pre class="text-wrap">{{ currentItem.text }}</pre>
-                </div>
-              </div>
-
-              <!-- Anonymized Text -->
-              <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                  <h5 class="mb-0">Anonymisierter Text</h5>
-                  <button class="btn btn-sm btn-outline-primary" @click="editMode = !editMode">
-                    {{ editMode ? 'Vorschau' : 'Bearbeiten' }}
-                  </button>
-                </div>
-                <div class="card-body">
-                  <textarea 
-                    v-if="editMode" 
-                    class="form-control" 
-                    rows="10" 
-                    v-model="editedAnonymizedText"
-                  ></textarea>
-                  <pre v-else class="text-wrap">{{ editedAnonymizedText }}</pre>
+                  <h5 class="card-title">Annotationen</h5>
+                  <div class="mb-3">
+                    <label class="form-label">Bild hochladen:</label>
+                    <input 
+                      type="file" 
+                      class="form-control" 
+                      @change="handleFileUpload"
+                      accept="image/*"
+                    >
+                  </div>
+                  <div v-if="uploadedFile" class="mt-3">
+                    <img :src="displayedImageUrl" class="img-fluid" alt="Uploaded Image">
+                    <button 
+                      class="btn btn-info btn-sm mt-2"
+                      @click="toggleImage"
+                    >
+                      {{ showOriginal ? 'Bearbeitetes Bild anzeigen' : 'Original anzeigen' }}
+                    </button>
+                  </div>
+                  <div class="mt-3">
+                    <button 
+                      class="btn btn-primary"
+                      @click="saveAnnotation"
+                      :disabled="!canSubmit"
+                    >
+                      Annotation speichern
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -158,7 +163,11 @@ export default {
     const editMode = ref(false);
     const editedAnonymizedText = ref('');
     const examinationDate = ref('');
-    
+    const uploadedFile = ref(null);
+    const processedImageUrl = ref(null);
+    const originalImageUrl = ref(null);
+    const showOriginal = ref(false);
+
     const editedPatient = reactive({
       patient_first_name: '',
       patient_last_name: '',
@@ -167,10 +176,17 @@ export default {
       casenumber: ''
     });
 
-    // Validate examination date
     const isExaminationDateValid = computed(() => {
       if (!examinationDate.value || !editedPatient.patient_dob) return true;
       return new Date(examinationDate.value) >= new Date(editedPatient.patient_dob);
+    });
+
+    const displayedImageUrl = computed(() => {
+      return showOriginal.value ? originalImageUrl.value : processedImageUrl.value;
+    });
+
+    const canSubmit = computed(() => {
+      return processedImageUrl.value && uploadedFile.value;
     });
 
     const loadData = async () => {
@@ -184,15 +200,12 @@ export default {
           currentItem.value = data;
           editedAnonymizedText.value = currentItem.value.anonymized_text;
           
-          // Set patient info
           const meta = currentItem.value.report_meta;
           editedPatient.patient_first_name = meta.patient_first_name || '';
           editedPatient.patient_last_name = meta.patient_last_name || '';
           editedPatient.patient_gender = meta.patient_gender || '';
           editedPatient.patient_dob = meta.patient_dob || '';
           editedPatient.casenumber = meta.casenumber || '';
-          
-          // Extract examination date if available
           examinationDate.value = meta.examination_date || '';
         } else {
           currentItem.value = null;
@@ -202,6 +215,44 @@ export default {
       } finally {
         loading.value = false;
       }
+    };
+
+    const handleFileUpload = async (event) => {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const formData = new FormData();
+      formData.append('file', file);
+
+      try {
+        const response = await axiosInstance.post('/api/upload-image/', formData);
+        processedImageUrl.value = response.data.processed_image_url;
+        originalImageUrl.value = response.data.original_image_url;
+        uploadedFile.value = file;
+      } catch (error) {
+        error.value = `Fehler beim Hochladen: ${error.message}`;
+      }
+    };
+
+    const saveAnnotation = async () => {
+      if (!canSubmit.value) return;
+
+      const annotationData = {
+        image_name: uploadedFile.value.name,
+        processed_image_url: processedImageUrl.value,
+        original_image_url: originalImageUrl.value,
+      };
+
+      try {
+        await axiosInstance.post('/api/save-annotation/', annotationData);
+        alert('Annotation gespeichert!');
+      } catch (error) {
+        error.value = `Fehler beim Speichern: ${error.message}`;
+      }
+    };
+
+    const toggleImage = () => {
+      showOriginal.value = !showOriginal.value;
     };
 
     const approveItem = async () => {
@@ -251,14 +302,12 @@ export default {
       loadData();
     };
 
-    // Watch for changes in current item
     watch(currentItem, (newItem) => {
       if (newItem) {
         editedAnonymizedText.value = newItem.anonymized_text;
       }
     });
 
-    // Initial data load
     loadData();
 
     return {
@@ -272,7 +321,12 @@ export default {
       isExaminationDateValid,
       approveItem,
       rejectItem,
-      skipItem
+      skipItem,
+      handleFileUpload,
+      saveAnnotation,
+      toggleImage,
+      displayedImageUrl,
+      canSubmit,
     };
   }
 };

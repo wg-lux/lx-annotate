@@ -16,7 +16,7 @@ export default defineComponent({
             return this.authStore.isAuthenticated;
         },
         username() {
-            return this.authStore.user?.username || 'Unbekannt';
+            return this.authStore.user?.username || 'Unknown';
         },
         currentRouteName() {
             const name = this.$route.name;

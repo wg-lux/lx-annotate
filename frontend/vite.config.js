@@ -5,18 +5,16 @@ import vueDevTools from 'vite-plugin-vue-devtools';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'path';
 export default defineConfig(({ mode }) => {
-    // Lade alle Umgebungsvariablen basierend auf dem aktuellen Modus
     const env = loadEnv(mode, process.cwd(), '');
     return {
-        base: '/',
+        base: mode === 'development' ? 'http://localhost:3000/' : './',
         plugins: [
             vue(),
             vueJsx(),
             vueDevTools(),
         ],
         build: {
-            target: 'es6', // Enable modern features like top-level await
-            manifest: "manifest.json",
+            manifest: mode === 'production' ? 'manifest.json' : false,
             outDir: resolve(__dirname, '../static/dist'),
             rollupOptions: {
                 input: {
@@ -31,14 +29,13 @@ export default defineConfig(({ mode }) => {
         },
         server: {
             cors: true,
-            //port: 5174,
             port: 3000,
             hmr: {
                 host: 'localhost',
             },
             proxy: {
                 "/api": {
-                    target: env.VITE_API_URL,
+                    target: env.VITE_API_BASE_URL,
                     changeOrigin: true,
                     rewrite: (path) => path.replace(/^\/api/, '')
                 }

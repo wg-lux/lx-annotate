@@ -1,4 +1,5 @@
 {% load django_vite %}
+{% load static %}
 
 <!DOCTYPE html>
 <html lang="en">
@@ -8,12 +9,8 @@
     <meta name="csrf-token" content="{{ csrf_token }}">
     {% vite_hmr_client %}
     {% vite_asset 'src/main.ts' %}
-    {% load static %}
     <link rel="stylesheet" href="{% static 'main.css' %}">
     {% block extra_head %}{% endblock %}
-    {% block extra_css %}{% endblock %}
-    {% block extra_js %}{% endblock %}
-
 </head>
 <body>
     <div id="app"></div>
@@ -21,5 +18,4 @@
 <script>
     window.STATIC_URL = "{{ STATIC_URL }}";
 </script>
-  
 </html>

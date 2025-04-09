@@ -10,17 +10,22 @@ import '@/assets/css/material-dashboard.css';
 import '@/assets/custom-overrides.css';
 import axios from 'axios';
 import Cookies from 'js-cookie';
+import VueVirtualScroller from 'vue-virtual-scroller';
+import 'vue-virtual-scroller/dist/vue-virtual-scroller.css';
 
 const app = createApp(App);
+
 app.component('AuthCheck', AuthCheck);
 
 app.config.errorHandler = (err, vm, info) => {
     console.error("Global error handler:", err, info);
     // Optionally, send the error details to an external logging service (e.g., Sentry)
-  };
+};
 
 app.use(createPinia());
 app.use(router);
+app.use(VueVirtualScroller);
+
 app.mount('#app');
 
 axios.defaults.withCredentials = true;

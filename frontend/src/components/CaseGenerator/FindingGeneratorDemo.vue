@@ -175,7 +175,7 @@
             <option>Größenklassifikation Kolonläsion (kategorisch)</option>
             <option>Formklassifikation Kolonläsion (kategorisch)</option>
             <option>Kolonläsion - Oberfläche intakt</option>
-            <option>Kolonläsion - Planarität unbekannt</option>
+            <option>Kolonläsion - Planarität Unknown</option>
             <option>Kolonläsion - Zirkularität</option>
             <option>NICE Typ 1</option>
             <option>NICE Typ 2</option>
