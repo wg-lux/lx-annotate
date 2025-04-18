@@ -6,17 +6,17 @@
               <h1>Befund</h1>
           </div>
           </div>
-          <FindingGenerator />
+          <ExaminationGenerator />
       </div>
     </template>
   
   <script>
-    import FindingGenerator from '@/components/CaseGenerator/FindingGeneratorDemo.vue';
+    import ExaminationGenerator from '@/components/Examination/ExaminationForm.vue';
   
     export default {
       name: 'Befund',
       components: {
-          FindingGenerator
+          ExaminationGenerator
       },
       mounted() {
         console.log("----------------------------Report.vue has been loaded!---------------------");

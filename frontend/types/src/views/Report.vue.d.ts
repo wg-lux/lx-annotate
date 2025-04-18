@@ -1,60 +1,38 @@
 declare const _default: import("vue").DefineComponent<{}, {}, {}, {}, {}, import("vue").ComponentOptionsMixin, import("vue").ComponentOptionsMixin, {}, string, import("vue").PublicProps, Readonly<{}> & Readonly<{}>, {}, {}, {
-    FindingGenerator: import("vue").DefineComponent<{}, {}, {
-        centers: never[];
-        examinations: never[];
-        findings: never[];
-        locationClassifications: never[];
-        locationClassificationChoices: never[];
-        morphologyClassifications: never[];
-        morphologyClassificationChoices: never[];
-        interventions: never[];
-        patients: never[];
-        showPatientForm: boolean;
-        editingPatient: null;
-        patientForm: {
-            id: null;
-            first_name: string;
-            last_name: string;
-            age: null;
-            comments: string;
-            gender: null;
-        };
-        errorMessage: string;
-        formData: {
+    ExaminationGenerator: import("vue").DefineComponent<{}, {
+        examinations: import("vue").Ref<{
+            id: number;
             name: string;
-            polypCount: string;
-            comments: string;
-            gender: string;
-            centerId: string;
-            examinationId: string;
-            findingId: string;
-            locationClassificationId: string;
-            locationChoiceId: string;
-            morphologyClassificationId: string;
-            morphologyChoiceId: string;
-            selectedInterventions: never[];
+        }[], import("../stores/examinationStore.js").Examination[] | {
+            id: number;
+            name: string;
+        }[]>;
+        selectedExamId: import("vue").Ref<number | null, number | null>;
+        activeCategory: import("vue").Ref<keyof import("../stores/examinationStore.js").SubcategoryMap, keyof import("../stores/examinationStore.js").SubcategoryMap>;
+        form: import("vue").Ref<{
+            morphologyChoiceId: number | null;
+            locationChoiceId: number | null;
+            selectedInterventions: number[];
+            selectedInstruments: number[];
+        }, {
+            morphologyChoiceId: number | null;
+            locationChoiceId: number | null;
+            selectedInterventions: number[];
+            selectedInstruments: number[];
+        } | {
+            morphologyChoiceId: number | null;
+            locationChoiceId: number | null;
+            selectedInterventions: number[];
+            selectedInstruments: number[];
+        }>;
+        subcategories: import("vue").ComputedRef<import("../stores/examinationStore.js").SubcategoryMap>;
+        categoryLabels: {
+            readonly morphologyChoices: "Morphologie";
+            readonly locationChoices: "Lokalisierung";
+            readonly interventions: "Interventionen";
+            readonly instruments: "Instrumente";
         };
-    }, {
-        filteredLocationChoices(): never[];
-        filteredMorphologyChoices(): never[];
-    }, {
-        loadPatients(): Promise<void>;
-        openPatientForm(patient?: null | undefined): void;
-        closePatientForm(): void;
-        submitPatientForm(): Promise<void>;
-        deletePatient(id: any): Promise<void>;
-        loadCenters(): Promise<void>;
-        loadExaminations(): Promise<void>;
-        loadFindings(): Promise<void>;
-        loadLocationClassifications(): Promise<void>;
-        loadLocationClassificationChoices(): Promise<void>;
-        loadMorphologyClassifications(): Promise<void>;
-        loadMorphologyClassificationChoices(): Promise<void>;
-        loadInterventions(): Promise<void>;
-        loadLocationChoices(): void;
-        loadMorphologyChoices(): void;
-        getCookie(name: any): string | null;
-        handleSubmit(): Promise<void>;
-    }, import("vue").ComponentOptionsMixin, import("vue").ComponentOptionsMixin, {}, string, import("vue").PublicProps, Readonly<{}>, {}, {}, {}, {}, string, import("vue").ComponentProvideOptions, true, {}, any>;
+        onExamChange: () => Promise<void>;
+    }, {}, {}, {}, import("vue").ComponentOptionsMixin, import("vue").ComponentOptionsMixin, {}, string, import("vue").PublicProps, Readonly<{}> & Readonly<{}>, {}, {}, {}, {}, string, import("vue").ComponentProvideOptions, true, {}, any>;
 }, {}, string, import("vue").ComponentProvideOptions, true, {}, any>;
 export default _default;

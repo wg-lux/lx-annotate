@@ -1,85 +1,110 @@
-import axiosInstance from "./axiosInstance";
-
-export const reportService = {
-    
-    async getCenters() {
-            try {
-            const response = await axiosInstance.get('centers/');
-            this.centers = response.data;
-            } catch (error) {
-            console.error('Error getting centers:', error);
-            }
-        },
-    /* async getExaminations() {
-        console.log('getExaminations')
+// src/api/reportService.ts
+import { ref } from 'vue';
+import axiosInstance from './axiosInstance';
+// --- The composable ---
+export function useReportService() {
+    // reactive state
+    const centers = ref([]);
+    const examinations = ref([]);
+    const findings = ref([]);
+    const locationClassifications = ref([]);
+    const locationClassificationChoices = ref([]);
+    const morphologyClassifications = ref([]);
+    const morphologyClassificationChoices = ref([]);
+    const interventions = ref([]);
+    // fetch helpers
+    async function getCenters() {
         try {
-        const response = await axiosInstance.get('examinations/');
-        this.examinations = response.data;
-        console.log(this.examinations)
-        } catch (error) {
-        console.error('Error getting examinations:', error);
+            const { data } = await axiosInstance.get('centers/');
+            centers.value = data;
         }
-    },*/
-    async getExaminations() {
-        console.log('getExaminations called');  // Check if function runs
+        catch (e) {
+            console.error('Error fetching centers:', e);
+        }
+    }
+    async function getExaminations() {
         try {
-            const response = await axiosInstance.get('examinations/');
-            console.log("API Response Data:", response.data);  // Check if data is received
-            return response.data;  //  Return the fetched data
-        } catch (error) {
-            console.error('Error getting examinations:', error);
+            const { data } = await axiosInstance.get('examinations/');
+            examinations.value = data;
+            return data;
+        }
+        catch (e) {
+            console.error('Error fetching examinations:', e);
             return [];
         }
-    },
-    
-    
-    async getFindings() {
+    }
+    async function getFindings() {
         try {
-        const response = await axiosInstance.get('findings/');
-        this.findings = response.data;
-        } catch (error) {
-        console.error('Error getting findings:', error);
+            const { data } = await axiosInstance.get('findings/');
+            findings.value = data;
         }
-    },
-    async getLocationClassifications() {
+        catch (e) {
+            console.error('Error fetching findings:', e);
+        }
+    }
+    async function getLocationClassifications() {
         try {
-        const response = await axiosInstance.get('location-classifications/');
-        this.locationClassifications = response.data;
-        } catch (error) {
-        console.error('Error getting location classifications:', error);
+            const { data } = await axiosInstance.get('location-classifications/');
+            locationClassifications.value = data;
         }
-    },
-    async getLocationClassificationChoices() {
+        catch (e) {
+            console.error('Error fetching location classifications:', e);
+        }
+    }
+    async function getLocationClassificationChoices() {
         try {
-        const response = await axiosInstance.get('location-classification-choices/');
-        this.locationClassificationChoices = response.data;
-        } catch (error) {
-        console.error('Error getting location classification choices:', error);
+            const { data } = await axiosInstance.get('location-classification-choices/');
+            locationClassificationChoices.value = data;
         }
-    },
-    async getMorphologyClassifications() {
+        catch (e) {
+            console.error('Error fetching location classification choices:', e);
+        }
+    }
+    async function getMorphologyClassifications() {
         try {
-        const response = await axiosInstance.get('morphology-classifications/');
-        this.morphologyClassifications = response.data;
-        } catch (error) {
-        console.error('Error getting morphology classifications:', error);
+            const { data } = await axiosInstance.get('morphology-classifications/');
+            morphologyClassifications.value = data;
         }
-    },
-    async getMorphologyClassificationChoices() {
+        catch (e) {
+            console.error('Error fetching morphology classifications:', e);
+        }
+    }
+    async function getMorphologyClassificationChoices() {
         try {
-        const response = await axiosInstance.get('morphology-classification-choices/');
-        this.morphologyClassificationChoices = response.data;
-        } catch (error) {
-        console.error('Error getting morphology classification choices:', error);
+            const { data } = await axiosInstance.get('morphology-classification-choices/');
+            morphologyClassificationChoices.value = data;
         }
-    },
-    async getInterventions() {
+        catch (e) {
+            console.error('Error fetching morphology classification choices:', e);
+        }
+    }
+    async function getInterventions() {
         try {
-        const response = await axiosInstance.get('interventions/');
-        this.interventions = response.data;
-        } catch (error) {
-        console.error('Error getting interventions:', error);
+            const { data } = await axiosInstance.get('interventions/');
+            interventions.value = data;
         }
-    },
-
+        catch (e) {
+            console.error('Error fetching interventions:', e);
+        }
+    }
+    return {
+        // state
+        centers,
+        examinations,
+        findings,
+        locationClassifications,
+        locationClassificationChoices,
+        morphologyClassifications,
+        morphologyClassificationChoices,
+        interventions,
+        // actions
+        getCenters,
+        getExaminations,
+        getFindings,
+        getLocationClassifications,
+        getLocationClassificationChoices,
+        getMorphologyClassifications,
+        getMorphologyClassificationChoices,
+        getInterventions,
+    };
 }

@@ -4,5 +4,9 @@
   },
   "dependencies": {
     "vue-virtual-scroller": "^2.0.0-beta.8"
+  },
+  "scripts": {
+    "build:ts": "tsc --project tsconfig.app.json",
+    "build": "npm run build:ts && vite build"
   }
 }

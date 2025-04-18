@@ -1,8 +1,8 @@
-import FindingGenerator from '@/components/CaseGenerator/FindingGeneratorDemo.vue';
+import ExaminationGenerator from '@/components/Examination/ExaminationForm.vue';
 export default (await import('vue')).defineComponent({
     name: 'Befund',
     components: {
-        FindingGenerator
+        ExaminationGenerator
     },
     mounted() {
         console.log("----------------------------Report.vue has been loaded!---------------------");
@@ -12,7 +12,7 @@ export default (await import('vue')).defineComponent({
 function __VLS_template() {
     const __VLS_ctx = {};
     const __VLS_componentsOption = {
-        FindingGenerator
+        ExaminationGenerator
     };
     let __VLS_components;
     let __VLS_directives;
@@ -28,8 +28,8 @@ function __VLS_template() {
         ...{ class: ("col-12") },
     });
     __VLS_elementAsFunction(__VLS_intrinsicElements.h1, __VLS_intrinsicElements.h1)({});
-    const __VLS_0 = {}.FindingGenerator;
-    /** @type { [typeof __VLS_components.FindingGenerator, ] } */ ;
+    const __VLS_0 = {}.ExaminationGenerator;
+    /** @type { [typeof __VLS_components.ExaminationGenerator, ] } */ ;
     // @ts-ignore
     const __VLS_1 = __VLS_asFunctionalComponent(__VLS_0, new __VLS_0({}));
     const __VLS_2 = __VLS_1({}, ...__VLS_functionalComponentArgsRest(__VLS_1));
