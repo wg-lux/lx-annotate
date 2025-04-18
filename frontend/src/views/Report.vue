@@ -3,7 +3,7 @@
   
       <div class="row">
           <div class="col-12">       
-              <h1>Befund</h1>
+              <h1>Neue Untersuchung</h1>
           </div>
           </div>
           <ExaminationGenerator />
