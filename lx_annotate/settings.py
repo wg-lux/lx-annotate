@@ -18,7 +18,7 @@ from lx_logging import get_logger
 logger = get_logger(__name__)
 logger.debug(os.environ.get("DJANGO_SETTINGS", "dev"))
 
-SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY")
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "django-insecure-v!z^f5uh3l5u(k3y&$t+!xu40g-^y!ktu0=w+$l2s&%y^(r_@8")
 if not SECRET_KEY:
     raise Exception("The SECRET_KEY setting must not be empty.")
 DJANGO_SETTINGS = os.environ.get("DJANGO_SETTINGS", "dev")
@@ -258,3 +258,20 @@ LOGGING = {
 # Media files settings
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+
+# Keycloak settings
+
+KEYCLOAK_SERVER_URL = "https://keycloak.endo-reg.net"
+KEYCLOAK_REALM = "myproject"
+KEYCLOAK_CLIENT_ID = "django-backend"
+KEYCLOAK_CLIENT_SECRET = "uRJfV47KaxMO2HaQfmt6ZHgaei0QHJ6X"
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework.authentication.SessionAuthentication',
+    ),
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.IsAuthenticated',
+    ),
+}

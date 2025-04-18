@@ -1,8 +1,8 @@
 ; /* PartiallyEnd: #3632/scriptSetup.vue */
 function __VLS_template() {
-    const __VLS_ctx = {};
-    let __VLS_components;
-    let __VLS_directives;
+    var __VLS_ctx = {};
+    var __VLS_components;
+    var __VLS_directives;
     __VLS_elementAsFunction(__VLS_intrinsicElements.svg, __VLS_intrinsicElements.svg)({
         xmlns: ("http://www.w3.org/2000/svg"),
         width: ("18"),
@@ -14,9 +14,9 @@ function __VLS_template() {
     });
     var __VLS_slots;
     var $slots;
-    let __VLS_inheritedAttrs;
+    var __VLS_inheritedAttrs;
     var $attrs;
-    const __VLS_refs = {};
+    var __VLS_refs = {};
     var $refs;
     var $el;
     return {
@@ -27,13 +27,13 @@ function __VLS_template() {
     };
 }
 ;
-const __VLS_self = (await import('vue')).defineComponent({
-    setup() {
+var __VLS_self = (await import('vue')).defineComponent({
+    setup: function () {
         return {};
     },
 });
 export default (await import('vue')).defineComponent({
-    setup() {
+    setup: function () {
         return {};
     },
     __typeEl: {},

@@ -14,10 +14,13 @@
   "compilerOptions": {
     "types": [
       "node",
-      "vite/client",
-      "vitest/globals"
-    ]
+      "vite/client"
+    ],
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "skipLibCheck": true,
+    "moduleResolution": "Bundler",
+    "module": "ESNext"
   },
-  "include": ["src/**/*"]
-
+  "include": ["src/**/*", "src/shims-vue.d.ts"]
 }

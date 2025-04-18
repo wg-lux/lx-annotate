@@ -6,10 +6,13 @@
     "noEmit": false,
     "composite": true,
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
-
+    "declarationDir": "./types",
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]
-    }
+    },
+    // Ändern zu Bundler und ESNext für Kompatibilität
+    "moduleResolution": "Bundler",
+    "module": "ESNext"
   }
 }

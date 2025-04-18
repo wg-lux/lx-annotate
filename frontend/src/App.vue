@@ -76,7 +76,6 @@
 <script>
 import NavbarComponent from './components/NavbarComponent.vue';
 import SidebarComponent from './components/SidebarComponent.vue';
-import DashboardComponent from './components/DashboardComponent.vue';
 import LoginComponent from './components/LoginComponent.vue';
 import '@/assets/custom-overrides.css';
 
@@ -103,7 +102,6 @@ export default {
   components: {
     NavbarComponent,
     SidebarComponent,
-    DashboardComponent,
     LoginComponent,
   },
 };

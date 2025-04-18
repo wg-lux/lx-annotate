@@ -1,11 +1,10 @@
-import axios, {} from 'axios';
-import Cookies from 'js-cookie';
+import axios from 'axios';
 // This handles requests to the local Django API
 // TODO: Use URL from .env file
 // const baseURL = `${process.env.VUE_APP_BASE_URL}`;
-const baseURL = 'http://127.0.0.1:8000/';
-const axiosInstance = axios.create({
-    baseURL, // Set automatically the base URL for the requests
+var baseURL = 'http://127.0.0.1:8000/';
+var axiosInstance = axios.create({
+    baseURL: baseURL, // Set automatically the base URL for the requests
     //withCredentials: true, // Ensures cookies are sent with requests
     headers: {
         'Content-Type': 'application/json',

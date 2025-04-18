@@ -9,7 +9,7 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
 
   return {
-    base: mode === 'development' ? 'http://localhost:3000/' : './' ,
+    base: mode === 'development' ? '/' : './',
     plugins: [
       vue(),
       vueJsx(),
@@ -18,6 +18,7 @@ export default defineConfig(({ mode }) => {
     build: {
       manifest: mode === 'production' ? 'manifest.json' : false,      
       outDir: resolve(__dirname, '../static/dist'),
+      emptyOutDir: true, // Explizit aktiviert
       rollupOptions: {
         input: {
           'main': resolve(__dirname, 'src/main.ts'),
@@ -47,6 +48,7 @@ export default defineConfig(({ mode }) => {
       alias: {
         'src': resolve(__dirname, 'src'),
         '@': fileURLToPath(new URL('./src', import.meta.url)),
+        'vue': 'vue/dist/vue.esm-bundler.js', // Fügt eine Alias-Auflösung für Vue hinzu
       },
     },
     css: {

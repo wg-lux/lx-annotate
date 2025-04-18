@@ -11,23 +11,12 @@
               </div>
             </div>
             <div class="card-body">
-              <form role="form" class="text-start">
-                <div class="input-group input-group-outline my-3">
-                  <label class="form-label">Email</label>
-                  <input type="email" class="form-control" v-model="email">
-                </div>
-                <div class="input-group input-group-outline mb-3">
-                  <label class="form-label">Passwort</label>
-                  <input type="password" class="form-control" v-model="password">
-                </div>
-
-                <div class="text-center">
-                  <button type="button" class="btn bg-primary w-100 my-4 mb-2 text-white" @click="handleLogin">Einloggen</button>
-                </div>
-                <div v-if="error" class="alert alert-danger text-white" role="alert">
-                  {{ error }}
-                </div>
-              </form>
+              <div class="text-center">
+                <button type="button" class="btn bg-primary w-100 my-4 mb-2 text-white" @click="handleLogin">Mit Keycloak anmelden</button>
+              </div>
+              <div v-if="error" class="alert alert-danger text-white" role="alert">
+                {{ error }}
+              </div>
             </div>
           </div>
         </div>
@@ -38,34 +27,26 @@
   
   <script>
   import { ref } from 'vue';
-  import { useAuthStore } from '@/stores/auth';
   import { useRouter } from 'vue-router';
+  import keycloak from '@/services/keycloak';
   
   export default {
     name: 'LoginComponent',
     setup() {
-      const authStore = useAuthStore();
       const router = useRouter();
-  
-      const email = ref('');
-      const password = ref('');
-      const rememberMe = ref(false);
       const error = ref(null);
   
       const handleLogin = async () => {
         try {
           error.value = null;
-          await authStore.login({ email: email.value, password: password.value });
-          router.push('/');
+          keycloak.login();
         } catch (err) {
-          error.value = 'Failed to login. Please check your credentials.';
+          error.value = 'Anmeldung fehlgeschlagen. Bitte versuchen Sie es erneut.';
+          console.error('Login error:', err);
         }
       };
   
       return {
-        email,
-        password,
-        rememberMe,
         error,
         handleLogin,
       };
@@ -104,4 +85,3 @@
     }
   }
   </style>
-  

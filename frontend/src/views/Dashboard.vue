@@ -12,7 +12,7 @@
 <script>
 import NavbarComponent from '../components/NavbarComponent.vue';
 import SidebarComponent from '../components/SidebarComponent.vue';
-import DashboardComponent from '../components/Dashboard/AnnotationDashboard.vue';
+import DashboardComponent from '../components/Dashboard/DashboardComponent.vue';
 
 export default {
   name: 'Dashboard',

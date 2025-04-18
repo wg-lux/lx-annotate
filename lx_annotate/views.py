@@ -5,7 +5,6 @@ from django.conf import settings
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from .serializers import FileUploadSerializer
 #from lx_anonymizer import main
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -16,9 +15,13 @@ from django.http import JsonResponse
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
-from urllib.parse import urljoin
-
+from urllib.parse import urljoin, urlencode
+from django.shortcuts import redirect
+from django.http import HttpResponse
+from rest_framework.permissions import IsAuthenticated
 from django.http import FileResponse
+from .serializers import FileUploadSerializer
+
 
 def serve_video(request):
     # Open the video file in binary mode.
@@ -27,6 +30,58 @@ def serve_video(request):
 
 # Use the BACKEND_API_BASE_URL from your settings
 BACKEND_API_BASE_URL = getattr(settings, 'BACKEND_API_BASE_URL', 'http://127.0.0.1:8000')
+
+def keycloak_login(request):
+    """
+    Leitet den Benutzer zur Keycloak-Login-Seite weiter.
+    """
+    redirect_uri = request.build_absolute_uri('/login/callback/')
+    auth_url = f"{settings.KEYCLOAK_SERVER_URL}/realms/{settings.KEYCLOAK_REALM}/protocol/openid-connect/auth"
+    params = {
+        "client_id": settings.KEYCLOAK_CLIENT_ID,
+        "response_type": "code",
+        "scope": "openid",
+        "redirect_uri": redirect_uri,
+    }
+    return redirect(f"{auth_url}?{urlencode(params)}")
+
+def keycloak_callback(request):
+    """
+    Verarbeitet die Rückleitung von Keycloak und tauscht den Code gegen ein Access-Token aus.
+    """
+    code = request.GET.get('code')
+    if not code:
+        return HttpResponse("No authorization code provided.", status=400)
+
+    token_url = f"{settings.KEYCLOAK_SERVER_URL}/realms/{settings.KEYCLOAK_REALM}/protocol/openid-connect/token"
+    redirect_uri = request.build_absolute_uri('/login/callback/')
+    data = {
+        "grant_type": "authorization_code",
+        "code": code,
+        "client_id": settings.KEYCLOAK_CLIENT_ID,
+        "client_secret": settings.KEYCLOAK_CLIENT_SECRET,
+        "redirect_uri": redirect_uri,
+    }
+
+    response = requests.post(token_url, data=data)
+    if response.status_code != 200:
+        return HttpResponse("Token exchange failed.", status=500)
+
+    token_data = response.json()
+    request.session['access_token'] = token_data['access_token']
+    request.session['refresh_token'] = token_data['refresh_token']
+
+    return redirect('/api/videos/')
+
+class VideoView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        """
+        Gibt eine geschützte Nachricht zurück.
+        """
+        username = request.user.get('preferred_username', 'Unknown')
+        return Response({"message": f"🎥 Hello, {username}. You are viewing protected videos!"})
 
 @method_decorator(csrf_exempt, name='dispatch')
 class ProxyView(View):

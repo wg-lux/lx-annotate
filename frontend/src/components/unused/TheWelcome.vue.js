@@ -1,3 +1,12 @@
+var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
+    if (pack || arguments.length === 2) for (var i = 0, l = from.length, ar; i < l; i++) {
+        if (ar || !(i in from)) {
+            if (!ar) ar = Array.prototype.slice.call(from, 0, i);
+            ar[i] = from[i];
+        }
+    }
+    return to.concat(ar || Array.prototype.slice.call(from));
+};
 import WelcomeItem from './WelcomeItem.vue';
 import DocumentationIcon from './icons/IconDocumentation.vue';
 import ToolingIcon from './icons/IconTooling.vue';
@@ -5,26 +14,26 @@ import EcosystemIcon from './icons/IconEcosystem.vue';
 import CommunityIcon from './icons/IconCommunity.vue';
 import SupportIcon from './icons/IconSupport.vue'; /* PartiallyEnd: #3632/scriptSetup.vue */
 function __VLS_template() {
-    const __VLS_ctx = {};
-    let __VLS_components;
-    let __VLS_directives;
+    var __VLS_ctx = {};
+    var __VLS_components;
+    var __VLS_directives;
     // @ts-ignore
     /** @type { [typeof WelcomeItem, typeof WelcomeItem, ] } */ ;
     // @ts-ignore
-    const __VLS_0 = __VLS_asFunctionalComponent(WelcomeItem, new WelcomeItem({}));
-    const __VLS_1 = __VLS_0({}, ...__VLS_functionalComponentArgsRest(__VLS_0));
+    var __VLS_0 = __VLS_asFunctionalComponent(WelcomeItem, new WelcomeItem({}));
+    var __VLS_1 = __VLS_0.apply(void 0, __spreadArray([{}], __VLS_functionalComponentArgsRest(__VLS_0), false));
     __VLS_elementAsFunction(__VLS_intrinsicElements.template, __VLS_intrinsicElements.template)({});
     {
-        const { icon: __VLS_thisSlot } = __VLS_4.slots;
+        var __VLS_thisSlot = __VLS_4.slots.icon;
         // @ts-ignore
         /** @type { [typeof DocumentationIcon, ] } */ ;
         // @ts-ignore
-        const __VLS_5 = __VLS_asFunctionalComponent(DocumentationIcon, new DocumentationIcon({}));
-        const __VLS_6 = __VLS_5({}, ...__VLS_functionalComponentArgsRest(__VLS_5));
+        var __VLS_5 = __VLS_asFunctionalComponent(DocumentationIcon, new DocumentationIcon({}));
+        var __VLS_6 = __VLS_5.apply(void 0, __spreadArray([{}], __VLS_functionalComponentArgsRest(__VLS_5), false));
     }
     __VLS_elementAsFunction(__VLS_intrinsicElements.template, __VLS_intrinsicElements.template)({});
     {
-        const { heading: __VLS_thisSlot } = __VLS_4.slots;
+        var __VLS_thisSlot = __VLS_4.slots.heading;
     }
     __VLS_elementAsFunction(__VLS_intrinsicElements.a, __VLS_intrinsicElements.a)({
         href: ("https://vuejs.org/"),
@@ -35,20 +44,20 @@ function __VLS_template() {
     // @ts-ignore
     /** @type { [typeof WelcomeItem, typeof WelcomeItem, ] } */ ;
     // @ts-ignore
-    const __VLS_10 = __VLS_asFunctionalComponent(WelcomeItem, new WelcomeItem({}));
-    const __VLS_11 = __VLS_10({}, ...__VLS_functionalComponentArgsRest(__VLS_10));
+    var __VLS_10 = __VLS_asFunctionalComponent(WelcomeItem, new WelcomeItem({}));
+    var __VLS_11 = __VLS_10.apply(void 0, __spreadArray([{}], __VLS_functionalComponentArgsRest(__VLS_10), false));
     __VLS_elementAsFunction(__VLS_intrinsicElements.template, __VLS_intrinsicElements.template)({});
     {
-        const { icon: __VLS_thisSlot } = __VLS_14.slots;
+        var __VLS_thisSlot = __VLS_14.slots.icon;
         // @ts-ignore
         /** @type { [typeof ToolingIcon, ] } */ ;
         // @ts-ignore
-        const __VLS_15 = __VLS_asFunctionalComponent(ToolingIcon, new ToolingIcon({}));
-        const __VLS_16 = __VLS_15({}, ...__VLS_functionalComponentArgsRest(__VLS_15));
+        var __VLS_15 = __VLS_asFunctionalComponent(ToolingIcon, new ToolingIcon({}));
+        var __VLS_16 = __VLS_15.apply(void 0, __spreadArray([{}], __VLS_functionalComponentArgsRest(__VLS_15), false));
     }
     __VLS_elementAsFunction(__VLS_intrinsicElements.template, __VLS_intrinsicElements.template)({});
     {
-        const { heading: __VLS_thisSlot } = __VLS_14.slots;
+        var __VLS_thisSlot = __VLS_14.slots.heading;
     }
     __VLS_elementAsFunction(__VLS_intrinsicElements.a, __VLS_intrinsicElements.a)({
         href: ("https://vitejs.dev/guide/features.html"),
@@ -81,20 +90,20 @@ function __VLS_template() {
     // @ts-ignore
     /** @type { [typeof WelcomeItem, typeof WelcomeItem, ] } */ ;
     // @ts-ignore
-    const __VLS_20 = __VLS_asFunctionalComponent(WelcomeItem, new WelcomeItem({}));
-    const __VLS_21 = __VLS_20({}, ...__VLS_functionalComponentArgsRest(__VLS_20));
+    var __VLS_20 = __VLS_asFunctionalComponent(WelcomeItem, new WelcomeItem({}));
+    var __VLS_21 = __VLS_20.apply(void 0, __spreadArray([{}], __VLS_functionalComponentArgsRest(__VLS_20), false));
     __VLS_elementAsFunction(__VLS_intrinsicElements.template, __VLS_intrinsicElements.template)({});
     {
-        const { icon: __VLS_thisSlot } = __VLS_24.slots;
+        var __VLS_thisSlot = __VLS_24.slots.icon;
         // @ts-ignore
         /** @type { [typeof EcosystemIcon, ] } */ ;
         // @ts-ignore
-        const __VLS_25 = __VLS_asFunctionalComponent(EcosystemIcon, new EcosystemIcon({}));
-        const __VLS_26 = __VLS_25({}, ...__VLS_functionalComponentArgsRest(__VLS_25));
+        var __VLS_25 = __VLS_asFunctionalComponent(EcosystemIcon, new EcosystemIcon({}));
+        var __VLS_26 = __VLS_25.apply(void 0, __spreadArray([{}], __VLS_functionalComponentArgsRest(__VLS_25), false));
     }
     __VLS_elementAsFunction(__VLS_intrinsicElements.template, __VLS_intrinsicElements.template)({});
     {
-        const { heading: __VLS_thisSlot } = __VLS_24.slots;
+        var __VLS_thisSlot = __VLS_24.slots.heading;
     }
     __VLS_elementAsFunction(__VLS_intrinsicElements.a, __VLS_intrinsicElements.a)({
         href: ("https://pinia.vuejs.org/"),
@@ -125,20 +134,20 @@ function __VLS_template() {
     // @ts-ignore
     /** @type { [typeof WelcomeItem, typeof WelcomeItem, ] } */ ;
     // @ts-ignore
-    const __VLS_30 = __VLS_asFunctionalComponent(WelcomeItem, new WelcomeItem({}));
-    const __VLS_31 = __VLS_30({}, ...__VLS_functionalComponentArgsRest(__VLS_30));
+    var __VLS_30 = __VLS_asFunctionalComponent(WelcomeItem, new WelcomeItem({}));
+    var __VLS_31 = __VLS_30.apply(void 0, __spreadArray([{}], __VLS_functionalComponentArgsRest(__VLS_30), false));
     __VLS_elementAsFunction(__VLS_intrinsicElements.template, __VLS_intrinsicElements.template)({});
     {
-        const { icon: __VLS_thisSlot } = __VLS_34.slots;
+        var __VLS_thisSlot = __VLS_34.slots.icon;
         // @ts-ignore
         /** @type { [typeof CommunityIcon, ] } */ ;
         // @ts-ignore
-        const __VLS_35 = __VLS_asFunctionalComponent(CommunityIcon, new CommunityIcon({}));
-        const __VLS_36 = __VLS_35({}, ...__VLS_functionalComponentArgsRest(__VLS_35));
+        var __VLS_35 = __VLS_asFunctionalComponent(CommunityIcon, new CommunityIcon({}));
+        var __VLS_36 = __VLS_35.apply(void 0, __spreadArray([{}], __VLS_functionalComponentArgsRest(__VLS_35), false));
     }
     __VLS_elementAsFunction(__VLS_intrinsicElements.template, __VLS_intrinsicElements.template)({});
     {
-        const { heading: __VLS_thisSlot } = __VLS_34.slots;
+        var __VLS_thisSlot = __VLS_34.slots.heading;
     }
     __VLS_elementAsFunction(__VLS_intrinsicElements.a, __VLS_intrinsicElements.a)({
         href: ("https://chat.vuejs.org"),
@@ -164,20 +173,20 @@ function __VLS_template() {
     // @ts-ignore
     /** @type { [typeof WelcomeItem, typeof WelcomeItem, ] } */ ;
     // @ts-ignore
-    const __VLS_40 = __VLS_asFunctionalComponent(WelcomeItem, new WelcomeItem({}));
-    const __VLS_41 = __VLS_40({}, ...__VLS_functionalComponentArgsRest(__VLS_40));
+    var __VLS_40 = __VLS_asFunctionalComponent(WelcomeItem, new WelcomeItem({}));
+    var __VLS_41 = __VLS_40.apply(void 0, __spreadArray([{}], __VLS_functionalComponentArgsRest(__VLS_40), false));
     __VLS_elementAsFunction(__VLS_intrinsicElements.template, __VLS_intrinsicElements.template)({});
     {
-        const { icon: __VLS_thisSlot } = __VLS_44.slots;
+        var __VLS_thisSlot = __VLS_44.slots.icon;
         // @ts-ignore
         /** @type { [typeof SupportIcon, ] } */ ;
         // @ts-ignore
-        const __VLS_45 = __VLS_asFunctionalComponent(SupportIcon, new SupportIcon({}));
-        const __VLS_46 = __VLS_45({}, ...__VLS_functionalComponentArgsRest(__VLS_45));
+        var __VLS_45 = __VLS_asFunctionalComponent(SupportIcon, new SupportIcon({}));
+        var __VLS_46 = __VLS_45.apply(void 0, __spreadArray([{}], __VLS_functionalComponentArgsRest(__VLS_45), false));
     }
     __VLS_elementAsFunction(__VLS_intrinsicElements.template, __VLS_intrinsicElements.template)({});
     {
-        const { heading: __VLS_thisSlot } = __VLS_44.slots;
+        var __VLS_thisSlot = __VLS_44.slots.heading;
     }
     __VLS_elementAsFunction(__VLS_intrinsicElements.a, __VLS_intrinsicElements.a)({
         href: ("https://vuejs.org/sponsor/"),
@@ -187,9 +196,9 @@ function __VLS_template() {
     var __VLS_44;
     var __VLS_slots;
     var $slots;
-    let __VLS_inheritedAttrs;
+    var __VLS_inheritedAttrs;
     var $attrs;
-    const __VLS_refs = {};
+    var __VLS_refs = {};
     var $refs;
     var $el;
     return {
@@ -200,8 +209,8 @@ function __VLS_template() {
     };
 }
 ;
-const __VLS_self = (await import('vue')).defineComponent({
-    setup() {
+var __VLS_self = (await import('vue')).defineComponent({
+    setup: function () {
         return {
             WelcomeItem: WelcomeItem,
             DocumentationIcon: DocumentationIcon,
@@ -213,7 +222,7 @@ const __VLS_self = (await import('vue')).defineComponent({
     },
 });
 export default (await import('vue')).defineComponent({
-    setup() {
+    setup: function () {
         return {};
     },
 });

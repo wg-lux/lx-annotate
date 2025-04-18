@@ -1,4 +1,5 @@
 {
+  "extends": "./tsconfig.app.json", // Von app.json erben
   "compilerOptions": {
     "module": "ESNext",
     "moduleResolution": "Bundler",
@@ -7,5 +8,8 @@
     "noEmit": false,
     "outDir": "./types",
     "declarationDir": "./types",
-  }
+    "emitDeclarationOnly": true // Nur Deklarationsdateien erzeugen
+  },
+  "include": ["env.d.ts", "src/**/*", "src/**/*.vue"],
+  "exclude": ["node_modules", "dist", "types", "src/**/__tests__/*"]
 }
