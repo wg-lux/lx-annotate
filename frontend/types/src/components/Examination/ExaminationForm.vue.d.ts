@@ -10,20 +10,36 @@ declare const _default: import("vue").DefineComponent<{}, {
     selectedExamId: import("vue").Ref<number | null, number | null>;
     activeCategory: import("vue").Ref<keyof SubcategoryMap, keyof SubcategoryMap>;
     form: import("vue").Ref<{
-        morphologyChoiceId: number | null;
-        locationChoiceId: number | null;
+        selectedMorphologies: number[];
+        selectedLocations: number[];
         selectedInterventions: number[];
         selectedInstruments: number[];
     }, {
-        morphologyChoiceId: number | null;
-        locationChoiceId: number | null;
+        selectedMorphologies: number[];
+        selectedLocations: number[];
         selectedInterventions: number[];
         selectedInstruments: number[];
     } | {
-        morphologyChoiceId: number | null;
-        locationChoiceId: number | null;
+        selectedMorphologies: number[];
+        selectedLocations: number[];
         selectedInterventions: number[];
         selectedInstruments: number[];
+    }>;
+    tempSelection: import("vue").Ref<{
+        morphologyChoiceId: undefined;
+        locationChoiceId: undefined;
+        interventionId: undefined;
+        instrumentId: undefined;
+    }, {
+        morphologyChoiceId: undefined;
+        locationChoiceId: undefined;
+        interventionId: undefined;
+        instrumentId: undefined;
+    } | {
+        morphologyChoiceId: undefined;
+        locationChoiceId: undefined;
+        interventionId: undefined;
+        instrumentId: undefined;
     }>;
     subcategories: import("vue").ComputedRef<SubcategoryMap>;
     categoryLabels: {
@@ -33,5 +49,76 @@ declare const _default: import("vue").DefineComponent<{}, {
         readonly instruments: "Instrumente";
     };
     onExamChange: () => Promise<void>;
-}, {}, {}, {}, import("vue").ComponentOptionsMixin, import("vue").ComponentOptionsMixin, {}, string, import("vue").PublicProps, Readonly<{}> & Readonly<{}>, {}, {}, {}, {}, string, import("vue").ComponentProvideOptions, true, {}, any>;
+}, {}, {}, {}, import("vue").ComponentOptionsMixin, import("vue").ComponentOptionsMixin, {}, string, import("vue").PublicProps, Readonly<{}> & Readonly<{}>, {}, {}, {
+    ClassificationCard: import("vue").DefineComponent<import("vue").ExtractPropTypes<{
+        label: {
+            type: StringConstructor;
+            required: true;
+        };
+        options: {
+            type: import("vue").PropType<import("./ClassificationCard.vue").Option[]>;
+            default: () => never[];
+        };
+        modelValue: {
+            type: import("vue").PropType<number[]>;
+            default: () => never[];
+        };
+        tempValue: {
+            type: NumberConstructor;
+            default: undefined;
+        };
+        compact: {
+            type: BooleanConstructor;
+            default: boolean;
+        };
+        singleSelect: {
+            type: BooleanConstructor;
+            default: boolean;
+        };
+    }>, {
+        localModelValue: import("vue").WritableComputedRef<number[], number[]>;
+        localTempValue: import("vue").WritableComputedRef<number | undefined, number | undefined>;
+        singleSelectedValue: import("vue").WritableComputedRef<number | null, number | null>;
+        isSingleSelection: import("vue").ComputedRef<boolean>;
+        selectedLabels: import("vue").ComputedRef<import("./ClassificationCard.vue").Option[]>;
+        availableOptions: import("vue").ComputedRef<import("./ClassificationCard.vue").Option[]>;
+        selectPrompt: import("vue").ComputedRef<string>;
+        addSelected: () => void;
+        removeItem: (id: number) => void;
+    }, {}, {}, {}, import("vue").ComponentOptionsMixin, import("vue").ComponentOptionsMixin, ("update:modelValue" | "update:tempValue")[], "update:modelValue" | "update:tempValue", import("vue").PublicProps, Readonly<import("vue").ExtractPropTypes<{
+        label: {
+            type: StringConstructor;
+            required: true;
+        };
+        options: {
+            type: import("vue").PropType<import("./ClassificationCard.vue").Option[]>;
+            default: () => never[];
+        };
+        modelValue: {
+            type: import("vue").PropType<number[]>;
+            default: () => never[];
+        };
+        tempValue: {
+            type: NumberConstructor;
+            default: undefined;
+        };
+        compact: {
+            type: BooleanConstructor;
+            default: boolean;
+        };
+        singleSelect: {
+            type: BooleanConstructor;
+            default: boolean;
+        };
+    }>> & Readonly<{
+        "onUpdate:modelValue"?: ((...args: any[]) => any) | undefined;
+        "onUpdate:tempValue"?: ((...args: any[]) => any) | undefined;
+    }>, {
+        options: import("./ClassificationCard.vue").Option[];
+        modelValue: number[];
+        tempValue: number;
+        compact: boolean;
+        singleSelect: boolean;
+    }, {}, {}, {}, string, import("vue").ComponentProvideOptions, true, {}, any>;
+}, {}, string, import("vue").ComponentProvideOptions, true, {}, any>;
 export default _default;

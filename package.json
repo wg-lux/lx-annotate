@@ -3,6 +3,8 @@
     "webpack-bundle-tracker": "^3.1.1"
   },
   "dependencies": {
+    "filepond": "4.32.7",
+    "vue-filepond": "7.0.4",
     "vue-virtual-scroller": "^2.0.0-beta.8"
   },
   "scripts": {

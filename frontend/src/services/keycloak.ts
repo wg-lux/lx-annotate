@@ -1,9 +1,12 @@
 import Keycloak from 'keycloak-js';
 
 // Lese Umgebungsvariablen aus import.meta.env (für Vite) oder definiere Standardwerte
-const keycloakUrl = import.meta.env.VITE_KEYCLOAK_URL || 'http://localhost:8080/auth';
-const keycloakRealm = import.meta.env.VITE_KEYCLOAK_REALM || 'lx-annotate';
-const keycloakClientId = import.meta.env.VITE_KEYCLOAK_CLIENT_ID || 'lx-annotate-frontend';
+// @ts-ignore: import.meta env allowed with module:"esnext"
+const keycloakUrl = import.meta.env.VITE_KEYCLOAK_URL;
+// @ts-ignore
+const keycloakRealm = import.meta.env.VITE_KEYCLOAK_REALM;
+// @ts-ignore
+const keycloakClientId = import.meta.env.VITE_KEYCLOAK_CLIENT_ID;
 
 // Keycloak-Konfiguration
 const keycloak = new Keycloak({

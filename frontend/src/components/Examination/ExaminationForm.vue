@@ -29,7 +29,7 @@
       <div class="options-panel">
         <div v-if="activeCategory === 'morphologyChoices'">
           <label>Morphologie Klassifikation wählen:</label>
-          <select v-model="form.morphologyChoiceId" class="form-select">
+          <select v-model="tempSelection.morphologyChoiceId" class="form-select">
             <option
               v-for="opt in subcategories.morphologyChoices"
               :key="opt.id"
@@ -41,7 +41,7 @@
         </div>
         <div v-else-if="activeCategory === 'locationChoices'">
           <label>Lokalisations Klassifikation wählen:</label>
-          <select v-model="form.locationChoiceId" class="form-select">
+          <select v-model="tempSelection.locationChoiceId" class="form-select">
             <option
               v-for="opt in subcategories.locationChoices"
               :key="opt.id"
@@ -78,6 +78,48 @@
           </div>
         </div>
       </div>
+
+      <!-- Kompakte, wiederverwendbare Klassifikationskarten -->
+      <div class="selected-summary mt-4">
+        <h5>Ausgewählte Klassifikationen</h5>
+        <div class="card-container">
+          <ClassificationCard
+            label="Morphologie"
+            :options="subcategories.morphologyChoices"
+            v-model="form.selectedMorphologies"
+            :tempValue="tempSelection.morphologyChoiceId"
+            @update:tempValue="tempSelection.morphologyChoiceId = $event"
+            compact
+          />
+
+          <ClassificationCard
+            label="Lokalisierung"
+            :options="subcategories.locationChoices"
+            v-model="form.selectedLocations"
+            :tempValue="tempSelection.locationChoiceId"
+            @update:tempValue="tempSelection.locationChoiceId = $event"
+            compact
+          />
+
+          <ClassificationCard
+            label="Interventionen"
+            :options="subcategories.interventions"
+            v-model="form.selectedInterventions"
+            :tempValue="tempSelection.interventionId"
+            @update:tempValue="tempSelection.interventionId = $event"
+            compact
+          />
+
+          <ClassificationCard
+            label="Instrumente"
+            :options="subcategories.instruments"
+            v-model="form.selectedInstruments"
+            :tempValue="tempSelection.instrumentId"
+            @update:tempValue="tempSelection.instrumentId = $event"
+            compact
+          />
+        </div>
+      </div>
     </div>
   </template>
   
@@ -86,8 +128,12 @@
   import { useExaminationStore } from '@/stores/examinationStore';
   import type { Examination, SubcategoryMap } from '@/stores/examinationStore';
   import { useReportService } from '@/api/reportService';
+  import ClassificationCard from './ClassificationCard.vue';
 
   export default defineComponent({
+    components: {
+      ClassificationCard
+    },
     setup() {
       const examStore = useExaminationStore();
       const reportService = useReportService();
@@ -97,10 +143,17 @@
       const activeCategory = ref<keyof SubcategoryMap>('morphologyChoices');
   
       const form = ref({
-        morphologyChoiceId: null as number | null,
-        locationChoiceId: null as number | null,
+        selectedMorphologies: [] as number[],
+        selectedLocations: [] as number[],
         selectedInterventions: [] as number[],
         selectedInstruments: [] as number[],
+      });
+
+      const tempSelection = ref({
+        morphologyChoiceId: undefined,
+        locationChoiceId: undefined,
+        interventionId: undefined,
+        instrumentId: undefined,
       });
   
       async function loadExams() {
@@ -114,8 +167,18 @@
       async function onExamChange() {
         if (!selectedExamId.value) return;
         await examStore.fetchSubcategoriesForExam(selectedExamId.value);
-        // reset form
-        form.value = { morphologyChoiceId: null, locationChoiceId: null, selectedInterventions: [], selectedInstruments: [] };
+        form.value = {
+          selectedMorphologies: [],
+          selectedLocations: [],
+          selectedInterventions: [],
+          selectedInstruments: [],
+        };
+        tempSelection.value = {
+          morphologyChoiceId: undefined,
+          locationChoiceId: undefined,
+          interventionId: undefined,
+          instrumentId: undefined,
+        };
       }
   
       const subcategories = computed((): SubcategoryMap => {
@@ -138,6 +201,7 @@
         selectedExamId,
         activeCategory,
         form,
+        tempSelection,
         subcategories,
         categoryLabels,
         onExamChange,
@@ -163,5 +227,14 @@
   }
   .options-panel {
     grid-area: options-panel;
+  }
+  .selected-summary {
+    grid-column: span 2;
+    margin-top: 1.5rem;
+  }
+  .card-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
   }
   </style>

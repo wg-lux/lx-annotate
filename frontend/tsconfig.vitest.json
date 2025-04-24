@@ -5,9 +5,12 @@
     "declaration": true,
 
     "lib": [],
+    "skipLibCheck": true,
     "types": ["node", "jsdom"],
     "composite": true,
     "noEmit": false,
     "declarationDir": "./types",
+    "module": "esnext",
+    "moduleResolution": "bundler"
   }
 }

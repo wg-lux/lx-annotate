@@ -1,7 +1,6 @@
 import { ref, computed, onMounted, onUnmounted, watchEffect } from 'vue';
 import { storeToRefs } from 'pinia';
-import vueFilePond from 'vue-filepond';
-import 'filepond/dist/filepond.min.css';
+import * as vueFilePond from 'vue-filepond';
 import { useVideoStore } from '@/stores/videoStore';
 // Use the video store
 const videoStore = useVideoStore();
@@ -9,7 +8,7 @@ const { videoUrl, errorMessage, segmentsByLabel, allSegments, currentVideo } = s
 const { fetchAllVideos, fetchVideoUrl, fetchAllSegments, saveAnnotations, uploadRevert, uploadProcess, getColorForLabel, assignUserToVideo, updateVideoStatus } = videoStore;
 const videoList = videoStore.videoList;
 // Register FilePond component
-const FilePond = vueFilePond();
+const FilePond = vueFilePond;
 // Local reactive references
 const videoRef = ref(null);
 const timelineRef = ref(null);
