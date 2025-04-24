@@ -26,20 +26,20 @@ declare const _default: import("vue").DefineComponent<{}, {}, {}, {}, {}, import
             selectedInstruments: number[];
         }>;
         tempSelection: import("vue").Ref<{
-            morphologyChoiceId: undefined;
-            locationChoiceId: undefined;
-            interventionId: undefined;
-            instrumentId: undefined;
+            morphologyChoiceId: number | undefined;
+            locationChoiceId: number | undefined;
+            interventionId: number | undefined;
+            instrumentId: number | undefined;
         }, {
-            morphologyChoiceId: undefined;
-            locationChoiceId: undefined;
-            interventionId: undefined;
-            instrumentId: undefined;
+            morphologyChoiceId: number | undefined;
+            locationChoiceId: number | undefined;
+            interventionId: number | undefined;
+            instrumentId: number | undefined;
         } | {
-            morphologyChoiceId: undefined;
-            locationChoiceId: undefined;
-            interventionId: undefined;
-            instrumentId: undefined;
+            morphologyChoiceId: number | undefined;
+            locationChoiceId: number | undefined;
+            interventionId: number | undefined;
+            instrumentId: number | undefined;
         }>;
         subcategories: import("vue").ComputedRef<import("../stores/examinationStore.js").SubcategoryMap>;
         categoryLabels: {
@@ -49,6 +49,12 @@ declare const _default: import("vue").DefineComponent<{}, {}, {}, {}, {}, import
             readonly instruments: "Instrumente";
         };
         onExamChange: () => Promise<void>;
+        colourMap: {
+            morphologyChoices: string;
+            locationChoices: string;
+            interventions: string;
+            instruments: string;
+        };
     }, {}, {}, {}, import("vue").ComponentOptionsMixin, import("vue").ComponentOptionsMixin, {}, string, import("vue").PublicProps, Readonly<{}> & Readonly<{}>, {}, {}, {
         ClassificationCard: import("vue").DefineComponent<import("vue").ExtractPropTypes<{
             label: {

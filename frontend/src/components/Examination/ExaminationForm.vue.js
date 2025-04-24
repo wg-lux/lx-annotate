@@ -3,9 +3,7 @@ import { useExaminationStore } from '@/stores/examinationStore';
 import { useReportService } from '@/api/reportService';
 import ClassificationCard from './ClassificationCard.vue';
 export default defineComponent({
-    components: {
-        ClassificationCard
-    },
+    components: { ClassificationCard },
     setup() {
         const examStore = useExaminationStore();
         const reportService = useReportService();
@@ -24,11 +22,19 @@ export default defineComponent({
             interventionId: undefined,
             instrumentId: undefined,
         });
+        // Add a colour map for active category cues:
+        const colourMap = {
+            morphologyChoices: 'border-success',
+            locationChoices: 'border-success',
+            interventions: 'border-success',
+            instruments: 'border-success'
+        };
         async function loadExams() {
             examinations.value = await reportService.getExaminations();
             if (examinations.value.length) {
                 selectedExamId.value = examinations.value[0].id;
                 await onExamChange();
+                activeCategory.value = Object.keys(categoryLabels)[0];
             }
         }
         async function onExamChange() {
@@ -39,13 +45,13 @@ export default defineComponent({
                 selectedMorphologies: [],
                 selectedLocations: [],
                 selectedInterventions: [],
-                selectedInstruments: [],
+                selectedInstruments: []
             };
             tempSelection.value = {
                 morphologyChoiceId: undefined,
                 locationChoiceId: undefined,
                 interventionId: undefined,
-                instrumentId: undefined,
+                instrumentId: undefined
             };
         }
         const subcategories = computed(() => {
@@ -57,7 +63,7 @@ export default defineComponent({
             morphologyChoices: 'Morphologie',
             locationChoices: 'Lokalisierung',
             interventions: 'Interventionen',
-            instruments: 'Instrumente',
+            instruments: 'Instrumente'
         };
         onMounted(loadExams);
         return {
@@ -69,21 +75,24 @@ export default defineComponent({
             subcategories,
             categoryLabels,
             onExamChange,
+            colourMap
         };
     }
 });
 ; /* PartiallyEnd: #3632/script.vue */
 function __VLS_template() {
     const __VLS_ctx = {};
-    const __VLS_componentsOption = {
-        ClassificationCard
-    };
+    const __VLS_componentsOption = { ClassificationCard };
     let __VLS_components;
     let __VLS_directives;
+    ['editor-panel',];
     // CSS variable injection 
     // CSS variable injection end 
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("examination-grid") },
+        ...{ class: ("examination-view") },
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: ("exam-header") },
     });
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: ("exam-select") },
@@ -104,7 +113,14 @@ function __VLS_template() {
         });
         (exam.name);
     }
+    __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+        ...{ onClick: (__VLS_ctx.onExamChange) },
+        ...{ class: ("refresh-btn") },
+    });
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: ("exam-body") },
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.aside, __VLS_intrinsicElements.aside)({
         ...{ class: ("categories-panel") },
     });
     __VLS_elementAsFunction(__VLS_intrinsicElements.h4, __VLS_intrinsicElements.h4)({});
@@ -121,8 +137,12 @@ function __VLS_template() {
         });
         (label);
     }
+    __VLS_elementAsFunction(__VLS_intrinsicElements.section, __VLS_intrinsicElements.section)({
+        ...{ class: ("editor-panel") },
+    });
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("options-panel") },
+        ...{ class: ("category-editor") },
+        ...{ class: ((__VLS_ctx.colourMap[__VLS_ctx.activeCategory])) },
     });
     if (__VLS_ctx.activeCategory === 'morphologyChoices') {
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
@@ -198,10 +218,6 @@ function __VLS_template() {
             (opt.name);
         }
     }
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("selected-summary mt-4") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.h5, __VLS_intrinsicElements.h5)({});
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: ("card-container") },
     });
@@ -317,7 +333,7 @@ function __VLS_template() {
     let __VLS_27;
     let __VLS_28;
     var __VLS_29;
-    ['examination-grid', 'exam-select', 'form-select', 'categories-panel', 'list-group', 'list-group-item', 'options-panel', 'form-select', 'form-select', 'form-check', 'form-check-input', 'form-check-label', 'form-check', 'form-check-input', 'form-check-label', 'selected-summary', 'mt-4', 'card-container',];
+    ['examination-view', 'exam-header', 'exam-select', 'form-select', 'refresh-btn', 'exam-body', 'categories-panel', 'list-group', 'list-group-item', 'editor-panel', 'category-editor', 'form-select', 'form-select', 'form-check', 'form-check-input', 'form-check-label', 'form-check', 'form-check-input', 'form-check-label', 'card-container',];
     var __VLS_slots;
     var $slots;
     let __VLS_inheritedAttrs;
