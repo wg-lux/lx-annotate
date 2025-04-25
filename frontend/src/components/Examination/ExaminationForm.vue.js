@@ -1,4 +1,4 @@
-import { defineComponent, ref, computed, onMounted } from 'vue';
+import { defineComponent, ref, computed, onMounted, watch } from 'vue';
 import { useExaminationStore } from '@/stores/examinationStore';
 import { useReportService } from '@/api/reportService';
 import ClassificationCard from './ClassificationCard.vue';
@@ -22,7 +22,16 @@ export default defineComponent({
             interventionId: undefined,
             instrumentId: undefined,
         });
-        // Add a colour map for active category cues:
+        // NEU: Parent-Klassifikation für Morphologie auswählen
+        const selectedMorphologyClassificationId = ref(null);
+        const filteredMorphChoices = computed(() => selectedMorphologyClassificationId.value === null
+            ? []
+            : subcategories.value.morphologyChoices.filter(ch => ch.classification === selectedMorphologyClassificationId.value));
+        // Bei Änderung der Parent-Klassifikation ungültige Child-Werte entfernen
+        watch(selectedMorphologyClassificationId, () => {
+            form.value.selectedMorphologies = form.value.selectedMorphologies.filter(id => filteredMorphChoices.value.some(c => c.id === id));
+            tempSelection.value.morphologyChoiceId = undefined;
+        });
         const colourMap = {
             morphologyChoices: 'border-success',
             locationChoices: 'border-success',
@@ -53,6 +62,8 @@ export default defineComponent({
                 interventionId: undefined,
                 instrumentId: undefined
             };
+            // Optional: Parent zurücksetzen
+            selectedMorphologyClassificationId.value = null;
         }
         const subcategories = computed(() => {
             return selectedExamId.value !== null
@@ -75,7 +86,9 @@ export default defineComponent({
             subcategories,
             categoryLabels,
             onExamChange,
-            colourMap
+            colourMap,
+            selectedMorphologyClassificationId, // Exponiere für die Template-Nutzung
+            filteredMorphChoices
         };
     }
 });
@@ -151,7 +164,7 @@ function __VLS_template() {
             value: ((__VLS_ctx.tempSelection.morphologyChoiceId)),
             ...{ class: ("form-select") },
         });
-        for (const [opt] of __VLS_getVForSourceType((__VLS_ctx.subcategories.morphologyChoices))) {
+        for (const [opt] of __VLS_getVForSourceType((__VLS_ctx.filteredMorphChoices))) {
             __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
                 key: ((opt.id)),
                 value: ((opt.id)),

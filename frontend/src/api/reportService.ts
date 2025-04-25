@@ -1,6 +1,6 @@
 // src/api/reportService.ts
 import { ref } from 'vue'
-import axiosInstance from './axiosInstance'
+import axiosInstance, { r } from './axiosInstance'
 
 // --- Define your data interfaces (adjust fields to match your API) ---
 export interface Center {
@@ -44,7 +44,7 @@ export function useReportService() {
   // fetch helpers
   async function getCenters() {
     try {
-      const { data } = await axiosInstance.get<Center[]>('centers/')
+      const { data } = await axiosInstance.get<Center[]>(r('centers/'))
       centers.value = data
     } catch (e) {
       console.error('Error fetching centers:', e)
@@ -53,7 +53,7 @@ export function useReportService() {
 
   async function getExaminations() {
     try {
-      const { data } = await axiosInstance.get<Examination[]>('examinations/')
+      const { data } = await axiosInstance.get<Examination[]>(r('examinations/'))
       examinations.value = data
       return data
     } catch (e) {
@@ -64,7 +64,7 @@ export function useReportService() {
 
   async function getFindings() {
     try {
-      const { data } = await axiosInstance.get<Finding[]>('findings/')
+      const { data } = await axiosInstance.get<Finding[]>(r('findings/'))
       findings.value = data
     } catch (e) {
       console.error('Error fetching findings:', e)
@@ -73,7 +73,7 @@ export function useReportService() {
 
   async function getLocationClassifications() {
     try {
-      const { data } = await axiosInstance.get<Classification[]>('location-classifications/')
+      const { data } = await axiosInstance.get<Classification[]>(r('location-classifications/'))
       locationClassifications.value = data
     } catch (e) {
       console.error('Error fetching location classifications:', e)
@@ -82,7 +82,7 @@ export function useReportService() {
 
   async function getLocationClassificationChoices() {
     try {
-      const { data } = await axiosInstance.get<ClassificationChoice[]>('location-classification-choices/')
+      const { data } = await axiosInstance.get<ClassificationChoice[]>(r('location-classification-choices/'))
       locationClassificationChoices.value = data
     } catch (e) {
       console.error('Error fetching location classification choices:', e)
@@ -91,7 +91,7 @@ export function useReportService() {
 
   async function getMorphologyClassifications() {
     try {
-      const { data } = await axiosInstance.get<Classification[]>('morphology-classifications/')
+      const { data } = await axiosInstance.get<Classification[]>(r('morphology-classifications/'))
       morphologyClassifications.value = data
     } catch (e) {
       console.error('Error fetching morphology classifications:', e)
@@ -100,7 +100,7 @@ export function useReportService() {
 
   async function getMorphologyClassificationChoices() {
     try {
-      const { data } = await axiosInstance.get<ClassificationChoice[]>('morphology-classification-choices/')
+      const { data } = await axiosInstance.get<ClassificationChoice[]>(r('morphology-classification-choices/'))
       morphologyClassificationChoices.value = data
     } catch (e) {
       console.error('Error fetching morphology classification choices:', e)
@@ -109,7 +109,7 @@ export function useReportService() {
 
   async function getInterventions() {
     try {
-      const { data } = await axiosInstance.get<Intervention[]>('interventions/')
+      const { data } = await axiosInstance.get<Intervention[]>(r('interventions/'))
       interventions.value = data
     } catch (e) {
       console.error('Error fetching interventions:', e)

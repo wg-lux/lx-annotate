@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
-import axiosInstance from '../api/axiosInstance';
+import axiosInstance, { r } from '../api/axiosInstance';
 import videoAxiosInstance from '../api/videoAxiosInstance';
 import type { VideoResponse } from '../api/videoAxiosInstance';
 import type { AxiosError } from 'axios';
@@ -106,7 +106,7 @@ export const useVideoStore = defineStore('video', () => {
 
   function fetchAllVideos() {
     axiosInstance
-      .get('api/videos/')
+      .get(r('videos/'))
       .then((response: { data: { videos: { id: string; original_file_name: string; status?: string; anonymized?: boolean; }[]; labels: { id: string; name: string; }[]; }; }) => {
         videoList.value = {
           videos: response.data.videos.map(video => ({
@@ -166,7 +166,7 @@ export const useVideoStore = defineStore('video', () => {
   async function fetchSegmentsByLabel(id: string, label: string = 'outside'): Promise<void> {
     try {
       const response = await axiosInstance.get<VideoLabelResponse>(
-        `api/video/${id}/label/${label}/`,
+        r(`video/${id}/label/${label}/`),
         { headers: { 'Accept': 'application/json' } }
       );
       // Map the API response into our Segment structure.
@@ -196,7 +196,7 @@ export const useVideoStore = defineStore('video', () => {
     try {
       // Combine all segments from all labels if needed.
       const combinedSegments = Object.values(segmentsByLabel.value).flat();
-      const response = await axiosInstance.post('annotations/', { segments: combinedSegments });
+      const response = await axiosInstance.post(r('annotations/'), { segments: combinedSegments });
       console.log('Annotations saved:', response.data);
     } catch (error) {
       console.error('Error saving annotations:', error);
@@ -258,7 +258,7 @@ export const useVideoStore = defineStore('video', () => {
       try {
         currentVideo.value.status = status;
         // Senden des aktualisierten Status an den Server
-        const response = await axiosInstance.post(`api/video/${currentVideo.value.id}/status/`, {
+        const response = await axiosInstance.post(r(`video/${currentVideo.value.id}/status/`), {
           status: status
         });
         console.log(`Video-Status aktualisiert: ${status}`, response.data);
@@ -274,7 +274,7 @@ export const useVideoStore = defineStore('video', () => {
       try {
         currentVideo.value.assignedUser = user;
         // Senden der Benutzerzuweisung an den Server
-        const response = await axiosInstance.post(`api/video/${currentVideo.value.id}/assign/`, {
+        const response = await axiosInstance.post(r(`video/${currentVideo.value.id}/assign/`), {
           user: user
         });
         console.log(`Benutzer ${user} wurde dem Video zugewiesen.`, response.data);
@@ -291,7 +291,7 @@ export const useVideoStore = defineStore('video', () => {
     error: (message: string) => void
   ) => {
     axiosInstance
-      .delete(`upload-video/${uniqueFileId}/`)
+      .delete(r(`upload-video/${uniqueFileId}/`))
       .then(() => {
         videoUrl.value = '';
         load();
@@ -308,7 +308,7 @@ export const useVideoStore = defineStore('video', () => {
     const formData = new FormData();
     formData.append(fieldName, file);
     axiosInstance
-      .post('upload-video/', formData, {
+      .post(r('upload-video/'), formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       })
       .then((response: { data: { video_url: any; }; }) => {

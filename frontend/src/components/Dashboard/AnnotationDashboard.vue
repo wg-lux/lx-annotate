@@ -82,7 +82,7 @@
 import { ref, onMounted } from 'vue';
 import { useVideoStore } from '@/stores/videoStore';
 import { useImageStore } from '@/stores/imageStore';
-import { useAnonymizationStore } from '@/stores/anonymization';
+import { useAnonymizationStore } from '@/stores/anonymizationStore';
 import { useUserStore } from '@/stores/users';
 
 const videoStore = useVideoStore();

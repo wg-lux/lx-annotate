@@ -66,11 +66,19 @@
               </router-link>
             </li>
             <li class="nav-item">
-              <router-link to="/befund" class="nav-link" :class="{ active: $route.path === '/befund' }">
+              <router-link to="/untersuchung" class="nav-link" :class="{ active: $route.path === '/untersuchung' }">
                 <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
                   <i class="material-icons opacity-10">check_circle</i>
                 </div>
-                <span class="nav-link-text ms-1">Befunde</span>
+                <span class="nav-link-text ms-1">Untersuchung</span>
+              </router-link>
+            </li>
+            <li class="nav-item">
+              <router-link to="/anonymisierung" class="nav-link" :class="{ active: $route.path === '/anonymisierung' }">
+                <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
+                  <i class="material-icons opacity-10">check_circle</i>
+                </div>
+                <span class="nav-link-text ms-1">Anonymisierung</span>
               </router-link>
             </li>
             <li class="nav-item">

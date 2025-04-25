@@ -55,6 +55,8 @@ declare const _default: import("vue").DefineComponent<{}, {
         interventions: string;
         instruments: string;
     };
+    selectedMorphologyClassificationId: import("vue").Ref<number | null, number | null>;
+    filteredMorphChoices: import("vue").ComputedRef<import("@/stores/examinationStore").MorphologyClassificationChoice[]>;
 }, {}, {}, {}, import("vue").ComponentOptionsMixin, import("vue").ComponentOptionsMixin, {}, string, import("vue").PublicProps, Readonly<{}> & Readonly<{}>, {}, {}, {
     ClassificationCard: import("vue").DefineComponent<import("vue").ExtractPropTypes<{
         label: {

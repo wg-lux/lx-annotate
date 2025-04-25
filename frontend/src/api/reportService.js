@@ -1,6 +1,6 @@
 // src/api/reportService.ts
 import { ref } from 'vue';
-import axiosInstance from './axiosInstance';
+import axiosInstance, { r } from './axiosInstance';
 // --- The composable ---
 export function useReportService() {
     // reactive state
@@ -15,7 +15,7 @@ export function useReportService() {
     // fetch helpers
     async function getCenters() {
         try {
-            const { data } = await axiosInstance.get('centers/');
+            const { data } = await axiosInstance.get(r('centers/'));
             centers.value = data;
         }
         catch (e) {
@@ -24,7 +24,7 @@ export function useReportService() {
     }
     async function getExaminations() {
         try {
-            const { data } = await axiosInstance.get('examinations/');
+            const { data } = await axiosInstance.get(r('examinations/'));
             examinations.value = data;
             return data;
         }
@@ -35,7 +35,7 @@ export function useReportService() {
     }
     async function getFindings() {
         try {
-            const { data } = await axiosInstance.get('findings/');
+            const { data } = await axiosInstance.get(r('findings/'));
             findings.value = data;
         }
         catch (e) {
@@ -44,7 +44,7 @@ export function useReportService() {
     }
     async function getLocationClassifications() {
         try {
-            const { data } = await axiosInstance.get('location-classifications/');
+            const { data } = await axiosInstance.get(r('location-classifications/'));
             locationClassifications.value = data;
         }
         catch (e) {
@@ -53,7 +53,7 @@ export function useReportService() {
     }
     async function getLocationClassificationChoices() {
         try {
-            const { data } = await axiosInstance.get('location-classification-choices/');
+            const { data } = await axiosInstance.get(r('location-classification-choices/'));
             locationClassificationChoices.value = data;
         }
         catch (e) {
@@ -62,7 +62,7 @@ export function useReportService() {
     }
     async function getMorphologyClassifications() {
         try {
-            const { data } = await axiosInstance.get('morphology-classifications/');
+            const { data } = await axiosInstance.get(r('morphology-classifications/'));
             morphologyClassifications.value = data;
         }
         catch (e) {
@@ -71,7 +71,7 @@ export function useReportService() {
     }
     async function getMorphologyClassificationChoices() {
         try {
-            const { data } = await axiosInstance.get('morphology-classification-choices/');
+            const { data } = await axiosInstance.get(r('morphology-classification-choices/'));
             morphologyClassificationChoices.value = data;
         }
         catch (e) {
@@ -80,7 +80,7 @@ export function useReportService() {
     }
     async function getInterventions() {
         try {
-            const { data } = await axiosInstance.get('interventions/');
+            const { data } = await axiosInstance.get(r('interventions/'));
             interventions.value = data;
         }
         catch (e) {

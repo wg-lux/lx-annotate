@@ -14,6 +14,13 @@ body {
   background-color: #FFFFFF;
 }
 
+.card .card-body,
+.card[data-header-animation="true"] .card-body,
+.card[data-header-animation="true"]:hover .card-body {     /* falls Hover-Animation */
+  transform: none !important;      /* Skaliert nicht mehr               */
+  transition: none !important;     /* Kein weiches Zoomen mehr           */
+}
+
 h1, h2, h3, h4, h5, h6 {
   font-family: 'Comfortaa', sans-serif;
   color: #000000;

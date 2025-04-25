@@ -35,8 +35,9 @@
         <div class="category-editor" :class="colourMap[activeCategory]">
           <div v-if="activeCategory === 'morphologyChoices'">
             <label>Morphologie Klassifikation wählen:</label>
+            <!-- Nutzt nun den gefilterten Array -->
             <select v-model="tempSelection.morphologyChoiceId" class="form-select">
-              <option v-for="opt in subcategories.morphologyChoices" :key="opt.id" :value="opt.id">
+              <option v-for="opt in filteredMorphChoices" :key="opt.id" :value="opt.id">
                 {{ opt.name }}
               </option>
             </select>
@@ -90,7 +91,7 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, ref, computed, onMounted } from 'vue';
+import { defineComponent, ref, computed, onMounted, watch } from 'vue';
 import { useExaminationStore } from '@/stores/examinationStore';
 import type { Examination, SubcategoryMap } from '@/stores/examinationStore';
 import { useReportService } from '@/api/reportService';
@@ -120,7 +121,24 @@ export default defineComponent({
       instrumentId: undefined as number | undefined,
     });
 
-    // Add a colour map for active category cues:
+    // NEU: Parent-Klassifikation für Morphologie auswählen
+    const selectedMorphologyClassificationId = ref<number | null>(null);
+    const filteredMorphChoices = computed(() =>
+      selectedMorphologyClassificationId.value === null
+        ? []
+        : subcategories.value.morphologyChoices.filter(
+            ch => ch.classification === selectedMorphologyClassificationId.value
+          )
+    );
+
+    // Bei Änderung der Parent-Klassifikation ungültige Child-Werte entfernen
+    watch(selectedMorphologyClassificationId, () => {
+      form.value.selectedMorphologies = form.value.selectedMorphologies.filter(
+        id => filteredMorphChoices.value.some(c => c.id === id)
+      );
+      tempSelection.value.morphologyChoiceId = undefined;
+    });
+
     const colourMap = {
       morphologyChoices: 'border-success',
       locationChoices: 'border-success',
@@ -152,6 +170,8 @@ export default defineComponent({
         interventionId: undefined,
         instrumentId: undefined
       };
+      // Optional: Parent zurücksetzen
+      selectedMorphologyClassificationId.value = null;
     }
 
     const subcategories = computed((): SubcategoryMap => {
@@ -178,7 +198,9 @@ export default defineComponent({
       subcategories,
       categoryLabels,
       onExamChange,
-      colourMap
+      colourMap,
+      selectedMorphologyClassificationId, // Exponiere für die Template-Nutzung
+      filteredMorphChoices
     };
   }
 });

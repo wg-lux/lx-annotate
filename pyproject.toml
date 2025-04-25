@@ -20,6 +20,7 @@ dependencies = [
     "whitenoise>=6.8.2",
     "django-extensions>=3.2.3",
     "python-dotenv>=1.0.1",
+    "python-environ>=0.4.54",
 ]
 
 [tool.setuptools]

@@ -198,14 +198,14 @@ function __VLS_template() {
     /** @type { [typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, ] } */ ;
     // @ts-ignore
     const __VLS_31 = __VLS_asFunctionalComponent(__VLS_30, new __VLS_30({
-        to: ("/befund"),
+        to: ("/untersuchung"),
         ...{ class: ("nav-link") },
-        ...{ class: (({ active: __VLS_ctx.$route.path === '/befund' })) },
+        ...{ class: (({ active: __VLS_ctx.$route.path === '/untersuchung' })) },
     }));
     const __VLS_32 = __VLS_31({
-        to: ("/befund"),
+        to: ("/untersuchung"),
         ...{ class: ("nav-link") },
-        ...{ class: (({ active: __VLS_ctx.$route.path === '/befund' })) },
+        ...{ class: (({ active: __VLS_ctx.$route.path === '/untersuchung' })) },
     }, ...__VLS_functionalComponentArgsRest(__VLS_31));
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: ("icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center") },
@@ -225,14 +225,14 @@ function __VLS_template() {
     /** @type { [typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, ] } */ ;
     // @ts-ignore
     const __VLS_37 = __VLS_asFunctionalComponent(__VLS_36, new __VLS_36({
-        to: ("/validierung"),
+        to: ("/anonymisierung"),
         ...{ class: ("nav-link") },
-        ...{ class: (({ active: __VLS_ctx.$route.path === '/validierung' })) },
+        ...{ class: (({ active: __VLS_ctx.$route.path === '/anonymisierung' })) },
     }));
     const __VLS_38 = __VLS_37({
-        to: ("/validierung"),
+        to: ("/anonymisierung"),
         ...{ class: ("nav-link") },
-        ...{ class: (({ active: __VLS_ctx.$route.path === '/validierung' })) },
+        ...{ class: (({ active: __VLS_ctx.$route.path === '/anonymisierung' })) },
     }, ...__VLS_functionalComponentArgsRest(__VLS_37));
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: ("icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center") },
@@ -252,14 +252,14 @@ function __VLS_template() {
     /** @type { [typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, ] } */ ;
     // @ts-ignore
     const __VLS_43 = __VLS_asFunctionalComponent(__VLS_42, new __VLS_42({
-        to: ("/profil"),
+        to: ("/validierung"),
         ...{ class: ("nav-link") },
-        ...{ class: (({ active: __VLS_ctx.$route.path === '/profil' })) },
+        ...{ class: (({ active: __VLS_ctx.$route.path === '/validierung' })) },
     }));
     const __VLS_44 = __VLS_43({
-        to: ("/profil"),
+        to: ("/validierung"),
         ...{ class: ("nav-link") },
-        ...{ class: (({ active: __VLS_ctx.$route.path === '/profil' })) },
+        ...{ class: (({ active: __VLS_ctx.$route.path === '/validierung' })) },
     }, ...__VLS_functionalComponentArgsRest(__VLS_43));
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: ("icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center") },
@@ -279,14 +279,14 @@ function __VLS_template() {
     /** @type { [typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, ] } */ ;
     // @ts-ignore
     const __VLS_49 = __VLS_asFunctionalComponent(__VLS_48, new __VLS_48({
-        to: ("/ueber-uns"),
+        to: ("/profil"),
         ...{ class: ("nav-link") },
-        ...{ class: (({ active: __VLS_ctx.$route.path === '/ueber-uns' })) },
+        ...{ class: (({ active: __VLS_ctx.$route.path === '/profil' })) },
     }));
     const __VLS_50 = __VLS_49({
-        to: ("/ueber-uns"),
+        to: ("/profil"),
         ...{ class: ("nav-link") },
-        ...{ class: (({ active: __VLS_ctx.$route.path === '/ueber-uns' })) },
+        ...{ class: (({ active: __VLS_ctx.$route.path === '/profil' })) },
     }, ...__VLS_functionalComponentArgsRest(__VLS_49));
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: ("icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center") },
@@ -299,7 +299,34 @@ function __VLS_template() {
     });
     __VLS_53.slots.default;
     var __VLS_53;
-    ['sidenav', 'sidenav-header', 'navbar-brand', 'm-0', 'sidenav-header-inner', 'text-center', 'ms-1', 'font-weight-bold', 'text-white', 'text-center', 'w-auto', 'max-height-vh-100', 'navbar-nav', 'nav-item', 'nav-link', 'active', 'icon', 'icon-shape', 'icon-sm', 'shadow', 'border-radius-md', 'text-center', 'me-2', 'd-flex', 'align-items-center', 'justify-content-center', 'material-icons', 'opacity-10', 'nav-link-text', 'ms-1', 'nav-item', 'nav-link', 'active', 'icon', 'icon-shape', 'icon-sm', 'shadow', 'border-radius-md', 'text-center', 'me-2', 'd-flex', 'align-items-center', 'justify-content-center', 'material-icons', 'opacity-10', 'nav-link-text', 'ms-1', 'nav-item', 'nav-link', 'active', 'icon', 'icon-shape', 'icon-sm', 'shadow', 'border-radius-md', 'text-center', 'me-2', 'd-flex', 'align-items-center', 'justify-content-center', 'material-icons', 'opacity-10', 'nav-link-text', 'ms-1', 'nav-item', 'nav-link', 'active', 'icon', 'icon-shape', 'icon-sm', 'shadow', 'border-radius-md', 'text-center', 'me-2', 'd-flex', 'align-items-center', 'justify-content-center', 'material-icons', 'opacity-10', 'nav-link-text', 'ms-1', 'nav-item', 'nav-link', 'active', 'icon', 'icon-shape', 'icon-sm', 'shadow', 'border-radius-md', 'text-center', 'me-2', 'd-flex', 'align-items-center', 'justify-content-center', 'material-icons', 'opacity-10', 'nav-link-text', 'ms-1', 'nav-item', 'nav-link', 'active', 'icon', 'icon-shape', 'icon-sm', 'shadow', 'border-radius-md', 'text-center', 'me-2', 'd-flex', 'align-items-center', 'justify-content-center', 'material-icons', 'opacity-10', 'nav-link-text', 'ms-1', 'nav-item', 'nav-link', 'active', 'icon', 'icon-shape', 'icon-sm', 'shadow', 'border-radius-md', 'text-center', 'me-2', 'd-flex', 'align-items-center', 'justify-content-center', 'material-icons', 'opacity-10', 'nav-link-text', 'ms-1', 'nav-item', 'nav-link', 'active', 'icon', 'icon-shape', 'icon-sm', 'shadow', 'border-radius-md', 'text-center', 'me-2', 'd-flex', 'align-items-center', 'justify-content-center', 'material-icons', 'opacity-10', 'nav-link-text', 'ms-1', 'nav-item', 'nav-link', 'active', 'icon', 'icon-shape', 'icon-sm', 'shadow', 'border-radius-md', 'text-center', 'me-2', 'd-flex', 'align-items-center', 'justify-content-center', 'material-icons', 'opacity-10', 'nav-link-text', 'ms-1',];
+    __VLS_elementAsFunction(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({
+        ...{ class: ("nav-item") },
+    });
+    const __VLS_54 = {}.RouterLink;
+    /** @type { [typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, ] } */ ;
+    // @ts-ignore
+    const __VLS_55 = __VLS_asFunctionalComponent(__VLS_54, new __VLS_54({
+        to: ("/ueber-uns"),
+        ...{ class: ("nav-link") },
+        ...{ class: (({ active: __VLS_ctx.$route.path === '/ueber-uns' })) },
+    }));
+    const __VLS_56 = __VLS_55({
+        to: ("/ueber-uns"),
+        ...{ class: ("nav-link") },
+        ...{ class: (({ active: __VLS_ctx.$route.path === '/ueber-uns' })) },
+    }, ...__VLS_functionalComponentArgsRest(__VLS_55));
+    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: ("icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center") },
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+        ...{ class: ("material-icons opacity-10") },
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+        ...{ class: ("nav-link-text ms-1") },
+    });
+    __VLS_59.slots.default;
+    var __VLS_59;
+    ['sidenav', 'sidenav-header', 'navbar-brand', 'm-0', 'sidenav-header-inner', 'text-center', 'ms-1', 'font-weight-bold', 'text-white', 'text-center', 'w-auto', 'max-height-vh-100', 'navbar-nav', 'nav-item', 'nav-link', 'active', 'icon', 'icon-shape', 'icon-sm', 'shadow', 'border-radius-md', 'text-center', 'me-2', 'd-flex', 'align-items-center', 'justify-content-center', 'material-icons', 'opacity-10', 'nav-link-text', 'ms-1', 'nav-item', 'nav-link', 'active', 'icon', 'icon-shape', 'icon-sm', 'shadow', 'border-radius-md', 'text-center', 'me-2', 'd-flex', 'align-items-center', 'justify-content-center', 'material-icons', 'opacity-10', 'nav-link-text', 'ms-1', 'nav-item', 'nav-link', 'active', 'icon', 'icon-shape', 'icon-sm', 'shadow', 'border-radius-md', 'text-center', 'me-2', 'd-flex', 'align-items-center', 'justify-content-center', 'material-icons', 'opacity-10', 'nav-link-text', 'ms-1', 'nav-item', 'nav-link', 'active', 'icon', 'icon-shape', 'icon-sm', 'shadow', 'border-radius-md', 'text-center', 'me-2', 'd-flex', 'align-items-center', 'justify-content-center', 'material-icons', 'opacity-10', 'nav-link-text', 'ms-1', 'nav-item', 'nav-link', 'active', 'icon', 'icon-shape', 'icon-sm', 'shadow', 'border-radius-md', 'text-center', 'me-2', 'd-flex', 'align-items-center', 'justify-content-center', 'material-icons', 'opacity-10', 'nav-link-text', 'ms-1', 'nav-item', 'nav-link', 'active', 'icon', 'icon-shape', 'icon-sm', 'shadow', 'border-radius-md', 'text-center', 'me-2', 'd-flex', 'align-items-center', 'justify-content-center', 'material-icons', 'opacity-10', 'nav-link-text', 'ms-1', 'nav-item', 'nav-link', 'active', 'icon', 'icon-shape', 'icon-sm', 'shadow', 'border-radius-md', 'text-center', 'me-2', 'd-flex', 'align-items-center', 'justify-content-center', 'material-icons', 'opacity-10', 'nav-link-text', 'ms-1', 'nav-item', 'nav-link', 'active', 'icon', 'icon-shape', 'icon-sm', 'shadow', 'border-radius-md', 'text-center', 'me-2', 'd-flex', 'align-items-center', 'justify-content-center', 'material-icons', 'opacity-10', 'nav-link-text', 'ms-1', 'nav-item', 'nav-link', 'active', 'icon', 'icon-shape', 'icon-sm', 'shadow', 'border-radius-md', 'text-center', 'me-2', 'd-flex', 'align-items-center', 'justify-content-center', 'material-icons', 'opacity-10', 'nav-link-text', 'ms-1', 'nav-item', 'nav-link', 'active', 'icon', 'icon-shape', 'icon-sm', 'shadow', 'border-radius-md', 'text-center', 'me-2', 'd-flex', 'align-items-center', 'justify-content-center', 'material-icons', 'opacity-10', 'nav-link-text', 'ms-1',];
     var __VLS_slots;
     var $slots;
     let __VLS_inheritedAttrs;

@@ -13,7 +13,16 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 from pathlib import Path
 import os
 from dotenv import load_dotenv
+import environ
+
 from lx_logging import get_logger
+
+# settings.py
+env = environ.Env()
+environ.Env.read_env()   
+
+FRONTEND_URL = env("FRONTEND_URL", default="http://127.0.0.1:5174")  # dev default
+
 
 logger = get_logger(__name__)
 logger.debug(os.environ.get("DJANGO_SETTINGS", "dev"))
