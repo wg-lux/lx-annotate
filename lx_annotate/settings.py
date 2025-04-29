@@ -14,14 +14,17 @@ from pathlib import Path
 import os
 from dotenv import load_dotenv
 import environ
-
+from django.contrib import admin
+from django.urls import path, include
 from lx_logging import get_logger
+import re
 
-# settings.py
+
+
 env = environ.Env()
 environ.Env.read_env()   
 
-FRONTEND_URL = env("FRONTEND_URL", default="http://127.0.0.1:5174")  # dev default
+FRONTEND_URL = env("FRONTEND_URL", default="http://127.0.0.1:8000")  # dev default
 
 
 logger = get_logger(__name__)
@@ -93,7 +96,6 @@ MIDDLEWARE = [
 ]
 
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
-import re
 
 
 def immutable_file_test(path, url):
@@ -128,7 +130,10 @@ WHITENOISE_MIMETYPES = {
     '.ogv': 'video/ogg',
 }
 
+
+
 ROOT_URLCONF = 'lx_annotate.urls'
+
 
 TEMPLATES = [    
   {        

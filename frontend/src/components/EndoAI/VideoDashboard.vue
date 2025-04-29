@@ -22,7 +22,7 @@
             <tbody>
                 <tr v-for="video in videos" :key="video.id" style="cursor: pointer;">
                 <td>{{ video.id }}</td>
-                <td>{{ video.original_file_name }}</td>
+                <td>{{ video.originalFileName }}</td>
                 <td>{{ video.status }}</td>
                 <td>{{ video.assignedUser || 'Nicht zugewiesen' }}</td>
                 <td>{{ video.anonymized ? 'Ja' : 'Nein' }}</td>

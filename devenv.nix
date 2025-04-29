@@ -20,8 +20,6 @@ let
     export PATH="$PATH:$(yarn global bin)"
   '';
 
-
-
   sharedSettings = {
       appName = appName;
       DJANGO_MODULE = appName;

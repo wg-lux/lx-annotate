@@ -12,6 +12,7 @@ result
 result/
 result/*
 data/
+endoreg-db
 
 .devenv/
 .direnv/

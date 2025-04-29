@@ -15,7 +15,7 @@ dependencies = [
     "django-cors-headers>=4.0.0",
     "django-webpack-loader>=0.7.0",
     "requests>=2.32.3",
-    "endoreg-db>=0.5.3",
+    "endoreg-db",
     "django-vite>=3.0.6",
     "whitenoise>=6.8.2",
     "django-extensions>=3.2.3",
@@ -26,4 +26,5 @@ dependencies = [
 [tool.setuptools]
 packages = ["lx-webpack"]
 
-
+[uv.sources]
+endoreg-db = { path = "endoreg-db", editable = true }

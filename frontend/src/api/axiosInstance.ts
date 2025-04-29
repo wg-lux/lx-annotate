@@ -1,5 +1,7 @@
 import axios, { type AxiosRequestConfig } from 'axios';
 import Cookies from 'js-cookie';
+import camelcaseKeys from 'camelcase-keys';
+import snakecaseKeys from 'snakecase-keys';
 
 // This handles requests to the local Django API
 
@@ -36,4 +38,34 @@ axiosInstance.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   return config;
 });
 
+function localSnakecaseKeys(obj: any, options: { deep?: boolean } = {}): any {
+  if (Array.isArray(obj)) {
+    return obj.map((item) => snakecaseKeys(item, options));
+  } else if (obj && typeof obj === 'object') {
+    return Object.keys(obj).reduce((acc, key) => {
+      const newKey = key.replace(/([A-Z])/g, (match) => `_${match.toLowerCase()}`);
+      acc[newKey] = options.deep && typeof obj[key] === 'object' ? snakecaseKeys(obj[key], options) : obj[key];
+      return acc;
+    }, {} as Record<string, any>);
+  }
+  return obj;
+}
+
+// ─── Convert outgoing payload from camelCase → snake_case ───────────
+axiosInstance.interceptors.request.use((config) => {
+  if (config.data && typeof config.data === 'object') {
+    config.data = localSnakecaseKeys(config.data, { deep: true });
+  }
+  return config;
+});
+
+// ─── Convert incoming payload from snake_case → camelCase ───────────
+axiosInstance.interceptors.response.use((response) => {
+  if (response.data && typeof response.data === 'object') {
+    response.data = camelcaseKeys(response.data, { deep: true });
+  }
+  return response;
+});
+
 export default axiosInstance;
+

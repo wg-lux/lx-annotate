@@ -22,7 +22,7 @@ export interface Classification {
 export interface ClassificationChoice {
   id: number
   name: string
-  classificationId: number
+  classificationId: number // camelCase bleibt
 }
 export interface Intervention {
   id: number
@@ -82,10 +82,16 @@ export function useReportService() {
 
   async function getLocationClassificationChoices() {
     try {
-      const { data } = await axiosInstance.get<ClassificationChoice[]>(r('location-classification-choices/'))
-      locationClassificationChoices.value = data
+      // Annahme: API liefert { id: number, name: string, classification_id: number }
+      const { data } = await axiosInstance.get<any[]>(r('location-classification-choices/'));
+      // Manuelles Mapping von snake_case zu camelCase
+      locationClassificationChoices.value = data.map(item => ({
+        id: item.id,
+        name: item.name,
+        classificationId: item.classification_id // Mapping hier
+      }));
     } catch (e) {
-      console.error('Error fetching location classification choices:', e)
+      console.error('Error fetching location classification choices:', e);
     }
   }
 
@@ -100,10 +106,16 @@ export function useReportService() {
 
   async function getMorphologyClassificationChoices() {
     try {
-      const { data } = await axiosInstance.get<ClassificationChoice[]>(r('morphology-classification-choices/'))
-      morphologyClassificationChoices.value = data
+      // Annahme: API liefert { id: number, name: string, classification_id: number }
+      const { data } = await axiosInstance.get<any[]>(r('morphology-classification-choices/'));
+      // Manuelles Mapping von snake_case zu camelCase
+      morphologyClassificationChoices.value = data.map(item => ({
+        id: item.id,
+        name: item.name,
+        classificationId: item.classification_id // Mapping hier
+      }));
     } catch (e) {
-      console.error('Error fetching morphology classification choices:', e)
+      console.error('Error fetching morphology classification choices:', e);
     }
   }
 

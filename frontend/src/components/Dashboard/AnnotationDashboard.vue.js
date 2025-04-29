@@ -2,7 +2,7 @@ import { ref, onMounted } from 'vue';
 import { useVideoStore } from '@/stores/videoStore';
 import { useImageStore } from '@/stores/imageStore';
 import { useAnonymizationStore } from '@/stores/anonymizationStore';
-import { useUserStore } from '@/stores/users';
+import { useUserStore } from '@/stores/userStore';
 const videoStore = useVideoStore();
 const imageStore = useImageStore();
 const anonymizationStore = useAnonymizationStore();

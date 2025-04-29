@@ -53,8 +53,14 @@ export function useReportService() {
     }
     async function getLocationClassificationChoices() {
         try {
+            // Annahme: API liefert { id: number, name: string, classification_id: number }
             const { data } = await axiosInstance.get(r('location-classification-choices/'));
-            locationClassificationChoices.value = data;
+            // Manuelles Mapping von snake_case zu camelCase
+            locationClassificationChoices.value = data.map(item => ({
+                id: item.id,
+                name: item.name,
+                classificationId: item.classification_id // Mapping hier
+            }));
         }
         catch (e) {
             console.error('Error fetching location classification choices:', e);
@@ -71,8 +77,14 @@ export function useReportService() {
     }
     async function getMorphologyClassificationChoices() {
         try {
+            // Annahme: API liefert { id: number, name: string, classification_id: number }
             const { data } = await axiosInstance.get(r('morphology-classification-choices/'));
-            morphologyClassificationChoices.value = data;
+            // Manuelles Mapping von snake_case zu camelCase
+            morphologyClassificationChoices.value = data.map(item => ({
+                id: item.id,
+                name: item.name,
+                classificationId: item.classification_id // Mapping hier
+            }));
         }
         catch (e) {
             console.error('Error fetching morphology classification choices:', e);
