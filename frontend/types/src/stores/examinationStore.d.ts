@@ -5,12 +5,12 @@ export interface Examination {
 export interface MorphologyClassificationChoice {
     id: number;
     name: string;
-    classification: number;
+    classificationId: number;
 }
 export interface LocationClassificationChoice {
     id: number;
     name: string;
-    classification: number;
+    classificationId: number;
 }
 export interface Intervention {
     id: number;

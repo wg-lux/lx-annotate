@@ -127,7 +127,7 @@ export default defineComponent({
       selectedMorphologyClassificationId.value === null
         ? []
         : subcategories.value.morphologyChoices.filter(
-            ch => ch.classification === selectedMorphologyClassificationId.value
+            ch => ch.classificationId === selectedMorphologyClassificationId.value // Updated field usage
           )
     );
 

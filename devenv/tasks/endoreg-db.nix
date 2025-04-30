@@ -1,8 +1,11 @@
 {...}@inputs:
 let
   customTasks = {
-    " :make-migrations".after = 
-      ["devenv:enterShell"]; 
+    "endoreg-db:init-db".after = 
+      ["devenv:enterShell"];
+
+    "endoreg-db:make-migrations".after = 
+      ["endoreg-db:init-db"]; 
 
     "endoreg-db:migrate".after = 
       ["endoreg-db:make-migrations"];
@@ -10,7 +13,9 @@ let
     "endoreg-db:load-data".after = 
       ["endoreg-db:migrate"];
 
-
+    "endoreg-db:init-db".exec =
+      ''cd endoreg-db
+        direnv allow'';
     "endoreg-db:make-migrations".exec = 
       "uv run python manage.py makemigrations";
     "endoreg-db:migrate".exec = 

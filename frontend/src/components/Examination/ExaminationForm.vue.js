@@ -26,7 +26,8 @@ export default defineComponent({
         const selectedMorphologyClassificationId = ref(null);
         const filteredMorphChoices = computed(() => selectedMorphologyClassificationId.value === null
             ? []
-            : subcategories.value.morphologyChoices.filter(ch => ch.classification === selectedMorphologyClassificationId.value));
+            : subcategories.value.morphologyChoices.filter(ch => ch.classificationId === selectedMorphologyClassificationId.value // Updated field usage
+            ));
         // Bei Änderung der Parent-Klassifikation ungültige Child-Werte entfernen
         watch(selectedMorphologyClassificationId, () => {
             form.value.selectedMorphologies = form.value.selectedMorphologies.filter(id => filteredMorphChoices.value.some(c => c.id === id));

@@ -11,13 +11,13 @@ export interface Examination {
 export interface MorphologyClassificationChoice {
   id: number;
   name: string;
-  classification: number; // Updated field name to match Back-End model
+  classificationId: number; // Updated field name
 }
 
 export interface LocationClassificationChoice {
   id: number;
   name: string;
-  classification: number; // Updated field name to match Back-End model
+  classificationId: number; // Updated field name
 }
 
 export interface Intervention {
