@@ -13,7 +13,8 @@ result/
 result/*
 data/
 endoreg-db
-.env
+# ignore any file that ends with .env anywhere
+**/*.env
 .devenv/
 .direnv/
 .devenv.flake.nix
@@ -154,3 +155,4 @@ Thumbs.db
 # -------------------------------
 *.tmp
 *.swp
+.env
