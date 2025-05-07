@@ -21,10 +21,22 @@ dependencies = [
     "django-extensions>=3.2.3",
     "python-dotenv>=1.0.1",
     "python-environ>=0.4.54",
+    "pytest>=8.3.5",
+    "pytest-django>=4.11.1",
+    "django-environ>=0.12.0",
 ]
 
 [tool.setuptools]
 packages = ["lx-webpack"]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "lx_annotate.settings"
+python_files = ["test_*.py", "*_test.py", "tests/python/*.py"]
+addopts = [
+  "--import-mode=importlib",
+  "-ra",
+]
+
 
 [uv.sources]
 endoreg-db = { path = "endoreg-db", editable = true }

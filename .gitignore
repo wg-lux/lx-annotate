@@ -13,7 +13,7 @@ result/
 result/*
 data/
 endoreg-db
-
+.env
 .devenv/
 .direnv/
 .devenv.flake.nix

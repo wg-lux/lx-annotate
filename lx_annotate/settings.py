@@ -16,21 +16,25 @@ from dotenv import load_dotenv
 import environ
 from django.contrib import admin
 from django.urls import path, include
+from django.core.management.utils import get_random_secret_key
+from env_setup import SALT
 from lx_logging import get_logger
+
 import re
 
-
-
+# Load environment variables
+BASE_DIR = Path(__file__).resolve().parent.parent
 env = environ.Env()
-environ.Env.read_env()   
-
+env_path = Path(__file__).resolve().parent / ".env"
+environ.Env.read_env(str(Path(__file__).resolve().parent / ".env"))  # Explicitly load .env file
+print("Expecting .env at:", env_path, "exists?", env_path.exists())
 FRONTEND_URL = env("FRONTEND_URL", default="http://127.0.0.1:8000")  # dev default
-
 
 logger = get_logger(__name__)
 logger.debug(os.environ.get("DJANGO_SETTINGS", "dev"))
 
-SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY")
+SECRET_KEY = env("DJANGO_SECRET_KEY", default=get_random_secret_key())
+SALT = env("DJANGO_SALT", default=SALT)
 if not SECRET_KEY:
     raise Exception("The SECRET_KEY setting must not be empty.")
 DJANGO_SETTINGS = os.environ.get("DJANGO_SETTINGS", "dev")
@@ -39,7 +43,6 @@ DJANGO_SETTINGS = os.environ.get("DJANGO_SETTINGS", "dev")
 CORS_ALLOW_ALL_ORIGINS = True
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
-BASE_DIR = Path(__file__).resolve().parent.parent
 STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 VITE_APP_DIR = BASE_DIR / "frontend" 
 # Static files (CSS, JavaScript, Images)
@@ -135,8 +138,8 @@ WHITENOISE_MIMETYPES = {
 ROOT_URLCONF = 'lx_annotate.urls'
 
 
-TEMPLATES = [    
-  {        
+TEMPLATES = [
+    {
     'BACKEND': 'django.template.backends.django.DjangoTemplates',        
     'DIRS': [TEMPLATES_DIR,],        
     'APP_DIRS': True,        

@@ -111,6 +111,20 @@ const anonymizationStats = ref({
 
 const users = ref([]);
 
+// Check if userStore is empty and add a default user
+// This is a fallback in case the userStore is empty
+// #TODO: Remove this when userStore is properly populated
+if (!userStore.users || userStore.users.length === 0) {
+  const currentUser = {
+    id: 'current-session-user',
+    name: 'Aktueller User',
+    videoAnnotations: 0,
+    imageAnnotations: 0,
+    anonymizationAnnotations: 0,
+  };
+  users.value = [currentUser];
+}
+
 onMounted(async () => {
   // Fetch video annotations
   await videoStore.fetchAllVideos();
