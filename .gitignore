@@ -12,7 +12,8 @@ result
 result/
 result/*
 data/
-endoreg-db
+endoreg-db/
+lx-annotate/endoreg-db/
 # ignore any file that ends with .env anywhere
 **/*.env
 .devenv/
