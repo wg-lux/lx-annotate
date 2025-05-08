@@ -33,7 +33,10 @@ FRONTEND_URL = env("FRONTEND_URL", default="http://127.0.0.1:8000")  # dev defau
 logger = get_logger(__name__)
 logger.debug(os.environ.get("DJANGO_SETTINGS", "dev"))
 
-SECRET_KEY = env("DJANGO_SECRET_KEY", default=get_random_secret_key())
+# Fix for SECRET_KEY recursion issue
+DEFAULT_SECRET_KEY = get_random_secret_key()
+SECRET_KEY = env("DJANGO_SECRET_KEY", default=DEFAULT_SECRET_KEY)
+
 SALT = env("DJANGO_SALT", default=SALT)
 if not SECRET_KEY:
     raise Exception("The SECRET_KEY setting must not be empty.")
