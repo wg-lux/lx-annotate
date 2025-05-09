@@ -1,6 +1,6 @@
 import {defineStore} from 'pinia';
 import axios from 'axios';
-import {useAnonymizationStore} from "@/stores/anonymization";
+import {useAnonymizationStore} from "@/stores/anonymizationStore";
 
 export interface Case {
     patient_first_name: string;

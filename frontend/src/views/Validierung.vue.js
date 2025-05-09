@@ -1,4 +1,4 @@
-import AnonymizationValidationContainer from '@/components/Anonymizer/AnonymizationValidation.vue';
+import AnonymizationValidationContainer from '@/components/Anonymizer/AnonymizationValidationComponent.vue';
 export default (await import('vue')).defineComponent({
     name: 'ValidierungView',
     components: {

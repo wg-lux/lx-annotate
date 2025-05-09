@@ -5,28 +5,28 @@
         <h4 class="mb-0">Anonymisierungsvalidierung und Annotationen</h4>
       </div>
       <div class="card-body">
-        <!-- Loading and Error States -->
-        <div v-if="loading" class="text-center py-5">
+        <!-- Loading / Error States -->
+        <div v-if="store.loading" class="text-center py-5">
           <div class="spinner-border text-primary" role="status">
             <span class="visually-hidden">Wird geladen...</span>
           </div>
           <p class="mt-2">Anonymisierte Daten werden geladen...</p>
         </div>
 
-        <div v-else-if="error" class="alert alert-danger" role="alert">
-          <strong>Fehler:</strong> {{ error }}
+        <div v-else-if="store.error" class="alert alert-danger" role="alert">
+          <strong>Fehler:</strong> {{ store.error }}
         </div>
 
         <div v-else-if="!currentItem" class="alert alert-info" role="alert">
-          Keine weiteren Datensätze zur Validierung vorhanden.
+          Alle Anonymisierungen wurden bearbeitet.
         </div>
 
         <!-- Main Content When Data is Available -->
         <template v-else>
-          <!-- Patient Information Section -->
           <div class="row mb-4">
-            <div class="col-md-6">
-              <div class="card bg-light">
+            <!-- Patient Information & Annotation Section (Reduced Width) -->
+            <div class="col-md-5">
+              <div class="card bg-light mb-4">
                 <div class="card-body">
                   <h5 class="card-title">Patienteninformationen</h5>
                   <div class="mb-3">
@@ -81,30 +81,29 @@
                       Das Untersuchungsdatum darf nicht vor dem Geburtsdatum liegen.
                     </div>
                   </div>
+                  <div class="mb-3">
+                    <label class="form-label">Anonymisierter Text:</label>
+                    <textarea  class="form-control"
+                            rows="6"
+                            v-model="editedAnonymizedText" />
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div class="col-md-6">
               <!-- Annotation Section -->
               <div class="card bg-light">
                 <div class="card-body">
                   <h5 class="card-title">Annotationen</h5>
                   <div class="mb-3">
-                    <label class="form-label">Bild hochladen:</label>
-                    <input 
-                      type="file" 
-                      class="form-control" 
-                      @change="handleFileUpload"
-                      accept="image/*"
-                    >
+                    <!-- FilePond Component -->
+                    <FilePond ref="pond" name="file"
+                      accepted-file-types="image/*"
+                      label-idle="Bild hier ablegen oder klicken" />
                   </div>
-                  <div v-if="uploadedFile" class="mt-3">
-                    <img :src="displayedImageUrl" class="img-fluid" alt="Uploaded Image">
-                    <button 
-                      class="btn btn-info btn-sm mt-2"
-                      @click="toggleImage"
-                    >
+                  <div v-if="processedUrl" class="mt-3">
+                    <img :src="showOriginal ? originalUrl : processedUrl"
+                         class="img-fluid" alt="Uploaded Image">
+                    <button class="btn btn-info btn-sm mt-2" @click="toggleImage">
                       {{ showOriginal ? 'Bearbeitetes Bild anzeigen' : 'Original anzeigen' }}
                     </button>
                   </div>
@@ -120,6 +119,30 @@
                 </div>
               </div>
             </div>
+
+            <!-- PDF Viewer Section (New Column) -->
+            <div class="col-md-7">
+              <div class="card">
+                <div class="card-header pb-0">
+                  <h5 class="mb-0">PDF Vorschau</h5>
+                </div>
+                <div class="card-body pdf-viewer-container">
+                  <iframe
+                    v-if="currentItem && currentItem.report_meta && currentItem.report_meta.pdf_url"
+                    :src="currentItem.report_meta.pdf_url"
+                    width="100%"
+                    height="800px"
+                    frameborder="0"
+                    title="PDF Vorschau"
+                  >
+                    Ihr Browser unterstützt keine eingebetteten PDFs. Sie können die Datei <a :href="currentItem.report_meta.pdf_url">hier herunterladen</a>.
+                  </iframe>
+                  <div v-else class="alert alert-secondary">
+                    Keine PDF-URL verfügbar.
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
           <!-- Action Buttons -->
@@ -129,16 +152,13 @@
                 Überspringen
               </button>
               <div>
-                <button 
-                  class="btn btn-danger me-2" 
-                  @click="rejectItem"
-                >
+                <button class="btn btn-danger me-2" @click="rejectItem">
                   Ablehnen
                 </button>
                 <button 
                   class="btn btn-success" 
                   @click="approveItem"
-                  :disabled="!isExaminationDateValid">
+                  :disabled="!isExaminationDateValid || !dirty">
                   Bestätigen
                 </button>
               </div>
@@ -150,24 +170,35 @@
   </div>
 </template>
 
-<script>
-import axiosInstance from '@/api/axiosInstance';
-import { ref, computed, reactive, watch } from 'vue';
+<script lang="ts">
+import { ref, computed, reactive, onMounted, watch } from 'vue';
+import { useAnonymizationStore, type PatientData } from '@/stores/anonymizationStore';
+import vueFilePond from 'vue-filepond';
+import axiosInstance, { r } from '@/api/axiosInstance';
+import { setOptions, registerPlugin } from 'filepond';
+
+import FilePondPluginImagePreview        from 'filepond-plugin-image-preview';
+import FilePondPluginFileValidateType    from 'filepond-plugin-file-validate-type';
+
+registerPlugin(
+  FilePondPluginImagePreview,
+  FilePondPluginFileValidateType
+);
+
+const FilePond = vueFilePond(
+  FilePondPluginImagePreview,
+  FilePondPluginFileValidateType
+);
 
 export default {
   name: 'AnonymizationValidationComponent',
+  components: { FilePond },
   setup() {
-    const loading = ref(true);
-    const error = ref(null);
-    const currentItem = ref(null);
-    const editMode = ref(false);
+    const store = useAnonymizationStore();
+
+    // Lokaler State
     const editedAnonymizedText = ref('');
     const examinationDate = ref('');
-    const uploadedFile = ref(null);
-    const processedImageUrl = ref(null);
-    const originalImageUrl = ref(null);
-    const showOriginal = ref(false);
-
     const editedPatient = reactive({
       patient_first_name: '',
       patient_last_name: '',
@@ -176,157 +207,185 @@ export default {
       casenumber: ''
     });
 
+    // Computed Property für das aktuelle Element
+    const currentItem = computed(() => store.current);
+
+    // Einmalige Definition der Upload-bezogenen Refs
+    const originalUrl = ref('');
+    const processedUrl = ref('');
+    const showOriginal = ref(false);
+    const pond = ref<any>(null);
+
+    // FilePond global konfigurieren – nachdem die Refs existieren
+    setOptions({
+      allowRevert: true,
+      chunkUploads: true,
+      maxParallelUploads: 3,
+      server: {
+        process(field, file, metadata, load, error, progress) {
+          const fd = new FormData();
+          fd.append(field, file);
+          axiosInstance.post(r('upload-image/'), fd, {
+            onUploadProgress: e => progress(true, e.loaded ?? 0, e.total ?? 0)
+          })
+          .then(({ data }) => {
+            originalUrl.value  = data.original_image_url;
+            processedUrl.value = data.processed_image_url;
+            load(data.upload_id);
+          })
+          .catch(err => error(err.message));
+        },
+        revert(id, load) {
+          axiosInstance.delete(r(`upload-image/${id}/`)).finally(load);
+        }
+      }
+    });
+
+    // Fehlende Funktionen und Props
+    const toggleImage = () => { showOriginal.value = !showOriginal.value };
+
+    // Beispiel: Annotation speichern (hier einfach als Platzhalter)
+    const saveAnnotation = async () => {
+      console.log('Annotation gespeichert');
+    };
+
+    // Berechnung, ob das Formular absendbar ist
+    const canSubmit = computed(() => {
+      return editedAnonymizedText.value.trim() !== '' && isExaminationDateValid.value;
+    });
+
+    // Dirty state: prüfen, ob ein Feld geändert wurde
+    const dirty = computed(() => {
+        if (!currentItem.value) return false;
+        const meta = currentItem.value.report_meta;
+        return editedAnonymizedText.value !== (currentItem.value.anonymized_text ?? '') ||
+               editedPatient.patient_first_name !== (meta?.patient_first_name ?? '') ||
+               editedPatient.patient_last_name !== (meta?.patient_last_name ?? '') ||
+               editedPatient.patient_gender !== (meta?.patient_gender ?? '') ||
+               editedPatient.patient_dob !== (meta?.patient_dob?.split(/[ T]/)[0] ?? '') ||
+               editedPatient.casenumber !== (meta?.casenumber ?? '') ||
+               examinationDate.value !== (meta?.examination_date?.split(/[ T]/)[0] ?? '');
+    });
+
+    // Funktion zum Befüllen der Formularfelder
+    const populateForm = (item: PatientData | null) => {
+      console.log('Populating form with item:', item);
+      if (!item?.report_meta) {
+         console.log('No item or report_meta found, clearing form.');
+         editedAnonymizedText.value = '';
+         editedPatient.patient_first_name = '';
+         editedPatient.patient_last_name = '';
+         editedPatient.patient_gender = '';
+         editedPatient.patient_dob = '';
+         editedPatient.casenumber = '';
+         examinationDate.value = '';
+         return;
+      }
+
+      const m = item.report_meta;
+      editedAnonymizedText.value = item.anonymized_text ?? '';
+      editedPatient.patient_first_name = m.patient_first_name ?? '';
+      editedPatient.patient_last_name  = m.patient_last_name  ?? '';
+      editedPatient.patient_gender     = m.patient_gender     ?? '';
+      editedPatient.patient_dob        = m.patient_dob?.split(/[ T]/)[0] ?? '';
+      editedPatient.casenumber         = m.casenumber         ?? '';
+      examinationDate.value            = m.examination_date?.split(/[ T]/)[0] ?? '';
+      console.log('Form populated:', {
+          text: editedAnonymizedText.value,
+          patient: { ...editedPatient },
+          examDate: examinationDate.value
+      });
+    };
+
+    // Watcher für currentItem
+    watch(currentItem, (newItem, oldItem) => {
+      if (newItem?.id !== oldItem?.id || (!newItem && oldItem)) {
+          console.log('currentItem changed detected, calling populateForm.');
+          populateForm(newItem);
+      } else {
+          console.log('currentItem watcher triggered, but no relevant change detected.');
+      }
+    }, { immediate: true });
+
+    // Laden der Daten über den Store
+    const loadData = async () => {
+      console.log('loadData called. Current item ID before fetch:', currentItem.value?.id);
+      await store.fetchNext();
+      console.log('loadData finished fetchNext. Current item ID after fetch:', store.current?.id);
+    };
+
+    // Approve flow: nutzt patchPdf vom Store
+    const approveItem = async () => {
+      if (!isExaminationDateValid.value || !currentItem.value || !currentItem.value.report_meta) return;
+      try {
+        const reportMetaDataToSend: any = {
+             id: currentItem.value.report_meta.id,
+             patient_first_name: editedPatient.patient_first_name,
+             patient_last_name: editedPatient.patient_last_name,
+             patient_gender: editedPatient.patient_gender,
+             patient_dob: editedPatient.patient_dob,
+             casenumber: editedPatient.casenumber,
+             examination_date: examinationDate.value
+        };
+
+        await store.patchPdf({
+          id: currentItem.value.id,
+          anonymized_text: editedAnonymizedText.value,
+          status: 'approved',
+          report_meta: reportMetaDataToSend
+        });
+        await loadData();
+      } catch (err: any) {
+        store.error = err.message ?? 'Fehler beim Bestätigen';
+      }
+    };
+
+    const rejectItem = async () => {
+       if (!currentItem.value) return;
+      try {
+        await store.patchPdf({
+          id: currentItem.value.id,
+          status: 'rejected'
+        });
+        await loadData();
+      } catch (err: any) {
+         store.error = err.message ?? 'Fehler beim Ablehnen';
+      }
+    };
+
+    const skipItem = async () => {
+      await loadData();
+    };
+
     const isExaminationDateValid = computed(() => {
       if (!examinationDate.value || !editedPatient.patient_dob) return true;
       return new Date(examinationDate.value) >= new Date(editedPatient.patient_dob);
     });
 
-    const displayedImageUrl = computed(() => {
-      return showOriginal.value ? originalImageUrl.value : processedImageUrl.value;
-    });
-
-    const canSubmit = computed(() => {
-      return processedImageUrl.value && uploadedFile.value;
-    });
-
-    const loadData = async () => {
-      loading.value = true;
-      error.value = null;
-      
-      try {
-        const response = await axiosInstance.get('/api/pdf/anony_text/');
-        const data = response.data;
-        if (data) {
-          currentItem.value = data;
-          editedAnonymizedText.value = currentItem.value.anonymized_text;
-          
-          const meta = currentItem.value.report_meta;
-          editedPatient.patient_first_name = meta.patient_first_name || '';
-          editedPatient.patient_last_name = meta.patient_last_name || '';
-          editedPatient.patient_gender = meta.patient_gender || '';
-          editedPatient.patient_dob = meta.patient_dob || '';
-          editedPatient.casenumber = meta.casenumber || '';
-          examinationDate.value = meta.examination_date || '';
-        } else {
-          currentItem.value = null;
-        }
-      } catch (err) {
-        error.value = `Fehler beim Laden der Daten: ${err.message}`;
-      } finally {
-        loading.value = false;
-      }
-    };
-
-    const handleFileUpload = async (event) => {
-      const file = event.target.files[0];
-      if (!file) return;
-
-      const formData = new FormData();
-      formData.append('file', file);
-
-      try {
-        const response = await axiosInstance.post('/api/upload-image/', formData);
-        processedImageUrl.value = response.data.processed_image_url;
-        originalImageUrl.value = response.data.original_image_url;
-        uploadedFile.value = file;
-      } catch (error) {
-        error.value = `Fehler beim Hochladen: ${error.message}`;
-      }
-    };
-
-    const saveAnnotation = async () => {
-      if (!canSubmit.value) return;
-
-      const annotationData = {
-        image_name: uploadedFile.value.name,
-        processed_image_url: processedImageUrl.value,
-        original_image_url: originalImageUrl.value,
-      };
-
-      try {
-        await axiosInstance.post('/api/save-annotation/', annotationData);
-        alert('Annotation gespeichert!');
-      } catch (error) {
-        error.value = `Fehler beim Speichern: ${error.message}`;
-      }
-    };
-
-    const toggleImage = () => {
-      showOriginal.value = !showOriginal.value;
-    };
-
-    const approveItem = async () => {
-      if (!isExaminationDateValid.value) return;
-      
-      loading.value = true;
-      try {
-        const updateData = {
-          id: currentItem.value.id,
-          anonymized_text: editedAnonymizedText.value,
-          report_meta: {
-            ...currentItem.value.report_meta,
-            patient_first_name: editedPatient.patient_first_name,
-            patient_last_name: editedPatient.patient_last_name,
-            patient_gender: editedPatient.patient_gender,
-            patient_dob: editedPatient.patient_dob,
-            casenumber: editedPatient.casenumber,
-            examination_date: examinationDate.value
-          }
-        };
-        
-        await axiosInstance.patch('/api/pdf/update_anony_text/', updateData);
-        await loadData();
-      } catch (err) {
-        error.value = `Fehler beim Speichern: ${err.message}`;
-      } finally {
-        loading.value = false;
-      }
-    };
-
-    const rejectItem = async () => {
-      loading.value = true;
-      try {
-        await axiosInstance.patch('/api/pdf/update_anony_text/', {
-          id: currentItem.value.id,
-          status: 'rejected'
-        });
-        await loadData();
-      } catch (err) {
-        error.value = `Fehler beim Ablehnen: ${err.message}`;
-      } finally {
-        loading.value = false;
-      }
-    };
-
-    const skipItem = async () => {
+    // Prepopulate form fields on component mount
+    onMounted(() => {
+      console.log('Component mounted, calling initial loadData.');
       loadData();
-    };
-
-    watch(currentItem, (newItem) => {
-      if (newItem) {
-        editedAnonymizedText.value = newItem.anonymized_text;
-      }
     });
-
-    loadData();
 
     return {
-      loading,
-      error,
+      store,
       currentItem,
-      editMode,
       editedAnonymizedText,
       editedPatient,
       examinationDate,
       isExaminationDateValid,
+      dirty,
       approveItem,
       rejectItem,
       skipItem,
-      handleFileUpload,
-      saveAnnotation,
+      showOriginal,
+      originalUrl,
+      processedUrl,
       toggleImage,
-      displayedImageUrl,
+      saveAnnotation,
       canSubmit,
+      pond,
     };
   }
 };
@@ -345,13 +404,20 @@ pre {
   overflow-y: auto;
 }
 
-.card {
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  margin-bottom: 20px;
-}
 
 .form-control:focus, .form-select:focus {
   border-color: #80bdff;
   box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+/* Optional: Style for the PDF container if needed */
+.pdf-viewer-container {
+  height: 850px;
+  overflow: hidden;
+}
+
+.pdf-viewer-container iframe {
+  border: 1px solid #dee2e6;
+  border-radius: 0.25rem;
 }
 </style>

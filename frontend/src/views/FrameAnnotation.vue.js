@@ -1,10 +1,8 @@
 import ScrollingFrames from '../components/SelectFrames/ScrollingFrames.vue';
-import AnnotationComponent from '../components/AnnotationComponent.vue';
 export default (await import('vue')).defineComponent({
     name: 'Annotationen',
     components: {
         ScrollingFrames,
-        AnnotationComponent,
     },
 });
 ; /* PartiallyEnd: #3632/script.vue */
@@ -12,7 +10,6 @@ function __VLS_template() {
     const __VLS_ctx = {};
     const __VLS_componentsOption = {
         ScrollingFrames,
-        AnnotationComponent,
     };
     let __VLS_components;
     let __VLS_directives;

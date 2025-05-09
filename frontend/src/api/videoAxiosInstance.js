@@ -10,4 +10,12 @@ const videoAxiosInstance = axios.create({
     },
     //withCredentials: true,
 });
+import Cookies from 'js-cookie';
+videoAxiosInstance.interceptors.request.use((config) => {
+    const csrftoken = Cookies.get('csrftoken');
+    if (csrftoken && config.headers) {
+        config.headers['X-CSRFToken'] = csrftoken;
+    }
+    return config;
+});
 export default videoAxiosInstance;

@@ -12,13 +12,11 @@
 </template>
 <script>
 import ScrollingFrames from '../components/SelectFrames/ScrollingFrames.vue';
-import AnnotationComponent from '../components/AnnotationComponent.vue';
 
 export default {
   name: 'Annotationen',
   components: {
     ScrollingFrames,
-    AnnotationComponent,
   },
 };
 </script>

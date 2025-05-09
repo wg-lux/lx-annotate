@@ -1,4 +1,7 @@
 import { useImageStore } from '@/stores/imageStore';
+import { DynamicScroller, DynamicScrollerItem } from 'vue-virtual-scroller';
+import { ref } from 'vue';
+import { useVideoStore } from '@/stores/videoStore';
 export default (await import('vue')).defineComponent({
     name: 'ScrollingFrames',
     setup() {
@@ -6,7 +9,6 @@ export default (await import('vue')).defineComponent({
         const frames = imageStore.data;
         const annotateFrame = (frame) => {
             alert(`Frame ${frame.id} annotiert!`);
-            // Hier können weitere Annotationen hinzugefügt werden
         };
         return {
             frames,

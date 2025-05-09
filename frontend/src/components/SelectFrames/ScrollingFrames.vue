@@ -26,15 +26,7 @@
 import { useImageStore } from '@/stores/imageStore';
 import { DynamicScroller, DynamicScrollerItem } from 'vue-virtual-scroller';
 import { ref } from 'vue';
-import { useAnnotationStore } from '@/stores/annotationStore';
-import { useUserStore } from '@/stores/userStore';
 import { useVideoStore } from '@/stores/videoStore';
-import { useAnonymizationStore } from '@/stores/anonymizationStore';
-import { useAnnotationValidationStore } from '@/stores/annotationValidationStore';
-import { useAnnotationTypeStore } from '@/stores/annotationTypeStore';
-import { useAnnotationStatusStore } from '@/stores/annotationStatusStore';
-import { useAnnotationCategoryStore } from '@/stores/annotationCategoryStore';
-import { useAnnotationLabelStore } from '@/stores/annotationLabelStore';
 export default {
   name: 'ScrollingFrames',
   setup() {

@@ -51,9 +51,9 @@ const router = createRouter({
             }
         },
         {
-            path: '/befund',
-            name: 'Befund',
-            component: () => import('src/views/Report.vue'),
+            path: '/untersuchung',
+            name: 'Untersuchung',
+            component: () => import('src/views/Examination.vue'),
             meta: {
                 description: 'Hier können Sie Befunde erstellen.'
             }
@@ -72,6 +72,14 @@ const router = createRouter({
             component: () => import('@/views/Profil.vue'),
             meta: {
                 description: 'Hier können Sie Ihr Profil einsehen und bearbeiten.'
+            }
+        },
+        {
+            path: '/anonymisierung',
+            name: 'Anonymisierung',
+            component: () => import('@/views/Anonymization.vue'),
+            meta: {
+                description: 'Hier können Sie Anonymisierungsprozesse durchführen.'
             }
         },
         {

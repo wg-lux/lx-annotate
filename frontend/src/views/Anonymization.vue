@@ -11,10 +11,10 @@
 </template>
 
 <script>
-import AnonymizationValidationComponent from './AnonymizationValidationComponent.vue';
+import AnonymizationValidationComponent from '../components/Anonymizer/AnonymizationValidationComponent.vue';
 
 export default {
-  name: 'AnonymizationValidationContainer',
+  name: 'Anonymisierung',
   components: {
     AnonymizationValidationComponent
   }

@@ -1,18 +1,20 @@
-import axiosInstance from '@/api/axiosInstance';
-import { ref, computed, reactive, watch } from 'vue';
+import { ref, computed, reactive, onMounted, watch } from 'vue';
+import { useAnonymizationStore } from '@/stores/anonymizationStore';
+import vueFilePond from 'vue-filepond';
+import axiosInstance, { r } from '@/api/axiosInstance';
+import { setOptions, registerPlugin } from 'filepond';
+import FilePondPluginImagePreview from 'filepond-plugin-image-preview';
+import FilePondPluginFileValidateType from 'filepond-plugin-file-validate-type';
+registerPlugin(FilePondPluginImagePreview, FilePondPluginFileValidateType);
+const FilePond = vueFilePond(FilePondPluginImagePreview, FilePondPluginFileValidateType);
 export default (await import('vue')).defineComponent({
     name: 'AnonymizationValidationComponent',
+    components: { FilePond },
     setup() {
-        const loading = ref(true);
-        const error = ref(null);
-        const currentItem = ref(null);
-        const editMode = ref(false);
+        const store = useAnonymizationStore();
+        // Lokaler State
         const editedAnonymizedText = ref('');
         const examinationDate = ref('');
-        const uploadedFile = ref(null);
-        const processedImageUrl = ref(null);
-        const originalImageUrl = ref(null);
-        const showOriginal = ref(false);
         const editedPatient = reactive({
             patient_first_name: '',
             patient_last_name: '',
@@ -20,158 +22,185 @@ export default (await import('vue')).defineComponent({
             patient_dob: '',
             casenumber: ''
         });
-        const isExaminationDateValid = computed(() => {
-            if (!examinationDate.value || !editedPatient.patient_dob)
-                return true;
-            return new Date(examinationDate.value) >= new Date(editedPatient.patient_dob);
-        });
-        const displayedImageUrl = computed(() => {
-            return showOriginal.value ? originalImageUrl.value : processedImageUrl.value;
-        });
-        const canSubmit = computed(() => {
-            return processedImageUrl.value && uploadedFile.value;
-        });
-        const loadData = async () => {
-            loading.value = true;
-            error.value = null;
-            try {
-                const response = await axiosInstance.get('/api/pdf/anony_text/');
-                const data = response.data;
-                if (data) {
-                    currentItem.value = data;
-                    editedAnonymizedText.value = currentItem.value.anonymized_text;
-                    const meta = currentItem.value.report_meta;
-                    editedPatient.patient_first_name = meta.patient_first_name || '';
-                    editedPatient.patient_last_name = meta.patient_last_name || '';
-                    editedPatient.patient_gender = meta.patient_gender || '';
-                    editedPatient.patient_dob = meta.patient_dob || '';
-                    editedPatient.casenumber = meta.casenumber || '';
-                    examinationDate.value = meta.examination_date || '';
-                }
-                else {
-                    currentItem.value = null;
+        // Computed Property für das aktuelle Element
+        const currentItem = computed(() => store.current);
+        // Einmalige Definition der Upload-bezogenen Refs
+        const originalUrl = ref('');
+        const processedUrl = ref('');
+        const showOriginal = ref(false);
+        const pond = ref(null);
+        // FilePond global konfigurieren – nachdem die Refs existieren
+        setOptions({
+            allowRevert: true,
+            chunkUploads: true,
+            maxParallelUploads: 3,
+            server: {
+                process(field, file, metadata, load, error, progress) {
+                    const fd = new FormData();
+                    fd.append(field, file);
+                    axiosInstance.post(r('upload-image/'), fd, {
+                        onUploadProgress: e => progress(true, e.loaded ?? 0, e.total ?? 0)
+                    })
+                        .then(({ data }) => {
+                        originalUrl.value = data.original_image_url;
+                        processedUrl.value = data.processed_image_url;
+                        load(data.upload_id);
+                    })
+                        .catch(err => error(err.message));
+                },
+                revert(id, load) {
+                    axiosInstance.delete(r(`upload-image/${id}/`)).finally(load);
                 }
             }
-            catch (err) {
-                error.value = `Fehler beim Laden der Daten: ${err.message}`;
-            }
-            finally {
-                loading.value = false;
-            }
-        };
-        const handleFileUpload = async (event) => {
-            const file = event.target.files[0];
-            if (!file)
-                return;
-            const formData = new FormData();
-            formData.append('file', file);
-            try {
-                const response = await axiosInstance.post('/api/upload-image/', formData);
-                processedImageUrl.value = response.data.processed_image_url;
-                originalImageUrl.value = response.data.original_image_url;
-                uploadedFile.value = file;
-            }
-            catch (error) {
-                error.value = `Fehler beim Hochladen: ${error.message}`;
-            }
-        };
+        });
+        // Fehlende Funktionen und Props
+        const toggleImage = () => { showOriginal.value = !showOriginal.value; };
+        // Beispiel: Annotation speichern (hier einfach als Platzhalter)
         const saveAnnotation = async () => {
-            if (!canSubmit.value)
+            console.log('Annotation gespeichert');
+        };
+        // Berechnung, ob das Formular absendbar ist
+        const canSubmit = computed(() => {
+            return editedAnonymizedText.value.trim() !== '' && isExaminationDateValid.value;
+        });
+        // Dirty state: prüfen, ob ein Feld geändert wurde
+        const dirty = computed(() => {
+            if (!currentItem.value)
+                return false;
+            const meta = currentItem.value.report_meta;
+            return editedAnonymizedText.value !== (currentItem.value.anonymized_text ?? '') ||
+                editedPatient.patient_first_name !== (meta?.patient_first_name ?? '') ||
+                editedPatient.patient_last_name !== (meta?.patient_last_name ?? '') ||
+                editedPatient.patient_gender !== (meta?.patient_gender ?? '') ||
+                editedPatient.patient_dob !== (meta?.patient_dob?.split(/[ T]/)[0] ?? '') ||
+                editedPatient.casenumber !== (meta?.casenumber ?? '') ||
+                examinationDate.value !== (meta?.examination_date?.split(/[ T]/)[0] ?? '');
+        });
+        // Funktion zum Befüllen der Formularfelder
+        const populateForm = (item) => {
+            console.log('Populating form with item:', item);
+            if (!item?.report_meta) {
+                console.log('No item or report_meta found, clearing form.');
+                editedAnonymizedText.value = '';
+                editedPatient.patient_first_name = '';
+                editedPatient.patient_last_name = '';
+                editedPatient.patient_gender = '';
+                editedPatient.patient_dob = '';
+                editedPatient.casenumber = '';
+                examinationDate.value = '';
                 return;
-            const annotationData = {
-                image_name: uploadedFile.value.name,
-                processed_image_url: processedImageUrl.value,
-                original_image_url: originalImageUrl.value,
-            };
-            try {
-                await axiosInstance.post('/api/save-annotation/', annotationData);
-                alert('Annotation gespeichert!');
             }
-            catch (error) {
-                error.value = `Fehler beim Speichern: ${error.message}`;
+            const m = item.report_meta;
+            editedAnonymizedText.value = item.anonymized_text ?? '';
+            editedPatient.patient_first_name = m.patient_first_name ?? '';
+            editedPatient.patient_last_name = m.patient_last_name ?? '';
+            editedPatient.patient_gender = m.patient_gender ?? '';
+            editedPatient.patient_dob = m.patient_dob?.split(/[ T]/)[0] ?? '';
+            editedPatient.casenumber = m.casenumber ?? '';
+            examinationDate.value = m.examination_date?.split(/[ T]/)[0] ?? '';
+            console.log('Form populated:', {
+                text: editedAnonymizedText.value,
+                patient: { ...editedPatient },
+                examDate: examinationDate.value
+            });
+        };
+        // Watcher für currentItem
+        watch(currentItem, (newItem, oldItem) => {
+            if (newItem?.id !== oldItem?.id || (!newItem && oldItem)) {
+                console.log('currentItem changed detected, calling populateForm.');
+                populateForm(newItem);
             }
+            else {
+                console.log('currentItem watcher triggered, but no relevant change detected.');
+            }
+        }, { immediate: true });
+        // Laden der Daten über den Store
+        const loadData = async () => {
+            console.log('loadData called. Current item ID before fetch:', currentItem.value?.id);
+            await store.fetchNext();
+            console.log('loadData finished fetchNext. Current item ID after fetch:', store.current?.id);
         };
-        const toggleImage = () => {
-            showOriginal.value = !showOriginal.value;
-        };
+        // Approve flow: nutzt patchPdf vom Store
         const approveItem = async () => {
-            if (!isExaminationDateValid.value)
+            if (!isExaminationDateValid.value || !currentItem.value || !currentItem.value.report_meta)
                 return;
-            loading.value = true;
             try {
-                const updateData = {
+                const reportMetaDataToSend = {
+                    id: currentItem.value.report_meta.id,
+                    patient_first_name: editedPatient.patient_first_name,
+                    patient_last_name: editedPatient.patient_last_name,
+                    patient_gender: editedPatient.patient_gender,
+                    patient_dob: editedPatient.patient_dob,
+                    casenumber: editedPatient.casenumber,
+                    examination_date: examinationDate.value
+                };
+                await store.patchPdf({
                     id: currentItem.value.id,
                     anonymized_text: editedAnonymizedText.value,
-                    report_meta: {
-                        ...currentItem.value.report_meta,
-                        patient_first_name: editedPatient.patient_first_name,
-                        patient_last_name: editedPatient.patient_last_name,
-                        patient_gender: editedPatient.patient_gender,
-                        patient_dob: editedPatient.patient_dob,
-                        casenumber: editedPatient.casenumber,
-                        examination_date: examinationDate.value
-                    }
-                };
-                await axiosInstance.patch('/api/pdf/update_anony_text/', updateData);
+                    status: 'approved',
+                    report_meta: reportMetaDataToSend
+                });
                 await loadData();
             }
             catch (err) {
-                error.value = `Fehler beim Speichern: ${err.message}`;
-            }
-            finally {
-                loading.value = false;
+                store.error = err.message ?? 'Fehler beim Bestätigen';
             }
         };
         const rejectItem = async () => {
-            loading.value = true;
+            if (!currentItem.value)
+                return;
             try {
-                await axiosInstance.patch('/api/pdf/update_anony_text/', {
+                await store.patchPdf({
                     id: currentItem.value.id,
                     status: 'rejected'
                 });
                 await loadData();
             }
             catch (err) {
-                error.value = `Fehler beim Ablehnen: ${err.message}`;
-            }
-            finally {
-                loading.value = false;
+                store.error = err.message ?? 'Fehler beim Ablehnen';
             }
         };
         const skipItem = async () => {
-            loadData();
+            await loadData();
         };
-        watch(currentItem, (newItem) => {
-            if (newItem) {
-                editedAnonymizedText.value = newItem.anonymized_text;
-            }
+        const isExaminationDateValid = computed(() => {
+            if (!examinationDate.value || !editedPatient.patient_dob)
+                return true;
+            return new Date(examinationDate.value) >= new Date(editedPatient.patient_dob);
         });
-        loadData();
+        // Prepopulate form fields on component mount
+        onMounted(() => {
+            console.log('Component mounted, calling initial loadData.');
+            loadData();
+        });
         return {
-            loading,
-            error,
+            store,
             currentItem,
-            editMode,
             editedAnonymizedText,
             editedPatient,
             examinationDate,
             isExaminationDateValid,
+            dirty,
             approveItem,
             rejectItem,
             skipItem,
-            handleFileUpload,
-            saveAnnotation,
+            showOriginal,
+            originalUrl,
+            processedUrl,
             toggleImage,
-            displayedImageUrl,
+            saveAnnotation,
             canSubmit,
+            pond,
         };
     }
 });
 ; /* PartiallyEnd: #3632/script.vue */
 function __VLS_template() {
     const __VLS_ctx = {};
+    const __VLS_componentsOption = { FilePond };
     let __VLS_components;
     let __VLS_directives;
+    ['pdf-viewer-container',];
     // CSS variable injection 
     // CSS variable injection end 
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -189,7 +218,7 @@ function __VLS_template() {
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: ("card-body") },
     });
-    if (__VLS_ctx.loading) {
+    if (__VLS_ctx.store.loading) {
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: ("text-center py-5") },
         });
@@ -204,13 +233,13 @@ function __VLS_template() {
             ...{ class: ("mt-2") },
         });
     }
-    else if (__VLS_ctx.error) {
+    else if (__VLS_ctx.store.error) {
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: ("alert alert-danger") },
             role: ("alert"),
         });
         __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
-        (__VLS_ctx.error);
+        (__VLS_ctx.store.error);
     }
     else if (!__VLS_ctx.currentItem) {
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -223,10 +252,10 @@ function __VLS_template() {
             ...{ class: ("row mb-4") },
         });
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("col-md-6") },
+            ...{ class: ("col-md-5") },
         });
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("card bg-light") },
+            ...{ class: ("card bg-light mb-4") },
         });
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: ("card-body") },
@@ -315,7 +344,15 @@ function __VLS_template() {
             });
         }
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("col-md-6") },
+            ...{ class: ("mb-3") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+            ...{ class: ("form-label") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.textarea)({
+            ...{ class: ("form-control") },
+            rows: ("6"),
+            value: ((__VLS_ctx.editedAnonymizedText)),
         });
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: ("card bg-light") },
@@ -329,21 +366,31 @@ function __VLS_template() {
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: ("mb-3") },
         });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
-            ...{ class: ("form-label") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.input, __VLS_intrinsicElements.input)({
-            ...{ onChange: (__VLS_ctx.handleFileUpload) },
-            type: ("file"),
-            ...{ class: ("form-control") },
-            accept: ("image/*"),
-        });
-        if (__VLS_ctx.uploadedFile) {
+        const __VLS_0 = {}.FilePond;
+        /** @type { [typeof __VLS_components.FilePond, ] } */ ;
+        // @ts-ignore
+        const __VLS_1 = __VLS_asFunctionalComponent(__VLS_0, new __VLS_0({
+            ref: ("pond"),
+            name: ("file"),
+            acceptedFileTypes: ("image/*"),
+            labelIdle: ("Bild hier ablegen oder klicken"),
+        }));
+        const __VLS_2 = __VLS_1({
+            ref: ("pond"),
+            name: ("file"),
+            acceptedFileTypes: ("image/*"),
+            labelIdle: ("Bild hier ablegen oder klicken"),
+        }, ...__VLS_functionalComponentArgsRest(__VLS_1));
+        // @ts-ignore navigation for `const pond = ref()`
+        /** @type { typeof __VLS_ctx.pond } */ ;
+        var __VLS_6 = {};
+        var __VLS_5;
+        if (__VLS_ctx.processedUrl) {
             __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
                 ...{ class: ("mt-3") },
             });
             __VLS_elementAsFunction(__VLS_intrinsicElements.img, __VLS_intrinsicElements.img)({
-                src: ((__VLS_ctx.displayedImageUrl)),
+                src: ((__VLS_ctx.showOriginal ? __VLS_ctx.originalUrl : __VLS_ctx.processedUrl)),
                 ...{ class: ("img-fluid") },
                 alt: ("Uploaded Image"),
             });
@@ -362,6 +409,38 @@ function __VLS_template() {
             disabled: ((!__VLS_ctx.canSubmit)),
         });
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("col-md-7") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("card") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("card-header pb-0") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.h5, __VLS_intrinsicElements.h5)({
+            ...{ class: ("mb-0") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("card-body pdf-viewer-container") },
+        });
+        if (__VLS_ctx.currentItem && __VLS_ctx.currentItem.report_meta && __VLS_ctx.currentItem.report_meta.pdf_url) {
+            __VLS_elementAsFunction(__VLS_intrinsicElements.iframe, __VLS_intrinsicElements.iframe)({
+                src: ((__VLS_ctx.currentItem.report_meta.pdf_url)),
+                width: ("100%"),
+                height: ("800px"),
+                frameborder: ("0"),
+                title: ("PDF Vorschau"),
+            });
+            __VLS_elementAsFunction(__VLS_intrinsicElements.a, __VLS_intrinsicElements.a)({
+                href: ((__VLS_ctx.currentItem.report_meta.pdf_url)),
+            });
+        }
+        else {
+            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: ("alert alert-secondary") },
+            });
+        }
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: ("row") },
         });
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -379,15 +458,17 @@ function __VLS_template() {
         __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
             ...{ onClick: (__VLS_ctx.approveItem) },
             ...{ class: ("btn btn-success") },
-            disabled: ((!__VLS_ctx.isExaminationDateValid)),
+            disabled: ((!__VLS_ctx.isExaminationDateValid || !__VLS_ctx.dirty)),
         });
     }
-    ['container-fluid', 'py-4', 'card', 'card-header', 'pb-0', 'mb-0', 'card-body', 'text-center', 'py-5', 'spinner-border', 'text-primary', 'visually-hidden', 'mt-2', 'alert', 'alert-danger', 'alert', 'alert-info', 'row', 'mb-4', 'col-md-6', 'card', 'bg-light', 'card-body', 'card-title', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-select', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-control', 'is-invalid', 'invalid-feedback', 'col-md-6', 'card', 'bg-light', 'card-body', 'card-title', 'mb-3', 'form-label', 'form-control', 'mt-3', 'img-fluid', 'btn', 'btn-info', 'btn-sm', 'mt-2', 'mt-3', 'btn', 'btn-primary', 'row', 'col-12', 'd-flex', 'justify-content-between', 'btn', 'btn-secondary', 'btn', 'btn-danger', 'me-2', 'btn', 'btn-success',];
+    ['container-fluid', 'py-4', 'card', 'card-header', 'pb-0', 'mb-0', 'card-body', 'text-center', 'py-5', 'spinner-border', 'text-primary', 'visually-hidden', 'mt-2', 'alert', 'alert-danger', 'alert', 'alert-info', 'row', 'mb-4', 'col-md-5', 'card', 'bg-light', 'mb-4', 'card-body', 'card-title', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-select', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-control', 'is-invalid', 'invalid-feedback', 'mb-3', 'form-label', 'form-control', 'card', 'bg-light', 'card-body', 'card-title', 'mb-3', 'mt-3', 'img-fluid', 'btn', 'btn-info', 'btn-sm', 'mt-2', 'mt-3', 'btn', 'btn-primary', 'col-md-7', 'card', 'card-header', 'pb-0', 'mb-0', 'card-body', 'pdf-viewer-container', 'alert', 'alert-secondary', 'row', 'col-12', 'd-flex', 'justify-content-between', 'btn', 'btn-secondary', 'btn', 'btn-danger', 'me-2', 'btn', 'btn-success',];
     var __VLS_slots;
     var $slots;
     let __VLS_inheritedAttrs;
     var $attrs;
-    const __VLS_refs = {};
+    const __VLS_refs = {
+        'pond': __VLS_6,
+    };
     var $refs;
     var $el;
     return {

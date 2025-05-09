@@ -17,6 +17,7 @@
         nodejs_22
         yarn
         nodePackages_latest.gulp
+        vite
 
       ];
 

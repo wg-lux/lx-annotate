@@ -23,24 +23,12 @@ export interface PatientData {
     };
     id: string;
     status?: string;
+    error?: boolean;
 }
 export declare const useAnonymizationStore: import("pinia").StoreDefinition<"anonymization", AnonymizationState & {
-    pendingAnonymizations: PatientData[];
+    pending: PatientData[];
 }, {}, {
-    fetchPendingAnonymizations(): Promise<{
-        text: string;
-        anonymized_text: string;
-        report_meta: {
-            casenumber: string | null;
-            patient_dob: string | null;
-            patient_first_name: string;
-            patient_gender: string;
-            patient_last_name: string;
-            pdf_hash: string;
-            examination_date?: string | undefined;
-        };
-        id: string;
-        status?: string | undefined;
-    }[]>;
-    updateAnonymization(data: Partial<PatientData>): Promise<void>;
+    fetchNext(lastId?: number): Promise<PatientData | null>;
+    patchPdf(payload: Partial<PatientData>): Promise<import("axios").AxiosResponse<any, any>>;
+    patchVideo(payload: any): Promise<import("axios").AxiosResponse<any, any>>;
 }>;
