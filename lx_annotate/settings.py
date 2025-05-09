@@ -37,7 +37,9 @@ logger.debug(os.environ.get("DJANGO_SETTINGS", "dev"))
 DEFAULT_SECRET_KEY = get_random_secret_key()
 SECRET_KEY = env("DJANGO_SECRET_KEY", default=DEFAULT_SECRET_KEY)
 
-SALT = env("DJANGO_SALT", default=SALT)
+
+DEFAULT_SALT = "CHANGE-ME-IN-PROD"      # ← literal, not a variable reference
+SALT = env("DJANGO_SALT", default=DEFAULT_SALT)
 if not SECRET_KEY:
     raise Exception("The SECRET_KEY setting must not be empty.")
 DJANGO_SETTINGS = os.environ.get("DJANGO_SETTINGS", "dev")

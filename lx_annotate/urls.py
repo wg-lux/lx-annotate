@@ -7,9 +7,10 @@ from django.conf.urls.static import static
 urlpatterns = [
     path("admin/", admin.site.urls),
 
-    # ✅ expose every URL defined in endoreg_db.urls
-    path("", include(("endoreg_db.urls", "endoreg_db"), namespace="endoreg_db")),
-
+    path(
+        "api/",
+        include(("endoreg_db.urls", "endoreg_db"), namespace="endoreg_db"),
+    ),
     # Vue SPA fallback – keep AFTER real routes
     re_path(r"^(?!api/|admin/).*$", TemplateView.as_view(template_name="base.html"),
             name="vue_spa"),
