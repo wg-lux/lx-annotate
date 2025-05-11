@@ -151,7 +151,7 @@ class ProxyView(View):
             data = response.text
         return JsonResponse(data, status=response.status_code, safe=False)
 
-'''
+
 class ProcessFileView(APIView):
     # permission_classes = [IsAuthenticated]  # Optional, for secure API access
 

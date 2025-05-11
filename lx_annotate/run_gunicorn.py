@@ -5,7 +5,7 @@ def main():
     # Define default Gunicorn options
     default_args = [
         "gunicorn",               # Gunicorn command
-        "agl_anonymizer.wsgi:application", # WSGI application
+        "lx-annotate.wsgi:application", # WSGI application
         "--workers", "1",          # Default number of workers
         "--bind", "0.0.0.0:8000"   # Default binding to 0.0.0.0:8000
     ]

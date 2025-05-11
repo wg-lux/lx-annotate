@@ -17,6 +17,26 @@ target = target_dir / ".env"
 target_dir.mkdir(parents=True, exist_ok=True)
 
 # Ensure the .env file exists
+template = project_root / "conf_template" / "default.env"
+
+target_dir.mkdir(parents=True, exist_ok=True)
+
+# Ensure the .env file exists
+template = project_root / "conf_template" / "default.env"
+
+target_dir.mkdir(parents=True, exist_ok=True)
+
+# Ensure the .env file exists
+template = project_root / "conf_template" / "default.env"
+
+target_dir.mkdir(parents=True, exist_ok=True)
+
+# Ensure the .env file exists
+template = project_root / "conf_template" / "default.env"
+
+target_dir.mkdir(parents=True, exist_ok=True)
+
+# Ensure the .env file exists
 template = Path("./conf_template/default.env")
 if not target.exists():
     if template.exists():

@@ -26,7 +26,7 @@ import re
 BASE_DIR = Path(__file__).resolve().parent.parent
 env = environ.Env()
 env_path = BASE_DIR / ".env"
-environ.Env.read_env(BASE_DIR / ".env")  # Explicitly load .env file
+environ.Env.read_env(str(BASE_DIR / ".env")) 
 print("Expecting .env at:", env_path, "exists?", env_path.exists())
 FRONTEND_URL = env("FRONTEND_URL", default="http://127.0.0.1:8000")  # dev default
 

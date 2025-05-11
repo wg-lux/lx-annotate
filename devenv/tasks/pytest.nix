@@ -13,7 +13,7 @@ let
 
   "pytest:run" = {
     description = "Run pytest from project root";
-    after       = [ "env:build" ];
+    after       = [ "endoreg-db:make-migrations" ];
     exec        = ''
                     source .devenv/state/venv/bin/activate
                     pytest -q
