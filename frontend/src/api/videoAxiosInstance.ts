@@ -1,7 +1,7 @@
 import axios, { type AxiosRequestConfig } from 'axios';
 // Set the base URL for your video API endpoint.
 // When you call `videoAxiosInstance.get(videoID)` it will append the videoID to this base URL.
-const baseURL = 'http://localhost:8000/api/video/';
+const baseURL = 'http://localhost:8000/video/';
 
 const videoAxiosInstance = axios.create({
   baseURL,

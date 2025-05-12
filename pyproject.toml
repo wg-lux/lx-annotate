@@ -3,7 +3,19 @@ name = "lx-annotate"
 
 version = "0.0.1"
 description = "This webapp provides a frontend interface for annotating AI generated output."
-authors = ["maxhild <58726316+maxhild@users.noreply.github.com>"]
+authors = [
+    { name = "Max Hild", email = "maxhild10@gmail.com"},
+
+    { name = "Thomas J. Lux", email = "lux_t1@ukw.de" },
+    { name = "Hamza Zahid" },
+    { name = "Peter Kowalczyk" },
+]
+maintainers = [
+    { name = "Max Hild", email = "maxhild10@gmail.com"},
+    { name = "Thomas J. Lux", email = "lux_t1@ukw.de" },
+    { name = "Hamza Zahid" },
+    { name = "Peter Kowalczyk" },
+]
 license = "MIT"
 readme = "README.md"
 requires-python = "~=3.11"
@@ -27,7 +39,7 @@ dependencies = [
 ]
 
 [tool.setuptools]
-packages = ["lx-webpack"]
+packages = ["endoreg-db"]
 
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "lx_annotate.settings"
@@ -38,5 +50,5 @@ addopts = [
 ]
 
 
-[uv.sources]
+[tool.uv.sources]
 endoreg-db = { path = "endoreg-db", editable = true }
