@@ -29,3 +29,4 @@ public/video.mp4
 *.sw?
 
 *.tsbuildinfo
+frontend/vite.config.js.timestamp-*.mjs
