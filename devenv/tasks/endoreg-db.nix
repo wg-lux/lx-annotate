@@ -14,12 +14,11 @@ let
     "endoreg-db:init-db".exec = ''
       cd endoreg-db
       direnv allow
+
       '';
 
     "endoreg-db:migrate" = {
       exec = ''
-        cd endoreg-db
-        devenv build
       '';
       after = [ "endoreg-db:load-data" ];
     };
