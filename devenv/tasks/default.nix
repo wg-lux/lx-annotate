@@ -9,9 +9,12 @@ let
   envTasks = (
     import ./env.nix { }
   );
+  pytestTasks = (
+    import ./pytest.nix { }
+  );
 
   customTasks = {
     
-  } //envTasks //vueTasks;
+  } //envTasks //vueTasks //endoregTasks //pytestTasks ;
 
 in customTasks 

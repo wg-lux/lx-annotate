@@ -13,12 +13,33 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 from pathlib import Path
 import os
 from dotenv import load_dotenv
+import environ
+from django.contrib import admin
+from django.urls import path, include
+from django.core.management.utils import get_random_secret_key
+from env_setup import SALT
 from lx_logging import get_logger
+
+import re
+
+# Load environment variables
+BASE_DIR = Path(__file__).resolve().parent.parent
+env = environ.Env()
+env_path = BASE_DIR / ".env"
+environ.Env.read_env(str(BASE_DIR / ".env")) 
+print("Expecting .env at:", env_path, "exists?", env_path.exists())
+FRONTEND_URL = env("FRONTEND_URL", default="http://127.0.0.1:8000")  # dev default
 
 logger = get_logger(__name__)
 logger.debug(os.environ.get("DJANGO_SETTINGS", "dev"))
 
-SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY")
+# Fix for SECRET_KEY recursion issue
+DEFAULT_SECRET_KEY = get_random_secret_key()
+SECRET_KEY = env("DJANGO_SECRET_KEY", default=DEFAULT_SECRET_KEY)
+
+
+DEFAULT_SALT = "CHANGE-ME-IN-PROD"      # ← literal, not a variable reference
+SALT = env("DJANGO_SALT", default=DEFAULT_SALT)
 if not SECRET_KEY:
     raise Exception("The SECRET_KEY setting must not be empty.")
 DJANGO_SETTINGS = os.environ.get("DJANGO_SETTINGS", "dev")
@@ -27,7 +48,6 @@ DJANGO_SETTINGS = os.environ.get("DJANGO_SETTINGS", "dev")
 CORS_ALLOW_ALL_ORIGINS = True
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
-BASE_DIR = Path(__file__).resolve().parent.parent
 STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 VITE_APP_DIR = BASE_DIR / "frontend" 
 # Static files (CSS, JavaScript, Images)
@@ -70,9 +90,13 @@ INSTALLED_APPS = [
     'endoreg_db',
     'rest_framework',
     'django_extensions',
+    'corsheaders',
+    'whitenoise.runserver_nostatic',  # For serving static files in development
+    'whitenoise',
 ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',  
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -84,7 +108,6 @@ MIDDLEWARE = [
 ]
 
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
-import re
 
 
 def immutable_file_test(path, url):
@@ -119,10 +142,13 @@ WHITENOISE_MIMETYPES = {
     '.ogv': 'video/ogg',
 }
 
+
+
 ROOT_URLCONF = 'lx_annotate.urls'
 
-TEMPLATES = [    
-  {        
+
+TEMPLATES = [
+    {
     'BACKEND': 'django.template.backends.django.DjangoTemplates',        
     'DIRS': [TEMPLATES_DIR,],        
     'APP_DIRS': True,        

@@ -1,7 +1,8 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
-import axiosInstance from '../api/axiosInstance';
+import axiosInstance, { r } from '../api/axiosInstance';
 import videoAxiosInstance from '../api/videoAxiosInstance';
+import { AxiosError } from 'axios';
 const translationMap = {
     appendix: 'Appendix',
     blood: 'Blut',
@@ -40,14 +41,22 @@ export const useVideoStore = defineStore('video', () => {
     // Store segments keyed by label
     const segmentsByLabel = ref({ ...defaultSegments });
     const videoList = ref({ videos: [], labels: [] });
+    const videoMeta = ref(null);
+    const hasVideo = computed(() => !!currentVideo.value);
+    const duration = computed(() => {
+        if (videoMeta.value && videoMeta.value.duration) {
+            return videoMeta.value.duration;
+        }
+        return 0; // Default value if duration is not available
+    });
     function fetchAllVideos() {
         axiosInstance
-            .get('api/videos/')
+            .get(r('videos/'))
             .then((response) => {
             videoList.value = {
                 videos: response.data.videos.map(video => ({
                     id: parseInt(video.id),
-                    original_file_name: video.original_file_name,
+                    originalFileName: video.originalFileName,
                     status: video.status || 'available', // Default-Status falls nicht vorhanden
                     assignedUser: null, // Default-Wert für assignedUser
                     anonymized: video.anonymized || false // Default-Wert für anonymized ist false
@@ -75,8 +84,8 @@ export const useVideoStore = defineStore('video', () => {
     async function fetchVideoUrl() {
         try {
             const response = await videoAxiosInstance.get(currentVideo.value?.id || '1', { headers: { 'Accept': 'application/json' } });
-            if (response.data.video_url) {
-                videoUrl.value = response.data.video_url;
+            if (response.data.videoUrl) {
+                videoUrl.value = response.data.videoUrl;
                 console.log("Fetched video URL:", videoUrl.value);
             }
             else {
@@ -93,7 +102,7 @@ export const useVideoStore = defineStore('video', () => {
     // Fetch segments for a specific label and store them under that label key.
     async function fetchSegmentsByLabel(id, label = 'outside') {
         try {
-            const response = await axiosInstance.get(`api/video/${id}/label/${label}/`, { headers: { 'Accept': 'application/json' } });
+            const response = await axiosInstance.get(r(`video/${id}/label/${label}/`), { headers: { 'Accept': 'application/json' } });
             // Map the API response into our Segment structure.
             const segmentsForLabel = response.data.time_segments.map((segment, index) => ({
                 id: `${label}-segment${index + 1}`,
@@ -116,11 +125,34 @@ export const useVideoStore = defineStore('video', () => {
         const labels = Object.keys(translationMap);
         await Promise.all(labels.map(label => fetchSegmentsByLabel(id, label)));
     }
+    async function fetchVideoMeta(id) {
+        try {
+            const resp = await axiosInstance.get(r(`video/${id}/`), { headers: { 'Accept': 'application/json' } });
+            videoMeta.value = {
+                id: resp.data.id,
+                originalFileName: resp.data.originalFileName,
+                file: resp.data.file,
+                videoUrl: resp.data.videoUrl,
+                fullVideoPath: resp.data.fullVideoPath,
+                sensitiveMetaId: resp.data.sensitiveMetaId,
+                patientFirstName: resp.data.patientFirstName,
+                patientLastName: resp.data.patientLastName,
+                patientDob: resp.data.patientDob,
+                examinationDate: resp.data.examinationDate,
+                duration: resp.data.duration,
+            };
+        }
+        catch (err) {
+            const axiosErr = err;
+            console.error('Error fetching video meta:', axiosErr.response?.data || axiosErr.message);
+            errorMessage.value = 'Could not load video metadata.';
+        }
+    }
     async function saveAnnotations() {
         try {
             // Combine all segments from all labels if needed.
             const combinedSegments = Object.values(segmentsByLabel.value).flat();
-            const response = await axiosInstance.post('annotations/', { segments: combinedSegments });
+            const response = await axiosInstance.post(r('annotations/'), { segments: combinedSegments });
             console.log('Annotations saved:', response.data);
         }
         catch (error) {
@@ -145,6 +177,50 @@ export const useVideoStore = defineStore('video', () => {
             width: `${widthPercentage}%`,
             backgroundColor: getColorForLabel(segment.label),
         };
+    }
+    function updateSegment(id, partial) {
+        const labelKeys = Object.keys(segmentsByLabel.value);
+        for (const label of labelKeys) {
+            const segmentIndex = segmentsByLabel.value[label].findIndex((s) => s.id === id);
+            if (segmentIndex !== -1) {
+                segmentsByLabel.value[label][segmentIndex] = {
+                    ...segmentsByLabel.value[label][segmentIndex],
+                    ...partial,
+                };
+                break;
+            }
+        }
+    }
+    async function updateSensitiveMeta(payload) {
+        try {
+            const body = {
+                sensitiveMetaId: payload.sensitiveMetaId,
+                patientFirstName: payload.patientFirstName,
+                patientLastName: payload.patientLastName,
+                patientDob: payload.patientDob,
+                examinationDate: payload.examinationDate,
+            };
+            await axiosInstance.put(r(`sensitive-meta/${payload.sensitiveMetaId}/`), body, { headers: { 'Content-Type': 'application/json' } });
+            // Reflect changes locally
+            if (videoMeta.value && videoMeta.value.sensitiveMetaId === payload.sensitiveMetaId) {
+                videoMeta.value = {
+                    ...videoMeta.value,
+                    patientFirstName: payload.patientFirstName,
+                    patientLastName: payload.patientLastName,
+                    patientDob: payload.patientDob,
+                    examinationDate: payload.examinationDate,
+                };
+            }
+        }
+        catch (err) {
+            const axiosErr = err;
+            console.error('Error updating sensitive meta:', axiosErr.response?.data || axiosErr.message);
+            errorMessage.value = 'Could not update patient information.';
+        }
+    }
+    function clearVideoMeta() {
+        videoMeta.value = null;
+        errorMessage.value = '';
     }
     function getColorForLabel(label) {
         const colorMap = {
@@ -178,7 +254,7 @@ export const useVideoStore = defineStore('video', () => {
             try {
                 currentVideo.value.status = status;
                 // Senden des aktualisierten Status an den Server
-                const response = await axiosInstance.post(`api/video/${currentVideo.value.id}/status/`, {
+                const response = await axiosInstance.post(r(`video/${currentVideo.value.id}/status/`), {
                     status: status
                 });
                 console.log(`Video-Status aktualisiert: ${status}`, response.data);
@@ -194,7 +270,7 @@ export const useVideoStore = defineStore('video', () => {
             try {
                 currentVideo.value.assignedUser = user;
                 // Senden der Benutzerzuweisung an den Server
-                const response = await axiosInstance.post(`api/video/${currentVideo.value.id}/assign/`, {
+                const response = await axiosInstance.post(r(`video/${currentVideo.value.id}/assign/`), {
                     user: user
                 });
                 console.log(`Benutzer ${user} wurde dem Video zugewiesen.`, response.data);
@@ -207,7 +283,7 @@ export const useVideoStore = defineStore('video', () => {
     }
     const uploadRevert = (uniqueFileId, load, error) => {
         axiosInstance
-            .delete(`upload-video/${uniqueFileId}/`)
+            .delete(r(`upload-video/${uniqueFileId}/`))
             .then(() => {
             videoUrl.value = '';
             load();
@@ -217,11 +293,11 @@ export const useVideoStore = defineStore('video', () => {
         const formData = new FormData();
         formData.append(fieldName, file);
         axiosInstance
-            .post('upload-video/', formData, {
+            .post(r('upload-video/'), formData, {
             headers: { 'Content-Type': 'multipart/form-data' },
         })
             .then((response) => {
-            const url = response.data.video_url;
+            const url = response.data.videoUrl;
             videoUrl.value = url;
             load(url); // Pass the URL as the server id
         })
@@ -237,6 +313,12 @@ export const useVideoStore = defineStore('video', () => {
         segmentsByLabel,
         allSegments,
         videoList,
+        videoMeta,
+        hasVideo,
+        duration,
+        fetchVideoMeta,
+        updateSensitiveMeta,
+        clearVideoMeta,
         fetchAllVideos,
         uploadRevert,
         uploadProcess,
@@ -252,5 +334,6 @@ export const useVideoStore = defineStore('video', () => {
         jumpToSegment,
         updateVideoStatus,
         assignUserToVideo,
+        updateSegment,
     };
 });

@@ -31,17 +31,11 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       cors: true,
-      port: 3000,
+      port: 8000,
       hmr: {
         host: 'localhost',
       },
-      proxy: {
-        "/api": {
-          target: env.VITE_API_BASE_URL,
-          changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/api/, '')
-        }
-      }
+
     },
     resolve: {
       alias: {

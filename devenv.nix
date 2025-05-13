@@ -11,16 +11,44 @@ let
     nodejs_22
     yarn
     nodePackages_latest.gulp
+    libglvnd
+    glib
+    zlib
+  ];
+
+  runtimePackages = with pkgs; [
+    cudaPackages.cuda_nvcc # Needed for runtime? Check dependencies
+    stdenv.cc.cc
+    ffmpeg-headless.bin
+    tesseract
+    zsh # If you prefer zsh as the shell
+    uvPackage # Add uvPackage to runtime packages if needed elsewhere, or just for devenv internal use
   ];
 
   languages.javascript.enable = true;
   languages.javascript.package = pkgs.nodejs_22; # Specify the Node.js version
+
   # Define the shellHook for convenience
   commonShellHook = ''
     export PATH="$PATH:$(yarn global bin)"
   '';
 
+  # --- Django Project Configuration ---
+  DJANGO_MODULE = "lx_annotate";
+  host = "localhost";
+  port = "8189";
 
+    # --- Directory Structure ---
+  dataDir = "endoreg_db/data";
+  importDir = "endoreg_db/${dataDir}/import";
+  importVideoDir = "endoreg_db/${importDir}/video";
+  importReportDir = "endoreg_db/${importDir}/report";
+  importLegacyAnnotationDir = "endoreg_db/${importDir}/legacy_annotations";
+  exportDir = "endoreg_db/${dataDir}/export";
+  exportFramesRootDir = "endoreg_db/${exportDir}/frames";
+  exportFramesSampleExportDir = "endoreg_db/${exportFramesRootDir}/test_outputs";
+  modelDir = "endoreg_db/${dataDir}/models";
+  confDir = "./conf";
 
   sharedSettings = {
       appName = appName;
@@ -77,7 +105,9 @@ in
     nodejs_22
     yarn
     python311Full
+    libglvnd
   ];
+
 
   env = {
     DJANGO_MODULE = appName;
@@ -87,10 +117,8 @@ in
       with pkgs;
       lib.makeLibraryPath buildInputs
     }:/run/opengl-driver/lib:/run/opengl-driver-32/lib";
-
-    
-
   };
+  
 
 
   languages.python = {
@@ -108,7 +136,28 @@ in
 
   processes = customProcesses;
   tasks = customTasks;
-  scripts = customScripts;
+  scripts = {
+    export-nix-vars.exec = ''
+      cat > .devenv-vars.json << EOF
+      {
+        "DJANGO_MODULE": "${DJANGO_MODULE}",
+        "HOST": "${host}",
+        "PORT": "${port}",
+        "CONF_DIR": "${confDir}",
+        "HOME_DIR": "$HOME",
+        "WORKING_DIR": "$PWD"
+      }
+      EOF
+      echo "Exported Nix variables to .devenv-vars.json"
+    '';
+    
+    env-setup.exec = ''
+    export LD_LIBRARY_PATH="${
+      with pkgs;
+      lib.makeLibraryPath buildInputs
+    }:/run/opengl-driver/lib:/run/opengl-driver-32/lib"
+    '';
+    };
 
   cachix.enable = true;
 

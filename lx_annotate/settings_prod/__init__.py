@@ -19,7 +19,7 @@ from lx_annotate.settings import (BASE_DIR,
     STATICFILES_DIRS
 )
 
-BASE_DIR = Path(__file__).resolve().parent.parent.parent
+BASE_DIR = Path(__file__).resolve().parent.parent
 
 
 def get_env_variable(var_name):

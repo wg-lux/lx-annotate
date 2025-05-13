@@ -20,7 +20,7 @@ from lx_annotate.settings import (BASE_DIR,
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 
-VITE_DEV_SERVER_URL = 'http://localhost:3000'
+VITE_DEV_SERVER_URL = 'http://localhost:8000'
 
 DEBUG = os.environ.get('DEBUG', 'True').lower() in ('true', '1')
 ALLOWED_HOSTS = ["*"]

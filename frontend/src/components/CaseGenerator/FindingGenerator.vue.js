@@ -1,6 +1,6 @@
 import axios from 'axios';
-import { reportService } from '@/api/reportService.js';
-import { patientService } from '@/api/patientService.js';
+import { useReportService } from '@/api/reportService';
+import { patientService } from '@/api/patientService';
 export default (await import('vue')).defineComponent({
     data() {
         return {

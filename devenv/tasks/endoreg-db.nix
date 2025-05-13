@@ -1,20 +1,30 @@
 {...}@inputs:
 let
   customTasks = {
-    " :make-migrations".after = 
-      ["devenv:enterShell"]; 
 
-    "endoreg-db:migrate".after = 
-      ["endoreg-db:make-migrations"];
+
+ 
+    "endoreg-db:init-db".after =
+     [ "devenv:enterShell" ];
 
     "endoreg-db:load-data".after = 
-      ["endoreg-db:migrate"];
+     ["endoreg-db:init-db"];
+    
+
+    "endoreg-db:init-db".exec = ''
+      cd endoreg-db
+      direnv allow
+      '';
+
+    "endoreg-db:migrate" = {
+      exec = ''
+        cd endoreg-db
+        devenv build
+      '';
+      after = [ "endoreg-db:load-data" ];
+    };
 
 
-    "endoreg-db:make-migrations".exec = 
-      "uv run python manage.py makemigrations";
-    "endoreg-db:migrate".exec = 
-      "uv run python manage.py migrate";
     "endoreg-db:load-data".exec =  ''
       if [ -f .env ]; then
         if grep -q "INITIALIZE_DB=True" .env; then
