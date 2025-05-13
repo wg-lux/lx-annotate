@@ -2,11 +2,13 @@ import { defineComponent, ref, computed, onMounted, watch } from 'vue';
 import { useExaminationStore } from '@/stores/examinationStore';
 import { useReportService } from '@/api/reportService';
 import ClassificationCard from './ClassificationCard.vue';
+import { storeToRefs } from 'pinia';
 export default defineComponent({
     components: { ClassificationCard },
     setup() {
         const examStore = useExaminationStore();
         const reportService = useReportService();
+        const { loading, error, morphologyClassifications } = storeToRefs(examStore);
         const examinations = ref([]);
         const selectedExamId = ref(null);
         const activeCategory = ref('morphologyChoices');
@@ -22,13 +24,10 @@ export default defineComponent({
             interventionId: undefined,
             instrumentId: undefined,
         });
-        // NEU: Parent-Klassifikation für Morphologie auswählen
         const selectedMorphologyClassificationId = ref(null);
         const filteredMorphChoices = computed(() => selectedMorphologyClassificationId.value === null
             ? []
-            : subcategories.value.morphologyChoices.filter(ch => ch.classificationId === selectedMorphologyClassificationId.value // Updated field usage
-            ));
-        // Bei Änderung der Parent-Klassifikation ungültige Child-Werte entfernen
+            : subcategories.value.morphologyChoices.filter(ch => ch.classificationId === selectedMorphologyClassificationId.value));
         watch(selectedMorphologyClassificationId, () => {
             form.value.selectedMorphologies = form.value.selectedMorphologies.filter(id => filteredMorphChoices.value.some(c => c.id === id));
             tempSelection.value.morphologyChoiceId = undefined;
@@ -40,11 +39,17 @@ export default defineComponent({
             instruments: 'border-success'
         };
         async function loadExams() {
-            examinations.value = await reportService.getExaminations();
-            if (examinations.value.length) {
-                selectedExamId.value = examinations.value[0].id;
-                await onExamChange();
-                activeCategory.value = Object.keys(categoryLabels)[0];
+            try {
+                examinations.value = await reportService.getExaminations();
+                if (examinations.value.length) {
+                    selectedExamId.value = examinations.value[0].id;
+                    await onExamChange();
+                    activeCategory.value = Object.keys(categoryLabels)[0];
+                }
+                await examStore.fetchMorphologyClassifications();
+            }
+            catch (err) {
+                console.error("Fehler beim Laden der initialen Daten:", err);
             }
         }
         async function onExamChange() {
@@ -63,7 +68,6 @@ export default defineComponent({
                 interventionId: undefined,
                 instrumentId: undefined
             };
-            // Optional: Parent zurücksetzen
             selectedMorphologyClassificationId.value = null;
         }
         const subcategories = computed(() => {
@@ -88,8 +92,11 @@ export default defineComponent({
             categoryLabels,
             onExamChange,
             colourMap,
-            selectedMorphologyClassificationId, // Exponiere für die Template-Nutzung
-            filteredMorphChoices
+            selectedMorphologyClassificationId,
+            filteredMorphChoices,
+            loading,
+            error,
+            morphologyClassifications,
         };
     }
 });
@@ -119,6 +126,7 @@ function __VLS_template() {
         id: ("examSelect"),
         value: ((__VLS_ctx.selectedExamId)),
         ...{ class: ("form-select") },
+        disabled: ((__VLS_ctx.loading)),
     });
     for (const [exam] of __VLS_getVForSourceType((__VLS_ctx.examinations))) {
         __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
@@ -130,7 +138,19 @@ function __VLS_template() {
     __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
         ...{ onClick: (__VLS_ctx.onExamChange) },
         ...{ class: ("refresh-btn") },
+        disabled: ((__VLS_ctx.loading)),
     });
+    if (__VLS_ctx.loading) {
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("alert alert-info mt-2") },
+        });
+    }
+    if (__VLS_ctx.error) {
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("alert alert-danger mt-2") },
+        });
+        (__VLS_ctx.error);
+    }
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: ("exam-body") },
     });
@@ -162,8 +182,26 @@ function __VLS_template() {
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
         __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({});
         __VLS_elementAsFunction(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
+            value: ((__VLS_ctx.selectedMorphologyClassificationId)),
+            ...{ class: ("form-select mb-2") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+            value: ((null)),
+        });
+        for (const [cls] of __VLS_getVForSourceType((__VLS_ctx.morphologyClassifications))) {
+            __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+                key: ((cls.id)),
+                value: ((cls.id)),
+            });
+            (cls.name);
+        }
+        __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({});
+        __VLS_elementAsFunction(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
             value: ((__VLS_ctx.tempSelection.morphologyChoiceId)),
             ...{ class: ("form-select") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+            value: ((undefined)),
         });
         for (const [opt] of __VLS_getVForSourceType((__VLS_ctx.filteredMorphChoices))) {
             __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
@@ -347,7 +385,7 @@ function __VLS_template() {
     let __VLS_27;
     let __VLS_28;
     var __VLS_29;
-    ['examination-view', 'exam-header', 'exam-select', 'form-select', 'refresh-btn', 'exam-body', 'categories-panel', 'list-group', 'list-group-item', 'editor-panel', 'category-editor', 'form-select', 'form-select', 'form-check', 'form-check-input', 'form-check-label', 'form-check', 'form-check-input', 'form-check-label', 'card-container',];
+    ['examination-view', 'exam-header', 'exam-select', 'form-select', 'refresh-btn', 'alert', 'alert-info', 'mt-2', 'alert', 'alert-danger', 'mt-2', 'exam-body', 'categories-panel', 'list-group', 'list-group-item', 'editor-panel', 'category-editor', 'form-select', 'mb-2', 'form-select', 'form-select', 'form-check', 'form-check-input', 'form-check-label', 'form-check', 'form-check-input', 'form-check-label', 'card-container',];
     var __VLS_slots;
     var $slots;
     let __VLS_inheritedAttrs;

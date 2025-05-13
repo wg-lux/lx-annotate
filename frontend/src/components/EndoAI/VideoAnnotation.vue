@@ -12,7 +12,7 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, ref, computed } from 'vue';
+import { defineComponent, ref, computed, onMounted } from 'vue';
 import { useVideoStore } from '@/stores/videoStore';
 import Timeline from './Timeline.vue';
 
@@ -21,7 +21,7 @@ export default defineComponent({
   components: { Timeline },
   setup() {
     const videoStore = useVideoStore();
-    // assume videoUrl, duration, and allSegments are defined in the store
+
     const videoUrl = computed(() => videoStore.videoUrl);
     const duration = computed(() => videoStore.duration);
     const allSegments = computed(() => videoStore.allSegments.values); // Fix: Use `value` instead of `values`
@@ -31,7 +31,10 @@ export default defineComponent({
       console.log(`Segment ${id} resized to end at ${newEnd}`);
       // Optionally persist/update via store or API call here
     }
-
+    onMounted(() => {
+      videoStore.fetchAllVideos();
+      videoStore.fetchVideoUrl();
+    });
     return {
       videoUrl,
       duration,
@@ -39,6 +42,7 @@ export default defineComponent({
       videoRef,
       handleSegmentResize,
     };
+
   },
 });
 </script>

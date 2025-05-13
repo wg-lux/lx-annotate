@@ -2,6 +2,10 @@ export interface Examination {
     id: number;
     name: string;
 }
+export interface MorphologyClassification {
+    id: number;
+    name: string;
+}
 export interface MorphologyClassificationChoice {
     id: number;
     name: string;
@@ -27,21 +31,45 @@ export interface SubcategoryMap {
     instruments: Instrument[];
 }
 export declare const useExaminationStore: import("pinia").StoreDefinition<"examination", import("pinia")._UnwrapAll<Pick<{
-    categoriesByExam: import("vue").Ref<Record<number, SubcategoryMap>, Record<number, SubcategoryMap>>;
+    categoriesByExam: Record<number, SubcategoryMap>;
     loading: import("vue").Ref<boolean, boolean>;
     error: import("vue").Ref<string | null, string | null>;
     fetchSubcategoriesForExam: (examId: number) => Promise<void>;
     getCategories: (examId: number) => SubcategoryMap;
-}, "loading" | "error" | "categoriesByExam">>, Pick<{
-    categoriesByExam: import("vue").Ref<Record<number, SubcategoryMap>, Record<number, SubcategoryMap>>;
+    morphologyClassifications: import("vue").Ref<{
+        id: number;
+        name: string;
+    }[], MorphologyClassification[] | {
+        id: number;
+        name: string;
+    }[]>;
+    fetchMorphologyClassifications: () => Promise<void>;
+}, "loading" | "error" | "morphologyClassifications" | "categoriesByExam">>, Pick<{
+    categoriesByExam: Record<number, SubcategoryMap>;
     loading: import("vue").Ref<boolean, boolean>;
     error: import("vue").Ref<string | null, string | null>;
     fetchSubcategoriesForExam: (examId: number) => Promise<void>;
     getCategories: (examId: number) => SubcategoryMap;
+    morphologyClassifications: import("vue").Ref<{
+        id: number;
+        name: string;
+    }[], MorphologyClassification[] | {
+        id: number;
+        name: string;
+    }[]>;
+    fetchMorphologyClassifications: () => Promise<void>;
 }, never>, Pick<{
-    categoriesByExam: import("vue").Ref<Record<number, SubcategoryMap>, Record<number, SubcategoryMap>>;
+    categoriesByExam: Record<number, SubcategoryMap>;
     loading: import("vue").Ref<boolean, boolean>;
     error: import("vue").Ref<string | null, string | null>;
     fetchSubcategoriesForExam: (examId: number) => Promise<void>;
     getCategories: (examId: number) => SubcategoryMap;
-}, "fetchSubcategoriesForExam" | "getCategories">>;
+    morphologyClassifications: import("vue").Ref<{
+        id: number;
+        name: string;
+    }[], MorphologyClassification[] | {
+        id: number;
+        name: string;
+    }[]>;
+    fetchMorphologyClassifications: () => Promise<void>;
+}, "fetchSubcategoriesForExam" | "getCategories" | "fetchMorphologyClassifications">>;

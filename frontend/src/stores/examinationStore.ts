@@ -1,9 +1,15 @@
 import { defineStore } from 'pinia';
+import { reactive, ref } from 'vue'; // reactive importiert
 import axiosInstance, { r } from '@/api/axiosInstance';
-import { ref } from 'vue';
 
 // --- Interfaces ---
 export interface Examination {
+  id: number;
+  name: string;
+}
+
+// NEUE Interface für übergeordnete Morphologie-Klassifikationen
+export interface MorphologyClassification {
   id: number;
   name: string;
 }
@@ -40,7 +46,8 @@ export interface SubcategoryMap {
 // --- Store ---
 export const useExaminationStore = defineStore('examination', () => {
   // state: map examinationId -> fetched subcategories
-  const categoriesByExam = ref<Record<number, SubcategoryMap>>({});
+  const categoriesByExam = reactive<Record<number, SubcategoryMap>>({}); // Geändert zu reactive
+  const morphologyClassifications = ref<MorphologyClassification[]>([]); // NEUER Zustand
   const lastFetchToken = ref<symbol | null>(null);
   const loading = ref<boolean>(false);
   const error = ref<string | null>(null);
@@ -48,8 +55,8 @@ export const useExaminationStore = defineStore('examination', () => {
   // Fetch all subcategories for a given examination type
   async function fetchSubcategoriesForExam(examId: number): Promise<void> {
     // Request-Token erzeugen
-    const fetchToken = Symbol();
-    lastFetchToken.value = fetchToken;
+    const token = Symbol(); // Umbenannt für Konsistenz mit Vorschlag
+    lastFetchToken.value = token;
     error.value = null;
     loading.value = true;
     try {
@@ -60,8 +67,9 @@ export const useExaminationStore = defineStore('examination', () => {
         axiosInstance.get(r(`examinations/${examId}/instruments/`)),
       ]);
       // Abbruch, falls ein anderer Request in der Zwischenzeit gestartet wurde
-      if (lastFetchToken.value !== fetchToken) return;
-      categoriesByExam.value[examId] = {
+      if (lastFetchToken.value !== token) return;
+      // Direkte Zuweisung für reaktives Objekt
+      categoriesByExam[examId] = {
         morphologyChoices: morphRes.data,
         locationChoices: locRes.data,
         interventions: intRes.data,
@@ -76,9 +84,21 @@ export const useExaminationStore = defineStore('examination', () => {
     }
   }
 
+  // NEUE Funktion zum Laden der übergeordneten Morphologie-Klassifikationen
+  async function fetchMorphologyClassifications(): Promise<void> {
+    try {
+      const response = await axiosInstance.get(r('morphology-classifications/')); // Annahme für den Endpunkt
+      morphologyClassifications.value = response.data;
+    } catch (err) {
+      console.error('Error fetching morphology classifications:', err);
+      // Hier könnte ein spezifischer Fehlerstatus gesetzt werden, falls erforderlich
+    }
+  }
+
   // Getter: retrieve map or empty defaults
   function getCategories(examId: number): SubcategoryMap {
-    return categoriesByExam.value[examId] || {
+    // Zugriff auf reaktives Objekt angepasst
+    return categoriesByExam[examId] || {
       morphologyChoices: [],
       locationChoices: [],
       interventions: [],
@@ -92,5 +112,7 @@ export const useExaminationStore = defineStore('examination', () => {
     error,
     fetchSubcategoriesForExam,
     getCategories,
+    morphologyClassifications, // NEU exponiert
+    fetchMorphologyClassifications, // NEU exponiert
   };
 });

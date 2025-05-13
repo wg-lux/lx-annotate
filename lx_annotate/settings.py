@@ -90,9 +90,13 @@ INSTALLED_APPS = [
     'endoreg_db',
     'rest_framework',
     'django_extensions',
+    'corsheaders',
+    'whitenoise.runserver_nostatic',  # For serving static files in development
+    'whitenoise',
 ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',  
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',

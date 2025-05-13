@@ -4,15 +4,19 @@
     <div class="exam-header">
       <div class="exam-select">
         <label for="examSelect">Untersuchungstyp:</label>
-        <select id="examSelect" v-model="selectedExamId" @change="onExamChange" class="form-select">
+        <select id="examSelect" v-model="selectedExamId" @change="onExamChange" class="form-select" :disabled="loading">
           <option v-for="exam in examinations" :key="exam.id" :value="exam.id">
             {{ exam.name }}
           </option>
         </select>
         <!-- Refresh button -->
-        <button @click="onExamChange" class="refresh-btn">🔄 Refresh</button>
+        <button @click="onExamChange" class="refresh-btn" :disabled="loading">🔄 Refresh</button>
       </div>
     </div>
+
+    <!-- Loading and Error Indicators -->
+    <div v-if="loading" class="alert alert-info mt-2">Lade Kategorien…</div>
+    <div v-if="error" class="alert alert-danger mt-2">{{ error }}</div>
 
     <!-- BODY ROW: Sidebar (categories) + Editor -->
     <div class="exam-body">
@@ -34,9 +38,17 @@
         <!-- Dynamic editor for active category with colour cue -->
         <div class="category-editor" :class="colourMap[activeCategory]">
           <div v-if="activeCategory === 'morphologyChoices'">
-            <label>Morphologie Klassifikation wählen:</label>
-            <!-- Nutzt nun den gefilterten Array -->
+            <label>Ober-Klassifikation:</label>
+            <select v-model="selectedMorphologyClassificationId" class="form-select mb-2">
+              <option :value="null">— bitte wählen —</option>
+              <option v-for="cls in morphologyClassifications" :key="cls.id" :value="cls.id">
+                {{ cls.name }}
+              </option>
+            </select>
+
+            <label>Unter-Klassifikation:</label>
             <select v-model="tempSelection.morphologyChoiceId" class="form-select">
+              <option :value="undefined">— bitte wählen —</option>
               <option v-for="opt in filteredMorphChoices" :key="opt.id" :value="opt.id">
                 {{ opt.name }}
               </option>
@@ -96,12 +108,15 @@ import { useExaminationStore } from '@/stores/examinationStore';
 import type { Examination, SubcategoryMap } from '@/stores/examinationStore';
 import { useReportService } from '@/api/reportService';
 import ClassificationCard from './ClassificationCard.vue';
+import { storeToRefs } from 'pinia';
 
 export default defineComponent({
   components: { ClassificationCard },
   setup() {
     const examStore = useExaminationStore();
     const reportService = useReportService();
+
+    const { loading, error, morphologyClassifications } = storeToRefs(examStore);
 
     const examinations = ref<Examination[]>([]);
     const selectedExamId = ref<number | null>(null);
@@ -121,17 +136,15 @@ export default defineComponent({
       instrumentId: undefined as number | undefined,
     });
 
-    // NEU: Parent-Klassifikation für Morphologie auswählen
     const selectedMorphologyClassificationId = ref<number | null>(null);
     const filteredMorphChoices = computed(() =>
       selectedMorphologyClassificationId.value === null
         ? []
         : subcategories.value.morphologyChoices.filter(
-            ch => ch.classificationId === selectedMorphologyClassificationId.value // Updated field usage
+            ch => ch.classificationId === selectedMorphologyClassificationId.value
           )
     );
 
-    // Bei Änderung der Parent-Klassifikation ungültige Child-Werte entfernen
     watch(selectedMorphologyClassificationId, () => {
       form.value.selectedMorphologies = form.value.selectedMorphologies.filter(
         id => filteredMorphChoices.value.some(c => c.id === id)
@@ -147,11 +160,16 @@ export default defineComponent({
     };
 
     async function loadExams() {
-      examinations.value = await reportService.getExaminations();
-      if (examinations.value.length) {
-        selectedExamId.value = examinations.value[0].id;
-        await onExamChange();
-        activeCategory.value = Object.keys(categoryLabels)[0] as keyof SubcategoryMap;
+      try {
+        examinations.value = await reportService.getExaminations();
+        if (examinations.value.length) {
+          selectedExamId.value = examinations.value[0].id;
+          await onExamChange();
+          activeCategory.value = Object.keys(categoryLabels)[0] as keyof SubcategoryMap;
+        }
+        await examStore.fetchMorphologyClassifications();
+      } catch (err) {
+        console.error("Fehler beim Laden der initialen Daten:", err);
       }
     }
 
@@ -170,7 +188,6 @@ export default defineComponent({
         interventionId: undefined,
         instrumentId: undefined
       };
-      // Optional: Parent zurücksetzen
       selectedMorphologyClassificationId.value = null;
     }
 
@@ -199,8 +216,11 @@ export default defineComponent({
       categoryLabels,
       onExamChange,
       colourMap,
-      selectedMorphologyClassificationId, // Exponiere für die Template-Nutzung
-      filteredMorphChoices
+      selectedMorphologyClassificationId,
+      filteredMorphChoices,
+      loading,
+      error,
+      morphologyClassifications,
     };
   }
 });
