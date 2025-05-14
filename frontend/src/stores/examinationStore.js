@@ -18,10 +18,10 @@ export const useExaminationStore = defineStore('examination', () => {
         loading.value = true;
         try {
             const [morphRes, locRes, intRes, instRes] = await Promise.all([
-                axiosInstance.get(r(`examinations/${examId}/morphology-classification-choices/`)),
-                axiosInstance.get(r(`examinations/${examId}/location-classification-choices/`)),
-                axiosInstance.get(r(`examinations/${examId}/interventions/`)),
-                axiosInstance.get(r(`examinations/${examId}/instruments/`)),
+                axiosInstance.get(r(`examination/${examId}/morphology-classification-choices/`)),
+                axiosInstance.get(r(`examination/${examId}/location-classification-choices/`)),
+                axiosInstance.get(r(`examination/${examId}/interventions/`)),
+                axiosInstance.get(r(`examination/${examId}/instruments/`)),
             ]);
             // Abbruch, falls ein anderer Request in der Zwischenzeit gestartet wurde
             if (lastFetchToken.value !== token)
@@ -46,12 +46,47 @@ export const useExaminationStore = defineStore('examination', () => {
     // NEUE Funktion zum Laden der übergeordneten Morphologie-Klassifikationen
     async function fetchMorphologyClassifications() {
         try {
-            const response = await axiosInstance.get(r('morphology-classifications/')); // Annahme für den Endpunkt
+            const response = await axiosInstance.get(r('get-morphology-choices/')); // Annahme für den Endpunkt
             morphologyClassifications.value = response.data;
         }
         catch (err) {
             console.error('Error fetching morphology classifications:', err);
             // Hier könnte ein spezifischer Fehlerstatus gesetzt werden, falls erforderlich
+        }
+    }
+    async function fetchLocationClassifications(examId) {
+        try {
+            const response = await axiosInstance.get(r(`get-location-choices/${examId}/`));
+            // Initialize map if it doesn’t exist
+            if (!categoriesByExam[examId]) {
+                categoriesByExam[examId] = {
+                    morphologyChoices: [],
+                    locationChoices: [],
+                    interventions: [],
+                    instruments: [],
+                };
+            }
+            categoriesByExam[examId].locationChoices = response.data;
+        }
+        catch (err) {
+            console.error('Error fetching location classifications:', err);
+        }
+    }
+    async function fetchMorphologyChoices(examId) {
+        try {
+            const response = await axiosInstance.get(r(`get-morphology-choices/${examId}/`));
+            if (!categoriesByExam[examId]) {
+                categoriesByExam[examId] = {
+                    morphologyChoices: [],
+                    locationChoices: [],
+                    interventions: [],
+                    instruments: [],
+                };
+            }
+            categoriesByExam[examId].morphologyChoices = response.data;
+        }
+        catch (err) {
+            console.error('Error fetching morphology classifications:', err);
         }
     }
     // Getter: retrieve map or empty defaults
@@ -70,7 +105,9 @@ export const useExaminationStore = defineStore('examination', () => {
         error,
         fetchSubcategoriesForExam,
         getCategories,
-        morphologyClassifications, // NEU exponiert
-        fetchMorphologyClassifications, // NEU exponiert
+        morphologyClassifications,
+        fetchMorphologyClassifications,
+        fetchLocationClassifications,
+        fetchMorphologyChoices,
     };
 });

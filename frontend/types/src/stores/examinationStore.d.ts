@@ -44,6 +44,8 @@ export declare const useExaminationStore: import("pinia").StoreDefinition<"exami
         name: string;
     }[]>;
     fetchMorphologyClassifications: () => Promise<void>;
+    fetchLocationClassifications: (examId: number) => Promise<void>;
+    fetchMorphologyChoices: (examId: number) => Promise<void>;
 }, "loading" | "error" | "morphologyClassifications" | "categoriesByExam">>, Pick<{
     categoriesByExam: Record<number, SubcategoryMap>;
     loading: import("vue").Ref<boolean, boolean>;
@@ -58,6 +60,8 @@ export declare const useExaminationStore: import("pinia").StoreDefinition<"exami
         name: string;
     }[]>;
     fetchMorphologyClassifications: () => Promise<void>;
+    fetchLocationClassifications: (examId: number) => Promise<void>;
+    fetchMorphologyChoices: (examId: number) => Promise<void>;
 }, never>, Pick<{
     categoriesByExam: Record<number, SubcategoryMap>;
     loading: import("vue").Ref<boolean, boolean>;
@@ -72,4 +76,6 @@ export declare const useExaminationStore: import("pinia").StoreDefinition<"exami
         name: string;
     }[]>;
     fetchMorphologyClassifications: () => Promise<void>;
-}, "fetchSubcategoriesForExam" | "getCategories" | "fetchMorphologyClassifications">>;
+    fetchLocationClassifications: (examId: number) => Promise<void>;
+    fetchMorphologyChoices: (examId: number) => Promise<void>;
+}, "fetchSubcategoriesForExam" | "getCategories" | "fetchMorphologyClassifications" | "fetchLocationClassifications" | "fetchMorphologyChoices">>;
