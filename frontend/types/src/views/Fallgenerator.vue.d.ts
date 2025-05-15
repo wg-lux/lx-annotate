@@ -14,7 +14,7 @@ declare const _default: import("vue").DefineComponent<{}, {}, {}, {}, {}, import
         errorMessage: string;
     }, {}, {
         loadPatients(): Promise<void>;
-        openPatientForm(patient?: null | undefined): void;
+        openPatientForm(patient?: null): void;
         closePatientForm(): void;
         submitPatientForm(): Promise<void>;
         deletePatient(id: any): Promise<void>;

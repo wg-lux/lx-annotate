@@ -1,6 +1,8 @@
-import { defineComponent, ref, onUnmounted, computed } from 'vue';
-import { useVideoStore } from '@/stores/videoStore';
-export default defineComponent({
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const vue_1 = require("vue");
+const videoStore_1 = require("@/stores/videoStore");
+exports.default = (0, vue_1.defineComponent)({
     name: 'Timeline',
     props: {
         duration: {
@@ -10,14 +12,14 @@ export default defineComponent({
     },
     emits: ['resize'],
     setup(props, { emit }) {
-        const videoStore = useVideoStore();
-        const timelineRef = ref(null);
-        const activeSegment = ref(null);
-        const isResizing = ref(false);
-        const startX = ref(0);
-        const initialWidthPercent = ref(0);
-        const lastTimestamp = ref(0);
-        const allSegments = computed(() => videoStore.allSegments);
+        const videoStore = (0, videoStore_1.useVideoStore)();
+        const timelineRef = (0, vue_1.ref)(null);
+        const activeSegment = (0, vue_1.ref)(null);
+        const isResizing = (0, vue_1.ref)(false);
+        const startX = (0, vue_1.ref)(0);
+        const initialWidthPercent = (0, vue_1.ref)(0);
+        const lastTimestamp = (0, vue_1.ref)(0);
+        const allSegments = (0, vue_1.computed)(() => videoStore.allSegments);
         function calculateWidthPercent(segment) {
             const w = (segment.endTime - segment.startTime) / props.duration * 100;
             return w;
@@ -64,7 +66,7 @@ export default defineComponent({
         function handleTimelineClick(event) {
             // Implementation as needed...
         }
-        onUnmounted(() => {
+        (0, vue_1.onUnmounted)(() => {
             window.removeEventListener('mousemove', onMouseMove);
             window.removeEventListener('mouseup', onMouseUp);
             window.removeEventListener('touchmove', onMouseMove);

@@ -38,13 +38,14 @@ axiosInstance.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   return config;
 });
 
-function localSnakecaseKeys(obj: any, options: { deep?: boolean } = {}): any {
+// Die Funktion muss exportiert werden, um sie im Test direkt verwenden zu können.
+export function localSnakecaseKeys(obj: any, options: { deep?: boolean } = {}): any {
   if (Array.isArray(obj)) {
-    return obj.map((item) => snakecaseKeys(item, options));
-  } else if (obj && typeof obj === 'object') {
+    return obj.map((item) => localSnakecaseKeys(item, options)); // Rekursiver Aufruf für Array-Elemente, snakecaseKeys(item, options) wäre hier falsch, wenn es die Logik von localSnakecaseKeys beibehalten soll.
+  } else if (obj && typeof obj === 'object' && !(obj instanceof File) && !(obj instanceof Blob)) { // Hinzugefügt: instanceof File/Blob-Prüfung
     return Object.keys(obj).reduce((acc, key) => {
       const newKey = key.replace(/([A-Z])/g, (match) => `_${match.toLowerCase()}`);
-      acc[newKey] = options.deep && typeof obj[key] === 'object' ? snakecaseKeys(obj[key], options) : obj[key];
+      acc[newKey] = options.deep && typeof obj[key] === 'object' ? localSnakecaseKeys(obj[key], options) : obj[key]; // Rekursiver Aufruf für tiefe Objekte
       return acc;
     }, {} as Record<string, any>);
   }

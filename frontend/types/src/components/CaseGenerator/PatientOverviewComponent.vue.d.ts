@@ -1,19 +1,19 @@
 declare const _default: import("vue").DefineComponent<{}, {}, {
-    patients: never[];
+    patients: any[];
     showPatientForm: boolean;
-    editingPatient: null;
+    editingPatient: any;
     patientForm: {
-        id: null;
+        id: any;
         first_name: string;
         last_name: string;
-        age: null;
+        age: any;
         comments: string;
-        gender: null;
+        gender: any;
     };
     errorMessage: string;
 }, {}, {
     loadPatients(): Promise<void>;
-    openPatientForm(patient?: null): void;
+    openPatientForm(patient?: any): void;
     closePatientForm(): void;
     submitPatientForm(): Promise<void>;
     deletePatient(id: any): Promise<void>;

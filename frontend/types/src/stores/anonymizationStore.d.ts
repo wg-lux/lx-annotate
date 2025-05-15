@@ -49,20 +49,20 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
             anonymized_text: string;
             report_meta?: {
                 id: number;
-                file?: string | undefined;
-                pdf_url?: string | undefined;
-                full_pdf_path?: string | undefined;
-                sensitive_meta_id?: number | undefined;
-                patient_first_name?: string | undefined;
-                patient_last_name?: string | undefined;
-                patient_dob?: string | undefined;
-                patient_gender?: string | undefined;
-                casenumber?: string | null | undefined;
-                examination_date?: string | undefined;
-            } | undefined;
-            status?: string | undefined;
-            error?: boolean | undefined;
-        } | null;
+                file?: string;
+                pdf_url?: string;
+                full_pdf_path?: string;
+                sensitive_meta_id?: number;
+                patient_first_name?: string;
+                patient_last_name?: string;
+                patient_dob?: string;
+                patient_gender?: string;
+                casenumber?: string | null;
+                examination_date?: string;
+            };
+            status?: string;
+            error?: boolean;
+        };
         pending: {
             id: number;
             sensitive_meta_id: number;
@@ -70,19 +70,19 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
             anonymized_text: string;
             report_meta?: {
                 id: number;
-                file?: string | undefined;
-                pdf_url?: string | undefined;
-                full_pdf_path?: string | undefined;
-                sensitive_meta_id?: number | undefined;
-                patient_first_name?: string | undefined;
-                patient_last_name?: string | undefined;
-                patient_dob?: string | undefined;
-                patient_gender?: string | undefined;
-                casenumber?: string | null | undefined;
-                examination_date?: string | undefined;
-            } | undefined;
-            status?: string | undefined;
-            error?: boolean | undefined;
+                file?: string;
+                pdf_url?: string;
+                full_pdf_path?: string;
+                sensitive_meta_id?: number;
+                patient_first_name?: string;
+                patient_last_name?: string;
+                patient_dob?: string;
+                patient_gender?: string;
+                casenumber?: string | null;
+                examination_date?: string;
+            };
+            status?: string;
+            error?: boolean;
         }[];
     } & import("pinia").PiniaCustomStateProperties<AnonymizationState & {
         pending: PatientData[];
@@ -93,45 +93,25 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
         anonymized_text: string;
         report_meta?: {
             id: number;
-            file?: string | undefined;
-            pdf_url?: string | undefined;
-            full_pdf_path?: string | undefined;
-            sensitive_meta_id?: number | undefined;
-            patient_first_name?: string | undefined;
-            patient_last_name?: string | undefined;
-            patient_dob?: string | undefined;
-            patient_gender?: string | undefined;
-            casenumber?: string | null | undefined;
-            examination_date?: string | undefined;
-        } | undefined;
-        status?: string | undefined;
-        error?: boolean | undefined;
-    } | null;
+            file?: string;
+            pdf_url?: string;
+            full_pdf_path?: string;
+            sensitive_meta_id?: number;
+            patient_first_name?: string;
+            patient_last_name?: string;
+            patient_dob?: string;
+            patient_gender?: string;
+            casenumber?: string | null;
+            examination_date?: string;
+        };
+        status?: string;
+        error?: boolean;
+    };
 }, {
     /** Holt den nächsten PDF-Datensatz + zugehöriges SensitiveMeta
      *  und fügt beides zusammen. */
-    fetchNext(lastId?: number): Promise<PatientData | null>;
+    fetchNext(lastId?: number): Promise<PatientData>;
     patchPdf(payload: Partial<PatientData>): Promise<import("axios").AxiosResponse<any, any>>;
     patchVideo(payload: any): Promise<import("axios").AxiosResponse<any, any>>;
-    fetchPendingAnonymizations(): {
-        id: number;
-        sensitive_meta_id: number;
-        text: string;
-        anonymized_text: string;
-        report_meta?: {
-            id: number;
-            file?: string | undefined;
-            pdf_url?: string | undefined;
-            full_pdf_path?: string | undefined;
-            sensitive_meta_id?: number | undefined;
-            patient_first_name?: string | undefined;
-            patient_last_name?: string | undefined;
-            patient_dob?: string | undefined;
-            patient_gender?: string | undefined;
-            casenumber?: string | null | undefined;
-            examination_date?: string | undefined;
-        } | undefined;
-        status?: string | undefined;
-        error?: boolean | undefined;
-    }[];
+    fetchPendingAnonymizations(): any;
 }>;

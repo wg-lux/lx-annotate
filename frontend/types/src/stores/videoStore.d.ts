@@ -89,7 +89,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
         id: string;
         status: 'in_progress' | 'available' | 'completed';
         assignedUser: string | null;
-    } | null, VideoAnnotation | {
+    }, VideoAnnotation | {
         isAnnotated: boolean;
         errorMessage: string;
         segments: {
@@ -104,7 +104,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
         id: string;
         status: 'in_progress' | 'available' | 'completed';
         assignedUser: string | null;
-    } | null>;
+    }>;
     errorMessage: import("vue").Ref<string, string>;
     videoUrl: import("vue").Ref<string, string>;
     segmentsByLabel: import("vue").Ref<Record<string, Segment[]>, Record<string, Segment[]>>;
@@ -114,7 +114,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
             id: number;
             originalFileName: string;
             status: string;
-            assignedUser?: string | null | undefined;
+            assignedUser?: string | null;
             anonymized: boolean;
         }[];
         labels: {
@@ -126,7 +126,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
             id: number;
             originalFileName: string;
             status: string;
-            assignedUser?: string | null | undefined;
+            assignedUser?: string | null;
             anonymized: boolean;
         }[];
         labels: {
@@ -146,7 +146,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
         patientDob: string | null;
         examinationDate: string | null;
         duration: number | null;
-    } | null, VideoFileMeta | {
+    }, VideoFileMeta | {
         id: number;
         originalFileName: string;
         file: string | null;
@@ -158,7 +158,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
         patientDob: string | null;
         examinationDate: string | null;
         duration: number | null;
-    } | null>;
+    }>;
     hasVideo: import("vue").ComputedRef<boolean>;
     duration: import("vue").ComputedRef<number>;
     fetchVideoMeta: (id: number) => Promise<void>;
@@ -196,7 +196,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
         id: string;
         status: 'in_progress' | 'available' | 'completed';
         assignedUser: string | null;
-    } | null, VideoAnnotation | {
+    }, VideoAnnotation | {
         isAnnotated: boolean;
         errorMessage: string;
         segments: {
@@ -211,7 +211,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
         id: string;
         status: 'in_progress' | 'available' | 'completed';
         assignedUser: string | null;
-    } | null>;
+    }>;
     errorMessage: import("vue").Ref<string, string>;
     videoUrl: import("vue").Ref<string, string>;
     segmentsByLabel: import("vue").Ref<Record<string, Segment[]>, Record<string, Segment[]>>;
@@ -221,7 +221,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
             id: number;
             originalFileName: string;
             status: string;
-            assignedUser?: string | null | undefined;
+            assignedUser?: string | null;
             anonymized: boolean;
         }[];
         labels: {
@@ -233,7 +233,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
             id: number;
             originalFileName: string;
             status: string;
-            assignedUser?: string | null | undefined;
+            assignedUser?: string | null;
             anonymized: boolean;
         }[];
         labels: {
@@ -253,7 +253,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
         patientDob: string | null;
         examinationDate: string | null;
         duration: number | null;
-    } | null, VideoFileMeta | {
+    }, VideoFileMeta | {
         id: number;
         originalFileName: string;
         file: string | null;
@@ -265,7 +265,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
         patientDob: string | null;
         examinationDate: string | null;
         duration: number | null;
-    } | null>;
+    }>;
     hasVideo: import("vue").ComputedRef<boolean>;
     duration: import("vue").ComputedRef<number>;
     fetchVideoMeta: (id: number) => Promise<void>;
@@ -303,7 +303,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
         id: string;
         status: 'in_progress' | 'available' | 'completed';
         assignedUser: string | null;
-    } | null, VideoAnnotation | {
+    }, VideoAnnotation | {
         isAnnotated: boolean;
         errorMessage: string;
         segments: {
@@ -318,7 +318,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
         id: string;
         status: 'in_progress' | 'available' | 'completed';
         assignedUser: string | null;
-    } | null>;
+    }>;
     errorMessage: import("vue").Ref<string, string>;
     videoUrl: import("vue").Ref<string, string>;
     segmentsByLabel: import("vue").Ref<Record<string, Segment[]>, Record<string, Segment[]>>;
@@ -328,7 +328,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
             id: number;
             originalFileName: string;
             status: string;
-            assignedUser?: string | null | undefined;
+            assignedUser?: string | null;
             anonymized: boolean;
         }[];
         labels: {
@@ -340,7 +340,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
             id: number;
             originalFileName: string;
             status: string;
-            assignedUser?: string | null | undefined;
+            assignedUser?: string | null;
             anonymized: boolean;
         }[];
         labels: {
@@ -360,7 +360,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
         patientDob: string | null;
         examinationDate: string | null;
         duration: number | null;
-    } | null, VideoFileMeta | {
+    }, VideoFileMeta | {
         id: number;
         originalFileName: string;
         file: string | null;
@@ -372,7 +372,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
         patientDob: string | null;
         examinationDate: string | null;
         duration: number | null;
-    } | null>;
+    }>;
     hasVideo: import("vue").ComputedRef<boolean>;
     duration: import("vue").ComputedRef<number>;
     fetchVideoMeta: (id: number) => Promise<void>;

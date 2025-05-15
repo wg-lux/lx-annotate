@@ -1,11 +1,11 @@
 import { createRouter, createWebHistory } from 'vue-router';
-const router = createRouter({
+var router = createRouter({
     history: createWebHistory(import.meta.env.BASE_URL || '/'),
     routes: [
         {
             path: '/annotationen',
             name: 'Annotationen',
-            component: () => import('src/views/AnnotationDashboard.vue'),
+            component: function () { return import('src/views/AnnotationDashboard.vue'); },
             meta: {
                 description: 'Hier können Sie alle Ihre Annotationen einsehen und verwalten.'
             }
@@ -13,7 +13,7 @@ const router = createRouter({
         {
             path: '/video-annotation',
             name: 'Video Annotation',
-            component: () => import('src/views/VideoAnnotation.vue'),
+            component: function () { return import('src/views/VideoAnnotation.vue'); },
             meta: {
                 description: 'Hier können Sie Videos annotieren.'
             }
@@ -21,7 +21,7 @@ const router = createRouter({
         {
             path: '/frame-annotation',
             name: 'Frame Annotation',
-            component: () => import('src/views/FrameAnnotation.vue'),
+            component: function () { return import('src/views/FrameAnnotation.vue'); },
             meta: {
                 description: 'Hier können Sie Frames annotieren.'
             }
@@ -29,7 +29,7 @@ const router = createRouter({
         {
             path: '/',
             name: 'Dashboard',
-            component: () => import('src/views/Dashboard.vue'),
+            component: function () { return import('src/views/Dashboard.vue'); },
             meta: {
                 description: 'Hier finden Sie alle wichtigen Informationen zu Ihren Annotationen.'
             }
@@ -37,7 +37,7 @@ const router = createRouter({
         {
             path: '/ueber-uns',
             name: 'Über Uns',
-            component: () => import('src/views/UeberUns.vue'),
+            component: function () { return import('src/views/UeberUns.vue'); },
             meta: {
                 description: 'Hier finden Sie Informationen über uns.'
             }
@@ -45,7 +45,7 @@ const router = createRouter({
         {
             path: '/fallgenerator',
             name: 'Fallgenerator',
-            component: () => import('src/views/Fallgenerator.vue'),
+            component: function () { return import('src/views/Fallgenerator.vue'); },
             meta: {
                 description: 'Hier können Sie Fälle generieren.'
             }
@@ -53,7 +53,7 @@ const router = createRouter({
         {
             path: '/untersuchung',
             name: 'Untersuchung',
-            component: () => import('src/views/Examination.vue'),
+            component: function () { return import('src/views/Examination.vue'); },
             meta: {
                 description: 'Hier können Sie Befunde erstellen.'
             }
@@ -61,7 +61,7 @@ const router = createRouter({
         {
             path: '/patient',
             name: 'Patient hinzufügen',
-            component: () => import('src/views/PatientAdder.vue'),
+            component: function () { return import('src/views/PatientAdder.vue'); },
             meta: {
                 description: 'Hier können Sie Patienten hinzufügen.'
             }
@@ -69,7 +69,7 @@ const router = createRouter({
         {
             path: '/profil',
             name: 'Profil',
-            component: () => import('@/views/Profil.vue'),
+            component: function () { return import('@/views/Profil.vue'); },
             meta: {
                 description: 'Hier können Sie Ihr Profil einsehen und bearbeiten.'
             }
@@ -77,7 +77,7 @@ const router = createRouter({
         {
             path: '/anonymisierung',
             name: 'Anonymisierung',
-            component: () => import('@/views/Anonymization.vue'),
+            component: function () { return import('@/views/Anonymization.vue'); },
             meta: {
                 description: 'Hier können Sie Anonymisierungsprozesse durchführen.'
             }
@@ -85,7 +85,7 @@ const router = createRouter({
         {
             path: '/validierung',
             name: 'Validierung',
-            component: () => import('src/views/Validierung.vue'),
+            component: function () { return import('src/views/Validierung.vue'); },
             meta: {
                 description: 'Hier können Sie Annotationen validieren.'
             }

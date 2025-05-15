@@ -37,7 +37,7 @@ declare const _default: import("vue").DefineComponent<{}, {}, {}, {}, {}, import
         loadInterventions(): Promise<void>;
         loadLocationChoices(): void;
         loadMorphologyChoices(): void;
-        getCookie(name: any): string | null;
+        getCookie(name: any): string;
         handleSubmit(): Promise<void>;
     }, import("vue").ComponentOptionsMixin, import("vue").ComponentOptionsMixin, {}, string, import("vue").PublicProps, Readonly<{}>, {}, {}, {}, {}, string, import("vue").ComponentProvideOptions, true, {}, any>;
 }, {}, string, import("vue").ComponentProvideOptions, true, {}, any>;

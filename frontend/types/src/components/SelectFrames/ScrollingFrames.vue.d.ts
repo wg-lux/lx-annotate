@@ -3,7 +3,7 @@ declare const _default: import("vue").DefineComponent<{}, {
         id: string;
         imageUrl: string;
         status: "in_progress" | "completed";
-        assignedUser?: string | null | undefined;
+        assignedUser?: string;
     }[];
     annotateFrame: (frame: any) => void;
 }, {}, {}, {}, import("vue").ComponentOptionsMixin, import("vue").ComponentOptionsMixin, {}, string, import("vue").PublicProps, Readonly<{}> & Readonly<{}>, {}, {}, {}, {}, string, import("vue").ComponentProvideOptions, true, {}, any>;

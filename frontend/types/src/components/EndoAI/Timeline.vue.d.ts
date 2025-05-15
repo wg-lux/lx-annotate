@@ -5,7 +5,7 @@ declare const _default: import("vue").DefineComponent<import("vue").ExtractPropT
         required: true;
     };
 }>, {
-    timelineRef: import("vue").Ref<HTMLElement | null, HTMLElement | null>;
+    timelineRef: import("vue").Ref<HTMLElement, HTMLElement>;
     allSegments: import("vue").ComputedRef<Segment[]>;
     startResize: (segment: Segment, event: MouseEvent | TouchEvent) => void;
     handleTimelineClick: (event: MouseEvent) => void;
@@ -17,6 +17,6 @@ declare const _default: import("vue").DefineComponent<import("vue").ExtractPropT
         required: true;
     };
 }>> & Readonly<{
-    onResize?: ((...args: any[]) => any) | undefined;
+    onResize?: (...args: any[]) => any;
 }>, {}, {}, {}, {}, string, import("vue").ComponentProvideOptions, true, {}, any>;
 export default _default;

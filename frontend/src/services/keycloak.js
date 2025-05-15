@@ -7,38 +7,48 @@ const keycloakRealm = import.meta.env.VITE_KEYCLOAK_REALM;
 // @ts-ignore
 const keycloakClientId = import.meta.env.VITE_KEYCLOAK_CLIENT_ID;
 // Keycloak-Konfiguration
+// Um TS7009 zu beheben, verwenden wir eine Typ-Assertion für den Konstruktor.
+// Dies ist oft notwendig, wenn die Typdefinitionen der Bibliothek nicht perfekt mit den Projekteinstellungen harmonieren.
 const keycloak = new Keycloak({
     url: keycloakUrl,
     realm: keycloakRealm,
     clientId: keycloakClientId
 });
-// Keycloak initialisieren
-export function initKeycloak(onAuthenticatedCallback) {
-    return keycloak
-        .init({
-        onLoad: 'check-sso',
-        checkLoginIframe: true, // Iframe-Check aktivieren für bessere Sitzungsverwaltung
-        pkceMethod: 'S256',
-        silentCheckSsoRedirectUri: window.location.origin + '/silent-check-sso.html',
-        silentCheckSsoFallback: true // Fallback aktivieren, wenn 3P-Cookies blockiert sind
-    })
-        .then((authenticated) => {
+export async function initKeycloak(onAuthenticatedCallback) {
+    try {
+        const authenticated = await keycloak.init({
+            onLoad: 'check-sso',
+            checkLoginIframe: true,
+            silentCheckSsoFallback: true,
+            ...(window.location.origin && {
+                silentCheckSsoRedirectUri: window.location.origin + '/silent-check-sso.html'
+            })
+        });
         if (authenticated) {
             onAuthenticatedCallback();
         }
-        return authenticated;
-    })
-        .catch((error) => {
+        return true;
+    }
+    catch (error) {
         console.error('Keycloak initialization failed', error);
         return false;
-    });
+    }
 }
-// Token-Aktualisierung
 export function setupTokenRefresh() {
-    setInterval(() => {
-        keycloak.updateToken(70).catch(() => {
-            console.log('Token refresh failed');
-        });
-    }, 60000);
+    setInterval(async () => {
+        try {
+            const refreshed = await keycloak.updateToken(30);
+            if (refreshed) {
+                console.log('Token was successfully refreshed');
+            }
+            else {
+                console.log('Token is still valid');
+            }
+        }
+        catch (error) {
+            console.error('Failed to refresh token:', error);
+            keycloak.logout();
+        }
+    }, 60000); // Check every 60 seconds
 }
 export default keycloak;

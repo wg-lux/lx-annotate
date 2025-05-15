@@ -1,34 +1,39 @@
-import { defineComponent, ref, computed, onMounted, watch } from 'vue';
-import { useExaminationStore } from '@/stores/examinationStore';
-import { useReportService } from '@/api/reportService';
-import ClassificationCard from './ClassificationCard.vue';
-import { storeToRefs } from 'pinia';
-export default defineComponent({
-    components: { ClassificationCard },
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const vue_1 = require("vue");
+const examinationStore_1 = require("@/stores/examinationStore");
+const reportService_1 = require("@/api/reportService");
+const ClassificationCard_vue_1 = __importDefault(require("./ClassificationCard.vue"));
+const pinia_1 = require("pinia");
+exports.default = (0, vue_1.defineComponent)({
+    components: { ClassificationCard: ClassificationCard_vue_1.default },
     setup() {
-        const examStore = useExaminationStore();
-        const reportService = useReportService();
-        const { loading, error, morphologyClassifications } = storeToRefs(examStore);
-        const examinations = ref([]);
-        const selectedExamId = ref(null);
-        const activeCategory = ref('morphologyChoices');
-        const form = ref({
+        const examStore = (0, examinationStore_1.useExaminationStore)();
+        const reportService = (0, reportService_1.useReportService)();
+        const { loading, error, morphologyClassifications } = (0, pinia_1.storeToRefs)(examStore);
+        const examinations = (0, vue_1.ref)([]);
+        const selectedExamId = (0, vue_1.ref)(null);
+        const activeCategory = (0, vue_1.ref)('morphologyChoices');
+        const form = (0, vue_1.ref)({
             selectedMorphologies: [],
             selectedLocations: [],
             selectedInterventions: [],
             selectedInstruments: [],
         });
-        const tempSelection = ref({
+        const tempSelection = (0, vue_1.ref)({
             morphologyChoiceId: undefined,
             locationChoiceId: undefined,
             interventionId: undefined,
             instrumentId: undefined,
         });
-        const selectedMorphologyClassificationId = ref(null);
-        const filteredMorphChoices = computed(() => selectedMorphologyClassificationId.value === null
+        const selectedMorphologyClassificationId = (0, vue_1.ref)(null);
+        const filteredMorphChoices = (0, vue_1.computed)(() => selectedMorphologyClassificationId.value === null
             ? []
             : subcategories.value.morphologyChoices.filter(ch => ch.classificationId === selectedMorphologyClassificationId.value));
-        watch(selectedMorphologyClassificationId, () => {
+        (0, vue_1.watch)(selectedMorphologyClassificationId, () => {
             form.value.selectedMorphologies = form.value.selectedMorphologies.filter(id => filteredMorphChoices.value.some(c => c.id === id));
             tempSelection.value.morphologyChoiceId = undefined;
         });
@@ -70,7 +75,7 @@ export default defineComponent({
             };
             selectedMorphologyClassificationId.value = null;
         }
-        const subcategories = computed(() => {
+        const subcategories = (0, vue_1.computed)(() => {
             return selectedExamId.value !== null
                 ? examStore.getCategories(selectedExamId.value)
                 : { morphologyChoices: [], locationChoices: [], interventions: [], instruments: [] };
@@ -81,7 +86,7 @@ export default defineComponent({
             interventions: 'Interventionen',
             instruments: 'Instrumente'
         };
-        onMounted(loadExams);
+        (0, vue_1.onMounted)(loadExams);
         return {
             examinations,
             selectedExamId,
@@ -103,7 +108,7 @@ export default defineComponent({
 ; /* PartiallyEnd: #3632/script.vue */
 function __VLS_template() {
     const __VLS_ctx = {};
-    const __VLS_componentsOption = { ClassificationCard };
+    const __VLS_componentsOption = { ClassificationCard: ClassificationCard_vue_1.default };
     let __VLS_components;
     let __VLS_directives;
     ['editor-panel',];

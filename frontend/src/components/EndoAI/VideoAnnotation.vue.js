@@ -1,20 +1,25 @@
-import { defineComponent, ref, computed, onMounted } from 'vue';
-import { useVideoStore } from '@/stores/videoStore';
-import Timeline from './Timeline.vue';
-export default defineComponent({
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const vue_1 = require("vue");
+const videoStore_1 = require("@/stores/videoStore");
+const Timeline_vue_1 = __importDefault(require("./Timeline.vue"));
+exports.default = (0, vue_1.defineComponent)({
     name: 'VideoAnnotation',
-    components: { Timeline },
+    components: { Timeline: Timeline_vue_1.default },
     setup() {
-        const videoStore = useVideoStore();
-        const videoUrl = computed(() => videoStore.videoUrl);
-        const duration = computed(() => videoStore.duration);
-        const allSegments = computed(() => videoStore.allSegments.values); // Fix: Use `value` instead of `values`
-        const videoRef = ref(null);
+        const videoStore = (0, videoStore_1.useVideoStore)();
+        const videoUrl = (0, vue_1.computed)(() => videoStore.videoUrl);
+        const duration = (0, vue_1.computed)(() => videoStore.duration);
+        const allSegments = (0, vue_1.computed)(() => videoStore.allSegments.values); // Fix: Use `value` instead of `values`
+        const videoRef = (0, vue_1.ref)(null);
         function handleSegmentResize(id, newEnd) {
             console.log(`Segment ${id} resized to end at ${newEnd}`);
             // Optionally persist/update via store or API call here
         }
-        onMounted(() => {
+        (0, vue_1.onMounted)(() => {
             videoStore.fetchAllVideos();
             videoStore.fetchVideoUrl();
         });
@@ -30,7 +35,7 @@ export default defineComponent({
 ; /* PartiallyEnd: #3632/script.vue */
 function __VLS_template() {
     const __VLS_ctx = {};
-    const __VLS_componentsOption = { Timeline };
+    const __VLS_componentsOption = { Timeline: Timeline_vue_1.default };
     let __VLS_components;
     let __VLS_directives;
     // CSS variable injection 

@@ -1,21 +1,49 @@
-import { ref, computed, reactive, onMounted, watch } from 'vue';
-import { useAnonymizationStore } from '@/stores/anonymizationStore';
-import vueFilePond from 'vue-filepond';
-import axiosInstance, { r } from '@/api/axiosInstance';
-import { setOptions, registerPlugin } from 'filepond';
-import FilePondPluginImagePreview from 'filepond-plugin-image-preview';
-import FilePondPluginFileValidateType from 'filepond-plugin-file-validate-type';
-registerPlugin(FilePondPluginImagePreview, FilePondPluginFileValidateType);
-const FilePond = vueFilePond(FilePondPluginImagePreview, FilePondPluginFileValidateType);
-export default (await import('vue')).defineComponent({
+"use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const vue_1 = require("vue");
+const anonymizationStore_1 = require("@/stores/anonymizationStore");
+const vue_filepond_1 = __importDefault(require("vue-filepond"));
+const axiosInstance_1 = __importStar(require("@/api/axiosInstance"));
+const filepond_1 = require("filepond");
+const filepond_plugin_image_preview_1 = __importDefault(require("filepond-plugin-image-preview"));
+const filepond_plugin_file_validate_type_1 = __importDefault(require("filepond-plugin-file-validate-type"));
+(0, filepond_1.registerPlugin)(filepond_plugin_image_preview_1.default, filepond_plugin_file_validate_type_1.default);
+const FilePond = (0, vue_filepond_1.default)(filepond_plugin_image_preview_1.default, filepond_plugin_file_validate_type_1.default);
+exports.default = (await Promise.resolve().then(() => __importStar(require('vue')))).defineComponent({
     name: 'AnonymizationValidationComponent',
     components: { FilePond },
     setup() {
-        const store = useAnonymizationStore();
+        const store = (0, anonymizationStore_1.useAnonymizationStore)();
         // Lokaler State
-        const editedAnonymizedText = ref('');
-        const examinationDate = ref('');
-        const editedPatient = reactive({
+        const editedAnonymizedText = (0, vue_1.ref)('');
+        const examinationDate = (0, vue_1.ref)('');
+        const editedPatient = (0, vue_1.reactive)({
             patient_first_name: '',
             patient_last_name: '',
             patient_gender: '',
@@ -23,14 +51,14 @@ export default (await import('vue')).defineComponent({
             casenumber: ''
         });
         // Computed Property für das aktuelle Element
-        const currentItem = computed(() => store.current);
+        const currentItem = (0, vue_1.computed)(() => store.current);
         // Einmalige Definition der Upload-bezogenen Refs
-        const originalUrl = ref('');
-        const processedUrl = ref('');
-        const showOriginal = ref(false);
-        const pond = ref(null);
+        const originalUrl = (0, vue_1.ref)('');
+        const processedUrl = (0, vue_1.ref)('');
+        const showOriginal = (0, vue_1.ref)(false);
+        const pond = (0, vue_1.ref)(null);
         // FilePond global konfigurieren – nachdem die Refs existieren
-        setOptions({
+        (0, filepond_1.setOptions)({
             allowRevert: true,
             chunkUploads: true,
             maxParallelUploads: 3,
@@ -38,7 +66,7 @@ export default (await import('vue')).defineComponent({
                 process(field, file, metadata, load, error, progress) {
                     const fd = new FormData();
                     fd.append(field, file);
-                    axiosInstance.post(r('upload-image/'), fd, {
+                    axiosInstance_1.default.post((0, axiosInstance_1.r)('upload-image/'), fd, {
                         onUploadProgress: e => progress(true, e.loaded ?? 0, e.total ?? 0)
                     })
                         .then(({ data }) => {
@@ -49,7 +77,7 @@ export default (await import('vue')).defineComponent({
                         .catch(err => error(err.message));
                 },
                 revert(id, load) {
-                    axiosInstance.delete(r(`upload-image/${id}/`)).finally(load);
+                    axiosInstance_1.default.delete((0, axiosInstance_1.r)(`upload-image/${id}/`)).finally(load);
                 }
             }
         });
@@ -60,11 +88,11 @@ export default (await import('vue')).defineComponent({
             console.log('Annotation gespeichert');
         };
         // Berechnung, ob das Formular absendbar ist
-        const canSubmit = computed(() => {
+        const canSubmit = (0, vue_1.computed)(() => {
             return editedAnonymizedText.value.trim() !== '' && isExaminationDateValid.value;
         });
         // Dirty state: prüfen, ob ein Feld geändert wurde
-        const dirty = computed(() => {
+        const dirty = (0, vue_1.computed)(() => {
             if (!currentItem.value)
                 return false;
             const meta = currentItem.value.report_meta;
@@ -105,7 +133,7 @@ export default (await import('vue')).defineComponent({
             });
         };
         // Watcher für currentItem
-        watch(currentItem, (newItem, oldItem) => {
+        (0, vue_1.watch)(currentItem, (newItem, oldItem) => {
             if (newItem?.id !== oldItem?.id || (!newItem && oldItem)) {
                 console.log('currentItem changed detected, calling populateForm.');
                 populateForm(newItem);
@@ -163,13 +191,13 @@ export default (await import('vue')).defineComponent({
         const skipItem = async () => {
             await loadData();
         };
-        const isExaminationDateValid = computed(() => {
+        const isExaminationDateValid = (0, vue_1.computed)(() => {
             if (!examinationDate.value || !editedPatient.patient_dob)
                 return true;
             return new Date(examinationDate.value) >= new Date(editedPatient.patient_dob);
         });
         // Prepopulate form fields on component mount
-        onMounted(() => {
+        (0, vue_1.onMounted)(() => {
             console.log('Component mounted, calling initial loadData.');
             loadData();
         });

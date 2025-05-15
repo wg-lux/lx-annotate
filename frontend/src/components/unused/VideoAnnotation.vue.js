@@ -1,29 +1,57 @@
-import { ref, computed, onMounted } from 'vue';
-import { v4 as uuidv4 } from 'uuid';
-import axios from 'axios';
+"use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const vue_1 = require("vue");
+const uuid_1 = require("uuid");
+const axios_1 = __importDefault(require("axios"));
 const API_BASE = 'http://127.0.0.1:8000/api';
 // Refs
-const videoRef = ref(null);
-const labels = ref([]);
-const currentTime = ref(0);
-const duration = ref(0);
-const availableVideos = ref([]);
-const currentVideo = ref(null);
-const activeLabel = ref(null);
+const videoRef = (0, vue_1.ref)(null);
+const labels = (0, vue_1.ref)([]);
+const currentTime = (0, vue_1.ref)(0);
+const duration = (0, vue_1.ref)(0);
+const availableVideos = (0, vue_1.ref)([]);
+const currentVideo = (0, vue_1.ref)(null);
+const activeLabel = (0, vue_1.ref)(null);
 // Computed
-const sortedLabels = computed(() => {
+const sortedLabels = (0, vue_1.computed)(() => {
     return [...labels.value].sort((a, b) => a.startTime - b.startTime);
 });
-const currentVideoUrl = computed(() => {
+const currentVideoUrl = (0, vue_1.computed)(() => {
     return currentVideo.value?.url || '';
 });
-const canSave = computed(() => {
+const canSave = (0, vue_1.computed)(() => {
     return labels.value.length > 0 && labels.value.every(l => l.isComplete);
 });
 // Methods
 async function fetchVideos() {
     try {
-        const response = await axios.get(`${API_BASE}/videos/`);
+        const response = await axios_1.default.get(`${API_BASE}/videos/`);
         availableVideos.value = response.data;
     }
     catch (error) {
@@ -39,7 +67,7 @@ async function handleFileSelect(event) {
     formData.append('center_name', 'your_center');
     formData.append('processor_name', 'your_processor');
     try {
-        const response = await axios.post(`${API_BASE}/videos/upload/`, formData);
+        const response = await axios_1.default.post(`${API_BASE}/videos/upload/`, formData);
         console.log('Upload response:', response.data);
         if (response.data.url) {
             currentVideo.value = response.data;
@@ -80,7 +108,7 @@ function toggleLabel() {
     else {
         // Start new label
         const newLabel = {
-            id: uuidv4(),
+            id: (0, uuid_1.v4)(),
             startTime: videoRef.value.currentTime,
             endTime: null,
             isComplete: false
@@ -122,7 +150,7 @@ async function saveAnnotations() {
     if (!currentVideo.value)
         return;
     try {
-        await axios.post(`${API_BASE}/annotations/`, {
+        await axios_1.default.post(`${API_BASE}/annotations/`, {
             video_id: currentVideo.value.id,
             labels: labels.value.map(label => ({
                 start_time: label.startTime,
@@ -139,7 +167,7 @@ async function saveAnnotations() {
     }
 }
 // Lifecycle
-onMounted(async () => {
+(0, vue_1.onMounted)(async () => {
     await fetchVideos();
 });
 ; /* PartiallyEnd: #3632/scriptSetup.vue */
@@ -290,7 +318,7 @@ function __VLS_template() {
     };
 }
 ;
-const __VLS_self = (await import('vue')).defineComponent({
+const __VLS_self = (await Promise.resolve().then(() => __importStar(require('vue')))).defineComponent({
     setup() {
         return {
             videoRef: videoRef,
@@ -315,7 +343,7 @@ const __VLS_self = (await import('vue')).defineComponent({
         };
     },
 });
-export default (await import('vue')).defineComponent({
+exports.default = (await Promise.resolve().then(() => __importStar(require('vue')))).defineComponent({
     setup() {
         return {};
     },

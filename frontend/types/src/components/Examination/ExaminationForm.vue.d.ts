@@ -7,7 +7,7 @@ declare const _default: import("vue").DefineComponent<{}, {
         id: number;
         name: string;
     }[]>;
-    selectedExamId: import("vue").Ref<number | null, number | null>;
+    selectedExamId: import("vue").Ref<number, number>;
     activeCategory: import("vue").Ref<keyof SubcategoryMap, keyof SubcategoryMap>;
     form: import("vue").Ref<{
         selectedMorphologies: number[];
@@ -26,20 +26,20 @@ declare const _default: import("vue").DefineComponent<{}, {
         selectedInstruments: number[];
     }>;
     tempSelection: import("vue").Ref<{
-        morphologyChoiceId: number | undefined;
-        locationChoiceId: number | undefined;
-        interventionId: number | undefined;
-        instrumentId: number | undefined;
+        morphologyChoiceId: number;
+        locationChoiceId: number;
+        interventionId: number;
+        instrumentId: number;
     }, {
-        morphologyChoiceId: number | undefined;
-        locationChoiceId: number | undefined;
-        interventionId: number | undefined;
-        instrumentId: number | undefined;
+        morphologyChoiceId: number;
+        locationChoiceId: number;
+        interventionId: number;
+        instrumentId: number;
     } | {
-        morphologyChoiceId: number | undefined;
-        locationChoiceId: number | undefined;
-        interventionId: number | undefined;
-        instrumentId: number | undefined;
+        morphologyChoiceId: number;
+        locationChoiceId: number;
+        interventionId: number;
+        instrumentId: number;
     }>;
     subcategories: import("vue").ComputedRef<SubcategoryMap>;
     categoryLabels: {
@@ -55,10 +55,10 @@ declare const _default: import("vue").DefineComponent<{}, {
         interventions: string;
         instruments: string;
     };
-    selectedMorphologyClassificationId: import("vue").Ref<number | null, number | null>;
+    selectedMorphologyClassificationId: import("vue").Ref<number, number>;
     filteredMorphChoices: import("vue").ComputedRef<import("@/stores/examinationStore").MorphologyClassificationChoice[]>;
     loading: import("vue").Ref<boolean, boolean>;
-    error: import("vue").Ref<string | null, string | null>;
+    error: import("vue").Ref<string, string>;
     morphologyClassifications: import("vue").Ref<{
         id: number;
         name: string;
@@ -74,15 +74,15 @@ declare const _default: import("vue").DefineComponent<{}, {
         };
         options: {
             type: import("vue").PropType<import("./ClassificationCard.vue").Option[]>;
-            default: () => never[];
+            default: () => any[];
         };
         modelValue: {
             type: import("vue").PropType<number[]>;
-            default: () => never[];
+            default: () => any[];
         };
         tempValue: {
             type: NumberConstructor;
-            default: undefined;
+            default: any;
         };
         compact: {
             type: BooleanConstructor;
@@ -94,8 +94,8 @@ declare const _default: import("vue").DefineComponent<{}, {
         };
     }>, {
         localModelValue: import("vue").WritableComputedRef<number[], number[]>;
-        localTempValue: import("vue").WritableComputedRef<number | undefined, number | undefined>;
-        singleSelectedValue: import("vue").WritableComputedRef<number | null, number | null>;
+        localTempValue: import("vue").WritableComputedRef<number, number>;
+        singleSelectedValue: import("vue").WritableComputedRef<number, number>;
         isSingleSelection: import("vue").ComputedRef<boolean>;
         selectedLabels: import("vue").ComputedRef<import("./ClassificationCard.vue").Option[]>;
         availableOptions: import("vue").ComputedRef<import("./ClassificationCard.vue").Option[]>;
@@ -109,15 +109,15 @@ declare const _default: import("vue").DefineComponent<{}, {
         };
         options: {
             type: import("vue").PropType<import("./ClassificationCard.vue").Option[]>;
-            default: () => never[];
+            default: () => any[];
         };
         modelValue: {
             type: import("vue").PropType<number[]>;
-            default: () => never[];
+            default: () => any[];
         };
         tempValue: {
             type: NumberConstructor;
-            default: undefined;
+            default: any;
         };
         compact: {
             type: BooleanConstructor;
@@ -128,8 +128,8 @@ declare const _default: import("vue").DefineComponent<{}, {
             default: boolean;
         };
     }>> & Readonly<{
-        "onUpdate:modelValue"?: ((...args: any[]) => any) | undefined;
-        "onUpdate:tempValue"?: ((...args: any[]) => any) | undefined;
+        "onUpdate:modelValue"?: (...args: any[]) => any;
+        "onUpdate:tempValue"?: (...args: any[]) => any;
     }>, {
         options: import("./ClassificationCard.vue").Option[];
         modelValue: number[];

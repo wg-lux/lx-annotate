@@ -1,10 +1,35 @@
-import { ref, onMounted } from 'vue';
-import { useVideoStore } from '@/stores/videoStore';
-const videoStore = useVideoStore();
+"use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const vue_1 = require("vue");
+const videoStore_1 = require("@/stores/videoStore");
+const videoStore = (0, videoStore_1.useVideoStore)();
 const { videoUrl, fetchVideoUrl, fetchAllSegments, allSegments } = videoStore;
-const segments = ref([]);
-const videos = ref([]);
-onMounted(async () => {
+const segments = (0, vue_1.ref)([]);
+const videos = (0, vue_1.ref)([]);
+(0, vue_1.onMounted)(async () => {
     // Fetch the video URL and segments when the dashboard loads
     await fetchVideoUrl();
     // Assuming a current video is set; otherwise default to id '1'
@@ -104,7 +129,7 @@ function __VLS_template() {
     };
 }
 ;
-const __VLS_self = (await import('vue')).defineComponent({
+const __VLS_self = (await Promise.resolve().then(() => __importStar(require('vue')))).defineComponent({
     setup() {
         return {
             videoUrl: videoUrl,
@@ -113,7 +138,7 @@ const __VLS_self = (await import('vue')).defineComponent({
         };
     },
 });
-export default (await import('vue')).defineComponent({
+exports.default = (await Promise.resolve().then(() => __importStar(require('vue')))).defineComponent({
     setup() {
         return {};
     },

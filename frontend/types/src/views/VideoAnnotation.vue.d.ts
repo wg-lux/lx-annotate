@@ -3,7 +3,7 @@ declare const _default: import("vue").DefineComponent<{}, {}, {}, {}, {}, import
         videoUrl: import("vue").ComputedRef<string>;
         duration: import("vue").ComputedRef<number>;
         allSegments: import("vue").ComputedRef<() => IterableIterator<import("../stores/videoStore.js").Segment>>;
-        videoRef: import("vue").Ref<HTMLVideoElement | null, HTMLVideoElement | null>;
+        videoRef: import("vue").Ref<HTMLVideoElement, HTMLVideoElement>;
         handleSegmentResize: (id: string, newEnd: number) => void;
     }, {}, {}, {}, import("vue").ComponentOptionsMixin, import("vue").ComponentOptionsMixin, {}, string, import("vue").PublicProps, Readonly<{}> & Readonly<{}>, {}, {}, {
         Timeline: import("vue").DefineComponent<import("vue").ExtractPropTypes<{
@@ -12,7 +12,7 @@ declare const _default: import("vue").DefineComponent<{}, {}, {}, {}, {}, import
                 required: true;
             };
         }>, {
-            timelineRef: import("vue").Ref<HTMLElement | null, HTMLElement | null>;
+            timelineRef: import("vue").Ref<HTMLElement, HTMLElement>;
             allSegments: import("vue").ComputedRef<import("../stores/videoStore.js").Segment[]>;
             startResize: (segment: import("../stores/videoStore.js").Segment, event: MouseEvent | TouchEvent) => void;
             handleTimelineClick: (event: MouseEvent) => void;
@@ -24,7 +24,7 @@ declare const _default: import("vue").DefineComponent<{}, {}, {}, {}, {}, import
                 required: true;
             };
         }>> & Readonly<{
-            onResize?: ((...args: any[]) => any) | undefined;
+            onResize?: (...args: any[]) => any;
         }>, {}, {}, {}, {}, string, import("vue").ComponentProvideOptions, true, {}, any>;
     }, {}, string, import("vue").ComponentProvideOptions, true, {}, any>;
 }, {}, string, import("vue").ComponentProvideOptions, true, {}, any>;

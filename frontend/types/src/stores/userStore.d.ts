@@ -1,11 +1,11 @@
 export declare const useUserStore: import("pinia").StoreDefinition<"user", {
-    users: never[];
+    users: any[];
 }, {
     getUsers(state: {
-        users: never[];
+        users: any[];
     } & import("pinia").PiniaCustomStateProperties<{
-        users: never[];
-    }>): never[];
+        users: any[];
+    }>): any[];
 }, {
     fetchUsers(): Promise<void>;
 }>;

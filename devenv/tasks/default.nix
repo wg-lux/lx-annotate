@@ -15,6 +15,6 @@ let
 
   customTasks = {
     
-  } //envTasks //vueTasks //endoregTasks //pytestTasks ;
+  } //envTasks //vueTasks //pytestTasks ;
 
 in customTasks 

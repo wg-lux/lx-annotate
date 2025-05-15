@@ -1,12 +1,12 @@
 declare const _default: import("vue").DefineComponent<{}, {}, {
-    centers: never[];
-    examinations: never[];
-    findings: never[];
-    locationClassifications: never[];
-    locationClassificationChoices: never[];
-    morphologyClassifications: never[];
-    morphologyClassificationChoices: never[];
-    interventions: never[];
+    centers: any[];
+    examinations: any[];
+    findings: any[];
+    locationClassifications: any[];
+    locationClassificationChoices: any[];
+    morphologyClassifications: any[];
+    morphologyClassificationChoices: any[];
+    interventions: any[];
     formData: {
         name: string;
         polypCount: string;
@@ -19,12 +19,12 @@ declare const _default: import("vue").DefineComponent<{}, {}, {
         locationChoiceId: string;
         morphologyClassificationId: string;
         morphologyChoiceId: string;
-        selectedInterventions: never[];
+        selectedInterventions: any[];
     };
     errorMessage: string;
 }, {
-    filteredLocationChoices(): never[];
-    filteredMorphologyChoices(): never[];
+    filteredLocationChoices(): any[];
+    filteredMorphologyChoices(): any[];
 }, {
     loadCenters(): Promise<void>;
     loadExaminations(): Promise<void>;
@@ -36,7 +36,7 @@ declare const _default: import("vue").DefineComponent<{}, {}, {
     loadInterventions(): Promise<void>;
     loadLocationChoices(): void;
     loadMorphologyChoices(): void;
-    getCookie(name: any): string | null;
+    getCookie(name: any): string;
     handleSubmit(): Promise<void>;
 }, import("vue").ComponentOptionsMixin, import("vue").ComponentOptionsMixin, {}, string, import("vue").PublicProps, Readonly<{}> & Readonly<{}>, {}, {}, {}, {}, string, import("vue").ComponentProvideOptions, true, {}, any>;
 export default _default;

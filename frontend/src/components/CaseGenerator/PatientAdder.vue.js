@@ -1,5 +1,33 @@
-import axios from 'axios';
-export default (await import('vue')).defineComponent({
+"use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const axios_1 = __importDefault(require("axios"));
+exports.default = (await Promise.resolve().then(() => __importStar(require('vue')))).defineComponent({
     data() {
         return {
             // Data that will be loaded from the Django backend
@@ -45,7 +73,7 @@ export default (await import('vue')).defineComponent({
         // --- Data Loaders with Axios ---
         async loadCenters() {
             try {
-                const response = await axios.get('api/centers/');
+                const response = await axios_1.default.get('api/centers/');
                 this.centers = response.data; // Expecting a JSON array of centers
             }
             catch (error) {
@@ -54,7 +82,7 @@ export default (await import('vue')).defineComponent({
         },
         async loadExaminations() {
             try {
-                const response = await axios.get('api/examinations/');
+                const response = await axios_1.default.get('api/examinations/');
                 this.examinations = response.data;
             }
             catch (error) {
@@ -63,7 +91,7 @@ export default (await import('vue')).defineComponent({
         },
         async loadFindings() {
             try {
-                const response = await axios.get('api/findings/');
+                const response = await axios_1.default.get('api/findings/');
                 this.findings = response.data;
             }
             catch (error) {
@@ -72,7 +100,7 @@ export default (await import('vue')).defineComponent({
         },
         async loadLocationClassifications() {
             try {
-                const response = await axios.get('api//location-classifications/');
+                const response = await axios_1.default.get('api//location-classifications/');
                 this.locationClassifications = response.data;
             }
             catch (error) {
@@ -81,7 +109,7 @@ export default (await import('vue')).defineComponent({
         },
         async loadLocationClassificationChoices() {
             try {
-                const response = await axios.get('api/location-classification-choices/');
+                const response = await axios_1.default.get('api/location-classification-choices/');
                 this.locationClassificationChoices = response.data;
             }
             catch (error) {
@@ -90,7 +118,7 @@ export default (await import('vue')).defineComponent({
         },
         async loadMorphologyClassifications() {
             try {
-                const response = await axios.get('api/morphology-classifications/');
+                const response = await axios_1.default.get('api/morphology-classifications/');
                 this.morphologyClassifications = response.data;
             }
             catch (error) {
@@ -99,7 +127,7 @@ export default (await import('vue')).defineComponent({
         },
         async loadMorphologyClassificationChoices() {
             try {
-                const response = await axios.get('api/morphology-classification-choices/');
+                const response = await axios_1.default.get('api/morphology-classification-choices/');
                 this.morphologyClassificationChoices = response.data;
             }
             catch (error) {
@@ -108,7 +136,7 @@ export default (await import('vue')).defineComponent({
         },
         async loadInterventions() {
             try {
-                const response = await axios.get('api/interventions/');
+                const response = await axios_1.default.get('api/interventions/');
                 this.interventions = response.data;
             }
             catch (error) {
@@ -162,7 +190,7 @@ export default (await import('vue')).defineComponent({
             // Build payload from the formData
             const payload = { ...this.formData };
             try {
-                const response = await axios.post('api/save-workflow-data/', payload, {
+                const response = await axios_1.default.post('api/save-workflow-data/', payload, {
                     headers: {
                         'X-CSRFToken': csrfToken,
                         'Content-Type': 'application/json'

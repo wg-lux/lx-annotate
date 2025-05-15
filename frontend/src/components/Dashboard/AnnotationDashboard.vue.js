@@ -1,29 +1,54 @@
-import { ref, onMounted } from 'vue';
-import { useVideoStore } from '@/stores/videoStore';
-import { useImageStore } from '@/stores/imageStore';
-import { useAnonymizationStore } from '@/stores/anonymizationStore';
-import { useUserStore } from '@/stores/userStore';
-const videoStore = useVideoStore();
-const imageStore = useImageStore();
-const anonymizationStore = useAnonymizationStore();
-const userStore = useUserStore();
-const videoStats = ref({
+"use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const vue_1 = require("vue");
+const videoStore_1 = require("@/stores/videoStore");
+const imageStore_1 = require("@/stores/imageStore");
+const anonymizationStore_1 = require("@/stores/anonymizationStore");
+const userStore_1 = require("@/stores/userStore");
+const videoStore = (0, videoStore_1.useVideoStore)();
+const imageStore = (0, imageStore_1.useImageStore)();
+const anonymizationStore = (0, anonymizationStore_1.useAnonymizationStore)();
+const userStore = (0, userStore_1.useUserStore)();
+const videoStats = (0, vue_1.ref)({
     total: 0,
     inProgress: 0,
     completed: 0,
     available: 0,
 });
-const imageStats = ref({
+const imageStats = (0, vue_1.ref)({
     total: 0,
     inProgress: 0,
     completed: 0,
 });
-const anonymizationStats = ref({
+const anonymizationStats = (0, vue_1.ref)({
     total: 0,
     inProgress: 0,
     completed: 0,
 });
-const users = ref([]);
+const users = (0, vue_1.ref)([]);
 // Check if userStore is empty and add a default user
 // This is a fallback in case the userStore is empty
 // #TODO: Remove this when userStore is properly populated
@@ -37,7 +62,7 @@ if (!userStore.users || userStore.users.length === 0) {
     };
     users.value = [currentUser];
 }
-onMounted(async () => {
+(0, vue_1.onMounted)(async () => {
     // Fetch video annotations
     await videoStore.fetchAllVideos();
     const videos = videoStore.videoList.videos;
@@ -211,7 +236,7 @@ function __VLS_template() {
     };
 }
 ;
-const __VLS_self = (await import('vue')).defineComponent({
+const __VLS_self = (await Promise.resolve().then(() => __importStar(require('vue')))).defineComponent({
     setup() {
         return {
             videoStats: videoStats,
@@ -221,7 +246,7 @@ const __VLS_self = (await import('vue')).defineComponent({
         };
     },
 });
-export default (await import('vue')).defineComponent({
+exports.default = (await Promise.resolve().then(() => __importStar(require('vue')))).defineComponent({
     setup() {
         return {};
     },

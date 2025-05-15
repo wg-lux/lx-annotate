@@ -29,6 +29,7 @@ export default defineConfig(({ mode }) => {
         }
       },
     },
+
     server: {
       cors: true,
       port: 8000,
