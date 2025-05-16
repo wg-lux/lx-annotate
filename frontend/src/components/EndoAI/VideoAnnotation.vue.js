@@ -13,7 +13,7 @@ exports.default = (0, vue_1.defineComponent)({
         const videoStore = (0, videoStore_1.useVideoStore)();
         const videoUrl = (0, vue_1.computed)(() => videoStore.videoUrl);
         const duration = (0, vue_1.computed)(() => videoStore.duration);
-        const allSegments = (0, vue_1.computed)(() => videoStore.allSegments.values); // Fix: Use `value` instead of `values`
+        const allSegments = (0, vue_1.computed)(() => videoStore.allSegments); // Fix: Use `value` instead of `values`
         const videoRef = (0, vue_1.ref)(null);
         function handleSegmentResize(id, newEnd) {
             console.log(`Segment ${id} resized to end at ${newEnd}`);

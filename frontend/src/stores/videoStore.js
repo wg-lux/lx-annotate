@@ -48,7 +48,6 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import axiosInstance, { r } from '../api/axiosInstance';
-import videoAxiosInstance from '../api/videoAxiosInstance';
 var translationMap = {
     appendix: 'Appendix',
     blood: 'Blut',
@@ -131,15 +130,16 @@ export var useVideoStore = defineStore('video', function () {
     }
     function fetchVideoUrl() {
         return __awaiter(this, void 0, void 0, function () {
-            var response, error_1, axiosError;
-            var _a, _b;
-            return __generator(this, function (_c) {
-                switch (_c.label) {
+            var id, response, error_1, axiosError;
+            var _a, _b, _c;
+            return __generator(this, function (_d) {
+                switch (_d.label) {
                     case 0:
-                        _c.trys.push([0, 2, , 3]);
-                        return [4 /*yield*/, videoAxiosInstance.get(((_a = currentVideo.value) === null || _a === void 0 ? void 0 : _a.id) || '1', { headers: { 'Accept': 'application/json' } })];
+                        _d.trys.push([0, 2, , 3]);
+                        id = (_b = (_a = currentVideo.value) === null || _a === void 0 ? void 0 : _a.id) !== null && _b !== void 0 ? _b : 1;
+                        return [4 /*yield*/, axiosInstance.get(r("video/".concat(id, "/")))];
                     case 1:
-                        response = _c.sent();
+                        response = _d.sent();
                         if (response.data.videoUrl) {
                             videoUrl.value = response.data.videoUrl;
                             console.log("Fetched video URL:", videoUrl.value);
@@ -150,9 +150,9 @@ export var useVideoStore = defineStore('video', function () {
                         }
                         return [3 /*break*/, 3];
                     case 2:
-                        error_1 = _c.sent();
+                        error_1 = _d.sent();
                         axiosError = error_1;
-                        console.error("Error loading video:", ((_b = axiosError.response) === null || _b === void 0 ? void 0 : _b.data) || axiosError.message);
+                        console.error("Error loading video:", ((_c = axiosError.response) === null || _c === void 0 ? void 0 : _c.data) || axiosError.message);
                         errorMessage.value = "Error loading video. Please check the API endpoint or try again later.";
                         return [3 /*break*/, 3];
                     case 3: return [2 /*return*/];

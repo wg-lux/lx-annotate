@@ -24,7 +24,7 @@ export default defineComponent({
 
     const videoUrl = computed(() => videoStore.videoUrl);
     const duration = computed(() => videoStore.duration);
-    const allSegments = computed(() => videoStore.allSegments.values); // Fix: Use `value` instead of `values`
+    const allSegments = computed(() => videoStore.allSegments); // Fix: Use `value` instead of `values`
     const videoRef = ref<HTMLVideoElement | null>(null);
 
     function handleSegmentResize(id: string, newEnd: number) {

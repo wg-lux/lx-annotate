@@ -1,7 +1,7 @@
 declare const _default: import("vue").DefineComponent<{}, {
     videoUrl: import("vue").ComputedRef<string>;
     duration: import("vue").ComputedRef<number>;
-    allSegments: import("vue").ComputedRef<() => IterableIterator<import("@/stores/videoStore").Segment>>;
+    allSegments: import("vue").ComputedRef<import("@/stores/videoStore").Segment[]>;
     videoRef: import("vue").Ref<HTMLVideoElement, HTMLVideoElement>;
     handleSegmentResize: (id: string, newEnd: number) => void;
 }, {}, {}, {}, import("vue").ComponentOptionsMixin, import("vue").ComponentOptionsMixin, {}, string, import("vue").PublicProps, Readonly<{}> & Readonly<{}>, {}, {}, {

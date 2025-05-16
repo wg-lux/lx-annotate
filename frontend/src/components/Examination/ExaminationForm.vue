@@ -38,7 +38,7 @@
         <!-- Dynamic editor for active category with colour cue -->
         <div class="category-editor" :class="colourMap[activeCategory]">
           <div v-if="activeCategory === 'morphologyChoices'">
-            <label>Ober-Klassifikation:</label>
+            <label>Morphologie Klassifikation:</label>
             <select v-model="selectedMorphologyClassificationId" class="form-select mb-2">
               <option :value="null">— bitte wählen —</option>
               <option v-for="cls in morphologyClassifications" :key="cls.id" :value="cls.id">
@@ -46,7 +46,7 @@
               </option>
             </select>
 
-            <label>Unter-Klassifikation:</label>
+            <label>Morphologie Unterklassifikation:</label>
             <select v-model="tempSelection.morphologyChoiceId" class="form-select">
               <option :value="undefined">— bitte wählen —</option>
               <option v-for="opt in filteredMorphChoices" :key="opt.id" :value="opt.id">

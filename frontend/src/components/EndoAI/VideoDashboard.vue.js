@@ -30,6 +30,11 @@ const { videoUrl, fetchVideoUrl, fetchAllSegments, allSegments } = videoStore;
 const segments = (0, vue_1.ref)([]);
 const videos = (0, vue_1.ref)([]);
 (0, vue_1.onMounted)(async () => {
+    await videoStore.fetchAllVideos();
+    videos.value = videoStore.videoList.videos;
+    if (videos.value.length) {
+        videoStore.setVideo({ id: String(videos.value[0].id) });
+    }
     // Fetch the video URL and segments when the dashboard loads
     await fetchVideoUrl();
     // Assuming a current video is set; otherwise default to id '1'

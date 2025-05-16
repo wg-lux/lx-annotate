@@ -51,6 +51,11 @@
 
   
   onMounted(async () => {
+    await videoStore.fetchAllVideos();
+    videos.value = videoStore.videoList.videos;
+    if (videos.value.length) {
+      videoStore.setVideo({ id: String(videos.value[0].id) } as any);
+    }
     // Fetch the video URL and segments when the dashboard loads
     await fetchVideoUrl();
     // Assuming a current video is set; otherwise default to id '1'

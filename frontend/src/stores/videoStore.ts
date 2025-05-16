@@ -1,7 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import axiosInstance, { r } from '../api/axiosInstance';
-import videoAxiosInstance from '../api/videoAxiosInstance';
 import { AxiosError } from 'axios';
 
 export interface VideoResponse {
@@ -184,9 +183,9 @@ export const useVideoStore = defineStore('video', () => {
   
   async function fetchVideoUrl() {
     try {
-      const response = await videoAxiosInstance.get<VideoResponse>(
-        currentVideo.value?.id || '1',
-        { headers: { 'Accept': 'application/json' } }
+      const id = currentVideo.value?.id ?? 1;
+      const response = await axiosInstance.get<VideoResponse>(
+          r(`video/${id}/`)
       );
       if (response.data.videoUrl) {
         videoUrl.value = response.data.videoUrl;
