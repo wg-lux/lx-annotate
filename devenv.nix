@@ -16,13 +16,13 @@ let
     zlib
   ];
 
+  imports = [ ./endoreg-db/devenv.nix ]; 
+
+
   runtimePackages = with pkgs; [
     cudaPackages.cuda_nvcc # Needed for runtime? Check dependencies
     stdenv.cc.cc
-    ffmpeg-headless.bin
-    tesseract
     zsh # If you prefer zsh as the shell
-    uvPackage # Add uvPackage to runtime packages if needed elsewhere, or just for devenv internal use
   ];
 
   languages.javascript.enable = true;
@@ -99,14 +99,14 @@ in
 
   files."django-settings.json" = { json = (djangoSettings)."${DEPLOYMENT_MODE}"; };
 
-  packages = with pkgs; [
+  packages = runtimePackages ++ (with pkgs; [
     cudaPackages.cuda_nvcc
     stdenv.cc.cc
     nodejs_22
     yarn
     python311Full
     libglvnd
-  ];
+  ]);
 
 
   env = {

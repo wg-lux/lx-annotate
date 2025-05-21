@@ -10,7 +10,7 @@ SECRET_KEY = get_random_secret_key()
 # Define the correct path for the .env file
 project_root = Path(__file__).resolve().parent.parent  # Adjust to point to the project root
 settings_pkg = "lx_annotate"  # Adjust if your settings package name differs
-target_dir = project_root / settings_pkg
+target_dir = project_root
 
 target = target_dir / ".env"
 

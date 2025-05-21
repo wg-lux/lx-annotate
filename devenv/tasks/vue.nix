@@ -11,6 +11,9 @@ let
       npm run build
       cd ..
       '';
+      "vue:build".status =
+      ''git rev-parse --verify --quiet HEAD >/dev/null'';
+
   };
 
 in customTasks

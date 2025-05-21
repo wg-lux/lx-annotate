@@ -2,10 +2,10 @@
 let
   customTasks = {
     "env:build" = {
-      description = "Build the .env file";
+      description = "Generate .env only when it doesn't exist";
       after = ["devenv:enterShell"];
-      exec = "uv run env_setup.py";
-      status = "test -f .env && grep -q 'DJANGO_SECRET_KEY=' .env";
+      exec = "[ -f .env ] || uv run env_setup.py";
+      status = "[ -f .env ]";
     };
     "env:export" = {
       description = "Export the .env file";
