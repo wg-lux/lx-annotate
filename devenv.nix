@@ -14,16 +14,24 @@ let
     libglvnd
     glib
     zlib
+    cmake          # build system
+    gcc            # C/C++ compiler tool-chain
+    pkg-config
+    protobuf
   ];
+    _module.args.baseBuildInputs = buildInputs;
 
-  imports = [ ./endoreg-db/devenv.nix ]; 
-
+  imports = [ 
+    ./endoreg-db/devenv.nix
+    ./endoreg-db/lx-anonymizer/devenv.nix ]; 
 
   runtimePackages = with pkgs; [
     cudaPackages.cuda_nvcc # Needed for runtime? Check dependencies
     stdenv.cc.cc
     zsh # If you prefer zsh as the shell
   ];
+
+  packages = runtimePackages ++ buildInputs;
 
   languages.javascript.enable = true;
   languages.javascript.package = pkgs.nodejs_22; # Specify the Node.js version
