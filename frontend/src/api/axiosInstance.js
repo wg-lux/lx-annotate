@@ -57,4 +57,8 @@ axiosInstance.interceptors.response.use((response) => {
     }
     return response;
 });
+// Add a helper function to fetch statistics data
+export function fetchStats() {
+    return axiosInstance.get(r('stats/'));
+}
 export default axiosInstance;

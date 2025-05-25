@@ -140,6 +140,11 @@ export const useAnonymizationStore = defineStore('anonymization', {
 
     fetchPendingAnonymizations() {
       return this.pending;
-    }
+    },
+
+    /* Add anonymization data to the pending list */
+    addAnonymization(data: PatientData) {
+      this.pending.push(data);
+    },
   }
 });

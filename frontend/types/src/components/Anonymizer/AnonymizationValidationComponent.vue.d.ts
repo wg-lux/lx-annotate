@@ -77,6 +77,7 @@ declare const _default: import("vue").DefineComponent<{}, {
         patchPdf(payload: Partial<PatientData>): Promise<import("axios").AxiosResponse<any, any>>;
         patchVideo(payload: any): Promise<import("axios").AxiosResponse<any, any>>;
         fetchPendingAnonymizations(): any;
+        addAnonymization(data: PatientData): void;
     }>;
     currentItem: import("vue").ComputedRef<{
         id: number;

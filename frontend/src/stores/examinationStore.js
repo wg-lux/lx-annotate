@@ -48,7 +48,7 @@ export var useExaminationStore = defineStore('examination', function () {
     // Fetch all subcategories for a given examination type
     function fetchSubcategoriesForExam(examId) {
         return __awaiter(this, void 0, void 0, function () {
-            var token, _a, morphRes, locRes, intRes, instRes, err_1;
+            var token, _a, locRes, intRes, err_1;
             return __generator(this, function (_b) {
                 switch (_b.label) {
                     case 0:
@@ -60,22 +60,19 @@ export var useExaminationStore = defineStore('examination', function () {
                     case 1:
                         _b.trys.push([1, 3, 4, 5]);
                         return [4 /*yield*/, Promise.all([
-                                axiosInstance.get(r("examination/".concat(examId, "/morphology-classification-choices/"))),
                                 axiosInstance.get(r("examination/".concat(examId, "/location-classification-choices/"))),
                                 axiosInstance.get(r("examination/".concat(examId, "/interventions/"))),
-                                axiosInstance.get(r("examination/".concat(examId, "/instruments/"))),
                             ])];
                     case 2:
-                        _a = _b.sent(), morphRes = _a[0], locRes = _a[1], intRes = _a[2], instRes = _a[3];
+                        _a = _b.sent(), locRes = _a[0], intRes = _a[1];
                         // Abbruch, falls ein anderer Request in der Zwischenzeit gestartet wurde
                         if (lastFetchToken.value !== token)
                             return [2 /*return*/];
                         // Direkte Zuweisung für reaktives Objekt
                         categoriesByExam[examId] = {
-                            morphologyChoices: morphRes.data,
                             locationChoices: locRes.data,
                             interventions: intRes.data,
-                            instruments: instRes.data,
+                            findings: intRes.data, // Using interventions as findings based on the requirements
                         };
                         return [3 /*break*/, 5];
                     case 3:
@@ -124,13 +121,12 @@ export var useExaminationStore = defineStore('examination', function () {
                         return [4 /*yield*/, axiosInstance.get(r("get-location-choices/".concat(examId, "/")))];
                     case 1:
                         response = _a.sent();
-                        // Initialize map if it doesn’t exist
+                        // Initialize map if it doesn't exist
                         if (!categoriesByExam[examId]) {
                             categoriesByExam[examId] = {
-                                morphologyChoices: [],
                                 locationChoices: [],
                                 interventions: [],
-                                instruments: [],
+                                findings: [],
                             };
                         }
                         categoriesByExam[examId].locationChoices = response.data;
@@ -156,13 +152,11 @@ export var useExaminationStore = defineStore('examination', function () {
                         response = _a.sent();
                         if (!categoriesByExam[examId]) {
                             categoriesByExam[examId] = {
-                                morphologyChoices: [],
                                 locationChoices: [],
                                 interventions: [],
-                                instruments: [],
+                                findings: [],
                             };
                         }
-                        categoriesByExam[examId].morphologyChoices = response.data;
                         return [3 /*break*/, 3];
                     case 2:
                         err_4 = _a.sent();
@@ -177,10 +171,9 @@ export var useExaminationStore = defineStore('examination', function () {
     function getCategories(examId) {
         // Zugriff auf reaktives Objekt angepasst
         return categoriesByExam[examId] || {
-            morphologyChoices: [],
             locationChoices: [],
             interventions: [],
-            instruments: [],
+            findings: [],
         };
     }
     return {

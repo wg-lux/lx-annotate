@@ -2,7 +2,10 @@ import {defineStore} from 'pinia';
 import axios from 'axios';
 import {useAnonymizationStore} from "@/stores/anonymizationStore";
 import axiosInstance, {r} from "@/api/axiosInstance";
+import {ref } from 'vue';
+
 export interface Case {
+    id: number; // Added id property to match usage in the code
     patient_first_name: string;
     patient_last_name: string;
     patient_dob: string;
@@ -139,7 +142,7 @@ export interface Stroke {
     possibleAnticoagulation: AnticoagulantIndication[];
 }
 
-export default const useCasesStore = defineStore('cases', () => {
+export const useCasesStore = defineStore('cases', () => {
     const cases = ref<Case[]>([]);
     const risk = ref<Risk[]>([]);
     const medications = ref<MedicationInterface[]>([]);
@@ -286,4 +289,4 @@ export default const useCasesStore = defineStore('cases', () => {
             loading.value = false;
         }
     }
-}
+})

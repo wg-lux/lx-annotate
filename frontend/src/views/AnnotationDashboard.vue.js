@@ -27,10 +27,30 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const VideoDashboard_vue_1 = __importDefault(require("@/components/EndoAI/VideoDashboard.vue"));
+const axiosInstance_1 = require("@/api/axiosInstance");
 exports.default = (await Promise.resolve().then(() => __importStar(require('vue')))).defineComponent({
     name: 'Annotationen',
     components: {
         VideoDashboard: VideoDashboard_vue_1.default,
+    },
+    data() {
+        return {
+            stats: {},
+        };
+    },
+    mounted() {
+        this.loadStats();
+    },
+    methods: {
+        async loadStats() {
+            try {
+                const response = await (0, axiosInstance_1.fetchStats)();
+                this.stats = response.data;
+            }
+            catch (error) {
+                console.error('Failed to fetch stats:', error);
+            }
+        },
     },
 });
 ; /* PartiallyEnd: #3632/script.vue */
@@ -54,12 +74,24 @@ function __VLS_template() {
     });
     __VLS_elementAsFunction(__VLS_intrinsicElements.h1, __VLS_intrinsicElements.h1)({});
     __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
+    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: ("col-12") },
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.h2, __VLS_intrinsicElements.h2)({});
+    __VLS_elementAsFunction(__VLS_intrinsicElements.ul, __VLS_intrinsicElements.ul)({});
+    for (const [value, key] of __VLS_getVForSourceType((__VLS_ctx.stats))) {
+        __VLS_elementAsFunction(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({
+            key: ((key)),
+        });
+        (key);
+        (value);
+    }
     const __VLS_0 = {}.VideoDashboard;
     /** @type { [typeof __VLS_components.VideoDashboard, ] } */ ;
     // @ts-ignore
     const __VLS_1 = __VLS_asFunctionalComponent(__VLS_0, new __VLS_0({}));
     const __VLS_2 = __VLS_1({}, ...__VLS_functionalComponentArgsRest(__VLS_1));
-    ['container-fluid', 'h-100', 'w-100', 'py-1', 'px-4', 'row', 'col-12',];
+    ['container-fluid', 'h-100', 'w-100', 'py-1', 'px-4', 'row', 'col-12', 'col-12',];
     var __VLS_slots;
     var $slots;
     let __VLS_inheritedAttrs;

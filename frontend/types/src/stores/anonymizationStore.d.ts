@@ -114,4 +114,5 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
     patchPdf(payload: Partial<PatientData>): Promise<import("axios").AxiosResponse<any, any>>;
     patchVideo(payload: any): Promise<import("axios").AxiosResponse<any, any>>;
     fetchPendingAnonymizations(): any;
+    addAnonymization(data: PatientData): void;
 }>;

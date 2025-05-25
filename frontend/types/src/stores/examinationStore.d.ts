@@ -20,15 +20,14 @@ export interface Intervention {
     id: number;
     name: string;
 }
-export interface Instrument {
+export interface Finding {
     id: number;
     name: string;
 }
 export interface SubcategoryMap {
-    morphologyChoices: MorphologyClassificationChoice[];
     locationChoices: LocationClassificationChoice[];
     interventions: Intervention[];
-    instruments: Instrument[];
+    findings: Finding[];
 }
 export declare const useExaminationStore: import("pinia").StoreDefinition<"examination", import("pinia")._UnwrapAll<Pick<{
     categoriesByExam: Record<number, SubcategoryMap>;
@@ -46,7 +45,7 @@ export declare const useExaminationStore: import("pinia").StoreDefinition<"exami
     fetchMorphologyClassifications: () => Promise<void>;
     fetchLocationClassifications: (examId: number) => Promise<void>;
     fetchMorphologyChoices: (examId: number) => Promise<void>;
-}, "loading" | "error" | "morphologyClassifications" | "categoriesByExam">>, Pick<{
+}, "loading" | "error" | "categoriesByExam" | "morphologyClassifications">>, Pick<{
     categoriesByExam: Record<number, SubcategoryMap>;
     loading: import("vue").Ref<boolean, boolean>;
     error: import("vue").Ref<string, string>;

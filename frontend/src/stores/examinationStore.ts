@@ -31,16 +31,15 @@ export interface Intervention {
   name: string;
 }
 
-export interface Instrument {
+export interface Finding {
   id: number;
   name: string;
 }
 
 export interface SubcategoryMap {
-  morphologyChoices: MorphologyClassificationChoice[];
   locationChoices: LocationClassificationChoice[];
   interventions: Intervention[];
-  instruments: Instrument[];
+  findings: Finding[];
 }
 
 // --- Store ---
@@ -60,20 +59,17 @@ export const useExaminationStore = defineStore('examination', () => {
     error.value = null;
     loading.value = true;
     try {
-      const [morphRes, locRes, intRes, instRes] = await Promise.all([
-        axiosInstance.get(r(`examination/${examId}/morphology-classification-choices/`)),
+      const [locRes, intRes] = await Promise.all([
         axiosInstance.get(r(`examination/${examId}/location-classification-choices/`)),
         axiosInstance.get(r(`examination/${examId}/interventions/`)),
-        axiosInstance.get(r(`examination/${examId}/instruments/`)),
       ]);
       // Abbruch, falls ein anderer Request in der Zwischenzeit gestartet wurde
       if (lastFetchToken.value !== token) return;
       // Direkte Zuweisung für reaktives Objekt
       categoriesByExam[examId] = {
-        morphologyChoices: morphRes.data,
         locationChoices: locRes.data,
         interventions: intRes.data,
-        instruments: instRes.data,
+        findings: intRes.data, // Using interventions as findings based on the requirements
       };
     } catch (err: unknown) {
       console.error('Error fetching subcategories:', err);
@@ -99,13 +95,12 @@ export const useExaminationStore = defineStore('examination', () => {
     try {
       const response = await axiosInstance.get(r(`get-location-choices/${examId}/`));
   
-      // Initialize map if it doesn’t exist
+      // Initialize map if it doesn't exist
       if (!categoriesByExam[examId]) {
         categoriesByExam[examId] = {
-          morphologyChoices: [],
           locationChoices: [],
           interventions: [],
-          instruments: [],
+          findings: [],
         };
       }
   
@@ -121,14 +116,13 @@ export const useExaminationStore = defineStore('examination', () => {
   
       if (!categoriesByExam[examId]) {
         categoriesByExam[examId] = {
-          morphologyChoices: [],
           locationChoices: [],
           interventions: [],
-          instruments: [],
+          findings: [],
         };
       }
   
-      categoriesByExam[examId].morphologyChoices = response.data;
+      // Note: This is no longer used in the new structure
     } catch (err) {
       console.error('Error fetching morphology classifications:', err);
     }
@@ -139,10 +133,9 @@ export const useExaminationStore = defineStore('examination', () => {
   function getCategories(examId: number): SubcategoryMap {
     // Zugriff auf reaktives Objekt angepasst
     return categoriesByExam[examId] || {
-      morphologyChoices: [],
       locationChoices: [],
       interventions: [],
-      instruments: [],
+      findings: [],
     };
   }
 

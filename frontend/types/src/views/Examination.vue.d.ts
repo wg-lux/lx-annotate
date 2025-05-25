@@ -10,62 +10,45 @@ declare const _default: import("vue").DefineComponent<{}, {}, {}, {}, {}, import
         selectedExamId: import("vue").Ref<number, number>;
         activeCategory: import("vue").Ref<keyof import("../stores/examinationStore.js").SubcategoryMap, keyof import("../stores/examinationStore.js").SubcategoryMap>;
         form: import("vue").Ref<{
-            selectedMorphologies: number[];
             selectedLocations: number[];
             selectedInterventions: number[];
-            selectedInstruments: number[];
+            selectedFindings: number[];
         }, {
-            selectedMorphologies: number[];
             selectedLocations: number[];
             selectedInterventions: number[];
-            selectedInstruments: number[];
+            selectedFindings: number[];
         } | {
-            selectedMorphologies: number[];
             selectedLocations: number[];
             selectedInterventions: number[];
-            selectedInstruments: number[];
+            selectedFindings: number[];
         }>;
         tempSelection: import("vue").Ref<{
-            morphologyChoiceId: number;
             locationChoiceId: number;
             interventionId: number;
-            instrumentId: number;
+            findingId: number;
         }, {
-            morphologyChoiceId: number;
             locationChoiceId: number;
             interventionId: number;
-            instrumentId: number;
+            findingId: number;
         } | {
-            morphologyChoiceId: number;
             locationChoiceId: number;
             interventionId: number;
-            instrumentId: number;
+            findingId: number;
         }>;
         subcategories: import("vue").ComputedRef<import("../stores/examinationStore.js").SubcategoryMap>;
         categoryLabels: {
-            readonly morphologyChoices: "Morphologie";
             readonly locationChoices: "Lokalisierung";
+            readonly findings: "Findings";
             readonly interventions: "Interventionen";
-            readonly instruments: "Instrumente";
         };
         onExamChange: () => Promise<void>;
         colourMap: {
-            morphologyChoices: string;
             locationChoices: string;
+            findings: string;
             interventions: string;
-            instruments: string;
         };
-        selectedMorphologyClassificationId: import("vue").Ref<number, number>;
-        filteredMorphChoices: import("vue").ComputedRef<import("../stores/examinationStore.js").MorphologyClassificationChoice[]>;
         loading: import("vue").Ref<boolean, boolean>;
         error: import("vue").Ref<string, string>;
-        morphologyClassifications: import("vue").Ref<{
-            id: number;
-            name: string;
-        }[], import("../stores/examinationStore.js").MorphologyClassification[] | {
-            id: number;
-            name: string;
-        }[]>;
     }, {}, {}, {}, import("vue").ComponentOptionsMixin, import("vue").ComponentOptionsMixin, {}, string, import("vue").PublicProps, Readonly<{}> & Readonly<{}>, {}, {}, {
         ClassificationCard: import("vue").DefineComponent<import("vue").ExtractPropTypes<{
             label: {

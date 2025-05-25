@@ -152,6 +152,10 @@ export var useAnonymizationStore = defineStore('anonymization', {
         },
         fetchPendingAnonymizations: function () {
             return this.pending;
-        }
+        },
+        /* Add anonymization data to the pending list */
+        addAnonymization: function (data) {
+            this.pending.push(data);
+        },
     }
 });
