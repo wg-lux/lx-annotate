@@ -130,16 +130,15 @@ export var useVideoStore = defineStore('video', function () {
     }
     function fetchVideoUrl() {
         return __awaiter(this, void 0, void 0, function () {
-            var id, response, error_1, axiosError;
-            var _a, _b, _c;
-            return __generator(this, function (_d) {
-                switch (_d.label) {
+            var response, error_1, axiosError;
+            var _a, _b;
+            return __generator(this, function (_c) {
+                switch (_c.label) {
                     case 0:
-                        _d.trys.push([0, 2, , 3]);
-                        id = (_b = (_a = currentVideo.value) === null || _a === void 0 ? void 0 : _a.id) !== null && _b !== void 0 ? _b : 1;
-                        return [4 /*yield*/, axiosInstance.get(r("video/".concat(id, "/")))];
+                        _c.trys.push([0, 2, , 3]);
+                        return [4 /*yield*/, axiosInstance.get(r("video/".concat(((_a = currentVideo.value) === null || _a === void 0 ? void 0 : _a.id) || '1', "/")), { headers: { 'Accept': 'application/json' } })];
                     case 1:
-                        response = _d.sent();
+                        response = _c.sent();
                         if (response.data.videoUrl) {
                             videoUrl.value = response.data.videoUrl;
                             console.log("Fetched video URL:", videoUrl.value);
@@ -150,9 +149,9 @@ export var useVideoStore = defineStore('video', function () {
                         }
                         return [3 /*break*/, 3];
                     case 2:
-                        error_1 = _d.sent();
+                        error_1 = _c.sent();
                         axiosError = error_1;
-                        console.error("Error loading video:", ((_c = axiosError.response) === null || _c === void 0 ? void 0 : _c.data) || axiosError.message);
+                        console.error("Error loading video:", ((_b = axiosError.response) === null || _b === void 0 ? void 0 : _b.data) || axiosError.message);
                         errorMessage.value = "Error loading video. Please check the API endpoint or try again later.";
                         return [3 /*break*/, 3];
                     case 3: return [2 /*return*/];
@@ -230,7 +229,7 @@ export var useVideoStore = defineStore('video', function () {
                             sensitiveMetaId: resp.data.sensitiveMetaId,
                             patientFirstName: resp.data.patientFirstName,
                             patientLastName: resp.data.patientLastName,
-                            patientDob: resp.data.patientDob,
+                            patientDob: resp.data.patientLastName,
                             examinationDate: resp.data.examinationDate,
                             duration: resp.data.duration,
                         };
@@ -287,17 +286,6 @@ export var useVideoStore = defineStore('video', function () {
             backgroundColor: getColorForLabel(segment.label),
         };
     }
-    function updateSegment(id, partial) {
-        var labelKeys = Object.keys(segmentsByLabel.value);
-        for (var _i = 0, labelKeys_1 = labelKeys; _i < labelKeys_1.length; _i++) {
-            var label = labelKeys_1[_i];
-            var segmentIndex = segmentsByLabel.value[label].findIndex(function (s) { return s.id === id; });
-            if (segmentIndex !== -1) {
-                segmentsByLabel.value[label][segmentIndex] = __assign(__assign({}, segmentsByLabel.value[label][segmentIndex]), partial);
-                break;
-            }
-        }
-    }
     function updateSensitiveMeta(payload) {
         return __awaiter(this, void 0, void 0, function () {
             var body, err_2, axiosErr;
@@ -307,11 +295,11 @@ export var useVideoStore = defineStore('video', function () {
                     case 0:
                         _b.trys.push([0, 2, , 3]);
                         body = {
-                            sensitiveMetaId: payload.sensitiveMetaId,
-                            patientFirstName: payload.patientFirstName,
-                            patientLastName: payload.patientLastName,
-                            patientDob: payload.patientDob,
-                            examinationDate: payload.examinationDate,
+                            sensitiveMetaID: payload.sensitiveMetaId,
+                            patient_first_name: payload.patientFirstName,
+                            patient_last_name: payload.patientLastName,
+                            patient_dob: payload.patientDob,
+                            examination_date: payload.examinationDate,
                         };
                         return [4 /*yield*/, axiosInstance.put(r("sensitive-meta/".concat(payload.sensitiveMetaId, "/")), body, { headers: { 'Content-Type': 'application/json' } })];
                     case 1:
@@ -335,6 +323,34 @@ export var useVideoStore = defineStore('video', function () {
     function clearVideoMeta() {
         videoMeta.value = null;
         errorMessage.value = '';
+    }
+    function updateSegment(segmentId, updates) {
+        for (var labelKey in segmentsByLabel.value) {
+            var segments = segmentsByLabel.value[labelKey];
+            var segmentIndex = segments.findIndex(function (s) { return s.id === segmentId; });
+            if (segmentIndex !== -1) {
+                // Erstellen Sie ein neues Objekt für die Reaktivität
+                segmentsByLabel.value[labelKey][segmentIndex] = __assign(__assign({}, segments[segmentIndex]), updates);
+                // Wenn startTime oder endTime aktualisiert werden und außerhalb der Dauer liegen, kappen Sie sie.
+                // Dies ist eine optionale Sicherheitsmaßnahme.
+                var currentDuration = duration.value;
+                if (currentDuration > 0) {
+                    if (segmentsByLabel.value[labelKey][segmentIndex].startTime < 0) {
+                        segmentsByLabel.value[labelKey][segmentIndex].startTime = 0;
+                    }
+                    if (segmentsByLabel.value[labelKey][segmentIndex].endTime > currentDuration) {
+                        segmentsByLabel.value[labelKey][segmentIndex].endTime = currentDuration;
+                    }
+                    if (segmentsByLabel.value[labelKey][segmentIndex].startTime > segmentsByLabel.value[labelKey][segmentIndex].endTime) {
+                        // Behandeln Sie den Fall, dass startTime > endTime ist, z.B. endTime auf startTime setzen oder umgekehrt
+                        segmentsByLabel.value[labelKey][segmentIndex].endTime = segmentsByLabel.value[labelKey][segmentIndex].startTime;
+                    }
+                }
+                console.log("Segment ".concat(segmentId, " in label ").concat(labelKey, " updated:"), segmentsByLabel.value[labelKey][segmentIndex]);
+                return; // Segment gefunden und aktualisiert
+            }
+        }
+        console.warn("Segment with id ".concat(segmentId, " not found for updating."));
     }
     function getColorForLabel(label) {
         var colorMap = {

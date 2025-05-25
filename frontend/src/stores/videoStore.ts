@@ -183,9 +183,9 @@ export const useVideoStore = defineStore('video', () => {
   
   async function fetchVideoUrl() {
     try {
-      const id = currentVideo.value?.id ?? 1;
       const response = await axiosInstance.get<VideoResponse>(
-          r(`video/${id}/`)
+        r(`video/${currentVideo.value?.id || '1'}/`),
+        { headers: { 'Accept': 'application/json' } }
       );
       if (response.data.videoUrl) {
         videoUrl.value = response.data.videoUrl;
@@ -245,7 +245,7 @@ export const useVideoStore = defineStore('video', () => {
         sensitiveMetaId:  resp.data.sensitiveMetaId,
         patientFirstName: resp.data.patientFirstName,
         patientLastName:  resp.data.patientLastName,
-        patientDob:       resp.data.patientDob,
+        patientDob:       resp.data.patientLastName,
         examinationDate:  resp.data.examinationDate,
         duration:         resp.data.duration,
       };
@@ -287,28 +287,14 @@ export const useVideoStore = defineStore('video', () => {
     };
   }
 
-  function updateSegment(id: string, partial: Partial<Segment>) {
-    const labelKeys = Object.keys(segmentsByLabel.value);
-    for (const label of labelKeys) {
-      const segmentIndex = segmentsByLabel.value[label].findIndex((s) => s.id === id);
-      if (segmentIndex !== -1) {
-        segmentsByLabel.value[label][segmentIndex] = {
-          ...segmentsByLabel.value[label][segmentIndex],
-          ...partial,
-        };
-        break;
-      }
-    }
-  }
-
   async function updateSensitiveMeta(payload: SensitiveMetaUpdatePayload): Promise<void> {
     try {
       const body = {
-        sensitiveMetaId: payload.sensitiveMetaId,
-        patientFirstName: payload.patientFirstName,
-        patientLastName:  payload.patientLastName,
-        patientDob:         payload.patientDob,
-        examinationDate:    payload.examinationDate,
+        sensitiveMetaID: payload.sensitiveMetaId,
+        patient_first_name: payload.patientFirstName,
+        patient_last_name:  payload.patientLastName,
+        patient_dob:         payload.patientDob,
+        examination_date:    payload.examinationDate,
       };
       await axiosInstance.put(
         r(`sensitive-meta/${payload.sensitiveMetaId}/`),
@@ -334,6 +320,38 @@ export const useVideoStore = defineStore('video', () => {
   function clearVideoMeta(): void {
     videoMeta.value = null;
     errorMessage.value = '';
+  }
+
+  function updateSegment(segmentId: string, updates: Partial<Omit<Segment, 'id' | 'label' | 'label_display'>>): void {
+    for (const labelKey in segmentsByLabel.value) {
+      const segments = segmentsByLabel.value[labelKey];
+      const segmentIndex = segments.findIndex(s => s.id === segmentId);
+      if (segmentIndex !== -1) {
+        // Erstellen Sie ein neues Objekt für die Reaktivität
+        segmentsByLabel.value[labelKey][segmentIndex] = {
+          ...segments[segmentIndex],
+          ...updates,
+        };
+        // Wenn startTime oder endTime aktualisiert werden und außerhalb der Dauer liegen, kappen Sie sie.
+        // Dies ist eine optionale Sicherheitsmaßnahme.
+        const currentDuration = duration.value;
+        if (currentDuration > 0) {
+          if (segmentsByLabel.value[labelKey][segmentIndex].startTime < 0) {
+            segmentsByLabel.value[labelKey][segmentIndex].startTime = 0;
+          }
+          if (segmentsByLabel.value[labelKey][segmentIndex].endTime > currentDuration) {
+            segmentsByLabel.value[labelKey][segmentIndex].endTime = currentDuration;
+          }
+          if (segmentsByLabel.value[labelKey][segmentIndex].startTime > segmentsByLabel.value[labelKey][segmentIndex].endTime) {
+            // Behandeln Sie den Fall, dass startTime > endTime ist, z.B. endTime auf startTime setzen oder umgekehrt
+            segmentsByLabel.value[labelKey][segmentIndex].endTime = segmentsByLabel.value[labelKey][segmentIndex].startTime;
+          }
+        }
+        console.log(`Segment ${segmentId} in label ${labelKey} updated:`, segmentsByLabel.value[labelKey][segmentIndex]);
+        return; // Segment gefunden und aktualisiert
+      }
+    }
+    console.warn(`Segment with id ${segmentId} not found for updating.`);
   }
   
   function getColorForLabel(label: string): string {

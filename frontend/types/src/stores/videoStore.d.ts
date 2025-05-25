@@ -179,7 +179,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
     jumpToSegment: (segment: Segment, videoElement: HTMLVideoElement | null) => void;
     updateVideoStatus: (status: 'in_progress' | 'available' | 'completed') => Promise<void>;
     assignUserToVideo: (user: string) => Promise<void>;
-    updateSegment: (id: string, partial: Partial<Segment>) => void;
+    updateSegment: (segmentId: string, updates: Partial<Omit<Segment, 'id' | 'label' | 'label_display'>>) => void;
 }, "errorMessage" | "videoUrl" | "currentVideo" | "segmentsByLabel" | "videoList" | "videoMeta">>, Pick<{
     currentVideo: import("vue").Ref<{
         isAnnotated: boolean;
@@ -286,7 +286,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
     jumpToSegment: (segment: Segment, videoElement: HTMLVideoElement | null) => void;
     updateVideoStatus: (status: 'in_progress' | 'available' | 'completed') => Promise<void>;
     assignUserToVideo: (user: string) => Promise<void>;
-    updateSegment: (id: string, partial: Partial<Segment>) => void;
+    updateSegment: (segmentId: string, updates: Partial<Omit<Segment, 'id' | 'label' | 'label_display'>>) => void;
 }, "duration" | "allSegments" | "hasVideo">, Pick<{
     currentVideo: import("vue").Ref<{
         isAnnotated: boolean;
@@ -393,5 +393,5 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
     jumpToSegment: (segment: Segment, videoElement: HTMLVideoElement | null) => void;
     updateVideoStatus: (status: 'in_progress' | 'available' | 'completed') => Promise<void>;
     assignUserToVideo: (user: string) => Promise<void>;
-    updateSegment: (id: string, partial: Partial<Segment>) => void;
+    updateSegment: (segmentId: string, updates: Partial<Omit<Segment, 'id' | 'label' | 'label_display'>>) => void;
 }, "fetchVideoMeta" | "updateSensitiveMeta" | "clearVideoMeta" | "fetchAllVideos" | "uploadRevert" | "uploadProcess" | "clearVideo" | "setVideo" | "fetchVideoUrl" | "fetchSegmentsByLabel" | "fetchAllSegments" | "saveAnnotations" | "getSegmentStyle" | "getColorForLabel" | "getTranslationForLabel" | "jumpToSegment" | "updateVideoStatus" | "assignUserToVideo" | "updateSegment">>;

@@ -58,11 +58,17 @@ export default defineComponent({
       const timelineWidth = timelineRef.value?.clientWidth || 1;
       const deltaPercent = (delta / timelineWidth) * 100;
       const newWidthPercent = initialWidthPercent.value + deltaPercent;
-      // Update using store action (or directly updating the segment)
+
+      let newEndTime = activeSegment.value.startTime + (newWidthPercent * props.duration) / 100;
+
+      // Ensure endTime does not exceed duration and is not less than startTime
+      newEndTime = Math.max(activeSegment.value.startTime, Math.min(newEndTime, props.duration));
+      
+      // Update using store action
       videoStore.updateSegment(activeSegment.value.id, {
-        endTime: activeSegment.value.startTime + (newWidthPercent * props.duration) / 100,
+        endTime: newEndTime,
       });
-      emit('resize', activeSegment.value.id, activeSegment.value.endTime);
+      emit('resize', activeSegment.value.id, newEndTime);
     }
 
     function onMouseUp() {
