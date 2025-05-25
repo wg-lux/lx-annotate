@@ -1,7 +1,10 @@
-{ pkgs, lib, config, inputs, ... }:
+{ pkgs, lib, config, inputs, baseBuildInputs, ... }:
 let
   appName = "lx_annotate";
   DEPLOYMENT_MODE = "dev";
+
+  uvPackage = pkgs.uv;
+
 
   buildInputs = with pkgs; [
     python311Full
@@ -18,7 +21,9 @@ let
     gcc            # C/C++ compiler tool-chain
     pkg-config
     protobuf
+    ffmpeg-headless.bin
   ];
+
     _module.args.baseBuildInputs = buildInputs;
 
   imports = [ 
@@ -28,7 +33,11 @@ let
   runtimePackages = with pkgs; [
     cudaPackages.cuda_nvcc # Needed for runtime? Check dependencies
     stdenv.cc.cc
-    zsh # If you prefer zsh as the shell
+    uvPackage # Add uvPackage to runtime packages if needed elsewhere, or just for devenv internal use
+    libglvnd # Add libglvnd for libGL.so.1
+    glib
+    zlib
+    ffmpeg-headless.bin
   ];
 
   packages = runtimePackages ++ buildInputs;
