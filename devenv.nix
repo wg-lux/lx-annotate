@@ -38,6 +38,7 @@ let
     glib
     zlib
     ffmpeg-headless.bin
+    tesseract
   ];
 
   packages = runtimePackages ++ buildInputs;

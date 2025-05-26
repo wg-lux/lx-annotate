@@ -92,6 +92,14 @@ var router = createRouter({
         },
         // Catch-all redirect to Dashboard for any unmatched route
         {
+            path: '/frame-demo',
+            name: 'Frame Demo',
+            component: function () { return import('src/views/FramesDemo.vue'); },
+            meta: {
+                description: 'Hier können Sie eine Demo für Frame Annotationen ansehen.'
+            }
+        },
+        {
             path: '/:catchAll(.*)',
             redirect: '/'
         }
