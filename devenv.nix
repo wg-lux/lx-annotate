@@ -16,6 +16,9 @@ let
     zlib
   ];
 
+  # Explicitly define the uv package
+  uvPackage = pkgs.uv;
+
   runtimePackages = with pkgs; [
     cudaPackages.cuda_nvcc # Needed for runtime? Check dependencies
     stdenv.cc.cc
@@ -106,7 +109,7 @@ in
     yarn
     python311Full
     libglvnd
-  ];
+  ] ++ runtimePackages;
 
 
   env = {
