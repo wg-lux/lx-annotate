@@ -551,33 +551,12 @@ function __VLS_template() {
         (exam.name);
     }
     __VLS_elementAsFunction(__VLS_intrinsicElements.hr)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.h3, __VLS_intrinsicElements.h3)({
-        ...{ class: ("mt-4") },
+    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: ("row") },
     });
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("mb-3") },
+        ...{ class: ("col-md-6") },
     });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
-        for: ("findingSelect"),
-        ...{ class: ("form-label") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
-        value: ((__VLS_ctx.formData.findingId)),
-        id: ("findingSelect"),
-        ...{ class: ("form-select") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-        disabled: (true),
-        value: (""),
-    });
-    for (const [finding] of __VLS_getVForSourceType((__VLS_ctx.findings))) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-            key: ((finding.id)),
-            value: ((finding.id)),
-        });
-        (finding.name);
-    }
-    __VLS_elementAsFunction(__VLS_intrinsicElements.hr)({});
     __VLS_elementAsFunction(__VLS_intrinsicElements.h3, __VLS_intrinsicElements.h3)({
         ...{ class: ("mt-4") },
     });
@@ -629,7 +608,9 @@ function __VLS_template() {
         });
         (choice.name);
     }
-    __VLS_elementAsFunction(__VLS_intrinsicElements.hr)({});
+    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: ("col-md-6") },
+    });
     __VLS_elementAsFunction(__VLS_intrinsicElements.h3, __VLS_intrinsicElements.h3)({
         ...{ class: ("mt-4") },
     });
@@ -637,68 +618,54 @@ function __VLS_template() {
         ...{ class: ("mb-3") },
     });
     __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
-        for: ("morphologyClassificationSelect"),
+        for: ("findingSelect"),
         ...{ class: ("form-label") },
     });
     __VLS_elementAsFunction(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
-        ...{ onChange: (__VLS_ctx.loadMorphologyChoices) },
-        value: ((__VLS_ctx.formData.morphologyClassificationId)),
-        id: ("morphologyClassificationSelect"),
+        ...{ onChange: (__VLS_ctx.loadInterventions) },
+        value: ((__VLS_ctx.formData.findingId)),
+        id: ("findingSelect"),
         ...{ class: ("form-select") },
     });
     __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
         disabled: (true),
         value: (""),
     });
-    for (const [morphClass] of __VLS_getVForSourceType((__VLS_ctx.morphologyClassifications))) {
+    for (const [finding] of __VLS_getVForSourceType((__VLS_ctx.availableFindings))) {
         __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-            key: ((morphClass.id)),
-            value: ((morphClass.id)),
+            key: ((finding.id)),
+            value: ((finding.id)),
         });
-        (morphClass.name);
+        (finding.name);
     }
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("mb-3") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
-        for: ("morphologyChoiceSelect"),
-        ...{ class: ("form-label") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
-        value: ((__VLS_ctx.formData.morphologyChoiceId)),
-        id: ("morphologyChoiceSelect"),
-        ...{ class: ("form-select") },
-        disabled: ((__VLS_ctx.filteredMorphologyChoices.length === 0)),
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-        disabled: (true),
-        value: (""),
-    });
-    for (const [choice] of __VLS_getVForSourceType((__VLS_ctx.filteredMorphologyChoices))) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-            key: ((choice.id)),
-            value: ((choice.id)),
-        });
-        (choice.name);
-    }
-    __VLS_elementAsFunction(__VLS_intrinsicElements.hr)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.h3, __VLS_intrinsicElements.h3)({
-        ...{ class: ("mt-4") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("mb-3") },
-    });
-    for (const [intervention] of __VLS_getVForSourceType((__VLS_ctx.interventions))) {
+    if (__VLS_ctx.availableInterventions.length > 0) {
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            key: ((intervention.id)),
+            ...{ class: ("mb-3") },
         });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({});
-        __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-            disabled: (true),
-            value: (""),
+        __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+            ...{ class: ("form-label") },
         });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({});
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("intervention-list") },
+        });
+        for (const [intervention] of __VLS_getVForSourceType((__VLS_ctx.availableInterventions))) {
+            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                key: ((intervention.id)),
+                ...{ class: ("form-check") },
+            });
+            __VLS_elementAsFunction(__VLS_intrinsicElements.input)({
+                id: ((`intervention-${intervention.id}`)),
+                value: ((intervention.id)),
+                type: ("checkbox"),
+                ...{ class: ("form-check-input") },
+            });
+            (__VLS_ctx.formData.selectedInterventions);
+            __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+                for: ((`intervention-${intervention.id}`)),
+                ...{ class: ("form-check-label") },
+            });
+            (intervention.name);
+        }
     }
     __VLS_elementAsFunction(__VLS_intrinsicElements.hr)({});
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -715,7 +682,7 @@ function __VLS_template() {
         });
         (__VLS_ctx.errorMessage);
     }
-    ['container-fluid', 'py-4', 'patients-section', 'mt-5', 'btn', 'btn-primary', 'mb-3', 'form-container', 'mt-4', 'form-group', 'form-control', 'form-group', 'form-control', 'form-group', 'form-control', 'form-group', 'form-control', 'form-group', 'btn', 'btn-success', 'mt-2', 'btn', 'btn-secondary', 'mt-2', 'table', 'table-striped', 'btn', 'btn-secondary', 'btn-sm', 'btn', 'btn-danger', 'btn-sm', 'container', 'mt-4', 'container-fluid', 'py-4', 'mb-0', 'container', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'd-block', 'form-check', 'form-check-inline', 'form-check-input', 'form-check-label', 'form-check', 'form-check-inline', 'form-check-input', 'form-check-label', 'form-check', 'form-check-inline', 'form-check-input', 'form-check-label', 'mt-4', 'mb-3', 'form-label', 'form-select', 'mt-4', 'mb-3', 'form-label', 'form-select', 'mt-4', 'mb-3', 'form-label', 'form-select', 'mt-4', 'mb-3', 'form-label', 'form-select', 'mb-3', 'form-label', 'form-select', 'mt-4', 'mb-3', 'form-label', 'form-select', 'mb-3', 'form-label', 'form-select', 'mt-4', 'mb-3', 'mb-3', 'btn', 'btn-danger', 'alert', 'alert-danger', 'mt-2',];
+    ['container-fluid', 'py-4', 'patients-section', 'mt-5', 'btn', 'btn-primary', 'mb-3', 'form-container', 'mt-4', 'form-group', 'form-control', 'form-group', 'form-control', 'form-group', 'form-control', 'form-group', 'form-control', 'form-group', 'btn', 'btn-success', 'mt-2', 'btn', 'btn-secondary', 'mt-2', 'table', 'table-striped', 'btn', 'btn-secondary', 'btn-sm', 'btn', 'btn-danger', 'btn-sm', 'container', 'mt-4', 'container-fluid', 'py-4', 'mb-0', 'container', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'd-block', 'form-check', 'form-check-inline', 'form-check-input', 'form-check-label', 'form-check', 'form-check-inline', 'form-check-input', 'form-check-label', 'form-check', 'form-check-inline', 'form-check-input', 'form-check-label', 'mt-4', 'mb-3', 'form-label', 'form-select', 'mt-4', 'mb-3', 'form-label', 'form-select', 'row', 'col-md-6', 'mt-4', 'mb-3', 'form-label', 'form-select', 'mb-3', 'form-label', 'form-select', 'col-md-6', 'mt-4', 'mb-3', 'form-label', 'form-select', 'mb-3', 'form-label', 'intervention-list', 'form-check', 'form-check-input', 'form-check-label', 'mb-3', 'btn', 'btn-danger', 'alert', 'alert-danger', 'mt-2',];
     var __VLS_slots;
     var $slots;
     let __VLS_inheritedAttrs;

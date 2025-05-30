@@ -1,4 +1,4 @@
-/* src/stores/anonymizationStore.ts */
+/* @stores/anonymizationStore.ts */
 import { defineStore } from 'pinia';
 import axiosInstance, { a, r } from '@/api/axiosInstance';
 import axios from 'axios';

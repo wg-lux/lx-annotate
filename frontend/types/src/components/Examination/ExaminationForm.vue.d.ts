@@ -3,69 +3,75 @@ declare const _default: import("vue").DefineComponent<{}, {
     examinations: import("vue").Ref<{
         id: number;
         name: string;
+        domainId?: number | undefined;
+        applicableClassifications?: string[] | undefined;
     }[], Examination[] | {
         id: number;
         name: string;
+        domainId?: number | undefined;
+        applicableClassifications?: string[] | undefined;
     }[]>;
     selectedExamId: import("vue").Ref<number | null, number | null>;
     activeCategory: import("vue").Ref<keyof SubcategoryMap, keyof SubcategoryMap>;
     form: import("vue").Ref<{
-        selectedMorphologies: number[];
         selectedLocations: number[];
         selectedInterventions: number[];
-        selectedInstruments: number[];
+        selectedFindings: number[];
+        selectedLocationClassifications: number[];
+        selectedMorphologyClassifications: number[];
+        selectedMorphologyChoices: number[];
     }, {
-        selectedMorphologies: number[];
         selectedLocations: number[];
         selectedInterventions: number[];
-        selectedInstruments: number[];
+        selectedFindings: number[];
+        selectedLocationClassifications: number[];
+        selectedMorphologyClassifications: number[];
+        selectedMorphologyChoices: number[];
     } | {
-        selectedMorphologies: number[];
         selectedLocations: number[];
         selectedInterventions: number[];
-        selectedInstruments: number[];
+        selectedFindings: number[];
+        selectedLocationClassifications: number[];
+        selectedMorphologyClassifications: number[];
+        selectedMorphologyChoices: number[];
     }>;
     tempSelection: import("vue").Ref<{
-        morphologyChoiceId: number | undefined;
         locationChoiceId: number | undefined;
         interventionId: number | undefined;
-        instrumentId: number | undefined;
+        morphologyChoiceId: number | undefined;
     }, {
-        morphologyChoiceId: number | undefined;
         locationChoiceId: number | undefined;
         interventionId: number | undefined;
-        instrumentId: number | undefined;
+        morphologyChoiceId: number | undefined;
     } | {
-        morphologyChoiceId: number | undefined;
         locationChoiceId: number | undefined;
         interventionId: number | undefined;
-        instrumentId: number | undefined;
+        morphologyChoiceId: number | undefined;
     }>;
     subcategories: import("vue").ComputedRef<SubcategoryMap>;
     categoryLabels: {
-        readonly morphologyChoices: "Morphologie";
-        readonly locationChoices: "Lokalisierung";
+        readonly locationClassifications: "Lokalisierung";
+        readonly morphologyClassifications: "Morphologie";
+        readonly findings: "Findings";
         readonly interventions: "Interventionen";
-        readonly instruments: "Instrumente";
     };
     onExamChange: () => Promise<void>;
+    onLocationClassificationChange: () => Promise<void>;
+    onMorphologyClassificationChange: () => Promise<void>;
+    onFindingChange: () => Promise<void>;
     colourMap: {
-        morphologyChoices: string;
+        locationClassifications: string;
         locationChoices: string;
+        morphologyClassifications: string;
+        morphologyChoices: string;
+        findings: string;
         interventions: string;
-        instruments: string;
     };
+    selectedLocationClassificationId: import("vue").Ref<number | null, number | null>;
     selectedMorphologyClassificationId: import("vue").Ref<number | null, number | null>;
-    filteredMorphChoices: import("vue").ComputedRef<import("@/stores/examinationStore").MorphologyClassificationChoice[]>;
+    selectedFindingId: import("vue").Ref<number | null, number | null>;
     loading: import("vue").Ref<boolean, boolean>;
     error: import("vue").Ref<string | null, string | null>;
-    morphologyClassifications: import("vue").Ref<{
-        id: number;
-        name: string;
-    }[], import("@/stores/examinationStore").MorphologyClassification[] | {
-        id: number;
-        name: string;
-    }[]>;
 }, {}, {}, {}, import("vue").ComponentOptionsMixin, import("vue").ComponentOptionsMixin, {}, string, import("vue").PublicProps, Readonly<{}> & Readonly<{}>, {}, {}, {
     ClassificationCard: import("vue").DefineComponent<import("vue").ExtractPropTypes<{
         label: {

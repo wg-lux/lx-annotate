@@ -37,28 +37,46 @@
       <section class="editor-panel">
         <!-- Dynamic editor for active category with colour cue -->
         <div class="category-editor" :class="colourMap[activeCategory]">
-          <div v-if="activeCategory === 'morphologyChoices'">
-            <label>Ober-Klassifikation:</label>
-            <select v-model="selectedMorphologyClassificationId" class="form-select mb-2">
+          <div v-if="activeCategory === 'locationClassifications'">
+            <label>Lokalisations Klassifikation:</label>
+            <select v-model="selectedLocationClassificationId" @change="onLocationClassificationChange" class="form-select mb-2">
               <option :value="null">— bitte wählen —</option>
-              <option v-for="cls in morphologyClassifications" :key="cls.id" :value="cls.id">
+              <option v-for="cls in subcategories.locationClassifications" :key="cls.id" :value="cls.id">
                 {{ cls.name }}
               </option>
             </select>
 
-            <label>Unter-Klassifikation:</label>
-            <select v-model="tempSelection.morphologyChoiceId" class="form-select">
+            <label>Lokalisation wählen:</label>
+            <select v-model="tempSelection.locationChoiceId" class="form-select">
               <option :value="undefined">— bitte wählen —</option>
-              <option v-for="opt in filteredMorphChoices" :key="opt.id" :value="opt.id">
+              <option v-for="opt in subcategories.locationChoices" :key="opt.id" :value="opt.id">
                 {{ opt.name }}
               </option>
             </select>
           </div>
-          <div v-else-if="activeCategory === 'locationChoices'">
-            <label>Lokalisations Klassifikation wählen:</label>
-            <select v-model="tempSelection.locationChoiceId" class="form-select">
-              <option v-for="opt in subcategories.locationChoices" :key="opt.id" :value="opt.id">
+          <div v-else-if="activeCategory === 'morphologyClassifications'">
+            <label>Morphologie Klassifikation:</label>
+            <select v-model="selectedMorphologyClassificationId" @change="onMorphologyClassificationChange" class="form-select mb-2">
+              <option :value="null">— bitte wählen —</option>
+              <option v-for="cls in subcategories.morphologyClassifications" :key="cls.id" :value="cls.id">
+                {{ cls.name }}
+              </option>
+            </select>
+
+            <label>Morphologie wählen:</label>
+            <select v-model="tempSelection.morphologyChoiceId" class="form-select">
+              <option :value="undefined">— bitte wählen —</option>
+              <option v-for="opt in subcategories.morphologyChoices" :key="opt.id" :value="opt.id">
                 {{ opt.name }}
+              </option>
+            </select>
+          </div>
+          <div v-else-if="activeCategory === 'findings'">
+            <label>Finding wählen:</label>
+            <select v-model="selectedFindingId" @change="onFindingChange" class="form-select">
+              <option :value="null">— bitte wählen —</option>
+              <option v-for="finding in subcategories.findings" :key="finding.id" :value="finding.id">
+                {{ finding.name }}
               </option>
             </select>
           </div>
@@ -69,33 +87,28 @@
               <label :for="`int-${opt.id}`" class="form-check-label">{{ opt.name }}</label>
             </div>
           </div>
-          <div v-else-if="activeCategory === 'instruments'">
-            <label>Instrumente:</label>
-            <div v-for="opt in subcategories.instruments" :key="opt.id" class="form-check">
-              <input type="checkbox" :id="`inst-${opt.id}`" v-model="form.selectedInstruments" :value="opt.id" class="form-check-input" />
-              <label :for="`inst-${opt.id}`" class="form-check-label">{{ opt.name }}</label>
-            </div>
-          </div>
         </div>
 
         <!-- Compact classification cards (always visible) -->
         <div class="card-container">
-          <ClassificationCard label="Morphologie" :options="subcategories.morphologyChoices"
-            v-model="form.selectedMorphologies"
-            :tempValue="tempSelection.morphologyChoiceId"
-            @update:tempValue="tempSelection.morphologyChoiceId = $event" compact />
           <ClassificationCard label="Lokalisierung" :options="subcategories.locationChoices"
             v-model="form.selectedLocations"
             :tempValue="tempSelection.locationChoiceId"
             @update:tempValue="tempSelection.locationChoiceId = $event" compact />
+          <ClassificationCard label="Morphologie" :options="subcategories.morphologyChoices"
+            v-model="form.selectedMorphologyChoices"
+            :tempValue="tempSelection.morphologyChoiceId"
+            @update:tempValue="tempSelection.morphologyChoiceId = $event" compact />
           <ClassificationCard label="Interventionen" :options="subcategories.interventions"
             v-model="form.selectedInterventions"
             :tempValue="tempSelection.interventionId"
             @update:tempValue="tempSelection.interventionId = $event" compact />
-          <ClassificationCard label="Instrumente" :options="subcategories.instruments"
-            v-model="form.selectedInstruments"
-            :tempValue="tempSelection.instrumentId"
-            @update:tempValue="tempSelection.instrumentId = $event" compact />
+          <ClassificationCard label="Findings" :options="subcategories.findings"
+            v-model="form.selectedFindings" compact />
+          <ClassificationCard label="Lokalisations Klassifikationen" :options="subcategories.locationClassifications"
+            v-model="form.selectedLocationClassifications" compact />
+          <ClassificationCard label="Morphologie Klassifikationen" :options="subcategories.morphologyClassifications"
+            v-model="form.selectedMorphologyClassifications" compact />
         </div>
       </section>
     </div>
@@ -116,47 +129,38 @@ export default defineComponent({
     const examStore = useExaminationStore();
     const reportService = useReportService();
 
-    const { loading, error, morphologyClassifications } = storeToRefs(examStore);
+    const { loading, error } = storeToRefs(examStore);
 
     const examinations = ref<Examination[]>([]);
     const selectedExamId = ref<number | null>(null);
-    const activeCategory = ref<keyof SubcategoryMap>('morphologyChoices');
+    const activeCategory = ref<keyof SubcategoryMap>('locationClassifications');
 
     const form = ref({
-      selectedMorphologies: [] as number[],
       selectedLocations: [] as number[],
       selectedInterventions: [] as number[],
-      selectedInstruments: [] as number[],
+      selectedFindings: [] as number[],
+      selectedLocationClassifications: [] as number[],
+      selectedMorphologyClassifications: [] as number[],
+      selectedMorphologyChoices: [] as number[],
     });
 
     const tempSelection = ref({
-      morphologyChoiceId: undefined as number | undefined,
       locationChoiceId: undefined as number | undefined,
       interventionId: undefined as number | undefined,
-      instrumentId: undefined as number | undefined,
+      morphologyChoiceId: undefined as number | undefined,
     });
 
+    const selectedLocationClassificationId = ref<number | null>(null);
+    const selectedFindingId = ref<number | null>(null);
     const selectedMorphologyClassificationId = ref<number | null>(null);
-    const filteredMorphChoices = computed(() =>
-      selectedMorphologyClassificationId.value === null
-        ? []
-        : subcategories.value.morphologyChoices.filter(
-            ch => ch.classificationId === selectedMorphologyClassificationId.value
-          )
-    );
-
-    watch(selectedMorphologyClassificationId, () => {
-      form.value.selectedMorphologies = form.value.selectedMorphologies.filter(
-        id => filteredMorphChoices.value.some(c => c.id === id)
-      );
-      tempSelection.value.morphologyChoiceId = undefined;
-    });
 
     const colourMap = {
-      morphologyChoices: 'border-success',
+      locationClassifications: 'border-success',
       locationChoices: 'border-success',
-      interventions: 'border-success',
-      instruments: 'border-success'
+      morphologyClassifications: 'border-success',
+      morphologyChoices: 'border-success',
+      findings: 'border-success',
+      interventions: 'border-success'
     };
 
     async function loadExams() {
@@ -167,7 +171,6 @@ export default defineComponent({
           await onExamChange();
           activeCategory.value = Object.keys(categoryLabels)[0] as keyof SubcategoryMap;
         }
-        await examStore.fetchMorphologyClassifications();
       } catch (err) {
         console.error("Fehler beim Laden der initialen Daten:", err);
       }
@@ -176,32 +179,82 @@ export default defineComponent({
     async function onExamChange() {
       if (!selectedExamId.value) return;
       await examStore.fetchSubcategoriesForExam(selectedExamId.value);
+      resetForm();
+    }
+
+    async function onLocationClassificationChange() {
+      if (!selectedExamId.value || !selectedLocationClassificationId.value) return;
+      await examStore.fetchLocationChoices(selectedExamId.value, selectedLocationClassificationId.value);
+      form.value.selectedLocations = [];
+      tempSelection.value.locationChoiceId = undefined;
+      
+      // Add the selected location classification to the form
+      if (!form.value.selectedLocationClassifications.includes(selectedLocationClassificationId.value)) {
+        form.value.selectedLocationClassifications.push(selectedLocationClassificationId.value);
+      }
+    }
+
+    async function onMorphologyClassificationChange() {
+      if (!selectedExamId.value || !selectedMorphologyClassificationId.value) return;
+      await examStore.fetchMorphologyChoices(selectedExamId.value, selectedMorphologyClassificationId.value);
+      form.value.selectedMorphologyChoices = [];
+      tempSelection.value.morphologyChoiceId = undefined;
+      
+      // Add the selected morphology classification to the form
+      if (!form.value.selectedMorphologyClassifications.includes(selectedMorphologyClassificationId.value)) {
+        form.value.selectedMorphologyClassifications.push(selectedMorphologyClassificationId.value);
+      }
+    }
+
+    async function onFindingChange() {
+      if (!selectedExamId.value || !selectedFindingId.value) return;
+      await examStore.fetchInterventions(selectedExamId.value, selectedFindingId.value);
+      form.value.selectedInterventions = [];
+      tempSelection.value.interventionId = undefined;
+      
+      // Add the selected finding to the form
+      if (!form.value.selectedFindings.includes(selectedFindingId.value)) {
+        form.value.selectedFindings.push(selectedFindingId.value);
+      }
+    }
+
+    function resetForm() {
       form.value = {
-        selectedMorphologies: [],
         selectedLocations: [],
         selectedInterventions: [],
-        selectedInstruments: []
+        selectedFindings: [],
+        selectedLocationClassifications: [],
+        selectedMorphologyClassifications: [],
+        selectedMorphologyChoices: []
       };
       tempSelection.value = {
-        morphologyChoiceId: undefined,
         locationChoiceId: undefined,
         interventionId: undefined,
-        instrumentId: undefined
+        morphologyChoiceId: undefined
       };
+      selectedLocationClassificationId.value = null;
+      selectedFindingId.value = null;
       selectedMorphologyClassificationId.value = null;
     }
 
     const subcategories = computed((): SubcategoryMap => {
       return selectedExamId.value !== null
         ? examStore.getCategories(selectedExamId.value)
-        : { morphologyChoices: [], locationChoices: [], interventions: [], instruments: [] };
+        : { 
+            locationClassifications: [], 
+            locationChoices: [], 
+            morphologyClassifications: [], 
+            morphologyChoices: [], 
+            findings: [], 
+            interventions: [] 
+          };
     });
     
     const categoryLabels = {
-      morphologyChoices: 'Morphologie',
-      locationChoices: 'Lokalisierung',
-      interventions: 'Interventionen',
-      instruments: 'Instrumente'
+      locationClassifications: 'Lokalisierung',
+      morphologyClassifications: 'Morphologie',
+      findings: 'Findings',
+      interventions: 'Interventionen'
     } as const;
 
     onMounted(loadExams);
@@ -215,12 +268,15 @@ export default defineComponent({
       subcategories,
       categoryLabels,
       onExamChange,
+      onLocationClassificationChange,
+      onMorphologyClassificationChange,
+      onFindingChange,
       colourMap,
+      selectedLocationClassificationId,
       selectedMorphologyClassificationId,
-      filteredMorphChoices,
+      selectedFindingId,
       loading,
       error,
-      morphologyClassifications,
     };
   }
 });

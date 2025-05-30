@@ -50,11 +50,27 @@
               </router-link>
             </li>
             <li class="nav-item">
+              <router-link to="/video-examination" class="nav-link" :class="{ active: $route.path === '/video-examination' }">
+                <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
+                  <i class="material-icons opacity-10">video_call</i>
+                </div>
+                <span class="nav-link-text ms-1">Video-Untersuchung</span>
+              </router-link>
+            </li>
+            <li class="nav-item">
               <router-link to="/frame-annotation" class="nav-link" :class="{ active: $route.path === '/frame-annotation' }">
                 <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
                   <i class="material-icons opacity-10">note_add</i>
                 </div>
                 <span class="nav-link-text ms-1">Frame Annotation</span>
+              </router-link>
+            </li>
+            <li class="nav-item">
+              <router-link to="/frame-selection" class="nav-link" :class="{ active: $route.path === '/frame-selection' }">
+                <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
+                  <i class="material-icons opacity-10">photo_library</i>
+                </div>
+                <span class="nav-link-text ms-1">Frame Auswahl</span>
               </router-link>
             </li>
             <li class="nav-item">

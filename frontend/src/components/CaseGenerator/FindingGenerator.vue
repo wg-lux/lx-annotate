@@ -172,113 +172,94 @@
   
           <hr />
   
-          <!-- Finding -->
-          <h3 class="mt-4">Befund</h3>
-          <div class="mb-3">
-            <label for="findingSelect" class="form-label">Befund auswählen:</label>
-            <select v-model="formData.findingId" id="findingSelect" class="form-select">
-              <option disabled value="">Bitte wählen</option>
-              <option v-for="finding in findings" :key="finding.id" :value="finding.id">
-                {{ finding.name }}
-              </option>
-            </select>
-          </div>
-  
-          <hr />
-  
-          <!-- Location Classification -->
-          <h3 class="mt-4">Lokalisations-Klassifikation</h3>
-          <div class="mb-3">
-            <label for="locationClassificationSelect" class="form-label">Klassifikation wählen:</label>
-            <select
-              v-model="formData.locationClassificationId"
-              id="locationClassificationSelect"
-              class="form-select"
-              @change="loadLocationChoices"
-            >
-              <option disabled value="">Bitte wählen</option>
-              <option
-                v-for="locClass in locationClassifications"
-                :key="locClass.id"
-                :value="locClass.id"
+          <div class="row">
+          <!-- Location Classification Section -->
+          <div class="col-md-6">
+            <h3 class="mt-4">Lokalisations-Klassifikation</h3>
+            <div class="mb-3">
+              <label for="locationClassificationSelect" class="form-label">Klassifikation wählen:</label>
+              <select
+                v-model="formData.locationClassificationId"
+                id="locationClassificationSelect"
+                class="form-select"
+                @change="loadLocationChoices"
               >
-                {{ locClass.name }}
-              </option>
-            </select>
-          </div>
-          <div class="mb-3">
-            <label for="locationChoiceSelect" class="form-label">Lokalisation wählen:</label>
-            <select
-              v-model="formData.locationChoiceId"
-              id="locationChoiceSelect"
-              class="form-select"
-              :disabled="filteredLocationChoices.length === 0"
-            >
-              <option disabled value="">Bitte wählen</option>
-              <option
-                v-for="choice in filteredLocationChoices"
-                :key="choice.id"
-                :value="choice.id"
+                <option disabled value="">Bitte wählen</option>
+                <option
+                  v-for="locClass in locationClassifications"
+                  :key="locClass.id"
+                  :value="locClass.id"
+                >
+                  {{ locClass.name }}
+                </option>
+              </select>
+            </div>
+            <div class="mb-3">
+              <label for="locationChoiceSelect" class="form-label">Lokalisation wählen:</label>
+              <select
+                v-model="formData.locationChoiceId"
+                id="locationChoiceSelect"
+                class="form-select"
+                :disabled="filteredLocationChoices.length === 0"
               >
-                {{ choice.name }}
-              </option>
-            </select>
+                <option disabled value="">Bitte wählen</option>
+                <option
+                  v-for="choice in filteredLocationChoices"
+                  :key="choice.id"
+                  :value="choice.id"
+                >
+                  {{ choice.name }}
+                </option>
+              </select>
+            </div>
           </div>
-  
-          <hr />
-  
-          <!-- Morphology Classification -->
-          <h3 class="mt-4">Morphologie-Klassifikation</h3>
-          <div class="mb-3">
-            <label for="morphologyClassificationSelect" class="form-label">Klassifikation wählen:</label>
-            <select
-              v-model="formData.morphologyClassificationId"
-              id="morphologyClassificationSelect"
-              class="form-select"
-              @change="loadMorphologyChoices"
-            >
-              <option disabled value="">Bitte wählen</option>
-              <option
-                v-for="morphClass in morphologyClassifications"
-                :key="morphClass.id"
-                :value="morphClass.id"
+
+          <!-- Finding Selection Section -->
+          <div class="col-md-6">
+            <h3 class="mt-4">Finding</h3>
+            <div class="mb-3">
+              <label for="findingSelect" class="form-label">Finding wählen:</label>
+              <select
+                v-model="formData.findingId"
+                id="findingSelect"
+                class="form-select"
+                @change="loadInterventions"
               >
-                {{ morphClass.name }}
-              </option>
-            </select>
+                <option disabled value="">Bitte wählen</option>
+                <option
+                  v-for="finding in availableFindings"
+                  :key="finding.id"
+                  :value="finding.id"
+                >
+                  {{ finding.name }}
+                </option>
+              </select>
+            </div>
+
+            <!-- Interventions Section -->
+            <div v-if="availableInterventions.length > 0" class="mb-3">
+              <label class="form-label">Verfügbare Interventionen:</label>
+              <div class="intervention-list">
+                <div
+                  v-for="intervention in availableInterventions"
+                  :key="intervention.id"
+                  class="form-check"
+                >
+                  <input
+                    :id="`intervention-${intervention.id}`"
+                    v-model="formData.selectedInterventions"
+                    :value="intervention.id"
+                    type="checkbox"
+                    class="form-check-input"
+                  />
+                  <label :for="`intervention-${intervention.id}`" class="form-check-label">
+                    {{ intervention.name }}
+                  </label>
+                </div>
+              </div>
+            </div>
           </div>
-          <div class="mb-3">
-            <label for="morphologyChoiceSelect" class="form-label">Morphologie wählen:</label>
-            <select
-              v-model="formData.morphologyChoiceId"
-              id="morphologyChoiceSelect"
-              class="form-select"
-              :disabled="filteredMorphologyChoices.length === 0"
-            >
-              <option disabled value="">Bitte wählen</option>
-              <option
-                v-for="choice in filteredMorphologyChoices"
-                :key="choice.id"
-                :value="choice.id"
-              >
-                {{ choice.name }}
-              </option>
-            </select>
-          </div>
-  
-          <hr />
-  
-          <!-- Interventions -->
-          <h3 class="mt-4">Intervention</h3>
-          <p>Wähle eine oder mehrere Interventionen:</p>
-        <div class="mb-3">
-        <div v-for="intervention in interventions" :key="intervention.id">
-          <label>
-            <option disabled value="">Bitte wählen</option>
-              <option></option>
-          </label>
         </div>
-      </div>
   
           <hr />
   

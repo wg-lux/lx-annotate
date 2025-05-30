@@ -17,10 +17,14 @@ import environ
 from django.contrib import admin
 from django.urls import path, include
 from django.core.management.utils import get_random_secret_key
-from env_setup import SALT
 from lx_logging import get_logger
 
 import re
+
+import os
+SALT        = os.getenv("DJANGO_SALT")
+SECRET_KEY  = os.getenv("DJANGO_SECRET_KEY")
+STORAGE_DIR = os.getenv("STORAGE_DIR")
 
 # Load environment variables
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -46,6 +50,7 @@ DJANGO_SETTINGS = os.environ.get("DJANGO_SETTINGS", "dev")
 
 ## CHANGE THIS IN PROD TO ALLOW ONLY THE FRONTEND URL
 CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_CREDENTIALS = True  # Allow credentials (cookies, authorization headers) in CORS requests
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 STATIC_ROOT = os.path.join(BASE_DIR, 'static')
