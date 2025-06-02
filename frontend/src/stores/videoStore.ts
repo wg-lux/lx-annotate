@@ -1,7 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import axiosInstance, { r } from '../api/axiosInstance';
-import videoAxiosInstance from '../api/videoAxiosInstance';
 import { AxiosError } from 'axios';
 
 export interface VideoResponse {
@@ -145,26 +144,35 @@ export const useVideoStore = defineStore('video', () => {
 
 
   function fetchAllVideos() {
-    axiosInstance
+    console.log('Fetching all videos...');
+    return axiosInstance
       .get(r('videos/'))
-      .then((response: { data: { videos: { id: string; originalFileName: string; status?: string; anonymized?: boolean; }[]; labels: { id: string; name: string; }[]; }; }) => {
+      .then((response: { data: { videos: { id: string; original_file_name: string; status?: string; anonymized?: boolean; assignedUser?: string; }[]; labels: { id: string; name: string; }[]; }; }) => {
+        console.log('API Response:', response.data);
+        
         videoList.value = {
           videos: response.data.videos.map(video => ({
             id: parseInt(video.id),
-            originalFileName: video.originalFileName,
-            status: video.status || 'available', // Default-Status falls nicht vorhanden
-            assignedUser: null, // Default-Wert für assignedUser
-            anonymized: video.anonymized || false // Default-Wert für anonymized ist false
+            originalFileName: video.original_file_name, // Korrigiere Feldname
+            status: video.status || 'available',
+            assignedUser: video.assignedUser || null,
+            anonymized: video.anonymized || false,
+            // Add video_url for compatibility
+            video_url: `${axiosInstance.defaults.baseURL}video/${video.id}/`
           })),
           labels: response.data.labels.map(label => ({
             id: parseInt(label.id),
             name: label.name,
           })),
         };
-        console.log("Fetched videos:", videoList.value);
+        console.log("Processed videos:", videoList.value);
+        return videoList.value;
       })
       .catch((error: any) => {
         console.error('Error loading videos:', error);
+        // Setze leere Werte bei Fehler
+        videoList.value = { videos: [], labels: [] };
+        throw error;
       });
   }
   
@@ -182,23 +190,33 @@ export const useVideoStore = defineStore('video', () => {
     currentVideo.value = video;
   }
   
-  async function fetchVideoUrl() {
+  async function fetchVideoUrl(videoId?: number) {
     try {
-      const response = await videoAxiosInstance.get<VideoResponse>(
-        currentVideo.value?.id || '1',
+      // Use the video ID from parameter or current video
+      const id = videoId || currentVideo.value?.id;
+      if (!id) {
+        console.warn("No video ID available for fetching video URL");
+        errorMessage.value = "No video selected.";
+        return;
+      }
+
+      // Use the correct API endpoint that we know works
+      const response = await axiosInstance.get(
+        r(`video/${id}/`),
         { headers: { 'Accept': 'application/json' } }
       );
-      if (response.data.videoUrl) {
-        videoUrl.value = response.data.videoUrl;
+      
+      if (response.data.video_url) {
+        videoUrl.value = response.data.video_url;
         console.log("Fetched video URL:", videoUrl.value);
       } else {
-        console.warn("No video URL returned; waiting for upload.");
-        errorMessage.value = "Invalid video response received.";
+        console.warn("No video URL returned from API response:", response.data);
+        errorMessage.value = "Video URL not available.";
       }
     } catch (error: unknown) {
       const axiosError = error as AxiosError;
-      console.error("Error loading video:", axiosError.response?.data || axiosError.message);
-      errorMessage.value = "Error loading video. Please check the API endpoint or try again later.";
+      console.error("Error loading video URL:", axiosError.response?.data || axiosError.message);
+      errorMessage.value = "Error loading video URL. Please check the API endpoint or try again later.";
     }
   }
 
@@ -233,22 +251,23 @@ export const useVideoStore = defineStore('video', () => {
   }
   async function fetchVideoMeta(id: number): Promise<void> {
     try {
-      const resp = await axiosInstance.get<VideoFileMeta>(
+      const resp = await axiosInstance.get(
         r(`video/${id}/`),
         { headers: { 'Accept': 'application/json' } }
       );
       videoMeta.value = {
-        id:              resp.data.id,
-        originalFileName: resp.data.originalFileName,
-        file:             resp.data.file,
-        videoUrl:         resp.data.videoUrl,
-        fullVideoPath:    resp.data.fullVideoPath,
-        sensitiveMetaId:  resp.data.sensitiveMetaId,
-        patientFirstName: resp.data.patientFirstName,
-        patientLastName:  resp.data.patientLastName,
-        patientDob:       resp.data.patientDob,
-        examinationDate:  resp.data.examinationDate,
-        duration:         resp.data.duration,
+        id: resp.data.id,
+        originalFileName: resp.data.original_file_name, // Korrigiere Feldname
+        file: resp.data.file,
+        videoUrl: resp.data.video_url, // Korrigiere Feldname
+        fullVideoPath: resp.data.full_video_path, // Korrigiere Feldname
+        duration: resp.data.duration,
+        // Remove fields that don't exist in the current API
+        sensitiveMetaId: 0, // Default value since not in API
+        patientFirstName: null,
+        patientLastName: null,
+        patientDob: null,
+        examinationDate: null,
       };
     } catch (err) {
       const axiosErr = err as AxiosError;
@@ -435,6 +454,10 @@ export const useVideoStore = defineStore('video', () => {
       });
   };
   
+  function urlFor(id: number) {
+    return `http://127.0.0.1:8000/api/videostream/${id}/stream/`;   // Korrigierte API-Endpunkt URL für Video-Streaming
+  }
+  
   // Return state and actions for consumption in components
   return {
     currentVideo,
@@ -465,5 +488,6 @@ export const useVideoStore = defineStore('video', () => {
     updateVideoStatus,
     assignUserToVideo,
     updateSegment,
+    urlFor,
   };
 });

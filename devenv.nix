@@ -14,6 +14,18 @@ let
     libglvnd
     glib
     zlib
+    # OpenCV dependencies
+    gtk3
+    gdk-pixbuf
+    cairo
+    pango
+    atk
+    harfbuzz
+    fontconfig
+    freetype
+    libpng
+    libjpeg
+    opencv4
   ];
 
   # Explicitly define the uv package

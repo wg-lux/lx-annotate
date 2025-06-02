@@ -121,7 +121,9 @@
     processor_name: string;
   }
   
-  const API_BASE = 'http://127.0.0.1:8000/api';
+  const API_BASE = 'http://127.0.0.1:8000';
+  const API_ENDPOINT = `${API_BASE}/api/videos`;  // JSON API
+  const STREAM_ENDPOINT = `${API_BASE}/videos`;   // Raw video streaming
   
   // Refs
   const videoRef = ref<HTMLVideoElement | null>(null);
@@ -138,7 +140,11 @@
   });
   
   const currentVideoUrl = computed(() => {
-    return currentVideo.value?.url || '';
+    // Use the dedicated streaming endpoint
+    if (currentVideo.value?.id) {
+      return `${STREAM_ENDPOINT}/${currentVideo.value.id}/stream/`;
+    }
+    return '';
   });
   
   const canSave = computed(() => {
@@ -148,10 +154,31 @@
   // Methods
   async function fetchVideos() {
     try {
-      const response = await axios.get(`${API_BASE}/videos/`);
-      availableVideos.value = response.data;
+      // Use the JSON API endpoint
+      const response = await axios.get(`${API_ENDPOINT}/`);
+      console.log('Fetched videos:', response.data);
+      
+      if (response.data.videos) {
+        availableVideos.value = response.data.videos.map((video: any) => ({
+          id: video.id,
+          url: `${STREAM_ENDPOINT}/${video.id}/stream/`, // Streaming URL
+          center_name: video.center_name || 'Unknown Center',
+          processor_name: video.processor_name || 'Unknown Processor'
+        }));
+      }
     } catch (error) {
       console.error('Failed to fetch videos:', error);
+    }
+  }
+  
+  async function fetchVideoMetadata(videoId: number) {
+    try {
+      // Fetch metadata using the JSON API endpoint
+      const response = await axios.get(`${API_ENDPOINT}/${videoId}/`);
+      return response.data;
+    } catch (error) {
+      console.error('Failed to fetch video metadata:', error);
+      return null;
     }
   }
   

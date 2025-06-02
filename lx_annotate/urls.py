@@ -7,11 +7,15 @@ from django.conf.urls.static import static
 urlpatterns = [
     path("admin/", admin.site.urls),
 
-    path(
-        "api/",  # <--- HIER WIRD DAS ERSTE "api/"-PRÄFIX HINZUGEFÜGT
-        include(("endoreg_db.urls", "endoreg_db"), namespace="endoreg_db"),
-    ),
-    # Vue SPA fallback – keep AFTER real routes
-    re_path(r"^(?!api/|admin/).*$", TemplateView.as_view(template_name="base.html"),
+    # Include endoreg_db URLs WITH 'api/' prefix
+    # This prevents endoreg_db routes from overriding the Vue SPA fallback
+    path("api/", include(("endoreg_db.urls", "endoreg_db"), namespace="endoreg_db")),
+    
+    # Vue SPA fallback – MUST be LAST to catch all non-API routes
+    re_path(r"^(?!api/|admin/|media/).*$", TemplateView.as_view(template_name="base.html"),
             name="vue_spa"),
 ] + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+
+# Serve media files in development
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

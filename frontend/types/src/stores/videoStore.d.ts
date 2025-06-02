@@ -164,12 +164,24 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
     fetchVideoMeta: (id: number) => Promise<void>;
     updateSensitiveMeta: (payload: SensitiveMetaUpdatePayload) => Promise<void>;
     clearVideoMeta: () => void;
-    fetchAllVideos: () => void;
+    fetchAllVideos: () => Promise<{
+        videos: {
+            id: number;
+            originalFileName: string;
+            status: string;
+            assignedUser?: string | null | undefined;
+            anonymized: boolean;
+        }[];
+        labels: {
+            id: number;
+            name: string;
+        }[];
+    }>;
     uploadRevert: (uniqueFileId: string, load: () => void, error: (message: string) => void) => void;
     uploadProcess: (fieldName: string, file: File, metadata: any, load: (serverFileId: string) => void, error: (message: string) => void) => void;
     clearVideo: () => void;
     setVideo: (video: VideoAnnotation) => void;
-    fetchVideoUrl: () => Promise<void>;
+    fetchVideoUrl: (videoId?: number) => Promise<void>;
     fetchSegmentsByLabel: (id: string, label?: string) => Promise<void>;
     fetchAllSegments: (id: string) => Promise<void>;
     saveAnnotations: () => Promise<void>;
@@ -180,6 +192,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
     updateVideoStatus: (status: 'in_progress' | 'available' | 'completed') => Promise<void>;
     assignUserToVideo: (user: string) => Promise<void>;
     updateSegment: (id: string, partial: Partial<Segment>) => void;
+    urlFor: (id: number) => string;
 }, "errorMessage" | "videoUrl" | "currentVideo" | "segmentsByLabel" | "videoList" | "videoMeta">>, Pick<{
     currentVideo: import("vue").Ref<{
         isAnnotated: boolean;
@@ -271,12 +284,24 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
     fetchVideoMeta: (id: number) => Promise<void>;
     updateSensitiveMeta: (payload: SensitiveMetaUpdatePayload) => Promise<void>;
     clearVideoMeta: () => void;
-    fetchAllVideos: () => void;
+    fetchAllVideos: () => Promise<{
+        videos: {
+            id: number;
+            originalFileName: string;
+            status: string;
+            assignedUser?: string | null | undefined;
+            anonymized: boolean;
+        }[];
+        labels: {
+            id: number;
+            name: string;
+        }[];
+    }>;
     uploadRevert: (uniqueFileId: string, load: () => void, error: (message: string) => void) => void;
     uploadProcess: (fieldName: string, file: File, metadata: any, load: (serverFileId: string) => void, error: (message: string) => void) => void;
     clearVideo: () => void;
     setVideo: (video: VideoAnnotation) => void;
-    fetchVideoUrl: () => Promise<void>;
+    fetchVideoUrl: (videoId?: number) => Promise<void>;
     fetchSegmentsByLabel: (id: string, label?: string) => Promise<void>;
     fetchAllSegments: (id: string) => Promise<void>;
     saveAnnotations: () => Promise<void>;
@@ -287,6 +312,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
     updateVideoStatus: (status: 'in_progress' | 'available' | 'completed') => Promise<void>;
     assignUserToVideo: (user: string) => Promise<void>;
     updateSegment: (id: string, partial: Partial<Segment>) => void;
+    urlFor: (id: number) => string;
 }, "duration" | "allSegments" | "hasVideo">, Pick<{
     currentVideo: import("vue").Ref<{
         isAnnotated: boolean;
@@ -378,12 +404,24 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
     fetchVideoMeta: (id: number) => Promise<void>;
     updateSensitiveMeta: (payload: SensitiveMetaUpdatePayload) => Promise<void>;
     clearVideoMeta: () => void;
-    fetchAllVideos: () => void;
+    fetchAllVideos: () => Promise<{
+        videos: {
+            id: number;
+            originalFileName: string;
+            status: string;
+            assignedUser?: string | null | undefined;
+            anonymized: boolean;
+        }[];
+        labels: {
+            id: number;
+            name: string;
+        }[];
+    }>;
     uploadRevert: (uniqueFileId: string, load: () => void, error: (message: string) => void) => void;
     uploadProcess: (fieldName: string, file: File, metadata: any, load: (serverFileId: string) => void, error: (message: string) => void) => void;
     clearVideo: () => void;
     setVideo: (video: VideoAnnotation) => void;
-    fetchVideoUrl: () => Promise<void>;
+    fetchVideoUrl: (videoId?: number) => Promise<void>;
     fetchSegmentsByLabel: (id: string, label?: string) => Promise<void>;
     fetchAllSegments: (id: string) => Promise<void>;
     saveAnnotations: () => Promise<void>;
@@ -394,4 +432,5 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
     updateVideoStatus: (status: 'in_progress' | 'available' | 'completed') => Promise<void>;
     assignUserToVideo: (user: string) => Promise<void>;
     updateSegment: (id: string, partial: Partial<Segment>) => void;
-}, "fetchVideoMeta" | "updateSensitiveMeta" | "clearVideoMeta" | "fetchAllVideos" | "uploadRevert" | "uploadProcess" | "clearVideo" | "setVideo" | "fetchVideoUrl" | "fetchSegmentsByLabel" | "fetchAllSegments" | "saveAnnotations" | "getSegmentStyle" | "getColorForLabel" | "getTranslationForLabel" | "jumpToSegment" | "updateVideoStatus" | "assignUserToVideo" | "updateSegment">>;
+    urlFor: (id: number) => string;
+}, "fetchVideoMeta" | "updateSensitiveMeta" | "clearVideoMeta" | "fetchAllVideos" | "uploadRevert" | "uploadProcess" | "clearVideo" | "setVideo" | "fetchVideoUrl" | "fetchSegmentsByLabel" | "fetchAllSegments" | "saveAnnotations" | "getSegmentStyle" | "getColorForLabel" | "getTranslationForLabel" | "jumpToSegment" | "updateVideoStatus" | "assignUserToVideo" | "updateSegment" | "urlFor">>;

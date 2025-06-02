@@ -22,9 +22,8 @@ export default (await import('vue')).defineComponent({
             const video = this.videos.find(v => v.id === this.selectedVideoId);
             if (!video)
                 return '';
-            // Defensive fallback - only return URLs if they actually exist
-            return video.url || video.video_file || video.file_url ||
-                (video.original_file_name ? `/media/videos/${video.original_file_name}` : '');
+            // Fix: Use 'video_url' field from the API response instead of incorrect field names
+            return video.video_url || '';
         },
         showExaminationForm() {
             // Only show form if video is selected AND has a valid URL
@@ -45,14 +44,21 @@ export default (await import('vue')).defineComponent({
                 console.log('Loading videos from API...');
                 const response = await axiosInstance.get(r('videos/'));
                 console.log('Videos API response:', response.data);
-                // Ensure IDs are numbers so v-model stays consistent
-                this.videos = response.data.map(v => ({
+                // Fix: API returns {videos: [...], labels: [...]} structure
+                const videosData = response.data.videos || response.data || [];
+                // Ensure IDs are numbers and add missing fields
+                this.videos = videosData.map(v => ({
                     ...v,
-                    id: Number(v.id)
+                    id: Number(v.id),
+                    // Add fallback fields for display
+                    center_name: v.center_name || v.original_file_name || 'Unbekannt',
+                    processor_name: v.processor_name || v.status || 'Unbekannt',
+                    // Use the new streaming endpoint directly
+                    video_url: `http://127.0.0.1:8000/api/videostream/${v.id}/stream/`
                 }));
                 // Log the structure of the first video to help debug
                 if (this.videos.length > 0) {
-                    console.log('First video structure:', this.videos[0]);
+                    console.log('First video structure after processing:', this.videos[0]);
                 }
             }
             catch (error) {

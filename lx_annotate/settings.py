@@ -289,3 +289,41 @@ LOGGING = {
 # Media files settings
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+## CORS Settings für Video-Streaming
+CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_CREDENTIALS = True  # Allow credentials (cookies, authorization headers) in CORS requests
+
+# Spezifische CORS-Headers für Video-Streaming
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+    'range',  # Wichtig für Video-Range-Requests
+]
+
+CORS_EXPOSE_HEADERS = [
+    'content-range',
+    'accept-ranges',
+    'content-length',
+    'content-type',
+]
+
+# Video-spezifische MIME-Types
+VIDEO_MIME_TYPES = {
+    '.mp4': 'video/mp4',
+    '.webm': 'video/webm',
+    '.avi': 'video/x-msvideo',
+    '.mov': 'video/quicktime',
+    '.mkv': 'video/x-matroska',
+    '.m4v': 'video/mp4',
+}
+
+# Erlaubte Hosts für Development
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', '[::1]']

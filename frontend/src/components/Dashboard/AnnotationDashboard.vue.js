@@ -38,32 +38,41 @@ if (!userStore.users || userStore.users.length === 0) {
     users.value = [currentUser];
 }
 onMounted(async () => {
-    // Fetch video annotations
-    await videoStore.fetchAllVideos();
-    const videos = videoStore.videoList.videos;
-    videoStats.value.total = videos.length;
-    videoStats.value.inProgress = videos.filter(v => v.status === 'in_progress').length;
-    videoStats.value.completed = videos.filter(v => v.status === 'completed').length;
-    videoStats.value.available = videos.filter(v => v.status === 'available').length;
-    // Fetch image annotations
-    imageStats.value.total = imageStore.data.length;
-    imageStats.value.inProgress = imageStore.data.filter(img => img.status === 'in_progress').length;
-    imageStats.value.completed = imageStore.data.filter(img => img.status === 'completed').length;
-    // Fetch anonymization annotations
-    await anonymizationStore.fetchPendingAnonymizations();
-    const anonymizations = anonymizationStore.pendingAnonymizations;
-    anonymizationStats.value.total = anonymizations.length;
-    anonymizationStats.value.inProgress = anonymizations.filter(a => a.status === 'in_progress').length;
-    anonymizationStats.value.completed = anonymizations.filter(a => a.status === 'completed').length;
-    // Fetch users and their annotation counts
-    await userStore.fetchUsers();
-    users.value = userStore.users.map(user => ({
-        id: user.id,
-        name: user.name,
-        videoAnnotations: videos.filter(v => v.assignedUser === user.name).length,
-        imageAnnotations: imageStore.data.filter(img => img.assignedUser === user.name).length,
-        anonymizationAnnotations: anonymizations.filter(a => a.report_meta.patient_first_name === user.name).length,
-    }));
+    console.log('Dashboard mounted, fetching data...');
+    try {
+        // Fetch video annotations
+        await videoStore.fetchAllVideos();
+        const videos = videoStore.videoList.videos;
+        console.log('Videos loaded:', videos);
+        videoStats.value.total = videos.length;
+        videoStats.value.inProgress = videos.filter(v => v.status === 'in_progress').length;
+        videoStats.value.completed = videos.filter(v => v.status === 'completed').length;
+        videoStats.value.available = videos.filter(v => v.status === 'available').length;
+        console.log('Video stats calculated:', videoStats.value);
+        // Fetch image annotations
+        imageStats.value.total = imageStore.data.length;
+        imageStats.value.inProgress = imageStore.data.filter(img => img.status === 'in_progress').length;
+        imageStats.value.completed = imageStore.data.filter(img => img.status === 'completed').length;
+        // Fetch anonymization annotations
+        await anonymizationStore.fetchPendingAnonymizations();
+        const anonymizations = anonymizationStore.pendingAnonymizations;
+        anonymizationStats.value.total = anonymizations.length;
+        anonymizationStats.value.inProgress = anonymizations.filter(a => a.status === 'in_progress').length;
+        anonymizationStats.value.completed = anonymizations.filter(a => a.status === 'completed').length;
+        // Fetch users and their annotation counts
+        await userStore.fetchUsers();
+        users.value = userStore.users.map(user => ({
+            id: user.id,
+            name: user.name,
+            videoAnnotations: videos.filter(v => v.assignedUser === user.name).length,
+            imageAnnotations: imageStore.data.filter(img => img.assignedUser === user.name).length,
+            anonymizationAnnotations: anonymizations.filter(a => a.report_meta?.patient_first_name === user.name).length,
+        }));
+        console.log('Users with annotation counts:', users.value);
+    }
+    catch (error) {
+        console.error('Error loading dashboard data:', error);
+    }
 });
 ; /* PartiallyEnd: #3632/scriptSetup.vue */
 function __VLS_template() {
