@@ -4,8 +4,13 @@
       v-for="segment in allSegments"
       :key="segment.id"
       class="timeline-segment"
-      :style="getSegmentStyle(segment, duration)"
+      :style="getEnhancedSegmentStyle(segment)"
+      @click.stop="jumpToSegment(segment)"
+      :title="`${segment.label_display}: ${segment.startTime.toFixed(1)}s - ${segment.endTime.toFixed(1)}s`"
     >
+      <!-- Label text inside segment -->
+      <span class="segment-label">{{ segment.label_display }}</span>
+      
       <!-- Resize-handle on right edge -->
       <div
         class="resize-handle"
@@ -29,7 +34,7 @@ export default defineComponent({
       required: true,
     },
   },
-  emits: ['resize'],
+  emits: ['resize', 'seek'],
   setup(props, { emit }) {
     const videoStore = useVideoStore();
     const timelineRef = ref<HTMLElement | null>(null);
@@ -39,7 +44,26 @@ export default defineComponent({
     const initialWidthPercent = ref(0);
     const lastTimestamp = ref(0);
 
-    const allSegments = computed<Segment[]>(() => videoStore.allSegments); 
+    const allSegments = computed<Segment[]>(() => {
+      const segments = videoStore.allSegments;
+      // Sort segments by start time for proper layering
+      return segments.sort((a, b) => a.startTime - b.startTime);
+    });
+
+    // Calculate vertical positioning to avoid overlaps
+    const getSegmentVerticalPosition = (segment: Segment, allSegs: Segment[]) => {
+      const currentIndex = allSegs.findIndex(s => s.id === segment.id);
+      const segmentsBefore = allSegs.slice(0, currentIndex);
+      
+      // Find segments that overlap with current segment
+      const overlappingSegments = segmentsBefore.filter(s => 
+        (s.startTime < segment.endTime && s.endTime > segment.startTime)
+      );
+      
+      // Calculate row based on overlaps (max 3 rows)
+      const row = overlappingSegments.length % 3;
+      return row * 28; // 28px per row (24px height + 4px gap)
+    };
 
     function calculateWidthPercent(segment: Segment): number {
       const w = (segment.endTime - segment.startTime) / props.duration * 100;
@@ -89,7 +113,21 @@ export default defineComponent({
 
     // Optional: handle timeline click
     function handleTimelineClick(event: MouseEvent) {
-      // Implementation as needed...
+      if (!timelineRef.value) return;
+      
+      const rect = timelineRef.value.getBoundingClientRect();
+      const offsetX = event.clientX - rect.left;
+      const percentX = (offsetX / rect.width) * 100;
+      const targetTime = (percentX / 100) * props.duration;
+      
+      // Emit event to parent component to seek video
+      emit('seek', targetTime);
+    }
+
+    function jumpToSegment(segment: Segment) {
+      // Calculate the middle point of the segment for seeking
+      const middlePoint = (segment.startTime + segment.endTime) / 2;
+      emit('seek', middlePoint);
     }
 
     onUnmounted(() => {
@@ -104,8 +142,10 @@ export default defineComponent({
       allSegments,
       startResize,
       handleTimelineClick,
-      getSegmentStyle: videoStore.getSegmentStyle,
+      jumpToSegment,
+      getEnhancedSegmentStyle: videoStore.getEnhancedSegmentStyle,
       duration: props.duration,
+      getSegmentVerticalPosition,
     };
   },
 });
@@ -115,24 +155,88 @@ export default defineComponent({
 .timeline-track {
   position: relative;
   width: 100%;
-  height: 50px; /* Adjust as needed */
-  background-color: #f0f0f0;
+  height: 120px; /* Increased height for 3 rows: 3 * 28px + 36px padding */
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+  margin: 12px 0;
+  overflow: hidden; /* Changed from visible to hidden to prevent overflow */
+  isolation: isolate; /* Create a new stacking context */
 }
 
 .timeline-segment {
   position: absolute;
-  top: 0;
-  bottom: 0;
-  background-color: rgba(0, 123, 255, 0.3);
+  height: 24px; /* Reduced height for better spacing */
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 2px solid rgba(255, 255, 255, 0.8);
+  min-width: 20px; /* Increased minimum width for better visibility */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 500;
+  color: white;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+  z-index: 1; /* Reduced from higher values */
+}
+
+.timeline-segment:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  z-index: 2; /* Reduced from 20 to prevent overlap with other elements */
+  border-color: white;
+}
+
+/* Label text inside segment */
+.segment-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0 4px;
+  pointer-events: none;
 }
 
 .resize-handle {
   position: absolute;
-  right: 0;
+  right: -3px;
   top: 0;
   bottom: 0;
-  width: 8px;
+  width: 14px;
   cursor: ew-resize;
-  background-color: rgba(0, 123, 255, 0.7);
+  background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.9) 50%, rgba(255, 255, 255, 1) 100%);
+  border-radius: 0 6px 6px 0;
+  transition: all 0.2s ease;
+  z-index: 2;
+}
+
+.resize-handle:hover {
+  background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 1) 30%, rgba(255, 255, 255, 1) 100%);
+  box-shadow: 0 0 6px rgba(0, 0, 0, 0.2);
+}
+
+.resize-handle::after {
+  content: '⋮⋮';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 8px;
+  color: #666;
+  line-height: 0.8;
+  letter-spacing: -1px;
+}
+
+/* Grid lines for better visual orientation */
+.timeline-track::before {
+  content: '';
+  position: absolute;
+  top: 56px;
+  left: 8px;
+  right: 8px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, #ddd 20%, #ddd 80%, transparent 100%);
 }
 </style>
