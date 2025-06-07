@@ -211,8 +211,8 @@ export default {
           // Add fallback fields for display
           center_name: v.center_name || v.original_file_name || 'Unbekannt',
           processor_name: v.processor_name || v.status || 'Unbekannt',
-          // Use the new streaming endpoint directly
-          video_url: `http://127.0.0.1:8000/api/videostream/${v.id}/stream/`
+          // Use the dedicated streaming endpoint from urls.py
+          video_url: `/api/videostream/${v.id}/`
         }));
         
         // Log the structure of the first video to help debug

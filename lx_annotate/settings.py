@@ -327,3 +327,77 @@ VIDEO_MIME_TYPES = {
 
 # Erlaubte Hosts für Development
 ALLOWED_HOSTS = ['localhost', '127.0.0.1', '[::1]']
+
+# 🔧 DEVELOPMENT MODE: Conditional authentication settings
+if DEBUG and os.environ.get('VITE_DEVELOPMENT_MODE') == 'true':
+    # Development mode - allow unauthenticated API access
+    REST_FRAMEWORK = {
+        'DEFAULT_AUTHENTICATION_CLASSES': [
+            'rest_framework.authentication.SessionAuthentication',
+            # 'lx_annotate.keycloak_auth.KeycloakAuthentication',  # Disabled in dev mode
+        ],
+        'DEFAULT_PERMISSION_CLASSES': [
+            'rest_framework.permissions.AllowAny',  # Allow all requests in dev
+        ],
+        'DEFAULT_RENDERER_CLASSES': [
+            'rest_framework.renderers.JSONRenderer',
+        ],
+    }
+    
+    # Also remove Keycloak middleware in development
+    MIDDLEWARE = [
+        'corsheaders.middleware.CorsMiddleware',  
+        'django.middleware.security.SecurityMiddleware',
+        'django.contrib.sessions.middleware.SessionMiddleware',
+        'django.middleware.common.CommonMiddleware',
+        'django.middleware.csrf.CsrfViewMiddleware',
+        'django.contrib.auth.middleware.AuthenticationMiddleware',
+        # 'lx_annotate.offline_keycloak_middleware.OfflineKeycloakMiddleware',  # Disabled in dev
+        'django.contrib.messages.middleware.MessageMiddleware',
+        'django.middleware.clickjacking.XFrameOptionsMiddleware',
+        'whitenoise.middleware.WhiteNoiseMiddleware',
+    ]
+    
+    print("🚀 DEVELOPMENT MODE: API authentication disabled")
+    
+else:
+    # Production mode - full Keycloak authentication required
+    REST_FRAMEWORK = {
+        'DEFAULT_AUTHENTICATION_CLASSES': [
+            'lx_annotate.keycloak_auth.KeycloakAuthentication',  # Keycloak for production
+            'rest_framework.authentication.SessionAuthentication',
+        ],
+        'DEFAULT_PERMISSION_CLASSES': [
+            'rest_framework.permissions.IsAuthenticated',  # Auth required in production
+        ],
+        'DEFAULT_RENDERER_CLASSES': [
+            'rest_framework.renderers.JSONRenderer',
+        ],
+    }
+    
+    # Keep all middleware including Keycloak in production
+    MIDDLEWARE = [
+        'corsheaders.middleware.CorsMiddleware',  
+        'django.middleware.security.SecurityMiddleware',
+        'django.contrib.sessions.middleware.SessionMiddleware',
+        'django.middleware.common.CommonMiddleware',
+        'django.middleware.csrf.CsrfViewMiddleware',
+        'django.contrib.auth.middleware.AuthenticationMiddleware',
+        'lx_annotate.offline_keycloak_middleware.OfflineKeycloakMiddleware',  # Enabled in production
+        'django.contrib.messages.middleware.MessageMiddleware',
+        'django.middleware.clickjacking.XFrameOptionsMiddleware',
+        'whitenoise.middleware.WhiteNoiseMiddleware',
+    ]
+    
+    print("🔐 PRODUCTION MODE: Full Keycloak authentication enabled")
+
+# 🔐 KEYCLOAK CONFIGURATION für Production
+# Keycloak settings for production environment (keycloak-endoreg.net)
+KEYCLOAK_SERVER_URL = env('KEYCLOAK_SERVER_URL', default='https://keycloak-endoreg.net')
+KEYCLOAK_REALM = env('KEYCLOAK_REALM', default='master')
+KEYCLOAK_CLIENT_ID = env('KEYCLOAK_CLIENT_ID', default='lx-frontend')
+KEYCLOAK_CLIENT_SECRET = env('KEYCLOAK_CLIENT_SECRET', default='')
+
+# Log Keycloak configuration
+if not DEBUG or os.environ.get('VITE_DEVELOPMENT_MODE') != 'true':
+    print(f"🔐 KEYCLOAK CONFIG: Server={KEYCLOAK_SERVER_URL}, Realm={KEYCLOAK_REALM}, Client={KEYCLOAK_CLIENT_ID}")

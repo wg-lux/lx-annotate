@@ -244,4 +244,3 @@ class ProcessFileView(APIView):
                     os.remove(temp_file_path)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-'''

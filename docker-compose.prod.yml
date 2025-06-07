@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  backend:
+    build: .
+    environment:
+      - DJANGO_DEBUG=False
+      - KEYCLOAK_SERVER_URL=https://keycloak.endo-reg.net
+      - KEYCLOAK_REALM=lx-realm
+      - KEYCLOAK_CLIENT_ID=lx-annotate-backend
+      - KEYCLOAK_CLIENT_SECRET=${KEYCLOAK_CLIENT_SECRET}
+      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY}
+      - DJANGO_SALT=${DJANGO_SALT}
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./storage:/app/storage
+    depends_on:
+      - db
+
+  frontend:
+    build: 
+      context: ./frontend
+      args:
+        - VITE_KEYCLOAK_URL=https://keycloak.endo-reg.net
+        - VITE_KEYCLOAK_REALM=lx-realm
+        - VITE_KEYCLOAK_CLIENT_ID=lx-annotate-frontend
+        - VITE_API_BASE_URL=https://your-production-domain.com
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+  db:
+    image: postgres:15
+    environment:
+      - POSTGRES_DB=lx_annotate
+      - POSTGRES_USER=lx_user
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+volumes:
+  postgres_data:
