@@ -185,7 +185,8 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
     fetchSegmentsByLabel: (id: string, label?: string) => Promise<void>;
     fetchAllSegments: (id: string) => Promise<void>;
     saveAnnotations: () => Promise<void>;
-    getSegmentStyle: (segment: Segment, duration: number) => Record<string, string>;
+    getSegmentStyle: (segment: Segment, duration: number, verticalOffset?: number) => Record<string, string>;
+    getEnhancedSegmentStyle: (segment: Segment, allSegments?: Segment[]) => Record<string, string>;
     getColorForLabel: (label: string) => string;
     getTranslationForLabel: (label: string) => string;
     jumpToSegment: (segment: Segment, videoElement: HTMLVideoElement | null) => void;
@@ -305,7 +306,8 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
     fetchSegmentsByLabel: (id: string, label?: string) => Promise<void>;
     fetchAllSegments: (id: string) => Promise<void>;
     saveAnnotations: () => Promise<void>;
-    getSegmentStyle: (segment: Segment, duration: number) => Record<string, string>;
+    getSegmentStyle: (segment: Segment, duration: number, verticalOffset?: number) => Record<string, string>;
+    getEnhancedSegmentStyle: (segment: Segment, allSegments?: Segment[]) => Record<string, string>;
     getColorForLabel: (label: string) => string;
     getTranslationForLabel: (label: string) => string;
     jumpToSegment: (segment: Segment, videoElement: HTMLVideoElement | null) => void;
@@ -425,7 +427,8 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
     fetchSegmentsByLabel: (id: string, label?: string) => Promise<void>;
     fetchAllSegments: (id: string) => Promise<void>;
     saveAnnotations: () => Promise<void>;
-    getSegmentStyle: (segment: Segment, duration: number) => Record<string, string>;
+    getSegmentStyle: (segment: Segment, duration: number, verticalOffset?: number) => Record<string, string>;
+    getEnhancedSegmentStyle: (segment: Segment, allSegments?: Segment[]) => Record<string, string>;
     getColorForLabel: (label: string) => string;
     getTranslationForLabel: (label: string) => string;
     jumpToSegment: (segment: Segment, videoElement: HTMLVideoElement | null) => void;
@@ -433,4 +436,4 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
     assignUserToVideo: (user: string) => Promise<void>;
     updateSegment: (id: string, partial: Partial<Segment>) => void;
     urlFor: (id: number) => string;
-}, "fetchVideoMeta" | "updateSensitiveMeta" | "clearVideoMeta" | "fetchAllVideos" | "uploadRevert" | "uploadProcess" | "clearVideo" | "setVideo" | "fetchVideoUrl" | "fetchSegmentsByLabel" | "fetchAllSegments" | "saveAnnotations" | "getSegmentStyle" | "getColorForLabel" | "getTranslationForLabel" | "jumpToSegment" | "updateVideoStatus" | "assignUserToVideo" | "updateSegment" | "urlFor">>;
+}, "fetchVideoMeta" | "updateSensitiveMeta" | "clearVideoMeta" | "fetchAllVideos" | "uploadRevert" | "uploadProcess" | "clearVideo" | "setVideo" | "fetchVideoUrl" | "fetchSegmentsByLabel" | "fetchAllSegments" | "saveAnnotations" | "getSegmentStyle" | "getEnhancedSegmentStyle" | "getColorForLabel" | "getTranslationForLabel" | "jumpToSegment" | "updateVideoStatus" | "assignUserToVideo" | "updateSegment" | "urlFor">>;

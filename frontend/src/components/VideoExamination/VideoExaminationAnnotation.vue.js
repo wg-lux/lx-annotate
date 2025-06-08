@@ -1,10 +1,12 @@
 import { useVideoStore } from '@/stores/videoStore';
 import SimpleExaminationForm from './SimpleExaminationForm.vue';
 import axiosInstance, { r } from '@/api/axiosInstance';
+import Timeline from '@/components/EndoAI/Timeline.vue';
 export default (await import('vue')).defineComponent({
     name: 'VideoExaminationAnnotation',
     components: {
-        SimpleExaminationForm
+        SimpleExaminationForm,
+        Timeline
     },
     data() {
         return {
@@ -14,7 +16,10 @@ export default (await import('vue')).defineComponent({
             duration: 0,
             examinationMarkers: [],
             savedExaminations: [],
-            currentMarker: null
+            currentMarker: null,
+            selectedLabelType: '',
+            isMarkingLabel: false,
+            labelMarkingStart: 0
         };
     },
     computed: {
@@ -36,6 +41,10 @@ export default (await import('vue')).defineComponent({
             return this.videos.length === 0 ?
                 'Keine Videos verfügbar. Bitte laden Sie zuerst Videos hoch.' :
                 '';
+        },
+        groupedSegments() {
+            const videoStore = useVideoStore();
+            return videoStore.segmentsByLabel;
         }
     },
     methods: {
@@ -90,6 +99,7 @@ export default (await import('vue')).defineComponent({
         onVideoChange() {
             if (this.selectedVideoId !== null) {
                 this.loadSavedExaminations();
+                this.loadVideoSegments();
                 this.currentMarker = null;
             }
             else {
@@ -97,6 +107,19 @@ export default (await import('vue')).defineComponent({
                 this.examinationMarkers = [];
                 this.savedExaminations = [];
                 this.currentMarker = null;
+            }
+        },
+        async loadVideoSegments() {
+            if (this.selectedVideoId === null)
+                return;
+            const videoStore = useVideoStore();
+            try {
+                // Lade alle Segmente für das Video
+                await videoStore.fetchAllSegments(this.selectedVideoId.toString());
+                console.log('Video segments loaded for video:', this.selectedVideoId);
+            }
+            catch (error) {
+                console.error('Error loading video segments:', error);
             }
         },
         onVideoLoaded() {
@@ -155,6 +178,124 @@ export default (await import('vue')).defineComponent({
             const mins = Math.floor(seconds / 60);
             const secs = Math.floor(seconds % 60);
             return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        },
+        handleTimelineSeek(targetTime) {
+            if (this.$refs.videoRef) {
+                this.$refs.videoRef.currentTime = targetTime;
+            }
+        },
+        handleSegmentResize(segmentId, newEndTime) {
+            console.log(`Segment ${segmentId} resized to end at ${newEndTime}s`);
+            // Hier könnten Sie die Änderung an den Server senden
+        },
+        startLabelMarking() {
+            if (!this.isMarkingLabel) {
+                // Start marking a new label
+                this.labelMarkingStart = this.currentTime;
+                this.isMarkingLabel = true;
+            }
+            else {
+                // End the current label marking and create new segment
+                this.finishLabelMarking();
+            }
+        },
+        cancelLabelMarking() {
+            this.isMarkingLabel = false;
+            this.labelMarkingStart = 0;
+        },
+        async finishLabelMarking() {
+            if (!this.selectedLabelType || !this.isMarkingLabel)
+                return;
+            const endTime = this.currentTime;
+            const startTime = this.labelMarkingStart;
+            // Ensure start time is before end time
+            if (startTime >= endTime) {
+                alert('Das Ende-Zeit muss nach der Start-Zeit sein. Bitte versuchen Sie es erneut.');
+                return;
+            }
+            const videoStore = useVideoStore();
+            try {
+                // Create new segment locally first
+                const newSegment = {
+                    id: `manual-${Date.now()}`,
+                    label: this.selectedLabelType,
+                    label_display: this.getTranslationForLabel(this.selectedLabelType),
+                    startTime: startTime,
+                    endTime: endTime,
+                    avgConfidence: 1.0 // Manual annotations have full confidence
+                };
+                // Add to the appropriate label category in the store
+                if (!videoStore.segmentsByLabel[this.selectedLabelType]) {
+                    videoStore.segmentsByLabel[this.selectedLabelType] = [];
+                }
+                videoStore.segmentsByLabel[this.selectedLabelType].push(newSegment);
+                // TODO: Send to backend API to persist the new segment
+                await this.saveNewLabelSegment(newSegment);
+                console.log('New label segment created:', newSegment);
+                // Reset marking state
+                this.isMarkingLabel = false;
+                this.labelMarkingStart = 0;
+                this.selectedLabelType = '';
+            }
+            catch (error) {
+                console.error('Error creating label segment:', error);
+                alert('Fehler beim Erstellen des Label-Segments. Bitte versuchen Sie es erneut.');
+            }
+        },
+        async saveNewLabelSegment(segment) {
+            // This would send the new segment to the backend API
+            // For now, we'll just log it - you'll need to implement the actual API call
+            try {
+                const response = await axiosInstance.post(r(`video/${this.selectedVideoId}/segments/`), {
+                    label: segment.label,
+                    start_time: segment.startTime,
+                    end_time: segment.endTime,
+                    confidence: segment.avgConfidence
+                });
+                console.log('Segment saved to backend:', response.data);
+            }
+            catch (error) {
+                console.error('Error saving segment to backend:', error);
+                // Don't throw - allow local storage to work even if backend fails
+            }
+        },
+        getTranslationForLabel(labelKey) {
+            const translations = {
+                appendix: 'Appendix',
+                blood: 'Blut',
+                diverticule: 'Divertikel',
+                grasper: 'Greifer',
+                ileocaecalvalve: 'Ileozäkalklappe',
+                ileum: 'Ileum',
+                low_quality: 'Niedrige Bildqualität',
+                nbi: 'Narrow Band Imaging',
+                needle: 'Nadel',
+                outside: 'Außerhalb',
+                polyp: 'Polyp',
+                snare: 'Snare',
+                water_jet: 'Wasserstrahl',
+                wound: 'Wunde'
+            };
+            return translations[labelKey] || labelKey;
+        },
+        getLabelColor(labelKey) {
+            const colors = {
+                appendix: '#FFDDC1',
+                blood: '#FFABAB',
+                diverticule: '#FFC3A0',
+                grasper: '#FF677D',
+                ileocaecalvalve: '#D4A5A5',
+                ileum: '#392F5A',
+                low_quality: '#F8E16C',
+                nbi: '#6EEB83',
+                needle: '#A0D7E6',
+                outside: '#FFE156',
+                polyp: '#6A0572',
+                snare: '#AB83A1',
+                water_jet: '#FFD3B6',
+                wound: '#FF677D'
+            };
+            return colors[labelKey] || '#FFFFFF';
         }
     },
     mounted() {
@@ -165,11 +306,12 @@ export default (await import('vue')).defineComponent({
 function __VLS_template() {
     const __VLS_ctx = {};
     const __VLS_componentsOption = {
-        SimpleExaminationForm
+        SimpleExaminationForm,
+        Timeline
     };
     let __VLS_components;
     let __VLS_directives;
-    ['examination-marker', 'list-group-item',];
+    ['examination-marker', 'list-group-item', 'label-group', 'label-segment-item', 'control-select', 'control-select',];
     // CSS variable injection 
     // CSS variable injection end 
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -276,7 +418,7 @@ function __VLS_template() {
     }
     if (__VLS_ctx.duration > 0) {
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("timeline mt-3") },
+            ...{ class: ("timeline-container mt-3") },
         });
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ onClick: (__VLS_ctx.handleTimelineClick) },
@@ -297,20 +439,186 @@ function __VLS_template() {
                 title: ((`Untersuchung bei ${__VLS_ctx.formatTime(marker.timestamp)}`)),
             });
         }
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("mt-2 timeline-section") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({
+            ...{ class: ("text-muted mb-2") },
+        });
+        const __VLS_0 = {}.Timeline;
+        /** @type { [typeof __VLS_components.Timeline, ] } */ ;
+        // @ts-ignore
+        const __VLS_1 = __VLS_asFunctionalComponent(__VLS_0, new __VLS_0({
+            ...{ 'onSeek': {} },
+            ...{ 'onResize': {} },
+            duration: ((__VLS_ctx.duration)),
+        }));
+        const __VLS_2 = __VLS_1({
+            ...{ 'onSeek': {} },
+            ...{ 'onResize': {} },
+            duration: ((__VLS_ctx.duration)),
+        }, ...__VLS_functionalComponentArgsRest(__VLS_1));
+        let __VLS_6;
+        const __VLS_7 = {
+            onSeek: (__VLS_ctx.handleTimelineSeek)
+        };
+        const __VLS_8 = {
+            onResize: (__VLS_ctx.handleSegmentResize)
+        };
+        let __VLS_3;
+        let __VLS_4;
+        var __VLS_5;
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("label-overview mt-3") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({
+            ...{ class: ("text-muted mb-2") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("label-summary-container") },
+        });
+        for (const [segments, labelType] of __VLS_getVForSourceType((__VLS_ctx.groupedSegments))) {
+            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                key: ((labelType)),
+                ...{ class: ("label-group") },
+            });
+            __VLS_asFunctionalDirective(__VLS_directives.vShow)(null, { ...__VLS_directiveBindingRestFields, value: (segments.length > 0) }, null, null);
+            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: ("label-header") },
+            });
+            __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                ...{ class: ("label-color-indicator") },
+                ...{ style: (({ backgroundColor: __VLS_ctx.getLabelColor(labelType) })) },
+            });
+            __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                ...{ class: ("label-name") },
+            });
+            (__VLS_ctx.getTranslationForLabel(labelType));
+            __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                ...{ class: ("label-count") },
+            });
+            (segments.length);
+            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: ("label-segments") },
+            });
+            for (const [segment] of __VLS_getVForSourceType((segments))) {
+                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                    ...{ onClick: (...[$event]) => {
+                            if (!((__VLS_ctx.duration > 0)))
+                                return;
+                            __VLS_ctx.handleTimelineSeek((segment.startTime + segment.endTime) / 2);
+                        } },
+                    key: ((segment.id)),
+                    ...{ class: ("label-segment-item") },
+                    title: ((`${segment.label_display}: ${__VLS_ctx.formatTime(segment.startTime)} - ${__VLS_ctx.formatTime(segment.endTime)}`)),
+                });
+                __VLS_elementAsFunction(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({});
+                (__VLS_ctx.formatTime(segment.startTime));
+                (__VLS_ctx.formatTime(segment.endTime));
+            }
+        }
     }
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("mt-3") },
+        ...{ class: ("timeline-controls mt-4") },
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: ("d-flex align-items-center gap-3") },
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: ("d-flex align-items-center") },
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+        ...{ class: ("form-label mb-0 me-2") },
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
+        value: ((__VLS_ctx.selectedLabelType)),
+        ...{ class: ("form-select form-select-sm control-select") },
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+        value: (""),
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+        value: ("appendix"),
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+        value: ("blood"),
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+        value: ("diverticule"),
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+        value: ("grasper"),
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+        value: ("ileocaecalvalve"),
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+        value: ("ileum"),
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+        value: ("low_quality"),
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+        value: ("nbi"),
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+        value: ("needle"),
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+        value: ("outside"),
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+        value: ("polyp"),
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+        value: ("snare"),
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+        value: ("water_jet"),
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+        value: ("wound"),
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: ("d-flex align-items-center gap-2") },
     });
     __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-        ...{ onClick: (__VLS_ctx.addExaminationMarker) },
-        ...{ class: ("btn btn-primary btn-sm") },
-        disabled: ((!__VLS_ctx.currentVideoUrl)),
+        ...{ onClick: (__VLS_ctx.startLabelMarking) },
+        ...{ class: ("btn btn-success btn-sm control-button") },
+        disabled: ((!__VLS_ctx.currentVideoUrl || !__VLS_ctx.selectedLabelType || __VLS_ctx.isMarkingLabel)),
     });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+        ...{ class: ("material-icons") },
+    });
+    (__VLS_ctx.isMarkingLabel ? 'Label-Ende setzen' : 'Label-Start setzen');
+    if (__VLS_ctx.isMarkingLabel) {
+        __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+            ...{ onClick: (__VLS_ctx.cancelLabelMarking) },
+            ...{ class: ("btn btn-outline-secondary btn-sm control-button") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: ("material-icons") },
+        });
+    }
     __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
         ...{ class: ("ms-3 text-muted") },
     });
     (__VLS_ctx.formatTime(__VLS_ctx.currentTime));
     (__VLS_ctx.formatTime(__VLS_ctx.duration));
+    if (__VLS_ctx.isMarkingLabel) {
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("mt-2 p-2 bg-info bg-opacity-10 border border-info rounded") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+            ...{ class: ("text-info") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: ("material-icons") },
+            ...{ style: ({}) },
+        });
+        (__VLS_ctx.getTranslationForLabel(__VLS_ctx.selectedLabelType));
+        (__VLS_ctx.formatTime(__VLS_ctx.labelMarkingStart));
+    }
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: ("col-lg-4") },
     });
@@ -333,26 +641,26 @@ function __VLS_template() {
         ...{ class: ("card-body") },
     });
     if (__VLS_ctx.showExaminationForm) {
-        const __VLS_0 = {}.SimpleExaminationForm;
+        const __VLS_9 = {}.SimpleExaminationForm;
         /** @type { [typeof __VLS_components.SimpleExaminationForm, ] } */ ;
         // @ts-ignore
-        const __VLS_1 = __VLS_asFunctionalComponent(__VLS_0, new __VLS_0({
+        const __VLS_10 = __VLS_asFunctionalComponent(__VLS_9, new __VLS_9({
             ...{ 'onExaminationSaved': {} },
             videoTimestamp: ((__VLS_ctx.currentTime)),
             videoId: ((__VLS_ctx.selectedVideoId)),
         }));
-        const __VLS_2 = __VLS_1({
+        const __VLS_11 = __VLS_10({
             ...{ 'onExaminationSaved': {} },
             videoTimestamp: ((__VLS_ctx.currentTime)),
             videoId: ((__VLS_ctx.selectedVideoId)),
-        }, ...__VLS_functionalComponentArgsRest(__VLS_1));
-        let __VLS_6;
-        const __VLS_7 = {
+        }, ...__VLS_functionalComponentArgsRest(__VLS_10));
+        let __VLS_15;
+        const __VLS_16 = {
             onExaminationSaved: (__VLS_ctx.onExaminationSaved)
         };
-        let __VLS_3;
-        let __VLS_4;
-        var __VLS_5;
+        let __VLS_12;
+        let __VLS_13;
+        var __VLS_14;
     }
     else {
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -419,7 +727,7 @@ function __VLS_template() {
             });
         }
     }
-    ['container-fluid', 'py-4', 'row', 'col-12', 'row', 'col-lg-8', 'card', 'card-header', 'pb-0', 'mb-0', 'card-body', 'mb-3', 'form-label', 'form-select', 'text-muted', 'text-center', 'text-muted', 'py-5', 'material-icons', 'mt-2', 'text-center', 'text-muted', 'py-5', 'material-icons', 'mt-2', 'video-container', 'w-100', 'timeline', 'mt-3', 'timeline-track', 'progress-bar', 'examination-marker', 'mt-3', 'btn', 'btn-primary', 'btn-sm', 'ms-3', 'text-muted', 'col-lg-4', 'card', 'card-header', 'pb-0', 'mb-0', 'text-muted', 'card-body', 'text-center', 'text-muted', 'py-5', 'material-icons', 'mt-2', 'card', 'mt-3', 'card-header', 'pb-0', 'mb-0', 'card-body', 'list-group', 'list-group-flush', 'list-group-item', 'd-flex', 'justify-content-between', 'align-items-center', 'px-0', 'text-muted', 'btn', 'btn-sm', 'btn-outline-primary', 'me-2', 'material-icons', 'btn', 'btn-sm', 'btn-outline-danger', 'material-icons',];
+    ['container-fluid', 'py-4', 'row', 'col-12', 'row', 'col-lg-8', 'card', 'card-header', 'pb-0', 'mb-0', 'card-body', 'mb-3', 'form-label', 'form-select', 'text-muted', 'text-center', 'text-muted', 'py-5', 'material-icons', 'mt-2', 'text-center', 'text-muted', 'py-5', 'material-icons', 'mt-2', 'video-container', 'w-100', 'timeline-container', 'mt-3', 'timeline-track', 'progress-bar', 'examination-marker', 'mt-2', 'timeline-section', 'text-muted', 'mb-2', 'label-overview', 'mt-3', 'text-muted', 'mb-2', 'label-summary-container', 'label-group', 'label-header', 'label-color-indicator', 'label-name', 'label-count', 'label-segments', 'label-segment-item', 'timeline-controls', 'mt-4', 'd-flex', 'align-items-center', 'gap-3', 'd-flex', 'align-items-center', 'form-label', 'mb-0', 'me-2', 'form-select', 'form-select-sm', 'control-select', 'd-flex', 'align-items-center', 'gap-2', 'btn', 'btn-success', 'btn-sm', 'control-button', 'material-icons', 'btn', 'btn-outline-secondary', 'btn-sm', 'control-button', 'material-icons', 'ms-3', 'text-muted', 'mt-2', 'p-2', 'bg-info', 'bg-opacity-10', 'border', 'border-info', 'rounded', 'text-info', 'material-icons', 'col-lg-4', 'card', 'card-header', 'pb-0', 'mb-0', 'text-muted', 'card-body', 'text-center', 'text-muted', 'py-5', 'material-icons', 'mt-2', 'card', 'mt-3', 'card-header', 'pb-0', 'mb-0', 'card-body', 'list-group', 'list-group-flush', 'list-group-item', 'd-flex', 'justify-content-between', 'align-items-center', 'px-0', 'text-muted', 'btn', 'btn-sm', 'btn-outline-primary', 'me-2', 'material-icons', 'btn', 'btn-sm', 'btn-outline-danger', 'material-icons',];
     var __VLS_slots;
     var $slots;
     let __VLS_inheritedAttrs;

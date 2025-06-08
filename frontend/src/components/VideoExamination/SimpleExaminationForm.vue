@@ -3,9 +3,14 @@
     <!-- Examination Type Selection -->
     <div class="mb-3">
       <label class="form-label">Untersuchungstyp:</label>
-      <select v-model="selectedExamination" @change="loadExaminationData" class="form-select">
-        <option value="">Bitte wählen...</option>
-        <option v-for="exam in availableExaminations" :key="exam.id" :value="exam.id">
+      <select 
+        v-model.number="selectedExaminationId" 
+        @change="onExaminationChange" 
+        class="form-select"
+        :disabled="loading"
+      >
+        <option :value="null">Bitte Untersuchungstyp wählen...</option>
+        <option v-for="exam in examinations" :key="exam.id" :value="exam.id">
           {{ exam.name }}
         </option>
       </select>
@@ -88,6 +93,8 @@
           </ul>
         </div>
       </div>
+      <small v-else class="text-muted">Keine Interventionen für dieses Finding verfügbar.</small>
+    </div>
 
       <!-- Help text when no finding selected -->
       <div v-else-if="selectedExamination && availableFindings.length === 0" class="alert alert-info">
@@ -124,11 +131,11 @@ export default {
   props: {
     videoTimestamp: {
       type: Number,
-      required: true
+      default: 0
     },
     videoId: {
-      type: [Number, String],
-      default: null
+      type: Number,
+      required: true
     }
   },
   emits: ['examination-saved'],
@@ -155,6 +162,24 @@ export default {
     };
   },
   computed: {
+    selectedExamination() {
+      return this.examinations.find(e => e.id === this.selectedExaminationId) || null;
+    },
+    selectedFinding() {
+      return this.findings.find(f => f.id === this.selectedFindingId) || null;
+    },
+    selectedLocationClassification() {
+      return this.locationClassifications.find(lc => lc.id === this.selectedLocationClassificationId) || null;
+    },
+    selectedLocationChoice() {
+      return this.locationChoices.find(lc => lc.id === this.selectedLocationChoiceId) || null;
+    },
+    selectedMorphologyClassification() {
+      return this.morphologyClassifications.find(mc => mc.id === this.selectedMorphologyClassificationId) || null;
+    },
+    selectedMorphologyChoice() {
+      return this.morphologyChoices.find(mc => mc.id === this.selectedMorphologyChoiceId) || null;
+    },
     canSave() {
       return this.selectedExamination && 
              this.selectedFinding &&
@@ -213,6 +238,7 @@ export default {
         
         console.log('Loaded examinations:', this.availableExaminations);
       } catch (error) {
+        this.error = 'Fehler beim Laden der Untersuchungstypen: ' + error.message;
         console.error('Error loading examinations:', error);
         this.error = 'Fehler beim Laden der Untersuchungstypen';
       } finally {
@@ -225,7 +251,13 @@ export default {
         this.examinationDataLoaded = false;
         return;
       }
+    },
 
+    async onExaminationChange() {
+      this.resetLowerLevels('examination');
+      
+      if (!this.selectedExaminationId) return;
+      
       try {
         this.loading = true;
         this.error = null;
@@ -368,16 +400,14 @@ export default {
         const response = await axiosInstance.post(r('video-examinations/'), examinationData);
         
         this.$emit('examination-saved', response.data);
-        
-        // Reset form
         this.resetForm();
         
         // Show success feedback
         console.log('Examination saved successfully:', response.data);
         
       } catch (error) {
+        this.error = 'Fehler beim Speichern: ' + error.message;
         console.error('Error saving examination:', error);
-        this.error = 'Fehler beim Speichern der Untersuchung';
       } finally {
         this.loading = false;
       }
@@ -400,15 +430,18 @@ export default {
 </script>
 
 <style scoped>
-.simple-examination-form {
-  max-height: 600px;
-  overflow-y: auto;
+.examination-form {
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 1rem;
 }
 
-.examination-details {
-  border-top: 1px solid #e9ecef;
-  padding-top: 1rem;
-  margin-top: 1rem;
+.form-check-group {
+  max-height: 150px;
+  overflow-y: auto;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  padding: 0.5rem;
 }
 
 .classification-section {
@@ -422,7 +455,16 @@ export default {
 }
 
 .form-check {
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.form-check:last-child {
+  margin-bottom: 0;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .alert {

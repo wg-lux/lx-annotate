@@ -112,7 +112,8 @@ declare const _default: import("vue").DefineComponent<{}, {}, {}, {}, {}, import
             fetchSegmentsByLabel: (id: string, label?: string) => Promise<void>;
             fetchAllSegments: (id: string) => Promise<void>;
             saveAnnotations: () => Promise<void>;
-            getSegmentStyle: (segment: import("../stores/videoStore.js").Segment, duration: number) => Record<string, string>;
+            getSegmentStyle: (segment: import("../stores/videoStore.js").Segment, duration: number, verticalOffset?: number | undefined) => Record<string, string>;
+            getEnhancedSegmentStyle: (segment: import("../stores/videoStore.js").Segment, allSegments?: import("../stores/videoStore.js").Segment[] | undefined) => Record<string, string>;
             getColorForLabel: (label: string) => string;
             getTranslationForLabel: (label: string) => string;
             jumpToSegment: (segment: import("../stores/videoStore.js").Segment, videoElement: HTMLVideoElement | null) => void;
@@ -232,7 +233,8 @@ declare const _default: import("vue").DefineComponent<{}, {}, {}, {}, {}, import
             fetchSegmentsByLabel: (id: string, label?: string) => Promise<void>;
             fetchAllSegments: (id: string) => Promise<void>;
             saveAnnotations: () => Promise<void>;
-            getSegmentStyle: (segment: import("../stores/videoStore.js").Segment, duration: number) => Record<string, string>;
+            getSegmentStyle: (segment: import("../stores/videoStore.js").Segment, duration: number, verticalOffset?: number | undefined) => Record<string, string>;
+            getEnhancedSegmentStyle: (segment: import("../stores/videoStore.js").Segment, allSegments?: import("../stores/videoStore.js").Segment[] | undefined) => Record<string, string>;
             getColorForLabel: (label: string) => string;
             getTranslationForLabel: (label: string) => string;
             jumpToSegment: (segment: import("../stores/videoStore.js").Segment, videoElement: HTMLVideoElement | null) => void;
@@ -352,7 +354,8 @@ declare const _default: import("vue").DefineComponent<{}, {}, {}, {}, {}, import
             fetchSegmentsByLabel: (id: string, label?: string) => Promise<void>;
             fetchAllSegments: (id: string) => Promise<void>;
             saveAnnotations: () => Promise<void>;
-            getSegmentStyle: (segment: import("../stores/videoStore.js").Segment, duration: number) => Record<string, string>;
+            getSegmentStyle: (segment: import("../stores/videoStore.js").Segment, duration: number, verticalOffset?: number | undefined) => Record<string, string>;
+            getEnhancedSegmentStyle: (segment: import("../stores/videoStore.js").Segment, allSegments?: import("../stores/videoStore.js").Segment[] | undefined) => Record<string, string>;
             getColorForLabel: (label: string) => string;
             getTranslationForLabel: (label: string) => string;
             jumpToSegment: (segment: import("../stores/videoStore.js").Segment, videoElement: HTMLVideoElement | null) => void;
@@ -360,7 +363,7 @@ declare const _default: import("vue").DefineComponent<{}, {}, {}, {}, {}, import
             assignUserToVideo: (user: string) => Promise<void>;
             updateSegment: (id: string, partial: Partial<import("../stores/videoStore.js").Segment>) => void;
             urlFor: (id: number) => string;
-        }, "fetchVideoMeta" | "updateSensitiveMeta" | "clearVideoMeta" | "fetchAllVideos" | "uploadRevert" | "uploadProcess" | "clearVideo" | "setVideo" | "fetchVideoUrl" | "fetchSegmentsByLabel" | "fetchAllSegments" | "saveAnnotations" | "getSegmentStyle" | "getColorForLabel" | "getTranslationForLabel" | "jumpToSegment" | "updateVideoStatus" | "assignUserToVideo" | "updateSegment" | "urlFor">>;
+        }, "fetchVideoMeta" | "updateSensitiveMeta" | "clearVideoMeta" | "fetchAllVideos" | "uploadRevert" | "uploadProcess" | "clearVideo" | "setVideo" | "fetchVideoUrl" | "fetchSegmentsByLabel" | "fetchAllSegments" | "saveAnnotations" | "getSegmentStyle" | "getEnhancedSegmentStyle" | "getColorForLabel" | "getTranslationForLabel" | "jumpToSegment" | "updateVideoStatus" | "assignUserToVideo" | "updateSegment" | "urlFor">>;
         selectedVideoId: import("vue").Ref<number | null, number | null>;
         currentTime: import("vue").Ref<number, number>;
         duration: import("vue").Ref<number, number>;
@@ -385,15 +388,18 @@ declare const _default: import("vue").DefineComponent<{}, {}, {}, {}, {}, import
             allSegments: import("vue").ComputedRef<import("../stores/videoStore.js").Segment[]>;
             startResize: (segment: import("../stores/videoStore.js").Segment, event: MouseEvent | TouchEvent) => void;
             handleTimelineClick: (event: MouseEvent) => void;
-            getSegmentStyle: (segment: import("../stores/videoStore.js").Segment, duration: number) => Record<string, string>;
+            jumpToSegment: (segment: import("../stores/videoStore.js").Segment) => void;
+            getEnhancedSegmentStyle: (segment: import("../stores/videoStore.js").Segment, allSegments?: import("../stores/videoStore.js").Segment[] | undefined) => Record<string, string>;
             duration: number;
-        }, {}, {}, {}, import("vue").ComponentOptionsMixin, import("vue").ComponentOptionsMixin, "resize"[], "resize", import("vue").PublicProps, Readonly<import("vue").ExtractPropTypes<{
+            getSegmentVerticalPosition: (segment: import("../stores/videoStore.js").Segment, allSegs: import("../stores/videoStore.js").Segment[]) => number;
+        }, {}, {}, {}, import("vue").ComponentOptionsMixin, import("vue").ComponentOptionsMixin, ("resize" | "seek")[], "resize" | "seek", import("vue").PublicProps, Readonly<import("vue").ExtractPropTypes<{
             duration: {
                 type: NumberConstructor;
                 required: true;
             };
         }>> & Readonly<{
             onResize?: ((...args: any[]) => any) | undefined;
+            onSeek?: ((...args: any[]) => any) | undefined;
         }>, {}, {}, {}, {}, string, import("vue").ComponentProvideOptions, true, {}, any>;
     }, {}, string, import("vue").ComponentProvideOptions, true, {}, any>;
 }, {}, string, import("vue").ComponentProvideOptions, true, {}, any>;

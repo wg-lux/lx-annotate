@@ -8,7 +8,7 @@ export default defineComponent({
             required: true,
         },
     },
-    emits: ['resize'],
+    emits: ['resize', 'seek'],
     setup(props, { emit }) {
         const videoStore = useVideoStore();
         const timelineRef = ref(null);
@@ -17,7 +17,21 @@ export default defineComponent({
         const startX = ref(0);
         const initialWidthPercent = ref(0);
         const lastTimestamp = ref(0);
-        const allSegments = computed(() => videoStore.allSegments);
+        const allSegments = computed(() => {
+            const segments = videoStore.allSegments;
+            // Sort segments by start time for proper layering
+            return segments.sort((a, b) => a.startTime - b.startTime);
+        });
+        // Calculate vertical positioning to avoid overlaps
+        const getSegmentVerticalPosition = (segment, allSegs) => {
+            const currentIndex = allSegs.findIndex(s => s.id === segment.id);
+            const segmentsBefore = allSegs.slice(0, currentIndex);
+            // Find segments that overlap with current segment
+            const overlappingSegments = segmentsBefore.filter(s => (s.startTime < segment.endTime && s.endTime > segment.startTime));
+            // Calculate row based on overlaps (max 3 rows)
+            const row = overlappingSegments.length % 3;
+            return row * 28; // 28px per row (24px height + 4px gap)
+        };
         function calculateWidthPercent(segment) {
             const w = (segment.endTime - segment.startTime) / props.duration * 100;
             return w;
@@ -62,7 +76,19 @@ export default defineComponent({
         }
         // Optional: handle timeline click
         function handleTimelineClick(event) {
-            // Implementation as needed...
+            if (!timelineRef.value)
+                return;
+            const rect = timelineRef.value.getBoundingClientRect();
+            const offsetX = event.clientX - rect.left;
+            const percentX = (offsetX / rect.width) * 100;
+            const targetTime = (percentX / 100) * props.duration;
+            // Emit event to parent component to seek video
+            emit('seek', targetTime);
+        }
+        function jumpToSegment(segment) {
+            // Calculate the middle point of the segment for seeking
+            const middlePoint = (segment.startTime + segment.endTime) / 2;
+            emit('seek', middlePoint);
         }
         onUnmounted(() => {
             window.removeEventListener('mousemove', onMouseMove);
@@ -75,8 +101,10 @@ export default defineComponent({
             allSegments,
             startResize,
             handleTimelineClick,
-            getSegmentStyle: videoStore.getSegmentStyle,
+            jumpToSegment,
+            getEnhancedSegmentStyle: videoStore.getEnhancedSegmentStyle,
             duration: props.duration,
+            getSegmentVerticalPosition,
         };
     },
 });
@@ -85,6 +113,7 @@ function __VLS_template() {
     const __VLS_ctx = {};
     let __VLS_components;
     let __VLS_directives;
+    ['timeline-segment', 'resize-handle', 'resize-handle', 'timeline-track',];
     // CSS variable injection 
     // CSS variable injection end 
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -96,10 +125,18 @@ function __VLS_template() {
     /** @type { typeof __VLS_ctx.timelineRef } */ ;
     for (const [segment] of __VLS_getVForSourceType((__VLS_ctx.allSegments))) {
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ onClick: (...[$event]) => {
+                    __VLS_ctx.jumpToSegment(segment);
+                } },
             key: ((segment.id)),
             ...{ class: ("timeline-segment") },
-            ...{ style: ((__VLS_ctx.getSegmentStyle(segment, __VLS_ctx.duration))) },
+            ...{ style: ((__VLS_ctx.getEnhancedSegmentStyle(segment))) },
+            title: ((`${segment.label_display}: ${segment.startTime.toFixed(1)}s - ${segment.endTime.toFixed(1)}s`)),
         });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+            ...{ class: ("segment-label") },
+        });
+        (segment.label_display);
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ onMousedown: (...[$event]) => {
                     __VLS_ctx.startResize(segment, $event);
@@ -110,7 +147,7 @@ function __VLS_template() {
             ...{ class: ("resize-handle") },
         });
     }
-    ['timeline-track', 'timeline-segment', 'resize-handle',];
+    ['timeline-track', 'timeline-segment', 'segment-label', 'resize-handle',];
     var __VLS_slots;
     var $slots;
     let __VLS_inheritedAttrs;
