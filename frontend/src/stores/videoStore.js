@@ -175,15 +175,18 @@ export const useVideoStore = defineStore('video', () => {
             console.error('Error saving annotations:', error);
         }
     }
-    function getSegmentStyle(segment, duration) {
+    function getSegmentStyle(segment, duration, verticalOffset) {
         if (segment.startTime < 0) {
-            throw new Error('Startpunkt des Segments ist ungültig.');
+            console.warn('Startpunkt des Segments ist ungültig:', segment);
+            return { display: 'none' };
         }
         if (segment.endTime > duration) {
-            throw new Error('Endzeitpunkt des Segments ist ungültig.');
+            console.warn('Endzeitpunkt des Segments ist ungültig:', segment);
+            return { display: 'none' };
         }
         if (segment.endTime < segment.startTime) {
-            throw new Error('Endzeitpunkt des Segments ist vor dem Startzeitpunkt.');
+            console.warn('Endzeitpunkt des Segments ist vor dem Startzeitpunkt:', segment);
+            return { display: 'none' };
         }
         const leftPercentage = (segment.startTime / duration) * 100;
         const widthPercentage = ((segment.endTime - segment.startTime) / duration) * 100;
@@ -191,8 +194,21 @@ export const useVideoStore = defineStore('video', () => {
             position: 'absolute',
             left: `${leftPercentage}%`,
             width: `${widthPercentage}%`,
+            top: verticalOffset ? `${12 + verticalOffset}px` : '12px',
             backgroundColor: getColorForLabel(segment.label),
         };
+    }
+    // Enhanced segment style with vertical positioning
+    function getEnhancedSegmentStyle(segment, allSegments) {
+        const segments = allSegments || Object.values(segmentsByLabel.value).flat().sort((a, b) => a.startTime - b.startTime);
+        const currentIndex = segments.findIndex(s => s.id === segment.id);
+        const segmentsBefore = segments.slice(0, currentIndex);
+        // Find segments that overlap with current segment
+        const overlappingSegments = segmentsBefore.filter(s => (s.startTime < segment.endTime && s.endTime > segment.startTime));
+        // Calculate row based on overlaps (max 3 rows)
+        const row = overlappingSegments.length % 3;
+        const verticalOffset = row * 28; // 28px per row (24px height + 4px gap)
+        return getSegmentStyle(segment, duration.value, verticalOffset);
     }
     function updateSegment(id, partial) {
         const labelKeys = Object.keys(segmentsByLabel.value);
@@ -348,6 +364,7 @@ export const useVideoStore = defineStore('video', () => {
         fetchAllSegments,
         saveAnnotations,
         getSegmentStyle,
+        getEnhancedSegmentStyle,
         getColorForLabel,
         getTranslationForLabel,
         jumpToSegment,

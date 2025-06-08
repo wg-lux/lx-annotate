@@ -9,14 +9,17 @@ declare const _default: import("vue").DefineComponent<import("vue").ExtractPropT
     allSegments: import("vue").ComputedRef<Segment[]>;
     startResize: (segment: Segment, event: MouseEvent | TouchEvent) => void;
     handleTimelineClick: (event: MouseEvent) => void;
-    getSegmentStyle: (segment: Segment, duration: number) => Record<string, string>;
+    jumpToSegment: (segment: Segment) => void;
+    getEnhancedSegmentStyle: (segment: Segment, allSegments?: Segment[] | undefined) => Record<string, string>;
     duration: number;
-}, {}, {}, {}, import("vue").ComponentOptionsMixin, import("vue").ComponentOptionsMixin, "resize"[], "resize", import("vue").PublicProps, Readonly<import("vue").ExtractPropTypes<{
+    getSegmentVerticalPosition: (segment: Segment, allSegs: Segment[]) => number;
+}, {}, {}, {}, import("vue").ComponentOptionsMixin, import("vue").ComponentOptionsMixin, ("resize" | "seek")[], "resize" | "seek", import("vue").PublicProps, Readonly<import("vue").ExtractPropTypes<{
     duration: {
         type: NumberConstructor;
         required: true;
     };
 }>> & Readonly<{
     onResize?: ((...args: any[]) => any) | undefined;
+    onSeek?: ((...args: any[]) => any) | undefined;
 }>, {}, {}, {}, {}, string, import("vue").ComponentProvideOptions, true, {}, any>;
 export default _default;
