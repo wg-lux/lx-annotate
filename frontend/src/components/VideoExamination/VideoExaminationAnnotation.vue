@@ -58,7 +58,8 @@
             </div>
 
             <!-- Video Timeline with Annotations -->
-            <div v-if="duration > 0" class="timeline mt-3">
+            <div v-if="duration > 0" class="timeline-container mt-3">
+              <!-- Existing progress timeline -->
               <div class="timeline-track" @click="handleTimelineClick" ref="timelineRef">
                 <div class="progress-bar" :style="{ width: `${(currentTime / duration) * 100}%` }"></div>
                 <!-- Examination markers on timeline -->
@@ -71,20 +72,141 @@
                 >
                 </div>
               </div>
+              
+              <!-- Label Segments Timeline -->
+              <div class="timeline-container" v-if="labelSegments.length > 0">
+                <h4>Label-Segmente Timeline</h4>
+                <div class="timeline" ref="timeline">
+                  <div class="timeline-track">
+                    <div 
+                      v-for="segment in labelSegments" 
+                      :key="segment.id"
+                      class="timeline-segment"
+                      :style="getSegmentStyle(segment)"
+                      :title="`${segment.label_name}: ${formatTime(getSegmentStartTime(segment))} - ${formatTime(getSegmentEndTime(segment))}`"
+                      @click="seekToSegment(segment)"
+                    >
+                      <span class="segment-label">{{ segment.label_name }}</span>
+                    </div>
+                  </div>
+                  
+                  <!-- Zeitmarker -->
+                  <div class="timeline-markers">
+                    <div 
+                      v-for="marker in timelineMarkers" 
+                      :key="marker.time"
+                      class="time-marker"
+                      :style="{ left: marker.position + '%' }"
+                    >
+                      {{ formatTime(marker.time) }}
+                    </div>
+                  </div>
+                  
+                  <!-- Aktueller Zeitzeiger -->
+                  <div 
+                    class="current-time-indicator"
+                    :style="{ left: currentTimePosition + '%' }"
+                  ></div>
+                </div>
+              </div>
+
+              <!-- Label-Segmente Verwaltung -->
+              <div class="segments-management" v-if="labelSegments.length > 0">
+                <h4>Erstellte Label-Segmente</h4>
+                <div class="segments-list">
+                  <div 
+                    v-for="segment in labelSegments" 
+                    :key="segment.id"
+                    class="segment-item"
+                  >
+                    <div class="segment-info">
+                      <strong>{{ segment.label_name }}</strong>
+                      <span class="segment-time">
+                        {{ formatTime(getSegmentStartTime(segment)) }} - {{ formatTime(getSegmentEndTime(segment)) }}
+                      </span>
+                    </div>
+                    <div class="segment-actions">
+                      <button @click="seekToSegment(segment)" class="btn-secondary">
+                        Springen zu
+                      </button>
+                      <button @click="deleteSegment(segment.id)" class="btn-danger">
+                        Löschen
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <!-- Timeline Controls -->
-            <div class="mt-3">
-              <button 
-                @click="addExaminationMarker" 
-                class="btn btn-primary btn-sm"
-                :disabled="!currentVideoUrl"
-              >
-                Untersuchung hier markieren
-              </button>
-              <span class="ms-3 text-muted">
-                Zeit: {{ formatTime(currentTime) }} / {{ formatTime(duration) }}
-              </span>
+            <div class="timeline-controls mt-4">
+              <div class="d-flex align-items-center gap-3">
+                <!-- Label Selection for Marking -->
+                <div class="d-flex align-items-center">
+                  <label class="form-label mb-0 me-2">Neues Label setzen:</label>
+                  <select v-model="selectedLabelType" class="form-select form-select-sm control-select">
+                    <option value="">Label auswählen...</option>
+                    <option value="appendix">Appendix</option>
+                    <option value="blood">Blut</option>
+                    <option value="diverticule">Divertikel</option>
+                    <option value="grasper">Greifer</option>
+                    <option value="ileocaecalvalve">Ileozäkalklappe</option>
+                    <option value="ileum">Ileum</option>
+                    <option value="low_quality">Niedrige Bildqualität</option>
+                    <option value="nbi">Narrow Band Imaging</option>
+                    <option value="needle">Nadel</option>
+                    <option value="outside">Außerhalb</option>
+                    <option value="polyp">Polyp</option>
+                    <option value="snare">Snare</option>
+                    <option value="water_jet">Wasserstrahl</option>
+                    <option value="wound">Wunde</option>
+                  </select>
+                </div>
+                
+                <!-- Label Marking Controls -->
+                <div class="d-flex align-items-center gap-2">
+                  <button 
+                    v-if="!isMarkingLabel"
+                    @click="startLabelMarking" 
+                    class="btn btn-success btn-sm control-button"
+                    :disabled="!currentVideoUrl || !selectedLabelType"
+                  >
+                    <i class="material-icons">label</i>
+                    Label-Start setzen
+                  </button>
+                  
+                  <button 
+                    v-if="isMarkingLabel"
+                    @click="finishLabelMarking" 
+                    class="btn btn-warning btn-sm control-button"
+                  >
+                    <i class="material-icons">stop</i>
+                    Label-Ende setzen
+                  </button>
+                  
+                  <button 
+                    v-if="isMarkingLabel"
+                    @click="cancelLabelMarking" 
+                    class="btn btn-outline-secondary btn-sm control-button"
+                  >
+                    <i class="material-icons">cancel</i>
+                    Abbrechen
+                  </button>
+                </div>
+                
+                <span class="ms-3 text-muted">
+                  Zeit: {{ formatTime(currentTime) }} / {{ formatTime(duration) }}
+                </span>
+              </div>
+              
+              <!-- Active Label Marking Indicator -->
+              <div v-if="isMarkingLabel" class="mt-2 p-2 bg-info bg-opacity-10 border border-info rounded">
+                <small class="text-info">
+                  <i class="material-icons" style="font-size: 16px;">schedule</i>
+                  Label "{{ getTranslationForLabel(selectedLabelType) }}" wird markiert. 
+                  Start: {{ formatTime(labelMarkingStart) }} - Drücken Sie "Label-Ende setzen" um zu beenden.
+                </small>
+              </div>
             </div>
           </div>
         </div>
@@ -156,21 +278,32 @@
 import { useVideoStore } from '@/stores/videoStore';
 import SimpleExaminationForm from './SimpleExaminationForm.vue';
 import axiosInstance, { r } from '@/api/axiosInstance';
+import Timeline from '@/components/EndoAI/Timeline.vue';
 
 export default {
   name: 'VideoExaminationAnnotation',
   components: {
-    SimpleExaminationForm
+    SimpleExaminationForm,
+    Timeline
   },
   data() {
     return {
       videos: [],
-      selectedVideoId: null,  // Keep it truly null when nothing is chosen
+      selectedVideoId: null,
       currentTime: 0,
       duration: 0,
+      fps: 30, // Default FPS, should be loaded from video metadata
       examinationMarkers: [],
       savedExaminations: [],
-      currentMarker: null
+      currentMarker: null,
+      selectedLabelType: '',
+      isMarkingLabel: false,
+      labelMarkingStart: 0,
+      labelSegments: [], // Array to store created label segments
+      currentLabel: null, // Current selected label object
+      isMarking: false, // Tracking if currently marking
+      markingStartTime: null, // Start time for marking
+      videoId: null // Current video ID for API calls
     };
   },
   computed: {
@@ -192,6 +325,30 @@ export default {
       return this.videos.length === 0 ? 
         'Keine Videos verfügbar. Bitte laden Sie zuerst Videos hoch.' : 
         '';
+    },
+    groupedSegments() {
+      const videoStore = useVideoStore();
+      return videoStore.segmentsByLabel;
+    },
+    labelButtonText() {
+      return this.isMarkingLabel ? 'Label-Ende setzen' : 'Label-Start setzen';
+    },
+    canStartLabeling() {
+      return !!this.selectedLabelType && !this.isMarkingLabel;
+    },
+    canFinishLabeling() {
+      return this.isMarkingLabel;
+    },
+    currentTimePosition() {
+      // Calculate current time position for the indicator
+      return (this.currentTime / this.duration) * 100;
+    },
+    timelineMarkers() {
+      // Generate markers for the timeline based on label segments
+      return this.labelSegments.map(segment => ({
+        time: this.getSegmentStartTime(segment),
+        position: (this.getSegmentStartTime(segment) / this.duration) * 100
+      }));
     }
   },
   methods: {
@@ -248,12 +405,25 @@ export default {
     onVideoChange() {
       if (this.selectedVideoId !== null) {
         this.loadSavedExaminations();
+        this.loadVideoSegments();
         this.currentMarker = null;
       } else {
         // Clear everything when no video selected
         this.examinationMarkers = [];
         this.savedExaminations = [];
         this.currentMarker = null;
+      }
+    },
+    async loadVideoSegments() {
+      if (this.selectedVideoId === null) return;
+      
+      const videoStore = useVideoStore();
+      try {
+        // Lade alle Segmente für das Video
+        await videoStore.fetchAllSegments(this.selectedVideoId.toString());
+        console.log('Video segments loaded for video:', this.selectedVideoId);
+      } catch (error) {
+        console.error('Error loading video segments:', error);
       }
     },
     onVideoLoaded() {
@@ -313,6 +483,223 @@ export default {
       const mins = Math.floor(seconds / 60);
       const secs = Math.floor(seconds % 60);
       return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    },
+    handleTimelineSeek(targetTime) {
+      if (this.$refs.videoRef) {
+        this.$refs.videoRef.currentTime = targetTime;
+      }
+    },
+    handleSegmentResize(segmentId, newEndTime) {
+      console.log(`Segment ${segmentId} resized to end at ${newEndTime}s`);
+      // Hier könnten Sie die Änderung an den Server senden
+    },
+    startLabelMarking() {
+      if (!this.selectedLabelType) {
+        alert('Bitte wählen Sie einen Label-Typ aus.');
+        return;
+      }
+      
+      if this.isMarkingLabel) {
+        // If already marking, this call should finish the marking
+        this.finishLabelMarking();
+      } else {
+        // Start new marking
+        this.isMarkingLabel = true;
+        this.labelMarkingStart = this.currentTime;
+        console.log(`Label-Start gesetzt bei: ${this.currentTime}s`);
+      }
+    },
+    cancelLabelMarking() {
+      this.isMarkingLabel = false;
+      this.labelMarkingStart = 0;
+    },
+    finishLabelMarking() {
+      if (!this.isMarkingLabel) {
+        alert('Es wurde kein Label-Start gesetzt.');
+        return;
+      }
+      
+      const endTime = this.currentTime;
+      const startTime = this.labelMarkingStart;
+      
+      if (endTime <= startTime) {
+        alert('Das Label-Ende muss nach dem Label-Start liegen.');
+        return;
+      }
+      
+      console.log(`Label-Ende gesetzt bei: ${endTime}s`);
+      
+      // Create new label segment
+      this.saveNewLabelSegment(startTime, endTime, this.selectedLabelType);
+      
+      // Reset marking state
+      this.isMarkingLabel = false;
+      this.labelMarkingStart = 0;
+    },
+    async saveNewLabelSegment(startTime, endTime, labelType) {
+      if (!this.selectedVideoId) {
+        console.error('Keine Video-ID verfügbar');
+        alert('Fehler: Keine Video-ID verfügbar');
+        return;
+      }
+      
+      try {
+        const segmentData = {
+          video_id: this.selectedVideoId,
+          start_time: startTime,
+          end_time: endTime,
+          label_id: labelType, // Assuming labelType is the label ID
+        };
+        
+        console.log('Speichere Label-Segment:', segmentData);
+        
+        const response = await fetch('/api/video-segments/', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': this.getCsrfToken(),
+          },
+          body: JSON.stringify(segmentData)
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(`HTTP ${response.status}: ${JSON.stringify(errorData)}`);
+        }
+        
+        const createdSegment = await response.json();
+        console.log('Label-Segment erfolgreich erstellt:', createdSegment);
+        
+        // Add to local segments array
+        this.labelSegments.push(createdSegment);
+        
+        // Refresh timeline to show new segment
+        this.loadLabelSegments();
+        
+        alert(`Label-Segment erfolgreich erstellt: ${startTime.toFixed(2)}s - ${endTime.toFixed(2)}s`);
+        
+      } catch (error) {
+        console.error('Fehler beim Speichern des Label-Segments:', error);
+        alert(`Fehler beim Speichern: ${error.message}`);
+      }
+    },
+    async loadLabelSegments() {
+      if (!this.selectedVideoId) return;
+      
+      try {
+        const response = await fetch(`/api/video-segments/?video_id=${this.selectedVideoId}`);
+        if (response.ok) {
+          this.labelSegments = await response.json();
+          console.log('Label-Segmente geladen:', this.labelSegments);
+        }
+      } catch (error) {
+        console.error('Fehler beim Laden der Label-Segmente:', error);
+      }
+    },
+    getCsrfToken() {
+      // Get CSRF token from meta tag or cookie
+      const tokenMeta = document.querySelector('meta[name="csrf-token"]');
+      if (tokenMeta) {
+        return tokenMeta.getAttribute('content');
+      }
+      
+      // Fallback: get from cookie
+      const cookies = document.cookie.split(';');
+      for (let cookie of cookies) {
+        const [name, value] = cookie.trim().split('=');
+        if (name === 'csrftoken') {
+          return value;
+        }
+      }
+      return '';
+    },
+    showSuccessMessage(message) {
+      // Implement toast/notification system
+      alert(`✅ ${message}`); // Replace with proper notification component
+    },
+    showErrorMessage(message) {
+      // Implement toast/notification system  
+      alert(`❌ ${message}`); // Replace with proper notification component
+    },
+    getTranslationForLabel(labelKey) {
+      const translations = {
+        appendix: 'Appendix',
+        blood: 'Blut',
+        diverticule: 'Divertikel',
+        grasper: 'Greifer',
+        ileocaecalvalve: 'Ileozäkalklappe',
+        ileum: 'Ileum',
+        low_quality: 'Niedrige Bildqualität',
+        nbi: 'Narrow Band Imaging',
+        needle: 'Nadel',
+        outside: 'Außerhalb',
+        polyp: 'Polyp',
+        snare: 'Snare',
+        water_jet: 'Wasserstrahl',
+        wound: 'Wunde'
+      };
+      return translations[labelKey] || labelKey;
+    },
+    getLabelColor(labelKey) {
+      const colors = {
+        appendix: '#FFDDC1',
+        blood: '#FFABAB',
+        diverticule: '#FFC3A0',
+        grasper: '#FF677D',
+        ileocaecalvalve: '#D4A5A5',
+        ileum: '#392F5A',
+        low_quality: '#F8E16C',
+        nbi: '#6EEB83',
+        needle: '#A0D7E6',
+        outside: '#FFE156',
+        polyp: '#6A0572',
+        snare: '#AB83A1',
+        water_jet: '#FFD3B6',
+        wound: '#FF677D'
+      };
+      return colors[labelKey] || '#FFFFFF';
+    },
+    getSegmentStartTime(segment) {
+      // Get start time of the segment, fallback to 0
+      return segment.start_time || 0;
+    },
+    getSegmentEndTime(segment) {
+      // Get end time of the segment, fallback to duration
+      return segment.end_time || this.duration;
+    },
+    getSegmentStyle(segment) {
+      const start = this.getSegmentStartTime(segment);
+      const end = this.getSegmentEndTime(segment);
+      const width = ((end - start) / this.duration) * 100;
+      const left = (start / this.duration) * 100;
+      
+      return {
+        position: 'absolute',
+        left: `${left}%`,
+        width: `${width}%`,
+        backgroundColor: this.getLabelColor(segment.label_id),
+        borderRadius: '4px',
+        height: '100%',
+        cursor: 'pointer',
+        zIndex: 1
+      };
+    },
+    seekToSegment(segment) {
+      const startTime = this.getSegmentStartTime(segment);
+      if this.$refs.videoRef) {
+        this.$refs.videoRef.currentTime = startTime;
+      }
+    },
+    async deleteSegment(segmentId) {
+      try {
+        await axiosInstance.delete(r(`video-segments/${segmentId}/`));
+        // Remove from local segments array
+        this.labelSegments = this.labelSegments.filter(seg => seg.id !== segmentId);
+        this.showSuccessMessage('Segment erfolgreich gelöscht');
+      } catch (error) {
+        console.error('Error deleting segment:', error);
+        this.showErrorMessage('Fehler beim Löschen des Segments');
+      }
     }
   },
   mounted() {
@@ -326,6 +713,16 @@ export default {
   position: relative;
   height: 20px;
   margin: 15px 0;
+}
+
+.timeline-container {
+  position: relative;
+  z-index: 1;
+  overflow: hidden; /* Prevent any overflow from timeline elements */
+  background: white;
+  border-radius: 8px;
+  padding: 8px;
+  margin-bottom: 20px; /* Add space before controls */
 }
 
 .timeline-track {
@@ -375,5 +772,251 @@ export default {
 
 .list-group-item:last-child {
   border-bottom: none;
+}
+
+.label-overview {
+  border-top: 1px solid #e9ecef;
+  padding-top: 15px;
+  margin-top: 10px;
+}
+
+.label-summary-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.label-group {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  padding: 12px;
+  transition: box-shadow 0.2s ease;
+}
+
+.label-group:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.label-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.label-color-indicator {
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.label-name {
+  font-weight: 600;
+  color: #495057;
+  flex-grow: 1;
+}
+
+.label-count {
+  font-size: 0.875rem;
+  color: #6c757d;
+  background: #e9ecef;
+  padding: 2px 6px;
+  border-radius: 10px;
+}
+
+.label-segments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.label-segment-item {
+  background: #ffffff;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  padding: 6px 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.8rem;
+  color: #495057;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.label-segment-item:hover {
+  background: #e3f2fd;
+  border-color: #2196f3;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  color: #1976d2;
+}
+
+.timeline-section {
+  position: relative;
+  z-index: 1;
+  overflow: hidden; /* Contain timeline elements */
+}
+
+.timeline-controls {
+  position: relative;
+  z-index: 10; /* Higher z-index to ensure controls are above timeline */
+  background: white;
+  padding: 16px;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+  margin-top: 20px; /* Additional space from timeline */
+}
+
+.control-select {
+  position: relative;
+  z-index: 15; /* Ensure dropdown is above everything */
+  width: auto;
+}
+
+.control-button {
+  position: relative;
+  z-index: 15; /* Ensure buttons are above everything */
+}
+
+/* Ensure dropdowns open above timeline elements */
+.control-select:focus,
+.control-select:active {
+  z-index: 20;
+}
+
+/* Timeline Segments Styles */
+.timeline-segment {
+  position: absolute;
+  height: 100%;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+}
+
+.timeline-segment:hover {
+  opacity: 0.8;
+  transform: translateY(-1px);
+}
+
+.segment-label {
+  font-size: 10px;
+  color: #333;
+  font-weight: bold;
+  text-shadow: 1px 1px 1px rgba(255, 255, 255, 0.8);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.current-time-indicator {
+  position: absolute;
+  width: 2px;
+  height: 100%;
+  background: #ff0000;
+  top: 0;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.time-marker {
+  position: absolute;
+  font-size: 8px;
+  color: #6c757d;
+  top: -20px;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+.timeline-markers {
+  position: relative;
+  height: 20px;
+  margin-top: 5px;
+}
+
+/* Segment Management Styles */
+.segments-management {
+  margin-top: 20px;
+  padding: 15px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+}
+
+.segments-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.segment-item {
+  display: flex;
+  justify-content: between;
+  align-items: center;
+  padding: 10px;
+  background: white;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  transition: box-shadow 0.2s ease;
+}
+
+.segment-item:hover {
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.segment-info {
+  flex-grow: 1;
+}
+
+.segment-time {
+  display: block;
+  font-size: 0.875rem;
+  color: #6c757d;
+  margin-top: 2px;
+}
+
+.segment-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-secondary {
+  background: #6c757d;
+  color: white;
+  border: none;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.btn-secondary:hover {
+  background: #5a6268;
+}
+
+.btn-danger {
+  background: #dc3545;
+  color: white;
+  border: none;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.btn-danger:hover {
+  background: #c82333;
 }
 </style>

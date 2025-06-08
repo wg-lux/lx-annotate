@@ -5,7 +5,7 @@ from django.conf import settings
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from .serializers import FileUploadSerializer
+from .serializers import FileUploadSerializer, LabelVideoSegmentSerializer
 #from lx_anonymizer import main
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -19,6 +19,13 @@ from django.utils.decorators import method_decorator
 from urllib.parse import urljoin
 
 from django.http import FileResponse
+from rest_framework.decorators import api_view
+from django.shortcuts import get_object_or_404
+import logging
+
+from endoreg_db.models import VideoFile, LabelVideoSegment, Label
+
+logger = logging.getLogger(__name__)
 
 def serve_video(request):
     # Open the video file in binary mode.
@@ -244,3 +251,86 @@ class ProcessFileView(APIView):
                     os.remove(temp_file_path)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['POST', 'GET'])
+def video_segments_view(request):
+    """
+    Handle video segment creation and listing.
+    POST: Create a new label video segment
+    GET: List all segments (with optional video_id filter)
+    """
+    if request.method == 'POST':
+        serializer = LabelVideoSegmentSerializer(data=request.data)
+        if serializer.is_valid():
+            try:
+                segment = serializer.save()
+                return Response(
+                    LabelVideoSegmentSerializer(segment).data, 
+                    status=status.HTTP_201_CREATED
+                )
+            except Exception as e:
+                logger.error(f"Error creating video segment: {str(e)}")
+                return Response(
+                    {'error': f'Failed to create segment: {str(e)}'}, 
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+        else:
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    elif request.method == 'GET':
+        # Optional filtering by video_id
+        video_id = request.GET.get('video_id')
+        if video_id:
+            try:
+                video = VideoFile.objects.get(id=video_id)
+                segments = video.label_video_segments.all()
+            except VideoFile.DoesNotExist:
+                return Response(
+                    {'error': f'Video with id {video_id} not found'}, 
+                    status=status.HTTP_404_NOT_FOUND
+                )
+        else:
+            segments = LabelVideoSegment.objects.all()
+        
+        serializer = LabelVideoSegmentSerializer(segments, many=True)
+        return Response(serializer.data)
+
+@api_view(['GET', 'PUT', 'DELETE'])
+def video_segment_detail_view(request, segment_id):
+    """
+    Handle individual video segment operations.
+    GET: Retrieve segment details
+    PUT: Update segment
+    DELETE: Delete segment
+    """
+    segment = get_object_or_404(LabelVideoSegment, id=segment_id)
+    
+    if request.method == 'GET':
+        serializer = LabelVideoSegmentSerializer(segment)
+        return Response(serializer.data)
+    
+    elif request.method == 'PUT':
+        serializer = LabelVideoSegmentSerializer(segment, data=request.data, partial=True)
+        if serializer.is_valid():
+            try:
+                segment = serializer.save()
+                return Response(LabelVideoSegmentSerializer(segment).data)
+            except Exception as e:
+                logger.error(f"Error updating video segment {segment_id}: {str(e)}")
+                return Response(
+                    {'error': f'Failed to update segment: {str(e)}'}, 
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+        else:
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    elif request.method == 'DELETE':
+        try:
+            segment.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        except Exception as e:
+            logger.error(f"Error deleting video segment {segment_id}: {str(e)}")
+            return Response(
+                {'error': f'Failed to delete segment: {str(e)}'}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
