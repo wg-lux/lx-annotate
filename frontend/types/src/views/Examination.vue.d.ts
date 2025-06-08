@@ -1,78 +1,500 @@
 declare const _default: import("vue").DefineComponent<{}, {}, {}, {}, {}, import("vue").ComponentOptionsMixin, import("vue").ComponentOptionsMixin, {}, string, import("vue").PublicProps, Readonly<{}> & Readonly<{}>, {}, {}, {
-    ExaminationGenerator: import("vue").DefineComponent<{}, {
-        examinations: import("vue").Ref<{
+    ExaminationGenerator: import("vue").DefineComponent<import("vue").ExtractPropTypes<{
+        videoTimestamp: {
+            type: NumberConstructor;
+            default: null;
+        };
+        videoId: {
+            type: NumberConstructor;
+            default: null;
+        };
+    }>, {
+        availableExaminations: import("vue").Ref<{
             id: number;
             name: string;
             domainId?: number | undefined;
             applicableClassifications?: string[] | undefined;
+            optionalLocationClassifications?: {
+                id: number;
+                name: string;
+                name_de?: string | undefined;
+                name_en?: string | undefined;
+                description?: string | undefined;
+                description_de?: string | undefined;
+                description_en?: string | undefined;
+                choices: {
+                    id: number;
+                    name: string;
+                    name_de?: string | undefined;
+                    name_en?: string | undefined;
+                    description?: string | undefined;
+                    description_de?: string | undefined;
+                    description_en?: string | undefined;
+                    classificationId: number;
+                    subcategories?: Record<string, any> | undefined;
+                    numerical_descriptors?: Record<string, any> | undefined;
+                }[];
+            }[] | undefined;
+            requiredLocationClassifications?: {
+                id: number;
+                name: string;
+                name_de?: string | undefined;
+                name_en?: string | undefined;
+                description?: string | undefined;
+                description_de?: string | undefined;
+                description_en?: string | undefined;
+                choices: {
+                    id: number;
+                    name: string;
+                    name_de?: string | undefined;
+                    name_en?: string | undefined;
+                    description?: string | undefined;
+                    description_de?: string | undefined;
+                    description_en?: string | undefined;
+                    classificationId: number;
+                    subcategories?: Record<string, any> | undefined;
+                    numerical_descriptors?: Record<string, any> | undefined;
+                }[];
+            }[] | undefined;
+            optionalMorphologyClassifications?: {
+                id: number;
+                name: string;
+                name_de?: string | undefined;
+                name_en?: string | undefined;
+                description?: string | undefined;
+                description_de?: string | undefined;
+                description_en?: string | undefined;
+                choices: {
+                    id: number;
+                    name: string;
+                    name_de?: string | undefined;
+                    name_en?: string | undefined;
+                    description?: string | undefined;
+                    description_de?: string | undefined;
+                    description_en?: string | undefined;
+                    classificationId: number;
+                    subcategories?: Record<string, any> | undefined;
+                    numerical_descriptors?: Record<string, any> | undefined;
+                }[];
+            }[] | undefined;
+            requiredMorphologyClassifications?: {
+                id: number;
+                name: string;
+                name_de?: string | undefined;
+                name_en?: string | undefined;
+                description?: string | undefined;
+                description_de?: string | undefined;
+                description_en?: string | undefined;
+                choices: {
+                    id: number;
+                    name: string;
+                    name_de?: string | undefined;
+                    name_en?: string | undefined;
+                    description?: string | undefined;
+                    description_de?: string | undefined;
+                    description_en?: string | undefined;
+                    classificationId: number;
+                    subcategories?: Record<string, any> | undefined;
+                    numerical_descriptors?: Record<string, any> | undefined;
+                }[];
+            }[] | undefined;
         }[], import("../stores/examinationStore.js").Examination[] | {
             id: number;
             name: string;
             domainId?: number | undefined;
             applicableClassifications?: string[] | undefined;
+            optionalLocationClassifications?: {
+                id: number;
+                name: string;
+                name_de?: string | undefined;
+                name_en?: string | undefined;
+                description?: string | undefined;
+                description_de?: string | undefined;
+                description_en?: string | undefined;
+                choices: {
+                    id: number;
+                    name: string;
+                    name_de?: string | undefined;
+                    name_en?: string | undefined;
+                    description?: string | undefined;
+                    description_de?: string | undefined;
+                    description_en?: string | undefined;
+                    classificationId: number;
+                    subcategories?: Record<string, any> | undefined;
+                    numerical_descriptors?: Record<string, any> | undefined;
+                }[];
+            }[] | undefined;
+            requiredLocationClassifications?: {
+                id: number;
+                name: string;
+                name_de?: string | undefined;
+                name_en?: string | undefined;
+                description?: string | undefined;
+                description_de?: string | undefined;
+                description_en?: string | undefined;
+                choices: {
+                    id: number;
+                    name: string;
+                    name_de?: string | undefined;
+                    name_en?: string | undefined;
+                    description?: string | undefined;
+                    description_de?: string | undefined;
+                    description_en?: string | undefined;
+                    classificationId: number;
+                    subcategories?: Record<string, any> | undefined;
+                    numerical_descriptors?: Record<string, any> | undefined;
+                }[];
+            }[] | undefined;
+            optionalMorphologyClassifications?: {
+                id: number;
+                name: string;
+                name_de?: string | undefined;
+                name_en?: string | undefined;
+                description?: string | undefined;
+                description_de?: string | undefined;
+                description_en?: string | undefined;
+                choices: {
+                    id: number;
+                    name: string;
+                    name_de?: string | undefined;
+                    name_en?: string | undefined;
+                    description?: string | undefined;
+                    description_de?: string | undefined;
+                    description_en?: string | undefined;
+                    classificationId: number;
+                    subcategories?: Record<string, any> | undefined;
+                    numerical_descriptors?: Record<string, any> | undefined;
+                }[];
+            }[] | undefined;
+            requiredMorphologyClassifications?: {
+                id: number;
+                name: string;
+                name_de?: string | undefined;
+                name_en?: string | undefined;
+                description?: string | undefined;
+                description_de?: string | undefined;
+                description_en?: string | undefined;
+                choices: {
+                    id: number;
+                    name: string;
+                    name_de?: string | undefined;
+                    name_en?: string | undefined;
+                    description?: string | undefined;
+                    description_de?: string | undefined;
+                    description_en?: string | undefined;
+                    classificationId: number;
+                    subcategories?: Record<string, any> | undefined;
+                    numerical_descriptors?: Record<string, any> | undefined;
+                }[];
+            }[] | undefined;
         }[]>;
-        selectedExamId: import("vue").Ref<number | null, number | null>;
-        activeCategory: import("vue").Ref<keyof import("../stores/examinationStore.js").SubcategoryMap, keyof import("../stores/examinationStore.js").SubcategoryMap>;
-        form: import("vue").Ref<{
-            selectedLocations: number[];
-            selectedInterventions: number[];
-            selectedFindings: number[];
-            selectedLocationClassifications: number[];
-            selectedMorphologyClassifications: number[];
-            selectedMorphologyChoices: number[];
-        }, {
-            selectedLocations: number[];
-            selectedInterventions: number[];
-            selectedFindings: number[];
-            selectedLocationClassifications: number[];
-            selectedMorphologyClassifications: number[];
-            selectedMorphologyChoices: number[];
-        } | {
-            selectedLocations: number[];
-            selectedInterventions: number[];
-            selectedFindings: number[];
-            selectedLocationClassifications: number[];
-            selectedMorphologyClassifications: number[];
-            selectedMorphologyChoices: number[];
-        }>;
-        tempSelection: import("vue").Ref<{
-            locationChoiceId: number | undefined;
-            interventionId: number | undefined;
-            morphologyChoiceId: number | undefined;
-        }, {
-            locationChoiceId: number | undefined;
-            interventionId: number | undefined;
-            morphologyChoiceId: number | undefined;
-        } | {
-            locationChoiceId: number | undefined;
-            interventionId: number | undefined;
-            morphologyChoiceId: number | undefined;
-        }>;
-        subcategories: import("vue").ComputedRef<import("../stores/examinationStore.js").SubcategoryMap>;
-        categoryLabels: {
-            readonly locationClassifications: "Lokalisierung";
-            readonly morphologyClassifications: "Morphologie";
-            readonly findings: "Findings";
-            readonly interventions: "Interventionen";
-        };
-        onExamChange: () => Promise<void>;
-        onLocationClassificationChange: () => Promise<void>;
-        onMorphologyClassificationChange: () => Promise<void>;
-        onFindingChange: () => Promise<void>;
-        colourMap: {
-            locationClassifications: string;
-            locationChoices: string;
-            morphologyClassifications: string;
-            morphologyChoices: string;
-            findings: string;
-            interventions: string;
-        };
-        selectedLocationClassificationId: import("vue").Ref<number | null, number | null>;
-        selectedMorphologyClassificationId: import("vue").Ref<number | null, number | null>;
+        availableFindings: import("vue").Ref<{
+            id: number;
+            name: string;
+            name_de?: string | undefined;
+            name_en?: string | undefined;
+            description?: string | undefined;
+            description_de?: string | undefined;
+            description_en?: string | undefined;
+            optionalLocationClassifications?: {
+                id: number;
+                name: string;
+                name_de?: string | undefined;
+                name_en?: string | undefined;
+                description?: string | undefined;
+                description_de?: string | undefined;
+                description_en?: string | undefined;
+                choices: {
+                    id: number;
+                    name: string;
+                    name_de?: string | undefined;
+                    name_en?: string | undefined;
+                    description?: string | undefined;
+                    description_de?: string | undefined;
+                    description_en?: string | undefined;
+                    classificationId: number;
+                    subcategories?: Record<string, any> | undefined;
+                    numerical_descriptors?: Record<string, any> | undefined;
+                }[];
+            }[] | undefined;
+            requiredLocationClassifications?: {
+                id: number;
+                name: string;
+                name_de?: string | undefined;
+                name_en?: string | undefined;
+                description?: string | undefined;
+                description_de?: string | undefined;
+                description_en?: string | undefined;
+                choices: {
+                    id: number;
+                    name: string;
+                    name_de?: string | undefined;
+                    name_en?: string | undefined;
+                    description?: string | undefined;
+                    description_de?: string | undefined;
+                    description_en?: string | undefined;
+                    classificationId: number;
+                    subcategories?: Record<string, any> | undefined;
+                    numerical_descriptors?: Record<string, any> | undefined;
+                }[];
+            }[] | undefined;
+            optionalMorphologyClassifications?: {
+                id: number;
+                name: string;
+                name_de?: string | undefined;
+                name_en?: string | undefined;
+                description?: string | undefined;
+                description_de?: string | undefined;
+                description_en?: string | undefined;
+                choices: {
+                    id: number;
+                    name: string;
+                    name_de?: string | undefined;
+                    name_en?: string | undefined;
+                    description?: string | undefined;
+                    description_de?: string | undefined;
+                    description_en?: string | undefined;
+                    classificationId: number;
+                    subcategories?: Record<string, any> | undefined;
+                    numerical_descriptors?: Record<string, any> | undefined;
+                }[];
+            }[] | undefined;
+            requiredMorphologyClassifications?: {
+                id: number;
+                name: string;
+                name_de?: string | undefined;
+                name_en?: string | undefined;
+                description?: string | undefined;
+                description_de?: string | undefined;
+                description_en?: string | undefined;
+                choices: {
+                    id: number;
+                    name: string;
+                    name_de?: string | undefined;
+                    name_en?: string | undefined;
+                    description?: string | undefined;
+                    description_de?: string | undefined;
+                    description_en?: string | undefined;
+                    classificationId: number;
+                    subcategories?: Record<string, any> | undefined;
+                    numerical_descriptors?: Record<string, any> | undefined;
+                }[];
+            }[] | undefined;
+        }[], import("../stores/examinationStore.js").Finding[] | {
+            id: number;
+            name: string;
+            name_de?: string | undefined;
+            name_en?: string | undefined;
+            description?: string | undefined;
+            description_de?: string | undefined;
+            description_en?: string | undefined;
+            optionalLocationClassifications?: {
+                id: number;
+                name: string;
+                name_de?: string | undefined;
+                name_en?: string | undefined;
+                description?: string | undefined;
+                description_de?: string | undefined;
+                description_en?: string | undefined;
+                choices: {
+                    id: number;
+                    name: string;
+                    name_de?: string | undefined;
+                    name_en?: string | undefined;
+                    description?: string | undefined;
+                    description_de?: string | undefined;
+                    description_en?: string | undefined;
+                    classificationId: number;
+                    subcategories?: Record<string, any> | undefined;
+                    numerical_descriptors?: Record<string, any> | undefined;
+                }[];
+            }[] | undefined;
+            requiredLocationClassifications?: {
+                id: number;
+                name: string;
+                name_de?: string | undefined;
+                name_en?: string | undefined;
+                description?: string | undefined;
+                description_de?: string | undefined;
+                description_en?: string | undefined;
+                choices: {
+                    id: number;
+                    name: string;
+                    name_de?: string | undefined;
+                    name_en?: string | undefined;
+                    description?: string | undefined;
+                    description_de?: string | undefined;
+                    description_en?: string | undefined;
+                    classificationId: number;
+                    subcategories?: Record<string, any> | undefined;
+                    numerical_descriptors?: Record<string, any> | undefined;
+                }[];
+            }[] | undefined;
+            optionalMorphologyClassifications?: {
+                id: number;
+                name: string;
+                name_de?: string | undefined;
+                name_en?: string | undefined;
+                description?: string | undefined;
+                description_de?: string | undefined;
+                description_en?: string | undefined;
+                choices: {
+                    id: number;
+                    name: string;
+                    name_de?: string | undefined;
+                    name_en?: string | undefined;
+                    description?: string | undefined;
+                    description_de?: string | undefined;
+                    description_en?: string | undefined;
+                    classificationId: number;
+                    subcategories?: Record<string, any> | undefined;
+                    numerical_descriptors?: Record<string, any> | undefined;
+                }[];
+            }[] | undefined;
+            requiredMorphologyClassifications?: {
+                id: number;
+                name: string;
+                name_de?: string | undefined;
+                name_en?: string | undefined;
+                description?: string | undefined;
+                description_de?: string | undefined;
+                description_en?: string | undefined;
+                choices: {
+                    id: number;
+                    name: string;
+                    name_de?: string | undefined;
+                    name_en?: string | undefined;
+                    description?: string | undefined;
+                    description_de?: string | undefined;
+                    description_en?: string | undefined;
+                    classificationId: number;
+                    subcategories?: Record<string, any> | undefined;
+                    numerical_descriptors?: Record<string, any> | undefined;
+                }[];
+            }[] | undefined;
+        }[]>;
+        locationClassifications: import("vue").Ref<{
+            id: number;
+            name: string;
+            name_de?: string | undefined;
+            name_en?: string | undefined;
+            description?: string | undefined;
+            description_de?: string | undefined;
+            description_en?: string | undefined;
+            choices: {
+                id: number;
+                name: string;
+                name_de?: string | undefined;
+                name_en?: string | undefined;
+                description?: string | undefined;
+                description_de?: string | undefined;
+                description_en?: string | undefined;
+                classificationId: number;
+                subcategories?: Record<string, any> | undefined;
+                numerical_descriptors?: Record<string, any> | undefined;
+            }[];
+        }[], import("../stores/examinationStore.js").LocationClassification[] | {
+            id: number;
+            name: string;
+            name_de?: string | undefined;
+            name_en?: string | undefined;
+            description?: string | undefined;
+            description_de?: string | undefined;
+            description_en?: string | undefined;
+            choices: {
+                id: number;
+                name: string;
+                name_de?: string | undefined;
+                name_en?: string | undefined;
+                description?: string | undefined;
+                description_de?: string | undefined;
+                description_en?: string | undefined;
+                classificationId: number;
+                subcategories?: Record<string, any> | undefined;
+                numerical_descriptors?: Record<string, any> | undefined;
+            }[];
+        }[]>;
+        morphologyClassifications: import("vue").Ref<{
+            id: number;
+            name: string;
+            name_de?: string | undefined;
+            name_en?: string | undefined;
+            description?: string | undefined;
+            description_de?: string | undefined;
+            description_en?: string | undefined;
+            choices: {
+                id: number;
+                name: string;
+                name_de?: string | undefined;
+                name_en?: string | undefined;
+                description?: string | undefined;
+                description_de?: string | undefined;
+                description_en?: string | undefined;
+                classificationId: number;
+                subcategories?: Record<string, any> | undefined;
+                numerical_descriptors?: Record<string, any> | undefined;
+            }[];
+        }[], import("../stores/examinationStore.js").MorphologyClassification[] | {
+            id: number;
+            name: string;
+            name_de?: string | undefined;
+            name_en?: string | undefined;
+            description?: string | undefined;
+            description_de?: string | undefined;
+            description_en?: string | undefined;
+            choices: {
+                id: number;
+                name: string;
+                name_de?: string | undefined;
+                name_en?: string | undefined;
+                description?: string | undefined;
+                description_de?: string | undefined;
+                description_en?: string | undefined;
+                classificationId: number;
+                subcategories?: Record<string, any> | undefined;
+                numerical_descriptors?: Record<string, any> | undefined;
+            }[];
+        }[]>;
+        selectedExaminationId: import("vue").Ref<number | null, number | null>;
         selectedFindingId: import("vue").Ref<number | null, number | null>;
+        selectedLocationChoices: import("vue").Ref<number[], number[]>;
+        selectedMorphologyChoices: import("vue").Ref<number[], number[]>;
+        activeTab: import("vue").Ref<"location" | "morphology", "location" | "morphology">;
+        notes: import("vue").Ref<string, string>;
         loading: import("vue").Ref<boolean, boolean>;
         error: import("vue").Ref<string | null, string | null>;
-    }, {}, {}, {}, import("vue").ComponentOptionsMixin, import("vue").ComponentOptionsMixin, {}, string, import("vue").PublicProps, Readonly<{}> & Readonly<{}>, {}, {}, {
+        examinationDataLoaded: import("vue").Ref<boolean, boolean>;
+        hasRequiredLocationClassifications: import("vue").ComputedRef<boolean>;
+        hasRequiredMorphologyClassifications: import("vue").ComputedRef<boolean>;
+        validationErrors: import("vue").ComputedRef<string[]>;
+        canSave: import("vue").ComputedRef<boolean>;
+        onExaminationChange: () => void;
+        onFindingChange: () => void;
+        isRequiredLocationClassification: (classificationId: number) => boolean;
+        isRequiredMorphologyClassification: (classificationId: number) => boolean;
+        getSelectedLocationChoicesForClassification: (classificationId: number) => number[];
+        getSelectedMorphologyChoicesForClassification: (classificationId: number) => number[];
+        updateLocationChoicesForClassification: (classificationId: number, choiceIds: number[]) => void;
+        updateMorphologyChoicesForClassification: (classificationId: number, choiceIds: number[]) => void;
+        hasSelectedLocationChoiceForClassification: (classificationId: number) => boolean;
+        hasSelectedMorphologyChoiceForClassification: (classificationId: number) => boolean;
+        saveFinding: () => Promise<void>;
+        resetForm: () => void;
+    }, {}, {}, {}, import("vue").ComponentOptionsMixin, import("vue").ComponentOptionsMixin, "examination-saved"[], "examination-saved", import("vue").PublicProps, Readonly<import("vue").ExtractPropTypes<{
+        videoTimestamp: {
+            type: NumberConstructor;
+            default: null;
+        };
+        videoId: {
+            type: NumberConstructor;
+            default: null;
+        };
+    }>> & Readonly<{
+        "onExamination-saved"?: ((...args: any[]) => any) | undefined;
+    }>, {
+        videoId: number;
+        videoTimestamp: number;
+    }, {}, {
         ClassificationCard: import("vue").DefineComponent<import("vue").ExtractPropTypes<{
             label: {
                 type: StringConstructor;

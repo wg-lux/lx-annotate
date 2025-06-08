@@ -22,7 +22,7 @@ const router = createRouter({
     {
       path: '/video-examination',
       name: 'Video-Untersuchung',
-      component: () => import('@/views/VideoExamination.vue'),
+      component: () => import('@/views/VideoExaminationAnnotation.vue'),
       meta: {
         description: 'Annotieren Sie Untersuchungen während der Videobetrachtung.'
       }
@@ -41,6 +41,33 @@ const router = createRouter({
       component: () => import('@/views/FrameSelection.vue'),
       meta: {
         description: 'Wählen Sie Frames aus Videos für die Annotation aus.'
+      }
+    },
+    {
+      path: '/sensitive-meta-annotation',
+      name: 'Patientendaten Annotation',
+      component: () => import('@/components/SensitiveMeta/PatientSensitiveMetaAnnotation.vue'),
+      meta: {
+        description: 'Hier können Sie Patientendaten validieren und bearbeiten.'
+      }
+    },
+    {
+      path: '/sensitive-meta/:patientId?',
+      name: 'Patientendaten Detail',
+      component: () => import('@/components/SensitiveMeta/PatientSensitiveMetaAnnotation.vue'),
+      props: (route) => ({ 
+        patientId: route.params.patientId ? Number(route.params.patientId) : undefined 
+      }),
+      meta: {
+        description: 'Detailansicht für spezifische Patientendaten.'
+      }
+    },
+    {
+      path: '/sensitive-meta-video',
+      name: 'Patientendaten Video Annotation',
+      component: () => import('@/components/SensitiveMeta/PatientSensitiveMetaVideoAnnotation.vue'),
+      meta: {
+          description: 'Hier können Sie Patientendaten in Videos annotieren.'
       }
     },
     {

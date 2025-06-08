@@ -114,11 +114,19 @@
               </router-link>
             </li>
             <li class="nav-item">
-              <router-link to="/ueber-uns" class="nav-link" :class="{ active: $route.path === '/ueber-uns' }">
+              <router-link to="/sensitive-meta-video" class="nav-link" :class="{ active: $route.path === '/ueber-uns' }">
                 <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
                   <i class="material-icons opacity-10">people</i>
                 </div>
-                <span class="nav-link-text ms-1">Über Uns</span>
+                <span class="nav-link-text ms-1">Video Meta Annotation</span>
+              </router-link>
+            </li>
+            <li class="nav-item">
+              <router-link to="/sensitive-meta-annotation" class="nav-link" :class="{ active: $route.path === '/kontakt' }">
+                <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
+                  <i class="material-icons opacity-10">contact_mail</i>
+                </div>
+                <span class="nav-link-text ms-1">Kontakt</span>
               </router-link>
             </li>
           </ul>

@@ -1,5 +1,6 @@
 <template>
   <div class="simple-examination-form">
+    <!-- Examination Type Selection -->
     <div class="mb-3">
       <label class="form-label">Untersuchungstyp:</label>
       <select v-model="selectedExamination" @change="loadExaminationData" class="form-select">
@@ -10,79 +11,116 @@
       </select>
     </div>
 
-    <div v-if="selectedExamination" class="examination-details">
-      <!-- Location Classifications -->
+    <!-- Show examination details after selection -->
+    <div v-if="selectedExamination && examinationDataLoaded" class="examination-details">
+      
+      <!-- Finding Selection -->
       <div class="mb-3">
-        <label class="form-label">Lokalisierung:</label>
-        <select v-model="selectedLocation" class="form-select">
-          <option value="">-- Lokalisierung wählen --</option>
-          <option v-for="location in locationClassifications" :key="location.id" :value="location.id">
-            {{ location.name }}
-          </option>
-        </select>
-      </div>
-
-      <!-- Findings -->
-      <div class="mb-3">
-        <label class="form-label">Befunde:</label>
-        <select v-model="selectedFinding" @change="loadInterventions" class="form-select">
+        <label class="form-label">Befund:</label>
+        <select v-model="selectedFinding" @change="onFindingChange" class="form-select">
           <option value="">-- Befund wählen --</option>
-          <option v-for="finding in findings" :key="finding.id" :value="finding.id">
-            {{ finding.name }}
+          <option v-for="finding in availableFindings" :key="finding.id" :value="finding.id">
+            {{ finding.name_de || finding.name }}
           </option>
         </select>
       </div>
 
-      <!-- Interventions (if finding is selected) -->
-      <div v-if="selectedFinding && interventions.length > 0" class="mb-3">
-        <label class="form-label">Interventionen:</label>
-        <div v-for="intervention in interventions" :key="intervention.id" class="form-check">
-          <input 
-            type="checkbox" 
-            :id="`intervention-${intervention.id}`"
-            v-model="selectedInterventions"
-            :value="intervention.id"
-            class="form-check-input"
-          >
-          <label :for="`intervention-${intervention.id}`" class="form-check-label">
-            {{ intervention.name }}
-          </label>
+      <!-- Show classification cards if finding is selected -->
+      <div v-if="selectedFinding && currentFindingData" class="classification-section">
+        
+        <!-- Location Classifications -->
+        <div v-if="locationClassifications.length > 0" class="mb-4">
+          <h6 class="mb-3">Lokalisierung</h6>
+          <div class="classification-cards">
+            <ClassificationCard
+              v-for="classification in locationClassifications"
+              :key="`location-${classification.id}`"
+              :label="classification.name_de || classification.name"
+              :options="getLocationChoicesForClassification(classification.id)"
+              :model-value="getSelectedLocationChoices(classification.id)"
+              @update:model-value="updateLocationChoices(classification.id, $event)"
+              :compact="true"
+              :single-select="false"
+            />
+          </div>
+        </div>
+
+        <!-- Morphology Classifications -->
+        <div v-if="morphologyClassifications.length > 0" class="mb-4">
+          <h6 class="mb-3">Morphologie</h6>
+          <div class="classification-cards">
+            <ClassificationCard
+              v-for="classification in morphologyClassifications"
+              :key="`morphology-${classification.id}`"
+              :label="classification.name_de || classification.name"
+              :options="getMorphologyChoicesForClassification(classification.id)"
+              :model-value="getSelectedMorphologyChoices(classification.id)"
+              @update:model-value="updateMorphologyChoices(classification.id, $event)"
+              :compact="true"
+              :single-select="false"
+            />
+          </div>
+        </div>
+
+        <!-- Notes -->
+        <div class="mb-3">
+          <label class="form-label">Notizen:</label>
+          <textarea 
+            v-model="notes" 
+            class="form-control" 
+            rows="3" 
+            placeholder="Zusätzliche Bemerkungen..."
+          ></textarea>
+        </div>
+
+        <!-- Save Button -->
+        <div class="d-grid">
+          <button @click="saveExamination" class="btn btn-primary" :disabled="!canSave">
+            Untersuchung speichern
+          </button>
+        </div>
+
+        <!-- Validation Errors -->
+        <div v-if="validationErrors.length > 0" class="alert alert-warning mt-3">
+          <small class="text-muted">Fehlende Angaben:</small>
+          <ul class="mb-0 mt-1">
+            <li v-for="error in validationErrors" :key="error">{{ error }}</li>
+          </ul>
         </div>
       </div>
 
-      <!-- Notes -->
-      <div class="mb-3">
-        <label class="form-label">Notizen:</label>
-        <textarea v-model="notes" class="form-control" rows="3" placeholder="Zusätzliche Bemerkungen..."></textarea>
+      <!-- Help text when no finding selected -->
+      <div v-else-if="selectedExamination && availableFindings.length === 0" class="alert alert-info">
+        <i class="material-icons me-2">info</i>
+        Keine Befunde verfügbar für diesen Untersuchungstyp.
       </div>
+    </div>
 
-      <!-- Save Button -->
-      <div class="d-grid">
-        <button @click="saveExamination" class="btn btn-primary" :disabled="!canSave">
-          Untersuchung speichern
-        </button>
+    <!-- Loading state -->
+    <div v-if="loading" class="text-center py-3">
+      <div class="spinner-border spinner-border-sm" role="status">
+        <span class="visually-hidden">Lädt...</span>
       </div>
+      <span class="ms-2">Lade Untersuchungsdaten...</span>
+    </div>
 
-      <!-- Selected Items Summary -->
-      <div v-if="hasSelections" class="mt-3 p-2 bg-light rounded">
-        <small class="text-muted">Ausgewählt:</small>
-        <ul class="mb-0 mt-1">
-          <li v-if="selectedLocation">Lokalisierung: {{ getLocationName(selectedLocation) }}</li>
-          <li v-if="selectedFinding">Befund: {{ getFindingName(selectedFinding) }}</li>
-          <li v-if="selectedInterventions.length > 0">
-            Interventionen: {{ selectedInterventions.map(id => getInterventionName(id)).join(', ') }}
-          </li>
-        </ul>
-      </div>
+    <!-- Error state -->
+    <div v-if="error" class="alert alert-danger">
+      <i class="material-icons me-2">error</i>
+      {{ error }}
     </div>
   </div>
 </template>
 
 <script>
 import axiosInstance, { r } from '@/api/axiosInstance';
+import ClassificationCard from '../Examination/ClassificationCard.vue';
 
 export default {
   name: 'SimpleExaminationForm',
+  components: {
+    ClassificationCard
+  },
   props: {
     videoTimestamp: {
       type: Number,
@@ -96,119 +134,265 @@ export default {
   emits: ['examination-saved'],
   data() {
     return {
+      // Available data
       availableExaminations: [],
-      selectedExamination: null,
+      availableFindings: [],
       locationClassifications: [],
-      findings: [],
-      interventions: [],
-      selectedLocation: null,
+      morphologyClassifications: [],
+      
+      // Current selections
+      selectedExamination: null,
       selectedFinding: null,
-      selectedInterventions: [],
-      notes: ''
+      
+      // Current finding data
+      currentFindingData: null,
+      
+      // Form state
+      notes: '',
+      loading: false,
+      error: null,
+      examinationDataLoaded: false
     };
   },
   computed: {
     canSave() {
       return this.selectedExamination && 
-             (this.selectedLocation || this.selectedFinding) &&
-             this.videoId !== null;  // Ensure we have a valid video ID
+             this.selectedFinding &&
+             this.currentFindingData &&
+             this.videoId !== null &&
+             this.validationErrors.length === 0;
     },
-    hasSelections() {
-      return this.selectedLocation || this.selectedFinding || this.selectedInterventions.length > 0;
+    
+    validationErrors() {
+      const errors = [];
+      
+      if (!this.selectedExamination) {
+        errors.push('Untersuchungstyp erforderlich');
+      }
+      
+      if (!this.selectedFinding) {
+        errors.push('Befund erforderlich');
+      }
+      
+      // Check for required location classifications
+      if (this.currentFindingData) {
+        const requiredLocationClassifications = this.locationClassifications.filter(c => c.required);
+        for (const classification of requiredLocationClassifications) {
+          const hasSelection = this.getSelectedLocationChoices(classification.id).length > 0;
+          if (!hasSelection) {
+            errors.push(`${classification.name_de || classification.name} erforderlich`);
+          }
+        }
+        
+        // Check for required morphology classifications
+        const requiredMorphologyClassifications = this.morphologyClassifications.filter(c => c.required);
+        for (const classification of requiredMorphologyClassifications) {
+          const hasSelection = this.getSelectedMorphologyChoices(classification.id).length > 0;
+          if (!hasSelection) {
+            errors.push(`${classification.name_de || classification.name} erforderlich`);
+          }
+        }
+      }
+      
+      return errors;
     }
   },
   watch: {
     videoId() {
       this.resetForm();
-      this.selectedExamination = null;
     }
   },
   methods: {
     async loadExaminations() {
       try {
+        this.loading = true;
+        this.error = null;
+        
         const response = await axiosInstance.get(r('examinations/'));
-        this.availableExaminations = response.data;
+        this.availableExaminations = response.data || [];
+        
+        console.log('Loaded examinations:', this.availableExaminations);
       } catch (error) {
         console.error('Error loading examinations:', error);
+        this.error = 'Fehler beim Laden der Untersuchungstypen';
+      } finally {
+        this.loading = false;
       }
     },
+
     async loadExaminationData() {
-      if (!this.selectedExamination) return;
+      if (!this.selectedExamination) {
+        this.examinationDataLoaded = false;
+        return;
+      }
 
       try {
-        // Load location classifications
-        const locationResponse = await axiosInstance.get(r(`examination/${this.selectedExamination}/location-classifications/`));
-        this.locationClassifications = locationResponse.data;
-
+        this.loading = true;
+        this.error = null;
+        
         // Load findings
-        const findingsResponse = await axiosInstance.get(r(`examination/${this.selectedExamination}/findings/`));
-        this.findings = findingsResponse.data;
-
+        const findingsResponse = await axiosInstance.get(r('findings/'));
+        this.availableFindings = findingsResponse.data || [];
+        
+        // Load classifications
+        const [locationResponse, morphologyResponse] = await Promise.all([
+          axiosInstance.get(r('location-classifications/')),
+          axiosInstance.get(r('morphology-classifications/'))
+        ]);
+        
+        this.locationClassifications = locationResponse.data || [];
+        this.morphologyClassifications = morphologyResponse.data || [];
+        
+        console.log('Loaded examination data:', {
+          findings: this.availableFindings.length,
+          locationClassifications: this.locationClassifications.length,
+          morphologyClassifications: this.morphologyClassifications.length
+        });
+        
+        this.examinationDataLoaded = true;
+        
         // Reset selections
-        this.selectedLocation = null;
         this.selectedFinding = null;
-        this.selectedInterventions = [];
-        this.interventions = [];
+        this.currentFindingData = null;
+        
       } catch (error) {
         console.error('Error loading examination data:', error);
+        this.error = 'Fehler beim Laden der Untersuchungsdaten';
+        this.examinationDataLoaded = false;
+      } finally {
+        this.loading = false;
       }
     },
-    async loadInterventions() {
-      if (!this.selectedExamination || !this.selectedFinding) return;
 
-      try {
-        const response = await axiosInstance.get(r(`examination/${this.selectedExamination}/finding/${this.selectedFinding}/interventions/`));
-        this.interventions = response.data;
-        this.selectedInterventions = [];
-      } catch (error) {
-        console.error('Error loading interventions:', error);
+    onFindingChange() {
+      if (this.selectedFinding) {
+        // Initialize finding data
+        this.currentFindingData = {
+          findingId: this.selectedFinding,
+          selectedLocationChoices: [],
+          selectedMorphologyChoices: []
+        };
+      } else {
+        this.currentFindingData = null;
       }
     },
+
+    getLocationChoicesForClassification(classificationId) {
+      const classification = this.locationClassifications.find(c => c.id === classificationId);
+      if (!classification || !classification.choices) return [];
+      
+      return classification.choices.map(choice => ({
+        id: choice.id,
+        name: choice.name_de || choice.name
+      }));
+    },
+
+    getMorphologyChoicesForClassification(classificationId) {
+      const classification = this.morphologyClassifications.find(c => c.id === classificationId);
+      if (!classification || !classification.choices) return [];
+      
+      return classification.choices.map(choice => ({
+        id: choice.id,
+        name: choice.name_de || choice.name
+      }));
+    },
+
+    getSelectedLocationChoices(classificationId) {
+      if (!this.currentFindingData) return [];
+      
+      const classification = this.locationClassifications.find(c => c.id === classificationId);
+      if (!classification) return [];
+      
+      return this.currentFindingData.selectedLocationChoices.filter(choiceId =>
+        classification.choices && classification.choices.some(choice => choice.id === choiceId)
+      );
+    },
+
+    getSelectedMorphologyChoices(classificationId) {
+      if (!this.currentFindingData) return [];
+      
+      const classification = this.morphologyClassifications.find(c => c.id === classificationId);
+      if (!classification) return [];
+      
+      return this.currentFindingData.selectedMorphologyChoices.filter(choiceId =>
+        classification.choices && classification.choices.some(choice => choice.id === choiceId)
+      );
+    },
+
+    updateLocationChoices(classificationId, choiceIds) {
+      if (!this.currentFindingData) return;
+      
+      const classification = this.locationClassifications.find(c => c.id === classificationId);
+      if (!classification) return;
+      
+      // Remove all choices from this classification
+      const otherChoices = this.currentFindingData.selectedLocationChoices.filter(choiceId =>
+        !classification.choices || !classification.choices.some(choice => choice.id === choiceId)
+      );
+      
+      // Add new choices
+      this.currentFindingData.selectedLocationChoices = [...otherChoices, ...choiceIds];
+    },
+
+    updateMorphologyChoices(classificationId, choiceIds) {
+      if (!this.currentFindingData) return;
+      
+      const classification = this.morphologyClassifications.find(c => c.id === classificationId);
+      if (!classification) return;
+      
+      // Remove all choices from this classification
+      const otherChoices = this.currentFindingData.selectedMorphologyChoices.filter(choiceId =>
+        !classification.choices || !classification.choices.some(choice => choice.id === choiceId)
+      );
+      
+      // Add new choices
+      this.currentFindingData.selectedMorphologyChoices = [...otherChoices, ...choiceIds];
+    },
+
     async saveExamination() {
       if (!this.canSave || !this.videoId) return;
 
       const examinationData = {
         video_id: this.videoId,
         examination_type_id: this.selectedExamination,
-        timestamp: this.videoTimestamp,
-        location_classification_id: this.selectedLocation,
         finding_id: this.selectedFinding,
-        intervention_ids: this.selectedInterventions,
+        timestamp: this.videoTimestamp,
+        location_choices: this.currentFindingData.selectedLocationChoices,
+        morphology_choices: this.currentFindingData.selectedMorphologyChoices,
         notes: this.notes,
         created_at: new Date().toISOString()
       };
 
       try {
+        this.loading = true;
         const response = await axiosInstance.post(r('video-examinations/'), examinationData);
+        
         this.$emit('examination-saved', response.data);
         
         // Reset form
         this.resetForm();
         
         // Show success feedback
-        alert('Untersuchung erfolgreich gespeichert!');
+        console.log('Examination saved successfully:', response.data);
+        
       } catch (error) {
         console.error('Error saving examination:', error);
-        alert('Fehler beim Speichern der Untersuchung');
+        this.error = 'Fehler beim Speichern der Untersuchung';
+      } finally {
+        this.loading = false;
       }
     },
+
     resetForm() {
-      this.selectedLocation = null;
+      this.selectedExamination = null;
       this.selectedFinding = null;
-      this.selectedInterventions = [];
+      this.currentFindingData = null;
       this.notes = '';
-    },
-    // Helper functions for display names
-    getLocationName(id) {
-      return this.locationClassifications.find(l => l.id === id)?.name || '';
-    },
-    getFindingName(id) {
-      return this.findings.find(f => f.id === id)?.name || '';
-    },
-    getInterventionName(id) {
-      return this.interventions.find(i => i.id === id)?.name || '';
+      this.examinationDataLoaded = false;
+      this.error = null;
     }
   },
+
   mounted() {
     this.loadExaminations();
   }
@@ -227,11 +411,55 @@ export default {
   margin-top: 1rem;
 }
 
+.classification-section {
+  margin-top: 1.5rem;
+}
+
+.classification-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
 .form-check {
   margin-bottom: 0.5rem;
 }
 
+.alert {
+  padding: 0.75rem;
+  border-radius: 0.375rem;
+  margin-bottom: 1rem;
+}
+
+.alert-info {
+  background-color: #d1ecf1;
+  border-color: #bee5eb;
+  color: #0c5460;
+}
+
+.alert-warning {
+  background-color: #fff3cd;
+  border-color: #ffeaa7;
+  color: #856404;
+}
+
+.alert-danger {
+  background-color: #f8d7da;
+  border-color: #f5c6cb;
+  color: #721c24;
+}
+
+.spinner-border-sm {
+  width: 1rem;
+  height: 1rem;
+}
+
 .bg-light {
   background-color: #f8f9fa !important;
+}
+
+h6 {
+  color: #495057;
+  font-weight: 600;
 }
 </style>
