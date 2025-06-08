@@ -1,5 +1,7 @@
 import os
 from pathlib import Path
+from endoreg_db.utils.paths import STORAGE_DIR
+
 from lx_annotate.settings import (BASE_DIR,
     DEBUG,
     INSTALLED_APPS,
@@ -18,7 +20,7 @@ from lx_annotate.settings import (BASE_DIR,
 )
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
-
+MEDIA_ROOT = STORAGE_DIR
 
 VITE_DEV_SERVER_URL = 'http://localhost:8000'
 
