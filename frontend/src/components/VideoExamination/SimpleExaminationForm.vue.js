@@ -4,126 +4,241 @@ export default (await import('vue')).defineComponent({
     props: {
         videoTimestamp: {
             type: Number,
-            required: true
+            default: 0
         },
         videoId: {
-            type: [Number, String],
-            default: null
+            type: Number,
+            required: true
         }
     },
     emits: ['examination-saved'],
     data() {
         return {
-            availableExaminations: [],
-            selectedExamination: null,
-            locationClassifications: [],
+            loading: false,
+            error: null,
+            // Data arrays
+            examinations: [],
             findings: [],
+            locationClassifications: [],
+            locationChoices: [],
+            morphologyClassifications: [],
+            morphologyChoices: [],
             interventions: [],
-            selectedLocation: null,
-            selectedFinding: null,
+            // Selected IDs
+            selectedExaminationId: null,
+            selectedFindingId: null,
+            selectedLocationClassificationId: null,
+            selectedLocationChoiceId: null,
+            selectedMorphologyClassificationId: null,
+            selectedMorphologyChoiceId: null,
             selectedInterventions: [],
+            // Form data
             notes: ''
         };
     },
     computed: {
+        selectedExamination() {
+            return this.examinations.find(e => e.id === this.selectedExaminationId) || null;
+        },
+        selectedFinding() {
+            return this.findings.find(f => f.id === this.selectedFindingId) || null;
+        },
+        selectedLocationClassification() {
+            return this.locationClassifications.find(lc => lc.id === this.selectedLocationClassificationId) || null;
+        },
+        selectedLocationChoice() {
+            return this.locationChoices.find(lc => lc.id === this.selectedLocationChoiceId) || null;
+        },
+        selectedMorphologyClassification() {
+            return this.morphologyClassifications.find(mc => mc.id === this.selectedMorphologyClassificationId) || null;
+        },
+        selectedMorphologyChoice() {
+            return this.morphologyChoices.find(mc => mc.id === this.selectedMorphologyChoiceId) || null;
+        },
         canSave() {
-            return this.selectedExamination &&
-                (this.selectedLocation || this.selectedFinding) &&
-                this.videoId !== null; // Ensure we have a valid video ID
+            return this.selectedExaminationId && this.selectedFindingId;
         },
         hasSelections() {
-            return this.selectedLocation || this.selectedFinding || this.selectedInterventions.length > 0;
-        }
-    },
-    watch: {
-        videoId() {
-            this.resetForm();
-            this.selectedExamination = null;
+            return this.selectedExaminationId || this.selectedFindingId || this.selectedLocationClassificationId ||
+                this.selectedMorphologyClassificationId || this.selectedInterventions.length > 0;
         }
     },
     methods: {
         async loadExaminations() {
             try {
+                this.loading = true;
+                this.error = null;
                 const response = await axiosInstance.get(r('examinations/'));
-                this.availableExaminations = response.data;
+                this.examinations = response.data;
             }
             catch (error) {
+                this.error = 'Fehler beim Laden der Untersuchungstypen: ' + error.message;
                 console.error('Error loading examinations:', error);
             }
+            finally {
+                this.loading = false;
+            }
         },
-        async loadExaminationData() {
-            if (!this.selectedExamination)
+        async onExaminationChange() {
+            this.resetLowerLevels('examination');
+            if (!this.selectedExaminationId)
                 return;
             try {
-                // Load location classifications
-                const locationResponse = await axiosInstance.get(r(`examination/${this.selectedExamination}/location-classifications/`));
-                this.locationClassifications = locationResponse.data;
-                // Load findings
-                const findingsResponse = await axiosInstance.get(r(`examination/${this.selectedExamination}/findings/`));
+                this.loading = true;
+                this.error = null;
+                // Load findings and location classifications for this examination
+                const [findingsResponse, locationClassResponse] = await Promise.all([
+                    axiosInstance.get(r(`examination/${this.selectedExaminationId}/findings/`)),
+                    axiosInstance.get(r(`examination/${this.selectedExaminationId}/location-classifications/`))
+                ]);
                 this.findings = findingsResponse.data;
-                // Reset selections
-                this.selectedLocation = null;
-                this.selectedFinding = null;
-                this.selectedInterventions = [];
-                this.interventions = [];
+                this.locationClassifications = locationClassResponse.data;
+                // Try to load morphology classifications (might not exist for all examinations)
+                try {
+                    const morphologyResponse = await axiosInstance.get(r(`examination/${this.selectedExaminationId}/morphology-classifications/`));
+                    this.morphologyClassifications = morphologyResponse.data;
+                }
+                catch (err) {
+                    console.warn('Morphology classifications not available for this examination:', err);
+                    this.morphologyClassifications = [];
+                }
             }
             catch (error) {
-                console.error('Error loading examination data:', error);
+                this.error = 'Fehler beim Laden der Findings: ' + error.message;
+                console.error('Error loading findings:', error);
+            }
+            finally {
+                this.loading = false;
             }
         },
-        async loadInterventions() {
-            if (!this.selectedExamination || !this.selectedFinding)
+        async onFindingChange() {
+            this.resetLowerLevels('finding');
+            if (!this.selectedFindingId || !this.selectedExaminationId)
                 return;
             try {
-                const response = await axiosInstance.get(r(`examination/${this.selectedExamination}/finding/${this.selectedFinding}/interventions/`));
+                this.loading = true;
+                this.error = null;
+                // Load interventions for this finding
+                const response = await axiosInstance.get(r(`examination/${this.selectedExaminationId}/finding/${this.selectedFindingId}/interventions/`));
                 this.interventions = response.data;
-                this.selectedInterventions = [];
             }
             catch (error) {
+                this.error = 'Fehler beim Laden der Interventionen: ' + error.message;
                 console.error('Error loading interventions:', error);
+            }
+            finally {
+                this.loading = false;
+            }
+        },
+        async onLocationClassificationChange() {
+            this.resetLowerLevels('locationClassification');
+            if (!this.selectedLocationClassificationId || !this.selectedExaminationId)
+                return;
+            try {
+                this.loading = true;
+                this.error = null;
+                // Load location choices for this classification
+                const response = await axiosInstance.get(r(`examination/${this.selectedExaminationId}/location-classification/${this.selectedLocationClassificationId}/choices/`));
+                this.locationChoices = response.data;
+            }
+            catch (error) {
+                this.error = 'Fehler beim Laden der Lokalisationen: ' + error.message;
+                console.error('Error loading location choices:', error);
+            }
+            finally {
+                this.loading = false;
+            }
+        },
+        async onMorphologyClassificationChange() {
+            this.resetLowerLevels('morphologyClassification');
+            if (!this.selectedMorphologyClassificationId || !this.selectedExaminationId)
+                return;
+            try {
+                this.loading = true;
+                this.error = null;
+                // Load morphology choices for this classification
+                const response = await axiosInstance.get(r(`examination/${this.selectedExaminationId}/morphology-classification/${this.selectedMorphologyClassificationId}/choices/`));
+                this.morphologyChoices = response.data;
+            }
+            catch (error) {
+                this.error = 'Fehler beim Laden der Morphologien: ' + error.message;
+                console.error('Error loading morphology choices:', error);
+            }
+            finally {
+                this.loading = false;
+            }
+        },
+        resetLowerLevels(fromLevel) {
+            switch (fromLevel) {
+                case 'examination':
+                    this.selectedFindingId = null;
+                    this.findings = [];
+                    this.locationClassifications = [];
+                    this.morphologyClassifications = [];
+                // Fall through
+                case 'finding':
+                    this.selectedLocationClassificationId = null;
+                    this.selectedMorphologyClassificationId = null;
+                    this.locationChoices = [];
+                    this.morphologyChoices = [];
+                    this.interventions = [];
+                    this.selectedInterventions = [];
+                // Fall through
+                case 'locationClassification':
+                    this.selectedLocationChoiceId = null;
+                    this.locationChoices = [];
+                    break;
+                case 'morphologyClassification':
+                    this.selectedMorphologyChoiceId = null;
+                    this.morphologyChoices = [];
+                    break;
             }
         },
         async saveExamination() {
-            if (!this.canSave || !this.videoId)
+            if (!this.canSave)
                 return;
-            const examinationData = {
-                video_id: this.videoId,
-                examination_type_id: this.selectedExamination,
-                timestamp: this.videoTimestamp,
-                location_classification_id: this.selectedLocation,
-                finding_id: this.selectedFinding,
-                intervention_ids: this.selectedInterventions,
-                notes: this.notes,
-                created_at: new Date().toISOString()
-            };
             try {
-                const response = await axiosInstance.post(r('video-examinations/'), examinationData);
+                this.loading = true;
+                this.error = null;
+                const examinationData = {
+                    videoId: this.videoId,
+                    timestamp: this.videoTimestamp,
+                    examinationTypeId: this.selectedExaminationId,
+                    findingId: this.selectedFindingId,
+                    locationClassificationId: this.selectedLocationClassificationId || null,
+                    locationChoiceId: this.selectedLocationChoiceId || null,
+                    morphologyClassificationId: this.selectedMorphologyClassificationId || null,
+                    morphologyChoiceId: this.selectedMorphologyChoiceId || null,
+                    interventionIds: this.selectedInterventions,
+                    notes: this.notes || null
+                };
+                const response = await axiosInstance.post(r('examinations/'), examinationData);
                 this.$emit('examination-saved', response.data);
-                // Reset form
                 this.resetForm();
-                // Show success feedback
-                alert('Untersuchung erfolgreich gespeichert!');
             }
             catch (error) {
+                this.error = 'Fehler beim Speichern: ' + error.message;
                 console.error('Error saving examination:', error);
-                alert('Fehler beim Speichern der Untersuchung');
+            }
+            finally {
+                this.loading = false;
             }
         },
         resetForm() {
-            this.selectedLocation = null;
-            this.selectedFinding = null;
+            this.selectedExaminationId = null;
+            this.selectedFindingId = null;
+            this.selectedLocationClassificationId = null;
+            this.selectedLocationChoiceId = null;
+            this.selectedMorphologyClassificationId = null;
+            this.selectedMorphologyChoiceId = null;
             this.selectedInterventions = [];
             this.notes = '';
-        },
-        // Helper functions for display names
-        getLocationName(id) {
-            return this.locationClassifications.find(l => l.id === id)?.name || '';
-        },
-        getFindingName(id) {
-            return this.findings.find(f => f.id === id)?.name || '';
-        },
-        getInterventionName(id) {
-            return this.interventions.find(i => i.id === id)?.name || '';
+            this.findings = [];
+            this.locationClassifications = [];
+            this.locationChoices = [];
+            this.morphologyClassifications = [];
+            this.morphologyChoices = [];
+            this.interventions = [];
         }
     },
     mounted() {
@@ -135,11 +250,26 @@ function __VLS_template() {
     const __VLS_ctx = {};
     let __VLS_components;
     let __VLS_directives;
+    ['form-check',];
     // CSS variable injection 
     // CSS variable injection end 
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("simple-examination-form") },
+        ...{ class: ("examination-form") },
     });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({
+        ...{ class: ("mb-3") },
+    });
+    if (__VLS_ctx.loading) {
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("alert alert-info") },
+        });
+    }
+    if (__VLS_ctx.error) {
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("alert alert-danger") },
+        });
+        (__VLS_ctx.error);
+    }
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: ("mb-3") },
     });
@@ -147,24 +277,23 @@ function __VLS_template() {
         ...{ class: ("form-label") },
     });
     __VLS_elementAsFunction(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
-        ...{ onChange: (__VLS_ctx.loadExaminationData) },
-        value: ((__VLS_ctx.selectedExamination)),
+        ...{ onChange: (__VLS_ctx.onExaminationChange) },
+        value: ((__VLS_ctx.selectedExaminationId)),
+        modelModifiers: { number: true, },
         ...{ class: ("form-select") },
+        disabled: ((__VLS_ctx.loading)),
     });
     __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-        value: (""),
+        value: ((null)),
     });
-    for (const [exam] of __VLS_getVForSourceType((__VLS_ctx.availableExaminations))) {
+    for (const [exam] of __VLS_getVForSourceType((__VLS_ctx.examinations))) {
         __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
             key: ((exam.id)),
             value: ((exam.id)),
         });
         (exam.name);
     }
-    if (__VLS_ctx.selectedExamination) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("examination-details") },
-        });
+    if (__VLS_ctx.selectedExaminationId) {
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: ("mb-3") },
         });
@@ -172,32 +301,14 @@ function __VLS_template() {
             ...{ class: ("form-label") },
         });
         __VLS_elementAsFunction(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
-            value: ((__VLS_ctx.selectedLocation)),
+            ...{ onChange: (__VLS_ctx.onFindingChange) },
+            value: ((__VLS_ctx.selectedFindingId)),
+            modelModifiers: { number: true, },
             ...{ class: ("form-select") },
+            disabled: ((__VLS_ctx.loading || !__VLS_ctx.findings.length)),
         });
         __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-            value: (""),
-        });
-        for (const [location] of __VLS_getVForSourceType((__VLS_ctx.locationClassifications))) {
-            __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-                key: ((location.id)),
-                value: ((location.id)),
-            });
-            (location.name);
-        }
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("mb-3") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
-            ...{ class: ("form-label") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
-            ...{ onChange: (__VLS_ctx.loadInterventions) },
-            value: ((__VLS_ctx.selectedFinding)),
-            ...{ class: ("form-select") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-            value: (""),
+            value: ((null)),
         });
         for (const [finding] of __VLS_getVForSourceType((__VLS_ctx.findings))) {
             __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
@@ -206,19 +317,122 @@ function __VLS_template() {
             });
             (finding.name);
         }
-        if (__VLS_ctx.selectedFinding && __VLS_ctx.interventions.length > 0) {
-            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: ("mb-3") },
+    }
+    if (__VLS_ctx.selectedFindingId) {
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("mb-3") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+            ...{ class: ("form-label") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
+            ...{ onChange: (__VLS_ctx.onLocationClassificationChange) },
+            value: ((__VLS_ctx.selectedLocationClassificationId)),
+            modelModifiers: { number: true, },
+            ...{ class: ("form-select") },
+            disabled: ((__VLS_ctx.loading || !__VLS_ctx.locationClassifications.length)),
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+            value: ((null)),
+        });
+        for (const [lc] of __VLS_getVForSourceType((__VLS_ctx.locationClassifications))) {
+            __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+                key: ((lc.id)),
+                value: ((lc.id)),
             });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
-                ...{ class: ("form-label") },
+            (lc.name);
+        }
+    }
+    if (__VLS_ctx.selectedLocationClassificationId) {
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("mb-3") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+            ...{ class: ("form-label") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
+            value: ((__VLS_ctx.selectedLocationChoiceId)),
+            modelModifiers: { number: true, },
+            ...{ class: ("form-select") },
+            disabled: ((__VLS_ctx.loading || !__VLS_ctx.locationChoices.length)),
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+            value: ((null)),
+        });
+        for (const [choice] of __VLS_getVForSourceType((__VLS_ctx.locationChoices))) {
+            __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+                key: ((choice.id)),
+                value: ((choice.id)),
+            });
+            (choice.name);
+        }
+    }
+    if (__VLS_ctx.selectedFindingId) {
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("mb-3") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+            ...{ class: ("form-label") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
+            ...{ onChange: (__VLS_ctx.onMorphologyClassificationChange) },
+            value: ((__VLS_ctx.selectedMorphologyClassificationId)),
+            modelModifiers: { number: true, },
+            ...{ class: ("form-select") },
+            disabled: ((__VLS_ctx.loading || !__VLS_ctx.morphologyClassifications.length)),
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+            value: ((null)),
+        });
+        for (const [mc] of __VLS_getVForSourceType((__VLS_ctx.morphologyClassifications))) {
+            __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+                key: ((mc.id)),
+                value: ((mc.id)),
+            });
+            (mc.name);
+        }
+    }
+    if (__VLS_ctx.selectedMorphologyClassificationId) {
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("mb-3") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+            ...{ class: ("form-label") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
+            value: ((__VLS_ctx.selectedMorphologyChoiceId)),
+            modelModifiers: { number: true, },
+            ...{ class: ("form-select") },
+            disabled: ((__VLS_ctx.loading || !__VLS_ctx.morphologyChoices.length)),
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+            value: ((null)),
+        });
+        for (const [choice] of __VLS_getVForSourceType((__VLS_ctx.morphologyChoices))) {
+            __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+                key: ((choice.id)),
+                value: ((choice.id)),
+            });
+            (choice.name);
+        }
+    }
+    if (__VLS_ctx.selectedFindingId) {
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("mb-3") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+            ...{ class: ("form-label") },
+        });
+        if (__VLS_ctx.interventions.length > 0) {
+            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: ("form-check-group") },
             });
             for (const [intervention] of __VLS_getVForSourceType((__VLS_ctx.interventions))) {
                 __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
                     key: ((intervention.id)),
                     ...{ class: ("form-check") },
                 });
-                __VLS_elementAsFunction(__VLS_intrinsicElements.input, __VLS_intrinsicElements.input)({
+                __VLS_elementAsFunction(__VLS_intrinsicElements.input)({
                     type: ("checkbox"),
                     id: ((`intervention-${intervention.id}`)),
                     value: ((intervention.id)),
@@ -232,51 +446,78 @@ function __VLS_template() {
                 (intervention.name);
             }
         }
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("mb-3") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
-            ...{ class: ("form-label") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.textarea, __VLS_intrinsicElements.textarea)({
-            value: ((__VLS_ctx.notes)),
-            ...{ class: ("form-control") },
-            rows: ("3"),
-            placeholder: ("Zusätzliche Bemerkungen..."),
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("d-grid") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-            ...{ onClick: (__VLS_ctx.saveExamination) },
-            ...{ class: ("btn btn-primary") },
-            disabled: ((!__VLS_ctx.canSave)),
-        });
-        if (__VLS_ctx.hasSelections) {
-            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: ("mt-3 p-2 bg-light rounded") },
-            });
+        else {
             __VLS_elementAsFunction(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
                 ...{ class: ("text-muted") },
             });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.ul, __VLS_intrinsicElements.ul)({
-                ...{ class: ("mb-0 mt-1") },
-            });
-            if (__VLS_ctx.selectedLocation) {
-                __VLS_elementAsFunction(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({});
-                (__VLS_ctx.getLocationName(__VLS_ctx.selectedLocation));
-            }
-            if (__VLS_ctx.selectedFinding) {
-                __VLS_elementAsFunction(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({});
-                (__VLS_ctx.getFindingName(__VLS_ctx.selectedFinding));
-            }
-            if (__VLS_ctx.selectedInterventions.length > 0) {
-                __VLS_elementAsFunction(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({});
-                (__VLS_ctx.selectedInterventions.map(id => __VLS_ctx.getInterventionName(id)).join(', '));
-            }
         }
     }
-    ['simple-examination-form', 'mb-3', 'form-label', 'form-select', 'examination-details', 'mb-3', 'form-label', 'form-select', 'mb-3', 'form-label', 'form-select', 'mb-3', 'form-label', 'form-check', 'form-check-input', 'form-check-label', 'mb-3', 'form-label', 'form-control', 'd-grid', 'btn', 'btn-primary', 'mt-3', 'p-2', 'bg-light', 'rounded', 'text-muted', 'mb-0', 'mt-1',];
+    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: ("mb-3") },
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+        ...{ class: ("form-label") },
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.textarea, __VLS_intrinsicElements.textarea)({
+        value: ((__VLS_ctx.notes)),
+        ...{ class: ("form-control") },
+        rows: ("3"),
+        placeholder: ("Zusätzliche Bemerkungen..."),
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: ("d-grid") },
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+        ...{ onClick: (__VLS_ctx.saveExamination) },
+        disabled: ((!__VLS_ctx.canSave || __VLS_ctx.loading)),
+        ...{ class: ("btn btn-primary") },
+    });
+    (__VLS_ctx.loading ? 'Speichere...' : 'Untersuchung speichern');
+    if (__VLS_ctx.hasSelections) {
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("mt-3 p-3 bg-light rounded") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({});
+        __VLS_elementAsFunction(__VLS_intrinsicElements.ul, __VLS_intrinsicElements.ul)({
+            ...{ class: ("list-unstyled mb-0") },
+        });
+        if (__VLS_ctx.selectedExamination) {
+            __VLS_elementAsFunction(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({});
+            __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+            (__VLS_ctx.selectedExamination.name);
+        }
+        if (__VLS_ctx.selectedFinding) {
+            __VLS_elementAsFunction(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({});
+            __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+            (__VLS_ctx.selectedFinding.name);
+        }
+        if (__VLS_ctx.selectedLocationClassification) {
+            __VLS_elementAsFunction(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({});
+            __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+            (__VLS_ctx.selectedLocationClassification.name);
+        }
+        if (__VLS_ctx.selectedLocationChoice) {
+            __VLS_elementAsFunction(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({});
+            __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+            (__VLS_ctx.selectedLocationChoice.name);
+        }
+        if (__VLS_ctx.selectedMorphologyClassification) {
+            __VLS_elementAsFunction(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({});
+            __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+            (__VLS_ctx.selectedMorphologyClassification.name);
+        }
+        if (__VLS_ctx.selectedMorphologyChoice) {
+            __VLS_elementAsFunction(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({});
+            __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+            (__VLS_ctx.selectedMorphologyChoice.name);
+        }
+        if (__VLS_ctx.selectedInterventions.length > 0) {
+            __VLS_elementAsFunction(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({});
+            __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+            (__VLS_ctx.interventions.filter(i => __VLS_ctx.selectedInterventions.includes(i.id)).map(i => i.name).join(', '));
+        }
+    }
+    ['examination-form', 'mb-3', 'alert', 'alert-info', 'alert', 'alert-danger', 'mb-3', 'form-label', 'form-select', 'mb-3', 'form-label', 'form-select', 'mb-3', 'form-label', 'form-select', 'mb-3', 'form-label', 'form-select', 'mb-3', 'form-label', 'form-select', 'mb-3', 'form-label', 'form-select', 'mb-3', 'form-label', 'form-check-group', 'form-check', 'form-check-input', 'form-check-label', 'text-muted', 'mb-3', 'form-label', 'form-control', 'd-grid', 'btn', 'btn-primary', 'mt-3', 'p-3', 'bg-light', 'rounded', 'list-unstyled', 'mb-0',];
     var __VLS_slots;
     var $slots;
     let __VLS_inheritedAttrs;

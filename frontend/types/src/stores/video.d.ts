@@ -94,7 +94,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
     setCurrentVideo: (video: Video | null) => void;
     clearError: () => void;
     reset: () => void;
-}, "videos" | "currentVideo" | "loading" | "error" | "filters" | "pagination">>, Pick<{
+}, "loading" | "error" | "filters" | "videos" | "currentVideo" | "pagination">>, Pick<{
     videos: import("vue").Ref<{
         id: number;
         title: string;
@@ -284,4 +284,4 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
     setCurrentVideo: (video: Video | null) => void;
     clearError: () => void;
     reset: () => void;
-}, "clearError" | "reset" | "fetchVideos" | "fetchVideoById" | "uploadVideo" | "deleteVideo" | "updateFilters" | "clearFilters" | "setCurrentVideo">>;
+}, "reset" | "clearError" | "fetchVideos" | "fetchVideoById" | "uploadVideo" | "deleteVideo" | "updateFilters" | "clearFilters" | "setCurrentVideo">>;

@@ -499,7 +499,7 @@ export default {
         return;
       }
       
-      if this.isMarkingLabel) {
+      if (this.isMarkingLabel) {
         // If already marking, this call should finish the marking
         this.finishLabelMarking();
       } else {
@@ -686,7 +686,7 @@ export default {
     },
     seekToSegment(segment) {
       const startTime = this.getSegmentStartTime(segment);
-      if this.$refs.videoRef) {
+      if (this.$refs.videoRef) {
         this.$refs.videoRef.currentTime = startTime;
       }
     },

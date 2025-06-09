@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { AxiosInstance } from 'axios';
+import type { AxiosInstance } from 'axios';
 import { ref } from 'vue'
 export interface Patient {
     first_name: string;
@@ -65,4 +65,4 @@ export const usePatientStore = defineStore('patient', () => {
         error,
         fetchPatients
     }
-}
+})

@@ -1,46 +1,60 @@
 declare const _default: import("vue").DefineComponent<import("vue").ExtractPropTypes<{
     videoTimestamp: {
         type: NumberConstructor;
-        required: true;
+        default: number;
     };
     videoId: {
-        type: (NumberConstructor | StringConstructor)[];
-        default: null;
+        type: NumberConstructor;
+        required: true;
     };
 }>, {}, {
-    availableExaminations: never[];
-    selectedExamination: null;
-    locationClassifications: never[];
+    loading: boolean;
+    error: null;
+    examinations: never[];
     findings: never[];
+    locationClassifications: never[];
+    locationChoices: never[];
+    morphologyClassifications: never[];
+    morphologyChoices: never[];
     interventions: never[];
-    selectedLocation: null;
-    selectedFinding: null;
+    selectedExaminationId: null;
+    selectedFindingId: null;
+    selectedLocationClassificationId: null;
+    selectedLocationChoiceId: null;
+    selectedMorphologyClassificationId: null;
+    selectedMorphologyChoiceId: null;
     selectedInterventions: never[];
     notes: string;
 }, {
+    selectedExamination(): null;
+    selectedFinding(): null;
+    selectedLocationClassification(): null;
+    selectedLocationChoice(): null;
+    selectedMorphologyClassification(): null;
+    selectedMorphologyChoice(): null;
     canSave(): null;
     hasSelections(): boolean;
 }, {
     loadExaminations(): Promise<void>;
-    loadExaminationData(): Promise<void>;
-    loadInterventions(): Promise<void>;
+    onExaminationChange(): Promise<void>;
+    onFindingChange(): Promise<void>;
+    onLocationClassificationChange(): Promise<void>;
+    onMorphologyClassificationChange(): Promise<void>;
+    resetLowerLevels(fromLevel: any): void;
     saveExamination(): Promise<void>;
     resetForm(): void;
-    getLocationName(id: any): any;
-    getFindingName(id: any): any;
-    getInterventionName(id: any): any;
 }, import("vue").ComponentOptionsMixin, import("vue").ComponentOptionsMixin, "examination-saved"[], "examination-saved", import("vue").PublicProps, Readonly<import("vue").ExtractPropTypes<{
     videoTimestamp: {
         type: NumberConstructor;
-        required: true;
+        default: number;
     };
     videoId: {
-        type: (NumberConstructor | StringConstructor)[];
-        default: null;
+        type: NumberConstructor;
+        required: true;
     };
 }>> & Readonly<{
     "onExamination-saved"?: ((...args: any[]) => any) | undefined;
 }>, {
-    videoId: string | number;
+    videoTimestamp: number;
 }, {}, {}, {}, string, import("vue").ComponentProvideOptions, true, {}, any>;
 export default _default;

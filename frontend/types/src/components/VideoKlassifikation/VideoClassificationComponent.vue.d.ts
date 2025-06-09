@@ -80,15 +80,18 @@ declare const _default: import("vue").DefineComponent<{}, {}, {
         allSegments: import("vue").ComputedRef<import("@/stores/videoStore").Segment[]>;
         startResize: (segment: import("@/stores/videoStore").Segment, event: MouseEvent | TouchEvent) => void;
         handleTimelineClick: (event: MouseEvent) => void;
-        getSegmentStyle: (segment: import("@/stores/videoStore").Segment, duration: number) => Record<string, string>;
+        jumpToSegment: (segment: import("@/stores/videoStore").Segment) => void;
+        getEnhancedSegmentStyle: (segment: import("@/stores/videoStore").Segment, allSegments?: import("@/stores/videoStore").Segment[] | undefined) => Record<string, string>;
         duration: number;
-    }, {}, {}, {}, import("vue").ComponentOptionsMixin, import("vue").ComponentOptionsMixin, "resize"[], "resize", import("vue").PublicProps, Readonly<import("vue").ExtractPropTypes<{
+        getSegmentVerticalPosition: (segment: import("@/stores/videoStore").Segment, allSegs: import("@/stores/videoStore").Segment[]) => number;
+    }, {}, {}, {}, import("vue").ComponentOptionsMixin, import("vue").ComponentOptionsMixin, ("resize" | "seek")[], "resize" | "seek", import("vue").PublicProps, Readonly<import("vue").ExtractPropTypes<{
         duration: {
             type: NumberConstructor;
             required: true;
         };
     }>> & Readonly<{
         onResize?: ((...args: any[]) => any) | undefined;
+        onSeek?: ((...args: any[]) => any) | undefined;
     }>, {}, {}, {}, {}, string, import("vue").ComponentProvideOptions, true, {}, any>;
 }, {}, string, import("vue").ComponentProvideOptions, true, {}, any>;
 export default _default;

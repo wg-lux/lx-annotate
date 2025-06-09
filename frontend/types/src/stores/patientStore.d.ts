@@ -96,7 +96,7 @@ export declare const usePatientStore: import("pinia").StoreDefinition<"patient",
     loading: import("vue").Ref<boolean, boolean>;
     error: import("vue").Ref<string | null, string | null>;
     fetchPatients: () => Promise<void>;
-}, "patients" | "currentPatient" | "patientExaminations" | "patientFindings" | "loading" | "error">>, Pick<{
+}, "loading" | "error" | "patients" | "currentPatient" | "patientExaminations" | "patientFindings">>, Pick<{
     patients: import("vue").Ref<{
         first_name: string;
         name: string;

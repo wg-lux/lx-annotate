@@ -1,5 +1,4 @@
 import { defineStore } from 'pinia';
-import { AxiosInstance } from 'axios';
 import { ref } from 'vue';
 export const usePatientStore = defineStore('patient', () => {
     // State

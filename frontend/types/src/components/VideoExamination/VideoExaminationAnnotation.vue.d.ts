@@ -3,18 +3,32 @@ declare const _default: import("vue").DefineComponent<{}, {}, {
     selectedVideoId: null;
     currentTime: number;
     duration: number;
+    fps: number;
     examinationMarkers: never[];
     savedExaminations: never[];
     currentMarker: null;
     selectedLabelType: string;
     isMarkingLabel: boolean;
     labelMarkingStart: number;
+    labelSegments: never[];
+    currentLabel: null;
+    isMarking: boolean;
+    markingStartTime: null;
+    videoId: null;
 }, {
     currentVideoUrl(): any;
     showExaminationForm(): boolean;
     hasVideos(): boolean;
     noVideosMessage(): "" | "Keine Videos verfügbar. Bitte laden Sie zuerst Videos hoch.";
     groupedSegments(): Record<string, import("@/stores/videoStore").Segment[]>;
+    labelButtonText(): "Label-Ende setzen" | "Label-Start setzen";
+    canStartLabeling(): boolean;
+    canFinishLabeling(): boolean;
+    currentTimePosition(): number;
+    timelineMarkers(): {
+        time: any;
+        position: number;
+    }[];
 }, {
     loadVideos(): Promise<void>;
     loadSavedExaminations(): Promise<void>;
@@ -32,10 +46,28 @@ declare const _default: import("vue").DefineComponent<{}, {}, {
     handleSegmentResize(segmentId: any, newEndTime: any): void;
     startLabelMarking(): void;
     cancelLabelMarking(): void;
-    finishLabelMarking(): Promise<void>;
-    saveNewLabelSegment(segment: any): Promise<void>;
+    finishLabelMarking(): void;
+    saveNewLabelSegment(startTime: any, endTime: any, labelType: any): Promise<void>;
+    loadLabelSegments(): Promise<void>;
+    getCsrfToken(): string | null;
+    showSuccessMessage(message: any): void;
+    showErrorMessage(message: any): void;
     getTranslationForLabel(labelKey: any): any;
     getLabelColor(labelKey: any): any;
+    getSegmentStartTime(segment: any): any;
+    getSegmentEndTime(segment: any): any;
+    getSegmentStyle(segment: any): {
+        position: string;
+        left: string;
+        width: string;
+        backgroundColor: any;
+        borderRadius: string;
+        height: string;
+        cursor: string;
+        zIndex: number;
+    };
+    seekToSegment(segment: any): void;
+    deleteSegment(segmentId: any): Promise<void>;
 }, import("vue").ComponentOptionsMixin, import("vue").ComponentOptionsMixin, {}, string, import("vue").PublicProps, Readonly<{}> & Readonly<{}>, {}, {}, {
     SimpleExaminationForm: import("vue").DefineComponent<Record<string, unknown>, unknown, unknown>;
     Timeline: import("vue").DefineComponent<import("vue").ExtractPropTypes<{

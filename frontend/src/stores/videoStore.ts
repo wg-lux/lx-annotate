@@ -479,7 +479,7 @@ export const useVideoStore = defineStore('video', () => {
   };
   
   function urlFor(id: number) {
-    return `http://127.0.0.1:8000/api/videostream/${id}/stream/`;   // Korrigierte API-Endpunkt URL für Video-Streaming (von /videostream/ zu /videos/)
+    return `http://127.0.0.1:8000/api/videostream/${id}/stream/`;  
   }
   
   // Return state and actions for consumption in components
