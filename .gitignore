@@ -1,3 +1,4 @@
+.devenv-vars.json
 .devenv/
 django-settings.json
 #frozen_east_text_detection.pb
