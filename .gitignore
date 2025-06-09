@@ -24,7 +24,6 @@ lx-annotate/endoreg-db/
 devenv.lock
 .devenv.nix
 .env
-uv.lock
 flake.json
 
 static/
@@ -105,8 +104,6 @@ logs/
 # -------------------------------
 # Environment & Local Configurations
 # -------------------------------
-# Lock files or temporary files that are auto-generated (but keep your package-lock.json, poetry.lock, etc.)
-uv.lock
 # If you don’t want to version your local development environment files, you can ignore these:
 devenv.lock
 # (Uncomment if you decide not to version these development configs)
