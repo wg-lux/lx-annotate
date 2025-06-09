@@ -16,6 +16,36 @@ import shutil
 import os
 import json
 
+# get_safe_random_secret_key
+def get_safe_random_secret_key():
+    """
+    Generate a random secret key for Django settings.
+    This function is a wrapper around Django's get_random_secret_key.
+    It ensures, that the following characters are not used:
+    - ' (single quote)
+    - " (double quote)
+    - ` (backtick)
+    - \ (backslash)
+    - ; (semicolon)
+    - : (colon)
+    - , (comma)
+    - { (left curly brace)
+    - } (right curly brace)
+    - ( (left parenthesis)
+    - ) (right parenthesis)
+    - # (hash)
+    - $ (dollar sign)
+    """
+    key = get_random_secret_key()
+    # Replace problematic characters with underscores
+    safe_key = key.replace("'", "_").replace('"', "_").replace("`", "_").replace("\\", "_")
+    safe_key = safe_key.replace(";", "_").replace(":", "_").replace(",", "_")
+    safe_key = safe_key.replace("{", "_").replace("}", "_")
+    safe_key = safe_key.replace("(", "_").replace(")", "_").replace("#", "_").replace("$", "_")
+    
+    return safe_key
+    
+
 # --- Constants ---
 DEFAULT_DB_PASSWORD = "changeme_in_production"  # Placeholder password
 
@@ -40,8 +70,8 @@ home_dir = nix_vars.get("HOME_DIR", os.path.expanduser("~"))
 nix_vars["HOME_DIR"] = home_dir
 
 # --- Generate Secrets ---
-SALT = get_random_secret_key()
-SECRET_KEY = get_random_secret_key()
+SALT = get_safe_random_secret_key()
+SECRET_KEY = get_safe_random_secret_key()
 
 # --- Ensure conf dir and db_pwd file exist ---
 print(f"Checking configuration directory: {conf_dir}")
@@ -116,7 +146,7 @@ except IOError as e:
 try:
     with target.open("a", encoding="utf-8") as f:
         if "DJANGO_SECRET_KEY" not in found_keys:
-            f.write(f"\nDJANGO_SECRET_KEY='{SECRET_KEY}'")
+            f.write(f"\nDJANGO_SECRET_KEY={SECRET_KEY}")
             print("Added DJANGO_SECRET_KEY to .env")
         if "DJANGO_SALT" not in found_keys:
             f.write(f'\nDJANGO_SALT={SALT}')
