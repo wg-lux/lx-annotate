@@ -116,7 +116,7 @@ except IOError as e:
 try:
     with target.open("a", encoding="utf-8") as f:
         if "DJANGO_SECRET_KEY" not in found_keys:
-            f.write(f'\nDJANGO_SECRET_KEY={SECRET_KEY}')
+            f.write(f"\nDJANGO_SECRET_KEY='{SECRET_KEY}'")
             print("Added DJANGO_SECRET_KEY to .env")
         if "DJANGO_SALT" not in found_keys:
             f.write(f'\nDJANGO_SALT={SALT}')
