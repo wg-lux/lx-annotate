@@ -1,8 +1,6 @@
 {...}@inputs:
 let
-  endoregTasks = (
-    import ./endoreg-db.nix { }
-  );
+
   vueTasks = (
     import ./vue.nix { }
   );
@@ -15,6 +13,6 @@ let
 
   customTasks = {
     
-  } //envTasks //vueTasks //endoregTasks //pytestTasks ;
+  } //envTasks //vueTasks; # REMOVED PYTEST TASK AS THEY CAUSE DELAY TO SOME EXTENT; VERIFY IMPLEMENTATION //pytestTasks ;
 
 in customTasks 
