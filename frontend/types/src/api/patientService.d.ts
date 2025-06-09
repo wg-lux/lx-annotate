@@ -1,0 +1,77 @@
+export interface Gender {
+    id: number;
+    name: string;
+    name_de?: string;
+    name_en?: string;
+    abbreviation?: string;
+    description?: string;
+}
+export interface Center {
+    id: number;
+    name: string;
+    name_de?: string;
+    name_en?: string;
+    description?: string;
+}
+export interface Patient {
+    id?: number;
+    first_name: string;
+    last_name: string;
+    dob?: string | null;
+    gender?: number | null;
+    center?: number | null;
+    email?: string;
+    phone?: string;
+    patient_hash?: string | null;
+    comments?: string;
+    age?: number | null;
+    created_at?: string;
+    updated_at?: string;
+}
+export interface PatientFormData {
+    id?: number | null;
+    first_name: string;
+    last_name: string;
+    dob: string | null;
+    gender: number | null;
+    center: number | null;
+    email: string;
+    phone: string;
+    patient_hash: string;
+    comments: string;
+    is_real_person?: boolean;
+}
+export interface PatientCreateData {
+    first_name: string;
+    last_name: string;
+    dob?: string | null;
+    gender?: number | null;
+    center?: number | null;
+    email?: string;
+    phone?: string;
+    patient_hash?: string | null;
+}
+export interface PatientUpdateData extends PatientCreateData {
+    id: number;
+}
+export interface PatientListResponse {
+    count?: number;
+    next?: string | null;
+    previous?: string | null;
+    results: Patient[];
+}
+export declare const patientService: {
+    getPatients(): Promise<Patient[]>;
+    addPatient(patientData: PatientCreateData): Promise<Patient>;
+    updatePatient(patientId: number, patientData: Partial<PatientCreateData>): Promise<Patient>;
+    deletePatient(patientId: number): Promise<void>;
+    getGenders(): Promise<Gender[]>;
+    getCenters(): Promise<Center[]>;
+    formatPatientData(patientForm: PatientFormData): PatientCreateData;
+    calculateAge(dateOfBirth: string | null | undefined): number | null;
+    isValidEmail(email: string): boolean;
+    validatePatientData(patient: Partial<PatientFormData>): {
+        isValid: boolean;
+        errors: string[];
+    };
+};

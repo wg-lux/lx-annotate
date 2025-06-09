@@ -20,6 +20,7 @@ export default defineConfig(({ mode }) => {
     build: {
       manifest: mode === 'production' ? 'manifest.json' : false,
       outDir: resolve(__dirname, '../static/dist'),
+      target: 'esnext', // Ermöglicht Top-level await
       rollupOptions: {
         input: {
           main: resolve(__dirname, 'src/main.ts'),
@@ -28,8 +29,13 @@ export default defineConfig(({ mode }) => {
           entryFileNames: '[name].js',
           chunkFileNames: '[name].js',
           assetFileNames: '[name].[ext]',
+          format: 'es', // ES-Module Format für moderne Features
         },
       },
+    },
+
+    esbuild: {
+      target: 'esnext', // Unterstützt moderne JS-Features inklusive Top-level await
     },
 
     server: {

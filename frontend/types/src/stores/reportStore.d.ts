@@ -362,4 +362,4 @@ export declare const useReportStore: import("pinia").StoreDefinition<"report", i
     setCurrentReport: (report: Report | null) => void;
     clearError: () => void;
     reset: () => void;
-}, "reset" | "fetchReports" | "fetchReportById" | "fetchReportAnnotations" | "createAnnotation" | "setCurrentReport" | "clearError">>;
+}, "reset" | "clearError" | "fetchReports" | "fetchReportById" | "fetchReportAnnotations" | "createAnnotation" | "setCurrentReport">>;
