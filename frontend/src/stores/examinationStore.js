@@ -12,6 +12,7 @@ export const useExaminationStore = defineStore('examination', () => {
     const selectedExaminationId = ref(null);
     const selectedFindingId = ref(null);
     const currentPatientFinding = ref(null);
+    const patientId = ref(null); // Neu: für Patient-spezifische Untersuchungen
     // Loading states
     const loading = ref(false);
     const error = ref(null);
@@ -282,6 +283,17 @@ export const useExaminationStore = defineStore('examination', () => {
         currentPatientFinding.value = null;
         error.value = null;
     }
+    // Neue Methoden für Patient-Funktionalität
+    function setPatientId(newPatientId) {
+        patientId.value = newPatientId;
+    }
+    function setError(errorMessage) {
+        error.value = errorMessage;
+    }
+    // Alias für loadExaminationFindings - für bessere API-Kompatibilität
+    async function loadFindingsForExamination(examinationId) {
+        return await loadExaminationFindings(examinationId);
+    }
     // Validation helpers
     function validateRequiredClassifications() {
         const errors = [];
@@ -336,6 +348,9 @@ export const useExaminationStore = defineStore('examination', () => {
         updateNotes,
         savePatientFinding,
         resetForm,
-        validateRequiredClassifications
+        validateRequiredClassifications,
+        setPatientId,
+        setError,
+        loadFindingsForExamination
     };
 });

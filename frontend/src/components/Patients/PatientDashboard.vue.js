@@ -88,6 +88,21 @@ const onPatientUpdated = (patient) => {
         successMessage.value = '';
     }, 5000);
 };
+const onPatientDeleted = (patientId) => {
+    // Remove patient from store
+    const index = patientStore.patients.findIndex(p => p.id === patientId);
+    if (index !== -1) {
+        const deletedPatient = patientStore.patients[index];
+        patientStore.patients.splice(index, 1);
+        successMessage.value = `Patient "${deletedPatient.first_name} ${deletedPatient.last_name}" wurde erfolgreich gelöscht!`;
+    }
+    // Close detail view
+    selectedPatient.value = null;
+    // Clear success message after 5 seconds
+    setTimeout(() => {
+        successMessage.value = '';
+    }, 5000);
+};
 const formatDate = (dateString) => {
     if (!dateString)
         return 'Nicht angegeben';
@@ -390,11 +405,13 @@ function __VLS_template() {
         // @ts-ignore
         const __VLS_8 = __VLS_asFunctionalComponent(PatientDetailView, new PatientDetailView({
             ...{ 'onPatientUpdated': {} },
+            ...{ 'onPatientDeleted': {} },
             ...{ 'onClose': {} },
             patient: ((__VLS_ctx.selectedPatient)),
         }));
         const __VLS_9 = __VLS_8({
             ...{ 'onPatientUpdated': {} },
+            ...{ 'onPatientDeleted': {} },
             ...{ 'onClose': {} },
             patient: ((__VLS_ctx.selectedPatient)),
         }, ...__VLS_functionalComponentArgsRest(__VLS_8));
@@ -403,6 +420,9 @@ function __VLS_template() {
             onPatientUpdated: (__VLS_ctx.onPatientUpdated)
         };
         const __VLS_15 = {
+            onPatientDeleted: (__VLS_ctx.onPatientDeleted)
+        };
+        const __VLS_16 = {
             onClose: (...[$event]) => {
                 if (!((__VLS_ctx.selectedPatient && !__VLS_ctx.showCreateForm && !__VLS_ctx.loading)))
                     return;
@@ -445,6 +465,7 @@ const __VLS_self = (await import('vue')).defineComponent({
             selectPatient: selectPatient,
             onPatientCreated: onPatientCreated,
             onPatientUpdated: onPatientUpdated,
+            onPatientDeleted: onPatientDeleted,
             formatDate: formatDate,
             getGenderName: getGenderName,
             getCenterName: getCenterName,

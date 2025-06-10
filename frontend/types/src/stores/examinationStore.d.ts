@@ -1007,6 +1007,9 @@ export declare const useExaminationStore: import("pinia").StoreDefinition<"exami
     savePatientFinding: (videoId?: number, timestamp?: number, patientId?: number) => Promise<PatientFindingData | null>;
     resetForm: () => void;
     validateRequiredClassifications: () => string[];
+    setPatientId: (newPatientId: number | null) => void;
+    setError: (errorMessage: string) => void;
+    loadFindingsForExamination: (examinationId: number) => Promise<any>;
 }, "loading" | "error" | "examinations" | "findings" | "locationClassifications" | "morphologyClassifications" | "selectedExaminationId" | "selectedFindingId" | "currentPatientFinding">>, Pick<{
     examinations: Readonly<import("vue").Ref<readonly {
         readonly id: number;
@@ -1902,6 +1905,9 @@ export declare const useExaminationStore: import("pinia").StoreDefinition<"exami
     savePatientFinding: (videoId?: number, timestamp?: number, patientId?: number) => Promise<PatientFindingData | null>;
     resetForm: () => void;
     validateRequiredClassifications: () => string[];
+    setPatientId: (newPatientId: number | null) => void;
+    setError: (errorMessage: string) => void;
+    loadFindingsForExamination: (examinationId: number) => Promise<any>;
 }, "availableFindings" | "selectedExamination" | "selectedFinding" | "availableLocationClassifications" | "availableMorphologyClassifications">, Pick<{
     examinations: Readonly<import("vue").Ref<readonly {
         readonly id: number;
@@ -2797,4 +2803,7 @@ export declare const useExaminationStore: import("pinia").StoreDefinition<"exami
     savePatientFinding: (videoId?: number, timestamp?: number, patientId?: number) => Promise<PatientFindingData | null>;
     resetForm: () => void;
     validateRequiredClassifications: () => string[];
-}, "loadExaminations" | "loadFindings" | "loadExaminationFindings" | "loadFindingClassifications" | "loadClassifications" | "setSelectedExamination" | "setSelectedFinding" | "updateLocationChoices" | "updateMorphologyChoices" | "updateNotes" | "savePatientFinding" | "resetForm" | "validateRequiredClassifications">>;
+    setPatientId: (newPatientId: number | null) => void;
+    setError: (errorMessage: string) => void;
+    loadFindingsForExamination: (examinationId: number) => Promise<any>;
+}, "loadExaminations" | "loadFindings" | "loadExaminationFindings" | "loadFindingClassifications" | "loadClassifications" | "setSelectedExamination" | "setSelectedFinding" | "updateLocationChoices" | "updateMorphologyChoices" | "updateNotes" | "savePatientFinding" | "resetForm" | "validateRequiredClassifications" | "setPatientId" | "setError" | "loadFindingsForExamination">>;

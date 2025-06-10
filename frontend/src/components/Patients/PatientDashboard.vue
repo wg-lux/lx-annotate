@@ -141,6 +141,7 @@
       <PatientDetailView 
         :patient="selectedPatient"
         @patient-updated="onPatientUpdated"
+        @patient-deleted="onPatientDeleted"
         @close="selectedPatient = null"
       />
     </div>
@@ -249,6 +250,25 @@ const onPatientUpdated = (patient: Patient) => {
   }
   
   successMessage.value = `Patient "${patient.first_name} ${patient.last_name}" wurde erfolgreich aktualisiert!`
+  
+  // Clear success message after 5 seconds
+  setTimeout(() => {
+    successMessage.value = ''
+  }, 5000)
+}
+
+const onPatientDeleted = (patientId: number) => {
+  // Remove patient from store
+  const index = patientStore.patients.findIndex(p => p.id === patientId)
+  if (index !== -1) {
+    const deletedPatient = patientStore.patients[index]
+    patientStore.patients.splice(index, 1)
+    
+    successMessage.value = `Patient "${deletedPatient.first_name} ${deletedPatient.last_name}" wurde erfolgreich gelöscht!`
+  }
+  
+  // Close detail view
+  selectedPatient.value = null
   
   // Clear success message after 5 seconds
   setTimeout(() => {

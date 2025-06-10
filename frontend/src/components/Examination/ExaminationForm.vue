@@ -1,5 +1,29 @@
 <template>
   <div class="examination-view">
+    <!-- Patient Selection Section (when not creating for specific patient) -->
+    <div v-if="!patientId" class="patient-selection-header">
+      <div class="form-group">
+        <label for="patient-select">Patient auswählen:</label>
+        <select 
+          id="patient-select"
+          v-model="selectedPatientHash" 
+          @change="onPatientChange"
+          class="form-control"
+          :class="{ 'border-danger': !selectedPatientHash }"
+          :disabled="loading"
+        >
+          <option :value="null">Patient auswählen...</option>
+          <option 
+            v-for="patient in availablePatients" 
+            :key="patient.patient_hash" 
+            :value="patient.patient_hash"
+          >
+            {{ patient.display_name }}
+          </option>
+        </select>
+      </div>
+    </div>
+
     <!-- Patient Info Header (when creating for specific patient) -->
     <div v-if="patientId" class="patient-info-header">
       <div class="patient-badge">
@@ -8,166 +32,229 @@
       </div>
     </div>
 
-    <div class="exam-header">
+    <!-- Patient Examination Form -->
+    <div v-if="selectedPatientHash || patientId" class="patient-examination-form">
+      <h3>Neue Patientenuntersuchung erstellen</h3>
+      
       <div class="form-row">
         <!-- Examination Selection -->
         <div class="form-group">
           <label for="examination-select">Untersuchung:</label>
           <select 
             id="examination-select"
-            v-model="selectedExaminationId" 
+            v-model="selectedExaminationName" 
             @change="onExaminationChange"
             class="form-control"
+            :disabled="!selectedPatientHash || loading"
           >
             <option :value="null">Untersuchung auswählen...</option>
             <option 
-              v-for="examination in availableExaminations" 
-              :key="examination.id" 
-              :value="examination.id"
+              v-for="examination in availableExaminationsDropdown" 
+              :key="examination.name" 
+              :value="examination.name"
             >
-              {{ examination.name_de || examination.name }}
+              {{ examination.display_name }}
             </option>
           </select>
         </div>
 
-        <!-- Finding Selection -->
-        <div class="form-group" v-if="selectedExaminationId">
-          <label for="finding-select">Befund:</label>
-          <select 
-            id="finding-select"
-            v-model="selectedFindingId" 
-            @change="onFindingChange"
+        <!-- Date Selection -->
+        <div class="form-group">
+          <label for="date-start">Untersuchungsdatum:</label>
+          <input 
+            id="date-start"
+            type="date" 
+            v-model="examinationDateStart"
             class="form-control"
-          >
-            <option :value="null">Befund auswählen...</option>
-            <option 
-              v-for="finding in availableFindings" 
-              :key="finding.id" 
-              :value="finding.id"
+            :max="todayDate"
+          />
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="form-actions">
+        <button 
+          @click="createPatientExamination" 
+          :disabled="!canCreateExamination || loading"
+          class="btn btn-primary"
+        >
+          <i class="fas fa-plus" v-if="!loading"></i>
+          <i class="fas fa-spinner fa-spin" v-if="loading"></i>
+          {{ loading ? 'Erstelle...' : 'Untersuchung erstellen' }}
+        </button>
+        <button 
+          @click="resetForm" 
+          class="btn btn-secondary"
+          :disabled="loading"
+        >
+          <i class="fas fa-undo"></i>
+          Zurücksetzen
+        </button>
+      </div>
+    </div>
+
+    <!-- Show existing functionality only after patient examination is created -->
+    <div v-if="currentPatientExaminationId">
+      <hr />
+      <h3>Befunde zur Untersuchung hinzufügen</h3>
+      
+      <div class="exam-header">
+        <div class="form-row">
+          <!-- Finding Selection -->
+          <div class="form-group">
+            <label for="finding-select">Befund:</label>
+            <select 
+              id="finding-select"
+              v-model="selectedFindingId" 
+              @change="onFindingChange"
+              class="form-control"
             >
-              {{ finding.name_de || finding.name }}
-            </option>
-          </select>
+              <option :value="null">Befund auswählen...</option>
+              <option 
+                v-for="finding in availableFindings" 
+                :key="finding.id" 
+                :value="finding.id"
+              >
+                {{ finding.name_de || finding.name }}
+              </option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="exam-body" v-if="selectedFindingId && findingDataLoaded">
+        <!-- Sidebar: Category tabs -->
+        <div class="categories-panel">
+          <div class="category-tabs">
+            <button 
+              :class="['tab-button', { active: activeTab === 'location' }]"
+              @click="activeTab = 'location'"
+            >
+              Lokalisation
+              <span class="required-indicator" v-if="hasRequiredLocationClassifications">*</span>
+            </button>
+            <button 
+              :class="['tab-button', { active: activeTab === 'morphology' }]"
+              @click="activeTab = 'morphology'"
+            >
+              Morphologie
+              <span class="required-indicator" v-if="hasRequiredMorphologyClassifications">*</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Editor column -->
+        <div class="editor-panel">
+          <!-- Location Classifications -->
+          <div v-if="activeTab === 'location'" class="category-editor">
+            <h3>Lokalisation</h3>
+            <div class="card-container">
+              <ClassificationCard
+                v-for="classification in locationClassifications"
+                :key="`location-${classification.id}`"
+                :label="classification.name_de || classification.name"
+                :options="classification.choices.map((choice: LocationClassificationChoice) => ({ id: choice.id, name: choice.name_de || choice.name }))"
+                :model-value="getSelectedLocationChoicesForClassification(classification.id)"
+                @update:model-value="updateLocationChoicesForClassification(classification.id, $event)"
+                :compact="true"
+                :single-select="false"
+                :class="{ 'border-warning': isRequiredLocationClassification(classification.id) && !hasSelectedLocationChoiceForClassification(classification.id) }"
+              />
+            </div>
+          </div>
+
+          <!-- Morphology Classifications -->
+          <div v-if="activeTab === 'morphology'" class="category-editor">
+            <h3>Morphologie</h3>
+            <div class="card-container">
+              <ClassificationCard
+                v-for="classification in morphologyClassifications"
+                :key="`morphology-${classification.id}`"
+                :label="classification.name_de || classification.name"
+                :options="classification.choices.map((choice: MorphologyClassificationChoice) => ({ id: choice.id, name: choice.name_de || choice.name }))"
+                :model-value="getSelectedMorphologyChoicesForClassification(classification.id)"
+                @update:model-value="updateMorphologyChoicesForClassification(classification.id, $event)"
+                :compact="true"
+                :single-select="false"
+                :class="{ 'border-warning': isRequiredMorphologyClassification(classification.id) && !hasSelectedMorphologyChoiceForClassification(classification.id) }"
+              />
+            </div>
+          </div>
+
+          <!-- Form Actions -->
+          <div class="form-actions" v-if="selectedFindingId">
+            <!-- Validation Errors -->
+            <div v-if="validationErrors.length > 0" class="alert alert-warning">
+              <ul class="mb-0">
+                <li v-for="error in validationErrors" :key="error">{{ error }}</li>
+              </ul>
+            </div>
+
+            <!-- Notes Section -->
+            <div class="form-group">
+              <label for="notes">Notizen (optional):</label>
+              <textarea 
+                id="notes"
+                v-model="notes"
+                class="form-control"
+                rows="3"
+                placeholder="Zusätzliche Bemerkungen..."
+              />
+            </div>
+
+            <!-- Save Button -->
+            <div class="button-group">
+              <button 
+                @click="saveFinding" 
+                :disabled="!canSave || loading"
+                class="btn btn-primary"
+              >
+                <i class="fas fa-save"></i>
+                Befund speichern
+              </button>
+              <button 
+                @click="resetFindingForm" 
+                class="btn btn-secondary"
+              >
+                <i class="fas fa-undo"></i>
+                Befund zurücksetzen
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
 
-    <div class="exam-body" v-if="selectedFindingId && findingDataLoaded">
-      <!-- Sidebar: Category tabs -->
-      <div class="categories-panel">
-        <div class="category-tabs">
-          <button 
-            :class="['tab-button', { active: activeTab === 'location' }]"
-            @click="activeTab = 'location'"
-          >
-            Lokalisation
-            <span class="required-indicator" v-if="hasRequiredLocationClassifications">*</span>
-          </button>
-          <button 
-            :class="['tab-button', { active: activeTab === 'morphology' }]"
-            @click="activeTab = 'morphology'"
-          >
-            Morphologie
-            <span class="required-indicator" v-if="hasRequiredMorphologyClassifications">*</span>
-          </button>
-        </div>
-      </div>
-
-      <!-- Editor column -->
-      <div class="editor-panel">
-        <!-- Location Classifications -->
-        <div v-if="activeTab === 'location'" class="category-editor">
-          <h3>Lokalisation</h3>
-          <div class="card-container">
-            <ClassificationCard
-              v-for="classification in locationClassifications"
-              :key="`location-${classification.id}`"
-              :label="classification.name_de || classification.name"
-              :options="classification.choices.map((choice: LocationClassificationChoice) => ({ id: choice.id, name: choice.name_de || choice.name }))"
-              :model-value="getSelectedLocationChoicesForClassification(classification.id)"
-              @update:model-value="updateLocationChoicesForClassification(classification.id, $event)"
-              :compact="true"
-              :single-select="false"
-              :class="{ 'border-warning': isRequiredLocationClassification(classification.id) && !hasSelectedLocationChoiceForClassification(classification.id) }"
-            />
-          </div>
-        </div>
-
-        <!-- Morphology Classifications -->
-        <div v-if="activeTab === 'morphology'" class="category-editor">
-          <h3>Morphologie</h3>
-          <div class="card-container">
-            <ClassificationCard
-              v-for="classification in morphologyClassifications"
-              :key="`morphology-${classification.id}`"
-              :label="classification.name_de || classification.name"
-              :options="classification.choices.map((choice: MorphologyClassificationChoice) => ({ id: choice.id, name: choice.name_de || choice.name }))"
-              :model-value="getSelectedMorphologyChoicesForClassification(classification.id)"
-              @update:model-value="updateMorphologyChoicesForClassification(classification.id, $event)"
-              :compact="true"
-              :single-select="false"
-              :class="{ 'border-warning': isRequiredMorphologyClassification(classification.id) && !hasSelectedMorphologyChoiceForClassification(classification.id) }"
-            />
-          </div>
-        </div>
-
-        <!-- Form Actions -->
-        <div class="form-actions" v-if="selectedFindingId">
-          <!-- Validation Errors -->
-          <div v-if="validationErrors.length > 0" class="alert alert-warning">
-            <ul class="mb-0">
-              <li v-for="error in validationErrors" :key="error">{{ error }}</li>
-            </ul>
-          </div>
-
-          <!-- Notes Section -->
-          <div class="form-group">
-            <label for="notes">Notizen (optional):</label>
-            <textarea 
-              id="notes"
-              v-model="notes"
-              class="form-control"
-              rows="3"
-              placeholder="Zusätzliche Bemerkungen..."
-            />
-          </div>
-
-          <!-- Save Button -->
-          <div class="button-group">
-            <button 
-              @click="saveFinding" 
-              :disabled="!canSave"
-              class="btn btn-primary"
-            >
-              <i class="fas fa-save"></i>
-              Befund speichern
-            </button>
-            <button 
-              @click="resetForm" 
-              class="btn btn-secondary"
-            >
-              <i class="fas fa-undo"></i>
-              Zurücksetzen
-            </button>
-            <button 
-              v-if="patientId"
-              @click="$emit('cancel')" 
-              class="btn btn-outline-secondary"
-            >
-              <i class="fas fa-times"></i>
-              Abbrechen
-            </button>
-          </div>
-        </div>
-      </div>
+    <!-- Selection Summary -->
+    <div v-if="selectedPatientHash || selectedExaminationId || selectedFindingId" class="selection-summary">
+      <h4>Aktuelle Auswahl:</h4>
+      <ul>
+        <li v-if="selectedPatientHash">
+          <strong>Patient:</strong> {{ availablePatients.find(p => p.patient_hash === selectedPatientHash)?.display_name }}
+        </li>
+        <li v-if="selectedExaminationId">
+          <strong>Untersuchung:</strong> {{ selectedExaminationName }}
+        </li>
+        <li v-if="selectedFindingId">
+          <strong>Befund:</strong> {{ availableFindings.find(f => f.id === selectedFindingId)?.name }}
+        </li>
+      </ul>
     </div>
 
     <!-- Help Text -->
-    <div v-if="!selectedExaminationId" class="help-text">
-      <p>Wählen Sie zunächst eine Untersuchung aus, um zu beginnen.</p>
+    <div v-if="!selectedPatientHash && !patientId" class="help-text">
+      <p>Wählen Sie zunächst einen Patienten aus, um eine neue Untersuchung zu erstellen.</p>
+    </div>
+    <div v-else-if="!currentPatientExaminationId" class="help-text">
+      <p>Erstellen Sie zunächst eine Patientenuntersuchung, bevor Sie Befunde hinzufügen können.</p>
     </div>
     <div v-else-if="!selectedFindingId" class="help-text">
       <p>Wählen Sie einen Befund aus, um die Klassifikationen zu bearbeiten.</p>
+    </div>
+
+    <!-- Success Message -->
+    <div v-if="successMessage" class="alert alert-success">
+      {{ successMessage }}
     </div>
 
     <!-- Error Message -->
@@ -189,12 +276,31 @@ import type {
   MorphologyClassificationChoice
 } from '@/stores/examinationStore';
 import ClassificationCard from './ClassificationCard.vue';
+import axios from 'axios';
+
+// Types for new functionality
+interface PatientDropdown {
+  id: number;
+  patient_hash: string;
+  first_name: string;
+  last_name: string;
+  display_name: string;
+  dob: string;
+}
+
+interface ExaminationDropdown {
+  id: number;
+  name: string;
+  name_de: string;
+  name_en: string;
+  display_name: string;
+}
 
 // Props
 interface Props {
   videoTimestamp?: number | null;
   videoId?: number | null;
-  patientId?: number | null; // Neu: für direkte Patient-Zuordnung
+  patientId?: number | null;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -206,11 +312,21 @@ const props = withDefaults(defineProps<Props>(), {
 // Emits
 const emit = defineEmits<{
   'examination-saved': [data: any]
-  'cancel': [] // Neu: Cancel Event
+  'patient-examination-created': [data: any]
+  'cancel': []
 }>();
 
 // Store
 const examinationStore = useExaminationStore();
+
+// New reactive state for patient examination creation
+const availablePatients = ref<PatientDropdown[]>([]);
+const availableExaminationsDropdown = ref<ExaminationDropdown[]>([]);
+const selectedPatientHash = ref<string | null>(null);
+const selectedExaminationName = ref<string | null>(null);
+const examinationDateStart = ref<string>(new Date().toISOString().split('T')[0]);
+const currentPatientExaminationId = ref<number | null>(null);
+const successMessage = ref<string>('');
 
 // Extended interfaces for internal use
 interface ExtendedLocationClassification extends LocationClassification {
@@ -232,6 +348,7 @@ const selectedMorphologyChoices = ref<number[]>([]);
 // Form state
 const notes = ref<string>('');
 const findingDataLoaded = ref<boolean>(false);
+const loading = ref<boolean>(false);
 
 // Local state
 const activeTab = ref<'location' | 'morphology'>('location');
@@ -239,7 +356,6 @@ const activeTab = ref<'location' | 'morphology'>('location');
 // Computed values from store
 const availableExaminations = computed(() => examinationStore.examinations);
 const availableFindings = computed(() => examinationStore.availableFindings);
-const loading = computed(() => examinationStore.loading);
 const error = computed(() => examinationStore.error);
 
 // Local computed values
@@ -248,7 +364,6 @@ const selectedExaminationId = computed({
   set: (value) => {
     if (value) {
       examinationStore.setSelectedExamination(value);
-      onExaminationChange();
     }
   }
 });
@@ -261,6 +376,15 @@ const selectedFindingId = computed({
       onFindingChange();
     }
   }
+});
+
+const todayDate = computed(() => new Date().toISOString().split('T')[0]);
+
+const canCreateExamination = computed(() => {
+  return (selectedPatientHash.value || props.patientId) && 
+         selectedExaminationName.value && 
+         examinationDateStart.value &&
+         !loading.value;
 });
 
 const hasRequiredLocationClassifications = computed(() => {
@@ -453,18 +577,146 @@ async function saveFinding(): Promise<void> {
   }
 }
 
+async function createPatientExamination(): Promise<void> {
+  if (!canCreateExamination.value) return;
+
+  loading.value = true;
+  successMessage.value = '';
+  
+  try {
+    const patientHash = props.patientId ? null : selectedPatientHash.value;
+    
+    const requestData = {
+      patient: patientHash,
+      examination: selectedExaminationName.value,
+      date_start: examinationDateStart.value,
+    };
+
+    const response = await axios.post('/api/patient-examinations/', requestData);
+    
+    currentPatientExaminationId.value = response.data.id;
+    successMessage.value = 'Patientenuntersuchung erfolgreich erstellt.';
+    
+    // Load available findings for the selected examination
+    if (selectedExaminationName.value) {
+      const examination = availableExaminationsDropdown.value.find(e => e.name === selectedExaminationName.value);
+      if (examination) {
+        selectedExaminationId.value = examination.id;
+        await examinationStore.loadFindingsForExamination(examination.id);
+      }
+    }
+    
+    emit('patient-examination-created', response.data);
+    
+    // Clear success message after 5 seconds
+    setTimeout(() => {
+      successMessage.value = '';
+    }, 5000);
+    
+  } catch (err: any) {
+    console.error('Error creating patient examination:', err);
+    
+    let errorMessage = 'Fehler beim Erstellen der Patientenuntersuchung.';
+    if (err.response?.data?.error) {
+      errorMessage = err.response.data.error;
+    } else if (err.response?.data) {
+      // Handle field-specific errors
+      const errors = [];
+      for (const [field, messages] of Object.entries(err.response.data)) {
+        if (Array.isArray(messages)) {
+          errors.push(`${field}: ${messages.join(', ')}`);
+        } else {
+          errors.push(`${field}: ${messages}`);
+        }
+      }
+      if (errors.length > 0) {
+        errorMessage = errors.join('; ');
+      }
+    }
+    
+    examinationStore.setError(errorMessage);
+  } finally {
+    loading.value = false;
+  }
+}
+
 function resetForm(): void {
+  // Reset patient examination creation
+  selectedPatientHash.value = null;
+  selectedExaminationName.value = null;
+  examinationDateStart.value = new Date().toISOString().split('T')[0];
+  currentPatientExaminationId.value = null;
+  successMessage.value = '';
+  
+  // Reset finding form
+  resetFindingForm();
+  
+  // Reset store
   examinationStore.resetForm();
+}
+
+function resetFindingForm(): void {
   selectedLocationChoices.value = [];
   selectedMorphologyChoices.value = [];
   notes.value = '';
   activeTab.value = 'location';
   findingDataLoaded.value = false;
+  selectedFindingId.value = null;
+}
+
+async function onPatientChange(): Promise<void> {
+  // Reset examination-related state when patient changes
+  selectedExaminationName.value = null;
+  currentPatientExaminationId.value = null;
+  successMessage.value = '';
+  resetFindingForm();
+}
+
+// New methods for patient examination management
+async function loadPatientsDropdown(): Promise<void> {
+  try {
+    // Use the correct patient store endpoint instead of the faulty patients_dropdown
+    const response = await axios.get('/api/patients/');
+    
+    // Transform the patient data to match the expected interface
+    availablePatients.value = response.data.map((patient: any) => ({
+      id: patient.id,
+      patient_hash: patient.patient_hash || `patient_${patient.id}`,
+      first_name: patient.first_name || '',
+      last_name: patient.last_name || '',
+      display_name: `${patient.first_name || 'Unbekannt'} ${patient.last_name || 'Unbekannt'}${patient.patient_hash ? ` (${patient.patient_hash.substring(0, 8)}...)` : ''}`,
+      dob: patient.dob || ''
+    }));
+    
+    console.log('Patients loaded successfully:', availablePatients.value.length);
+  } catch (err) {
+    console.error('Error loading patients dropdown:', err);
+    // Set empty array as fallback
+    availablePatients.value = [];
+  }
+}
+
+async function loadExaminationsDropdown(): Promise<void> {
+  try {
+    const response = await axios.get('/api/patient-examinations/examinations_dropdown/');
+    availableExaminationsDropdown.value = response.data;
+  } catch (err) {
+    console.error('Error loading examinations dropdown:', err);
+  }
 }
 
 // Load data on mount
-onMounted(() => {
-  examinationStore.loadExaminations();
+onMounted(async () => {
+  await Promise.all([
+    examinationStore.loadExaminations(),
+    loadPatientsDropdown(),
+    loadExaminationsDropdown()
+  ]);
+  
+  // If patientId is provided, set it in the store
+  if (props.patientId) {
+    examinationStore.setPatientId(props.patientId);
+  }
 });
 </script>
 
@@ -499,6 +751,15 @@ onMounted(() => {
 
 .patient-badge i {
   font-size: 16px;
+}
+
+.patient-selection-header {
+  margin-bottom: 30px;
+}
+
+.patient-selection-header .form-group {
+  max-width: 400px;
+  margin: 0 auto;
 }
 
 .exam-header {
@@ -623,6 +884,12 @@ onMounted(() => {
   background-color: #f8d7da;
   border: 1px solid #f5c6cb;
   color: #721c24;
+}
+
+.alert-success {
+  background-color: #d4edda;
+  border: 1px solid #c3e6cb;
+  color: #155724;
 }
 
 .alert ul {

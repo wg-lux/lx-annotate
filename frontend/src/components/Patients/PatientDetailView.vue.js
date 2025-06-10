@@ -1,150 +1,113 @@
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed } from 'vue';
 import { usePatientStore } from '@/stores/patientStore';
 import { patientService } from '@/api/patientService';
-import PatientExaminationForm from './PatientExaminationForm.vue';
 import PatientEditForm from './PatientEditForm.vue';
 const props = defineProps();
 const emit = defineEmits();
 // Composables
 const patientStore = usePatientStore();
 // Reactive state
-const activeTab = ref('overview');
-const showEditForm = ref(false);
 const loading = ref(false);
-const examinations = ref([]);
-const videos = ref([]);
-const reports = ref([]);
-const findings = ref([]);
+const error = ref('');
+const successMessage = ref('');
+const showEditForm = ref(false);
+const showDeletionModal = ref(false);
+const deleting = ref(false);
+const deletionCheck = ref(null);
 // Computed
 const genders = computed(() => patientStore.genders);
 const centers = computed(() => patientStore.centers);
 // Methods
-const loadPatientData = async () => {
+const checkDeletionSafety = async () => {
     try {
         loading.value = true;
-        // Load all related data for the patient
-        // Note: These endpoints would need to be implemented in the backend
-        const [examinationsData, videosData, reportsData] = await Promise.all([
-            // For now, we'll use mock data until the endpoints are available
-            Promise.resolve({ data: [] }),
-            Promise.resolve({ data: [] }),
-            Promise.resolve({ data: [] })
-        ]);
-        examinations.value = examinationsData.data || [];
-        videos.value = videosData.data || [];
-        reports.value = reportsData.data || [];
+        error.value = '';
+        // Call the backend safety check endpoint
+        const response = await fetch(`/api/patients/${props.patient.id}/check_deletion_safety/`);
+        if (!response.ok) {
+            throw new Error('Fehler beim Prüfen der Löschbarkeit');
+        }
+        deletionCheck.value = await response.json();
+        showDeletionModal.value = true;
     }
-    catch (error) {
-        console.error('Error loading patient data:', error);
+    catch (err) {
+        error.value = err.message || 'Fehler beim Prüfen der Löschbarkeit';
     }
     finally {
         loading.value = false;
     }
 };
-const loadLookupData = async () => {
+const confirmDeletion = async () => {
     try {
-        // Load genders and centers if not already loaded
-        if (genders.value.length === 0) {
-            const gendersData = await patientService.getGenders();
-            patientStore.genders = gendersData;
-        }
-        if (centers.value.length === 0) {
-            const centersData = await patientService.getCenters();
-            patientStore.centers = centersData;
-        }
+        deleting.value = true;
+        await patientService.deletePatient(props.patient.id);
+        successMessage.value = `Patient "${props.patient.first_name} ${props.patient.last_name}" wurde erfolgreich gelöscht.`;
+        emit('patient-deleted', props.patient.id);
+        closeDeletionModal();
     }
-    catch (error) {
-        console.error('Error loading lookup data:', error);
+    catch (err) {
+        error.value = err.message || 'Fehler beim Löschen des Patienten';
     }
+    finally {
+        deleting.value = false;
+    }
+};
+const closeDeletionModal = () => {
+    showDeletionModal.value = false;
+    deletionCheck.value = null;
 };
 const onPatientUpdated = (updatedPatient) => {
     showEditForm.value = false;
+    successMessage.value = `Patient wurde erfolgreich aktualisiert.`;
     emit('patient-updated', updatedPatient);
+    // Clear success message after 5 seconds
+    setTimeout(() => {
+        successMessage.value = '';
+    }, 5000);
 };
-const onExaminationCreated = (examination) => {
-    // Add the new examination to the list
-    examinations.value.unshift(examination);
-    // Switch to examinations tab to show the result
-    activeTab.value = 'examinations';
+const onPatientDeleted = (patientId) => {
+    showEditForm.value = false;
+    emit('patient-deleted', patientId);
 };
 const formatDate = (dateString) => {
     if (!dateString)
         return 'Nicht angegeben';
     try {
-        return new Date(dateString).toLocaleDateString('de-DE');
+        const date = new Date(dateString);
+        return date.toLocaleDateString('de-DE');
     }
     catch {
-        return 'Ungültiges Datum';
+        return 'Ungültig';
     }
 };
-const formatDuration = (duration) => {
-    if (!duration)
-        return '0:00';
-    const minutes = Math.floor(duration / 60);
-    const seconds = duration % 60;
-    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-};
-// Fixed: Handle both string and number gender types
-const getGenderName = (gender) => {
-    if (!gender)
+const formatDateTime = (dateString) => {
+    if (!dateString)
         return 'Nicht angegeben';
-    // If it's already a string (gender name), return it
-    if (typeof gender === 'string') {
-        const genderObj = genders.value.find(g => g.name === gender);
-        return genderObj ? (genderObj.name_de || genderObj.name) : gender;
+    try {
+        const date = new Date(dateString);
+        return date.toLocaleString('de-DE');
     }
-    return 'Unbekannt';
+    catch {
+        return 'Ungültig';
+    }
 };
-// Fixed: Handle both string and number center types
-const getCenterName = (center) => {
-    if (!center)
+const getGenderDisplay = (genderValue) => {
+    if (!genderValue)
+        return 'Nicht angegeben';
+    const gender = genders.value.find(g => g.name === genderValue);
+    return gender?.name_de || gender?.name || genderValue;
+};
+const getCenterDisplay = (centerValue) => {
+    if (!centerValue)
         return 'Nicht zugeordnet';
-    // If it's already a string (center name), return it
-    if (typeof center === 'string') {
-        const centerObj = centers.value.find(c => c.name === center);
-        return centerObj ? (centerObj.name_de || centerObj.name) : center;
-    }
-    return 'Unbekanntes Zentrum';
-};
-const getReportStatusClass = (status) => {
-    switch (status) {
-        case 'completed': return 'badge-success';
-        case 'pending': return 'badge-warning';
-        case 'failed': return 'badge-danger';
-        default: return 'badge-secondary';
-    }
-};
-const getReportStatusText = (status) => {
-    switch (status) {
-        case 'completed': return 'Abgeschlossen';
-        case 'pending': return 'In Bearbeitung';
-        case 'failed': return 'Fehlgeschlagen';
-        default: return 'Unbekannt';
-    }
-};
-// Method to set active tab with debugging
-const setActiveTab = (tabName) => {
-    console.log('=== TAB SWITCHING DEBUG ===');
-    console.log('🔄 Switching to tab:', tabName);
-    console.log('📋 Current activeTab value:', activeTab.value);
-    console.log('👤 Patient ID:', props.patient.id);
-    console.log('📊 Patient object:', props.patient);
-    activeTab.value = tabName;
-    console.log('✅ New activeTab value:', activeTab.value);
-    console.log('🎯 Tab is new-examination?', activeTab.value === 'new-examination');
-    console.log('🔍 Will PatientExaminationForm render?', activeTab.value === 'new-examination' && true);
-    console.log('=== END TAB SWITCHING DEBUG ===');
-};
-// Load data on mount
-onMounted(() => {
-    loadLookupData();
-    loadPatientData();
-}); /* PartiallyEnd: #3632/scriptSetup.vue */
+    const center = centers.value.find(c => c.name === centerValue);
+    return center?.name_de || center?.name || centerValue;
+}; /* PartiallyEnd: #3632/scriptSetup.vue */
 function __VLS_template() {
     const __VLS_ctx = {};
     let __VLS_components;
     let __VLS_directives;
-    ['patient-name', 'nav-link', 'nav-link', 'nav-link', 'info-item', 'info-item', 'stat-card', 'stat-content', 'empty-state', 'empty-state', 'examination-card', 'report-card', 'media-card', 'media-thumbnail', 'report-card', 'report-icon', 'report-info', 'detail-header', 'nav-tabs', 'media-grid', 'report-card',];
+    ['patient-title', 'card-title', 'info-item', 'info-item', 'link', 'badge', 'object-count', 'detail-header', 'patient-header-info', 'detail-actions', 'modal-dialog',];
     // CSS variable injection 
     // CSS variable injection end 
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -154,65 +117,94 @@ function __VLS_template() {
         ...{ class: ("detail-header") },
     });
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("patient-info") },
+        ...{ class: ("patient-header-info") },
     });
     __VLS_elementAsFunction(__VLS_intrinsicElements.h2, __VLS_intrinsicElements.h2)({
-        ...{ class: ("patient-name") },
+        ...{ class: ("patient-title") },
     });
     __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
         ...{ class: ("fas fa-user") },
     });
     (__VLS_ctx.patient.first_name);
     (__VLS_ctx.patient.last_name);
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("patient-meta") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-        ...{ class: ("badge badge-primary") },
-    });
-    (__VLS_ctx.patient.id);
-    if (__VLS_ctx.patient.age) {
+    if (__VLS_ctx.patient.is_real_person) {
         __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-            ...{ class: ("badge badge-info") },
+            ...{ class: ("badge bg-success") },
         });
-        (__VLS_ctx.patient.age);
+        __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: ("fas fa-shield-alt") },
+        });
     }
-    if (__VLS_ctx.patient.gender) {
+    else {
         __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-            ...{ class: ("badge badge-secondary") },
+            ...{ class: ("badge bg-secondary") },
         });
-        (__VLS_ctx.getGenderName(__VLS_ctx.patient.gender));
+        __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: ("fas fa-user-secret") },
+        });
     }
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("header-actions") },
+        ...{ class: ("detail-actions") },
     });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-        ...{ onClick: (...[$event]) => {
-                __VLS_ctx.showEditForm = !__VLS_ctx.showEditForm;
-            } },
-        ...{ class: ("btn btn-outline-primary") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: ("fas fa-edit") },
-    });
-    (__VLS_ctx.showEditForm ? 'Bearbeitung abbrechen' : 'Bearbeiten');
     __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
         ...{ onClick: (...[$event]) => {
                 __VLS_ctx.$emit('close');
             } },
-        ...{ class: ("btn btn-outline-secondary") },
+        ...{ class: ("btn btn-secondary btn-sm") },
+        disabled: ((__VLS_ctx.loading)),
     });
     __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
         ...{ class: ("fas fa-times") },
     });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+        ...{ onClick: (...[$event]) => {
+                __VLS_ctx.showEditForm = true;
+            } },
+        ...{ class: ("btn btn-primary btn-sm") },
+        disabled: ((__VLS_ctx.loading || __VLS_ctx.showEditForm)),
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+        ...{ class: ("fas fa-edit") },
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+        ...{ onClick: (__VLS_ctx.checkDeletionSafety) },
+        ...{ class: ("btn btn-outline-danger btn-sm") },
+        disabled: ((__VLS_ctx.loading || __VLS_ctx.showEditForm)),
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+        ...{ class: ("fas fa-trash") },
+    });
+    if (__VLS_ctx.error) {
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("alert alert-danger") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: ("fas fa-exclamation-triangle") },
+        });
+        (__VLS_ctx.error);
+    }
+    if (__VLS_ctx.successMessage) {
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("alert alert-success") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: ("fas fa-check-circle") },
+        });
+        (__VLS_ctx.successMessage);
+    }
     if (__VLS_ctx.showEditForm) {
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("card mb-4") },
+            ...{ class: ("edit-section") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("card") },
         });
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: ("card-header") },
         });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.h4, __VLS_intrinsicElements.h4)({});
+        __VLS_elementAsFunction(__VLS_intrinsicElements.h4, __VLS_intrinsicElements.h4)({
+            ...{ class: ("card-title") },
+        });
         __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
             ...{ class: ("fas fa-edit") },
         });
@@ -224,11 +216,13 @@ function __VLS_template() {
         // @ts-ignore
         const __VLS_0 = __VLS_asFunctionalComponent(PatientEditForm, new PatientEditForm({
             ...{ 'onPatientUpdated': {} },
+            ...{ 'onPatientDeleted': {} },
             ...{ 'onCancel': {} },
             patient: ((__VLS_ctx.patient)),
         }));
         const __VLS_1 = __VLS_0({
             ...{ 'onPatientUpdated': {} },
+            ...{ 'onPatientDeleted': {} },
             ...{ 'onCancel': {} },
             patient: ((__VLS_ctx.patient)),
         }, ...__VLS_functionalComponentArgsRest(__VLS_0));
@@ -237,6 +231,9 @@ function __VLS_template() {
             onPatientUpdated: (__VLS_ctx.onPatientUpdated)
         };
         const __VLS_7 = {
+            onPatientDeleted: (__VLS_ctx.onPatientDeleted)
+        };
+        const __VLS_8 = {
             onCancel: (...[$event]) => {
                 if (!((__VLS_ctx.showEditForm)))
                     return;
@@ -247,558 +244,782 @@ function __VLS_template() {
         let __VLS_3;
         var __VLS_4;
     }
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("content-tabs") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.ul, __VLS_intrinsicElements.ul)({
-        ...{ class: ("nav nav-tabs") },
-        role: ("tablist"),
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({
-        ...{ class: ("nav-item") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-        ...{ onClick: (...[$event]) => {
-                __VLS_ctx.activeTab = 'overview';
-            } },
-        ...{ class: ((['nav-link', { active: __VLS_ctx.activeTab === 'overview' }])) },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: ("fas fa-info-circle") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({
-        ...{ class: ("nav-item") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-        ...{ onClick: (...[$event]) => {
-                __VLS_ctx.activeTab = 'examinations';
-            } },
-        ...{ class: ((['nav-link', { active: __VLS_ctx.activeTab === 'examinations' }])) },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: ("fas fa-stethoscope") },
-    });
-    if (__VLS_ctx.examinations.length) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-            ...{ class: ("badge badge-light ms-1") },
-        });
-        (__VLS_ctx.examinations.length);
-    }
-    __VLS_elementAsFunction(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({
-        ...{ class: ("nav-item") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-        ...{ onClick: (...[$event]) => {
-                __VLS_ctx.activeTab = 'media';
-            } },
-        ...{ class: ((['nav-link', { active: __VLS_ctx.activeTab === 'media' }])) },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: ("fas fa-photo-video") },
-    });
-    if (__VLS_ctx.videos.length) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-            ...{ class: ("badge badge-light ms-1") },
-        });
-        (__VLS_ctx.videos.length);
-    }
-    __VLS_elementAsFunction(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({
-        ...{ class: ("nav-item") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-        ...{ onClick: (...[$event]) => {
-                __VLS_ctx.activeTab = 'reports';
-            } },
-        ...{ class: ((['nav-link', { active: __VLS_ctx.activeTab === 'reports' }])) },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: ("fas fa-file-medical") },
-    });
-    if (__VLS_ctx.reports.length) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-            ...{ class: ("badge badge-light ms-1") },
-        });
-        (__VLS_ctx.reports.length);
-    }
-    __VLS_elementAsFunction(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({
-        ...{ class: ("nav-item") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-        ...{ onClick: (...[$event]) => {
-                __VLS_ctx.setActiveTab('new-examination');
-            } },
-        ...{ class: ((['nav-link', { active: __VLS_ctx.activeTab === 'new-examination' }])) },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: ("fas fa-plus") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("tab-content") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ((['tab-pane fade', { 'show active': __VLS_ctx.activeTab === 'overview' }])) },
-    });
-    __VLS_asFunctionalDirective(__VLS_directives.vShow)(null, { ...__VLS_directiveBindingRestFields, value: (__VLS_ctx.activeTab === 'overview') }, null, null);
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("row") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("col-md-6") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("card info-card") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("card-header") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.h5, __VLS_intrinsicElements.h5)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: ("fas fa-user") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("card-body") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("info-grid") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("info-item") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
-    (__VLS_ctx.patient.first_name);
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("info-item") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
-    (__VLS_ctx.patient.last_name);
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("info-item") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
-    (__VLS_ctx.formatDate(__VLS_ctx.patient.dob));
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("info-item") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
-    (__VLS_ctx.patient.age || 'Nicht berechnet');
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("info-item") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
-    (__VLS_ctx.getGenderName(__VLS_ctx.patient.gender) || 'Nicht angegeben');
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("col-md-6") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("card info-card") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("card-header") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.h5, __VLS_intrinsicElements.h5)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: ("fas fa-address-book") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("card-body") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("info-grid") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("info-item") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
-    (__VLS_ctx.patient.email || 'Nicht angegeben');
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("info-item") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
-    (__VLS_ctx.patient.phone || 'Nicht angegeben');
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("info-item") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
-    (__VLS_ctx.getCenterName(__VLS_ctx.patient.center) || 'Nicht zugeordnet');
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("info-item") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-        ...{ class: ("font-mono") },
-    });
-    (__VLS_ctx.patient.patient_hash || 'Nicht generiert');
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("info-item") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-        ...{ class: ((['badge', __VLS_ctx.patient.is_real_person ? 'badge-success' : 'badge-warning'])) },
-    });
-    (__VLS_ctx.patient.is_real_person ? 'Realer Patient' : 'Testdaten');
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("row mt-4") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("col-md-3") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("stat-card") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("stat-icon") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: ("fas fa-stethoscope") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("stat-content") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.h3, __VLS_intrinsicElements.h3)({});
-    (__VLS_ctx.examinations.length);
-    __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("col-md-3") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("stat-card") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("stat-icon") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: ("fas fa-video") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("stat-content") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.h3, __VLS_intrinsicElements.h3)({});
-    (__VLS_ctx.videos.length);
-    __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("col-md-3") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("stat-card") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("stat-icon") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: ("fas fa-file-medical") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("stat-content") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.h3, __VLS_intrinsicElements.h3)({});
-    (__VLS_ctx.reports.length);
-    __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("col-md-3") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("stat-card") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("stat-icon") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: ("fas fa-search") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("stat-content") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.h3, __VLS_intrinsicElements.h3)({});
-    (__VLS_ctx.findings.length);
-    __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ((['tab-pane fade', { 'show active': __VLS_ctx.activeTab === 'examinations' }])) },
-    });
-    __VLS_asFunctionalDirective(__VLS_directives.vShow)(null, { ...__VLS_directiveBindingRestFields, value: (__VLS_ctx.activeTab === 'examinations') }, null, null);
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("d-flex justify-content-between align-items-center mb-3") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.h4, __VLS_intrinsicElements.h4)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-        ...{ onClick: (...[$event]) => {
-                __VLS_ctx.activeTab = 'new-examination';
-            } },
-        ...{ class: ("btn btn-primary") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: ("fas fa-plus") },
-    });
-    if (__VLS_ctx.examinations.length === 0) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("empty-state") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: ("fas fa-stethoscope fa-3x text-muted") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.h4, __VLS_intrinsicElements.h4)({});
-        __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
-            ...{ class: ("text-muted") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-            ...{ onClick: (...[$event]) => {
-                    if (!((__VLS_ctx.examinations.length === 0)))
-                        return;
-                    __VLS_ctx.activeTab = 'new-examination';
-                } },
-            ...{ class: ("btn btn-primary") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: ("fas fa-plus") },
-        });
-    }
     else {
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("examinations-list") },
+            ...{ class: ("patient-info-display") },
         });
-        for (const [examination] of __VLS_getVForSourceType((__VLS_ctx.examinations))) {
-            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                key: ((examination.id)),
-                ...{ class: ("examination-card") },
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("row") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("col-md-6") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("card info-card") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("card-header") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.h5, __VLS_intrinsicElements.h5)({
+            ...{ class: ("card-title") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: ("fas fa-user") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("card-body") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("info-grid") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("info-item") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({});
+        __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+        (__VLS_ctx.patient.first_name || 'Nicht angegeben');
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("info-item") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({});
+        __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+        (__VLS_ctx.patient.last_name || 'Nicht angegeben');
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("info-item") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({});
+        __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+        (__VLS_ctx.formatDate(__VLS_ctx.patient.dob));
+        if (__VLS_ctx.patient.age) {
+            __VLS_elementAsFunction(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+                ...{ class: ("text-muted") },
             });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: ("examination-header") },
+            (__VLS_ctx.patient.age);
+        }
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("info-item") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({});
+        __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+        (__VLS_ctx.getGenderDisplay(__VLS_ctx.patient.gender));
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("col-md-6") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("card info-card") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("card-header") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.h5, __VLS_intrinsicElements.h5)({
+            ...{ class: ("card-title") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: ("fas fa-address-book") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("card-body") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("info-grid") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("info-item") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({});
+        __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+        if (__VLS_ctx.patient.email) {
+            __VLS_elementAsFunction(__VLS_intrinsicElements.a, __VLS_intrinsicElements.a)({
+                href: ((`mailto:${__VLS_ctx.patient.email}`)),
+                ...{ class: ("link") },
             });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.h5, __VLS_intrinsicElements.h5)({});
-            (examination.name_de || examination.name);
+            (__VLS_ctx.patient.email);
+        }
+        else {
             __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-                ...{ class: ("examination-date") },
+                ...{ class: ("text-muted") },
             });
-            (__VLS_ctx.formatDate(examination.date));
-            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: ("examination-body") },
+        }
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("info-item") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({});
+        __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+        if (__VLS_ctx.patient.phone) {
+            __VLS_elementAsFunction(__VLS_intrinsicElements.a, __VLS_intrinsicElements.a)({
+                href: ((`tel:${__VLS_ctx.patient.phone}`)),
+                ...{ class: ("link") },
             });
-            if (examination.description) {
-                __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
-                (examination.description_de || examination.description);
-            }
-            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: ("examination-stats") },
-            });
+            (__VLS_ctx.patient.phone);
+        }
+        else {
             __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-                ...{ class: ("stat-badge") },
+                ...{ class: ("text-muted") },
+            });
+        }
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("info-item") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({});
+        __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+        (__VLS_ctx.getCenterDisplay(__VLS_ctx.patient.center));
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("info-item") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({});
+        __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+            ...{ class: ("font-mono") },
+        });
+        (__VLS_ctx.patient.patient_hash || 'Nicht generiert');
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("row mt-3") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("col-12") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("card info-card") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("card-header") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.h5, __VLS_intrinsicElements.h5)({
+            ...{ class: ("card-title") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: ("fas fa-cog") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("card-body") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("row") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("col-md-6") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("info-item") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({});
+        __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+            ...{ class: ("font-mono") },
+        });
+        (__VLS_ctx.patient.id);
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("info-item") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({});
+        __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+        if (__VLS_ctx.patient.is_real_person) {
+            __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                ...{ class: ("badge bg-success") },
             });
             __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: ("fas fa-search") },
+                ...{ class: ("fas fa-shield-alt") },
             });
-            (examination.findings_count || 0);
-            if (examination.video_count) {
+        }
+        else {
+            __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                ...{ class: ("badge bg-secondary") },
+            });
+            __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                ...{ class: ("fas fa-user-secret") },
+            });
+        }
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("col-md-6") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("info-item") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({});
+        __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+        (__VLS_ctx.formatDateTime(__VLS_ctx.patient.created_at));
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("info-item") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({});
+        __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+        (__VLS_ctx.formatDateTime(__VLS_ctx.patient.updated_at));
+    }
+    if (__VLS_ctx.showDeletionModal) {
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("modal-overlay") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("modal-dialog") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("modal-content") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("modal-header") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.h5, __VLS_intrinsicElements.h5)({
+            ...{ class: ("modal-title") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: ("fas fa-exclamation-triangle text-warning") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("modal-body") },
+        });
+        if (__VLS_ctx.deletionCheck?.can_delete) {
+            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: ("alert alert-info") },
+            });
+            __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                ...{ class: ("fas fa-info-circle") },
+            });
+            __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+            __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
+                ...{ class: ("mb-0 mt-2") },
+            });
+        }
+        else {
+            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: ("alert alert-warning") },
+            });
+            __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                ...{ class: ("fas fa-exclamation-triangle") },
+            });
+            __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+            __VLS_elementAsFunction(__VLS_intrinsicElements.ul, __VLS_intrinsicElements.ul)({
+                ...{ class: ("mt-2 mb-0") },
+            });
+            __VLS_elementAsFunction(__VLS_intrinsicElements.template, __VLS_intrinsicElements.template)({});
+            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: ("patient-detail-view") },
+            });
+            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: ("detail-header") },
+            });
+            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: ("patient-header-info") },
+            });
+            __VLS_elementAsFunction(__VLS_intrinsicElements.h2, __VLS_intrinsicElements.h2)({
+                ...{ class: ("patient-title") },
+            });
+            __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                ...{ class: ("fas fa-user") },
+            });
+            (__VLS_ctx.patient.first_name);
+            (__VLS_ctx.patient.last_name);
+            if (__VLS_ctx.patient.is_real_person) {
                 __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-                    ...{ class: ("stat-badge") },
+                    ...{ class: ("badge bg-success") },
                 });
                 __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                    ...{ class: ("fas fa-video") },
+                    ...{ class: ("fas fa-shield-alt") },
                 });
-                (examination.video_count);
+            }
+            else {
+                __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                    ...{ class: ("badge bg-secondary") },
+                });
+                __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                    ...{ class: ("fas fa-user-secret") },
+                });
             }
             __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: ("examination-actions") },
+                ...{ class: ("detail-actions") },
             });
             __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-                ...{ class: ("btn btn-sm btn-outline-primary") },
+                ...{ onClick: (...[$event]) => {
+                        if (!((__VLS_ctx.showDeletionModal)))
+                            return;
+                        if (!(!((__VLS_ctx.deletionCheck?.can_delete))))
+                            return;
+                        __VLS_ctx.$emit('close');
+                    } },
+                ...{ class: ("btn btn-secondary btn-sm") },
+                disabled: ((__VLS_ctx.loading)),
             });
             __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: ("fas fa-eye") },
+                ...{ class: ("fas fa-times") },
             });
             __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-                ...{ class: ("btn btn-sm btn-outline-secondary") },
+                ...{ onClick: (...[$event]) => {
+                        if (!((__VLS_ctx.showDeletionModal)))
+                            return;
+                        if (!(!((__VLS_ctx.deletionCheck?.can_delete))))
+                            return;
+                        __VLS_ctx.showEditForm = true;
+                    } },
+                ...{ class: ("btn btn-primary btn-sm") },
+                disabled: ((__VLS_ctx.loading || __VLS_ctx.showEditForm)),
             });
             __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
                 ...{ class: ("fas fa-edit") },
             });
-        }
-    }
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ((['tab-pane fade', { 'show active': __VLS_ctx.activeTab === 'media' }])) },
-    });
-    __VLS_asFunctionalDirective(__VLS_directives.vShow)(null, { ...__VLS_directiveBindingRestFields, value: (__VLS_ctx.activeTab === 'media') }, null, null);
-    __VLS_elementAsFunction(__VLS_intrinsicElements.h4, __VLS_intrinsicElements.h4)({});
-    if (__VLS_ctx.videos.length === 0) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("empty-state") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: ("fas fa-photo-video fa-3x text-muted") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.h4, __VLS_intrinsicElements.h4)({});
-        __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
-            ...{ class: ("text-muted") },
-        });
-    }
-    else {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("media-grid") },
-        });
-        for (const [video] of __VLS_getVForSourceType((__VLS_ctx.videos))) {
-            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                key: ((video.id)),
-                ...{ class: ("media-card") },
-            });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: ("media-thumbnail") },
+            __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+                ...{ onClick: (__VLS_ctx.checkDeletionSafety) },
+                ...{ class: ("btn btn-outline-danger btn-sm") },
+                disabled: ((__VLS_ctx.loading || __VLS_ctx.showEditForm)),
             });
             __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: ("fas fa-play-circle") },
+                ...{ class: ("fas fa-trash") },
             });
+            if (__VLS_ctx.error) {
+                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                    ...{ class: ("alert alert-danger") },
+                });
+                __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                    ...{ class: ("fas fa-exclamation-triangle") },
+                });
+                (__VLS_ctx.error);
+            }
+            if (__VLS_ctx.successMessage) {
+                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                    ...{ class: ("alert alert-success") },
+                });
+                __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                    ...{ class: ("fas fa-check-circle") },
+                });
+                (__VLS_ctx.successMessage);
+            }
+            if (__VLS_ctx.showEditForm) {
+                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                    ...{ class: ("edit-section") },
+                });
+                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                    ...{ class: ("card") },
+                });
+                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                    ...{ class: ("card-header") },
+                });
+                __VLS_elementAsFunction(__VLS_intrinsicElements.h4, __VLS_intrinsicElements.h4)({
+                    ...{ class: ("card-title") },
+                });
+                __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                    ...{ class: ("fas fa-edit") },
+                });
+                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                    ...{ class: ("card-body") },
+                });
+                // @ts-ignore
+                /** @type { [typeof PatientEditForm, ] } */ ;
+                // @ts-ignore
+                const __VLS_9 = __VLS_asFunctionalComponent(PatientEditForm, new PatientEditForm({
+                    ...{ 'onPatientUpdated': {} },
+                    ...{ 'onPatientDeleted': {} },
+                    ...{ 'onCancel': {} },
+                    patient: ((__VLS_ctx.patient)),
+                }));
+                const __VLS_10 = __VLS_9({
+                    ...{ 'onPatientUpdated': {} },
+                    ...{ 'onPatientDeleted': {} },
+                    ...{ 'onCancel': {} },
+                    patient: ((__VLS_ctx.patient)),
+                }, ...__VLS_functionalComponentArgsRest(__VLS_9));
+                let __VLS_14;
+                const __VLS_15 = {
+                    onPatientUpdated: (__VLS_ctx.onPatientUpdated)
+                };
+                const __VLS_16 = {
+                    onPatientDeleted: (__VLS_ctx.onPatientDeleted)
+                };
+                const __VLS_17 = {
+                    onCancel: (...[$event]) => {
+                        if (!((__VLS_ctx.showDeletionModal)))
+                            return;
+                        if (!(!((__VLS_ctx.deletionCheck?.can_delete))))
+                            return;
+                        if (!((__VLS_ctx.showEditForm)))
+                            return;
+                        __VLS_ctx.showEditForm = false;
+                    }
+                };
+                let __VLS_11;
+                let __VLS_12;
+                var __VLS_13;
+            }
+            else {
+                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                    ...{ class: ("patient-info-display") },
+                });
+                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                    ...{ class: ("row") },
+                });
+                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                    ...{ class: ("col-md-6") },
+                });
+                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                    ...{ class: ("card info-card") },
+                });
+                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                    ...{ class: ("card-header") },
+                });
+                __VLS_elementAsFunction(__VLS_intrinsicElements.h5, __VLS_intrinsicElements.h5)({
+                    ...{ class: ("card-title") },
+                });
+                __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                    ...{ class: ("fas fa-user") },
+                });
+                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                    ...{ class: ("card-body") },
+                });
+                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                    ...{ class: ("info-grid") },
+                });
+                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                    ...{ class: ("info-item") },
+                });
+                __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({});
+                __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+                (__VLS_ctx.patient.first_name || 'Nicht angegeben');
+                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                    ...{ class: ("info-item") },
+                });
+                __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({});
+                __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+                (__VLS_ctx.patient.last_name || 'Nicht angegeben');
+                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                    ...{ class: ("info-item") },
+                });
+                __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({});
+                __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+                (__VLS_ctx.formatDate(__VLS_ctx.patient.dob));
+                if (__VLS_ctx.patient.age) {
+                    __VLS_elementAsFunction(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+                        ...{ class: ("text-muted") },
+                    });
+                    (__VLS_ctx.patient.age);
+                }
+                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                    ...{ class: ("info-item") },
+                });
+                __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({});
+                __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+                (__VLS_ctx.getGenderDisplay(__VLS_ctx.patient.gender));
+                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                    ...{ class: ("col-md-6") },
+                });
+                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                    ...{ class: ("card info-card") },
+                });
+                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                    ...{ class: ("card-header") },
+                });
+                __VLS_elementAsFunction(__VLS_intrinsicElements.h5, __VLS_intrinsicElements.h5)({
+                    ...{ class: ("card-title") },
+                });
+                __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                    ...{ class: ("fas fa-address-book") },
+                });
+                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                    ...{ class: ("card-body") },
+                });
+                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                    ...{ class: ("info-grid") },
+                });
+                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                    ...{ class: ("info-item") },
+                });
+                __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({});
+                __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+                if (__VLS_ctx.patient.email) {
+                    __VLS_elementAsFunction(__VLS_intrinsicElements.a, __VLS_intrinsicElements.a)({
+                        href: ((`mailto:${__VLS_ctx.patient.email}`)),
+                        ...{ class: ("link") },
+                    });
+                    (__VLS_ctx.patient.email);
+                }
+                else {
+                    __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                        ...{ class: ("text-muted") },
+                    });
+                }
+                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                    ...{ class: ("info-item") },
+                });
+                __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({});
+                __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+                if (__VLS_ctx.patient.phone) {
+                    __VLS_elementAsFunction(__VLS_intrinsicElements.a, __VLS_intrinsicElements.a)({
+                        href: ((`tel:${__VLS_ctx.patient.phone}`)),
+                        ...{ class: ("link") },
+                    });
+                    (__VLS_ctx.patient.phone);
+                }
+                else {
+                    __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                        ...{ class: ("text-muted") },
+                    });
+                }
+                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                    ...{ class: ("info-item") },
+                });
+                __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({});
+                __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+                (__VLS_ctx.getCenterDisplay(__VLS_ctx.patient.center));
+                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                    ...{ class: ("info-item") },
+                });
+                __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({});
+                __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                    ...{ class: ("font-mono") },
+                });
+                (__VLS_ctx.patient.patient_hash || 'Nicht generiert');
+                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                    ...{ class: ("row mt-3") },
+                });
+                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                    ...{ class: ("col-12") },
+                });
+                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                    ...{ class: ("card info-card") },
+                });
+                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                    ...{ class: ("card-header") },
+                });
+                __VLS_elementAsFunction(__VLS_intrinsicElements.h5, __VLS_intrinsicElements.h5)({
+                    ...{ class: ("card-title") },
+                });
+                __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                    ...{ class: ("fas fa-cog") },
+                });
+                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                    ...{ class: ("card-body") },
+                });
+                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                    ...{ class: ("row") },
+                });
+                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                    ...{ class: ("col-md-6") },
+                });
+                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                    ...{ class: ("info-item") },
+                });
+                __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({});
+                __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                    ...{ class: ("font-mono") },
+                });
+                (__VLS_ctx.patient.id);
+                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                    ...{ class: ("info-item") },
+                });
+                __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({});
+                __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+                if (__VLS_ctx.patient.is_real_person) {
+                    __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                        ...{ class: ("badge bg-success") },
+                    });
+                    __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                        ...{ class: ("fas fa-shield-alt") },
+                    });
+                }
+                else {
+                    __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                        ...{ class: ("badge bg-secondary") },
+                    });
+                    __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                        ...{ class: ("fas fa-user-secret") },
+                    });
+                }
+                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                    ...{ class: ("col-md-6") },
+                });
+                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                    ...{ class: ("info-item") },
+                });
+                __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({});
+                __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+                (__VLS_ctx.formatDateTime(__VLS_ctx.patient.created_at));
+                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                    ...{ class: ("info-item") },
+                });
+                __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({});
+                __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+                (__VLS_ctx.formatDateTime(__VLS_ctx.patient.updated_at));
+            }
+            if (__VLS_ctx.showDeletionModal) {
+                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                    ...{ class: ("modal-overlay") },
+                });
+                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                    ...{ class: ("modal-dialog") },
+                });
+                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                    ...{ class: ("modal-content") },
+                });
+                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                    ...{ class: ("modal-header") },
+                });
+                __VLS_elementAsFunction(__VLS_intrinsicElements.h5, __VLS_intrinsicElements.h5)({
+                    ...{ class: ("modal-title") },
+                });
+                __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                    ...{ class: ("fas fa-exclamation-triangle text-warning") },
+                });
+                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                    ...{ class: ("modal-body") },
+                });
+                if (__VLS_ctx.deletionCheck?.can_delete) {
+                    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                        ...{ class: ("alert alert-info") },
+                    });
+                    __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                        ...{ class: ("fas fa-info-circle") },
+                    });
+                    __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+                    __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
+                        ...{ class: ("mb-0 mt-2") },
+                    });
+                }
+                else {
+                    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                        ...{ class: ("alert alert-warning") },
+                    });
+                    __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                        ...{ class: ("fas fa-exclamation-triangle") },
+                    });
+                    __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+                    __VLS_elementAsFunction(__VLS_intrinsicElements.ul, __VLS_intrinsicElements.ul)({
+                        ...{ class: ("mt-2 mb-0") },
+                    });
+                    for (const [warning] of __VLS_getVForSourceType((__VLS_ctx.deletionCheck?.warnings?.filter((w) => w)))) {
+                        __VLS_elementAsFunction(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({
+                            key: ((warning)),
+                        });
+                        (warning);
+                    }
+                }
+                if (__VLS_ctx.deletionCheck?.related_objects) {
+                    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                        ...{ class: ("mt-3") },
+                    });
+                    __VLS_elementAsFunction(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({});
+                    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                        ...{ class: ("related-objects") },
+                    });
+                    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                        ...{ class: ("object-count") },
+                    });
+                    __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                        ...{ class: ("fas fa-stethoscope") },
+                    });
+                    (__VLS_ctx.deletionCheck.related_objects.examinations);
+                    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                        ...{ class: ("object-count") },
+                    });
+                    __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                        ...{ class: ("fas fa-search") },
+                    });
+                    (__VLS_ctx.deletionCheck.related_objects.findings);
+                    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                        ...{ class: ("object-count") },
+                    });
+                    __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                        ...{ class: ("fas fa-video") },
+                    });
+                    (__VLS_ctx.deletionCheck.related_objects.videos);
+                    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                        ...{ class: ("object-count") },
+                    });
+                    __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                        ...{ class: ("fas fa-file-pdf") },
+                    });
+                    (__VLS_ctx.deletionCheck.related_objects.reports);
+                }
+                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                    ...{ class: ("modal-footer") },
+                });
+                __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+                    ...{ onClick: (__VLS_ctx.closeDeletionModal) },
+                    type: ("button"),
+                    ...{ class: ("btn btn-secondary") },
+                    disabled: ((__VLS_ctx.deleting)),
+                });
+                if (__VLS_ctx.deletionCheck?.can_delete) {
+                    __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+                        ...{ onClick: (__VLS_ctx.confirmDeletion) },
+                        type: ("button"),
+                        ...{ class: ("btn btn-danger") },
+                        disabled: ((__VLS_ctx.deleting)),
+                    });
+                    if (__VLS_ctx.deleting) {
+                        __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                            ...{ class: ("spinner-border spinner-border-sm me-2") },
+                        });
+                    }
+                    else {
+                        __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                            ...{ class: ("fas fa-trash me-2") },
+                        });
+                    }
+                    (__VLS_ctx.deleting ? 'Wird gelöscht...' : 'Endgültig löschen');
+                }
+            }
+        }
+        if (__VLS_ctx.deletionCheck?.related_objects) {
             __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: ("media-duration") },
-            });
-            (__VLS_ctx.formatDuration(video.duration));
-            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: ("media-info") },
+                ...{ class: ("mt-3") },
             });
             __VLS_elementAsFunction(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({});
-            (video.filename || `Video ${video.id}`);
-            __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
-                ...{ class: ("text-muted") },
-            });
-            (__VLS_ctx.formatDate(video.created_at));
             __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: ("media-actions") },
+                ...{ class: ("related-objects") },
             });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-                ...{ class: ("btn btn-sm btn-primary") },
+            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: ("object-count") },
             });
             __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: ("fas fa-play") },
+                ...{ class: ("fas fa-stethoscope") },
             });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-                ...{ class: ("btn btn-sm btn-outline-secondary") },
+            (__VLS_ctx.deletionCheck.related_objects.examinations);
+            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: ("object-count") },
             });
             __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: ("fas fa-download") },
+                ...{ class: ("fas fa-search") },
             });
-        }
-    }
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ((['tab-pane fade', { 'show active': __VLS_ctx.activeTab === 'reports' }])) },
-    });
-    __VLS_asFunctionalDirective(__VLS_directives.vShow)(null, { ...__VLS_directiveBindingRestFields, value: (__VLS_ctx.activeTab === 'reports') }, null, null);
-    __VLS_elementAsFunction(__VLS_intrinsicElements.h4, __VLS_intrinsicElements.h4)({});
-    if (__VLS_ctx.reports.length === 0) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("empty-state") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: ("fas fa-file-medical fa-3x text-muted") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.h4, __VLS_intrinsicElements.h4)({});
-        __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
-            ...{ class: ("text-muted") },
-        });
-    }
-    else {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("reports-list") },
-        });
-        for (const [report] of __VLS_getVForSourceType((__VLS_ctx.reports))) {
+            (__VLS_ctx.deletionCheck.related_objects.findings);
             __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                key: ((report.id)),
-                ...{ class: ("report-card") },
+                ...{ class: ("object-count") },
             });
+            __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                ...{ class: ("fas fa-video") },
+            });
+            (__VLS_ctx.deletionCheck.related_objects.videos);
             __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: ("report-icon") },
+                ...{ class: ("object-count") },
             });
             __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
                 ...{ class: ("fas fa-file-pdf") },
             });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: ("report-info") },
-            });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({});
-            (report.title || 'Unbenannter Report');
-            __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
-                ...{ class: ("text-muted") },
-            });
-            (__VLS_ctx.formatDate(report.created_at));
-            __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-                ...{ class: ((['badge', __VLS_ctx.getReportStatusClass(report.status)])) },
-            });
-            (__VLS_ctx.getReportStatusText(report.status));
-            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: ("report-actions") },
-            });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-                ...{ class: ("btn btn-sm btn-outline-primary") },
-            });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: ("fas fa-eye") },
-            });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-                ...{ class: ("btn btn-sm btn-outline-secondary") },
-            });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: ("fas fa-download") },
-            });
+            (__VLS_ctx.deletionCheck.related_objects.reports);
         }
-    }
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ((['tab-pane fade', { 'show active': __VLS_ctx.activeTab === 'new-examination' }])) },
-    });
-    __VLS_asFunctionalDirective(__VLS_directives.vShow)(null, { ...__VLS_directiveBindingRestFields, value: (__VLS_ctx.activeTab === 'new-examination') }, null, null);
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("card") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("card-header") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.h4, __VLS_intrinsicElements.h4)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: ("fas fa-plus") },
-    });
-    (__VLS_ctx.patient.first_name);
-    (__VLS_ctx.patient.last_name);
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("card-body") },
-    });
-    // @ts-ignore
-    /** @type { [typeof PatientExaminationForm, ] } */ ;
-    // @ts-ignore
-    const __VLS_8 = __VLS_asFunctionalComponent(PatientExaminationForm, new PatientExaminationForm({
-        ...{ 'onExaminationCreated': {} },
-        ...{ 'onCancel': {} },
-        patientId: ((__VLS_ctx.patient.id || 0)),
-    }));
-    const __VLS_9 = __VLS_8({
-        ...{ 'onExaminationCreated': {} },
-        ...{ 'onCancel': {} },
-        patientId: ((__VLS_ctx.patient.id || 0)),
-    }, ...__VLS_functionalComponentArgsRest(__VLS_8));
-    let __VLS_13;
-    const __VLS_14 = {
-        onExaminationCreated: (__VLS_ctx.onExaminationCreated)
-    };
-    const __VLS_15 = {
-        onCancel: (...[$event]) => {
-            __VLS_ctx.activeTab = 'overview';
-        }
-    };
-    let __VLS_10;
-    let __VLS_11;
-    var __VLS_12;
-    if (!__VLS_ctx.patient.id) {
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("alert alert-warning mt-3") },
+            ...{ class: ("modal-footer") },
         });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: ("fas fa-exclamation-triangle me-2") },
+        __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+            ...{ onClick: (__VLS_ctx.closeDeletionModal) },
+            type: ("button"),
+            ...{ class: ("btn btn-secondary") },
+            disabled: ((__VLS_ctx.deleting)),
         });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+        if (__VLS_ctx.deletionCheck?.can_delete) {
+            __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+                ...{ onClick: (__VLS_ctx.confirmDeletion) },
+                type: ("button"),
+                ...{ class: ("btn btn-danger") },
+                disabled: ((__VLS_ctx.deleting)),
+            });
+            if (__VLS_ctx.deleting) {
+                __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                    ...{ class: ("spinner-border spinner-border-sm me-2") },
+                });
+            }
+            else {
+                __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                    ...{ class: ("fas fa-trash me-2") },
+                });
+            }
+            (__VLS_ctx.deleting ? 'Wird gelöscht...' : 'Endgültig löschen');
+        }
     }
-    ['patient-detail-view', 'detail-header', 'patient-info', 'patient-name', 'fas', 'fa-user', 'patient-meta', 'badge', 'badge-primary', 'badge', 'badge-info', 'badge', 'badge-secondary', 'header-actions', 'btn', 'btn-outline-primary', 'fas', 'fa-edit', 'btn', 'btn-outline-secondary', 'fas', 'fa-times', 'card', 'mb-4', 'card-header', 'fas', 'fa-edit', 'card-body', 'content-tabs', 'nav', 'nav-tabs', 'nav-item', 'active', 'nav-link', 'fas', 'fa-info-circle', 'nav-item', 'active', 'nav-link', 'fas', 'fa-stethoscope', 'badge', 'badge-light', 'ms-1', 'nav-item', 'active', 'nav-link', 'fas', 'fa-photo-video', 'badge', 'badge-light', 'ms-1', 'nav-item', 'active', 'nav-link', 'fas', 'fa-file-medical', 'badge', 'badge-light', 'ms-1', 'nav-item', 'active', 'nav-link', 'fas', 'fa-plus', 'tab-content', 'tab-pane', 'fade', 'show', 'active', 'row', 'col-md-6', 'card', 'info-card', 'card-header', 'fas', 'fa-user', 'card-body', 'info-grid', 'info-item', 'info-item', 'info-item', 'info-item', 'info-item', 'col-md-6', 'card', 'info-card', 'card-header', 'fas', 'fa-address-book', 'card-body', 'info-grid', 'info-item', 'info-item', 'info-item', 'info-item', 'font-mono', 'info-item', 'badge', 'row', 'mt-4', 'col-md-3', 'stat-card', 'stat-icon', 'fas', 'fa-stethoscope', 'stat-content', 'col-md-3', 'stat-card', 'stat-icon', 'fas', 'fa-video', 'stat-content', 'col-md-3', 'stat-card', 'stat-icon', 'fas', 'fa-file-medical', 'stat-content', 'col-md-3', 'stat-card', 'stat-icon', 'fas', 'fa-search', 'stat-content', 'tab-pane', 'fade', 'show', 'active', 'd-flex', 'justify-content-between', 'align-items-center', 'mb-3', 'btn', 'btn-primary', 'fas', 'fa-plus', 'empty-state', 'fas', 'fa-stethoscope', 'fa-3x', 'text-muted', 'text-muted', 'btn', 'btn-primary', 'fas', 'fa-plus', 'examinations-list', 'examination-card', 'examination-header', 'examination-date', 'examination-body', 'examination-stats', 'stat-badge', 'fas', 'fa-search', 'stat-badge', 'fas', 'fa-video', 'examination-actions', 'btn', 'btn-sm', 'btn-outline-primary', 'fas', 'fa-eye', 'btn', 'btn-sm', 'btn-outline-secondary', 'fas', 'fa-edit', 'tab-pane', 'fade', 'show', 'active', 'empty-state', 'fas', 'fa-photo-video', 'fa-3x', 'text-muted', 'text-muted', 'media-grid', 'media-card', 'media-thumbnail', 'fas', 'fa-play-circle', 'media-duration', 'media-info', 'text-muted', 'media-actions', 'btn', 'btn-sm', 'btn-primary', 'fas', 'fa-play', 'btn', 'btn-sm', 'btn-outline-secondary', 'fas', 'fa-download', 'tab-pane', 'fade', 'show', 'active', 'empty-state', 'fas', 'fa-file-medical', 'fa-3x', 'text-muted', 'text-muted', 'reports-list', 'report-card', 'report-icon', 'fas', 'fa-file-pdf', 'report-info', 'text-muted', 'badge', 'report-actions', 'btn', 'btn-sm', 'btn-outline-primary', 'fas', 'fa-eye', 'btn', 'btn-sm', 'btn-outline-secondary', 'fas', 'fa-download', 'tab-pane', 'fade', 'show', 'active', 'card', 'card-header', 'fas', 'fa-plus', 'card-body', 'alert', 'alert-warning', 'mt-3', 'fas', 'fa-exclamation-triangle', 'me-2',];
+    ['patient-detail-view', 'detail-header', 'patient-header-info', 'patient-title', 'fas', 'fa-user', 'badge', 'bg-success', 'fas', 'fa-shield-alt', 'badge', 'bg-secondary', 'fas', 'fa-user-secret', 'detail-actions', 'btn', 'btn-secondary', 'btn-sm', 'fas', 'fa-times', 'btn', 'btn-primary', 'btn-sm', 'fas', 'fa-edit', 'btn', 'btn-outline-danger', 'btn-sm', 'fas', 'fa-trash', 'alert', 'alert-danger', 'fas', 'fa-exclamation-triangle', 'alert', 'alert-success', 'fas', 'fa-check-circle', 'edit-section', 'card', 'card-header', 'card-title', 'fas', 'fa-edit', 'card-body', 'patient-info-display', 'row', 'col-md-6', 'card', 'info-card', 'card-header', 'card-title', 'fas', 'fa-user', 'card-body', 'info-grid', 'info-item', 'info-item', 'info-item', 'text-muted', 'info-item', 'col-md-6', 'card', 'info-card', 'card-header', 'card-title', 'fas', 'fa-address-book', 'card-body', 'info-grid', 'info-item', 'link', 'text-muted', 'info-item', 'link', 'text-muted', 'info-item', 'info-item', 'font-mono', 'row', 'mt-3', 'col-12', 'card', 'info-card', 'card-header', 'card-title', 'fas', 'fa-cog', 'card-body', 'row', 'col-md-6', 'info-item', 'font-mono', 'info-item', 'badge', 'bg-success', 'fas', 'fa-shield-alt', 'badge', 'bg-secondary', 'fas', 'fa-user-secret', 'col-md-6', 'info-item', 'info-item', 'modal-overlay', 'modal-dialog', 'modal-content', 'modal-header', 'modal-title', 'fas', 'fa-exclamation-triangle', 'text-warning', 'modal-body', 'alert', 'alert-info', 'fas', 'fa-info-circle', 'mb-0', 'mt-2', 'alert', 'alert-warning', 'fas', 'fa-exclamation-triangle', 'mt-2', 'mb-0', 'patient-detail-view', 'detail-header', 'patient-header-info', 'patient-title', 'fas', 'fa-user', 'badge', 'bg-success', 'fas', 'fa-shield-alt', 'badge', 'bg-secondary', 'fas', 'fa-user-secret', 'detail-actions', 'btn', 'btn-secondary', 'btn-sm', 'fas', 'fa-times', 'btn', 'btn-primary', 'btn-sm', 'fas', 'fa-edit', 'btn', 'btn-outline-danger', 'btn-sm', 'fas', 'fa-trash', 'alert', 'alert-danger', 'fas', 'fa-exclamation-triangle', 'alert', 'alert-success', 'fas', 'fa-check-circle', 'edit-section', 'card', 'card-header', 'card-title', 'fas', 'fa-edit', 'card-body', 'patient-info-display', 'row', 'col-md-6', 'card', 'info-card', 'card-header', 'card-title', 'fas', 'fa-user', 'card-body', 'info-grid', 'info-item', 'info-item', 'info-item', 'text-muted', 'info-item', 'col-md-6', 'card', 'info-card', 'card-header', 'card-title', 'fas', 'fa-address-book', 'card-body', 'info-grid', 'info-item', 'link', 'text-muted', 'info-item', 'link', 'text-muted', 'info-item', 'info-item', 'font-mono', 'row', 'mt-3', 'col-12', 'card', 'info-card', 'card-header', 'card-title', 'fas', 'fa-cog', 'card-body', 'row', 'col-md-6', 'info-item', 'font-mono', 'info-item', 'badge', 'bg-success', 'fas', 'fa-shield-alt', 'badge', 'bg-secondary', 'fas', 'fa-user-secret', 'col-md-6', 'info-item', 'info-item', 'modal-overlay', 'modal-dialog', 'modal-content', 'modal-header', 'modal-title', 'fas', 'fa-exclamation-triangle', 'text-warning', 'modal-body', 'alert', 'alert-info', 'fas', 'fa-info-circle', 'mb-0', 'mt-2', 'alert', 'alert-warning', 'fas', 'fa-exclamation-triangle', 'mt-2', 'mb-0', 'mt-3', 'related-objects', 'object-count', 'fas', 'fa-stethoscope', 'object-count', 'fas', 'fa-search', 'object-count', 'fas', 'fa-video', 'object-count', 'fas', 'fa-file-pdf', 'modal-footer', 'btn', 'btn-secondary', 'btn', 'btn-danger', 'spinner-border', 'spinner-border-sm', 'me-2', 'fas', 'fa-trash', 'me-2', 'mt-3', 'related-objects', 'object-count', 'fas', 'fa-stethoscope', 'object-count', 'fas', 'fa-search', 'object-count', 'fas', 'fa-video', 'object-count', 'fas', 'fa-file-pdf', 'modal-footer', 'btn', 'btn-secondary', 'btn', 'btn-danger', 'spinner-border', 'spinner-border-sm', 'me-2', 'fas', 'fa-trash', 'me-2',];
     var __VLS_slots;
     var $slots;
     let __VLS_inheritedAttrs;
@@ -817,23 +1038,23 @@ function __VLS_template() {
 const __VLS_self = (await import('vue')).defineComponent({
     setup() {
         return {
-            PatientExaminationForm: PatientExaminationForm,
             PatientEditForm: PatientEditForm,
-            activeTab: activeTab,
+            loading: loading,
+            error: error,
+            successMessage: successMessage,
             showEditForm: showEditForm,
-            examinations: examinations,
-            videos: videos,
-            reports: reports,
-            findings: findings,
+            showDeletionModal: showDeletionModal,
+            deleting: deleting,
+            deletionCheck: deletionCheck,
+            checkDeletionSafety: checkDeletionSafety,
+            confirmDeletion: confirmDeletion,
+            closeDeletionModal: closeDeletionModal,
             onPatientUpdated: onPatientUpdated,
-            onExaminationCreated: onExaminationCreated,
+            onPatientDeleted: onPatientDeleted,
             formatDate: formatDate,
-            formatDuration: formatDuration,
-            getGenderName: getGenderName,
-            getCenterName: getCenterName,
-            getReportStatusClass: getReportStatusClass,
-            getReportStatusText: getReportStatusText,
-            setActiveTab: setActiveTab,
+            formatDateTime: formatDateTime,
+            getGenderDisplay: getGenderDisplay,
+            getCenterDisplay: getCenterDisplay,
         };
     },
     __typeEmits: {},
