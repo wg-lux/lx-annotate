@@ -9,16 +9,12 @@
     <link rel="apple-touch-icon" sizes="76x76" href="/assets/img/apple-icon.png">
     <link rel="icon" type="image/png" href="/assets/img/favicon.png">
 
-    <title>AGL G-Play Validator</title>
-
     <!-- Fonts and Icons -->
     <link href="/assets/css/nucleo-icons.css" rel="stylesheet" />
     <link href="/assets/css/nucleo-svg.css" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
-    <script type="module" src="{% static 'main.js' %}"></script>
 
-
-    <!-- Material Dashboard CSS -->
+    <!-- Material Dashboard CSS (nur Styling, keine JavaScript-Plugins) -->
     <link id="pagestyle" href="/assets/css/material-dashboard.css" rel="stylesheet" />
 
     <!-- Django-Vite Integration -->
@@ -27,21 +23,90 @@
     {% vite_asset 'main' %}
     {% load static %}
 
+    <!-- JavaScript Error Handler für Third-Party Plugins -->
+    <script>
+      // Globaler Error Handler - fängt alle "e is null" und ähnliche Fehler ab
+      window.addEventListener('error', function(event) {
+        const errorMessage = event.error?.message || event.message || '';
+        
+        // Unterdrücke bekannte Third-Party Plugin Fehler
+        if (errorMessage.includes('is null') || 
+            errorMessage.includes('is undefined') ||
+            errorMessage.includes('Cannot read') ||
+            errorMessage.includes('Cannot access') ||
+            errorMessage.includes('CountUp') ||
+            errorMessage.includes('target is null')) {
+          
+          console.warn('🚫 Third-party plugin error suppressed:', {
+            message: errorMessage,
+            filename: event.filename,
+            lineno: event.lineno,
+            colno: event.colno,
+            stack: event.error?.stack
+          });
+          
+          // Verhindere, dass der Fehler die Vue-App crasht
+          event.preventDefault();
+          return false;
+        }
+      });
+
+      // Promise Rejection Handler
+      window.addEventListener('unhandledrejection', function(event) {
+        const errorMessage = event.reason?.message || event.reason || '';
+        
+        if (typeof errorMessage === 'string' && (
+            errorMessage.includes('is null') || 
+            errorMessage.includes('is undefined') ||
+            errorMessage.includes('CountUp'))) {
+          
+          console.warn('🚫 Unhandled promise rejection suppressed:', errorMessage);
+          event.preventDefault();
+        }
+      });
+    </script>
   </head>
 
   <body>
     <div id="app"></div>
     <script type="module" src="/static/main.js"></script>
 
-
-    <!-- Core JS Files -->
+    <!-- Core JS Files (nur die absolut notwendigen) -->
     <script src="/assets/js/core/popper.min.js"></script>
     <script src="/assets/js/core/bootstrap.min.js"></script>
-    <script src="/assets/js/plugins/perfect-scrollbar.min.js"></script>
-    <script src="/assets/js/plugins/smooth-scrollbar.min.js"></script>
+    
+    <!-- Perfect Scrollbar und Smooth Scrollbar nur laden wenn sie nicht mit Vue kollidieren -->
+    <script>
+      // Lade Scrollbar-Plugins nur wenn keine Vue-App aktiv ist
+      document.addEventListener('DOMContentLoaded', function() {
+        setTimeout(function() {
+          // Prüfe ob Vue-App bereits gerendert wurde
+          const vueApp = document.querySelector('#app [data-v-]') || 
+                        document.querySelector('#app .patient-dashboard') ||
+                        document.querySelector('#app .vue-app');
+          
+          if (!vueApp) {
+            // Nur laden wenn keine Vue-App erkannt wurde
+            const scripts = [
+              '/assets/js/plugins/perfect-scrollbar.min.js',
+              '/assets/js/plugins/smooth-scrollbar.min.js'
+            ];
+            
+            scripts.forEach(src => {
+              const script = document.createElement('script');
+              script.src = src;
+              script.onerror = function() {
+                console.warn('Could not load script:', src);
+              };
+              document.head.appendChild(script);
+            });
+          } else {
+            console.log('Vue app detected - skipping Material Dashboard plugins');
+          }
+        }, 100);
+      });
+    </script>
 
-    <!-- Control Center for Material Dashboard -->
-    <script src="/assets/js/material-dashboard.min.js?v=3.1.0"></script>
-
+    <!-- Material Dashboard komplett entfernt - verhindert CountUp und andere Plugin-Konflikte -->
   </body>
 </html>

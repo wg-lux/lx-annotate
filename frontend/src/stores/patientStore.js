@@ -17,7 +17,7 @@ export const usePatientStore = defineStore('patient', () => {
         }));
     });
     // Actions
-    const fetchPatients = async () => {
+    const fetchPatients = async (apiClient) => {
         try {
             loading.value = true;
             error.value = null;
@@ -36,7 +36,7 @@ export const usePatientStore = defineStore('patient', () => {
             loading.value = false;
         }
     };
-    const fetchGenders = async () => {
+    const fetchGenders = async (apiClient) => {
         try {
             const response = await fetch('/api/gender/');
             if (!response.ok) {
@@ -50,7 +50,7 @@ export const usePatientStore = defineStore('patient', () => {
             error.value = 'Fehler beim Laden der Geschlechter';
         }
     };
-    const fetchCenters = async () => {
+    const fetchCenters = async (apiClient) => {
         try {
             const response = await fetch('/api/centers/');
             if (!response.ok) {
@@ -70,7 +70,7 @@ export const usePatientStore = defineStore('patient', () => {
             fetchCenters()
         ]);
     };
-    const createPatient = async (patientData) => {
+    const createPatient = async (apiClient, patientData) => {
         try {
             loading.value = true;
             error.value = null;
@@ -98,7 +98,7 @@ export const usePatientStore = defineStore('patient', () => {
             loading.value = false;
         }
     };
-    const updatePatient = async (id, patientData) => {
+    const updatePatient = async (apiClient, id, patientData) => {
         try {
             loading.value = true;
             error.value = null;
@@ -216,7 +216,7 @@ export const usePatientStore = defineStore('patient', () => {
             phone: formData.phone?.trim() || '',
             patient_hash: formData.patient_hash?.trim() || '',
             comments: formData.comments?.trim() || '',
-            is_real_person: true
+            is_real_person: formData.is_real_person ?? true
         };
     };
     // CSRF Token helper

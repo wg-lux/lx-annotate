@@ -34,8 +34,27 @@ export default defineConfig(({ mode }) => {
         },
         server: {
             cors: true,
-            port: 8000,
+            port: 5173, // Ändere den Port, um Konflikte mit Django zu vermeiden
             hmr: { host: 'localhost' },
+            proxy: {
+                // Leite alle API-Requests an Django weiter
+                '/api': {
+                    target: 'http://127.0.0.1:8000',
+                    changeOrigin: true,
+                    secure: false,
+                },
+                // Zusätzliche Endpunkte falls nötig
+                '/admin': {
+                    target: 'http://127.0.0.1:8000',
+                    changeOrigin: true,
+                    secure: false,
+                },
+                '/static': {
+                    target: 'http://127.0.0.1:8000',
+                    changeOrigin: true,
+                    secure: false,
+                },
+            },
         },
         resolve: {
             alias: {

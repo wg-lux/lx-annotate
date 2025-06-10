@@ -24,12 +24,13 @@ export interface Patient {
   first_name: string;
   last_name: string;
   dob?: string | null;
-  gender?: number | null;
-  center?: number | null;
+  gender?: string | null;  // Changed to string to match backend
+  center?: string | null;  // Changed to string to match backend
   email?: string;
   phone?: string;
   patient_hash?: string | null;
   comments?: string;
+  is_real_person?: boolean;  // Added missing property
   // Computed/readonly fields
   age?: number | null;
   created_at?: string;
@@ -40,25 +41,26 @@ export interface PatientFormData {
   id?: number | null;
   first_name: string;
   last_name: string;
-  dob: string | null;
-  gender: number | null;
-  center: number | null;
+  dob: string | null | undefined;  // Allow undefined for compatibility
+  gender: string | null;  // Changed to string to match backend
+  center: string | null;  // Changed to string to match backend
   email: string;
   phone: string;
   patient_hash: string;
   comments: string;
-  is_real_person?: boolean;
+  is_real_person?: boolean;  // Added missing property
 }
 
 export interface PatientCreateData {
   first_name: string;
   last_name: string;
   dob?: string | null;
-  gender?: number | null;
-  center?: number | null;
+  gender?: string | null;  // Changed to string
+  center?: string | null;  // Changed to string
   email?: string;
   phone?: string;
   patient_hash?: string | null;
+  is_real_person?: boolean;  // Added missing property
 }
 
 export interface PatientUpdateData extends PatientCreateData {
@@ -91,10 +93,26 @@ export const patientService = {
 
   async addPatient(patientData: PatientCreateData): Promise<Patient> {
     try {
+      console.log('PatientService: Sende Patientendaten an API:', patientData);
       const response: AxiosResponse<Patient> = await axiosInstance.post(r('patients/'), patientData);
+      console.log('PatientService: Erfolgreiche Antwort erhalten:', response.data);
       return response.data;
-    } catch (error) {
-      console.error('Error adding patient:', error);
+    } catch (error: any) {
+      console.error('PatientService: Fehler beim Hinzufügen des Patienten:', error);
+      
+      // Detaillierte Fehleranalyse
+      if (error.response) {
+        console.error('Response Error:', {
+          status: error.response.status,
+          statusText: error.response.statusText,
+          data: error.response.data
+        });
+      } else if (error.request) {
+        console.error('Request Error:', error.request);
+      } else {
+        console.error('General Error:', error.message);
+      }
+      
       throw error;
     }
   },
@@ -183,7 +201,8 @@ export const patientService = {
       center: patientForm.center || null,
       email: patientForm.email || undefined,
       phone: patientForm.phone || undefined,
-      patient_hash: patientForm.patient_hash || null
+      patient_hash: patientForm.patient_hash || null,
+      is_real_person: patientForm.is_real_person ?? true
     };
 
     // Entferne leere Strings

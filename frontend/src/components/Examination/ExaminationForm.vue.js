@@ -3,7 +3,8 @@ import { useExaminationStore } from '@/stores/examinationStore';
 import ClassificationCard from './ClassificationCard.vue';
 const props = withDefaults(defineProps(), {
     videoTimestamp: null,
-    videoId: null
+    videoId: null,
+    patientId: null
 });
 const emit = defineEmits();
 // Store
@@ -171,8 +172,9 @@ async function saveFinding() {
     try {
         // Update store with current notes
         examinationStore.updateNotes(notes.value);
-        // Save through store
-        const result = await examinationStore.savePatientFinding(props.videoId || undefined, props.videoTimestamp || undefined);
+        // Save through store - pass patientId if available
+        const result = await examinationStore.savePatientFinding(props.videoId || undefined, props.videoTimestamp || undefined, props.patientId || undefined // Neu: patientId übergeben
+        );
         if (result) {
             emit('examination-saved', result);
             // Reset form
@@ -199,18 +201,32 @@ onMounted(() => {
 ; /* PartiallyEnd: #3632/scriptSetup.vue */
 const __VLS_withDefaultsArg = (function (t) { return t; })({
     videoTimestamp: null,
-    videoId: null
+    videoId: null,
+    patientId: null
 });
 function __VLS_template() {
     const __VLS_ctx = {};
     let __VLS_components;
     let __VLS_directives;
-    ['exam-header', 'form-group', 'form-control', 'tab-button', 'tab-button', 'alert', 'btn', 'btn-primary', 'btn-secondary', 'form-row', 'exam-body', 'categories-panel', 'category-tabs', 'tab-button',];
+    ['patient-badge', 'exam-header', 'form-group', 'form-control', 'tab-button', 'tab-button', 'alert', 'btn', 'btn-primary', 'btn-secondary', 'btn-outline-secondary', 'form-row', 'exam-body', 'categories-panel', 'category-tabs', 'tab-button',];
     // CSS variable injection 
     // CSS variable injection end 
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: ("examination-view") },
     });
+    if (__VLS_ctx.patientId) {
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("patient-info-header") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("patient-badge") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: ("fas fa-user") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+        (__VLS_ctx.patientId);
+    }
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: ("exam-header") },
     });
@@ -435,10 +451,33 @@ function __VLS_template() {
                 disabled: ((!__VLS_ctx.canSave)),
                 ...{ class: ("btn btn-primary") },
             });
+            __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                ...{ class: ("fas fa-save") },
+            });
             __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
                 ...{ onClick: (__VLS_ctx.resetForm) },
                 ...{ class: ("btn btn-secondary") },
             });
+            __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                ...{ class: ("fas fa-undo") },
+            });
+            if (__VLS_ctx.patientId) {
+                __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+                    ...{ onClick: (...[$event]) => {
+                            if (!((__VLS_ctx.selectedFindingId && __VLS_ctx.findingDataLoaded)))
+                                return;
+                            if (!((__VLS_ctx.selectedFindingId)))
+                                return;
+                            if (!((__VLS_ctx.patientId)))
+                                return;
+                            __VLS_ctx.$emit('cancel');
+                        } },
+                    ...{ class: ("btn btn-outline-secondary") },
+                });
+                __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                    ...{ class: ("fas fa-times") },
+                });
+            }
         }
     }
     if (!__VLS_ctx.selectedExaminationId) {
@@ -459,7 +498,7 @@ function __VLS_template() {
         });
         (__VLS_ctx.error);
     }
-    ['examination-view', 'exam-header', 'form-row', 'form-group', 'form-control', 'form-group', 'form-control', 'exam-body', 'categories-panel', 'category-tabs', 'active', 'tab-button', 'required-indicator', 'active', 'tab-button', 'required-indicator', 'editor-panel', 'category-editor', 'card-container', 'border-warning', 'category-editor', 'card-container', 'border-warning', 'form-actions', 'alert', 'alert-warning', 'mb-0', 'form-group', 'form-control', 'button-group', 'btn', 'btn-primary', 'btn', 'btn-secondary', 'help-text', 'help-text', 'alert', 'alert-danger',];
+    ['examination-view', 'patient-info-header', 'patient-badge', 'fas', 'fa-user', 'exam-header', 'form-row', 'form-group', 'form-control', 'form-group', 'form-control', 'exam-body', 'categories-panel', 'category-tabs', 'active', 'tab-button', 'required-indicator', 'active', 'tab-button', 'required-indicator', 'editor-panel', 'category-editor', 'card-container', 'border-warning', 'category-editor', 'card-container', 'border-warning', 'form-actions', 'alert', 'alert-warning', 'mb-0', 'form-group', 'form-control', 'button-group', 'btn', 'btn-primary', 'fas', 'fa-save', 'btn', 'btn-secondary', 'fas', 'fa-undo', 'btn', 'btn-outline-secondary', 'fas', 'fa-times', 'help-text', 'help-text', 'alert', 'alert-danger',];
     var __VLS_slots;
     var $slots;
     let __VLS_inheritedAttrs;

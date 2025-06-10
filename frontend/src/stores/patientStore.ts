@@ -2,6 +2,9 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { Patient, PatientFormData, Gender, Center } from '@/api/patientService'
 
+// Re-export types for easier access
+export type { Patient, PatientFormData, Gender, Center } from '@/api/patientService'
+
 export const usePatientStore = defineStore('patient', () => {
     // State
     const patients = ref<Patient[]>([])
@@ -22,7 +25,7 @@ export const usePatientStore = defineStore('patient', () => {
     })
 
     // Actions
-    const fetchPatients = async () => {
+    const fetchPatients = async (apiClient?: any) => {
         try {
             loading.value = true
             error.value = null
@@ -41,7 +44,7 @@ export const usePatientStore = defineStore('patient', () => {
         }
     }
 
-    const fetchGenders = async () => {
+    const fetchGenders = async (apiClient?: any) => {
         try {
             const response = await fetch('/api/gender/')
             if (!response.ok) {
@@ -55,7 +58,7 @@ export const usePatientStore = defineStore('patient', () => {
         }
     }
 
-    const fetchCenters = async () => {
+    const fetchCenters = async (apiClient?: any) => {
         try {
             const response = await fetch('/api/centers/')
             if (!response.ok) {
@@ -76,7 +79,7 @@ export const usePatientStore = defineStore('patient', () => {
         ])
     }
 
-    const createPatient = async (patientData: PatientFormData) => {
+    const createPatient = async (apiClient: any, patientData: PatientFormData) => {
         try {
             loading.value = true
             error.value = null
@@ -106,7 +109,7 @@ export const usePatientStore = defineStore('patient', () => {
         }
     }
 
-    const updatePatient = async (id: number, patientData: PatientFormData) => {
+    const updatePatient = async (apiClient: any, id: number, patientData: PatientFormData) => {
         try {
             loading.value = true
             error.value = null
@@ -185,13 +188,13 @@ export const usePatientStore = defineStore('patient', () => {
         }
     }
 
-    const getGenderDisplayName = (genderName: string | null): string => {
+    const getGenderDisplayName = (genderName: string | null | undefined): string => {
         if (!genderName) return 'Unbekannt'
         const gender = genders.value.find(g => g.name === genderName)
         return gender?.name_de || gender?.name || genderName
     }
 
-    const getCenterDisplayName = (centerName: string | null): string => {
+    const getCenterDisplayName = (centerName: string | null | undefined): string => {
         if (!centerName) return 'Kein Zentrum'
         const center = centers.value.find(c => c.name === centerName)
         return center?.name_de || center?.name || centerName
@@ -231,7 +234,7 @@ export const usePatientStore = defineStore('patient', () => {
             phone: formData.phone?.trim() || '',
             patient_hash: formData.patient_hash?.trim() || '',
             comments: formData.comments?.trim() || '',
-            is_real_person: true
+            is_real_person: formData.is_real_person ?? true
         }
     }
 

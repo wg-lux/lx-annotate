@@ -18,11 +18,27 @@ export const patientService = {
     },
     async addPatient(patientData) {
         try {
+            console.log('PatientService: Sende Patientendaten an API:', patientData);
             const response = await axiosInstance.post(r('patients/'), patientData);
+            console.log('PatientService: Erfolgreiche Antwort erhalten:', response.data);
             return response.data;
         }
         catch (error) {
-            console.error('Error adding patient:', error);
+            console.error('PatientService: Fehler beim Hinzufügen des Patienten:', error);
+            // Detaillierte Fehleranalyse
+            if (error.response) {
+                console.error('Response Error:', {
+                    status: error.response.status,
+                    statusText: error.response.statusText,
+                    data: error.response.data
+                });
+            }
+            else if (error.request) {
+                console.error('Request Error:', error.request);
+            }
+            else {
+                console.error('General Error:', error.message);
+            }
             throw error;
         }
     },
@@ -110,7 +126,8 @@ export const patientService = {
             center: patientForm.center || null,
             email: patientForm.email || undefined,
             phone: patientForm.phone || undefined,
-            patient_hash: patientForm.patient_hash || null
+            patient_hash: patientForm.patient_hash || null,
+            is_real_person: patientForm.is_real_person ?? true
         };
         // Entferne leere Strings
         Object.keys(formattedData).forEach(key => {

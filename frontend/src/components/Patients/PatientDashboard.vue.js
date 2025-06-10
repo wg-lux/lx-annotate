@@ -1,492 +1,419 @@
 import { ref, computed, onMounted } from 'vue';
 import { usePatientStore } from '@/stores/patientStore';
-// Store
+import { patientService } from '@/api/patientService';
+import PatientCreateForm from './PatientCreateForm.vue';
+import PatientDetailView from './PatientDetailView.vue';
+// Composables
 const patientStore = usePatientStore();
-// Local state
-const showPatientForm = ref(false);
-const editingPatient = ref(null);
-const formErrors = ref([]);
-const patientForm = ref({
-    id: null,
-    first_name: '',
-    last_name: '',
-    dob: '',
-    gender: null,
-    center: null,
-    email: '',
-    phone: '',
-    patient_hash: '',
-    comments: ''
-});
+// Reactive state
+const loading = ref(false);
+const error = ref('');
+const successMessage = ref('');
+const showCreateForm = ref(false);
+const selectedPatient = ref(null);
+const searchTerm = ref('');
 // Computed
-const calculatedAge = computed(() => {
-    if (!patientForm.value.dob)
-        return null;
-    return patientStore.calculatePatientAge(patientForm.value.dob);
+const patients = computed(() => patientStore.patients);
+const genders = computed(() => patientStore.genders);
+const centers = computed(() => patientStore.centers);
+const filteredPatients = computed(() => {
+    if (!searchTerm.value)
+        return patients.value;
+    const term = searchTerm.value.toLowerCase();
+    return patients.value.filter(patient => patient.first_name?.toLowerCase().includes(term) ||
+        patient.last_name?.toLowerCase().includes(term) ||
+        patient.email?.toLowerCase().includes(term) ||
+        `${patient.first_name} ${patient.last_name}`.toLowerCase().includes(term));
 });
 // Methods
-const openPatientForm = (patient) => {
-    if (patient) {
-        editingPatient.value = patient;
-        patientForm.value = {
-            id: patient.id || null,
-            first_name: patient.first_name,
-            last_name: patient.last_name,
-            dob: patient.dob || '',
-            gender: patient.gender || null,
-            center: patient.center || null,
-            email: patient.email || '',
-            phone: patient.phone || '',
-            patient_hash: patient.patient_hash || '',
-            comments: patient.comments || ''
-        };
-    }
-    else {
-        editingPatient.value = null;
-        resetPatientForm();
-    }
-    showPatientForm.value = true;
-    formErrors.value = [];
-};
-const closePatientForm = () => {
-    showPatientForm.value = false;
-    editingPatient.value = null;
-    resetPatientForm();
-    formErrors.value = [];
-};
-const resetPatientForm = () => {
-    patientForm.value = {
-        id: null,
-        first_name: '',
-        last_name: '',
-        dob: '',
-        gender: null,
-        center: null,
-        email: '',
-        phone: '',
-        patient_hash: '',
-        comments: ''
-    };
-};
-const submitPatientForm = async () => {
-    // Validate form
-    const validation = patientStore.validatePatientForm(patientForm.value);
-    if (!validation.isValid) {
-        formErrors.value = validation.errors;
-        return;
-    }
-    formErrors.value = [];
+const loadData = async () => {
     try {
-        const formattedData = patientStore.formatPatientForSubmission(patientForm.value);
-        if (editingPatient.value) {
-            await patientStore.updatePatient(editingPatient.value.id, formattedData);
+        loading.value = true;
+        error.value = '';
+        await Promise.all([
+            loadPatients(),
+            loadLookupData()
+        ]);
+    }
+    catch (err) {
+        error.value = err.message || 'Fehler beim Laden der Daten';
+        console.error('Error loading dashboard data:', err);
+    }
+    finally {
+        loading.value = false;
+    }
+};
+const loadPatients = async () => {
+    const patientsData = await patientService.getPatients();
+    patientStore.patients = patientsData;
+};
+const loadLookupData = async () => {
+    try {
+        // Load genders and centers if not already loaded
+        if (genders.value.length === 0) {
+            const gendersData = await patientService.getGenders();
+            patientStore.genders = gendersData;
         }
-        else {
-            await patientStore.createPatient(formattedData);
+        if (centers.value.length === 0) {
+            const centersData = await patientService.getCenters();
+            patientStore.centers = centersData;
         }
-        closePatientForm();
     }
     catch (error) {
-        console.error('Error saving patient:', error);
-        // Error is handled by the store and displayed in the template
+        console.error('Error loading lookup data:', error);
     }
 };
-const deletePatient = async (id) => {
-    if (!confirm('Sind Sie sicher, dass Sie diesen Patienten löschen möchten?')) {
-        return;
-    }
-    try {
-        await patientStore.deletePatient(id);
-    }
-    catch (error) {
-        console.error('Error deleting patient:', error);
-        // Error is handled by the store and displayed in the template
-    }
+const selectPatient = (patient) => {
+    selectedPatient.value = patient;
 };
-const updateCalculatedAge = () => {
-    // Trigger reactivity for calculated age
-    // The computed property will automatically recalculate
+const onPatientCreated = (patient) => {
+    showCreateForm.value = false;
+    selectedPatient.value = patient;
+    successMessage.value = `Patient "${patient.first_name} ${patient.last_name}" wurde erfolgreich erstellt!`;
+    // Clear success message after 5 seconds
+    setTimeout(() => {
+        successMessage.value = '';
+    }, 5000);
+};
+const onPatientUpdated = (patient) => {
+    selectedPatient.value = patient;
+    // Update in patients list
+    const index = patientStore.patients.findIndex(p => p.id === patient.id);
+    if (index !== -1) {
+        patientStore.patients[index] = patient;
+    }
+    successMessage.value = `Patient "${patient.first_name} ${patient.last_name}" wurde erfolgreich aktualisiert!`;
+    // Clear success message after 5 seconds
+    setTimeout(() => {
+        successMessage.value = '';
+    }, 5000);
 };
 const formatDate = (dateString) => {
     if (!dateString)
-        return '-';
+        return 'Nicht angegeben';
     try {
         const date = new Date(dateString);
         return date.toLocaleDateString('de-DE');
     }
     catch {
-        return '-';
+        return 'Ungültig';
     }
 };
+const getGenderName = (genderValue) => {
+    if (!genderValue)
+        return 'Nicht angegeben';
+    const gender = genders.value.find(g => g.name === genderValue);
+    return gender?.name_de || gender?.name || genderValue;
+};
+const getCenterName = (centerValue) => {
+    if (!centerValue)
+        return 'Nicht zugeordnet';
+    const center = centers.value.find(c => c.name === centerValue);
+    return center?.name_de || center?.name || centerValue;
+};
 // Lifecycle
-onMounted(async () => {
-    try {
-        await Promise.all([
-            patientStore.fetchPatients(),
-            patientStore.initializeLookupData()
-        ]);
-    }
-    catch (error) {
-        console.error('Error initializing component:', error);
-    }
+onMounted(() => {
+    loadData();
 }); /* PartiallyEnd: #3632/scriptSetup.vue */
 function __VLS_template() {
     const __VLS_ctx = {};
     let __VLS_components;
     let __VLS_directives;
-    ['form-section', 'form-section', 'form-group', 'form-control', 'form-control', 'close', 'form-container', 'table-responsive', 'btn-sm',];
+    ['dashboard-title', 'card-title', 'patient-card', 'patient-card', 'info-item', 'info-item', 'empty-state', 'empty-state', 'loading-container', 'btn-primary', 'btn-close', 'patient-dashboard', 'dashboard-header', 'patients-grid', 'search-box', 'patient-card', 'patient-card-header',];
     // CSS variable injection 
     // CSS variable injection end 
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("container-fluid py-4") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.h1, __VLS_intrinsicElements.h1)({});
-    if (__VLS_ctx.patientStore.error) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("alert alert-danger") },
-            role: ("alert"),
-        });
-        (__VLS_ctx.patientStore.error);
-        __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-            ...{ onClick: (...[$event]) => {
-                    if (!((__VLS_ctx.patientStore.error)))
-                        return;
-                    __VLS_ctx.patientStore.clearError();
-                } },
-            type: ("button"),
-            ...{ class: ("close") },
-            'aria-label': ("Close"),
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-            'aria-hidden': ("true"),
-        });
-    }
-    if (__VLS_ctx.patientStore.loading) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("text-center my-4") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("spinner-border") },
-            role: ("status"),
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-            ...{ class: ("sr-only") },
-        });
-    }
-    __VLS_elementAsFunction(__VLS_intrinsicElements.section, __VLS_intrinsicElements.section)({
-        ...{ class: ("patients-section mt-5") },
+        ...{ class: ("patient-dashboard") },
     });
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("d-flex justify-content-between align-items-center mb-3") },
+        ...{ class: ("dashboard-header") },
     });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.h2, __VLS_intrinsicElements.h2)({});
-    (__VLS_ctx.patientStore.patientCount);
+    __VLS_elementAsFunction(__VLS_intrinsicElements.h1, __VLS_intrinsicElements.h1)({
+        ...{ class: ("dashboard-title") },
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+        ...{ class: ("fas fa-users") },
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: ("header-actions") },
+    });
     __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
         ...{ onClick: (...[$event]) => {
-                __VLS_ctx.openPatientForm();
+                __VLS_ctx.showCreateForm = true;
             } },
         ...{ class: ("btn btn-primary") },
-        disabled: ((__VLS_ctx.patientStore.loading)),
+        disabled: ((__VLS_ctx.loading)),
     });
     __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
         ...{ class: ("fas fa-plus") },
     });
-    if (__VLS_ctx.showPatientForm) {
+    if (__VLS_ctx.error) {
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("form-container mt-4") },
+            ...{ class: ("alert alert-danger alert-dismissible") },
         });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.h3, __VLS_intrinsicElements.h3)({});
-        (__VLS_ctx.editingPatient ? 'Patient bearbeiten' : 'Neuer Patient');
-        if (__VLS_ctx.formErrors.length > 0) {
+        __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+        (__VLS_ctx.error);
+        __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+            ...{ onClick: (...[$event]) => {
+                    if (!((__VLS_ctx.error)))
+                        return;
+                    __VLS_ctx.error = '';
+                } },
+            type: ("button"),
+            ...{ class: ("btn-close") },
+        });
+    }
+    if (__VLS_ctx.successMessage) {
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("alert alert-success alert-dismissible") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+        (__VLS_ctx.successMessage);
+        __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+            ...{ onClick: (...[$event]) => {
+                    if (!((__VLS_ctx.successMessage)))
+                        return;
+                    __VLS_ctx.successMessage = '';
+                } },
+            type: ("button"),
+            ...{ class: ("btn-close") },
+        });
+    }
+    if (__VLS_ctx.loading) {
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("loading-container") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("spinner-border text-primary") },
+            role: ("status"),
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+            ...{ class: ("visually-hidden") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
+    }
+    if (__VLS_ctx.showCreateForm && !__VLS_ctx.loading) {
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("card form-card") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("card-header") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.h3, __VLS_intrinsicElements.h3)({
+            ...{ class: ("card-title") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: ("fas fa-user-plus") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("card-body") },
+        });
+        // @ts-ignore
+        /** @type { [typeof PatientCreateForm, ] } */ ;
+        // @ts-ignore
+        const __VLS_0 = __VLS_asFunctionalComponent(PatientCreateForm, new PatientCreateForm({
+            ...{ 'onPatientCreated': {} },
+            ...{ 'onCancel': {} },
+        }));
+        const __VLS_1 = __VLS_0({
+            ...{ 'onPatientCreated': {} },
+            ...{ 'onCancel': {} },
+        }, ...__VLS_functionalComponentArgsRest(__VLS_0));
+        let __VLS_5;
+        const __VLS_6 = {
+            onPatientCreated: (__VLS_ctx.onPatientCreated)
+        };
+        const __VLS_7 = {
+            onCancel: (...[$event]) => {
+                if (!((__VLS_ctx.showCreateForm && !__VLS_ctx.loading)))
+                    return;
+                __VLS_ctx.showCreateForm = false;
+            }
+        };
+        let __VLS_2;
+        let __VLS_3;
+        var __VLS_4;
+    }
+    if (!__VLS_ctx.loading && !__VLS_ctx.showCreateForm) {
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("card patients-card") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("card-header") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("d-flex justify-content-between align-items-center") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.h3, __VLS_intrinsicElements.h3)({
+            ...{ class: ("card-title mb-0") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: ("fas fa-list") },
+        });
+        (__VLS_ctx.patients.length);
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("search-box") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.input, __VLS_intrinsicElements.input)({
+            value: ((__VLS_ctx.searchTerm)),
+            type: ("text"),
+            ...{ class: ("form-control") },
+            placeholder: ("Patienten suchen..."),
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("card-body") },
+        });
+        if (__VLS_ctx.filteredPatients.length > 0) {
             __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: ("alert alert-warning") },
+                ...{ class: ("patients-grid") },
             });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.ul, __VLS_intrinsicElements.ul)({
-                ...{ class: ("mb-0") },
-            });
-            for (const [error] of __VLS_getVForSourceType((__VLS_ctx.formErrors))) {
-                __VLS_elementAsFunction(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({
-                    key: ((error)),
+            for (const [patient] of __VLS_getVForSourceType((__VLS_ctx.filteredPatients))) {
+                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                    ...{ onClick: (...[$event]) => {
+                            if (!((!__VLS_ctx.loading && !__VLS_ctx.showCreateForm)))
+                                return;
+                            if (!((__VLS_ctx.filteredPatients.length > 0)))
+                                return;
+                            __VLS_ctx.selectPatient(patient);
+                        } },
+                    key: ((patient.id)),
+                    ...{ class: ("patient-card") },
+                    ...{ class: (({ 'selected': __VLS_ctx.selectedPatient?.id === patient.id })) },
                 });
-                (error);
+                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                    ...{ class: ("patient-card-header") },
+                });
+                __VLS_elementAsFunction(__VLS_intrinsicElements.h5, __VLS_intrinsicElements.h5)({
+                    ...{ class: ("patient-name") },
+                });
+                (patient.first_name);
+                (patient.last_name);
+                __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                    ...{ class: ("patient-id") },
+                });
+                (patient.id);
+                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                    ...{ class: ("patient-card-body") },
+                });
+                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                    ...{ class: ("patient-info") },
+                });
+                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                    ...{ class: ("info-item") },
+                });
+                __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                    ...{ class: ("fas fa-birthday-cake") },
+                });
+                __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+                (__VLS_ctx.formatDate(patient.dob));
+                if (patient.age) {
+                    __VLS_elementAsFunction(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({});
+                    (patient.age);
+                }
+                if (patient.gender) {
+                    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                        ...{ class: ("info-item") },
+                    });
+                    __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                        ...{ class: ("fas fa-venus-mars") },
+                    });
+                    __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+                    (__VLS_ctx.getGenderName(patient.gender));
+                }
+                if (patient.center) {
+                    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                        ...{ class: ("info-item") },
+                    });
+                    __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                        ...{ class: ("fas fa-hospital") },
+                    });
+                    __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+                    (__VLS_ctx.getCenterName(patient.center));
+                }
+                if (patient.email) {
+                    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                        ...{ class: ("info-item") },
+                    });
+                    __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                        ...{ class: ("fas fa-envelope") },
+                    });
+                    __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+                    (patient.email);
+                }
+                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                    ...{ class: ("patient-card-footer") },
+                });
+                __VLS_elementAsFunction(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+                    ...{ class: ("text-muted") },
+                });
             }
         }
-        __VLS_elementAsFunction(__VLS_intrinsicElements.form, __VLS_intrinsicElements.form)({
-            ...{ onSubmit: (__VLS_ctx.submitPatientForm) },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("form-section") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.h4, __VLS_intrinsicElements.h4)({});
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("form-row") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("form-group col-md-6") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
-            for: ("patientFirstName"),
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.input)({
-            value: ((__VLS_ctx.patientForm.first_name)),
-            type: ("text"),
-            id: ("patientFirstName"),
-            ...{ class: ("form-control") },
-            disabled: ((__VLS_ctx.patientStore.loading)),
-            required: (true),
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("form-group col-md-6") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
-            for: ("patientLastName"),
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.input)({
-            value: ((__VLS_ctx.patientForm.last_name)),
-            type: ("text"),
-            id: ("patientLastName"),
-            ...{ class: ("form-control") },
-            disabled: ((__VLS_ctx.patientStore.loading)),
-            required: (true),
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("form-row") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("form-group col-md-6") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
-            for: ("patientDob"),
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.input)({
-            ...{ onChange: (__VLS_ctx.updateCalculatedAge) },
-            type: ("date"),
-            id: ("patientDob"),
-            ...{ class: ("form-control") },
-            disabled: ((__VLS_ctx.patientStore.loading)),
-        });
-        (__VLS_ctx.patientForm.dob);
-        if (__VLS_ctx.calculatedAge) {
-            __VLS_elementAsFunction(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
-                ...{ class: ("form-text text-muted") },
-            });
-            (__VLS_ctx.calculatedAge);
-        }
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("form-group col-md-6") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({});
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("gender-options") },
-        });
-        for (const [gender] of __VLS_getVForSourceType((__VLS_ctx.patientStore.genders))) {
+        else if (!__VLS_ctx.loading) {
             __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: ("form-check form-check-inline") },
-                key: ((gender.id)),
+                ...{ class: ("empty-state") },
             });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.input)({
-                value: ((gender.id)),
-                type: ("radio"),
-                id: ((`gender-${gender.id}`)),
-                ...{ class: ("form-check-input") },
-                disabled: ((__VLS_ctx.patientStore.loading)),
+            __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                ...{ class: ("fas fa-users fa-3x text-muted") },
             });
-            (__VLS_ctx.patientForm.gender);
-            __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
-                for: ((`gender-${gender.id}`)),
-                ...{ class: ("form-check-label") },
+            __VLS_elementAsFunction(__VLS_intrinsicElements.h4, __VLS_intrinsicElements.h4)({});
+            __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
+                ...{ class: ("text-muted") },
             });
-            (gender.name_de || gender.name);
+            (__VLS_ctx.searchTerm ? 'Keine Patienten entsprechen der Suche.' : 'Erstellen Sie den ersten Patienten.');
+            if (!__VLS_ctx.searchTerm) {
+                __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+                    ...{ onClick: (...[$event]) => {
+                            if (!((!__VLS_ctx.loading && !__VLS_ctx.showCreateForm)))
+                                return;
+                            if (!(!((__VLS_ctx.filteredPatients.length > 0))))
+                                return;
+                            if (!((!__VLS_ctx.loading)))
+                                return;
+                            if (!((!__VLS_ctx.searchTerm)))
+                                return;
+                            __VLS_ctx.showCreateForm = true;
+                        } },
+                    ...{ class: ("btn btn-primary") },
+                });
+                __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                    ...{ class: ("fas fa-plus") },
+                });
+            }
         }
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("form-section") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.h4, __VLS_intrinsicElements.h4)({});
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("form-row") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("form-group col-md-6") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
-            for: ("patientEmail"),
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.input)({
-            type: ("email"),
-            id: ("patientEmail"),
-            ...{ class: ("form-control") },
-            disabled: ((__VLS_ctx.patientStore.loading)),
-        });
-        (__VLS_ctx.patientForm.email);
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("form-group col-md-6") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
-            for: ("patientPhone"),
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.input)({
-            type: ("tel"),
-            id: ("patientPhone"),
-            ...{ class: ("form-control") },
-            disabled: ((__VLS_ctx.patientStore.loading)),
-        });
-        (__VLS_ctx.patientForm.phone);
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("form-section") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.h4, __VLS_intrinsicElements.h4)({});
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("form-row") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("form-group col-md-6") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
-            for: ("patientCenter"),
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
-            id: ("patientCenter"),
-            value: ((__VLS_ctx.patientForm.center)),
-            ...{ class: ("form-control") },
-            disabled: ((__VLS_ctx.patientStore.loading)),
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-            value: ((null)),
-        });
-        for (const [center] of __VLS_getVForSourceType((__VLS_ctx.patientStore.centers))) {
-            __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-                key: ((center.id)),
-                value: ((center.id)),
-            });
-            (center.name_de || center.name);
-        }
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("form-group col-md-6") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
-            for: ("patientHash"),
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.input)({
-            type: ("text"),
-            id: ("patientHash"),
-            value: ((__VLS_ctx.patientForm.patient_hash)),
-            ...{ class: ("form-control") },
-            placeholder: ("Optional - wird automatisch generiert"),
-            disabled: ((__VLS_ctx.patientStore.loading)),
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
-            ...{ class: ("form-text text-muted") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("form-section") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.h4, __VLS_intrinsicElements.h4)({});
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("form-group") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
-            for: ("patientComments"),
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.textarea, __VLS_intrinsicElements.textarea)({
-            id: ("patientComments"),
-            value: ((__VLS_ctx.patientForm.comments)),
-            ...{ class: ("form-control") },
-            rows: ("3"),
-            placeholder: ("Zusätzliche Notizen oder Bemerkungen..."),
-            disabled: ((__VLS_ctx.patientStore.loading)),
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("form-actions") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-            type: ("submit"),
-            ...{ class: ("btn btn-success") },
-            disabled: ((__VLS_ctx.patientStore.loading)),
-        });
-        if (__VLS_ctx.patientStore.loading) {
-            __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-                ...{ class: ("spinner-border spinner-border-sm mr-2") },
-                role: ("status"),
-            });
-        }
-        __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-            ...{ onClick: (__VLS_ctx.closePatientForm) },
-            type: ("button"),
-            ...{ class: ("btn btn-secondary ml-2") },
-            disabled: ((__VLS_ctx.patientStore.loading)),
-        });
     }
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("table-responsive") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.table, __VLS_intrinsicElements.table)({
-        ...{ class: ("table table-striped table-hover") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.thead, __VLS_intrinsicElements.thead)({
-        ...{ class: ("thead-primary") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.tr, __VLS_intrinsicElements.tr)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.tbody, __VLS_intrinsicElements.tbody)({});
-    for (const [patient] of __VLS_getVForSourceType((__VLS_ctx.patientStore.patientsWithAge))) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.tr, __VLS_intrinsicElements.tr)({
-            key: ((patient.id)),
+    if (__VLS_ctx.selectedPatient && !__VLS_ctx.showCreateForm && !__VLS_ctx.loading) {
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("patient-detail-section") },
         });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
-        (patient.id);
-        __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
-        (patient.first_name);
-        (patient.last_name);
-        __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
-        (__VLS_ctx.formatDate(patient.dob));
-        __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
-        (patient.age ?? '-');
-        __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
-        (__VLS_ctx.patientStore.getGenderDisplayName(patient.gender?.toString() ?? null));
-        __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
-        (patient.email || '-');
-        __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
-        (patient.phone || '-');
-        __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
-        (__VLS_ctx.patientStore.getCenterDisplayName(patient.center?.toString() ?? null));
-        __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
-        __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-            ...{ onClick: (...[$event]) => {
-                    __VLS_ctx.openPatientForm(patient);
-                } },
-            ...{ class: ("btn btn-secondary btn-sm mr-1") },
-            disabled: ((__VLS_ctx.patientStore.loading)),
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: ("fas fa-edit") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-            ...{ onClick: (...[$event]) => {
-                    __VLS_ctx.deletePatient(patient.id);
-                } },
-            ...{ class: ("btn btn-danger btn-sm") },
-            disabled: ((__VLS_ctx.patientStore.loading)),
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: ("fas fa-trash") },
-        });
+        // @ts-ignore
+        /** @type { [typeof PatientDetailView, ] } */ ;
+        // @ts-ignore
+        const __VLS_8 = __VLS_asFunctionalComponent(PatientDetailView, new PatientDetailView({
+            ...{ 'onPatientUpdated': {} },
+            ...{ 'onClose': {} },
+            patient: ((__VLS_ctx.selectedPatient)),
+        }));
+        const __VLS_9 = __VLS_8({
+            ...{ 'onPatientUpdated': {} },
+            ...{ 'onClose': {} },
+            patient: ((__VLS_ctx.selectedPatient)),
+        }, ...__VLS_functionalComponentArgsRest(__VLS_8));
+        let __VLS_13;
+        const __VLS_14 = {
+            onPatientUpdated: (__VLS_ctx.onPatientUpdated)
+        };
+        const __VLS_15 = {
+            onClose: (...[$event]) => {
+                if (!((__VLS_ctx.selectedPatient && !__VLS_ctx.showCreateForm && !__VLS_ctx.loading)))
+                    return;
+                __VLS_ctx.selectedPatient = null;
+            }
+        };
+        let __VLS_10;
+        let __VLS_11;
+        var __VLS_12;
     }
-    if (__VLS_ctx.patientStore.patients.length === 0 && !__VLS_ctx.patientStore.loading) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.tr, __VLS_intrinsicElements.tr)({});
-        __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({
-            colspan: ("9"),
-            ...{ class: ("text-center text-muted") },
-        });
-    }
-    ['container-fluid', 'py-4', 'alert', 'alert-danger', 'close', 'text-center', 'my-4', 'spinner-border', 'sr-only', 'patients-section', 'mt-5', 'd-flex', 'justify-content-between', 'align-items-center', 'mb-3', 'btn', 'btn-primary', 'fas', 'fa-plus', 'form-container', 'mt-4', 'alert', 'alert-warning', 'mb-0', 'form-section', 'form-row', 'form-group', 'col-md-6', 'form-control', 'form-group', 'col-md-6', 'form-control', 'form-row', 'form-group', 'col-md-6', 'form-control', 'form-text', 'text-muted', 'form-group', 'col-md-6', 'gender-options', 'form-check', 'form-check-inline', 'form-check-input', 'form-check-label', 'form-section', 'form-row', 'form-group', 'col-md-6', 'form-control', 'form-group', 'col-md-6', 'form-control', 'form-section', 'form-row', 'form-group', 'col-md-6', 'form-control', 'form-group', 'col-md-6', 'form-control', 'form-text', 'text-muted', 'form-section', 'form-group', 'form-control', 'form-actions', 'btn', 'btn-success', 'spinner-border', 'spinner-border-sm', 'mr-2', 'btn', 'btn-secondary', 'ml-2', 'table-responsive', 'table', 'table-striped', 'table-hover', 'thead-primary', 'btn', 'btn-secondary', 'btn-sm', 'mr-1', 'fas', 'fa-edit', 'btn', 'btn-danger', 'btn-sm', 'fas', 'fa-trash', 'text-center', 'text-muted',];
+    ['patient-dashboard', 'dashboard-header', 'dashboard-title', 'fas', 'fa-users', 'header-actions', 'btn', 'btn-primary', 'fas', 'fa-plus', 'alert', 'alert-danger', 'alert-dismissible', 'btn-close', 'alert', 'alert-success', 'alert-dismissible', 'btn-close', 'loading-container', 'spinner-border', 'text-primary', 'visually-hidden', 'card', 'form-card', 'card-header', 'card-title', 'fas', 'fa-user-plus', 'card-body', 'card', 'patients-card', 'card-header', 'd-flex', 'justify-content-between', 'align-items-center', 'card-title', 'mb-0', 'fas', 'fa-list', 'search-box', 'form-control', 'card-body', 'patients-grid', 'patient-card', 'selected', 'patient-card-header', 'patient-name', 'patient-id', 'patient-card-body', 'patient-info', 'info-item', 'fas', 'fa-birthday-cake', 'info-item', 'fas', 'fa-venus-mars', 'info-item', 'fas', 'fa-hospital', 'info-item', 'fas', 'fa-envelope', 'patient-card-footer', 'text-muted', 'empty-state', 'fas', 'fa-users', 'fa-3x', 'text-muted', 'text-muted', 'btn', 'btn-primary', 'fas', 'fa-plus', 'patient-detail-section',];
     var __VLS_slots;
     var $slots;
     let __VLS_inheritedAttrs;
@@ -505,18 +432,22 @@ function __VLS_template() {
 const __VLS_self = (await import('vue')).defineComponent({
     setup() {
         return {
-            patientStore: patientStore,
-            showPatientForm: showPatientForm,
-            editingPatient: editingPatient,
-            formErrors: formErrors,
-            patientForm: patientForm,
-            calculatedAge: calculatedAge,
-            openPatientForm: openPatientForm,
-            closePatientForm: closePatientForm,
-            submitPatientForm: submitPatientForm,
-            deletePatient: deletePatient,
-            updateCalculatedAge: updateCalculatedAge,
+            PatientCreateForm: PatientCreateForm,
+            PatientDetailView: PatientDetailView,
+            loading: loading,
+            error: error,
+            successMessage: successMessage,
+            showCreateForm: showCreateForm,
+            selectedPatient: selectedPatient,
+            searchTerm: searchTerm,
+            patients: patients,
+            filteredPatients: filteredPatients,
+            selectPatient: selectPatient,
+            onPatientCreated: onPatientCreated,
+            onPatientUpdated: onPatientUpdated,
             formatDate: formatDate,
+            getGenderName: getGenderName,
+            getCenterName: getCenterName,
         };
     },
 });

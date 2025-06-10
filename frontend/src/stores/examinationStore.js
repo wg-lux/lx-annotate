@@ -228,15 +228,15 @@ export const useExaminationStore = defineStore('examination', () => {
             currentPatientFinding.value.notes = newNotes;
         }
     }
-    async function savePatientFinding(videoId, timestamp) {
+    async function savePatientFinding(videoId, timestamp, patientId) {
         if (!currentPatientFinding.value)
             return null;
         try {
             loading.value = true;
             error.value = null;
-            // Create PatientFinding first
+            // Create PatientFinding first - use patientId if provided, otherwise videoId
             const patientFindingData = {
-                patient_id: videoId,
+                patient_id: patientId || videoId, // Bevorzuge patientId über videoId
                 finding_id: currentPatientFinding.value.findingId,
                 examination_id: selectedExaminationId.value,
                 timestamp: timestamp,
@@ -244,6 +244,7 @@ export const useExaminationStore = defineStore('examination', () => {
                 date_start: new Date().toISOString(),
                 date_stop: new Date().toISOString()
             };
+            console.log('Speichere PatientFinding:', patientFindingData);
             const patientFindingResponse = await axiosInstance.post(r('patient-findings/'), patientFindingData);
             const patientFindingId = patientFindingResponse.data.id;
             // Save location classifications
@@ -260,6 +261,7 @@ export const useExaminationStore = defineStore('examination', () => {
                     morphology_classification_choice_id: choiceId
                 });
             }
+            console.log('Untersuchung erfolgreich gespeichert:', patientFindingResponse.data);
             // Reset form after successful save
             currentPatientFinding.value = null;
             selectedFindingId.value = null;

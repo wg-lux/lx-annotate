@@ -1,521 +1,519 @@
 <template>
-    <div class="container-fluid py-4">
-      <h1>Fallübersicht</h1>
-  
-      <!-- Error Message -->
-      <div v-if="patientStore.error" class="alert alert-danger" role="alert">
-        {{ patientStore.error }}
-        <button type="button" class="close" @click="patientStore.clearError()" aria-label="Close">
-          <span aria-hidden="true">&times;</span>
+  <div class="patient-dashboard">
+    <!-- Header -->
+    <div class="dashboard-header">
+      <h1 class="dashboard-title">
+        <i class="fas fa-users"></i>
+        Patienten-Dashboard
+      </h1>
+      <div class="header-actions">
+        <button 
+          class="btn btn-primary" 
+          @click="showCreateForm = true"
+          :disabled="loading"
+        >
+          <i class="fas fa-plus"></i>
+          Neuer Patient
         </button>
       </div>
-  
-      <!-- Loading Indicator -->
-      <div v-if="patientStore.loading" class="text-center my-4">
-        <div class="spinner-border" role="status">
-          <span class="sr-only">Laden...</span>
+    </div>
+
+    <!-- Error Alert -->
+    <div v-if="error" class="alert alert-danger alert-dismissible">
+      <strong>Fehler:</strong> {{ error }}
+      <button type="button" class="btn-close" @click="error = ''"></button>
+    </div>
+
+    <!-- Success Alert -->
+    <div v-if="successMessage" class="alert alert-success alert-dismissible">
+      <strong>Erfolg:</strong> {{ successMessage }}
+      <button type="button" class="btn-close" @click="successMessage = ''"></button>
+    </div>
+
+    <!-- Loading Spinner -->
+    <div v-if="loading" class="loading-container">
+      <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Laden...</span>
+      </div>
+      <p>Lade Patientendaten...</p>
+    </div>
+
+    <!-- Patient Creation Form -->
+    <div v-if="showCreateForm && !loading" class="card form-card">
+      <div class="card-header">
+        <h3 class="card-title">
+          <i class="fas fa-user-plus"></i>
+          Neuen Patienten erstellen
+        </h3>
+      </div>
+      <div class="card-body">
+        <PatientCreateForm 
+          @patient-created="onPatientCreated"
+          @cancel="showCreateForm = false"
+        />
+      </div>
+    </div>
+
+    <!-- Patient List -->
+    <div v-if="!loading && !showCreateForm" class="card patients-card">
+      <div class="card-header">
+        <div class="d-flex justify-content-between align-items-center">
+          <h3 class="card-title mb-0">
+            <i class="fas fa-list"></i>
+            Patienten ({{ patients.length }})
+          </h3>
+          <div class="search-box">
+            <input 
+              v-model="searchTerm"
+              type="text"
+              class="form-control"
+              placeholder="Patienten suchen..."
+            >
+          </div>
         </div>
       </div>
-  
-      <!-- Patients Section -->
-      <section class="patients-section mt-5">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-          <h2>Patienten ({{ patientStore.patientCount }})</h2>
-          <button class="btn btn-primary" @click="openPatientForm()" :disabled="patientStore.loading">
-            <i class="fas fa-plus"></i> Patienten hinzufügen
+      <div class="card-body">
+        <!-- Patient Cards Grid -->
+        <div v-if="filteredPatients.length > 0" class="patients-grid">
+          <div 
+            v-for="patient in filteredPatients" 
+            :key="patient.id"
+            class="patient-card"
+            @click="selectPatient(patient)"
+            :class="{ 'selected': selectedPatient?.id === patient.id }"
+          >
+            <div class="patient-card-header">
+              <h5 class="patient-name">
+                {{ patient.first_name }} {{ patient.last_name }}
+              </h5>
+              <span class="patient-id">ID: {{ patient.id }}</span>
+            </div>
+            <div class="patient-card-body">
+              <div class="patient-info">
+                <div class="info-item">
+                  <i class="fas fa-birthday-cake"></i>
+                  <span>{{ formatDate(patient.dob) }}</span>
+                  <small v-if="patient.age">({{ patient.age }} Jahre)</small>
+                </div>
+                <div class="info-item" v-if="patient.gender">
+                  <i class="fas fa-venus-mars"></i>
+                  <span>{{ getGenderName(patient.gender) }}</span>
+                </div>
+                <div class="info-item" v-if="patient.center">
+                  <i class="fas fa-hospital"></i>
+                  <span>{{ getCenterName(patient.center) }}</span>
+                </div>
+                <div class="info-item" v-if="patient.email">
+                  <i class="fas fa-envelope"></i>
+                  <span>{{ patient.email }}</span>
+                </div>
+              </div>
+            </div>
+            <div class="patient-card-footer">
+              <small class="text-muted">
+                Klicken für Details
+              </small>
+            </div>
+          </div>
+        </div>
+
+        <!-- Empty State -->
+        <div v-else-if="!loading" class="empty-state">
+          <i class="fas fa-users fa-3x text-muted"></i>
+          <h4>Keine Patienten gefunden</h4>
+          <p class="text-muted">
+            {{ searchTerm ? 'Keine Patienten entsprechen der Suche.' : 'Erstellen Sie den ersten Patienten.' }}
+          </p>
+          <button 
+            v-if="!searchTerm"
+            class="btn btn-primary"
+            @click="showCreateForm = true"
+          >
+            <i class="fas fa-plus"></i>
+            Ersten Patienten erstellen
           </button>
         </div>
-        
-        <!-- Patient Form -->
-        <div v-if="showPatientForm" class="form-container mt-4">
-          <h3>{{ editingPatient ? 'Patient bearbeiten' : 'Neuer Patient' }}</h3>
-          
-          <!-- Form Validation Errors -->
-          <div v-if="formErrors.length > 0" class="alert alert-warning">
-            <ul class="mb-0">
-              <li v-for="error in formErrors" :key="error">{{ error }}</li>
-            </ul>
-          </div>
-  
-          <form @submit.prevent="submitPatientForm">
-            <!-- Persönliche Daten -->
-            <div class="form-section">
-              <h4>Persönliche Daten</h4>
-              
-              <div class="form-row">
-                <div class="form-group col-md-6">
-                  <label for="patientFirstName">Vorname *:</label>
-                  <input 
-                    v-model="patientForm.first_name"
-                    type="text"
-                    id="patientFirstName"
-                    class="form-control"
-                    :disabled="patientStore.loading"
-                    required
-                  />
-                </div>
-                <div class="form-group col-md-6">
-                  <label for="patientLastName">Nachname *:</label>
-                  <input 
-                    v-model="patientForm.last_name"
-                    type="text"
-                    id="patientLastName"
-                    class="form-control"
-                    :disabled="patientStore.loading"
-                    required
-                  />
-                </div>
-              </div>
-  
-              <div class="form-row">
-                <div class="form-group col-md-6">
-                  <label for="patientDob">Geburtsdatum:</label>
-                  <input 
-                    v-model="patientForm.dob"
-                    type="date"
-                    id="patientDob"
-                    class="form-control"
-                    :disabled="patientStore.loading"
-                    @change="updateCalculatedAge"
-                  />
-                  <small v-if="calculatedAge" class="form-text text-muted">
-                    Alter: {{ calculatedAge }} Jahre
-                  </small>
-                </div>
-                <div class="form-group col-md-6">
-                  <label>Geschlecht:</label>
-                  <div class="gender-options">
-                    <div class="form-check form-check-inline" v-for="gender in patientStore.genders" :key="gender.id">
-                      <input 
-                        v-model="patientForm.gender"
-                        :value="gender.id"
-                        type="radio"
-                        :id="`gender-${gender.id}`"
-                        class="form-check-input"
-                        :disabled="patientStore.loading"
-                      />
-                      <label :for="`gender-${gender.id}`" class="form-check-label">
-                        {{ gender.name_de || gender.name }}
-                      </label>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-  
-            <!-- Kontaktdaten -->
-            <div class="form-section">
-              <h4>Kontaktdaten</h4>
-              
-              <div class="form-row">
-                <div class="form-group col-md-6">
-                  <label for="patientEmail">E-Mail:</label>
-                  <input 
-                    type="email" 
-                    id="patientEmail" 
-                    v-model="patientForm.email" 
-                    class="form-control"
-                    :disabled="patientStore.loading"
-                  />
-                </div>
-                <div class="form-group col-md-6">
-                  <label for="patientPhone">Telefon:</label>
-                  <input 
-                    type="tel" 
-                    id="patientPhone" 
-                    v-model="patientForm.phone" 
-                    class="form-control"
-                    :disabled="patientStore.loading"
-                  />
-                </div>
-              </div>
-            </div>
-  
-            <!-- Zentrum und System -->
-            <div class="form-section">
-              <h4>Zentrum und System</h4>
-              
-              <div class="form-row">
-                <div class="form-group col-md-6">
-                  <label for="patientCenter">Zentrum:</label>
-                  <select 
-                    id="patientCenter" 
-                    v-model="patientForm.center" 
-                    class="form-control"
-                    :disabled="patientStore.loading"
-                  >
-                    <option :value="null">-- Zentrum auswählen --</option>
-                    <option v-for="center in patientStore.centers" :key="center.id" :value="center.id">
-                      {{ center.name_de || center.name }}
-                    </option>
-                  </select>
-                </div>
-                <div class="form-group col-md-6">
-                  <label for="patientHash">Patient Hash:</label>
-                  <input 
-                    type="text" 
-                    id="patientHash" 
-                    v-model="patientForm.patient_hash" 
-                    class="form-control"
-                    placeholder="Optional - wird automatisch generiert"
-                    :disabled="patientStore.loading"
-                  />
-                  <small class="form-text text-muted">
-                    Eindeutige Identifikation für Pseudonymisierung
-                  </small>
-                </div>
-              </div>
-            </div>
-  
-            <!-- Zusätzliche Informationen -->
-            <div class="form-section">
-              <h4>Zusätzliche Informationen</h4>
-              
-              <div class="form-group">
-                <label for="patientComments">Kommentar:</label>
-                <textarea 
-                  id="patientComments" 
-                  v-model="patientForm.comments" 
-                  class="form-control" 
-                  rows="3"
-                  placeholder="Zusätzliche Notizen oder Bemerkungen..."
-                  :disabled="patientStore.loading"
-                ></textarea>
-              </div>
-            </div>
-  
-            <div class="form-actions">
-              <button type="submit" class="btn btn-success" :disabled="patientStore.loading">
-                <span v-if="patientStore.loading" class="spinner-border spinner-border-sm mr-2" role="status"></span>
-                Patient speichern
-              </button>
-              <button type="button" class="btn btn-secondary ml-2" @click="closePatientForm" :disabled="patientStore.loading">
-                Abbrechen
-              </button>
-            </div>
-          </form>
-        </div>
-  
-        <!-- Patient Table -->
-        <div class="table-responsive">
-          <table class="table table-striped table-hover">
-            <thead class="thead-primary">
-              <tr>
-                <th>ID</th>
-                <th>Name</th>
-                <th>Geburtsdatum</th>
-                <th>Alter</th>
-                <th>Geschlecht</th>
-                <th>E-Mail</th>
-                <th>Telefon</th>
-                <th>Zentrum</th>
-                <th>Aktionen</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="patient in patientStore.patientsWithAge" :key="patient.id">
-                <td>{{ patient.id }}</td>
-                <td>{{ patient.first_name }} {{ patient.last_name }}</td>
-                <td>{{ formatDate(patient.dob) }}</td>
-                <td>{{ patient.age ?? '-' }}</td>
-                <td>{{ patientStore.getGenderDisplayName(patient.gender?.toString() ?? null) }}</td>
-                <td>{{ patient.email || '-' }}</td>
-                <td>{{ patient.phone || '-' }}</td>
-                <td>{{ patientStore.getCenterDisplayName(patient.center?.toString() ?? null) }}</td>
-                <td>
-                  <button 
-                    class="btn btn-secondary btn-sm mr-1" 
-                    @click="openPatientForm(patient)"
-                    :disabled="patientStore.loading"
-                  >
-                    <i class="fas fa-edit"></i> Bearbeiten
-                  </button>
-                  <button 
-                    class="btn btn-danger btn-sm" 
-                    @click="deletePatient(patient.id!)"
-                    :disabled="patientStore.loading"
-                  >
-                    <i class="fas fa-trash"></i> Löschen
-                  </button>
-                </td>
-              </tr>
-              <tr v-if="patientStore.patients.length === 0 && !patientStore.loading">
-                <td colspan="9" class="text-center text-muted">
-                  Keine Patienten gefunden. Klicken Sie auf "Patienten hinzufügen" um den ersten Patienten anzulegen.
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
+      </div>
     </div>
-  </template>
+
+    <!-- Patient Detail View -->
+    <div v-if="selectedPatient && !showCreateForm && !loading" class="patient-detail-section">
+      <PatientDetailView 
+        :patient="selectedPatient"
+        @patient-updated="onPatientUpdated"
+        @close="selectedPatient = null"
+      />
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue'
+import { usePatientStore, type Patient, type Gender, type Center } from '@/stores/patientStore'
+import { patientService } from '@/api/patientService'
+import PatientCreateForm from './PatientCreateForm.vue'
+import PatientDetailView from './PatientDetailView.vue'
+
+// Composables
+const patientStore = usePatientStore()
+
+// Reactive state
+const loading = ref(false)
+const error = ref('')
+const successMessage = ref('')
+const showCreateForm = ref(false)
+const selectedPatient = ref<Patient | null>(null)
+const searchTerm = ref('')
+
+// Computed
+const patients = computed(() => patientStore.patients)
+const genders = computed(() => patientStore.genders)
+const centers = computed(() => patientStore.centers)
+
+const filteredPatients = computed(() => {
+  if (!searchTerm.value) return patients.value
   
-  <script setup lang="ts">
-  import { ref, computed, onMounted } from 'vue'
-  import { usePatientStore } from '@/stores/patientStore'
-  import type { Patient, PatientFormData } from '@/api/patientService'
-  
-  // Store
-  const patientStore = usePatientStore()
-  
-  // Local state
-  const showPatientForm = ref(false)
-  const editingPatient = ref<Patient | null>(null)
-  const formErrors = ref<string[]>([])
-  
-  const patientForm = ref<PatientFormData>({
-    id: null,
-    first_name: '',
-    last_name: '',
-    dob: '',
-    gender: null,
-    center: null,
-    email: '',
-    phone: '',
-    patient_hash: '',
-    comments: ''
-  })
-  
-  // Computed
-  const calculatedAge = computed(() => {
-    if (!patientForm.value.dob) return null
-    return patientStore.calculatePatientAge(patientForm.value.dob)
-  })
-  
-  // Methods
-  const openPatientForm = (patient?: Patient) => {
-    if (patient) {
-      editingPatient.value = patient
-      patientForm.value = { 
-        id: patient.id || null,
-        first_name: patient.first_name,
-        last_name: patient.last_name,
-        dob: patient.dob || '',
-        gender: patient.gender || null,
-        center: patient.center || null,
-        email: patient.email || '',
-        phone: patient.phone || '',
-        patient_hash: patient.patient_hash || '',
-        comments: patient.comments || ''
-      }
-    } else {
-      editingPatient.value = null
-      resetPatientForm()
-    }
-    showPatientForm.value = true
-    formErrors.value = []
+  const term = searchTerm.value.toLowerCase()
+  return patients.value.filter(patient => 
+    patient.first_name?.toLowerCase().includes(term) ||
+    patient.last_name?.toLowerCase().includes(term) ||
+    patient.email?.toLowerCase().includes(term) ||
+    `${patient.first_name} ${patient.last_name}`.toLowerCase().includes(term)
+  )
+})
+
+// Methods
+const loadData = async () => {
+  try {
+    loading.value = true
+    error.value = ''
+    
+    await Promise.all([
+      loadPatients(),
+      loadLookupData()
+    ])
+    
+  } catch (err: any) {
+    error.value = err.message || 'Fehler beim Laden der Daten'
+    console.error('Error loading dashboard data:', err)
+  } finally {
+    loading.value = false
   }
-  
-  const closePatientForm = () => {
-    showPatientForm.value = false
-    editingPatient.value = null
-    resetPatientForm()
-    formErrors.value = []
-  }
-  
-  const resetPatientForm = () => {
-    patientForm.value = {
-      id: null,
-      first_name: '',
-      last_name: '',
-      dob: '',
-      gender: null,
-      center: null,
-      email: '',
-      phone: '',
-      patient_hash: '',
-      comments: ''
-    }
-  }
-  
-  const submitPatientForm = async () => {
-    // Validate form
-    const validation = patientStore.validatePatientForm(patientForm.value)
-    if (!validation.isValid) {
-      formErrors.value = validation.errors
-      return
-    }
-  
-    formErrors.value = []
-  
-    try {
-      const formattedData = patientStore.formatPatientForSubmission(patientForm.value)
-      
-      if (editingPatient.value) {
-        await patientStore.updatePatient(editingPatient.value.id!, formattedData)
-      } else {
-        await patientStore.createPatient(formattedData)
-      }
-      
-      closePatientForm()
-    } catch (error) {
-      console.error('Error saving patient:', error)
-      // Error is handled by the store and displayed in the template
-    }
-  }
-  
-  const deletePatient = async (id: number) => {
-    if (!confirm('Sind Sie sicher, dass Sie diesen Patienten löschen möchten?')) {
-      return
-    }
-  
-    try {
-      await patientStore.deletePatient(id)
-    } catch (error) {
-      console.error('Error deleting patient:', error)
-      // Error is handled by the store and displayed in the template
-    }
-  }
-  
-  const updateCalculatedAge = () => {
-    // Trigger reactivity for calculated age
-    // The computed property will automatically recalculate
-  }
-  
-  const formatDate = (dateString: string | null | undefined): string => {
-    if (!dateString) return '-'
-    try {
-      const date = new Date(dateString)
-      return date.toLocaleDateString('de-DE')
-    } catch {
-      return '-'
-    }
-  }
-  
-  // Lifecycle
-  onMounted(async () => {
-    try {
-      await Promise.all([
-        patientStore.fetchPatients(),
-        patientStore.initializeLookupData()
-      ])
-    } catch (error) {
-      console.error('Error initializing component:', error)
-    }
-  })
-  </script>
-  
-  <style scoped>
-  .form-container {
-    border: 2px solid #007bff;
-    border-radius: 8px;
-    padding: 2rem;
-    background-color: #f8f9fa;
-    margin-bottom: 2rem;
-  }
-  
-  .form-section {
-    margin-bottom: 2rem;
-    padding-bottom: 1rem;
-    border-bottom: 1px solid #dee2e6;
-  }
-  
-  .form-section:last-child {
-    border-bottom: none;
-  }
-  
-  .form-section h4 {
-    color: #495057;
-    margin-bottom: 1rem;
-    font-size: 1.1rem;
-    font-weight: 600;
-  }
-  
-  .form-group {
-    margin-bottom: 1rem;
-  }
-  
-  .form-group label {
-    font-weight: 500;
-    color: #495057;
-    margin-bottom: 0.5rem;
-  }
-  
-  .form-control {
-    border-radius: 4px;
-    border: 1px solid #ced4da;
-    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
-  }
-  
-  .form-control:focus {
-    border-color: #007bff;
-    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
-  }
-  
-  .form-control:disabled {
-    background-color: #f8f9fa;
-    opacity: 0.7;
-  }
-  
-  .gender-options {
-    padding-top: 0.5rem;
-  }
-  
-  .form-check-inline {
-    margin-right: 1rem;
-  }
-  
-  .form-actions {
-    margin-top: 2rem;
-    padding-top: 1rem;
-    border-top: 1px solid #dee2e6;
-  }
-  
-  .table-responsive {
-    margin-top: 2rem;
-  }
-  
-  .table {
-    margin-top: 1rem;
-  }
-  
-  .thead-dark th {
-    background-color: #343a40;
-    border-color: #454d55;
-  }
-  
-  .btn-sm {
-    font-size: 0.875rem;
-  }
-  
-  .text-muted {
-    font-size: 0.875rem;
-  }
-  
-  .spinner-border-sm {
-    width: 1rem;
-    height: 1rem;
-  }
-  
-  .close {
-    padding: 0.25rem;
-    background: none;
-    border: none;
-    font-size: 1.5rem;
-    font-weight: 700;
-    line-height: 1;
-    color: #000;
-    text-shadow: 0 1px 0 #fff;
-    opacity: .5;
-  }
-  
-  .close:hover {
-    opacity: .75;
-  }
-  
-  @media (max-width: 768px) {
-    .form-container {
-      padding: 1rem;
+}
+
+const loadPatients = async () => {
+  const patientsData = await patientService.getPatients()
+  patientStore.patients = patientsData
+}
+
+const loadLookupData = async () => {
+  try {
+    // Load genders and centers if not already loaded
+    if (genders.value.length === 0) {
+      const gendersData = await patientService.getGenders()
+      patientStore.genders = gendersData
     }
     
-    .table-responsive {
-      font-size: 0.875rem;
+    if (centers.value.length === 0) {
+      const centersData = await patientService.getCenters()
+      patientStore.centers = centersData
     }
-    
-    .btn-sm {
-      padding: 0.25rem 0.5rem;
-      font-size: 0.75rem;
-    }
+  } catch (error) {
+    console.error('Error loading lookup data:', error)
   }
-  </style>
+}
+
+const selectPatient = (patient: Patient) => {
+  selectedPatient.value = patient
+}
+
+const onPatientCreated = (patient: Patient) => {
+  showCreateForm.value = false
+  selectedPatient.value = patient
+  
+  successMessage.value = `Patient "${patient.first_name} ${patient.last_name}" wurde erfolgreich erstellt!`
+  
+  // Clear success message after 5 seconds
+  setTimeout(() => {
+    successMessage.value = ''
+  }, 5000)
+}
+
+const onPatientUpdated = (patient: Patient) => {
+  selectedPatient.value = patient
+  
+  // Update in patients list
+  const index = patientStore.patients.findIndex(p => p.id === patient.id)
+  if (index !== -1) {
+    patientStore.patients[index] = patient
+  }
+  
+  successMessage.value = `Patient "${patient.first_name} ${patient.last_name}" wurde erfolgreich aktualisiert!`
+  
+  // Clear success message after 5 seconds
+  setTimeout(() => {
+    successMessage.value = ''
+  }, 5000)
+}
+
+const formatDate = (dateString?: string | null) => {
+  if (!dateString) return 'Nicht angegeben'
+  
+  try {
+    const date = new Date(dateString)
+    return date.toLocaleDateString('de-DE')
+  } catch {
+    return 'Ungültig'
+  }
+}
+
+const getGenderName = (genderValue?: string | null) => {
+  if (!genderValue) return 'Nicht angegeben'
+  const gender = genders.value.find(g => g.name === genderValue)
+  return gender?.name_de || gender?.name || genderValue
+}
+
+const getCenterName = (centerValue?: string | null) => {
+  if (!centerValue) return 'Nicht zugeordnet'
+  const center = centers.value.find(c => c.name === centerValue)
+  return center?.name_de || center?.name || centerValue
+}
+
+// Lifecycle
+onMounted(() => {
+  loadData()
+})
+</script>
+
+<style scoped>
+.patient-dashboard {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.dashboard-title {
+  color: #2c3e50;
+  font-size: 2rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.dashboard-title i {
+  margin-right: 0.5rem;
+  color: #3498db;
+}
+
+.header-actions {
+  display: flex;
+  gap: 1rem;
+}
+
+.form-card {
+  margin-bottom: 2rem;
+}
+
+.card-title {
+  color: #2c3e50;
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.card-title i {
+  margin-right: 0.5rem;
+  color: #3498db;
+}
+
+.search-box {
+  min-width: 300px;
+}
+
+.patients-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 1.5rem;
+  margin-top: 1rem;
+}
+
+.patient-card {
+  border: 2px solid #e9ecef;
+  border-radius: 12px;
+  padding: 1.5rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background: white;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.patient-card:hover {
+  border-color: #3498db;
+  box-shadow: 0 4px 8px rgba(52, 152, 219, 0.2);
+  transform: translateY(-2px);
+}
+
+.patient-card.selected {
+  border-color: #3498db;
+  background: #f8fafb;
+  box-shadow: 0 4px 8px rgba(52, 152, 219, 0.3);
+}
+
+.patient-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.patient-name {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #2c3e50;
+  margin: 0;
+}
+
+.patient-id {
+  font-size: 0.85rem;
+  color: #6c757d;
+  background: #f8f9fa;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+}
+
+.patient-card-body {
+  margin-bottom: 1rem;
+}
+
+.patient-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.info-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  color: #495057;
+}
+
+.info-item i {
+  width: 16px;
+  color: #6c757d;
+}
+
+.info-item small {
+  color: #6c757d;
+  margin-left: 0.25rem;
+}
+
+.patient-card-footer {
+  padding-top: 0.75rem;
+  border-top: 1px solid #e9ecef;
+  text-align: center;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 4rem 2rem;
+}
+
+.empty-state i {
+  margin-bottom: 1rem;
+}
+
+.empty-state h4 {
+  color: #2c3e50;
+  margin-bottom: 0.5rem;
+}
+
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 2rem;
+  text-align: center;
+}
+
+.loading-container .spinner-border {
+  margin-bottom: 1rem;
+}
+
+.patient-detail-section {
+  margin-top: 2rem;
+}
+
+.alert {
+  border-radius: 8px;
+  margin-bottom: 1rem;
+}
+
+.btn {
+  border-radius: 6px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.btn-primary {
+  background: #3498db;
+  border-color: #3498db;
+}
+
+.btn-primary:hover {
+  background: #2980b9;
+  border-color: #2980b9;
+  transform: translateY(-1px);
+}
+
+.btn-close {
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  opacity: 0.7;
+}
+
+.btn-close:hover {
+  opacity: 1;
+}
+
+@media (max-width: 768px) {
+  .patient-dashboard {
+    padding: 1rem;
+  }
+  
+  .dashboard-header {
+    flex-direction: column;
+    gap: 1rem;
+    align-items: stretch;
+  }
+  
+  .patients-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .search-box {
+    min-width: auto;
+  }
+  
+  .patient-card {
+    padding: 1rem;
+  }
+  
+  .patient-card-header {
+    flex-direction: column;
+    gap: 0.5rem;
+    align-items: flex-start;
+  }
+}
+</style>

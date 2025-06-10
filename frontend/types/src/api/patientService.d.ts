@@ -18,12 +18,13 @@ export interface Patient {
     first_name: string;
     last_name: string;
     dob?: string | null;
-    gender?: number | null;
-    center?: number | null;
+    gender?: string | null;
+    center?: string | null;
     email?: string;
     phone?: string;
     patient_hash?: string | null;
     comments?: string;
+    is_real_person?: boolean;
     age?: number | null;
     created_at?: string;
     updated_at?: string;
@@ -32,9 +33,9 @@ export interface PatientFormData {
     id?: number | null;
     first_name: string;
     last_name: string;
-    dob: string | null;
-    gender: number | null;
-    center: number | null;
+    dob: string | null | undefined;
+    gender: string | null;
+    center: string | null;
     email: string;
     phone: string;
     patient_hash: string;
@@ -45,11 +46,12 @@ export interface PatientCreateData {
     first_name: string;
     last_name: string;
     dob?: string | null;
-    gender?: number | null;
-    center?: number | null;
+    gender?: string | null;
+    center?: string | null;
     email?: string;
     phone?: string;
     patient_hash?: string | null;
+    is_real_person?: boolean;
 }
 export interface PatientUpdateData extends PatientCreateData {
     id: number;
