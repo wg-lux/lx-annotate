@@ -54,15 +54,15 @@ let
   port = "8189";
 
     # --- Directory Structure ---
-  dataDir = "endoreg_db/data";
-  importDir = "endoreg_db/${dataDir}/import";
-  importVideoDir = "endoreg_db/${importDir}/video";
-  importReportDir = "endoreg_db/${importDir}/report";
-  importLegacyAnnotationDir = "endoreg_db/${importDir}/legacy_annotations";
-  exportDir = "endoreg_db/${dataDir}/export";
-  exportFramesRootDir = "endoreg_db/${exportDir}/frames";
-  exportFramesSampleExportDir = "endoreg_db/${exportFramesRootDir}/test_outputs";
-  modelDir = "endoreg_db/${dataDir}/models";
+  dataDir = "data/";
+  importDir = "${dataDir}/import";
+  importVideoDir = "${importDir}/video";
+  importReportDir = "${importDir}/report";
+  importLegacyAnnotationDir = "${importDir}/legacy_annotations";
+  exportDir = "${dataDir}/export";
+  exportFramesRootDir = "${exportDir}/frames";
+  exportFramesSampleExportDir = "${exportFramesRootDir}/test_outputs";
+  modelDir = "${dataDir}/models";
   confDir = "./conf";
 
   sharedSettings = {

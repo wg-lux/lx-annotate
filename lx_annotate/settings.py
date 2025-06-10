@@ -288,7 +288,7 @@ LOGGING = {
 
 # Media files settings
 MEDIA_URL = '/media/'
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+MEDIA_ROOT = os.path.join(BASE_DIR, os.environ.get("STORAGE_DIR", "data"))
 
 ## CORS Settings für Video-Streaming
 CORS_ALLOW_ALL_ORIGINS = True

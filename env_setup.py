@@ -5,7 +5,7 @@ Create or update the .env file used by Django / devenv.
 Adds (if missing):
   DJANGO_SECRET_KEY
   DJANGO_SALT
-  STORAGE_DIR            –→ <project_root>/endoreg-db/storage
+  STORAGE_DIR            –→ data/
   VITE_DEVELOPMENT_MODE  –→ true (for development)
   KEYCLOAK_*             –→ Keycloak configuration for production
   VITE_KEYCLOAK_*        –→ Frontend Keycloak configuration
@@ -42,7 +42,7 @@ def get_safe_random_secret_key():
     safe_key = safe_key.replace(";", "_").replace(":", "_").replace(",", "_")
     safe_key = safe_key.replace("{", "_").replace("}", "_")
     safe_key = safe_key.replace("(", "_").replace(")", "_").replace("#", "_").replace("$", "_")
-    
+
     return safe_key
     
 
@@ -94,7 +94,7 @@ else:
     print("Database password file already exists.")
 
 # --- Manage .env file ---
-template = Path("./conf/default.env")
+template = Path("./conf_template/default.env")
 target = Path(".env")  # .env should be in the working_dir (project root)
 if not target.exists():
     print(f"Creating .env file from template: {template}")
@@ -152,7 +152,7 @@ try:
             f.write(f'\nDJANGO_SALT={SALT}')
             print("Added DJANGO_SALT to .env")
         if "STORAGE_DIR" not in found_keys:
-            storage_dir = nix_vars.get("STORAGE_DIR", str(working_dir / "storage"))
+            storage_dir = nix_vars.get("STORAGE_DIR", str("data/"))
             f.write(f'\nSTORAGE_DIR={storage_dir}')
             print("Added STORAGE_DIR to .env")
         vars_to_add = {
@@ -161,9 +161,9 @@ try:
             "DJANGO_CONF_DIR": str(conf_dir),
             "HOME_DIR": nix_vars.get("HOME_DIR"),
             "WORKING_DIR": nix_vars.get("WORKING_DIR"),
-            "DJANGO_DATA_DIR": str(working_dir / nix_vars.get("DATA_DIR", "data")),
-            "DJANGO_IMPORT_DATA_DIR": str(working_dir / nix_vars.get("IMPORT_DIR", "data/import")),
-            "DJANGO_VIDEO_IMPORT_DATA_DIR": str(working_dir / nix_vars.get("IMPORT_DIR", "data/import") / "video"),
+            "DJANGO_DATA_DIR": str( nix_vars.get("DATA_DIR", "data")),
+            "DJANGO_IMPORT_DATA_DIR": str( nix_vars.get("IMPORT_DIR", "data/import")),
+            "DJANGO_VIDEO_IMPORT_DATA_DIR": str( Path(nix_vars.get("IMPORT_DIR", "data/import")) / "video"),
         }
         for key, value in vars_to_add.items():
             if value is not None and key not in found_keys:
