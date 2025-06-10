@@ -60,6 +60,14 @@ const router = createRouter({
       }
     },
     {
+      path: '/uebersicht',
+      name: 'Übersicht',
+      component: () => import('@/views/PageOverview.vue'),
+      meta: {
+        description: 'Hier finden Sie eine Übersicht über Ihre Annotationen und deren Status.'
+      }
+    },
+    {
       path: '/fallgenerator',
       name: 'Fallgenerator',
       component: () => import('@/views/Fallgenerator.vue'),
@@ -81,6 +89,14 @@ const router = createRouter({
       component: () => import('@/views/PatientAdder.vue'),
       meta: {
         description: 'Hier können Sie Patienten hinzufügen.'
+      }
+    },
+    {
+      path: '/patienten',
+      name: 'Patienten',
+      component: () => import('@/views/PatientOverview.vue'),
+      meta: {
+        description: 'Hier können Sie alle Patienten einsehen und verwalten.'
       }
     },
     {

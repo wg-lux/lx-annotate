@@ -7,12 +7,14 @@ import snakecaseKeys from 'snakecase-keys';
 
 const API_PREFIX = import.meta.env.VITE_API_PREFIX ?? 'api/';
 const axiosInstance = axios.create({
-  baseURL: import.meta.env.VITE_BACKEND_URL ?? 'http://127.0.0.1:8000/',
+  // Da die Vue-App als statische Dateien über Django serviert wird,
+  // verwenden wir relative URLs (kein baseURL nötig)
+  baseURL: '/',
   headers: {
     'Content-Type': 'application/json',
-    'Accept': 'application/json', // Füge Accept-Header als Standard hinzu
+    'Accept': 'application/json',
   },
-  withCredentials: true, // Wichtig für Cookies/CSRF
+  withCredentials: true,
 });
 
 // Helper zur Erzeugung des vollständigen API-Pfads
@@ -66,6 +68,20 @@ axiosInstance.interceptors.response.use((response) => {
   }
   return response;
 });
+
+axiosInstance.interceptors.response.use(
+  r => r,
+  err => {
+    console.error("AXIOS ERROR", {
+      message : err.message,
+      code    : err.code,
+      status  : err.response?.status,
+      data    : err.response?.data,
+    });
+    return Promise.reject(err);
+  }
+);
+
 
 export default axiosInstance;
 

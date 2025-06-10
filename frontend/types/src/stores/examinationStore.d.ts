@@ -1004,7 +1004,7 @@ export declare const useExaminationStore: import("pinia").StoreDefinition<"exami
     updateLocationChoices: (choiceIds: number[]) => void;
     updateMorphologyChoices: (choiceIds: number[]) => void;
     updateNotes: (newNotes: string) => void;
-    savePatientFinding: (videoId?: number, timestamp?: number) => Promise<PatientFindingData | null>;
+    savePatientFinding: (videoId?: number, timestamp?: number, patientId?: number) => Promise<PatientFindingData | null>;
     resetForm: () => void;
     validateRequiredClassifications: () => string[];
 }, "loading" | "error" | "examinations" | "findings" | "locationClassifications" | "morphologyClassifications" | "selectedExaminationId" | "selectedFindingId" | "currentPatientFinding">>, Pick<{
@@ -1899,7 +1899,7 @@ export declare const useExaminationStore: import("pinia").StoreDefinition<"exami
     updateLocationChoices: (choiceIds: number[]) => void;
     updateMorphologyChoices: (choiceIds: number[]) => void;
     updateNotes: (newNotes: string) => void;
-    savePatientFinding: (videoId?: number, timestamp?: number) => Promise<PatientFindingData | null>;
+    savePatientFinding: (videoId?: number, timestamp?: number, patientId?: number) => Promise<PatientFindingData | null>;
     resetForm: () => void;
     validateRequiredClassifications: () => string[];
 }, "availableFindings" | "selectedExamination" | "selectedFinding" | "availableLocationClassifications" | "availableMorphologyClassifications">, Pick<{
@@ -2794,7 +2794,7 @@ export declare const useExaminationStore: import("pinia").StoreDefinition<"exami
     updateLocationChoices: (choiceIds: number[]) => void;
     updateMorphologyChoices: (choiceIds: number[]) => void;
     updateNotes: (newNotes: string) => void;
-    savePatientFinding: (videoId?: number, timestamp?: number) => Promise<PatientFindingData | null>;
+    savePatientFinding: (videoId?: number, timestamp?: number, patientId?: number) => Promise<PatientFindingData | null>;
     resetForm: () => void;
     validateRequiredClassifications: () => string[];
 }, "loadExaminations" | "loadFindings" | "loadExaminationFindings" | "loadFindingClassifications" | "loadClassifications" | "setSelectedExamination" | "setSelectedFinding" | "updateLocationChoices" | "updateMorphologyChoices" | "updateNotes" | "savePatientFinding" | "resetForm" | "validateRequiredClassifications">>;

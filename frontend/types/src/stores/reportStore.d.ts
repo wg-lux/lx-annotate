@@ -120,7 +120,7 @@ export declare const useReportStore: import("pinia").StoreDefinition<"report", i
     setCurrentReport: (report: Report | null) => void;
     clearError: () => void;
     reset: () => void;
-}, "loading" | "error" | "currentReport" | "reports" | "annotations">>, Pick<{
+}, "loading" | "error" | "reports" | "currentReport" | "annotations">>, Pick<{
     reports: import("vue").Ref<{
         id: number;
         anonymizedText: string;
@@ -362,4 +362,4 @@ export declare const useReportStore: import("pinia").StoreDefinition<"report", i
     setCurrentReport: (report: Report | null) => void;
     clearError: () => void;
     reset: () => void;
-}, "reset" | "fetchReports" | "fetchReportById" | "fetchReportAnnotations" | "createAnnotation" | "setCurrentReport" | "clearError">>;
+}, "reset" | "clearError" | "fetchReports" | "fetchReportById" | "fetchReportAnnotations" | "createAnnotation" | "setCurrentReport">>;

@@ -22,9 +22,7 @@ from lx_logging import get_logger
 import re
 
 import os
-SALT        = os.getenv("DJANGO_SALT")
-SECRET_KEY  = os.getenv("DJANGO_SECRET_KEY")
-STORAGE_DIR = os.getenv("STORAGE_DIR")
+
 
 # Load environment variables
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -40,6 +38,10 @@ logger.debug(os.environ.get("DJANGO_SETTINGS", "dev"))
 # Fix for SECRET_KEY recursion issue
 DEFAULT_SECRET_KEY = get_random_secret_key()
 SECRET_KEY = env("DJANGO_SECRET_KEY", default=DEFAULT_SECRET_KEY)
+
+SALT        = os.getenv("DJANGO_SALT")
+SECRET_KEY  = os.getenv("DJANGO_SECRET_KEY")
+STORAGE_DIR = os.getenv("STORAGE_DIR")
 
 
 DEFAULT_SALT = "CHANGE-ME-IN-PROD"      # ← literal, not a variable reference

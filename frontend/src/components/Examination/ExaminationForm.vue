@@ -1,5 +1,13 @@
 <template>
   <div class="examination-view">
+    <!-- Patient Info Header (when creating for specific patient) -->
+    <div v-if="patientId" class="patient-info-header">
+      <div class="patient-badge">
+        <i class="fas fa-user"></i>
+        <span>Untersuchung für Patient ID: {{ patientId }}</span>
+      </div>
+    </div>
+
     <div class="exam-header">
       <div class="form-row">
         <!-- Examination Selection -->
@@ -131,13 +139,23 @@
               :disabled="!canSave"
               class="btn btn-primary"
             >
+              <i class="fas fa-save"></i>
               Befund speichern
             </button>
             <button 
               @click="resetForm" 
               class="btn btn-secondary"
             >
+              <i class="fas fa-undo"></i>
               Zurücksetzen
+            </button>
+            <button 
+              v-if="patientId"
+              @click="$emit('cancel')" 
+              class="btn btn-outline-secondary"
+            >
+              <i class="fas fa-times"></i>
+              Abbrechen
             </button>
           </div>
         </div>
@@ -176,16 +194,19 @@ import ClassificationCard from './ClassificationCard.vue';
 interface Props {
   videoTimestamp?: number | null;
   videoId?: number | null;
+  patientId?: number | null; // Neu: für direkte Patient-Zuordnung
 }
 
 const props = withDefaults(defineProps<Props>(), {
   videoTimestamp: null,
-  videoId: null
-});
+  videoId: null,
+  patientId: null
+})
 
 // Emits
 const emit = defineEmits<{
   'examination-saved': [data: any]
+  'cancel': [] // Neu: Cancel Event
 }>();
 
 // Store
@@ -412,8 +433,12 @@ async function saveFinding(): Promise<void> {
     // Update store with current notes
     examinationStore.updateNotes(notes.value);
     
-    // Save through store
-    const result = await examinationStore.savePatientFinding(props.videoId || undefined, props.videoTimestamp || undefined);
+    // Save through store - pass patientId if available
+    const result = await examinationStore.savePatientFinding(
+      props.videoId || undefined, 
+      props.videoTimestamp || undefined,
+      props.patientId || undefined  // Neu: patientId übergeben
+    );
     
     if (result) {
       emit('examination-saved', result);
@@ -448,6 +473,32 @@ onMounted(() => {
   max-width: 1200px;
   margin: 0 auto;
   padding: 20px;
+}
+
+.patient-info-header {
+  background: #e9f7ef;
+  border: 1px solid #c3e6cb;
+  border-radius: 4px;
+  padding: 10px 15px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.patient-badge {
+  background: #c3e6cb;
+  color: #155724;
+  padding: 8px 12px;
+  border-radius: 20px;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.patient-badge i {
+  font-size: 16px;
 }
 
 .exam-header {
@@ -615,6 +666,17 @@ onMounted(() => {
 
 .btn-secondary:hover {
   background: #545b62;
+}
+
+.btn-outline-secondary {
+  background: transparent;
+  color: #6c757d;
+  border: 1px solid #6c757d;
+}
+
+.btn-outline-secondary:hover {
+  background: #6c757d;
+  color: white;
 }
 
 .help-text {

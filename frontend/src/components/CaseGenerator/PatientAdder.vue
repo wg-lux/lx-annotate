@@ -3,389 +3,266 @@
       <form @submit.prevent="handleSubmit">
         <!-- Patient Information -->
         <h2>Patientendaten</h2>
-        <label for="name">Name:</label>
-        <input v-model="formData.name" id="name" placeholder="Enter name" />
-  
-        <label for="polypCount">Anzahl Polypen:</label>
-        <input v-model="formData.polypCount" id="polypCount" type="number" placeholder="Anzahl der Polypen" />
-  
-        <label for="comments">Kommentare:</label>
-        <textarea v-model="formData.comments" id="comments" placeholder="Comments"></textarea>
-  
+        
+        <label for="firstName">Vorname: *</label>
+        <input 
+          v-model="formData.first_name" 
+          id="firstName" 
+          type="text"
+          required
+          placeholder="Vorname eingeben" 
+        />
+
+        <label for="lastName">Nachname: *</label>
+        <input 
+          v-model="formData.last_name" 
+          id="lastName" 
+          type="text"
+          required
+          placeholder="Nachname eingeben" 
+        />
+
+        <label for="dob">Geburtsdatum:</label>
+        <input 
+          v-model="formData.dob" 
+          id="dob" 
+          type="date"
+          placeholder="YYYY-MM-DD" 
+        />
+
+        <label for="email">E-Mail:</label>
+        <input 
+          v-model="formData.email" 
+          id="email" 
+          type="email"
+          placeholder="email@beispiel.de" 
+        />
+
+        <label for="phone">Telefon:</label>
+        <input 
+          v-model="formData.phone" 
+          id="phone" 
+          type="tel"
+          placeholder="Telefonnummer" 
+        />
+
         <div>
           <label>Geschlecht:</label>
-          <input type="radio" id="genderFemale" name="gender" value="female" v-model="formData.gender" /> Weiblich
-          <input type="radio" id="genderMale" name="gender" value="male" v-model="formData.gender" /> Männlich
-          <input type="radio" id="genderDivers" name="gender" value="divers" v-model="formData.gender" /> Divers
+          <select v-model="formData.gender" id="genderSelect">
+            <option value="">Bitte wählen</option>
+            <option v-for="gender in genders" :key="gender.id" :value="gender.name">
+              {{ gender.name_de || gender.name }}
+            </option>
+          </select>
         </div>
-  
-        <hr />
-  
-        <!-- Center Selection -->
-        <h2>Zentrumsauswahl</h2>
-        <label for="centerSelect">Zentrum:</label>
-        <select v-model="formData.centerId" id="centerSelect">
-          <option disabled value="">Bitte wählen</option>
-          <option v-for="center in centers" :key="center.id" :value="center.id">
-            {{ center.name }}
-          </option>
-        </select>
-  
-        <hr />
-  
-        <!-- Examination Assignment -->
-        <h2>Untersuchung</h2>
-        <label for="examTypeSelect">Untersuchungstyp:----</label>
-        <select v-model="formData.examinationId" id="examTypeSelect">
-          <option disabled value="">Bitte wählen</option>
-          <option v-for="exam in examinations" :key="exam.id" :value="exam.id">
-            {{ exam.name }}
-          </option>
-        </select>
-  
-        <hr />
-  
-        <!-- Finding -->
-        <h2>Befund</h2>
-        <label for="findingSelect">Befund auswählen:</label>
-        <select v-model="formData.findingId" id="findingSelect">
-          <option disabled value="">Bitte wählen</option>
-          <option v-for="finding in findings" :key="finding.id" :value="finding.id">
-            {{ finding.name }}
-          </option>
-        </select>
-  
-        <hr />
-  
-        <!-- Location Classification -->
-        <h2>Lokalisations-Klassifikation</h2>
-        <label for="locationClassificationSelect">Klassifikation wählen:</label>
-        <select
-          v-model="formData.locationClassificationId"
-          id="locationClassificationSelect"
-          @change="loadLocationChoices"
-        >
-          <option disabled value="">Bitte wählen</option>
-          <option
-            v-for="locClass in locationClassifications"
-            :key="locClass.id"
-            :value="locClass.id"
-          >
-            {{ locClass.name }}
-          </option>
-        </select>
-  
-        <label for="locationChoiceSelect">Lokalisation wählen:</label>
-        <select
-          v-model="formData.locationChoiceId"
-          id="locationChoiceSelect"
-          :disabled="filteredLocationChoices.length === 0"
-        >
-          <option disabled value="">Bitte wählen</option>
-          <option
-            v-for="choice in filteredLocationChoices"
-            :key="choice.id"
-            :value="choice.id"
-          >
-            {{ choice.name }}
-          </option>
-        </select>
-  
-        <hr />
-  
-        <!-- Morphology Classification -->
-        <h2>Morphologie-Klassifikation</h2>
-        <label for="morphologyClassificationSelect">Klassifikation wählen:</label>
-        <select
-          v-model="formData.morphologyClassificationId"
-          id="morphologyClassificationSelect"
-          @change="loadMorphologyChoices"
-        >
-          <option disabled value="">Bitte wählen</option>
-          <option
-            v-for="morphClass in morphologyClassifications"
-            :key="morphClass.id"
-            :value="morphClass.id"
-          >
-            {{ morphClass.name }}
-          </option>
-        </select>
-  
-        <label for="morphologyChoiceSelect">Morphologie wählen:</label>
-        <select
-          v-model="formData.morphologyChoiceId"
-          id="morphologyChoiceSelect"
-          :disabled="filteredMorphologyChoices.length === 0"
-        >
-          <option disabled value="">Bitte wählen</option>
-          <option
-            v-for="choice in filteredMorphologyChoices"
-            :key="choice.id"
-            :value="choice.id"
-          >
-            {{ choice.name }}
-          </option>
-        </select>
-  
-        <hr />
-  
-        <!-- Interventions -->
-        <h2>Intervention</h2>
-        <p>Wähle eine oder mehrere Interventionen:</p>
-        <div v-for="intervention in interventions" :key="intervention.id">
+
+        <div>
+          <label for="centerSelect">Zentrum:</label>
+          <select v-model="formData.center" id="centerSelect">
+            <option value="">Bitte wählen</option>
+            <option v-for="center in centers" :key="center.id" :value="center.name">
+              {{ center.name_de || center.name }}
+            </option>
+          </select>
+        </div>
+
+        <div>
           <label>
-            <input
-              type="checkbox"
-              :value="intervention.id"
-              v-model="formData.selectedInterventions"
-            />
-            {{ intervention.name }}
+            <input type="checkbox" v-model="formData.is_real_person" />
+            Reale Person (abgehakt = ja, nicht abgehakt = Testdaten)
           </label>
         </div>
-  
+
         <hr />
-  
+
         <!-- Submit Button -->
-        <button type="submit" id="saveData">Finish &amp; Generate Report</button>
+        <button type="submit" :disabled="loading" class="btn btn-primary">
+          {{ loading ? 'Wird gespeichert...' : 'Patient erstellen' }}
+        </button>
+        
         <div v-if="errorMessage" class="alert alert-danger mt-2">
           {{ errorMessage }}
         </div>
+        
+        <div v-if="successMessage" class="alert alert-success mt-2">
+          {{ successMessage }}
+        </div>
       </form>
     </div>
-  </template>
-  
-  <script>
-  import axios from 'axios';
-  
-  export default {
-    data() {
-      return {
-        // Data that will be loaded from the Django backend
-        centers: [],
-        examinations: [],
-        findings: [],
-        locationClassifications: [],
-        locationClassificationChoices: [],
-        morphologyClassifications: [],
-        morphologyClassificationChoices: [],
-        interventions: [],
-  
-        // Form data
-        formData: {
-          name: '',
-          polypCount: '',
-          comments: '',
-          gender: '',
-          centerId: '',
-          examinationId: '',
-          findingId: '',
-          locationClassificationId: '',
-          locationChoiceId: '',
-          morphologyClassificationId: '',
-          morphologyChoiceId: '',
-          selectedInterventions: []
-        },
-        errorMessage: ''
-      };
-    },
-    computed: {
-      // Dynamically filter location choices based on the classification selected
-      filteredLocationChoices() {
-        const classificationId = parseInt(this.formData.locationClassificationId, 10);
-        return this.locationClassificationChoices.filter(
-          (choice) => choice.classificationId === classificationId
-        );
-      },
-      // Dynamically filter morphology choices
-      filteredMorphologyChoices() {
-        const classificationId = parseInt(this.formData.morphologyClassificationId, 10);
-        return this.morphologyClassificationChoices.filter(
-          (choice) => choice.classificationId === classificationId
-        );
-      }
-    },
-    methods: {
-      // --- Data Loaders with Axios ---
-      async loadCenters() {
-        try {
-          const response = await axios.get('api/centers/');
-          this.centers = response.data; // Expecting a JSON array of centers
-        } catch (error) {
-          console.error('Error loading centers:', error);
-        }
-      },
-      async loadExaminations() {
-        try {
-          const response = await axios.get('api/examinations/');
-          this.examinations = response.data;
-        } catch (error) {
-          console.error('Error loading examinations:', error);
-        }
-      },
-      async loadFindings() {
-        try {
-          const response = await axios.get('api/findings/');
-          this.findings = response.data;
-        } catch (error) {
-          console.error('Error loading findings:', error);
-        }
-      },
-      async loadLocationClassifications() {
-        try {
-          const response = await axios.get('api//location-classifications/');
-          this.locationClassifications = response.data;
-        } catch (error) {
-          console.error('Error loading location classifications:', error);
-        }
-      },
-      async loadLocationClassificationChoices() {
-        try {
-          const response = await axios.get('api/location-classification-choices/');
-          this.locationClassificationChoices = response.data;
-        } catch (error) {
-          console.error('Error loading location classification choices:', error);
-        }
-      },
-      async loadMorphologyClassifications() {
-        try {
-          const response = await axios.get('api/morphology-classifications/');
-          this.morphologyClassifications = response.data;
-        } catch (error) {
-          console.error('Error loading morphology classifications:', error);
-        }
-      },
-      async loadMorphologyClassificationChoices() {
-        try {
-          const response = await axios.get('api/morphology-classification-choices/');
-          this.morphologyClassificationChoices = response.data;
-        } catch (error) {
-          console.error('Error loading morphology classification choices:', error);
-        }
-      },
-      async loadInterventions() {
-        try {
-          const response = await axios.get('api/interventions/');
-          this.interventions = response.data;
-        } catch (error) {
-          console.error('Error loading interventions:', error);
-        }
-      },
-  
-      // Called on classification change
-      loadLocationChoices() {
-        this.formData.locationChoiceId = '';
-      },
-      loadMorphologyChoices() {
-        this.formData.morphologyChoiceId = '';
-      },
-  
-      // Utility to get CSRF token
-      getCookie(name) {
-        let cookieValue = null;
-        if (document.cookie && document.cookie !== '') {
-          const cookies = document.cookie.split(';');
-          for (let i = 0; i < cookies.length; i++) {
-            const cookie = cookies[i].trim();
-            if (cookie.substring(0, name.length + 1) === (name + '=')) {
-              cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-              break;
-            }
-          }
-        }
-        return cookieValue;
-      },
-  
-      // Submit Handler using Axios
-      async handleSubmit() {
-        // Basic validation example
-        if (!this.formData.name.trim()) {
-          this.errorMessage = 'Name cannot be empty. Please enter a name.';
-          return;
-        }
-        if (!this.formData.centerId) {
-          this.errorMessage = 'Please select a center.';
-          return;
-        }
-        if (!this.formData.examinationId) {
-          this.errorMessage = 'Please select an examination type.';
-          return;
-        }
-        if (!this.formData.findingId) {
-          this.errorMessage = 'Please select a finding.';
-          return;
-        }
-        // Reset error message if all required fields are filled
-        this.errorMessage = '';
-  
-        const csrfToken = this.getCookie('csrftoken');
-  
-        // Build payload from the formData
-        const payload = { ...this.formData };
-  
-        try {
-          const response = await axios.post(
-            'api/save-workflow-data/',
-            payload,
-            {
-              headers: {
-                'X-CSRFToken': csrfToken,
-                'Content-Type': 'application/json'
-              }
-            }
-          );
-          
-          // Check backend response
-          if (response.data.status === 'success') {
-            alert('Workflow data saved successfully!');
-            // Possibly reset form data or navigate to a report view
-          } else {
-            alert('Failed to save data.');
-          }
-        } catch (error) {
-          console.error('Error:', error);
-        }
-      }
-    },
-    async mounted() {
-      // Load all data in parallel or sequentially as you see fit.
-      // Example of parallel loading:
-      await Promise.all([
-        this.loadCenters(),
-        this.loadExaminations(),
-        this.loadFindings(),
-        this.loadLocationClassifications(),
-        this.loadLocationClassificationChoices(),
-        this.loadMorphologyClassifications(),
-        this.loadMorphologyClassificationChoices(),
-        this.loadInterventions()
-      ]);
+</template>
+
+<script setup lang="ts">
+import { ref, onMounted } from 'vue'
+import { usePatientStore, type PatientFormData } from '@/stores/patientStore'
+import { createApiClient } from '@/api/client'
+
+// Store und API Client
+const patientStore = usePatientStore()
+const apiClient = createApiClient()
+
+// Reactive state
+const loading = ref(false)
+const errorMessage = ref('')
+const successMessage = ref('')
+
+// Form data mit korrekten Feldnamen und Typen
+const formData = ref<PatientFormData>({
+  first_name: '',
+  last_name: '',
+  dob: null,
+  email: '',
+  phone: '',
+  gender: null,
+  center: null,
+  patient_hash: '',
+  comments: '',
+  is_real_person: true
+})
+
+// Computed properties für Store-Daten
+const genders = ref(patientStore.genders)
+const centers = ref(patientStore.centers)
+
+// Methods
+const resetForm = () => {
+  formData.value = {
+    first_name: '',
+    last_name: '',
+    dob: null,
+    email: '',
+    phone: '',
+    gender: null,
+    center: null,
+    patient_hash: '',
+    comments: '',
+    is_real_person: true
+  }
+}
+
+const handleSubmit = async () => {
+  try {
+    loading.value = true
+    errorMessage.value = ''
+    successMessage.value = ''
+
+    // Validation
+    if (!formData.value.first_name?.trim()) {
+      throw new Error('Vorname ist erforderlich')
     }
-  };
-  </script>
-  
-  <style scoped>
-  h2 {
-    margin-top: 1rem;
-    margin-bottom: 0.5rem;
+    if (!formData.value.last_name?.trim()) {
+      throw new Error('Nachname ist erforderlich')
+    }
+
+    // Create patient using store with formatted data
+    const formattedData = patientStore.formatPatientForSubmission(formData.value)
+    const newPatient = await patientStore.createPatient(apiClient, formattedData)
+    
+    successMessage.value = `Patient "${newPatient.first_name} ${newPatient.last_name}" wurde erfolgreich erstellt!`
+    
+    // Reset form after successful creation
+    resetForm()
+    
+  } catch (error: any) {
+    errorMessage.value = error.message || 'Fehler beim Erstellen des Patienten'
+    console.error('Error creating patient:', error)
+  } finally {
+    loading.value = false
   }
-  label {
-    display: block;
-    margin-top: 0.5rem;
+}
+
+// Load required data on component mount
+onMounted(async () => {
+  try {
+    // Load genders and centers for dropdowns
+    await Promise.all([
+      patientStore.fetchGenders(apiClient),
+      patientStore.fetchCenters(apiClient)
+    ])
+  } catch (error) {
+    console.error('Error loading dropdown data:', error)
+    errorMessage.value = 'Fehler beim Laden der Auswahloptionen'
   }
-  select,
-  input[type='number'],
-  input[type='text'],
-  textarea {
-    display: block;
-    margin-bottom: 0.5rem;
-    width: 100%;
-    max-width: 400px;
-  }
-  input[type='radio'] {
-    margin: 0 0.25rem 0 1rem;
-  }
-  .alert {
-    color: #d9534f;
-  }
-  </style>
-  
+})
+</script>
+
+<style scoped>
+h2 {
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+  color: #333;
+}
+
+label {
+  display: block;
+  margin-top: 0.5rem;
+  margin-bottom: 0.25rem;
+  font-weight: 500;
+}
+
+select,
+input[type='date'],
+input[type='email'],
+input[type='tel'],
+input[type='text'] {
+  display: block;
+  margin-bottom: 0.5rem;
+  width: 100%;
+  max-width: 400px;
+  padding: 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+input[type='checkbox'] {
+  margin-right: 0.5rem;
+}
+
+.btn {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 4px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.btn-primary {
+  background-color: #007bff;
+  color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background-color: #0056b3;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.alert {
+  padding: 0.75rem;
+  margin-top: 1rem;
+  border-radius: 4px;
+  max-width: 400px;
+}
+
+.alert-danger {
+  background-color: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}
+
+.alert-success {
+  background-color: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+hr {
+  margin: 2rem 0;
+  border: none;
+  border-top: 1px solid #ddd;
+}
+</style>

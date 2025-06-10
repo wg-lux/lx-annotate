@@ -33,6 +33,22 @@
                 <span class="nav-link-text ms-1">Dashboard</span>
               </router-link>
             </li>
+            <li>
+              <router-link to="/uebersicht" class="nav-link" :class="{ active: $route.path === '/uebersicht' }">
+                <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
+                  <i class="material-icons opacity-10">dashboard</i>
+                </div>
+                <span class="nav-link-text ms-1">Übersicht</span>
+              </router-link>
+            </li>
+            <li class="nav-item">
+              <router-link to="/patienten" class="nav-link" :class="{ active: $route.path === '/patienten' }">
+                <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
+                  <i class="material-icons opacity-10">people</i>
+                </div>
+                <span class="nav-link-text ms-1">Patienten</span>
+              </router-link>
+            </li>
             <li class="nav-item">
               <router-link to="/annotationen" class="nav-link" :class="{ active: $route.path === '/annotationen' }">
                 <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">

@@ -13,7 +13,7 @@
   </template>
 
 <script>
-    import ReportOverview from '../components/CaseGenerator/PatientOverviewComponent.vue';
+    import ReportOverview from '../components/Report/ReportViewer.vue';
     import CaseGenerator from '../components/CaseGenerator/FindingGenerator.vue';
 
   export default {
