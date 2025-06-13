@@ -129,13 +129,13 @@ for line in lines:
     found_keys.add(key)
     if django_module_from_nix:
         if key == "DJANGO_SETTINGS_MODULE":
-            updated_lines.append(f'{key}={django_module_from_nix}.settings_dev\n')
+            updated_lines.append(f'{key}={django_module_from_nix}.settings.dev\n')
             continue
         elif key == "DJANGO_SETTINGS_MODULE_PRODUCTION":
-            updated_lines.append(f'{key}={django_module_from_nix}.settings_prod\n')
+            updated_lines.append(f'{key}={django_module_from_nix}.settings.prod\n')
             continue
         elif key == "DJANGO_SETTINGS_MODULE_DEVELOPMENT":
-            updated_lines.append(f'{key}={django_module_from_nix}.settings_dev\n')
+            updated_lines.append(f'{key}={django_module_from_nix}.settings.dev\n')
             continue
     updated_lines.append(line)
 try:

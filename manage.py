@@ -6,7 +6,10 @@ import sys
 
 def main():
     """Run administrative tasks."""
-    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'lx_annotate.settings')
+    # Use the environment variable from .env, with fallback to dev settings
+    default_settings = os.environ.get('DJANGO_SETTINGS_MODULE', 'lx_annotate.settings.dev')
+    os.environ.setdefault('DJANGO_SETTINGS_MODULE', default_settings)
+    
     try:
         from django.core.management import execute_from_command_line
     except ImportError as exc:

@@ -13,7 +13,7 @@ if not os.path.exists(image_path):
     raise FileNotFoundError(f"No such file or directory: '{image_path}'")
 
 # Define the URL of the Django API endpoint
-url = 'http://127.0.0.1:8000/process/'
+url = 'http://127.0.0.1:8000/api/'
 
 # Open the file in binary mode and send it as part of the multipart form-data payload
 with open(image_path, 'rb') as image_file:
