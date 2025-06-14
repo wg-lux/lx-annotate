@@ -1,6 +1,6 @@
 import VideoAnnotation from '../components/EndoAI/VideoAnnotation.vue';
 export default (await import('vue')).defineComponent({
-    name: 'Dashboard',
+    name: 'VideoAnnotationView',
     components: {
         VideoAnnotation,
     },

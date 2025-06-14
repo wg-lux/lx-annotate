@@ -61,6 +61,7 @@ ROOT_URLCONF = 'lx_annotate.urls'
 TEMPLATES_DIR = BASE_DIR / 'lx_annotate' / 'templates'  # Updated to correct path
 FRONTEND_DIR = BASE_DIR / 'frontend'
 
+
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',

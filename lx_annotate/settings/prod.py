@@ -10,6 +10,10 @@ import os
 # SECURITY: Debug MUST be off in production
 DEBUG = False
 
+# Set Permission classes to require authentication
+DEFAULT_PERMISSION_CLASSES = ['rest_framework.permissions.IsAuthenticated']
+
+
 # SECURITY: Fail fast if using unsafe secret key
 if SECRET_KEY.startswith("***UNSAFE"):
     raise RuntimeError(

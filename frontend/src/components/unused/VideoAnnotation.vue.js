@@ -19,7 +19,7 @@ const sortedLabels = computed(() => {
 const currentVideoUrl = computed(() => {
     // Use the dedicated streaming endpoint
     if (currentVideo.value?.id) {
-        return `${STREAM_ENDPOINT}/${currentVideo.value.id}/stream/`;
+        return `${STREAM_ENDPOINT}/${currentVideo.value.id}`;
     }
     return '';
 });
@@ -35,7 +35,7 @@ async function fetchVideos() {
         if (response.data.videos) {
             availableVideos.value = response.data.videos.map((video) => ({
                 id: video.id,
-                url: `${STREAM_ENDPOINT}/${video.id}/stream/`, // Streaming URL
+                url: `${STREAM_ENDPOINT}/${video.id}/`, // Streaming URL
                 center_name: video.center_name || 'Unknown Center',
                 processor_name: video.processor_name || 'Unknown Processor'
             }));

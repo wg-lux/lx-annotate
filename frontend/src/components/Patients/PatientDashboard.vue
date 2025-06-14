@@ -206,7 +206,6 @@ const loadPatients = async () => {
   const patientsData = await patientService.getPatients()
   patientStore.patients = patientsData
 }
-
 const loadLookupData = async () => {
   try {
     // Load genders and centers if not already loaded
@@ -221,6 +220,8 @@ const loadLookupData = async () => {
     }
   } catch (error) {
     console.error('Error loading lookup data:', error)
+    // Either re-throw to show error to user or implement fallback
+    // throw new Error('Fehler beim Laden der Nachschlagedaten')
   }
 }
 

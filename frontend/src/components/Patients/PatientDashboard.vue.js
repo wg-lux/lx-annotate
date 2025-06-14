@@ -61,6 +61,8 @@ const loadLookupData = async () => {
     }
     catch (error) {
         console.error('Error loading lookup data:', error);
+        // Either re-throw to show error to user or implement fallback
+        // throw new Error('Fehler beim Laden der Nachschlagedaten')
     }
 };
 const selectPatient = (patient) => {

@@ -230,6 +230,12 @@ export const usePatientStore = defineStore('patient', () => {
         }
         return '';
     };
+    const loadGenders = async () => {
+        await fetchGenders();
+    };
+    const loadCenters = async () => {
+        await fetchCenters();
+    };
     return {
         // State
         patients,
@@ -245,6 +251,8 @@ export const usePatientStore = defineStore('patient', () => {
         fetchPatients,
         fetchGenders,
         fetchCenters,
+        loadGenders,
+        loadCenters,
         initializeLookupData,
         createPatient,
         updatePatient,

@@ -1,12 +1,16 @@
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
+import { useAnnotationStore } from '@/stores/annotationStore';
 import { useVideoStore } from '@/stores/videoStore';
 import { useImageStore } from '@/stores/imageStore';
 import { useAnonymizationStore } from '@/stores/anonymizationStore';
 import { useUserStore } from '@/stores/userStore';
+import { useRouter } from 'vue-router';
+const annotationStore = useAnnotationStore();
 const videoStore = useVideoStore();
 const imageStore = useImageStore();
 const anonymizationStore = useAnonymizationStore();
 const userStore = useUserStore();
+const router = useRouter();
 const videoStats = ref({
     total: 0,
     inProgress: 0,
@@ -23,10 +27,40 @@ const anonymizationStats = ref({
     inProgress: 0,
     completed: 0,
 });
-const users = ref([]);
+const videoAnonymizations = ref([]);
+const loadingVideoAnonymizations = ref(false);
+// Computed Properties für Video-Anonymisierung
+const videoAnonymizationStats = computed(() => {
+    const stats = {
+        total: videoAnonymizations.value.length,
+        pending: 0,
+        processing: 0,
+        anonymized: 0
+    };
+    videoAnonymizations.value.forEach(video => {
+        switch (video.status) {
+            case 'pending':
+            case 'uploaded':
+            case 'frames_extracted':
+                stats.pending++;
+                break;
+            case 'processing':
+            case 'segmenting':
+            case 'anonymizing':
+                stats.processing++;
+                break;
+            case 'anonymized':
+            case 'completed':
+                stats.anonymized++;
+                break;
+        }
+    });
+    return stats;
+});
 // Check if userStore is empty and add a default user
 // This is a fallback in case the userStore is empty
 // #TODO: Remove this when userStore is properly populated
+const users = ref([]);
 if (!userStore.users || userStore.users.length === 0) {
     const currentUser = {
         id: 'current-session-user',
@@ -74,12 +108,101 @@ onMounted(async () => {
         console.error('Error loading dashboard data:', error);
     }
 });
+// Video-Anonymisierungs-Methoden
+const refreshVideoAnonymizations = async () => {
+    loadingVideoAnonymizations.value = true;
+    try {
+        await videoStore.fetchVideosForAnonymization();
+        videoAnonymizations.value = videoStore.videosForAnonymization || [];
+    }
+    catch (error) {
+        console.error('Fehler beim Laden der Video-Anonymisierungen:', error);
+    }
+    finally {
+        loadingVideoAnonymizations.value = false;
+    }
+};
+const getStatusBadgeClass = (status) => {
+    const statusClasses = {
+        'pending': 'bg-secondary',
+        'uploaded': 'bg-info',
+        'frames_extracted': 'bg-primary',
+        'processing': 'bg-warning',
+        'segmenting': 'bg-warning',
+        'anonymizing': 'bg-warning',
+        'anonymized': 'bg-success',
+        'completed': 'bg-success',
+        'error': 'bg-danger',
+        'failed': 'bg-danger'
+    };
+    return statusClasses[status] || 'bg-secondary';
+};
+const getStatusDisplayText = (status) => {
+    const statusTexts = {
+        'pending': 'Wartend',
+        'uploaded': 'Hochgeladen',
+        'frames_extracted': 'Frames extrahiert',
+        'processing': 'In Bearbeitung',
+        'segmenting': 'Segmentierung',
+        'anonymizing': 'Anonymisierung',
+        'anonymized': 'Anonymisiert',
+        'completed': 'Abgeschlossen',
+        'error': 'Fehler',
+        'failed': 'Fehlgeschlagen'
+    };
+    return statusTexts[status] || status;
+};
+const formatDate = (dateString) => {
+    if (!dateString)
+        return 'Nicht verfügbar';
+    try {
+        return new Date(dateString).toLocaleDateString('de-DE');
+    }
+    catch (error) {
+        return 'Ungültig';
+    }
+};
+const viewVideoDetails = (video) => {
+    // Navigation zu Video-Details
+    router.push({
+        name: 'Video Annotation',
+        params: { videoId: video.id }
+    });
+};
+const annotateVideo = (video) => {
+    // Navigation zur Video-Annotation
+    router.push({
+        name: 'Video Annotation',
+        query: {
+            videoId: video.id,
+            mode: 'annotate'
+        }
+    });
+};
+const processAnonymization = async (video) => {
+    try {
+        await videoStore.startAnonymization(video.id);
+        await refreshVideoAnonymizations();
+        // Optional: Success notification
+    }
+    catch (error) {
+        console.error('Fehler beim Starten der Anonymisierung:', error);
+        // Optional: Error notification
+    }
+};
+// Initialisierung
+onMounted(async () => {
+    await Promise.all([
+        refreshAnnotations(),
+        refreshVideoAnonymizations()
+    ]);
+});
 ; /* PartiallyEnd: #3632/scriptSetup.vue */
 function __VLS_template() {
     const __VLS_ctx = {};
     let __VLS_components;
     let __VLS_directives;
-    ['table', 'table',];
+    ['table', 'table', 'table-dark', 'table-dark',];
     // CSS variable injection 
     // CSS variable injection end 
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -173,6 +296,271 @@ function __VLS_template() {
         ...{ class: ("card") },
     });
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: ("card-header d-flex justify-content-between align-items-center") },
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.h5, __VLS_intrinsicElements.h5)({
+        ...{ class: ("mb-0") },
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+        ...{ onClick: (__VLS_ctx.refreshVideoAnonymizations) },
+        ...{ class: ("btn btn-primary btn-sm") },
+        disabled: ((__VLS_ctx.loadingVideoAnonymizations)),
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+        ...{ class: ("fas fa-sync-alt") },
+        ...{ class: (({ 'fa-spin': __VLS_ctx.loadingVideoAnonymizations })) },
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: ("card-body") },
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: ("row mb-3") },
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: ("col-md-3") },
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: ("stat-card bg-info text-white") },
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: ("stat-icon") },
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+        ...{ class: ("fas fa-video") },
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: ("stat-content") },
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.h3, __VLS_intrinsicElements.h3)({});
+    (__VLS_ctx.videoAnonymizationStats.total);
+    __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
+    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: ("col-md-3") },
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: ("stat-card bg-warning text-white") },
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: ("stat-icon") },
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+        ...{ class: ("fas fa-clock") },
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: ("stat-content") },
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.h3, __VLS_intrinsicElements.h3)({});
+    (__VLS_ctx.videoAnonymizationStats.pending);
+    __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
+    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: ("col-md-3") },
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: ("stat-card bg-primary text-white") },
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: ("stat-icon") },
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+        ...{ class: ("fas fa-cogs") },
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: ("stat-content") },
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.h3, __VLS_intrinsicElements.h3)({});
+    (__VLS_ctx.videoAnonymizationStats.processing);
+    __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
+    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: ("col-md-3") },
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: ("stat-card bg-success text-white") },
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: ("stat-icon") },
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+        ...{ class: ("fas fa-check-circle") },
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: ("stat-content") },
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.h3, __VLS_intrinsicElements.h3)({});
+    (__VLS_ctx.videoAnonymizationStats.anonymized);
+    __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
+    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: ("table-responsive") },
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.table, __VLS_intrinsicElements.table)({
+        ...{ class: ("table table-hover") },
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.thead, __VLS_intrinsicElements.thead)({
+        ...{ class: ("table-dark") },
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.tr, __VLS_intrinsicElements.tr)({});
+    __VLS_elementAsFunction(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
+    __VLS_elementAsFunction(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
+    __VLS_elementAsFunction(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
+    __VLS_elementAsFunction(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
+    __VLS_elementAsFunction(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
+    __VLS_elementAsFunction(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
+    __VLS_elementAsFunction(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
+    __VLS_elementAsFunction(__VLS_intrinsicElements.tbody, __VLS_intrinsicElements.tbody)({});
+    if (__VLS_ctx.loadingVideoAnonymizations) {
+        __VLS_elementAsFunction(__VLS_intrinsicElements.tr, __VLS_intrinsicElements.tr)({});
+        __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({
+            colspan: ("7"),
+            ...{ class: ("text-center") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("spinner-border text-primary") },
+            role: ("status"),
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+            ...{ class: ("visually-hidden") },
+        });
+    }
+    else if (__VLS_ctx.videoAnonymizations.length === 0) {
+        __VLS_elementAsFunction(__VLS_intrinsicElements.tr, __VLS_intrinsicElements.tr)({});
+        __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({
+            colspan: ("7"),
+            ...{ class: ("text-center text-muted") },
+        });
+    }
+    else {
+        for (const [video] of __VLS_getVForSourceType((__VLS_ctx.videoAnonymizations))) {
+            __VLS_elementAsFunction(__VLS_intrinsicElements.tr, __VLS_intrinsicElements.tr)({
+                key: ((video.id)),
+            });
+            __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
+            __VLS_elementAsFunction(__VLS_intrinsicElements.code, __VLS_intrinsicElements.code)({});
+            (video.id);
+            __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
+            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: ("text-truncate") },
+                ...{ style: ({}) },
+                title: ((video.originalFileName)),
+            });
+            (video.originalFileName);
+            __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
+            if (video.patientFirstName || video.patientLastName) {
+                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
+                (video.patientFirstName);
+                (video.patientLastName);
+            }
+            else {
+                __VLS_elementAsFunction(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+                    ...{ class: ("text-muted") },
+                });
+            }
+            __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
+            if (video.examinationDate) {
+                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
+                (__VLS_ctx.formatDate(video.examinationDate));
+            }
+            else {
+                __VLS_elementAsFunction(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+                    ...{ class: ("text-muted") },
+                });
+            }
+            __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
+            __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                ...{ class: ("badge") },
+                ...{ class: ((__VLS_ctx.getStatusBadgeClass(video.status))) },
+            });
+            (__VLS_ctx.getStatusDisplayText(video.status));
+            __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
+            if (video.segments && video.segments.length > 0) {
+                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
+                __VLS_elementAsFunction(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({});
+                (video.segments.length);
+                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                    ...{ class: ("mt-1") },
+                });
+                for (const [segment] of __VLS_getVForSourceType((video.segments.slice(0, 3)))) {
+                    __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                        key: ((segment.id)),
+                        ...{ class: ("badge bg-secondary me-1 mb-1") },
+                        ...{ style: ({}) },
+                    });
+                    (segment.label_display || segment.label);
+                }
+                if (video.segments.length > 3) {
+                    __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                        ...{ class: ("badge bg-light text-dark") },
+                    });
+                    (video.segments.length - 3);
+                }
+            }
+            else {
+                __VLS_elementAsFunction(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+                    ...{ class: ("text-muted") },
+                });
+            }
+            __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
+            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: ("btn-group btn-group-sm") },
+                role: ("group"),
+            });
+            __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+                ...{ onClick: (...[$event]) => {
+                        if (!(!((__VLS_ctx.loadingVideoAnonymizations))))
+                            return;
+                        if (!(!((__VLS_ctx.videoAnonymizations.length === 0))))
+                            return;
+                        __VLS_ctx.viewVideoDetails(video);
+                    } },
+                ...{ class: ("btn btn-outline-primary") },
+                title: (('Details für Video ' + video.id)),
+            });
+            __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                ...{ class: ("fas fa-eye") },
+            });
+            __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+                ...{ onClick: (...[$event]) => {
+                        if (!(!((__VLS_ctx.loadingVideoAnonymizations))))
+                            return;
+                        if (!(!((__VLS_ctx.videoAnonymizations.length === 0))))
+                            return;
+                        __VLS_ctx.annotateVideo(video);
+                    } },
+                ...{ class: ("btn btn-outline-success") },
+                disabled: ((video.status === 'anonymized')),
+                title: (('Video ' + video.id + ' annotieren')),
+            });
+            __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                ...{ class: ("fas fa-edit") },
+            });
+            if (video.status !== 'anonymized') {
+                __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+                    ...{ onClick: (...[$event]) => {
+                            if (!(!((__VLS_ctx.loadingVideoAnonymizations))))
+                                return;
+                            if (!(!((__VLS_ctx.videoAnonymizations.length === 0))))
+                                return;
+                            if (!((video.status !== 'anonymized')))
+                                return;
+                            __VLS_ctx.processAnonymization(video);
+                        } },
+                    ...{ class: ("btn btn-outline-warning") },
+                    title: (('Anonymisierung für Video ' + video.id + ' starten')),
+                });
+                __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                    ...{ class: ("fas fa-user-secret") },
+                });
+            }
+        }
+    }
+    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: ("row mt-4") },
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: ("col-12") },
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: ("card") },
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: ("card-header") },
     });
     __VLS_elementAsFunction(__VLS_intrinsicElements.h5, __VLS_intrinsicElements.h5)({
@@ -204,7 +592,7 @@ function __VLS_template() {
         __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
         (user.anonymizationAnnotations);
     }
-    ['container-fluid', 'py-4', 'row', 'col-md-4', 'card', 'card-header', 'mb-0', 'card-body', 'col-md-4', 'card', 'card-header', 'mb-0', 'card-body', 'col-md-4', 'card', 'card-header', 'mb-0', 'card-body', 'row', 'mt-4', 'col-12', 'card', 'card-header', 'mb-0', 'card-body', 'table', 'table-bordered',];
+    ['container-fluid', 'py-4', 'row', 'col-md-4', 'card', 'card-header', 'mb-0', 'card-body', 'col-md-4', 'card', 'card-header', 'mb-0', 'card-body', 'col-md-4', 'card', 'card-header', 'mb-0', 'card-body', 'row', 'mt-4', 'col-12', 'card', 'card-header', 'd-flex', 'justify-content-between', 'align-items-center', 'mb-0', 'btn', 'btn-primary', 'btn-sm', 'fas', 'fa-sync-alt', 'fa-spin', 'card-body', 'row', 'mb-3', 'col-md-3', 'stat-card', 'bg-info', 'text-white', 'stat-icon', 'fas', 'fa-video', 'stat-content', 'col-md-3', 'stat-card', 'bg-warning', 'text-white', 'stat-icon', 'fas', 'fa-clock', 'stat-content', 'col-md-3', 'stat-card', 'bg-primary', 'text-white', 'stat-icon', 'fas', 'fa-cogs', 'stat-content', 'col-md-3', 'stat-card', 'bg-success', 'text-white', 'stat-icon', 'fas', 'fa-check-circle', 'stat-content', 'table-responsive', 'table', 'table-hover', 'table-dark', 'text-center', 'spinner-border', 'text-primary', 'visually-hidden', 'text-center', 'text-muted', 'text-truncate', 'text-muted', 'text-muted', 'badge', 'mt-1', 'badge', 'bg-secondary', 'me-1', 'mb-1', 'badge', 'bg-light', 'text-dark', 'text-muted', 'btn-group', 'btn-group-sm', 'btn', 'btn-outline-primary', 'fas', 'fa-eye', 'btn', 'btn-outline-success', 'fas', 'fa-edit', 'btn', 'btn-outline-warning', 'fas', 'fa-user-secret', 'row', 'mt-4', 'col-12', 'card', 'card-header', 'mb-0', 'card-body', 'table', 'table-bordered',];
     var __VLS_slots;
     var $slots;
     let __VLS_inheritedAttrs;
@@ -226,7 +614,17 @@ const __VLS_self = (await import('vue')).defineComponent({
             videoStats: videoStats,
             imageStats: imageStats,
             anonymizationStats: anonymizationStats,
+            videoAnonymizations: videoAnonymizations,
+            loadingVideoAnonymizations: loadingVideoAnonymizations,
+            videoAnonymizationStats: videoAnonymizationStats,
             users: users,
+            refreshVideoAnonymizations: refreshVideoAnonymizations,
+            getStatusBadgeClass: getStatusBadgeClass,
+            getStatusDisplayText: getStatusDisplayText,
+            formatDate: formatDate,
+            viewVideoDetails: viewVideoDetails,
+            annotateVideo: annotateVideo,
+            processAnonymization: processAnonymization,
         };
     },
 });

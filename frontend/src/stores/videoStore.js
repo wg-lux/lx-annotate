@@ -338,7 +338,7 @@ export const useVideoStore = defineStore('video', () => {
         });
     };
     function urlFor(id) {
-        return `http://127.0.0.1:8000/api/videostream/${id}/stream/`;
+        return `http://127.0.0.1:8000/api/videostream/${id}`;
     }
     // Return state and actions for consumption in components
     return {

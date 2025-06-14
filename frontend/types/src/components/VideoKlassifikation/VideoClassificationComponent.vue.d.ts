@@ -75,23 +75,70 @@ declare const _default: import("vue").DefineComponent<{}, {}, {
             type: NumberConstructor;
             required: true;
         };
+        currentTime: {
+            type: NumberConstructor;
+            default: number;
+        };
+        segments: {
+            type: import("vue").PropType<import("@/stores/videoStore").Segment[]>;
+            default: () => never[];
+        };
+        apiSegments: {
+            type: import("vue").PropType<import("../../types/timeline.js").ApiSegment[]>;
+            default: () => never[];
+        };
+        fps: {
+            type: NumberConstructor;
+            default: number;
+        };
     }>, {
         timelineRef: import("vue").Ref<HTMLElement | null, HTMLElement | null>;
-        allSegments: import("vue").ComputedRef<import("@/stores/videoStore").Segment[]>;
+        timeMarkersRef: import("vue").Ref<HTMLElement | null, HTMLElement | null>;
+        organizedSegments: import("vue").ComputedRef<import("../../types/timeline.js").LabelGroup[]>;
+        timeMarkers: import("vue").ComputedRef<import("../../types/timeline.js").TimeMarker[]>;
+        cursorPosition: import("vue").ComputedRef<number>;
+        currentTime: import("vue").ComputedRef<number>;
         startResize: (segment: import("@/stores/videoStore").Segment, event: MouseEvent | TouchEvent) => void;
         handleTimelineClick: (event: MouseEvent) => void;
         jumpToSegment: (segment: import("@/stores/videoStore").Segment) => void;
-        getEnhancedSegmentStyle: (segment: import("@/stores/videoStore").Segment, allSegments?: import("@/stores/videoStore").Segment[] | undefined) => Record<string, string>;
-        duration: number;
-        getSegmentVerticalPosition: (segment: import("@/stores/videoStore").Segment, allSegs: import("@/stores/videoStore").Segment[]) => number;
-    }, {}, {}, {}, import("vue").ComponentOptionsMixin, import("vue").ComponentOptionsMixin, ("resize" | "seek")[], "resize" | "seek", import("vue").PublicProps, Readonly<import("vue").ExtractPropTypes<{
+        getSegmentStyle: (segment: import("@/stores/videoStore").Segment, color: string) => {
+            left: string;
+            width: string;
+            backgroundColor: string;
+            borderColor: string;
+        };
+        formatTime: (seconds: number) => string;
+        formatDuration: (seconds: number) => string;
+    }, {}, {}, {}, import("vue").ComponentOptionsMixin, import("vue").ComponentOptionsMixin, ("resize" | "seek" | "createSegment")[], "resize" | "seek" | "createSegment", import("vue").PublicProps, Readonly<import("vue").ExtractPropTypes<{
         duration: {
             type: NumberConstructor;
             required: true;
         };
+        currentTime: {
+            type: NumberConstructor;
+            default: number;
+        };
+        segments: {
+            type: import("vue").PropType<import("@/stores/videoStore").Segment[]>;
+            default: () => never[];
+        };
+        apiSegments: {
+            type: import("vue").PropType<import("../../types/timeline.js").ApiSegment[]>;
+            default: () => never[];
+        };
+        fps: {
+            type: NumberConstructor;
+            default: number;
+        };
     }>> & Readonly<{
         onResize?: ((...args: any[]) => any) | undefined;
         onSeek?: ((...args: any[]) => any) | undefined;
-    }>, {}, {}, {}, {}, string, import("vue").ComponentProvideOptions, true, {}, any>;
+        onCreateSegment?: ((...args: any[]) => any) | undefined;
+    }>, {
+        segments: import("@/stores/videoStore").Segment[];
+        currentTime: number;
+        apiSegments: import("../../types/timeline.js").ApiSegment[];
+        fps: number;
+    }, {}, {}, {}, string, import("vue").ComponentProvideOptions, true, {}, any>;
 }, {}, string, import("vue").ComponentProvideOptions, true, {}, any>;
 export default _default;

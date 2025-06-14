@@ -1,15 +1,15 @@
-import VideoDashboard from '@/components/EndoAI/VideoDashboard.vue';
+import AnnotationDashboard from '@/components/Dashboard/AnnotationDashboard.vue';
 export default (await import('vue')).defineComponent({
     name: 'Annotationen',
     components: {
-        VideoDashboard,
+        AnnotationDashboard,
     },
 });
 ; /* PartiallyEnd: #3632/script.vue */
 function __VLS_template() {
     const __VLS_ctx = {};
     const __VLS_componentsOption = {
-        VideoDashboard,
+        AnnotationDashboard,
     };
     let __VLS_components;
     let __VLS_directives;
@@ -26,8 +26,8 @@ function __VLS_template() {
     });
     __VLS_elementAsFunction(__VLS_intrinsicElements.h1, __VLS_intrinsicElements.h1)({});
     __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
-    const __VLS_0 = {}.VideoDashboard;
-    /** @type { [typeof __VLS_components.VideoDashboard, ] } */ ;
+    const __VLS_0 = {}.AnnotationDashboard;
+    /** @type { [typeof __VLS_components.AnnotationDashboard, ] } */ ;
     // @ts-ignore
     const __VLS_1 = __VLS_asFunctionalComponent(__VLS_0, new __VLS_0({}));
     const __VLS_2 = __VLS_1({}, ...__VLS_functionalComponentArgsRest(__VLS_1));

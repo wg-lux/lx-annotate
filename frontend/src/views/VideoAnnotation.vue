@@ -13,9 +13,8 @@
 <script>
 import VideoAnnotation from '../components/EndoAI/VideoAnnotation.vue';
 
-
 export default {
-name: 'Dashboard',
+name: 'VideoAnnotationView',
 components: {
     VideoAnnotation,
 },

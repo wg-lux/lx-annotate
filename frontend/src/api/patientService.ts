@@ -31,6 +31,12 @@ export interface Patient {
   patient_hash?: string | null;
   comments?: string;
   is_real_person?: boolean;  // Added missing property
+  
+  // Pseudonym properties for anonymization validation
+  pseudonym_first_name?: string | null;
+  pseudonym_last_name?: string | null;
+  sensitive_meta_id?: number | null;
+  
   // Computed/readonly fields
   age?: number | null;
   created_at?: string;

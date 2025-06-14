@@ -126,12 +126,14 @@ export default (await import('vue')).defineComponent({
             if (this.selectedVideoId !== null) {
                 this.loadSavedExaminations();
                 this.loadVideoSegments();
+                this.loadLabelSegments(); // Add this line to load existing segments
                 this.currentMarker = null;
             }
             else {
                 // Clear everything when no video selected
                 this.examinationMarkers = [];
                 this.savedExaminations = [];
+                this.labelSegments = []; // Also clear label segments
                 this.currentMarker = null;
             }
         },
@@ -151,6 +153,23 @@ export default (await import('vue')).defineComponent({
         onVideoLoaded() {
             if (this.$refs.videoRef) {
                 this.duration = this.$refs.videoRef.duration;
+                // Debug information for duration analysis
+                console.log('🎥 Video loaded - Frontend duration info:');
+                console.log(`- Duration from HTML5 video element: ${this.duration}s`);
+                console.log(`- Video source URL: ${this.currentVideoUrl}`);
+                console.log(`- Video readyState: ${this.$refs.videoRef.readyState}`);
+                console.log(`- Video networkState: ${this.$refs.videoRef.networkState}`);
+                // Additional video metadata
+                if (this.$refs.videoRef.videoWidth && this.$refs.videoRef.videoHeight) {
+                    console.log(`- Video dimensions: ${this.$refs.videoRef.videoWidth}x${this.$refs.videoRef.videoHeight}`);
+                }
+                // Check if duration seems unusually short
+                if (this.duration < 10) {
+                    console.warn(`⚠️ WARNING: Video duration seems very short (${this.duration}s). This might indicate an issue with:`);
+                    console.warn('  - Video file corruption');
+                    console.warn('  - Incorrect FPS calculation in backend');
+                    console.warn('  - Browser video decoding issues');
+                }
             }
         },
         handleTimeUpdate() {
@@ -255,7 +274,7 @@ export default (await import('vue')).defineComponent({
         async saveNewLabelSegment(startTime, endTime, labelType) {
             if (!this.selectedVideoId) {
                 console.error('Keine Video-ID verfügbar');
-                alert('Fehler: Keine Video-ID verfügbar');
+                this.showErrorMessage('Fehler: Keine Video-ID verfügbar');
                 return;
             }
             try {
@@ -263,46 +282,62 @@ export default (await import('vue')).defineComponent({
                     video_id: this.selectedVideoId,
                     start_time: startTime,
                     end_time: endTime,
-                    label_id: labelType, // Assuming labelType is the label ID
+                    label_name: labelType,
                 };
                 console.log('Speichere Label-Segment:', segmentData);
-                const response = await fetch('/api/video-segments/', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': this.getCsrfToken(),
-                    },
-                    body: JSON.stringify(segmentData)
-                });
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(`HTTP ${response.status}: ${JSON.stringify(errorData)}`);
-                }
-                const createdSegment = await response.json();
-                console.log('Label-Segment erfolgreich erstellt:', createdSegment);
+                // Use axiosInstance instead of fetch for proper authentication
+                const response = await axiosInstance.post(r('video-segments/'), segmentData);
+                console.log('Label-Segment erfolgreich erstellt:', response.data);
                 // Add to local segments array
-                this.labelSegments.push(createdSegment);
+                this.labelSegments.push(response.data);
                 // Refresh timeline to show new segment
                 this.loadLabelSegments();
-                alert(`Label-Segment erfolgreich erstellt: ${startTime.toFixed(2)}s - ${endTime.toFixed(2)}s`);
+                this.showSuccessMessage(`Label-Segment erfolgreich erstellt: ${startTime.toFixed(2)}s - ${endTime.toFixed(2)}s`);
             }
             catch (error) {
                 console.error('Fehler beim Speichern des Label-Segments:', error);
-                alert(`Fehler beim Speichern: ${error.message}`);
+                this.showErrorMessage(`Fehler beim Speichern: ${error.response?.data?.detail || error.message}`);
             }
         },
         async loadLabelSegments() {
             if (!this.selectedVideoId)
                 return;
             try {
-                const response = await fetch(`/api/video-segments/?video_id=${this.selectedVideoId}`);
-                if (response.ok) {
-                    this.labelSegments = await response.json();
-                    console.log('Label-Segmente geladen:', this.labelSegments);
-                }
+                const response = await axiosInstance.get(r(`video-segments/?video_id=${this.selectedVideoId}`));
+                // Debug: Log the raw API response
+                console.log('🏷️ Raw API response for label segments:', response.data);
+                // Ensure we have an array
+                const segments = Array.isArray(response.data) ? response.data : [];
+                // Transform API response to match component expectations
+                this.labelSegments = segments.map(segment => ({
+                    id: segment.id,
+                    start_time: segment.start_time || 0,
+                    end_time: segment.end_time || 0,
+                    start_frame_number: segment.start_frame_number || 0,
+                    end_frame_number: segment.end_frame_number || 0,
+                    label_name: segment.label_name || 'Unknown Label',
+                    label_id: segment.label_id || null,
+                    video_id: segment.video_id || this.selectedVideoId
+                }));
+                console.log('🏷️ Processed label segments:', this.labelSegments);
+                // Debug: Check for suspicious segments (full video length)
+                this.labelSegments.forEach((segment, index) => {
+                    const duration = segment.end_time - segment.start_time;
+                    if (duration >= this.duration * 0.9) { // If segment is 90%+ of video duration
+                        console.warn(`⚠️ Segment ${index + 1} (${segment.label_name}) spans almost the entire video: ${duration.toFixed(2)}s of ${this.duration.toFixed(2)}s`);
+                    }
+                });
             }
             catch (error) {
-                console.error('Fehler beim Laden der Label-Segmente:', error);
+                console.error('❌ Fehler beim Laden der Label-Segmente:', error);
+                this.labelSegments = []; // Set empty array on error
+                // Show user-friendly error message
+                if (error.response?.status === 404) {
+                    console.info('ℹ️ No label segments found for this video');
+                }
+                else {
+                    this.showErrorMessage('Fehler beim Laden der Label-Segmente. Bitte versuchen Sie es erneut.');
+                }
             }
         },
         getCsrfToken() {
@@ -384,7 +419,7 @@ export default (await import('vue')).defineComponent({
                 position: 'absolute',
                 left: `${left}%`,
                 width: `${width}%`,
-                backgroundColor: this.getLabelColor(segment.label_id),
+                backgroundColor: this.getLabelColor(segment.label_name), // Fix: Use label_name instead of label_id
                 borderRadius: '4px',
                 height: '100%',
                 cursor: 'pointer',
@@ -398,15 +433,60 @@ export default (await import('vue')).defineComponent({
             }
         },
         async deleteSegment(segmentId) {
+            if (!confirm('Sind Sie sicher, dass Sie dieses Segment löschen möchten?')) {
+                return;
+            }
             try {
+                console.log(`🗑️ Deleting segment ${segmentId}...`);
                 await axiosInstance.delete(r(`video-segments/${segmentId}/`));
                 // Remove from local segments array
                 this.labelSegments = this.labelSegments.filter(seg => seg.id !== segmentId);
+                console.log(`✅ Segment ${segmentId} successfully deleted`);
                 this.showSuccessMessage('Segment erfolgreich gelöscht');
             }
             catch (error) {
-                console.error('Error deleting segment:', error);
-                this.showErrorMessage('Fehler beim Löschen des Segments');
+                console.error('❌ Error deleting segment:', error);
+                // More specific error handling
+                if (error.response?.status === 404) {
+                    this.showErrorMessage('Segment nicht gefunden. Es wurde möglicherweise bereits gelöscht.');
+                    // Remove from local array even if 404 (segment doesn't exist anyway)
+                    this.labelSegments = this.labelSegments.filter(seg => seg.id !== segmentId);
+                }
+                else if (error.response?.status === 403) {
+                    this.showErrorMessage('Keine Berechtigung zum Löschen dieses Segments.');
+                }
+                else {
+                    this.showErrorMessage('Fehler beim Löschen des Segments. Bitte versuchen Sie es erneut.');
+                }
+            }
+        },
+        async deleteAllFullVideoSegments() {
+            const fullVideoSegments = this.labelSegments.filter(segment => {
+                const duration = segment.end_time - segment.start_time;
+                return duration >= this.duration * 0.9; // Segments that cover 90%+ of video
+            });
+            if (fullVideoSegments.length === 0) {
+                this.showSuccessMessage('Keine problematischen Vollvideo-Segmente gefunden.');
+                return;
+            }
+            const confirmMessage = `${fullVideoSegments.length} Segment(e) decken fast das ganze Video ab (0:00-${this.formatTime(this.duration)}). Diese löschen?`;
+            if (!confirm(confirmMessage)) {
+                return;
+            }
+            try {
+                console.log(`🧹 Deleting ${fullVideoSegments.length} full-video segments...`);
+                // Delete each segment
+                for (const segment of fullVideoSegments) {
+                    await axiosInstance.delete(r(`video-segments/${segment.id}/`));
+                    console.log(`✅ Deleted segment ${segment.id} (${segment.label_name})`);
+                }
+                // Refresh the segments list
+                await this.loadLabelSegments();
+                this.showSuccessMessage(`${fullVideoSegments.length} problematische Segmente erfolgreich gelöscht!`);
+            }
+            catch (error) {
+                console.error('❌ Error deleting full-video segments:', error);
+                this.showErrorMessage('Fehler beim Löschen der Vollvideo-Segmente. Bitte versuchen Sie es einzeln.');
             }
         }
     },
@@ -577,12 +657,12 @@ function __VLS_template() {
                     key: ((segment.id)),
                     ...{ class: ("timeline-segment") },
                     ...{ style: ((__VLS_ctx.getSegmentStyle(segment))) },
-                    title: ((`${segment.label_name}: ${__VLS_ctx.formatTime(__VLS_ctx.getSegmentStartTime(segment))} - ${__VLS_ctx.formatTime(__VLS_ctx.getSegmentEndTime(segment))}`)),
+                    title: ((`${__VLS_ctx.getTranslationForLabel(segment.label_name)}: ${__VLS_ctx.formatTime(__VLS_ctx.getSegmentStartTime(segment))} - ${__VLS_ctx.formatTime(__VLS_ctx.getSegmentEndTime(segment))}`)),
                 });
                 __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
                     ...{ class: ("segment-label") },
                 });
-                (segment.label_name);
+                (__VLS_ctx.getTranslationForLabel(segment.label_name));
             }
             __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
                 ...{ class: ("timeline-markers") },
@@ -617,7 +697,7 @@ function __VLS_template() {
                     ...{ class: ("segment-info") },
                 });
                 __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
-                (segment.label_name);
+                (__VLS_ctx.getTranslationForLabel(segment.label_name));
                 __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
                     ...{ class: ("segment-time") },
                 });

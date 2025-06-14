@@ -25,6 +25,9 @@ export interface Patient {
     patient_hash?: string | null;
     comments?: string;
     is_real_person?: boolean;
+    pseudonym_first_name?: string | null;
+    pseudonym_last_name?: string | null;
+    sensitive_meta_id?: number | null;
     age?: number | null;
     created_at?: string;
     updated_at?: string;

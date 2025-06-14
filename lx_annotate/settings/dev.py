@@ -4,7 +4,10 @@ Development settings - wide open and convenience-oriented.
 This configuration prioritizes developer productivity and ease of debugging.
 ⚠️  NEVER use these settings in production!
 """
+from rest_framework.permissions import AllowAny, IsAuthenticated
+
 from .base import *  # noqa
+
 
 # SECURITY WARNING: Debug mode is ON - only for development!
 DEBUG = True
@@ -15,12 +18,19 @@ ALLOWED_HOSTS = ["*"]
 # Wide-open CORS for development
 CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_NULL_ORIGIN = True       # ← add this
 CSRF_TRUSTED_ORIGINS = []
+
 
 # Disable API authentication in development for easier testing
 REST_FRAMEWORK["DEFAULT_PERMISSION_CLASSES"] = [
     "rest_framework.permissions.AllowAny"
 ]
+
+if DEBUG:
+    permission_classes = [AllowAny]    # plain attribute is enough
+else:
+    permission_classes = [IsAuthenticated]
 
 # Enable Vite dev server for hot module replacement
 DJANGO_VITE["default"]["dev_mode"] = False  # Use built assets instead

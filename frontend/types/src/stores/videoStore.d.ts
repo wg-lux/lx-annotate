@@ -28,12 +28,16 @@ export interface SensitiveMetaUpdatePayload {
     examinationDate: string;
 }
 export interface Segment {
-    id: string;
+    id: string | number;
     label: string;
     label_display: string;
     startTime: number;
     endTime: number;
     avgConfidence: number;
+    video_id?: number;
+    label_id?: number;
+    start_frame_number?: number;
+    end_frame_number?: number;
 }
 export interface VideoAnnotation {
     isAnnotated: boolean;
@@ -64,6 +68,11 @@ export interface VideoMeta {
     status: string;
     assignedUser?: string | null;
     anonymized: boolean;
+    hasROI?: boolean;
+    outsideFrameCount?: number;
+    totalFrameCount?: number;
+    anonymizationProgress?: number;
+    lastAnonymizationDate?: string;
 }
 export interface LabelMeta {
     id: number;
@@ -78,12 +87,16 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
         isAnnotated: boolean;
         errorMessage: string;
         segments: {
-            id: string;
+            id: string | number;
             label: string;
             label_display: string;
             startTime: number;
             endTime: number;
             avgConfidence: number;
+            video_id?: number | undefined;
+            label_id?: number | undefined;
+            start_frame_number?: number | undefined;
+            end_frame_number?: number | undefined;
         }[];
         videoUrl: string;
         id: string;
@@ -93,12 +106,16 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
         isAnnotated: boolean;
         errorMessage: string;
         segments: {
-            id: string;
+            id: string | number;
             label: string;
             label_display: string;
             startTime: number;
             endTime: number;
             avgConfidence: number;
+            video_id?: number | undefined;
+            label_id?: number | undefined;
+            start_frame_number?: number | undefined;
+            end_frame_number?: number | undefined;
         }[];
         videoUrl: string;
         id: string;
@@ -116,6 +133,11 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
             status: string;
             assignedUser?: string | null | undefined;
             anonymized: boolean;
+            hasROI?: boolean | undefined;
+            outsideFrameCount?: number | undefined;
+            totalFrameCount?: number | undefined;
+            anonymizationProgress?: number | undefined;
+            lastAnonymizationDate?: string | undefined;
         }[];
         labels: {
             id: number;
@@ -128,6 +150,11 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
             status: string;
             assignedUser?: string | null | undefined;
             anonymized: boolean;
+            hasROI?: boolean | undefined;
+            outsideFrameCount?: number | undefined;
+            totalFrameCount?: number | undefined;
+            anonymizationProgress?: number | undefined;
+            lastAnonymizationDate?: string | undefined;
         }[];
         labels: {
             id: number;
@@ -171,6 +198,11 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
             status: string;
             assignedUser?: string | null | undefined;
             anonymized: boolean;
+            hasROI?: boolean | undefined;
+            outsideFrameCount?: number | undefined;
+            totalFrameCount?: number | undefined;
+            anonymizationProgress?: number | undefined;
+            lastAnonymizationDate?: string | undefined;
         }[];
         labels: {
             id: number;
@@ -192,19 +224,23 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
     jumpToSegment: (segment: Segment, videoElement: HTMLVideoElement | null) => void;
     updateVideoStatus: (status: 'in_progress' | 'available' | 'completed') => Promise<void>;
     assignUserToVideo: (user: string) => Promise<void>;
-    updateSegment: (id: string, partial: Partial<Segment>) => void;
+    updateSegment: (id: string | number, partial: Partial<Segment>) => void;
     urlFor: (id: number) => string;
 }, "errorMessage" | "videoUrl" | "currentVideo" | "segmentsByLabel" | "videoList" | "videoMeta">>, Pick<{
     currentVideo: import("vue").Ref<{
         isAnnotated: boolean;
         errorMessage: string;
         segments: {
-            id: string;
+            id: string | number;
             label: string;
             label_display: string;
             startTime: number;
             endTime: number;
             avgConfidence: number;
+            video_id?: number | undefined;
+            label_id?: number | undefined;
+            start_frame_number?: number | undefined;
+            end_frame_number?: number | undefined;
         }[];
         videoUrl: string;
         id: string;
@@ -214,12 +250,16 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
         isAnnotated: boolean;
         errorMessage: string;
         segments: {
-            id: string;
+            id: string | number;
             label: string;
             label_display: string;
             startTime: number;
             endTime: number;
             avgConfidence: number;
+            video_id?: number | undefined;
+            label_id?: number | undefined;
+            start_frame_number?: number | undefined;
+            end_frame_number?: number | undefined;
         }[];
         videoUrl: string;
         id: string;
@@ -237,6 +277,11 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
             status: string;
             assignedUser?: string | null | undefined;
             anonymized: boolean;
+            hasROI?: boolean | undefined;
+            outsideFrameCount?: number | undefined;
+            totalFrameCount?: number | undefined;
+            anonymizationProgress?: number | undefined;
+            lastAnonymizationDate?: string | undefined;
         }[];
         labels: {
             id: number;
@@ -249,6 +294,11 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
             status: string;
             assignedUser?: string | null | undefined;
             anonymized: boolean;
+            hasROI?: boolean | undefined;
+            outsideFrameCount?: number | undefined;
+            totalFrameCount?: number | undefined;
+            anonymizationProgress?: number | undefined;
+            lastAnonymizationDate?: string | undefined;
         }[];
         labels: {
             id: number;
@@ -292,6 +342,11 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
             status: string;
             assignedUser?: string | null | undefined;
             anonymized: boolean;
+            hasROI?: boolean | undefined;
+            outsideFrameCount?: number | undefined;
+            totalFrameCount?: number | undefined;
+            anonymizationProgress?: number | undefined;
+            lastAnonymizationDate?: string | undefined;
         }[];
         labels: {
             id: number;
@@ -313,19 +368,23 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
     jumpToSegment: (segment: Segment, videoElement: HTMLVideoElement | null) => void;
     updateVideoStatus: (status: 'in_progress' | 'available' | 'completed') => Promise<void>;
     assignUserToVideo: (user: string) => Promise<void>;
-    updateSegment: (id: string, partial: Partial<Segment>) => void;
+    updateSegment: (id: string | number, partial: Partial<Segment>) => void;
     urlFor: (id: number) => string;
 }, "duration" | "allSegments" | "hasVideo">, Pick<{
     currentVideo: import("vue").Ref<{
         isAnnotated: boolean;
         errorMessage: string;
         segments: {
-            id: string;
+            id: string | number;
             label: string;
             label_display: string;
             startTime: number;
             endTime: number;
             avgConfidence: number;
+            video_id?: number | undefined;
+            label_id?: number | undefined;
+            start_frame_number?: number | undefined;
+            end_frame_number?: number | undefined;
         }[];
         videoUrl: string;
         id: string;
@@ -335,12 +394,16 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
         isAnnotated: boolean;
         errorMessage: string;
         segments: {
-            id: string;
+            id: string | number;
             label: string;
             label_display: string;
             startTime: number;
             endTime: number;
             avgConfidence: number;
+            video_id?: number | undefined;
+            label_id?: number | undefined;
+            start_frame_number?: number | undefined;
+            end_frame_number?: number | undefined;
         }[];
         videoUrl: string;
         id: string;
@@ -358,6 +421,11 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
             status: string;
             assignedUser?: string | null | undefined;
             anonymized: boolean;
+            hasROI?: boolean | undefined;
+            outsideFrameCount?: number | undefined;
+            totalFrameCount?: number | undefined;
+            anonymizationProgress?: number | undefined;
+            lastAnonymizationDate?: string | undefined;
         }[];
         labels: {
             id: number;
@@ -370,6 +438,11 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
             status: string;
             assignedUser?: string | null | undefined;
             anonymized: boolean;
+            hasROI?: boolean | undefined;
+            outsideFrameCount?: number | undefined;
+            totalFrameCount?: number | undefined;
+            anonymizationProgress?: number | undefined;
+            lastAnonymizationDate?: string | undefined;
         }[];
         labels: {
             id: number;
@@ -413,6 +486,11 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
             status: string;
             assignedUser?: string | null | undefined;
             anonymized: boolean;
+            hasROI?: boolean | undefined;
+            outsideFrameCount?: number | undefined;
+            totalFrameCount?: number | undefined;
+            anonymizationProgress?: number | undefined;
+            lastAnonymizationDate?: string | undefined;
         }[];
         labels: {
             id: number;
@@ -434,6 +512,6 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
     jumpToSegment: (segment: Segment, videoElement: HTMLVideoElement | null) => void;
     updateVideoStatus: (status: 'in_progress' | 'available' | 'completed') => Promise<void>;
     assignUserToVideo: (user: string) => Promise<void>;
-    updateSegment: (id: string, partial: Partial<Segment>) => void;
+    updateSegment: (id: string | number, partial: Partial<Segment>) => void;
     urlFor: (id: number) => string;
 }, "fetchVideoMeta" | "updateSensitiveMeta" | "clearVideoMeta" | "fetchAllVideos" | "uploadRevert" | "uploadProcess" | "clearVideo" | "setVideo" | "fetchVideoUrl" | "fetchSegmentsByLabel" | "fetchAllSegments" | "saveAnnotations" | "getSegmentStyle" | "getEnhancedSegmentStyle" | "getColorForLabel" | "getTranslationForLabel" | "jumpToSegment" | "updateVideoStatus" | "assignUserToVideo" | "updateSegment" | "urlFor">>;

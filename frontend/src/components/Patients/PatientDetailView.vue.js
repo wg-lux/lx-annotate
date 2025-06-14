@@ -14,6 +14,7 @@ const showEditForm = ref(false);
 const showDeletionModal = ref(false);
 const deleting = ref(false);
 const deletionCheck = ref(null);
+const generatingPseudonym = ref(false);
 // Computed
 const genders = computed(() => patientStore.genders);
 const centers = computed(() => patientStore.centers);
@@ -102,6 +103,81 @@ const getCenterDisplay = (centerValue) => {
         return 'Nicht zugeordnet';
     const center = centers.value.find(c => c.name === centerValue);
     return center?.name_de || center?.name || centerValue;
+};
+// Pseudonamen-Funktionalität
+const generatePseudonym = async () => {
+    try {
+        generatingPseudonym.value = true;
+        error.value = '';
+        const response = await fetch('/api/generate-pseudonym/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                sensitive_meta_id: props.patient.sensitive_meta_id,
+                regenerate: false
+            })
+        });
+        if (!response.ok) {
+            throw new Error('Fehler beim Generieren der Pseudonamen');
+        }
+        const data = await response.json();
+        // Update patient data mit neuen Pseudonamen
+        const updatedPatient = {
+            ...props.patient,
+            pseudonym_first_name: data.pseudonym_first_name,
+            pseudonym_last_name: data.pseudonym_last_name
+        };
+        emit('patient-updated', updatedPatient);
+        successMessage.value = 'Pseudonamen erfolgreich generiert!';
+        setTimeout(() => {
+            successMessage.value = '';
+        }, 3000);
+    }
+    catch (err) {
+        error.value = err.message || 'Fehler beim Generieren der Pseudonamen';
+    }
+    finally {
+        generatingPseudonym.value = false;
+    }
+};
+const regeneratePseudonym = async () => {
+    try {
+        generatingPseudonym.value = true;
+        error.value = '';
+        const response = await fetch('/api/generate-pseudonym/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                sensitive_meta_id: props.patient.sensitive_meta_id,
+                regenerate: true
+            })
+        });
+        if (!response.ok) {
+            throw new Error('Fehler beim Regenerieren der Pseudonamen');
+        }
+        const data = await response.json();
+        // Update patient data mit neuen Pseudonamen
+        const updatedPatient = {
+            ...props.patient,
+            pseudonym_first_name: data.pseudonym_first_name,
+            pseudonym_last_name: data.pseudonym_last_name
+        };
+        emit('patient-updated', updatedPatient);
+        successMessage.value = 'Neue Pseudonamen erfolgreich generiert!';
+        setTimeout(() => {
+            successMessage.value = '';
+        }, 3000);
+    }
+    catch (err) {
+        error.value = err.message || 'Fehler beim Regenerieren der Pseudonamen';
+    }
+    finally {
+        generatingPseudonym.value = false;
+    }
 }; /* PartiallyEnd: #3632/scriptSetup.vue */
 function __VLS_template() {
     const __VLS_ctx = {};
@@ -284,6 +360,52 @@ function __VLS_template() {
         __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({});
         __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
         (__VLS_ctx.patient.last_name || 'Nicht angegeben');
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("info-item") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({});
+        if (__VLS_ctx.patient.pseudonym_first_name && __VLS_ctx.patient.pseudonym_last_name) {
+            __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                ...{ class: ("pseudonym-names") },
+            });
+            (__VLS_ctx.patient.pseudonym_first_name);
+            (__VLS_ctx.patient.pseudonym_last_name);
+            __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+                ...{ onClick: (__VLS_ctx.regeneratePseudonym) },
+                ...{ class: ("btn btn-outline-secondary btn-sm ms-2") },
+                disabled: ((__VLS_ctx.generatingPseudonym)),
+                title: ("Neue Pseudonamen generieren"),
+            });
+            if (__VLS_ctx.generatingPseudonym) {
+                __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                    ...{ class: ("spinner-border spinner-border-sm me-1") },
+                });
+            }
+            else {
+                __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                    ...{ class: ("fas fa-refresh") },
+                });
+            }
+            (__VLS_ctx.generatingPseudonym ? 'Generiere...' : 'Neu');
+        }
+        else {
+            __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+                ...{ onClick: (__VLS_ctx.generatePseudonym) },
+                ...{ class: ("btn btn-outline-primary btn-sm") },
+                disabled: ((__VLS_ctx.generatingPseudonym)),
+            });
+            if (__VLS_ctx.generatingPseudonym) {
+                __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                    ...{ class: ("spinner-border spinner-border-sm me-1") },
+                });
+            }
+            else {
+                __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                    ...{ class: ("fas fa-user-secret") },
+                });
+            }
+            (__VLS_ctx.generatingPseudonym ? 'Generiere...' : 'Pseudonym generieren');
+        }
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: ("info-item") },
         });
@@ -679,6 +801,52 @@ function __VLS_template() {
                     ...{ class: ("info-item") },
                 });
                 __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({});
+                if (__VLS_ctx.patient.pseudonym_first_name && __VLS_ctx.patient.pseudonym_last_name) {
+                    __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                        ...{ class: ("pseudonym-names") },
+                    });
+                    (__VLS_ctx.patient.pseudonym_first_name);
+                    (__VLS_ctx.patient.pseudonym_last_name);
+                    __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+                        ...{ onClick: (__VLS_ctx.regeneratePseudonym) },
+                        ...{ class: ("btn btn-outline-secondary btn-sm ms-2") },
+                        disabled: ((__VLS_ctx.generatingPseudonym)),
+                        title: ("Neue Pseudonamen generieren"),
+                    });
+                    if (__VLS_ctx.generatingPseudonym) {
+                        __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                            ...{ class: ("spinner-border spinner-border-sm me-1") },
+                        });
+                    }
+                    else {
+                        __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                            ...{ class: ("fas fa-refresh") },
+                        });
+                    }
+                    (__VLS_ctx.generatingPseudonym ? 'Generiere...' : 'Neu');
+                }
+                else {
+                    __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+                        ...{ onClick: (__VLS_ctx.generatePseudonym) },
+                        ...{ class: ("btn btn-outline-primary btn-sm") },
+                        disabled: ((__VLS_ctx.generatingPseudonym)),
+                    });
+                    if (__VLS_ctx.generatingPseudonym) {
+                        __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                            ...{ class: ("spinner-border spinner-border-sm me-1") },
+                        });
+                    }
+                    else {
+                        __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                            ...{ class: ("fas fa-user-secret") },
+                        });
+                    }
+                    (__VLS_ctx.generatingPseudonym ? 'Generiere...' : 'Pseudonym generieren');
+                }
+                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                    ...{ class: ("info-item") },
+                });
+                __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({});
                 __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
                 (__VLS_ctx.formatDate(__VLS_ctx.patient.dob));
                 if (__VLS_ctx.patient.age) {
@@ -1019,7 +1187,7 @@ function __VLS_template() {
             (__VLS_ctx.deleting ? 'Wird gelöscht...' : 'Endgültig löschen');
         }
     }
-    ['patient-detail-view', 'detail-header', 'patient-header-info', 'patient-title', 'fas', 'fa-user', 'badge', 'bg-success', 'fas', 'fa-shield-alt', 'badge', 'bg-secondary', 'fas', 'fa-user-secret', 'detail-actions', 'btn', 'btn-secondary', 'btn-sm', 'fas', 'fa-times', 'btn', 'btn-primary', 'btn-sm', 'fas', 'fa-edit', 'btn', 'btn-outline-danger', 'btn-sm', 'fas', 'fa-trash', 'alert', 'alert-danger', 'fas', 'fa-exclamation-triangle', 'alert', 'alert-success', 'fas', 'fa-check-circle', 'edit-section', 'card', 'card-header', 'card-title', 'fas', 'fa-edit', 'card-body', 'patient-info-display', 'row', 'col-md-6', 'card', 'info-card', 'card-header', 'card-title', 'fas', 'fa-user', 'card-body', 'info-grid', 'info-item', 'info-item', 'info-item', 'text-muted', 'info-item', 'col-md-6', 'card', 'info-card', 'card-header', 'card-title', 'fas', 'fa-address-book', 'card-body', 'info-grid', 'info-item', 'link', 'text-muted', 'info-item', 'link', 'text-muted', 'info-item', 'info-item', 'font-mono', 'row', 'mt-3', 'col-12', 'card', 'info-card', 'card-header', 'card-title', 'fas', 'fa-cog', 'card-body', 'row', 'col-md-6', 'info-item', 'font-mono', 'info-item', 'badge', 'bg-success', 'fas', 'fa-shield-alt', 'badge', 'bg-secondary', 'fas', 'fa-user-secret', 'col-md-6', 'info-item', 'info-item', 'modal-overlay', 'modal-dialog', 'modal-content', 'modal-header', 'modal-title', 'fas', 'fa-exclamation-triangle', 'text-warning', 'modal-body', 'alert', 'alert-info', 'fas', 'fa-info-circle', 'mb-0', 'mt-2', 'alert', 'alert-warning', 'fas', 'fa-exclamation-triangle', 'mt-2', 'mb-0', 'patient-detail-view', 'detail-header', 'patient-header-info', 'patient-title', 'fas', 'fa-user', 'badge', 'bg-success', 'fas', 'fa-shield-alt', 'badge', 'bg-secondary', 'fas', 'fa-user-secret', 'detail-actions', 'btn', 'btn-secondary', 'btn-sm', 'fas', 'fa-times', 'btn', 'btn-primary', 'btn-sm', 'fas', 'fa-edit', 'btn', 'btn-outline-danger', 'btn-sm', 'fas', 'fa-trash', 'alert', 'alert-danger', 'fas', 'fa-exclamation-triangle', 'alert', 'alert-success', 'fas', 'fa-check-circle', 'edit-section', 'card', 'card-header', 'card-title', 'fas', 'fa-edit', 'card-body', 'patient-info-display', 'row', 'col-md-6', 'card', 'info-card', 'card-header', 'card-title', 'fas', 'fa-user', 'card-body', 'info-grid', 'info-item', 'info-item', 'info-item', 'text-muted', 'info-item', 'col-md-6', 'card', 'info-card', 'card-header', 'card-title', 'fas', 'fa-address-book', 'card-body', 'info-grid', 'info-item', 'link', 'text-muted', 'info-item', 'link', 'text-muted', 'info-item', 'info-item', 'font-mono', 'row', 'mt-3', 'col-12', 'card', 'info-card', 'card-header', 'card-title', 'fas', 'fa-cog', 'card-body', 'row', 'col-md-6', 'info-item', 'font-mono', 'info-item', 'badge', 'bg-success', 'fas', 'fa-shield-alt', 'badge', 'bg-secondary', 'fas', 'fa-user-secret', 'col-md-6', 'info-item', 'info-item', 'modal-overlay', 'modal-dialog', 'modal-content', 'modal-header', 'modal-title', 'fas', 'fa-exclamation-triangle', 'text-warning', 'modal-body', 'alert', 'alert-info', 'fas', 'fa-info-circle', 'mb-0', 'mt-2', 'alert', 'alert-warning', 'fas', 'fa-exclamation-triangle', 'mt-2', 'mb-0', 'mt-3', 'related-objects', 'object-count', 'fas', 'fa-stethoscope', 'object-count', 'fas', 'fa-search', 'object-count', 'fas', 'fa-video', 'object-count', 'fas', 'fa-file-pdf', 'modal-footer', 'btn', 'btn-secondary', 'btn', 'btn-danger', 'spinner-border', 'spinner-border-sm', 'me-2', 'fas', 'fa-trash', 'me-2', 'mt-3', 'related-objects', 'object-count', 'fas', 'fa-stethoscope', 'object-count', 'fas', 'fa-search', 'object-count', 'fas', 'fa-video', 'object-count', 'fas', 'fa-file-pdf', 'modal-footer', 'btn', 'btn-secondary', 'btn', 'btn-danger', 'spinner-border', 'spinner-border-sm', 'me-2', 'fas', 'fa-trash', 'me-2',];
+    ['patient-detail-view', 'detail-header', 'patient-header-info', 'patient-title', 'fas', 'fa-user', 'badge', 'bg-success', 'fas', 'fa-shield-alt', 'badge', 'bg-secondary', 'fas', 'fa-user-secret', 'detail-actions', 'btn', 'btn-secondary', 'btn-sm', 'fas', 'fa-times', 'btn', 'btn-primary', 'btn-sm', 'fas', 'fa-edit', 'btn', 'btn-outline-danger', 'btn-sm', 'fas', 'fa-trash', 'alert', 'alert-danger', 'fas', 'fa-exclamation-triangle', 'alert', 'alert-success', 'fas', 'fa-check-circle', 'edit-section', 'card', 'card-header', 'card-title', 'fas', 'fa-edit', 'card-body', 'patient-info-display', 'row', 'col-md-6', 'card', 'info-card', 'card-header', 'card-title', 'fas', 'fa-user', 'card-body', 'info-grid', 'info-item', 'info-item', 'info-item', 'pseudonym-names', 'btn', 'btn-outline-secondary', 'btn-sm', 'ms-2', 'spinner-border', 'spinner-border-sm', 'me-1', 'fas', 'fa-refresh', 'btn', 'btn-outline-primary', 'btn-sm', 'spinner-border', 'spinner-border-sm', 'me-1', 'fas', 'fa-user-secret', 'info-item', 'text-muted', 'info-item', 'col-md-6', 'card', 'info-card', 'card-header', 'card-title', 'fas', 'fa-address-book', 'card-body', 'info-grid', 'info-item', 'link', 'text-muted', 'info-item', 'link', 'text-muted', 'info-item', 'info-item', 'font-mono', 'row', 'mt-3', 'col-12', 'card', 'info-card', 'card-header', 'card-title', 'fas', 'fa-cog', 'card-body', 'row', 'col-md-6', 'info-item', 'font-mono', 'info-item', 'badge', 'bg-success', 'fas', 'fa-shield-alt', 'badge', 'bg-secondary', 'fas', 'fa-user-secret', 'col-md-6', 'info-item', 'info-item', 'modal-overlay', 'modal-dialog', 'modal-content', 'modal-header', 'modal-title', 'fas', 'fa-exclamation-triangle', 'text-warning', 'modal-body', 'alert', 'alert-info', 'fas', 'fa-info-circle', 'mb-0', 'mt-2', 'alert', 'alert-warning', 'fas', 'fa-exclamation-triangle', 'mt-2', 'mb-0', 'patient-detail-view', 'detail-header', 'patient-header-info', 'patient-title', 'fas', 'fa-user', 'badge', 'bg-success', 'fas', 'fa-shield-alt', 'badge', 'bg-secondary', 'fas', 'fa-user-secret', 'detail-actions', 'btn', 'btn-secondary', 'btn-sm', 'fas', 'fa-times', 'btn', 'btn-primary', 'btn-sm', 'fas', 'fa-edit', 'btn', 'btn-outline-danger', 'btn-sm', 'fas', 'fa-trash', 'alert', 'alert-danger', 'fas', 'fa-exclamation-triangle', 'alert', 'alert-success', 'fas', 'fa-check-circle', 'edit-section', 'card', 'card-header', 'card-title', 'fas', 'fa-edit', 'card-body', 'patient-info-display', 'row', 'col-md-6', 'card', 'info-card', 'card-header', 'card-title', 'fas', 'fa-user', 'card-body', 'info-grid', 'info-item', 'info-item', 'info-item', 'pseudonym-names', 'btn', 'btn-outline-secondary', 'btn-sm', 'ms-2', 'spinner-border', 'spinner-border-sm', 'me-1', 'fas', 'fa-refresh', 'btn', 'btn-outline-primary', 'btn-sm', 'spinner-border', 'spinner-border-sm', 'me-1', 'fas', 'fa-user-secret', 'info-item', 'text-muted', 'info-item', 'col-md-6', 'card', 'info-card', 'card-header', 'card-title', 'fas', 'fa-address-book', 'card-body', 'info-grid', 'info-item', 'link', 'text-muted', 'info-item', 'link', 'text-muted', 'info-item', 'info-item', 'font-mono', 'row', 'mt-3', 'col-12', 'card', 'info-card', 'card-header', 'card-title', 'fas', 'fa-cog', 'card-body', 'row', 'col-md-6', 'info-item', 'font-mono', 'info-item', 'badge', 'bg-success', 'fas', 'fa-shield-alt', 'badge', 'bg-secondary', 'fas', 'fa-user-secret', 'col-md-6', 'info-item', 'info-item', 'modal-overlay', 'modal-dialog', 'modal-content', 'modal-header', 'modal-title', 'fas', 'fa-exclamation-triangle', 'text-warning', 'modal-body', 'alert', 'alert-info', 'fas', 'fa-info-circle', 'mb-0', 'mt-2', 'alert', 'alert-warning', 'fas', 'fa-exclamation-triangle', 'mt-2', 'mb-0', 'mt-3', 'related-objects', 'object-count', 'fas', 'fa-stethoscope', 'object-count', 'fas', 'fa-search', 'object-count', 'fas', 'fa-video', 'object-count', 'fas', 'fa-file-pdf', 'modal-footer', 'btn', 'btn-secondary', 'btn', 'btn-danger', 'spinner-border', 'spinner-border-sm', 'me-2', 'fas', 'fa-trash', 'me-2', 'mt-3', 'related-objects', 'object-count', 'fas', 'fa-stethoscope', 'object-count', 'fas', 'fa-search', 'object-count', 'fas', 'fa-video', 'object-count', 'fas', 'fa-file-pdf', 'modal-footer', 'btn', 'btn-secondary', 'btn', 'btn-danger', 'spinner-border', 'spinner-border-sm', 'me-2', 'fas', 'fa-trash', 'me-2',];
     var __VLS_slots;
     var $slots;
     let __VLS_inheritedAttrs;
@@ -1046,6 +1214,7 @@ const __VLS_self = (await import('vue')).defineComponent({
             showDeletionModal: showDeletionModal,
             deleting: deleting,
             deletionCheck: deletionCheck,
+            generatingPseudonym: generatingPseudonym,
             checkDeletionSafety: checkDeletionSafety,
             confirmDeletion: confirmDeletion,
             closeDeletionModal: closeDeletionModal,
@@ -1055,6 +1224,8 @@ const __VLS_self = (await import('vue')).defineComponent({
             formatDateTime: formatDateTime,
             getGenderDisplay: getGenderDisplay,
             getCenterDisplay: getCenterDisplay,
+            generatePseudonym: generatePseudonym,
+            regeneratePseudonym: regeneratePseudonym,
         };
     },
     __typeEmits: {},

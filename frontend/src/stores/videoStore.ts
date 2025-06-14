@@ -36,12 +36,17 @@ export interface SensitiveMetaUpdatePayload {
 }
 
 export interface Segment {
-  id: string;
+  id: string | number; // Allow both string and number IDs
   label: string;
   label_display: string;
   startTime: number;
   endTime: number;
   avgConfidence: number; // value between 0 and 1
+  // New fields for API integration
+  video_id?: number;
+  label_id?: number;
+  start_frame_number?: number;
+  end_frame_number?: number;
 }
 
 export interface VideoAnnotation {
@@ -78,6 +83,11 @@ export interface VideoMeta {
   status: string;
   assignedUser?: string | null; // Optional, damit es mit bestehenden Daten kompatibel ist
   anonymized: boolean; // Geändert von string zu boolean
+  hasROI?: boolean; // Gibt an, ob eine ROI definiert ist
+  outsideFrameCount?: number; // Anzahl der Outside-Frames
+  totalFrameCount?: number; // Gesamtanzahl der Frames
+  anonymizationProgress?: number; // Fortschritt der Anonymisierung (0-100)
+  lastAnonymizationDate?: string; // Datum der letzten Anonymisierung
 }
 
 export interface LabelMeta {
@@ -331,7 +341,7 @@ export const useVideoStore = defineStore('video', () => {
     return getSegmentStyle(segment, duration.value, verticalOffset);
   }
 
-  function updateSegment(id: string, partial: Partial<Segment>) {
+  function updateSegment(id: string | number, partial: Partial<Segment>) {
     const labelKeys = Object.keys(segmentsByLabel.value);
     for (const label of labelKeys) {
       const segmentIndex = segmentsByLabel.value[label].findIndex((s) => s.id === id);
@@ -479,7 +489,7 @@ export const useVideoStore = defineStore('video', () => {
   };
   
   function urlFor(id: number) {
-    return `http://127.0.0.1:8000/api/videostream/${id}/stream/`;  
+    return `http://127.0.0.1:8000/api/videostream/${id}`;  
   }
   
   // Return state and actions for consumption in components

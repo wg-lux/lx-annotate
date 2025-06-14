@@ -28,7 +28,7 @@ export function getColorForLabel(label) {
     return colorMap[label] || '#757575';
 }
 export function getTranslationForLabel(label) {
-    const colorMap = {
+    const translationMap = {
         appendix: 'Appendix',
         blood: 'Blut',
         diverticule: 'Divertikel',
@@ -44,7 +44,7 @@ export function getTranslationForLabel(label) {
         water_jet: 'Wasserstrahl',
         wound: 'Wunde',
     };
-    return colorMap[label] || '#757575';
+    return translationMap[label] || label; // Return original label as fallback, not a color!
 }
 export function jumpToSegment(segment, videoElement) {
     if (videoElement) {

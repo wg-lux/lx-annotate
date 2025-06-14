@@ -101,6 +101,32 @@
                   <span>{{ patient.last_name || 'Nicht angegeben' }}</span>
                 </div>
                 <div class="info-item">
+                  <label>Pseudonym:</label>
+                  <span v-if="patient.pseudonym_first_name && patient.pseudonym_last_name" class="pseudonym-names">
+                    {{ patient.pseudonym_first_name }} {{ patient.pseudonym_last_name }}
+                    <button 
+                      class="btn btn-outline-secondary btn-sm ms-2"
+                      @click="regeneratePseudonym"
+                      :disabled="generatingPseudonym"
+                      title="Neue Pseudonamen generieren"
+                    >
+                      <span v-if="generatingPseudonym" class="spinner-border spinner-border-sm me-1"></span>
+                      <i v-else class="fas fa-refresh"></i>
+                      {{ generatingPseudonym ? 'Generiere...' : 'Neu' }}
+                    </button>
+                  </span>
+                  <button 
+                    v-else
+                    class="btn btn-outline-primary btn-sm"
+                    @click="generatePseudonym"
+                    :disabled="generatingPseudonym"
+                  >
+                    <span v-if="generatingPseudonym" class="spinner-border spinner-border-sm me-1"></span>
+                    <i v-else class="fas fa-user-secret"></i>
+                    {{ generatingPseudonym ? 'Generiere...' : 'Pseudonym generieren' }}
+                  </button>
+                </div>
+                <div class="info-item">
                   <label>Geburtsdatum:</label>
                   <span>
                     {{ formatDate(patient.dob) }}
@@ -331,6 +357,32 @@
                                   <span>{{ patient.last_name || 'Nicht angegeben' }}</span>
                                 </div>
                                 <div class="info-item">
+                                  <label>Pseudonym:</label>
+                                  <span v-if="patient.pseudonym_first_name && patient.pseudonym_last_name" class="pseudonym-names">
+                                    {{ patient.pseudonym_first_name }} {{ patient.pseudonym_last_name }}
+                                    <button 
+                                      class="btn btn-outline-secondary btn-sm ms-2"
+                                      @click="regeneratePseudonym"
+                                      :disabled="generatingPseudonym"
+                                      title="Neue Pseudonamen generieren"
+                                    >
+                                      <span v-if="generatingPseudonym" class="spinner-border spinner-border-sm me-1"></span>
+                                      <i v-else class="fas fa-refresh"></i>
+                                      {{ generatingPseudonym ? 'Generiere...' : 'Neu' }}
+                                    </button>
+                                  </span>
+                                  <button 
+                                    v-else
+                                    class="btn btn-outline-primary btn-sm"
+                                    @click="generatePseudonym"
+                                    :disabled="generatingPseudonym"
+                                  >
+                                    <span v-if="generatingPseudonym" class="spinner-border spinner-border-sm me-1"></span>
+                                    <i v-else class="fas fa-user-secret"></i>
+                                    {{ generatingPseudonym ? 'Generiere...' : 'Pseudonym generieren' }}
+                                  </button>
+                                </div>
+                                <div class="info-item">
                                   <label>Geburtsdatum:</label>
                                   <span>
                                     {{ formatDate(patient.dob) }}
@@ -558,6 +610,7 @@
                 const showDeletionModal = ref<boolean>(false)
                 const deleting = ref<boolean>(false)
                 const deletionCheck = ref<DeletionCheck | null>(null)
+                const generatingPseudonym = ref<boolean>(false)
 
                 // Computed
                 const genders = computed<Gender[]>(() => patientStore.genders)
@@ -656,6 +709,93 @@
                   if (!centerValue) return 'Nicht zugeordnet'
                   const center = centers.value.find((c: Center) => c.name === centerValue)
                   return center?.name_de || center?.name || centerValue
+                }
+
+                // Pseudonamen-Funktionalität
+                const generatePseudonym = async (): Promise<void> => {
+                  try {
+                    generatingPseudonym.value = true
+                    error.value = ''
+                    
+                    const response = await fetch('/api/generate-pseudonym/', {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                      },
+                      body: JSON.stringify({
+                        sensitive_meta_id: props.patient.sensitive_meta_id,
+                        regenerate: false
+                      })
+                    })
+                    
+                    if (!response.ok) {
+                      throw new Error('Fehler beim Generieren der Pseudonamen')
+                    }
+                    
+                    const data = await response.json()
+                    
+                    // Update patient data mit neuen Pseudonamen
+                    const updatedPatient = {
+                      ...props.patient,
+                      pseudonym_first_name: data.pseudonym_first_name,
+                      pseudonym_last_name: data.pseudonym_last_name
+                    }
+                    
+                    emit('patient-updated', updatedPatient)
+                    successMessage.value = 'Pseudonamen erfolgreich generiert!'
+                    
+                    setTimeout(() => {
+                      successMessage.value = ''
+                    }, 3000)
+                    
+                  } catch (err: any) {
+                    error.value = err.message || 'Fehler beim Generieren der Pseudonamen'
+                  } finally {
+                    generatingPseudonym.value = false
+                  }
+                }
+
+                const regeneratePseudonym = async (): Promise<void> => {
+                  try {
+                    generatingPseudonym.value = true
+                    error.value = ''
+                    
+                    const response = await fetch('/api/generate-pseudonym/', {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                      },
+                      body: JSON.stringify({
+                        sensitive_meta_id: props.patient.sensitive_meta_id,
+                        regenerate: true
+                      })
+                    })
+                    
+                    if (!response.ok) {
+                      throw new Error('Fehler beim Regenerieren der Pseudonamen')
+                    }
+                    
+                    const data = await response.json()
+                    
+                    // Update patient data mit neuen Pseudonamen
+                    const updatedPatient = {
+                      ...props.patient,
+                      pseudonym_first_name: data.pseudonym_first_name,
+                      pseudonym_last_name: data.pseudonym_last_name
+                    }
+                    
+                    emit('patient-updated', updatedPatient)
+                    successMessage.value = 'Neue Pseudonamen erfolgreich generiert!'
+                    
+                    setTimeout(() => {
+                      successMessage.value = ''
+                    }, 3000)
+                    
+                  } catch (err: any) {
+                    error.value = err.message || 'Fehler beim Regenerieren der Pseudonamen'
+                  } finally {
+                    generatingPseudonym.value = false
+                  }
                 }
                 </script>
 
@@ -953,6 +1093,7 @@ const showEditForm = ref(false)
 const showDeletionModal = ref(false)
 const deleting = ref(false)
 const deletionCheck = ref<any>(null)
+const generatingPseudonym = ref<boolean>(false)
 
 // Computed
 const genders = computed(() => patientStore.genders)
@@ -1051,6 +1192,93 @@ const getCenterDisplay = (centerValue?: string | null) => {
   if (!centerValue) return 'Nicht zugeordnet'
   const center = centers.value.find(c => c.name === centerValue)
   return center?.name_de || center?.name || centerValue
+}
+
+// Pseudonamen-Funktionalität
+const generatePseudonym = async (): Promise<void> => {
+  try {
+    generatingPseudonym.value = true
+    error.value = ''
+    
+    const response = await fetch('/api/generate-pseudonym/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        sensitive_meta_id: props.patient.sensitive_meta_id,
+        regenerate: false
+      })
+    })
+    
+    if (!response.ok) {
+      throw new Error('Fehler beim Generieren der Pseudonamen')
+    }
+    
+    const data = await response.json()
+    
+    // Update patient data mit neuen Pseudonamen
+    const updatedPatient = {
+      ...props.patient,
+      pseudonym_first_name: data.pseudonym_first_name,
+      pseudonym_last_name: data.pseudonym_last_name
+    }
+    
+    emit('patient-updated', updatedPatient)
+    successMessage.value = 'Pseudonamen erfolgreich generiert!'
+    
+    setTimeout(() => {
+      successMessage.value = ''
+    }, 3000)
+    
+  } catch (err: any) {
+    error.value = err.message || 'Fehler beim Generieren der Pseudonamen'
+  } finally {
+    generatingPseudonym.value = false
+  }
+}
+
+const regeneratePseudonym = async (): Promise<void> => {
+  try {
+    generatingPseudonym.value = true
+    error.value = ''
+    
+    const response = await fetch('/api/generate-pseudonym/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        sensitive_meta_id: props.patient.sensitive_meta_id,
+        regenerate: true
+      })
+    })
+    
+    if (!response.ok) {
+      throw new Error('Fehler beim Regenerieren der Pseudonamen')
+    }
+    
+    const data = await response.json()
+    
+    // Update patient data mit neuen Pseudonamen
+    const updatedPatient = {
+      ...props.patient,
+      pseudonym_first_name: data.pseudonym_first_name,
+      pseudonym_last_name: data.pseudonym_last_name
+    }
+    
+    emit('patient-updated', updatedPatient)
+    successMessage.value = 'Neue Pseudonamen erfolgreich generiert!'
+    
+    setTimeout(() => {
+      successMessage.value = ''
+    }, 3000)
+    
+  } catch (err: any) {
+    error.value = err.message || 'Fehler beim Regenerieren der Pseudonamen'
+  } finally {
+    generatingPseudonym.value = false
+  }
 }
 </script>
 

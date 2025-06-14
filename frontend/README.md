@@ -1,187 +1,343 @@
-# lx-annotate
+# LX-Annotate Frontend
 
-This module is used to validate data from videos, reports and single images.
+Vue.js-basierte Frontend-Anwendung für medizinische Video-Annotation und Datenvalidierung.
 
-You can use it to validate any data, as long as the api from endoreg-db or a different service is set up correctly.
+## 🏗️ Architektur
 
-## Stores
+LX-Annotate verwendet eine moderne **Django + Vue.js** Architektur:
 
-Stores are used to store your data client side during your frontend session. Only after finishing your annotation, the data will be sent to the backend through our local api.
+- **Vue.js 3** mit TypeScript für die Frontend-SPA
+- **Vite** für moderne Frontend-Tooling und Builds
+- **django-vite** für nahtlose Django-Integration
+- **Pinia** für State Management
+- **Material Dashboard** Theme für UI-Komponenten
 
-## Database Setup
+## 📁 Projektstruktur
 
-Make sure you have endoreg-db from wg-lux/endoreg-db running locally or as a service.
-
-'''
-git clone wg-lux/endoreg-db
-'''
-
-##
-
-Also a framwork for the case generator is included as well as theoption to annotate results by the machine learning pipeline.
-
-
-## Recommended IDE Setup
-
-[VSCode](https://code.visualstudio.com/) + [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).
-
-## Type Support for `.vue` Imports in TS
-
-TypeScript cannot handle type information for `.vue` imports by default, so we replace the `tsc` CLI with `vue-tsc` for type checking. In editors, we need [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) to make the TypeScript language service aware of `.vue` types.
-
-## Development configuration
-
-See [Vite Configuration Reference](https://vitejs.dev/config/).
-
-Vite is used as a development server. It is started by running 
-
-```sh
-npm run dev 
+```
+lx-annotate/
+├── frontend/                    # Vue.js Anwendung
+│   ├── src/
+│   │   ├── main.ts             # Vue App Entry Point
+│   │   ├── App.vue             # Root Component
+│   │   ├── components/         # Wiederverwendbare Komponenten
+│   │   ├── views/              # Page-Level Komponenten
+│   │   ├── stores/             # Pinia State Management
+│   │   ├── api/                # API Service Layer
+│   │   └── assets/             # CSS, Bilder, Fonts
+│   ├── vite.config.ts          # Vite Konfiguration
+│   └── package.json            # Node.js Dependencies
+├── static/dist/                # Generierte Assets (nach npm run build)
+│   ├── main.js                 # Kompilierte Vue App (~175KB)
+│   ├── main.css               # Kompilierte Stylesheets
+│   └── manifest.json          # Asset-Mapping für Django
+└── lx_annotate/
+    ├── templates/base.html     # Django Template mit Vue App
+    └── settings/               # Django Konfiguration
 ```
 
-inside the agl_validator folder.
+## 🚀 Schnellstart
 
-It will reload very hot. This means any change is displayed in no time.
+### Voraussetzungen
 
-# Commands
+- **Node.js** (Version 18+)
+- **Python** mit Django Backend
+- **endoreg-db** Backend-Service
 
-## Project Setup
+### Installation
 
-```sh
+1. **Frontend Dependencies installieren**
+```bash
+cd frontend
 npm install
 ```
 
-### Compile and Hot-Reload for Development
-
-```sh
-npm run dev
-```
-
-### Type-Check, Compile and Minify for Production
-
-->> This is necessary before django integration.
-
-```sh
+2. **Frontend Assets builden**
+```bash
 npm run build
 ```
 
-### Run Unit Tests with [Vitest](https://vitest.dev/)
+3. **Django Backend starten**
+```bash
+# Aus dem Hauptverzeichnis
+export DJANGO_SETTINGS_MODULE=lx_annotate.settings.dev
+python manage.py runserver
+```
 
-```sh
+4. **Anwendung öffnen**
+```
+http://127.0.0.1:8000/
+```
+
+## 🛠️ Entwicklung
+
+### Verfügbare Kommandos
+
+```bash
+# Dependencies installieren
+npm install
+
+# Entwicklungsserver (Hot-Reload)
+npm run dev
+
+# Production Build
+npm run build
+
+# TypeScript Type-Checking
+npm run type-check
+
+# Linting
+npm run lint
+
+# Unit Tests
 npm run test:unit
 ```
 
-### Lint with [ESLint](https://eslint.org/)
+### Development Workflow
 
-```sh
-npm run lint
-```
-
-### Django Integration
-
-This module is made to be run with the agl-home-django backend.
-
-In a Django project, Vue code typically needs to be organized in a specific way to integrate properly. Here's how to structure it:
-
-First, create a frontend directory in your Django project:
-
-Copyyour_django_project/
-├── manage.py
-├── your_app/
-│   ├── views.py
-│   ├── urls.py
-│   └── ...
-└── frontend/                  # Create this directory
-    ├── src/
-    │   ├── components/
-    │   │   └── AuthCheck.vue  # Put your Vue component here
-    │   ├── App.vue
-    │   └── main.js
-    ├── package.json
-    └── vite.config.js         # or vue.config.js if using Vue CLI
-
-# Serving static files:
-
-cp -r dist/* ../../agl-home-django/frontend/static/frontend/
-
-Setting up the Django settings for static file deployment:
-
-### settings.py
-
-import os
-
-#### Add static files configuration
-STATIC_URL = '/static/'
-STATICFILES_DIRS = [
-    os.path.join(BASE_DIR, "frontend/static"),
-]
-
-## Configuring Django as the development server
-
-Initialize a Vue project in the frontend directory:
-
-bashCopycd your_django_project
-mkdir frontend
+#### Option 1: Production Mode (Empfohlen)
+```bash
+# 1. Frontend Assets builden
 cd frontend
-npm init vue@latest  # Or your preferred Vue setup method
+npm run build
 
-Configure your Vue build to output to Django's static files. Add this to your vite.config.ts:
-
-javascriptCopyimport { defineConfig } from 'vite'
-import vue from '@vitejs/plugin-vue'
-import path from 'path'
-
-export default defineConfig({
-  plugins: [vue()],
-  build: {
-    outDir: '../your_app/static/your_app/js',
-    assetsDir: '.',
-    manifest: true,
-  },
-  server: {
-    proxy: {
-      '/api': 'http://localhost:8000',
-      '/user-status': 'http://localhost:8000',
-    }
-  }
-})
-
-In your Django template (e.g., base.html):
-```html
-htmlCopy{% load static %}
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Your App</title>
-</head>
-<body>
-    <div id="app"></div>
-    <script type="module" src="{% static 'your_app/js/main.js' %}"></script>
-</body>
-</html>
-```
-Update Django settings to handle static files:
-
-pythonCopy# settings.py
-STATIC_URL = '/static/'
-STATICFILES_DIRS = [
-    BASE_DIR / "frontend" / "dist",
-]
-
-Development workflow:
-bashCopy# Terminal 1 - Django
+# 2. Django im Development Mode
+export DJANGO_SETTINGS_MODULE=lx_annotate.settings.dev
 python manage.py runserver
 
-# Terminal 2 - Vue
+# 3. Nach Frontend-Änderungen: Neu builden
+npm run build
+```
+
+#### Option 2: Hot-Reload Development (Erweitert)
+```bash
+# Terminal 1: Vite Dev Server
 cd frontend
 npm run dev
 
+# Terminal 2: Django mit Dev-Mode
+export DJANGO_SETTINGS_MODULE=lx_annotate.settings.dev
+# In settings/dev.py: DJANGO_VITE["default"]["dev_mode"] = True
+python manage.py runserver
+```
 
-This setup allows you to:
+### TypeScript & Vue 3
 
-Develop Vue components with hot reloading
-Have Vue handle frontend routing
-Make API calls to your Django backend
-Bundle and serve your Vue app through Django in production
+- **Composition API** mit `<script setup>`
+- **TypeScript** für Type Safety
+- **Vue Router** für Client-Side Routing
+- **Pinia Stores** für State Management
+
+Beispiel Komponente:
+```vue
+<template>
+  <div class="patient-form">
+    <h2>{{ patient.name }}</h2>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref } from 'vue'
+import type { Patient } from '@/api/patientService'
+
+const patient = ref<Patient>({
+  first_name: '',
+  last_name: ''
+})
+</script>
+```
+
+## 🔗 Django Integration
+
+### django-vite Setup
+
+Die Integration erfolgt über **django-vite**:
+
+**settings.py:**
+```python
+DJANGO_VITE = {
+    "default": {
+        "dev_mode": False,  # True für Hot-Reload
+        "manifest_path": BASE_DIR / 'static' / 'dist' / 'manifest.json',
+    }
+}
+```
+
+**base.html Template:**
+```html
+{% load django_vite %}
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    {% vite_asset 'src/main.ts' %}
+</head>
+<body>
+    <div id="app"></div>
+</body>
+</html>
+```
+
+### API Integration
+
+Frontend kommuniziert mit Django über REST APIs:
+
+```typescript
+// api/axiosInstance.ts
+import axios from 'axios'
+
+const axiosInstance = axios.create({
+  baseURL: '/api/',
+  headers: {
+    'X-CSRFToken': getCsrfToken(),
+  }
+})
+
+// api/patientService.ts
+export const patientService = {
+  async getPatients(): Promise<Patient[]> {
+    const response = await axiosInstance.get('patients/')
+    return response.data
+  }
+}
+```
+
+## 🎯 Hauptfunktionen
+
+### Video-Annotation
+- **Video-Player** mit Timeline-Navigation
+- **Label-Segmentierung** für medizinische Bereiche
+- **Examination Forms** für strukturierte Datenerfassung
+- **Real-Time API** Synchronisation
+
+### Patient Management
+- **CRUD Operations** für Patientendaten
+- **Form Validation** mit TypeScript
+- **Dropdown-Integration** mit Backend-Daten
+
+### State Management (Pinia)
+```typescript
+// stores/videoStore.ts
+export const useVideoStore = defineStore('videos', {
+  state: () => ({
+    videos: [],
+    currentVideo: null
+  }),
+  actions: {
+    async fetchVideos() {
+      this.videos = await videoService.getVideos()
+    }
+  }
+})
+```
+
+## 📦 Build-Prozess
+
+### Vite Konfiguration
+
+```typescript
+// vite.config.ts
+export default defineConfig({
+  build: {
+    manifest: 'manifest.json',           // Asset-Mapping für Django
+    outDir: '../static/dist',            // Output in Django static
+    rollupOptions: {
+      input: { main: 'src/main.ts' },
+      output: {
+        entryFileNames: '[name].js',     // main.js
+        assetFileNames: '[name].[ext]',  // main.css
+      },
+    },
+  },
+  server: {
+    proxy: {
+      '/api': 'http://127.0.0.1:8000',   // API-Proxy zu Django
+    },
+  },
+})
+```
+
+### Generated Assets
+
+Nach `npm run build`:
+```
+static/dist/
+├── main.js          # Vue App Bundle (~175KB)
+├── main.css         # Compiled Styles
+├── manifest.json    # Asset-Mapping für django-vite
+└── assets/          # Zusätzliche Assets
+```
+
+## 🔧 Troubleshooting
+
+### Vue App lädt nicht
+```bash
+# Prüfen ob Assets existieren
+ls static/dist/
+
+# Build neu ausführen
+cd frontend && npm run build
+
+# Django-Vite Settings prüfen
+# dev_mode = False in Produktion
+```
+
+### API-Calls schlagen fehl
+```bash
+# Django Server läuft?
+curl http://127.0.0.1:8000/api/patients/
+
+# CSRF-Token konfiguriert?
+# Siehe base.html: <meta name="csrf-token" content="{{ csrf_token }}">
+```
+
+### Build-Fehler
+```bash
+# TypeScript-Fehler beheben
+npm run type-check
+
+# Dependencies aktualisieren
+npm install
+
+# Cache löschen
+rm -rf node_modules/.vite
+```
+
+## 🚀 Deployment
+
+### Production Checklist
+- [ ] `npm run build` ausführen
+- [ ] `dev_mode = False` in Django settings
+- [ ] Static files konfiguriert (WhiteNoise/Nginx)
+- [ ] CORS/CSRF für Production domain
+- [ ] `ALLOWED_HOSTS` aktualisiert
+
+### Environment Variables
+```bash
+# Development
+export DJANGO_SETTINGS_MODULE=lx_annotate.settings.dev
+
+# Production
+export DJANGO_SETTINGS_MODULE=lx_annotate.settings.prod
+```
+
+## 📚 Weitere Informationen
+
+- **Vue 3 Dokumentation**: https://vuejs.org/
+- **Vite Dokumentation**: https://vitejs.dev/
+- **django-vite**: https://github.com/MrBin99/django-vite
+- **Material Dashboard**: https://demos.creative-tim.com/material-dashboard/
+
+## 🤝 Mitwirken
+
+1. Fork das Repository
+2. Erstelle einen Feature Branch
+3. Implementiere Änderungen mit TypeScript
+4. Teste mit `npm run build`
+5. Erstelle Pull Request
+
+---
+
+**Hinweis**: Diese Anwendung ist für medizinische Datenvalidierung konzipiert und erfordert entsprechende Sicherheits- und Compliance-Maßnahmen.
 
 
