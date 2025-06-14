@@ -2,24 +2,8 @@ from django.core.exceptions import ImproperlyConfigured
 import os
 from pathlib import Path
 
-from lx_annotate.settings import (BASE_DIR,
-    DEBUG,
-    INSTALLED_APPS,
-    MIDDLEWARE,
-    ROOT_URLCONF,
-    TEMPLATES,
-    AUTH_PASSWORD_VALIDATORS,
-    LANGUAGE_CODE,
-    TIME_ZONE,
-    USE_I18N,
-    USE_TZ,
-    STATIC_URL,
-    STATIC_ROOT,
-    DEFAULT_AUTO_FIELD,
-    STATICFILES_DIRS
-)
+from lx_annotate.settings import BASE_DIR
 
-BASE_DIR = Path(__file__).resolve().parent.parent
 
 
 def get_env_variable(var_name):
@@ -67,4 +51,8 @@ DJANGO_VITE = {
     }
 }
 
-# Media files and static files should be served by a proper static file server/CDN in production
+# Limit CORS to your frontend URL(s)
+CORS_ALLOW_ALL_ORIGINS = False
+CORS_ALLOWED_ORIGINS = [
+    os.environ.get('ALLOWED_HOSTS', 'localhost').split(',')
+]
