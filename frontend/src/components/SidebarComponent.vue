@@ -58,7 +58,7 @@
               </router-link>
             </li>
             <li class="nav-item">
-              <router-link to="/video-annotation" class="nav-link" :class="{ active: $route.path === '/video-annotation' }">
+              <router-link to="/video-meta-annotation" class="nav-link" :class="{ active: $route.path === '/video-annotation' }">
                 <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
                   <i class="material-icons opacity-10">note_add</i>
                 </div>
@@ -119,6 +119,14 @@
                   <i class="material-icons opacity-10">check_circle</i>
                 </div>
                 <span class="nav-link-text ms-1">Datenvalidierung</span>
+              </router-link>
+            </li>
+            <li class="nav-item">
+              <router-link to="/pdf-meta-annotation" class="nav-link" :class="{ active: $route.path === '/pdf-annotation' }">
+                <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
+                  <i class="material-icons opacity-10">note_add</i>
+                </div>
+                <span class="nav-link-text ms-1">PDF Annotation</span>
               </router-link>
             </li>
             <li class="nav-item">

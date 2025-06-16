@@ -12,11 +12,19 @@ const router = createRouter({
       }
     },
     {
-      path: '/video-annotation',
-      name: 'Video Annotation',
-      component: () => import('@/views/VideoAnnotation.vue'),
+      path: '/video-meta-annotation',
+      name: 'Video Patienten Annotation',
+      component: () => import('@/views/VideoMetaAnnotation.vue'),
       meta: {
         description: 'Hier können Sie Videos annotieren.'
+      }
+    },
+    {
+      path: '/pdf-meta-annotation',
+      name: 'PDF Patienten Annotation',
+      component: () => import('@/views/PdfMetaAnnotation.vue'),
+      meta: {
+        description: 'Hier können Sie PDFs annotieren.' 
       }
     },
     {
