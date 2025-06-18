@@ -94,7 +94,7 @@ else:
     print("Database password file already exists.")
 
 # --- Manage .env file ---
-template = Path("./conf/default.env")
+template = conf_dir / "default.env"
 target = Path(".env")  # .env should be in the working_dir (project root)
 if not target.exists():
     print(f"Creating .env file from template: {template}")

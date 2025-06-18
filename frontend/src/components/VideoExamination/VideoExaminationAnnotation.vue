@@ -57,10 +57,20 @@
               </video>
             </div>
 
-            <!-- Video Timeline with Annotations -->
-            <div v-if="duration > 0" class="timeline-container mt-3">
-              <!-- Existing progress timeline -->
-              <div class="timeline-track" @click="handleTimelineClick" ref="timelineRef">
+            <!-- Enhanced Timeline Component -->
+            <div v-if="duration > 0" class="timeline-wrapper mt-3">
+              <Timeline 
+                :duration="duration"
+                :current-time="currentTime"
+                :segments="timelineSegments"
+                :fps="fps"
+                @seek="handleTimelineSeek"
+                @resize="handleSegmentResize"
+                @createSegment="handleCreateSegment"
+              />
+              
+              <!-- Simple progress bar as fallback -->
+              <div class="simple-timeline-track mt-2" @click="handleTimelineClick" ref="timelineRef">
                 <div class="progress-bar" :style="{ width: `${(currentTime / duration) * 100}%` }"></div>
                 <!-- Examination markers on timeline -->
                 <div 
@@ -72,76 +82,20 @@
                 >
                 </div>
               </div>
-              
-              <!-- Label Segments Timeline -->
-              <div class="timeline-container" v-if="labelSegments.length > 0">
-                <h4>Label-Segmente Timeline</h4>
-                <div class="timeline" ref="timeline">
-                  <div class="timeline-track">
-                    <div 
-                      v-for="segment in labelSegments" 
-                      :key="segment.id"
-                      class="timeline-segment"
-                      :style="getSegmentStyle(segment)"
-                      :title="`${getTranslationForLabel(segment.label_name)}: ${formatTime(getSegmentStartTime(segment))} - ${formatTime(getSegmentEndTime(segment))}`"
-                      @click="seekToSegment(segment)"
-                    >
-                      <span class="segment-label">{{ getTranslationForLabel(segment.label_name) }}</span>
-                    </div>
-                  </div>
-                  
-                  <!-- Zeitmarker -->
-                  <div class="timeline-markers">
-                    <div 
-                      v-for="marker in timelineMarkers" 
-                      :key="marker.time"
-                      class="time-marker"
-                      :style="{ left: marker.position + '%' }"
-                    >
-                      {{ formatTime(marker.time) }}
-                    </div>
-                  </div>
-                  
-                  <!-- Aktueller Zeitzeiger -->
-                  <div 
-                    class="current-time-indicator"
-                    :style="{ left: currentTimePosition + '%' }"
-                  ></div>
-                </div>
-              </div>
-
-              <!-- Label-Segmente Verwaltung -->
-              <div class="segments-management" v-if="labelSegments.length > 0">
-                <h4>Erstellte Label-Segmente</h4>
-                <div class="segments-list">
-                  <div 
-                    v-for="segment in labelSegments" 
-                    :key="segment.id"
-                    class="segment-item"
-                  >
-                    <div class="segment-info">
-                      <strong>{{ getTranslationForLabel(segment.label_name) }}</strong>
-                      <span class="segment-time">
-                        {{ formatTime(getSegmentStartTime(segment)) }} - {{ formatTime(getSegmentEndTime(segment)) }}
-                      </span>
-                    </div>
-                    <div class="segment-actions">
-                      <button @click="seekToSegment(segment)" class="btn-secondary">
-                        Springen zu
-                      </button>
-                      <button @click="deleteSegment(segment.id)" class="btn-danger">
-                        Löschen
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
             </div>
 
-            <!-- Timeline Controls -->
-            <div class="timeline-controls mt-4">
+            <!-- Debug-Info für Timeline -->
+            <div v-if="duration > 0" class="debug-info mt-2">
+              <small class="text-muted">
+                Timeline Debug: {{ timelineSegments.length }} Segmente geladen | 
+                Duration: {{ formatTime(duration) }} | 
+                Store: {{ Object.keys(groupedSegments).length }} Labels
+              </small>
+            </div>
+
+            <!-- Timeline Controls - Fix: Bedingungen überprüfen -->
+            <div v-if="selectedVideoId" class="timeline-controls mt-4">
               <div class="d-flex align-items-center gap-3">
-                <!-- Label Selection for Marking -->
                 <div class="d-flex align-items-center">
                   <label class="form-label mb-0 me-2">Neues Label setzen:</label>
                   <select v-model="selectedLabelType" class="form-select form-select-sm control-select">
@@ -163,13 +117,12 @@
                   </select>
                 </div>
                 
-                <!-- Label Marking Controls -->
                 <div class="d-flex align-items-center gap-2">
                   <button 
                     v-if="!isMarkingLabel"
                     @click="startLabelMarking" 
                     class="btn btn-success btn-sm control-button"
-                    :disabled="!currentVideoUrl || !selectedLabelType"
+                    :disabled="!canStartLabeling"
                   >
                     <i class="material-icons">label</i>
                     Label-Start setzen
@@ -183,13 +136,12 @@
                     <i class="material-icons">stop</i>
                     Label-Ende setzen
                   </button>
-                  
+
                   <button 
                     v-if="isMarkingLabel"
                     @click="cancelLabelMarking" 
                     class="btn btn-outline-secondary btn-sm control-button"
                   >
-                    <i class="material-icons">cancel</i>
                     Abbrechen
                   </button>
                 </div>
@@ -199,12 +151,12 @@
                 </span>
               </div>
               
-              <!-- Active Label Marking Indicator -->
-              <div v-if="isMarkingLabel" class="mt-2 p-2 bg-info bg-opacity-10 border border-info rounded">
-                <small class="text-info">
-                  <i class="material-icons" style="font-size: 16px;">schedule</i>
-                  Label "{{ getTranslationForLabel(selectedLabelType) }}" wird markiert. 
-                  Start: {{ formatTime(labelMarkingStart) }} - Drücken Sie "Label-Ende setzen" um zu beenden.
+              <!-- Label-Info während Marking -->
+              <div v-if="isMarkingLabel" class="alert alert-info mt-2 mb-0">
+                <small>
+                  <i class="material-icons align-middle me-1" style="font-size: 16px;">info</i>
+                  Label "{{ getTranslationForLabel(selectedLabelType) }}" wird erstellt von 
+                  {{ formatTime(labelMarkingStart) }} bis zur aktuellen Position.
                 </small>
               </div>
             </div>
@@ -279,12 +231,24 @@ import { useVideoStore } from '@/stores/videoStore';
 import SimpleExaminationForm from './SimpleExaminationForm.vue';
 import axiosInstance, { r } from '@/api/axiosInstance';
 import Timeline from '@/components/EndoAI/Timeline.vue';
+import { storeToRefs } from 'pinia';
+
 
 export default {
   name: 'VideoExaminationAnnotation',
   components: {
     SimpleExaminationForm,
     Timeline
+  },
+  setup() {
+    const videoStore = useVideoStore();
+    // Reaktive Referenzen vom Store
+    const { allSegments: timelineSegments } = storeToRefs(videoStore);
+    
+    return {
+      videoStore,
+      timelineSegments
+    };
   },
   data() {
     return {
@@ -299,7 +263,7 @@ export default {
       selectedLabelType: '',
       isMarkingLabel: false,
       labelMarkingStart: 0,
-      labelSegments: [], // Array to store created label segments
+      // Entfernt: labelSegments - jetzt aus Store
       currentLabel: null, // Current selected label object
       isMarking: false, // Tracking if currently marking
       markingStartTime: null, // Start time for marking
@@ -327,29 +291,32 @@ export default {
         '';
     },
     groupedSegments() {
-      const videoStore = useVideoStore();
-      return videoStore.segmentsByLabel;
+      return this.videoStore.segmentsByLabel;
     },
     labelButtonText() {
       return this.isMarkingLabel ? 'Label-Ende setzen' : 'Label-Start setzen';
     },
     canStartLabeling() {
-      return !!this.selectedLabelType && !this.isMarkingLabel;
+      return this.selectedVideoId && 
+             this.currentVideoUrl && 
+             this.selectedLabelType && 
+             !this.isMarkingLabel &&
+             this.duration > 0;
     },
     canFinishLabeling() {
       return this.isMarkingLabel;
     },
     currentTimePosition() {
-      // Calculate current time position for the indicator
-      return (this.currentTime / this.duration) * 100;
+      return this.duration > 0 ? (this.currentTime / this.duration) * 100 : 0;
     },
     timelineMarkers() {
-      // Generate markers for the timeline based on label segments
-      return this.labelSegments.map(segment => ({
-        time: this.getSegmentStartTime(segment),
-        position: (this.getSegmentStartTime(segment) / this.duration) * 100
+      // Verwende Store-Segmente statt lokale Kopie
+      return this.timelineSegments.map(segment => ({
+        time: segment.startTime,
+        position: this.duration > 0 ? (segment.startTime / this.duration) * 100 : 0
       }));
     }
+    // Entfernt: convertedTimelineSegments - direkt timelineSegments verwenden
   },
   methods: {
     async loadVideos() {
@@ -402,27 +369,46 @@ export default {
         this.examinationMarkers = [];
       }
     },
-    onVideoChange() {
+    async onVideoChange() {
       if (this.selectedVideoId !== null) {
         this.loadSavedExaminations();
-        this.loadVideoSegments();
-        this.loadLabelSegments(); // Add this line to load existing segments
+        
+        // Warte erst auf Video-Metadaten, dann lade Segmente
+        await this.loadVideoMetadata();
+        await this.loadVideoSegments();
+        
         this.currentMarker = null;
       } else {
         // Clear everything when no video selected
         this.examinationMarkers = [];
         this.savedExaminations = [];
-        this.labelSegments = []; // Also clear label segments
         this.currentMarker = null;
+        this.videoStore.clearSegments();
+      }
+    },
+    async loadVideoMetadata() {
+      // Warte bis Video geladen ist, um duration zu haben
+      if (this.$refs.videoRef) {
+        await new Promise((resolve) => {
+          const video = this.$refs.videoRef;
+          if (video.readyState >= 1) {
+            this.duration = video.duration;
+            resolve();
+          } else {
+            video.addEventListener('loadedmetadata', () => {
+              this.duration = video.duration;
+              resolve();
+            }, { once: true });
+          }
+        });
       }
     },
     async loadVideoSegments() {
       if (this.selectedVideoId === null) return;
       
-      const videoStore = useVideoStore();
       try {
-        // Lade alle Segmente für das Video
-        await videoStore.fetchAllSegments(this.selectedVideoId.toString());
+        // ✅ FIX: Use fetchVideoSegments instead of fetchSegmentsByLabel to get real segment entities with correct label_name
+        await this.videoStore.fetchVideoSegments(this.selectedVideoId.toString());
         console.log('Video segments loaded for video:', this.selectedVideoId);
       } catch (error) {
         console.error('Error loading video segments:', error);
@@ -511,11 +497,35 @@ export default {
         this.$refs.videoRef.currentTime = targetTime;
       }
     },
-    handleSegmentResize(segmentId, newEndTime) {
-      console.log(`Segment ${segmentId} resized to end at ${newEndTime}s`);
-      // Hier könnten Sie die Änderung an den Server senden
+    async handleSegmentResize(segmentId, newTime, newFrame, isStartResize = false) {
+      console.log(`Segment ${segmentId} ${isStartResize ? 'start' : 'end'} resized to ${newTime}s (frame ${newFrame})`);
+      
+      try {
+        const updateData = isStartResize 
+          ? { startTime: newTime, start_frame_number: newFrame }
+          : { endTime: newTime, end_frame_number: newFrame };
+        
+        // Verwende Store für Update - das ist bereits reaktiv!
+        await this.videoStore.updateSegmentAPI(segmentId, updateData);
+        console.log(`✅ Segment ${isStartResize ? 'start' : 'end'} resize saved to backend and store updated`);
+      } catch (error) {
+        console.error('❌ Error saving segment resize:', error);
+        this.showErrorMessage('Fehler beim Speichern der Segment-Änderung');
+      }
     },
-    startLabelMarking() {
+    async handleCreateSegment(targetTime, targetFrame) {
+      if (!this.selectedLabelType) {
+        this.showErrorMessage('Bitte wählen Sie ein Label aus.');
+        return;
+      }
+      
+      // Erstelle automatisch ein 5-Sekunden-Segment
+      const startTime = targetTime;
+      const endTime = Math.min(targetTime + 5, this.duration);
+      
+      await this.saveNewLabelSegment(startTime, endTime, this.selectedLabelType);
+    },
+    async startLabelMarking() {
       if (!this.selectedLabelType) {
         alert('Bitte wählen Sie einen Label-Typ aus.');
         return;
@@ -534,8 +544,9 @@ export default {
     cancelLabelMarking() {
       this.isMarkingLabel = false;
       this.labelMarkingStart = 0;
+      this.selectedLabelType = '';
     },
-    finishLabelMarking() {
+    async finishLabelMarking() {
       if (!this.isMarkingLabel) {
         alert('Es wurde kein Label-Start gesetzt.');
         return;
@@ -580,11 +591,8 @@ export default {
         
         console.log('Label-Segment erfolgreich erstellt:', response.data);
         
-        // Add to local segments array
-        this.labelSegments.push(response.data);
-        
-        // Refresh timeline to show new segment
-        this.loadLabelSegments();
+        // Update Store statt lokales Array - reaktiv!
+        await this.videoStore.fetchAllSegments(this.selectedVideoId.toString());
         
         this.showSuccessMessage(`Label-Segment erfolgreich erstellt: ${startTime.toFixed(2)}s - ${endTime.toFixed(2)}s`);
         
@@ -594,50 +602,8 @@ export default {
       }
     },
     async loadLabelSegments() {
-      if (!this.selectedVideoId) return;
-      
-      try {
-        const response = await axiosInstance.get(r(`video-segments/?video_id=${this.selectedVideoId}`));
-        
-        // Debug: Log the raw API response
-        console.log('🏷️ Raw API response for label segments:', response.data);
-        
-        // Ensure we have an array
-        const segments = Array.isArray(response.data) ? response.data : [];
-        
-        // Transform API response to match component expectations
-        this.labelSegments = segments.map(segment => ({
-          id: segment.id,
-          start_time: segment.start_time || 0,
-          end_time: segment.end_time || 0,
-          start_frame_number: segment.start_frame_number || 0,
-          end_frame_number: segment.end_frame_number || 0,
-          label_name: segment.label_name || 'Unknown Label',
-          label_id: segment.label_id || null,
-          video_id: segment.video_id || this.selectedVideoId
-        }));
-        
-        console.log('🏷️ Processed label segments:', this.labelSegments);
-        
-        // Debug: Check for suspicious segments (full video length)
-        this.labelSegments.forEach((segment, index) => {
-          const duration = segment.end_time - segment.start_time;
-          if (duration >= this.duration * 0.9) { // If segment is 90%+ of video duration
-            console.warn(`⚠️ Segment ${index + 1} (${segment.label_name}) spans almost the entire video: ${duration.toFixed(2)}s of ${this.duration.toFixed(2)}s`);
-          }
-        });
-        
-      } catch (error) {
-        console.error('❌ Fehler beim Laden der Label-Segmente:', error);
-        this.labelSegments = []; // Set empty array on error
-        
-        // Show user-friendly error message
-        if (error.response?.status === 404) {
-          console.info('ℹ️ No label segments found for this video');
-        } else {
-          this.showErrorMessage('Fehler beim Laden der Label-Segmente. Bitte versuchen Sie es erneut.');
-        }
-      }
+      // Diese Methode ist nicht mehr nötig - Store übernimmt das Laden
+      console.log('loadLabelSegments called but using Store instead');
     },
     getCsrfToken() {
       // Get CSRF token from meta tag or cookie
@@ -743,8 +709,8 @@ export default {
         
         await axiosInstance.delete(r(`video-segments/${segmentId}/`));
         
-        // Remove from local segments array
-        this.labelSegments = this.labelSegments.filter(seg => seg.id !== segmentId);
+        // Update Store statt lokales Array - reaktiv!
+        await this.videoStore.fetchAllSegments(this.selectedVideoId.toString());
         
         console.log(`✅ Segment ${segmentId} successfully deleted`);
         this.showSuccessMessage('Segment erfolgreich gelöscht');
@@ -755,8 +721,8 @@ export default {
         // More specific error handling
         if (error.response?.status === 404) {
           this.showErrorMessage('Segment nicht gefunden. Es wurde möglicherweise bereits gelöscht.');
-          // Remove from local array even if 404 (segment doesn't exist anyway)
-          this.labelSegments = this.labelSegments.filter(seg => seg.id !== segmentId);
+          // Refresh Store auch bei 404
+          await this.videoStore.fetchAllSegments(this.selectedVideoId.toString());
         } else if (error.response?.status === 403) {
           this.showErrorMessage('Keine Berechtigung zum Löschen dieses Segments.');
         } else {
@@ -765,8 +731,10 @@ export default {
       }
     },
     async deleteAllFullVideoSegments() {
-      const fullVideoSegments = this.labelSegments.filter(segment => {
-        const duration = segment.end_time - segment.start_time;
+      // Verwende Store-Segmente statt lokale
+      const allSegments = this.timelineSegments;
+      const fullVideoSegments = allSegments.filter(segment => {
+        const duration = segment.endTime - segment.startTime;
         return duration >= this.duration * 0.9; // Segments that cover 90%+ of video
       });
       
@@ -787,11 +755,11 @@ export default {
         // Delete each segment
         for (const segment of fullVideoSegments) {
           await axiosInstance.delete(r(`video-segments/${segment.id}/`));
-          console.log(`✅ Deleted segment ${segment.id} (${segment.label_name})`);
+          console.log(`✅ Deleted segment ${segment.id} (${segment.label_display})`);
         }
         
-        // Refresh the segments list
-        await this.loadLabelSegments();
+        // Refresh Store statt lokale Liste
+        await this.videoStore.fetchAllSegments(this.selectedVideoId.toString());
         
         this.showSuccessMessage(`${fullVideoSegments.length} problematische Segmente erfolgreich gelöscht!`);
         
@@ -834,6 +802,8 @@ export default {
 
 .progress-bar {
   position: absolute;
+  top: 0;                /* NEW: explicit top positioning */
+  left: 0;               /* NEW: explicit left positioning */
   height: 100%;
   background: #5e72e4;
   border-radius: 4px;
@@ -1117,5 +1087,15 @@ export default {
 
 .btn-danger:hover {
   background: #c82333;
+}
+
+/* Fix #3: Progress bar CSS - add explicit height and positioning to container */
+.simple-timeline-track {
+  position: relative;
+  height: 8px;           /* NEW: explicit height */
+  background: #e9ecef;
+  cursor: pointer;
+  border-radius: 4px;
+  overflow: hidden;      /* NEW: prevent overflow */
 }
 </style>

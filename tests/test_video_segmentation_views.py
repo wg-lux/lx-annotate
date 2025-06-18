@@ -74,8 +74,11 @@ class VideoSegmentationViewTests(TestCase):
             defaults={"description": "Video segmentation labels"}
         )
         
-        # Create test labelset
-        self.labelset = LabelSet.objects.create(name="test_labelset")
+        # Create test labelset with required version field (integer)
+        self.labelset = LabelSet.objects.create(
+            name="test_labelset",
+            version=1  # Integer value instead of string
+        )
         
         # Create test AI model
         self.ai_model = AiModel.objects.create(name="test_model")
@@ -85,7 +88,9 @@ class VideoSegmentationViewTests(TestCase):
             name="test_meta",
             defaults={
                 "version": "1.0",
-                "description": "Test model for video segmentation"
+                "description": "Test model for video segmentation",
+                "labelset": self.labelset,  # Add required labelset reference
+                "model": self.ai_model  # Add required model reference
             }
         )
         
@@ -157,7 +162,7 @@ class VideoSegmentationViewTests(TestCase):
                 response = self.client.get(url)
                 
                 # Should return 200 (either with data or empty)
-                self.assertIn(response.status_code, [status.HTTP_200_OK])
+                self.assertEqual(response.status_code, status.HTTP_200_OK)
                 data = response.json()
                 
                 # Verify response structure

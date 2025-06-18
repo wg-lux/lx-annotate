@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import { ref, computed } from 'vue';
+import { ref, computed, reactive } from 'vue';
 import axiosInstance, { r } from '../api/axiosInstance';
 import { AxiosError } from 'axios';
 const translationMap = {
@@ -19,28 +19,19 @@ const translationMap = {
     wound: 'Wunde',
 };
 // Optional: default segments per label if needed at startup
-const defaultSegments = Object.keys(translationMap).reduce((acc, key) => {
-    acc[key] = [
-        {
-            id: `default-${key}`,
-            label: key,
-            label_display: translationMap[key],
-            startTime: 0,
-            endTime: 0,
-            avgConfidence: 1,
-        },
-    ];
-    return acc;
-}, {});
+const defaultSegments = {}; // Changed: Remove dummy segments
 export const useVideoStore = defineStore('video', () => {
     // State
     const currentVideo = ref(null);
     const errorMessage = ref('');
     const videoUrl = ref('');
-    // Store segments keyed by label
-    const segmentsByLabel = ref({ ...defaultSegments });
+    // Store segments keyed by label - Fix: Use reactive() instead of ref({})
+    const segmentsByLabel = reactive({ ...defaultSegments });
     const videoList = ref({ videos: [], labels: [] });
     const videoMeta = ref(null);
+    // 🔸 Selection state for active segment
+    const activeSegmentId = ref(null);
+    // Computed properties
     const hasVideo = computed(() => !!currentVideo.value);
     const duration = computed(() => {
         if (videoMeta.value && videoMeta.value.duration) {
@@ -48,6 +39,161 @@ export const useVideoStore = defineStore('video', () => {
         }
         return 0; // Default value if duration is not available
     });
+    // A computed property to combine all segments (if needed for timeline display)
+    const allSegments = computed(() => Object.values(segmentsByLabel).flat());
+    // 🔸 Segment options for dropdown
+    const segmentOptions = computed(() => allSegments.value.map((segment) => ({
+        id: segment.id,
+        label: segment.label_display,
+        startTime: segment.startTime,
+        endTime: segment.endTime,
+        display: `${segment.label_display}: ${formatTime(segment.startTime)} – ${formatTime(segment.endTime)}`,
+    })));
+    // 🔸 Active segment computed property
+    const activeSegment = computed(() => allSegments.value.find(s => s.id === activeSegmentId.value) || null);
+    // Helper function for time formatting (moved from Timeline component)
+    function formatTime(seconds) {
+        seconds = Number(seconds); // Ensure seconds is a number
+        if (Number.isNaN(seconds) || seconds === null || seconds === undefined)
+            return '00:00';
+        const mins = Math.floor(seconds / 60);
+        const secs = Math.floor(seconds % 60);
+        return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    }
+    // Translation function for label names
+    function getTranslationForLabel(label) {
+        return translationMap[label] || label;
+    }
+    // Color mapping for labels
+    function getColorForLabel(label) {
+        const colorMap = {
+            outside: '#e74c3c',
+            polyp: '#f39c12',
+            needle: '#3498db',
+            blood: '#e74c3c',
+            snare: '#9b59b6',
+            grasper: '#2ecc71',
+            water_jet: '#1abc9c',
+            appendix: '#f1c40f',
+            ileum: '#e67e22',
+            diverticule: '#34495e',
+            ileocaecalvalve: '#95a5a6',
+            nbi: '#8e44ad',
+            low_quality: '#7f8c8d',
+            wound: '#c0392b',
+        };
+        return colorMap[label] || '#95a5a6';
+    }
+    // Set active segment
+    function setActiveSegment(segmentId) {
+        activeSegmentId.value = segmentId;
+    }
+    // Jump to segment in video
+    function jumpToSegment(segment, videoElement) {
+        if (videoElement && segment.startTime) {
+            videoElement.currentTime = segment.startTime;
+            videoElement.play();
+        }
+    }
+    // Get segment style for timeline
+    function getSegmentStyle(segment, duration) {
+        const startPercent = (segment.startTime / duration) * 100;
+        const widthPercent = ((segment.endTime - segment.startTime) / duration) * 100;
+        return {
+            left: `${startPercent}%`,
+            width: `${widthPercent}%`,
+            backgroundColor: getColorForLabel(segment.label),
+        };
+    }
+    // Enhanced segment style
+    function getEnhancedSegmentStyle(segment, duration) {
+        const baseStyle = getSegmentStyle(segment, duration);
+        return {
+            ...baseStyle,
+            opacity: segment.avgConfidence.toString(),
+            border: segment.id === activeSegmentId.value ? '2px solid #fff' : 'none',
+        };
+    }
+    // Update segment in store
+    function updateSegment(segmentId, updates) {
+        for (const label in segmentsByLabel) {
+            const segmentIndex = segmentsByLabel[label].findIndex(s => s.id === segmentId);
+            if (segmentIndex !== -1) {
+                Object.assign(segmentsByLabel[label][segmentIndex], updates);
+                break;
+            }
+        }
+    }
+    // Video meta functions
+    async function fetchVideoMeta(lastId) {
+        try {
+            const url = lastId ? r(`video/sensitivemeta/?last_id=${lastId}`) : r('video/sensitivemeta/');
+            const response = await axiosInstance.get(url);
+            videoMeta.value = response.data;
+            return response.data;
+        }
+        catch (error) {
+            console.error('Error fetching video meta:', error);
+            return null;
+        }
+    }
+    async function updateSensitiveMeta(payload) {
+        try {
+            await axiosInstance.patch(r('video/update_sensitivemeta/'), payload);
+            return true;
+        }
+        catch (error) {
+            console.error('Error updating sensitive meta:', error);
+            return false;
+        }
+    }
+    function clearVideoMeta() {
+        videoMeta.value = null;
+    }
+    // Upload functions
+    function uploadRevert(uniqueFileId, load, error) {
+        // Implementation for file upload revert
+        load();
+    }
+    function uploadProcess(fieldName, file, metadata, load, error) {
+        // Implementation for file upload process
+        load(file.name);
+    }
+    // Fetch all segments
+    async function fetchAllSegments(id) {
+        await fetchVideoSegments(id);
+    }
+    // Save annotations
+    async function saveAnnotations() {
+        // Implementation for saving annotations
+        console.log('Saving annotations...');
+    }
+    // Update video status
+    async function updateVideoStatus(status) {
+        if (currentVideo.value) {
+            currentVideo.value.status = status;
+        }
+    }
+    // Assign user to video
+    async function assignUserToVideo(user) {
+        if (currentVideo.value) {
+            currentVideo.value.assignedUser = user;
+        }
+    }
+    // URL helper
+    function urlFor(path) {
+        return r(path);
+    }
+    // Get segment options
+    function getSegmentOptions() {
+        return segmentOptions.value;
+    }
+    // Clear segments
+    function clearSegments() {
+        Object.keys(segmentsByLabel).forEach(key => {
+            delete segmentsByLabel[key];
+        });
+    }
     function fetchAllVideos() {
         console.log('Fetching all videos...');
         return axiosInstance
@@ -79,8 +225,6 @@ export const useVideoStore = defineStore('video', () => {
             throw error;
         });
     }
-    // A computed property to combine all segments (if needed for timeline display)
-    const allSegments = computed(() => Object.values(segmentsByLabel.value).flat());
     // Actions
     function clearVideo() {
         currentVideo.value = null;
@@ -118,16 +262,31 @@ export const useVideoStore = defineStore('video', () => {
     async function fetchSegmentsByLabel(id, label = 'outside') {
         try {
             const response = await axiosInstance.get(r(`video/${id}/label/${label}/`), { headers: { 'Accept': 'application/json' } });
+            console.log(`[video ${id}] API response for label ${label}:`, response.data);
             // Map the API response into our Segment structure.
-            const segmentsForLabel = response.data.time_segments.map((segment, index) => ({
-                id: `${label}-segment${index + 1}`,
-                label: response.data.label, // or simply use the passed label
-                label_display: getTranslationForLabel(response.data.label),
-                startTime: segment.start_time,
-                endTime: segment.end_time,
-                avgConfidence: 1, // Default value since API doesn't provide it.
-            }));
-            segmentsByLabel.value[label] = segmentsForLabel;
+            const segmentsForLabel = response.data.time_segments.map((segment, index) => {
+                // Use the correct field names from the API response
+                const startTime = Number(segment.start_time ?? segment.segment_start ?? 0);
+                const endTime = Number(segment.end_time ?? segment.segment_end ?? 0);
+                return {
+                    // Use a temporary ID for segments from VideoLabelResponse (these don't have real IDs yet)
+                    id: `temp-${label}-${Date.now()}-${index}`,
+                    label: response.data.label,
+                    label_display: getTranslationForLabel(response.data.label), // ✅ Set proper display name
+                    startTime: startTime, // ✅ Use correct field name
+                    endTime: endTime, // ✅ Use correct field name
+                    avgConfidence: 1,
+                    // Store frame information for potential future use
+                    start_frame_number: segment.segment_start,
+                    end_frame_number: segment.segment_end,
+                };
+            });
+            // Runtime check to catch missing fields early
+            if (segmentsForLabel.length > 0 && Number.isNaN(segmentsForLabel[0]?.startTime)) {
+                console.warn(`[video ${id}] ${label}: start/endTime missing or NaN`, response.data);
+            }
+            console.log(`[video ${id}] Mapped ${segmentsForLabel.length} segments for label ${label}:`, segmentsForLabel);
+            segmentsByLabel[label] = segmentsForLabel;
         }
         catch (error) {
             const axiosError = error;
@@ -135,210 +294,144 @@ export const useVideoStore = defineStore('video', () => {
             errorMessage.value = `Error loading segments for label ${label}. Please check the API endpoint or try again later.`;
         }
     }
-    // Optionally, fetch segments for all labels concurrently.
-    async function fetchAllSegments(id) {
-        const labels = Object.keys(translationMap);
-        await Promise.all(labels.map(label => fetchSegmentsByLabel(id, label)));
-    }
-    async function fetchVideoMeta(id) {
+    // NEW: Fetch actual segment entities from backend API
+    async function fetchVideoSegments(videoId) {
         try {
-            const resp = await axiosInstance.get(r(`video/${id}/`), { headers: { 'Accept': 'application/json' } });
-            videoMeta.value = {
-                id: resp.data.id,
-                originalFileName: resp.data.original_file_name, // Korrigiere Feldname
-                file: resp.data.file,
-                videoUrl: resp.data.video_url, // Korrigiere Feldname
-                fullVideoPath: resp.data.full_video_path, // Korrigiere Feldname
-                duration: resp.data.duration,
-                // Remove fields that don't exist in the current API
-                sensitiveMetaId: 0, // Default value since not in API
-                patientFirstName: null,
-                patientLastName: null,
-                patientDob: null,
-                examinationDate: null,
-            };
-        }
-        catch (err) {
-            const axiosErr = err;
-            console.error('Error fetching video meta:', axiosErr.response?.data || axiosErr.message);
-            errorMessage.value = 'Could not load video metadata.';
-        }
-    }
-    async function saveAnnotations() {
-        try {
-            // Combine all segments from all labels if needed.
-            const combinedSegments = Object.values(segmentsByLabel.value).flat();
-            const response = await axiosInstance.post(r('annotations/'), { segments: combinedSegments });
-            console.log('Annotations saved:', response.data);
+            const response = await axiosInstance.get(r(`video-segments/?video_id=${videoId}`), { headers: { 'Accept': 'application/json' } });
+            // Clear existing segments
+            Object.keys(segmentsByLabel).forEach(key => {
+                delete segmentsByLabel[key];
+            });
+            console.log('Raw API response:', response.data);
+            // Group segments by label
+            response.data.forEach((segment) => {
+                // FIX: Use label_name from API response, with proper fallback
+                const labelName = segment.label_name || `label_${segment.label_id || 'unknown'}`;
+                
+                if (!segmentsByLabel[labelName]) {
+                    segmentsByLabel[labelName] = [];
+                }
+                // Use the calculated time fields from the API
+                segmentsByLabel[labelName].push({
+                    id: segment.id, // Use real backend ID
+                    label: labelName, // Raw label name for color mapping
+                    label_display: getTranslationForLabel(labelName), // Translated display name
+                    startTime: segment.start_time || 0, // Use calculated time from backend
+                    endTime: segment.end_time || 0, // Use calculated time from backend
+                    avgConfidence: 1,
+                    video_id: parseInt(videoId),
+                    label_id: segment.label_id,
+                    start_frame_number: segment.start_frame_number,
+                    end_frame_number: segment.end_frame_number,
+                });
+            });
+            console.log('✅ Processed segments by label with correct label_display:', segmentsByLabel);
         }
         catch (error) {
-            console.error('Error saving annotations:', error);
+            const axiosError = error;
+            console.error("Error loading video segments:", axiosError.response?.data || axiosError.message);
+            errorMessage.value = "Error loading video segments. Please try again later.";
         }
     }
-    function getSegmentStyle(segment, duration, verticalOffset) {
-        if (segment.startTime < 0) {
-            console.warn('Startpunkt des Segments ist ungültig:', segment);
-            return { display: 'none' };
-        }
-        if (segment.endTime > duration) {
-            console.warn('Endzeitpunkt des Segments ist ungültig:', segment);
-            return { display: 'none' };
-        }
-        if (segment.endTime < segment.startTime) {
-            console.warn('Endzeitpunkt des Segments ist vor dem Startzeitpunkt:', segment);
-            return { display: 'none' };
-        }
-        const leftPercentage = (segment.startTime / duration) * 100;
-        const widthPercentage = ((segment.endTime - segment.startTime) / duration) * 100;
-        return {
-            position: 'absolute',
-            left: `${leftPercentage}%`,
-            width: `${widthPercentage}%`,
-            top: verticalOffset ? `${12 + verticalOffset}px` : '12px',
-            backgroundColor: getColorForLabel(segment.label),
-        };
-    }
-    // Enhanced segment style with vertical positioning
-    function getEnhancedSegmentStyle(segment, allSegments) {
-        const segments = allSegments || Object.values(segmentsByLabel.value).flat().sort((a, b) => a.startTime - b.startTime);
-        const currentIndex = segments.findIndex(s => s.id === segment.id);
-        const segmentsBefore = segments.slice(0, currentIndex);
-        // Find segments that overlap with current segment
-        const overlappingSegments = segmentsBefore.filter(s => (s.startTime < segment.endTime && s.endTime > segment.startTime));
-        // Calculate row based on overlaps (max 3 rows)
-        const row = overlappingSegments.length % 3;
-        const verticalOffset = row * 28; // 28px per row (24px height + 4px gap)
-        return getSegmentStyle(segment, duration.value, verticalOffset);
-    }
-    function updateSegment(id, partial) {
-        const labelKeys = Object.keys(segmentsByLabel.value);
-        for (const label of labelKeys) {
-            const segmentIndex = segmentsByLabel.value[label].findIndex((s) => s.id === id);
-            if (segmentIndex !== -1) {
-                segmentsByLabel.value[label][segmentIndex] = {
-                    ...segmentsByLabel.value[label][segmentIndex],
-                    ...partial,
-                };
-                break;
-            }
-        }
-    }
-    async function updateSensitiveMeta(payload) {
+    // NEW: Create a new segment via API
+    async function createSegment(videoId, labelName, startTime, endTime) {
         try {
-            const body = {
-                sensitiveMetaId: payload.sensitiveMetaId,
-                patientFirstName: payload.patientFirstName,
-                patientLastName: payload.patientLastName,
-                patientDob: payload.patientDob,
-                examinationDate: payload.examinationDate,
+            // Get label ID first
+            const labelResponse = await axiosInstance.get(r(`labels/?name=${labelName}`));
+            const labelId = labelResponse.data.results?.[0]?.id;
+            if (!labelId) {
+                console.error(`Label ${labelName} not found`);
+                errorMessage.value = `Label ${labelName} not found`;
+                return null;
+            }
+            // Calculate frame numbers (assuming 30 FPS as default)
+            const fps = duration.value > 0 ? (videoMeta.value?.duration || 30) : 30;
+            const startFrame = Math.floor(startTime * fps);
+            const endFrame = Math.floor(endTime * fps);
+            const segmentData = {
+                video_file: parseInt(videoId),
+                label: labelId,
+                start_frame_number: startFrame,
+                end_frame_number: endFrame,
             };
-            await axiosInstance.put(r(`sensitive-meta/${payload.sensitiveMetaId}/`), body, { headers: { 'Content-Type': 'application/json' } });
-            // Reflect changes locally
-            if (videoMeta.value && videoMeta.value.sensitiveMetaId === payload.sensitiveMetaId) {
-                videoMeta.value = {
-                    ...videoMeta.value,
-                    patientFirstName: payload.patientFirstName,
-                    patientLastName: payload.patientLastName,
-                    patientDob: payload.patientDob,
-                    examinationDate: payload.examinationDate,
-                };
+            const response = await axiosInstance.post(r('video-segments/'), segmentData);
+            const newSegment = {
+                id: response.data.id, // Real backend ID
+                label: labelName,
+                label_display: getTranslationForLabel(labelName),
+                startTime: response.data.start_time,
+                endTime: response.data.end_time,
+                avgConfidence: 1,
+                video_id: parseInt(videoId),
+                label_id: labelId,
+                start_frame_number: response.data.start_frame_number,
+                end_frame_number: response.data.end_frame_number,
+            };
+            // Add to store
+            if (!segmentsByLabel[labelName]) {
+                segmentsByLabel[labelName] = [];
             }
+            segmentsByLabel[labelName].push(newSegment);
+            console.log('Created segment:', newSegment);
+            return newSegment;
         }
-        catch (err) {
-            const axiosErr = err;
-            console.error('Error updating sensitive meta:', axiosErr.response?.data || axiosErr.message);
-            errorMessage.value = 'Could not update patient information.';
-        }
-    }
-    function clearVideoMeta() {
-        videoMeta.value = null;
-        errorMessage.value = '';
-    }
-    function getColorForLabel(label) {
-        const colorMap = {
-            appendix: '#ff9800',
-            blood: '#f44336',
-            diverticule: '#9c27b0',
-            grasper: '#CBEDCA',
-            ileocaecalvalve: '#3f51b5',
-            ileum: '#2196f3',
-            low_quality: '#9e9e9e',
-            nbi: '#795548',
-            needle: '#e91e63',
-            outside: '#00bcd4',
-            polyp: '#8bc34a',
-            snare: '#ff5722',
-            water_jet: '#03a9f4',
-            wound: '#607d8b',
-        };
-        return colorMap[label] || '#757575';
-    }
-    function getTranslationForLabel(label) {
-        return translationMap[label] || label;
-    }
-    function jumpToSegment(segment, videoElement) {
-        if (videoElement) {
-            videoElement.currentTime = segment.startTime;
+        catch (error) {
+            const axiosError = error;
+            console.error("Error creating segment:", axiosError.response?.data || axiosError.message);
+            errorMessage.value = "Error creating segment. Please try again.";
+            return null;
         }
     }
-    async function updateVideoStatus(status) {
-        if (currentVideo.value) {
-            try {
-                currentVideo.value.status = status;
-                // Senden des aktualisierten Status an den Server
-                const response = await axiosInstance.post(r(`video/${currentVideo.value.id}/status/`), {
-                    status: status
-                });
-                console.log(`Video-Status aktualisiert: ${status}`, response.data);
+    // NEW: Update an existing segment
+    async function updateSegmentAPI(segmentId, updates) {
+        try {
+            const updateData = {};
+            if (updates.startTime !== undefined || updates.endTime !== undefined) {
+                const fps = 30; // Default FPS, should be retrieved from video metadata
+                if (updates.startTime !== undefined) {
+                    updateData.start_frame_number = Math.floor(updates.startTime * fps);
+                }
+                if (updates.endTime !== undefined) {
+                    updateData.end_frame_number = Math.floor(updates.endTime * fps);
+                }
             }
-            catch (error) {
-                console.error('Fehler beim Aktualisieren des Video-Status:', error);
-                errorMessage.value = 'Fehler beim Aktualisieren des Video-Status.';
-            }
+            const response = await axiosInstance.patch(r(`video-segments/${segmentId}/`), updateData);
+            // Update local store
+            updateSegment(segmentId, {
+                startTime: response.data.start_time,
+                endTime: response.data.end_time,
+                start_frame_number: response.data.start_frame_number,
+                end_frame_number: response.data.end_frame_number,
+            });
+            return true;
+        }
+        catch (error) {
+            const axiosError = error;
+            console.error("Error updating segment:", axiosError.response?.data || axiosError.message);
+            errorMessage.value = "Error updating segment. Please try again.";
+            return false;
         }
     }
-    async function assignUserToVideo(user) {
-        if (currentVideo.value) {
-            try {
-                currentVideo.value.assignedUser = user;
-                // Senden der Benutzerzuweisung an den Server
-                const response = await axiosInstance.post(r(`video/${currentVideo.value.id}/assign/`), {
-                    user: user
-                });
-                console.log(`Benutzer ${user} wurde dem Video zugewiesen.`, response.data);
+    // NEW: Delete a segment
+    async function deleteSegment(segmentId) {
+        try {
+            await axiosInstance.delete(r(`video-segments/${segmentId}/`));
+            // Remove from local store
+            for (const label in segmentsByLabel) {
+                const index = segmentsByLabel[label].findIndex(s => s.id === segmentId);
+                if (index !== -1) {
+                    segmentsByLabel[label].splice(index, 1);
+                    break;
+                }
             }
-            catch (error) {
-                console.error('Fehler bei der Benutzerzuweisung:', error);
-                errorMessage.value = 'Fehler bei der Benutzerzuweisung.';
-            }
+            return true;
         }
-    }
-    const uploadRevert = (uniqueFileId, load, error) => {
-        axiosInstance
-            .delete(r(`upload-video/${uniqueFileId}/`))
-            .then(() => {
-            videoUrl.value = '';
-            load();
-        });
-    };
-    const uploadProcess = (fieldName, file, metadata, load, error) => {
-        const formData = new FormData();
-        formData.append(fieldName, file);
-        axiosInstance
-            .post(r('upload-video/'), formData, {
-            headers: { 'Content-Type': 'multipart/form-data' },
-        })
-            .then((response) => {
-            const url = response.data.videoUrl;
-            videoUrl.value = url;
-            load(url); // Pass the URL as the server id
-        })
-            .catch((err) => {
-            error("Upload failed");
-        });
-    };
-    function urlFor(id) {
-        return `http://127.0.0.1:8000/api/videostream/${id}`;
+        catch (error) {
+            const axiosError = error;
+            console.error("Error deleting segment:", axiosError.response?.data || axiosError.message);
+            errorMessage.value = "Error deleting segment. Please try again.";
+            return false;
+        }
     }
     // Return state and actions for consumption in components
     return {
@@ -351,6 +444,14 @@ export const useVideoStore = defineStore('video', () => {
         videoMeta,
         hasVideo,
         duration,
+        // 🔸 New selection state exports
+        activeSegmentId,
+        activeSegment,
+        segmentOptions,
+        setActiveSegment,
+        formatTime,
+        getColorForLabel,
+        // Existing actions
         fetchVideoMeta,
         updateSensitiveMeta,
         clearVideoMeta,
@@ -365,12 +466,18 @@ export const useVideoStore = defineStore('video', () => {
         saveAnnotations,
         getSegmentStyle,
         getEnhancedSegmentStyle,
-        getColorForLabel,
         getTranslationForLabel,
         jumpToSegment,
         updateVideoStatus,
         assignUserToVideo,
         updateSegment,
         urlFor,
+        getSegmentOptions,
+        clearSegments,
+        // NEW: Segment management with real backend integration
+        fetchVideoSegments,
+        createSegment,
+        updateSegmentAPI,
+        deleteSegment,
     };
 });

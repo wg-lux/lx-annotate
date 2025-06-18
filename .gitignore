@@ -26,7 +26,7 @@ devenv.lock
 .devenv.nix
 .env
 flake.json
-
+storage/
 static/
 .staticfiles/
 staticfiles

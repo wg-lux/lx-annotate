@@ -268,7 +268,7 @@ export declare const useAnnotationStore: import("pinia").StoreDefinition<"annota
     playbackTime: import("vue").Ref<number, number>;
     isEditing: import("vue").Ref<boolean, boolean>;
     isDirty: import("vue").Ref<boolean, boolean>;
-}, "isLoading" | "error" | "filter" | "annotations" | "currentAnnotation" | "selectedAnnotations" | "currentVideoId" | "playbackTime" | "isEditing" | "isDirty">>, Pick<{
+}, "filter" | "isLoading" | "error" | "annotations" | "currentAnnotation" | "selectedAnnotations" | "currentVideoId" | "playbackTime" | "isEditing" | "isDirty">>, Pick<{
     filteredAnnotations: import("vue").ComputedRef<{
         id: string;
         videoId: string;
@@ -486,7 +486,7 @@ export declare const useAnnotationStore: import("pinia").StoreDefinition<"annota
     playbackTime: import("vue").Ref<number, number>;
     isEditing: import("vue").Ref<boolean, boolean>;
     isDirty: import("vue").Ref<boolean, boolean>;
-}, "filteredAnnotations" | "currentVideoAnnotations" | "annotationsAtCurrentTime" | "totalAnnotations" | "selectedAnnotationObjects">, Pick<{
+}, "totalAnnotations" | "filteredAnnotations" | "currentVideoAnnotations" | "annotationsAtCurrentTime" | "selectedAnnotationObjects">, Pick<{
     filteredAnnotations: import("vue").ComputedRef<{
         id: string;
         videoId: string;

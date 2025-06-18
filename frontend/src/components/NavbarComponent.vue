@@ -3,25 +3,41 @@
     <div class="container-fluid py-1 px-3">
       <div class="collapse navbar-collapse mt-sm-0 mt-2 me-md-0 me-sm-4" id="navbar">
         <div class="ms-md-auto pe-md-3 d-flex align-items-center">
-
-      <nav aria-label="breadcrumb">
-        <ol class="breadcrumb bg-transparent mb-0 pb-0 pt-1 px-0 me-sm-6 me-5">
-          <li class="breadcrumb-item text-sm">
-            <a class="opacity-5 text-dark" href="javascript:;">Aktuelle Seite</a>
-          </li>
-          <li class="breadcrumb-item text-sm text-dark active" aria-current="page">
-            {{ currentRouteName }}
-          </li>
-        </ol>
-      </nav>
-      
-
+          <nav aria-label="breadcrumb">
+            <ol class="breadcrumb bg-transparent mb-0 pb-0 pt-1 px-0 me-sm-6 me-5">
+              <li class="breadcrumb-item text-sm">
+                <a class="opacity-5 text-dark" href="javascript:;">Aktuelle Seite</a>
+              </li>
+              <li class="breadcrumb-item text-sm text-dark active" aria-current="page">
+                {{ currentRouteName }}
+              </li>
+            </ol>
+          </nav>
         </div>
         <ul class="navbar-nav justify-content-end">
           <li class="nav-item d-flex align-items-center">
-            <a class="btn btn-outline-primary btn-sm mb-0 me-3" href="javascript:;" id="annotationsButton">
-              Annotationen <span class="badge bg-gradient-primary">3</span>
-            </a>
+            <router-link 
+              to="/annotationen" 
+              class="btn btn-outline-primary btn-sm mb-0 me-3"
+              :class="{ 'btn-warning': totalPendingAnnotations > 0 }"
+            >
+              <i class="fas fa-tasks me-1"></i>
+              Annotationen
+              <span 
+                v-if="totalPendingAnnotations > 0" 
+                class="badge bg-danger ms-1"
+                :title="`${totalPendingAnnotations} ausstehende Annotationen`"
+              >
+                {{ totalPendingAnnotations }}
+              </span>
+              <span 
+                v-else-if="annotationStatsStore.isLoading"
+                class="spinner-border spinner-border-sm ms-1"
+                role="status"
+              >
+                <span class="visually-hidden">Laden...</span>
+              </span>
+            </router-link>
           </li>
           <li class="nav-item d-flex align-items-center" v-if="isAuthenticated">
             <a class="nav-link text-body font-weight-bold px-0" href="javascript:;" @click="handleLogout">
@@ -47,50 +63,101 @@
   </nav>
 </template>
 
-<script lang="ts">
-import { defineComponent } from 'vue';
-import { useRouter } from 'vue-router';
+<script setup lang="ts">
+import { computed, onMounted } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
-// Optionally import the exported AuthState if you need it
-// import type { AuthState } from '../stores/auth';
+import { useAnnotationStatsStore } from '@/stores/annotationStats';
 
-export default defineComponent({
-  name: 'NavbarComponent',
-  setup() {
-    // Here, the explicit type annotation helps avoid leaking private types.
-    const authStore = useAuthStore(); // Type inferred as ReturnType<typeof useAuthStore>
-    const router = useRouter();
-    return { authStore, router };
-  },
-  computed: {
-    isAuthenticated(): boolean {
-      return this.authStore.isAuthenticated;
-    },
-    username(): string {
-      return this.authStore.user?.username || 'Unknown';
-    },
-    currentRouteName(): string {
-      const name = this.$route.name as string;
-      return !name ? 'Dashboard' : name.charAt(0).toUpperCase() + name.slice(1);
+const route = useRoute();
+const router = useRouter();
+const authStore = useAuthStore();
+const annotationStatsStore = useAnnotationStatsStore();
+
+// Computed properties
+const isAuthenticated = computed(() => authStore.isAuthenticated);
+
+const username = computed(() => authStore.user?.username || 'Unknown');
+
+const currentRouteName = computed(() => {
+  const name = route.name as string;
+  return !name ? 'Dashboard' : name.charAt(0).toUpperCase() + name.slice(1);
+});
+
+const totalPendingAnnotations = computed(() => {
+  return annotationStatsStore.stats.totalPending;
+});
+
+// Methods
+const handleLogin = () => {
+  authStore.login();
+};
+
+const handleLogout = () => {
+  authStore.logout();
+};
+
+// Load annotation stats on mount and refresh periodically
+onMounted(async () => {
+  await annotationStatsStore.fetchAnnotationStats();
+  
+  // Auto-refresh every 5 minutes
+  setInterval(async () => {
+    if (annotationStatsStore.needsRefresh) {
+      await annotationStatsStore.refreshIfNeeded();
     }
-  },
-  methods: {
-    handleLogin() {
-      this.authStore.login();
-    },
-    handleLogout() {
-      this.authStore.logout();
-    }
-  }
+  }, 5 * 60 * 1000);
 });
 </script>
 
 <style scoped>
-/* your styles */
 .breadcrumb-item + .breadcrumb-item::before {
   content: ">";
 }
+
 .breadcrumb-item.active {
   font-weight: 600;
+}
+
+.btn-warning {
+  animation: pulse-warning 2s infinite;
+}
+
+@keyframes pulse-warning {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(255, 193, 7, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 193, 7, 0);
+  }
+}
+
+.badge {
+  font-size: 0.7rem;
+  padding: 0.25em 0.4em;
+}
+
+.spinner-border-sm {
+  width: 0.875rem;
+  height: 0.875rem;
+}
+
+.nav-link {
+  transition: color 0.15s ease-in-out;
+}
+
+.nav-link:hover {
+  color: #495057 !important;
+}
+
+.btn {
+  transition: all 0.15s ease-in-out;
+}
+
+.btn:hover {
+  transform: translateY(-1px);
 }
 </style>

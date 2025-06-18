@@ -20,6 +20,14 @@
       <div class="cursor-line"></div>
       <div class="cursor-handle">{{ formatTime(currentTime) }}</div>
     </div>
+    
+    <!-- 🔸 Segment Selection Dropdown -->
+    <div class="segment-selector" v-if="false">
+      <select class="form-select">
+        <option value="">Alle Segmente anzeigen</option>
+      </select>
+    </div>
+
 
     <!-- Timeline Tracks - eine Reihe pro Label -->
     <div class="timeline-tracks" ref="timelineRef">
@@ -49,17 +57,25 @@
             @click.stop="jumpToSegment(segment)"
             :title="`${segment.label_display}: ${formatTime(segment.startTime)} - ${formatTime(segment.endTime)}`"
           >
+            <!-- Start-Resize-Handle -->
+            <div
+              class="start-resize-handle"
+              @mousedown="startStartResize(segment, $event)"
+              @touchstart.prevent="startStartResize(segment, $event)"
+              title="Segment-Start ziehen"
+            ></div>
+            
             <!-- Segment-Inhalt -->
             <div class="segment-content">
               <span class="segment-time">{{ formatTime(segment.startTime) }}</span>
               <span class="segment-duration">{{ formatDuration(segment.endTime - segment.startTime) }}</span>
             </div>
             
-            <!-- Resize-Handle -->
+            <!-- End-Resize-Handle -->
             <div
-              class="resize-handle"
-              @mousedown="startResize(segment, $event)"
-              @touchstart.prevent="startResize(segment, $event)"
+              class="end-resize-handle"
+              @mousedown="startEndResize(segment, $event)"
+              @touchstart.prevent="startEndResize(segment, $event)"
               title="Segment-Ende ziehen"
             ></div>
           </div>
@@ -98,7 +114,6 @@ export default defineComponent({
       type: Array as PropType<Segment[]>,
       default: () => [],
     },
-    // Neue Props für API-Segmente
     apiSegments: {
       type: Array as PropType<ApiSegment[]>,
       default: () => [],
@@ -123,6 +138,21 @@ export default defineComponent({
     function frameToTime(frameNumber: number): number {
       return frameNumber / props.fps;
     }
+
+
+    const selectedSegmentId = ref<number | null>(null);
+
+    const allSegments = computed(() => {
+      return convertedSegments.value.length > 0
+        ? convertedSegments.value
+        : props.segments || [];
+    });
+
+    // Computed; Aktualisiere aktive Segmente bei Änderungen
+    const selectedSegment = computed(() => {
+      return allSegments.value.find((s) => s.id === selectedSegmentId.value) || null;
+    });
+
 
     // Hilfsfunktion: Zeit zu Frame-Nummer konvertieren
     function timeToFrame(time: number): number {
@@ -175,30 +205,37 @@ export default defineComponent({
       return markers;
     });
 
-    // Computed: Organisiere Segmente nach Labels (updated für API-Segmente)
+    // Computed: Organisiere Segmente nach Labels (updated für Store-Integration)
     const organizedSegments = computed<LabelGroup[]>(() => {
-      // Verwende konvertierte API-Segmente wenn verfügbar, sonst fallback auf props.segments
-      const allSegments = convertedSegments.value.length > 0 
-        ? convertedSegments.value 
-        : props.segments || videoStore.allSegments;
+      // If a specific segment is selected, show only that segment
+      if (videoStore.activeSegment) {
+        const seg = videoStore.activeSegment;
+        return [{
+          labelName: seg.label_display,
+          color: videoStore.getColorForLabel(seg.label),
+          segments: [seg],
+        }];
+      }
+
+      // Use segments from store (props.segments comes from store via parent component)
+      const allSegments = props.segments || [];
       
       const labelGroups = new Map<string, LabelGroup>();
       
-      // Vordefinierte Farben für Labels
-      const labelColors = [
-        '#e74c3c', '#3498db', '#2ecc71', '#f39c12', '#9b59b6',
-        '#1abc9c', '#e67e22', '#34495e', '#e91e63', '#607d8b'
-      ];
-      
       allSegments.forEach((segment) => {
-        const labelName = segment.label_display || `Label ${segment.label_id}` || 'Ohne Label';
+        // FIX: Use label_display first, then fallback to translated label, then raw label
+        const labelName = segment.label_display || 
+                         videoStore.getTranslationForLabel(segment.label) || 
+                         segment.label || 
+                         'Unbekanntes Label';
         
         if (!labelGroups.has(labelName)) {
-          const colorIndex = labelGroups.size % labelColors.length;
+          // FIX: Use segment.label (not segment.label_display) for color mapping
+          const color = videoStore.getColorForLabel(segment.label || 'outside');
           labelGroups.set(labelName, {
             labelName,
-            color: labelColors[colorIndex],
-            segments: [],
+            color,
+            segments: [], // Initialize segments array
           });
         }
         
@@ -227,11 +264,8 @@ export default defineComponent({
     }
 
     function formatTime(seconds: number): string {
-      if (Number.isNaN(seconds) || seconds === null || seconds === undefined) return '00:00';
-      
-      const mins = Math.floor(seconds / 60);
-      const secs = Math.floor(seconds % 60);
-      return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+      // Verwende Store-Funktion für konsistente Formatierung
+      return videoStore.formatTime(seconds);
     }
 
     function formatDuration(seconds: number): string {
@@ -262,7 +296,7 @@ export default defineComponent({
       // Konvertiere zurück zu Frame-Nummer für API-Kompatibilität
       const newEndFrame = timeToFrame(clampedEndTime);
       
-      // Update segment im Store
+      // Update segment im Store - das ist bereits reaktiv!
       videoStore.updateSegment(activeSegment.value.id, {
         endTime: clampedEndTime,
         end_frame_number: newEndFrame,
@@ -275,9 +309,14 @@ export default defineComponent({
     function onMouseUp() {
       isResizing.value = false;
       activeSegment.value = null;
+      // Remove all possible event listeners
       document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mousemove', onMouseMoveStart);
+      document.removeEventListener('mousemove', onMouseMoveEnd);
       document.removeEventListener('mouseup', onMouseUp);
       document.removeEventListener('touchmove', onMouseMove);
+      document.removeEventListener('touchmove', onMouseMoveStart);
+      document.removeEventListener('touchmove', onMouseMoveEnd);
       document.removeEventListener('touchend', onMouseUp);
     }
 
@@ -291,6 +330,104 @@ export default defineComponent({
       document.addEventListener('mouseup', onMouseUp);
       document.addEventListener('touchmove', onMouseMove);
       document.addEventListener('touchend', onMouseUp);
+    }
+
+    function startStartResize(segment: Segment, event: MouseEvent | TouchEvent) {
+      event.stopPropagation();
+      isResizing.value = true;
+      activeSegment.value = segment;
+      initialEndTime.value = segment.startTime;
+      
+      document.addEventListener('mousemove', onMouseMoveStart);
+      document.addEventListener('mouseup', onMouseUp);
+      document.addEventListener('touchmove', onMouseMoveStart);
+      document.addEventListener('touchend', onMouseUp);
+    }
+
+    function startEndResize(segment: Segment, event: MouseEvent | TouchEvent) {
+      event.stopPropagation();
+      isResizing.value = true;
+      activeSegment.value = segment;
+      initialEndTime.value = segment.endTime;
+      
+      document.addEventListener('mousemove', onMouseMoveEnd);
+      document.addEventListener('mouseup', onMouseUp);
+      document.addEventListener('touchmove', onMouseMoveEnd);
+      document.addEventListener('touchend', onMouseUp);
+    }
+
+    function onMouseMoveStart(event: MouseEvent | TouchEvent) {
+      const now = Date.now();
+      if (now - lastTimestamp.value < 16) return; // Throttling
+      lastTimestamp.value = now;
+      
+      if (!isResizing.value || !activeSegment.value || !timelineRef.value) return;
+      
+      const clientX = 'touches' in event ? event.touches[0].clientX : (event as MouseEvent).clientX;
+      const rect = timelineRef.value.getBoundingClientRect();
+      const relativeX = clientX - rect.left;
+      const percentage = Math.max(0, Math.min(100, (relativeX / rect.width) * 100));
+      const newStartTime = (percentage / 100) * props.duration;
+      
+      // Stelle sicher, dass Start-Zeit vor End-Zeit liegt
+      const maxStartTime = activeSegment.value.endTime - (1 / props.fps); // Maximum 1 Frame vor Endzeit
+      const clampedStartTime = Math.max(0, Math.min(newStartTime, maxStartTime));
+      
+      // Konvertiere zurück zu Frame-Nummer für API-Kompatibilität
+      const newStartFrame = timeToFrame(clampedStartTime);
+      
+      // Update segment im Store - das ist bereits reaktiv!
+      videoStore.updateSegment(activeSegment.value.id, {
+        startTime: clampedStartTime,
+        start_frame_number: newStartFrame,
+      });
+      
+      // Emit mit sowohl Zeit als auch Frame-Nummer und Start-Flag
+      emit('resize', activeSegment.value.id, clampedStartTime, newStartFrame, true);
+    }
+
+    function onMouseMoveEnd(event: MouseEvent | TouchEvent) {
+      const now = Date.now();
+      if (now - lastTimestamp.value < 16) return; // Throttling
+      lastTimestamp.value = now;
+      
+      if (!isResizing.value || !activeSegment.value || !timelineRef.value) return;
+      
+      const clientX = 'touches' in event ? event.touches[0].clientX : (event as MouseEvent).clientX;
+      const rect = timelineRef.value.getBoundingClientRect();
+      const relativeX = clientX - rect.left;
+      const percentage = Math.max(0, Math.min(100, (relativeX / rect.width) * 100));
+      const newEndTime = (percentage / 100) * props.duration;
+      
+      // Stelle sicher, dass End-Zeit nach Start-Zeit liegt
+      const minEndTime = activeSegment.value.startTime + (1 / props.fps); // Minimum 1 Frame
+      const clampedEndTime = Math.max(minEndTime, Math.min(newEndTime, props.duration));
+      
+      // Konvertiere zurück zu Frame-Nummer für API-Kompatibilität
+      const newEndFrame = timeToFrame(clampedEndTime);
+      
+      // Update segment im Store - das ist bereits reaktiv!
+      videoStore.updateSegment(activeSegment.value.id, {
+        endTime: clampedEndTime,
+        end_frame_number: newEndFrame,
+      });
+      
+      // Emit mit sowohl Zeit als auch Frame-Nummer und End-Flag
+      emit('resize', activeSegment.value.id, clampedEndTime, newEndFrame, false);
+    }
+
+    function onMouseUp() {
+      isResizing.value = false;
+      activeSegment.value = null;
+      // Remove all possible event listeners
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mousemove', onMouseMoveStart);
+      document.removeEventListener('mousemove', onMouseMoveEnd);
+      document.removeEventListener('mouseup', onMouseUp);
+      document.removeEventListener('touchmove', onMouseMove);
+      document.removeEventListener('touchmove', onMouseMoveStart);
+      document.removeEventListener('touchmove', onMouseMoveEnd);
+      document.removeEventListener('touchend', onMouseUp);
     }
 
     function handleTimelineClick(event: MouseEvent) {
@@ -311,14 +448,23 @@ export default defineComponent({
     }
 
     function jumpToSegment(segment: Segment) {
+      // Verwende Store-Funktion für konsistente Navigation
       const jumpTime = segment.startTime + (segment.endTime - segment.startTime) * 0.1; // 10% ins Segment
       emit('seek', jumpTime);
+      
+      // Optional: Markiere aktives Segment im Store
+      videoStore.setActiveSegment(segment.id);
     }
 
     onUnmounted(() => {
+      // Remove all possible event listeners
       document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mousemove', onMouseMoveStart);
+      document.removeEventListener('mousemove', onMouseMoveEnd);
       document.removeEventListener('mouseup', onMouseUp);
       document.removeEventListener('touchmove', onMouseMove);
+      document.removeEventListener('touchmove', onMouseMoveStart);
+      document.removeEventListener('touchmove', onMouseMoveEnd);
       document.removeEventListener('touchend', onMouseUp);
     });
 
@@ -329,7 +475,11 @@ export default defineComponent({
       timeMarkers,
       cursorPosition,
       currentTime: computed(() => props.currentTime),
-      startResize,
+      selectedSegmentId,
+      allSegments,
+      selectedSegment,
+      startStartResize,
+      startEndResize,
       handleTimelineClick,
       jumpToSegment,
       getSegmentStyle,
@@ -423,6 +573,38 @@ export default defineComponent({
   font-weight: 600;
   white-space: nowrap;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Segment Selection Dropdown */
+.segment-selector {
+  position: absolute;
+  top: 8px;
+  right: 16px;
+  z-index: 20;
+}
+
+.form-select {
+  appearance: none;
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #334155;
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+  min-width: 200px;
+}
+
+.form-select:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.form-select:hover {
+  border-color: #9ca3af;
 }
 
 /* Timeline Tracks */
@@ -532,7 +714,35 @@ export default defineComponent({
 }
 
 /* Resize Handle */
-.resize-handle {
+.start-resize-handle {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 12px;
+  cursor: ew-resize;
+  background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.3) 100%);
+  border-radius: 4px 0 0 4px;
+  transition: all 0.2s ease;
+}
+
+.start-resize-handle:hover {
+  background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.6) 100%);
+  width: 16px;
+}
+
+.start-resize-handle::after {
+  content: '⋮';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.8);
+  line-height: 1;
+}
+
+.end-resize-handle {
   position: absolute;
   right: 0;
   top: 0;
@@ -544,12 +754,12 @@ export default defineComponent({
   transition: all 0.2s ease;
 }
 
-.resize-handle:hover {
+.end-resize-handle:hover {
   background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.6) 100%);
   width: 16px;
 }
 
-.resize-handle::after {
+.end-resize-handle::after {
   content: '⋮';
   position: absolute;
   top: 50%;

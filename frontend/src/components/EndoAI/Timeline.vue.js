@@ -15,7 +15,6 @@ export default defineComponent({
             type: Array,
             default: () => [],
         },
-        // Neue Props für API-Segmente
         apiSegments: {
             type: Array,
             default: () => [],
@@ -39,6 +38,16 @@ export default defineComponent({
         function frameToTime(frameNumber) {
             return frameNumber / props.fps;
         }
+        const selectedSegmentId = ref(null);
+        const allSegments = computed(() => {
+            return convertedSegments.value.length > 0
+                ? convertedSegments.value
+                : props.segments || [];
+        });
+        // Computed; Aktualisiere aktive Segmente bei Änderungen
+        const selectedSegment = computed(() => {
+            return allSegments.value.find((s) => s.id === selectedSegmentId.value) || null;
+        });
         // Hilfsfunktion: Zeit zu Frame-Nummer konvertieren
         function timeToFrame(time) {
             return Math.round(time * props.fps);
@@ -88,26 +97,28 @@ export default defineComponent({
             }
             return markers;
         });
-        // Computed: Organisiere Segmente nach Labels (updated für API-Segmente)
+        // Computed: Organisiere Segmente nach Labels (updated für Store-Integration)
         const organizedSegments = computed(() => {
-            // Verwende konvertierte API-Segmente wenn verfügbar, sonst fallback auf props.segments
-            const allSegments = convertedSegments.value.length > 0
-                ? convertedSegments.value
-                : props.segments || videoStore.allSegments;
+            // If a specific segment is selected, show only that segment
+            if (videoStore.activeSegment) {
+                const seg = videoStore.activeSegment;
+                return [{
+                        labelName: seg.label_display,
+                        color: videoStore.getColorForLabel(seg.label),
+                        segments: [seg],
+                    }];
+            }
+            // Use segments from store (props.segments comes from store via parent component)
+            const allSegments = props.segments || [];
             const labelGroups = new Map();
-            // Vordefinierte Farben für Labels
-            const labelColors = [
-                '#e74c3c', '#3498db', '#2ecc71', '#f39c12', '#9b59b6',
-                '#1abc9c', '#e67e22', '#34495e', '#e91e63', '#607d8b'
-            ];
             allSegments.forEach((segment) => {
-                const labelName = segment.label_display || `Label ${segment.label_id}` || 'Ohne Label';
+                const labelName = segment.label_display || videoStore.getTranslationForLabel(segment.label) || 'Ohne Label';
                 if (!labelGroups.has(labelName)) {
-                    const colorIndex = labelGroups.size % labelColors.length;
+                    const color = videoStore.getColorForLabel(segment.label);
                     labelGroups.set(labelName, {
                         labelName,
-                        color: labelColors[colorIndex],
-                        segments: [],
+                        color,
+                        segments: [], // Initialize segments array
                     });
                 }
                 labelGroups.get(labelName).segments.push(segment);
@@ -130,11 +141,8 @@ export default defineComponent({
             };
         }
         function formatTime(seconds) {
-            if (Number.isNaN(seconds) || seconds === null || seconds === undefined)
-                return '00:00';
-            const mins = Math.floor(seconds / 60);
-            const secs = Math.floor(seconds % 60);
-            return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+            // Verwende Store-Funktion für konsistente Formatierung
+            return videoStore.formatTime(seconds);
         }
         function formatDuration(seconds) {
             if (seconds < 1)
@@ -162,7 +170,7 @@ export default defineComponent({
             const clampedEndTime = Math.max(minEndTime, Math.min(newEndTime, props.duration));
             // Konvertiere zurück zu Frame-Nummer für API-Kompatibilität
             const newEndFrame = timeToFrame(clampedEndTime);
-            // Update segment im Store
+            // Update segment im Store - das ist bereits reaktiv!
             videoStore.updateSegment(activeSegment.value.id, {
                 endTime: clampedEndTime,
                 end_frame_number: newEndFrame,
@@ -205,8 +213,11 @@ export default defineComponent({
             }
         }
         function jumpToSegment(segment) {
+            // Verwende Store-Funktion für konsistente Navigation
             const jumpTime = segment.startTime + (segment.endTime - segment.startTime) * 0.1; // 10% ins Segment
             emit('seek', jumpTime);
+            // Optional: Markiere aktives Segment im Store
+            videoStore.setActiveSegment(segment.id);
         }
         onUnmounted(() => {
             document.removeEventListener('mousemove', onMouseMove);
@@ -221,6 +232,9 @@ export default defineComponent({
             timeMarkers,
             cursorPosition,
             currentTime: computed(() => props.currentTime),
+            selectedSegmentId,
+            allSegments,
+            selectedSegment,
             startResize,
             handleTimelineClick,
             jumpToSegment,
@@ -235,7 +249,7 @@ function __VLS_template() {
     const __VLS_ctx = {};
     let __VLS_components;
     let __VLS_directives;
-    ['timeline-track', 'timeline-track', 'timeline-segment', 'resize-handle', 'resize-handle', 'empty-timeline', 'empty-timeline', 'empty-timeline', 'track-header', 'track-content', 'time-label', 'cursor-handle',];
+    ['form-select', 'form-select', 'timeline-track', 'timeline-track', 'timeline-segment', 'resize-handle', 'resize-handle', 'empty-timeline', 'empty-timeline', 'empty-timeline', 'track-header', 'track-content', 'time-label', 'cursor-handle',];
     // CSS variable injection 
     // CSS variable injection end 
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -276,6 +290,17 @@ function __VLS_template() {
             ...{ class: ("cursor-handle") },
         });
         (__VLS_ctx.formatTime(__VLS_ctx.currentTime));
+    }
+    if (false) {
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("segment-selector") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
+            ...{ class: ("form-select") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+            value: (""),
+        });
     }
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: ("timeline-tracks") },
@@ -350,7 +375,7 @@ function __VLS_template() {
         __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
         __VLS_elementAsFunction(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({});
     }
-    ['timeline-container', 'timeline-header', 'time-markers', 'time-marker', 'time-label', 'marker-line', 'timeline-cursor', 'cursor-line', 'cursor-handle', 'timeline-tracks', 'timeline-track', 'track-header', 'label-indicator', 'track-label', 'segment-count', 'track-content', 'timeline-segment', 'segment-content', 'segment-time', 'segment-duration', 'resize-handle', 'empty-timeline', 'material-icons',];
+    ['timeline-container', 'timeline-header', 'time-markers', 'time-marker', 'time-label', 'marker-line', 'timeline-cursor', 'cursor-line', 'cursor-handle', 'segment-selector', 'form-select', 'timeline-tracks', 'timeline-track', 'track-header', 'label-indicator', 'track-label', 'segment-count', 'track-content', 'timeline-segment', 'segment-content', 'segment-time', 'segment-duration', 'resize-handle', 'empty-timeline', 'material-icons',];
     var __VLS_slots;
     var $slots;
     let __VLS_inheritedAttrs;

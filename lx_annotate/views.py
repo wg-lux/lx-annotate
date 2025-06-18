@@ -7,7 +7,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from .serializers import FileUploadSerializer
 # Import the advanced serializer from Endoreg-DB instead of local one
-from endoreg_db.serializers.label_serializer import LabelVideoSegmentSerializer
+from endoreg_db.serializers.video_segmentation import LabelSegmentSerializer as LabelVideoSegmentSerializer
 #from lx_anonymizer import main
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt

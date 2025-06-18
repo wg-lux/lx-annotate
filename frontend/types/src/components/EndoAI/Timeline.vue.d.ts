@@ -29,6 +29,9 @@ declare const _default: import("vue").DefineComponent<import("vue").ExtractPropT
     timeMarkers: import("vue").ComputedRef<TimeMarker[]>;
     cursorPosition: import("vue").ComputedRef<number>;
     currentTime: import("vue").ComputedRef<number>;
+    selectedSegmentId: import("vue").Ref<number | null, number | null>;
+    allSegments: import("vue").ComputedRef<Segment[]>;
+    selectedSegment: import("vue").ComputedRef<Segment | null>;
     startResize: (segment: Segment, event: MouseEvent | TouchEvent) => void;
     handleTimelineClick: (event: MouseEvent) => void;
     jumpToSegment: (segment: Segment) => void;
@@ -40,7 +43,7 @@ declare const _default: import("vue").DefineComponent<import("vue").ExtractPropT
     };
     formatTime: (seconds: number) => string;
     formatDuration: (seconds: number) => string;
-}, {}, {}, {}, import("vue").ComponentOptionsMixin, import("vue").ComponentOptionsMixin, ("resize" | "seek" | "createSegment")[], "resize" | "seek" | "createSegment", import("vue").PublicProps, Readonly<import("vue").ExtractPropTypes<{
+}, {}, {}, {}, import("vue").ComponentOptionsMixin, import("vue").ComponentOptionsMixin, ("resize" | "createSegment" | "seek")[], "resize" | "createSegment" | "seek", import("vue").PublicProps, Readonly<import("vue").ExtractPropTypes<{
     duration: {
         type: NumberConstructor;
         required: true;
@@ -63,8 +66,8 @@ declare const _default: import("vue").DefineComponent<import("vue").ExtractPropT
     };
 }>> & Readonly<{
     onResize?: ((...args: any[]) => any) | undefined;
-    onSeek?: ((...args: any[]) => any) | undefined;
     onCreateSegment?: ((...args: any[]) => any) | undefined;
+    onSeek?: ((...args: any[]) => any) | undefined;
 }>, {
     segments: Segment[];
     currentTime: number;

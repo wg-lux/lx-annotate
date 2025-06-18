@@ -1,228 +1,186 @@
-import { ref, onMounted, computed } from 'vue';
-import { useAnnotationStore } from '@/stores/annotationStore';
-import { useVideoStore } from '@/stores/videoStore';
-import { useImageStore } from '@/stores/imageStore';
-import { useAnonymizationStore } from '@/stores/anonymizationStore';
-import { useUserStore } from '@/stores/userStore';
+import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-const annotationStore = useAnnotationStore();
-const videoStore = useVideoStore();
-const imageStore = useImageStore();
-const anonymizationStore = useAnonymizationStore();
-const userStore = useUserStore();
+import { useAnnotationStatsStore } from '@/stores/annotationStats';
+import AnnotationStatsComponent from '@/components/AnnotationStatsComponent.vue';
+import axios from 'axios';
 const router = useRouter();
-const videoStats = ref({
-    total: 0,
-    inProgress: 0,
-    completed: 0,
-    available: 0,
-});
-const imageStats = ref({
-    total: 0,
-    inProgress: 0,
-    completed: 0,
-});
-const anonymizationStats = ref({
-    total: 0,
-    inProgress: 0,
-    completed: 0,
-});
-const videoAnonymizations = ref([]);
-const loadingVideoAnonymizations = ref(false);
-const pdfAnnotations = ref([]);
-const loadingPdfAnnotations = ref(false);
-// Computed Properties für Video-Anonymisierung
-const videoAnonymizationStats = computed(() => {
-    const stats = {
-        total: videoAnonymizations.value.length,
-        pending: 0,
-        processing: 0,
-        anonymized: 0
-    };
-    videoAnonymizations.value.forEach(video => {
-        switch (video.status) {
-            case 'pending':
-            case 'uploaded':
-            case 'frames_extracted':
-                stats.pending++;
-                break;
-            case 'processing':
-            case 'segmenting':
-            case 'anonymizing':
-                stats.processing++;
-                break;
-            case 'anonymized':
-            case 'completed':
-                stats.anonymized++;
-                break;
-        }
-    });
-    return stats;
-});
-// Computed Properties für PDF-Annotationen
-const pdfAnnotationStats = computed(() => {
-    const stats = {
-        total: pdfAnnotations.value.length,
-        pending: 0,
-        inProgress: 0,
-        completed: 0,
-    };
-    pdfAnnotations.value.forEach(pdf => {
-        switch (pdf.status) {
-            case 'pending':
-                stats.pending++;
-                break;
-            case 'in_progress':
-                stats.inProgress++;
-                break;
-            case 'completed':
-                stats.completed++;
-                break;
-        }
-    });
-    return stats;
-});
-// Check if userStore is empty and add a default user
-// This is a fallback in case the userStore is empty
-// #TODO: Remove this when userStore is properly populated
-const users = ref([]);
-if (!userStore.users || userStore.users.length === 0) {
-    const currentUser = {
-        id: 'current-session-user',
-        name: 'Aktueller User',
-        videoAnnotations: 0,
-        imageAnnotations: 0,
-        anonymizationAnnotations: 0,
-    };
-    users.value = [currentUser];
-}
-onMounted(async () => {
-    console.log('Dashboard mounted, fetching data...');
+const annotationStatsStore = useAnnotationStatsStore();
+// State for detailed data
+const segments = ref([]);
+const examinations = ref([]);
+const sensitiveMetaData = ref([]);
+// Loading states
+const loadingSegments = ref(false);
+const loadingExaminations = ref(false);
+const loadingSensitiveMeta = ref(false);
+// Methods for fetching detailed data
+const refreshSegments = async () => {
+    loadingSegments.value = true;
     try {
-        // Fetch video annotations
-        await videoStore.fetchAllVideos();
-        const videos = videoStore.videoList.videos;
-        console.log('Videos loaded:', videos);
-        videoStats.value.total = videos.length;
-        videoStats.value.inProgress = videos.filter(v => v.status === 'in_progress').length;
-        videoStats.value.completed = videos.filter(v => v.status === 'completed').length;
-        videoStats.value.available = videos.filter(v => v.status === 'available').length;
-        console.log('Video stats calculated:', videoStats.value);
-        // Fetch image annotations
-        imageStats.value.total = imageStore.data.length;
-        imageStats.value.inProgress = imageStore.data.filter(img => img.status === 'in_progress').length;
-        imageStats.value.completed = imageStore.data.filter(img => img.status === 'completed').length;
-        // Fetch anonymization annotations
-        await anonymizationStore.fetchPendingAnonymizations();
-        const anonymizations = anonymizationStore.pendingAnonymizations;
-        anonymizationStats.value.total = anonymizations.length;
-        anonymizationStats.value.inProgress = anonymizations.filter(a => a.status === 'in_progress').length;
-        anonymizationStats.value.completed = anonymizations.filter(a => a.status === 'completed').length;
-        // Fetch users and their annotation counts
-        await userStore.fetchUsers();
-        users.value = userStore.users.map(user => ({
-            id: user.id,
-            name: user.name,
-            videoAnnotations: videos.filter(v => v.assignedUser === user.name).length,
-            imageAnnotations: imageStore.data.filter(img => img.assignedUser === user.name).length,
-            anonymizationAnnotations: anonymizations.filter(a => a.report_meta?.patient_first_name === user.name).length,
-        }));
-        console.log('Users with annotation counts:', users.value);
+        const response = await axios.get('/api/video-segments/');
+        segments.value = response.data.results || response.data || [];
     }
     catch (error) {
-        console.error('Error loading dashboard data:', error);
-    }
-});
-// Video-Anonymisierungs-Methoden
-const refreshVideoAnonymizations = async () => {
-    loadingVideoAnonymizations.value = true;
-    try {
-        await videoStore.fetchVideosForAnonymization();
-        videoAnonymizations.value = videoStore.videosForAnonymization || [];
-    }
-    catch (error) {
-        console.error('Fehler beim Laden der Video-Anonymisierungen:', error);
+        console.error('Fehler beim Laden der Video-Segmente:', error);
+        segments.value = [];
     }
     finally {
-        loadingVideoAnonymizations.value = false;
+        loadingSegments.value = false;
     }
 };
-const refreshAnnotations = async () => {
-    // Existing annotation refresh logic
-};
-const refreshPdfAnnotations = async () => {
-    loadingPdfAnnotations.value = true;
+const refreshExaminations = async () => {
+    loadingExaminations.value = true;
     try {
-        // Use the existing PDF serializer endpoint
-        const response = await fetch('/api/pdf/sensitivemeta/', {
-            headers: { 'Accept': 'application/json' }
-        });
-        if (response.ok) {
-            const data = await response.json();
-            pdfAnnotations.value = Array.isArray(data) ? data : [data];
-        }
-        else {
-            pdfAnnotations.value = [];
-        }
+        const response = await axios.get('/api/examinations/');
+        examinations.value = response.data.results || response.data || [];
     }
     catch (error) {
-        console.error('Fehler beim Laden der PDF-Annotationen:', error);
-        pdfAnnotations.value = [];
+        console.error('Fehler beim Laden der Untersuchungen:', error);
+        examinations.value = [];
     }
     finally {
-        loadingPdfAnnotations.value = false;
+        loadingExaminations.value = false;
     }
 };
-const getStatusBadgeClass = (status) => {
-    const statusClasses = {
-        'pending': 'bg-secondary',
-        'uploaded': 'bg-info',
-        'frames_extracted': 'bg-primary',
-        'processing': 'bg-warning',
-        'segmenting': 'bg-warning',
-        'anonymizing': 'bg-warning',
-        'anonymized': 'bg-success',
+const refreshSensitiveMeta = async () => {
+    loadingSensitiveMeta.value = true;
+    try {
+        // Combine video and PDF sensitive meta data
+        const [videoResponse, pdfResponse] = await Promise.all([
+            axios.get('/api/video/sensitivemeta/').catch(() => ({ data: [] })),
+            axios.get('/api/pdf/sensitivemeta/').catch(() => ({ data: [] }))
+        ]);
+        const videoData = Array.isArray(videoResponse.data) ? videoResponse.data :
+            videoResponse.data ? [{ ...videoResponse.data, content_type: 'video' }] : [];
+        const pdfData = Array.isArray(pdfResponse.data) ? pdfResponse.data :
+            pdfResponse.data ? [{ ...pdfResponse.data, content_type: 'pdf' }] : [];
+        // Add content type identifier
+        videoData.forEach(item => item.content_type = 'video');
+        pdfData.forEach(item => item.content_type = 'pdf');
+        sensitiveMetaData.value = [...videoData, ...pdfData];
+    }
+    catch (error) {
+        console.error('Fehler beim Laden der Patientendaten:', error);
+        sensitiveMetaData.value = [];
+    }
+    finally {
+        loadingSensitiveMeta.value = false;
+    }
+};
+// Status helper methods
+const getSegmentStatusClass = (status) => {
+    const classes = {
+        'pending': 'bg-warning',
+        'in_progress': 'bg-info',
         'completed': 'bg-success',
-        'error': 'bg-danger',
-        'failed': 'bg-danger'
+        'rejected': 'bg-danger'
     };
-    return statusClasses[status] || 'bg-secondary';
+    return classes[status] || 'bg-secondary';
 };
-const getStatusDisplayText = (status) => {
-    const statusTexts = {
-        'pending': 'Wartend',
-        'uploaded': 'Hochgeladen',
-        'frames_extracted': 'Frames extrahiert',
-        'processing': 'In Bearbeitung',
-        'segmenting': 'Segmentierung',
-        'anonymizing': 'Anonymisierung',
-        'anonymized': 'Anonymisiert',
-        'completed': 'Abgeschlossen',
-        'error': 'Fehler',
-        'failed': 'Fehlgeschlagen'
-    };
-    return statusTexts[status] || status;
-};
-const getPdfStatusBadgeClass = (status) => {
-    const statusClasses = {
-        'pending': 'bg-secondary',
-        'in_progress': 'bg-warning',
-        'completed': 'bg-success',
-        'error': 'bg-danger',
-        'failed': 'bg-danger'
-    };
-    return statusClasses[status] || 'bg-secondary';
-};
-const getPdfStatusDisplayText = (status) => {
-    const statusTexts = {
-        'pending': 'Wartend',
+const getSegmentStatusText = (status) => {
+    const texts = {
+        'pending': 'Ausstehend',
         'in_progress': 'In Bearbeitung',
         'completed': 'Abgeschlossen',
-        'error': 'Fehler',
-        'failed': 'Fehlgeschlagen'
+        'rejected': 'Abgelehnt'
     };
-    return statusTexts[status] || status;
+    return texts[status] || status;
 };
+const getExaminationStatusClass = (status) => {
+    const classes = {
+        'pending': 'bg-warning',
+        'in_progress': 'bg-info',
+        'completed': 'bg-success',
+        'draft': 'bg-secondary'
+    };
+    return classes[status] || 'bg-secondary';
+};
+const getExaminationStatusText = (status) => {
+    const texts = {
+        'pending': 'Ausstehend',
+        'in_progress': 'In Bearbeitung',
+        'completed': 'Abgeschlossen',
+        'draft': 'Entwurf'
+    };
+    return texts[status] || status;
+};
+const getSensitiveMetaStatusClass = (status) => {
+    const classes = {
+        'pending_validation': 'bg-warning',
+        'validated_pending_anonymization': 'bg-info',
+        'anonymized': 'bg-success',
+        'no_sensitive_data': 'bg-primary'
+    };
+    return classes[status] || 'bg-secondary';
+};
+const getSensitiveMetaStatusText = (status) => {
+    const texts = {
+        'pending_validation': 'Validierung ausstehend',
+        'validated_pending_anonymization': 'Validiert - Anonymisierung ausstehend',
+        'anonymized': 'Anonymisiert',
+        'no_sensitive_data': 'Keine sensitiven Daten'
+    };
+    return texts[status] || status;
+};
+// Action methods
+const editSegment = (segment) => {
+    router.push({
+        name: 'Frame Annotation',
+        query: { videoId: segment.video_id, segmentId: segment.id }
+    });
+};
+const markSegmentComplete = async (segment) => {
+    try {
+        await axios.patch(`/api/video-segments/${segment.id}/`, { status: 'completed' });
+        annotationStatsStore.updateAnnotationStatus('segment', 'in_progress', 'completed');
+        await refreshSegments();
+    }
+    catch (error) {
+        console.error('Fehler beim Markieren des Segments als abgeschlossen:', error);
+    }
+};
+const editExamination = (examination) => {
+    router.push({
+        name: 'Untersuchung',
+        query: { examinationId: examination.id }
+    });
+};
+const markExaminationComplete = async (examination) => {
+    try {
+        await axios.patch(`/api/examinations/${examination.id}/`, { status: 'completed' });
+        annotationStatsStore.updateAnnotationStatus('examination', 'in_progress', 'completed');
+        await refreshExaminations();
+    }
+    catch (error) {
+        console.error('Fehler beim Markieren der Untersuchung als abgeschlossen:', error);
+    }
+};
+const validateSensitiveMeta = (meta) => {
+    if (meta.content_type === 'video') {
+        router.push('/video-meta-annotation');
+    }
+    else if (meta.content_type === 'pdf') {
+        router.push('/pdf-meta-annotation');
+    }
+};
+const markSensitiveMetaComplete = async (meta) => {
+    try {
+        const endpoint = meta.content_type === 'video'
+            ? `/api/video/update_sensitivemeta/`
+            : `/api/pdf/update_sensitivemeta/`;
+        await axios.patch(endpoint, {
+            sensitive_meta_id: meta.id,
+            requires_validation: false,
+            anonymization_status: 'validated_pending_anonymization'
+        });
+        annotationStatsStore.updateAnnotationStatus('sensitive_meta', 'pending', 'completed');
+        await refreshSensitiveMeta();
+    }
+    catch (error) {
+        console.error('Fehler beim Markieren der Patientendaten als validiert:', error);
+    }
+};
+// Utility methods
 const formatDate = (dateString) => {
     if (!dateString)
         return 'Nicht verfügbar';
@@ -230,87 +188,18 @@ const formatDate = (dateString) => {
         return new Date(dateString).toLocaleDateString('de-DE');
     }
     catch (error) {
-        return 'Ungültig';
+        return 'Ungültiges Datum';
     }
 };
-const formatFileSize = (size) => {
-    if (typeof size !== 'number')
-        return 'Unbekannt';
-    const units = ['B', 'kB', 'MB', 'GB'];
-    let index = 0;
-    let formattedSize = size;
-    while (formattedSize >= 1024 && index < units.length - 1) {
-        formattedSize /= 1024;
-        index++;
-    }
-    return `${formattedSize.toFixed(1)} ${units[index]}`;
-};
-const viewVideoDetails = (video) => {
-    // Navigation zu Video-Details
-    router.push({
-        name: 'Video Annotation',
-        params: { videoId: video.id }
-    });
-};
-const annotateVideo = (video) => {
-    // Navigation zur Video-Annotation
-    router.push({
-        name: 'Video Annotation',
-        query: {
-            videoId: video.id,
-            mode: 'annotate'
-        }
-    });
-};
-const processAnonymization = async (video) => {
-    try {
-        await videoStore.startAnonymization(video.id);
-        await refreshVideoAnonymizations();
-        // Optional: Success notification
-    }
-    catch (error) {
-        console.error('Fehler beim Starten der Anonymisierung:', error);
-        // Optional: Error notification
-    }
-};
-// Add PDF-specific methods
-const viewPdfDetails = (pdf) => {
-    // Navigation zu PDF-Details
-    router.push({
-        name: 'PDF Patienten Annotation',
-        params: { pdfId: pdf.id }
-    });
-};
-const annotatePdf = (pdf) => {
-    // Navigation zur PDF-Annotation
-    router.push({
-        name: 'PDF Patienten Annotation',
-        query: {
-            pdfId: pdf.id,
-            mode: 'annotate'
-        }
-    });
-};
-const viewAnonymizedText = (pdf) => {
-    // Navigation zur Anzeige des anonymisierten Texts
-    router.push({
-        name: 'PDF Patienten Annotation',
-        params: { pdfId: pdf.id },
-        query: { tab: 'anonymized' }
-    });
-};
-// Add PDF-specific utility method
-const getFileName = (filePath) => {
-    if (!filePath)
-        return 'Unbekannt';
-    return filePath.split('/').pop() || filePath;
-};
-// Initialisierung
+// Initialize data on mount
 onMounted(async () => {
+    // Load statistics first
+    await annotationStatsStore.fetchAnnotationStats();
+    // Load detailed data in parallel
     await Promise.all([
-        refreshAnnotations(),
-        refreshVideoAnonymizations(),
-        refreshPdfAnnotations()
+        refreshSegments(),
+        refreshExaminations(),
+        refreshSensitiveMeta()
     ]);
 });
 ; /* PartiallyEnd: #3632/scriptSetup.vue */
@@ -318,95 +207,22 @@ function __VLS_template() {
     const __VLS_ctx = {};
     let __VLS_components;
     let __VLS_directives;
-    ['table', 'table', 'table-dark', 'table-dark',];
+    ['table', 'table', 'header-actions',];
     // CSS variable injection 
     // CSS variable injection end 
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: ("container-fluid py-4") },
     });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("row") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("col-md-4") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("card") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("card-header") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.h5, __VLS_intrinsicElements.h5)({
-        ...{ class: ("mb-0") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("card-body") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
-    (__VLS_ctx.videoStats.total);
-    __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
-    (__VLS_ctx.videoStats.inProgress);
-    __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
-    (__VLS_ctx.videoStats.completed);
-    __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
-    (__VLS_ctx.videoStats.available);
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("col-md-4") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("card") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("card-header") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.h5, __VLS_intrinsicElements.h5)({
-        ...{ class: ("mb-0") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("card-body") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
-    (__VLS_ctx.imageStats.total);
-    __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
-    (__VLS_ctx.imageStats.inProgress);
-    __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
-    (__VLS_ctx.imageStats.completed);
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("col-md-4") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("card") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("card-header") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.h5, __VLS_intrinsicElements.h5)({
-        ...{ class: ("mb-0") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("card-body") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
-    (__VLS_ctx.anonymizationStats.total);
-    __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
-    (__VLS_ctx.anonymizationStats.inProgress);
-    __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
-    (__VLS_ctx.anonymizationStats.completed);
+    // @ts-ignore
+    /** @type { [typeof AnnotationStatsComponent, ] } */ ;
+    // @ts-ignore
+    const __VLS_0 = __VLS_asFunctionalComponent(AnnotationStatsComponent, new AnnotationStatsComponent({}));
+    const __VLS_1 = __VLS_0({}, ...__VLS_functionalComponentArgsRest(__VLS_0));
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: ("row mt-4") },
     });
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("col-12") },
+        ...{ class: ("col-12 mb-4") },
     });
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: ("card") },
@@ -417,93 +233,40 @@ function __VLS_template() {
     __VLS_elementAsFunction(__VLS_intrinsicElements.h5, __VLS_intrinsicElements.h5)({
         ...{ class: ("mb-0") },
     });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+        ...{ class: ("fas fa-video text-primary me-2") },
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: ("header-actions") },
+    });
     __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-        ...{ onClick: (__VLS_ctx.refreshVideoAnonymizations) },
-        ...{ class: ("btn btn-primary btn-sm") },
-        disabled: ((__VLS_ctx.loadingVideoAnonymizations)),
+        ...{ onClick: (__VLS_ctx.refreshSegments) },
+        ...{ class: ("btn btn-outline-primary btn-sm me-2") },
+        disabled: ((__VLS_ctx.loadingSegments)),
     });
     __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
         ...{ class: ("fas fa-sync-alt") },
-        ...{ class: (({ 'fa-spin': __VLS_ctx.loadingVideoAnonymizations })) },
+        ...{ class: (({ 'fa-spin': __VLS_ctx.loadingSegments })) },
     });
+    const __VLS_5 = {}.RouterLink;
+    /** @type { [typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, ] } */ ;
+    // @ts-ignore
+    const __VLS_6 = __VLS_asFunctionalComponent(__VLS_5, new __VLS_5({
+        to: ("/frame-annotation"),
+        ...{ class: ("btn btn-primary btn-sm") },
+    }));
+    const __VLS_7 = __VLS_6({
+        to: ("/frame-annotation"),
+        ...{ class: ("btn btn-primary btn-sm") },
+    }, ...__VLS_functionalComponentArgsRest(__VLS_6));
+    __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+        ...{ class: ("fas fa-plus me-1") },
+    });
+    __VLS_10.slots.default;
+    var __VLS_10;
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: ("card-body") },
     });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("row mb-3") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("col-md-3") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("stat-card bg-info text-white") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("stat-icon") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: ("fas fa-video") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("stat-content") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.h3, __VLS_intrinsicElements.h3)({});
-    (__VLS_ctx.videoAnonymizationStats.total);
-    __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("col-md-3") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("stat-card bg-warning text-white") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("stat-icon") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: ("fas fa-clock") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("stat-content") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.h3, __VLS_intrinsicElements.h3)({});
-    (__VLS_ctx.videoAnonymizationStats.pending);
-    __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("col-md-3") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("stat-card bg-primary text-white") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("stat-icon") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: ("fas fa-cogs") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("stat-content") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.h3, __VLS_intrinsicElements.h3)({});
-    (__VLS_ctx.videoAnonymizationStats.processing);
-    __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("col-md-3") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("stat-card bg-success text-white") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("stat-icon") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: ("fas fa-check-circle") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("stat-content") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.h3, __VLS_intrinsicElements.h3)({});
-    (__VLS_ctx.videoAnonymizationStats.anonymized);
-    __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: ("table-responsive") },
     });
@@ -522,7 +285,7 @@ function __VLS_template() {
     __VLS_elementAsFunction(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
     __VLS_elementAsFunction(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
     __VLS_elementAsFunction(__VLS_intrinsicElements.tbody, __VLS_intrinsicElements.tbody)({});
-    if (__VLS_ctx.loadingVideoAnonymizations) {
+    if (__VLS_ctx.loadingSegments) {
         __VLS_elementAsFunction(__VLS_intrinsicElements.tr, __VLS_intrinsicElements.tr)({});
         __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({
             colspan: ("7"),
@@ -536,142 +299,82 @@ function __VLS_template() {
             ...{ class: ("visually-hidden") },
         });
     }
-    else if (__VLS_ctx.videoAnonymizations.length === 0) {
+    else if (__VLS_ctx.segments.length === 0) {
         __VLS_elementAsFunction(__VLS_intrinsicElements.tr, __VLS_intrinsicElements.tr)({});
         __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({
             colspan: ("7"),
             ...{ class: ("text-center text-muted") },
         });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: ("fas fa-video fa-2x mb-2") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.br, __VLS_intrinsicElements.br)({});
     }
     else {
-        for (const [video] of __VLS_getVForSourceType((__VLS_ctx.videoAnonymizations))) {
+        for (const [segment] of __VLS_getVForSourceType((__VLS_ctx.segments))) {
             __VLS_elementAsFunction(__VLS_intrinsicElements.tr, __VLS_intrinsicElements.tr)({
-                key: ((video.id)),
+                key: ((segment.id)),
             });
             __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
             __VLS_elementAsFunction(__VLS_intrinsicElements.code, __VLS_intrinsicElements.code)({});
-            (video.id);
+            (segment.video_id);
             __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
-            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: ("text-truncate") },
-                ...{ style: ({}) },
-                title: ((video.originalFileName)),
+            (segment.start_time);
+            (segment.end_time);
+            __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
+            __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                ...{ class: ("badge bg-info") },
             });
-            (video.originalFileName);
-            __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
-            if (video.patientFirstName || video.patientLastName) {
-                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
-                (video.patientFirstName);
-                (video.patientLastName);
-            }
-            else {
-                __VLS_elementAsFunction(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
-                    ...{ class: ("text-muted") },
-                });
-            }
-            __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
-            if (video.examinationDate) {
-                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
-                (__VLS_ctx.formatDate(video.examinationDate));
-            }
-            else {
-                __VLS_elementAsFunction(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
-                    ...{ class: ("text-muted") },
-                });
-            }
+            (segment.label);
             __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
             __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
                 ...{ class: ("badge") },
-                ...{ class: ((__VLS_ctx.getStatusBadgeClass(video.status))) },
+                ...{ class: ((__VLS_ctx.getSegmentStatusClass(segment.status))) },
             });
-            (__VLS_ctx.getStatusDisplayText(video.status));
+            (__VLS_ctx.getSegmentStatusText(segment.status));
             __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
-            if (video.segments && video.segments.length > 0) {
-                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
-                __VLS_elementAsFunction(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({});
-                (video.segments.length);
-                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                    ...{ class: ("mt-1") },
-                });
-                for (const [segment] of __VLS_getVForSourceType((video.segments.slice(0, 3)))) {
-                    __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-                        key: ((segment.id)),
-                        ...{ class: ("badge bg-secondary me-1 mb-1") },
-                        ...{ style: ({}) },
-                    });
-                    (segment.label_display || segment.label);
-                }
-                if (video.segments.length > 3) {
-                    __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-                        ...{ class: ("badge bg-light text-dark") },
-                    });
-                    (video.segments.length - 3);
-                }
-            }
-            else {
-                __VLS_elementAsFunction(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
-                    ...{ class: ("text-muted") },
-                });
-            }
+            __VLS_elementAsFunction(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({});
+            (segment.annotated_by || 'Nicht zugewiesen');
+            __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
+            __VLS_elementAsFunction(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({});
+            (__VLS_ctx.formatDate(segment.updated_at));
             __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
             __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
                 ...{ class: ("btn-group btn-group-sm") },
-                role: ("group"),
             });
             __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
                 ...{ onClick: (...[$event]) => {
-                        if (!(!((__VLS_ctx.loadingVideoAnonymizations))))
+                        if (!(!((__VLS_ctx.loadingSegments))))
                             return;
-                        if (!(!((__VLS_ctx.videoAnonymizations.length === 0))))
+                        if (!(!((__VLS_ctx.segments.length === 0))))
                             return;
-                        __VLS_ctx.viewVideoDetails(video);
+                        __VLS_ctx.editSegment(segment);
                     } },
                 ...{ class: ("btn btn-outline-primary") },
-                title: (('Details für Video ' + video.id)),
-            });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: ("fas fa-eye") },
-            });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-                ...{ onClick: (...[$event]) => {
-                        if (!(!((__VLS_ctx.loadingVideoAnonymizations))))
-                            return;
-                        if (!(!((__VLS_ctx.videoAnonymizations.length === 0))))
-                            return;
-                        __VLS_ctx.annotateVideo(video);
-                    } },
-                ...{ class: ("btn btn-outline-success") },
-                disabled: ((video.status === 'anonymized')),
-                title: (('Video ' + video.id + ' annotieren')),
+                title: (('Segment bearbeiten')),
             });
             __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
                 ...{ class: ("fas fa-edit") },
             });
-            if (video.status !== 'anonymized') {
-                __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-                    ...{ onClick: (...[$event]) => {
-                            if (!(!((__VLS_ctx.loadingVideoAnonymizations))))
-                                return;
-                            if (!(!((__VLS_ctx.videoAnonymizations.length === 0))))
-                                return;
-                            if (!((video.status !== 'anonymized')))
-                                return;
-                            __VLS_ctx.processAnonymization(video);
-                        } },
-                    ...{ class: ("btn btn-outline-warning") },
-                    title: (('Anonymisierung für Video ' + video.id + ' starten')),
-                });
-                __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                    ...{ class: ("fas fa-user-secret") },
-                });
-            }
+            __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+                ...{ onClick: (...[$event]) => {
+                        if (!(!((__VLS_ctx.loadingSegments))))
+                            return;
+                        if (!(!((__VLS_ctx.segments.length === 0))))
+                            return;
+                        __VLS_ctx.markSegmentComplete(segment);
+                    } },
+                ...{ class: ("btn btn-outline-success") },
+                disabled: ((segment.status === 'completed')),
+                title: (('Als abgeschlossen markieren')),
+            });
+            __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                ...{ class: ("fas fa-check") },
+            });
         }
     }
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("row mt-4") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("col-12") },
+        ...{ class: ("col-12 mb-4") },
     });
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: ("card") },
@@ -682,93 +385,40 @@ function __VLS_template() {
     __VLS_elementAsFunction(__VLS_intrinsicElements.h5, __VLS_intrinsicElements.h5)({
         ...{ class: ("mb-0") },
     });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+        ...{ class: ("fas fa-stethoscope text-success me-2") },
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: ("header-actions") },
+    });
     __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-        ...{ onClick: (__VLS_ctx.refreshPdfAnnotations) },
-        ...{ class: ("btn btn-primary btn-sm") },
-        disabled: ((__VLS_ctx.loadingPdfAnnotations)),
+        ...{ onClick: (__VLS_ctx.refreshExaminations) },
+        ...{ class: ("btn btn-outline-primary btn-sm me-2") },
+        disabled: ((__VLS_ctx.loadingExaminations)),
     });
     __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
         ...{ class: ("fas fa-sync-alt") },
-        ...{ class: (({ 'fa-spin': __VLS_ctx.loadingPdfAnnotations })) },
+        ...{ class: (({ 'fa-spin': __VLS_ctx.loadingExaminations })) },
     });
+    const __VLS_11 = {}.RouterLink;
+    /** @type { [typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, ] } */ ;
+    // @ts-ignore
+    const __VLS_12 = __VLS_asFunctionalComponent(__VLS_11, new __VLS_11({
+        to: ("/untersuchung"),
+        ...{ class: ("btn btn-success btn-sm") },
+    }));
+    const __VLS_13 = __VLS_12({
+        to: ("/untersuchung"),
+        ...{ class: ("btn btn-success btn-sm") },
+    }, ...__VLS_functionalComponentArgsRest(__VLS_12));
+    __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+        ...{ class: ("fas fa-plus me-1") },
+    });
+    __VLS_16.slots.default;
+    var __VLS_16;
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: ("card-body") },
     });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("row mb-3") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("col-md-3") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("stat-card bg-info text-white") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("stat-icon") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: ("fas fa-file-pdf") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("stat-content") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.h3, __VLS_intrinsicElements.h3)({});
-    (__VLS_ctx.pdfAnnotationStats.total);
-    __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("col-md-3") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("stat-card bg-warning text-white") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("stat-icon") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: ("fas fa-clock") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("stat-content") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.h3, __VLS_intrinsicElements.h3)({});
-    (__VLS_ctx.pdfAnnotationStats.pending);
-    __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("col-md-3") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("stat-card bg-primary text-white") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("stat-icon") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: ("fas fa-edit") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("stat-content") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.h3, __VLS_intrinsicElements.h3)({});
-    (__VLS_ctx.pdfAnnotationStats.inProgress);
-    __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("col-md-3") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("stat-card bg-success text-white") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("stat-icon") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: ("fas fa-check-circle") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("stat-content") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.h3, __VLS_intrinsicElements.h3)({});
-    (__VLS_ctx.pdfAnnotationStats.completed);
-    __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: ("table-responsive") },
     });
@@ -787,7 +437,7 @@ function __VLS_template() {
     __VLS_elementAsFunction(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
     __VLS_elementAsFunction(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
     __VLS_elementAsFunction(__VLS_intrinsicElements.tbody, __VLS_intrinsicElements.tbody)({});
-    if (__VLS_ctx.loadingPdfAnnotations) {
+    if (__VLS_ctx.loadingExaminations) {
         __VLS_elementAsFunction(__VLS_intrinsicElements.tr, __VLS_intrinsicElements.tr)({});
         __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({
             colspan: ("7"),
@@ -801,156 +451,249 @@ function __VLS_template() {
             ...{ class: ("visually-hidden") },
         });
     }
-    else if (__VLS_ctx.pdfAnnotations.length === 0) {
+    else if (__VLS_ctx.examinations.length === 0) {
         __VLS_elementAsFunction(__VLS_intrinsicElements.tr, __VLS_intrinsicElements.tr)({});
         __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({
             colspan: ("7"),
             ...{ class: ("text-center text-muted") },
         });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: ("fas fa-stethoscope fa-2x mb-2") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.br, __VLS_intrinsicElements.br)({});
     }
     else {
-        for (const [pdf] of __VLS_getVForSourceType((__VLS_ctx.pdfAnnotations))) {
+        for (const [examination] of __VLS_getVForSourceType((__VLS_ctx.examinations))) {
             __VLS_elementAsFunction(__VLS_intrinsicElements.tr, __VLS_intrinsicElements.tr)({
-                key: ((pdf.id)),
+                key: ((examination.id)),
             });
             __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
             __VLS_elementAsFunction(__VLS_intrinsicElements.code, __VLS_intrinsicElements.code)({});
-            (pdf.id);
+            (examination.id);
             __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
-            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: ("text-truncate") },
-                ...{ style: ({}) },
-                title: ((pdf.originalFileName || pdf.file)),
-            });
-            (__VLS_ctx.getFileName(pdf.file));
+            (examination.patient?.first_name);
+            (examination.patient?.last_name);
             __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
-            if (pdf.patient_first_name || pdf.patient_last_name) {
-                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
-                (pdf.patient_first_name);
-                (pdf.patient_last_name);
-            }
-            else {
-                __VLS_elementAsFunction(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
-                    ...{ class: ("text-muted") },
+            (__VLS_ctx.formatDate(examination.examination_date));
+            __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
+            for (const [finding] of __VLS_getVForSourceType((examination.findings?.slice(0, 2)))) {
+                __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                    ...{ class: ("badge bg-secondary me-1") },
+                    key: ((finding.id)),
                 });
+                (finding.name);
             }
-            __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
-            if (pdf.examination_date) {
-                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
-                (__VLS_ctx.formatDate(pdf.examination_date));
-            }
-            else {
-                __VLS_elementAsFunction(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
-                    ...{ class: ("text-muted") },
+            if (examination.findings?.length > 2) {
+                __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                    ...{ class: ("badge bg-light text-dark") },
                 });
+                (examination.findings.length - 2);
             }
             __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
             __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
                 ...{ class: ("badge") },
-                ...{ class: ((__VLS_ctx.getPdfStatusBadgeClass(pdf.status))) },
+                ...{ class: ((__VLS_ctx.getExaminationStatusClass(examination.status))) },
             });
-            (__VLS_ctx.getPdfStatusDisplayText(pdf.status));
+            (__VLS_ctx.getExaminationStatusText(examination.status));
             __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
-            if (pdf.file_size) {
-                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
-                (__VLS_ctx.formatFileSize(pdf.file_size));
-            }
-            else {
-                __VLS_elementAsFunction(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
-                    ...{ class: ("text-muted") },
-                });
-            }
+            __VLS_elementAsFunction(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({});
+            (examination.created_by || 'Unbekannt');
             __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
             __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
                 ...{ class: ("btn-group btn-group-sm") },
-                role: ("group"),
             });
             __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
                 ...{ onClick: (...[$event]) => {
-                        if (!(!((__VLS_ctx.loadingPdfAnnotations))))
+                        if (!(!((__VLS_ctx.loadingExaminations))))
                             return;
-                        if (!(!((__VLS_ctx.pdfAnnotations.length === 0))))
+                        if (!(!((__VLS_ctx.examinations.length === 0))))
                             return;
-                        __VLS_ctx.viewPdfDetails(pdf);
+                        __VLS_ctx.editExamination(examination);
                     } },
                 ...{ class: ("btn btn-outline-primary") },
-                title: (('Details für PDF ' + pdf.id)),
-            });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: ("fas fa-eye") },
-            });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-                ...{ onClick: (...[$event]) => {
-                        if (!(!((__VLS_ctx.loadingPdfAnnotations))))
-                            return;
-                        if (!(!((__VLS_ctx.pdfAnnotations.length === 0))))
-                            return;
-                        __VLS_ctx.annotatePdf(pdf);
-                    } },
-                ...{ class: ("btn btn-outline-success") },
-                title: (('PDF ' + pdf.id + ' annotieren')),
+                title: (('Untersuchung bearbeiten')),
             });
             __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
                 ...{ class: ("fas fa-edit") },
             });
             __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
                 ...{ onClick: (...[$event]) => {
-                        if (!(!((__VLS_ctx.loadingPdfAnnotations))))
+                        if (!(!((__VLS_ctx.loadingExaminations))))
                             return;
-                        if (!(!((__VLS_ctx.pdfAnnotations.length === 0))))
+                        if (!(!((__VLS_ctx.examinations.length === 0))))
                             return;
-                        __VLS_ctx.viewAnonymizedText(pdf);
+                        __VLS_ctx.markExaminationComplete(examination);
                     } },
-                ...{ class: ("btn btn-outline-info") },
-                title: (('Anonymisierten Text für PDF ' + pdf.id + ' anzeigen')),
+                ...{ class: ("btn btn-outline-success") },
+                disabled: ((examination.status === 'completed')),
+                title: (('Als abgeschlossen markieren')),
             });
             __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: ("fas fa-user-secret") },
+                ...{ class: ("fas fa-check") },
             });
         }
     }
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("row mt-4") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("col-12") },
+        ...{ class: ("col-12 mb-4") },
     });
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: ("card") },
     });
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("card-header") },
+        ...{ class: ("card-header d-flex justify-content-between align-items-center") },
     });
     __VLS_elementAsFunction(__VLS_intrinsicElements.h5, __VLS_intrinsicElements.h5)({
         ...{ class: ("mb-0") },
     });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+        ...{ class: ("fas fa-user-shield text-warning me-2") },
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: ("header-actions") },
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+        ...{ onClick: (__VLS_ctx.refreshSensitiveMeta) },
+        ...{ class: ("btn btn-outline-primary btn-sm me-2") },
+        disabled: ((__VLS_ctx.loadingSensitiveMeta)),
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+        ...{ class: ("fas fa-sync-alt") },
+        ...{ class: (({ 'fa-spin': __VLS_ctx.loadingSensitiveMeta })) },
+    });
+    const __VLS_17 = {}.RouterLink;
+    /** @type { [typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, ] } */ ;
+    // @ts-ignore
+    const __VLS_18 = __VLS_asFunctionalComponent(__VLS_17, new __VLS_17({
+        to: ("/video-meta-annotation"),
+        ...{ class: ("btn btn-warning btn-sm") },
+    }));
+    const __VLS_19 = __VLS_18({
+        to: ("/video-meta-annotation"),
+        ...{ class: ("btn btn-warning btn-sm") },
+    }, ...__VLS_functionalComponentArgsRest(__VLS_18));
+    __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+        ...{ class: ("fas fa-play me-1") },
+    });
+    __VLS_22.slots.default;
+    var __VLS_22;
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: ("card-body") },
     });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.table, __VLS_intrinsicElements.table)({
-        ...{ class: ("table table-bordered") },
+    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: ("table-responsive") },
     });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.thead, __VLS_intrinsicElements.thead)({});
+    __VLS_elementAsFunction(__VLS_intrinsicElements.table, __VLS_intrinsicElements.table)({
+        ...{ class: ("table table-hover") },
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.thead, __VLS_intrinsicElements.thead)({
+        ...{ class: ("table-dark") },
+    });
     __VLS_elementAsFunction(__VLS_intrinsicElements.tr, __VLS_intrinsicElements.tr)({});
     __VLS_elementAsFunction(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
     __VLS_elementAsFunction(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
     __VLS_elementAsFunction(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
     __VLS_elementAsFunction(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
+    __VLS_elementAsFunction(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
+    __VLS_elementAsFunction(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
+    __VLS_elementAsFunction(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
     __VLS_elementAsFunction(__VLS_intrinsicElements.tbody, __VLS_intrinsicElements.tbody)({});
-    for (const [user] of __VLS_getVForSourceType((__VLS_ctx.users))) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.tr, __VLS_intrinsicElements.tr)({
-            key: ((user.id)),
+    if (__VLS_ctx.loadingSensitiveMeta) {
+        __VLS_elementAsFunction(__VLS_intrinsicElements.tr, __VLS_intrinsicElements.tr)({});
+        __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({
+            colspan: ("7"),
+            ...{ class: ("text-center") },
         });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
-        (user.name);
-        __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
-        (user.videoAnnotations);
-        __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
-        (user.imageAnnotations);
-        __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
-        (user.anonymizationAnnotations);
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("spinner-border text-primary") },
+            role: ("status"),
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+            ...{ class: ("visually-hidden") },
+        });
     }
-    ['container-fluid', 'py-4', 'row', 'col-md-4', 'card', 'card-header', 'mb-0', 'card-body', 'col-md-4', 'card', 'card-header', 'mb-0', 'card-body', 'col-md-4', 'card', 'card-header', 'mb-0', 'card-body', 'row', 'mt-4', 'col-12', 'card', 'card-header', 'd-flex', 'justify-content-between', 'align-items-center', 'mb-0', 'btn', 'btn-primary', 'btn-sm', 'fas', 'fa-sync-alt', 'fa-spin', 'card-body', 'row', 'mb-3', 'col-md-3', 'stat-card', 'bg-info', 'text-white', 'stat-icon', 'fas', 'fa-video', 'stat-content', 'col-md-3', 'stat-card', 'bg-warning', 'text-white', 'stat-icon', 'fas', 'fa-clock', 'stat-content', 'col-md-3', 'stat-card', 'bg-primary', 'text-white', 'stat-icon', 'fas', 'fa-cogs', 'stat-content', 'col-md-3', 'stat-card', 'bg-success', 'text-white', 'stat-icon', 'fas', 'fa-check-circle', 'stat-content', 'table-responsive', 'table', 'table-hover', 'table-dark', 'text-center', 'spinner-border', 'text-primary', 'visually-hidden', 'text-center', 'text-muted', 'text-truncate', 'text-muted', 'text-muted', 'badge', 'mt-1', 'badge', 'bg-secondary', 'me-1', 'mb-1', 'badge', 'bg-light', 'text-dark', 'text-muted', 'btn-group', 'btn-group-sm', 'btn', 'btn-outline-primary', 'fas', 'fa-eye', 'btn', 'btn-outline-success', 'fas', 'fa-edit', 'btn', 'btn-outline-warning', 'fas', 'fa-user-secret', 'row', 'mt-4', 'col-12', 'card', 'card-header', 'd-flex', 'justify-content-between', 'align-items-center', 'mb-0', 'btn', 'btn-primary', 'btn-sm', 'fas', 'fa-sync-alt', 'fa-spin', 'card-body', 'row', 'mb-3', 'col-md-3', 'stat-card', 'bg-info', 'text-white', 'stat-icon', 'fas', 'fa-file-pdf', 'stat-content', 'col-md-3', 'stat-card', 'bg-warning', 'text-white', 'stat-icon', 'fas', 'fa-clock', 'stat-content', 'col-md-3', 'stat-card', 'bg-primary', 'text-white', 'stat-icon', 'fas', 'fa-edit', 'stat-content', 'col-md-3', 'stat-card', 'bg-success', 'text-white', 'stat-icon', 'fas', 'fa-check-circle', 'stat-content', 'table-responsive', 'table', 'table-hover', 'table-dark', 'text-center', 'spinner-border', 'text-primary', 'visually-hidden', 'text-center', 'text-muted', 'text-truncate', 'text-muted', 'text-muted', 'badge', 'text-muted', 'btn-group', 'btn-group-sm', 'btn', 'btn-outline-primary', 'fas', 'fa-eye', 'btn', 'btn-outline-success', 'fas', 'fa-edit', 'btn', 'btn-outline-info', 'fas', 'fa-user-secret', 'row', 'mt-4', 'col-12', 'card', 'card-header', 'mb-0', 'card-body', 'table', 'table-bordered',];
+    else if (__VLS_ctx.sensitiveMetaData.length === 0) {
+        __VLS_elementAsFunction(__VLS_intrinsicElements.tr, __VLS_intrinsicElements.tr)({});
+        __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({
+            colspan: ("7"),
+            ...{ class: ("text-center text-muted") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: ("fas fa-user-shield fa-2x mb-2") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.br, __VLS_intrinsicElements.br)({});
+    }
+    else {
+        for (const [meta] of __VLS_getVForSourceType((__VLS_ctx.sensitiveMetaData))) {
+            __VLS_elementAsFunction(__VLS_intrinsicElements.tr, __VLS_intrinsicElements.tr)({
+                key: ((meta.id)),
+            });
+            __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
+            __VLS_elementAsFunction(__VLS_intrinsicElements.code, __VLS_intrinsicElements.code)({});
+            (meta.id);
+            __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
+            __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                ...{ class: ("badge") },
+                ...{ class: ((meta.content_type === 'video' ? 'bg-primary' : 'bg-danger')) },
+            });
+            __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                ...{ class: ((meta.content_type === 'video' ? 'fas fa-video' : 'fas fa-file-pdf')) },
+            });
+            (meta.content_type?.toUpperCase() || 'UNBEKANNT');
+            __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
+            (meta.patient_first_name);
+            (meta.patient_last_name);
+            __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
+            (__VLS_ctx.formatDate(meta.examination_date));
+            __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
+            __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                ...{ class: ("badge") },
+                ...{ class: ((__VLS_ctx.getSensitiveMetaStatusClass(meta.anonymization_status))) },
+            });
+            (__VLS_ctx.getSensitiveMetaStatusText(meta.anonymization_status));
+            __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
+            __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                ...{ class: ((meta.requires_validation ? 'text-warning' : 'text-success')) },
+            });
+            __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                ...{ class: ((meta.requires_validation ? 'fas fa-exclamation-triangle' : 'fas fa-check-circle')) },
+            });
+            (meta.requires_validation ? 'Ja' : 'Nein');
+            __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
+            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: ("btn-group btn-group-sm") },
+            });
+            __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+                ...{ onClick: (...[$event]) => {
+                        if (!(!((__VLS_ctx.loadingSensitiveMeta))))
+                            return;
+                        if (!(!((__VLS_ctx.sensitiveMetaData.length === 0))))
+                            return;
+                        __VLS_ctx.validateSensitiveMeta(meta);
+                    } },
+                ...{ class: ("btn btn-outline-primary") },
+                title: (('Patientendaten validieren')),
+            });
+            __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                ...{ class: ("fas fa-edit") },
+            });
+            __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+                ...{ onClick: (...[$event]) => {
+                        if (!(!((__VLS_ctx.loadingSensitiveMeta))))
+                            return;
+                        if (!(!((__VLS_ctx.sensitiveMetaData.length === 0))))
+                            return;
+                        __VLS_ctx.markSensitiveMetaComplete(meta);
+                    } },
+                ...{ class: ("btn btn-outline-success") },
+                disabled: ((!meta.requires_validation)),
+                title: (('Als validiert markieren')),
+            });
+            __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                ...{ class: ("fas fa-check") },
+            });
+        }
+    }
+    ['container-fluid', 'py-4', 'row', 'mt-4', 'col-12', 'mb-4', 'card', 'card-header', 'd-flex', 'justify-content-between', 'align-items-center', 'mb-0', 'fas', 'fa-video', 'text-primary', 'me-2', 'header-actions', 'btn', 'btn-outline-primary', 'btn-sm', 'me-2', 'fas', 'fa-sync-alt', 'fa-spin', 'btn', 'btn-primary', 'btn-sm', 'fas', 'fa-plus', 'me-1', 'card-body', 'table-responsive', 'table', 'table-hover', 'table-dark', 'text-center', 'spinner-border', 'text-primary', 'visually-hidden', 'text-center', 'text-muted', 'fas', 'fa-video', 'fa-2x', 'mb-2', 'badge', 'bg-info', 'badge', 'btn-group', 'btn-group-sm', 'btn', 'btn-outline-primary', 'fas', 'fa-edit', 'btn', 'btn-outline-success', 'fas', 'fa-check', 'col-12', 'mb-4', 'card', 'card-header', 'd-flex', 'justify-content-between', 'align-items-center', 'mb-0', 'fas', 'fa-stethoscope', 'text-success', 'me-2', 'header-actions', 'btn', 'btn-outline-primary', 'btn-sm', 'me-2', 'fas', 'fa-sync-alt', 'fa-spin', 'btn', 'btn-success', 'btn-sm', 'fas', 'fa-plus', 'me-1', 'card-body', 'table-responsive', 'table', 'table-hover', 'table-dark', 'text-center', 'spinner-border', 'text-primary', 'visually-hidden', 'text-center', 'text-muted', 'fas', 'fa-stethoscope', 'fa-2x', 'mb-2', 'badge', 'bg-secondary', 'me-1', 'badge', 'bg-light', 'text-dark', 'badge', 'btn-group', 'btn-group-sm', 'btn', 'btn-outline-primary', 'fas', 'fa-edit', 'btn', 'btn-outline-success', 'fas', 'fa-check', 'col-12', 'mb-4', 'card', 'card-header', 'd-flex', 'justify-content-between', 'align-items-center', 'mb-0', 'fas', 'fa-user-shield', 'text-warning', 'me-2', 'header-actions', 'btn', 'btn-outline-primary', 'btn-sm', 'me-2', 'fas', 'fa-sync-alt', 'fa-spin', 'btn', 'btn-warning', 'btn-sm', 'fas', 'fa-play', 'me-1', 'card-body', 'table-responsive', 'table', 'table-hover', 'table-dark', 'text-center', 'spinner-border', 'text-primary', 'visually-hidden', 'text-center', 'text-muted', 'fas', 'fa-user-shield', 'fa-2x', 'mb-2', 'badge', 'badge', 'btn-group', 'btn-group-sm', 'btn', 'btn-outline-primary', 'fas', 'fa-edit', 'btn', 'btn-outline-success', 'fas', 'fa-check',];
     var __VLS_slots;
     var $slots;
     let __VLS_inheritedAttrs;
@@ -969,31 +712,29 @@ function __VLS_template() {
 const __VLS_self = (await import('vue')).defineComponent({
     setup() {
         return {
-            videoStats: videoStats,
-            imageStats: imageStats,
-            anonymizationStats: anonymizationStats,
-            videoAnonymizations: videoAnonymizations,
-            loadingVideoAnonymizations: loadingVideoAnonymizations,
-            pdfAnnotations: pdfAnnotations,
-            loadingPdfAnnotations: loadingPdfAnnotations,
-            videoAnonymizationStats: videoAnonymizationStats,
-            pdfAnnotationStats: pdfAnnotationStats,
-            users: users,
-            refreshVideoAnonymizations: refreshVideoAnonymizations,
-            refreshPdfAnnotations: refreshPdfAnnotations,
-            getStatusBadgeClass: getStatusBadgeClass,
-            getStatusDisplayText: getStatusDisplayText,
-            getPdfStatusBadgeClass: getPdfStatusBadgeClass,
-            getPdfStatusDisplayText: getPdfStatusDisplayText,
+            AnnotationStatsComponent: AnnotationStatsComponent,
+            segments: segments,
+            examinations: examinations,
+            sensitiveMetaData: sensitiveMetaData,
+            loadingSegments: loadingSegments,
+            loadingExaminations: loadingExaminations,
+            loadingSensitiveMeta: loadingSensitiveMeta,
+            refreshSegments: refreshSegments,
+            refreshExaminations: refreshExaminations,
+            refreshSensitiveMeta: refreshSensitiveMeta,
+            getSegmentStatusClass: getSegmentStatusClass,
+            getSegmentStatusText: getSegmentStatusText,
+            getExaminationStatusClass: getExaminationStatusClass,
+            getExaminationStatusText: getExaminationStatusText,
+            getSensitiveMetaStatusClass: getSensitiveMetaStatusClass,
+            getSensitiveMetaStatusText: getSensitiveMetaStatusText,
+            editSegment: editSegment,
+            markSegmentComplete: markSegmentComplete,
+            editExamination: editExamination,
+            markExaminationComplete: markExaminationComplete,
+            validateSensitiveMeta: validateSensitiveMeta,
+            markSensitiveMetaComplete: markSensitiveMetaComplete,
             formatDate: formatDate,
-            formatFileSize: formatFileSize,
-            viewVideoDetails: viewVideoDetails,
-            annotateVideo: annotateVideo,
-            processAnonymization: processAnonymization,
-            viewPdfDetails: viewPdfDetails,
-            annotatePdf: annotatePdf,
-            viewAnonymizedText: viewAnonymizedText,
-            getFileName: getFileName,
         };
     },
 });

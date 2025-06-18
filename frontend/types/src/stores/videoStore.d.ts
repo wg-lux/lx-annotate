@@ -124,7 +124,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
     } | null>;
     errorMessage: import("vue").Ref<string, string>;
     videoUrl: import("vue").Ref<string, string>;
-    segmentsByLabel: import("vue").Ref<Record<string, Segment[]>, Record<string, Segment[]>>;
+    segmentsByLabel: Record<string, Segment[]>;
     allSegments: import("vue").ComputedRef<Segment[]>;
     videoList: import("vue").Ref<{
         videos: {
@@ -188,8 +188,20 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
     } | null>;
     hasVideo: import("vue").ComputedRef<boolean>;
     duration: import("vue").ComputedRef<number>;
-    fetchVideoMeta: (id: number) => Promise<void>;
-    updateSensitiveMeta: (payload: SensitiveMetaUpdatePayload) => Promise<void>;
+    activeSegmentId: import("vue").Ref<string | number | null, string | number | null>;
+    activeSegment: import("vue").ComputedRef<Segment | null>;
+    segmentOptions: import("vue").ComputedRef<{
+        id: string | number;
+        label: string;
+        startTime: number;
+        endTime: number;
+        display: string;
+    }[]>;
+    setActiveSegment: (segmentId: number | string | null) => void;
+    formatTime: (seconds: number) => string;
+    getColorForLabel: (label: string) => string;
+    fetchVideoMeta: (lastId?: number) => Promise<VideoFileMeta | null>;
+    updateSensitiveMeta: (payload: SensitiveMetaUpdatePayload) => Promise<boolean>;
     clearVideoMeta: () => void;
     fetchAllVideos: () => Promise<{
         videos: {
@@ -217,16 +229,21 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
     fetchSegmentsByLabel: (id: string, label?: string) => Promise<void>;
     fetchAllSegments: (id: string) => Promise<void>;
     saveAnnotations: () => Promise<void>;
-    getSegmentStyle: (segment: Segment, duration: number, verticalOffset?: number) => Record<string, string>;
-    getEnhancedSegmentStyle: (segment: Segment, allSegments?: Segment[]) => Record<string, string>;
-    getColorForLabel: (label: string) => string;
+    getSegmentStyle: (segment: Segment, duration: number) => Record<string, string>;
+    getEnhancedSegmentStyle: (segment: Segment, duration: number) => Record<string, string>;
     getTranslationForLabel: (label: string) => string;
     jumpToSegment: (segment: Segment, videoElement: HTMLVideoElement | null) => void;
     updateVideoStatus: (status: 'in_progress' | 'available' | 'completed') => Promise<void>;
     assignUserToVideo: (user: string) => Promise<void>;
-    updateSegment: (id: string | number, partial: Partial<Segment>) => void;
-    urlFor: (id: number) => string;
-}, "errorMessage" | "videoUrl" | "currentVideo" | "segmentsByLabel" | "videoList" | "videoMeta">>, Pick<{
+    updateSegment: (segmentId: number | string, updates: Partial<Segment>) => void;
+    urlFor: (path: string) => string;
+    getSegmentOptions: () => any[];
+    clearSegments: () => void;
+    fetchVideoSegments: (videoId: string) => Promise<void>;
+    createSegment: (videoId: string, labelName: string, startTime: number, endTime: number) => Promise<Segment | null>;
+    updateSegmentAPI: (segmentId: number, updates: Partial<Segment>) => Promise<boolean>;
+    deleteSegment: (segmentId: number) => Promise<boolean>;
+}, "errorMessage" | "videoUrl" | "currentVideo" | "segmentsByLabel" | "videoList" | "videoMeta" | "activeSegmentId">>, Pick<{
     currentVideo: import("vue").Ref<{
         isAnnotated: boolean;
         errorMessage: string;
@@ -268,7 +285,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
     } | null>;
     errorMessage: import("vue").Ref<string, string>;
     videoUrl: import("vue").Ref<string, string>;
-    segmentsByLabel: import("vue").Ref<Record<string, Segment[]>, Record<string, Segment[]>>;
+    segmentsByLabel: Record<string, Segment[]>;
     allSegments: import("vue").ComputedRef<Segment[]>;
     videoList: import("vue").Ref<{
         videos: {
@@ -332,8 +349,20 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
     } | null>;
     hasVideo: import("vue").ComputedRef<boolean>;
     duration: import("vue").ComputedRef<number>;
-    fetchVideoMeta: (id: number) => Promise<void>;
-    updateSensitiveMeta: (payload: SensitiveMetaUpdatePayload) => Promise<void>;
+    activeSegmentId: import("vue").Ref<string | number | null, string | number | null>;
+    activeSegment: import("vue").ComputedRef<Segment | null>;
+    segmentOptions: import("vue").ComputedRef<{
+        id: string | number;
+        label: string;
+        startTime: number;
+        endTime: number;
+        display: string;
+    }[]>;
+    setActiveSegment: (segmentId: number | string | null) => void;
+    formatTime: (seconds: number) => string;
+    getColorForLabel: (label: string) => string;
+    fetchVideoMeta: (lastId?: number) => Promise<VideoFileMeta | null>;
+    updateSensitiveMeta: (payload: SensitiveMetaUpdatePayload) => Promise<boolean>;
     clearVideoMeta: () => void;
     fetchAllVideos: () => Promise<{
         videos: {
@@ -361,16 +390,21 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
     fetchSegmentsByLabel: (id: string, label?: string) => Promise<void>;
     fetchAllSegments: (id: string) => Promise<void>;
     saveAnnotations: () => Promise<void>;
-    getSegmentStyle: (segment: Segment, duration: number, verticalOffset?: number) => Record<string, string>;
-    getEnhancedSegmentStyle: (segment: Segment, allSegments?: Segment[]) => Record<string, string>;
-    getColorForLabel: (label: string) => string;
+    getSegmentStyle: (segment: Segment, duration: number) => Record<string, string>;
+    getEnhancedSegmentStyle: (segment: Segment, duration: number) => Record<string, string>;
     getTranslationForLabel: (label: string) => string;
     jumpToSegment: (segment: Segment, videoElement: HTMLVideoElement | null) => void;
     updateVideoStatus: (status: 'in_progress' | 'available' | 'completed') => Promise<void>;
     assignUserToVideo: (user: string) => Promise<void>;
-    updateSegment: (id: string | number, partial: Partial<Segment>) => void;
-    urlFor: (id: number) => string;
-}, "duration" | "allSegments" | "hasVideo">, Pick<{
+    updateSegment: (segmentId: number | string, updates: Partial<Segment>) => void;
+    urlFor: (path: string) => string;
+    getSegmentOptions: () => any[];
+    clearSegments: () => void;
+    fetchVideoSegments: (videoId: string) => Promise<void>;
+    createSegment: (videoId: string, labelName: string, startTime: number, endTime: number) => Promise<Segment | null>;
+    updateSegmentAPI: (segmentId: number, updates: Partial<Segment>) => Promise<boolean>;
+    deleteSegment: (segmentId: number) => Promise<boolean>;
+}, "duration" | "allSegments" | "hasVideo" | "activeSegment" | "segmentOptions">, Pick<{
     currentVideo: import("vue").Ref<{
         isAnnotated: boolean;
         errorMessage: string;
@@ -412,7 +446,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
     } | null>;
     errorMessage: import("vue").Ref<string, string>;
     videoUrl: import("vue").Ref<string, string>;
-    segmentsByLabel: import("vue").Ref<Record<string, Segment[]>, Record<string, Segment[]>>;
+    segmentsByLabel: Record<string, Segment[]>;
     allSegments: import("vue").ComputedRef<Segment[]>;
     videoList: import("vue").Ref<{
         videos: {
@@ -476,8 +510,20 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
     } | null>;
     hasVideo: import("vue").ComputedRef<boolean>;
     duration: import("vue").ComputedRef<number>;
-    fetchVideoMeta: (id: number) => Promise<void>;
-    updateSensitiveMeta: (payload: SensitiveMetaUpdatePayload) => Promise<void>;
+    activeSegmentId: import("vue").Ref<string | number | null, string | number | null>;
+    activeSegment: import("vue").ComputedRef<Segment | null>;
+    segmentOptions: import("vue").ComputedRef<{
+        id: string | number;
+        label: string;
+        startTime: number;
+        endTime: number;
+        display: string;
+    }[]>;
+    setActiveSegment: (segmentId: number | string | null) => void;
+    formatTime: (seconds: number) => string;
+    getColorForLabel: (label: string) => string;
+    fetchVideoMeta: (lastId?: number) => Promise<VideoFileMeta | null>;
+    updateSensitiveMeta: (payload: SensitiveMetaUpdatePayload) => Promise<boolean>;
     clearVideoMeta: () => void;
     fetchAllVideos: () => Promise<{
         videos: {
@@ -505,13 +551,18 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
     fetchSegmentsByLabel: (id: string, label?: string) => Promise<void>;
     fetchAllSegments: (id: string) => Promise<void>;
     saveAnnotations: () => Promise<void>;
-    getSegmentStyle: (segment: Segment, duration: number, verticalOffset?: number) => Record<string, string>;
-    getEnhancedSegmentStyle: (segment: Segment, allSegments?: Segment[]) => Record<string, string>;
-    getColorForLabel: (label: string) => string;
+    getSegmentStyle: (segment: Segment, duration: number) => Record<string, string>;
+    getEnhancedSegmentStyle: (segment: Segment, duration: number) => Record<string, string>;
     getTranslationForLabel: (label: string) => string;
     jumpToSegment: (segment: Segment, videoElement: HTMLVideoElement | null) => void;
     updateVideoStatus: (status: 'in_progress' | 'available' | 'completed') => Promise<void>;
     assignUserToVideo: (user: string) => Promise<void>;
-    updateSegment: (id: string | number, partial: Partial<Segment>) => void;
-    urlFor: (id: number) => string;
-}, "fetchVideoMeta" | "updateSensitiveMeta" | "clearVideoMeta" | "fetchAllVideos" | "uploadRevert" | "uploadProcess" | "clearVideo" | "setVideo" | "fetchVideoUrl" | "fetchSegmentsByLabel" | "fetchAllSegments" | "saveAnnotations" | "getSegmentStyle" | "getEnhancedSegmentStyle" | "getColorForLabel" | "getTranslationForLabel" | "jumpToSegment" | "updateVideoStatus" | "assignUserToVideo" | "updateSegment" | "urlFor">>;
+    updateSegment: (segmentId: number | string, updates: Partial<Segment>) => void;
+    urlFor: (path: string) => string;
+    getSegmentOptions: () => any[];
+    clearSegments: () => void;
+    fetchVideoSegments: (videoId: string) => Promise<void>;
+    createSegment: (videoId: string, labelName: string, startTime: number, endTime: number) => Promise<Segment | null>;
+    updateSegmentAPI: (segmentId: number, updates: Partial<Segment>) => Promise<boolean>;
+    deleteSegment: (segmentId: number) => Promise<boolean>;
+}, "setActiveSegment" | "formatTime" | "getColorForLabel" | "fetchVideoMeta" | "updateSensitiveMeta" | "clearVideoMeta" | "fetchAllVideos" | "uploadRevert" | "uploadProcess" | "clearVideo" | "setVideo" | "fetchVideoUrl" | "fetchSegmentsByLabel" | "fetchAllSegments" | "saveAnnotations" | "getSegmentStyle" | "getEnhancedSegmentStyle" | "getTranslationForLabel" | "jumpToSegment" | "updateVideoStatus" | "assignUserToVideo" | "updateSegment" | "urlFor" | "getSegmentOptions" | "clearSegments" | "fetchVideoSegments" | "createSegment" | "updateSegmentAPI" | "deleteSegment">>;

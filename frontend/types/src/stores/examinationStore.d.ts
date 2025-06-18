@@ -2806,4 +2806,4 @@ export declare const useExaminationStore: import("pinia").StoreDefinition<"exami
     setPatientId: (newPatientId: number | null) => void;
     setError: (errorMessage: string) => void;
     loadFindingsForExamination: (examinationId: number) => Promise<any>;
-}, "loadExaminations" | "loadFindings" | "loadExaminationFindings" | "loadFindingClassifications" | "loadClassifications" | "setSelectedExamination" | "setSelectedFinding" | "updateLocationChoices" | "updateMorphologyChoices" | "updateNotes" | "savePatientFinding" | "resetForm" | "validateRequiredClassifications" | "setPatientId" | "setError" | "loadFindingsForExamination">>;
+}, "loadExaminations" | "loadExaminationFindings" | "loadFindingClassifications" | "loadFindings" | "loadClassifications" | "setSelectedExamination" | "setSelectedFinding" | "updateLocationChoices" | "updateMorphologyChoices" | "updateNotes" | "savePatientFinding" | "resetForm" | "validateRequiredClassifications" | "setPatientId" | "setError" | "loadFindingsForExamination">>;

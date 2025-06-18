@@ -30,7 +30,7 @@ declare const _default: import("vue").DefineComponent<{}, {}, {
     deselectAllFrames(): void;
     toggleAllFrames(): void;
     removeFrame(frameId: any): void;
-    getConfidenceClass(confidence: any): "bg-success" | "bg-danger" | "bg-warning text-dark";
+    getConfidenceClass(confidence: any): "bg-danger" | "bg-success" | "bg-warning text-dark";
     proceedToAnnotation(): void;
     formatTime(seconds: any): string;
 }, import("vue").ComponentOptionsMixin, import("vue").ComponentOptionsMixin, {}, string, import("vue").PublicProps, Readonly<{}> & Readonly<{}>, {}, {}, {}, {}, string, import("vue").ComponentProvideOptions, true, {}, any>;

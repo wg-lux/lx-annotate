@@ -284,4 +284,4 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
     setCurrentVideo: (video: Video | null) => void;
     clearError: () => void;
     reset: () => void;
-}, "reset" | "clearError" | "fetchVideos" | "fetchVideoById" | "uploadVideo" | "deleteVideo" | "updateFilters" | "clearFilters" | "setCurrentVideo">>;
+}, "reset" | "clearError" | "updateFilters" | "fetchVideos" | "fetchVideoById" | "uploadVideo" | "deleteVideo" | "clearFilters" | "setCurrentVideo">>;
