@@ -96,7 +96,7 @@
 import { defineComponent, ref, onUnmounted, computed, watch } from 'vue';
 import type { PropType } from 'vue';
 import type { Segment } from '@/stores/videoStore';
-import type { LabelGroup, TimeMarker, ApiSegment } from '@/types/timeline';
+import type { LabelGroup, TimeMarker } from '@/types/timeline';
 import { useVideoStore } from '@/stores/videoStore';
 
 export default defineComponent({
@@ -114,13 +114,9 @@ export default defineComponent({
       type: Array as PropType<Segment[]>,
       default: () => [],
     },
-    apiSegments: {
-      type: Array as PropType<ApiSegment[]>,
-      default: () => [],
-    },
     fps: {
       type: Number,
-      default: 25, // Standard FPS für Frame-zu-Zeit-Konvertierung
+      default: 50, // Standard FPS für Frame-zu-Zeit-Konvertierung
     },
   },
   emits: ['resize', 'seek', 'createSegment'],
@@ -142,11 +138,8 @@ export default defineComponent({
 
     const selectedSegmentId = ref<number | null>(null);
 
-    const allSegments = computed(() => {
-      return convertedSegments.value.length > 0
-        ? convertedSegments.value
-        : props.segments || [];
-    });
+    // 🔹 Simplified: Use segments directly from props (no conversion needed)
+    const allSegments = computed(() => props.segments || []);
 
     // Computed; Aktualisiere aktive Segmente bei Änderungen
     const selectedSegment = computed(() => {
@@ -158,22 +151,6 @@ export default defineComponent({
     function timeToFrame(time: number): number {
       return Math.round(time * props.fps);
     }
-
-    // Computed: API-Segmente zu Timeline-Segmente konvertieren
-    const convertedSegments = computed<Segment[]>(() => {
-      return props.apiSegments.map((apiSegment): Segment => ({
-        id: apiSegment.id,
-        video_id: apiSegment.video_id,
-        label_id: apiSegment.label_id,
-        startTime: frameToTime(apiSegment.start_frame_number),
-        endTime: frameToTime(apiSegment.end_frame_number),
-        start_frame_number: apiSegment.start_frame_number,
-        end_frame_number: apiSegment.end_frame_number,
-        label: `label_${apiSegment.label_id}`, // Fallback label
-        label_display: `Label ${apiSegment.label_id}`, // Temporär, sollte durch echte Label-Namen ersetzt werden
-        avgConfidence: 1, // Default value
-      }));
-    });
 
     // Computed: Cursor-Position basierend auf aktueller Zeit
     const cursorPosition = computed(() => {

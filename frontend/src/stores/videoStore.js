@@ -305,17 +305,15 @@ export const useVideoStore = defineStore('video', () => {
             console.log('Raw API response:', response.data);
             // Group segments by label
             response.data.forEach((segment) => {
-                // FIX: Use label_name from API response, with proper fallback
-                const labelName = segment.label_name || `label_${segment.label_id || 'unknown'}`;
-                
+                const labelName = segment.label_name || `label_${segment.label_id}`;
                 if (!segmentsByLabel[labelName]) {
                     segmentsByLabel[labelName] = [];
                 }
                 // Use the calculated time fields from the API
                 segmentsByLabel[labelName].push({
                     id: segment.id, // Use real backend ID
-                    label: labelName, // Raw label name for color mapping
-                    label_display: getTranslationForLabel(labelName), // Translated display name
+                    label: labelName,
+                    label_display: getTranslationForLabel(labelName),
                     startTime: segment.start_time || 0, // Use calculated time from backend
                     endTime: segment.end_time || 0, // Use calculated time from backend
                     avgConfidence: 1,
@@ -325,7 +323,7 @@ export const useVideoStore = defineStore('video', () => {
                     end_frame_number: segment.end_frame_number,
                 });
             });
-            console.log('✅ Processed segments by label with correct label_display:', segmentsByLabel);
+            console.log('Processed segments by label:', segmentsByLabel);
         }
         catch (error) {
             const axiosError = error;

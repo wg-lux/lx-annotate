@@ -126,11 +126,15 @@ export const useVideoStore = defineStore('video', () => {
   const errorMessage = ref('');
   const videoUrl = ref('');
   // Store segments keyed by label - Fix: Use reactive() instead of ref({})
-  const segmentsByLabel = reactive<Record<string, Segment[]>>({ ...defaultSegments });  const videoList = ref<VideoList>({ videos: [], labels: [] });
+  const segmentsByLabel = reactive<Record<string, Segment[]>>({ ...defaultSegments });
+  const videoList = ref<VideoList>({ videos: [], labels: [] });
   const videoMeta = ref<VideoFileMeta | null>(null);
   
   // 🔸 Selection state for active segment
   const activeSegmentId = ref<number | string | null>(null);
+
+  // 🔹 Add concurrency token for race condition protection
+  const _fetchToken = ref(0);
 
   // Computed properties
   const hasVideo = computed(() => !!currentVideo.value);
@@ -444,11 +448,17 @@ export const useVideoStore = defineStore('video', () => {
 
   // NEW: Fetch actual segment entities from backend API
   async function fetchVideoSegments(videoId: string): Promise<void> {
+    const currentVideoId = Number(videoId);
+    const token = ++_fetchToken.value;
+
     try {
       const response = await axiosInstance.get(
         r(`video-segments/?video_id=${videoId}`),
         { headers: { 'Accept': 'application/json' } }
       );
+      
+      // 🔹 Check if this is still the latest request
+      if (token !== _fetchToken.value) return; // Ignore stale response
       
       // Clear existing segments
       Object.keys(segmentsByLabel).forEach(key => {
@@ -481,9 +491,12 @@ export const useVideoStore = defineStore('video', () => {
       
       console.log('Processed segments by label:', segmentsByLabel);
     } catch (error: unknown) {
-      const axiosError = error as AxiosError;
-      console.error("Error loading video segments:", axiosError.response?.data || axiosError.message);
-      errorMessage.value = "Error loading video segments. Please try again later.";
+      // Only show error if this is still the current request
+      if (token === _fetchToken.value) {
+        const axiosError = error as AxiosError;
+        console.error("Error loading video segments:", axiosError.response?.data || axiosError.message);
+        errorMessage.value = "Error loading video segments. Please try again later.";
+      }
     }
   }
 
