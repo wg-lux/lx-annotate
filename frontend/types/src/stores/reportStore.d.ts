@@ -81,7 +81,7 @@ export declare const useReportStore: import("pinia").StoreDefinition<"report", i
     annotations: import("vue").Ref<{
         id: number;
         reportId: number;
-        type: "highlight" | "note" | "tag";
+        type: "note" | "highlight" | "tag";
         content: string;
         position: {
             page?: number | undefined;
@@ -96,7 +96,7 @@ export declare const useReportStore: import("pinia").StoreDefinition<"report", i
     }[], Annotation[] | {
         id: number;
         reportId: number;
-        type: "highlight" | "note" | "tag";
+        type: "note" | "highlight" | "tag";
         content: string;
         position: {
             page?: number | undefined;
@@ -120,7 +120,7 @@ export declare const useReportStore: import("pinia").StoreDefinition<"report", i
     setCurrentReport: (report: Report | null) => void;
     clearError: () => void;
     reset: () => void;
-}, "loading" | "error" | "annotations" | "reports" | "currentReport">>, Pick<{
+}, "loading" | "error" | "currentReport" | "annotations" | "reports">>, Pick<{
     reports: import("vue").Ref<{
         id: number;
         anonymizedText: string;
@@ -202,7 +202,7 @@ export declare const useReportStore: import("pinia").StoreDefinition<"report", i
     annotations: import("vue").Ref<{
         id: number;
         reportId: number;
-        type: "highlight" | "note" | "tag";
+        type: "note" | "highlight" | "tag";
         content: string;
         position: {
             page?: number | undefined;
@@ -217,7 +217,7 @@ export declare const useReportStore: import("pinia").StoreDefinition<"report", i
     }[], Annotation[] | {
         id: number;
         reportId: number;
-        type: "highlight" | "note" | "tag";
+        type: "note" | "highlight" | "tag";
         content: string;
         position: {
             page?: number | undefined;
@@ -323,7 +323,7 @@ export declare const useReportStore: import("pinia").StoreDefinition<"report", i
     annotations: import("vue").Ref<{
         id: number;
         reportId: number;
-        type: "highlight" | "note" | "tag";
+        type: "note" | "highlight" | "tag";
         content: string;
         position: {
             page?: number | undefined;
@@ -338,7 +338,7 @@ export declare const useReportStore: import("pinia").StoreDefinition<"report", i
     }[], Annotation[] | {
         id: number;
         reportId: number;
-        type: "highlight" | "note" | "tag";
+        type: "note" | "highlight" | "tag";
         content: string;
         position: {
             page?: number | undefined;
@@ -362,4 +362,4 @@ export declare const useReportStore: import("pinia").StoreDefinition<"report", i
     setCurrentReport: (report: Report | null) => void;
     clearError: () => void;
     reset: () => void;
-}, "reset" | "clearError" | "createAnnotation" | "fetchReports" | "fetchReportById" | "fetchReportAnnotations" | "setCurrentReport">>;
+}, "clearError" | "reset" | "createAnnotation" | "fetchReports" | "fetchReportById" | "fetchReportAnnotations" | "setCurrentReport">>;

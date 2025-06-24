@@ -13,17 +13,16 @@ export interface PaginatedResponse<T> {
     current_page: number;
 }
 export interface Video {
-    id: number;
+    id: string;
     title: string;
-    file_path: string;
-    thumbnail?: string;
-    duration?: number;
-    fps?: number;
-    width?: number;
-    height?: number;
-    created_at: string;
-    updated_at: string;
-    annotations_count?: number;
+    url: string;
+    duration: number;
+    status: 'available' | 'processing' | 'error';
+    assignedUser?: string;
+    anonymized: boolean;
+    originalFileName: string;
+    createdAt: Date;
+    updatedAt: Date;
 }
 export interface VideoSegment {
     id: number;
@@ -35,27 +34,36 @@ export interface VideoSegment {
     created_at: string;
     updated_at: string;
 }
+export interface Segment {
+    id: string | number;
+    label: string;
+    label_display: string;
+    startTime: number;
+    endTime: number;
+    avgConfidence: number;
+    video_id?: number;
+    label_id?: number;
+    start_frame_number?: number;
+    end_frame_number?: number;
+}
+export * from './annotation';
 export interface Annotation {
-    id: number;
-    video: number;
-    timestamp: number;
-    x: number;
-    y: number;
+    id: string;
+    videoId: string;
+    startTime: number;
+    endTime: number;
+    category: string;
+    text: string;
+    isDraft: boolean;
+    createdAt: Date | string;
+    updatedAt: Date | string;
+}
+export interface VideoMeta {
+    id: string;
+    duration: number;
+    fps: number;
     width: number;
     height: number;
-    label: string;
-    confidence?: number;
-    metadata?: Record<string, any>;
-    created_at: string;
-    updated_at: string;
-}
-export interface Label {
-    id: number;
-    name: string;
-    color: string;
-    description?: string;
-    category?: string;
-    is_active: boolean;
 }
 export interface User {
     id: number;
@@ -150,7 +158,7 @@ export interface VideoState {
 export interface AnnotationState {
     annotations: Annotation[];
     currentAnnotation: Annotation | null;
-    labels: Label[];
+    labels: import('./annotation').Label[];
     loading: boolean;
     error: string | null;
     filters: AnnotationFilters;

@@ -4,15 +4,8 @@
   </div>
 </template>
 
-<script>
+<script setup lang="ts">
 import VideoExaminationAnnotation from '@/components/VideoExamination/VideoExaminationAnnotation.vue';
-
-export default {
-  name: 'VideoExamination',
-  components: {
-    VideoExaminationAnnotation
-  }
-};
 </script>
 
 <style>

@@ -143,7 +143,7 @@ export declare const usePatientStore: import("pinia").StoreDefinition<"patient",
         errors: string[];
     };
     formatPatientForSubmission: (formData: PatientFormData) => PatientFormData;
-}, "loading" | "error" | "patients" | "currentPatient" | "genders" | "centers">>, Pick<{
+}, "loading" | "error" | "centers" | "patients" | "currentPatient" | "genders">>, Pick<{
     patients: import("vue").Ref<{
         id?: number | undefined;
         first_name: string;
@@ -429,4 +429,4 @@ export declare const usePatientStore: import("pinia").StoreDefinition<"patient",
         errors: string[];
     };
     formatPatientForSubmission: (formData: PatientFormData) => PatientFormData;
-}, "clearError" | "fetchPatients" | "fetchGenders" | "fetchCenters" | "loadGenders" | "loadCenters" | "initializeLookupData" | "createPatient" | "updatePatient" | "deletePatient" | "calculatePatientAge" | "getGenderDisplayName" | "getCenterDisplayName" | "validatePatientForm" | "formatPatientForSubmission">>;
+}, "clearError" | "deletePatient" | "loadCenters" | "fetchPatients" | "fetchGenders" | "fetchCenters" | "loadGenders" | "initializeLookupData" | "createPatient" | "updatePatient" | "calculatePatientAge" | "getGenderDisplayName" | "getCenterDisplayName" | "validatePatientForm" | "formatPatientForSubmission">>;

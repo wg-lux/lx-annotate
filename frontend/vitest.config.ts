@@ -1,19 +1,24 @@
 import { fileURLToPath } from 'node:url'
-import { mergeConfig } from 'vite'
-import { defineConfig, configDefaults } from 'vitest/config.js'
+import { defineConfig } from 'vitest/config'
+import vue from '@vitejs/plugin-vue'
+import vueJsx from '@vitejs/plugin-vue-jsx'
+import { resolve, dirname } from 'node:path'
 
-import type { UserConfig } from 'vite'
-import baseViteConfig from './vite.config'
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = dirname(__filename)
 
-const viteConfig = baseViteConfig as UserConfig;
-
-export default mergeConfig(
-  viteConfig,
-  defineConfig({
-    test: {
-      environment: 'jsdom',
-      exclude: [...configDefaults.exclude, 'e2e/**'],
-      root: fileURLToPath(new URL('./', import.meta.url))
-    }
-  })
-)
+export default defineConfig({
+  plugins: [vue(), vueJsx()],
+  test: {
+    environment: 'jsdom',
+    exclude: ['**/node_modules/**', '**/dist/**', '**/e2e/**'],
+    root: fileURLToPath(new URL('./', import.meta.url)),
+    globals: true,
+    setupFiles: []
+  },
+  resolve: {
+    alias: {
+      '@': resolve(__dirname, 'src'),
+    },
+  },
+})

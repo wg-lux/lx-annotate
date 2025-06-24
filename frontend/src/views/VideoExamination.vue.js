@@ -1,16 +1,7 @@
 import VideoExaminationAnnotation from '@/components/VideoExamination/VideoExaminationAnnotation.vue';
-export default (await import('vue')).defineComponent({
-    name: 'VideoExamination',
-    components: {
-        VideoExaminationAnnotation
-    }
-});
-; /* PartiallyEnd: #3632/script.vue */
+; /* PartiallyEnd: #3632/scriptSetup.vue */
 function __VLS_template() {
     const __VLS_ctx = {};
-    const __VLS_componentsOption = {
-        VideoExaminationAnnotation
-    };
     let __VLS_components;
     let __VLS_directives;
     // CSS variable injection 
@@ -18,11 +9,11 @@ function __VLS_template() {
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: ("container-fluid h-100 w-100 py-1 px-4") },
     });
-    const __VLS_0 = {}.VideoExaminationAnnotation;
-    /** @type { [typeof __VLS_components.VideoExaminationAnnotation, ] } */ ;
     // @ts-ignore
-    const __VLS_1 = __VLS_asFunctionalComponent(__VLS_0, new __VLS_0({}));
-    const __VLS_2 = __VLS_1({}, ...__VLS_functionalComponentArgsRest(__VLS_1));
+    /** @type { [typeof VideoExaminationAnnotation, ] } */ ;
+    // @ts-ignore
+    const __VLS_0 = __VLS_asFunctionalComponent(VideoExaminationAnnotation, new VideoExaminationAnnotation({}));
+    const __VLS_1 = __VLS_0({}, ...__VLS_functionalComponentArgsRest(__VLS_0));
     ['container-fluid', 'h-100', 'w-100', 'py-1', 'px-4',];
     var __VLS_slots;
     var $slots;
@@ -39,4 +30,17 @@ function __VLS_template() {
     };
 }
 ;
-let __VLS_self;
+const __VLS_self = (await import('vue')).defineComponent({
+    setup() {
+        return {
+            VideoExaminationAnnotation: VideoExaminationAnnotation,
+        };
+    },
+});
+export default (await import('vue')).defineComponent({
+    setup() {
+        return {};
+    },
+    __typeEl: {},
+});
+; /* PartiallyEnd: #4569/main.vue */

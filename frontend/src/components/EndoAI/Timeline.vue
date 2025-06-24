@@ -1,793 +1,1216 @@
 <template>
   <div class="timeline-container">
-    <!-- Timeline Header mit Zeitmarkierungen -->
     <div class="timeline-header">
-      <div class="time-markers" ref="timeMarkersRef">
-        <div
-          v-for="marker in timeMarkers"
-          :key="marker.time"
-          class="time-marker"
-          :style="{ left: marker.position + '%' }"
+      <div class="timeline-controls">
+        <button 
+          @click="playPause" 
+          class="play-btn"
+          :disabled="!video"
         >
-          <span class="time-label">{{ formatTime(marker.time) }}</span>
-          <div class="marker-line"></div>
-        </div>
+          <i :class="isPlaying ? 'fas fa-pause' : 'fas fa-play'"></i>
+        </button>
+        <span class="time-display">
+          {{ formatTime(currentTime) }} / {{ formatTime(duration) }}
+        </span>
+      </div>
+      <div class="zoom-controls">
+        <button @click="zoomOut" :disabled="zoomLevel <= 1">
+          <i class="fas fa-search-minus"></i>
+        </button>
+        <span class="zoom-level">{{ Math.round(zoomLevel * 100) }}%</span>
+        <button @click="zoomIn" :disabled="zoomLevel >= 5">
+          <i class="fas fa-search-plus"></i>
+        </button>
       </div>
     </div>
 
-    <!-- Video-Zeitcursor -->
-    <div class="timeline-cursor" :style="{ left: cursorPosition + '%' }" v-if="currentTime >= 0">
-      <div class="cursor-line"></div>
-      <div class="cursor-handle">{{ formatTime(currentTime) }}</div>
-    </div>
-    
-    <!-- 🔸 Segment Selection Dropdown -->
-    <div class="segment-selector" v-if="false">
-      <select class="form-select">
-        <option value="">Alle Segmente anzeigen</option>
-      </select>
-    </div>
-
-
-    <!-- Timeline Tracks - eine Reihe pro Label -->
-    <div class="timeline-tracks" ref="timelineRef">
-      <div
-        v-for="labelGroup in organizedSegments"
-        :key="labelGroup.labelName"
-        class="timeline-track"
-        @click="handleTimelineClick"
-      >
-        <!-- Label-Header -->
-        <div class="track-header">
+    <div class="timeline-wrapper" :style="{ height: timelineHeight + 'px' }">
+      <div class="timeline" ref="timeline" @mousedown="onTimelineMouseDown" :style="{ height: timelineHeight + 'px' }">
+        <!-- Time markers -->
+        <div class="time-markers">
           <div 
-            class="label-indicator" 
-            :style="{ backgroundColor: labelGroup.color }"
-          ></div>
-          <span class="track-label">{{ labelGroup.labelName || 'Ohne Label' }}</span>
-          <span class="segment-count">({{ labelGroup.segments.length }})</span>
-        </div>
-
-        <!-- Segmente für dieses Label -->
-        <div class="track-content">
-          <div
-            v-for="segment in labelGroup.segments"
-            :key="segment.id"
-            class="timeline-segment"
-            :style="getSegmentStyle(segment, labelGroup.color)"
-            @click.stop="jumpToSegment(segment)"
-            :title="`${segment.label_display}: ${formatTime(segment.startTime)} - ${formatTime(segment.endTime)}`"
+            v-for="marker in timeMarkers" 
+            :key="marker.time"
+            class="time-marker"
+            :style="{ left: marker.position + '%' }"
           >
-            <!-- Start-Resize-Handle -->
-            <div
-              class="start-resize-handle"
-              @mousedown="startStartResize(segment, $event)"
-              @touchstart.prevent="startStartResize(segment, $event)"
-              title="Segment-Start ziehen"
-            ></div>
-            
-            <!-- Segment-Inhalt -->
-            <div class="segment-content">
-              <span class="segment-time">{{ formatTime(segment.startTime) }}</span>
-              <span class="segment-duration">{{ formatDuration(segment.endTime - segment.startTime) }}</span>
-            </div>
-            
-            <!-- End-Resize-Handle -->
-            <div
-              class="end-resize-handle"
-              @mousedown="startEndResize(segment, $event)"
-              @touchstart.prevent="startEndResize(segment, $event)"
-              title="Segment-Ende ziehen"
-            ></div>
+            <div class="marker-line" :style="{ height: timelineHeight + 'px' }"></div>
+            <div class="marker-text">{{ formatTime(marker.time) }}</div>
           </div>
         </div>
+
+        <!-- ✅ NEW: Multi-row segment layout -->
+        <div class="segments-container">
+          <div 
+            v-for="(row, rowIndex) in segmentRows"
+            :key="row.id"
+            class="segment-row"
+            :style="{ 
+              top: (60 + rowIndex * 45) + 'px',
+              height: '40px'
+            }"
+          >
+            <div 
+              v-for="segment in row.segments"
+              :key="segment.id"
+              class="segment"
+              :class="{ 
+                'active': segment.id === activeSegmentId,
+                'draft': segment.isDraft,
+                'dragging': segment.id === draggingSegmentId
+              }"
+              :style="{
+                left: getSegmentPosition(segment.start) + '%',
+                width: getSegmentWidth(segment.start, segment.end) + '%',
+                backgroundColor: segment.color || getLabelColor(segment.label_id),
+                borderColor: segment.isDraft ? '#ff9800' : 'transparent'
+              }"
+              @click="selectSegment(segment)"
+              @contextmenu.prevent="showSegmentMenu(segment, $event)"
+              @mousedown="startSegmentDrag(segment, $event)"
+            >
+              <!-- Start resize handle -->
+              <div 
+                class="resize-handle start-handle"
+                @mousedown.stop="startResize(segment, 'start', $event)"
+                :title="'Segment-Start ändern'"
+              >
+                <i class="fas fa-grip-lines-vertical"></i>
+              </div>
+
+              <div class="segment-content">
+                <span class="segment-label">{{ getLabelName(segment.label_id) || segment.label_name }}</span>
+                <span class="segment-duration">{{ formatDuration(segment.start, segment.end) }}</span>
+              </div>
+
+              <!-- End resize handle -->
+              <div 
+                class="resize-handle end-handle"
+                @mousedown.stop="startResize(segment, 'end', $event)"
+                :title="'Segment-Ende ändern'"
+              >
+                <i class="fas fa-grip-lines-vertical"></i>
+              </div>
+
+              <div v-if="segment.isDraft" class="draft-indicator">
+                <i class="fas fa-edit"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Playhead -->
+        <div 
+          class="playhead"
+          :style="{ left: playheadPosition + '%', height: timelineHeight + 'px' }"
+        >
+          <div class="playhead-line" :style="{ height: timelineHeight + 'px' }"></div>
+          <div class="playhead-handle"></div>
+        </div>
+
+        <!-- Selection overlay for new segments -->
+        <div 
+          v-if="isSelecting"
+          class="selection-overlay"
+          :style="{
+            left: Math.min(selectionStart, selectionEnd) + '%',
+            width: Math.abs(selectionEnd - selectionStart) + '%',
+            height: timelineHeight + 'px'
+          }"
+        ></div>
+      </div>
+
+      <!-- Waveform visualization (optional) -->
+      <div v-if="showWaveform" class="waveform-container">
+        <canvas ref="waveformCanvas" class="waveform-canvas"></canvas>
       </div>
     </div>
 
-    <!-- Leere Nachricht -->
-    <div v-if="organizedSegments.length === 0" class="empty-timeline">
-      <i class="material-icons">timeline</i>
-      <p>Keine Segmente vorhanden</p>
-      <small>Klicken Sie auf die Timeline, um ein neues Segment zu erstellen</small>
+    <!-- Context menu for segments -->
+    <div 
+      v-if="contextMenu.visible"
+      class="context-menu"
+      :style="{ left: contextMenu.x + 'px', top: contextMenu.y + 'px' }"
+      @click.stop
+    >
+      <div class="context-menu-item" @click="editSegment(contextMenu.segment)">
+        <i class="fas fa-edit"></i>
+        Segment bearbeiten
+      </div>
+      <div class="context-menu-item danger" @click="deleteSegment(contextMenu.segment)">
+        <i class="fas fa-trash"></i>
+        Segment löschen
+      </div>
+      <div class="context-menu-separator"></div>
+      <div class="context-menu-item" @click="playSegment(contextMenu.segment)">
+        <i class="fas fa-play"></i>
+        Segment abspielen
+      </div>
+    </div>
+
+    <!-- Timeline tooltip -->
+    <div 
+      v-if="tooltip.visible"
+      class="timeline-tooltip"
+      :style="{ left: tooltip.x + 'px', top: tooltip.y + 'px' }"
+    >
+      {{ tooltip.text }}
     </div>
   </div>
 </template>
 
-<script lang="ts">
-import { defineComponent, ref, onUnmounted, computed, watch } from 'vue';
-import type { PropType } from 'vue';
-import type { Segment } from '@/stores/videoStore';
-import type { LabelGroup, TimeMarker } from '@/types/timeline';
-import { useVideoStore } from '@/stores/videoStore';
+<script setup lang="ts">
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
+import { 
+  formatTime as formatTimeHelper,
+  calculateSegmentWidth,
+  calculateSegmentPosition
+} from '@/utils/timeHelpers'
+import type { Segment, LabelMeta } from '@/stores/videoStore'
+import { 
+  normalizeSegmentToCamelCase,
+  type FrontendSegment,
+  debugSegmentConversion
+} from '@/utils/caseConversion'
 
-export default defineComponent({
-  name: 'Timeline',
-  props: {
-    duration: {
-      type: Number,
-      required: true,
-    },
-    currentTime: {
-      type: Number,
-      default: 0,
-    },
-    segments: {
-      type: Array as PropType<Segment[]>,
-      default: () => [],
-    },
-    fps: {
-      type: Number,
-      default: 50, // Standard FPS für Frame-zu-Zeit-Konvertierung
-    },
-  },
-  emits: ['resize', 'seek', 'createSegment'],
-  setup(props, { emit }) {
-    const videoStore = useVideoStore();
-    const timelineRef = ref<HTMLElement | null>(null);
-    const timeMarkersRef = ref<HTMLElement | null>(null);
-    const activeSegment = ref<Segment | null>(null);
-    const isResizing = ref(false);
-    const startX = ref(0);
-    const initialEndTime = ref(0);
-    const lastTimestamp = ref(0);
+// Type definitions
+interface TimeMarker {
+  time: number
+  position: number
+}
 
-    // Hilfsfunktion: Frame-Nummer zu Zeit konvertieren
-    function frameToTime(frameNumber: number): number {
-      return frameNumber / props.fps;
+interface ContextMenuState {
+  visible: boolean
+  x: number
+  y: number
+  segment: Segment | null
+}
+
+interface TooltipState {
+  visible: boolean
+  x: number
+  y: number
+  text: string
+}
+
+interface OriginalSegmentData {
+  start_time: number
+  end_time: number
+}
+
+interface CanonicalSegment extends Segment {
+  start: number
+  end: number
+  isDraft?: boolean
+  color?: string
+  avgConfidence: number; // Required to match Segment interface
+}
+
+// ✅ NEW: Multi-row segment layout algorithm
+interface SegmentRow {
+  id: number
+  segments: CanonicalSegment[]
+  maxEndTime: number
+}
+
+const props = defineProps<{
+  video?: { duration?: number } | null  // ✅ FIX: Use inline type instead of private VideoData interface
+  segments?: Segment[]
+  labels?: LabelMeta[]
+  currentTime?: number
+  isPlaying?: boolean
+  activeSegmentId?: string | number | null
+  showWaveform?: boolean
+  selectionMode?: boolean
+  fps?: number
+}>()
+
+const emit = defineEmits<{
+  (e: 'seek', time: number): void
+  (e: 'play-pause'): void
+  (e: 'segment-select', segment: Segment): void
+  (e: 'segment-edit', segment: Segment): void
+  (e: 'segment-delete', segment: Segment): void
+  (e: 'segment-create', data: { label: string; start: number; end: number }): void
+  (e: 'segment-resize', segmentId: string | number, newStart: number, newEnd: number, mode: string, final?: boolean): void
+  (e: 'segment-move', segmentId: string | number, newStart: number, newEnd: number, final?: boolean): void
+  (e: 'time-selection', data: { start: number; end: number }): void
+}>()
+
+// Refs with proper types
+const timeline = ref<HTMLElement | null>(null)
+const waveformCanvas = ref<HTMLCanvasElement | null>(null)
+
+// Reactive state
+const zoomLevel = ref<number>(1)
+const isSelecting = ref<boolean>(false)
+const selectionStart = ref<number>(0)
+const selectionEnd = ref<number>(0)
+const isDragging = ref<boolean>(false)
+
+// Dragging and resizing state
+const draggingSegmentId = ref<string | number | null>(null)
+const resizingSegmentId = ref<string | number | null>(null)
+const resizeMode = ref<'start' | 'end' | ''>('')
+const dragStartX = ref<number>(0)
+const dragStartTime = ref<number>(0)
+const originalSegmentData = ref<OriginalSegmentData | null>(null)
+
+// Context menu
+const contextMenu = ref<ContextMenuState>({
+  visible: false,
+  x: 0,
+  y: 0,
+  segment: null
+})
+
+// Tooltip
+const tooltip = ref<TooltipState>({
+  visible: false,
+  x: 0,
+  y: 0,
+  text: ''
+})
+
+// Computed properties
+const duration = computed((): number => props.video?.duration || 0)
+
+// ✅ FIX: Protected playhead calculation to prevent NaN
+const playheadPosition = computed((): number => {
+  const videoDuration = duration.value
+  const currentVideoTime = props.currentTime || 0
+  
+  // ✅ Guard against division by zero and invalid values
+  if (!videoDuration || videoDuration === 0 || !isFinite(videoDuration)) {
+    console.warn('[Timeline] Duration is 0 or invalid:', videoDuration)
+    return 0
+  }
+  
+  if (!isFinite(currentVideoTime) || currentVideoTime < 0) {
+    console.warn('[Timeline] CurrentTime is invalid:', currentVideoTime)
+    return 0
+  }
+  
+  const percentage = (currentVideoTime / videoDuration) * 100
+  
+  // ✅ Additional safety check for percentage
+  if (!isFinite(percentage)) {
+    console.warn('[Timeline] Calculated percentage is NaN:', { currentVideoTime, videoDuration })
+    return 0
+  }
+  
+  return Math.max(0, Math.min(100, percentage)) // Clamp between 0-100%
+})
+
+const timeMarkers = computed((): TimeMarker[] => {
+  const markers: TimeMarker[] = []
+  const totalTime = duration.value
+  if (totalTime === 0) return markers
+
+  // Calculate marker interval based on zoom level
+  const baseInterval = 10 // seconds
+  const interval = baseInterval / zoomLevel.value
+  const markerCount = Math.floor(totalTime / interval)
+
+  for (let i = 0; i <= markerCount; i++) {
+    const time = i * interval
+    if (time <= totalTime) {
+      markers.push({
+        time,
+        position: (time / totalTime) * 100
+      })
     }
+  }
 
+  return markers
+})
 
-    const selectedSegmentId = ref<number | null>(null);
+// ✅ FIX: Use fps prop instead of ignoring it
+const currentFps = computed((): number => props.fps || 30)
 
-    // 🔹 Simplified: Use segments directly from props (no conversion needed)
-    const allSegments = computed(() => props.segments || []);
-
-    // Computed; Aktualisiere aktive Segmente bei Änderungen
-    const selectedSegment = computed(() => {
-      return allSegments.value.find((s) => s.id === selectedSegmentId.value) || null;
-    });
-
-
-    // Hilfsfunktion: Zeit zu Frame-Nummer konvertieren
-    function timeToFrame(time: number): number {
-      return Math.round(time * props.fps);
+// ✅ NEW: Canonical segments mapper for consistent field access with conversion utilities
+const canonicalSegments = computed((): CanonicalSegment[] =>
+  (props.segments || []).map((s: Segment): CanonicalSegment => {
+    // Use the new normalization utility to ensure consistent camelCase properties
+    const normalized = normalizeSegmentToCamelCase(s)
+    
+    if (process.env.NODE_ENV === 'development') {
+      debugSegmentConversion(s, normalized, 'toFrontend')
     }
-
-    // Computed: Cursor-Position basierend auf aktueller Zeit
-    const cursorPosition = computed(() => {
-      if (props.duration <= 0) return 0;
-      return (props.currentTime / props.duration) * 100;
-    });
-
-    // Computed: Zeitmarkierungen für bessere Orientierung
-    const timeMarkers = computed((): TimeMarker[] => {
-      const markers: TimeMarker[] = [];
-      const duration = props.duration;
-      
-      if (duration <= 0) return markers;
-      
-      // Bestimme Intervall basierend auf Videolänge
-      let interval = 10; // Standard: 10 Sekunden
-      if (duration <= 60) interval = 10;
-      else if (duration <= 300) interval = 30;
-      else if (duration <= 600) interval = 60;
-      else interval = 120;
-      
-      for (let time = 0; time <= duration; time += interval) {
-        markers.push({
-          time,
-          position: (time / duration) * 100,
-        });
-      }
-      
-      return markers;
-    });
-
-    // Computed: Organisiere Segmente nach Labels (updated für Store-Integration)
-    const organizedSegments = computed<LabelGroup[]>(() => {
-      // If a specific segment is selected, show only that segment
-      if (videoStore.activeSegment) {
-        const seg = videoStore.activeSegment;
-        return [{
-          labelName: seg.label_display,
-          color: videoStore.getColorForLabel(seg.label),
-          segments: [seg],
-        }];
-      }
-
-      // Use segments from store (props.segments comes from store via parent component)
-      const allSegments = props.segments || [];
-      
-      const labelGroups = new Map<string, LabelGroup>();
-      
-      allSegments.forEach((segment) => {
-        // FIX: Use label_display first, then fallback to translated label, then raw label
-        const labelName = segment.label_display || 
-                         videoStore.getTranslationForLabel(segment.label) || 
-                         segment.label || 
-                         'Unbekanntes Label';
-        
-        if (!labelGroups.has(labelName)) {
-          // FIX: Use segment.label (not segment.label_display) for color mapping
-          const color = videoStore.getColorForLabel(segment.label || 'outside');
-          labelGroups.set(labelName, {
-            labelName,
-            color,
-            segments: [], // Initialize segments array
-          });
-        }
-        
-        labelGroups.get(labelName)!.segments.push(segment);
-      });
-      
-      // Sortiere Segmente innerhalb jeder Gruppe nach Startzeit
-      labelGroups.forEach(group => {
-        group.segments.sort((a, b) => a.startTime - b.startTime);
-      });
-      
-      return Array.from(labelGroups.values());
-    });
-
-    // Methoden
-    function getSegmentStyle(segment: Segment, color: string) {
-      const left = (segment.startTime / props.duration) * 100;
-      const width = ((segment.endTime - segment.startTime) / props.duration) * 100;
-      
-      return {
-        left: `${left}%`,
-        width: `${Math.max(width, 0.5)}%`, // Mindestbreite für sichtbarkeit
-        backgroundColor: color,
-        borderColor: color,
-      };
-    }
-
-    function formatTime(seconds: number): string {
-      // Verwende Store-Funktion für konsistente Formatierung
-      return videoStore.formatTime(seconds);
-    }
-
-    function formatDuration(seconds: number): string {
-      if (seconds < 1) return '<1s';
-      if (seconds < 60) return `${Math.round(seconds)}s`;
-      const mins = Math.floor(seconds / 60);
-      const secs = Math.round(seconds % 60);
-      return secs > 0 ? `${mins}m ${secs}s` : `${mins}m`;
-    }
-
-    function onMouseMove(event: MouseEvent | TouchEvent) {
-      const now = Date.now();
-      if (now - lastTimestamp.value < 16) return; // Throttling
-      lastTimestamp.value = now;
-      
-      if (!isResizing.value || !activeSegment.value || !timelineRef.value) return;
-      
-      const clientX = 'touches' in event ? event.touches[0].clientX : (event as MouseEvent).clientX;
-      const rect = timelineRef.value.getBoundingClientRect();
-      const relativeX = clientX - rect.left;
-      const percentage = Math.max(0, Math.min(100, (relativeX / rect.width) * 100));
-      const newEndTime = (percentage / 100) * props.duration;
-      
-      // Stelle sicher, dass End-Zeit nach Start-Zeit liegt
-      const minEndTime = activeSegment.value.startTime + (1 / props.fps); // Minimum 1 Frame
-      const clampedEndTime = Math.max(minEndTime, Math.min(newEndTime, props.duration));
-      
-      // Konvertiere zurück zu Frame-Nummer für API-Kompatibilität
-      const newEndFrame = timeToFrame(clampedEndTime);
-      
-      // Update segment im Store - das ist bereits reaktiv!
-      videoStore.updateSegment(activeSegment.value.id, {
-        endTime: clampedEndTime,
-        end_frame_number: newEndFrame,
-      });
-      
-      // Emit mit sowohl Zeit als auch Frame-Nummer
-      emit('resize', activeSegment.value.id, clampedEndTime, newEndFrame);
-    }
-
-    function onMouseUp() {
-      isResizing.value = false;
-      activeSegment.value = null;
-      // Remove all possible event listeners
-      document.removeEventListener('mousemove', onMouseMove);
-      document.removeEventListener('mousemove', onMouseMoveStart);
-      document.removeEventListener('mousemove', onMouseMoveEnd);
-      document.removeEventListener('mouseup', onMouseUp);
-      document.removeEventListener('touchmove', onMouseMove);
-      document.removeEventListener('touchmove', onMouseMoveStart);
-      document.removeEventListener('touchmove', onMouseMoveEnd);
-      document.removeEventListener('touchend', onMouseUp);
-    }
-
-    function startResize(segment: Segment, event: MouseEvent | TouchEvent) {
-      event.stopPropagation();
-      isResizing.value = true;
-      activeSegment.value = segment;
-      initialEndTime.value = segment.endTime;
-      
-      document.addEventListener('mousemove', onMouseMove);
-      document.addEventListener('mouseup', onMouseUp);
-      document.addEventListener('touchmove', onMouseMove);
-      document.addEventListener('touchend', onMouseUp);
-    }
-
-    function startStartResize(segment: Segment, event: MouseEvent | TouchEvent) {
-      event.stopPropagation();
-      isResizing.value = true;
-      activeSegment.value = segment;
-      initialEndTime.value = segment.startTime;
-      
-      document.addEventListener('mousemove', onMouseMoveStart);
-      document.addEventListener('mouseup', onMouseUp);
-      document.addEventListener('touchmove', onMouseMoveStart);
-      document.addEventListener('touchend', onMouseUp);
-    }
-
-    function startEndResize(segment: Segment, event: MouseEvent | TouchEvent) {
-      event.stopPropagation();
-      isResizing.value = true;
-      activeSegment.value = segment;
-      initialEndTime.value = segment.endTime;
-      
-      document.addEventListener('mousemove', onMouseMoveEnd);
-      document.addEventListener('mouseup', onMouseUp);
-      document.addEventListener('touchmove', onMouseMoveEnd);
-      document.addEventListener('touchend', onMouseUp);
-    }
-
-    function onMouseMoveStart(event: MouseEvent | TouchEvent) {
-      const now = Date.now();
-      if (now - lastTimestamp.value < 16) return; // Throttling
-      lastTimestamp.value = now;
-      
-      if (!isResizing.value || !activeSegment.value || !timelineRef.value) return;
-      
-      const clientX = 'touches' in event ? event.touches[0].clientX : (event as MouseEvent).clientX;
-      const rect = timelineRef.value.getBoundingClientRect();
-      const relativeX = clientX - rect.left;
-      const percentage = Math.max(0, Math.min(100, (relativeX / rect.width) * 100));
-      const newStartTime = (percentage / 100) * props.duration;
-      
-      // Stelle sicher, dass Start-Zeit vor End-Zeit liegt
-      const maxStartTime = activeSegment.value.endTime - (1 / props.fps); // Maximum 1 Frame vor Endzeit
-      const clampedStartTime = Math.max(0, Math.min(newStartTime, maxStartTime));
-      
-      // Konvertiere zurück zu Frame-Nummer für API-Kompatibilität
-      const newStartFrame = timeToFrame(clampedStartTime);
-      
-      // Update segment im Store - das ist bereits reaktiv!
-      videoStore.updateSegment(activeSegment.value.id, {
-        startTime: clampedStartTime,
-        start_frame_number: newStartFrame,
-      });
-      
-      // Emit mit sowohl Zeit als auch Frame-Nummer und Start-Flag
-      emit('resize', activeSegment.value.id, clampedStartTime, newStartFrame, true);
-    }
-
-    function onMouseMoveEnd(event: MouseEvent | TouchEvent) {
-      const now = Date.now();
-      if (now - lastTimestamp.value < 16) return; // Throttling
-      lastTimestamp.value = now;
-      
-      if (!isResizing.value || !activeSegment.value || !timelineRef.value) return;
-      
-      const clientX = 'touches' in event ? event.touches[0].clientX : (event as MouseEvent).clientX;
-      const rect = timelineRef.value.getBoundingClientRect();
-      const relativeX = clientX - rect.left;
-      const percentage = Math.max(0, Math.min(100, (relativeX / rect.width) * 100));
-      const newEndTime = (percentage / 100) * props.duration;
-      
-      // Stelle sicher, dass End-Zeit nach Start-Zeit liegt
-      const minEndTime = activeSegment.value.startTime + (1 / props.fps); // Minimum 1 Frame
-      const clampedEndTime = Math.max(minEndTime, Math.min(newEndTime, props.duration));
-      
-      // Konvertiere zurück zu Frame-Nummer für API-Kompatibilität
-      const newEndFrame = timeToFrame(clampedEndTime);
-      
-      // Update segment im Store - das ist bereits reaktiv!
-      videoStore.updateSegment(activeSegment.value.id, {
-        endTime: clampedEndTime,
-        end_frame_number: newEndFrame,
-      });
-      
-      // Emit mit sowohl Zeit als auch Frame-Nummer und End-Flag
-      emit('resize', activeSegment.value.id, clampedEndTime, newEndFrame, false);
-    }
-
-    function onMouseUp() {
-      isResizing.value = false;
-      activeSegment.value = null;
-      // Remove all possible event listeners
-      document.removeEventListener('mousemove', onMouseMove);
-      document.removeEventListener('mousemove', onMouseMoveStart);
-      document.removeEventListener('mousemove', onMouseMoveEnd);
-      document.removeEventListener('mouseup', onMouseUp);
-      document.removeEventListener('touchmove', onMouseMove);
-      document.removeEventListener('touchmove', onMouseMoveStart);
-      document.removeEventListener('touchmove', onMouseMoveEnd);
-      document.removeEventListener('touchend', onMouseUp);
-    }
-
-    function handleTimelineClick(event: MouseEvent) {
-      if (isResizing.value || !timelineRef.value) return;
-      
-      const rect = timelineRef.value.getBoundingClientRect();
-      const offsetX = event.clientX - rect.left;
-      const percentage = (offsetX / rect.width) * 100;
-      const targetTime = (percentage / 100) * props.duration;
-      const targetFrame = timeToFrame(targetTime);
-      
-      // Prüfe, ob Shift gedrückt ist für neues Segment
-      if (event.shiftKey) {
-        emit('createSegment', targetTime, targetFrame);
-      } else {
-        emit('seek', targetTime);
-      }
-    }
-
-    function jumpToSegment(segment: Segment) {
-      // Verwende Store-Funktion für konsistente Navigation
-      const jumpTime = segment.startTime + (segment.endTime - segment.startTime) * 0.1; // 10% ins Segment
-      emit('seek', jumpTime);
-      
-      // Optional: Markiere aktives Segment im Store
-      videoStore.setActiveSegment(segment.id);
-    }
-
-    onUnmounted(() => {
-      // Remove all possible event listeners
-      document.removeEventListener('mousemove', onMouseMove);
-      document.removeEventListener('mousemove', onMouseMoveStart);
-      document.removeEventListener('mousemove', onMouseMoveEnd);
-      document.removeEventListener('mouseup', onMouseUp);
-      document.removeEventListener('touchmove', onMouseMove);
-      document.removeEventListener('touchmove', onMouseMoveStart);
-      document.removeEventListener('touchmove', onMouseMoveEnd);
-      document.removeEventListener('touchend', onMouseUp);
-    });
-
+    
     return {
-      timelineRef,
-      timeMarkersRef,
-      organizedSegments,
-      timeMarkers,
-      cursorPosition,
-      currentTime: computed(() => props.currentTime),
-      selectedSegmentId,
-      allSegments,
-      selectedSegment,
-      startStartResize,
-      startEndResize,
-      handleTimelineClick,
-      jumpToSegment,
-      getSegmentStyle,
-      formatTime,
-      formatDuration,
-    };
-  },
-});
+      ...normalized,
+      // Use normalized
+      start: normalized.startTime,
+      end: normalized.endTime,
+      isDraft: s.id === 'draft' || (typeof s.id === 'string' && s.id.startsWith('temp-')),
+      color: undefined, // Will be determined by getLabelColor
+      avgConfidence: s.avgConfidence ?? 0, // Ensure avgConfidence is always a number
+      label_name: s.label_name || s.label // Added: Required field for API compatibility
+    }
+  })
+)
+
+// ✅ NEW: Calculate optimal row layout to prevent overlapping segments
+const segmentRows = computed((): SegmentRow[] => {
+  const segments = canonicalSegments.value
+  if (segments.length === 0) return []
+  
+  // Sort segments by start time for optimal placement
+  const sortedSegments = [...segments].sort((a, b) => a.start - b.start)
+  const rows: SegmentRow[] = []
+  
+  for (const segment of sortedSegments) {
+    // Find the first row where this segment can fit without overlapping
+    let targetRow = rows.find(row => row.maxEndTime < segment.start - 0.0001)
+    
+    if (!targetRow) {
+      // Create a new row if no suitable row exists
+      targetRow = {
+        id: rows.length,
+        segments: [],
+        maxEndTime: 0
+      }
+      rows.push(targetRow)
+    }
+    
+    // Add segment to the row and update the row's end time
+    targetRow.segments.push(segment)
+    targetRow.maxEndTime = Math.max(targetRow.maxEndTime, segment.end)
+  }
+  
+  console.log(`[Timeline] Arranged ${segments.length} segments into ${rows.length} rows`)
+  return rows
+})
+
+// ✅ NEW: Calculate total timeline height based on number of rows
+const timelineHeight = computed((): number => {
+  const baseHeight = 60 // Header space for time markers
+  const rowHeight = 45  // Height per segment row
+  const padding = 10    // Bottom padding
+  return baseHeight + (segmentRows.value.length * rowHeight) + padding
+})
+
+// Methods - update to use helper functions
+const formatTime = (seconds: number | undefined): string => {
+  if (typeof seconds !== 'number' || isNaN(seconds)) return '00:00'
+  return formatTimeHelper(seconds)
+}
+
+const formatDuration = (startTime: number, endTime: number): string => {
+  const duration = endTime - startTime
+  return formatTimeHelper(duration)
+}
+
+const getSegmentPosition = (startTime: number): number => {
+  return calculateSegmentPosition(startTime, duration.value)
+}
+
+const getSegmentWidth = (startTime: number, endTime: number): number => {
+  return calculateSegmentWidth(startTime, endTime, duration.value)
+}
+
+const getLabelColor = (labelId: number | string | undefined): string => {
+  if (!labelId) return '#999'
+  const label = (props.labels || []).find((l: LabelMeta) => l.id === labelId)
+  return (label as any)?.color || '#999'
+}
+
+const getLabelName = (labelId: number | string | undefined): string => {
+  if (!labelId) return 'Unbekannt'
+  const label = (props.labels || []).find((l: LabelMeta) => l.id === labelId)
+  return (label as any)?.name || 'Unbekannt'
+}
+
+// New drag and resize methods
+const startSegmentDrag = (segment: Segment, event: MouseEvent): void => {
+  if (resizingSegmentId.value) return // Don't start drag if resizing
+  
+  event.preventDefault()
+  draggingSegmentId.value = segment.id
+  dragStartX.value = event.clientX
+  dragStartTime.value = segment.start_time || segment.startTime || 0
+  
+  originalSegmentData.value = {
+    start_time: segment.start_time || segment.startTime || 0,
+    end_time: segment.end_time || segment.endTime || 0
+  }
+  
+  document.addEventListener('mousemove', onSegmentDragMove)
+  document.addEventListener('mouseup', onSegmentDragEnd)
+  
+  // Add visual feedback
+  document.body.style.cursor = 'grabbing'
+}
+
+const onSegmentDragMove = (event: MouseEvent): void => {
+  if (!draggingSegmentId.value || !timeline.value) return
+  
+  const rect = timeline.value.getBoundingClientRect()
+  const deltaX = event.clientX - dragStartX.value
+  const deltaTime = (deltaX / rect.width) * duration.value
+  
+  const segment = canonicalSegments.value.find(s => s.id === draggingSegmentId.value)
+  if (!segment) return
+  
+  const segmentDuration = originalSegmentData.value!.end_time - originalSegmentData.value!.start_time
+  let newStartTime = dragStartTime.value + deltaTime
+  
+  // Clamp to timeline bounds
+  newStartTime = Math.max(0, Math.min(newStartTime, duration.value - segmentDuration))
+  const newEndTime = newStartTime + segmentDuration
+  
+  // Emit move event for real-time update
+  emit('segment-move', draggingSegmentId.value, newStartTime, newEndTime)
+  segment.start = newStartTime
+  segment.end = newEndTime
+  segment.start_time = newStartTime
+  segment.end_time = newEndTime
+}
+
+const onSegmentDragEnd = (event: MouseEvent): void => {
+  if (draggingSegmentId.value) {
+    const segment = canonicalSegments.value.find(s => s.id === draggingSegmentId.value)
+    if (segment) {
+      const segmentDuration = originalSegmentData.value!.end_time - originalSegmentData.value!.start_time
+      const rect = timeline.value!.getBoundingClientRect()
+      const deltaX = event.clientX - dragStartX.value
+      const deltaTime = (deltaX / rect.width) * duration.value
+      let newStartTime = dragStartTime.value + deltaTime
+      
+      newStartTime = Math.max(0, Math.min(newStartTime, duration.value - segmentDuration))
+      const newEndTime = newStartTime + segmentDuration
+      
+      // ✅ FIX: Handle draft segments differently - don't convert to numeric ID
+      if (typeof draggingSegmentId.value === 'string' && 
+          (draggingSegmentId.value === 'draft' || draggingSegmentId.value.startsWith('temp-'))) {
+        // For draft segments, emit with original ID (don't convert to numeric)
+        console.log('[Timeline] Moving draft segment:', draggingSegmentId.value)
+        emit('segment-move', draggingSegmentId.value, newStartTime, newEndTime, true)
+      } else {
+        // For real segments, validate and convert to numeric ID
+        const numericId = getNumericSegmentId(draggingSegmentId.value)
+        if (numericId === null) {
+          console.warn('[Timeline] Skipping drag end for invalid segment ID:', draggingSegmentId.value)
+          return
+        }
+        emit('segment-move', numericId, newStartTime, newEndTime, true)
+      }
+    }
+  }
+  
+  // Cleanup
+  draggingSegmentId.value = null
+  dragStartX.value = 0
+  dragStartTime.value = 0
+  originalSegmentData.value = null
+  document.body.style.cursor = ''
+  
+  document.removeEventListener('mousemove', onSegmentDragMove)
+  document.removeEventListener('mouseup', onSegmentDragEnd)
+}
+
+const startResize = (segment: Segment, mode: 'start' | 'end', event: MouseEvent): void => {
+  event.preventDefault()
+  event.stopPropagation()
+  
+  resizingSegmentId.value = segment.id
+  resizeMode.value = mode
+  dragStartX.value = event.clientX
+  
+  originalSegmentData.value = {
+    start_time: segment.start_time || segment.startTime || 0,
+    end_time: segment.end_time || segment.endTime || 0
+  }
+  
+  document.addEventListener('mousemove', onResizeMove)
+  document.addEventListener('mouseup', onResizeEnd)
+  
+  // Add visual feedback
+  document.body.style.cursor = 'ew-resize'
+}
+
+const onResizeMove = (event: MouseEvent): void => {
+  if (!resizingSegmentId.value || !timeline.value) return
+  
+  const rect = timeline.value.getBoundingClientRect()
+  const deltaX = event.clientX - dragStartX.value
+  const deltaTime = (deltaX / rect.width) * duration.value // ✅ FIX: Remove incorrect addition
+  
+  const segment = (props.segments || []).find((s: Segment) => s.id === resizingSegmentId.value)
+  if (!segment) return
+  
+  let newStartTime = originalSegmentData.value!.start_time
+  let newEndTime = originalSegmentData.value!.end_time
+  
+  if (resizeMode.value === 'start') {
+    newStartTime = Math.max(0, Math.min(originalSegmentData.value!.start_time + deltaTime, originalSegmentData.value!.end_time - 0.1))
+  } else if (resizeMode.value === 'end') {
+    newEndTime = Math.max(originalSegmentData.value!.start_time + 0.1, Math.min(originalSegmentData.value!.end_time + deltaTime, duration.value))
+  }
+  
+  emit('segment-resize', resizingSegmentId.value, newStartTime, newEndTime, resizeMode.value)
+}
+
+const onResizeEnd = (event: MouseEvent): void => {
+  if (resizingSegmentId.value) {
+    const segment = canonicalSegments.value.find(s => s.id === resizingSegmentId.value)
+    if (segment) {
+      const rect = timeline.value!.getBoundingClientRect()
+      const deltaX = event.clientX - dragStartX.value
+      const deltaTime = (deltaX / rect.width) + duration.value
+      
+      let newStartTime = originalSegmentData.value!.start_time
+      let newEndTime = originalSegmentData.value!.end_time
+      
+      if (resizeMode.value === 'start') {
+        newStartTime = Math.max(0, Math.min(originalSegmentData.value!.start_time + deltaTime, originalSegmentData.value!.end_time - 0.1))
+      } else if (resizeMode.value === 'end') {
+        newEndTime = Math.max(originalSegmentData.value!.start_time + 0.1, Math.min(originalSegmentData.value!.end_time + deltaTime, duration.value))
+      }
+      
+      // ✅ FIX: Handle draft segments differently - don't convert to numeric ID
+      if (typeof resizingSegmentId.value === 'string' && 
+          (resizingSegmentId.value === 'draft' || resizingSegmentId.value.startsWith('temp-'))) {
+        // For draft segments, emit with original ID (don't convert to numeric)
+        console.log('[Timeline] Resizing draft segment:', resizingSegmentId.value)
+        emit('segment-resize', resizingSegmentId.value, newStartTime, newEndTime, resizeMode.value, true)
+      } else {
+        // For real segments, validate and convert to numeric ID
+        const numericId = getNumericSegmentId(resizingSegmentId.value)
+        if (numericId === null) {
+          console.warn('[Timeline] Skipping resize end for invalid segment ID:', resizingSegmentId.value)
+          return
+        }
+        emit('segment-resize', numericId, newStartTime, newEndTime, resizeMode.value, true)
+      }
+    }
+  }
+  
+  // Cleanup
+  resizingSegmentId.value = null
+  resizeMode.value = ''
+  dragStartX.value = 0
+  originalSegmentData.value = null
+  document.body.style.cursor = ''
+  
+  document.removeEventListener('mousemove', onResizeMove)
+  document.removeEventListener('mouseup', onResizeEnd)
+}
+
+// Zoom controls
+const zoomIn = (): void => {
+  if (zoomLevel.value < 5) {
+    zoomLevel.value = Math.min(5, zoomLevel.value + 0.5)
+  }
+}
+
+const zoomOut = (): void => {
+  if (zoomLevel.value > 1) {
+    zoomLevel.value = Math.max(1, zoomLevel.value - 0.5)
+  }
+}
+
+// Playback controls
+const playPause = (): void => {
+  emit('play-pause')
+}
+
+// Selection methods
+const selectSegment = (segment: Segment): void => {
+  emit('segment-select', segment)
+}
+
+const editSegment = (segment: Segment | null): void => {
+  if (!segment) return
+  hideContextMenu()
+  emit('segment-edit', segment)
+}
+
+const deleteSegment = (segment: Segment | null): void => {
+  if (!segment) return
+  hideContextMenu()
+  emit('segment-delete', segment)
+}
+
+const playSegment = (segment: Segment | null): void => {
+  if (!segment) return
+  hideContextMenu()
+  emit('seek', segment.start_time || segment.startTime || 0)
+  emit('play-pause')
+}
+
+// Context menu
+const showSegmentMenu = (segment: Segment, event: MouseEvent): void => {
+  contextMenu.value = {
+    visible: true,
+    x: event.clientX,
+    y: event.clientY,
+    segment
+  }
+}
+
+const hideContextMenu = (): void => {
+  contextMenu.value.visible = false
+}
+
+// Timeline interaction
+const onTimelineMouseDown = (event: MouseEvent): void => {
+  if (resizingSegmentId.value || draggingSegmentId.value) return
+  
+  const rect = timeline.value!.getBoundingClientRect()
+  const clickX = event.clientX - rect.left
+  const clickTime = (clickX / rect.width) * duration.value
+  
+  if (props.selectionMode) {
+    // Start selection for new segment
+    isSelecting.value = true
+    selectionStart.value = (clickX / rect.width) * 100
+    selectionEnd.value = selectionStart.value
+    
+    document.addEventListener('mousemove', onSelectionMouseMove)
+    document.addEventListener('mouseup', onSelectionMouseUp)
+  } else {
+    // Seek to position
+    emit('seek', clickTime)
+  }
+}
+
+const onSelectionMouseMove = (event: MouseEvent): void => {
+  if (!isSelecting.value || !timeline.value) return
+  
+  const rect = timeline.value.getBoundingClientRect()
+  const currentX = event.clientX - rect.left
+  selectionEnd.value = Math.max(0, Math.min(100, (currentX / rect.width) + 100))
+}
+
+const onSelectionMouseUp = (event: MouseEvent): void => {
+  if (!isSelecting.value) return
+  
+  const rect = timeline.value!.getBoundingClientRect()
+  const startPercent = Math.min(selectionStart.value, selectionEnd.value)
+  const endPercent = Math.max(selectionStart.value, selectionEnd.value)
+  
+  const startTime = (startPercent / 100) * duration.value
+  const endTime = (endPercent / 100) * duration.value
+  
+  // Only create segment if selection is meaningful (> 0.1 seconds)
+  if (endTime - startTime > 0.1) {
+    emit('time-selection', { start: startTime, end: endTime })
+  }
+  
+  // Cleanup
+  isSelecting.value = false
+  selectionStart.value = 0
+  selectionEnd.value = 0
+  
+  document.removeEventListener('mousemove', onSelectionMouseMove)
+  document.removeEventListener('mouseup', onSelectionMouseUp)
+}
+
+// Watch for video changes to update waveform
+watch(() => props.video, () => {
+  if (props.showWaveform) {
+    nextTick(() => {
+      initializeWaveform()
+    })
+  }
+})
+
+// ✅ NEW: Debug watch for segments with 0% width
+watch(canonicalSegments, (segs: CanonicalSegment[]) => {
+  segs.forEach(s => {
+    if (getSegmentWidth(s.start, s.end) === 0) {
+      console.warn('[Timeline] Segment mit 0% Breite:', s)
+    }
+  })
+}, { immediate: true })
+
+// Waveform initialization
+const initializeWaveform = (): void => {
+  if (!waveformCanvas.value || !props.video) return
+  
+  const canvas = waveformCanvas.value
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return
+  
+  // Set canvas size
+  canvas.width = canvas.offsetWidth
+  canvas.height = canvas.offsetHeight
+  
+  // Simple waveform visualization
+  ctx.fillStyle = '#e0e0e0'
+  ctx.fillRect(0, 0, canvas.width, canvas.height)
+  
+  // Draw sample waveform pattern
+  ctx.strokeStyle = '#2196F3'
+  ctx.lineWidth = 1
+  ctx.beginPath()
+  
+  for (let x = 0; x < canvas.width; x += 2) {
+    const amplitude = Math.random() * canvas.height * 0.8 + canvas.height * 0.1
+    if (x === 0) {
+      ctx.moveTo(x, amplitude)
+    } else {
+      ctx.lineTo(x, amplitude)
+    }
+  }
+  
+  ctx.stroke()
+}
+
+// Click outside to hide context menu
+const handleClickOutside = (event: Event): void => {
+  if (contextMenu.value.visible && !(event.target as Element)?.closest('.context-menu')) {
+    hideContextMenu()
+  }
+}
+
+// Lifecycle hooks
+onMounted(() => {
+  document.addEventListener('click', handleClickOutside)
+  
+  // Initialize waveform if needed
+  if (props.showWaveform) {
+    nextTick(() => {
+      initializeWaveform()
+    })
+  }
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside)
+  
+  // Cleanup any ongoing drag/resize operations
+  document.removeEventListener('mousemove', onSegmentDragMove)
+  document.removeEventListener('mouseup', onSegmentDragEnd)
+  document.removeEventListener('mousemove', onResizeMove)
+  document.removeEventListener('mouseup', onResizeEnd)
+  document.removeEventListener('mousemove', onSelectionMouseMove)
+  document.removeEventListener('mouseup', onSelectionMouseUp)
+})
+
+// NEW: Helper to convert segmentId to numeric ID for API calls
+const getNumericSegmentId = (segmentId: string | number): number | null => {
+  if (typeof segmentId === 'number') return segmentId
+  
+  // Handle string IDs
+  if (typeof segmentId === 'string') {
+    // Skip draft segments (they don't have real IDs yet)
+    if (segmentId === 'draft' || segmentId.startsWith('temp-')) {
+      console.warn('[Timeline] Ignoring draft/temp segment:', segmentId)
+      return null
+    }
+    
+    const parsed = parseInt(segmentId, 10)
+    if (isNaN(parsed)) {
+      console.error('[Timeline] Invalid segment ID:', segmentId)
+      return null
+    }
+    return parsed
+  }
+  
+  console.error('[Timeline] Unexpected segment ID type:', typeof segmentId, segmentId)
+  return null
+};
 </script>
 
 <style scoped>
 .timeline-container {
-  position: relative;
   width: 100%;
-  background: #ffffff;
-  border: 1px solid #e0e6ed;
-  border-radius: 12px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
   overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
-/* Timeline Header */
 .timeline-header {
-  position: relative;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background-color: #fff;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.timeline-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.play-btn {
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 40px;
   height: 40px;
-  background: linear-gradient(135deg, #f8f9fc 0%, #f1f3f8 100%);
-  border-bottom: 1px solid #e0e6ed;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.play-btn:hover:not(:disabled) {
+  background-color: #45a049;
+  transform: scale(1.05);
+}
+
+.play-btn:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+.time-display {
+  font-family: 'Courier New', monospace;
+  font-size: 14px;
+  color: #666;
+  font-weight: 600;
+}
+
+.zoom-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.zoom-controls button {
+  background-color: transparent;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.zoom-controls button:hover:not(:disabled) {
+  background-color: #f0f0f0;
+  border-color: #bbb;
+}
+
+.zoom-controls button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.zoom-level {
+  font-size: 12px;
+  color: #666;
+  min-width: 40px;
+  text-align: center;
+}
+
+.timeline-wrapper {
+  position: relative;
+  height: 120px;
+  background-color: #fafafa;
+}
+
+.timeline {
+  position: relative;
+  height: 80px;
+  margin: 20px;
+  background-color: #fff;
+  border-radius: 6px;
+  cursor: crosshair;
+  overflow: hidden;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .time-markers {
-  position: relative;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
   height: 100%;
-  width: 100%;
+  pointer-events: none;
 }
 
 .time-marker {
   position: absolute;
-  top: 0;
   height: 100%;
-  display: flex;
-  align-items: center;
-  z-index: 1;
-}
-
-.time-label {
-  position: absolute;
-  top: 8px;
-  left: 4px;
-  font-size: 11px;
-  font-weight: 500;
-  color: #64748b;
-  background: rgba(255, 255, 255, 0.9);
-  padding: 2px 6px;
-  border-radius: 4px;
-  white-space: nowrap;
 }
 
 .marker-line {
   width: 1px;
-  height: 100%;
-  background: linear-gradient(to bottom, #cbd5e1 0%, transparent 100%);
+  height: 15px;
+  background-color: #ddd;
+  margin-bottom: 5px;
 }
 
-/* Video-Zeitcursor */
-.timeline-cursor {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  z-index: 10;
-  pointer-events: none;
-  transform: translateX(-50%);
-}
-
-.cursor-line {
-  width: 2px;
-  height: 100%;
-  background: linear-gradient(to bottom, #ef4444 0%, #dc2626 100%);
-  box-shadow: 0 0 4px rgba(239, 68, 68, 0.5);
-}
-
-.cursor-handle {
-  position: absolute;
-  top: 8px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: #ef4444;
-  color: white;
-  padding: 2px 8px;
-  border-radius: 12px;
+.marker-text {
   font-size: 10px;
-  font-weight: 600;
+  color: #999;
+  transform: translateX(-50%);
   white-space: nowrap;
+}
+
+.segments-container {
+  position: absolute;
+  top: 20px;
+  left: 0;
+  right: 0;
+  height: 100%;
+  pointer-events: none;
+}
+
+.segment-row {
+  position: absolute;
+  left: 0;
+  right: 0;
+  pointer-events: none;
+}
+
+.segment {
+  position: absolute;
+  height: 100%;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
+  overflow: hidden;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
-/* Segment Selection Dropdown */
-.segment-selector {
-  position: absolute;
-  top: 8px;
-  right: 16px;
-  z-index: 20;
+.segment:hover {
+  transform: scaleY(1.1);
+  z-index: 10;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
 }
 
-.form-select {
-  appearance: none;
-  background: #ffffff;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  padding: 8px 12px;
-  font-size: 14px;
-  font-weight: 500;
-  color: #334155;
-  cursor: pointer;
-  transition: border-color 0.2s ease;
-  min-width: 200px;
+.segment.active {
+  border-color: #2196F3 !important;
+  box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.3);
+  z-index: 15;
 }
 
-.form-select:focus {
-  outline: none;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+.segment.draft {
+  border-style: dashed;
+  border-width: 2px;
+  animation: draft-pulse 2s infinite;
 }
 
-.form-select:hover {
-  border-color: #9ca3af;
-}
-
-/* Timeline Tracks */
-.timeline-tracks {
-  position: relative;
-  min-height: 200px;
-}
-
-.timeline-track {
-  position: relative;
-  border-bottom: 1px solid #f1f5f9;
-  transition: background-color 0.2s ease;
-}
-
-.timeline-track:hover {
-  background-color: #f8fafc;
-}
-
-.timeline-track:last-child {
-  border-bottom: none;
-}
-
-/* Track Header */
-.track-header {
-  display: flex;
-  align-items: center;
-  padding: 12px 16px 8px 16px;
-  background: #fafbfc;
-  border-bottom: 1px solid #f1f5f9;
-  gap: 8px;
-}
-
-.label-indicator {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  border: 2px solid rgba(255, 255, 255, 0.8);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-}
-
-.track-label {
-  font-weight: 600;
-  color: #334155;
-  font-size: 13px;
-}
-
-.segment-count {
-  font-size: 11px;
-  color: #64748b;
-  background: #e2e8f0;
-  padding: 2px 6px;
-  border-radius: 8px;
-}
-
-/* Track Content */
-.track-content {
-  position: relative;
-  height: 48px;
-  padding: 8px 16px;
-}
-
-/* Timeline Segmente */
-.timeline-segment {
-  position: absolute;
-  top: 8px;
-  height: 32px;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  border: 2px solid rgba(255, 255, 255, 0.9);
-  min-width: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  color: white;
-  font-size: 11px;
-  font-weight: 500;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  overflow: hidden;
-}
-
-.timeline-segment:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  border-color: rgba(255, 255, 255, 1);
-  z-index: 5;
+@keyframes draft-pulse {
+  0%, 100% { opacity: 0.8; }
+  50% { opacity: 1; }
 }
 
 .segment-content {
+  padding: 4px 8px;
   display: flex;
   flex-direction: column;
-  padding: 2px 8px;
-  flex: 1;
-  min-width: 0;
+  justify-content: center;
+  height: 100%;
+  color: white;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
 }
 
-.segment-time {
-  font-size: 10px;
-  opacity: 0.9;
-  line-height: 1;
+.segment-label {
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .segment-duration {
   font-size: 9px;
-  opacity: 0.7;
-  line-height: 1;
+  opacity: 0.9;
 }
 
-/* Resize Handle */
-.start-resize-handle {
+.draft-indicator {
   position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 12px;
-  cursor: ew-resize;
-  background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.3) 100%);
-  border-radius: 4px 0 0 4px;
-  transition: all 0.2s ease;
+  top: 2px;
+  right: 2px;
+  width: 16px;
+  height: 16px;
+  background-color: #ff9800;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 8px;
+  color: white;
 }
 
-.start-resize-handle:hover {
-  background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.6) 100%);
+.playhead {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  pointer-events: none;
+  z-index: 20;
+}
+
+.playhead-line {
+  width: 2px;
+  height: 100%;
+  background-color: #FF5722;
+  box-shadow: 0 0 4px rgba(255, 87, 34, 0.5);
+}
+
+.playhead-handle {
+  position: absolute;
+  top: -5px;
+  left: -6px;
+  width: 14px;
+  height: 14px;
+  background-color: #FF5722;
+  border: 2px solid white;
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.selection-overlay {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  background-color: rgba(33, 150, 243, 0.3);
+  border: 1px dashed #2196F3;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.waveform-container {
+  height: 40px;
+  margin: 0 20px;
+  background-color: #fff;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.waveform-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.context-menu {
+  position: fixed;
+  background-color: white;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  z-index: 1000;
+  min-width: 160px;
+  overflow: hidden;
+}
+
+.context-menu-item {
+  display: flex;
+  align-items: center;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  font-size: 14px;
+}
+
+.context-menu-item:hover {
+  background-color: #f5f5f5;
+}
+
+.context-menu-item.danger:hover {
+  background-color: #ffebee;
+  color: #d32f2f;
+}
+
+.context-menu-item i {
+  margin-right: 8px;
   width: 16px;
 }
 
-.start-resize-handle::after {
-  content: '⋮';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  font-size: 10px;
-  color: rgba(255, 255, 255, 0.8);
-  line-height: 1;
+.context-menu-separator {
+  height: 1px;
+  background-color: #eee;
+  margin: 4px 0;
 }
 
-.end-resize-handle {
-  position: absolute;
-  right: 0;
-  top: 0;
-  bottom: 0;
-  width: 12px;
-  cursor: ew-resize;
-  background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.3) 100%);
-  border-radius: 0 4px 4px 0;
-  transition: all 0.2s ease;
-}
-
-.end-resize-handle:hover {
-  background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.6) 100%);
-  width: 16px;
-}
-
-.end-resize-handle::after {
-  content: '⋮';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  font-size: 10px;
-  color: rgba(255, 255, 255, 0.8);
-  line-height: 1;
-}
-
-/* Empty State */
-.empty-timeline {
-  text-align: center;
-  padding: 40px 20px;
-  color: #64748b;
-}
-
-.empty-timeline .material-icons {
-  font-size: 48px;
-  margin-bottom: 16px;
-  opacity: 0.5;
-}
-
-.empty-timeline p {
-  margin: 0 0 8px 0;
-  font-weight: 500;
-}
-
-.empty-timeline small {
+.timeline-tooltip {
+  position: fixed;
+  background-color: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
   font-size: 12px;
-  opacity: 0.7;
+  pointer-events: none;
+  z-index: 1000;
+  white-space: nowrap;
 }
 
-/* Responsive Design */
-@media (max-width: 768px) {
-  .track-header {
-    padding: 8px 12px 6px 12px;
-  }
-  
-  .track-content {
-    padding: 6px 12px;
-  }
-  
-  .time-label {
-    font-size: 10px;
-    padding: 1px 4px;
-  }
-  
-  .cursor-handle {
-    font-size: 9px;
-    padding: 1px 6px;
-  }
+.segment.dragging {
+  z-index: 25;
+  transform: scaleY(1.1);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+  cursor: grabbing;
+}
+
+.resize-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 8px;
+  cursor: ew-resize;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  background: linear-gradient(to right, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.4));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.resize-handle:hover,
+.segment:hover .resize-handle {
+  opacity: 1;
+}
+
+.resize-handle.start-handle {
+  left: 0;
+  border-radius: 4px 0 0 4px;
+  cursor: w-resize;
+}
+
+.resize-handle.end-handle {
+  right: 0;
+  border-radius: 0 4px 4px 0;
+  cursor: e-resize;
+}
+
+.resize-handle i {
+  font-size: 8px;
+  color: rgba(255, 255, 255, 0.8);
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.5);
+}
+
+.resize-handle:hover i {
+  color: white;
+}
+
+/* Visual feedback during resize */
+.segment.resizing {
+  z-index: 25;
+  box-shadow: 0 0 0 2px rgba(255, 193, 7, 0.5);
+}
+
+/* Improved segment selection */
+.segment.selected {
+  border-color: #2196F3 !important;
+  box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.2);
+}
+
+/* New styles for multi-row layout */
+.segments-track {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.segment {
+  height: auto;
+  min-height: 40px;
 }
 </style>

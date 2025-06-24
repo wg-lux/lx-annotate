@@ -70,78 +70,37 @@ declare const _default: import("vue").DefineComponent<{}, {}, {
     getCsrfToken(): string | null;
 }, import("vue").ComponentOptionsMixin, import("vue").ComponentOptionsMixin, {}, string, import("vue").PublicProps, Readonly<{}> & Readonly<{}>, {}, {}, {
     SimpleExaminationForm: import("vue").DefineComponent<Record<string, unknown>, unknown, unknown>;
-    Timeline: import("vue").DefineComponent<import("vue").ExtractPropTypes<{
-        duration: {
-            type: NumberConstructor;
-            required: true;
-        };
-        currentTime: {
-            type: NumberConstructor;
-            default: number;
-        };
-        segments: {
-            type: import("vue").PropType<import("@/stores/videoStore").Segment[]>;
-            default: () => never[];
-        };
-        apiSegments: {
-            type: import("vue").PropType<import("../../types/timeline.js").ApiSegment[]>;
-            default: () => never[];
-        };
-        fps: {
-            type: NumberConstructor;
-            default: number;
-        };
-    }>, {
-        timelineRef: import("vue").Ref<HTMLElement | null, HTMLElement | null>;
-        timeMarkersRef: import("vue").Ref<HTMLElement | null, HTMLElement | null>;
-        organizedSegments: import("vue").ComputedRef<import("../../types/timeline.js").LabelGroup[]>;
-        timeMarkers: import("vue").ComputedRef<import("../../types/timeline.js").TimeMarker[]>;
-        cursorPosition: import("vue").ComputedRef<number>;
-        currentTime: import("vue").ComputedRef<number>;
-        selectedSegmentId: import("vue").Ref<number | null, number | null>;
-        allSegments: import("vue").ComputedRef<import("@/stores/videoStore").Segment[]>;
-        selectedSegment: import("vue").ComputedRef<import("@/stores/videoStore").Segment | null>;
-        startResize: (segment: import("@/stores/videoStore").Segment, event: MouseEvent | TouchEvent) => void;
-        handleTimelineClick: (event: MouseEvent) => void;
-        jumpToSegment: (segment: import("@/stores/videoStore").Segment) => void;
-        getSegmentStyle: (segment: import("@/stores/videoStore").Segment, color: string) => {
-            left: string;
-            width: string;
-            backgroundColor: string;
-            borderColor: string;
-        };
-        formatTime: (seconds: number) => string;
-        formatDuration: (seconds: number) => string;
-    }, {}, {}, {}, import("vue").ComponentOptionsMixin, import("vue").ComponentOptionsMixin, ("resize" | "createSegment" | "seek")[], "resize" | "createSegment" | "seek", import("vue").PublicProps, Readonly<import("vue").ExtractPropTypes<{
-        duration: {
-            type: NumberConstructor;
-            required: true;
-        };
-        currentTime: {
-            type: NumberConstructor;
-            default: number;
-        };
-        segments: {
-            type: import("vue").PropType<import("@/stores/videoStore").Segment[]>;
-            default: () => never[];
-        };
-        apiSegments: {
-            type: import("vue").PropType<import("../../types/timeline.js").ApiSegment[]>;
-            default: () => never[];
-        };
-        fps: {
-            type: NumberConstructor;
-            default: number;
-        };
-    }>> & Readonly<{
-        onResize?: ((...args: any[]) => any) | undefined;
-        onCreateSegment?: ((...args: any[]) => any) | undefined;
-        onSeek?: ((...args: any[]) => any) | undefined;
-    }>, {
-        segments: import("@/stores/videoStore").Segment[];
-        currentTime: number;
-        apiSegments: import("../../types/timeline.js").ApiSegment[];
-        fps: number;
-    }, {}, {}, {}, string, import("vue").ComponentProvideOptions, true, {}, any>;
+    Timeline: import("vue").DefineComponent<{
+        video?: {
+            duration?: number | undefined;
+        } | null | undefined;
+        segments?: import("@/stores/videoStore").Segment[] | undefined;
+        labels?: import("@/stores/videoStore").LabelMeta[] | undefined;
+        currentTime?: number | undefined;
+        isPlaying?: boolean | undefined;
+        activeSegmentId?: string | number | null | undefined;
+        showWaveform?: boolean | undefined;
+        selectionMode?: boolean | undefined;
+        fps?: number | undefined;
+    }, {}, {}, {}, {}, import("vue").ComponentOptionsMixin, import("vue").ComponentOptionsMixin, {
+        [x: string]: any;
+    }, string, import("vue").PublicProps, Readonly<{
+        video?: {
+            duration?: number | undefined;
+        } | null | undefined;
+        segments?: import("@/stores/videoStore").Segment[] | undefined;
+        labels?: import("@/stores/videoStore").LabelMeta[] | undefined;
+        currentTime?: number | undefined;
+        isPlaying?: boolean | undefined;
+        activeSegmentId?: string | number | null | undefined;
+        showWaveform?: boolean | undefined;
+        selectionMode?: boolean | undefined;
+        fps?: number | undefined;
+    }> & Readonly<{
+        [x: `on${Capitalize<any>}`]: ((...args: any) => any) | undefined;
+    }>, {}, {}, {}, {}, string, import("vue").ComponentProvideOptions, false, {
+        timeline: HTMLDivElement;
+        waveformCanvas: HTMLCanvasElement;
+    }, HTMLDivElement>;
 }, {}, string, import("vue").ComponentProvideOptions, true, {}, any>;
 export default _default;

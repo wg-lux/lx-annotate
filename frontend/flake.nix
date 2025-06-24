@@ -17,7 +17,9 @@
         nodejs_22
         yarn
         nodePackages_latest.gulp
+        nodePackages_latest.typescript
         vite
+        stdenv
 
       ];
 
@@ -35,7 +37,7 @@
       };
 
       # Default package definition
-      defaultPackage = pkgs.mkDerivation {
+      defaultPackage = pkgs.stdenv.mkDerivation {
         name = "lx-annotate";
         src = ./lx-annotate;
 

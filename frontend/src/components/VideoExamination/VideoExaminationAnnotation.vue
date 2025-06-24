@@ -60,13 +60,20 @@
             <!-- Enhanced Timeline Component -->
             <div v-if="duration > 0" class="timeline-wrapper mt-3">
               <Timeline 
-                :duration="duration"
+                :video="{ duration }"
+                :segments="mappedTimelineSegments"
+                :labels="timelineLabels"
                 :current-time="currentTime"
-                :segments="timelineSegments"
+                :is-playing="false"
+                :active-segment-id="selectedSegmentId"
+                :show-waveform="false"
+                :selection-mode="true"
                 :fps="fps"
                 @seek="handleTimelineSeek"
-                @resize="handleSegmentResize"
-                @createSegment="handleCreateSegment"
+                @segment-resize="handleSegmentResize"
+                @segment-move="handleSegmentMove"
+                @segment-create="handleCreateSegment"
+                @time-selection="handleCreateSegment"
               />
               
               <!-- Simple progress bar as fallback -->
@@ -87,18 +94,22 @@
             <!-- Debug-Info für Timeline -->
             <div v-if="duration > 0" class="debug-info mt-2">
               <small class="text-muted">
-                Timeline Debug: {{ timelineSegments.length }} Segmente geladen | 
+                Timeline Debug: {{ rawSegments.length }} Segmente geladen | 
                 Duration: {{ formatTime(duration) }} | 
                 Store: {{ Object.keys(groupedSegments).length }} Labels
               </small>
             </div>
 
-            <!-- Timeline Controls - Fix: Bedingungen überprüfen -->
+            <!-- Timeline Controls -->
             <div v-if="selectedVideoId" class="timeline-controls mt-4">
               <div class="d-flex align-items-center gap-3">
                 <div class="d-flex align-items-center">
                   <label class="form-label mb-0 me-2">Neues Label setzen:</label>
-                  <select v-model="selectedLabelType" class="form-select form-select-sm control-select">
+                  <select 
+                    v-model="selectedLabelType" 
+                    @change="onLabelSelect"
+                    class="form-select form-select-sm control-select"
+                  >
                     <option value="">Label auswählen...</option>
                     <option value="appendix">Appendix</option>
                     <option value="blood">Blut</option>
@@ -151,12 +162,17 @@
                 </span>
               </div>
               
-              <!-- Label-Info während Marking -->
-              <div v-if="isMarkingLabel" class="alert alert-info mt-2 mb-0">
+              <!-- Draft-Info während Label-Erstellung -->
+              <div v-if="videoStore.draftSegment" class="alert alert-info mt-2 mb-0">
                 <small>
                   <i class="material-icons align-middle me-1" style="font-size: 16px;">info</i>
-                  Label "{{ getTranslationForLabel(selectedLabelType) }}" wird erstellt von 
-                  {{ formatTime(labelMarkingStart) }} bis zur aktuellen Position.
+                  Label "{{ getTranslationForLabel(videoStore.draftSegment.label) }}" 
+                  <span v-if="videoStore.draftSegment.end">
+                    von {{ formatTime(videoStore.draftSegment.start) }} bis {{ formatTime(videoStore.draftSegment.end) }}
+                  </span>
+                  <span v-else>
+                    startet bei {{ formatTime(videoStore.draftSegment.start) }} - Ende beim nächsten Klick
+                  </span>
                 </small>
               </div>
             </div>
@@ -226,607 +242,504 @@
   </div>
 </template>
 
-<script>
-import { useVideoStore } from '@/stores/videoStore';
-import SimpleExaminationForm from './SimpleExaminationForm.vue';
-import axiosInstance, { r } from '@/api/axiosInstance';
-import Timeline from '@/components/EndoAI/Timeline.vue';
-import { storeToRefs } from 'pinia';
+<script setup lang="ts">
+import { ref, computed, onMounted, nextTick } from 'vue'
+import { useVideoStore } from '@/stores/videoStore'
+import SimpleExaminationForm from './SimpleExaminationForm.vue'
+import axiosInstance, { r } from '@/api/axiosInstance'
+import Timeline from '@/components/EndoAI/Timeline.vue'
+import { storeToRefs } from 'pinia'
+
+// Type definitions
+interface Video {
+  id: number
+  center_name?: string
+  processor_name?: string
+  original_file_name?: string
+  status?: string
+  video_url?: string
+  [key: string]: any
+}
+
+interface ExaminationMarker {
+  id: string
+  timestamp: number
+  examination_data?: any
+}
+
+interface SavedExamination {
+  id: number
+  timestamp: number
+  examination_type?: string
+  data?: any
+}
+
+interface SegmentResizeEvent {
+  segmentId: string
+  newStart: number
+  newEnd: number
+}
+
+interface CreateSegmentEvent {
+  label: string
+  start: number
+  end: number
+}
+
+// Add interface for Timeline-compatible Segment
+interface Segment {
+  id: string | number;
+  label: string;
+  label_name: string; // Required: For API compatibility
+  label_display: string;
+  name: string; // <‑‑ NEW ➜ shown inside pill
+  startTime: number;     // ✅ Timeline expects this field name
+  endTime: number;       // ✅ Timeline expects this field name
+  start_time: number;    // Required: API field
+  end_time: number;      // Required: API field
+  avgConfidence: number;
+  video_id?: number;
+  label_id?: number;
+}
+
+// Store setup
+const videoStore = useVideoStore()
+const { allSegments: rawSegments } = storeToRefs(videoStore)
+
+const mappedTimelineSegments = computed<Segment[]>(() =>
+  rawSegments.value.map((s): Segment => ({
+    id: s.id,
+    label: s.label,
+    label_name: s.label_name || s.label,
+    label_display: getTranslationForLabel(s.label),
+    name: getTranslationForLabel(s.label),   // <‑‑ NEW ➜ shown inside pill
+    startTime: s.startTime ?? s.start_time ?? 0,
+    endTime:   s.endTime   ?? s.end_time   ?? 0,
+
+    // API copies (snake_case) – used by the backend endpoints
+    start_time: s.startTime ?? s.start_time ?? 0,
+    end_time:   s.endTime   ?? s.end_time   ?? 0,
+
+    avgConfidence: s.avgConfidence ?? 1,
+    video_id: selectedVideoId.value ?? undefined,
+    label_id: s.label_id 
+              ?? timelineLabels.value.find(l => l.name === s.label_name)?.id
+              ?? undefined
+  }))
+)
+
+// ✅ FIX: Use spread operator to convert readonly array to mutable array
+const timelineLabels = computed(() => {
+  const storeLabels = videoStore.videoList?.labels || []
+  return [...storeLabels] // Convert readonly array to mutable array
+})
 
 
-export default {
-  name: 'VideoExaminationAnnotation',
-  components: {
-    SimpleExaminationForm,
-    Timeline
-  },
-  setup() {
-    const videoStore = useVideoStore();
-    // Reaktive Referenzen vom Store
-    const { allSegments: timelineSegments } = storeToRefs(videoStore);
+
+// Reactive data
+const videos = ref<Video[]>([])
+const selectedVideoId = ref<number | null>(null)
+const currentTime = ref<number>(0)
+const duration = ref<number>(0)
+const fps = ref<number>(50)
+const examinationMarkers = ref<ExaminationMarker[]>([])
+const savedExaminations = ref<SavedExamination[]>([])
+const currentMarker = ref<ExaminationMarker | null>(null)
+const selectedLabelType = ref<string>('')
+const isMarkingLabel = ref<boolean>(false)
+const labelMarkingStart = ref<number>(0)
+const selectedSegmentId = ref<string | number | null>(null)
+
+// Template refs
+const videoRef = ref<HTMLVideoElement | null>(null)
+const timelineRef = ref<HTMLElement | null>(null)
+
+// Computed properties
+const currentVideoUrl = computed(() => {
+  const video = videos.value.find(v => v.id === selectedVideoId.value)
+  if (!video) return ''
+  
+  // Use the dedicated streaming endpoint from urls.py
+  return video.video_url || `/api/videostream/${video.id}/`
+})
+
+const showExaminationForm = computed(() => {
+  return selectedVideoId.value !== null && currentVideoUrl.value !== ''
+})
+
+const hasVideos = computed(() => {
+  return videos.value && videos.value.length > 0
+})
+
+const noVideosMessage = computed(() => {
+  return videos.value.length === 0 ? 
+    'Keine Videos verfügbar. Bitte laden Sie zuerst Videos hoch.' : 
+    ''
+})
+
+const groupedSegments = computed(() => {
+  return videoStore.segmentsByLabel
+})
+
+const canStartLabeling = computed(() => {
+  return selectedVideoId.value && 
+         currentVideoUrl.value && 
+         selectedLabelType.value && 
+         !isMarkingLabel.value &&
+         duration.value > 0
+})
+
+
+// Methods
+const loadVideos = async (): Promise<void> => {
+  try {
+    console.log('Loading videos from API...')
+    const response = await axiosInstance.get(r('videos/'))
+    console.log('Videos API response:', response.data)
     
-    return {
-      videoStore,
-      timelineSegments
-    };
-  },
-  data() {
-    return {
-      videos: [],
-      selectedVideoId: null,
-      currentTime: 0,
-      duration: 0,
-      fps: 30, // Default FPS, should be loaded from video metadata
-      examinationMarkers: [],
-      savedExaminations: [],
-      currentMarker: null,
-      selectedLabelType: '',
-      isMarkingLabel: false,
-      labelMarkingStart: 0,
-      // Entfernt: labelSegments - jetzt aus Store
-      currentLabel: null, // Current selected label object
-      isMarking: false, // Tracking if currently marking
-      markingStartTime: null, // Start time for marking
-      videoId: null // Current video ID for API calls
-    };
-  },
-  computed: {
-    currentVideoUrl() {
-      const video = this.videos.find(v => v.id === this.selectedVideoId);
-      if (!video) return '';
-      
-      // Fix: Use 'video_url' field from the API response instead of incorrect field names
-      return video.video_url || '';
-    },
-    showExaminationForm() {
-      // Only show form if video is selected AND has a valid URL
-      return this.selectedVideoId !== null && this.currentVideoUrl !== '';
-    },
-    hasVideos() {
-      return this.videos && this.videos.length > 0;
-    },
-    noVideosMessage() {
-      return this.videos.length === 0 ? 
-        'Keine Videos verfügbar. Bitte laden Sie zuerst Videos hoch.' : 
-        '';
-    },
-    groupedSegments() {
-      return this.videoStore.segmentsByLabel;
-    },
-    labelButtonText() {
-      return this.isMarkingLabel ? 'Label-Ende setzen' : 'Label-Start setzen';
-    },
-    canStartLabeling() {
-      return this.selectedVideoId && 
-             this.currentVideoUrl && 
-             this.selectedLabelType && 
-             !this.isMarkingLabel &&
-             this.duration > 0;
-    },
-    canFinishLabeling() {
-      return this.isMarkingLabel;
-    },
-    currentTimePosition() {
-      return this.duration > 0 ? (this.currentTime / this.duration) * 100 : 0;
-    },
-    timelineMarkers() {
-      // Verwende Store-Segmente statt lokale Kopie
-      return this.timelineSegments.map(segment => ({
-        time: segment.startTime,
-        position: this.duration > 0 ? (segment.startTime / this.duration) * 100 : 0
-      }));
+    // API returns {videos: [...], labels: [...]} structure
+    const videosData = response.data.videos || response.data || []
+    
+    // Ensure IDs are numbers and add missing fields
+    videos.value = videosData.map((v: any): Video => ({ 
+      ...v, 
+      id: Number(v.id),
+      center_name: v.center_name || v.original_file_name || 'Unbekannt',
+      processor_name: v.processor_name || v.status || 'Unbekannt',
+      video_url: `/api/videostream/${v.id}/`
+    }))
+    
+    if (videos.value.length > 0) {
+      console.log('First video structure after processing:', videos.value[0])
     }
-    // Entfernt: convertedTimelineSegments - direkt timelineSegments verwenden
-  },
-  methods: {
-    async loadVideos() {
-      try {
-        console.log('Loading videos from API...');
-        const response = await axiosInstance.get(r('videos/'));
-        console.log('Videos API response:', response.data);
-        
-        // Fix: API returns {videos: [...], labels: [...]} structure
-        const videosData = response.data.videos || response.data || [];
-        
-        // Ensure IDs are numbers and add missing fields
-        this.videos = videosData.map(v => ({ 
-          ...v, 
-          id: Number(v.id),
-          // Add fallback fields for display
-          center_name: v.center_name || v.original_file_name || 'Unbekannt',
-          processor_name: v.processor_name || v.status || 'Unbekannt',
-          // Use the dedicated streaming endpoint from urls.py
-          video_url: `/api/videostream/${v.id}/`
-        }));
-        
-        // Log the structure of the first video to help debug
-        if (this.videos.length > 0) {
-          console.log('First video structure after processing:', this.videos[0]);
-        }
-      } catch (error) {
-        console.error('Error loading videos:', error);
-        // Set empty array as fallback
-        this.videos = [];
-      }
-    },
-    async loadSavedExaminations() {
-      if (this.selectedVideoId === null) return;
-      
-      try {
-        const response = await axiosInstance.get(r(`video/${this.selectedVideoId}/examinations/`));
-        this.savedExaminations = response.data;
-        
-        // Create markers for saved examinations
-        this.examinationMarkers = response.data.map((exam) => ({
-          id: `exam-${exam.id}`,
-          timestamp: exam.timestamp,
-          examination_data: exam.data
-        }));
-      } catch (error) {
-        console.error('Error loading saved examinations:', error);
-        // Don't crash on 404 - just set empty arrays
-        this.savedExaminations = [];
-        this.examinationMarkers = [];
-      }
-    },
-    async onVideoChange() {
-      if (this.selectedVideoId !== null) {
-        this.loadSavedExaminations();
-        
-        // Warte erst auf Video-Metadaten, dann lade Segmente
-        await this.loadVideoMetadata();
-        await this.loadVideoSegments();
-        
-        this.currentMarker = null;
-      } else {
-        // Clear everything when no video selected
-        this.examinationMarkers = [];
-        this.savedExaminations = [];
-        this.currentMarker = null;
-        this.videoStore.clearSegments();
-      }
-    },
-    async loadVideoMetadata() {
-      // Warte bis Video geladen ist, um duration zu haben
-      if (this.$refs.videoRef) {
-        await new Promise((resolve) => {
-          const video = this.$refs.videoRef;
-          if (video.readyState >= 1) {
-            this.duration = video.duration;
-            resolve();
-          } else {
-            video.addEventListener('loadedmetadata', () => {
-              this.duration = video.duration;
-              resolve();
-            }, { once: true });
-          }
-        });
-      }
-    },
-    async loadVideoSegments() {
-      if (this.selectedVideoId === null) return;
-      
-      try {
-        // ✅ FIX: Use fetchVideoSegments instead of fetchSegmentsByLabel to get real segment entities with correct label_name
-        await this.videoStore.fetchVideoSegments(this.selectedVideoId.toString());
-        console.log('Video segments loaded for video:', this.selectedVideoId);
-      } catch (error) {
-        console.error('Error loading video segments:', error);
-      }
-    },
-    onVideoLoaded() {
-      if (this.$refs.videoRef) {
-        this.duration = this.$refs.videoRef.duration;
-        
-        // Debug information for duration analysis
-        console.log('🎥 Video loaded - Frontend duration info:');
-        console.log(`- Duration from HTML5 video element: ${this.duration}s`);
-        console.log(`- Video source URL: ${this.currentVideoUrl}`);
-        console.log(`- Video readyState: ${this.$refs.videoRef.readyState}`);
-        console.log(`- Video networkState: ${this.$refs.videoRef.networkState}`);
-        
-        // Additional video metadata
-        if (this.$refs.videoRef.videoWidth && this.$refs.videoRef.videoHeight) {
-          console.log(`- Video dimensions: ${this.$refs.videoRef.videoWidth}x${this.$refs.videoRef.videoHeight}`);
-        }
-        
-        // Check if duration seems unusually short
-        if (this.duration < 10) {
-          console.warn(`⚠️ WARNING: Video duration seems very short (${this.duration}s). This might indicate an issue with:`);
-          console.warn('  - Video file corruption');
-          console.warn('  - Incorrect FPS calculation in backend');
-          console.warn('  - Browser video decoding issues');
-        }
-      }
-    },
-    handleTimeUpdate() {
-      if (this.$refs.videoRef) {
-        this.currentTime = this.$refs.videoRef.currentTime;
-      }
-    },
-    handleTimelineClick(event) {
-      const timeline = event.currentTarget;
-      if (timeline && this.$refs.videoRef && this.duration > 0) {
-        const rect = timeline.getBoundingClientRect();
-        const clickPosition = event.clientX - rect.left;
-        const percentage = clickPosition / rect.width;
-        this.$refs.videoRef.currentTime = percentage * this.duration;
-      }
-    },
-    addExaminationMarker() {
-      if (!this.$refs.videoRef) return;
-      
-      const timestamp = this.$refs.videoRef.currentTime;
-      const markerId = `marker-${Date.now()}`;
-      
-      const newMarker = {
-        id: markerId,
-        timestamp: timestamp,
-      };
-      
-      this.examinationMarkers.push(newMarker);
-      this.currentMarker = newMarker;
-    },
-    jumpToExamination(exam) {
-      if (this.$refs.videoRef) {
-        this.$refs.videoRef.currentTime = exam.timestamp;
-        this.currentMarker = this.examinationMarkers.find(m => m.timestamp === exam.timestamp) || null;
-      }
-    },
-    async deleteExamination(examId) {
-      try {
-        await axiosInstance.delete(r(`examination/${examId}/`));
-        await this.loadSavedExaminations();
-      } catch (error) {
-        console.error('Error deleting examination:', error);
-      }
-    },
-    onExaminationSaved(examinationData) {
-      console.log('Examination saved:', examinationData);
-      this.loadSavedExaminations();
-    },
-    formatTime(seconds) {
-      if (Number.isNaN(seconds) || seconds === null || seconds === undefined) return '00:00';
-      
-      const mins = Math.floor(seconds / 60);
-      const secs = Math.floor(seconds % 60);
-      return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-    },
-    handleTimelineSeek(targetTime) {
-      if (this.$refs.videoRef) {
-        this.$refs.videoRef.currentTime = targetTime;
-      }
-    },
-    async handleSegmentResize(segmentId, newTime, newFrame, isStartResize = false) {
-      console.log(`Segment ${segmentId} ${isStartResize ? 'start' : 'end'} resized to ${newTime}s (frame ${newFrame})`);
-      
-      try {
-        const updateData = isStartResize 
-          ? { startTime: newTime, start_frame_number: newFrame }
-          : { endTime: newTime, end_frame_number: newFrame };
-        
-        // Verwende Store für Update - das ist bereits reaktiv!
-        await this.videoStore.updateSegmentAPI(segmentId, updateData);
-        console.log(`✅ Segment ${isStartResize ? 'start' : 'end'} resize saved to backend and store updated`);
-      } catch (error) {
-        console.error('❌ Error saving segment resize:', error);
-        this.showErrorMessage('Fehler beim Speichern der Segment-Änderung');
-      }
-    },
-    async handleCreateSegment(targetTime, targetFrame) {
-      if (!this.selectedLabelType) {
-        this.showErrorMessage('Bitte wählen Sie ein Label aus.');
-        return;
-      }
-      
-      // Erstelle automatisch ein 5-Sekunden-Segment
-      const startTime = targetTime;
-      const endTime = Math.min(targetTime + 5, this.duration);
-      
-      await this.saveNewLabelSegment(startTime, endTime, this.selectedLabelType);
-    },
-    async startLabelMarking() {
-      if (!this.selectedLabelType) {
-        alert('Bitte wählen Sie einen Label-Typ aus.');
-        return;
-      }
-      
-      if (this.isMarkingLabel) {
-        // If already marking, this call should finish the marking
-        this.finishLabelMarking();
-      } else {
-        // Start new marking
-        this.isMarkingLabel = true;
-        this.labelMarkingStart = this.currentTime;
-        console.log(`Label-Start gesetzt bei: ${this.currentTime}s`);
-      }
-    },
-    cancelLabelMarking() {
-      this.isMarkingLabel = false;
-      this.labelMarkingStart = 0;
-      this.selectedLabelType = '';
-    },
-    async finishLabelMarking() {
-      if (!this.isMarkingLabel) {
-        alert('Es wurde kein Label-Start gesetzt.');
-        return;
-      }
-      
-      const endTime = this.currentTime;
-      const startTime = this.labelMarkingStart;
-      
-      if (endTime <= startTime) {
-        alert('Das Label-Ende muss nach dem Label-Start liegen.');
-        return;
-      }
-      
-      console.log(`Label-Ende gesetzt bei: ${endTime}s`);
-      
-      // Create new label segment
-      this.saveNewLabelSegment(startTime, endTime, this.selectedLabelType);
-      
-      // Reset marking state
-      this.isMarkingLabel = false;
-      this.labelMarkingStart = 0;
-    },
-    async saveNewLabelSegment(startTime, endTime, labelType) {
-      if (!this.selectedVideoId) {
-        console.error('Keine Video-ID verfügbar');
-        this.showErrorMessage('Fehler: Keine Video-ID verfügbar');
-        return;
-      }
-      
-      try {
-        const segmentData = {
-          video_id: this.selectedVideoId,
-          start_time: startTime,
-          end_time: endTime,
-          label_name: labelType,
-        };
-        
-        console.log('Speichere Label-Segment:', segmentData);
-        
-        // Use axiosInstance instead of fetch for proper authentication
-        const response = await axiosInstance.post(r('video-segments/'), segmentData);
-        
-        console.log('Label-Segment erfolgreich erstellt:', response.data);
-        
-        // Update Store statt lokales Array - reaktiv!
-        await this.videoStore.fetchAllSegments(this.selectedVideoId.toString());
-        
-        this.showSuccessMessage(`Label-Segment erfolgreich erstellt: ${startTime.toFixed(2)}s - ${endTime.toFixed(2)}s`);
-        
-      } catch (error) {
-        console.error('Fehler beim Speichern des Label-Segments:', error);
-        this.showErrorMessage(`Fehler beim Speichern: ${error.response?.data?.detail || error.message}`);
-      }
-    },
-    async loadLabelSegments() {
-      // Diese Methode ist nicht mehr nötig - Store übernimmt das Laden
-      console.log('loadLabelSegments called but using Store instead');
-    },
-    getCsrfToken() {
-      // Get CSRF token from meta tag or cookie
-      const tokenMeta = document.querySelector('meta[name="csrf-token"]');
-      if (tokenMeta) {
-        return tokenMeta.getAttribute('content');
-      }
-      
-      // Fallback: get from cookie
-      const cookies = document.cookie.split(';');
-      for (let cookie of cookies) {
-        const [name, value] = cookie.trim().split('=');
-        if (name === 'csrftoken') {
-          return value;
-        }
-      }
-      return '';
-    },
-    showSuccessMessage(message) {
-      // Implement toast/notification system
-      alert(`✅ ${message}`); // Replace with proper notification component
-    },
-    showErrorMessage(message) {
-      // Implement toast/notification system  
-      alert(`❌ ${message}`); // Replace with proper notification component
-    },
-    getTranslationForLabel(labelKey) {
-      const translations = {
-        appendix: 'Appendix',
-        blood: 'Blut',
-        diverticule: 'Divertikel',
-        grasper: 'Greifer',
-        ileocaecalvalve: 'Ileozäkalklappe',
-        ileum: 'Ileum',
-        low_quality: 'Niedrige Bildqualität',
-        nbi: 'Narrow Band Imaging',
-        needle: 'Nadel',
-        outside: 'Außerhalb',
-        polyp: 'Polyp',
-        snare: 'Snare',
-        water_jet: 'Wasserstrahl',
-        wound: 'Wunde'
-      };
-      return translations[labelKey] || labelKey;
-    },
-    getLabelColor(labelKey) {
-      const colors = {
-        appendix: '#FFDDC1',
-        blood: '#FFABAB',
-        diverticule: '#FFC3A0',
-        grasper: '#FF677D',
-        ileocaecalvalve: '#D4A5A5',
-        ileum: '#392F5A',
-        low_quality: '#F8E16C',
-        nbi: '#6EEB83',
-        needle: '#A0D7E6',
-        outside: '#FFE156',
-        polyp: '#6A0572',
-        snare: '#AB83A1',
-        water_jet: '#FFD3B6',
-        wound: '#FF677D'
-      };
-      return colors[labelKey] || '#FFFFFF';
-    },
-    getSegmentStartTime(segment) {
-      // Get start time of the segment, fallback to 0
-      return segment.start_time || 0;
-    },
-    getSegmentEndTime(segment) {
-      // Get end time of the segment, fallback to duration
-      return segment.end_time || this.duration;
-    },
-    getSegmentStyle(segment) {
-      const start = this.getSegmentStartTime(segment);
-      const end = this.getSegmentEndTime(segment);
-      const width = ((end - start) / this.duration) * 100;
-      const left = (start / this.duration) * 100;
-      
-      return {
-        position: 'absolute',
-        left: `${left}%`,
-        width: `${width}%`,
-        backgroundColor: this.getLabelColor(segment.label_name), // Fix: Use label_name instead of label_id
-        borderRadius: '4px',
-        height: '100%',
-        cursor: 'pointer',
-        zIndex: 1
-      };
-    },
-    seekToSegment(segment) {
-      const startTime = this.getSegmentStartTime(segment);
-      if (this.$refs.videoRef) {
-        this.$refs.videoRef.currentTime = startTime;
-      }
-    },
-    async deleteSegment(segmentId) {
-      if (!confirm('Sind Sie sicher, dass Sie dieses Segment löschen möchten?')) {
-        return;
-      }
-      
-      try {
-        console.log(`🗑️ Deleting segment ${segmentId}...`);
-        
-        await axiosInstance.delete(r(`video-segments/${segmentId}/`));
-        
-        // Update Store statt lokales Array - reaktiv!
-        await this.videoStore.fetchAllSegments(this.selectedVideoId.toString());
-        
-        console.log(`✅ Segment ${segmentId} successfully deleted`);
-        this.showSuccessMessage('Segment erfolgreich gelöscht');
-        
-      } catch (error) {
-        console.error('❌ Error deleting segment:', error);
-        
-        // More specific error handling
-        if (error.response?.status === 404) {
-          this.showErrorMessage('Segment nicht gefunden. Es wurde möglicherweise bereits gelöscht.');
-          // Refresh Store auch bei 404
-          await this.videoStore.fetchAllSegments(this.selectedVideoId.toString());
-        } else if (error.response?.status === 403) {
-          this.showErrorMessage('Keine Berechtigung zum Löschen dieses Segments.');
-        } else {
-          this.showErrorMessage('Fehler beim Löschen des Segments. Bitte versuchen Sie es erneut.');
-        }
-      }
-    },
-    async deleteAllFullVideoSegments() {
-      // Verwende Store-Segmente statt lokale
-      const allSegments = this.timelineSegments;
-      const fullVideoSegments = allSegments.filter(segment => {
-        const duration = segment.endTime - segment.startTime;
-        return duration >= this.duration * 0.9; // Segments that cover 90%+ of video
-      });
-      
-      if (fullVideoSegments.length === 0) {
-        this.showSuccessMessage('Keine problematischen Vollvideo-Segmente gefunden.');
-        return;
-      }
-      
-      const confirmMessage = `${fullVideoSegments.length} Segment(e) decken fast das ganze Video ab (0:00-${this.formatTime(this.duration)}). Diese löschen?`;
-      
-      if (!confirm(confirmMessage)) {
-        return;
-      }
-      
-      try {
-        console.log(`🧹 Deleting ${fullVideoSegments.length} full-video segments...`);
-        
-        // Delete each segment
-        for (const segment of fullVideoSegments) {
-          await axiosInstance.delete(r(`video-segments/${segment.id}/`));
-          console.log(`✅ Deleted segment ${segment.id} (${segment.label_display})`);
-        }
-        
-        // Refresh Store statt lokale Liste
-        await this.videoStore.fetchAllSegments(this.selectedVideoId.toString());
-        
-        this.showSuccessMessage(`${fullVideoSegments.length} problematische Segmente erfolgreich gelöscht!`);
-        
-      } catch (error) {
-        console.error('❌ Error deleting full-video segments:', error);
-        this.showErrorMessage('Fehler beim Löschen der Vollvideo-Segmente. Bitte versuchen Sie es einzeln.');
-      }
-    }
-  },
-  mounted() {
-    this.loadVideos();
+  } catch (error) {
+    console.error('Error loading videos:', error)
+    videos.value = []
   }
-};
+}
+
+onMounted(loadVideos)
+
+const loadSavedExaminations = async (): Promise<void> => {
+  if (selectedVideoId.value === null) return
+  
+  try {
+    const response = await axiosInstance.get(r(`video/${selectedVideoId.value}/examinations/`))
+    savedExaminations.value = response.data
+    
+    // Create markers for saved examinations
+    examinationMarkers.value = response.data.map((exam: SavedExamination): ExaminationMarker => ({
+      id: `exam-${exam.id}`,
+      timestamp: exam.timestamp,
+      examination_data: exam.data
+    }))
+  } catch (error) {
+    console.error('Error loading saved examinations:', error)
+    savedExaminations.value = []
+    examinationMarkers.value = []
+  }
+}
+
+const onVideoChange = async (): Promise<void> => {
+  if (selectedVideoId.value !== null) {
+    loadSavedExaminations()
+    
+    // ✅ FIX: Proper video loading sequence
+    try {
+      // 1. Set current video in store FIRST
+      await videoStore.loadVideo(selectedVideoId.value.toString())
+      
+      // 2. Wait for video metadata to load
+      await loadVideoMetadata()
+      
+      // 3. Load segments through enhanced fetchAllVideos (already includes segments)
+      console.log('Loading segments for video:', selectedVideoId.value)
+      await videoStore.fetchAllSegments(selectedVideoId.value.toString())
+      
+      // 4. Debug log the loaded segments
+      console.log('📊 Segments loaded:')
+      console.log('- Timeline segments:', rawSegments.value.length)
+      console.log('- Store segments by label:', Object.keys(videoStore.segmentsByLabel).length)
+      console.log('- First few segments:', rawSegments.value.slice(0, 3))
+      
+    } catch (error) {
+      console.error('Error loading video data:', error)
+    }
+    
+    currentMarker.value = null
+  } else {
+    // Clear everything when no video selected
+    examinationMarkers.value = []
+    savedExaminations.value = []
+    currentMarker.value = null
+    videoStore.clearVideo()
+  }
+}
+
+const loadVideoMetadata = async (): Promise<void> => {
+  if (videoRef.value) {
+    await new Promise<void>((resolve) => {
+      const video = videoRef.value!
+      if (video.readyState >= 1) {
+        duration.value = video.duration
+        resolve()
+      } else {
+        video.addEventListener('loadedmetadata', () => {
+          duration.value = video.duration
+          resolve()
+        }, { once: true })
+      }
+    })
+  }
+}
+
+const loadVideoSegments = async (): Promise<void> => {
+  if (selectedVideoId.value === null) return
+  
+  try {
+    await videoStore.fetchAllSegments(selectedVideoId.value.toString())
+    console.log('Video segments loaded for video:', selectedVideoId.value)
+    console.log('Timeline segments count:', rawSegments.value.length)
+  } catch (error) {
+    console.error('Error loading video segments:', error)
+  }
+}
+
+const onVideoLoaded = (): void => {
+  if (videoRef.value) {
+    duration.value = videoRef.value.duration
+    
+    console.log('🎥 Video loaded - Frontend duration info:')
+    console.log(`- Duration from HTML5 video element: ${duration.value}s`)
+    console.log(`- Video source URL: ${currentVideoUrl.value}`)
+    console.log(`- Video readyState: ${videoRef.value.readyState}`)
+    console.log(`- Video networkState: ${videoRef.value.networkState}`)
+    
+    if (videoRef.value.videoWidth && videoRef.value.videoHeight) {
+      console.log(`- Video dimensions: ${videoRef.value.videoWidth}x${videoRef.value.videoHeight}`)
+    }
+    
+    if (duration.value < 10) {
+      console.warn(`⚠️ WARNING: Video duration seems very short (${duration.value}s)`)
+    }
+  }
+}
+
+const handleTimeUpdate = (): void => {
+  if (videoRef.value) {
+    currentTime.value = videoRef.value.currentTime
+  }
+}
+
+const handleTimelineClick = (event: MouseEvent): void => {
+  if (!timelineRef.value || duration.value === 0) return
+  
+  const rect = timelineRef.value.getBoundingClientRect()
+  const clickX = event.clientX - rect.left
+  const percentage = clickX / rect.width
+  const newTime = percentage * duration.value
+  
+  seekToTime(newTime)
+}
+
+const handleTimelineSeek = (time: number): void => {
+  seekToTime(time)
+}
+
+const handleSegmentResize = (segmentId: string | number, newStart: number, newEnd: number, mode: string, final?: boolean): void => {
+  // ✅ FIX: Validate segment ID before processing
+  const numericId = typeof segmentId === 'string' ? parseInt(segmentId, 10) : segmentId
+  
+  if (isNaN(numericId) || segmentId === 'draft' || (typeof segmentId === 'string' && segmentId.startsWith('temp-'))) {
+    console.warn('[VideoExamination] Ignoring resize for draft/temp segment:', segmentId)
+    return
+  }
+  
+  if (final) {
+    // Final resize - save to backend via store
+    videoStore.updateSegment(numericId, { 
+      startTime: newStart, 
+      endTime: newEnd 
+    })
+    console.log(`✅ Segment ${numericId} resized: ${formatTime(newStart)} - ${formatTime(newEnd)}`)
+  } else {
+    // Real-time preview - just update local display
+    console.log(`Resizing segment ${numericId} ${mode}: ${formatTime(newStart)} - ${formatTime(newEnd)}`)
+  }
+}
+
+const handleSegmentMove = (segmentId: string | number, newStart: number, newEnd: number, final?: boolean): void => {
+  // ✅ FIX: Validate segment ID before processing  
+  const numericId = typeof segmentId === 'string' ? parseInt(segmentId, 10) : segmentId
+  
+  if (isNaN(numericId) || segmentId === 'draft' || (typeof segmentId === 'string' && segmentId.startsWith('temp-'))) {
+    console.warn('[VideoExamination] Ignoring move for draft/temp segment:', segmentId)
+    return
+  }
+  
+  if (final) {
+    // Final move - save to backend via store  
+    videoStore.updateSegment(numericId, { 
+      startTime: newStart, 
+      endTime: newEnd 
+    })
+    console.log(`✅ Segment ${numericId} moved to: ${formatTime(newStart)} - ${formatTime(newEnd)}`)
+  } else {
+    // Real-time preview during drag
+    console.log(`Moving segment ${numericId}: ${formatTime(newStart)} - ${formatTime(newEnd)}`)
+  }
+}
+
+const handleCreateSegment = async (event: CreateSegmentEvent): Promise<void> => {
+  if (selectedVideoId.value) {
+    // FIX: Use the correct method signature from videoStore
+    await videoStore.createSegment?.(
+      selectedVideoId.value.toString(), 
+      event.label, 
+      event.start, 
+      event.end
+    )
+  }
+}
+
+const seekToTime = (time: number): void => {
+  if (videoRef.value && time >= 0 && time <= duration.value) {
+    videoRef.value.currentTime = time
+    currentTime.value = time
+  }
+}
+
+const onLabelSelect = (): void => {
+  console.log('Label selected:', selectedLabelType.value)
+}
+
+const startLabelMarking = (): void => {
+  if (!canStartLabeling.value) return
+  
+  isMarkingLabel.value = true
+  labelMarkingStart.value = currentTime.value
+  
+  // FIX: Use startDraft statt startDraftSegment
+  videoStore.startDraft(selectedLabelType.value, currentTime.value)
+  
+  console.log(`Draft gestartet: ${selectedLabelType.value} bei ${formatTime(currentTime.value)}`)
+}
+
+const finishLabelMarking = async (): Promise<void> => {
+  if (!isMarkingLabel.value || !selectedVideoId.value) return
+  
+  try {
+    // FIX: Use updateDraftEnd und commitDraft statt finishDraftSegment
+    videoStore.updateDraftEnd(currentTime.value)
+    await videoStore.commitDraft()
+    
+    // Reset state
+    isMarkingLabel.value = false
+    selectedLabelType.value = ''
+    
+    // Reload segments to show the new one
+    await loadVideoSegments()
+    
+    console.log('Label-Markierung abgeschlossen')
+  } catch (error) {
+    console.error('Error finishing label marking:', error)
+  }
+}
+
+const cancelLabelMarking = (): void => {
+  // FIX: Use cancelDraft statt cancelDraftSegment
+  videoStore.cancelDraft()
+  isMarkingLabel.value = false
+  selectedLabelType.value = ''
+  
+  console.log('Label-Markierung abgebrochen')
+}
+
+const onExaminationSaved = (examination: SavedExamination): void => {
+  // Add new examination to list
+  savedExaminations.value.push(examination)
+  
+  // Create new marker
+  const marker: ExaminationMarker = {
+    id: `exam-${examination.id}`,
+    timestamp: examination.timestamp,
+    examination_data: examination.data
+  }
+  examinationMarkers.value.push(marker)
+  
+  console.log('Examination saved:', examination)
+}
+
+const jumpToExamination = (examination: SavedExamination): void => {
+  seekToTime(examination.timestamp)
+  currentMarker.value = examinationMarkers.value.find(m => m.id === `exam-${examination.id}`) || null
+}
+
+const deleteExamination = async (examinationId: number): Promise<void> => {
+  try {
+    await axiosInstance.delete(r(`examinations/${examinationId}/`))
+    
+    // Remove from local arrays
+    savedExaminations.value = savedExaminations.value.filter(e => e.id !== examinationId)
+    examinationMarkers.value = examinationMarkers.value.filter(m => m.id !== `exam-${examinationId}`)
+    
+    // Clear current marker if it was deleted
+    if (currentMarker.value?.id === `exam-${examinationId}`) {
+      currentMarker.value = null
+    }
+    
+    console.log('Examination deleted:', examinationId)
+  } catch (error) {
+    console.error('Error deleting examination:', error)
+  }
+}
+
+const formatTime = (seconds: number): string => {
+  if (!seconds || seconds < 0) return '00:00'
+  
+  const mins = Math.floor(seconds / 60)
+  const secs = Math.floor(seconds % 60)
+  return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+}
+
+const getTranslationForLabel = (label: string): string => {
+  const translations: Record<string, string> = {
+    'appendix': 'Appendix',
+    'blood': 'Blut',
+    'diverticule': 'Divertikel',
+    'grasper': 'Greifer',
+    'ileocaecalvalve': 'Ileozäkalklappe',
+    'ileum': 'Ileum',
+    'low_quality': 'Niedrige Bildqualität',
+    'nbi': 'Narrow Band Imaging',
+    'needle': 'Nadel',
+    'outside': 'Außerhalb',
+    'polyp': 'Polyp',
+    'snare': 'Snare',
+    'water_jet': 'Wasserstrahl',
+    'wound': 'Wunde'
+  }
+  
+  return translations[label] || label
+}
+
+// Lifecycle
+onMounted(async () => {
+  await loadVideos()
+  if (videos.value.length) {
+    selectedVideoId.value = videos.value[0].id
+    await onVideoChange()
+  } else {
+    console.warn('No videos available to select.')
+  }
+  if (selectedVideoId.value) {
+    await loadVideoSegments()
+  }
+
+})
 </script>
 
 <style scoped>
-.timeline {
-  position: relative;
-  height: 20px;
-  margin: 15px 0;
-}
-
-.timeline-container {
-  position: relative;
-  z-index: 1;
-  overflow: hidden; /* Prevent any overflow from timeline elements */
-  background: white;
-  border-radius: 8px;
-  padding: 8px;
-  margin-bottom: 20px; /* Add space before controls */
-}
-
-.timeline-track {
-  position: relative;
-  height: 8px;
-  background: #e9ecef;
-  cursor: pointer;
-  border-radius: 4px;
-}
-
-.progress-bar {
-  position: absolute;
-  top: 0;                /* NEW: explicit top positioning */
-  left: 0;               /* NEW: explicit left positioning */
-  height: 100%;
-  background: #5e72e4;
-  border-radius: 4px;
-  transition: width 0.1s ease;
-}
-
-.examination-marker {
-  position: absolute;
-  width: 12px;
-  height: 12px;
-  background: #ff6b6b;
-  border: 2px solid white;
-  border-radius: 50%;
-  transform: translateX(-50%) translateY(-2px);
-  cursor: pointer;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-}
-
-.examination-marker:hover {
-  background: #ff5252;
-  transform: translateX(-50%) translateY(-2px) scale(1.2);
-}
-
 .video-container {
   position: relative;
   background: #000;
@@ -834,268 +747,71 @@ export default {
   overflow: hidden;
 }
 
+.simple-timeline-track {
+  position: relative;
+  height: 20px;
+  background: #e9ecef;
+  border-radius: 10px;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #007bff, #0056b3);
+  border-radius: 10px;
+  transition: width 0.1s ease;
+}
+
+.examination-marker {
+  position: absolute;
+  top: 0;
+  width: 3px;
+  height: 100%;
+  background: #dc3545;
+  cursor: pointer;
+  z-index: 2;
+}
+
+.examination-marker:hover {
+  background: #c82333;
+  width: 5px;
+}
+
+.timeline-wrapper {
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  padding: 15px;
+  background: #f8f9fa;
+}
+
+.timeline-controls {
+  border-top: 1px solid #dee2e6;
+  padding-top: 15px;
+}
+
+.control-select {
+  min-width: 180px;
+}
+
+.control-button {
+  min-width: 140px;
+}
+
+.debug-info {
+  font-family: 'Courier New', monospace;
+  background: #f8f9fa;
+  padding: 8px;
+  border-radius: 4px;
+  border: 1px solid #e9ecef;
+}
+
 .list-group-item {
   border: none;
-  border-bottom: 1px solid #e9ecef;
+  border-bottom: 1px solid #dee2e6;
 }
 
 .list-group-item:last-child {
   border-bottom: none;
-}
-
-.label-overview {
-  border-top: 1px solid #e9ecef;
-  padding-top: 15px;
-  margin-top: 10px;
-}
-
-.label-summary-container {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  max-height: 300px;
-  overflow-y: auto;
-}
-
-.label-group {
-  background: #f8f9fa;
-  border: 1px solid #e9ecef;
-  border-radius: 8px;
-  padding: 12px;
-  transition: box-shadow 0.2s ease;
-}
-
-.label-group:hover {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.label-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
-}
-
-.label-color-indicator {
-  width: 16px;
-  height: 16px;
-  border-radius: 3px;
-  border: 1px solid rgba(0, 0, 0, 0.1);
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
-}
-
-.label-name {
-  font-weight: 600;
-  color: #495057;
-  flex-grow: 1;
-}
-
-.label-count {
-  font-size: 0.875rem;
-  color: #6c757d;
-  background: #e9ecef;
-  padding: 2px 6px;
-  border-radius: 10px;
-}
-
-.label-segments {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.label-segment-item {
-  background: #ffffff;
-  border: 1px solid #dee2e6;
-  border-radius: 6px;
-  padding: 6px 10px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-size: 0.8rem;
-  color: #495057;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-}
-
-.label-segment-item:hover {
-  background: #e3f2fd;
-  border-color: #2196f3;
-  transform: translateY(-1px);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  color: #1976d2;
-}
-
-.timeline-section {
-  position: relative;
-  z-index: 1;
-  overflow: hidden; /* Contain timeline elements */
-}
-
-.timeline-controls {
-  position: relative;
-  z-index: 10; /* Higher z-index to ensure controls are above timeline */
-  background: white;
-  padding: 16px;
-  border-radius: 8px;
-  border: 1px solid #e9ecef;
-  margin-top: 20px; /* Additional space from timeline */
-}
-
-.control-select {
-  position: relative;
-  z-index: 15; /* Ensure dropdown is above everything */
-  width: auto;
-}
-
-.control-button {
-  position: relative;
-  z-index: 15; /* Ensure buttons are above everything */
-}
-
-/* Ensure dropdowns open above timeline elements */
-.control-select:focus,
-.control-select:active {
-  z-index: 20;
-}
-
-/* Timeline Segments Styles */
-.timeline-segment {
-  position: absolute;
-  height: 100%;
-  cursor: pointer;
-  transition: background 0.2s ease;
-  border: 1px solid rgba(0, 0, 0, 0.1);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 20px;
-}
-
-.timeline-segment:hover {
-  opacity: 0.8;
-  transform: translateY(-1px);
-}
-
-.segment-label {
-  font-size: 10px;
-  color: #333;
-  font-weight: bold;
-  text-shadow: 1px 1px 1px rgba(255, 255, 255, 0.8);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 100%;
-}
-
-.current-time-indicator {
-  position: absolute;
-  width: 2px;
-  height: 100%;
-  background: #ff0000;
-  top: 0;
-  z-index: 10;
-  pointer-events: none;
-}
-
-.time-marker {
-  position: absolute;
-  font-size: 8px;
-  color: #6c757d;
-  top: -20px;
-  transform: translateX(-50%);
-  white-space: nowrap;
-}
-
-.timeline-markers {
-  position: relative;
-  height: 20px;
-  margin-top: 5px;
-}
-
-/* Segment Management Styles */
-.segments-management {
-  margin-top: 20px;
-  padding: 15px;
-  background: #f8f9fa;
-  border-radius: 8px;
-  border: 1px solid #e9ecef;
-}
-
-.segments-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  max-height: 300px;
-  overflow-y: auto;
-}
-
-.segment-item {
-  display: flex;
-  justify-content: between;
-  align-items: center;
-  padding: 10px;
-  background: white;
-  border: 1px solid #dee2e6;
-  border-radius: 6px;
-  transition: box-shadow 0.2s ease;
-}
-
-.segment-item:hover {
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.segment-info {
-  flex-grow: 1;
-}
-
-.segment-time {
-  display: block;
-  font-size: 0.875rem;
-  color: #6c757d;
-  margin-top: 2px;
-}
-
-.segment-actions {
-  display: flex;
-  gap: 8px;
-}
-
-.btn-secondary {
-  background: #6c757d;
-  color: white;
-  border: none;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 0.75rem;
-  cursor: pointer;
-  transition: background 0.2s ease;
-}
-
-.btn-secondary:hover {
-  background: #5a6268;
-}
-
-.btn-danger {
-  background: #dc3545;
-  color: white;
-  border: none;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 0.75rem;
-  cursor: pointer;
-  transition: background 0.2s ease;
-}
-
-.btn-danger:hover {
-  background: #c82333;
-}
-
-/* Fix #3: Progress bar CSS - add explicit height and positioning to container */
-.simple-timeline-track {
-  position: relative;
-  height: 8px;           /* NEW: explicit height */
-  background: #e9ecef;
-  cursor: pointer;
-  border-radius: 4px;
-  overflow: hidden;      /* NEW: prevent overflow */
 }
 </style>

@@ -1,3 +1,5 @@
+/// <reference types="node" />
+/// <reference types="node" />
 export interface OverviewStats {
     total_videos: number;
     total_raw_videos: number;
@@ -120,7 +122,7 @@ export declare const useAnnotationStatsStore: import("pinia").StoreDefinition<"a
     lastStatsUpdate: Date | null;
     lastRealtimeUpdate: Date | null;
     autoRefreshEnabled: boolean;
-    autoRefreshInterval: number | null;
+    autoRefreshInterval: NodeJS.Timeout | null;
     refreshIntervalMs: number;
 }, {
     /**
@@ -246,7 +248,14 @@ export declare const useAnnotationStatsStore: import("pinia").StoreDefinition<"a
         lastStatsUpdate: Date | null;
         lastRealtimeUpdate: Date | null;
         autoRefreshEnabled: boolean;
-        autoRefreshInterval: number | null;
+        autoRefreshInterval: {
+            ref: () => NodeJS.Timeout;
+            unref: () => NodeJS.Timeout;
+            hasRef: () => boolean;
+            refresh: () => NodeJS.Timeout;
+            [Symbol.toPrimitive]: () => number;
+            [Symbol.dispose]: () => void;
+        } | null;
         refreshIntervalMs: number;
     } & import("pinia").PiniaCustomStateProperties<{
         stats: AnnotationStatsData | null;
@@ -262,7 +271,7 @@ export declare const useAnnotationStatsStore: import("pinia").StoreDefinition<"a
         lastStatsUpdate: Date | null;
         lastRealtimeUpdate: Date | null;
         autoRefreshEnabled: boolean;
-        autoRefreshInterval: number | null;
+        autoRefreshInterval: NodeJS.Timeout | null;
         refreshIntervalMs: number;
     }>) => number;
     /**
@@ -384,7 +393,14 @@ export declare const useAnnotationStatsStore: import("pinia").StoreDefinition<"a
         lastStatsUpdate: Date | null;
         lastRealtimeUpdate: Date | null;
         autoRefreshEnabled: boolean;
-        autoRefreshInterval: number | null;
+        autoRefreshInterval: {
+            ref: () => NodeJS.Timeout;
+            unref: () => NodeJS.Timeout;
+            hasRef: () => boolean;
+            refresh: () => NodeJS.Timeout;
+            [Symbol.toPrimitive]: () => number;
+            [Symbol.dispose]: () => void;
+        } | null;
         refreshIntervalMs: number;
     } & import("pinia").PiniaCustomStateProperties<{
         stats: AnnotationStatsData | null;
@@ -400,7 +416,7 @@ export declare const useAnnotationStatsStore: import("pinia").StoreDefinition<"a
         lastStatsUpdate: Date | null;
         lastRealtimeUpdate: Date | null;
         autoRefreshEnabled: boolean;
-        autoRefreshInterval: number | null;
+        autoRefreshInterval: NodeJS.Timeout | null;
         refreshIntervalMs: number;
     }>) => ProductivityMetrics | null;
     /**
@@ -522,7 +538,14 @@ export declare const useAnnotationStatsStore: import("pinia").StoreDefinition<"a
         lastStatsUpdate: Date | null;
         lastRealtimeUpdate: Date | null;
         autoRefreshEnabled: boolean;
-        autoRefreshInterval: number | null;
+        autoRefreshInterval: {
+            ref: () => NodeJS.Timeout;
+            unref: () => NodeJS.Timeout;
+            hasRef: () => boolean;
+            refresh: () => NodeJS.Timeout;
+            [Symbol.toPrimitive]: () => number;
+            [Symbol.dispose]: () => void;
+        } | null;
         refreshIntervalMs: number;
     } & import("pinia").PiniaCustomStateProperties<{
         stats: AnnotationStatsData | null;
@@ -538,7 +561,7 @@ export declare const useAnnotationStatsStore: import("pinia").StoreDefinition<"a
         lastStatsUpdate: Date | null;
         lastRealtimeUpdate: Date | null;
         autoRefreshEnabled: boolean;
-        autoRefreshInterval: number | null;
+        autoRefreshInterval: NodeJS.Timeout | null;
         refreshIntervalMs: number;
     }>) => boolean;
     /**
@@ -660,7 +683,14 @@ export declare const useAnnotationStatsStore: import("pinia").StoreDefinition<"a
         lastStatsUpdate: Date | null;
         lastRealtimeUpdate: Date | null;
         autoRefreshEnabled: boolean;
-        autoRefreshInterval: number | null;
+        autoRefreshInterval: {
+            ref: () => NodeJS.Timeout;
+            unref: () => NodeJS.Timeout;
+            hasRef: () => boolean;
+            refresh: () => NodeJS.Timeout;
+            [Symbol.toPrimitive]: () => number;
+            [Symbol.dispose]: () => void;
+        } | null;
         refreshIntervalMs: number;
     } & import("pinia").PiniaCustomStateProperties<{
         stats: AnnotationStatsData | null;
@@ -676,7 +706,7 @@ export declare const useAnnotationStatsStore: import("pinia").StoreDefinition<"a
         lastStatsUpdate: Date | null;
         lastRealtimeUpdate: Date | null;
         autoRefreshEnabled: boolean;
-        autoRefreshInterval: number | null;
+        autoRefreshInterval: NodeJS.Timeout | null;
         refreshIntervalMs: number;
     }>) => UserStats[];
     /**
@@ -798,7 +828,14 @@ export declare const useAnnotationStatsStore: import("pinia").StoreDefinition<"a
         lastStatsUpdate: Date | null;
         lastRealtimeUpdate: Date | null;
         autoRefreshEnabled: boolean;
-        autoRefreshInterval: number | null;
+        autoRefreshInterval: {
+            ref: () => NodeJS.Timeout;
+            unref: () => NodeJS.Timeout;
+            hasRef: () => boolean;
+            refresh: () => NodeJS.Timeout;
+            [Symbol.toPrimitive]: () => number;
+            [Symbol.dispose]: () => void;
+        } | null;
         refreshIntervalMs: number;
     } & import("pinia").PiniaCustomStateProperties<{
         stats: AnnotationStatsData | null;
@@ -814,7 +851,7 @@ export declare const useAnnotationStatsStore: import("pinia").StoreDefinition<"a
         lastStatsUpdate: Date | null;
         lastRealtimeUpdate: Date | null;
         autoRefreshEnabled: boolean;
-        autoRefreshInterval: number | null;
+        autoRefreshInterval: NodeJS.Timeout | null;
         refreshIntervalMs: number;
     }>) => {
         labels: string[];
@@ -944,7 +981,14 @@ export declare const useAnnotationStatsStore: import("pinia").StoreDefinition<"a
         lastStatsUpdate: Date | null;
         lastRealtimeUpdate: Date | null;
         autoRefreshEnabled: boolean;
-        autoRefreshInterval: number | null;
+        autoRefreshInterval: {
+            ref: () => NodeJS.Timeout;
+            unref: () => NodeJS.Timeout;
+            hasRef: () => boolean;
+            refresh: () => NodeJS.Timeout;
+            [Symbol.toPrimitive]: () => number;
+            [Symbol.dispose]: () => void;
+        } | null;
         refreshIntervalMs: number;
     } & import("pinia").PiniaCustomStateProperties<{
         stats: AnnotationStatsData | null;
@@ -960,7 +1004,7 @@ export declare const useAnnotationStatsStore: import("pinia").StoreDefinition<"a
         lastStatsUpdate: Date | null;
         lastRealtimeUpdate: Date | null;
         autoRefreshEnabled: boolean;
-        autoRefreshInterval: number | null;
+        autoRefreshInterval: NodeJS.Timeout | null;
         refreshIntervalMs: number;
     }>) => {
         labels: string[];

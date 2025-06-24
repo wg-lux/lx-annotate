@@ -133,8 +133,8 @@
                   <div v-if="currentVideoMeta" class="mt-3">
                     <div class="row">
                       <div class="col-md-6">
-                        <p><strong>Dateiname:</strong> {{ currentVideoMeta.originalFileName }}</p>
-                        <p><strong>Dauer:</strong> {{ formatDuration(currentVideoMeta.duration) }}</p>
+                        <p><strong>Dateiname:</strong> {{ currentVideoMeta.original_file_name }}</p>
+                        <p><strong>Dauer:</strong> {{ formatDuration(currentVideoMeta.duration ?? null) }}</p>
                       </div>
                       <div class="col-md-6">
                         <p><strong>Status:</strong> 
@@ -282,7 +282,7 @@
                           <td>
                             <div class="d-flex align-items-center">
                               <i class="fas fa-video me-2 text-primary"></i>
-                              {{ video.originalFileName }}
+                              {{ video.original_file_name }}
                             </div>
                           </td>
                           <td>
@@ -372,7 +372,7 @@
                       <div
                         v-for="segment in allSegments"
                         :key="segment.id"
-                        :style="getSegmentStyle(segment, duration)"
+                        :style="createTimelineSegmentStyle(segment, duration)"
                         :class="`segment-bar segment-${segment.label}`"
                         :title="`${getTranslationForLabel(segment.label)}: ${formatTime(segment.startTime)} - ${formatTime(segment.endTime)}`"
                         @click="jumpToSegment(segment)"
@@ -476,9 +476,9 @@
     </div>
 </template>
 
-<script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue';
-import { useVideoStore, type Segment, type VideoMeta, type VideoFileMeta } from '@/stores/videoStore';
+<script lang="ts">
+import { defineComponent } from 'vue';
+import { useVideoStore, type VideoMeta, type Segment } from '@/stores/videoStore';
 
 // Types für Anonymisierungsdetails
 interface ROI {
@@ -498,307 +498,336 @@ interface AnonymizationDetails {
   lastAnonymizationDate?: string;
 }
 
-const videoStore = useVideoStore();
-const { 
-  videoUrl, 
-  currentVideo, 
-  videoMeta,
-  allSegments,
-  videoList,
-  duration,
-  fetchVideoUrl, 
-  fetchAllSegments, 
-  fetchAllVideos,
-  fetchVideoMeta,
-  getColorForLabel,
-  getTranslationForLabel,
-  jumpToSegment: storeJumpToSegment,
-  getSegmentStyle
-} = videoStore;
-
-// Local state
-const loading = ref(false);
-const videoElement = ref<HTMLVideoElement | null>(null);
-const timelineRef = ref<HTMLDivElement | null>(null);
-const currentVideoMeta = ref<VideoFileMeta | null>(null);
-const anonymizationFilter = ref<'all' | 'anonymized' | 'not_anonymized'>('all');
-const currentVideoAnonymizationDetails = ref<AnonymizationDetails | null>(null);
-
-// Computed properties
-const sortedSegments = computed(() => {
-  return [...allSegments].sort((a, b) => a.startTime - b.startTime);
-});
-
-const filteredVideos = computed(() => {
-  return videoList.videos.filter((video: VideoMeta) => {
-    if (anonymizationFilter.value === 'all') return true;
-    if (anonymizationFilter.value === 'anonymized') return video.anonymized;
-    if (anonymizationFilter.value === 'not_anonymized') return !video.anonymized;
-    return true;
-  });
-});
-
-// Statistik-Computed Properties
-const anonymizedCount = computed(() => {
-  return videoList.videos.filter((video: VideoMeta) => video.anonymized).length;
-});
-
-const pendingCount = computed(() => {
-  return videoList.videos.filter((video: VideoMeta) => !video.anonymized && video.hasROI).length;
-});
-
-const inProgressCount = computed(() => {
-  return videoList.videos.filter((video: VideoMeta) => video.status === 'in_progress').length;
-});
-
-// Methods
-const refreshData = async () => {
-  loading.value = true;
-  try {
-    await fetchAllVideos();
-  } catch (error) {
-    console.error('Fehler beim Laden der Daten:', error);
-  } finally {
-    loading.value = false;
-  }
-};
-
-const selectVideo = async (video: VideoMeta) => {
-  loading.value = true;
-  try {
-    // Set video in store
-    videoStore.setVideo({
-      id: video.id.toString(),
-      isAnnotated: true,
-      errorMessage: '',
-      segments: [],
-      videoUrl: '',
-      status: video.status as 'in_progress' | 'available' | 'completed',
-      assignedUser: video.assignedUser || null
-    });
+export default defineComponent({
+  name: 'VideoDashboard',
+  data() {
+    return {
+      loading: false,
+      currentVideoMeta: null as VideoMeta | null,
+      anonymizationFilter: 'all' as 'all' | 'anonymized' | 'not_anonymized',
+      currentVideoAnonymizationDetails: null as AnonymizationDetails | null,
+    };
+  },
+  computed: {
+    videoStore() {
+      return useVideoStore();
+    },
+    videoUrl() {
+      return this.videoStore.videoUrl;
+    },
+    currentVideo() {
+      return this.videoStore.currentVideo;
+    },
+    videoMeta() {
+      return this.videoStore.videoMeta;
+    },
+    allSegments() {
+      return this.videoStore.allSegments;
+    },
+    videoList() {
+      return this.videoStore.videoList;
+    },
+    duration() {
+      return this.videoStore.duration;
+    },
+    sortedSegments() {
+      return [...this.allSegments].sort((a, b) => a.startTime - b.startTime);
+    },
+    filteredVideos() {
+      return this.videoList.videos.filter((video: VideoMeta) => {
+        if (this.anonymizationFilter === 'all') return true;
+        if (this.anonymizationFilter === 'anonymized') return video.anonymized;
+        if (this.anonymizationFilter === 'not_anonymized') return !video.anonymized;
+        return true;
+      });
+    },
+    anonymizedCount() {
+      return this.videoList.videos.filter((video: VideoMeta) => video.anonymized).length;
+    },
+    pendingCount() {
+      return this.videoList.videos.filter((video: VideoMeta) => !video.anonymized && video.hasROI).length;
+    },
+    inProgressCount() {
+      return this.videoList.videos.filter((video: VideoMeta) => video.status === 'in_progress').length;
+    },
+  },
+  async mounted() {
+    await this.refreshData();
     
-    // Fetch video data
-    await loadVideoData(video);
-    await loadAnonymizationDetails(video.id);
-  } catch (error) {
-    console.error('Fehler beim Auswählen des Videos:', error);
-  } finally {
-    loading.value = false;
-  }
-};
+    // Load first video if available
+    if (this.videoList.videos.length > 0) {
+      await this.selectVideo(this.videoList.videos[0]);
+    }
+  },
+  watch: {
+    videoMeta(newMeta) {
+      this.currentVideoMeta = newMeta;
+    },
+  },
+  methods: {
+    // Store method access
+    getColorForLabel(label: string): string {
+      return this.videoStore.getColorForLabel(label);
+    },
+    getTranslationForLabel(label: string): string {
+      return this.videoStore.getTranslationForLabel(label);
+    },
 
-const loadVideoData = async (video: VideoMeta) => {
-  loading.value = true;
-  try {
-    await fetchVideoMeta(video.id);
-    await fetchVideoUrl(video.id);
-    await fetchAllSegments(video.id.toString());
-    currentVideoMeta.value = videoMeta;
-  } catch (error) {
-    console.error('Fehler beim Laden der Video-Daten:', error);
-  } finally {
-    loading.value = false;
-  }
-};
+    // Main methods
+    async refreshData() {
+      this.loading = true;
+      try {
+        await this.videoStore.fetchAllVideos();
+      } catch (error) {
+        console.error('Fehler beim Laden der Daten:', error);
+      } finally {
+        this.loading = false;
+      }
+    },
 
-const loadAnonymizationDetails = async (videoId: number) => {
-  try {
-    // Simulierte API-Anfrage für Anonymisierungsdetails
-    // In einer echten Anwendung würde dies eine tatsächliche API-Anfrage sein
-    const response = await fetch(`/api/videos/${videoId}/anonymization-details`);
-    if (!response.ok) {
-      // Fallback-Daten wenn API nicht verfügbar
-      const video = videoList.videos.find((v: VideoMeta) => v.id === videoId);
-      currentVideoAnonymizationDetails.value = {
+    async selectVideo(video: VideoMeta) {
+      this.loading = true;
+      try {
+        // Set video in store
+        this.videoStore.setVideo({
+          id: video.id.toString(),
+          isAnnotated: true,
+          errorMessage: '',
+          segments: [],
+          videoUrl: '',
+          status: video.status as 'in_progress' | 'available' | 'completed',
+          assignedUser: video.assignedUser || null
+        });
+        
+        // Fetch video data
+        await this.loadVideoData(video);
+        await this.loadAnonymizationDetails(video.id);
+      } catch (error) {
+        console.error('Fehler beim Auswählen des Videos:', error);
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    async loadVideoData(video: VideoMeta) {
+      this.loading = true;
+      try {
+        await this.videoStore.fetchVideoMeta(String(video.id));
+        await this.videoStore.fetchVideoUrl(video.id);
+        await this.videoStore.fetchAllSegments(video.id.toString());
+        this.currentVideoMeta = this.videoMeta;
+      } catch (error) {
+        console.error('Fehler beim Laden der Video-Daten:', error);
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    async loadAnonymizationDetails(videoId: number) {
+      const createFallbackData = (video: VideoMeta | undefined) => ({
         anonymized: video?.anonymized || false,
         hasROI: video?.hasROI || false,
         roi: { x: 100, y: 100, width: 300, height: 200 },
         outsideFrameCount: video?.outsideFrameCount || 0,
         totalFrameCount: 1000,
+      });
+
+      try {
+        const response = await fetch(`/api/videos/${videoId}/anonymization-details`);
+
+        if (!response.ok) {
+          const video = this.videoList.videos.find((v: VideoMeta) => v.id === videoId);
+          this.currentVideoAnonymizationDetails = createFallbackData(video);
+        } else {
+          const data = await response.json();
+          this.currentVideoAnonymizationDetails = data;
+        }
+      } catch (error) {
+        console.error('Fehler beim Laden der Anonymisierungsdetails:', error);
+        const video = this.videoList.videos.find((v: VideoMeta) => v.id === videoId);
+        this.currentVideoAnonymizationDetails = createFallbackData(video);
+      }
+    },
+
+    onVideoLoaded() {
+      const videoElement = this.$refs.videoElement as HTMLVideoElement;
+      console.log('Video geladen, Dauer:', videoElement?.duration);
+    },
+
+    async startAnonymization() {
+      if (!this.currentVideo || !this.currentVideoAnonymizationDetails?.hasROI) {
+        alert('ROI muss definiert sein, bevor die Anonymisierung gestartet werden kann.');
+        return;
+      }
+
+      this.loading = true;
+      try {
+        const response = await fetch(`/api/videos/${this.currentVideo.id}/anonymize`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            roi: this.currentVideoAnonymizationDetails.roi,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Anonymisierung fehlgeschlagen');
+        }
+
+        // Fix: Convert currentVideo.id to number properly for line 658 error
+        const videoId = typeof this.currentVideo.id === 'string' 
+          ? parseInt(this.currentVideo.id, 10) 
+          : this.currentVideo.id;
+        
+        await this.loadAnonymizationDetails(videoId);
+        await this.refreshData();
+        
+        alert('Anonymisierung erfolgreich gestartet!');
+      } catch (error) {
+        console.error('Fehler bei der Anonymisierung:', error);
+        alert('Fehler bei der Anonymisierung. Bitte versuchen Sie es erneut.');
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    async startAnonymizationForVideo(video: VideoMeta) {
+      await this.selectVideo(video);
+      await this.startAnonymization();
+    },
+
+    downloadAnonymizedVideo() {
+      if (!this.currentVideo) return;
+      
+      const downloadUrl = `/api/videos/${this.currentVideo.id}/download-anonymized`;
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = `anonymized_${this.currentVideoMeta?.original_file_name || 'video.mp4'}`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    },
+
+    editROI() {
+      if (!this.currentVideo) return;
+      
+      alert('ROI-Editor wird implementiert. Aktuell können Sie die ROI-Koordinaten manuell anpassen.');
+      
+      const newX = prompt('X-Koordinate:', this.currentVideoAnonymizationDetails?.roi.x?.toString() || '0');
+      const newY = prompt('Y-Koordinate:', this.currentVideoAnonymizationDetails?.roi.y?.toString() || '0');
+      const newWidth = prompt('Breite:', this.currentVideoAnonymizationDetails?.roi.width?.toString() || '100');
+      const newHeight = prompt('Höhe:', this.currentVideoAnonymizationDetails?.roi.height?.toString() || '100');
+      
+      if (newX && newY && newWidth && newHeight && this.currentVideoAnonymizationDetails) {
+        this.currentVideoAnonymizationDetails.roi = {
+          x: parseInt(newX),
+          y: parseInt(newY),
+          width: parseInt(newWidth),
+          height: parseInt(newHeight),
+        };
+        this.currentVideoAnonymizationDetails.hasROI = true;
+      }
+    },
+
+    setAnonymizationFilter(filter: 'all' | 'anonymized' | 'not_anonymized') {
+      this.anonymizationFilter = filter;
+    },
+
+    getROIStyle(roi: ROI) {
+      return {
+        position: 'relative' as const,
+        width: '300px',
+        height: '200px',
+        border: '2px solid #007bff',
+        borderRadius: '4px',
+        backgroundColor: 'rgba(0, 123, 255, 0.1)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        margin: '10px 0',
       };
-    } else {
-      const data = await response.json();
-      currentVideoAnonymizationDetails.value = data;
-    }
-  } catch (error) {
-    console.error('Fehler beim Laden der Anonymisierungsdetails:', error);
-    // Fallback-Daten
-    const video = videoList.videos.find((v: VideoMeta) => v.id === videoId);
-    currentVideoAnonymizationDetails.value = {
-      anonymized: video?.anonymized || false,
-      hasROI: video?.hasROI || false,
-      roi: { x: 100, y: 100, width: 300, height: 200 },
-      outsideFrameCount: video?.outsideFrameCount || 0,
-      totalFrameCount: 1000,
-    };
-  }
-};
+    },
 
-const showSegments = async (video: VideoMeta) => {
-  await fetchAllSegments(video.id.toString());
-};
+    showSegments(video: VideoMeta) {
+      console.log(`Showing segments for video: ${video.id}`);
+      // Implement logic to display segments
+    },
 
-const setAnonymizationFilter = (filter: 'all' | 'anonymized' | 'not_anonymized') => {
-  anonymizationFilter.value = filter;
-};
+    // Fix: jumpToSegment method with proper store integration for line 815 error
+    jumpToSegment(segment: Segment) {
+      if (segment.id !== undefined && segment.id !== null) {
+        console.log(`Jumping to segment with ID: ${segment.id}`);
+        
+        // Fix: Properly call store jumpToSegment method with both required parameters
+        const videoElement = this.$refs.videoElement as HTMLVideoElement | null;
+        if (this.videoStore.jumpToSegment) {
+          this.videoStore.jumpToSegment(segment, videoElement);
+        }
+      } else {
+        console.error('Invalid segment ID');
+      }
+    },
 
-const getSegmentCountForVideo = (videoId: number): number => {
-  if (currentVideo?.id === videoId.toString()) {
-    return allSegments.length;
-  }
-  return 0;
-};
+    getSegmentCountForVideo(videoId: string | number): number {
+      // Fix: Use only video_id field as per the backend API structure
+      const targetId = String(videoId);
+      return this.allSegments.filter(segment => {
+        const segmentVideoId = String(segment.video_id || '');
+        return segmentVideoId === targetId;
+      }).length;
+    },
 
-const jumpToSegment = (segment: Segment) => {
-  storeJumpToSegment(segment, videoElement.value);
-};
+    createTimelineSegmentStyle(segment: Segment, videoDuration: number): Record<string, string> {
+      const startPercent = (segment.startTime / videoDuration) * 100;
+      const widthPercent = ((segment.endTime - segment.startTime) / videoDuration) * 100;
+      
+      return {
+        position: 'absolute',
+        left: `${startPercent}%`,
+        width: `${widthPercent}%`,
+        backgroundColor: this.getColorForLabel(segment.label) || '#999',
+        height: '24px',
+        top: '0px'
+      };
+    },
 
-const onVideoLoaded = () => {
-  console.log('Video geladen, Dauer:', videoElement.value?.duration);
-};
+    formatTime(seconds: number): string {
+      const mins = Math.floor(seconds / 60);
+      const secs = Math.floor(seconds % 60);
+      return `${mins}:${secs.toString().padStart(2, '0')}`;
+    },
 
-// Anonymisierungsfunktionen
-const startAnonymization = async () => {
-  if (!currentVideo || !currentVideoAnonymizationDetails.value?.hasROI) {
-    alert('ROI muss definiert sein, bevor die Anonymisierung gestartet werden kann.');
-    return;
-  }
+    formatDuration(seconds: number | null): string {
+      if (!seconds) return 'Unbekannt';
+      return this.formatTime(seconds);
+    },
 
-  loading.value = true;
-  try {
-    const response = await fetch(`/api/videos/${currentVideo.id}/anonymize`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        roi: currentVideoAnonymizationDetails.value.roi,
-      }),
-    });
+    getStatusText(status?: string): string {
+      const statusMap: Record<string, string> = {
+        'available': 'Verfügbar',
+        'in_progress': 'In Bearbeitung',
+        'completed': 'Abgeschlossen'
+      };
+      return statusMap[status || 'available'] || status || 'Unbekannt';
+    },
 
-    if (!response.ok) {
-      throw new Error('Anonymisierung fehlgeschlagen');
-    }
+    getStatusBadgeClass(status?: string): string {
+      const classMap: Record<string, string> = {
+        'available': 'badge bg-success',
+        'in_progress': 'badge bg-warning',
+        'completed': 'badge bg-primary'
+      };
+      return classMap[status || 'available'] || 'badge bg-secondary';
+    },
 
-    // Aktualisiere die Anonymisierungsdetails
-    await loadAnonymizationDetails(parseInt(currentVideo.id));
-    
-    // Aktualisiere die Videoliste
-    await refreshData();
-    
-    alert('Anonymisierung erfolgreich gestartet!');
-  } catch (error) {
-    console.error('Fehler bei der Anonymisierung:', error);
-    alert('Fehler bei der Anonymisierung. Bitte versuchen Sie es erneut.');
-  } finally {
-    loading.value = false;
-  }
-};
-
-const startAnonymizationForVideo = async (video: VideoMeta) => {
-  await selectVideo(video);
-  await startAnonymization();
-};
-
-const downloadAnonymizedVideo = () => {
-  if (!currentVideo) return;
-  
-  const downloadUrl = `/api/videos/${currentVideo.id}/download-anonymized`;
-  const link = document.createElement('a');
-  link.href = downloadUrl;
-  link.download = `anonymized_${currentVideoMeta.value?.originalFileName || 'video.mp4'}`;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-};
-
-const editROI = () => {
-  if (!currentVideo) return;
-  
-  // Hier würde ein ROI-Editor-Modal geöffnet werden
-  alert('ROI-Editor wird implementiert. Aktuell können Sie die ROI-Koordinaten manuell anpassen.');
-  
-  // Beispiel für eine einfache ROI-Bearbeitung
-  const newX = prompt('X-Koordinate:', currentVideoAnonymizationDetails.value?.roi.x?.toString() || '0');
-  const newY = prompt('Y-Koordinate:', currentVideoAnonymizationDetails.value?.roi.y?.toString() || '0');
-  const newWidth = prompt('Breite:', currentVideoAnonymizationDetails.value?.roi.width?.toString() || '100');
-  const newHeight = prompt('Höhe:', currentVideoAnonymizationDetails.value?.roi.height?.toString() || '100');
-  
-  if (newX && newY && newWidth && newHeight && currentVideoAnonymizationDetails.value) {
-    currentVideoAnonymizationDetails.value.roi = {
-      x: parseInt(newX),
-      y: parseInt(newY),
-      width: parseInt(newWidth),
-      height: parseInt(newHeight),
-    };
-    currentVideoAnonymizationDetails.value.hasROI = true;
-  }
-};
-
-const getROIStyle = (roi: ROI) => {
-  return {
-    position: 'relative' as const,
-    width: '300px',
-    height: '200px',
-    border: '2px solid #007bff',
-    borderRadius: '4px',
-    backgroundColor: 'rgba(0, 123, 255, 0.1)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    margin: '10px 0',
-  };
-};
-
-// Utility methods
-const formatTime = (seconds: number): string => {
-  const mins = Math.floor(seconds / 60);
-  const secs = Math.floor(seconds % 60);
-  return `${mins}:${secs.toString().padStart(2, '0')}`;
-};
-
-const formatDuration = (seconds: number | null): string => {
-  if (!seconds) return 'Unbekannt';
-  return formatTime(seconds);
-};
-
-const getStatusText = (status?: string): string => {
-  const statusMap: Record<string, string> = {
-    'available': 'Verfügbar',
-    'in_progress': 'In Bearbeitung',
-    'completed': 'Abgeschlossen'
-  };
-  return statusMap[status || 'available'] || status || 'Unbekannt';
-};
-
-const getStatusBadgeClass = (status?: string): string => {
-  const classMap: Record<string, string> = {
-    'available': 'badge bg-success',
-    'in_progress': 'badge bg-warning',
-    'completed': 'badge bg-primary'
-  };
-  return classMap[status || 'available'] || 'badge bg-secondary';
-};
-
-const getConfidenceClass = (confidence: number): string => {
-  if (confidence >= 0.8) return 'bg-success';
-  if (confidence >= 0.6) return 'bg-warning';
-  return 'bg-danger';
-};
-
-// Lifecycle
-onMounted(async () => {
-  await refreshData();
-  
-  // Load first video if available
-  if (videoList.videos.length > 0) {
-    await selectVideo(videoList.videos[0]);
-  }
-});
-
-// Watch for video changes
-watch(() => videoMeta, (newMeta) => {
-  currentVideoMeta.value = newMeta;
+    getConfidenceClass(confidence: number): string {
+      if (confidence >= 0.8) return 'bg-success';
+      if (confidence >= 0.6) return 'bg-warning';
+      return 'bg-danger';
+    },
+  },
 });
 </script>
 

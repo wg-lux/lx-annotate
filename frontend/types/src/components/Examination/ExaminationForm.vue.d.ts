@@ -12,8 +12,8 @@ declare const _default: import("vue").DefineComponent<Props, {}, {}, {}, {}, imp
     "onExamination-saved"?: ((data: any) => any) | undefined;
     "onPatient-examination-created"?: ((data: any) => any) | undefined;
 }>, {
-    videoId: number | null;
     videoTimestamp: number | null;
+    videoId: number | null;
     patientId: number | null;
 }, {}, {}, {}, string, import("vue").ComponentProvideOptions, false, {}, HTMLDivElement>;
 export default _default;

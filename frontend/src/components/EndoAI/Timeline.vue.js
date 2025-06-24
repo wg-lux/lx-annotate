@@ -1,255 +1,509 @@
-import { defineComponent, ref, onUnmounted, computed, watch } from 'vue';
-import { useVideoStore } from '@/stores/videoStore';
-export default defineComponent({
-    name: 'Timeline',
-    props: {
-        duration: {
-            type: Number,
-            required: true,
-        },
-        currentTime: {
-            type: Number,
-            default: 0,
-        },
-        segments: {
-            type: Array,
-            default: () => [],
-        },
-        apiSegments: {
-            type: Array,
-            default: () => [],
-        },
-        fps: {
-            type: Number,
-            default: 25, // Standard FPS für Frame-zu-Zeit-Konvertierung
-        },
-    },
-    emits: ['resize', 'seek', 'createSegment'],
-    setup(props, { emit }) {
-        const videoStore = useVideoStore();
-        const timelineRef = ref(null);
-        const timeMarkersRef = ref(null);
-        const activeSegment = ref(null);
-        const isResizing = ref(false);
-        const startX = ref(0);
-        const initialEndTime = ref(0);
-        const lastTimestamp = ref(0);
-        // Hilfsfunktion: Frame-Nummer zu Zeit konvertieren
-        function frameToTime(frameNumber) {
-            return frameNumber / props.fps;
-        }
-        const selectedSegmentId = ref(null);
-        const allSegments = computed(() => {
-            return convertedSegments.value.length > 0
-                ? convertedSegments.value
-                : props.segments || [];
-        });
-        // Computed; Aktualisiere aktive Segmente bei Änderungen
-        const selectedSegment = computed(() => {
-            return allSegments.value.find((s) => s.id === selectedSegmentId.value) || null;
-        });
-        // Hilfsfunktion: Zeit zu Frame-Nummer konvertieren
-        function timeToFrame(time) {
-            return Math.round(time * props.fps);
-        }
-        // Computed: API-Segmente zu Timeline-Segmente konvertieren
-        const convertedSegments = computed(() => {
-            return props.apiSegments.map((apiSegment) => ({
-                id: apiSegment.id,
-                video_id: apiSegment.video_id,
-                label_id: apiSegment.label_id,
-                startTime: frameToTime(apiSegment.start_frame_number),
-                endTime: frameToTime(apiSegment.end_frame_number),
-                start_frame_number: apiSegment.start_frame_number,
-                end_frame_number: apiSegment.end_frame_number,
-                label: `label_${apiSegment.label_id}`, // Fallback label
-                label_display: `Label ${apiSegment.label_id}`, // Temporär, sollte durch echte Label-Namen ersetzt werden
-                avgConfidence: 1, // Default value
-            }));
-        });
-        // Computed: Cursor-Position basierend auf aktueller Zeit
-        const cursorPosition = computed(() => {
-            if (props.duration <= 0)
-                return 0;
-            return (props.currentTime / props.duration) * 100;
-        });
-        // Computed: Zeitmarkierungen für bessere Orientierung
-        const timeMarkers = computed(() => {
-            const markers = [];
-            const duration = props.duration;
-            if (duration <= 0)
-                return markers;
-            // Bestimme Intervall basierend auf Videolänge
-            let interval = 10; // Standard: 10 Sekunden
-            if (duration <= 60)
-                interval = 10;
-            else if (duration <= 300)
-                interval = 30;
-            else if (duration <= 600)
-                interval = 60;
-            else
-                interval = 120;
-            for (let time = 0; time <= duration; time += interval) {
-                markers.push({
-                    time,
-                    position: (time / duration) * 100,
-                });
-            }
-            return markers;
-        });
-        // Computed: Organisiere Segmente nach Labels (updated für Store-Integration)
-        const organizedSegments = computed(() => {
-            // If a specific segment is selected, show only that segment
-            if (videoStore.activeSegment) {
-                const seg = videoStore.activeSegment;
-                return [{
-                        labelName: seg.label_display,
-                        color: videoStore.getColorForLabel(seg.label),
-                        segments: [seg],
-                    }];
-            }
-            // Use segments from store (props.segments comes from store via parent component)
-            const allSegments = props.segments || [];
-            const labelGroups = new Map();
-            allSegments.forEach((segment) => {
-                const labelName = segment.label_display || videoStore.getTranslationForLabel(segment.label) || 'Ohne Label';
-                if (!labelGroups.has(labelName)) {
-                    const color = videoStore.getColorForLabel(segment.label);
-                    labelGroups.set(labelName, {
-                        labelName,
-                        color,
-                        segments: [], // Initialize segments array
-                    });
-                }
-                labelGroups.get(labelName).segments.push(segment);
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue';
+import { formatTime as formatTimeHelper, calculateSegmentWidth, calculateSegmentPosition } from '@/utils/timeHelpers';
+import { normalizeSegmentToCamelCase, debugSegmentConversion } from '@/utils/caseConversion';
+const props = defineProps();
+const emit = defineEmits();
+// Refs with proper types
+const timeline = ref(null);
+const waveformCanvas = ref(null);
+// Reactive state
+const zoomLevel = ref(1);
+const isSelecting = ref(false);
+const selectionStart = ref(0);
+const selectionEnd = ref(0);
+const isDragging = ref(false);
+// Dragging and resizing state
+const draggingSegmentId = ref(null);
+const resizingSegmentId = ref(null);
+const resizeMode = ref('');
+const dragStartX = ref(0);
+const dragStartTime = ref(0);
+const originalSegmentData = ref(null);
+// Context menu
+const contextMenu = ref({
+    visible: false,
+    x: 0,
+    y: 0,
+    segment: null
+});
+// Tooltip
+const tooltip = ref({
+    visible: false,
+    x: 0,
+    y: 0,
+    text: ''
+});
+// Computed properties
+const duration = computed(() => props.video?.duration || 0);
+// ✅ FIX: Protected playhead calculation to prevent NaN
+const playheadPosition = computed(() => {
+    const videoDuration = duration.value;
+    const currentVideoTime = props.currentTime || 0;
+    // ✅ Guard against division by zero and invalid values
+    if (!videoDuration || videoDuration === 0 || !isFinite(videoDuration)) {
+        console.warn('[Timeline] Duration is 0 or invalid:', videoDuration);
+        return 0;
+    }
+    if (!isFinite(currentVideoTime) || currentVideoTime < 0) {
+        console.warn('[Timeline] CurrentTime is invalid:', currentVideoTime);
+        return 0;
+    }
+    const percentage = (currentVideoTime / videoDuration) * 100;
+    // ✅ Additional safety check for percentage
+    if (!isFinite(percentage)) {
+        console.warn('[Timeline] Calculated percentage is NaN:', { currentVideoTime, videoDuration });
+        return 0;
+    }
+    return Math.max(0, Math.min(100, percentage)); // Clamp between 0-100%
+});
+const timeMarkers = computed(() => {
+    const markers = [];
+    const totalTime = duration.value;
+    if (totalTime === 0)
+        return markers;
+    // Calculate marker interval based on zoom level
+    const baseInterval = 10; // seconds
+    const interval = baseInterval / zoomLevel.value;
+    const markerCount = Math.floor(totalTime / interval);
+    for (let i = 0; i <= markerCount; i++) {
+        const time = i * interval;
+        if (time <= totalTime) {
+            markers.push({
+                time,
+                position: (time / totalTime) * 100
             });
-            // Sortiere Segmente innerhalb jeder Gruppe nach Startzeit
-            labelGroups.forEach(group => {
-                group.segments.sort((a, b) => a.startTime - b.startTime);
-            });
-            return Array.from(labelGroups.values());
-        });
-        // Methoden
-        function getSegmentStyle(segment, color) {
-            const left = (segment.startTime / props.duration) * 100;
-            const width = ((segment.endTime - segment.startTime) / props.duration) * 100;
-            return {
-                left: `${left}%`,
-                width: `${Math.max(width, 0.5)}%`, // Mindestbreite für sichtbarkeit
-                backgroundColor: color,
-                borderColor: color,
+        }
+    }
+    return markers;
+});
+// ✅ FIX: Use fps prop instead of ignoring it
+const currentFps = computed(() => props.fps || 30);
+// ✅ NEW: Canonical segments mapper for consistent field access with conversion utilities
+const canonicalSegments = computed(() => (props.segments || []).map((s) => {
+    // Use the new normalization utility to ensure consistent camelCase properties
+    const normalized = normalizeSegmentToCamelCase(s);
+    if (process.env.NODE_ENV === 'development') {
+        debugSegmentConversion(s, normalized, 'toFrontend');
+    }
+    return {
+        ...normalized,
+        // Use normalized
+        start: normalized.startTime,
+        end: normalized.endTime,
+        isDraft: s.id === 'draft' || (typeof s.id === 'string' && s.id.startsWith('temp-')),
+        color: undefined, // Will be determined by getLabelColor
+        avgConfidence: s.avgConfidence ?? 0, // Ensure avgConfidence is always a number
+        label_name: s.label_name || s.label // Added: Required field for API compatibility
+    };
+}));
+// ✅ NEW: Calculate optimal row layout to prevent overlapping segments
+const segmentRows = computed(() => {
+    const segments = canonicalSegments.value;
+    if (segments.length === 0)
+        return [];
+    // Sort segments by start time for optimal placement
+    const sortedSegments = [...segments].sort((a, b) => a.start - b.start);
+    const rows = [];
+    for (const segment of sortedSegments) {
+        // Find the first row where this segment can fit without overlapping
+        let targetRow = rows.find(row => row.maxEndTime < segment.start - 0.0001);
+        if (!targetRow) {
+            // Create a new row if no suitable row exists
+            targetRow = {
+                id: rows.length,
+                segments: [],
+                maxEndTime: 0
             };
+            rows.push(targetRow);
         }
-        function formatTime(seconds) {
-            // Verwende Store-Funktion für konsistente Formatierung
-            return videoStore.formatTime(seconds);
-        }
-        function formatDuration(seconds) {
-            if (seconds < 1)
-                return '<1s';
-            if (seconds < 60)
-                return `${Math.round(seconds)}s`;
-            const mins = Math.floor(seconds / 60);
-            const secs = Math.round(seconds % 60);
-            return secs > 0 ? `${mins}m ${secs}s` : `${mins}m`;
-        }
-        function onMouseMove(event) {
-            const now = Date.now();
-            if (now - lastTimestamp.value < 16)
-                return; // Throttling
-            lastTimestamp.value = now;
-            if (!isResizing.value || !activeSegment.value || !timelineRef.value)
-                return;
-            const clientX = 'touches' in event ? event.touches[0].clientX : event.clientX;
-            const rect = timelineRef.value.getBoundingClientRect();
-            const relativeX = clientX - rect.left;
-            const percentage = Math.max(0, Math.min(100, (relativeX / rect.width) * 100));
-            const newEndTime = (percentage / 100) * props.duration;
-            // Stelle sicher, dass End-Zeit nach Start-Zeit liegt
-            const minEndTime = activeSegment.value.startTime + (1 / props.fps); // Minimum 1 Frame
-            const clampedEndTime = Math.max(minEndTime, Math.min(newEndTime, props.duration));
-            // Konvertiere zurück zu Frame-Nummer für API-Kompatibilität
-            const newEndFrame = timeToFrame(clampedEndTime);
-            // Update segment im Store - das ist bereits reaktiv!
-            videoStore.updateSegment(activeSegment.value.id, {
-                endTime: clampedEndTime,
-                end_frame_number: newEndFrame,
-            });
-            // Emit mit sowohl Zeit als auch Frame-Nummer
-            emit('resize', activeSegment.value.id, clampedEndTime, newEndFrame);
-        }
-        function onMouseUp() {
-            isResizing.value = false;
-            activeSegment.value = null;
-            document.removeEventListener('mousemove', onMouseMove);
-            document.removeEventListener('mouseup', onMouseUp);
-            document.removeEventListener('touchmove', onMouseMove);
-            document.removeEventListener('touchend', onMouseUp);
-        }
-        function startResize(segment, event) {
-            event.stopPropagation();
-            isResizing.value = true;
-            activeSegment.value = segment;
-            initialEndTime.value = segment.endTime;
-            document.addEventListener('mousemove', onMouseMove);
-            document.addEventListener('mouseup', onMouseUp);
-            document.addEventListener('touchmove', onMouseMove);
-            document.addEventListener('touchend', onMouseUp);
-        }
-        function handleTimelineClick(event) {
-            if (isResizing.value || !timelineRef.value)
-                return;
-            const rect = timelineRef.value.getBoundingClientRect();
-            const offsetX = event.clientX - rect.left;
-            const percentage = (offsetX / rect.width) * 100;
-            const targetTime = (percentage / 100) * props.duration;
-            const targetFrame = timeToFrame(targetTime);
-            // Prüfe, ob Shift gedrückt ist für neues Segment
-            if (event.shiftKey) {
-                emit('createSegment', targetTime, targetFrame);
+        // Add segment to the row and update the row's end time
+        targetRow.segments.push(segment);
+        targetRow.maxEndTime = Math.max(targetRow.maxEndTime, segment.end);
+    }
+    console.log(`[Timeline] Arranged ${segments.length} segments into ${rows.length} rows`);
+    return rows;
+});
+// ✅ NEW: Calculate total timeline height based on number of rows
+const timelineHeight = computed(() => {
+    const baseHeight = 60; // Header space for time markers
+    const rowHeight = 45; // Height per segment row
+    const padding = 10; // Bottom padding
+    return baseHeight + (segmentRows.value.length * rowHeight) + padding;
+});
+// Methods - update to use helper functions
+const formatTime = (seconds) => {
+    if (typeof seconds !== 'number' || isNaN(seconds))
+        return '00:00';
+    return formatTimeHelper(seconds);
+};
+const formatDuration = (startTime, endTime) => {
+    const duration = endTime - startTime;
+    return formatTimeHelper(duration);
+};
+const getSegmentPosition = (startTime) => {
+    return calculateSegmentPosition(startTime, duration.value);
+};
+const getSegmentWidth = (startTime, endTime) => {
+    return calculateSegmentWidth(startTime, endTime, duration.value);
+};
+const getLabelColor = (labelId) => {
+    if (!labelId)
+        return '#999';
+    const label = (props.labels || []).find((l) => l.id === labelId);
+    return label?.color || '#999';
+};
+const getLabelName = (labelId) => {
+    if (!labelId)
+        return 'Unbekannt';
+    const label = (props.labels || []).find((l) => l.id === labelId);
+    return label?.name || 'Unbekannt';
+};
+// New drag and resize methods
+const startSegmentDrag = (segment, event) => {
+    if (resizingSegmentId.value)
+        return; // Don't start drag if resizing
+    event.preventDefault();
+    draggingSegmentId.value = segment.id;
+    dragStartX.value = event.clientX;
+    dragStartTime.value = segment.start_time || segment.startTime || 0;
+    originalSegmentData.value = {
+        start_time: segment.start_time || segment.startTime || 0,
+        end_time: segment.end_time || segment.endTime || 0
+    };
+    document.addEventListener('mousemove', onSegmentDragMove);
+    document.addEventListener('mouseup', onSegmentDragEnd);
+    // Add visual feedback
+    document.body.style.cursor = 'grabbing';
+};
+const onSegmentDragMove = (event) => {
+    if (!draggingSegmentId.value || !timeline.value)
+        return;
+    const rect = timeline.value.getBoundingClientRect();
+    const deltaX = event.clientX - dragStartX.value;
+    const deltaTime = (deltaX / rect.width) * duration.value;
+    const segment = canonicalSegments.value.find(s => s.id === draggingSegmentId.value);
+    if (!segment)
+        return;
+    const segmentDuration = originalSegmentData.value.end_time - originalSegmentData.value.start_time;
+    let newStartTime = dragStartTime.value + deltaTime;
+    // Clamp to timeline bounds
+    newStartTime = Math.max(0, Math.min(newStartTime, duration.value - segmentDuration));
+    const newEndTime = newStartTime + segmentDuration;
+    // Emit move event for real-time update
+    emit('segment-move', draggingSegmentId.value, newStartTime, newEndTime);
+    segment.start = newStartTime;
+    segment.end = newEndTime;
+    segment.start_time = newStartTime;
+    segment.end_time = newEndTime;
+};
+const onSegmentDragEnd = (event) => {
+    if (draggingSegmentId.value) {
+        const segment = canonicalSegments.value.find(s => s.id === draggingSegmentId.value);
+        if (segment) {
+            const segmentDuration = originalSegmentData.value.end_time - originalSegmentData.value.start_time;
+            const rect = timeline.value.getBoundingClientRect();
+            const deltaX = event.clientX - dragStartX.value;
+            const deltaTime = (deltaX / rect.width) * duration.value;
+            let newStartTime = dragStartTime.value + deltaTime;
+            newStartTime = Math.max(0, Math.min(newStartTime, duration.value - segmentDuration));
+            const newEndTime = newStartTime + segmentDuration;
+            // ✅ FIX: Handle draft segments differently - don't convert to numeric ID
+            if (typeof draggingSegmentId.value === 'string' &&
+                (draggingSegmentId.value === 'draft' || draggingSegmentId.value.startsWith('temp-'))) {
+                // For draft segments, emit with original ID (don't convert to numeric)
+                console.log('[Timeline] Moving draft segment:', draggingSegmentId.value);
+                emit('segment-move', draggingSegmentId.value, newStartTime, newEndTime, true);
             }
             else {
-                emit('seek', targetTime);
+                // For real segments, validate and convert to numeric ID
+                const numericId = getNumericSegmentId(draggingSegmentId.value);
+                if (numericId === null) {
+                    console.warn('[Timeline] Skipping drag end for invalid segment ID:', draggingSegmentId.value);
+                    return;
+                }
+                emit('segment-move', numericId, newStartTime, newEndTime, true);
             }
         }
-        function jumpToSegment(segment) {
-            // Verwende Store-Funktion für konsistente Navigation
-            const jumpTime = segment.startTime + (segment.endTime - segment.startTime) * 0.1; // 10% ins Segment
-            emit('seek', jumpTime);
-            // Optional: Markiere aktives Segment im Store
-            videoStore.setActiveSegment(segment.id);
+    }
+    // Cleanup
+    draggingSegmentId.value = null;
+    dragStartX.value = 0;
+    dragStartTime.value = 0;
+    originalSegmentData.value = null;
+    document.body.style.cursor = '';
+    document.removeEventListener('mousemove', onSegmentDragMove);
+    document.removeEventListener('mouseup', onSegmentDragEnd);
+};
+const startResize = (segment, mode, event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    resizingSegmentId.value = segment.id;
+    resizeMode.value = mode;
+    dragStartX.value = event.clientX;
+    originalSegmentData.value = {
+        start_time: segment.start_time || segment.startTime || 0,
+        end_time: segment.end_time || segment.endTime || 0
+    };
+    document.addEventListener('mousemove', onResizeMove);
+    document.addEventListener('mouseup', onResizeEnd);
+    // Add visual feedback
+    document.body.style.cursor = 'ew-resize';
+};
+const onResizeMove = (event) => {
+    if (!resizingSegmentId.value || !timeline.value)
+        return;
+    const rect = timeline.value.getBoundingClientRect();
+    const deltaX = event.clientX - dragStartX.value;
+    const deltaTime = (deltaX / rect.width) * duration.value; // ✅ FIX: Remove incorrect addition
+    const segment = (props.segments || []).find((s) => s.id === resizingSegmentId.value);
+    if (!segment)
+        return;
+    let newStartTime = originalSegmentData.value.start_time;
+    let newEndTime = originalSegmentData.value.end_time;
+    if (resizeMode.value === 'start') {
+        newStartTime = Math.max(0, Math.min(originalSegmentData.value.start_time + deltaTime, originalSegmentData.value.end_time - 0.1));
+    }
+    else if (resizeMode.value === 'end') {
+        newEndTime = Math.max(originalSegmentData.value.start_time + 0.1, Math.min(originalSegmentData.value.end_time + deltaTime, duration.value));
+    }
+    emit('segment-resize', resizingSegmentId.value, newStartTime, newEndTime, resizeMode.value);
+};
+const onResizeEnd = (event) => {
+    if (resizingSegmentId.value) {
+        const segment = canonicalSegments.value.find(s => s.id === resizingSegmentId.value);
+        if (segment) {
+            const rect = timeline.value.getBoundingClientRect();
+            const deltaX = event.clientX - dragStartX.value;
+            const deltaTime = (deltaX / rect.width) + duration.value;
+            let newStartTime = originalSegmentData.value.start_time;
+            let newEndTime = originalSegmentData.value.end_time;
+            if (resizeMode.value === 'start') {
+                newStartTime = Math.max(0, Math.min(originalSegmentData.value.start_time + deltaTime, originalSegmentData.value.end_time - 0.1));
+            }
+            else if (resizeMode.value === 'end') {
+                newEndTime = Math.max(originalSegmentData.value.start_time + 0.1, Math.min(originalSegmentData.value.end_time + deltaTime, duration.value));
+            }
+            // ✅ FIX: Handle draft segments differently - don't convert to numeric ID
+            if (typeof resizingSegmentId.value === 'string' &&
+                (resizingSegmentId.value === 'draft' || resizingSegmentId.value.startsWith('temp-'))) {
+                // For draft segments, emit with original ID (don't convert to numeric)
+                console.log('[Timeline] Resizing draft segment:', resizingSegmentId.value);
+                emit('segment-resize', resizingSegmentId.value, newStartTime, newEndTime, resizeMode.value, true);
+            }
+            else {
+                // For real segments, validate and convert to numeric ID
+                const numericId = getNumericSegmentId(resizingSegmentId.value);
+                if (numericId === null) {
+                    console.warn('[Timeline] Skipping resize end for invalid segment ID:', resizingSegmentId.value);
+                    return;
+                }
+                emit('segment-resize', numericId, newStartTime, newEndTime, resizeMode.value, true);
+            }
         }
-        onUnmounted(() => {
-            document.removeEventListener('mousemove', onMouseMove);
-            document.removeEventListener('mouseup', onMouseUp);
-            document.removeEventListener('touchmove', onMouseMove);
-            document.removeEventListener('touchend', onMouseUp);
+    }
+    // Cleanup
+    resizingSegmentId.value = null;
+    resizeMode.value = '';
+    dragStartX.value = 0;
+    originalSegmentData.value = null;
+    document.body.style.cursor = '';
+    document.removeEventListener('mousemove', onResizeMove);
+    document.removeEventListener('mouseup', onResizeEnd);
+};
+// Zoom controls
+const zoomIn = () => {
+    if (zoomLevel.value < 5) {
+        zoomLevel.value = Math.min(5, zoomLevel.value + 0.5);
+    }
+};
+const zoomOut = () => {
+    if (zoomLevel.value > 1) {
+        zoomLevel.value = Math.max(1, zoomLevel.value - 0.5);
+    }
+};
+// Playback controls
+const playPause = () => {
+    emit('play-pause');
+};
+// Selection methods
+const selectSegment = (segment) => {
+    emit('segment-select', segment);
+};
+const editSegment = (segment) => {
+    if (!segment)
+        return;
+    hideContextMenu();
+    emit('segment-edit', segment);
+};
+const deleteSegment = (segment) => {
+    if (!segment)
+        return;
+    hideContextMenu();
+    emit('segment-delete', segment);
+};
+const playSegment = (segment) => {
+    if (!segment)
+        return;
+    hideContextMenu();
+    emit('seek', segment.start_time || segment.startTime || 0);
+    emit('play-pause');
+};
+// Context menu
+const showSegmentMenu = (segment, event) => {
+    contextMenu.value = {
+        visible: true,
+        x: event.clientX,
+        y: event.clientY,
+        segment
+    };
+};
+const hideContextMenu = () => {
+    contextMenu.value.visible = false;
+};
+// Timeline interaction
+const onTimelineMouseDown = (event) => {
+    if (resizingSegmentId.value || draggingSegmentId.value)
+        return;
+    const rect = timeline.value.getBoundingClientRect();
+    const clickX = event.clientX - rect.left;
+    const clickTime = (clickX / rect.width) * duration.value;
+    if (props.selectionMode) {
+        // Start selection for new segment
+        isSelecting.value = true;
+        selectionStart.value = (clickX / rect.width) * 100;
+        selectionEnd.value = selectionStart.value;
+        document.addEventListener('mousemove', onSelectionMouseMove);
+        document.addEventListener('mouseup', onSelectionMouseUp);
+    }
+    else {
+        // Seek to position
+        emit('seek', clickTime);
+    }
+};
+const onSelectionMouseMove = (event) => {
+    if (!isSelecting.value || !timeline.value)
+        return;
+    const rect = timeline.value.getBoundingClientRect();
+    const currentX = event.clientX - rect.left;
+    selectionEnd.value = Math.max(0, Math.min(100, (currentX / rect.width) + 100));
+};
+const onSelectionMouseUp = (event) => {
+    if (!isSelecting.value)
+        return;
+    const rect = timeline.value.getBoundingClientRect();
+    const startPercent = Math.min(selectionStart.value, selectionEnd.value);
+    const endPercent = Math.max(selectionStart.value, selectionEnd.value);
+    const startTime = (startPercent / 100) * duration.value;
+    const endTime = (endPercent / 100) * duration.value;
+    // Only create segment if selection is meaningful (> 0.1 seconds)
+    if (endTime - startTime > 0.1) {
+        emit('time-selection', { start: startTime, end: endTime });
+    }
+    // Cleanup
+    isSelecting.value = false;
+    selectionStart.value = 0;
+    selectionEnd.value = 0;
+    document.removeEventListener('mousemove', onSelectionMouseMove);
+    document.removeEventListener('mouseup', onSelectionMouseUp);
+};
+// Watch for video changes to update waveform
+watch(() => props.video, () => {
+    if (props.showWaveform) {
+        nextTick(() => {
+            initializeWaveform();
         });
-        return {
-            timelineRef,
-            timeMarkersRef,
-            organizedSegments,
-            timeMarkers,
-            cursorPosition,
-            currentTime: computed(() => props.currentTime),
-            selectedSegmentId,
-            allSegments,
-            selectedSegment,
-            startResize,
-            handleTimelineClick,
-            jumpToSegment,
-            getSegmentStyle,
-            formatTime,
-            formatDuration,
-        };
-    },
+    }
 });
-; /* PartiallyEnd: #3632/script.vue */
+// ✅ NEW: Debug watch for segments with 0% width
+watch(canonicalSegments, (segs) => {
+    segs.forEach(s => {
+        if (getSegmentWidth(s.start, s.end) === 0) {
+            console.warn('[Timeline] Segment mit 0% Breite:', s);
+        }
+    });
+}, { immediate: true });
+// Waveform initialization
+const initializeWaveform = () => {
+    if (!waveformCanvas.value || !props.video)
+        return;
+    const canvas = waveformCanvas.value;
+    const ctx = canvas.getContext('2d');
+    if (!ctx)
+        return;
+    // Set canvas size
+    canvas.width = canvas.offsetWidth;
+    canvas.height = canvas.offsetHeight;
+    // Simple waveform visualization
+    ctx.fillStyle = '#e0e0e0';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // Draw sample waveform pattern
+    ctx.strokeStyle = '#2196F3';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let x = 0; x < canvas.width; x += 2) {
+        const amplitude = Math.random() * canvas.height * 0.8 + canvas.height * 0.1;
+        if (x === 0) {
+            ctx.moveTo(x, amplitude);
+        }
+        else {
+            ctx.lineTo(x, amplitude);
+        }
+    }
+    ctx.stroke();
+};
+// Click outside to hide context menu
+const handleClickOutside = (event) => {
+    if (contextMenu.value.visible && !event.target?.closest('.context-menu')) {
+        hideContextMenu();
+    }
+};
+// Lifecycle hooks
+onMounted(() => {
+    document.addEventListener('click', handleClickOutside);
+    // Initialize waveform if needed
+    if (props.showWaveform) {
+        nextTick(() => {
+            initializeWaveform();
+        });
+    }
+});
+onUnmounted(() => {
+    document.removeEventListener('click', handleClickOutside);
+    // Cleanup any ongoing drag/resize operations
+    document.removeEventListener('mousemove', onSegmentDragMove);
+    document.removeEventListener('mouseup', onSegmentDragEnd);
+    document.removeEventListener('mousemove', onResizeMove);
+    document.removeEventListener('mouseup', onResizeEnd);
+    document.removeEventListener('mousemove', onSelectionMouseMove);
+    document.removeEventListener('mouseup', onSelectionMouseUp);
+});
+// NEW: Helper to convert segmentId to numeric ID for API calls
+const getNumericSegmentId = (segmentId) => {
+    if (typeof segmentId === 'number')
+        return segmentId;
+    // Handle string IDs
+    if (typeof segmentId === 'string') {
+        // Skip draft segments (they don't have real IDs yet)
+        if (segmentId === 'draft' || segmentId.startsWith('temp-')) {
+            console.warn('[Timeline] Ignoring draft/temp segment:', segmentId);
+            return null;
+        }
+        const parsed = parseInt(segmentId, 10);
+        if (isNaN(parsed)) {
+            console.error('[Timeline] Invalid segment ID:', segmentId);
+            return null;
+        }
+        return parsed;
+    }
+    console.error('[Timeline] Unexpected segment ID type:', typeof segmentId, segmentId);
+    return null;
+};
+; /* PartiallyEnd: #3632/scriptSetup.vue */
 function __VLS_template() {
     const __VLS_ctx = {};
     let __VLS_components;
     let __VLS_directives;
-    ['form-select', 'form-select', 'timeline-track', 'timeline-track', 'timeline-segment', 'resize-handle', 'resize-handle', 'empty-timeline', 'empty-timeline', 'empty-timeline', 'track-header', 'track-content', 'time-label', 'cursor-handle',];
+    ['play-btn', 'play-btn', 'zoom-controls', 'zoom-controls', 'zoom-controls', 'segment', 'segment', 'segment', 'context-menu-item', 'context-menu-item', 'context-menu-item', 'segment', 'resize-handle', 'segment', 'resize-handle', 'resize-handle', 'resize-handle', 'resize-handle', 'resize-handle', 'segment', 'segment', 'segment',];
     // CSS variable injection 
     // CSS variable injection end 
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -259,130 +513,240 @@ function __VLS_template() {
         ...{ class: ("timeline-header") },
     });
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("time-markers") },
-        ref: ("timeMarkersRef"),
+        ...{ class: ("timeline-controls") },
     });
-    // @ts-ignore navigation for `const timeMarkersRef = ref()`
-    /** @type { typeof __VLS_ctx.timeMarkersRef } */ ;
+    __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+        ...{ onClick: (__VLS_ctx.playPause) },
+        ...{ class: ("play-btn") },
+        disabled: ((!__VLS_ctx.video)),
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+        ...{ class: ((__VLS_ctx.isPlaying ? 'fas fa-pause' : 'fas fa-play')) },
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+        ...{ class: ("time-display") },
+    });
+    (__VLS_ctx.formatTime(__VLS_ctx.currentTime));
+    (__VLS_ctx.formatTime(__VLS_ctx.duration));
+    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: ("zoom-controls") },
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+        ...{ onClick: (__VLS_ctx.zoomOut) },
+        disabled: ((__VLS_ctx.zoomLevel <= 1)),
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+        ...{ class: ("fas fa-search-minus") },
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+        ...{ class: ("zoom-level") },
+    });
+    (Math.round(__VLS_ctx.zoomLevel * 100));
+    __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+        ...{ onClick: (__VLS_ctx.zoomIn) },
+        disabled: ((__VLS_ctx.zoomLevel >= 5)),
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+        ...{ class: ("fas fa-search-plus") },
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: ("timeline-wrapper") },
+        ...{ style: (({ height: __VLS_ctx.timelineHeight + 'px' })) },
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ onMousedown: (__VLS_ctx.onTimelineMouseDown) },
+        ...{ class: ("timeline") },
+        ref: ("timeline"),
+        ...{ style: (({ height: __VLS_ctx.timelineHeight + 'px' })) },
+    });
+    // @ts-ignore navigation for `const timeline = ref()`
+    /** @type { typeof __VLS_ctx.timeline } */ ;
+    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: ("time-markers") },
+    });
     for (const [marker] of __VLS_getVForSourceType((__VLS_ctx.timeMarkers))) {
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             key: ((marker.time)),
             ...{ class: ("time-marker") },
             ...{ style: (({ left: marker.position + '%' })) },
         });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-            ...{ class: ("time-label") },
-        });
-        (__VLS_ctx.formatTime(marker.time));
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: ("marker-line") },
-        });
-    }
-    if (__VLS_ctx.currentTime >= 0) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("timeline-cursor") },
-            ...{ style: (({ left: __VLS_ctx.cursorPosition + '%' })) },
+            ...{ style: (({ height: __VLS_ctx.timelineHeight + 'px' })) },
         });
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("cursor-line") },
+            ...{ class: ("marker-text") },
         });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("cursor-handle") },
-        });
-        (__VLS_ctx.formatTime(__VLS_ctx.currentTime));
-    }
-    if (false) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("segment-selector") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
-            ...{ class: ("form-select") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-            value: (""),
-        });
+        (__VLS_ctx.formatTime(marker.time));
     }
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("timeline-tracks") },
-        ref: ("timelineRef"),
+        ...{ class: ("segments-container") },
     });
-    // @ts-ignore navigation for `const timelineRef = ref()`
-    /** @type { typeof __VLS_ctx.timelineRef } */ ;
-    for (const [labelGroup] of __VLS_getVForSourceType((__VLS_ctx.organizedSegments))) {
+    for (const [row, rowIndex] of __VLS_getVForSourceType((__VLS_ctx.segmentRows))) {
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ onClick: (__VLS_ctx.handleTimelineClick) },
-            key: ((labelGroup.labelName)),
-            ...{ class: ("timeline-track") },
+            key: ((row.id)),
+            ...{ class: ("segment-row") },
+            ...{ style: (({
+                    top: (60 + rowIndex * 45) + 'px',
+                    height: '40px'
+                })) },
         });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("track-header") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("label-indicator") },
-            ...{ style: (({ backgroundColor: labelGroup.color })) },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-            ...{ class: ("track-label") },
-        });
-        (labelGroup.labelName || 'Ohne Label');
-        __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-            ...{ class: ("segment-count") },
-        });
-        (labelGroup.segments.length);
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("track-content") },
-        });
-        for (const [segment] of __VLS_getVForSourceType((labelGroup.segments))) {
+        for (const [segment] of __VLS_getVForSourceType((row.segments))) {
             __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
                 ...{ onClick: (...[$event]) => {
-                        __VLS_ctx.jumpToSegment(segment);
+                        __VLS_ctx.selectSegment(segment);
+                    } },
+                ...{ onContextmenu: (...[$event]) => {
+                        __VLS_ctx.showSegmentMenu(segment, $event);
+                    } },
+                ...{ onMousedown: (...[$event]) => {
+                        __VLS_ctx.startSegmentDrag(segment, $event);
                     } },
                 key: ((segment.id)),
-                ...{ class: ("timeline-segment") },
-                ...{ style: ((__VLS_ctx.getSegmentStyle(segment, labelGroup.color))) },
-                title: ((`${segment.label_display}: ${__VLS_ctx.formatTime(segment.startTime)} - ${__VLS_ctx.formatTime(segment.endTime)}`)),
+                ...{ class: ("segment") },
+                ...{ class: (({
+                        'active': segment.id === __VLS_ctx.activeSegmentId,
+                        'draft': segment.isDraft,
+                        'dragging': segment.id === __VLS_ctx.draggingSegmentId
+                    })) },
+                ...{ style: (({
+                        left: __VLS_ctx.getSegmentPosition(segment.start) + '%',
+                        width: __VLS_ctx.getSegmentWidth(segment.start, segment.end) + '%',
+                        backgroundColor: segment.color || __VLS_ctx.getLabelColor(segment.label_id),
+                        borderColor: segment.isDraft ? '#ff9800' : 'transparent'
+                    })) },
+            });
+            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ onMousedown: (...[$event]) => {
+                        __VLS_ctx.startResize(segment, 'start', $event);
+                    } },
+                ...{ class: ("resize-handle start-handle") },
+                title: (('Segment-Start ändern')),
+            });
+            __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                ...{ class: ("fas fa-grip-lines-vertical") },
             });
             __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
                 ...{ class: ("segment-content") },
             });
             __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-                ...{ class: ("segment-time") },
+                ...{ class: ("segment-label") },
             });
-            (__VLS_ctx.formatTime(segment.startTime));
+            (__VLS_ctx.getLabelName(segment.label_id) || segment.label_name);
             __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
                 ...{ class: ("segment-duration") },
             });
-            (__VLS_ctx.formatDuration(segment.endTime - segment.startTime));
+            (__VLS_ctx.formatDuration(segment.start, segment.end));
             __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
                 ...{ onMousedown: (...[$event]) => {
-                        __VLS_ctx.startResize(segment, $event);
+                        __VLS_ctx.startResize(segment, 'end', $event);
                     } },
-                ...{ onTouchstart: (...[$event]) => {
-                        __VLS_ctx.startResize(segment, $event);
-                    } },
-                ...{ class: ("resize-handle") },
-                title: ("Segment-Ende ziehen"),
+                ...{ class: ("resize-handle end-handle") },
+                title: (('Segment-Ende ändern')),
             });
+            __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                ...{ class: ("fas fa-grip-lines-vertical") },
+            });
+            if (segment.isDraft) {
+                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                    ...{ class: ("draft-indicator") },
+                });
+                __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                    ...{ class: ("fas fa-edit") },
+                });
+            }
         }
     }
-    if (__VLS_ctx.organizedSegments.length === 0) {
+    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: ("playhead") },
+        ...{ style: (({ left: __VLS_ctx.playheadPosition + '%', height: __VLS_ctx.timelineHeight + 'px' })) },
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: ("playhead-line") },
+        ...{ style: (({ height: __VLS_ctx.timelineHeight + 'px' })) },
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: ("playhead-handle") },
+    });
+    if (__VLS_ctx.isSelecting) {
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("empty-timeline") },
+            ...{ class: ("selection-overlay") },
+            ...{ style: (({
+                    left: Math.min(__VLS_ctx.selectionStart, __VLS_ctx.selectionEnd) + '%',
+                    width: Math.abs(__VLS_ctx.selectionEnd - __VLS_ctx.selectionStart) + '%',
+                    height: __VLS_ctx.timelineHeight + 'px'
+                })) },
+        });
+    }
+    if (__VLS_ctx.showWaveform) {
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("waveform-container") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.canvas, __VLS_intrinsicElements.canvas)({
+            ref: ("waveformCanvas"),
+            ...{ class: ("waveform-canvas") },
+        });
+        // @ts-ignore navigation for `const waveformCanvas = ref()`
+        /** @type { typeof __VLS_ctx.waveformCanvas } */ ;
+    }
+    if (__VLS_ctx.contextMenu.visible) {
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ onClick: () => { } },
+            ...{ class: ("context-menu") },
+            ...{ style: (({ left: __VLS_ctx.contextMenu.x + 'px', top: __VLS_ctx.contextMenu.y + 'px' })) },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ onClick: (...[$event]) => {
+                    if (!((__VLS_ctx.contextMenu.visible)))
+                        return;
+                    __VLS_ctx.editSegment(__VLS_ctx.contextMenu.segment);
+                } },
+            ...{ class: ("context-menu-item") },
         });
         __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: ("material-icons") },
+            ...{ class: ("fas fa-edit") },
         });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
-        __VLS_elementAsFunction(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({});
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ onClick: (...[$event]) => {
+                    if (!((__VLS_ctx.contextMenu.visible)))
+                        return;
+                    __VLS_ctx.deleteSegment(__VLS_ctx.contextMenu.segment);
+                } },
+            ...{ class: ("context-menu-item danger") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: ("fas fa-trash") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("context-menu-separator") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ onClick: (...[$event]) => {
+                    if (!((__VLS_ctx.contextMenu.visible)))
+                        return;
+                    __VLS_ctx.playSegment(__VLS_ctx.contextMenu.segment);
+                } },
+            ...{ class: ("context-menu-item") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: ("fas fa-play") },
+        });
     }
-    ['timeline-container', 'timeline-header', 'time-markers', 'time-marker', 'time-label', 'marker-line', 'timeline-cursor', 'cursor-line', 'cursor-handle', 'segment-selector', 'form-select', 'timeline-tracks', 'timeline-track', 'track-header', 'label-indicator', 'track-label', 'segment-count', 'track-content', 'timeline-segment', 'segment-content', 'segment-time', 'segment-duration', 'resize-handle', 'empty-timeline', 'material-icons',];
+    if (__VLS_ctx.tooltip.visible) {
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("timeline-tooltip") },
+            ...{ style: (({ left: __VLS_ctx.tooltip.x + 'px', top: __VLS_ctx.tooltip.y + 'px' })) },
+        });
+        (__VLS_ctx.tooltip.text);
+    }
+    ['timeline-container', 'timeline-header', 'timeline-controls', 'play-btn', 'time-display', 'zoom-controls', 'fas', 'fa-search-minus', 'zoom-level', 'fas', 'fa-search-plus', 'timeline-wrapper', 'timeline', 'time-markers', 'time-marker', 'marker-line', 'marker-text', 'segments-container', 'segment-row', 'segment', 'active', 'draft', 'dragging', 'resize-handle', 'start-handle', 'fas', 'fa-grip-lines-vertical', 'segment-content', 'segment-label', 'segment-duration', 'resize-handle', 'end-handle', 'fas', 'fa-grip-lines-vertical', 'draft-indicator', 'fas', 'fa-edit', 'playhead', 'playhead-line', 'playhead-handle', 'selection-overlay', 'waveform-container', 'waveform-canvas', 'context-menu', 'context-menu-item', 'fas', 'fa-edit', 'context-menu-item', 'danger', 'fas', 'fa-trash', 'context-menu-separator', 'context-menu-item', 'fas', 'fa-play', 'timeline-tooltip',];
     var __VLS_slots;
     var $slots;
     let __VLS_inheritedAttrs;
     var $attrs;
     const __VLS_refs = {
-        'timeMarkersRef': __VLS_nativeElements['div'],
-        'timelineRef': __VLS_nativeElements['div'],
+        'timeline': __VLS_nativeElements['div'],
+        'waveformCanvas': __VLS_nativeElements['canvas'],
     };
     var $refs;
     var $el;
@@ -394,4 +758,52 @@ function __VLS_template() {
     };
 }
 ;
-let __VLS_self;
+const __VLS_self = (await import('vue')).defineComponent({
+    setup() {
+        return {
+            timeline: timeline,
+            waveformCanvas: waveformCanvas,
+            zoomLevel: zoomLevel,
+            isSelecting: isSelecting,
+            selectionStart: selectionStart,
+            selectionEnd: selectionEnd,
+            draggingSegmentId: draggingSegmentId,
+            contextMenu: contextMenu,
+            tooltip: tooltip,
+            duration: duration,
+            playheadPosition: playheadPosition,
+            timeMarkers: timeMarkers,
+            segmentRows: segmentRows,
+            timelineHeight: timelineHeight,
+            formatTime: formatTime,
+            formatDuration: formatDuration,
+            getSegmentPosition: getSegmentPosition,
+            getSegmentWidth: getSegmentWidth,
+            getLabelColor: getLabelColor,
+            getLabelName: getLabelName,
+            startSegmentDrag: startSegmentDrag,
+            startResize: startResize,
+            zoomIn: zoomIn,
+            zoomOut: zoomOut,
+            playPause: playPause,
+            selectSegment: selectSegment,
+            editSegment: editSegment,
+            deleteSegment: deleteSegment,
+            playSegment: playSegment,
+            showSegmentMenu: showSegmentMenu,
+            onTimelineMouseDown: onTimelineMouseDown,
+        };
+    },
+    __typeEmits: {},
+    __typeProps: {},
+});
+export default (await import('vue')).defineComponent({
+    setup() {
+        return {};
+    },
+    __typeEmits: {},
+    __typeProps: {},
+    __typeRefs: {},
+    __typeEl: {},
+});
+; /* PartiallyEnd: #4569/main.vue */

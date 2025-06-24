@@ -3,7 +3,7 @@ import { ref, computed } from 'vue';
 // Fallback data for when backend is not available or no videos are imported
 const FALLBACK_VIDEO = {
     id: 1,
-    originalFileName: 'lux-gastro-video.mp4',
+    original_file_name: 'lux-gastro-video.mp4', // Corrected property name
     status: 'available',
     assignedUser: null,
     anonymized: false,
@@ -28,6 +28,7 @@ const FALLBACK_SEGMENTS = [
     {
         id: 'outside-segment1',
         label: 'outside',
+        label_name: 'outside', // Added: Required field for API compatibility
         label_display: 'Außerhalb',
         startTime: 0,
         endTime: 15,
@@ -36,6 +37,7 @@ const FALLBACK_SEGMENTS = [
     {
         id: 'ileum-segment1',
         label: 'ileum',
+        label_name: 'ileum', // Added: Required field for API compatibility
         label_display: 'Ileum',
         startTime: 15,
         endTime: 45,
@@ -44,6 +46,7 @@ const FALLBACK_SEGMENTS = [
     {
         id: 'polyp-segment1',
         label: 'polyp',
+        label_name: 'polyp', // Added: Required field for API compatibility
         label_display: 'Polyp',
         startTime: 45,
         endTime: 60,
@@ -52,6 +55,7 @@ const FALLBACK_SEGMENTS = [
     {
         id: 'outside-segment2',
         label: 'outside',
+        label_name: 'outside', // Added: Required field for API compatibility
         label_display: 'Außerhalb',
         startTime: 60,
         endTime: 120,
@@ -100,6 +104,7 @@ export const useFallbackVideoStore = defineStore('fallbackVideo', () => {
         return {
             id: `${label}-segment-${Date.now()}`,
             label,
+            label_name: label, // Added: Required field for API compatibility
             label_display: labelTranslations[label] || label,
             startTime,
             endTime,
