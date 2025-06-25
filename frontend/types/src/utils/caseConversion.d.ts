@@ -7,6 +7,7 @@
  * @param snakeStr - The string in snake_case format
  * @returns The string in camelCase format
  */
+import type { BackendSegment, FrontendSegment } from '@/stores/videoStore';
 export declare function snakeToCamel(snakeStr: string): string;
 /**
  * Converts a camelCase string to snake_case
@@ -26,34 +27,6 @@ export declare function objectSnakeToCamel<T = any>(obj: Record<string, any>): T
  * @returns Object with snake_case keys
  */
 export declare function objectCamelToSnake<T = any>(obj: Record<string, any>): T;
-/**
- * Backend segment format (from API responses)
- */
-export interface BackendSegment {
-    id: string | number;
-    label: string;
-    label_display: string;
-    start_time: number;
-    end_time: number;
-    avgConfidence?: number;
-    segment_id?: number;
-    segment_start?: number;
-    segment_end?: number;
-}
-/**
- * Frontend segment format (unified camelCase)
- */
-export interface FrontendSegment {
-    id: string | number;
-    label: string;
-    label_display: string;
-    startTime: number;
-    endTime: number;
-    avgConfidence?: number;
-    segmentId?: number;
-    segmentStart?: number;
-    segmentEnd?: number;
-}
 /**
  * Converts a backend segment (snake_case) to frontend segment (camelCase)
  * Handles both start_time/end_time and segment_start/segment_end formats

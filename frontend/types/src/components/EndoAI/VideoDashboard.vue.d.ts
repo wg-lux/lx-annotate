@@ -28,20 +28,28 @@ declare const _default: import("vue").DefineComponent<{}, {}, {
             readonly segments: readonly {
                 readonly id: string | number;
                 readonly label: string;
-                readonly label_name: string;
-                readonly label_display: string;
                 readonly startTime: number;
                 readonly endTime: number;
                 readonly avgConfidence: number;
-                readonly video_id?: number | undefined;
-                readonly label_id?: number | undefined;
-                readonly start_frame_number?: number | undefined;
-                readonly end_frame_number?: number | undefined;
-                readonly start_time?: number | undefined;
-                readonly end_time?: number | undefined;
-                readonly segmentId?: number | undefined;
-                readonly segmentStart?: number | undefined;
-                readonly segmentEnd?: number | undefined;
+                readonly videoID?: number | undefined;
+                readonly labelID?: number | undefined;
+                readonly label_name?: string | undefined;
+                readonly frames?: {
+                    readonly [x: string]: {
+                        readonly frame_filename: string;
+                        readonly frame_file_path: string;
+                        readonly predictions: {
+                            readonly frame_number: number;
+                            readonly label: string;
+                            readonly confidence: number;
+                        };
+                    };
+                } | undefined;
+                readonly isDraft?: boolean | undefined;
+                readonly color?: string | undefined;
+                readonly startFrameNumber?: number | undefined;
+                readonly endFrameNumber?: number | undefined;
+                readonly usingFPS?: boolean | undefined;
             }[];
             readonly videoUrl: string;
             readonly status: import("@/stores/videoStore").VideoStatus;
@@ -55,20 +63,28 @@ declare const _default: import("vue").DefineComponent<{}, {}, {
             readonly segments: readonly {
                 readonly id: string | number;
                 readonly label: string;
-                readonly label_name: string;
-                readonly label_display: string;
                 readonly startTime: number;
                 readonly endTime: number;
                 readonly avgConfidence: number;
-                readonly video_id?: number | undefined;
-                readonly label_id?: number | undefined;
-                readonly start_frame_number?: number | undefined;
-                readonly end_frame_number?: number | undefined;
-                readonly start_time?: number | undefined;
-                readonly end_time?: number | undefined;
-                readonly segmentId?: number | undefined;
-                readonly segmentStart?: number | undefined;
-                readonly segmentEnd?: number | undefined;
+                readonly videoID?: number | undefined;
+                readonly labelID?: number | undefined;
+                readonly label_name?: string | undefined;
+                readonly frames?: {
+                    readonly [x: string]: {
+                        readonly frame_filename: string;
+                        readonly frame_file_path: string;
+                        readonly predictions: {
+                            readonly frame_number: number;
+                            readonly label: string;
+                            readonly confidence: number;
+                        };
+                    };
+                } | undefined;
+                readonly isDraft?: boolean | undefined;
+                readonly color?: string | undefined;
+                readonly startFrameNumber?: number | undefined;
+                readonly endFrameNumber?: number | undefined;
+                readonly usingFPS?: boolean | undefined;
             }[];
             readonly videoUrl: string;
             readonly status: import("@/stores/videoStore").VideoStatus;
@@ -139,21 +155,17 @@ declare const _default: import("vue").DefineComponent<{}, {}, {
         draftSegment: Readonly<import("vue").Ref<{
             readonly start: number;
             readonly end: number | null;
+            readonly id: string | number;
             readonly label: string;
-            readonly label_display: string;
             readonly startTime: number;
             readonly endTime: number | null;
-            readonly start_time: number;
-            readonly end_time: number | null;
         } | null, {
             readonly start: number;
             readonly end: number | null;
+            readonly id: string | number;
             readonly label: string;
-            readonly label_display: string;
             readonly startTime: number;
             readonly endTime: number | null;
-            readonly start_time: number;
-            readonly end_time: number | null;
         } | null>>;
         activeSegment: import("vue").ComputedRef<Segment | null>;
         duration: import("vue").ComputedRef<number>;
@@ -167,6 +179,7 @@ declare const _default: import("vue").DefineComponent<{}, {}, {
         fetchAllVideos: () => Promise<import("@/stores/videoStore").VideoList>;
         fetchVideoMeta: (lastId?: string | undefined) => Promise<any>;
         fetchVideoSegments: (videoId: string) => Promise<void>;
+        fetchSegmentsByLabel: (id: string, label?: string) => Promise<void>;
         createSegment: (videoId: string, labelName: string, startTime: number, endTime: number) => Promise<Segment | null>;
         updateSegment: (segmentId: string | number, updates: import("@/stores/videoStore").SegmentUpdatePayload) => Promise<boolean>;
         deleteSegment: (segmentId: string | number) => Promise<boolean>;
@@ -180,7 +193,9 @@ declare const _default: import("vue").DefineComponent<{}, {}, {
         setActiveSegment: (segmentId: string | number | null) => void;
         updateVideoStatus: (status: import("@/stores/videoStore").VideoStatus) => Promise<void>;
         assignUserToVideo: (user: string) => Promise<void>;
-        startDraft: (label: string, startTime: number, labelDisplay?: string | undefined) => void;
+        updateSensitiveMeta: (payload: any) => Promise<boolean>;
+        clearVideoMeta: () => void;
+        startDraft: (label: string, startTime: number) => void;
         updateDraftEnd: (endTime: number) => void;
         commitDraft: () => Promise<Segment | null>;
         cancelDraft: () => void;
@@ -197,20 +212,28 @@ declare const _default: import("vue").DefineComponent<{}, {}, {
             readonly segments: readonly {
                 readonly id: string | number;
                 readonly label: string;
-                readonly label_name: string;
-                readonly label_display: string;
                 readonly startTime: number;
                 readonly endTime: number;
                 readonly avgConfidence: number;
-                readonly video_id?: number | undefined;
-                readonly label_id?: number | undefined;
-                readonly start_frame_number?: number | undefined;
-                readonly end_frame_number?: number | undefined;
-                readonly start_time?: number | undefined;
-                readonly end_time?: number | undefined;
-                readonly segmentId?: number | undefined;
-                readonly segmentStart?: number | undefined;
-                readonly segmentEnd?: number | undefined;
+                readonly videoID?: number | undefined;
+                readonly labelID?: number | undefined;
+                readonly label_name?: string | undefined;
+                readonly frames?: {
+                    readonly [x: string]: {
+                        readonly frame_filename: string;
+                        readonly frame_file_path: string;
+                        readonly predictions: {
+                            readonly frame_number: number;
+                            readonly label: string;
+                            readonly confidence: number;
+                        };
+                    };
+                } | undefined;
+                readonly isDraft?: boolean | undefined;
+                readonly color?: string | undefined;
+                readonly startFrameNumber?: number | undefined;
+                readonly endFrameNumber?: number | undefined;
+                readonly usingFPS?: boolean | undefined;
             }[];
             readonly videoUrl: string;
             readonly status: import("@/stores/videoStore").VideoStatus;
@@ -224,20 +247,28 @@ declare const _default: import("vue").DefineComponent<{}, {}, {
             readonly segments: readonly {
                 readonly id: string | number;
                 readonly label: string;
-                readonly label_name: string;
-                readonly label_display: string;
                 readonly startTime: number;
                 readonly endTime: number;
                 readonly avgConfidence: number;
-                readonly video_id?: number | undefined;
-                readonly label_id?: number | undefined;
-                readonly start_frame_number?: number | undefined;
-                readonly end_frame_number?: number | undefined;
-                readonly start_time?: number | undefined;
-                readonly end_time?: number | undefined;
-                readonly segmentId?: number | undefined;
-                readonly segmentStart?: number | undefined;
-                readonly segmentEnd?: number | undefined;
+                readonly videoID?: number | undefined;
+                readonly labelID?: number | undefined;
+                readonly label_name?: string | undefined;
+                readonly frames?: {
+                    readonly [x: string]: {
+                        readonly frame_filename: string;
+                        readonly frame_file_path: string;
+                        readonly predictions: {
+                            readonly frame_number: number;
+                            readonly label: string;
+                            readonly confidence: number;
+                        };
+                    };
+                } | undefined;
+                readonly isDraft?: boolean | undefined;
+                readonly color?: string | undefined;
+                readonly startFrameNumber?: number | undefined;
+                readonly endFrameNumber?: number | undefined;
+                readonly usingFPS?: boolean | undefined;
             }[];
             readonly videoUrl: string;
             readonly status: import("@/stores/videoStore").VideoStatus;
@@ -308,21 +339,17 @@ declare const _default: import("vue").DefineComponent<{}, {}, {
         draftSegment: Readonly<import("vue").Ref<{
             readonly start: number;
             readonly end: number | null;
+            readonly id: string | number;
             readonly label: string;
-            readonly label_display: string;
             readonly startTime: number;
             readonly endTime: number | null;
-            readonly start_time: number;
-            readonly end_time: number | null;
         } | null, {
             readonly start: number;
             readonly end: number | null;
+            readonly id: string | number;
             readonly label: string;
-            readonly label_display: string;
             readonly startTime: number;
             readonly endTime: number | null;
-            readonly start_time: number;
-            readonly end_time: number | null;
         } | null>>;
         activeSegment: import("vue").ComputedRef<Segment | null>;
         duration: import("vue").ComputedRef<number>;
@@ -336,6 +363,7 @@ declare const _default: import("vue").DefineComponent<{}, {}, {
         fetchAllVideos: () => Promise<import("@/stores/videoStore").VideoList>;
         fetchVideoMeta: (lastId?: string | undefined) => Promise<any>;
         fetchVideoSegments: (videoId: string) => Promise<void>;
+        fetchSegmentsByLabel: (id: string, label?: string) => Promise<void>;
         createSegment: (videoId: string, labelName: string, startTime: number, endTime: number) => Promise<Segment | null>;
         updateSegment: (segmentId: string | number, updates: import("@/stores/videoStore").SegmentUpdatePayload) => Promise<boolean>;
         deleteSegment: (segmentId: string | number) => Promise<boolean>;
@@ -349,7 +377,9 @@ declare const _default: import("vue").DefineComponent<{}, {}, {
         setActiveSegment: (segmentId: string | number | null) => void;
         updateVideoStatus: (status: import("@/stores/videoStore").VideoStatus) => Promise<void>;
         assignUserToVideo: (user: string) => Promise<void>;
-        startDraft: (label: string, startTime: number, labelDisplay?: string | undefined) => void;
+        updateSensitiveMeta: (payload: any) => Promise<boolean>;
+        clearVideoMeta: () => void;
+        startDraft: (label: string, startTime: number) => void;
         updateDraftEnd: (endTime: number) => void;
         commitDraft: () => Promise<Segment | null>;
         cancelDraft: () => void;
@@ -358,7 +388,7 @@ declare const _default: import("vue").DefineComponent<{}, {}, {
         getSegmentOptions: () => import("@/stores/videoStore").SegmentOption[];
         clearSegments: () => void;
         loadVideo: (videoId: string) => Promise<void>;
-    }, "segments" | "duration" | "labels" | "allSegments" | "activeSegment" | "hasVideo">, Pick<{
+    }, "duration" | "segments" | "labels" | "allSegments" | "activeSegment" | "hasVideo">, Pick<{
         currentVideo: Readonly<import("vue").Ref<{
             readonly id: string | number;
             readonly isAnnotated: boolean;
@@ -366,20 +396,28 @@ declare const _default: import("vue").DefineComponent<{}, {}, {
             readonly segments: readonly {
                 readonly id: string | number;
                 readonly label: string;
-                readonly label_name: string;
-                readonly label_display: string;
                 readonly startTime: number;
                 readonly endTime: number;
                 readonly avgConfidence: number;
-                readonly video_id?: number | undefined;
-                readonly label_id?: number | undefined;
-                readonly start_frame_number?: number | undefined;
-                readonly end_frame_number?: number | undefined;
-                readonly start_time?: number | undefined;
-                readonly end_time?: number | undefined;
-                readonly segmentId?: number | undefined;
-                readonly segmentStart?: number | undefined;
-                readonly segmentEnd?: number | undefined;
+                readonly videoID?: number | undefined;
+                readonly labelID?: number | undefined;
+                readonly label_name?: string | undefined;
+                readonly frames?: {
+                    readonly [x: string]: {
+                        readonly frame_filename: string;
+                        readonly frame_file_path: string;
+                        readonly predictions: {
+                            readonly frame_number: number;
+                            readonly label: string;
+                            readonly confidence: number;
+                        };
+                    };
+                } | undefined;
+                readonly isDraft?: boolean | undefined;
+                readonly color?: string | undefined;
+                readonly startFrameNumber?: number | undefined;
+                readonly endFrameNumber?: number | undefined;
+                readonly usingFPS?: boolean | undefined;
             }[];
             readonly videoUrl: string;
             readonly status: import("@/stores/videoStore").VideoStatus;
@@ -393,20 +431,28 @@ declare const _default: import("vue").DefineComponent<{}, {}, {
             readonly segments: readonly {
                 readonly id: string | number;
                 readonly label: string;
-                readonly label_name: string;
-                readonly label_display: string;
                 readonly startTime: number;
                 readonly endTime: number;
                 readonly avgConfidence: number;
-                readonly video_id?: number | undefined;
-                readonly label_id?: number | undefined;
-                readonly start_frame_number?: number | undefined;
-                readonly end_frame_number?: number | undefined;
-                readonly start_time?: number | undefined;
-                readonly end_time?: number | undefined;
-                readonly segmentId?: number | undefined;
-                readonly segmentStart?: number | undefined;
-                readonly segmentEnd?: number | undefined;
+                readonly videoID?: number | undefined;
+                readonly labelID?: number | undefined;
+                readonly label_name?: string | undefined;
+                readonly frames?: {
+                    readonly [x: string]: {
+                        readonly frame_filename: string;
+                        readonly frame_file_path: string;
+                        readonly predictions: {
+                            readonly frame_number: number;
+                            readonly label: string;
+                            readonly confidence: number;
+                        };
+                    };
+                } | undefined;
+                readonly isDraft?: boolean | undefined;
+                readonly color?: string | undefined;
+                readonly startFrameNumber?: number | undefined;
+                readonly endFrameNumber?: number | undefined;
+                readonly usingFPS?: boolean | undefined;
             }[];
             readonly videoUrl: string;
             readonly status: import("@/stores/videoStore").VideoStatus;
@@ -477,21 +523,17 @@ declare const _default: import("vue").DefineComponent<{}, {}, {
         draftSegment: Readonly<import("vue").Ref<{
             readonly start: number;
             readonly end: number | null;
+            readonly id: string | number;
             readonly label: string;
-            readonly label_display: string;
             readonly startTime: number;
             readonly endTime: number | null;
-            readonly start_time: number;
-            readonly end_time: number | null;
         } | null, {
             readonly start: number;
             readonly end: number | null;
+            readonly id: string | number;
             readonly label: string;
-            readonly label_display: string;
             readonly startTime: number;
             readonly endTime: number | null;
-            readonly start_time: number;
-            readonly end_time: number | null;
         } | null>>;
         activeSegment: import("vue").ComputedRef<Segment | null>;
         duration: import("vue").ComputedRef<number>;
@@ -505,6 +547,7 @@ declare const _default: import("vue").DefineComponent<{}, {}, {
         fetchAllVideos: () => Promise<import("@/stores/videoStore").VideoList>;
         fetchVideoMeta: (lastId?: string | undefined) => Promise<any>;
         fetchVideoSegments: (videoId: string) => Promise<void>;
+        fetchSegmentsByLabel: (id: string, label?: string) => Promise<void>;
         createSegment: (videoId: string, labelName: string, startTime: number, endTime: number) => Promise<Segment | null>;
         updateSegment: (segmentId: string | number, updates: import("@/stores/videoStore").SegmentUpdatePayload) => Promise<boolean>;
         deleteSegment: (segmentId: string | number) => Promise<boolean>;
@@ -518,7 +561,9 @@ declare const _default: import("vue").DefineComponent<{}, {}, {
         setActiveSegment: (segmentId: string | number | null) => void;
         updateVideoStatus: (status: import("@/stores/videoStore").VideoStatus) => Promise<void>;
         assignUserToVideo: (user: string) => Promise<void>;
-        startDraft: (label: string, startTime: number, labelDisplay?: string | undefined) => void;
+        updateSensitiveMeta: (payload: any) => Promise<boolean>;
+        clearVideoMeta: () => void;
+        startDraft: (label: string, startTime: number) => void;
         updateDraftEnd: (endTime: number) => void;
         commitDraft: () => Promise<Segment | null>;
         cancelDraft: () => void;
@@ -527,7 +572,7 @@ declare const _default: import("vue").DefineComponent<{}, {}, {
         getSegmentOptions: () => import("@/stores/videoStore").SegmentOption[];
         clearSegments: () => void;
         loadVideo: (videoId: string) => Promise<void>;
-    }, "clearVideo" | "setVideo" | "fetchVideoUrl" | "fetchAllSegments" | "fetchAllVideos" | "fetchVideoMeta" | "fetchVideoSegments" | "createSegment" | "updateSegment" | "deleteSegment" | "saveAnnotations" | "uploadRevert" | "uploadProcess" | "getSegmentStyle" | "getColorForLabel" | "getTranslationForLabel" | "jumpToSegment" | "setActiveSegment" | "updateVideoStatus" | "assignUserToVideo" | "startDraft" | "updateDraftEnd" | "commitDraft" | "cancelDraft" | "createFiveSecondSegment" | "formatTime" | "getSegmentOptions" | "clearSegments" | "loadVideo">>;
+    }, "clearVideo" | "setVideo" | "fetchVideoUrl" | "fetchAllSegments" | "fetchAllVideos" | "fetchVideoMeta" | "fetchVideoSegments" | "fetchSegmentsByLabel" | "createSegment" | "updateSegment" | "deleteSegment" | "saveAnnotations" | "uploadRevert" | "uploadProcess" | "getSegmentStyle" | "getColorForLabel" | "getTranslationForLabel" | "jumpToSegment" | "setActiveSegment" | "updateVideoStatus" | "assignUserToVideo" | "updateSensitiveMeta" | "clearVideoMeta" | "startDraft" | "updateDraftEnd" | "commitDraft" | "cancelDraft" | "createFiveSecondSegment" | "formatTime" | "getSegmentOptions" | "clearSegments" | "loadVideo">>;
     videoUrl(): string;
     currentVideo(): {
         readonly id: string | number;
@@ -536,20 +581,28 @@ declare const _default: import("vue").DefineComponent<{}, {}, {
         readonly segments: readonly {
             readonly id: string | number;
             readonly label: string;
-            readonly label_name: string;
-            readonly label_display: string;
             readonly startTime: number;
             readonly endTime: number;
             readonly avgConfidence: number;
-            readonly video_id?: number | undefined;
-            readonly label_id?: number | undefined;
-            readonly start_frame_number?: number | undefined;
-            readonly end_frame_number?: number | undefined;
-            readonly start_time?: number | undefined;
-            readonly end_time?: number | undefined;
-            readonly segmentId?: number | undefined;
-            readonly segmentStart?: number | undefined;
-            readonly segmentEnd?: number | undefined;
+            readonly videoID?: number | undefined;
+            readonly labelID?: number | undefined;
+            readonly label_name?: string | undefined;
+            readonly frames?: {
+                readonly [x: string]: {
+                    readonly frame_filename: string;
+                    readonly frame_file_path: string;
+                    readonly predictions: {
+                        readonly frame_number: number;
+                        readonly label: string;
+                        readonly confidence: number;
+                    };
+                };
+            } | undefined;
+            readonly isDraft?: boolean | undefined;
+            readonly color?: string | undefined;
+            readonly startFrameNumber?: number | undefined;
+            readonly endFrameNumber?: number | undefined;
+            readonly usingFPS?: boolean | undefined;
         }[];
         readonly videoUrl: string;
         readonly status: import("@/stores/videoStore").VideoStatus;

@@ -50,6 +50,7 @@
             <div class="row">
               <div class="col-12">
                 <router-view />
+                <ToastMessageContainer />
               </div>
             </div>
           </div>
@@ -78,6 +79,7 @@ import NavbarComponent from './components/NavbarComponent.vue';
 import SidebarComponent from './components/SidebarComponent.vue';
 import DashboardComponent from './components/DashboardComponent.vue';
 import LoginComponent from './components/LoginComponent.vue';
+import ToastMessageContainer from './components/Utils/ToastMessageContainer.vue';
 import '@/assets/custom-overrides.css';
 
 import axios from 'axios';
@@ -105,6 +107,7 @@ export default {
     SidebarComponent,
     DashboardComponent,
     LoginComponent,
+    ToastMessageContainer,
   },
 };
 

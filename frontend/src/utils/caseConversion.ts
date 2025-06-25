@@ -8,6 +8,8 @@
  * @param snakeStr - The string in snake_case format
  * @returns The string in camelCase format
  */
+
+import type { BackendSegment, FrontendSegment, BackendFramePrediction, Segment } from '@/stores/videoStore'
 export function snakeToCamel(snakeStr: string): string {
   const components = snakeStr.split('_')
   // Capitalize the first letter of each component except the first
@@ -81,66 +83,26 @@ export function objectCamelToSnake<T = any>(obj: Record<string, any>): T {
   return result as T
 }
 
-// ===================================================================
-// SEGMENT-SPECIFIC CONVERSION UTILITIES
-// ===================================================================
 
-/**
- * Backend segment format (from API responses)
- */
-export interface BackendSegment {
-  id: string | number
-  label: string
-  label_display: string
-  start_time: number
-  end_time: number
-  avgConfidence?: number
-  segment_id?: number
-  segment_start?: number
-  segment_end?: number
-}
-
-/**
- * Frontend segment format (unified camelCase)
- */
-export interface FrontendSegment {
-  id: string | number
-  label: string
-  label_display: string
-  startTime: number
-  endTime: number
-  avgConfidence?: number
-  segmentId?: number
-  segmentStart?: number
-  segmentEnd?: number
-}
 
 /**
  * Converts a backend segment (snake_case) to frontend segment (camelCase)
  * Handles both start_time/end_time and segment_start/segment_end formats
  */
 export function convertBackendSegmentToFrontend(backendSegment: BackendSegment): FrontendSegment {
+
   const converted: FrontendSegment = {
     id: backendSegment.id,
-    label: backendSegment.label,
-    label_display: backendSegment.label_display,
-    // Primary time fields - prioritize start_time/end_time
-    startTime: backendSegment.start_time ?? backendSegment.segment_start ?? 0,
-    endTime: backendSegment.end_time ?? backendSegment.segment_end ?? 0,
+    startFrameNumber: backendSegment.start_frame_number ?? undefined,
+    endFrameNumber: backendSegment.end_frame_number ?? undefined,
+    label: backendSegment.label_name,
+    startTime: backendSegment.start_time ?? undefined,
+    endTime: backendSegment.end_time ?? undefined,
+    usingFPS: false,
   }
 
-  // Optional fields
-  if (backendSegment.avgConfidence !== undefined) {
-    converted.avgConfidence = backendSegment.avgConfidence
-  }
-  if (backendSegment.segment_id !== undefined) {
-    converted.segmentId = backendSegment.segment_id
-  }
-  if (backendSegment.segment_start !== undefined) {
-    converted.segmentStart = backendSegment.segment_start
-  }
-  if (backendSegment.segment_end !== undefined) {
-    converted.segmentEnd = backendSegment.segment_end
+  if (backendSegment.start_time !== undefined) {
+    converted.usingFPS = true // Indicates need for FPS conversion
   }
 
   return converted
@@ -153,15 +115,10 @@ export function convertBackendSegmentToFrontend(backendSegment: BackendSegment):
 export function convertFrontendSegmentToBackend(frontendSegment: FrontendSegment): BackendSegment {
   const converted: BackendSegment = {
     id: frontendSegment.id,
-    label: frontendSegment.label,
-    label_display: frontendSegment.label_display,
+    label_name: frontendSegment.label,
     start_time: frontendSegment.startTime,
     end_time: frontendSegment.endTime,
-  }
-
-  // Optional fields
-  if (frontendSegment.avgConfidence !== undefined) {
-    converted.avgConfidence = frontendSegment.avgConfidence
+    video_name: frontendSegment.videoName || '', // Optional field for video name
   }
 
   return converted
@@ -188,15 +145,13 @@ export function convertFrontendSegmentsToBackend(frontendSegments: FrontendSegme
 export function normalizeSegmentToCamelCase(segment: any): FrontendSegment {
   return {
     id: segment.id,
-    label: segment.label || '',
-    label_display: segment.label_display || segment.labelDisplay || '',
+    label: segment.label_name || '',
     startTime: segment.startTime ?? segment.start_time ?? segment.segmentStart ?? segment.segment_start ?? 0,
     endTime: segment.endTime ?? segment.end_time ?? segment.segmentEnd ?? segment.segment_end ?? 0,
-    avgConfidence: segment.avgConfidence ?? segment.avg_confidence,
-    segmentId: segment.segmentId ?? segment.segment_id,
-    segmentStart: segment.segmentStart ?? segment.segment_start,
-    segmentEnd: segment.segmentEnd ?? segment.segment_end,
-  }
+    startFrameNumber: segment.startFrameNumber ?? segment.start_frame_number ?? 0,
+    endFrameNumber: segment.endFrameNumber ?? segment.end_frame_number ?? 0,
+    videoName: segment.videoName || segment.video_name || '',
+    usingFPS: segment.usingFPS ?? segment.using_fps ?? false,}
 }
 
 /**
@@ -210,8 +165,9 @@ export function createSegmentUpdatePayload(
   additionalData?: Record<string, any>
 ): Record<string, any> {
   const payload = {
-    start_frame_number: startTime,
-    end_frame_number: endTime,
+    start_time: startTime,
+    end_time: endTime,
+    label_name: additionalData?.label || additionalData?.label_name,
     ...additionalData
   }
 

@@ -1,4 +1,4 @@
-import type { Segment, LabelMeta } from '@/stores/videoStore';
+import { type Segment, type LabelMeta } from '@/stores/videoStore';
 type __VLS_Props = {
     video?: {
         duration?: number;

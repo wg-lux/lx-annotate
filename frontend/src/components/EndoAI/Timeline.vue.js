@@ -1,6 +1,13 @@
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import { formatTime as formatTimeHelper, calculateSegmentWidth, calculateSegmentPosition } from '@/utils/timeHelpers';
-import { normalizeSegmentToCamelCase, debugSegmentConversion } from '@/utils/caseConversion';
+import { useVideoStore } from '@/stores/videoStore';
+import {} from '@/stores/videoStore';
+import { convertBackendSegmentToFrontend, convertFrontendSegmentToBackend, convertBackendSegmentsToFrontend, createSegmentUpdatePayload, normalizeSegmentToCamelCase, debugSegmentConversion, } from '@/utils/caseConversion';
+import { useToastStore } from '@/stores/toastStore';
+import { getRandomColor } from '@/utils/colorHelpers';
+const toast = useToastStore();
+const videoStore = useVideoStore();
+const segmentsByLabel = videoStore.segmentsByLabel;
 const props = defineProps();
 const emit = defineEmits();
 // Refs with proper types
@@ -77,50 +84,108 @@ const timeMarkers = computed(() => {
     return markers;
 });
 // ✅ FIX: Use fps prop instead of ignoring it
-const currentFps = computed(() => props.fps || 30);
-// ✅ NEW: Canonical segments mapper for consistent field access with conversion utilities
-const canonicalSegments = computed(() => (props.segments || []).map((s) => {
-    // Use the new normalization utility to ensure consistent camelCase properties
-    const normalized = normalizeSegmentToCamelCase(s);
-    if (process.env.NODE_ENV === 'development') {
-        debugSegmentConversion(s, normalized, 'toFrontend');
-    }
+const currentFps = computed(() => props.fps || 50);
+const toCanonical = (s) => {
+    const n = normalizeSegmentToCamelCase(s);
+    const color = getColorForLabel(s.label);
     return {
-        ...normalized,
-        // Use normalized
-        start: normalized.startTime,
-        end: normalized.endTime,
-        isDraft: s.id === 'draft' || (typeof s.id === 'string' && s.id.startsWith('temp-')),
-        color: undefined, // Will be determined by getLabelColor
-        avgConfidence: s.avgConfidence ?? 0, // Ensure avgConfidence is always a number
-        label_name: s.label_name || s.label // Added: Required field for API compatibility
+        ...n,
+        start: n.startTime,
+        end: n.endTime,
+        isDraft: typeof s.id === 'string' && (s.id === 'draft' || s.id.startsWith('temp-')),
+        color: color || getRandomColor() || undefined,
+        avgConfidence: s.avgConfidence ?? 0,
+        label: s.label
     };
-}));
-// ✅ NEW: Calculate optimal row layout to prevent overlapping segments
-const segmentRows = computed(() => {
-    const segments = canonicalSegments.value;
-    if (segments.length === 0)
-        return [];
-    // Sort segments by start time for optimal placement
-    const sortedSegments = [...segments].sort((a, b) => a.start - b.start);
-    const rows = [];
-    for (const segment of sortedSegments) {
-        // Find the first row where this segment can fit without overlapping
-        let targetRow = rows.find(row => row.maxEndTime < segment.start - 0.0001);
-        if (!targetRow) {
-            // Create a new row if no suitable row exists
-            targetRow = {
-                id: rows.length,
-                segments: [],
-                maxEndTime: 0
+};
+const selectedLabel = ref(null);
+const selectSegment = (segment) => {
+    selectedLabel.value = segment.label; // ✅ FIX: Use segment.label instead of segment.label_name
+    emit('segment-select', segment);
+};
+// ✅ FIX: Add getTranslationForLabel function from videoStore
+const getTranslationForLabel = (label) => {
+    return videoStore.getTranslationForLabel(label);
+};
+// ✅ FIX: Add getColorForLabel function from videoStore  
+const getColorForLabel = (label) => {
+    return videoStore.getColorForLabel(label);
+};
+const displayedSegments = ref([]);
+watch(() => props.segments, (segments) => {
+    if (segments) {
+        displayedSegments.value = structuredClone(segments.map((s) => {
+            const normalized = normalizeSegmentToCamelCase(s);
+            return {
+                ...normalized,
+                start: normalized.startTime,
+                end: normalized.endTime,
+                isDraft: s.id === 'draft' || (typeof s.id === 'string' && s.id.startsWith('temp-')),
+                color: undefined,
+                avgConfidence: s.avgConfidence ?? 0,
+                label_name: s.label_name || s.label
             };
-            rows.push(targetRow);
-        }
-        // Add segment to the row and update the row's end time
-        targetRow.segments.push(segment);
-        targetRow.maxEndTime = Math.max(targetRow.maxEndTime, segment.end);
+        }));
     }
-    console.log(`[Timeline] Arranged ${segments.length} segments into ${rows.length} rows`);
+    else {
+        displayedSegments.value = [];
+    }
+}, { immediate: true });
+// ✅ NEW: Calculate optimal row layout to prevent overlapping segments
+/**
+ * Row layout that:
+ *  • puts the currently-selected label in the first row (target row)
+ *  • creates one row per label that actually has segments
+ *  • guarantees segments in a row never overlap in time
+ */
+const segmentRows = computed(() => {
+    // 0.  gather all canonical segments – ONE source of truth
+    const allSegs = (props.segments || []).map(toCanonical);
+    if (allSegs.length === 0)
+        return [];
+    // 1.  build "buckets" → label => CanonicalSegment[]
+    const buckets = {};
+    for (const s of allSegs) {
+        const label = s.label;
+        (buckets[label] ||= []).push(s);
+    }
+    // 2.  optional — put *selected* label first
+    const labelOrder = selectedLabel.value
+        ? [selectedLabel.value, ...Object.keys(buckets).filter(l => l !== selectedLabel.value)]
+        : Object.keys(buckets);
+    // 3.  convert each bucket into a SegmentRow, resolving overlaps
+    const rows = [];
+    for (const label of labelOrder) {
+        // sort by start for deterministic order inside the row
+        const segs = buckets[label].sort((a, b) => a.start - b.start);
+        /*  simple non-overlap pass:
+            whenever we find a segment that still overlaps the last,
+            push it into a *new* technical row (same label id)
+            so width calculations stay correct                       */
+        let currentRow = { id: rows.length, label, segments: [], maxEndTime: 0 };
+        for (const seg of segs) {
+            if (seg.start < currentRow.maxEndTime - 1e-4) {
+                // needs a new physical row
+                rows.push(currentRow);
+                currentRow = {
+                    id: rows.length,
+                    label,
+                    segments: [],
+                    maxEndTime: 0
+                };
+            }
+            currentRow.segments.push(seg);
+            currentRow.maxEndTime = Math.max(currentRow.maxEndTime, seg.end);
+        }
+        rows.push(currentRow);
+    }
+    // ✅ NEW: Add console.table for tests showing label and count per row
+    const tableData = rows.map(row => ({
+        label: row.label,
+        count: row.segments.length
+    }));
+    console.table(tableData);
+    console.info('[Timeline] built', rows.length, 'rows – selected:', selectedLabel.value ?? 'none');
     return rows;
 });
 // ✅ NEW: Calculate total timeline height based on number of rows
@@ -153,10 +218,11 @@ const getLabelColor = (labelId) => {
     return label?.color || '#999';
 };
 const getLabelName = (labelId) => {
-    if (!labelId)
-        return 'Unbekannt';
+    if (!labelId) {
+        return '';
+    }
     const label = (props.labels || []).find((l) => l.id === labelId);
-    return label?.name || 'Unbekannt';
+    return label?.name || '';
 };
 // New drag and resize methods
 const startSegmentDrag = (segment, event) => {
@@ -165,10 +231,10 @@ const startSegmentDrag = (segment, event) => {
     event.preventDefault();
     draggingSegmentId.value = segment.id;
     dragStartX.value = event.clientX;
-    dragStartTime.value = segment.start_time || segment.startTime || 0;
+    dragStartTime.value = segment.startTime || 0; // ✅ FIX: Use only camelCase property
     originalSegmentData.value = {
-        start_time: segment.start_time || segment.startTime || 0,
-        end_time: segment.end_time || segment.endTime || 0
+        start_time: segment.startTime || 0, // ✅ FIX: Use camelCase source
+        end_time: segment.endTime || 0 // ✅ FIX: Use camelCase source
     };
     document.addEventListener('mousemove', onSegmentDragMove);
     document.addEventListener('mouseup', onSegmentDragEnd);
@@ -181,7 +247,7 @@ const onSegmentDragMove = (event) => {
     const rect = timeline.value.getBoundingClientRect();
     const deltaX = event.clientX - dragStartX.value;
     const deltaTime = (deltaX / rect.width) * duration.value;
-    const segment = canonicalSegments.value.find(s => s.id === draggingSegmentId.value);
+    const segment = displayedSegments.value.find(s => s.id === draggingSegmentId.value);
     if (!segment)
         return;
     const segmentDuration = originalSegmentData.value.end_time - originalSegmentData.value.start_time;
@@ -193,12 +259,12 @@ const onSegmentDragMove = (event) => {
     emit('segment-move', draggingSegmentId.value, newStartTime, newEndTime);
     segment.start = newStartTime;
     segment.end = newEndTime;
-    segment.start_time = newStartTime;
-    segment.end_time = newEndTime;
+    segment.startTime = newStartTime; // ✅ FIX: Use camelCase properties
+    segment.endTime = newEndTime; // ✅ FIX: Use camelCase properties
 };
 const onSegmentDragEnd = (event) => {
     if (draggingSegmentId.value) {
-        const segment = canonicalSegments.value.find(s => s.id === draggingSegmentId.value);
+        const segment = displayedSegments.value.find(s => s.id === draggingSegmentId.value);
         if (segment) {
             const segmentDuration = originalSegmentData.value.end_time - originalSegmentData.value.start_time;
             const rect = timeline.value.getBoundingClientRect();
@@ -241,8 +307,8 @@ const startResize = (segment, mode, event) => {
     resizeMode.value = mode;
     dragStartX.value = event.clientX;
     originalSegmentData.value = {
-        start_time: segment.start_time || segment.startTime || 0,
-        end_time: segment.end_time || segment.endTime || 0
+        start_time: segment.startTime || 0, // ✅ FIX: Use only camelCase property
+        end_time: segment.endTime || 0 // ✅ FIX: Use only camelCase property
     };
     document.addEventListener('mousemove', onResizeMove);
     document.addEventListener('mouseup', onResizeEnd);
@@ -270,11 +336,11 @@ const onResizeMove = (event) => {
 };
 const onResizeEnd = (event) => {
     if (resizingSegmentId.value) {
-        const segment = canonicalSegments.value.find(s => s.id === resizingSegmentId.value);
+        const segment = displayedSegments.value.find(s => s.id === resizingSegmentId.value);
         if (segment) {
             const rect = timeline.value.getBoundingClientRect();
             const deltaX = event.clientX - dragStartX.value;
-            const deltaTime = (deltaX / rect.width) + duration.value;
+            const deltaTime = (deltaX / rect.width) * duration.value;
             let newStartTime = originalSegmentData.value.start_time;
             let newEndTime = originalSegmentData.value.end_time;
             if (resizeMode.value === 'start') {
@@ -325,10 +391,6 @@ const zoomOut = () => {
 const playPause = () => {
     emit('play-pause');
 };
-// Selection methods
-const selectSegment = (segment) => {
-    emit('segment-select', segment);
-};
 const editSegment = (segment) => {
     if (!segment)
         return;
@@ -345,7 +407,7 @@ const playSegment = (segment) => {
     if (!segment)
         return;
     hideContextMenu();
-    emit('seek', segment.start_time || segment.startTime || 0);
+    emit('seek', segment.startTime || 0); // ✅ FIX: Use camelCase property
     emit('play-pause');
 };
 // Context menu
@@ -415,7 +477,7 @@ watch(() => props.video, () => {
     }
 });
 // ✅ NEW: Debug watch for segments with 0% width
-watch(canonicalSegments, (segs) => {
+watch(displayedSegments, (segs) => {
     segs.forEach(s => {
         if (getSegmentWidth(s.start, s.end) === 0) {
             console.warn('[Timeline] Segment mit 0% Breite:', s);
@@ -460,12 +522,19 @@ const handleClickOutside = (event) => {
 // Lifecycle hooks
 onMounted(() => {
     document.addEventListener('click', handleClickOutside);
+    document.addEventListener('mousemove', onSegmentDragMove);
+    document.addEventListener('mouseup', onSegmentDragEnd);
+    document.addEventListener('mousemove', onResizeMove);
+    document.addEventListener('mouseup', onResizeEnd);
+    document.addEventListener('mousemove', onSelectionMouseMove);
+    document.addEventListener('mouseup', onSelectionMouseUp);
     // Initialize waveform if needed
     if (props.showWaveform) {
         nextTick(() => {
             initializeWaveform();
         });
     }
+    toast.success({ text: '[Timeline] Component mounted and ready' });
 });
 onUnmounted(() => {
     document.removeEventListener('click', handleClickOutside);
@@ -503,7 +572,7 @@ function __VLS_template() {
     const __VLS_ctx = {};
     let __VLS_components;
     let __VLS_directives;
-    ['play-btn', 'play-btn', 'zoom-controls', 'zoom-controls', 'zoom-controls', 'segment', 'segment', 'segment', 'context-menu-item', 'context-menu-item', 'context-menu-item', 'segment', 'resize-handle', 'segment', 'resize-handle', 'resize-handle', 'resize-handle', 'resize-handle', 'resize-handle', 'segment', 'segment', 'segment',];
+    ['play-btn', 'play-btn', 'zoom-controls', 'zoom-controls', 'zoom-controls', 'segment-row', 'segment', 'segment', 'segment', 'context-menu-item', 'context-menu-item', 'context-menu-item', 'segment', 'resize-handle', 'segment', 'resize-handle', 'resize-handle', 'resize-handle', 'resize-handle', 'resize-handle', 'segment', 'segment', 'segment',];
     // CSS variable injection 
     // CSS variable injection end 
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -586,6 +655,7 @@ function __VLS_template() {
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             key: ((row.id)),
             ...{ class: ("segment-row") },
+            ...{ class: (({ 'active': row.label === __VLS_ctx.selectedLabel })) },
             ...{ style: (({
                     top: (60 + rowIndex * 45) + 'px',
                     height: '40px'
@@ -612,7 +682,7 @@ function __VLS_template() {
                 ...{ style: (({
                         left: __VLS_ctx.getSegmentPosition(segment.start) + '%',
                         width: __VLS_ctx.getSegmentWidth(segment.start, segment.end) + '%',
-                        backgroundColor: segment.color || __VLS_ctx.getLabelColor(segment.label_id),
+                        backgroundColor: segment.color || __VLS_ctx.getColorForLabel(segment.label),
                         borderColor: segment.isDraft ? '#ff9800' : 'transparent'
                     })) },
             });
@@ -632,7 +702,7 @@ function __VLS_template() {
             __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
                 ...{ class: ("segment-label") },
             });
-            (__VLS_ctx.getLabelName(segment.label_id) || segment.label_name);
+            (__VLS_ctx.getTranslationForLabel(segment.label));
             __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
                 ...{ class: ("segment-duration") },
             });
@@ -739,7 +809,7 @@ function __VLS_template() {
         });
         (__VLS_ctx.tooltip.text);
     }
-    ['timeline-container', 'timeline-header', 'timeline-controls', 'play-btn', 'time-display', 'zoom-controls', 'fas', 'fa-search-minus', 'zoom-level', 'fas', 'fa-search-plus', 'timeline-wrapper', 'timeline', 'time-markers', 'time-marker', 'marker-line', 'marker-text', 'segments-container', 'segment-row', 'segment', 'active', 'draft', 'dragging', 'resize-handle', 'start-handle', 'fas', 'fa-grip-lines-vertical', 'segment-content', 'segment-label', 'segment-duration', 'resize-handle', 'end-handle', 'fas', 'fa-grip-lines-vertical', 'draft-indicator', 'fas', 'fa-edit', 'playhead', 'playhead-line', 'playhead-handle', 'selection-overlay', 'waveform-container', 'waveform-canvas', 'context-menu', 'context-menu-item', 'fas', 'fa-edit', 'context-menu-item', 'danger', 'fas', 'fa-trash', 'context-menu-separator', 'context-menu-item', 'fas', 'fa-play', 'timeline-tooltip',];
+    ['timeline-container', 'timeline-header', 'timeline-controls', 'play-btn', 'time-display', 'zoom-controls', 'fas', 'fa-search-minus', 'zoom-level', 'fas', 'fa-search-plus', 'timeline-wrapper', 'timeline', 'time-markers', 'time-marker', 'marker-line', 'marker-text', 'segments-container', 'segment-row', 'active', 'segment', 'active', 'draft', 'dragging', 'resize-handle', 'start-handle', 'fas', 'fa-grip-lines-vertical', 'segment-content', 'segment-label', 'segment-duration', 'resize-handle', 'end-handle', 'fas', 'fa-grip-lines-vertical', 'draft-indicator', 'fas', 'fa-edit', 'playhead', 'playhead-line', 'playhead-handle', 'selection-overlay', 'waveform-container', 'waveform-canvas', 'context-menu', 'context-menu-item', 'fas', 'fa-edit', 'context-menu-item', 'danger', 'fas', 'fa-trash', 'context-menu-separator', 'context-menu-item', 'fas', 'fa-play', 'timeline-tooltip',];
     var __VLS_slots;
     var $slots;
     let __VLS_inheritedAttrs;
@@ -773,20 +843,21 @@ const __VLS_self = (await import('vue')).defineComponent({
             duration: duration,
             playheadPosition: playheadPosition,
             timeMarkers: timeMarkers,
+            selectedLabel: selectedLabel,
+            selectSegment: selectSegment,
+            getTranslationForLabel: getTranslationForLabel,
+            getColorForLabel: getColorForLabel,
             segmentRows: segmentRows,
             timelineHeight: timelineHeight,
             formatTime: formatTime,
             formatDuration: formatDuration,
             getSegmentPosition: getSegmentPosition,
             getSegmentWidth: getSegmentWidth,
-            getLabelColor: getLabelColor,
-            getLabelName: getLabelName,
             startSegmentDrag: startSegmentDrag,
             startResize: startResize,
             zoomIn: zoomIn,
             zoomOut: zoomOut,
             playPause: playPause,
-            selectSegment: selectSegment,
             editSegment: editSegment,
             deleteSegment: deleteSegment,
             playSegment: playSegment,

@@ -17,8 +17,6 @@ import {
     createSegmentUpdatePayload,
     normalizeSegmentToCamelCase,
     debugSegmentConversion,
-    type FrontendSegment,
-    type BackendSegment
 } from '../utils/caseConversion'
 
 // ===================================================================
@@ -39,24 +37,98 @@ type LabelKey =
 type VideoStatus = 'in_progress' | 'available' | 'completed'
 
 /**
- * Segment interface for internal store usage
+ * Backend frame prediction structure (from API responses)
  */
-interface Segment extends FrontendSegment {
-    id: string | number
+interface BackendFramePrediction {
+    frame_number: number
     label: string
-    label_name: string  // Added: API field for label name
-    label_display: string
+    confidence: number
+}
+
+/**
+ * Backend frame structure (from API responses)
+ */
+interface BackendFrame {
+    frame_filename: string
+    frame_file_path: string
+    predictions: BackendFramePrediction
+}
+
+/**
+ * Backend time segment structure (from API responses)
+ */
+interface BackendTimeSegment {
+    segment_id: number
+    segment_start: number
+    segment_end: number
+    start_time: number
+    end_time: number
+    frames: Record<string, BackendFrame>
+}
+
+/**
+ * Backend segment format (from API responses)
+ */
+export interface BackendSegment {
+    id: number
+    start_frame_number?: number
+    end_frame_number?: number
+    label_name: string
+    video_name: string
+    start_time: number
+    end_time: number
+}
+
+/**
+ * Frontend segment format (unified camelCase)
+ */
+export interface FrontendSegment {
+    id: number
+    startFrameNumber?: number
+    endFrameNumber?: number
+    label: string
+    videoName?: string // Optional field for video name
+    startTime: number
+    endTime: number
+    usingFPS?: boolean
+}
+
+/**
+ * Segment interface for internal store usage - supports both string and number IDs
+ */
+interface Segment {
+    id: string | number // ✅ FIX: Allow both string and number IDs for draft compatibility
+    label: string
     startTime: number
     endTime: number
     avgConfidence: number
-    video_id?: number
-    label_id?: number
-    start_frame_number?: number
-    end_frame_number?: number
-    // Legacy compatibility fields
-    start_time?: number
-    end_time?: number
+    videoID?: number
+    labelID?: number
+
+    // ✅ NEW: For API compatibility
+    label_name?: string
+
+    // ✅ NEW: Backend frame data (stored but not used in UI initially)
+    frames?: Record<string, BackendFrame>
+
+    // ✅ NEW: Draft status
+    isDraft?: boolean
+
+    // ✅ NEW: Color for UI representation
+    color?: string
+
+    // ✅ NEW: Additional frontend properties
+    startFrameNumber?: number
+    endFrameNumber?: number
+    usingFPS?: boolean
 }
+
+interface VideoLabelResponse {
+    label: string
+    time_segments: BackendSegment[]
+    frame_predictions: Record<string, BackendFramePrediction>
+  }
+  
 
 /**
  * Video annotation interface
@@ -105,35 +177,15 @@ interface VideoList {
     labels: LabelMeta[]
 }
 
-/**
- * Backend video label response structure
- */
-interface VideoLabelResponse {
-    label: string
-    time_segments: Array<{
-        segment_start: number
-        segment_end: number
-        start_time: number
-        end_time: number
-        frames: Record<string, {
-            frame_filename: string
-            frame_file_path: string
-            predictions: Record<string, number>
-        }>
-    }>
-}
 
 /**
  * Draft segment interface
  */
 interface DraftSegment {
+    id: string | number // ✅ FIX: Allow both string and number for draft IDs
     label: string
-    label_display: string
     startTime: number
     endTime: number | null
-    // Legacy compatibility
-    start_time: number
-    end_time: number | null
 }
 
 /**
@@ -358,16 +410,30 @@ export const useVideoStore = defineStore('video', () => {
     
     const labels = computed<LabelMeta[]>(() => videoList.value?.labels || [])
 
+    // ✅ NEW: Fast lookup table für Label-Namen zu IDs (wird nur einmal berechnet)
+    // maps 'polyp' → 3  |  'blood' → 7 ...
+    const labelIdMap = computed<Record<string, number>>(() => {
+        const map: Record<string, number> = {}
+        videoList.value.labels.forEach(l => (map[l.name] = l.id))
+        return map
+    })
+
+    // ✅ NEW: Helper function to ensure labelID is always set correctly
+    function ensureLabelId(segment: Segment): Segment {
+        return {
+            ...segment,
+            labelID: segment.labelID ?? labelIdMap.value[segment.label] ?? null,
+        }
+    }
+
     const allSegments = computed<Segment[]>(() => {
         const segments: Segment[] = [...(currentVideo.value?.segments || [])]
         
         // Add draft segment if exists
         if (draftSegment.value) {
             const draft: Segment = {
-                id: 'draft',
+                id: draftSegment.value.id,
                 label: draftSegment.value.label,
-                label_name: draftSegment.value.label, // Added: Required field for API compatibility
-                label_display: draftSegment.value.label_display,
                 startTime: draftSegment.value.startTime,
                 endTime: draftSegment.value.endTime || draftSegment.value.startTime,
                 avgConfidence: 0,
@@ -381,10 +447,10 @@ export const useVideoStore = defineStore('video', () => {
     const segmentOptions = computed<SegmentOption[]>(() => 
         allSegments.value.map((segment): SegmentOption => ({
             id: segment.id,
-            label: segment.label_display,
+            label: getTranslationForLabel(segment.label),
             startTime: segment.startTime,
             endTime: segment.endTime,
-            display: `${segment.label_display}: ${formatTime(segment.startTime)} – ${formatTime(segment.endTime)}`,
+            display: `${getTranslationForLabel(segment.label)}: ${formatTime(segment.startTime)} – ${formatTime(segment.endTime)}`,
         }))
     )
 
@@ -395,6 +461,67 @@ export const useVideoStore = defineStore('video', () => {
     // ===================================================================
     // UTILITY FUNCTIONS
     // ===================================================================
+    
+    /**
+     * Maps a BackendTimeSegment to our internal Segment format (lossless conversion)
+     * Preserves all frame data for later lazy loading and calculates average confidence
+     * from all frame predictions within the segment
+     */
+    function mapBackendTimeSegment(backendSegment: BackendTimeSegment, label: string): Segment {
+        const labelId = labelIdMap.value[label] ?? null
+        
+        // Calculate average confidence from all frames in the segment
+        let avgConfidence = 1; // Default fallback confidence
+        
+        if (backendSegment.frames && Object.keys(backendSegment.frames).length > 0) {
+            const frameNumbers = Object.keys(backendSegment.frames).map(Number);
+            const segmentStartFrame = backendSegment.segment_start;
+            const segmentEndFrame = backendSegment.segment_end;
+            
+            // Filter frames that are within the segment boundaries
+            const framesInSegment = frameNumbers.filter(frameNum => 
+                frameNum >= segmentStartFrame && frameNum <= segmentEndFrame
+            );
+            
+            if (framesInSegment.length > 0) {
+                // Calculate average confidence from frame predictions within segment
+                let totalConfidence = 0;
+                let validPredictions = 0;
+                
+                framesInSegment.forEach(frameNum => {
+                    const frame = backendSegment.frames[frameNum.toString()];
+                    if (frame?.predictions?.confidence !== undefined) {
+                        totalConfidence += frame.predictions.confidence;
+                        validPredictions++;
+                    }
+                });
+                
+                if (validPredictions > 0) {
+                    avgConfidence = totalConfidence / validPredictions;
+                    console.log(`Segment ${backendSegment.segment_id}: Calculated avg confidence ${avgConfidence.toFixed(3)} from ${validPredictions} frame predictions (frames ${segmentStartFrame}-${segmentEndFrame})`);
+                } else {
+                    console.warn(`Segment ${backendSegment.segment_id}: No valid predictions found in frames ${segmentStartFrame}-${segmentEndFrame}`);
+                }
+            } else {
+                console.warn(`Segment ${backendSegment.segment_id}: No frames found within segment boundaries ${segmentStartFrame}-${segmentEndFrame}`);
+            }
+        } else {
+            console.warn(`Segment ${backendSegment.segment_id}: No frame data available for confidence calculation`);
+        }
+        
+        return {
+            id: backendSegment.segment_id,
+            label: label,
+            startTime: backendSegment.start_time,
+            endTime: backendSegment.end_time,
+            avgConfidence: avgConfidence,
+            labelID: labelId,
+            startFrameNumber: backendSegment.segment_start,
+            endFrameNumber: backendSegment.segment_end,
+            // Store frame data for future lazy loading
+            frames: backendSegment.frames,
+        }
+    }
     
     function formatTime(seconds: number): string {
         const numSeconds = Number(seconds)
@@ -587,13 +714,13 @@ export const useVideoStore = defineStore('video', () => {
                 status: video.status || 'available',
                 assignedUser: video.assignedUser || null,
                 anonymized: video.anonymized || false,
-                // Add video_url for compatibility if needed
             }))
 
             // Process labels
             const processedLabels: LabelMeta[] = response.data.labels.map((label: any) => ({
                 id: parseInt(label.id),
                 name: label.name,
+                color: label.color || getColorForLabel(label.name),
             }))
 
             // Fetch segments for each video in parallel
@@ -604,20 +731,17 @@ export const useVideoStore = defineStore('video', () => {
                         const segmentsResponse = await axiosInstance.get(r(`video-segments/?video_id=${video.id}`))
                         console.log(`Video ${video.id}: Found ${segmentsResponse.data.length} segments`)
                         
-                        const segments: Segment[] = segmentsResponse.data.map((segment: any) => ({
+                        const backendSegments: BackendSegment[] = segmentsResponse.data
+                        const frontendSegments: FrontendSegment[] = convertBackendSegmentsToFrontend(backendSegments)
+                        
+                        const segments: Segment[] = frontendSegments.map((segment) => ensureLabelId({
                             id: segment.id,
-                            label: segment.label_name || `label_${segment.label_id}`,
-                            label_name: segment.label_name, // Added: Include label_name from API
-                            label_display: getTranslationForLabel(segment.label_name || 'unknown'),
-                            startTime: segment.start_time || framesToSeconds(segment.start_frame_number, 30),
-                            endTime: segment.end_time || framesToSeconds(segment.end_frame_number, 30),
-                            start_time: segment.start_time || framesToSeconds(segment.start_frame_number, 30),
-                            end_time: segment.end_time || framesToSeconds(segment.end_frame_number, 30),
+                            label: segment.label,
+                            startTime: segment.startTime,
+                            endTime: segment.endTime,
                             avgConfidence: 1,
-                            video_id: parseInt(video.id.toString()),
-                            label_id: segment.label_id,
-                            start_frame_number: segment.start_frame_number,
-                            end_frame_number: segment.end_frame_number,
+                            videoID: parseInt(video.id.toString()),
+                            labelID: labelIdMap.value[segment.label] ?? null
                         }))
 
                         return { ...video, segments }
@@ -684,36 +808,31 @@ export const useVideoStore = defineStore('video', () => {
 
     async function fetchSegmentsByLabel(id: string, label = 'outside'): Promise<void> {
         try {
-            const response: AxiosResponse<VideoLabelResponse> = await axiosInstance.get(
+            const response: AxiosResponse<{
+                label: string
+                time_segments: BackendTimeSegment[]
+                frame_predictions: Record<string, BackendFramePrediction>
+            }> = await axiosInstance.get(
                 r(`video/${id}/label/${label}/`), 
                 { headers: { 'Accept': 'application/json' } }
             )
             
             console.log(`[video ${id}] API response for label ${label}:`, response.data)
 
-            const segmentsForLabel: Segment[] = response.data.time_segments.map((segment, index) => {
-                const startTime = Number(segment.start_time ?? segment.segment_start ?? 0)
-                const endTime = Number(segment.end_time ?? segment.segment_end ?? 0)
-                
-                return {
-                    id: `temp-${label}-${Date.now()}-${index}`,
-                    label: response.data.label,
-                    label_name: response.data.label, // Added: Required field for API compatibility
-                    label_display: getTranslationForLabel(response.data.label),
-                    startTime,
-                    endTime,
-                    avgConfidence: 1,
-                    start_frame_number: segment.segment_start,
-                    end_frame_number: segment.segment_end,
-                }
-            })
+            // Map all BackendTimeSegments to internal Segment format
+            const segmentsForLabel: Segment[] = response.data.time_segments.map(backendSegment => 
+                mapBackendTimeSegment(backendSegment, label)
+            )
 
-            if (segmentsForLabel.length > 0 && Number.isNaN(segmentsForLabel[0]?.startTime)) {
-                console.warn(`[video ${id}] ${label}: start/endTime missing or NaN`, response.data)
+            console.log(`[video ${id}] Mapped ${segmentsForLabel.length} segments for label ${label}`)
+
+            // Store segments directly by label (no Object.assign)
+            segmentsByLabel[label] = segmentsForLabel
+
+            // Update currentVideo.segments with all segments from all labels
+            if (currentVideo.value) {
+                currentVideo.value.segments = Object.values(segmentsByLabel).flat()
             }
-
-            console.log(`[video ${id}] Mapped ${segmentsForLabel.length} segments for label ${label}:`, segmentsForLabel)
-            Object.assign(segmentsByLabel, { ...segmentsByLabel, [label]: segmentsForLabel })
         } catch (error) {
             const axiosError = error as AxiosError
             console.error("Error loading segments for label " + label + ":", axiosError.response?.data || axiosError.message)
@@ -747,11 +866,17 @@ export const useVideoStore = defineStore('video', () => {
                 })
             }
 
-            // Group segments by label
+            // Process segments and ensure labelID is always set correctly
             frontendSegments.forEach((segment) => {
-                const segmentWithVideoId = segment as Segment
-                segmentWithVideoId.video_id = parseInt(videoId)
-                segmentWithVideoId.label_display = getTranslationForLabel(segment.label)
+                const segmentWithVideoId: Segment = ensureLabelId({
+                    id: segment.id,
+                    label: segment.label,
+                    startTime: segment.startTime,
+                    endTime: segment.endTime,
+                    avgConfidence: 1,
+                    videoID: parseInt(videoId),
+                    labelID: labelIdMap.value[segment.label] ?? null
+                })
                 
                 const labelName = segment.label
                 if (!segmentsByLabel[labelName]) {
@@ -762,7 +887,6 @@ export const useVideoStore = defineStore('video', () => {
                     console.warn(`⚠️ Very short segment ${segment.id}: ${segment.endTime - segment.startTime}s`)
                 }
                 segmentsByLabel[labelName].push(segmentWithVideoId)
-                segmentsByLabel[labelName].push(segment as Segment)
             })
 
             console.log(`[VideoStore] Processed segments by label:`, 
@@ -784,15 +908,14 @@ export const useVideoStore = defineStore('video', () => {
         endTime: number
     ): Promise<Segment | null> {
         try {
-            // Get label ID first
-            const labelResponse: AxiosResponse = await axiosInstance.get(r(`labels/?name=${labelName}`))
-            const labelId = labelResponse.data.results?.[0]?.id
-            
-            if (!labelId) {
-                console.error(`Label ${labelName} not found`)
-                errorMessage.value = `Label ${labelName} not found`
+            // Get label ID from existing labels in store
+            const labelMeta = videoList.value.labels.find(l => l.name === labelName)
+            if (!labelMeta) {
+                console.error(`Label ${labelName} not found in store`)
+                errorMessage.value = `Label ${labelName} nicht gefunden`
                 return null
             }
+            const labelId = labelMeta.id
 
             const fps = duration.value > 0 ? (videoMeta.value?.fps || 30) : 30
             const startFrame = Math.floor(startTime * fps)
@@ -813,15 +936,13 @@ export const useVideoStore = defineStore('video', () => {
             const newSegment: Segment = {
                 id: response.data.id,
                 label: labelName,
-                label_name: labelName, // Added: Required field for API compatibility
-                label_display: getTranslationForLabel(labelName),
                 startTime: response.data.start_time,
                 endTime: response.data.end_time,
                 avgConfidence: 1,
-                video_id: parseInt(videoId),
-                label_id: labelId,
-                start_frame_number: response.data.start_frame_number,
-                end_frame_number: response.data.end_frame_number,
+                videoID: parseInt(videoId),
+                labelID: labelId,
+                startFrameNumber: response.data.start_frame_number,
+                endFrameNumber: response.data.end_frame_number,
             }
 
             if (!segmentsByLabel[labelName]) {
@@ -899,22 +1020,13 @@ export const useVideoStore = defineStore('video', () => {
     // DRAFT SEGMENT MANAGEMENT
     // ===================================================================
     
-    function startDraft(label: string, startTime: number, labelDisplay?: string): void {
-        if (draftSegment.value) {
-            console.warn('Draft bereits aktiv. Verwende cancelDraft() zuerst.')
-            return
-        }
-        
+    function startDraft(label: string, startTime: number): void {
         draftSegment.value = {
-            label,
-            label_display: labelDisplay || getTranslationForLabel(label),
-            startTime,
-            endTime: null,
-            start_time: startTime,
-            end_time: null,
+            id: 'draft', // ✅ FIX: Add missing id property
+            label: label,
+            startTime: startTime,
+            endTime: null
         }
-        
-        console.log(`Draft gestartet: ${label} bei ${formatTime(startTime)}`)
     }
 
     function updateDraftEnd(endTime: number): void {
@@ -927,7 +1039,6 @@ export const useVideoStore = defineStore('video', () => {
         const clampedEndTime = Math.max(minEndTime, endTime)
         
         draftSegment.value.endTime = clampedEndTime
-        draftSegment.value.end_time = clampedEndTime
         
         console.log(`Draft-Ende aktualisiert: ${formatTime(clampedEndTime)}`)
     }
@@ -946,38 +1057,50 @@ export const useVideoStore = defineStore('video', () => {
         }
         
         try {
-            const segmentData = {
+            // Convert frontend draft to backend format
+            const payload = createSegmentUpdatePayload(
+                'draft',
+                draft.startTime,
+                draft.endTime,
+                { label: draft.label }
+            )
+            
+            console.log('Committe Draft-Segment:', payload)
+            
+            const response: AxiosResponse<CreateSegmentResponse> = await axiosInstance.post(
+                r('video-segments/'), 
+                {
+                    video_file: parseInt(currentVideo.value.id.toString()),
+                    label_name: draft.label,
+                    start_time: draft.startTime,
+                    end_time: draft.endTime,
+                    start_frame_number: Math.round(draft.startTime * (videoMeta.value?.fps || 30)),
+                    end_frame_number: Math.round(draft.endTime * (videoMeta.value?.fps || 30)),
+                }
+            )
+            
+            const newSegment: Segment = {
+                id: response.data.id,
                 label: draft.label,
-                startTime: draft.startTime,
-                endTime: draft.endTime,
-                start_frame_number: Math.round(draft.startTime * 50),
-                end_frame_number: Math.round(draft.endTime * 50),
-                video: currentVideo.value.id,
+                startTime: response.data.start_time,
+                endTime: response.data.end_time,
+                avgConfidence: 1,
+                videoID: parseInt(currentVideo.value.id.toString()),
+                labelID: response.data.label_id,
+                startFrameNumber: response.data.start_frame_number,
+                endFrameNumber: response.data.end_frame_number,
             }
-            
-            console.log('Committe Draft-Segment:', segmentData)
-            
-            const response = await fetch('/api/video-segments/', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    ...(concurrencyToken.value && {
-                        'X-Concurrency-Token': concurrencyToken.value
-                    }),
-                },
-                body: JSON.stringify(segmentData),
-            })
-            
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}))
-                throw new Error(errorData.detail || `HTTP ${response.status}: ${response.statusText}`)
-            }
-            
-            const newSegment: Segment = await response.json()
             
             if (currentVideo.value?.segments) {
                 currentVideo.value.segments.push(newSegment)
             }
+            
+            // Add to segments by label
+            const labelName = draft.label
+            if (!segmentsByLabel[labelName]) {
+                segmentsByLabel[labelName] = []
+            }
+            segmentsByLabel[labelName].push(newSegment)
             
             draftSegment.value = null
             console.log('Draft erfolgreich committed:', newSegment)
@@ -1058,6 +1181,7 @@ export const useVideoStore = defineStore('video', () => {
         hasVideo,
         segments,
         labels,
+
         
         // Actions
         clearVideo,
@@ -1067,6 +1191,7 @@ export const useVideoStore = defineStore('video', () => {
         fetchAllVideos,
         fetchVideoMeta,
         fetchVideoSegments,
+        fetchSegmentsByLabel, // ✅ FIX: Added missing export
         createSegment,
         updateSegment: updateSegmentAPI,
         deleteSegment,
@@ -1080,6 +1205,8 @@ export const useVideoStore = defineStore('video', () => {
         setActiveSegment,
         updateVideoStatus,
         assignUserToVideo,
+        updateSensitiveMeta,
+        clearVideoMeta,
         
         // Draft actions
         startDraft,
@@ -1097,35 +1224,6 @@ export const useVideoStore = defineStore('video', () => {
 })
 
 // ===================================================================
-// HELPER FUNCTIONS (outside store)
-// ===================================================================
-
-/**
- * Core segment transformation function for backward compatibility
- * @deprecated Use conversion utilities from caseConversion.ts instead
- */
-function transformBackendSegmentToTimeline(backendSegment: any, fps = 50): Segment {
-    const startTime = backendSegment.start_time ?? framesToSeconds(backendSegment.start_frame_number, fps)
-    const endTime = backendSegment.end_time ?? framesToSeconds(backendSegment.end_frame_number, fps)
-    
-    return {
-        id: backendSegment.id,
-        label: backendSegment.label_name,
-        label_name: backendSegment.label_name, // Added: Required field for API compatibility
-        label_display: translationMap[backendSegment.label_name as LabelKey] || backendSegment.label_name,
-        startTime,
-        endTime,
-        start_time: startTime,
-        end_time: endTime,
-        avgConfidence: 1,
-        video_id: undefined,
-        label_id: backendSegment.label_id,
-        start_frame_number: backendSegment.start_frame_number,
-        end_frame_number: backendSegment.end_frame_number,
-    }
-}
-
-// ===================================================================
 // TYPE EXPORTS
 // ===================================================================
 
@@ -1139,5 +1237,6 @@ export type {
     SegmentOption,
     SegmentStyle,
     VideoStatus,
-    LabelKey
+    LabelKey,
+    BackendFramePrediction
 }

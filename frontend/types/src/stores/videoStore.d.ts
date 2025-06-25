@@ -1,5 +1,4 @@
 import { type Ref, type ComputedRef } from 'vue';
-import { type FrontendSegment } from '../utils/caseConversion';
 /**
  * Translation map for label names (German translations)
  */
@@ -9,22 +8,64 @@ type LabelKey = 'appendix' | 'blood' | 'diverticule' | 'grasper' | 'ileocaecalva
  */
 type VideoStatus = 'in_progress' | 'available' | 'completed';
 /**
- * Segment interface for internal store usage
+ * Backend frame prediction structure (from API responses)
  */
-interface Segment extends FrontendSegment {
+interface BackendFramePrediction {
+    frame_number: number;
+    label: string;
+    confidence: number;
+}
+/**
+ * Backend frame structure (from API responses)
+ */
+interface BackendFrame {
+    frame_filename: string;
+    frame_file_path: string;
+    predictions: BackendFramePrediction;
+}
+/**
+ * Backend segment format (from API responses)
+ */
+export interface BackendSegment {
+    id: number;
+    start_frame_number?: number;
+    end_frame_number?: number;
+    label_name: string;
+    video_name: string;
+    start_time: number;
+    end_time: number;
+}
+/**
+ * Frontend segment format (unified camelCase)
+ */
+export interface FrontendSegment {
+    id: number;
+    startFrameNumber?: number;
+    endFrameNumber?: number;
+    label: string;
+    videoName?: string;
+    startTime: number;
+    endTime: number;
+    usingFPS?: boolean;
+}
+/**
+ * Segment interface for internal store usage - supports both string and number IDs
+ */
+interface Segment {
     id: string | number;
     label: string;
-    label_name: string;
-    label_display: string;
     startTime: number;
     endTime: number;
     avgConfidence: number;
-    video_id?: number;
-    label_id?: number;
-    start_frame_number?: number;
-    end_frame_number?: number;
-    start_time?: number;
-    end_time?: number;
+    videoID?: number;
+    labelID?: number;
+    label_name?: string;
+    frames?: Record<string, BackendFrame>;
+    isDraft?: boolean;
+    color?: string;
+    startFrameNumber?: number;
+    endFrameNumber?: number;
+    usingFPS?: boolean;
 }
 /**
  * Video annotation interface
@@ -73,12 +114,10 @@ interface VideoList {
  * Draft segment interface
  */
 interface DraftSegment {
+    id: string | number;
     label: string;
-    label_display: string;
     startTime: number;
     endTime: number | null;
-    start_time: number;
-    end_time: number | null;
 }
 /**
  * Segment option for dropdowns
@@ -123,20 +162,28 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
         readonly segments: readonly {
             readonly id: string | number;
             readonly label: string;
-            readonly label_name: string;
-            readonly label_display: string;
             readonly startTime: number;
             readonly endTime: number;
             readonly avgConfidence: number;
-            readonly video_id?: number | undefined;
-            readonly label_id?: number | undefined;
-            readonly start_frame_number?: number | undefined;
-            readonly end_frame_number?: number | undefined;
-            readonly start_time?: number | undefined;
-            readonly end_time?: number | undefined;
-            readonly segmentId?: number | undefined;
-            readonly segmentStart?: number | undefined;
-            readonly segmentEnd?: number | undefined;
+            readonly videoID?: number | undefined;
+            readonly labelID?: number | undefined;
+            readonly label_name?: string | undefined;
+            readonly frames?: {
+                readonly [x: string]: {
+                    readonly frame_filename: string;
+                    readonly frame_file_path: string;
+                    readonly predictions: {
+                        readonly frame_number: number;
+                        readonly label: string;
+                        readonly confidence: number;
+                    };
+                };
+            } | undefined;
+            readonly isDraft?: boolean | undefined;
+            readonly color?: string | undefined;
+            readonly startFrameNumber?: number | undefined;
+            readonly endFrameNumber?: number | undefined;
+            readonly usingFPS?: boolean | undefined;
         }[];
         readonly videoUrl: string;
         readonly status: VideoStatus;
@@ -150,20 +197,28 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
         readonly segments: readonly {
             readonly id: string | number;
             readonly label: string;
-            readonly label_name: string;
-            readonly label_display: string;
             readonly startTime: number;
             readonly endTime: number;
             readonly avgConfidence: number;
-            readonly video_id?: number | undefined;
-            readonly label_id?: number | undefined;
-            readonly start_frame_number?: number | undefined;
-            readonly end_frame_number?: number | undefined;
-            readonly start_time?: number | undefined;
-            readonly end_time?: number | undefined;
-            readonly segmentId?: number | undefined;
-            readonly segmentStart?: number | undefined;
-            readonly segmentEnd?: number | undefined;
+            readonly videoID?: number | undefined;
+            readonly labelID?: number | undefined;
+            readonly label_name?: string | undefined;
+            readonly frames?: {
+                readonly [x: string]: {
+                    readonly frame_filename: string;
+                    readonly frame_file_path: string;
+                    readonly predictions: {
+                        readonly frame_number: number;
+                        readonly label: string;
+                        readonly confidence: number;
+                    };
+                };
+            } | undefined;
+            readonly isDraft?: boolean | undefined;
+            readonly color?: string | undefined;
+            readonly startFrameNumber?: number | undefined;
+            readonly endFrameNumber?: number | undefined;
+            readonly usingFPS?: boolean | undefined;
         }[];
         readonly videoUrl: string;
         readonly status: VideoStatus;
@@ -234,21 +289,17 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
     draftSegment: Readonly<Ref<{
         readonly start: number;
         readonly end: number | null;
+        readonly id: string | number;
         readonly label: string;
-        readonly label_display: string;
         readonly startTime: number;
         readonly endTime: number | null;
-        readonly start_time: number;
-        readonly end_time: number | null;
     } | null, {
         readonly start: number;
         readonly end: number | null;
+        readonly id: string | number;
         readonly label: string;
-        readonly label_display: string;
         readonly startTime: number;
         readonly endTime: number | null;
-        readonly start_time: number;
-        readonly end_time: number | null;
     } | null>>;
     activeSegment: ComputedRef<Segment | null>;
     duration: ComputedRef<number>;
@@ -262,6 +313,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
     fetchAllVideos: () => Promise<VideoList>;
     fetchVideoMeta: (lastId?: string) => Promise<any>;
     fetchVideoSegments: (videoId: string) => Promise<void>;
+    fetchSegmentsByLabel: (id: string, label?: string) => Promise<void>;
     createSegment: (videoId: string, labelName: string, startTime: number, endTime: number) => Promise<Segment | null>;
     updateSegment: (segmentId: string | number, updates: SegmentUpdatePayload) => Promise<boolean>;
     deleteSegment: (segmentId: string | number) => Promise<boolean>;
@@ -275,7 +327,9 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
     setActiveSegment: (segmentId: string | number | null) => void;
     updateVideoStatus: (status: VideoStatus) => Promise<void>;
     assignUserToVideo: (user: string) => Promise<void>;
-    startDraft: (label: string, startTime: number, labelDisplay?: string) => void;
+    updateSensitiveMeta: (payload: any) => Promise<boolean>;
+    clearVideoMeta: () => void;
+    startDraft: (label: string, startTime: number) => void;
     updateDraftEnd: (endTime: number) => void;
     commitDraft: () => Promise<Segment | null>;
     cancelDraft: () => void;
@@ -292,20 +346,28 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
         readonly segments: readonly {
             readonly id: string | number;
             readonly label: string;
-            readonly label_name: string;
-            readonly label_display: string;
             readonly startTime: number;
             readonly endTime: number;
             readonly avgConfidence: number;
-            readonly video_id?: number | undefined;
-            readonly label_id?: number | undefined;
-            readonly start_frame_number?: number | undefined;
-            readonly end_frame_number?: number | undefined;
-            readonly start_time?: number | undefined;
-            readonly end_time?: number | undefined;
-            readonly segmentId?: number | undefined;
-            readonly segmentStart?: number | undefined;
-            readonly segmentEnd?: number | undefined;
+            readonly videoID?: number | undefined;
+            readonly labelID?: number | undefined;
+            readonly label_name?: string | undefined;
+            readonly frames?: {
+                readonly [x: string]: {
+                    readonly frame_filename: string;
+                    readonly frame_file_path: string;
+                    readonly predictions: {
+                        readonly frame_number: number;
+                        readonly label: string;
+                        readonly confidence: number;
+                    };
+                };
+            } | undefined;
+            readonly isDraft?: boolean | undefined;
+            readonly color?: string | undefined;
+            readonly startFrameNumber?: number | undefined;
+            readonly endFrameNumber?: number | undefined;
+            readonly usingFPS?: boolean | undefined;
         }[];
         readonly videoUrl: string;
         readonly status: VideoStatus;
@@ -319,20 +381,28 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
         readonly segments: readonly {
             readonly id: string | number;
             readonly label: string;
-            readonly label_name: string;
-            readonly label_display: string;
             readonly startTime: number;
             readonly endTime: number;
             readonly avgConfidence: number;
-            readonly video_id?: number | undefined;
-            readonly label_id?: number | undefined;
-            readonly start_frame_number?: number | undefined;
-            readonly end_frame_number?: number | undefined;
-            readonly start_time?: number | undefined;
-            readonly end_time?: number | undefined;
-            readonly segmentId?: number | undefined;
-            readonly segmentStart?: number | undefined;
-            readonly segmentEnd?: number | undefined;
+            readonly videoID?: number | undefined;
+            readonly labelID?: number | undefined;
+            readonly label_name?: string | undefined;
+            readonly frames?: {
+                readonly [x: string]: {
+                    readonly frame_filename: string;
+                    readonly frame_file_path: string;
+                    readonly predictions: {
+                        readonly frame_number: number;
+                        readonly label: string;
+                        readonly confidence: number;
+                    };
+                };
+            } | undefined;
+            readonly isDraft?: boolean | undefined;
+            readonly color?: string | undefined;
+            readonly startFrameNumber?: number | undefined;
+            readonly endFrameNumber?: number | undefined;
+            readonly usingFPS?: boolean | undefined;
         }[];
         readonly videoUrl: string;
         readonly status: VideoStatus;
@@ -403,21 +473,17 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
     draftSegment: Readonly<Ref<{
         readonly start: number;
         readonly end: number | null;
+        readonly id: string | number;
         readonly label: string;
-        readonly label_display: string;
         readonly startTime: number;
         readonly endTime: number | null;
-        readonly start_time: number;
-        readonly end_time: number | null;
     } | null, {
         readonly start: number;
         readonly end: number | null;
+        readonly id: string | number;
         readonly label: string;
-        readonly label_display: string;
         readonly startTime: number;
         readonly endTime: number | null;
-        readonly start_time: number;
-        readonly end_time: number | null;
     } | null>>;
     activeSegment: ComputedRef<Segment | null>;
     duration: ComputedRef<number>;
@@ -431,6 +497,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
     fetchAllVideos: () => Promise<VideoList>;
     fetchVideoMeta: (lastId?: string) => Promise<any>;
     fetchVideoSegments: (videoId: string) => Promise<void>;
+    fetchSegmentsByLabel: (id: string, label?: string) => Promise<void>;
     createSegment: (videoId: string, labelName: string, startTime: number, endTime: number) => Promise<Segment | null>;
     updateSegment: (segmentId: string | number, updates: SegmentUpdatePayload) => Promise<boolean>;
     deleteSegment: (segmentId: string | number) => Promise<boolean>;
@@ -444,7 +511,9 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
     setActiveSegment: (segmentId: string | number | null) => void;
     updateVideoStatus: (status: VideoStatus) => Promise<void>;
     assignUserToVideo: (user: string) => Promise<void>;
-    startDraft: (label: string, startTime: number, labelDisplay?: string) => void;
+    updateSensitiveMeta: (payload: any) => Promise<boolean>;
+    clearVideoMeta: () => void;
+    startDraft: (label: string, startTime: number) => void;
     updateDraftEnd: (endTime: number) => void;
     commitDraft: () => Promise<Segment | null>;
     cancelDraft: () => void;
@@ -453,7 +522,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
     getSegmentOptions: () => SegmentOption[];
     clearSegments: () => void;
     loadVideo: (videoId: string) => Promise<void>;
-}, "segments" | "duration" | "labels" | "allSegments" | "activeSegment" | "hasVideo">, Pick<{
+}, "duration" | "segments" | "labels" | "allSegments" | "activeSegment" | "hasVideo">, Pick<{
     currentVideo: Readonly<Ref<{
         readonly id: string | number;
         readonly isAnnotated: boolean;
@@ -461,20 +530,28 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
         readonly segments: readonly {
             readonly id: string | number;
             readonly label: string;
-            readonly label_name: string;
-            readonly label_display: string;
             readonly startTime: number;
             readonly endTime: number;
             readonly avgConfidence: number;
-            readonly video_id?: number | undefined;
-            readonly label_id?: number | undefined;
-            readonly start_frame_number?: number | undefined;
-            readonly end_frame_number?: number | undefined;
-            readonly start_time?: number | undefined;
-            readonly end_time?: number | undefined;
-            readonly segmentId?: number | undefined;
-            readonly segmentStart?: number | undefined;
-            readonly segmentEnd?: number | undefined;
+            readonly videoID?: number | undefined;
+            readonly labelID?: number | undefined;
+            readonly label_name?: string | undefined;
+            readonly frames?: {
+                readonly [x: string]: {
+                    readonly frame_filename: string;
+                    readonly frame_file_path: string;
+                    readonly predictions: {
+                        readonly frame_number: number;
+                        readonly label: string;
+                        readonly confidence: number;
+                    };
+                };
+            } | undefined;
+            readonly isDraft?: boolean | undefined;
+            readonly color?: string | undefined;
+            readonly startFrameNumber?: number | undefined;
+            readonly endFrameNumber?: number | undefined;
+            readonly usingFPS?: boolean | undefined;
         }[];
         readonly videoUrl: string;
         readonly status: VideoStatus;
@@ -488,20 +565,28 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
         readonly segments: readonly {
             readonly id: string | number;
             readonly label: string;
-            readonly label_name: string;
-            readonly label_display: string;
             readonly startTime: number;
             readonly endTime: number;
             readonly avgConfidence: number;
-            readonly video_id?: number | undefined;
-            readonly label_id?: number | undefined;
-            readonly start_frame_number?: number | undefined;
-            readonly end_frame_number?: number | undefined;
-            readonly start_time?: number | undefined;
-            readonly end_time?: number | undefined;
-            readonly segmentId?: number | undefined;
-            readonly segmentStart?: number | undefined;
-            readonly segmentEnd?: number | undefined;
+            readonly videoID?: number | undefined;
+            readonly labelID?: number | undefined;
+            readonly label_name?: string | undefined;
+            readonly frames?: {
+                readonly [x: string]: {
+                    readonly frame_filename: string;
+                    readonly frame_file_path: string;
+                    readonly predictions: {
+                        readonly frame_number: number;
+                        readonly label: string;
+                        readonly confidence: number;
+                    };
+                };
+            } | undefined;
+            readonly isDraft?: boolean | undefined;
+            readonly color?: string | undefined;
+            readonly startFrameNumber?: number | undefined;
+            readonly endFrameNumber?: number | undefined;
+            readonly usingFPS?: boolean | undefined;
         }[];
         readonly videoUrl: string;
         readonly status: VideoStatus;
@@ -572,21 +657,17 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
     draftSegment: Readonly<Ref<{
         readonly start: number;
         readonly end: number | null;
+        readonly id: string | number;
         readonly label: string;
-        readonly label_display: string;
         readonly startTime: number;
         readonly endTime: number | null;
-        readonly start_time: number;
-        readonly end_time: number | null;
     } | null, {
         readonly start: number;
         readonly end: number | null;
+        readonly id: string | number;
         readonly label: string;
-        readonly label_display: string;
         readonly startTime: number;
         readonly endTime: number | null;
-        readonly start_time: number;
-        readonly end_time: number | null;
     } | null>>;
     activeSegment: ComputedRef<Segment | null>;
     duration: ComputedRef<number>;
@@ -600,6 +681,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
     fetchAllVideos: () => Promise<VideoList>;
     fetchVideoMeta: (lastId?: string) => Promise<any>;
     fetchVideoSegments: (videoId: string) => Promise<void>;
+    fetchSegmentsByLabel: (id: string, label?: string) => Promise<void>;
     createSegment: (videoId: string, labelName: string, startTime: number, endTime: number) => Promise<Segment | null>;
     updateSegment: (segmentId: string | number, updates: SegmentUpdatePayload) => Promise<boolean>;
     deleteSegment: (segmentId: string | number) => Promise<boolean>;
@@ -613,7 +695,9 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
     setActiveSegment: (segmentId: string | number | null) => void;
     updateVideoStatus: (status: VideoStatus) => Promise<void>;
     assignUserToVideo: (user: string) => Promise<void>;
-    startDraft: (label: string, startTime: number, labelDisplay?: string) => void;
+    updateSensitiveMeta: (payload: any) => Promise<boolean>;
+    clearVideoMeta: () => void;
+    startDraft: (label: string, startTime: number) => void;
     updateDraftEnd: (endTime: number) => void;
     commitDraft: () => Promise<Segment | null>;
     cancelDraft: () => void;
@@ -622,5 +706,5 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
     getSegmentOptions: () => SegmentOption[];
     clearSegments: () => void;
     loadVideo: (videoId: string) => Promise<void>;
-}, "clearVideo" | "setVideo" | "fetchVideoUrl" | "fetchAllSegments" | "fetchAllVideos" | "fetchVideoMeta" | "fetchVideoSegments" | "createSegment" | "updateSegment" | "deleteSegment" | "saveAnnotations" | "uploadRevert" | "uploadProcess" | "getSegmentStyle" | "getColorForLabel" | "getTranslationForLabel" | "jumpToSegment" | "setActiveSegment" | "updateVideoStatus" | "assignUserToVideo" | "startDraft" | "updateDraftEnd" | "commitDraft" | "cancelDraft" | "createFiveSecondSegment" | "formatTime" | "getSegmentOptions" | "clearSegments" | "loadVideo">>;
-export type { Segment, VideoAnnotation, VideoMeta, LabelMeta, VideoList, DraftSegment, SegmentOption, SegmentStyle, VideoStatus, LabelKey };
+}, "clearVideo" | "setVideo" | "fetchVideoUrl" | "fetchAllSegments" | "fetchAllVideos" | "fetchVideoMeta" | "fetchVideoSegments" | "fetchSegmentsByLabel" | "createSegment" | "updateSegment" | "deleteSegment" | "saveAnnotations" | "uploadRevert" | "uploadProcess" | "getSegmentStyle" | "getColorForLabel" | "getTranslationForLabel" | "jumpToSegment" | "setActiveSegment" | "updateVideoStatus" | "assignUserToVideo" | "updateSensitiveMeta" | "clearVideoMeta" | "startDraft" | "updateDraftEnd" | "commitDraft" | "cancelDraft" | "createFiveSecondSegment" | "formatTime" | "getSegmentOptions" | "clearSegments" | "loadVideo">>;
+export type { Segment, VideoAnnotation, VideoMeta, LabelMeta, VideoList, DraftSegment, SegmentOption, SegmentStyle, VideoStatus, LabelKey, BackendFramePrediction };

@@ -81,7 +81,7 @@ export declare const useReportStore: import("pinia").StoreDefinition<"report", i
     annotations: import("vue").Ref<{
         id: number;
         reportId: number;
-        type: "note" | "highlight" | "tag";
+        type: "tag" | "note" | "highlight";
         content: string;
         position: {
             page?: number | undefined;
@@ -96,7 +96,7 @@ export declare const useReportStore: import("pinia").StoreDefinition<"report", i
     }[], Annotation[] | {
         id: number;
         reportId: number;
-        type: "note" | "highlight" | "tag";
+        type: "tag" | "note" | "highlight";
         content: string;
         position: {
             page?: number | undefined;
@@ -202,7 +202,7 @@ export declare const useReportStore: import("pinia").StoreDefinition<"report", i
     annotations: import("vue").Ref<{
         id: number;
         reportId: number;
-        type: "note" | "highlight" | "tag";
+        type: "tag" | "note" | "highlight";
         content: string;
         position: {
             page?: number | undefined;
@@ -217,7 +217,7 @@ export declare const useReportStore: import("pinia").StoreDefinition<"report", i
     }[], Annotation[] | {
         id: number;
         reportId: number;
-        type: "note" | "highlight" | "tag";
+        type: "tag" | "note" | "highlight";
         content: string;
         position: {
             page?: number | undefined;
@@ -323,7 +323,7 @@ export declare const useReportStore: import("pinia").StoreDefinition<"report", i
     annotations: import("vue").Ref<{
         id: number;
         reportId: number;
-        type: "note" | "highlight" | "tag";
+        type: "tag" | "note" | "highlight";
         content: string;
         position: {
             page?: number | undefined;
@@ -338,7 +338,7 @@ export declare const useReportStore: import("pinia").StoreDefinition<"report", i
     }[], Annotation[] | {
         id: number;
         reportId: number;
-        type: "note" | "highlight" | "tag";
+        type: "tag" | "note" | "highlight";
         content: string;
         position: {
             page?: number | undefined;

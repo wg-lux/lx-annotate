@@ -264,7 +264,7 @@ export default defineComponent({
             // Fix: Use only video_id field as per the backend API structure
             const targetId = String(videoId);
             return this.allSegments.filter(segment => {
-                const segmentVideoId = String(segment.video_id || '');
+                const segmentVideoId = String(segment.videoID || '');
                 return segmentVideoId === targetId;
             }).length;
         },

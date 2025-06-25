@@ -45,6 +45,7 @@
             v-for="(row, rowIndex) in segmentRows"
             :key="row.id"
             class="segment-row"
+            :class="{ 'active': row.label === selectedLabel }"
             :style="{ 
               top: (60 + rowIndex * 45) + 'px',
               height: '40px'
@@ -62,7 +63,7 @@
               :style="{
                 left: getSegmentPosition(segment.start) + '%',
                 width: getSegmentWidth(segment.start, segment.end) + '%',
-                backgroundColor: segment.color || getLabelColor(segment.label_id),
+                backgroundColor: segment.color || getColorForLabel(segment.label),
                 borderColor: segment.isDraft ? '#ff9800' : 'transparent'
               }"
               @click="selectSegment(segment)"
@@ -79,7 +80,8 @@
               </div>
 
               <div class="segment-content">
-                <span class="segment-label">{{ getLabelName(segment.label_id) || segment.label_name }}</span>
+                <!-- ✅ FIX 8: Use getTranslationForLabel instead of segment.label_name -->
+                <span class="segment-label">{{ getTranslationForLabel(segment.label) }}</span>
                 <span class="segment-duration">{{ formatDuration(segment.start, segment.end) }}</span>
               </div>
 
@@ -166,12 +168,25 @@ import {
   calculateSegmentWidth,
   calculateSegmentPosition
 } from '@/utils/timeHelpers'
-import type { Segment, LabelMeta } from '@/stores/videoStore'
-import { 
+import { useVideoStore } from '@/stores/videoStore'
+import {
+  type Segment,
+  type LabelMeta 
+} from '@/stores/videoStore'
+import {
+  convertBackendSegmentToFrontend,
+  convertFrontendSegmentToBackend,
+  convertBackendSegmentsToFrontend,
+  createSegmentUpdatePayload,
   normalizeSegmentToCamelCase,
-  type FrontendSegment,
-  debugSegmentConversion
+  debugSegmentConversion,
 } from '@/utils/caseConversion'
+import { useToastStore } from '@/stores/toastStore'
+import { getRandomColor } from '@/utils/colorHelpers'
+
+const toast = useToastStore()
+const videoStore = useVideoStore()
+const segmentsByLabel = videoStore.segmentsByLabel
 
 // Type definitions
 interface TimeMarker {
@@ -209,6 +224,7 @@ interface CanonicalSegment extends Segment {
 // ✅ NEW: Multi-row segment layout algorithm
 interface SegmentRow {
   id: number
+  label: string
   segments: CanonicalSegment[]
   maxEndTime: number
 }
@@ -326,62 +342,132 @@ const timeMarkers = computed((): TimeMarker[] => {
 })
 
 // ✅ FIX: Use fps prop instead of ignoring it
-const currentFps = computed((): number => props.fps || 30)
+const currentFps = computed((): number => props.fps || 50)
 
-// ✅ NEW: Canonical segments mapper for consistent field access with conversion utilities
-const canonicalSegments = computed((): CanonicalSegment[] =>
-  (props.segments || []).map((s: Segment): CanonicalSegment => {
-    // Use the new normalization utility to ensure consistent camelCase properties
-    const normalized = normalizeSegmentToCamelCase(s)
-    
-    if (process.env.NODE_ENV === 'development') {
-      debugSegmentConversion(s, normalized, 'toFrontend')
+const toCanonical = (s: Segment): CanonicalSegment => {
+  const n = normalizeSegmentToCamelCase(s)
+  const color = getColorForLabel(s.label)
+  return {
+    ...n,
+    start: n.startTime,
+    end: n.endTime,
+    isDraft: typeof s.id === 'string' && (s.id === 'draft' || s.id.startsWith('temp-')),
+    color: color || getRandomColor() || undefined,
+    avgConfidence: s.avgConfidence ?? 0,
+    label: s.label
+  }
+}
+
+const selectedLabel = ref<string | null>(null)
+
+const selectSegment = (segment: Segment): void => {
+  selectedLabel.value = segment.label // ✅ FIX: Use segment.label instead of segment.label_name
+  emit('segment-select', segment)
+}
+
+// ✅ FIX: Add getTranslationForLabel function from videoStore
+const getTranslationForLabel = (label: string): string => {
+  return videoStore.getTranslationForLabel(label)
+}
+
+// ✅ FIX: Add getColorForLabel function from videoStore  
+const getColorForLabel = (label: string): string => {
+  return videoStore.getColorForLabel(label)
+}
+
+const displayedSegments = ref<CanonicalSegment[]>([])
+
+watch(
+  () => props.segments,
+  (segments) => {
+    if (segments) {
+      displayedSegments.value = structuredClone(segments.map((s: Segment): CanonicalSegment => {
+        const normalized = normalizeSegmentToCamelCase(s)
+        return {
+          ...normalized,
+          start: normalized.startTime,
+          end: normalized.endTime,
+          isDraft: s.id === 'draft' || (typeof s.id === 'string' && s.id.startsWith('temp-')),
+          color: undefined,
+          avgConfidence: s.avgConfidence ?? 0,
+          label_name: s.label_name || s.label
+        }
+      }))
+    } else {
+      displayedSegments.value = []
     }
-    
-    return {
-      ...normalized,
-      // Use normalized
-      start: normalized.startTime,
-      end: normalized.endTime,
-      isDraft: s.id === 'draft' || (typeof s.id === 'string' && s.id.startsWith('temp-')),
-      color: undefined, // Will be determined by getLabelColor
-      avgConfidence: s.avgConfidence ?? 0, // Ensure avgConfidence is always a number
-      label_name: s.label_name || s.label // Added: Required field for API compatibility
-    }
-  })
+  },
+  {immediate: true}
 )
 
 // ✅ NEW: Calculate optimal row layout to prevent overlapping segments
-const segmentRows = computed((): SegmentRow[] => {
-  const segments = canonicalSegments.value
-  if (segments.length === 0) return []
-  
-  // Sort segments by start time for optimal placement
-  const sortedSegments = [...segments].sort((a, b) => a.start - b.start)
-  const rows: SegmentRow[] = []
-  
-  for (const segment of sortedSegments) {
-    // Find the first row where this segment can fit without overlapping
-    let targetRow = rows.find(row => row.maxEndTime < segment.start - 0.0001)
-    
-    if (!targetRow) {
-      // Create a new row if no suitable row exists
-      targetRow = {
-        id: rows.length,
-        segments: [],
-        maxEndTime: 0
-      }
-      rows.push(targetRow)
-    }
-    
-    // Add segment to the row and update the row's end time
-    targetRow.segments.push(segment)
-    targetRow.maxEndTime = Math.max(targetRow.maxEndTime, segment.end)
+/**
+ * Row layout that:
+ *  • puts the currently-selected label in the first row (target row)
+ *  • creates one row per label that actually has segments
+ *  • guarantees segments in a row never overlap in time
+ */
+ const segmentRows = computed((): SegmentRow[] => {
+  // 0.  gather all canonical segments – ONE source of truth
+  const allSegs = (props.segments || []).map(toCanonical)
+
+  if (allSegs.length === 0) return []
+
+  // 1.  build "buckets" → label => CanonicalSegment[]
+  const buckets: Record<string, CanonicalSegment[]> = {}
+  for (const s of allSegs) {
+    const label = s.label
+    ;(buckets[label] ||= []).push(s)
   }
-  
-  console.log(`[Timeline] Arranged ${segments.length} segments into ${rows.length} rows`)
+
+  // 2.  optional — put *selected* label first
+  const labelOrder = selectedLabel.value
+    ? [selectedLabel.value, ...Object.keys(buckets).filter(l => l !== selectedLabel.value)]
+    : Object.keys(buckets)
+
+  // 3.  convert each bucket into a SegmentRow, resolving overlaps
+  const rows: SegmentRow[] = []
+  for (const label of labelOrder) {
+    // sort by start for deterministic order inside the row
+    const segs = buckets[label].sort((a, b) => a.start - b.start)
+
+    /*  simple non-overlap pass:
+        whenever we find a segment that still overlaps the last,
+        push it into a *new* technical row (same label id)
+        so width calculations stay correct                       */
+    let currentRow = { id: rows.length, label, segments: [] as CanonicalSegment[], maxEndTime: 0 }
+
+    for (const seg of segs) {
+      if (seg.start < currentRow.maxEndTime - 1e-4) {
+        // needs a new physical row
+        rows.push(currentRow)
+        currentRow = {
+          id: rows.length,
+          label,
+          segments: [],
+          maxEndTime: 0
+        }
+      }
+      currentRow.segments.push(seg)
+      currentRow.maxEndTime = Math.max(currentRow.maxEndTime, seg.end)
+    }
+
+    rows.push(currentRow)
+  }
+
+  // ✅ NEW: Add console.table for tests showing label and count per row
+  const tableData = rows.map(row => ({
+    label: row.label,
+    count: row.segments.length
+  }))
+  console.table(tableData)
+
+  console.info('[Timeline] built', rows.length, 'rows – selected:',
+               selectedLabel.value ?? 'none')
+
   return rows
 })
+
 
 // ✅ NEW: Calculate total timeline height based on number of rows
 const timelineHeight = computed((): number => {
@@ -417,9 +503,12 @@ const getLabelColor = (labelId: number | string | undefined): string => {
 }
 
 const getLabelName = (labelId: number | string | undefined): string => {
-  if (!labelId) return 'Unbekannt'
-  const label = (props.labels || []).find((l: LabelMeta) => l.id === labelId)
-  return (label as any)?.name || 'Unbekannt'
+  if (!labelId) {
+    return ''
+  }
+   
+   const label = (props.labels || []).find((l: LabelMeta) => l.id === labelId)
+  return (label as any)?.name || ''
 }
 
 // New drag and resize methods
@@ -429,11 +518,11 @@ const startSegmentDrag = (segment: Segment, event: MouseEvent): void => {
   event.preventDefault()
   draggingSegmentId.value = segment.id
   dragStartX.value = event.clientX
-  dragStartTime.value = segment.start_time || segment.startTime || 0
+  dragStartTime.value = segment.startTime || 0 // ✅ FIX: Use only camelCase property
   
   originalSegmentData.value = {
-    start_time: segment.start_time || segment.startTime || 0,
-    end_time: segment.end_time || segment.endTime || 0
+    start_time: segment.startTime || 0, // ✅ FIX: Use camelCase source
+    end_time: segment.endTime || 0      // ✅ FIX: Use camelCase source
   }
   
   document.addEventListener('mousemove', onSegmentDragMove)
@@ -450,7 +539,7 @@ const onSegmentDragMove = (event: MouseEvent): void => {
   const deltaX = event.clientX - dragStartX.value
   const deltaTime = (deltaX / rect.width) * duration.value
   
-  const segment = canonicalSegments.value.find(s => s.id === draggingSegmentId.value)
+  const segment = displayedSegments.value.find(s => s.id === draggingSegmentId.value)
   if (!segment) return
   
   const segmentDuration = originalSegmentData.value!.end_time - originalSegmentData.value!.start_time
@@ -464,13 +553,13 @@ const onSegmentDragMove = (event: MouseEvent): void => {
   emit('segment-move', draggingSegmentId.value, newStartTime, newEndTime)
   segment.start = newStartTime
   segment.end = newEndTime
-  segment.start_time = newStartTime
-  segment.end_time = newEndTime
+  segment.startTime = newStartTime // ✅ FIX: Use camelCase properties
+  segment.endTime = newEndTime      // ✅ FIX: Use camelCase properties
 }
 
 const onSegmentDragEnd = (event: MouseEvent): void => {
   if (draggingSegmentId.value) {
-    const segment = canonicalSegments.value.find(s => s.id === draggingSegmentId.value)
+    const segment = displayedSegments.value.find(s => s.id === draggingSegmentId.value)
     if (segment) {
       const segmentDuration = originalSegmentData.value!.end_time - originalSegmentData.value!.start_time
       const rect = timeline.value!.getBoundingClientRect()
@@ -519,8 +608,8 @@ const startResize = (segment: Segment, mode: 'start' | 'end', event: MouseEvent)
   dragStartX.value = event.clientX
   
   originalSegmentData.value = {
-    start_time: segment.start_time || segment.startTime || 0,
-    end_time: segment.end_time || segment.endTime || 0
+    start_time: segment.startTime || 0, // ✅ FIX: Use only camelCase property
+    end_time: segment.endTime || 0      // ✅ FIX: Use only camelCase property
   }
   
   document.addEventListener('mousemove', onResizeMove)
@@ -554,11 +643,11 @@ const onResizeMove = (event: MouseEvent): void => {
 
 const onResizeEnd = (event: MouseEvent): void => {
   if (resizingSegmentId.value) {
-    const segment = canonicalSegments.value.find(s => s.id === resizingSegmentId.value)
+    const segment = displayedSegments.value.find(s => s.id === resizingSegmentId.value)
     if (segment) {
       const rect = timeline.value!.getBoundingClientRect()
       const deltaX = event.clientX - dragStartX.value
-      const deltaTime = (deltaX / rect.width) + duration.value
+      const deltaTime = (deltaX / rect.width) * duration.value
       
       let newStartTime = originalSegmentData.value!.start_time
       let newEndTime = originalSegmentData.value!.end_time
@@ -616,10 +705,6 @@ const playPause = (): void => {
   emit('play-pause')
 }
 
-// Selection methods
-const selectSegment = (segment: Segment): void => {
-  emit('segment-select', segment)
-}
 
 const editSegment = (segment: Segment | null): void => {
   if (!segment) return
@@ -636,7 +721,7 @@ const deleteSegment = (segment: Segment | null): void => {
 const playSegment = (segment: Segment | null): void => {
   if (!segment) return
   hideContextMenu()
-  emit('seek', segment.start_time || segment.startTime || 0)
+  emit('seek', segment.startTime || 0) // ✅ FIX: Use camelCase property
   emit('play-pause')
 }
 
@@ -718,7 +803,7 @@ watch(() => props.video, () => {
 })
 
 // ✅ NEW: Debug watch for segments with 0% width
-watch(canonicalSegments, (segs: CanonicalSegment[]) => {
+watch(displayedSegments, (segs: CanonicalSegment[]) => {
   segs.forEach(s => {
     if (getSegmentWidth(s.start, s.end) === 0) {
       console.warn('[Timeline] Segment mit 0% Breite:', s)
@@ -769,6 +854,12 @@ const handleClickOutside = (event: Event): void => {
 // Lifecycle hooks
 onMounted(() => {
   document.addEventListener('click', handleClickOutside)
+  document.addEventListener('mousemove', onSegmentDragMove)
+  document.addEventListener('mouseup', onSegmentDragEnd)
+  document.addEventListener('mousemove', onResizeMove)
+  document.addEventListener('mouseup', onResizeEnd)
+  document.addEventListener('mousemove', onSelectionMouseMove)
+  document.addEventListener('mouseup', onSelectionMouseUp)
   
   // Initialize waveform if needed
   if (props.showWaveform) {
@@ -776,6 +867,8 @@ onMounted(() => {
       initializeWaveform()
     })
   }
+  toast.success({ text: '[Timeline] Component mounted and ready' })
+
 })
 
 onUnmounted(() => {
@@ -816,6 +909,17 @@ const getNumericSegmentId = (segmentId: string | number): number | null => {
 </script>
 
 <style scoped>
+.segment-row.active-row::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(33,150,243,.05);
+}
+
+
 .timeline-container {
   width: 100%;
   background-color: #f8f9fa;
@@ -1202,8 +1306,8 @@ const getNumericSegmentId = (segmentId: string | number): number | null => {
   box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.2);
 }
 
-/* New styles for multi-row layout */
-.segments-track {
+/* ✅ FIX: Proper CSS structure for segment rows */
+.segment-rows-container {
   display: flex;
   flex-direction: column;
   gap: 4px;

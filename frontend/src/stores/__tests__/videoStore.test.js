@@ -96,13 +96,12 @@ describe('VideoStore', () => {
             expect(result).toEqual({
                 id: 456,
                 label: 'polyp',
-                label_display: 'Polyp',
                 startTime: 10.5,
                 endTime: 15.0,
                 avgConfidence: 1,
-                video_id: 123,
-                start_frame_number: 315, // 10.5 * 30 FPS
-                end_frame_number: 450 // 15.0 * 30 FPS
+                videoID: 123,
+                startFrameNumber: 315, // 10.5 * 30 FPS
+                endFrameNumber: 450 // 15.0 * 30 FPS
             });
             expect(store.draftSegment).toBe(null);
             expect(store.segmentsByLabel.polyp).toContainEqual(result);
@@ -194,7 +193,7 @@ describe('VideoStore', () => {
             // Act
             const result = await store.commitDraft();
             // Assert
-            expect(result?.label_display).toBe('Polyp');
+            expect(store.getTranslationForLabel(result?.label || '')).toBe('Polyp');
         });
         it('should handle unknown labels gracefully', async () => {
             // Arrange
@@ -207,7 +206,7 @@ describe('VideoStore', () => {
             // Act
             const result = await store.commitDraft();
             // Assert
-            expect(result?.label_display).toBe('unknown_label'); // Falls back to original
+            expect(result?.label).toBe('unknown_label'); // Falls back to original
         });
     });
     describe('Frame Calculation', () => {
@@ -222,8 +221,8 @@ describe('VideoStore', () => {
             // Act
             const result = await store.commitDraft();
             // Assert
-            expect(result?.start_frame_number).toBe(165); // 5.5 * 30 = 165
-            expect(result?.end_frame_number).toBe(246); // 8.2 * 30 = 246
+            expect(result?.startFrameNumber).toBe(165); // 5.5 * 30 = 165
+            expect(result?.endFrameNumber).toBe(246); // 8.2 * 30 = 246
         });
     });
     describe('Edge Cases and Validation', () => {
@@ -239,7 +238,7 @@ describe('VideoStore', () => {
             const result = await store.commitDraft();
             // Assert
             expect(result?.startTime).toBe(0);
-            expect(result?.start_frame_number).toBe(0);
+            expect(result?.startFrameNumber).toBe(0);
         });
         it('should handle very short segments', async () => {
             // Arrange
@@ -265,8 +264,8 @@ describe('VideoStore', () => {
             // Act
             const result = await store.commitDraft();
             // Assert
-            expect(result?.start_frame_number).toBe(310); // Math.round(10.333 * 30)
-            expect(result?.end_frame_number).toBe(470); // Math.round(15.666 * 30)
+            expect(result?.startFrameNumber).toBe(310); // Math.round(10.333 * 30)
+            expect(result?.endFrameNumber).toBe(470); // Math.round(15.666 * 30)
         });
     });
 });

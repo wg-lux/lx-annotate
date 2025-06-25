@@ -2,6 +2,7 @@ import NavbarComponent from './components/NavbarComponent.vue';
 import SidebarComponent from './components/SidebarComponent.vue';
 import DashboardComponent from './components/DashboardComponent.vue';
 import LoginComponent from './components/LoginComponent.vue';
+import ToastMessageContainer from './components/Utils/ToastMessageContainer.vue';
 import '@/assets/custom-overrides.css';
 import axios from 'axios';
 axios.defaults.baseURL = '/';
@@ -23,6 +24,7 @@ export default (await import('vue')).defineComponent({
         SidebarComponent,
         DashboardComponent,
         LoginComponent,
+        ToastMessageContainer,
     },
 });
 ; /* PartiallyEnd: #3632/script.vue */
@@ -33,6 +35,7 @@ function __VLS_template() {
         SidebarComponent,
         DashboardComponent,
         LoginComponent,
+        ToastMessageContainer,
     };
     let __VLS_components;
     let __VLS_directives;
@@ -137,6 +140,11 @@ function __VLS_template() {
         // @ts-ignore
         const __VLS_19 = __VLS_asFunctionalComponent(__VLS_18, new __VLS_18({}));
         const __VLS_20 = __VLS_19({}, ...__VLS_functionalComponentArgsRest(__VLS_19));
+        const __VLS_24 = {}.ToastMessageContainer;
+        /** @type { [typeof __VLS_components.ToastMessageContainer, ] } */ ;
+        // @ts-ignore
+        const __VLS_25 = __VLS_asFunctionalComponent(__VLS_24, new __VLS_24({}));
+        const __VLS_26 = __VLS_25({}, ...__VLS_functionalComponentArgsRest(__VLS_25));
     }
     __VLS_elementAsFunction(__VLS_intrinsicElements.template, __VLS_intrinsicElements.template)({});
     {
@@ -154,11 +162,11 @@ function __VLS_template() {
         __VLS_elementAsFunction(__VLS_intrinsicElements.main, __VLS_intrinsicElements.main)({
             ...{ class: ("main-content center position-relative max-width max-height-vh-95 h-100 border-radius-lg") },
         });
-        const __VLS_24 = {}.LoginComponent;
+        const __VLS_30 = {}.LoginComponent;
         /** @type { [typeof __VLS_components.LoginComponent, ] } */ ;
         // @ts-ignore
-        const __VLS_25 = __VLS_asFunctionalComponent(__VLS_24, new __VLS_24({}));
-        const __VLS_26 = __VLS_25({}, ...__VLS_functionalComponentArgsRest(__VLS_25));
+        const __VLS_31 = __VLS_asFunctionalComponent(__VLS_30, new __VLS_30({}));
+        const __VLS_32 = __VLS_31({}, ...__VLS_functionalComponentArgsRest(__VLS_31));
     }
     var __VLS_5;
     ['sidenav', 'navbar', 'navbar-vertical', 'navbar-expand-xs', 'ms-3', 'g-sidenav-hidden', 'sidenav', 'm-1', 'material-icons', 'btn', 'btn-outline-primary', 'border-0', 'my-3', 'btn-sm', 'mb-0', 'me-3', 'g-sidenav-show', 'sidenav', 'navbar', 'navbar-vertical', 'navbar-expand-xs', 'border-0', 'border-radius-xl', 'my-3', 'fixed-start', 'ms-3', 'bg-gradient-dark', 'material-icons', 'btn', 'btn-outline-info', 'btn-sm', 'mb-0', 'me-3', 'bg-gradient-dark', 'main-content', 'position-relative', 'max-height-vh-95', 'h-100', 'border-radius-lg', 'container-fluid', 'h-100', 'w-100', 'py-1', 'px-4', 'row', 'col-12', 'g-sidenav-hidden', 'container-fluid', 'h-100', 'w-100', 'py-1', 'px-4', 'main-content', 'center', 'position-relative', 'max-width', 'max-height-vh-95', 'h-100', 'border-radius-lg',];

@@ -4,29 +4,25 @@ import SimpleExaminationForm from './SimpleExaminationForm.vue';
 import axiosInstance, { r } from '@/api/axiosInstance';
 import Timeline from '@/components/EndoAI/Timeline.vue';
 import { storeToRefs } from 'pinia';
+import { useToastStore } from '@/stores/toastStore';
 // Store setup
 const videoStore = useVideoStore();
+const toastStore = useToastStore();
 const { allSegments: rawSegments } = storeToRefs(videoStore);
 const mappedTimelineSegments = computed(() => rawSegments.value.map((s) => ({
     id: s.id,
     label: s.label,
-    label_name: s.label_name || s.label,
     label_display: getTranslationForLabel(s.label),
     name: getTranslationForLabel(s.label), // <‑‑ NEW ➜ shown inside pill
-    startTime: s.startTime ?? s.start_time ?? 0,
-    endTime: s.endTime ?? s.end_time ?? 0,
-    // API copies (snake_case) – used by the backend endpoints
-    start_time: s.startTime ?? s.start_time ?? 0,
-    end_time: s.endTime ?? s.end_time ?? 0,
+    startTime: s.startTime ?? 0,
+    endTime: s.endTime ?? 0,
     avgConfidence: s.avgConfidence ?? 1,
     video_id: selectedVideoId.value ?? undefined,
-    label_id: s.label_id
-        ?? timelineLabels.value.find(l => l.name === s.label_name)?.id
-        ?? undefined
+    label_id: s.labelID ?? undefined
 })));
 // ✅ FIX: Use spread operator to convert readonly array to mutable array
 const timelineLabels = computed(() => {
-    const storeLabels = videoStore.videoList?.labels || [];
+    const storeLabels = videoStore.labels || [];
     return [...storeLabels]; // Convert readonly array to mutable array
 });
 // Reactive data
@@ -122,16 +118,20 @@ const loadSavedExaminations = async () => {
 const onVideoChange = async () => {
     if (selectedVideoId.value !== null) {
         loadSavedExaminations();
-        // ✅ FIX: Proper video loading sequence
+        // ✅ NEW: Load all segments for all labels as requested
         try {
             // 1. Set current video in store FIRST
             await videoStore.loadVideo(selectedVideoId.value.toString());
             // 2. Wait for video metadata to load
             await loadVideoMetadata();
-            // 3. Load segments through enhanced fetchAllVideos (already includes segments)
-            console.log('Loading segments for video:', selectedVideoId.value);
-            await videoStore.fetchAllSegments(selectedVideoId.value.toString());
-            // 4. Debug log the loaded segments
+            // 3. ✅ NEW: Fetch segments for ALL labels as specified in requirements
+            console.log('Loading segments for all labels...');
+            await Promise.all(videoStore.labels.map(l => videoStore.segmentsByLabel));
+            // 4. ✅ NEW: Show toast message when all segments are loaded
+            toastStore.success({
+                text: `Alle Segmente für Video ${selectedVideoId.value} geladen`
+            });
+            // 5. Debug log the loaded segments
             console.log('📊 Segments loaded:');
             console.log('- Timeline segments:', rawSegments.value.length);
             console.log('- Store segments by label:', Object.keys(videoStore.segmentsByLabel).length);
@@ -139,6 +139,9 @@ const onVideoChange = async () => {
         }
         catch (error) {
             console.error('Error loading video data:', error);
+            toastStore.error({
+                text: 'Fehler beim Laden der Video-Segmente'
+            });
         }
         currentMarker.value = null;
     }
