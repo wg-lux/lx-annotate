@@ -68,16 +68,26 @@ export function objectCamelToSnake(obj) {
  * Handles both start_time/end_time and segment_start/segment_end formats
  */
 export function convertBackendSegmentToFrontend(backendSegment) {
+    // Handle different label formats from backend
+    let labelValue = '';
+    if (backendSegment.labelName) {
+        labelValue = backendSegment.labelName;
+    }
+    else {
+        // Fallback for mixed formats
+        console.warn('ISSUE WITH SNAKE CASE CAMEL CASE CONVERSION IN AXIOS INTERCEPTOR: Backend segment label is missing or in unexpected format:', backendSegment);
+        labelValue = backendSegment.labelName || '';
+    }
     const converted = {
         id: backendSegment.id,
-        startFrameNumber: backendSegment.start_frame_number ?? undefined,
-        endFrameNumber: backendSegment.end_frame_number ?? undefined,
-        label: backendSegment.label_name,
-        startTime: backendSegment.start_time ?? undefined,
-        endTime: backendSegment.end_time ?? undefined,
+        startFrameNumber: backendSegment.startFrameNumber,
+        endFrameNumber: backendSegment.endFrameNumber,
+        label: labelValue,
+        startTime: backendSegment.startTime,
+        endTime: backendSegment.endTime,
         usingFPS: false,
     };
-    if (backendSegment.start_time !== undefined) {
+    if (backendSegment.startTime !== undefined) {
         converted.usingFPS = true; // Indicates need for FPS conversion
     }
     return converted;
@@ -89,10 +99,10 @@ export function convertBackendSegmentToFrontend(backendSegment) {
 export function convertFrontendSegmentToBackend(frontendSegment) {
     const converted = {
         id: frontendSegment.id,
-        label_name: frontendSegment.label,
-        start_time: frontendSegment.startTime,
-        end_time: frontendSegment.endTime,
-        video_name: frontendSegment.videoName || '', // Optional field for video name
+        labelName: frontendSegment.label,
+        startTime: frontendSegment.startTime,
+        endTime: frontendSegment.endTime,
+        videoName: frontendSegment.videoName || '', // Optional field for video name
     };
     return converted;
 }
@@ -113,9 +123,23 @@ export function convertFrontendSegmentsToBackend(frontendSegments) {
  * Handles mixed format inputs by providing fallbacks
  */
 export function normalizeSegmentToCamelCase(segment) {
+    // Handle different label formats
+    let labelValue = '';
+    if (segment.label_name) {
+        labelValue = segment.label_name;
+    }
+    else if (segment.label && typeof segment.label === 'object' && segment.label.name) {
+        labelValue = segment.label.name;
+    }
+    else if (segment.label && typeof segment.label === 'string') {
+        labelValue = segment.label;
+    }
+    else {
+        labelValue = ''; // Default to empty string if no label is found
+    }
     return {
         id: segment.id,
-        label: segment.label_name || '',
+        label: labelValue,
         startTime: segment.startTime ?? segment.start_time ?? segment.segmentStart ?? segment.segment_start ?? 0,
         endTime: segment.endTime ?? segment.end_time ?? segment.segmentEnd ?? segment.segment_end ?? 0,
         startFrameNumber: segment.startFrameNumber ?? segment.start_frame_number ?? 0,

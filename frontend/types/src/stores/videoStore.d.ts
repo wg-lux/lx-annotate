@@ -28,12 +28,12 @@ interface BackendFrame {
  */
 export interface BackendSegment {
     id: number;
-    start_frame_number?: number;
-    end_frame_number?: number;
-    label_name: string;
-    video_name: string;
-    start_time: number;
-    end_time: number;
+    startFrameNumber?: number;
+    endFrameNumber?: number;
+    labelName: string;
+    videoName: string;
+    startTime: number;
+    endTime: number;
 }
 /**
  * Frontend segment format (unified camelCase)
@@ -308,13 +308,15 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
     labels: ComputedRef<LabelMeta[]>;
     clearVideo: () => void;
     setVideo: (video: VideoAnnotation) => void;
+    loadVideo: (videoId: string) => Promise<void>;
     fetchVideoUrl: (videoId?: string | number) => Promise<void>;
     fetchAllSegments: (id: string) => Promise<void>;
     fetchAllVideos: () => Promise<VideoList>;
     fetchVideoMeta: (lastId?: string) => Promise<any>;
     fetchVideoSegments: (videoId: string) => Promise<void>;
     fetchSegmentsByLabel: (id: string, label?: string) => Promise<void>;
-    createSegment: (videoId: string, labelName: string, startTime: number, endTime: number) => Promise<Segment | null>;
+    createSegment: (videoId: string, label: string, startTime: number, endTime: number) => Promise<Segment | null>;
+    patchSegmentLocally: (id: string | number, updates: Partial<Segment>) => void;
     updateSegment: (segmentId: string | number, updates: SegmentUpdatePayload) => Promise<boolean>;
     deleteSegment: (segmentId: string | number) => Promise<boolean>;
     saveAnnotations: () => Promise<void>;
@@ -337,7 +339,6 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
     formatTime: (seconds: number) => string;
     getSegmentOptions: () => SegmentOption[];
     clearSegments: () => void;
-    loadVideo: (videoId: string) => Promise<void>;
 }, "errorMessage" | "videoUrl" | "currentVideo" | "segmentsByLabel" | "videoList" | "videoMeta" | "draftSegment">>, Pick<{
     currentVideo: Readonly<Ref<{
         readonly id: string | number;
@@ -492,13 +493,15 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
     labels: ComputedRef<LabelMeta[]>;
     clearVideo: () => void;
     setVideo: (video: VideoAnnotation) => void;
+    loadVideo: (videoId: string) => Promise<void>;
     fetchVideoUrl: (videoId?: string | number) => Promise<void>;
     fetchAllSegments: (id: string) => Promise<void>;
     fetchAllVideos: () => Promise<VideoList>;
     fetchVideoMeta: (lastId?: string) => Promise<any>;
     fetchVideoSegments: (videoId: string) => Promise<void>;
     fetchSegmentsByLabel: (id: string, label?: string) => Promise<void>;
-    createSegment: (videoId: string, labelName: string, startTime: number, endTime: number) => Promise<Segment | null>;
+    createSegment: (videoId: string, label: string, startTime: number, endTime: number) => Promise<Segment | null>;
+    patchSegmentLocally: (id: string | number, updates: Partial<Segment>) => void;
     updateSegment: (segmentId: string | number, updates: SegmentUpdatePayload) => Promise<boolean>;
     deleteSegment: (segmentId: string | number) => Promise<boolean>;
     saveAnnotations: () => Promise<void>;
@@ -521,7 +524,6 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
     formatTime: (seconds: number) => string;
     getSegmentOptions: () => SegmentOption[];
     clearSegments: () => void;
-    loadVideo: (videoId: string) => Promise<void>;
 }, "duration" | "segments" | "labels" | "allSegments" | "activeSegment" | "hasVideo">, Pick<{
     currentVideo: Readonly<Ref<{
         readonly id: string | number;
@@ -676,13 +678,15 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
     labels: ComputedRef<LabelMeta[]>;
     clearVideo: () => void;
     setVideo: (video: VideoAnnotation) => void;
+    loadVideo: (videoId: string) => Promise<void>;
     fetchVideoUrl: (videoId?: string | number) => Promise<void>;
     fetchAllSegments: (id: string) => Promise<void>;
     fetchAllVideos: () => Promise<VideoList>;
     fetchVideoMeta: (lastId?: string) => Promise<any>;
     fetchVideoSegments: (videoId: string) => Promise<void>;
     fetchSegmentsByLabel: (id: string, label?: string) => Promise<void>;
-    createSegment: (videoId: string, labelName: string, startTime: number, endTime: number) => Promise<Segment | null>;
+    createSegment: (videoId: string, label: string, startTime: number, endTime: number) => Promise<Segment | null>;
+    patchSegmentLocally: (id: string | number, updates: Partial<Segment>) => void;
     updateSegment: (segmentId: string | number, updates: SegmentUpdatePayload) => Promise<boolean>;
     deleteSegment: (segmentId: string | number) => Promise<boolean>;
     saveAnnotations: () => Promise<void>;
@@ -705,6 +709,5 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
     formatTime: (seconds: number) => string;
     getSegmentOptions: () => SegmentOption[];
     clearSegments: () => void;
-    loadVideo: (videoId: string) => Promise<void>;
-}, "clearVideo" | "setVideo" | "fetchVideoUrl" | "fetchAllSegments" | "fetchAllVideos" | "fetchVideoMeta" | "fetchVideoSegments" | "fetchSegmentsByLabel" | "createSegment" | "updateSegment" | "deleteSegment" | "saveAnnotations" | "uploadRevert" | "uploadProcess" | "getSegmentStyle" | "getColorForLabel" | "getTranslationForLabel" | "jumpToSegment" | "setActiveSegment" | "updateVideoStatus" | "assignUserToVideo" | "updateSensitiveMeta" | "clearVideoMeta" | "startDraft" | "updateDraftEnd" | "commitDraft" | "cancelDraft" | "createFiveSecondSegment" | "formatTime" | "getSegmentOptions" | "clearSegments" | "loadVideo">>;
+}, "clearVideo" | "setVideo" | "loadVideo" | "fetchVideoUrl" | "fetchAllSegments" | "fetchAllVideos" | "fetchVideoMeta" | "fetchVideoSegments" | "fetchSegmentsByLabel" | "createSegment" | "patchSegmentLocally" | "updateSegment" | "deleteSegment" | "saveAnnotations" | "uploadRevert" | "uploadProcess" | "getSegmentStyle" | "getColorForLabel" | "getTranslationForLabel" | "jumpToSegment" | "setActiveSegment" | "updateVideoStatus" | "assignUserToVideo" | "updateSensitiveMeta" | "clearVideoMeta" | "startDraft" | "updateDraftEnd" | "commitDraft" | "cancelDraft" | "createFiveSecondSegment" | "formatTime" | "getSegmentOptions" | "clearSegments">>;
 export type { Segment, VideoAnnotation, VideoMeta, LabelMeta, VideoList, DraftSegment, SegmentOption, SegmentStyle, VideoStatus, LabelKey, BackendFramePrediction };

@@ -19,6 +19,14 @@ const isSelecting = ref(false);
 const selectionStart = ref(0);
 const selectionEnd = ref(0);
 const isDragging = ref(false);
+const labelOrder = ref([]);
+watch(() => props.segments, segs => {
+    ;
+    (segs || []).forEach(s => {
+        if (!labelOrder.value.includes(s.label))
+            labelOrder.value.push(s.label);
+    });
+}, { immediate: true });
 // Dragging and resizing state
 const draggingSegmentId = ref(null);
 const resizingSegmentId = ref(null);
@@ -95,7 +103,7 @@ const toCanonical = (s) => {
         isDraft: typeof s.id === 'string' && (s.id === 'draft' || s.id.startsWith('temp-')),
         color: color || getRandomColor() || undefined,
         avgConfidence: s.avgConfidence ?? 0,
-        label: s.label
+        label: s.label ?? s.label_name // ✅ FIX: Use label or label_name
     };
 };
 const selectedLabel = ref(null);
@@ -114,18 +122,7 @@ const getColorForLabel = (label) => {
 const displayedSegments = ref([]);
 watch(() => props.segments, (segments) => {
     if (segments) {
-        displayedSegments.value = structuredClone(segments.map((s) => {
-            const normalized = normalizeSegmentToCamelCase(s);
-            return {
-                ...normalized,
-                start: normalized.startTime,
-                end: normalized.endTime,
-                isDraft: s.id === 'draft' || (typeof s.id === 'string' && s.id.startsWith('temp-')),
-                color: undefined,
-                avgConfidence: s.avgConfidence ?? 0,
-                label_name: s.label_name || s.label
-            };
-        }));
+        displayedSegments.value = segments?.map(toCanonical);
     }
     else {
         displayedSegments.value = [];
@@ -139,53 +136,45 @@ watch(() => props.segments, (segments) => {
  *  • guarantees segments in a row never overlap in time
  */
 const segmentRows = computed(() => {
-    // 0.  gather all canonical segments – ONE source of truth
-    const allSegs = (props.segments || []).map(toCanonical);
-    if (allSegs.length === 0)
-        return [];
-    // 1.  build "buckets" → label => CanonicalSegment[]
     const buckets = {};
-    for (const s of allSegs) {
-        const label = s.label;
-        (buckets[label] ||= []).push(s);
+    // build from the *mutable* working copy so previews are visible
+    for (const s of displayedSegments.value) { //THIS IS THE LINE FROM THE PROMPT
+        (buckets[s.label] ||= []).push(s);
     }
-    // 2.  optional — put *selected* label first
-    const labelOrder = selectedLabel.value
-        ? [selectedLabel.value, ...Object.keys(buckets).filter(l => l !== selectedLabel.value)]
-        : Object.keys(buckets);
-    // 3.  convert each bucket into a SegmentRow, resolving overlaps
+    // ►  fixed order: first the user-selected label (if any), then our persisted order
+    const orderedLabels = selectedLabel.value
+        ? [selectedLabel.value, ...labelOrder.value.filter(l => l !== selectedLabel.value)]
+        : [...labelOrder.value];
     const rows = [];
-    for (const label of labelOrder) {
-        // sort by start for deterministic order inside the row
+    orderedLabels.forEach(label => {
+        if (!buckets[label])
+            return; // label exists but has no segments yet
         const segs = buckets[label].sort((a, b) => a.start - b.start);
-        /*  simple non-overlap pass:
-            whenever we find a segment that still overlaps the last,
-            push it into a *new* technical row (same label id)
-            so width calculations stay correct                       */
-        let currentRow = { id: rows.length, label, segments: [], maxEndTime: 0 };
+        let physicalIdx = 0;
+        let currentRow = {
+            key: `${label}-0`,
+            label,
+            rowNumber: rows.length,
+            segments: [],
+            maxEndTime: 0,
+        };
         for (const seg of segs) {
             if (seg.start < currentRow.maxEndTime - 1e-4) {
-                // needs a new physical row
                 rows.push(currentRow);
+                physicalIdx += 1;
                 currentRow = {
-                    id: rows.length,
+                    key: `${label}-${physicalIdx}`,
                     label,
+                    rowNumber: rows.length,
                     segments: [],
-                    maxEndTime: 0
+                    maxEndTime: 0,
                 };
             }
             currentRow.segments.push(seg);
             currentRow.maxEndTime = Math.max(currentRow.maxEndTime, seg.end);
         }
         rows.push(currentRow);
-    }
-    // ✅ NEW: Add console.table for tests showing label and count per row
-    const tableData = rows.map(row => ({
-        label: row.label,
-        count: row.segments.length
-    }));
-    console.table(tableData);
-    console.info('[Timeline] built', rows.length, 'rows – selected:', selectedLabel.value ?? 'none');
+    });
     return rows;
 });
 // ✅ NEW: Calculate total timeline height based on number of rows
@@ -477,11 +466,13 @@ watch(() => props.video, () => {
     }
 });
 // ✅ NEW: Debug watch for segments with 0% width
-watch(displayedSegments, (segs) => {
-    segs.forEach(s => {
-        if (getSegmentWidth(s.start, s.end) === 0) {
-            console.warn('[Timeline] Segment mit 0% Breite:', s);
-        }
+watch(segmentRows, (rows) => {
+    rows.forEach(row => {
+        row.segments.forEach(s => {
+            if (getSegmentWidth(s.start, s.end) === 0) {
+                console.warn('[Timeline] Segment mit 0% Breite:', s);
+            }
+        });
     });
 }, { immediate: true });
 // Waveform initialization
@@ -651,13 +642,13 @@ function __VLS_template() {
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: ("segments-container") },
     });
-    for (const [row, rowIndex] of __VLS_getVForSourceType((__VLS_ctx.segmentRows))) {
+    for (const [row] of __VLS_getVForSourceType((__VLS_ctx.segmentRows))) {
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            key: ((row.id)),
+            key: ((row.key)),
             ...{ class: ("segment-row") },
             ...{ class: (({ 'active': row.label === __VLS_ctx.selectedLabel })) },
             ...{ style: (({
-                    top: (60 + rowIndex * 45) + 'px',
+                    top: (row.rowNumber * 45) + 'px',
                     height: '40px'
                 })) },
         });

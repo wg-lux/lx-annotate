@@ -216,43 +216,63 @@ const handleTimelineSeek = (time) => {
     seekToTime(time);
 };
 const handleSegmentResize = (segmentId, newStart, newEnd, mode, final) => {
-    // ✅ FIX: Validate segment ID before processing
+    // ✅ NEW: Verbesserte Guard für Draft/Temp-Segmente (camelCase in finalen PATCH-Aufrufen)
+    if (typeof segmentId === 'string') {
+        if (segmentId === 'draft' || /^temp-/.test(segmentId)) {
+            console.warn('[VideoExamination] Ignoring resize for draft/temp segment:', segmentId);
+            return;
+        }
+    }
     const numericId = typeof segmentId === 'string' ? parseInt(segmentId, 10) : segmentId;
-    if (isNaN(numericId) || segmentId === 'draft' || (typeof segmentId === 'string' && segmentId.startsWith('temp-'))) {
-        console.warn('[VideoExamination] Ignoring resize for draft/temp segment:', segmentId);
+    if (isNaN(numericId)) {
+        console.warn('[VideoExamination] Invalid segment ID for resize:', segmentId);
         return;
     }
     if (final) {
-        // Final resize - save to backend via store
-        videoStore.updateSegment(numericId, {
-            startTime: newStart,
-            endTime: newEnd
-        });
-        console.log(`✅ Segment ${numericId} resized: ${formatTime(newStart)} - ${formatTime(newEnd)}`);
+        // ✅ NEW: Sofortige Previews + Speichern bei Mouse-Up
+        videoStore.patchSegmentLocally(numericId, { startTime: newStart, endTime: newEnd });
+        videoStore.updateSegment(numericId, { startTime: newStart, endTime: newEnd });
+        console.log(`✅ Segment ${numericId} resized and saved: ${formatTime(newStart)} - ${formatTime(newEnd)}`);
     }
     else {
-        // Real-time preview - just update local display
-        console.log(`Resizing segment ${numericId} ${mode}: ${formatTime(newStart)} - ${formatTime(newEnd)}`);
+        // ✅ NEW: Real-time preview während Drag ohne Backend-Aufruf
+        videoStore.patchSegmentLocally(numericId, { startTime: newStart, endTime: newEnd });
+        console.log(`Preview resize segment ${numericId} ${mode}: ${formatTime(newStart)} - ${formatTime(newEnd)}`);
     }
 };
 const handleSegmentMove = (segmentId, newStart, newEnd, final) => {
-    // ✅ FIX: Validate segment ID before processing  
+    // ✅ NEW: Verbesserte Guard für Draft/Temp-Segmente (camelCase in finalen PATCH-Aufrufen)
+    if (typeof segmentId === 'string') {
+        if (segmentId === 'draft' || /^temp-/.test(segmentId)) {
+            console.warn('[VideoExamination] Ignoring move for draft/temp segment:', segmentId);
+            return;
+        }
+    }
     const numericId = typeof segmentId === 'string' ? parseInt(segmentId, 10) : segmentId;
-    if (isNaN(numericId) || segmentId === 'draft' || (typeof segmentId === 'string' && segmentId.startsWith('temp-'))) {
-        console.warn('[VideoExamination] Ignoring move for draft/temp segment:', segmentId);
+    if (isNaN(numericId)) {
+        console.warn('[VideoExamination] Invalid segment ID for move:', segmentId);
         return;
     }
     if (final) {
-        // Final move - save to backend via store  
-        videoStore.updateSegment(numericId, {
-            startTime: newStart,
-            endTime: newEnd
-        });
-        console.log(`✅ Segment ${numericId} moved to: ${formatTime(newStart)} - ${formatTime(newEnd)}`);
+        // ✅ NEW: Sofortige Previews + Speichern bei Mouse-Up
+        videoStore.patchSegmentLocally(numericId, { startTime: newStart, endTime: newEnd });
+        videoStore.updateSegment(numericId, { startTime: newStart, endTime: newEnd });
+        console.log(`✅ Segment ${numericId} moved and saved: ${formatTime(newStart)} - ${formatTime(newEnd)}`);
     }
     else {
-        // Real-time preview during drag
-        console.log(`Moving segment ${numericId}: ${formatTime(newStart)} - ${formatTime(newEnd)}`);
+        // ✅ NEW: Real-time preview während Drag ohne Backend-Aufruf
+        videoStore.patchSegmentLocally(numericId, { startTime: newStart, endTime: newEnd });
+        console.log(`Preview move segment ${numericId}: ${formatTime(newStart)} - ${formatTime(newEnd)}`);
+    }
+};
+const handleTimeSelection = (data) => {
+    // Handle time selection for creating new segments
+    if (selectedLabelType.value && selectedVideoId.value) {
+        handleCreateSegment({
+            label: selectedLabelType.value,
+            start: data.start,
+            end: data.end
+        });
     }
 };
 const handleCreateSegment = async (event) => {
@@ -538,7 +558,7 @@ function __VLS_template() {
             onSegmentCreate: (__VLS_ctx.handleCreateSegment)
         };
         const __VLS_10 = {
-            onTimeSelection: (__VLS_ctx.handleCreateSegment)
+            onTimeSelection: (__VLS_ctx.handleTimeSelection)
         };
         let __VLS_2;
         let __VLS_3;
@@ -853,6 +873,7 @@ const __VLS_self = (await import('vue')).defineComponent({
             handleTimelineSeek: handleTimelineSeek,
             handleSegmentResize: handleSegmentResize,
             handleSegmentMove: handleSegmentMove,
+            handleTimeSelection: handleTimeSelection,
             handleCreateSegment: handleCreateSegment,
             onLabelSelect: onLabelSelect,
             startLabelMarking: startLabelMarking,

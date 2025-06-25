@@ -174,13 +174,15 @@ declare const _default: import("vue").DefineComponent<{}, {}, {
         labels: import("vue").ComputedRef<import("@/stores/videoStore").LabelMeta[]>;
         clearVideo: () => void;
         setVideo: (video: import("@/stores/videoStore").VideoAnnotation) => void;
+        loadVideo: (videoId: string) => Promise<void>;
         fetchVideoUrl: (videoId?: string | number | undefined) => Promise<void>;
         fetchAllSegments: (id: string) => Promise<void>;
         fetchAllVideos: () => Promise<import("@/stores/videoStore").VideoList>;
         fetchVideoMeta: (lastId?: string | undefined) => Promise<any>;
         fetchVideoSegments: (videoId: string) => Promise<void>;
         fetchSegmentsByLabel: (id: string, label?: string) => Promise<void>;
-        createSegment: (videoId: string, labelName: string, startTime: number, endTime: number) => Promise<Segment | null>;
+        createSegment: (videoId: string, label: string, startTime: number, endTime: number) => Promise<Segment | null>;
+        patchSegmentLocally: (id: string | number, updates: Partial<Segment>) => void;
         updateSegment: (segmentId: string | number, updates: import("@/stores/videoStore").SegmentUpdatePayload) => Promise<boolean>;
         deleteSegment: (segmentId: string | number) => Promise<boolean>;
         saveAnnotations: () => Promise<void>;
@@ -203,7 +205,6 @@ declare const _default: import("vue").DefineComponent<{}, {}, {
         formatTime: (seconds: number) => string;
         getSegmentOptions: () => import("@/stores/videoStore").SegmentOption[];
         clearSegments: () => void;
-        loadVideo: (videoId: string) => Promise<void>;
     }, "errorMessage" | "videoUrl" | "currentVideo" | "segmentsByLabel" | "videoList" | "videoMeta" | "draftSegment">>, Pick<{
         currentVideo: Readonly<import("vue").Ref<{
             readonly id: string | number;
@@ -358,13 +359,15 @@ declare const _default: import("vue").DefineComponent<{}, {}, {
         labels: import("vue").ComputedRef<import("@/stores/videoStore").LabelMeta[]>;
         clearVideo: () => void;
         setVideo: (video: import("@/stores/videoStore").VideoAnnotation) => void;
+        loadVideo: (videoId: string) => Promise<void>;
         fetchVideoUrl: (videoId?: string | number | undefined) => Promise<void>;
         fetchAllSegments: (id: string) => Promise<void>;
         fetchAllVideos: () => Promise<import("@/stores/videoStore").VideoList>;
         fetchVideoMeta: (lastId?: string | undefined) => Promise<any>;
         fetchVideoSegments: (videoId: string) => Promise<void>;
         fetchSegmentsByLabel: (id: string, label?: string) => Promise<void>;
-        createSegment: (videoId: string, labelName: string, startTime: number, endTime: number) => Promise<Segment | null>;
+        createSegment: (videoId: string, label: string, startTime: number, endTime: number) => Promise<Segment | null>;
+        patchSegmentLocally: (id: string | number, updates: Partial<Segment>) => void;
         updateSegment: (segmentId: string | number, updates: import("@/stores/videoStore").SegmentUpdatePayload) => Promise<boolean>;
         deleteSegment: (segmentId: string | number) => Promise<boolean>;
         saveAnnotations: () => Promise<void>;
@@ -387,7 +390,6 @@ declare const _default: import("vue").DefineComponent<{}, {}, {
         formatTime: (seconds: number) => string;
         getSegmentOptions: () => import("@/stores/videoStore").SegmentOption[];
         clearSegments: () => void;
-        loadVideo: (videoId: string) => Promise<void>;
     }, "duration" | "segments" | "labels" | "allSegments" | "activeSegment" | "hasVideo">, Pick<{
         currentVideo: Readonly<import("vue").Ref<{
             readonly id: string | number;
@@ -542,13 +544,15 @@ declare const _default: import("vue").DefineComponent<{}, {}, {
         labels: import("vue").ComputedRef<import("@/stores/videoStore").LabelMeta[]>;
         clearVideo: () => void;
         setVideo: (video: import("@/stores/videoStore").VideoAnnotation) => void;
+        loadVideo: (videoId: string) => Promise<void>;
         fetchVideoUrl: (videoId?: string | number | undefined) => Promise<void>;
         fetchAllSegments: (id: string) => Promise<void>;
         fetchAllVideos: () => Promise<import("@/stores/videoStore").VideoList>;
         fetchVideoMeta: (lastId?: string | undefined) => Promise<any>;
         fetchVideoSegments: (videoId: string) => Promise<void>;
         fetchSegmentsByLabel: (id: string, label?: string) => Promise<void>;
-        createSegment: (videoId: string, labelName: string, startTime: number, endTime: number) => Promise<Segment | null>;
+        createSegment: (videoId: string, label: string, startTime: number, endTime: number) => Promise<Segment | null>;
+        patchSegmentLocally: (id: string | number, updates: Partial<Segment>) => void;
         updateSegment: (segmentId: string | number, updates: import("@/stores/videoStore").SegmentUpdatePayload) => Promise<boolean>;
         deleteSegment: (segmentId: string | number) => Promise<boolean>;
         saveAnnotations: () => Promise<void>;
@@ -571,8 +575,7 @@ declare const _default: import("vue").DefineComponent<{}, {}, {
         formatTime: (seconds: number) => string;
         getSegmentOptions: () => import("@/stores/videoStore").SegmentOption[];
         clearSegments: () => void;
-        loadVideo: (videoId: string) => Promise<void>;
-    }, "clearVideo" | "setVideo" | "fetchVideoUrl" | "fetchAllSegments" | "fetchAllVideos" | "fetchVideoMeta" | "fetchVideoSegments" | "fetchSegmentsByLabel" | "createSegment" | "updateSegment" | "deleteSegment" | "saveAnnotations" | "uploadRevert" | "uploadProcess" | "getSegmentStyle" | "getColorForLabel" | "getTranslationForLabel" | "jumpToSegment" | "setActiveSegment" | "updateVideoStatus" | "assignUserToVideo" | "updateSensitiveMeta" | "clearVideoMeta" | "startDraft" | "updateDraftEnd" | "commitDraft" | "cancelDraft" | "createFiveSecondSegment" | "formatTime" | "getSegmentOptions" | "clearSegments" | "loadVideo">>;
+    }, "clearVideo" | "setVideo" | "loadVideo" | "fetchVideoUrl" | "fetchAllSegments" | "fetchAllVideos" | "fetchVideoMeta" | "fetchVideoSegments" | "fetchSegmentsByLabel" | "createSegment" | "patchSegmentLocally" | "updateSegment" | "deleteSegment" | "saveAnnotations" | "uploadRevert" | "uploadProcess" | "getSegmentStyle" | "getColorForLabel" | "getTranslationForLabel" | "jumpToSegment" | "setActiveSegment" | "updateVideoStatus" | "assignUserToVideo" | "updateSensitiveMeta" | "clearVideoMeta" | "startDraft" | "updateDraftEnd" | "commitDraft" | "cancelDraft" | "createFiveSecondSegment" | "formatTime" | "getSegmentOptions" | "clearSegments">>;
     videoUrl(): string;
     currentVideo(): {
         readonly id: string | number;

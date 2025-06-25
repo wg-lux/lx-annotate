@@ -73,7 +73,7 @@
                 @segment-resize="handleSegmentResize"
                 @segment-move="handleSegmentMove"
                 @segment-create="handleCreateSegment"
-                @time-selection="handleCreateSegment"
+                @time-selection="handleTimeSelection"
               />
               
               <!-- Simple progress bar as fallback -->
@@ -548,46 +548,69 @@ const handleTimelineSeek = (time: number): void => {
 }
 
 const handleSegmentResize = (segmentId: string | number, newStart: number, newEnd: number, mode: string, final?: boolean): void => {
-  // ✅ FIX: Validate segment ID before processing
+  // ✅ NEW: Verbesserte Guard für Draft/Temp-Segmente (camelCase in finalen PATCH-Aufrufen)
+  if (typeof segmentId === 'string') {
+    if (segmentId === 'draft' || /^temp-/.test(segmentId)) {
+      console.warn('[VideoExamination] Ignoring resize for draft/temp segment:', segmentId)
+      return
+    }
+  }
+  
   const numericId = typeof segmentId === 'string' ? parseInt(segmentId, 10) : segmentId
   
-  if (isNaN(numericId) || segmentId === 'draft' || (typeof segmentId === 'string' && segmentId.startsWith('temp-'))) {
-    console.warn('[VideoExamination] Ignoring resize for draft/temp segment:', segmentId)
+  if (isNaN(numericId)) {
+    console.warn('[VideoExamination] Invalid segment ID for resize:', segmentId)
     return
   }
   
   if (final) {
-    // Final resize - save to backend via store
-    videoStore.updateSegment(numericId, { 
-      startTime: newStart, 
-      endTime: newEnd 
-    })
-    console.log(`✅ Segment ${numericId} resized: ${formatTime(newStart)} - ${formatTime(newEnd)}`)
+    // ✅ NEW: Sofortige Previews + Speichern bei Mouse-Up
+    videoStore.patchSegmentLocally(numericId, { startTime: newStart, endTime: newEnd })
+    videoStore.updateSegment(numericId, { startTime: newStart, endTime: newEnd })
+    console.log(`✅ Segment ${numericId} resized and saved: ${formatTime(newStart)} - ${formatTime(newEnd)}`)
   } else {
-    // Real-time preview - just update local display
-    console.log(`Resizing segment ${numericId} ${mode}: ${formatTime(newStart)} - ${formatTime(newEnd)}`)
+    // ✅ NEW: Real-time preview während Drag ohne Backend-Aufruf
+    videoStore.patchSegmentLocally(numericId, { startTime: newStart, endTime: newEnd })
+    console.log(`Preview resize segment ${numericId} ${mode}: ${formatTime(newStart)} - ${formatTime(newEnd)}`)
   }
 }
 
 const handleSegmentMove = (segmentId: string | number, newStart: number, newEnd: number, final?: boolean): void => {
-  // ✅ FIX: Validate segment ID before processing  
+  // ✅ NEW: Verbesserte Guard für Draft/Temp-Segmente (camelCase in finalen PATCH-Aufrufen)
+  if (typeof segmentId === 'string') {
+    if (segmentId === 'draft' || /^temp-/.test(segmentId)) {
+      console.warn('[VideoExamination] Ignoring move for draft/temp segment:', segmentId)
+      return
+    }
+  }
+  
   const numericId = typeof segmentId === 'string' ? parseInt(segmentId, 10) : segmentId
   
-  if (isNaN(numericId) || segmentId === 'draft' || (typeof segmentId === 'string' && segmentId.startsWith('temp-'))) {
-    console.warn('[VideoExamination] Ignoring move for draft/temp segment:', segmentId)
+  if (isNaN(numericId)) {
+    console.warn('[VideoExamination] Invalid segment ID for move:', segmentId)
     return
   }
   
   if (final) {
-    // Final move - save to backend via store  
-    videoStore.updateSegment(numericId, { 
-      startTime: newStart, 
-      endTime: newEnd 
-    })
-    console.log(`✅ Segment ${numericId} moved to: ${formatTime(newStart)} - ${formatTime(newEnd)}`)
+    // ✅ NEW: Sofortige Previews + Speichern bei Mouse-Up
+    videoStore.patchSegmentLocally(numericId, { startTime: newStart, endTime: newEnd })
+    videoStore.updateSegment(numericId, { startTime: newStart, endTime: newEnd })
+    console.log(`✅ Segment ${numericId} moved and saved: ${formatTime(newStart)} - ${formatTime(newEnd)}`)
   } else {
-    // Real-time preview during drag
-    console.log(`Moving segment ${numericId}: ${formatTime(newStart)} - ${formatTime(newEnd)}`)
+    // ✅ NEW: Real-time preview während Drag ohne Backend-Aufruf
+    videoStore.patchSegmentLocally(numericId, { startTime: newStart, endTime: newEnd })
+    console.log(`Preview move segment ${numericId}: ${formatTime(newStart)} - ${formatTime(newEnd)}`)
+  }
+}
+
+const handleTimeSelection = (data: { start: number; end: number }): void => {
+  // Handle time selection for creating new segments
+  if (selectedLabelType.value && selectedVideoId.value) {
+    handleCreateSegment({
+      label: selectedLabelType.value,
+      start: data.start,
+      end: data.end
+    })
   }
 }
 

@@ -275,6 +275,20 @@ export const useVideoStore = defineStore('video', () => {
     // SEGMENT MANAGEMENT FUNCTIONS
     // ===================================================================
     async function fetchAllSegments(id) {
+        console.log(`[VideoStore] fetchAllSegments called with video ID: ${id}`);
+        // ✅ FIX: Ensure currentVideo exists before loading segments
+        if (!currentVideo.value) {
+            console.log(`[VideoStore] No currentVideo found, creating basic video object for ID: ${id}`);
+            currentVideo.value = {
+                id: id,
+                isAnnotated: false,
+                errorMessage: '',
+                segments: [],
+                videoUrl: '',
+                status: 'available',
+                assignedUser: null
+            };
+        }
         await fetchVideoSegments(id);
         if (currentVideo.value) {
             const allSegmentsArray = [];
@@ -282,7 +296,7 @@ export const useVideoStore = defineStore('video', () => {
                 allSegmentsArray.push(...labelSegments);
             });
             currentVideo.value.segments = allSegmentsArray;
-            console.log('Timeline segments populated:', allSegmentsArray.length, 'segments');
+            console.log(`[VideoStore] Timeline segments populated: ${allSegmentsArray.length} segments for video ${id}`);
         }
     }
     async function saveAnnotations() {
@@ -439,14 +453,14 @@ export const useVideoStore = defineStore('video', () => {
                     videoID: parseInt(videoId),
                     labelID: labelIdMap.value[segment.label] ?? null
                 });
-                const labelName = segment.label;
-                if (!segmentsByLabel[labelName]) {
-                    segmentsByLabel[labelName] = [];
+                const label = segment.label;
+                if (!segmentsByLabel[label]) {
+                    segmentsByLabel[label] = [];
                 }
                 if (segment.endTime - segment.startTime < 0.1) {
                     console.warn(`⚠️ Very short segment ${segment.id}: ${segment.endTime - segment.startTime}s`);
                 }
-                segmentsByLabel[labelName].push(segmentWithVideoId);
+                segmentsByLabel[label].push(segmentWithVideoId);
             });
             console.log(`[VideoStore] Processed segments by label:`, Object.keys(segmentsByLabel).map(label => `${label}: ${segmentsByLabel[label].length}`));
         }
@@ -458,13 +472,13 @@ export const useVideoStore = defineStore('video', () => {
             }
         }
     }
-    async function createSegment(videoId, labelName, startTime, endTime) {
+    async function createSegment(videoId, label, startTime, endTime) {
         try {
             // Get label ID from existing labels in store
-            const labelMeta = videoList.value.labels.find(l => l.name === labelName);
+            const labelMeta = videoList.value.labels.find(l => l.name === label);
             if (!labelMeta) {
-                console.error(`Label ${labelName} not found in store`);
-                errorMessage.value = `Label ${labelName} nicht gefunden`;
+                console.error(`Label ${label} not found in store`);
+                errorMessage.value = `Label ${label} nicht gefunden`;
                 return null;
             }
             const labelId = labelMeta.id;
@@ -480,7 +494,7 @@ export const useVideoStore = defineStore('video', () => {
             const response = await axiosInstance.post(r('video-segments/'), segmentData);
             const newSegment = {
                 id: response.data.id,
-                label: labelName,
+                label: label,
                 startTime: response.data.start_time,
                 endTime: response.data.end_time,
                 avgConfidence: 1,
@@ -489,10 +503,10 @@ export const useVideoStore = defineStore('video', () => {
                 startFrameNumber: response.data.start_frame_number,
                 endFrameNumber: response.data.end_frame_number,
             };
-            if (!segmentsByLabel[labelName]) {
-                segmentsByLabel[labelName] = [];
+            if (!segmentsByLabel[label]) {
+                segmentsByLabel[label] = [];
             }
-            segmentsByLabel[labelName].push(newSegment);
+            segmentsByLabel[label].push(newSegment);
             console.log('Created segment:', newSegment);
             return newSegment;
         }
@@ -546,45 +560,64 @@ export const useVideoStore = defineStore('video', () => {
     // DRAFT SEGMENT MANAGEMENT
     // ===================================================================
     function startDraft(label, startTime) {
+        console.log(`[Draft] Starting draft: ${label} at ${formatTime(startTime)}`);
         draftSegment.value = {
-            id: 'draft', // ✅ FIX: Add missing id property
+            id: `draft-${Date.now()}`, // ✅ FIX: Unique draft ID instead of just 'draft'
             label: label,
             startTime: startTime,
             endTime: null
         };
+        console.log(`[Draft] Created draft segment:`, draftSegment.value);
     }
     function updateDraftEnd(endTime) {
         if (!draftSegment.value) {
-            console.warn('Kein aktiver Draft gefunden.');
+            console.warn('[Draft] Kein aktiver Draft gefunden zum Aktualisieren.');
             return;
         }
         const minEndTime = draftSegment.value.startTime + MIN_SEGMENT_DURATION;
         const clampedEndTime = Math.max(minEndTime, endTime);
         draftSegment.value.endTime = clampedEndTime;
-        console.log(`Draft-Ende aktualisiert: ${formatTime(clampedEndTime)}`);
+        console.log(`[Draft] Draft-Ende aktualisiert: ${formatTime(clampedEndTime)}, Duration: ${clampedEndTime - draftSegment.value.startTime}s`);
     }
     async function commitDraft() {
-        if (!draftSegment.value || !currentVideo.value) {
-            console.warn('Kein Draft zum Committen gefunden.');
+        console.log(`[Draft] commitDraft() called, draftSegment:`, draftSegment.value);
+        console.log(`[Draft] currentVideo:`, currentVideo.value?.id);
+        if (!draftSegment.value) {
+            console.warn('[Draft] Kein Draft zum Committen gefunden - draftSegment.value ist null/undefined');
+            return null;
+        }
+        if (!currentVideo.value) {
+            console.warn('[Draft] Kein currentVideo gefunden');
             return null;
         }
         const draft = draftSegment.value;
-        if (draft.endTime === null) {
-            console.error('Draft-Ende muss gesetzt sein vor dem Committen.');
+        if (draft.endTime === null || draft.endTime === undefined) {
+            console.error('[Draft] Draft-Ende muss gesetzt sein vor dem Committen. Current endTime:', draft.endTime);
             return null;
         }
         try {
-            // Convert frontend draft to backend format
-            const payload = createSegmentUpdatePayload('draft', draft.startTime, draft.endTime, { label: draft.label });
-            console.log('Committe Draft-Segment:', payload);
-            const response = await axiosInstance.post(r('video-segments/'), {
+            // ✅ FIX: Get correct label ID from the store
+            const labelMeta = videoList.value.labels.find(l => l.name === draft.label);
+            if (!labelMeta) {
+                console.error(`[Draft] Label ${draft.label} not found in store`);
+                console.log('[Draft] Available labels:', videoList.value.labels.map(l => l.name));
+                errorMessage.value = `Label ${draft.label} nicht gefunden`;
+                return null;
+            }
+            // ✅ FIX: Calculate frame numbers correctly
+            const fps = videoMeta.value?.fps || 30;
+            const startFrame = Math.floor(draft.startTime * fps);
+            const endFrame = Math.floor(draft.endTime * fps);
+            // ✅ FIX: Use correct backend API format
+            const payload = {
                 video_file: parseInt(currentVideo.value.id.toString()),
-                label_name: draft.label,
-                start_time: draft.startTime,
-                end_time: draft.endTime,
-                start_frame_number: Math.round(draft.startTime * (videoMeta.value?.fps || 30)),
-                end_frame_number: Math.round(draft.endTime * (videoMeta.value?.fps || 30)),
-            });
+                label: labelMeta.id, // Use label ID, not name
+                start_frame_number: startFrame,
+                end_frame_number: endFrame,
+            };
+            console.log('[Draft] Committing Draft-Segment with payload:', payload);
+            const response = await axiosInstance.post(r('video-segments/'), payload);
+            console.log('[Draft] API response:', response.data);
             const newSegment = {
                 id: response.data.id,
                 label: draft.label,
@@ -592,35 +625,45 @@ export const useVideoStore = defineStore('video', () => {
                 endTime: response.data.end_time,
                 avgConfidence: 1,
                 videoID: parseInt(currentVideo.value.id.toString()),
-                labelID: response.data.label_id,
+                labelID: labelMeta.id,
                 startFrameNumber: response.data.start_frame_number,
                 endFrameNumber: response.data.end_frame_number,
             };
+            // Update currentVideo segments
             if (currentVideo.value?.segments) {
                 currentVideo.value.segments.push(newSegment);
+                console.log('[Draft] Added segment to currentVideo.segments, new count:', currentVideo.value.segments.length);
             }
             // Add to segments by label
-            const labelName = draft.label;
-            if (!segmentsByLabel[labelName]) {
-                segmentsByLabel[labelName] = [];
+            const label = draft.label;
+            if (!segmentsByLabel[label]) {
+                segmentsByLabel[label] = [];
             }
-            segmentsByLabel[labelName].push(newSegment);
+            segmentsByLabel[label].push(newSegment);
+            console.log('[Draft] Added segment to segmentsByLabel[' + label + '], new count:', segmentsByLabel[label].length);
+            // ✅ FIX: Clear draft AFTER successful creation
+            const draftInfo = { ...draftSegment.value };
             draftSegment.value = null;
-            console.log('Draft erfolgreich committed:', newSegment);
+            console.log('[Draft] Draft erfolgreich committed und gecleared:', draftInfo, '-> New segment:', newSegment);
             return newSegment;
         }
         catch (error) {
-            console.error('Fehler beim Committen des Draft-Segments:', error);
-            errorMessage.value = error instanceof Error ? error.message : 'Unbekannter Fehler beim Speichern';
+            console.error('[Draft] Fehler beim Committen des Draft-Segments:', error);
+            if (error instanceof AxiosError && error.response?.data) {
+                console.error('[Draft] Backend error details:', error.response.data);
+            }
+            errorMessage.value = error instanceof AxiosError
+                ? (error.response?.data?.detail || error.message || 'Unbekannter Fehler beim Speichern')
+                : 'Unbekannter Fehler beim Speichern';
             return null;
         }
     }
     function cancelDraft() {
         if (!draftSegment.value) {
-            console.warn('Kein Draft zum Abbrechen gefunden.');
+            console.warn('[Draft] Kein Draft zum Abbrechen gefunden.');
             return;
         }
-        console.log('Draft abgebrochen:', draftSegment.value);
+        console.log('[Draft] Draft abgebrochen:', draftSegment.value);
         draftSegment.value = null;
     }
     async function createFiveSecondSegment(clickTime, label) {
@@ -631,28 +674,59 @@ export const useVideoStore = defineStore('video', () => {
         return await commitDraft();
     }
     async function loadVideo(videoId) {
+        console.log(`[VideoStore] loadVideo called with ID: ${videoId}`);
         try {
-            const response = await axiosInstance.get(r(`video/${videoId}/`));
-            const videoData = response.data;
+            // ✅ FIX: First create basic video object to ensure currentVideo exists
             currentVideo.value = {
-                id: videoData.id,
-                videoUrl: videoData.video_url || '',
-                status: videoData.status || 'available',
-                assignedUser: videoData.assignedUser || null,
-                isAnnotated: videoData.isAnnotated || false,
+                id: videoId,
+                isAnnotated: false,
                 errorMessage: '',
-                segments: videoData.segments || [],
-                duration: videoData.duration,
-                fps: videoData.fps,
+                segments: [],
+                videoUrl: '',
+                status: 'available',
+                assignedUser: null
             };
-            await fetchVideoUrl(parseInt(videoId));
-            console.log('Video loaded:', currentVideo.value);
+            // Try to fetch additional video metadata if available
+            try {
+                const response = await axiosInstance.get(r(`videos/${videoId}/`));
+                const videoData = response.data;
+                console.log(`[VideoStore] Got video metadata:`, videoData);
+                // Update currentVideo with fetched data
+                currentVideo.value = {
+                    id: videoData.id || videoId,
+                    videoUrl: videoData.video_url || '',
+                    status: videoData.status || 'available',
+                    assignedUser: videoData.assignedUser || null,
+                    isAnnotated: videoData.isAnnotated || false,
+                    errorMessage: '',
+                    segments: [],
+                    duration: videoData.duration,
+                    fps: videoData.fps,
+                };
+            }
+            catch (metaError) {
+                console.warn(`[VideoStore] Could not fetch video metadata for ${videoId}, using basic object:`, metaError);
+            }
+            // Always fetch video URL and segments
+            await fetchVideoUrl(videoId);
+            await fetchAllSegments(videoId);
+            console.log(`[VideoStore] Video ${videoId} successfully loaded with ${currentVideo.value?.segments?.length || 0} segments`);
         }
         catch (error) {
             const axiosError = error;
-            console.error("Error loading video:", axiosError.response?.data || axiosError.message);
+            console.error(`[VideoStore] Error loading video ${videoId}:`, axiosError.response?.data || axiosError.message);
             errorMessage.value = "Error loading video. Please try again.";
         }
+    }
+    // ===================================================================
+    // PURE FRONTEND MUTATOR FOR LIVE PREVIEWS
+    // ===================================================================
+    /**
+     * Pure front-end mutator for ultra-smooth previews
+     * Updates segment locally without API call for instant UI feedback
+     */
+    function patchSegmentLocally(id, updates) {
+        updateSegment(id, updates); // existing helper
     }
     // ===================================================================
     // RETURN STORE INTERFACE
@@ -676,6 +750,7 @@ export const useVideoStore = defineStore('video', () => {
         // Actions
         clearVideo,
         setVideo,
+        loadVideo, // ✅ FIX: Added missing loadVideo export
         fetchVideoUrl,
         fetchAllSegments,
         fetchAllVideos,
@@ -683,6 +758,7 @@ export const useVideoStore = defineStore('video', () => {
         fetchVideoSegments,
         fetchSegmentsByLabel, // ✅ FIX: Added missing export
         createSegment,
+        patchSegmentLocally, // ✅ NEW: Pure frontend mutator for live previews
         updateSegment: updateSegmentAPI,
         deleteSegment,
         saveAnnotations,
@@ -707,6 +783,5 @@ export const useVideoStore = defineStore('video', () => {
         formatTime,
         getSegmentOptions,
         clearSegments,
-        loadVideo,
     };
 });
