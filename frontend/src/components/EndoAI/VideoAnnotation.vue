@@ -643,10 +643,6 @@ interface VideoMetaData {
       return `${minutes}:${seconds.toString().padStart(2, '0')} min`;
     }
 
-    // Load initial data on mount
-    onMounted(() => {
-      loadNextVideo();
-    });
     
 // Load initial data on mount
 onMounted(() => {

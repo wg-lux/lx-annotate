@@ -317,6 +317,9 @@ export declare const useAnnotationStatsStore: import("pinia").StoreDefinition<"a
     }>) => number;
 }, {
     fetchAnnotationStats(): Promise<void>;
+    fetchVideoSegmentStats(): Promise<void>;
+    fetchExaminationStats(): Promise<void>;
+    fetchSensitiveMetaStats(): Promise<void>;
     calculateTotals(): void;
     resetStats(): void;
     refreshIfNeeded(): Promise<void>;

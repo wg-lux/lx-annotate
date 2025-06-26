@@ -141,18 +141,78 @@ export const useAnnotationStatsStore = defineStore('annotationStats', {
             this.loading = true;
             this.error = null;
             try {
-                const params = new URLSearchParams();
-                const filters = { ...this.filters, ...customFilters };
-                // Parameter hinzufügen
-                params.append('period', filters.period);
-                if (filters.start_date)
-                    params.append('start_date', filters.start_date);
-                if (filters.end_date)
-                    params.append('end_date', filters.end_date);
-                if (filters.user_id)
-                    params.append('user_id', filters.user_id.toString());
-                const response = await axios.get(`/api/stats/annotations/?${params.toString()}`);
-                this.stats = response.data;
+                // Verschiedene Statistiken von verschiedenen Endpunkten laden
+                const [generalResponse, examinationResponse, videoSegmentResponse, sensitiveMetaResponse] = await Promise.all([
+                    axios.get('/api/stats/'),
+                    axios.get('/api/examinations/stats/'),
+                    axios.get('/api/video-segments/stats/'),
+                    axios.get('/api/video/sensitivemeta/stats/')
+                ]);
+                // Daten kombinieren und an die erwartete Struktur anpassen
+                this.stats = {
+                    overview: {
+                        total_videos: generalResponse.data.overview.total_videos,
+                        total_raw_videos: generalResponse.data.overview.total_videos, // Fallback
+                        total_pdfs: 0, // TODO: Noch nicht implementiert
+                        total_patients: generalResponse.data.overview.total_patients,
+                        total_examinations: generalResponse.data.overview.total_examinations,
+                        total_findings: 0, // TODO: Noch nicht implementiert
+                        total_annotatable_items: generalResponse.data.overview.total_segments,
+                        completion_rate: generalResponse.data.system_status.processing_completion_percent,
+                        status_counts: {
+                            pending: 0, // TODO: Berechnen basierend auf verfügbaren Daten
+                            in_progress: 0,
+                            completed: videoSegmentResponse.data.videos_with_segments,
+                            validated: 0
+                        }
+                    },
+                    video_stats: {
+                        duration_stats: {
+                            total_duration: 0, // TODO: Noch nicht implementiert
+                            avg_duration: 0,
+                            total_count: generalResponse.data.overview.total_videos
+                        },
+                        status_distribution: {
+                            pending: generalResponse.data.overview.total_videos - videoSegmentResponse.data.videos_with_segments,
+                            in_progress: 0,
+                            completed: videoSegmentResponse.data.videos_with_segments,
+                            validated: 0,
+                            requires_review: 0
+                        },
+                        segment_stats: {
+                            total_segments: videoSegmentResponse.data.total_segments,
+                            avg_segments_per_video: videoSegmentResponse.data.total_videos > 0
+                                ? Math.round(videoSegmentResponse.data.total_segments / videoSegmentResponse.data.total_videos * 100) / 100
+                                : 0
+                        },
+                        videos_with_segments: videoSegmentResponse.data.videos_with_segments
+                    },
+                    pdf_stats: {}, // TODO: Implementieren wenn PDF-Stats verfügbar
+                    patient_stats: {
+                        total_patients: generalResponse.data.overview.total_patients,
+                        age_distribution: [], // TODO: Implementieren
+                        gender_distribution: [] // TODO: Implementieren
+                    },
+                    examination_stats: examinationResponse.data,
+                    finding_stats: {}, // TODO: Implementieren
+                    timeline_data: {
+                        video_annotations: [], // TODO: Implementieren
+                        examinations: []
+                    },
+                    status_distribution: videoSegmentResponse.data.label_distribution,
+                    productivity_metrics: {
+                        daily_averages: {
+                            videos_per_day: 0, // TODO: Berechnen
+                            examinations_per_day: 0,
+                            findings_per_day: 0,
+                            completed_videos_per_day: 0
+                        },
+                        efficiency_metrics: {
+                            completion_rate: generalResponse.data.system_status.processing_completion_percent,
+                            findings_per_examination: 0 // TODO: Berechnen
+                        }
+                    }
+                };
                 this.lastStatsUpdate = new Date();
                 // Filter aktualisieren falls custom filters übergeben wurden
                 if (customFilters) {
@@ -168,29 +228,15 @@ export const useAnnotationStatsStore = defineStore('annotationStats', {
             }
         },
         /**
-         * Lädt Benutzer-Statistiken
+         * Lädt Benutzer-Statistiken - Placeholder da Backend-Endpunkt nicht existiert
          */
         async fetchUserStats(userId) {
             this.userStatsLoading = true;
             this.userStatsError = null;
             try {
-                const url = userId ? `/api/stats/users/${userId}/` : '/api/stats/users/';
-                const response = await axios.get(url);
-                if (userId) {
-                    // Einzelner Benutzer - Update/Add zu userStats
-                    const userStat = response.data;
-                    const existingIndex = this.userStats.findIndex(u => u.user_id === userId);
-                    if (existingIndex >= 0) {
-                        this.userStats[existingIndex] = userStat;
-                    }
-                    else {
-                        this.userStats.push(userStat);
-                    }
-                }
-                else {
-                    // Alle Benutzer
-                    this.userStats = response.data.user_stats;
-                }
+                // TODO: Implementieren wenn Backend-Endpunkt verfügbar ist
+                console.warn('User stats endpoint /api/stats/users/ nicht implementiert');
+                this.userStats = [];
             }
             catch (error) {
                 console.error('Fehler beim Laden der Benutzer-Statistiken:', error);
@@ -201,15 +247,29 @@ export const useAnnotationStatsStore = defineStore('annotationStats', {
             }
         },
         /**
-         * Lädt Echtzeit-Statistiken
+         * Lädt Echtzeit-Statistiken - Placeholder da Backend-Endpunkt nicht existiert
          */
         async fetchRealtimeStats() {
             this.realtimeLoading = true;
             this.realtimeError = null;
             try {
-                const response = await axios.get('/api/stats/realtime/');
-                this.realtimeStats = response.data;
-                this.lastRealtimeUpdate = new Date();
+                // TODO: Implementieren wenn Backend-Endpunkt verfügbar ist
+                console.warn('Realtime stats endpoint /api/stats/realtime/ nicht implementiert');
+                this.realtimeStats = {
+                    today: {
+                        videos_added: 0,
+                        examinations_created: 0,
+                        findings_created: 0,
+                        videos_completed: 0
+                    },
+                    current_status: {
+                        pending_videos: 0,
+                        in_progress_videos: 0,
+                        pending_examinations: 0,
+                        active_users: 0
+                    },
+                    last_updated: new Date().toISOString()
+                };
             }
             catch (error) {
                 console.error('Fehler beim Laden der Echtzeit-Statistiken:', error);

@@ -3,7 +3,7 @@ import { ref, computed, reactive, readonly } from 'vue';
 import axiosInstance, { r } from '../api/axiosInstance';
 import { AxiosError } from 'axios';
 import { framesToSeconds, secondsToFrames, safeTimeConversion, formatTime as formatTimeHelper, calculateSegmentWidth, calculateSegmentPosition } from '../utils/timeHelpers';
-import { convertBackendSegmentToFrontend, convertFrontendSegmentToBackend, convertBackendSegmentsToFrontend, createSegmentUpdatePayload, normalizeSegmentToCamelCase, debugSegmentConversion, } from '../utils/caseConversion';
+import { convertBackendSegmentToFrontend, convertBackendSegmentsToFrontend, createSegmentUpdatePayload, debugSegmentConversion, } from '../utils/caseConversion';
 // ===================================================================
 // CONSTANTS
 // ===================================================================

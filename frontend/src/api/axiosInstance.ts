@@ -29,14 +29,13 @@ export function a(path: string): string {
 
 import type { InternalAxiosRequestConfig } from 'axios';
 
-// Stelle sicher, dass der CSRF-Token-Interceptor aktiv ist (auskommentiert im Original)
 axiosInstance.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   const csrftoken = Cookies.get('csrftoken');
   if (csrftoken && config.headers) {
     config.headers['X-CSRFToken'] = csrftoken;
   }
   // Logge die Header vor dem Senden (optional, zum Debuggen)
-  // console.log('Request Headers:', config.headers);
+  console.log('Request Headers:', config.headers);
   return config;
 });
 

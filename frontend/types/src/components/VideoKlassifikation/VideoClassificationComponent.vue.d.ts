@@ -100,6 +100,7 @@ declare const _default: import("vue").DefineComponent<{}, {}, {
         [x: `on${Capitalize<any>}`]: ((...args: any) => any) | undefined;
     }>, {}, {}, {}, {}, string, import("vue").ComponentProvideOptions, false, {
         timeline: HTMLDivElement;
+        segmentElements: HTMLDivElement[];
         waveformCanvas: HTMLCanvasElement;
     }, HTMLDivElement>;
 }, {}, string, import("vue").ComponentProvideOptions, true, {}, any>;

@@ -24,7 +24,8 @@ MEDIA_ROOT = STORAGE_DIR
 
 VITE_DEV_SERVER_URL = 'http://localhost:8000'
 
-DEBUG = os.environ.get('DEBUG', 'True').lower() in ('true', '1')
+DEBUG = True # TODO: SET TO ENV os.environ.get('DEBUG', 'True').lower() in ('true', '1')
+
 ALLOWED_HOSTS = ["*"]
 
 CORS_ALLOW_ALL_ORIGINS = True

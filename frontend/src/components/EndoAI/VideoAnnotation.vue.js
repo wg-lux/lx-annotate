@@ -284,10 +284,6 @@ function formatDuration(durationSeconds) {
 onMounted(() => {
     loadNextVideo();
 });
-// Load initial data on mount
-onMounted(() => {
-    loadNextVideo();
-});
 ; /* PartiallyEnd: #3632/scriptSetup.vue */
 function __VLS_template() {
     const __VLS_ctx = {};

@@ -1019,11 +1019,11 @@ export declare const useAnnotationStatsStore: import("pinia").StoreDefinition<"a
      */
     fetchStats(customFilters?: Partial<StatsFilters>): Promise<void>;
     /**
-     * Lädt Benutzer-Statistiken
+     * Lädt Benutzer-Statistiken - Placeholder da Backend-Endpunkt nicht existiert
      */
     fetchUserStats(userId?: number): Promise<void>;
     /**
-     * Lädt Echtzeit-Statistiken
+     * Lädt Echtzeit-Statistiken - Placeholder da Backend-Endpunkt nicht existiert
      */
     fetchRealtimeStats(): Promise<void>;
     /**

@@ -2,7 +2,9 @@ import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAnnotationStatsStore } from '@/stores/annotationStats';
 import AnnotationStatsComponent from '@/components/AnnotationStatsComponent.vue';
-import axios from 'axios';
+import { useToastStore } from '@/stores/toastStore'; // Assuming you have a toast store for notifications
+import axiosInstance from '@/api/axiosInstance';
+const toast = useToastStore(); // Use your notification system here
 const router = useRouter();
 const annotationStatsStore = useAnnotationStatsStore();
 // State for detailed data
@@ -14,14 +16,21 @@ const loadingSegments = ref(false);
 const loadingExaminations = ref(false);
 const loadingSensitiveMeta = ref(false);
 // Methods for fetching detailed data
+// Add at the top of script setup
+const showError = (message) => {
+    // Use your notification system here
+    console.error(message);
+    toast.error(message);
+};
+// Methods for fetching detailed data
 const refreshSegments = async () => {
     loadingSegments.value = true;
     try {
-        const response = await axios.get('/api/video-segments/');
+        const response = await axiosInstance.get('/api/video-segments/');
         segments.value = response.data.results || response.data || [];
     }
     catch (error) {
-        console.error('Fehler beim Laden der Video-Segmente:', error);
+        showError('Fehler beim Laden der Video-Segmente');
         segments.value = [];
     }
     finally {
@@ -31,7 +40,7 @@ const refreshSegments = async () => {
 const refreshExaminations = async () => {
     loadingExaminations.value = true;
     try {
-        const response = await axios.get('/api/examinations/');
+        const response = await axiosInstance.get('/api/examinations/');
         examinations.value = response.data.results || response.data || [];
     }
     catch (error) {
@@ -47,8 +56,8 @@ const refreshSensitiveMeta = async () => {
     try {
         // Combine video and PDF sensitive meta data
         const [videoResponse, pdfResponse] = await Promise.all([
-            axios.get('/api/video/sensitivemeta/').catch(() => ({ data: [] })),
-            axios.get('/api/pdf/sensitivemeta/').catch(() => ({ data: [] }))
+            axiosInstance.get('/api/video/sensitivemeta/').catch(() => ({ data: [] })),
+            axiosInstance.get('/api/pdf/sensitivemeta/').catch(() => ({ data: [] }))
         ]);
         const videoData = Array.isArray(videoResponse.data) ? videoResponse.data :
             videoResponse.data ? [{ ...videoResponse.data, content_type: 'video' }] : [];
@@ -131,7 +140,7 @@ const editSegment = (segment) => {
 };
 const markSegmentComplete = async (segment) => {
     try {
-        await axios.patch(`/api/video-segments/${segment.id}/`, { status: 'completed' });
+        await axiosInstance.patch(`/api/video-segments/${segment.id}/`, { status: 'completed' });
         annotationStatsStore.updateAnnotationStatus('segment', 'in_progress', 'completed');
         await refreshSegments();
     }
@@ -147,7 +156,7 @@ const editExamination = (examination) => {
 };
 const markExaminationComplete = async (examination) => {
     try {
-        await axios.patch(`/api/examinations/${examination.id}/`, { status: 'completed' });
+        await axiosInstance.patch(`/api/examinations/${examination.id}/`, { status: 'completed' });
         annotationStatsStore.updateAnnotationStatus('examination', 'in_progress', 'completed');
         await refreshExaminations();
     }
@@ -168,7 +177,7 @@ const markSensitiveMetaComplete = async (meta) => {
         const endpoint = meta.content_type === 'video'
             ? `/api/video/update_sensitivemeta/`
             : `/api/pdf/update_sensitivemeta/`;
-        await axios.patch(endpoint, {
+        await axiosInstance.patch(endpoint, {
             sensitive_meta_id: meta.id,
             requires_validation: false,
             anonymization_status: 'validated_pending_anonymization'
@@ -317,15 +326,15 @@ function __VLS_template() {
             });
             __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
             __VLS_elementAsFunction(__VLS_intrinsicElements.code, __VLS_intrinsicElements.code)({});
-            (segment.video_id);
+            (segment.videoId);
             __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
-            (segment.start_time);
-            (segment.end_time);
+            (segment.startTime);
+            (segment.endTime);
             __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
             __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
                 ...{ class: ("badge bg-info") },
             });
-            (segment.label);
+            (segment.labelName);
             __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
             __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
                 ...{ class: ("badge") },

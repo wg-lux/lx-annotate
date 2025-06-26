@@ -39,7 +39,7 @@
           </div>
         </div>
 
-        <!-- ✅ NEW: Multi-row segment layout -->
+        <!-- ✅ UPDATED: Multi-row segment layout with Pointer Events -->
         <div class="segments-container">
           <div 
             v-for="row in segmentRows"
@@ -54,6 +54,7 @@
             <div 
               v-for="segment in row.segments"
               :key="segment.id"
+              ref="segmentElements"
               class="segment"
               :class="{ 
                 'active': segment.id === activeSegmentId,
@@ -66,21 +67,19 @@
                 backgroundColor: segment.color || getColorForLabel(segment.label),
                 borderColor: segment.isDraft ? '#ff9800' : 'transparent'
               }"
+              :data-id="segment.id"
               @click="selectSegment(segment)"
               @contextmenu.prevent="showSegmentMenu(segment, $event)"
-              @mousedown="startSegmentDrag(segment, $event)"
             >
               <!-- Start resize handle -->
               <div 
                 class="resize-handle start-handle"
-                @mousedown.stop="startResize(segment, 'start', $event)"
                 :title="'Segment-Start ändern'"
               >
                 <i class="fas fa-grip-lines-vertical"></i>
               </div>
 
               <div class="segment-content">
-                <!-- ✅ FIX 8: Use getTranslationForLabel instead of segment.label_name -->
                 <span class="segment-label">{{ getTranslationForLabel(segment.label) }}</span>
                 <span class="segment-duration">{{ formatDuration(segment.start, segment.end) }}</span>
               </div>
@@ -88,7 +87,6 @@
               <!-- End resize handle -->
               <div 
                 class="resize-handle end-handle"
-                @mousedown.stop="startResize(segment, 'end', $event)"
                 :title="'Segment-Ende ändern'"
               >
                 <i class="fas fa-grip-lines-vertical"></i>
@@ -162,7 +160,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, nextTick, ref as vueRef } from 'vue'
 import { 
   formatTime as formatTimeHelper,
   calculateSegmentWidth,
@@ -256,8 +254,8 @@ const emit = defineEmits<{
 // Refs with proper types
 const timeline = ref<HTMLElement | null>(null)
 const waveformCanvas = ref<HTMLCanvasElement | null>(null)
-
-// Reactive state
+const segmentElements = vueRef<HTMLElement[]>([])
+const cleanupFunctions = vueRef<Array<() => void>>([])
 const zoomLevel = ref<number>(1)
 const isSelecting = ref<boolean>(false)
 const selectionStart = ref<number>(0)
@@ -307,12 +305,12 @@ const playheadPosition = computed((): number => {
   const currentVideoTime = props.currentTime || 0
   
   // ✅ Guard against division by zero and invalid values
-  if (!videoDuration || videoDuration === 0 || !isFinite(videoDuration)) {
+  if (!videoDuration || videoDuration === 0 || !Number.isFinite(videoDuration)) {
     console.warn('[Timeline] Duration is 0 or invalid:', videoDuration)
     return 0
   }
   
-  if (!isFinite(currentVideoTime) || currentVideoTime < 0) {
+  if (!Number.isFinite(currentVideoTime) || currentVideoTime < 0) {
     console.warn('[Timeline] CurrentTime is invalid:', currentVideoTime)
     return 0
   }
@@ -320,7 +318,7 @@ const playheadPosition = computed((): number => {
   const percentage = (currentVideoTime / videoDuration) * 100
   
   // ✅ Additional safety check for percentage
-  if (!isFinite(percentage)) {
+  if (!Number.isFinite(percentage)) {
     console.warn('[Timeline] Calculated percentage is NaN:', { currentVideoTime, videoDuration })
     return 0
   }
@@ -495,180 +493,152 @@ const getLabelName = (labelId: number | string | undefined): string => {
   return (label as any)?.name || ''
 }
 
-// New drag and resize methods
-const startSegmentDrag = (segment: Segment, event: MouseEvent): void => {
-  if (resizingSegmentId.value) return // Don't start drag if resizing
-  
-  event.preventDefault()
-  draggingSegmentId.value = segment.id
-  dragStartX.value = event.clientX
-  dragStartTime.value = segment.startTime || 0 // ✅ FIX: Use only camelCase property
-  
-  originalSegmentData.value = {
-    start_time: segment.startTime || 0, // ✅ FIX: Use camelCase source
-    end_time: segment.endTime || 0      // ✅ FIX: Use camelCase source
+// ✅ NEW: Composable for Pointer Events drag+resize
+interface DragResizeOptions {
+  trackPx: () => number
+  duration: () => number
+  onMove: (startS: number, endS: number) => void
+  onResize: (startS: number, endS: number, edge: 'start' | 'end') => void
+  onDone: () => void
+}
+
+function useDragResize(el: HTMLElement, opt: DragResizeOptions) {
+  let mode: 'drag' | 'start' | 'end' | null = null
+  let pxStart = 0
+  let startLeft = 0
+  let startWidth = 0
+
+  const pxToTime = (px: number) => (px / opt.trackPx()) * opt.duration()
+
+  function down(ev: PointerEvent) {
+    ev.stopPropagation()
+    
+    // Decide what we're doing based on the handle clicked
+    if ((ev.target as HTMLElement).classList.contains('start-handle')) mode = 'start'
+    else if ((ev.target as HTMLElement).classList.contains('end-handle')) mode = 'end'
+    else mode = 'drag'
+
+    pxStart = ev.clientX
+    startLeft = el.offsetLeft
+    startWidth = el.offsetWidth
+
+    // Avoid iOS scrolling etc.
+    el.setPointerCapture(ev.pointerId)
+    ev.preventDefault()
   }
-  
-  document.addEventListener('mousemove', onSegmentDragMove)
-  document.addEventListener('mouseup', onSegmentDragEnd)
-  
-  // Add visual feedback
-  document.body.style.cursor = 'grabbing'
-}
 
-const onSegmentDragMove = (event: MouseEvent): void => {
-  if (!draggingSegmentId.value || !timeline.value) return
-  
-  const rect = timeline.value.getBoundingClientRect()
-  const deltaX = event.clientX - dragStartX.value
-  const deltaTime = (deltaX / rect.width) * duration.value
-  
-  const segment = displayedSegments.value.find(s => s.id === draggingSegmentId.value)
-  if (!segment) return
-  
-  const segmentDuration = originalSegmentData.value!.end_time - originalSegmentData.value!.start_time
-  let newStartTime = dragStartTime.value + deltaTime
-  
-  // Clamp to timeline bounds
-  newStartTime = Math.max(0, Math.min(newStartTime, duration.value - segmentDuration))
-  const newEndTime = newStartTime + segmentDuration
-  
-  // Emit move event for real-time update
-  emit('segment-move', draggingSegmentId.value, newStartTime, newEndTime)
-  segment.start = newStartTime
-  segment.end = newEndTime
-  segment.startTime = newStartTime // ✅ FIX: Use camelCase properties
-  segment.endTime = newEndTime      // ✅ FIX: Use camelCase properties
-}
+  function move(ev: PointerEvent) {
+    if (!mode) return
+    const dx = ev.clientX - pxStart
 
-const onSegmentDragEnd = (event: MouseEvent): void => {
-  if (draggingSegmentId.value) {
-    const segment = displayedSegments.value.find(s => s.id === draggingSegmentId.value)
-    if (segment) {
-      const segmentDuration = originalSegmentData.value!.end_time - originalSegmentData.value!.start_time
-      const rect = timeline.value!.getBoundingClientRect()
-      const deltaX = event.clientX - dragStartX.value
-      const deltaTime = (deltaX / rect.width) * duration.value
-      let newStartTime = dragStartTime.value + deltaTime
-      
-      newStartTime = Math.max(0, Math.min(newStartTime, duration.value - segmentDuration))
-      const newEndTime = newStartTime + segmentDuration
-      
-      // ✅ FIX: Handle draft segments differently - don't convert to numeric ID
-      if (typeof draggingSegmentId.value === 'string' && 
-          (draggingSegmentId.value === 'draft' || draggingSegmentId.value.startsWith('temp-'))) {
-        // For draft segments, emit with original ID (don't convert to numeric)
-        console.log('[Timeline] Moving draft segment:', draggingSegmentId.value)
-        emit('segment-move', draggingSegmentId.value, newStartTime, newEndTime, true)
-      } else {
-        // For real segments, validate and convert to numeric ID
-        const numericId = getNumericSegmentId(draggingSegmentId.value)
-        if (numericId === null) {
-          console.warn('[Timeline] Skipping drag end for invalid segment ID:', draggingSegmentId.value)
-          return
-        }
-        emit('segment-move', numericId, newStartTime, newEndTime, true)
-      }
+    if (mode === 'drag') {
+      let left = Math.min(
+        Math.max(0, startLeft + dx),
+        opt.trackPx() - startWidth
+      )
+      el.style.left = left + 'px'
+      opt.onMove(pxToTime(left), pxToTime(left + startWidth))
+    }
+
+    if (mode === 'start') {
+      let left = Math.max(0, Math.min(startLeft + dx, startLeft + startWidth - 10))
+      let width = startWidth + (startLeft - left);
+      el.style.left = left + 'px'
+      el.style.width = width + 'px'
+      opt.onResize(pxToTime(left), pxToTime(left + width), 'start')
+    }
+
+    if (mode === 'end') {
+      let width = Math.max(10, startWidth + dx)
+      el.style.width = width + 'px'
+      opt.onResize(pxToTime(startLeft),
+                   pxToTime(startLeft) + pxToTime(width), 'end')
     }
   }
-  
-  // Cleanup
-  draggingSegmentId.value = null
-  dragStartX.value = 0
-  dragStartTime.value = 0
-  originalSegmentData.value = null
-  document.body.style.cursor = ''
-  
-  document.removeEventListener('mousemove', onSegmentDragMove)
-  document.removeEventListener('mouseup', onSegmentDragEnd)
+
+  function up(ev: PointerEvent) {
+    if (!mode) return
+    move(ev) // Final emit with last coords
+    mode = null
+    el.releasePointerCapture(ev.pointerId)
+    opt.onDone()
+  }
+
+  // Event listeners
+  el.addEventListener('pointerdown', down)
+  el.addEventListener('pointermove', move)
+  el.addEventListener('pointerup', up)
+  el.addEventListener('pointercancel', up)
+
+  // Cleanup function
+  return () => {
+    el.removeEventListener('pointerdown', down)
+    el.removeEventListener('pointermove', move)
+    el.removeEventListener('pointerup', up)
+    el.removeEventListener('pointercancel', up)
+  }
 }
 
-const startResize = (segment: Segment, mode: 'start' | 'end', event: MouseEvent): void => {
-  event.preventDefault()
-  event.stopPropagation()
-  
-  resizingSegmentId.value = segment.id
-  resizeMode.value = mode
-  dragStartX.value = event.clientX
-  
-  originalSegmentData.value = {
-    start_time: segment.startTime || 0, // ✅ FIX: Use only camelCase property
-    end_time: segment.endTime || 0      // ✅ FIX: Use only camelCase property
-  }
-  
-  document.addEventListener('mousemove', onResizeMove)
-  document.addEventListener('mouseup', onResizeEnd)
-  
-  // Add visual feedback
-  document.body.style.cursor = 'ew-resize'
-}
+// ✅ UPDATED: Initialize drag+resize for all segments
+const initializeDragResize = () => {
+  // Cleanup previous listeners
+  cleanupFunctions.value.forEach(cleanup => cleanup())
+  cleanupFunctions.value = []
 
-const onResizeMove = (event: MouseEvent): void => {
-  if (!resizingSegmentId.value || !timeline.value) return
-  
-  const rect = timeline.value.getBoundingClientRect()
-  const deltaX = event.clientX - dragStartX.value
-  const deltaTime = (deltaX / rect.width) * duration.value // ✅ FIX: Remove incorrect addition
-  
-  const segment = (props.segments || []).find((s: Segment) => s.id === resizingSegmentId.value)
-  if (!segment) return
-  
-  let newStartTime = originalSegmentData.value!.start_time
-  let newEndTime = originalSegmentData.value!.end_time
-  
-  if (resizeMode.value === 'start') {
-    newStartTime = Math.max(0, Math.min(originalSegmentData.value!.start_time + deltaTime, originalSegmentData.value!.end_time - 0.1))
-  } else if (resizeMode.value === 'end') {
-    newEndTime = Math.max(originalSegmentData.value!.start_time + 0.1, Math.min(originalSegmentData.value!.end_time + deltaTime, duration.value))
-  }
-  
-  emit('segment-resize', resizingSegmentId.value, newStartTime, newEndTime, resizeMode.value)
-}
+  if (!timeline.value) return
 
-const onResizeEnd = (event: MouseEvent): void => {
-  if (resizingSegmentId.value) {
-    const segment = displayedSegments.value.find(s => s.id === resizingSegmentId.value)
-    if (segment) {
-      const rect = timeline.value!.getBoundingClientRect()
-      const deltaX = event.clientX - dragStartX.value
-      const deltaTime = (deltaX / rect.width) * duration.value
-      
-      let newStartTime = originalSegmentData.value!.start_time
-      let newEndTime = originalSegmentData.value!.end_time
-      
-      if (resizeMode.value === 'start') {
-        newStartTime = Math.max(0, Math.min(originalSegmentData.value!.start_time + deltaTime, originalSegmentData.value!.end_time - 0.1))
-      } else if (resizeMode.value === 'end') {
-        newEndTime = Math.max(originalSegmentData.value!.start_time + 0.1, Math.min(originalSegmentData.value!.end_time + deltaTime, duration.value))
-      }
-      
-      // ✅ FIX: Handle draft segments differently - don't convert to numeric ID
-      if (typeof resizingSegmentId.value === 'string' && 
-          (resizingSegmentId.value === 'draft' || resizingSegmentId.value.startsWith('temp-'))) {
-        // For draft segments, emit with original ID (don't convert to numeric)
-        console.log('[Timeline] Resizing draft segment:', resizingSegmentId.value)
-        emit('segment-resize', resizingSegmentId.value, newStartTime, newEndTime, resizeMode.value, true)
-      } else {
-        // For real segments, validate and convert to numeric ID
-        const numericId = getNumericSegmentId(resizingSegmentId.value)
-        if (numericId === null) {
-          console.warn('[Timeline] Skipping resize end for invalid segment ID:', resizingSegmentId.value)
-          return
-        }
-        emit('segment-resize', numericId, newStartTime, newEndTime, resizeMode.value, true)
-      }
-    }
-  }
-  
-  // Cleanup
-  resizingSegmentId.value = null
-  resizeMode.value = ''
-  dragStartX.value = 0
-  originalSegmentData.value = null
-  document.body.style.cursor = ''
-  
-  document.removeEventListener('mousemove', onResizeMove)
-  document.removeEventListener('mouseup', onResizeEnd)
+  nextTick(() => {
+    segmentRows.value.forEach(row => {
+      row.segments.forEach(segment => {
+        const el = document.querySelector(`[data-id="${segment.id}"]`) as HTMLElement
+        if (!el) return
+
+        const cleanup = useDragResize(el, {
+          trackPx: () => timeline.value!.offsetWidth,
+          duration: () => duration.value,
+          onMove: (startS: number, endS: number) => {
+            // Update local state for real-time feedback
+            const localSegment = displayedSegments.value.find(s => s.id === segment.id)
+            if (localSegment) {
+              localSegment.start = startS
+              localSegment.end = endS
+              localSegment.startTime = startS
+              localSegment.endTime = endS
+            }
+            emit('segment-move', segment.id, startS, endS)
+          },
+          onResize: (startS: number, endS: number, edge: 'start' | 'end') => {
+            // Update local state for real-time feedback
+            const localSegment = displayedSegments.value.find(s => s.id === segment.id)
+            if (localSegment) {
+              localSegment.start = startS
+              localSegment.end = endS
+              localSegment.startTime = startS
+              localSegment.endTime = endS
+            }
+            emit('segment-resize', segment.id, startS, endS, edge)
+          },
+          onDone: () => {
+            const localSegment = displayedSegments.value.find(s => s.id === segment.id)
+            if (localSegment) {
+              // ✅ Handle draft segments differently
+              if (typeof segment.id === 'string' && 
+                  (segment.id === 'draft' || segment.id.startsWith('temp-'))) {
+                emit('segment-resize', segment.id, localSegment.start, localSegment.end, 'end', true)
+              } else {
+                const numericId = getNumericSegmentId(segment.id)
+                if (numericId !== null) {
+                  emit('segment-resize', numericId, localSegment.start, localSegment.end, 'end', true)
+                }
+              }
+            }
+          }
+        })
+
+        cleanupFunctions.value.push(cleanup)
+      })
+    })
+  })
 }
 
 // Zoom controls
@@ -750,7 +720,7 @@ const onSelectionMouseMove = (event: MouseEvent): void => {
   
   const rect = timeline.value.getBoundingClientRect()
   const currentX = event.clientX - rect.left
-  selectionEnd.value = Math.max(0, Math.min(100, (currentX / rect.width) + 100))
+  selectionEnd.value = Math.max(0, Math.min(100, (currentX / rect.width) * 100))
 }
 
 const onSelectionMouseUp = (event: MouseEvent): void => {
@@ -785,8 +755,15 @@ watch(() => props.video, () => {
     })
   }
 })
+// Watch for segments to initialize drag+resize
+watch(
+  segmentRows,
+  () => nextTick(initializeDragResize),   // re-run after every layout change
+  { immediate: true }
+)
 
-// ✅ NEW: Debug watch for segments with 0% width
+
+// Debug watch for segments with 0% width
 watch(segmentRows, (rows: SegmentRow[]) => {
   rows.forEach(row => {
     row.segments.forEach(s => {
@@ -840,14 +817,13 @@ const handleClickOutside = (event: Event): void => {
 // Lifecycle hooks
 onMounted(() => {
   document.addEventListener('click', handleClickOutside)
-  document.addEventListener('mousemove', onSegmentDragMove)
-  document.addEventListener('mouseup', onSegmentDragEnd)
-  document.addEventListener('mousemove', onResizeMove)
-  document.addEventListener('mouseup', onResizeEnd)
-  document.addEventListener('mousemove', onSelectionMouseMove)
-  document.addEventListener('mouseup', onSelectionMouseUp)
+
   
-  // Initialize waveform if needed
+  // Initialize drag+resize after mount
+  nextTick(() => {
+    initializeDragResize()
+  })
+  
   if (props.showWaveform) {
     nextTick(() => {
       initializeWaveform()
@@ -860,11 +836,11 @@ onMounted(() => {
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
   
-  // Cleanup any ongoing drag/resize operations
-  document.removeEventListener('mousemove', onSegmentDragMove)
-  document.removeEventListener('mouseup', onSegmentDragEnd)
-  document.removeEventListener('mousemove', onResizeMove)
-  document.removeEventListener('mouseup', onResizeEnd)
+  // Cleanup all drag+resize listeners
+  cleanupFunctions.value.forEach(cleanup => cleanup())
+  cleanupFunctions.value = []
+  
+  // Remove old event listeners that are no longer used
   document.removeEventListener('mousemove', onSelectionMouseMove)
   document.removeEventListener('mouseup', onSelectionMouseUp)
 })
@@ -1054,7 +1030,7 @@ const getNumericSegmentId = (segmentId: string | number): number | null => {
   position: absolute;
   left: 0;
   right: 0;
-  pointer-events: none;
+  pointer-events: auto;
 }
 
 .segment {
@@ -1066,6 +1042,9 @@ const getNumericSegmentId = (segmentId: string | number): number | null => {
   border: 2px solid transparent;
   overflow: hidden;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  /* ✅ Required for Pointer Events */
+  touch-action: none;
+  user-select: none;
 }
 
 .segment:hover {
@@ -1251,6 +1230,9 @@ const getNumericSegmentId = (segmentId: string | number): number | null => {
   display: flex;
   align-items: center;
   justify-content: center;
+  touch-action: none;
+  user-select: none;
+  pointer-events: auto;
 }
 
 .resize-handle:hover,
@@ -1274,10 +1256,8 @@ const getNumericSegmentId = (segmentId: string | number): number | null => {
   font-size: 8px;
   color: rgba(255, 255, 255, 0.8);
   text-shadow: 0 1px 1px rgba(0, 0, 0, 0.5);
-}
-
-.resize-handle:hover i {
-  color: white;
+  /* ✅ Prevent text selection on handles */
+  pointer-events: none;
 }
 
 /* Visual feedback during resize */

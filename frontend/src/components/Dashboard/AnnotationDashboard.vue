@@ -61,10 +61,10 @@
                     </td>
                   </tr>
                   <tr v-else v-for="segment in segments" :key="segment.id">
-                    <td><code>{{ segment.video_id }}</code></td>
-                    <td>{{ segment.start_time }}s - {{ segment.end_time }}s</td>
+                    <td><code>{{ segment.videoId }}</code></td>
+                    <td>{{ segment.startTime }}s - {{ segment.endTime }}s</td>
                     <td>
-                      <span class="badge bg-info">{{ segment.label }}</span>
+                      <span class="badge bg-info">{{ segment.labelName }}</span>
                     </td>
                     <td>
                       <span class="badge" :class="getSegmentStatusClass(segment.status)">
@@ -321,8 +321,11 @@ import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAnnotationStatsStore } from '@/stores/annotationStats';
 import AnnotationStatsComponent from '@/components/AnnotationStatsComponent.vue';
-import axios from 'axios';
+import { useToastStore } from '@/stores/toastStore'; // Assuming you have a toast store for notifications
+import axiosInstance from '@/api/axiosInstance';
 
+
+const toast = useToastStore(); // Use your notification system here
 const router = useRouter();
 const annotationStatsStore = useAnnotationStatsStore();
 
@@ -337,13 +340,21 @@ const loadingExaminations = ref(false);
 const loadingSensitiveMeta = ref(false);
 
 // Methods for fetching detailed data
+// Add at the top of script setup
+const showError = (message) => {
+  // Use your notification system here
+  console.error(message);
+  toast.error(message) 
+};
+
+// Methods for fetching detailed data
 const refreshSegments = async () => {
   loadingSegments.value = true;
   try {
-    const response = await axios.get('/api/video-segments/');
+    const response = await axiosInstance.get('/api/video-segments/');
     segments.value = response.data.results || response.data || [];
   } catch (error) {
-    console.error('Fehler beim Laden der Video-Segmente:', error);
+    showError('Fehler beim Laden der Video-Segmente');
     segments.value = [];
   } finally {
     loadingSegments.value = false;
@@ -353,7 +364,7 @@ const refreshSegments = async () => {
 const refreshExaminations = async () => {
   loadingExaminations.value = true;
   try {
-    const response = await axios.get('/api/examinations/');
+    const response = await axiosInstance.get('/api/examinations/');
     examinations.value = response.data.results || response.data || [];
   } catch (error) {
     console.error('Fehler beim Laden der Untersuchungen:', error);
@@ -368,8 +379,8 @@ const refreshSensitiveMeta = async () => {
   try {
     // Combine video and PDF sensitive meta data
     const [videoResponse, pdfResponse] = await Promise.all([
-      axios.get('/api/video/sensitivemeta/').catch(() => ({ data: [] })),
-      axios.get('/api/pdf/sensitivemeta/').catch(() => ({ data: [] }))
+      axiosInstance.get('/api/video/sensitivemeta/').catch(() => ({ data: [] })),
+      axiosInstance.get('/api/pdf/sensitivemeta/').catch(() => ({ data: [] }))
     ]);
 
     const videoData = Array.isArray(videoResponse.data) ? videoResponse.data : 
@@ -462,7 +473,7 @@ const editSegment = (segment) => {
 
 const markSegmentComplete = async (segment) => {
   try {
-    await axios.patch(`/api/video-segments/${segment.id}/`, { status: 'completed' });
+    await axiosInstance.patch(`/api/video-segments/${segment.id}/`, { status: 'completed' });
     annotationStatsStore.updateAnnotationStatus('segment', 'in_progress', 'completed');
     await refreshSegments();
   } catch (error) {
@@ -479,7 +490,7 @@ const editExamination = (examination) => {
 
 const markExaminationComplete = async (examination) => {
   try {
-    await axios.patch(`/api/examinations/${examination.id}/`, { status: 'completed' });
+    await axiosInstance.patch(`/api/examinations/${examination.id}/`, { status: 'completed' });
     annotationStatsStore.updateAnnotationStatus('examination', 'in_progress', 'completed');
     await refreshExaminations();
   } catch (error) {
@@ -501,7 +512,7 @@ const markSensitiveMetaComplete = async (meta) => {
       ? `/api/video/update_sensitivemeta/`
       : `/api/pdf/update_sensitivemeta/`;
     
-    await axios.patch(endpoint, { 
+    await axiosInstance.patch(endpoint, { 
       sensitive_meta_id: meta.id,
       requires_validation: false,
       anonymization_status: 'validated_pending_anonymization'

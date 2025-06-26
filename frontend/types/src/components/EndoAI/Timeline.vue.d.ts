@@ -18,6 +18,7 @@ declare const _default: import("vue").DefineComponent<__VLS_Props, {}, {}, {}, {
     [x: `on${Capitalize<any>}`]: ((...args: any) => any) | undefined;
 }>, {}, {}, {}, {}, string, import("vue").ComponentProvideOptions, false, {
     timeline: HTMLDivElement;
+    segmentElements: HTMLDivElement[];
     waveformCanvas: HTMLCanvasElement;
 }, HTMLDivElement>;
 export default _default;
