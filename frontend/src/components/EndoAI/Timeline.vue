@@ -59,7 +59,6 @@
               :class="{ 
                 'active': segment.id === activeSegmentId,
                 'draft': segment.isDraft,
-                'dragging': segment.id === draggingSegmentId
               }"
               :style="{
                 left: getSegmentPosition(segment.start) + '%',
@@ -172,12 +171,7 @@ import {
   type LabelMeta 
 } from '@/stores/videoStore'
 import {
-  convertBackendSegmentToFrontend,
-  convertFrontendSegmentToBackend,
-  convertBackendSegmentsToFrontend,
-  createSegmentUpdatePayload,
   normalizeSegmentToCamelCase,
-  debugSegmentConversion,
 } from '@/utils/caseConversion'
 import { useToastStore } from '@/stores/toastStore'
 import { getRandomColor } from '@/utils/colorHelpers'
@@ -260,7 +254,6 @@ const zoomLevel = ref<number>(1)
 const isSelecting = ref<boolean>(false)
 const selectionStart = ref<number>(0)
 const selectionEnd = ref<number>(0)
-const isDragging = ref<boolean>(false)
 const labelOrder = ref<string[]>([])
 watch(
   () => props.segments,
@@ -275,10 +268,7 @@ watch(
 // Dragging and resizing state
 const draggingSegmentId = ref<string | number | null>(null)
 const resizingSegmentId = ref<string | number | null>(null)
-const resizeMode = ref<'start' | 'end' | ''>('')
-const dragStartX = ref<number>(0)
-const dragStartTime = ref<number>(0)
-const originalSegmentData = ref<OriginalSegmentData | null>(null)
+
 
 // Context menu
 const contextMenu = ref<ContextMenuState>({
@@ -349,7 +339,6 @@ const timeMarkers = computed((): TimeMarker[] => {
   return markers
 })
 
-// ✅ FIX: Use fps prop instead of ignoring it
 const currentFps = computed((): number => props.fps || 50)
 
 const toCanonical = (s: Segment): CanonicalSegment => {
@@ -478,22 +467,9 @@ const getSegmentWidth = (startTime: number, endTime: number): number => {
   return calculateSegmentWidth(startTime, endTime, duration.value)
 }
 
-const getLabelColor = (labelId: number | string | undefined): string => {
-  if (!labelId) return '#999'
-  const label = (props.labels || []).find((l: LabelMeta) => l.id === labelId)
-  return (label as any)?.color || '#999'
-}
 
-const getLabelName = (labelId: number | string | undefined): string => {
-  if (!labelId) {
-    return ''
-  }
-   
-   const label = (props.labels || []).find((l: LabelMeta) => l.id === labelId)
-  return (label as any)?.name || ''
-}
 
-// ✅ NEW: Composable for Pointer Events drag+resize
+// Composable for Pointer Events drag+resize
 interface DragResizeOptions {
   trackPx: () => number
   duration: () => number
@@ -508,14 +484,19 @@ function useDragResize(el: HTMLElement, opt: DragResizeOptions) {
   let startLeft = 0
   let startWidth = 0
 
+  let draftStart: number = 0
+  let draftEnd:number = 0
+
   const pxToTime = (px: number) => (px / opt.trackPx()) * opt.duration()
 
   function down(ev: PointerEvent) {
     ev.stopPropagation()
+
+    const handle = (ev.target as HTMLElement).closest('.resize-handle');
     
     // Decide what we're doing based on the handle clicked
-    if ((ev.target as HTMLElement).classList.contains('start-handle')) mode = 'start'
-    else if ((ev.target as HTMLElement).classList.contains('end-handle')) mode = 'end'
+    if (handle?.classList.contains('start-handle')) mode = 'start'
+    else if (handle?.classList.contains('end-handle')) mode = 'end'
     else mode = 'drag'
 
     pxStart = ev.clientX
@@ -537,28 +518,41 @@ function useDragResize(el: HTMLElement, opt: DragResizeOptions) {
         opt.trackPx() - startWidth
       )
       el.style.left = left + 'px'
-      opt.onMove(pxToTime(left), pxToTime(left + startWidth))
+      draftStart = left
+      draftEnd = left + startWidth
     }
 
     if (mode === 'start') {
-      let left = Math.max(0, Math.min(startLeft + dx, startLeft + startWidth - 10))
+      let left = Math.min(startLeft + dx, startLeft + startWidth - 10)
       let width = startWidth + (startLeft - left);
       el.style.left = left + 'px'
       el.style.width = width + 'px'
-      opt.onResize(pxToTime(left), pxToTime(left + width), 'start')
+      draftStart = left
+      draftEnd = left + width;
     }
 
     if (mode === 'end') {
       let width = Math.max(10, startWidth + dx)
       el.style.width = width + 'px'
-      opt.onResize(pxToTime(startLeft),
-                   pxToTime(startLeft) + pxToTime(width), 'end')
+      el.style.left = startLeft + 'px'
+      draftStart = startLeft
+      draftEnd = startLeft + width;
     }
   }
 
   function up(ev: PointerEvent) {
     if (!mode) return
-    move(ev) // Final emit with last coords
+    move(ev)
+    let s = draftStart
+    let e = draftEnd
+    
+    if (mode === 'drag') {
+      opt.onMove(pxToTime(s), pxToTime(e))
+    }
+    else {
+      // Emit final position for drag
+      opt.onResize(pxToTime(s), pxToTime(e), mode! as 'start' | 'end')
+    }
     mode = null
     el.releasePointerCapture(ev.pointerId)
     opt.onDone()
@@ -579,7 +573,6 @@ function useDragResize(el: HTMLElement, opt: DragResizeOptions) {
   }
 }
 
-// ✅ UPDATED: Initialize drag+resize for all segments
 const initializeDragResize = () => {
   // Cleanup previous listeners
   cleanupFunctions.value.forEach(cleanup => cleanup())
@@ -621,7 +614,7 @@ const initializeDragResize = () => {
           onDone: () => {
             const localSegment = displayedSegments.value.find(s => s.id === segment.id)
             if (localSegment) {
-              // ✅ Handle draft segments differently
+              // Handle draft segments differently
               if (typeof segment.id === 'string' && 
                   (segment.id === 'draft' || segment.id.startsWith('temp-'))) {
                 emit('segment-resize', segment.id, localSegment.start, localSegment.end, 'end', true)
@@ -845,7 +838,7 @@ onUnmounted(() => {
   document.removeEventListener('mouseup', onSelectionMouseUp)
 })
 
-// NEW: Helper to convert segmentId to numeric ID for API calls
+//  Helper to convert segmentId to numeric ID for API calls
 const getNumericSegmentId = (segmentId: string | number): number | null => {
   if (typeof segmentId === 'number') return segmentId
   
@@ -1211,12 +1204,6 @@ const getNumericSegmentId = (segmentId: string | number): number | null => {
   white-space: nowrap;
 }
 
-.segment.dragging {
-  z-index: 25;
-  transform: scaleY(1.1);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
-  cursor: grabbing;
-}
 
 .resize-handle {
   position: absolute;
@@ -1256,15 +1243,10 @@ const getNumericSegmentId = (segmentId: string | number): number | null => {
   font-size: 8px;
   color: rgba(255, 255, 255, 0.8);
   text-shadow: 0 1px 1px rgba(0, 0, 0, 0.5);
-  /* ✅ Prevent text selection on handles */
+  /* Prevent text selection on handles */
   pointer-events: none;
 }
 
-/* Visual feedback during resize */
-.segment.resizing {
-  z-index: 25;
-  box-shadow: 0 0 0 2px rgba(255, 193, 7, 0.5);
-}
 
 /* Improved segment selection */
 .segment.selected {
@@ -1272,7 +1254,7 @@ const getNumericSegmentId = (segmentId: string | number): number | null => {
   box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.2);
 }
 
-/* ✅ FIX: Proper CSS structure for segment rows */
+/* Proper CSS structure for segment rows */
 .segment-rows-container {
   display: flex;
   flex-direction: column;

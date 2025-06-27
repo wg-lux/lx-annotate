@@ -2,7 +2,7 @@ import { ref, computed, onMounted, onUnmounted, watch, nextTick, ref as vueRef }
 import { formatTime as formatTimeHelper, calculateSegmentWidth, calculateSegmentPosition } from '@/utils/timeHelpers';
 import { useVideoStore } from '@/stores/videoStore';
 import {} from '@/stores/videoStore';
-import { convertBackendSegmentToFrontend, convertFrontendSegmentToBackend, convertBackendSegmentsToFrontend, createSegmentUpdatePayload, normalizeSegmentToCamelCase, debugSegmentConversion, } from '@/utils/caseConversion';
+import { normalizeSegmentToCamelCase, } from '@/utils/caseConversion';
 import { useToastStore } from '@/stores/toastStore';
 import { getRandomColor } from '@/utils/colorHelpers';
 const toast = useToastStore();
@@ -19,7 +19,6 @@ const zoomLevel = ref(1);
 const isSelecting = ref(false);
 const selectionStart = ref(0);
 const selectionEnd = ref(0);
-const isDragging = ref(false);
 const labelOrder = ref([]);
 watch(() => props.segments, segs => {
     ;
@@ -31,10 +30,6 @@ watch(() => props.segments, segs => {
 // Dragging and resizing state
 const draggingSegmentId = ref(null);
 const resizingSegmentId = ref(null);
-const resizeMode = ref('');
-const dragStartX = ref(0);
-const dragStartTime = ref(0);
-const originalSegmentData = ref(null);
 // Context menu
 const contextMenu = ref({
     visible: false,
@@ -92,7 +87,6 @@ const timeMarkers = computed(() => {
     }
     return markers;
 });
-// ✅ FIX: Use fps prop instead of ignoring it
 const currentFps = computed(() => props.fps || 50);
 const toCanonical = (s) => {
     const n = normalizeSegmentToCamelCase(s);
@@ -201,31 +195,21 @@ const getSegmentPosition = (startTime) => {
 const getSegmentWidth = (startTime, endTime) => {
     return calculateSegmentWidth(startTime, endTime, duration.value);
 };
-const getLabelColor = (labelId) => {
-    if (!labelId)
-        return '#999';
-    const label = (props.labels || []).find((l) => l.id === labelId);
-    return label?.color || '#999';
-};
-const getLabelName = (labelId) => {
-    if (!labelId) {
-        return '';
-    }
-    const label = (props.labels || []).find((l) => l.id === labelId);
-    return label?.name || '';
-};
 function useDragResize(el, opt) {
     let mode = null;
     let pxStart = 0;
     let startLeft = 0;
     let startWidth = 0;
+    let draftStart = 0;
+    let draftEnd = 0;
     const pxToTime = (px) => (px / opt.trackPx()) * opt.duration();
     function down(ev) {
         ev.stopPropagation();
+        const handle = ev.target.closest('.resize-handle');
         // Decide what we're doing based on the handle clicked
-        if (ev.target.classList.contains('start-handle'))
+        if (handle?.classList.contains('start-handle'))
             mode = 'start';
-        else if (ev.target.classList.contains('end-handle'))
+        else if (handle?.classList.contains('end-handle'))
             mode = 'end';
         else
             mode = 'drag';
@@ -243,25 +227,38 @@ function useDragResize(el, opt) {
         if (mode === 'drag') {
             let left = Math.min(Math.max(0, startLeft + dx), opt.trackPx() - startWidth);
             el.style.left = left + 'px';
-            opt.onMove(pxToTime(left), pxToTime(left + startWidth));
+            draftStart = left;
+            draftEnd = left + startWidth;
         }
         if (mode === 'start') {
-            let left = Math.max(0, Math.min(startLeft + dx, startLeft + startWidth - 10));
+            let left = Math.min(startLeft + dx, startLeft + startWidth - 10);
             let width = startWidth + (startLeft - left);
             el.style.left = left + 'px';
             el.style.width = width + 'px';
-            opt.onResize(pxToTime(left), pxToTime(left + width), 'start');
+            draftStart = left;
+            draftEnd = left + width;
         }
         if (mode === 'end') {
             let width = Math.max(10, startWidth + dx);
             el.style.width = width + 'px';
-            opt.onResize(pxToTime(startLeft), pxToTime(startLeft) + pxToTime(width), 'end');
+            el.style.left = startLeft + 'px';
+            draftStart = startLeft;
+            draftEnd = startLeft + width;
         }
     }
     function up(ev) {
         if (!mode)
             return;
-        move(ev); // Final emit with last coords
+        move(ev);
+        let s = draftStart;
+        let e = draftEnd;
+        if (mode === 'drag') {
+            opt.onMove(pxToTime(s), pxToTime(e));
+        }
+        else {
+            // Emit final position for drag
+            opt.onResize(pxToTime(s), pxToTime(e), mode);
+        }
         mode = null;
         el.releasePointerCapture(ev.pointerId);
         opt.onDone();
@@ -279,7 +276,6 @@ function useDragResize(el, opt) {
         el.removeEventListener('pointercancel', up);
     };
 }
-// ✅ UPDATED: Initialize drag+resize for all segments
 const initializeDragResize = () => {
     // Cleanup previous listeners
     cleanupFunctions.value.forEach(cleanup => cleanup());
@@ -320,7 +316,7 @@ const initializeDragResize = () => {
                     onDone: () => {
                         const localSegment = displayedSegments.value.find(s => s.id === segment.id);
                         if (localSegment) {
-                            // ✅ Handle draft segments differently
+                            // Handle draft segments differently
                             if (typeof segment.id === 'string' &&
                                 (segment.id === 'draft' || segment.id.startsWith('temp-'))) {
                                 emit('segment-resize', segment.id, localSegment.start, localSegment.end, 'end', true);
@@ -510,7 +506,7 @@ onUnmounted(() => {
     document.removeEventListener('mousemove', onSelectionMouseMove);
     document.removeEventListener('mouseup', onSelectionMouseUp);
 });
-// NEW: Helper to convert segmentId to numeric ID for API calls
+//  Helper to convert segmentId to numeric ID for API calls
 const getNumericSegmentId = (segmentId) => {
     if (typeof segmentId === 'number')
         return segmentId;
@@ -536,7 +532,7 @@ function __VLS_template() {
     const __VLS_ctx = {};
     let __VLS_components;
     let __VLS_directives;
-    ['play-btn', 'play-btn', 'zoom-controls', 'zoom-controls', 'zoom-controls', 'segment-row', 'segment', 'segment', 'segment', 'context-menu-item', 'context-menu-item', 'context-menu-item', 'segment', 'resize-handle', 'segment', 'resize-handle', 'resize-handle', 'resize-handle', 'resize-handle', 'segment', 'segment', 'segment',];
+    ['play-btn', 'play-btn', 'zoom-controls', 'zoom-controls', 'zoom-controls', 'segment-row', 'segment', 'segment', 'segment', 'context-menu-item', 'context-menu-item', 'context-menu-item', 'resize-handle', 'segment', 'resize-handle', 'resize-handle', 'resize-handle', 'resize-handle', 'segment', 'segment',];
     // CSS variable injection 
     // CSS variable injection end 
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -639,7 +635,6 @@ function __VLS_template() {
                 ...{ class: (({
                         'active': segment.id === __VLS_ctx.activeSegmentId,
                         'draft': segment.isDraft,
-                        'dragging': segment.id === __VLS_ctx.draggingSegmentId
                     })) },
                 ...{ style: (({
                         left: __VLS_ctx.getSegmentPosition(segment.start) + '%',
@@ -768,7 +763,7 @@ function __VLS_template() {
         });
         (__VLS_ctx.tooltip.text);
     }
-    ['timeline-container', 'timeline-header', 'timeline-controls', 'play-btn', 'time-display', 'zoom-controls', 'fas', 'fa-search-minus', 'zoom-level', 'fas', 'fa-search-plus', 'timeline-wrapper', 'timeline', 'time-markers', 'time-marker', 'marker-line', 'marker-text', 'segments-container', 'segment-row', 'active', 'segment', 'active', 'draft', 'dragging', 'resize-handle', 'start-handle', 'fas', 'fa-grip-lines-vertical', 'segment-content', 'segment-label', 'segment-duration', 'resize-handle', 'end-handle', 'fas', 'fa-grip-lines-vertical', 'draft-indicator', 'fas', 'fa-edit', 'playhead', 'playhead-line', 'playhead-handle', 'selection-overlay', 'waveform-container', 'waveform-canvas', 'context-menu', 'context-menu-item', 'fas', 'fa-edit', 'context-menu-item', 'danger', 'fas', 'fa-trash', 'context-menu-separator', 'context-menu-item', 'fas', 'fa-play', 'timeline-tooltip',];
+    ['timeline-container', 'timeline-header', 'timeline-controls', 'play-btn', 'time-display', 'zoom-controls', 'fas', 'fa-search-minus', 'zoom-level', 'fas', 'fa-search-plus', 'timeline-wrapper', 'timeline', 'time-markers', 'time-marker', 'marker-line', 'marker-text', 'segments-container', 'segment-row', 'active', 'segment', 'active', 'draft', 'resize-handle', 'start-handle', 'fas', 'fa-grip-lines-vertical', 'segment-content', 'segment-label', 'segment-duration', 'resize-handle', 'end-handle', 'fas', 'fa-grip-lines-vertical', 'draft-indicator', 'fas', 'fa-edit', 'playhead', 'playhead-line', 'playhead-handle', 'selection-overlay', 'waveform-container', 'waveform-canvas', 'context-menu', 'context-menu-item', 'fas', 'fa-edit', 'context-menu-item', 'danger', 'fas', 'fa-trash', 'context-menu-separator', 'context-menu-item', 'fas', 'fa-play', 'timeline-tooltip',];
     var __VLS_slots;
     var $slots;
     let __VLS_inheritedAttrs;
@@ -798,7 +793,6 @@ const __VLS_self = (await import('vue')).defineComponent({
             isSelecting: isSelecting,
             selectionStart: selectionStart,
             selectionEnd: selectionEnd,
-            draggingSegmentId: draggingSegmentId,
             contextMenu: contextMenu,
             tooltip: tooltip,
             duration: duration,
