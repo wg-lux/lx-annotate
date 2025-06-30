@@ -23,20 +23,19 @@ export interface SensitiveMetaApiResponse {
   patient_first_name?: string;
   patient_last_name?: string;
   patient_dob?: string;
-  patient_gender?: string; // Beibehalten, falls später hinzugefügt
-  casenumber?: string | null; // Beibehalten, falls später hinzugefügt
-  examination_date?: string;
-}
-
-// Original SensitiveMeta (optional, falls benötigt für spezifische Operationen)
-export interface SensitiveMeta {
-  id: number;
-  patient_first_name?: string;
-  patient_last_name?: string;
-  patient_dob?: string;
   patient_gender?: string;
   casenumber?: string | null;
   examination_date?: string;
+}
+
+// Updated interface for PDF data from anony_text endpoint
+export interface PdfDataResponse {
+  id: number;
+  sensitive_meta_id: number;
+  text: string;
+  anonymized_text: string;
+  status?: string;
+  error?: boolean;
 }
 
 export interface PatientData {
@@ -44,7 +43,7 @@ export interface PatientData {
   sensitive_meta_id: number;
   text: string;
   anonymized_text: string;
-  report_meta?: SensitiveMetaApiResponse; // Verwende das genauere Interface
+  report_meta?: SensitiveMetaApiResponse;
   status?: string;
   error?: boolean;
 }
@@ -70,14 +69,17 @@ export const useAnonymizationStore = defineStore('anonymization', {
      *  und fügt beides zusammen. */
     async fetchNext(lastId?: number) {
       this.loading = true;
-      this.error   = null;
+      this.error = null;
 
       try {
-        /* 1) PDF-Datensatz -------------------------------------------- */
+        /* 1) PDF-Datensatz von anony_text endpoint -------------------- */
         const pdfUrl = lastId
-          ? a(`anony_text/?last_id=${lastId}`)
-          : a('anony_text/');
-        const { data: pdf } = await axiosInstance.get<Omit<PatientData, 'report_meta'>>(pdfUrl); // Omit report_meta initially
+          ? a(`pdf/anony_text/?last_id=${lastId}`)
+          : a('pdf/anony_text/');
+        
+        console.log(`Fetching PDF data from: ${pdfUrl}`);
+        const { data: pdf } = await axiosInstance.get<PdfDataResponse>(pdfUrl);
+        console.log('Received PDF data:', pdf);
 
         if (!pdf?.id) {
           this.$patch({ current: null });
@@ -89,7 +91,7 @@ export const useAnonymizationStore = defineStore('anonymization', {
         }
 
         /* 2) Sensitive-Meta nachladen ---------------------------------- */
-        const metaUrl = a(`sensitivemeta/?id=${pdf.sensitive_meta_id}`);
+        const metaUrl = a(`pdf/sensitivemeta/?id=${pdf.sensitive_meta_id}`);
         console.log(`Fetching sensitive meta from: ${metaUrl}`);
         const { data: metaResponse } = await axiosInstance.get<SensitiveMetaApiResponse>(metaUrl);
         console.log('Received sensitive meta response data:', metaResponse);
@@ -101,7 +103,10 @@ export const useAnonymizationStore = defineStore('anonymization', {
         }
 
         /* 3) Merge & State-Update -------------------------------------- */
-        const merged: PatientData = { ...pdf, report_meta: metaResponse };
+        const merged: PatientData = { 
+          ...pdf, 
+          report_meta: metaResponse 
+        };
         console.log('Merged data:', merged);
 
         this.$patch({
@@ -111,12 +116,11 @@ export const useAnonymizationStore = defineStore('anonymization', {
         return merged;
       } catch (err: any) {
         console.error('Error in fetchNext:', err);
-        // Detailliertere Fehlermeldung, falls Axios-Fehler
         if (axios.isAxiosError(err)) {
-            console.error('Axios error details:', err.response?.status, err.response?.data);
-            this.error = `Fehler beim Laden der Metadaten (${err.response?.status}): ${err.message}`;
+          console.error('Axios error details:', err.response?.status, err.response?.data);
+          this.error = `Fehler beim Laden der Metadaten (${err.response?.status}): ${err.message}`;
         } else {
-            this.error = err?.message ?? 'Unbekannter Fehler beim Laden.';
+          this.error = err?.message ?? 'Unbekannter Fehler beim Laden.';
         }
         this.$patch({ current: null });
         return null;
@@ -130,8 +134,8 @@ export const useAnonymizationStore = defineStore('anonymization', {
     /* ---------------------------------------------------------------- */
     async patchPdf(payload: Partial<PatientData>) {
       if (!payload.id) throw new Error('patchPdf: id fehlt im Payload.');
-      console.log('Patching PDF with payload:', payload); // Logge Payload
-      return axiosInstance.patch(a('update_anony_text/'), payload);
+      console.log('Patching PDF with payload:', payload);
+      return axiosInstance.patch(a('pdf/update_anony_text/'), payload);
     },
 
     async patchVideo(payload: any) {

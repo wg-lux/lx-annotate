@@ -319,6 +319,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
     patchSegmentLocally: (id: string | number, updates: Partial<Segment>) => void;
     updateSegment: (segmentId: string | number, updates: SegmentUpdatePayload) => Promise<boolean>;
     deleteSegment: (segmentId: string | number) => Promise<boolean>;
+    removeSegment: (segmentId: number) => void;
     saveAnnotations: () => Promise<void>;
     uploadRevert: (uniqueFileId: string, load: UploadLoadCallback, error: UploadErrorCallback) => void;
     uploadProcess: (fieldName: string, file: File, metadata: any, load: UploadLoadCallback, error: UploadErrorCallback) => void;
@@ -504,6 +505,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
     patchSegmentLocally: (id: string | number, updates: Partial<Segment>) => void;
     updateSegment: (segmentId: string | number, updates: SegmentUpdatePayload) => Promise<boolean>;
     deleteSegment: (segmentId: string | number) => Promise<boolean>;
+    removeSegment: (segmentId: number) => void;
     saveAnnotations: () => Promise<void>;
     uploadRevert: (uniqueFileId: string, load: UploadLoadCallback, error: UploadErrorCallback) => void;
     uploadProcess: (fieldName: string, file: File, metadata: any, load: UploadLoadCallback, error: UploadErrorCallback) => void;
@@ -689,6 +691,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
     patchSegmentLocally: (id: string | number, updates: Partial<Segment>) => void;
     updateSegment: (segmentId: string | number, updates: SegmentUpdatePayload) => Promise<boolean>;
     deleteSegment: (segmentId: string | number) => Promise<boolean>;
+    removeSegment: (segmentId: number) => void;
     saveAnnotations: () => Promise<void>;
     uploadRevert: (uniqueFileId: string, load: UploadLoadCallback, error: UploadErrorCallback) => void;
     uploadProcess: (fieldName: string, file: File, metadata: any, load: UploadLoadCallback, error: UploadErrorCallback) => void;
@@ -709,5 +712,5 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
     formatTime: (seconds: number) => string;
     getSegmentOptions: () => SegmentOption[];
     clearSegments: () => void;
-}, "clearVideo" | "setVideo" | "loadVideo" | "fetchVideoUrl" | "fetchAllSegments" | "fetchAllVideos" | "fetchVideoMeta" | "fetchVideoSegments" | "fetchSegmentsByLabel" | "createSegment" | "patchSegmentLocally" | "updateSegment" | "deleteSegment" | "saveAnnotations" | "uploadRevert" | "uploadProcess" | "getSegmentStyle" | "getColorForLabel" | "getTranslationForLabel" | "jumpToSegment" | "setActiveSegment" | "updateVideoStatus" | "assignUserToVideo" | "updateSensitiveMeta" | "clearVideoMeta" | "startDraft" | "updateDraftEnd" | "commitDraft" | "cancelDraft" | "createFiveSecondSegment" | "formatTime" | "getSegmentOptions" | "clearSegments">>;
+}, "clearVideo" | "setVideo" | "loadVideo" | "fetchVideoUrl" | "fetchAllSegments" | "fetchAllVideos" | "fetchVideoMeta" | "fetchVideoSegments" | "fetchSegmentsByLabel" | "createSegment" | "patchSegmentLocally" | "updateSegment" | "deleteSegment" | "removeSegment" | "saveAnnotations" | "uploadRevert" | "uploadProcess" | "getSegmentStyle" | "getColorForLabel" | "getTranslationForLabel" | "jumpToSegment" | "setActiveSegment" | "updateVideoStatus" | "assignUserToVideo" | "updateSensitiveMeta" | "clearVideoMeta" | "startDraft" | "updateDraftEnd" | "commitDraft" | "cancelDraft" | "createFiveSecondSegment" | "formatTime" | "getSegmentOptions" | "clearSegments">>;
 export type { Segment, VideoAnnotation, VideoMeta, LabelMeta, VideoList, DraftSegment, SegmentOption, SegmentStyle, VideoStatus, LabelKey, BackendFramePrediction };

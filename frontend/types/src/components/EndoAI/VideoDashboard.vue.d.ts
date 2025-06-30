@@ -185,6 +185,7 @@ declare const _default: import("vue").DefineComponent<{}, {}, {
         patchSegmentLocally: (id: string | number, updates: Partial<Segment>) => void;
         updateSegment: (segmentId: string | number, updates: import("@/stores/videoStore").SegmentUpdatePayload) => Promise<boolean>;
         deleteSegment: (segmentId: string | number) => Promise<boolean>;
+        removeSegment: (segmentId: number) => void;
         saveAnnotations: () => Promise<void>;
         uploadRevert: (uniqueFileId: string, load: (serverFileId?: string | undefined) => void, error: (message: string) => void) => void;
         uploadProcess: (fieldName: string, file: File, metadata: any, load: (serverFileId?: string | undefined) => void, error: (message: string) => void) => void;
@@ -370,6 +371,7 @@ declare const _default: import("vue").DefineComponent<{}, {}, {
         patchSegmentLocally: (id: string | number, updates: Partial<Segment>) => void;
         updateSegment: (segmentId: string | number, updates: import("@/stores/videoStore").SegmentUpdatePayload) => Promise<boolean>;
         deleteSegment: (segmentId: string | number) => Promise<boolean>;
+        removeSegment: (segmentId: number) => void;
         saveAnnotations: () => Promise<void>;
         uploadRevert: (uniqueFileId: string, load: (serverFileId?: string | undefined) => void, error: (message: string) => void) => void;
         uploadProcess: (fieldName: string, file: File, metadata: any, load: (serverFileId?: string | undefined) => void, error: (message: string) => void) => void;
@@ -555,6 +557,7 @@ declare const _default: import("vue").DefineComponent<{}, {}, {
         patchSegmentLocally: (id: string | number, updates: Partial<Segment>) => void;
         updateSegment: (segmentId: string | number, updates: import("@/stores/videoStore").SegmentUpdatePayload) => Promise<boolean>;
         deleteSegment: (segmentId: string | number) => Promise<boolean>;
+        removeSegment: (segmentId: number) => void;
         saveAnnotations: () => Promise<void>;
         uploadRevert: (uniqueFileId: string, load: (serverFileId?: string | undefined) => void, error: (message: string) => void) => void;
         uploadProcess: (fieldName: string, file: File, metadata: any, load: (serverFileId?: string | undefined) => void, error: (message: string) => void) => void;
@@ -575,7 +578,7 @@ declare const _default: import("vue").DefineComponent<{}, {}, {
         formatTime: (seconds: number) => string;
         getSegmentOptions: () => import("@/stores/videoStore").SegmentOption[];
         clearSegments: () => void;
-    }, "clearVideo" | "setVideo" | "loadVideo" | "fetchVideoUrl" | "fetchAllSegments" | "fetchAllVideos" | "fetchVideoMeta" | "fetchVideoSegments" | "fetchSegmentsByLabel" | "createSegment" | "patchSegmentLocally" | "updateSegment" | "deleteSegment" | "saveAnnotations" | "uploadRevert" | "uploadProcess" | "getSegmentStyle" | "getColorForLabel" | "getTranslationForLabel" | "jumpToSegment" | "setActiveSegment" | "updateVideoStatus" | "assignUserToVideo" | "updateSensitiveMeta" | "clearVideoMeta" | "startDraft" | "updateDraftEnd" | "commitDraft" | "cancelDraft" | "createFiveSecondSegment" | "formatTime" | "getSegmentOptions" | "clearSegments">>;
+    }, "clearVideo" | "setVideo" | "loadVideo" | "fetchVideoUrl" | "fetchAllSegments" | "fetchAllVideos" | "fetchVideoMeta" | "fetchVideoSegments" | "fetchSegmentsByLabel" | "createSegment" | "patchSegmentLocally" | "updateSegment" | "deleteSegment" | "removeSegment" | "saveAnnotations" | "uploadRevert" | "uploadProcess" | "getSegmentStyle" | "getColorForLabel" | "getTranslationForLabel" | "jumpToSegment" | "setActiveSegment" | "updateVideoStatus" | "assignUserToVideo" | "updateSensitiveMeta" | "clearVideoMeta" | "startDraft" | "updateDraftEnd" | "commitDraft" | "cancelDraft" | "createFiveSecondSegment" | "formatTime" | "getSegmentOptions" | "clearSegments">>;
     videoUrl(): string;
     currentVideo(): {
         readonly id: string | number;

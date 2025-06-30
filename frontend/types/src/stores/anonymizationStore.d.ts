@@ -17,14 +17,13 @@ export interface SensitiveMetaApiResponse {
     casenumber?: string | null;
     examination_date?: string;
 }
-export interface SensitiveMeta {
+export interface PdfDataResponse {
     id: number;
-    patient_first_name?: string;
-    patient_last_name?: string;
-    patient_dob?: string;
-    patient_gender?: string;
-    casenumber?: string | null;
-    examination_date?: string;
+    sensitive_meta_id: number;
+    text: string;
+    anonymized_text: string;
+    status?: string;
+    error?: boolean;
 }
 export interface PatientData {
     id: number;

@@ -23,11 +23,13 @@ export const useAnonymizationStore = defineStore('anonymization', {
             this.loading = true;
             this.error = null;
             try {
-                /* 1) PDF-Datensatz -------------------------------------------- */
+                /* 1) PDF-Datensatz von anony_text endpoint -------------------- */
                 const pdfUrl = lastId
-                    ? a(`anony_text/?last_id=${lastId}`)
-                    : a('anony_text/');
-                const { data: pdf } = await axiosInstance.get(pdfUrl); // Omit report_meta initially
+                    ? a(`pdf/anony_text/?last_id=${lastId}`)
+                    : a('pdf/anony_text/');
+                console.log(`Fetching PDF data from: ${pdfUrl}`);
+                const { data: pdf } = await axiosInstance.get(pdfUrl);
+                console.log('Received PDF data:', pdf);
                 if (!pdf?.id) {
                     this.$patch({ current: null });
                     throw new Error('Backend lieferte keinen gültigen PDF-Datensatz.');
@@ -37,7 +39,7 @@ export const useAnonymizationStore = defineStore('anonymization', {
                     throw new Error('Backend meldet Fehler-Flag im PDF-Datensatz.');
                 }
                 /* 2) Sensitive-Meta nachladen ---------------------------------- */
-                const metaUrl = a(`sensitivemeta/?id=${pdf.sensitive_meta_id}`);
+                const metaUrl = a(`pdf/sensitivemeta/?id=${pdf.sensitive_meta_id}`);
                 console.log(`Fetching sensitive meta from: ${metaUrl}`);
                 const { data: metaResponse } = await axiosInstance.get(metaUrl);
                 console.log('Received sensitive meta response data:', metaResponse);
@@ -47,7 +49,10 @@ export const useAnonymizationStore = defineStore('anonymization', {
                     throw new Error('Ungültige Metadaten vom Backend empfangen (keine gültige ID gefunden).');
                 }
                 /* 3) Merge & State-Update -------------------------------------- */
-                const merged = { ...pdf, report_meta: metaResponse };
+                const merged = {
+                    ...pdf,
+                    report_meta: metaResponse
+                };
                 console.log('Merged data:', merged);
                 this.$patch({
                     current: merged
@@ -56,7 +61,6 @@ export const useAnonymizationStore = defineStore('anonymization', {
             }
             catch (err) {
                 console.error('Error in fetchNext:', err);
-                // Detailliertere Fehlermeldung, falls Axios-Fehler
                 if (axios.isAxiosError(err)) {
                     console.error('Axios error details:', err.response?.status, err.response?.data);
                     this.error = `Fehler beim Laden der Metadaten (${err.response?.status}): ${err.message}`;
@@ -77,8 +81,8 @@ export const useAnonymizationStore = defineStore('anonymization', {
         async patchPdf(payload) {
             if (!payload.id)
                 throw new Error('patchPdf: id fehlt im Payload.');
-            console.log('Patching PDF with payload:', payload); // Logge Payload
-            return axiosInstance.patch(a('update_anony_text/'), payload);
+            console.log('Patching PDF with payload:', payload);
+            return axiosInstance.patch(a('pdf/update_anony_text/'), payload);
         },
         async patchVideo(payload) {
             return axiosInstance.patch(r('video/update_sensitivemeta/'), payload);

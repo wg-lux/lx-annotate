@@ -13,14 +13,14 @@ const mappedTimelineSegments = computed(() => rawSegments.value.map((s) => ({
     id: s.id,
     label: s.label,
     label_display: getTranslationForLabel(s.label),
-    name: getTranslationForLabel(s.label), // <‑‑ NEW ➜ shown inside pill
+    name: getTranslationForLabel(s.label),
     startTime: s.startTime ?? 0,
     endTime: s.endTime ?? 0,
     avgConfidence: s.avgConfidence ?? 1,
     video_id: selectedVideoId.value ?? undefined,
     label_id: s.labelID ?? undefined
 })));
-// ✅ FIX: Use spread operator to convert readonly array to mutable array
+// Use spread operator to convert readonly array to mutable array
 const timelineLabels = computed(() => {
     const storeLabels = videoStore.labels || [];
     return [...storeLabels]; // Convert readonly array to mutable array
@@ -118,16 +118,16 @@ const loadSavedExaminations = async () => {
 const onVideoChange = async () => {
     if (selectedVideoId.value !== null) {
         loadSavedExaminations();
-        // ✅ NEW: Load all segments for all labels as requested
+        // Load all segments for all labels
         try {
             // 1. Set current video in store FIRST
             await videoStore.loadVideo(selectedVideoId.value.toString());
             // 2. Wait for video metadata to load
             await loadVideoMetadata();
-            // 3. ✅ NEW: Fetch segments for ALL labels as specified in requirements
+            // 3. Fetch segments for ALL labels as specified in requirements
             console.log('Loading segments for all labels...');
             await Promise.all(videoStore.labels.map(l => videoStore.segmentsByLabel));
-            // 4. ✅ NEW: Show toast message when all segments are loaded
+            // 4. Show toast message when all segments are loaded
             toastStore.success({
                 text: `Alle Segmente für Video ${selectedVideoId.value} geladen`
             });
@@ -241,7 +241,7 @@ const handleSegmentResize = (segmentId, newStart, newEnd, mode, final) => {
     }
 };
 const handleSegmentMove = (segmentId, newStart, newEnd, final) => {
-    // ✅ NEW: Verbesserte Guard für Draft/Temp-Segmente (camelCase in finalen PATCH-Aufrufen)
+    // Verbesserte Guard für Draft/Temp-Segmente (camelCase in finalen PATCH-Aufrufen)
     if (typeof segmentId === 'string') {
         if (segmentId === 'draft' || /^temp-/.test(segmentId)) {
             console.warn('[VideoExamination] Ignoring move for draft/temp segment:', segmentId);
@@ -254,7 +254,6 @@ const handleSegmentMove = (segmentId, newStart, newEnd, final) => {
         return;
     }
     if (final) {
-        // ✅ NEW: Sofortige Previews + Speichern bei Mouse-Up
         videoStore.patchSegmentLocally(numericId, { startTime: newStart, endTime: newEnd });
         videoStore.updateSegment(numericId, { startTime: newStart, endTime: newEnd });
         console.log(`✅ Segment ${numericId} moved and saved: ${formatTime(newStart)} - ${formatTime(newEnd)}`);
@@ -279,6 +278,27 @@ const handleCreateSegment = async (event) => {
     if (selectedVideoId.value) {
         // FIX: Use the correct method signature from videoStore
         await videoStore.createSegment?.(selectedVideoId.value.toString(), event.label, event.start, event.end);
+    }
+};
+const handleSegmentDelete = async (segment) => {
+    if (!segment.id || typeof segment.id !== 'number') {
+        console.warn('Cannot delete draft or temporary segment:', segment.id);
+        return;
+    }
+    try {
+        // 1. Remove from store
+        videoStore.removeSegment(segment.id);
+        // 2. Perform API call
+        await videoStore.deleteSegment(segment.id);
+        toastStore.success({
+            text: `Segment gelöscht: ${getTranslationForLabel(segment.label)}`
+        });
+    }
+    catch (err) {
+        console.error('Segment konnte nicht gelöscht werden:', err);
+        toastStore.error({
+            text: 'Fehler beim Löschen des Segments'
+        });
     }
 };
 const seekToTime = (time) => {
@@ -518,6 +538,7 @@ function __VLS_template() {
             ...{ 'onSegmentMove': {} },
             ...{ 'onSegmentCreate': {} },
             ...{ 'onTimeSelection': {} },
+            ...{ 'onDeleteSegment': {} },
             video: (({ duration: __VLS_ctx.duration })),
             segments: ((__VLS_ctx.mappedTimelineSegments)),
             labels: ((__VLS_ctx.timelineLabels)),
@@ -534,6 +555,7 @@ function __VLS_template() {
             ...{ 'onSegmentMove': {} },
             ...{ 'onSegmentCreate': {} },
             ...{ 'onTimeSelection': {} },
+            ...{ 'onDeleteSegment': {} },
             video: (({ duration: __VLS_ctx.duration })),
             segments: ((__VLS_ctx.mappedTimelineSegments)),
             labels: ((__VLS_ctx.timelineLabels)),
@@ -559,6 +581,9 @@ function __VLS_template() {
         };
         const __VLS_10 = {
             onTimeSelection: (__VLS_ctx.handleTimeSelection)
+        };
+        const __VLS_11 = {
+            onDeleteSegment: (__VLS_ctx.handleSegmentDelete)
         };
         let __VLS_2;
         let __VLS_3;
@@ -736,23 +761,23 @@ function __VLS_template() {
         // @ts-ignore
         /** @type { [typeof SimpleExaminationForm, ] } */ ;
         // @ts-ignore
-        const __VLS_11 = __VLS_asFunctionalComponent(SimpleExaminationForm, new SimpleExaminationForm({
+        const __VLS_12 = __VLS_asFunctionalComponent(SimpleExaminationForm, new SimpleExaminationForm({
             ...{ 'onExaminationSaved': {} },
             videoTimestamp: ((__VLS_ctx.currentTime)),
             videoId: ((__VLS_ctx.selectedVideoId)),
         }));
-        const __VLS_12 = __VLS_11({
+        const __VLS_13 = __VLS_12({
             ...{ 'onExaminationSaved': {} },
             videoTimestamp: ((__VLS_ctx.currentTime)),
             videoId: ((__VLS_ctx.selectedVideoId)),
-        }, ...__VLS_functionalComponentArgsRest(__VLS_11));
-        let __VLS_16;
-        const __VLS_17 = {
+        }, ...__VLS_functionalComponentArgsRest(__VLS_12));
+        let __VLS_17;
+        const __VLS_18 = {
             onExaminationSaved: (__VLS_ctx.onExaminationSaved)
         };
-        let __VLS_13;
         let __VLS_14;
-        var __VLS_15;
+        let __VLS_15;
+        var __VLS_16;
     }
     else {
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -875,6 +900,7 @@ const __VLS_self = (await import('vue')).defineComponent({
             handleSegmentMove: handleSegmentMove,
             handleTimeSelection: handleTimeSelection,
             handleCreateSegment: handleCreateSegment,
+            handleSegmentDelete: handleSegmentDelete,
             onLabelSelect: onLabelSelect,
             startLabelMarking: startLabelMarking,
             finishLabelMarking: finishLabelMarking,

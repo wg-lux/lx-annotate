@@ -83,6 +83,12 @@
                 <span class="segment-duration">{{ formatDuration(segment.start, segment.end) }}</span>
               </div>
 
+            <div
+            class="segment-delete-btn"
+            @click.stop="deleteSegment(segment)"
+            :title="'Segment löschen'"
+            >X</div>
+
               <!-- End resize handle -->
               <div 
                 class="resize-handle end-handle"
@@ -468,7 +474,6 @@ const getSegmentWidth = (startTime: number, endTime: number): number => {
 }
 
 
-
 // Composable for Pointer Events drag+resize
 interface DragResizeOptions {
   trackPx: () => number
@@ -651,7 +656,6 @@ const zoomOut = (): void => {
 const playPause = (): void => {
   emit('play-pause')
 }
-
 
 const editSegment = (segment: Segment | null): void => {
   if (!segment) return
@@ -1264,5 +1268,23 @@ const getNumericSegmentId = (segmentId: string | number): number | null => {
 .segment {
   height: auto;
   min-height: 40px;
+}
+
+.segment-delete-btn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  padding: 1px;
+  background-color: rgba(255, 0, 0, 0.8);
+  border: white 1px solid;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
 }
 </style>

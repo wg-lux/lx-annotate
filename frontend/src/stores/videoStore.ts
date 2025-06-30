@@ -1030,6 +1030,17 @@ export const useVideoStore = defineStore('video', () => {
         }
     }
 
+    function removeSegment(segmentId: number) {
+        const labels = Object.keys(segmentsByLabel)
+      
+        for (const label of labels) {
+          segmentsByLabel[label] = segmentsByLabel[label].filter(
+            s => s.id !== segmentId
+          )
+        }
+      }
+      
+
     // ===================================================================
     // DRAFT SEGMENT MANAGEMENT
     // ===================================================================
@@ -1081,7 +1092,7 @@ export const useVideoStore = defineStore('video', () => {
         }
         
         try {
-            // ✅ FIX: Get correct label ID from the store
+            // Get correct label ID from the store
             const labelMeta = videoList.value.labels.find(l => l.name === draft.label)
             if (!labelMeta) {
                 console.error(`[Draft] Label ${draft.label} not found in store`)
@@ -1090,12 +1101,12 @@ export const useVideoStore = defineStore('video', () => {
                 return null
             }
             
-            // ✅ FIX: Calculate frame numbers correctly
+            // Calculate frame numbers correctly
             const fps = videoMeta.value?.fps || 30
             const startFrame = Math.floor(draft.startTime * fps)
             const endFrame = Math.floor(draft.endTime * fps)
             
-            // ✅ FIX: Use correct backend API format
+            // Use correct backend API format
             const payload = {
                 video_file: parseInt(currentVideo.value.id.toString()),
                 label: labelMeta.id,  // Use label ID, not name
@@ -1137,7 +1148,7 @@ export const useVideoStore = defineStore('video', () => {
             segmentsByLabel[label].push(newSegment)
             console.log('[Draft] Added segment to segmentsByLabel[' + label + '], new count:', segmentsByLabel[label].length)
             
-            // ✅ FIX: Clear draft AFTER successful creation
+            // Clear draft AFTER successful creation
             const draftInfo = { ...draftSegment.value }
             draftSegment.value = null
             console.log('[Draft] Draft erfolgreich committed und gecleared:', draftInfo, '-> New segment:', newSegment)
@@ -1180,7 +1191,7 @@ export const useVideoStore = defineStore('video', () => {
     async function loadVideo(videoId: string): Promise<void> {
         console.log(`[VideoStore] loadVideo called with ID: ${videoId}`)
         try {
-            // ✅ FIX: First create basic video object to ensure currentVideo exists
+            // First create basic video object to ensure currentVideo exists
             currentVideo.value = {
                 id: videoId,
                 isAnnotated: false,
@@ -1267,17 +1278,18 @@ export const useVideoStore = defineStore('video', () => {
         // Actions
         clearVideo,
         setVideo,
-        loadVideo,  // ✅ FIX: Added missing loadVideo export
+        loadVideo,  // Added missing loadVideo export
         fetchVideoUrl,
         fetchAllSegments,
         fetchAllVideos,
         fetchVideoMeta,
         fetchVideoSegments,
-        fetchSegmentsByLabel, // ✅ FIX: Added missing export
+        fetchSegmentsByLabel, // Added missing export
         createSegment,
-        patchSegmentLocally,  // ✅ NEW: Pure frontend mutator for live previews
+        patchSegmentLocally,  // Pure frontend mutator for live previews
         updateSegment: updateSegmentAPI,
         deleteSegment,
+        removeSegment,
         saveAnnotations,
         uploadRevert,
         uploadProcess,

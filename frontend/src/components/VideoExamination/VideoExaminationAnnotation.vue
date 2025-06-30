@@ -74,6 +74,7 @@
                 @segment-move="handleSegmentMove"
                 @segment-create="handleCreateSegment"
                 @time-selection="handleTimeSelection"
+                @delete-segment="handleSegmentDelete"
               />
               
               <!-- Simple progress bar as fallback -->
@@ -144,7 +145,8 @@
                     @click="finishLabelMarking" 
                     class="btn btn-warning btn-sm control-button"
                   >
-                    <i class="material-icons">stop</i>
+                }
+                <i class="material-icons">stop</i>
                     Label-Ende setzen
                   </button>
 
@@ -310,7 +312,7 @@ const mappedTimelineSegments = computed<Segment[]>(() =>
     id: s.id,
     label: s.label,
     label_display: getTranslationForLabel(s.label),
-    name: getTranslationForLabel(s.label),   // <‑‑ NEW ➜ shown inside pill
+    name: getTranslationForLabel(s.label),
     startTime: s.startTime ?? 0,
     endTime: s.endTime ?? 0,
     avgConfidence: s.avgConfidence ?? 1,
@@ -319,12 +321,11 @@ const mappedTimelineSegments = computed<Segment[]>(() =>
   }))
 )
 
-// ✅ FIX: Use spread operator to convert readonly array to mutable array
+// Use spread operator to convert readonly array to mutable array
 const timelineLabels = computed(() => {
   const storeLabels = videoStore.labels || []
   return [...storeLabels] // Convert readonly array to mutable array
 })
-
 
 
 // Reactive data
@@ -435,7 +436,7 @@ const onVideoChange = async (): Promise<void> => {
   if (selectedVideoId.value !== null) {
     loadSavedExaminations()
     
-    // ✅ NEW: Load all segments for all labels as requested
+    // Load all segments for all labels
     try {
       // 1. Set current video in store FIRST
       await videoStore.loadVideo(selectedVideoId.value.toString())
@@ -443,13 +444,13 @@ const onVideoChange = async (): Promise<void> => {
       // 2. Wait for video metadata to load
       await loadVideoMetadata()
       
-      // 3. ✅ NEW: Fetch segments for ALL labels as specified in requirements
+      // 3. Fetch segments for ALL labels as specified in requirements
       console.log('Loading segments for all labels...')
       await Promise.all(
         videoStore.labels.map(l => videoStore.segmentsByLabel)
       )
       
-      // 4. ✅ NEW: Show toast message when all segments are loaded
+      // 4. Show toast message when all segments are loaded
       toastStore.success({
         text: `Alle Segmente für Video ${selectedVideoId.value} geladen`
       })
@@ -576,7 +577,7 @@ const handleSegmentResize = (segmentId: string | number, newStart: number, newEn
 }
 
 const handleSegmentMove = (segmentId: string | number, newStart: number, newEnd: number, final?: boolean): void => {
-  // ✅ NEW: Verbesserte Guard für Draft/Temp-Segmente (camelCase in finalen PATCH-Aufrufen)
+  // Verbesserte Guard für Draft/Temp-Segmente (camelCase in finalen PATCH-Aufrufen)
   if (typeof segmentId === 'string') {
     if (segmentId === 'draft' || /^temp-/.test(segmentId)) {
       console.warn('[VideoExamination] Ignoring move for draft/temp segment:', segmentId)
@@ -592,7 +593,6 @@ const handleSegmentMove = (segmentId: string | number, newStart: number, newEnd:
   }
   
   if (final) {
-    // ✅ NEW: Sofortige Previews + Speichern bei Mouse-Up
     videoStore.patchSegmentLocally(numericId, { startTime: newStart, endTime: newEnd })
     videoStore.updateSegment(numericId, { startTime: newStart, endTime: newEnd })
     console.log(`✅ Segment ${numericId} moved and saved: ${formatTime(newStart)} - ${formatTime(newEnd)}`)
@@ -625,6 +625,31 @@ const handleCreateSegment = async (event: CreateSegmentEvent): Promise<void> => 
     )
   }
 }
+
+const handleSegmentDelete = async (segment: Segment): Promise<void> => {
+  if (!segment.id || typeof segment.id !== 'number') {
+    console.warn('Cannot delete draft or temporary segment:', segment.id)
+    return
+  }
+
+  try {
+    // 1. Remove from store
+    videoStore.removeSegment(segment.id)
+
+    // 2. Perform API call
+    await videoStore.deleteSegment(segment.id)
+
+    toastStore.success({
+      text: `Segment gelöscht: ${getTranslationForLabel(segment.label)}`
+    })
+  } catch (err) {
+    console.error('Segment konnte nicht gelöscht werden:', err)
+    toastStore.error({
+      text: 'Fehler beim Löschen des Segments'
+    })
+  }
+}
+
 
 const seekToTime = (time: number): void => {
   if (videoRef.value && time >= 0 && time <= duration.value) {
