@@ -21,6 +21,15 @@
           Alle Anonymisierungen wurden bearbeitet.
         </div>
 
+        <!-- File Upload Zone - shown when no current item and no successful upload yet -->
+        <div v-if="!currentItem && !hasSuccessfulUpload" class="mb-4">
+          <FileDropZone 
+            :is-uploading="isUploading"
+            @files-selected="handleFilesSelected"
+            accepted-file-types="*"
+          />
+        </div>
+
         <!-- Main Content When Data is Available -->
         <template v-else>
           <div class="row mb-4">
@@ -170,15 +179,20 @@
   </div>
 </template>
 
-<script lang="ts">
-import { ref, computed, reactive, onMounted, watch } from 'vue';
+<script setup lang="ts">
+import { ref, computed, watch, onMounted } from 'vue';
 import { useAnonymizationStore, type PatientData } from '@/stores/anonymizationStore';
+// @ts-ignore
 import vueFilePond from 'vue-filepond';
 import axiosInstance, { r } from '@/api/axiosInstance';
+// @ts-ignore
 import { setOptions, registerPlugin } from 'filepond';
+import FileDropZone from '@/components/common/FileDropZone.vue';
 
-import FilePondPluginImagePreview        from 'filepond-plugin-image-preview';
-import FilePondPluginFileValidateType    from 'filepond-plugin-file-validate-type';
+// @ts-ignore
+import FilePondPluginImagePreview from 'filepond-plugin-image-preview';
+// @ts-ignore
+import FilePondPluginFileValidateType from 'filepond-plugin-file-validate-type';
 
 registerPlugin(
   FilePondPluginImagePreview,
@@ -190,205 +204,246 @@ const FilePond = vueFilePond(
   FilePondPluginFileValidateType
 );
 
-export default {
-  name: 'AnonymizationValidationComponent',
-  components: { FilePond },
-  setup() {
-    const store = useAnonymizationStore();
+interface FilePondInstance {
+  removeFiles(): void;
+}
 
-    // Lokaler State
-    const editedAnonymizedText = ref('');
-    const examinationDate = ref('');
-    const editedPatient = reactive({
-      patient_first_name: '',
-      patient_last_name: '',
-      patient_gender: '',
-      patient_dob: '',
-      casenumber: ''
-    });
+// Store reference
+const store = useAnonymizationStore();
 
-    // Computed Property für das aktuelle Element
-    const currentItem = computed(() => store.current);
+// Local state
+const editedAnonymizedText = ref('');
+const examinationDate = ref('');
+const editedPatient = ref({
+  patient_first_name: '',
+  patient_last_name: '',
+  patient_gender: '',
+  patient_dob: '',
+  casenumber: ''
+});
 
-    // Einmalige Definition der Upload-bezogenen Refs
-    const originalUrl = ref('');
-    const processedUrl = ref('');
-    const showOriginal = ref(false);
-    const pond = ref<any>(null);
+// Upload-related state
+const originalUrl = ref('');
+const processedUrl = ref('');
+const showOriginal = ref(false);
+const isUploading = ref(false);
+const hasSuccessfulUpload = ref(false);
 
-    // FilePond global konfigurieren – nachdem die Refs existieren
-    setOptions({
-      allowRevert: true,
-      chunkUploads: true,
-      maxParallelUploads: 3,
-      server: {
-        process(field, file, metadata, load, error, progress) {
-          const fd = new FormData();
-          fd.append(field, file);
-          axiosInstance.post(r('upload-image/'), fd, {
-            onUploadProgress: e => progress(true, e.loaded ?? 0, e.total ?? 0)
-          })
-          .then(({ data }) => {
-            originalUrl.value  = data.original_image_url;
-            processedUrl.value = data.processed_image_url;
+// Dirty tracking
+const dirty = ref(false);
+
+// Template refs
+const pond = ref<FilePondInstance>();
+
+// Computed
+const currentItem = computed(() => store.current);
+
+const isExaminationDateValid = computed(() => {
+  if (!examinationDate.value || !editedPatient.value.patient_dob) {
+    return true;
+  }
+  return new Date(examinationDate.value) >= new Date(editedPatient.value.patient_dob);
+});
+
+const canSubmit = computed(() => {
+  return processedUrl.value && originalUrl.value && isExaminationDateValid.value;
+});
+
+// Watch
+watch(currentItem, (newItem: PatientData | null) => {
+  if (newItem) {
+    loadCurrentItemData(newItem);
+  }
+}, { immediate: true });
+
+watch(editedAnonymizedText, () => {
+  dirty.value = true;
+});
+
+watch(examinationDate, () => {
+  dirty.value = true;
+});
+
+watch(editedPatient, () => {
+  dirty.value = true;
+}, { deep: true });
+
+// Methods
+const setupFilePond = () => {
+  setOptions({
+    allowRevert: true,
+    chunkUploads: true,
+    maxParallelUploads: 3,
+    server: {
+      process: (
+        fieldName: any,
+        file: any,
+        metadata: any,
+        load: any,
+        error: any,
+        progress: any,
+        abort: any
+      ) => {
+        const fd = new FormData();
+        fd.append(fieldName, file);
+        
+        axiosInstance.post(r('upload-image/'), fd, {
+          onUploadProgress: e => {
+            if (progress) {
+              progress(true, e.loaded ?? 0, e.total ?? 0);
+            }
+          }
+        })
+        .then(({ data }) => {
+          originalUrl.value = data.original_image_url;
+          processedUrl.value = data.processed_image_url;
+          if (load) {
             load(data.upload_id);
-          })
-          .catch(err => error(err.message));
-        },
-        revert(id, load) {
-          axiosInstance.delete(r(`upload-image/${id}/`)).finally(load);
-        }
-      }
-    });
-
-    // Fehlende Funktionen und Props
-    const toggleImage = () => { showOriginal.value = !showOriginal.value };
-
-    // Beispiel: Annotation speichern (hier einfach als Platzhalter)
-    const saveAnnotation = async () => {
-      console.log('Annotation gespeichert');
-    };
-
-    // Berechnung, ob das Formular absendbar ist
-    const canSubmit = computed(() => {
-      return editedAnonymizedText.value.trim() !== '' && isExaminationDateValid.value;
-    });
-
-    // Dirty state: prüfen, ob ein Feld geändert wurde
-    const dirty = computed(() => {
-        if (!currentItem.value) return false;
-        const meta = currentItem.value.report_meta;
-        return editedAnonymizedText.value !== (currentItem.value.anonymized_text ?? '') ||
-               editedPatient.patient_first_name !== (meta?.patient_first_name ?? '') ||
-               editedPatient.patient_last_name !== (meta?.patient_last_name ?? '') ||
-               editedPatient.patient_gender !== (meta?.patient_gender ?? '') ||
-               editedPatient.patient_dob !== (meta?.patient_dob?.split(/[ T]/)[0] ?? '') ||
-               editedPatient.casenumber !== (meta?.casenumber ?? '') ||
-               examinationDate.value !== (meta?.examination_date?.split(/[ T]/)[0] ?? '');
-    });
-
-    // Funktion zum Befüllen der Formularfelder
-    const populateForm = (item: PatientData | null) => {
-      console.log('Populating form with item:', item);
-      if (!item?.report_meta) {
-         console.log('No item or report_meta found, clearing form.');
-         editedAnonymizedText.value = '';
-         editedPatient.patient_first_name = '';
-         editedPatient.patient_last_name = '';
-         editedPatient.patient_gender = '';
-         editedPatient.patient_dob = '';
-         editedPatient.casenumber = '';
-         examinationDate.value = '';
-         return;
-      }
-
-      const m = item.report_meta;
-      editedAnonymizedText.value = item.anonymized_text ?? '';
-      editedPatient.patient_first_name = m.patient_first_name ?? '';
-      editedPatient.patient_last_name  = m.patient_last_name  ?? '';
-      editedPatient.patient_gender     = m.patient_gender     ?? '';
-      editedPatient.patient_dob        = m.patient_dob?.split(/[ T]/)[0] ?? '';
-      editedPatient.casenumber         = m.casenumber         ?? '';
-      examinationDate.value            = m.examination_date?.split(/[ T]/)[0] ?? '';
-      console.log('Form populated:', {
-          text: editedAnonymizedText.value,
-          patient: { ...editedPatient },
-          examDate: examinationDate.value
-      });
-    };
-
-    // Watcher für currentItem
-    watch(currentItem, (newItem, oldItem) => {
-      if (newItem?.id !== oldItem?.id || (!newItem && oldItem)) {
-          console.log('currentItem changed detected, calling populateForm.');
-          populateForm(newItem);
-      } else {
-          console.log('currentItem watcher triggered, but no relevant change detected.');
-      }
-    }, { immediate: true });
-
-    // Laden der Daten über den Store
-    const loadData = async () => {
-      console.log('loadData called. Current item ID before fetch:', currentItem.value?.id);
-      await store.fetchNext();
-      console.log('loadData finished fetchNext. Current item ID after fetch:', store.current?.id);
-    };
-
-    // Approve flow: nutzt patchPdf vom Store
-    const approveItem = async () => {
-      if (!isExaminationDateValid.value || !currentItem.value || !currentItem.value.report_meta) return;
-      try {
-        const reportMetaDataToSend: any = {
-             id: currentItem.value.report_meta.id,
-             patient_first_name: editedPatient.patient_first_name,
-             patient_last_name: editedPatient.patient_last_name,
-             patient_gender: editedPatient.patient_gender,
-             patient_dob: editedPatient.patient_dob,
-             casenumber: editedPatient.casenumber,
-             examination_date: examinationDate.value
+          }
+          hasSuccessfulUpload.value = true;
+        })
+        .catch(err => {
+          if (error) {
+            error(err.message);
+          }
+        });
+        
+        // Return abort function for FilePond to cancel requests if needed
+        return {
+          abort: () => {
+            if (abort) {
+              abort();
+            }
+          }
         };
-
-        await store.patchPdf({
-          id: currentItem.value.id,
-          anonymized_text: editedAnonymizedText.value,
-          status: 'approved',
-          report_meta: reportMetaDataToSend
+      },
+      revert: (id: any, load: any) => {
+        axiosInstance.delete(r(`upload-image/${id}/`)).finally(() => {
+          if (load) {
+            load();
+          }
         });
-        await loadData();
-      } catch (err: any) {
-        store.error = err.message ?? 'Fehler beim Bestätigen';
       }
-    };
+    }
+  });
+};
 
-    const rejectItem = async () => {
-       if (!currentItem.value) return;
-      try {
-        await store.patchPdf({
-          id: currentItem.value.id,
-          status: 'rejected'
-        });
-        await loadData();
-      } catch (err: any) {
-         store.error = err.message ?? 'Fehler beim Ablehnen';
-      }
-    };
-
-    const skipItem = async () => {
-      await loadData();
-    };
-
-    const isExaminationDateValid = computed(() => {
-      if (!examinationDate.value || !editedPatient.patient_dob) return true;
-      return new Date(examinationDate.value) >= new Date(editedPatient.patient_dob);
-    });
-
-    // Prepopulate form fields on component mount
-    onMounted(() => {
-      console.log('Component mounted, calling initial loadData.');
-      loadData();
-    });
-
-    return {
-      store,
-      currentItem,
-      editedAnonymizedText,
-      editedPatient,
-      examinationDate,
-      isExaminationDateValid,
-      dirty,
-      approveItem,
-      rejectItem,
-      skipItem,
-      showOriginal,
-      originalUrl,
-      processedUrl,
-      toggleImage,
-      saveAnnotation,
-      canSubmit,
-      pond,
-    };
+const fetchNextItem = async () => {
+  try {
+    await store.fetchNext();
+  } catch (error) {
+    console.error('Error fetching next item:', error);
   }
 };
+
+const loadCurrentItemData = (item: PatientData) => {
+  if (!item) return;
+  
+  editedAnonymizedText.value = item.anonymized_text || '';
+  examinationDate.value = item.report_meta?.examination_date || '';
+  
+  if (item.report_meta) {
+    editedPatient.value.patient_first_name = item.report_meta.patient_first_name || '';
+    editedPatient.value.patient_last_name = item.report_meta.patient_last_name || '';
+    editedPatient.value.patient_gender = item.report_meta.patient_gender || '';
+    editedPatient.value.patient_dob = item.report_meta.patient_dob || '';
+    editedPatient.value.casenumber = item.report_meta.casenumber || '';
+  }
+  
+  dirty.value = false;
+};
+
+const toggleImage = () => {
+  showOriginal.value = !showOriginal.value;
+};
+
+const saveAnnotation = async () => {
+  if (!canSubmit.value) return;
+  
+  try {
+    const annotationData = {
+      original_image_url: originalUrl.value,
+      processed_image_url: processedUrl.value,
+      patient_data: editedPatient.value,
+      examination_date: examinationDate.value,
+      anonymized_text: editedAnonymizedText.value
+    };
+    
+    await axiosInstance.post(r('save-annotation/'), annotationData);
+    
+    // Reset upload state
+    originalUrl.value = '';
+    processedUrl.value = '';
+    hasSuccessfulUpload.value = false;
+    if (pond.value) {
+      pond.value.removeFiles();
+    }
+    
+    console.log('Annotation saved successfully');
+  } catch (error) {
+    console.error('Error saving annotation:', error);
+  }
+};
+
+const handleFilesSelected = async (files: File[]) => {
+  isUploading.value = true;
+  
+  try {
+    const fileList = new DataTransfer();
+    files.forEach(file => fileList.items.add(file));
+    
+    const result = await store.uploadAndFetch(fileList.files);
+    if (result) {
+      hasSuccessfulUpload.value = true;
+    }
+  } catch (error) {
+    console.error('Error uploading files:', error);
+  } finally {
+    isUploading.value = false;
+  }
+};
+
+const skipItem = async () => {
+  if (currentItem.value) {
+    await fetchNextItem();
+    dirty.value = false;
+  }
+};
+
+const approveItem = async () => {
+  if (!currentItem.value || !isExaminationDateValid.value) return;
+  
+  try {
+    const updatedData: Partial<PatientData> = {
+      id: currentItem.value.id,
+      anonymized_text: editedAnonymizedText.value,
+      report_meta: {
+        ...currentItem.value.report_meta!,
+        ...editedPatient.value,
+        examination_date: examinationDate.value
+      }
+    };
+    
+    await store.patchPdf(updatedData);
+    await fetchNextItem();
+    dirty.value = false;
+  } catch (error) {
+    console.error('Error approving item:', error);
+  }
+};
+
+const rejectItem = async () => {
+  if (currentItem.value) {
+    await fetchNextItem();
+    dirty.value = false;
+  }
+};
+
+// Lifecycle
+onMounted(() => {
+  setupFilePond();
+  fetchNextItem();
+});
 </script>
 
 <style scoped>
@@ -404,13 +459,11 @@ pre {
   overflow-y: auto;
 }
 
-
 .form-control:focus, .form-select:focus {
   border-color: #80bdff;
   box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
 }
 
-/* Optional: Style for the PDF container if needed */
 .pdf-viewer-container {
   height: 850px;
   overflow: hidden;

@@ -102,20 +102,10 @@ interface Segment {
     avgConfidence: number
     videoID?: number
     labelID?: number
-
-    // ✅ NEW: For API compatibility
     label_name?: string
-
-    // ✅ NEW: Backend frame data (stored but not used in UI initially)
     frames?: Record<string, BackendFrame>
-
-    // ✅ NEW: Draft status
     isDraft?: boolean
-
-    // ✅ NEW: Color for UI representation
     color?: string
-
-    // ✅ NEW: Additional frontend properties
     startFrameNumber?: number
     endFrameNumber?: number
     usingFPS?: boolean

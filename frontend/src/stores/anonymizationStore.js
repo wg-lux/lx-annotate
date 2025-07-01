@@ -2,6 +2,7 @@
 import { defineStore } from 'pinia';
 import axiosInstance, { a, r } from '@/api/axiosInstance';
 import axios from 'axios';
+import { uploadFiles, pollUploadStatus } from '@/api/upload';
 /* ------------------------------------------------------------------ */
 /* Store                                                               */
 /* ------------------------------------------------------------------ */
@@ -89,6 +90,51 @@ export const useAnonymizationStore = defineStore('anonymization', {
         },
         fetchPendingAnonymizations() {
             return this.pending;
-        }
+        },
+        /**
+         * Upload files and fetch the resulting anonymization data
+         * @param fileList - FileList containing files to upload
+         * @returns Promise that resolves when upload and fetch are complete
+         */
+        async uploadAndFetch(fileList) {
+            this.loading = true;
+            this.error = null;
+            try {
+                console.log('Starting upload process for files:', Array.from(fileList).map(f => f.name));
+                // 1) Upload files
+                const uploadResponse = await uploadFiles(fileList);
+                console.log('Upload initiated:', uploadResponse);
+                // 2) Poll status until completion
+                const finalStatus = await pollUploadStatus(uploadResponse.status_url, (status) => {
+                    console.log('Upload status update:', status);
+                    // Could emit progress events here if needed
+                });
+                console.log('Upload completed:', finalStatus);
+                if (finalStatus.status !== 'anonymized' || !finalStatus.sensitive_meta_id) {
+                    throw new Error('Upload completed but no sensitive meta ID received');
+                }
+                // 3) Fetch the newly created anonymization data
+                const result = await this.fetchNext(finalStatus.sensitive_meta_id);
+                if (!result) {
+                    throw new Error('Failed to fetch anonymization data after upload');
+                }
+                console.log('Upload and fetch process completed successfully');
+                return result;
+            }
+            catch (err) {
+                console.error('Error in uploadAndFetch:', err);
+                if (axios.isAxiosError(err)) {
+                    this.error = `Upload-Fehler (${err.response?.status}): ${err.message}`;
+                }
+                else {
+                    this.error = err?.message ?? 'Unbekannter Fehler beim Upload.';
+                }
+                this.$patch({ current: null });
+                return null;
+            }
+            finally {
+                this.loading = false;
+            }
+        },
     }
 });

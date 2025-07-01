@@ -133,4 +133,10 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
         status?: string | undefined;
         error?: boolean | undefined;
     }[];
+    /**
+     * Upload files and fetch the resulting anonymization data
+     * @param fileList - FileList containing files to upload
+     * @returns Promise that resolves when upload and fetch are complete
+     */
+    uploadAndFetch(fileList: FileList): Promise<PatientData | null>;
 }>;

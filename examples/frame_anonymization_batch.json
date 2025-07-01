@@ -1,0 +1,23 @@
+[
+  {
+    "video_id": 1,
+    "segment_ids": "1,2,3",
+    "anonymization_level": "faces",
+    "output_format": "jpg",
+    "async": true
+  },
+  {
+    "video_id": 2,
+    "segment_ids": "4,5",
+    "anonymization_level": "full",
+    "output_format": "png",
+    "async": false
+  },
+  {
+    "video_id": 3,
+    "segment_ids": "6,7,8,9",
+    "anonymization_level": "minimal",
+    "output_format": "webp",
+    "async": true
+  }
+]

@@ -2,6 +2,7 @@
 import { defineStore } from 'pinia';
 import axiosInstance, { a, r } from '@/api/axiosInstance';
 import axios from 'axios';
+import { uploadFiles, pollUploadStatus, type UploadStatusResponse } from '@/api/upload';
 
 /* ------------------------------------------------------------------ */
 /* Typen                                                               */
@@ -74,8 +75,8 @@ export const useAnonymizationStore = defineStore('anonymization', {
       try {
         /* 1) PDF-Datensatz von anony_text endpoint -------------------- */
         const pdfUrl = lastId
-          ? a(`pdf/anony_text/?last_id=${lastId}`)
-          : a('pdf/anony_text/');
+          ? a(`anony_text/?last_id=${lastId}`)
+          : a('anony_text/');
         
         console.log(`Fetching PDF data from: ${pdfUrl}`);
         const { data: pdf } = await axiosInstance.get<PdfDataResponse>(pdfUrl);
@@ -91,7 +92,7 @@ export const useAnonymizationStore = defineStore('anonymization', {
         }
 
         /* 2) Sensitive-Meta nachladen ---------------------------------- */
-        const metaUrl = a(`pdf/sensitivemeta/?id=${pdf.sensitive_meta_id}`);
+        const metaUrl = a(`sensitivemeta/?id=${pdf.sensitive_meta_id}`);
         console.log(`Fetching sensitive meta from: ${metaUrl}`);
         const { data: metaResponse } = await axiosInstance.get<SensitiveMetaApiResponse>(metaUrl);
         console.log('Received sensitive meta response data:', metaResponse);
@@ -135,7 +136,7 @@ export const useAnonymizationStore = defineStore('anonymization', {
     async patchPdf(payload: Partial<PatientData>) {
       if (!payload.id) throw new Error('patchPdf: id fehlt im Payload.');
       console.log('Patching PDF with payload:', payload);
-      return axiosInstance.patch(a('pdf/update_anony_text/'), payload);
+      return axiosInstance.patch(a('update_anony_text/'), payload);
     },
 
     async patchVideo(payload: any) {
@@ -144,6 +145,61 @@ export const useAnonymizationStore = defineStore('anonymization', {
 
     fetchPendingAnonymizations() {
       return this.pending;
-    }
+    },
+
+    /**
+     * Upload files and fetch the resulting anonymization data
+     * @param fileList - FileList containing files to upload
+     * @returns Promise that resolves when upload and fetch are complete
+     */
+    async uploadAndFetch(fileList: FileList): Promise<PatientData | null> {
+      this.loading = true;
+      this.error = null;
+
+      try {
+        console.log('Starting upload process for files:', Array.from(fileList).map(f => f.name));
+        
+        // 1) Upload files
+        const uploadResponse = await uploadFiles(fileList);
+        console.log('Upload initiated:', uploadResponse);
+
+        // 2) Poll status until completion
+        const finalStatus = await pollUploadStatus(
+          uploadResponse.status_url,
+          (status: UploadStatusResponse) => {
+            console.log('Upload status update:', status);
+            // Could emit progress events here if needed
+          }
+        );
+
+        console.log('Upload completed:', finalStatus);
+
+        if (finalStatus.status !== 'anonymized' || !finalStatus.sensitive_meta_id) {
+          throw new Error('Upload completed but no sensitive meta ID received');
+        }
+
+        // 3) Fetch the newly created anonymization data
+        const result = await this.fetchNext(finalStatus.sensitive_meta_id);
+        
+        if (!result) {
+          throw new Error('Failed to fetch anonymization data after upload');
+        }
+
+        console.log('Upload and fetch process completed successfully');
+        return result;
+
+      } catch (err: any) {
+        console.error('Error in uploadAndFetch:', err);
+        if (axios.isAxiosError(err)) {
+          this.error = `Upload-Fehler (${err.response?.status}): ${err.message}`;
+        } else {
+          this.error = err?.message ?? 'Unbekannter Fehler beim Upload.';
+        }
+        this.$patch({ current: null });
+        return null;
+      } finally {
+        this.loading = false;
+      }
+    },
   }
 });
