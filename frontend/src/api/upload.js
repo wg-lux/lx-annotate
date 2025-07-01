@@ -11,11 +11,8 @@ export const uploadFiles = async (files) => {
     fileArray.forEach((file, index) => {
         formData.append('file', file);
     });
-    const response = await axiosInstance.post('/api/upload/', formData, {
-        headers: {
-            'Content-Type': 'multipart/form-data',
-        },
-    });
+    const response = await axiosInstance.post('/api/upload/', formData);
+    // Note: Removed headers object - let browser set Content-Type with boundary
     return response.data;
 };
 /**
