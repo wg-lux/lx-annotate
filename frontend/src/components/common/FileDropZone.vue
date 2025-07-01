@@ -162,8 +162,9 @@ const handleDrop = (event: DragEvent) => {
 };
 
 const processFiles = (files: File[]) => {
-  // Validate that at least one file was selected
-  if (files.length === 0) {
+  // Console check für leere Datei-Arrays
+  if (!(files && files.length)) {
+    console.warn('handleFilesSelected: empty file array');
     hasValidationError.value = true;
     statusMessage.value = 'Keine Datei ausgewählt. Bitte versuchen Sie es erneut.';
     return;
