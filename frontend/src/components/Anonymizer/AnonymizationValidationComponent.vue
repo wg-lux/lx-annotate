@@ -21,8 +21,28 @@
           Alle Anonymisierungen wurden bearbeitet.
         </div>
 
+        <!-- File Selection Mode -->
+        <div v-if="showFileSelector" class="mb-4">
+          <FileSelector 
+            @file-selected="handleFileSelected"
+            @cancel="toggleFileSelector"
+          />
+        </div>
+
         <!-- File Upload Zone - shown when no current item and no successful upload yet -->
-        <div v-if="!currentItem && !hasSuccessfulUpload" class="mb-4">
+        <div v-else-if="!currentItem && !hasSuccessfulUpload" class="mb-4">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5>Anonymisierungsvalidierung</h5>
+            <button 
+              type="button" 
+              class="btn btn-outline-primary"
+              @click="toggleFileSelector"
+            >
+              <i class="fas fa-list me-2"></i>
+              Aus verfügbaren Dateien wählen
+            </button>
+          </div>
+          
           <FileDropZone 
             :is-uploading="isUploading"
             @files-selected="handleFilesSelected"
@@ -218,6 +238,7 @@ import axiosInstance, { r } from '@/api/axiosInstance';
 // @ts-ignore
 import { setOptions, registerPlugin } from 'filepond';
 import FileDropZone from '@/components/common/FileDropZone.vue';
+import FileSelector from './FileSelector.vue';
 
 // @ts-ignore
 import FilePondPluginImagePreview from 'filepond-plugin-image-preview';
@@ -258,6 +279,9 @@ const processedUrl = ref('');
 const showOriginal = ref(false);
 const isUploading = ref(false);
 const hasSuccessfulUpload = ref(false);
+
+// File selector state
+const showFileSelector = ref(false);
 
 // Dirty tracking
 const dirty = ref(false);
@@ -441,6 +465,37 @@ const handleFilesSelected = async (files: File[]) => {
   }
 };
 
+const handleFileSelected = async (selectedFile: { type: 'pdf' | 'video'; id: number; data: any }) => {
+  if (!selectedFile) return;
+  
+  console.log('Selected file for anonymization:', selectedFile);
+  
+  try {
+    isUploading.value = true;
+    showFileSelector.value = false; // Hide the selector
+    
+    // Load the specific file using the store method
+    const result = await store.fetchSpecificFile(
+      selectedFile.type, 
+      selectedFile.id, 
+      selectedFile.data.sensitiveMetaId
+    );
+    
+    if (result) {
+      hasSuccessfulUpload.value = true;
+      console.log('Successfully loaded selected file for anonymization');
+    }
+  } catch (error) {
+    console.error('Error loading selected file:', error);
+  } finally {
+    isUploading.value = false;
+  }
+};
+
+const toggleFileSelector = () => {
+  showFileSelector.value = !showFileSelector.value;
+};
+
 const skipItem = async () => {
   if (currentItem.value) {
     await fetchNextItem();
@@ -503,23 +558,12 @@ pre {
   box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
 }
 
-.pdf-viewer-container {
-  height: 850px;
-  overflow: hidden;
-}
-
-.pdf-viewer-container iframe {
-  border: 1px solid #dee2e6;
-  border-radius: 0.25rem;
-}
-
 .media-viewer-container {
   height: 850px;
   overflow: hidden;
 }
 
-.media-viewer-container iframe,
-.media-viewer-container video {
+.media-viewer-container iframe {
   border: 1px solid #dee2e6;
   border-radius: 0.25rem;
 }
