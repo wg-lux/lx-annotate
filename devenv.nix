@@ -4,7 +4,6 @@ let
   DEPLOYMENT_MODE = "dev";
 
   buildInputs = with pkgs; [
-    python311Full
     stdenv.cc.cc
     git
     direnv
@@ -14,6 +13,9 @@ let
     libglvnd
     glib
     zlib
+    gnumake
+    cmake
+    gcc
     # OpenCV dependencies
     # gtk3
     # gdk-pixbuf
@@ -32,8 +34,6 @@ let
   uvPackage = pkgs.uv;
 
   runtimePackages = with pkgs; [
-    cudaPackages.cuda_nvcc # Needed for runtime? Check dependencies
-    stdenv.cc.cc
     ffmpeg-headless.bin
     tesseract
     ollama.out
@@ -119,7 +119,6 @@ in
     stdenv.cc.cc
     nodejs_22
     yarn
-    python312Full
     libglvnd
   ] ++ runtimePackages;
 
@@ -138,6 +137,7 @@ in
 
   languages.python = {
     enable = true;
+    package = pkgs.python312Full;
     uv = {
       enable = true;
       sync.enable = true;
