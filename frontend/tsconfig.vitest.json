@@ -1,17 +1,16 @@
 {
-  "extends": "./tsconfig.json",
+  "extends": "./tsconfig.app.json",
   "exclude": [],
-  "include": ["src", "tests", "vite-env.d.ts"],
   "compilerOptions": {
     "declaration": true,
-    "types": ["node", "vite/client", "vitest/globals", "jsdom"],
+
     "lib": [],
     "skipLibCheck": true,
+    "types": ["node", "jsdom"],
     "composite": true,
     "noEmit": false,
     "declarationDir": "./types",
     "module": "esnext",
-    "moduleResolution": "node",
-    "isolatedModules": true
+    "moduleResolution": "bundler"
   }
 }

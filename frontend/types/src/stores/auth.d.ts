@@ -13,7 +13,7 @@ export declare const useAuthStore: import("pinia").StoreDefinition<"auth", AuthS
         user: {
             username: string;
             groups: string[];
-        };
+        } | null;
         loading: boolean;
         error: string | null;
     } & import("pinia").PiniaCustomStateProperties<AuthState>) => string;
@@ -22,7 +22,7 @@ export declare const useAuthStore: import("pinia").StoreDefinition<"auth", AuthS
         user: {
             username: string;
             groups: string[];
-        };
+        } | null;
         loading: boolean;
         error: string | null;
     } & import("pinia").PiniaCustomStateProperties<AuthState>) => string[];
@@ -31,7 +31,7 @@ export declare const useAuthStore: import("pinia").StoreDefinition<"auth", AuthS
         user: {
             username: string;
             groups: string[];
-        };
+        } | null;
         loading: boolean;
         error: string | null;
     } & import("pinia").PiniaCustomStateProperties<AuthState>) => boolean;
@@ -40,7 +40,7 @@ export declare const useAuthStore: import("pinia").StoreDefinition<"auth", AuthS
         user: {
             username: string;
             groups: string[];
-        };
+        } | null;
         loading: boolean;
         error: string | null;
     } & import("pinia").PiniaCustomStateProperties<AuthState>) => boolean;

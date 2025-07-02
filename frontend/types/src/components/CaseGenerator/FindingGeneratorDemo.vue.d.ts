@@ -1,22 +1,22 @@
 declare const _default: import("vue").DefineComponent<{}, {}, {
-    centers: any[];
-    examinations: any[];
-    findings: any[];
-    locationClassifications: any[];
-    locationClassificationChoices: any[];
-    morphologyClassifications: any[];
-    morphologyClassificationChoices: any[];
-    interventions: any[];
-    patients: any[];
+    centers: never[];
+    examinations: never[];
+    findings: never[];
+    locationClassifications: never[];
+    locationClassificationChoices: never[];
+    morphologyClassifications: never[];
+    morphologyClassificationChoices: never[];
+    interventions: never[];
+    patients: never[];
     showPatientForm: boolean;
-    editingPatient: any;
+    editingPatient: null;
     patientForm: {
-        id: any;
+        id: null;
         first_name: string;
         last_name: string;
-        age: any;
+        age: null;
         comments: string;
-        gender: any;
+        gender: null;
     };
     errorMessage: string;
     formData: {
@@ -31,14 +31,14 @@ declare const _default: import("vue").DefineComponent<{}, {}, {
         locationChoiceId: string;
         morphologyClassificationId: string;
         morphologyChoiceId: string;
-        selectedInterventions: any[];
+        selectedInterventions: never[];
     };
 }, {
-    filteredLocationChoices(): any[];
-    filteredMorphologyChoices(): any[];
+    filteredLocationChoices(): never[];
+    filteredMorphologyChoices(): never[];
 }, {
     loadPatients(): Promise<void>;
-    openPatientForm(patient?: any): void;
+    openPatientForm(patient?: null): void;
     closePatientForm(): void;
     submitPatientForm(): Promise<void>;
     deletePatient(id: any): Promise<void>;
@@ -52,7 +52,7 @@ declare const _default: import("vue").DefineComponent<{}, {}, {
     loadInterventions(): Promise<void>;
     loadLocationChoices(): void;
     loadMorphologyChoices(): void;
-    getCookie(name: any): string;
+    getCookie(name: any): string | null;
     handleSubmit(): Promise<void>;
 }, import("vue").ComponentOptionsMixin, import("vue").ComponentOptionsMixin, {}, string, import("vue").PublicProps, Readonly<{}> & Readonly<{}>, {}, {}, {}, {}, string, import("vue").ComponentProvideOptions, true, {}, any>;
 export default _default;

@@ -1,23 +1,11 @@
 {
-  "compilerOptions": {
-    "module": "NodeNext",
-    "moduleResolution": "nodenext",
-    "baseUrl": ".",                    
-    "paths": {
-      "@/*":   ["src/*"],         
-      "src/*": ["src/*"]               
-    },
-    "skipLibCheck": true,
-    "types": ["vite/client", "vitest/globals", "node"],
-    "esModuleInterop": true,
-    "allowSyntheticDefaultImports": true
-  },
   "files": [],
   "references": [
     { "path": "./tsconfig.node.json" },
     { "path": "./tsconfig.app.json" },
     { "path": "./tsconfig.vitest.json" }
   ],
-  "include": ["src", "tests", "env.d.ts", "types"],
-
+  "compilerOptions": {
+    "types": ["node", "vite/client", "vitest/globals"]
+  }
 }

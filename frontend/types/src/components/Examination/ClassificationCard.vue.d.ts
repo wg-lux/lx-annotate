@@ -10,15 +10,15 @@ declare const _default: import("vue").DefineComponent<import("vue").ExtractPropT
     };
     options: {
         type: PropType<Option[]>;
-        default: () => any[];
+        default: () => never[];
     };
     modelValue: {
         type: PropType<number[]>;
-        default: () => any[];
+        default: () => never[];
     };
     tempValue: {
         type: NumberConstructor;
-        default: any;
+        default: undefined;
     };
     compact: {
         type: BooleanConstructor;
@@ -30,8 +30,8 @@ declare const _default: import("vue").DefineComponent<import("vue").ExtractPropT
     };
 }>, {
     localModelValue: import("vue").WritableComputedRef<number[], number[]>;
-    localTempValue: import("vue").WritableComputedRef<number, number>;
-    singleSelectedValue: import("vue").WritableComputedRef<number, number>;
+    localTempValue: import("vue").WritableComputedRef<number | undefined, number | undefined>;
+    singleSelectedValue: import("vue").WritableComputedRef<number | null, number | null>;
     isSingleSelection: import("vue").ComputedRef<boolean>;
     selectedLabels: import("vue").ComputedRef<Option[]>;
     availableOptions: import("vue").ComputedRef<Option[]>;
@@ -45,15 +45,15 @@ declare const _default: import("vue").DefineComponent<import("vue").ExtractPropT
     };
     options: {
         type: PropType<Option[]>;
-        default: () => any[];
+        default: () => never[];
     };
     modelValue: {
         type: PropType<number[]>;
-        default: () => any[];
+        default: () => never[];
     };
     tempValue: {
         type: NumberConstructor;
-        default: any;
+        default: undefined;
     };
     compact: {
         type: BooleanConstructor;
@@ -64,8 +64,8 @@ declare const _default: import("vue").DefineComponent<import("vue").ExtractPropT
         default: boolean;
     };
 }>> & Readonly<{
-    "onUpdate:modelValue"?: (...args: any[]) => any;
-    "onUpdate:tempValue"?: (...args: any[]) => any;
+    "onUpdate:modelValue"?: ((...args: any[]) => any) | undefined;
+    "onUpdate:tempValue"?: ((...args: any[]) => any) | undefined;
 }>, {
     options: Option[];
     modelValue: number[];

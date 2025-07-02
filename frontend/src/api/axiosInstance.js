@@ -1,6 +1,7 @@
-import axios from 'axios';
+import axios, {} from 'axios';
 import Cookies from 'js-cookie';
 import camelcaseKeys from 'camelcase-keys';
+import snakecaseKeys from 'snakecase-keys';
 // This handles requests to the local Django API
 const API_PREFIX = import.meta.env.VITE_API_PREFIX ?? 'api/';
 const axiosInstance = axios.create({
@@ -36,15 +37,14 @@ axiosInstance.interceptors.request.use((config) => {
     console.log('Request Headers:', config.headers);
     return config;
 });
-// Die Funktion muss exportiert werden, um sie im Test direkt verwenden zu können.
-export function localSnakecaseKeys(obj, options = {}) {
+function localSnakecaseKeys(obj, options = {}) {
     if (Array.isArray(obj)) {
-        return obj.map((item) => localSnakecaseKeys(item, options)); // Rekursiver Aufruf für Array-Elemente, snakecaseKeys(item, options) wäre hier falsch, wenn es die Logik von localSnakecaseKeys beibehalten soll.
+        return obj.map((item) => snakecaseKeys(item, options));
     }
-    else if (obj && typeof obj === 'object' && !(obj instanceof File) && !(obj instanceof Blob)) { // Hinzugefügt: instanceof File/Blob-Prüfung
+    else if (obj && typeof obj === 'object') {
         return Object.keys(obj).reduce((acc, key) => {
             const newKey = key.replace(/([A-Z])/g, (match) => `_${match.toLowerCase()}`);
-            acc[newKey] = options.deep && typeof obj[key] === 'object' ? localSnakecaseKeys(obj[key], options) : obj[key]; // Rekursiver Aufruf für tiefe Objekte
+            acc[newKey] = options.deep && typeof obj[key] === 'object' ? snakecaseKeys(obj[key], options) : obj[key];
             return acc;
         }, {});
     }

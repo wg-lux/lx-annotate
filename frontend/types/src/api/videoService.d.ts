@@ -1,4 +1,4 @@
-import type { Segment } from '@/components/EndoAI/segments.ts';
+import type { Segment } from '@/components/EndoAI/segments';
 declare function fetchVideoUrl(): Promise<void>;
 declare function saveAnnotations(): Promise<void>;
 export declare const videoService: {

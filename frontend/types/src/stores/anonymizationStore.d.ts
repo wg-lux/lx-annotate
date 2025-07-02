@@ -133,7 +133,7 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
 }, {
     /** Holt den nächsten PDF-Datensatz + zugehöriges SensitiveMeta
      *  und fügt beides zusammen. */
-    fetchNext(lastId?: number): Promise<PatientData>;
+    fetchNext(lastId?: number): Promise<PatientData | null>;
     patchPdf(payload: Partial<PatientData>): Promise<import("axios").AxiosResponse<any, any>>;
     patchVideo(payload: any): Promise<import("axios").AxiosResponse<any, any>>;
     fetchPendingAnonymizations(): {

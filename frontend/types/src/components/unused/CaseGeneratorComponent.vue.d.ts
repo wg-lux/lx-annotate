@@ -11,12 +11,12 @@ declare const _default: import("vue").DefineComponent<{}, {}, {
     patientBirthDate: string;
     examinationDate: string;
     processedText: string;
-    uploadedFile: any;
+    uploadedFile: null;
 }, {}, {
     triggerFileInput(): void;
     handleDrop(event: any): void;
     handleFileUpload(event: any): void;
-    validateForm(): "Vorläufige Berichte sollten angeben, ob Histologie erforderlich ist." | "Untersuchungen, die älter als 1 Jahr sind, erfordern eine Nachkontrolle.";
+    validateForm(): "Vorläufige Berichte sollten angeben, ob Histologie erforderlich ist." | "Untersuchungen, die älter als 1 Jahr sind, erfordern eine Nachkontrolle." | null;
     handleSubmit(): void;
 }, import("vue").ComponentOptionsMixin, import("vue").ComponentOptionsMixin, {}, string, import("vue").PublicProps, Readonly<{}> & Readonly<{}>, {}, {}, {}, {}, string, import("vue").ComponentProvideOptions, true, {}, any>;
 export default _default;

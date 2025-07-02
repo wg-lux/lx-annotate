@@ -48,6 +48,11 @@ def get_safe_random_secret_key():
 
 # --- Constants ---
 DEFAULT_DB_PASSWORD = "changeme_in_production"  # Placeholder password
+
+# --- Load Nix Variables ---
+nix_vars = {}
+nix_vars_path = Path(".devenv-vars.json")
+if nix_vars_path.exists():
     with open(nix_vars_path, 'r', encoding="utf-8") as f:
         nix_vars = json.load(f)
     print(f"Loaded Nix variables: {', '.join(nix_vars.keys())}")

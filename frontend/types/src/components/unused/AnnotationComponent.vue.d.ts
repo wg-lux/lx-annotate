@@ -1,21 +1,21 @@
 declare const _default: import("vue").DefineComponent<{}, {}, {
     selectedGender: string;
-    randomFirstNames: any[];
-    randomLastNames: any[];
-    randomFullNames: any[];
-    droppedNames: any[];
+    randomFirstNames: never[];
+    randomLastNames: never[];
+    randomFullNames: never[];
+    droppedNames: never[];
     errorMessage: string;
-    uploadedFile: any;
-    processedImageUrl: any;
-    originalImageUrl: any;
+    uploadedFile: null;
+    processedImageUrl: null;
+    originalImageUrl: null;
     showOriginal: boolean;
-    femaleFirstNames: any[];
-    femaleLastNames: any[];
-    maleFirstNames: any[];
-    maleLastNames: any[];
+    femaleFirstNames: never[];
+    femaleLastNames: never[];
+    maleFirstNames: never[];
+    maleLastNames: never[];
 }, {
-    canSubmit(): boolean;
-    displayedImageUrl(): any;
+    canSubmit(): null;
+    displayedImageUrl(): null;
 }, {
     loadNames(): Promise<void>;
     getRandomName(array: any): any;
@@ -28,7 +28,7 @@ declare const _default: import("vue").DefineComponent<{}, {}, {
     toggleImage(): void;
     handleFileUpload(event: any): Promise<void>;
     saveAnnotation(): Promise<void>;
-    getCookie(name: any): string;
+    getCookie(name: any): string | undefined;
     resetForm(): void;
 }, import("vue").ComponentOptionsMixin, import("vue").ComponentOptionsMixin, {}, string, import("vue").PublicProps, Readonly<{}> & Readonly<{}>, {}, {}, {}, {}, string, import("vue").ComponentProvideOptions, true, {}, any>;
 export default _default;

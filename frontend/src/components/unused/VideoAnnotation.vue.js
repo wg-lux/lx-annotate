@@ -5,15 +5,15 @@ const API_BASE = 'http://127.0.0.1:8000';
 const API_ENDPOINT = `${API_BASE}/api/videos`; // JSON API
 const STREAM_ENDPOINT = `${API_BASE}/videos`; // Raw video streaming
 // Refs
-const videoRef = (0, vue_1.ref)(null);
-const labels = (0, vue_1.ref)([]);
-const currentTime = (0, vue_1.ref)(0);
-const duration = (0, vue_1.ref)(0);
-const availableVideos = (0, vue_1.ref)([]);
-const currentVideo = (0, vue_1.ref)(null);
-const activeLabel = (0, vue_1.ref)(null);
+const videoRef = ref(null);
+const labels = ref([]);
+const currentTime = ref(0);
+const duration = ref(0);
+const availableVideos = ref([]);
+const currentVideo = ref(null);
+const activeLabel = ref(null);
 // Computed
-const sortedLabels = (0, vue_1.computed)(() => {
+const sortedLabels = computed(() => {
     return [...labels.value].sort((a, b) => a.startTime - b.startTime);
 });
 const currentVideoUrl = computed(() => {
@@ -23,7 +23,7 @@ const currentVideoUrl = computed(() => {
     }
     return '';
 });
-const canSave = (0, vue_1.computed)(() => {
+const canSave = computed(() => {
     return labels.value.length > 0 && labels.value.every(l => l.isComplete);
 });
 // Methods
@@ -65,7 +65,7 @@ async function handleFileSelect(event) {
     formData.append('center_name', 'your_center');
     formData.append('processor_name', 'your_processor');
     try {
-        const response = await axios_1.default.post(`${API_BASE}/videos/upload/`, formData);
+        const response = await axios.post(`${API_BASE}/videos/upload/`, formData);
         console.log('Upload response:', response.data);
         if (response.data.url) {
             currentVideo.value = response.data;
@@ -106,7 +106,7 @@ function toggleLabel() {
     else {
         // Start new label
         const newLabel = {
-            id: (0, uuid_1.v4)(),
+            id: uuidv4(),
             startTime: videoRef.value.currentTime,
             endTime: null,
             isComplete: false
@@ -148,7 +148,7 @@ async function saveAnnotations() {
     if (!currentVideo.value)
         return;
     try {
-        await axios_1.default.post(`${API_BASE}/annotations/`, {
+        await axios.post(`${API_BASE}/annotations/`, {
             video_id: currentVideo.value.id,
             labels: labels.value.map(label => ({
                 start_time: label.startTime,
@@ -165,7 +165,7 @@ async function saveAnnotations() {
     }
 }
 // Lifecycle
-(0, vue_1.onMounted)(async () => {
+onMounted(async () => {
     await fetchVideos();
 });
 ; /* PartiallyEnd: #3632/scriptSetup.vue */
@@ -316,7 +316,7 @@ function __VLS_template() {
     };
 }
 ;
-const __VLS_self = (await Promise.resolve().then(() => __importStar(require('vue')))).defineComponent({
+const __VLS_self = (await import('vue')).defineComponent({
     setup() {
         return {
             videoRef: videoRef,
@@ -341,7 +341,7 @@ const __VLS_self = (await Promise.resolve().then(() => __importStar(require('vue
         };
     },
 });
-exports.default = (await Promise.resolve().then(() => __importStar(require('vue')))).defineComponent({
+export default (await import('vue')).defineComponent({
     setup() {
         return {};
     },
