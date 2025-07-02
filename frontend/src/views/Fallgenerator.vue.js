@@ -3,14 +3,14 @@ import CaseGenerator from '../components/CaseGenerator/FindingGenerator.vue';
 export default (await import('vue')).defineComponent({
     name: 'Fallgenerator',
     components: {
-        ReportOverview: PatientOverviewComponent_vue_1.default
+        ReportOverview
     },
 });
 ; /* PartiallyEnd: #3632/script.vue */
 function __VLS_template() {
     const __VLS_ctx = {};
     const __VLS_componentsOption = {
-        ReportOverview: PatientOverviewComponent_vue_1.default
+        ReportOverview
     };
     let __VLS_components;
     let __VLS_directives;

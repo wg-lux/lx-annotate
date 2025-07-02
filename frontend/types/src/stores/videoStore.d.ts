@@ -155,101 +155,157 @@ export interface SegmentUpdatePayload {
 type UploadLoadCallback = (serverFileId?: string) => void;
 type UploadErrorCallback = (message: string) => void;
 export declare const useVideoStore: import("pinia").StoreDefinition<"video", import("pinia")._UnwrapAll<Pick<{
-    currentVideo: import("vue").Ref<{
-        isAnnotated: boolean;
-        errorMessage: string;
-        segments: {
-            id: string;
-            label: string;
-            label_display: string;
-            startTime: number;
-            endTime: number;
-            avgConfidence: number;
+    currentVideo: Readonly<Ref<{
+        readonly id: string | number;
+        readonly isAnnotated: boolean;
+        readonly errorMessage: string;
+        readonly segments: readonly {
+            readonly id: string | number;
+            readonly label: string;
+            readonly startTime: number;
+            readonly endTime: number;
+            readonly avgConfidence: number;
+            readonly videoID?: number | undefined;
+            readonly labelID?: number | undefined;
+            readonly label_name?: string | undefined;
+            readonly frames?: {
+                readonly [x: string]: {
+                    readonly frame_filename: string;
+                    readonly frame_file_path: string;
+                    readonly predictions: {
+                        readonly frame_number: number;
+                        readonly label: string;
+                        readonly confidence: number;
+                    };
+                };
+            } | undefined;
+            readonly isDraft?: boolean | undefined;
+            readonly color?: string | undefined;
+            readonly startFrameNumber?: number | undefined;
+            readonly endFrameNumber?: number | undefined;
+            readonly usingFPS?: boolean | undefined;
         }[];
-        videoUrl: string;
-        id: string;
-        status: 'in_progress' | 'available' | 'completed';
-        assignedUser: string | null;
-    } | null, VideoAnnotation | {
-        isAnnotated: boolean;
-        errorMessage: string;
-        segments: {
-            id: string;
-            label: string;
-            label_display: string;
-            startTime: number;
-            endTime: number;
-            avgConfidence: number;
+        readonly videoUrl: string;
+        readonly status: VideoStatus;
+        readonly assignedUser: string | null;
+        readonly duration?: number | undefined;
+        readonly fps?: number | undefined;
+    } | null, {
+        readonly id: string | number;
+        readonly isAnnotated: boolean;
+        readonly errorMessage: string;
+        readonly segments: readonly {
+            readonly id: string | number;
+            readonly label: string;
+            readonly startTime: number;
+            readonly endTime: number;
+            readonly avgConfidence: number;
+            readonly videoID?: number | undefined;
+            readonly labelID?: number | undefined;
+            readonly label_name?: string | undefined;
+            readonly frames?: {
+                readonly [x: string]: {
+                    readonly frame_filename: string;
+                    readonly frame_file_path: string;
+                    readonly predictions: {
+                        readonly frame_number: number;
+                        readonly label: string;
+                        readonly confidence: number;
+                    };
+                };
+            } | undefined;
+            readonly isDraft?: boolean | undefined;
+            readonly color?: string | undefined;
+            readonly startFrameNumber?: number | undefined;
+            readonly endFrameNumber?: number | undefined;
+            readonly usingFPS?: boolean | undefined;
         }[];
-        videoUrl: string;
-        id: string;
-        status: 'in_progress' | 'available' | 'completed';
-        assignedUser: string | null;
-    } | null>;
-    errorMessage: import("vue").Ref<string, string>;
-    videoUrl: import("vue").Ref<string, string>;
-    segmentsByLabel: import("vue").Ref<Record<string, Segment[]>, Record<string, Segment[]>>;
-    allSegments: import("vue").ComputedRef<Segment[]>;
-    videoList: import("vue").Ref<{
-        videos: {
-            id: number;
-            originalFileName: string;
-            status: string;
-            assignedUser?: string | null | undefined;
-            anonymized: boolean;
+        readonly videoUrl: string;
+        readonly status: VideoStatus;
+        readonly assignedUser: string | null;
+        readonly duration?: number | undefined;
+        readonly fps?: number | undefined;
+    } | null>>;
+    errorMessage: Readonly<Ref<string, string>>;
+    videoUrl: Readonly<Ref<string, string>>;
+    segmentsByLabel: Record<string, Segment[]>;
+    videoList: Readonly<Ref<{
+        readonly videos: readonly {
+            readonly id: number;
+            readonly original_file_name: string;
+            readonly status: string;
+            readonly assignedUser?: string | null | undefined;
+            readonly anonymized: boolean;
+            readonly duration?: number | undefined;
+            readonly fps?: number | undefined;
+            readonly hasROI?: boolean | undefined;
+            readonly outsideFrameCount?: number | undefined;
         }[];
         readonly labels: readonly {
             readonly id: number;
             readonly name: string;
             readonly color?: string | undefined;
         }[];
-    }, VideoList | {
-        videos: {
-            id: number;
-            originalFileName: string;
-            status: string;
-            assignedUser?: string | null | undefined;
-            anonymized: boolean;
+    }, {
+        readonly videos: readonly {
+            readonly id: number;
+            readonly original_file_name: string;
+            readonly status: string;
+            readonly assignedUser?: string | null | undefined;
+            readonly anonymized: boolean;
+            readonly duration?: number | undefined;
+            readonly fps?: number | undefined;
+            readonly hasROI?: boolean | undefined;
+            readonly outsideFrameCount?: number | undefined;
         }[];
         readonly labels: readonly {
             readonly id: number;
             readonly name: string;
             readonly color?: string | undefined;
         }[];
-    }>;
-    videoMeta: import("vue").Ref<{
-        id: number;
-        originalFileName: string;
-        file: string | null;
-        videoUrl: string | null;
-        fullVideoPath: string | null;
-        sensitiveMetaId: number;
-        patientFirstName: string | null;
-        patientLastName: string | null;
-        patientDob: string | null;
-        examinationDate: string | null;
-        duration: number | null;
-    } | null, VideoFileMeta | {
-        id: number;
-        originalFileName: string;
-        file: string | null;
-        videoUrl: string | null;
-        fullVideoPath: string | null;
-        sensitiveMetaId: number;
-        patientFirstName: string | null;
-        patientLastName: string | null;
-        patientDob: string | null;
-        examinationDate: string | null;
-        duration: number | null;
-    } | null>;
-    hasVideo: import("vue").ComputedRef<boolean>;
-    duration: import("vue").ComputedRef<number>;
-    fetchVideoMeta: (id: number) => Promise<void>;
-    updateSensitiveMeta: (payload: SensitiveMetaUpdatePayload) => Promise<void>;
-    clearVideoMeta: () => void;
-    fetchAllVideos: () => void;
-    uploadRevert: (uniqueFileId: string, load: () => void, error: (message: string) => void) => void;
-    uploadProcess: (fieldName: string, file: File, metadata: any, load: (serverFileId: string) => void, error: (message: string) => void) => void;
+    }>>;
+    videoMeta: Readonly<Ref<{
+        readonly id: number;
+        readonly original_file_name: string;
+        readonly status: string;
+        readonly assignedUser?: string | null | undefined;
+        readonly anonymized: boolean;
+        readonly duration?: number | undefined;
+        readonly fps?: number | undefined;
+        readonly hasROI?: boolean | undefined;
+        readonly outsideFrameCount?: number | undefined;
+    } | null, {
+        readonly id: number;
+        readonly original_file_name: string;
+        readonly status: string;
+        readonly assignedUser?: string | null | undefined;
+        readonly anonymized: boolean;
+        readonly duration?: number | undefined;
+        readonly fps?: number | undefined;
+        readonly hasROI?: boolean | undefined;
+        readonly outsideFrameCount?: number | undefined;
+    } | null>>;
+    allSegments: ComputedRef<Segment[]>;
+    draftSegment: Readonly<Ref<{
+        readonly start: number;
+        readonly end: number | null;
+        readonly id: string | number;
+        readonly label: string;
+        readonly startTime: number;
+        readonly endTime: number | null;
+    } | null, {
+        readonly start: number;
+        readonly end: number | null;
+        readonly id: string | number;
+        readonly label: string;
+        readonly startTime: number;
+        readonly endTime: number | null;
+    } | null>>;
+    activeSegment: ComputedRef<Segment | null>;
+    duration: ComputedRef<number>;
+    hasVideo: ComputedRef<boolean>;
+    segments: ComputedRef<Segment[]>;
+    labels: ComputedRef<LabelMeta[]>;
     clearVideo: () => void;
     setVideo: (video: VideoAnnotation) => void;
     loadVideo: (videoId: string) => Promise<void>;
@@ -274,103 +330,168 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
     setActiveSegment: (segmentId: string | number | null) => void;
     updateVideoStatus: (status: VideoStatus) => Promise<void>;
     assignUserToVideo: (user: string) => Promise<void>;
-    updateSegment: (id: string, partial: Partial<Segment>) => void;
-}, "errorMessage" | "videoUrl" | "currentVideo" | "segmentsByLabel" | "videoList" | "videoMeta">>, Pick<{
-    currentVideo: import("vue").Ref<{
-        isAnnotated: boolean;
-        errorMessage: string;
-        segments: {
-            id: string;
-            label: string;
-            label_display: string;
-            startTime: number;
-            endTime: number;
-            avgConfidence: number;
-        }[];
-        videoUrl: string;
-        id: string;
-        status: 'in_progress' | 'available' | 'completed';
-        assignedUser: string | null;
-    } | null, VideoAnnotation | {
-        isAnnotated: boolean;
-        errorMessage: string;
-        segments: {
-            id: string;
-            label: string;
-            label_display: string;
-            startTime: number;
-            endTime: number;
-            avgConfidence: number;
-        }[];
-        videoUrl: string;
-        id: string;
-        status: 'in_progress' | 'available' | 'completed';
-        assignedUser: string | null;
-    } | null>;
-    errorMessage: import("vue").Ref<string, string>;
-    videoUrl: import("vue").Ref<string, string>;
-    segmentsByLabel: import("vue").Ref<Record<string, Segment[]>, Record<string, Segment[]>>;
-    allSegments: import("vue").ComputedRef<Segment[]>;
-    videoList: import("vue").Ref<{
-        videos: {
-            id: number;
-            originalFileName: string;
-            status: string;
-            assignedUser?: string | null | undefined;
-            anonymized: boolean;
-        }[];
-        readonly labels: readonly {
-            readonly id: number;
-            readonly name: string;
-            readonly color?: string | undefined;
-        }[];
-    }, VideoList | {
-        videos: {
-            id: number;
-            originalFileName: string;
-            status: string;
-            assignedUser?: string | null | undefined;
-            anonymized: boolean;
-        }[];
-        readonly labels: readonly {
-            readonly id: number;
-            readonly name: string;
-            readonly color?: string | undefined;
-        }[];
-    }>;
-    videoMeta: import("vue").Ref<{
-        id: number;
-        originalFileName: string;
-        file: string | null;
-        videoUrl: string | null;
-        fullVideoPath: string | null;
-        sensitiveMetaId: number;
-        patientFirstName: string | null;
-        patientLastName: string | null;
-        patientDob: string | null;
-        examinationDate: string | null;
-        duration: number | null;
-    } | null, VideoFileMeta | {
-        id: number;
-        originalFileName: string;
-        file: string | null;
-        videoUrl: string | null;
-        fullVideoPath: string | null;
-        sensitiveMetaId: number;
-        patientFirstName: string | null;
-        patientLastName: string | null;
-        patientDob: string | null;
-        examinationDate: string | null;
-        duration: number | null;
-    } | null>;
-    hasVideo: import("vue").ComputedRef<boolean>;
-    duration: import("vue").ComputedRef<number>;
-    fetchVideoMeta: (id: number) => Promise<void>;
-    updateSensitiveMeta: (payload: SensitiveMetaUpdatePayload) => Promise<void>;
+    updateSensitiveMeta: (payload: any) => Promise<boolean>;
     clearVideoMeta: () => void;
-    fetchAllVideos: () => void;
-    uploadRevert: (uniqueFileId: string, load: () => void, error: (message: string) => void) => void;
-    uploadProcess: (fieldName: string, file: File, metadata: any, load: (serverFileId: string) => void, error: (message: string) => void) => void;
+    startDraft: (label: string, startTime: number) => void;
+    updateDraftEnd: (endTime: number) => void;
+    commitDraft: () => Promise<Segment | null>;
+    cancelDraft: () => void;
+    createFiveSecondSegment: (clickTime: number, label: string) => Promise<Segment | null>;
+    formatTime: (seconds: number) => string;
+    getSegmentOptions: () => SegmentOption[];
+    clearSegments: () => void;
+}, "errorMessage" | "videoUrl" | "currentVideo" | "segmentsByLabel" | "videoList" | "videoMeta" | "draftSegment">>, Pick<{
+    currentVideo: Readonly<Ref<{
+        readonly id: string | number;
+        readonly isAnnotated: boolean;
+        readonly errorMessage: string;
+        readonly segments: readonly {
+            readonly id: string | number;
+            readonly label: string;
+            readonly startTime: number;
+            readonly endTime: number;
+            readonly avgConfidence: number;
+            readonly videoID?: number | undefined;
+            readonly labelID?: number | undefined;
+            readonly label_name?: string | undefined;
+            readonly frames?: {
+                readonly [x: string]: {
+                    readonly frame_filename: string;
+                    readonly frame_file_path: string;
+                    readonly predictions: {
+                        readonly frame_number: number;
+                        readonly label: string;
+                        readonly confidence: number;
+                    };
+                };
+            } | undefined;
+            readonly isDraft?: boolean | undefined;
+            readonly color?: string | undefined;
+            readonly startFrameNumber?: number | undefined;
+            readonly endFrameNumber?: number | undefined;
+            readonly usingFPS?: boolean | undefined;
+        }[];
+        readonly videoUrl: string;
+        readonly status: VideoStatus;
+        readonly assignedUser: string | null;
+        readonly duration?: number | undefined;
+        readonly fps?: number | undefined;
+    } | null, {
+        readonly id: string | number;
+        readonly isAnnotated: boolean;
+        readonly errorMessage: string;
+        readonly segments: readonly {
+            readonly id: string | number;
+            readonly label: string;
+            readonly startTime: number;
+            readonly endTime: number;
+            readonly avgConfidence: number;
+            readonly videoID?: number | undefined;
+            readonly labelID?: number | undefined;
+            readonly label_name?: string | undefined;
+            readonly frames?: {
+                readonly [x: string]: {
+                    readonly frame_filename: string;
+                    readonly frame_file_path: string;
+                    readonly predictions: {
+                        readonly frame_number: number;
+                        readonly label: string;
+                        readonly confidence: number;
+                    };
+                };
+            } | undefined;
+            readonly isDraft?: boolean | undefined;
+            readonly color?: string | undefined;
+            readonly startFrameNumber?: number | undefined;
+            readonly endFrameNumber?: number | undefined;
+            readonly usingFPS?: boolean | undefined;
+        }[];
+        readonly videoUrl: string;
+        readonly status: VideoStatus;
+        readonly assignedUser: string | null;
+        readonly duration?: number | undefined;
+        readonly fps?: number | undefined;
+    } | null>>;
+    errorMessage: Readonly<Ref<string, string>>;
+    videoUrl: Readonly<Ref<string, string>>;
+    segmentsByLabel: Record<string, Segment[]>;
+    videoList: Readonly<Ref<{
+        readonly videos: readonly {
+            readonly id: number;
+            readonly original_file_name: string;
+            readonly status: string;
+            readonly assignedUser?: string | null | undefined;
+            readonly anonymized: boolean;
+            readonly duration?: number | undefined;
+            readonly fps?: number | undefined;
+            readonly hasROI?: boolean | undefined;
+            readonly outsideFrameCount?: number | undefined;
+        }[];
+        readonly labels: readonly {
+            readonly id: number;
+            readonly name: string;
+            readonly color?: string | undefined;
+        }[];
+    }, {
+        readonly videos: readonly {
+            readonly id: number;
+            readonly original_file_name: string;
+            readonly status: string;
+            readonly assignedUser?: string | null | undefined;
+            readonly anonymized: boolean;
+            readonly duration?: number | undefined;
+            readonly fps?: number | undefined;
+            readonly hasROI?: boolean | undefined;
+            readonly outsideFrameCount?: number | undefined;
+        }[];
+        readonly labels: readonly {
+            readonly id: number;
+            readonly name: string;
+            readonly color?: string | undefined;
+        }[];
+    }>>;
+    videoMeta: Readonly<Ref<{
+        readonly id: number;
+        readonly original_file_name: string;
+        readonly status: string;
+        readonly assignedUser?: string | null | undefined;
+        readonly anonymized: boolean;
+        readonly duration?: number | undefined;
+        readonly fps?: number | undefined;
+        readonly hasROI?: boolean | undefined;
+        readonly outsideFrameCount?: number | undefined;
+    } | null, {
+        readonly id: number;
+        readonly original_file_name: string;
+        readonly status: string;
+        readonly assignedUser?: string | null | undefined;
+        readonly anonymized: boolean;
+        readonly duration?: number | undefined;
+        readonly fps?: number | undefined;
+        readonly hasROI?: boolean | undefined;
+        readonly outsideFrameCount?: number | undefined;
+    } | null>>;
+    allSegments: ComputedRef<Segment[]>;
+    draftSegment: Readonly<Ref<{
+        readonly start: number;
+        readonly end: number | null;
+        readonly id: string | number;
+        readonly label: string;
+        readonly startTime: number;
+        readonly endTime: number | null;
+    } | null, {
+        readonly start: number;
+        readonly end: number | null;
+        readonly id: string | number;
+        readonly label: string;
+        readonly startTime: number;
+        readonly endTime: number | null;
+    } | null>>;
+    activeSegment: ComputedRef<Segment | null>;
+    duration: ComputedRef<number>;
+    hasVideo: ComputedRef<boolean>;
+    segments: ComputedRef<Segment[]>;
+    labels: ComputedRef<LabelMeta[]>;
     clearVideo: () => void;
     setVideo: (video: VideoAnnotation) => void;
     loadVideo: (videoId: string) => Promise<void>;
@@ -395,103 +516,168 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
     setActiveSegment: (segmentId: string | number | null) => void;
     updateVideoStatus: (status: VideoStatus) => Promise<void>;
     assignUserToVideo: (user: string) => Promise<void>;
-    updateSegment: (id: string, partial: Partial<Segment>) => void;
-}, "duration" | "allSegments" | "hasVideo">, Pick<{
-    currentVideo: import("vue").Ref<{
-        isAnnotated: boolean;
-        errorMessage: string;
-        segments: {
-            id: string;
-            label: string;
-            label_display: string;
-            startTime: number;
-            endTime: number;
-            avgConfidence: number;
-        }[];
-        videoUrl: string;
-        id: string;
-        status: 'in_progress' | 'available' | 'completed';
-        assignedUser: string | null;
-    } | null, VideoAnnotation | {
-        isAnnotated: boolean;
-        errorMessage: string;
-        segments: {
-            id: string;
-            label: string;
-            label_display: string;
-            startTime: number;
-            endTime: number;
-            avgConfidence: number;
-        }[];
-        videoUrl: string;
-        id: string;
-        status: 'in_progress' | 'available' | 'completed';
-        assignedUser: string | null;
-    } | null>;
-    errorMessage: import("vue").Ref<string, string>;
-    videoUrl: import("vue").Ref<string, string>;
-    segmentsByLabel: import("vue").Ref<Record<string, Segment[]>, Record<string, Segment[]>>;
-    allSegments: import("vue").ComputedRef<Segment[]>;
-    videoList: import("vue").Ref<{
-        videos: {
-            id: number;
-            originalFileName: string;
-            status: string;
-            assignedUser?: string | null | undefined;
-            anonymized: boolean;
-        }[];
-        readonly labels: readonly {
-            readonly id: number;
-            readonly name: string;
-            readonly color?: string | undefined;
-        }[];
-    }, VideoList | {
-        videos: {
-            id: number;
-            originalFileName: string;
-            status: string;
-            assignedUser?: string | null | undefined;
-            anonymized: boolean;
-        }[];
-        readonly labels: readonly {
-            readonly id: number;
-            readonly name: string;
-            readonly color?: string | undefined;
-        }[];
-    }>;
-    videoMeta: import("vue").Ref<{
-        id: number;
-        originalFileName: string;
-        file: string | null;
-        videoUrl: string | null;
-        fullVideoPath: string | null;
-        sensitiveMetaId: number;
-        patientFirstName: string | null;
-        patientLastName: string | null;
-        patientDob: string | null;
-        examinationDate: string | null;
-        duration: number | null;
-    } | null, VideoFileMeta | {
-        id: number;
-        originalFileName: string;
-        file: string | null;
-        videoUrl: string | null;
-        fullVideoPath: string | null;
-        sensitiveMetaId: number;
-        patientFirstName: string | null;
-        patientLastName: string | null;
-        patientDob: string | null;
-        examinationDate: string | null;
-        duration: number | null;
-    } | null>;
-    hasVideo: import("vue").ComputedRef<boolean>;
-    duration: import("vue").ComputedRef<number>;
-    fetchVideoMeta: (id: number) => Promise<void>;
-    updateSensitiveMeta: (payload: SensitiveMetaUpdatePayload) => Promise<void>;
+    updateSensitiveMeta: (payload: any) => Promise<boolean>;
     clearVideoMeta: () => void;
-    fetchAllVideos: () => void;
-    uploadRevert: (uniqueFileId: string, load: () => void, error: (message: string) => void) => void;
-    uploadProcess: (fieldName: string, file: File, metadata: any, load: (serverFileId: string) => void, error: (message: string) => void) => void;
+    startDraft: (label: string, startTime: number) => void;
+    updateDraftEnd: (endTime: number) => void;
+    commitDraft: () => Promise<Segment | null>;
+    cancelDraft: () => void;
+    createFiveSecondSegment: (clickTime: number, label: string) => Promise<Segment | null>;
+    formatTime: (seconds: number) => string;
+    getSegmentOptions: () => SegmentOption[];
+    clearSegments: () => void;
+}, "duration" | "segments" | "labels" | "allSegments" | "activeSegment" | "hasVideo">, Pick<{
+    currentVideo: Readonly<Ref<{
+        readonly id: string | number;
+        readonly isAnnotated: boolean;
+        readonly errorMessage: string;
+        readonly segments: readonly {
+            readonly id: string | number;
+            readonly label: string;
+            readonly startTime: number;
+            readonly endTime: number;
+            readonly avgConfidence: number;
+            readonly videoID?: number | undefined;
+            readonly labelID?: number | undefined;
+            readonly label_name?: string | undefined;
+            readonly frames?: {
+                readonly [x: string]: {
+                    readonly frame_filename: string;
+                    readonly frame_file_path: string;
+                    readonly predictions: {
+                        readonly frame_number: number;
+                        readonly label: string;
+                        readonly confidence: number;
+                    };
+                };
+            } | undefined;
+            readonly isDraft?: boolean | undefined;
+            readonly color?: string | undefined;
+            readonly startFrameNumber?: number | undefined;
+            readonly endFrameNumber?: number | undefined;
+            readonly usingFPS?: boolean | undefined;
+        }[];
+        readonly videoUrl: string;
+        readonly status: VideoStatus;
+        readonly assignedUser: string | null;
+        readonly duration?: number | undefined;
+        readonly fps?: number | undefined;
+    } | null, {
+        readonly id: string | number;
+        readonly isAnnotated: boolean;
+        readonly errorMessage: string;
+        readonly segments: readonly {
+            readonly id: string | number;
+            readonly label: string;
+            readonly startTime: number;
+            readonly endTime: number;
+            readonly avgConfidence: number;
+            readonly videoID?: number | undefined;
+            readonly labelID?: number | undefined;
+            readonly label_name?: string | undefined;
+            readonly frames?: {
+                readonly [x: string]: {
+                    readonly frame_filename: string;
+                    readonly frame_file_path: string;
+                    readonly predictions: {
+                        readonly frame_number: number;
+                        readonly label: string;
+                        readonly confidence: number;
+                    };
+                };
+            } | undefined;
+            readonly isDraft?: boolean | undefined;
+            readonly color?: string | undefined;
+            readonly startFrameNumber?: number | undefined;
+            readonly endFrameNumber?: number | undefined;
+            readonly usingFPS?: boolean | undefined;
+        }[];
+        readonly videoUrl: string;
+        readonly status: VideoStatus;
+        readonly assignedUser: string | null;
+        readonly duration?: number | undefined;
+        readonly fps?: number | undefined;
+    } | null>>;
+    errorMessage: Readonly<Ref<string, string>>;
+    videoUrl: Readonly<Ref<string, string>>;
+    segmentsByLabel: Record<string, Segment[]>;
+    videoList: Readonly<Ref<{
+        readonly videos: readonly {
+            readonly id: number;
+            readonly original_file_name: string;
+            readonly status: string;
+            readonly assignedUser?: string | null | undefined;
+            readonly anonymized: boolean;
+            readonly duration?: number | undefined;
+            readonly fps?: number | undefined;
+            readonly hasROI?: boolean | undefined;
+            readonly outsideFrameCount?: number | undefined;
+        }[];
+        readonly labels: readonly {
+            readonly id: number;
+            readonly name: string;
+            readonly color?: string | undefined;
+        }[];
+    }, {
+        readonly videos: readonly {
+            readonly id: number;
+            readonly original_file_name: string;
+            readonly status: string;
+            readonly assignedUser?: string | null | undefined;
+            readonly anonymized: boolean;
+            readonly duration?: number | undefined;
+            readonly fps?: number | undefined;
+            readonly hasROI?: boolean | undefined;
+            readonly outsideFrameCount?: number | undefined;
+        }[];
+        readonly labels: readonly {
+            readonly id: number;
+            readonly name: string;
+            readonly color?: string | undefined;
+        }[];
+    }>>;
+    videoMeta: Readonly<Ref<{
+        readonly id: number;
+        readonly original_file_name: string;
+        readonly status: string;
+        readonly assignedUser?: string | null | undefined;
+        readonly anonymized: boolean;
+        readonly duration?: number | undefined;
+        readonly fps?: number | undefined;
+        readonly hasROI?: boolean | undefined;
+        readonly outsideFrameCount?: number | undefined;
+    } | null, {
+        readonly id: number;
+        readonly original_file_name: string;
+        readonly status: string;
+        readonly assignedUser?: string | null | undefined;
+        readonly anonymized: boolean;
+        readonly duration?: number | undefined;
+        readonly fps?: number | undefined;
+        readonly hasROI?: boolean | undefined;
+        readonly outsideFrameCount?: number | undefined;
+    } | null>>;
+    allSegments: ComputedRef<Segment[]>;
+    draftSegment: Readonly<Ref<{
+        readonly start: number;
+        readonly end: number | null;
+        readonly id: string | number;
+        readonly label: string;
+        readonly startTime: number;
+        readonly endTime: number | null;
+    } | null, {
+        readonly start: number;
+        readonly end: number | null;
+        readonly id: string | number;
+        readonly label: string;
+        readonly startTime: number;
+        readonly endTime: number | null;
+    } | null>>;
+    activeSegment: ComputedRef<Segment | null>;
+    duration: ComputedRef<number>;
+    hasVideo: ComputedRef<boolean>;
+    segments: ComputedRef<Segment[]>;
+    labels: ComputedRef<LabelMeta[]>;
     clearVideo: () => void;
     setVideo: (video: VideoAnnotation) => void;
     loadVideo: (videoId: string) => Promise<void>;

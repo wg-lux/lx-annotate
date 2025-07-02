@@ -6,16 +6,16 @@ import { uploadFiles, pollUploadStatus } from '@/api/upload';
 /* ------------------------------------------------------------------ */
 /* Store                                                               */
 /* ------------------------------------------------------------------ */
-export var useAnonymizationStore = defineStore('anonymization', {
-    state: function () { return ({
+export const useAnonymizationStore = defineStore('anonymization', {
+    state: () => ({
         anonymizationStatus: 'idle',
         loading: false,
         error: null,
         pending: [], // Beachte: pending verwendet jetzt auch PatientData mit SensitiveMetaApiResponse
         current: null
-    }); },
+    }),
     getters: {
-        getCurrentItem: function (state) { return state.current; },
+        getCurrentItem: (state) => state.current,
     },
     actions: {
         /** Holt den nächsten PDF-Datensatz + zugehöriges SensitiveMeta
@@ -88,7 +88,7 @@ export var useAnonymizationStore = defineStore('anonymization', {
         async patchVideo(payload) {
             return axiosInstance.patch(r('video/update_sensitivemeta/'), payload);
         },
-        fetchPendingAnonymizations: function () {
+        fetchPendingAnonymizations() {
             return this.pending;
         },
         /**

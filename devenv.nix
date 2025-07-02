@@ -114,7 +114,7 @@ in
 
   files."django-settings.json" = { json = (djangoSettings)."${DEPLOYMENT_MODE}"; };
 
-  packages = runtimePackages ++ (with pkgs; [
+  packages = with pkgs; [
     cudaPackages.cuda_nvcc
     stdenv.cc.cc
     nodejs_22

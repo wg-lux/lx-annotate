@@ -7,7 +7,7 @@ export interface ImageData {
 export declare const useImageStore: import("pinia").StoreDefinition<"image", {
     imageStatus: string;
     loading: boolean;
-    error: string;
+    error: string | null;
     data: ImageData[];
 }, {}, {
     fetchImages(): Promise<void>;

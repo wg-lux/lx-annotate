@@ -1,35 +1,7 @@
-"use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-const axios_1 = __importDefault(require("axios"));
-const reportService_1 = require("@/api/reportService");
-const patientService_1 = require("@/api/patientService");
-exports.default = (await Promise.resolve().then(() => __importStar(require('vue')))).defineComponent({
+import axios from 'axios';
+import { useReportService } from '@/api/reportService';
+import { patientService } from '@/api/patientService';
+export default (await import('vue')).defineComponent({
     data() {
         return {
             // Data loaded from the backend
@@ -84,7 +56,7 @@ exports.default = (await Promise.resolve().then(() => __importStar(require('vue'
     methods: {
         async loadPatients() {
             try {
-                this.patients = await patientService_1.patientService.getPatients();
+                this.patients = await patientService.getPatients();
             }
             catch (error) {
                 console.error('Error loading patients:', error);
@@ -109,14 +81,14 @@ exports.default = (await Promise.resolve().then(() => __importStar(require('vue'
         async submitPatientForm() {
             try {
                 if (this.editingPatient) {
-                    const response = await patientService_1.patientService.updatePatient(this.patientForm.id, this.patientForm);
+                    const response = await patientService.updatePatient(this.patientForm.id, this.patientForm);
                     const index = this.patients.findIndex(p => p.id === this.patientForm.id);
                     if (index !== -1) {
                         this.$set(this.patients, index, response.data);
                     }
                 }
                 else {
-                    const newPatient = await patientService_1.patientService.addPatient(this.patientForm);
+                    const newPatient = await patientService.addPatient(this.patientForm);
                     this.patients.push(newPatient.data);
                 }
                 this.closePatientForm();
@@ -127,7 +99,7 @@ exports.default = (await Promise.resolve().then(() => __importStar(require('vue'
         },
         async deletePatient(id) {
             try {
-                await patientService_1.patientService.deletePatient(id);
+                await patientService.deletePatient(id);
                 this.patients = this.patients.filter(patient => patient.id !== id);
             }
             catch (error) {
@@ -241,7 +213,7 @@ exports.default = (await Promise.resolve().then(() => __importStar(require('vue'
             const csrfToken = this.getCookie('csrftoken');
             const payload = { ...this.formData };
             try {
-                const response = await axios_1.default.post('api/save-workflow-data/', payload, {
+                const response = await axios.post('api/save-workflow-data/', payload, {
                     headers: {
                         'X-CSRFToken': csrfToken,
                         'Content-Type': 'application/json'
