@@ -2,14 +2,14 @@ import VideoAnnotation from '../components/EndoAI/VideoAnnotation.vue';
 export default (await import('vue')).defineComponent({
     name: 'VideoAnnotationView',
     components: {
-        VideoAnnotation,
+        VideoAnnotation: VideoAnnotation_vue_1.default,
     },
 });
 ; /* PartiallyEnd: #3632/script.vue */
 function __VLS_template() {
     const __VLS_ctx = {};
     const __VLS_componentsOption = {
-        VideoAnnotation,
+        VideoAnnotation: VideoAnnotation_vue_1.default,
     };
     let __VLS_components;
     let __VLS_directives;

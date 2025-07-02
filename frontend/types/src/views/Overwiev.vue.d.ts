@@ -6,36 +6,36 @@ declare const _default: import("vue").DefineComponent<{}, {}, {}, {}, {}, import
                 user: {
                     username: string;
                     groups: string[];
-                } | null;
+                };
                 loading: boolean;
-                error: string | null;
+                error: string;
             } & import("pinia").PiniaCustomStateProperties<import("../stores/auth.js").AuthState>) => string;
             userGroups: (state: {
                 isAuthenticated: boolean;
                 user: {
                     username: string;
                     groups: string[];
-                } | null;
+                };
                 loading: boolean;
-                error: string | null;
+                error: string;
             } & import("pinia").PiniaCustomStateProperties<import("../stores/auth.js").AuthState>) => string[];
             isLoading: (state: {
                 isAuthenticated: boolean;
                 user: {
                     username: string;
                     groups: string[];
-                } | null;
+                };
                 loading: boolean;
-                error: string | null;
+                error: string;
             } & import("pinia").PiniaCustomStateProperties<import("../stores/auth.js").AuthState>) => boolean;
             hasError: (state: {
                 isAuthenticated: boolean;
                 user: {
                     username: string;
                     groups: string[];
-                } | null;
+                };
                 loading: boolean;
-                error: string | null;
+                error: string;
             } & import("pinia").PiniaCustomStateProperties<import("../stores/auth.js").AuthState>) => boolean;
         }, {
             checkAuth(): Promise<void>;

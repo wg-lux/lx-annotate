@@ -11,7 +11,7 @@ declare const _default: import("vue").DefineComponent<{}, {}, {}, {}, {}, import
             domainId?: number | undefined;
             applicableClassifications?: string[] | undefined;
         }[]>;
-        selectedExamId: import("vue").Ref<number | null, number | null>;
+        selectedExamId: import("vue").Ref<number, number>;
         activeCategory: import("vue").Ref<keyof import("../stores/examinationStore.js").SubcategoryMap, keyof import("../stores/examinationStore.js").SubcategoryMap>;
         form: import("vue").Ref<{
             selectedLocations: number[];
@@ -80,15 +80,15 @@ declare const _default: import("vue").DefineComponent<{}, {}, {}, {}, {}, import
             };
             options: {
                 type: import("vue").PropType<import("../components/Examination/ClassificationCard.vue").Option[]>;
-                default: () => never[];
+                default: () => any[];
             };
             modelValue: {
                 type: import("vue").PropType<number[]>;
-                default: () => never[];
+                default: () => any[];
             };
             tempValue: {
                 type: NumberConstructor;
-                default: undefined;
+                default: any;
             };
             compact: {
                 type: BooleanConstructor;
@@ -100,8 +100,8 @@ declare const _default: import("vue").DefineComponent<{}, {}, {}, {}, {}, import
             };
         }>, {
             localModelValue: import("vue").WritableComputedRef<number[], number[]>;
-            localTempValue: import("vue").WritableComputedRef<number | undefined, number | undefined>;
-            singleSelectedValue: import("vue").WritableComputedRef<number | null, number | null>;
+            localTempValue: import("vue").WritableComputedRef<number, number>;
+            singleSelectedValue: import("vue").WritableComputedRef<number, number>;
             isSingleSelection: import("vue").ComputedRef<boolean>;
             selectedLabels: import("vue").ComputedRef<import("../components/Examination/ClassificationCard.vue").Option[]>;
             availableOptions: import("vue").ComputedRef<import("../components/Examination/ClassificationCard.vue").Option[]>;
@@ -115,15 +115,15 @@ declare const _default: import("vue").DefineComponent<{}, {}, {}, {}, {}, import
             };
             options: {
                 type: import("vue").PropType<import("../components/Examination/ClassificationCard.vue").Option[]>;
-                default: () => never[];
+                default: () => any[];
             };
             modelValue: {
                 type: import("vue").PropType<number[]>;
-                default: () => never[];
+                default: () => any[];
             };
             tempValue: {
                 type: NumberConstructor;
-                default: undefined;
+                default: any;
             };
             compact: {
                 type: BooleanConstructor;
@@ -134,8 +134,8 @@ declare const _default: import("vue").DefineComponent<{}, {}, {}, {}, {}, import
                 default: boolean;
             };
         }>> & Readonly<{
-            "onUpdate:modelValue"?: ((...args: any[]) => any) | undefined;
-            "onUpdate:tempValue"?: ((...args: any[]) => any) | undefined;
+            "onUpdate:modelValue"?: (...args: any[]) => any;
+            "onUpdate:tempValue"?: (...args: any[]) => any;
         }>, {
             options: import("../components/Examination/ClassificationCard.vue").Option[];
             modelValue: number[];

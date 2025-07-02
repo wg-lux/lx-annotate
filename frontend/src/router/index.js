@@ -1,5 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router';
-const router = createRouter({
+var router = createRouter({
     history: createWebHistory(import.meta.env.BASE_URL || '/'),
     routes: [
         {
@@ -109,7 +109,7 @@ const router = createRouter({
         {
             path: '/profil',
             name: 'Profil',
-            component: () => import('@/views/Profil.vue'),
+            component: function () { return import('@/views/Profil.vue'); },
             meta: {
                 description: 'Hier können Sie Ihr Profil einsehen und bearbeiten.'
             }
@@ -117,7 +117,7 @@ const router = createRouter({
         {
             path: '/anonymisierung',
             name: 'Anonymisierung',
-            component: () => import('@/views/Anonymization.vue'),
+            component: function () { return import('@/views/Anonymization.vue'); },
             meta: {
                 description: 'Hier können Sie Anonymisierungsprozesse durchführen.'
             }

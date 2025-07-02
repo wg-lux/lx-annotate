@@ -1,7 +1,35 @@
-import axios from 'axios';
-import { reportService } from '@/api/reportService.js';
-import { patientService } from '@/api/patientService.js';
-export default (await import('vue')).defineComponent({
+"use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const axios_1 = __importDefault(require("axios"));
+const reportService_js_1 = require("@/api/reportService.js");
+const patientService_js_1 = require("@/api/patientService.js");
+exports.default = (await Promise.resolve().then(() => __importStar(require('vue')))).defineComponent({
     data() {
         return {
             // Data loaded from the backend
@@ -56,7 +84,7 @@ export default (await import('vue')).defineComponent({
     methods: {
         async loadPatients() {
             try {
-                this.patients = await patientService.getPatients();
+                this.patients = await patientService_js_1.patientService.getPatients();
             }
             catch (error) {
                 console.error('Error loading patients:', error);
@@ -81,14 +109,14 @@ export default (await import('vue')).defineComponent({
         async submitPatientForm() {
             try {
                 if (this.editingPatient) {
-                    const response = await patientService.updatePatient(this.patientForm.id, this.patientForm);
+                    const response = await patientService_js_1.patientService.updatePatient(this.patientForm.id, this.patientForm);
                     const index = this.patients.findIndex(p => p.id === this.patientForm.id);
                     if (index !== -1) {
                         this.$set(this.patients, index, response.data);
                     }
                 }
                 else {
-                    const newPatient = await patientService.addPatient(this.patientForm);
+                    const newPatient = await patientService_js_1.patientService.addPatient(this.patientForm);
                     this.patients.push(newPatient.data);
                 }
                 this.closePatientForm();
@@ -99,7 +127,7 @@ export default (await import('vue')).defineComponent({
         },
         async deletePatient(id) {
             try {
-                await patientService.deletePatient(id);
+                await patientService_js_1.patientService.deletePatient(id);
                 this.patients = this.patients.filter(patient => patient.id !== id);
             }
             catch (error) {
@@ -108,7 +136,7 @@ export default (await import('vue')).defineComponent({
         },
         async loadCenters() {
             try {
-                this.centers = await reportService.getCenters();
+                this.centers = await reportService_js_1.reportService.getCenters();
             }
             catch (error) {
                 console.error('Error loading centers:', error);
@@ -117,7 +145,7 @@ export default (await import('vue')).defineComponent({
         async loadExaminations() {
             console.log("loadExaminations");
             try {
-                this.examinations = await reportService.getExaminations();
+                this.examinations = await reportService_js_1.reportService.getExaminations();
                 console.log(this.examinations);
             }
             catch (error) {
@@ -126,7 +154,7 @@ export default (await import('vue')).defineComponent({
         },
         async loadFindings() {
             try {
-                this.findings = await reportService.getFindings();
+                this.findings = await reportService_js_1.reportService.getFindings();
             }
             catch (error) {
                 console.error('Error loading findings:', error);
@@ -134,7 +162,7 @@ export default (await import('vue')).defineComponent({
         },
         async loadLocationClassifications() {
             try {
-                this.locationClassifications = await reportService.getLocationClassifications();
+                this.locationClassifications = await reportService_js_1.reportService.getLocationClassifications();
             }
             catch (error) {
                 console.error('Error loading location classifications:', error);
@@ -142,7 +170,7 @@ export default (await import('vue')).defineComponent({
         },
         async loadLocationClassificationChoices() {
             try {
-                this.locationClassificationChoices = await reportService.getLocationClassificationChoices();
+                this.locationClassificationChoices = await reportService_js_1.reportService.getLocationClassificationChoices();
             }
             catch (error) {
                 console.error('Error loading location classification choices:', error);
@@ -150,7 +178,7 @@ export default (await import('vue')).defineComponent({
         },
         async loadMorphologyClassifications() {
             try {
-                this.morphologyClassifications = await reportService.getMorphologyClassifications();
+                this.morphologyClassifications = await reportService_js_1.reportService.getMorphologyClassifications();
             }
             catch (error) {
                 console.error('Error loading morphology classifications:', error);
@@ -158,7 +186,7 @@ export default (await import('vue')).defineComponent({
         },
         async loadMorphologyClassificationChoices() {
             try {
-                this.morphologyClassificationChoices = await reportService.getMorphologyClassificationChoices();
+                this.morphologyClassificationChoices = await reportService_js_1.reportService.getMorphologyClassificationChoices();
             }
             catch (error) {
                 console.error('Error loading morphology classification choices:', error);
@@ -166,7 +194,7 @@ export default (await import('vue')).defineComponent({
         },
         async loadInterventions() {
             try {
-                this.interventions = await reportService.getInterventions();
+                this.interventions = await reportService_js_1.reportService.getInterventions();
             }
             catch (error) {
                 console.error('Error loading interventions:', error);
@@ -213,7 +241,7 @@ export default (await import('vue')).defineComponent({
             const csrfToken = this.getCookie('csrftoken');
             const payload = { ...this.formData };
             try {
-                const response = await axios.post('api/save-workflow-data/', payload, {
+                const response = await axios_1.default.post('api/save-workflow-data/', payload, {
                     headers: {
                         'X-CSRFToken': csrfToken,
                         'Content-Type': 'application/json'

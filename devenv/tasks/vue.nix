@@ -3,6 +3,7 @@ let
   customTasks = {
     "vue:build".after = 
       ["devenv:enterShell"];
+      
     
     "vue:build".exec = 
       ''
@@ -11,6 +12,9 @@ let
       npm run build
       cd ..
       '';
+      "vue:build".status =
+      ''git rev-parse --verify --quiet HEAD >/dev/null'';
+
   };
 
 in customTasks
