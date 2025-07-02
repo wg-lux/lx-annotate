@@ -18,10 +18,10 @@ const store = useAnonymizationStore();
 const editedAnonymizedText = ref('');
 const examinationDate = ref('');
 const editedPatient = ref({
-    patient_first_name: '',
-    patient_last_name: '',
-    patient_gender: '',
-    patient_dob: '',
+    patientFirstName: '',
+    patientLastName: '',
+    patientGender: '',
+    patientDob: '',
     casenumber: ''
 });
 // Upload-related state
@@ -37,10 +37,10 @@ const pond = ref();
 // Computed
 const currentItem = computed(() => store.current);
 const isExaminationDateValid = computed(() => {
-    if (!examinationDate.value || !editedPatient.value.patient_dob) {
+    if (!examinationDate.value || !editedPatient.value.patientDob) {
         return true;
     }
-    return new Date(examinationDate.value) >= new Date(editedPatient.value.patient_dob);
+    return new Date(examinationDate.value) >= new Date(editedPatient.value.patientDob);
 });
 const canSubmit = computed(() => {
     return processedUrl.value && originalUrl.value && isExaminationDateValid.value;
@@ -120,14 +120,14 @@ const fetchNextItem = async () => {
 const loadCurrentItemData = (item) => {
     if (!item)
         return;
-    editedAnonymizedText.value = item.anonymized_text || '';
-    examinationDate.value = item.report_meta?.examination_date || '';
-    if (item.report_meta) {
-        editedPatient.value.patient_first_name = item.report_meta.patient_first_name || '';
-        editedPatient.value.patient_last_name = item.report_meta.patient_last_name || '';
-        editedPatient.value.patient_gender = item.report_meta.patient_gender || '';
-        editedPatient.value.patient_dob = item.report_meta.patient_dob || '';
-        editedPatient.value.casenumber = item.report_meta.casenumber || '';
+    editedAnonymizedText.value = item.anonymizedText || '';
+    examinationDate.value = item.reportMeta?.examinationDate || '';
+    if (item.reportMeta) {
+        editedPatient.value.patientFirstName = item.reportMeta.patientFirstName || '';
+        editedPatient.value.patientLastName = item.reportMeta.patientLastName || '';
+        editedPatient.value.patientGender = item.reportMeta.patientGender || '';
+        editedPatient.value.patientDob = item.reportMeta.patientDob || '';
+        editedPatient.value.casenumber = item.reportMeta.casenumber || '';
     }
     dirty.value = false;
 };
@@ -142,7 +142,7 @@ const saveAnnotation = async () => {
             original_image_url: originalUrl.value,
             processed_image_url: processedUrl.value,
             patient_data: editedPatient.value,
-            examination_date: examinationDate.value,
+            examinationDate: examinationDate.value,
             anonymized_text: editedAnonymizedText.value
         };
         await axiosInstance.post(r('save-annotation/'), annotationData);
@@ -160,11 +160,17 @@ const saveAnnotation = async () => {
     }
 };
 const handleFilesSelected = async (files) => {
+    if (!files || files.length === 0) {
+        console.warn('handleFilesSelected: empty file array received');
+        return;
+    }
     isUploading.value = true;
     try {
-        const fileList = new DataTransfer();
-        files.forEach(file => fileList.items.add(file));
-        const result = await store.uploadAndFetch(fileList.files);
+        console.log('Processing files:', files.map(f => f.name));
+        // Convert File[] to FileList using DataTransfer
+        const dataTransfer = new DataTransfer();
+        files.forEach(file => dataTransfer.items.add(file));
+        const result = await store.uploadAndFetch(dataTransfer.files);
         if (result) {
             hasSuccessfulUpload.value = true;
         }
@@ -188,11 +194,12 @@ const approveItem = async () => {
     try {
         const updatedData = {
             id: currentItem.value.id,
-            anonymized_text: editedAnonymizedText.value,
-            report_meta: {
-                ...currentItem.value.report_meta,
+            anonymizedText: editedAnonymizedText.value,
+            reportMeta: {
+                ...(currentItem.value.reportMeta || {}),
                 ...editedPatient.value,
-                examination_date: examinationDate.value
+                examinationDate: examinationDate.value,
+                id: currentItem.value.reportMeta?.id || 0
             }
         };
         await store.patchPdf(updatedData);
@@ -219,7 +226,7 @@ function __VLS_template() {
     const __VLS_ctx = {};
     let __VLS_components;
     let __VLS_directives;
-    ['pdf-viewer-container',];
+    ['pdf-viewer-container', 'media-viewer-container', 'media-viewer-container',];
     // CSS variable injection 
     // CSS variable injection end 
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -293,6 +300,23 @@ function __VLS_template() {
     }
     else {
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("row mb-3") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("col-12") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("alert alert-info d-flex align-items-center") },
+            role: ("alert"),
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: ("fas fa-info-circle me-2") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+        __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+        (__VLS_ctx.currentItem?.reportMeta?.pdfUrl ? 'PDF-Dokument' : 'Video-Datei');
+        (__VLS_ctx.currentItem?.reportMeta?.centerName ? `- ${__VLS_ctx.currentItem.reportMeta.centerName}` : '');
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: ("row mb-4") },
         });
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -316,7 +340,7 @@ function __VLS_template() {
         __VLS_elementAsFunction(__VLS_intrinsicElements.input, __VLS_intrinsicElements.input)({
             type: ("text"),
             ...{ class: ("form-control") },
-            value: ((__VLS_ctx.editedPatient.patient_first_name)),
+            value: ((__VLS_ctx.editedPatient.patientFirstName)),
         });
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: ("mb-3") },
@@ -327,7 +351,7 @@ function __VLS_template() {
         __VLS_elementAsFunction(__VLS_intrinsicElements.input, __VLS_intrinsicElements.input)({
             type: ("text"),
             ...{ class: ("form-control") },
-            value: ((__VLS_ctx.editedPatient.patient_last_name)),
+            value: ((__VLS_ctx.editedPatient.patientLastName)),
         });
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: ("mb-3") },
@@ -337,7 +361,7 @@ function __VLS_template() {
         });
         __VLS_elementAsFunction(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
             ...{ class: ("form-select") },
-            value: ((__VLS_ctx.editedPatient.patient_gender)),
+            value: ((__VLS_ctx.editedPatient.patientGender)),
         });
         __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
             value: ("male"),
@@ -358,7 +382,7 @@ function __VLS_template() {
             type: ("date"),
             ...{ class: ("form-control") },
         });
-        (__VLS_ctx.editedPatient.patient_dob);
+        (__VLS_ctx.editedPatient.patientDob);
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: ("mb-3") },
         });
@@ -464,19 +488,28 @@ function __VLS_template() {
         __VLS_elementAsFunction(__VLS_intrinsicElements.h5, __VLS_intrinsicElements.h5)({
             ...{ class: ("mb-0") },
         });
+        (__VLS_ctx.currentItem?.reportMeta?.pdfUrl ? 'PDF Vorschau' : 'Video Vorschau');
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("card-body pdf-viewer-container") },
+            ...{ class: ("card-body media-viewer-container") },
         });
-        if (__VLS_ctx.currentItem && __VLS_ctx.currentItem.report_meta && __VLS_ctx.currentItem.report_meta.pdf_url) {
+        if (__VLS_ctx.currentItem?.reportMeta?.pdfUrl) {
             __VLS_elementAsFunction(__VLS_intrinsicElements.iframe, __VLS_intrinsicElements.iframe)({
-                src: ((__VLS_ctx.currentItem.report_meta.pdf_url)),
+                src: ((__VLS_ctx.currentItem.reportMeta.pdfUrl)),
                 width: ("100%"),
                 height: ("800px"),
                 frameborder: ("0"),
                 title: ("PDF Vorschau"),
             });
             __VLS_elementAsFunction(__VLS_intrinsicElements.a, __VLS_intrinsicElements.a)({
-                href: ((__VLS_ctx.currentItem.report_meta.pdf_url)),
+                href: ((__VLS_ctx.currentItem.reportMeta.pdfUrl)),
+            });
+        }
+        else if (__VLS_ctx.currentItem?.reportMeta?.file) {
+            __VLS_elementAsFunction(__VLS_intrinsicElements.video, __VLS_intrinsicElements.video)({
+                controls: (true),
+                width: ("100%"),
+                height: ("600px"),
+                src: ((__VLS_ctx.currentItem.reportMeta.file)),
             });
         }
         else {
@@ -505,7 +538,7 @@ function __VLS_template() {
             disabled: ((!__VLS_ctx.isExaminationDateValid || !__VLS_ctx.dirty)),
         });
     }
-    ['container-fluid', 'py-4', 'card', 'card-header', 'pb-0', 'mb-0', 'card-body', 'text-center', 'py-5', 'spinner-border', 'text-primary', 'visually-hidden', 'mt-2', 'alert', 'alert-danger', 'alert', 'alert-info', 'mb-4', 'row', 'mb-4', 'col-md-5', 'card', 'bg-light', 'mb-4', 'card-body', 'card-title', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-select', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-control', 'is-invalid', 'invalid-feedback', 'mb-3', 'form-label', 'form-control', 'card', 'bg-light', 'card-body', 'card-title', 'mb-3', 'mt-3', 'img-fluid', 'btn', 'btn-info', 'btn-sm', 'mt-2', 'mt-3', 'btn', 'btn-primary', 'col-md-7', 'card', 'card-header', 'pb-0', 'mb-0', 'card-body', 'pdf-viewer-container', 'alert', 'alert-secondary', 'row', 'col-12', 'd-flex', 'justify-content-between', 'btn', 'btn-secondary', 'btn', 'btn-danger', 'me-2', 'btn', 'btn-success',];
+    ['container-fluid', 'py-4', 'card', 'card-header', 'pb-0', 'mb-0', 'card-body', 'text-center', 'py-5', 'spinner-border', 'text-primary', 'visually-hidden', 'mt-2', 'alert', 'alert-danger', 'alert', 'alert-info', 'mb-4', 'row', 'mb-3', 'col-12', 'alert', 'alert-info', 'd-flex', 'align-items-center', 'fas', 'fa-info-circle', 'me-2', 'row', 'mb-4', 'col-md-5', 'card', 'bg-light', 'mb-4', 'card-body', 'card-title', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-select', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-control', 'is-invalid', 'invalid-feedback', 'mb-3', 'form-label', 'form-control', 'card', 'bg-light', 'card-body', 'card-title', 'mb-3', 'mt-3', 'img-fluid', 'btn', 'btn-info', 'btn-sm', 'mt-2', 'mt-3', 'btn', 'btn-primary', 'col-md-7', 'card', 'card-header', 'pb-0', 'mb-0', 'card-body', 'media-viewer-container', 'alert', 'alert-secondary', 'row', 'col-12', 'd-flex', 'justify-content-between', 'btn', 'btn-secondary', 'btn', 'btn-danger', 'me-2', 'btn', 'btn-success',];
     var __VLS_slots;
     var $slots;
     let __VLS_inheritedAttrs;

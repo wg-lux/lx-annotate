@@ -40,7 +40,7 @@ export const useAnonymizationStore = defineStore('anonymization', {
                     throw new Error('Backend meldet Fehler-Flag im PDF-Datensatz.');
                 }
                 /* 2) Sensitive-Meta nachladen ---------------------------------- */
-                const metaUrl = a(`sensitivemeta/?id=${pdf.sensitive_meta_id}`);
+                const metaUrl = a(`sensitivemeta/?id=${pdf.sensitiveMetaId}`);
                 console.log(`Fetching sensitive meta from: ${metaUrl}`);
                 const { data: metaResponse } = await axiosInstance.get(metaUrl);
                 console.log('Received sensitive meta response data:', metaResponse);
@@ -52,7 +52,7 @@ export const useAnonymizationStore = defineStore('anonymization', {
                 /* 3) Merge & State-Update -------------------------------------- */
                 const merged = {
                     ...pdf,
-                    report_meta: metaResponse
+                    reportMeta: metaResponse
                 };
                 console.log('Merged data:', merged);
                 this.$patch({
@@ -93,28 +93,29 @@ export const useAnonymizationStore = defineStore('anonymization', {
         },
         /**
          * Upload files and fetch the resulting anonymization data
-         * @param fileList - FileList containing files to upload
+         * @param files - FileList or File array containing files to upload
          * @returns Promise that resolves when upload and fetch are complete
          */
-        async uploadAndFetch(fileList) {
+        async uploadAndFetch(files) {
             this.loading = true;
             this.error = null;
             try {
-                console.log('Starting upload process for files:', Array.from(fileList).map(f => f.name));
+                const fileArray = Array.from(files);
+                console.log('Starting upload process for files:', fileArray.map(f => f.name));
                 // 1) Upload files
-                const uploadResponse = await uploadFiles(fileList);
+                const uploadResponse = await uploadFiles(files);
                 console.log('Upload initiated:', uploadResponse);
                 // 2) Poll status until completion
-                const finalStatus = await pollUploadStatus(uploadResponse.status_url, (status) => {
+                const finalStatus = await pollUploadStatus(uploadResponse.statusUrl, (status) => {
                     console.log('Upload status update:', status);
                     // Could emit progress events here if needed
                 });
                 console.log('Upload completed:', finalStatus);
-                if (finalStatus.status !== 'anonymized' || !finalStatus.sensitive_meta_id) {
+                if (finalStatus.status !== 'anonymized' || !finalStatus.sensitiveMetaId) {
                     throw new Error('Upload completed but no sensitive meta ID received');
                 }
                 // 3) Fetch the newly created anonymization data
-                const result = await this.fetchNext(finalStatus.sensitive_meta_id);
+                const result = await this.fetchNext(finalStatus.sensitiveMetaId);
                 if (!result) {
                     throw new Error('Failed to fetch anonymization data after upload');
                 }

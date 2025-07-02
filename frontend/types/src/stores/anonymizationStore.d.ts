@@ -6,31 +6,37 @@ export interface AnonymizationState {
 }
 export interface SensitiveMetaApiResponse {
     id: number;
-    file?: string;
-    pdf_url?: string;
-    full_pdf_path?: string;
-    sensitive_meta_id?: number;
-    patient_first_name?: string;
-    patient_last_name?: string;
-    patient_dob?: string;
-    patient_gender?: string;
+    patientFirstName: string;
+    patientLastName: string;
+    patientDob: string;
+    patientGender: string;
+    examinationDate: string;
     casenumber?: string | null;
-    examination_date?: string;
+    centerName?: string;
+    patientGenderName?: string;
+    endoscopeType?: string;
+    endoscopeSn?: string;
+    isVerified?: boolean;
+    dobVerified?: boolean;
+    namesVerified?: boolean;
+    file?: string;
+    pdfUrl?: string;
+    fullPdfPath?: string;
 }
 export interface PdfDataResponse {
     id: number;
-    sensitive_meta_id: number;
+    sensitiveMetaId: number;
     text: string;
-    anonymized_text: string;
+    anonymizedText: string;
     status?: string;
     error?: boolean;
 }
 export interface PatientData {
     id: number;
-    sensitive_meta_id: number;
+    sensitiveMetaId: number;
     text: string;
-    anonymized_text: string;
-    report_meta?: SensitiveMetaApiResponse;
+    anonymizedText: string;
+    reportMeta?: SensitiveMetaApiResponse;
     status?: string;
     error?: boolean;
 }
@@ -43,42 +49,54 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
         error: string | null;
         current: {
             id: number;
-            sensitive_meta_id: number;
+            sensitiveMetaId: number;
             text: string;
-            anonymized_text: string;
-            report_meta?: {
+            anonymizedText: string;
+            reportMeta?: {
                 id: number;
-                file?: string | undefined;
-                pdf_url?: string | undefined;
-                full_pdf_path?: string | undefined;
-                sensitive_meta_id?: number | undefined;
-                patient_first_name?: string | undefined;
-                patient_last_name?: string | undefined;
-                patient_dob?: string | undefined;
-                patient_gender?: string | undefined;
+                patientFirstName: string;
+                patientLastName: string;
+                patientDob: string;
+                patientGender: string;
+                examinationDate: string;
                 casenumber?: string | null | undefined;
-                examination_date?: string | undefined;
+                centerName?: string | undefined;
+                patientGenderName?: string | undefined;
+                endoscopeType?: string | undefined;
+                endoscopeSn?: string | undefined;
+                isVerified?: boolean | undefined;
+                dobVerified?: boolean | undefined;
+                namesVerified?: boolean | undefined;
+                file?: string | undefined;
+                pdfUrl?: string | undefined;
+                fullPdfPath?: string | undefined;
             } | undefined;
             status?: string | undefined;
             error?: boolean | undefined;
         } | null;
         pending: {
             id: number;
-            sensitive_meta_id: number;
+            sensitiveMetaId: number;
             text: string;
-            anonymized_text: string;
-            report_meta?: {
+            anonymizedText: string;
+            reportMeta?: {
                 id: number;
-                file?: string | undefined;
-                pdf_url?: string | undefined;
-                full_pdf_path?: string | undefined;
-                sensitive_meta_id?: number | undefined;
-                patient_first_name?: string | undefined;
-                patient_last_name?: string | undefined;
-                patient_dob?: string | undefined;
-                patient_gender?: string | undefined;
+                patientFirstName: string;
+                patientLastName: string;
+                patientDob: string;
+                patientGender: string;
+                examinationDate: string;
                 casenumber?: string | null | undefined;
-                examination_date?: string | undefined;
+                centerName?: string | undefined;
+                patientGenderName?: string | undefined;
+                endoscopeType?: string | undefined;
+                endoscopeSn?: string | undefined;
+                isVerified?: boolean | undefined;
+                dobVerified?: boolean | undefined;
+                namesVerified?: boolean | undefined;
+                file?: string | undefined;
+                pdfUrl?: string | undefined;
+                fullPdfPath?: string | undefined;
             } | undefined;
             status?: string | undefined;
             error?: boolean | undefined;
@@ -87,21 +105,27 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
         pending: PatientData[];
     }>) => {
         id: number;
-        sensitive_meta_id: number;
+        sensitiveMetaId: number;
         text: string;
-        anonymized_text: string;
-        report_meta?: {
+        anonymizedText: string;
+        reportMeta?: {
             id: number;
-            file?: string | undefined;
-            pdf_url?: string | undefined;
-            full_pdf_path?: string | undefined;
-            sensitive_meta_id?: number | undefined;
-            patient_first_name?: string | undefined;
-            patient_last_name?: string | undefined;
-            patient_dob?: string | undefined;
-            patient_gender?: string | undefined;
+            patientFirstName: string;
+            patientLastName: string;
+            patientDob: string;
+            patientGender: string;
+            examinationDate: string;
             casenumber?: string | null | undefined;
-            examination_date?: string | undefined;
+            centerName?: string | undefined;
+            patientGenderName?: string | undefined;
+            endoscopeType?: string | undefined;
+            endoscopeSn?: string | undefined;
+            isVerified?: boolean | undefined;
+            dobVerified?: boolean | undefined;
+            namesVerified?: boolean | undefined;
+            file?: string | undefined;
+            pdfUrl?: string | undefined;
+            fullPdfPath?: string | undefined;
         } | undefined;
         status?: string | undefined;
         error?: boolean | undefined;
@@ -114,29 +138,35 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
     patchVideo(payload: any): Promise<import("axios").AxiosResponse<any, any>>;
     fetchPendingAnonymizations(): {
         id: number;
-        sensitive_meta_id: number;
+        sensitiveMetaId: number;
         text: string;
-        anonymized_text: string;
-        report_meta?: {
+        anonymizedText: string;
+        reportMeta?: {
             id: number;
-            file?: string | undefined;
-            pdf_url?: string | undefined;
-            full_pdf_path?: string | undefined;
-            sensitive_meta_id?: number | undefined;
-            patient_first_name?: string | undefined;
-            patient_last_name?: string | undefined;
-            patient_dob?: string | undefined;
-            patient_gender?: string | undefined;
+            patientFirstName: string;
+            patientLastName: string;
+            patientDob: string;
+            patientGender: string;
+            examinationDate: string;
             casenumber?: string | null | undefined;
-            examination_date?: string | undefined;
+            centerName?: string | undefined;
+            patientGenderName?: string | undefined;
+            endoscopeType?: string | undefined;
+            endoscopeSn?: string | undefined;
+            isVerified?: boolean | undefined;
+            dobVerified?: boolean | undefined;
+            namesVerified?: boolean | undefined;
+            file?: string | undefined;
+            pdfUrl?: string | undefined;
+            fullPdfPath?: string | undefined;
         } | undefined;
         status?: string | undefined;
         error?: boolean | undefined;
     }[];
     /**
      * Upload files and fetch the resulting anonymization data
-     * @param fileList - FileList containing files to upload
+     * @param files - FileList or File array containing files to upload
      * @returns Promise that resolves when upload and fetch are complete
      */
-    uploadAndFetch(fileList: FileList): Promise<PatientData | null>;
+    uploadAndFetch(files: FileList | File[]): Promise<PatientData | null>;
 }>;

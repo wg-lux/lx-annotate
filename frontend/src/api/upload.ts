@@ -1,16 +1,16 @@
 import axiosInstance from './axiosInstance';
 
 export interface UploadResponse {
-  upload_id: string;
-  status_url: string;
+  uploadId: string;
+  statusUrl: string;
 }
 
 export interface UploadStatusResponse {
   status: 'processing' | 'error' | 'anonymized';
   detail?: string;
-  sensitive_meta_id?: number;
+  sensitiveMetaId?: number;
   text?: string;
-  anonymized_text?: string;
+  anonymizedText?: string;
 }
 
 /**
@@ -23,10 +23,22 @@ export const uploadFiles = async (files: FileList | File[]): Promise<UploadRespo
   
   // Add all files to the form data
   const fileArray = Array.from(files);
+  
+  if (fileArray.length === 0) {
+    throw new Error('No files provided for upload');
+  }
+  
+  console.log('Uploading files:', fileArray.map(f => f.name));
+  
   fileArray.forEach((file, index) => {
+    console.log(`Adding file ${index}: ${file.name} (${file.size} bytes)`);
     formData.append('file', file);
   });
-  
+
+  console.log(
+    '▶︎ FormData just before POST',
+    fileArray.map((file, index) => [`file[${index}]`, file.name, file.size])
+  );  
   const response = await axiosInstance.post('/api/upload/', formData);
   // Note: Removed headers object - let browser set Content-Type with boundary
   
@@ -54,7 +66,7 @@ export const pollUploadStatus = async (
   onProgress?: (status: UploadStatusResponse) => void
 ): Promise<UploadStatusResponse> => {
   const pollInterval = 2000; // 2 seconds
-  const maxAttempts = 60; // Max 2 minutes
+  const maxAttempts = 30; // Maximum number of polling attempts
   let attempts = 0;
   
   return new Promise((resolve, reject) => {

@@ -17,34 +17,41 @@ export interface AnonymizationState {
 // Interface matching the actual API response for sensitivemeta
 export interface SensitiveMetaApiResponse {
   id: number;
-  file?: string;
-  pdf_url?: string;
-  full_pdf_path?: string;
-  sensitive_meta_id?: number;
-  patient_first_name?: string;
-  patient_last_name?: string;
-  patient_dob?: string;
-  patient_gender?: string;
+  patientFirstName: string;
+  patientLastName: string;
+  patientDob: string;
+  patientGender: string;
+  examinationDate: string;
   casenumber?: string | null;
-  examination_date?: string;
+  centerName?: string;
+  patientGenderName?: string;
+  endoscopeType?: string;
+  endoscopeSn?: string;
+  isVerified?: boolean;
+  dobVerified?: boolean;
+  namesVerified?: boolean;
+  // PDF specific fields
+  file?: string;
+  pdfUrl?: string;
+  fullPdfPath?: string;
 }
 
 // Updated interface for PDF data from anony_text endpoint
 export interface PdfDataResponse {
   id: number;
-  sensitive_meta_id: number;
+  sensitiveMetaId: number;
   text: string;
-  anonymized_text: string;
+  anonymizedText: string;
   status?: string;
   error?: boolean;
 }
 
 export interface PatientData {
   id: number;
-  sensitive_meta_id: number;
+  sensitiveMetaId: number;
   text: string;
-  anonymized_text: string;
-  report_meta?: SensitiveMetaApiResponse;
+  anonymizedText: string;
+  reportMeta?: SensitiveMetaApiResponse;
   status?: string;
   error?: boolean;
 }
@@ -92,7 +99,7 @@ export const useAnonymizationStore = defineStore('anonymization', {
         }
 
         /* 2) Sensitive-Meta nachladen ---------------------------------- */
-        const metaUrl = a(`sensitivemeta/?id=${pdf.sensitive_meta_id}`);
+        const metaUrl = a(`sensitivemeta/?id=${pdf.sensitiveMetaId}`);
         console.log(`Fetching sensitive meta from: ${metaUrl}`);
         const { data: metaResponse } = await axiosInstance.get<SensitiveMetaApiResponse>(metaUrl);
         console.log('Received sensitive meta response data:', metaResponse);
@@ -106,7 +113,7 @@ export const useAnonymizationStore = defineStore('anonymization', {
         /* 3) Merge & State-Update -------------------------------------- */
         const merged: PatientData = { 
           ...pdf, 
-          report_meta: metaResponse 
+          reportMeta: metaResponse 
         };
         console.log('Merged data:', merged);
 
@@ -149,23 +156,24 @@ export const useAnonymizationStore = defineStore('anonymization', {
 
     /**
      * Upload files and fetch the resulting anonymization data
-     * @param fileList - FileList containing files to upload
+     * @param files - FileList or File array containing files to upload
      * @returns Promise that resolves when upload and fetch are complete
      */
-    async uploadAndFetch(fileList: FileList): Promise<PatientData | null> {
+    async uploadAndFetch(files: FileList | File[]): Promise<PatientData | null> {
       this.loading = true;
       this.error = null;
 
       try {
-        console.log('Starting upload process for files:', Array.from(fileList).map(f => f.name));
+        const fileArray = Array.from(files);
+        console.log('Starting upload process for files:', fileArray.map(f => f.name));
         
         // 1) Upload files
-        const uploadResponse = await uploadFiles(fileList);
+        const uploadResponse = await uploadFiles(files);
         console.log('Upload initiated:', uploadResponse);
 
         // 2) Poll status until completion
         const finalStatus = await pollUploadStatus(
-          uploadResponse.status_url,
+          uploadResponse.statusUrl,
           (status: UploadStatusResponse) => {
             console.log('Upload status update:', status);
             // Could emit progress events here if needed
@@ -174,12 +182,12 @@ export const useAnonymizationStore = defineStore('anonymization', {
 
         console.log('Upload completed:', finalStatus);
 
-        if (finalStatus.status !== 'anonymized' || !finalStatus.sensitive_meta_id) {
+        if (finalStatus.status !== 'anonymized' || !finalStatus.sensitiveMetaId) {
           throw new Error('Upload completed but no sensitive meta ID received');
         }
 
         // 3) Fetch the newly created anonymization data
-        const result = await this.fetchNext(finalStatus.sensitive_meta_id);
+        const result = await this.fetchNext(finalStatus.sensitiveMetaId);
         
         if (!result) {
           throw new Error('Failed to fetch anonymization data after upload');

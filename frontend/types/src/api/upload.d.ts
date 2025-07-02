@@ -1,13 +1,13 @@
 export interface UploadResponse {
-    upload_id: string;
-    status_url: string;
+    uploadId: string;
+    statusUrl: string;
 }
 export interface UploadStatusResponse {
     status: 'processing' | 'error' | 'anonymized';
     detail?: string;
-    sensitive_meta_id?: number;
+    sensitiveMetaId?: number;
     text?: string;
-    anonymized_text?: string;
+    anonymizedText?: string;
 }
 /**
  * Upload files to the anonymization backend

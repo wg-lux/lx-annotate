@@ -24,10 +24,16 @@ export function a(path) {
 }
 axiosInstance.interceptors.request.use((config) => {
     const csrftoken = Cookies.get('csrftoken');
+    if (config.data instanceof FormData) {
+        // Let the browser automatically set 'Content-Type: multipart/form-data; boundary=…'
+        // Do NOT manually set Content-Type for FormData - the browser handles this correctly
+        delete config.headers['Content-Type'];
+        // Don't set it back! The browser will add the correct boundary automatically
+    }
     if (csrftoken && config.headers) {
         config.headers['X-CSRFToken'] = csrftoken;
     }
-    // Logge die Header vor dem Senden (optional, zum Debuggen)
+    // Log headers for debugging TODO: Remove in production
     console.log('Request Headers:', config.headers);
     return config;
 });
@@ -46,7 +52,8 @@ function localSnakecaseKeys(obj, options = {}) {
 }
 // ─── Convert outgoing payload from camelCase → snake_case ───────────
 axiosInstance.interceptors.request.use((config) => {
-    if (config.data && typeof config.data === 'object') {
+    // Skip snake_case conversion for FormData - it should be passed through as-is
+    if (config.data && typeof config.data === 'object' && !(config.data instanceof FormData)) {
         config.data = localSnakecaseKeys(config.data, { deep: true });
     }
     return config;

@@ -8,9 +8,15 @@ export const uploadFiles = async (files) => {
     const formData = new FormData();
     // Add all files to the form data
     const fileArray = Array.from(files);
+    if (fileArray.length === 0) {
+        throw new Error('No files provided for upload');
+    }
+    console.log('Uploading files:', fileArray.map(f => f.name));
     fileArray.forEach((file, index) => {
+        console.log(`Adding file ${index}: ${file.name} (${file.size} bytes)`);
         formData.append('file', file);
     });
+    console.log('▶︎ FormData just before POST', fileArray.map((file, index) => [`file[${index}]`, file.name, file.size]));
     const response = await axiosInstance.post('/api/upload/', formData);
     // Note: Removed headers object - let browser set Content-Type with boundary
     return response.data;
@@ -32,7 +38,7 @@ export const checkUploadStatus = async (statusUrl) => {
  */
 export const pollUploadStatus = async (statusUrl, onProgress) => {
     const pollInterval = 2000; // 2 seconds
-    const maxAttempts = 60; // Max 2 minutes
+    const maxAttempts = 30; // Maximum number of polling attempts
     let attempts = 0;
     return new Promise((resolve, reject) => {
         const poll = async () => {

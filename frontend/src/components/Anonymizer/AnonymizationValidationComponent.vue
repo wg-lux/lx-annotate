@@ -32,6 +32,20 @@
 
         <!-- Main Content When Data is Available -->
         <template v-else>
+          <!-- Content Type Indicator -->
+          <div class="row mb-3">
+            <div class="col-12">
+              <div class="alert alert-info d-flex align-items-center" role="alert">
+                <i class="fas fa-info-circle me-2"></i>
+                <span>
+                  <strong>Validierung:</strong> 
+                  {{ currentItem?.reportMeta?.pdfUrl ? 'PDF-Dokument' : 'Video-Datei' }}
+                  {{ currentItem?.reportMeta?.centerName ? `- ${currentItem.reportMeta.centerName}` : '' }}
+                </span>
+              </div>
+            </div>
+          </div>
+
           <div class="row mb-4">
             <!-- Patient Information & Annotation Section (Reduced Width) -->
             <div class="col-md-5">
@@ -43,7 +57,7 @@
                     <input 
                       type="text" 
                       class="form-control" 
-                      v-model="editedPatient.patient_first_name"
+                      v-model="editedPatient.patientFirstName"
                     >
                   </div>
                   <div class="mb-3">
@@ -51,12 +65,12 @@
                     <input 
                       type="text" 
                       class="form-control" 
-                      v-model="editedPatient.patient_last_name"
+                      v-model="editedPatient.patientLastName"
                     >
                   </div>
                   <div class="mb-3">
                     <label class="form-label">Geschlecht:</label>
-                    <select class="form-select" v-model="editedPatient.patient_gender">
+                    <select class="form-select" v-model="editedPatient.patientGender">
                       <option value="male">Männlich</option>
                       <option value="female">Weiblich</option>
                       <option value="other">Divers</option>
@@ -67,7 +81,7 @@
                     <input 
                       type="date" 
                       class="form-control" 
-                      v-model="editedPatient.patient_dob"
+                      v-model="editedPatient.patientDob"
                     >
                   </div>
                   <div class="mb-3">
@@ -92,7 +106,7 @@
                   </div>
                   <div class="mb-3">
                     <label class="form-label">Anonymisierter Text:</label>
-                    <textarea  class="form-control"
+                    <textarea class="form-control"
                             rows="6"
                             v-model="editedAnonymizedText" />
                   </div>
@@ -129,25 +143,41 @@
               </div>
             </div>
 
-            <!-- PDF Viewer Section (New Column) -->
+            <!-- Media Viewer Section (PDF or Video) -->
             <div class="col-md-7">
               <div class="card">
                 <div class="card-header pb-0">
-                  <h5 class="mb-0">PDF Vorschau</h5>
+                  <h5 class="mb-0">
+                    {{ currentItem?.reportMeta?.pdfUrl ? 'PDF Vorschau' : 'Video Vorschau' }}
+                  </h5>
                 </div>
-                <div class="card-body pdf-viewer-container">
+                <div class="card-body media-viewer-container">
+                  <!-- PDF Viewer -->
                   <iframe
-                    v-if="currentItem && currentItem.report_meta && currentItem.report_meta.pdf_url"
-                    :src="currentItem.report_meta.pdf_url"
+                    v-if="currentItem?.reportMeta?.pdfUrl"
+                    :src="currentItem.reportMeta.pdfUrl"
                     width="100%"
                     height="800px"
                     frameborder="0"
                     title="PDF Vorschau"
                   >
-                    Ihr Browser unterstützt keine eingebetteten PDFs. Sie können die Datei <a :href="currentItem.report_meta.pdf_url">hier herunterladen</a>.
+                    Ihr Browser unterstützt keine eingebetteten PDFs. Sie können die Datei <a :href="currentItem.reportMeta.pdfUrl">hier herunterladen</a>.
                   </iframe>
+                  
+                  <!-- Video Viewer -->
+                  <video
+                    v-else-if="currentItem?.reportMeta?.file"
+                    controls
+                    width="100%"
+                    height="600px"
+                    :src="currentItem.reportMeta.file"
+                  >
+                    Ihr Browser unterstützt dieses Video-Format nicht.
+                  </video>
+                  
+                  <!-- No Media Available -->
                   <div v-else class="alert alert-secondary">
-                    Keine PDF-URL verfügbar.
+                    Keine Medien-URL verfügbar.
                   </div>
                 </div>
               </div>
@@ -215,10 +245,10 @@ const store = useAnonymizationStore();
 const editedAnonymizedText = ref('');
 const examinationDate = ref('');
 const editedPatient = ref({
-  patient_first_name: '',
-  patient_last_name: '',
-  patient_gender: '',
-  patient_dob: '',
+  patientFirstName: '',
+  patientLastName: '',
+  patientGender: '',
+  patientDob: '',
   casenumber: ''
 });
 
@@ -239,10 +269,10 @@ const pond = ref<FilePondInstance>();
 const currentItem = computed(() => store.current);
 
 const isExaminationDateValid = computed(() => {
-  if (!examinationDate.value || !editedPatient.value.patient_dob) {
+  if (!examinationDate.value || !editedPatient.value.patientDob) {
     return true;
   }
-  return new Date(examinationDate.value) >= new Date(editedPatient.value.patient_dob);
+  return new Date(examinationDate.value) >= new Date(editedPatient.value.patientDob);
 });
 
 const canSubmit = computed(() => {
@@ -276,13 +306,13 @@ const setupFilePond = () => {
     maxParallelUploads: 3,
     server: {
       process: (
-        fieldName: any,
+        fieldName: string,
         file: any,
-        metadata: any,
-        load: any,
-        error: any,
-        progress: any,
-        abort: any
+        metadata: Record<string, any>,
+        load: (serverId: string) => void,
+        error: (errorText: string) => void,
+        progress: (computable: boolean, loaded: number, total: number) => void,
+        abort: () => void
       ) => {
         const fd = new FormData();
         fd.append(fieldName, file);
@@ -339,15 +369,15 @@ const fetchNextItem = async () => {
 const loadCurrentItemData = (item: PatientData) => {
   if (!item) return;
   
-  editedAnonymizedText.value = item.anonymized_text || '';
-  examinationDate.value = item.report_meta?.examination_date || '';
+  editedAnonymizedText.value = item.anonymizedText || '';
+  examinationDate.value = item.reportMeta?.examinationDate || '';
   
-  if (item.report_meta) {
-    editedPatient.value.patient_first_name = item.report_meta.patient_first_name || '';
-    editedPatient.value.patient_last_name = item.report_meta.patient_last_name || '';
-    editedPatient.value.patient_gender = item.report_meta.patient_gender || '';
-    editedPatient.value.patient_dob = item.report_meta.patient_dob || '';
-    editedPatient.value.casenumber = item.report_meta.casenumber || '';
+  if (item.reportMeta) {
+    editedPatient.value.patientFirstName = item.reportMeta.patientFirstName || '';
+    editedPatient.value.patientLastName = item.reportMeta.patientLastName || '';
+    editedPatient.value.patientGender = item.reportMeta.patientGender || '';
+    editedPatient.value.patientDob = item.reportMeta.patientDob || '';
+    editedPatient.value.casenumber = item.reportMeta.casenumber || '';
   }
   
   dirty.value = false;
@@ -365,7 +395,7 @@ const saveAnnotation = async () => {
       original_image_url: originalUrl.value,
       processed_image_url: processedUrl.value,
       patient_data: editedPatient.value,
-      examination_date: examinationDate.value,
+      examinationDate: examinationDate.value,
       anonymized_text: editedAnonymizedText.value
     };
     
@@ -386,13 +416,21 @@ const saveAnnotation = async () => {
 };
 
 const handleFilesSelected = async (files: File[]) => {
+  if (!files || files.length === 0) {
+    console.warn('handleFilesSelected: empty file array received');
+    return;
+  }
+  
   isUploading.value = true;
   
   try {
-    const fileList = new DataTransfer();
-    files.forEach(file => fileList.items.add(file));
+    console.log('Processing files:', files.map(f => f.name));
     
-    const result = await store.uploadAndFetch(fileList.files);
+    // Convert File[] to FileList using DataTransfer
+    const dataTransfer = new DataTransfer();
+    files.forEach(file => dataTransfer.items.add(file));
+    
+    const result = await store.uploadAndFetch(dataTransfer.files);
     if (result) {
       hasSuccessfulUpload.value = true;
     }
@@ -416,11 +454,12 @@ const approveItem = async () => {
   try {
     const updatedData: Partial<PatientData> = {
       id: currentItem.value.id,
-      anonymized_text: editedAnonymizedText.value,
-      report_meta: {
-        ...currentItem.value.report_meta!,
+      anonymizedText: editedAnonymizedText.value,
+      reportMeta: {
+        ...(currentItem.value.reportMeta || {}),  
         ...editedPatient.value,
-        examination_date: examinationDate.value
+        examinationDate: examinationDate.value,
+        id: currentItem.value.reportMeta?.id || 0
       }
     };
     
@@ -470,6 +509,17 @@ pre {
 }
 
 .pdf-viewer-container iframe {
+  border: 1px solid #dee2e6;
+  border-radius: 0.25rem;
+}
+
+.media-viewer-container {
+  height: 850px;
+  overflow: hidden;
+}
+
+.media-viewer-container iframe,
+.media-viewer-container video {
   border: 1px solid #dee2e6;
   border-radius: 0.25rem;
 }
