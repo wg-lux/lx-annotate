@@ -4,11 +4,11 @@ declare const _default: import("vue").DefineComponent<{}, {}, {
         polypCount: string;
         comments: string;
         gender: string;
-        droppedNames: never[];
+        droppedNames: any[];
     };
     errorMessage: string;
 }, {}, {
-    getCookie(name: any): string | null;
+    getCookie(name: any): string;
     handleSubmit(): Promise<void>;
 }, import("vue").ComponentOptionsMixin, import("vue").ComponentOptionsMixin, {}, string, import("vue").PublicProps, Readonly<{}> & Readonly<{}>, {}, {}, {}, {}, string, import("vue").ComponentProvideOptions, true, {}, any>;
 export default _default;

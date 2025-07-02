@@ -2,15 +2,15 @@ import { defineComponent } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 export default defineComponent({
     name: 'AuthCheck',
-    setup() {
-        const authStore = useAuthStore();
-        return { authStore };
+    setup: function () {
+        var authStore = useAuthStore();
+        return { authStore: authStore };
     }
 }); /* PartiallyEnd: #3632/script.vue */
 function __VLS_template() {
-    const __VLS_ctx = {};
-    let __VLS_components;
-    let __VLS_directives;
+    var __VLS_ctx = {};
+    var __VLS_components;
+    var __VLS_directives;
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
     if (__VLS_ctx.authStore.isAuthenticated) {
         var __VLS_0 = {};
@@ -20,9 +20,9 @@ function __VLS_template() {
     }
     var __VLS_slots;
     var $slots;
-    let __VLS_inheritedAttrs;
+    var __VLS_inheritedAttrs;
     var $attrs;
-    const __VLS_refs = {};
+    var __VLS_refs = {};
     var $refs;
     var $el;
     return {
@@ -33,4 +33,4 @@ function __VLS_template() {
     };
 }
 ;
-let __VLS_self;
+var __VLS_self;

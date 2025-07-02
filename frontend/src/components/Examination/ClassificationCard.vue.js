@@ -1,5 +1,7 @@
-import { defineComponent, computed, ref, watch } from 'vue';
-export default defineComponent({
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const vue_1 = require("vue");
+exports.default = (0, vue_1.defineComponent)({
     name: 'ClassificationCard',
     props: {
         label: {
@@ -29,15 +31,15 @@ export default defineComponent({
     },
     emits: ['update:modelValue', 'update:tempValue'],
     setup(props, { emit }) {
-        const localModelValue = computed({
+        const localModelValue = (0, vue_1.computed)({
             get: () => props.modelValue,
             set: (value) => emit('update:modelValue', value)
         });
-        const localTempValue = computed({
+        const localTempValue = (0, vue_1.computed)({
             get: () => props.tempValue,
             set: (value) => emit('update:tempValue', value)
         });
-        const singleSelectedValue = computed({
+        const singleSelectedValue = (0, vue_1.computed)({
             get: () => props.modelValue.length ? props.modelValue[0] : null,
             set: (value) => {
                 if (value === null) {
@@ -48,14 +50,14 @@ export default defineComponent({
                 }
             }
         });
-        const isSingleSelection = computed(() => props.singleSelect);
-        const selectedLabels = computed(() => {
+        const isSingleSelection = (0, vue_1.computed)(() => props.singleSelect);
+        const selectedLabels = (0, vue_1.computed)(() => {
             return props.options.filter(option => props.modelValue.includes(option.id));
         });
-        const availableOptions = computed(() => {
+        const availableOptions = (0, vue_1.computed)(() => {
             return props.options.filter(option => !props.modelValue.includes(option.id));
         });
-        const selectPrompt = computed(() => {
+        const selectPrompt = (0, vue_1.computed)(() => {
             return `${props.label} auswählen...`;
         });
         const addSelected = () => {

@@ -718,7 +718,7 @@ function __VLS_template() {
     };
 }
 ;
-const __VLS_self = (await import('vue')).defineComponent({
+const __VLS_self = (await Promise.resolve().then(() => __importStar(require('vue')))).defineComponent({
     setup() {
         return {
             AnnotationStatsComponent: AnnotationStatsComponent,
@@ -747,7 +747,7 @@ const __VLS_self = (await import('vue')).defineComponent({
         };
     },
 });
-export default (await import('vue')).defineComponent({
+exports.default = (await Promise.resolve().then(() => __importStar(require('vue')))).defineComponent({
     setup() {
         return {};
     },
