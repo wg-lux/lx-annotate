@@ -1520,6 +1520,7 @@ dependencies = [
     { name = "djangorestframework" },
     { name = "endoreg-db" },
     { name = "gunicorn" },
+    { name = "lx-anonymizer" },
     { name = "pytest" },
     { name = "pytest-django" },
     { name = "python-dotenv" },
@@ -1540,6 +1541,7 @@ requires-dist = [
     { name = "djangorestframework", specifier = ">=3.12.4" },
     { name = "endoreg-db", editable = "endoreg-db" },
     { name = "gunicorn", specifier = ">=23.0.0" },
+    { name = "lx-anonymizer", editable = "endoreg-db/lx-anonymizer" },
     { name = "pytest", specifier = ">=8.3.5" },
     { name = "pytest-django", specifier = ">=4.11.1" },
     { name = "python-dotenv", specifier = ">=1.0.1" },
@@ -1551,7 +1553,7 @@ requires-dist = [
 [[package]]
 name = "lx-anonymizer"
 version = "0.7.0"
-source = { directory = "endoreg-db/lx-anonymizer" }
+source = { editable = "endoreg-db/lx-anonymizer" }
 dependencies = [
     { name = "certifi" },
     { name = "dateparser" },
