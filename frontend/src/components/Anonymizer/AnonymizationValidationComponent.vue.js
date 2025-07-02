@@ -6,6 +6,7 @@ import axiosInstance, { r } from '@/api/axiosInstance';
 // @ts-ignore
 import { setOptions, registerPlugin } from 'filepond';
 import FileDropZone from '@/components/common/FileDropZone.vue';
+import FileSelector from './FileSelector.vue';
 // @ts-ignore
 import FilePondPluginImagePreview from 'filepond-plugin-image-preview';
 // @ts-ignore
@@ -30,6 +31,8 @@ const processedUrl = ref('');
 const showOriginal = ref(false);
 const isUploading = ref(false);
 const hasSuccessfulUpload = ref(false);
+// File selector state
+const showFileSelector = ref(false);
 // Dirty tracking
 const dirty = ref(false);
 // Template refs
@@ -182,6 +185,30 @@ const handleFilesSelected = async (files) => {
         isUploading.value = false;
     }
 };
+const handleFileSelected = async (selectedFile) => {
+    if (!selectedFile)
+        return;
+    console.log('Selected file for anonymization:', selectedFile);
+    try {
+        isUploading.value = true;
+        showFileSelector.value = false; // Hide the selector
+        // Load the specific file using the store method
+        const result = await store.fetchSpecificFile(selectedFile.type, selectedFile.id, selectedFile.data.sensitiveMetaId);
+        if (result) {
+            hasSuccessfulUpload.value = true;
+            console.log('Successfully loaded selected file for anonymization');
+        }
+    }
+    catch (error) {
+        console.error('Error loading selected file:', error);
+    }
+    finally {
+        isUploading.value = false;
+    }
+};
+const toggleFileSelector = () => {
+    showFileSelector.value = !showFileSelector.value;
+};
 const skipItem = async () => {
     if (currentItem.value) {
         await fetchNextItem();
@@ -226,7 +253,7 @@ function __VLS_template() {
     const __VLS_ctx = {};
     let __VLS_components;
     let __VLS_directives;
-    ['pdf-viewer-container', 'media-viewer-container', 'media-viewer-container',];
+    ['media-viewer-container',];
     // CSS variable injection 
     // CSS variable injection end 
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -273,30 +300,68 @@ function __VLS_template() {
             role: ("alert"),
         });
     }
-    if (!__VLS_ctx.currentItem && !__VLS_ctx.hasSuccessfulUpload) {
+    if (__VLS_ctx.showFileSelector) {
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: ("mb-4") },
         });
         // @ts-ignore
-        /** @type { [typeof FileDropZone, ] } */ ;
+        /** @type { [typeof FileSelector, ] } */ ;
         // @ts-ignore
-        const __VLS_0 = __VLS_asFunctionalComponent(FileDropZone, new FileDropZone({
-            ...{ 'onFilesSelected': {} },
-            isUploading: ((__VLS_ctx.isUploading)),
-            acceptedFileTypes: ("*"),
+        const __VLS_0 = __VLS_asFunctionalComponent(FileSelector, new FileSelector({
+            ...{ 'onFileSelected': {} },
+            ...{ 'onCancel': {} },
         }));
         const __VLS_1 = __VLS_0({
-            ...{ 'onFilesSelected': {} },
-            isUploading: ((__VLS_ctx.isUploading)),
-            acceptedFileTypes: ("*"),
+            ...{ 'onFileSelected': {} },
+            ...{ 'onCancel': {} },
         }, ...__VLS_functionalComponentArgsRest(__VLS_0));
         let __VLS_5;
         const __VLS_6 = {
-            onFilesSelected: (__VLS_ctx.handleFilesSelected)
+            onFileSelected: (__VLS_ctx.handleFileSelected)
+        };
+        const __VLS_7 = {
+            onCancel: (__VLS_ctx.toggleFileSelector)
         };
         let __VLS_2;
         let __VLS_3;
         var __VLS_4;
+    }
+    else if (!__VLS_ctx.currentItem && !__VLS_ctx.hasSuccessfulUpload) {
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("mb-4") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("d-flex justify-content-between align-items-center mb-3") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.h5, __VLS_intrinsicElements.h5)({});
+        __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+            ...{ onClick: (__VLS_ctx.toggleFileSelector) },
+            type: ("button"),
+            ...{ class: ("btn btn-outline-primary") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: ("fas fa-list me-2") },
+        });
+        // @ts-ignore
+        /** @type { [typeof FileDropZone, ] } */ ;
+        // @ts-ignore
+        const __VLS_8 = __VLS_asFunctionalComponent(FileDropZone, new FileDropZone({
+            ...{ 'onFilesSelected': {} },
+            isUploading: ((__VLS_ctx.isUploading)),
+            acceptedFileTypes: ("*"),
+        }));
+        const __VLS_9 = __VLS_8({
+            ...{ 'onFilesSelected': {} },
+            isUploading: ((__VLS_ctx.isUploading)),
+            acceptedFileTypes: ("*"),
+        }, ...__VLS_functionalComponentArgsRest(__VLS_8));
+        let __VLS_13;
+        const __VLS_14 = {
+            onFilesSelected: (__VLS_ctx.handleFilesSelected)
+        };
+        let __VLS_10;
+        let __VLS_11;
+        var __VLS_12;
     }
     else {
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -434,25 +499,25 @@ function __VLS_template() {
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: ("mb-3") },
         });
-        const __VLS_7 = {}.FilePond;
+        const __VLS_15 = {}.FilePond;
         /** @type { [typeof __VLS_components.FilePond, ] } */ ;
         // @ts-ignore
-        const __VLS_8 = __VLS_asFunctionalComponent(__VLS_7, new __VLS_7({
+        const __VLS_16 = __VLS_asFunctionalComponent(__VLS_15, new __VLS_15({
             ref: ("pond"),
             name: ("file"),
             acceptedFileTypes: ("image/*"),
             labelIdle: ("Bild hier ablegen oder klicken"),
         }));
-        const __VLS_9 = __VLS_8({
+        const __VLS_17 = __VLS_16({
             ref: ("pond"),
             name: ("file"),
             acceptedFileTypes: ("image/*"),
             labelIdle: ("Bild hier ablegen oder klicken"),
-        }, ...__VLS_functionalComponentArgsRest(__VLS_8));
+        }, ...__VLS_functionalComponentArgsRest(__VLS_16));
         // @ts-ignore navigation for `const pond = ref()`
         /** @type { typeof __VLS_ctx.pond } */ ;
-        var __VLS_13 = {};
-        var __VLS_12;
+        var __VLS_21 = {};
+        var __VLS_20;
         if (__VLS_ctx.processedUrl) {
             __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
                 ...{ class: ("mt-3") },
@@ -538,13 +603,13 @@ function __VLS_template() {
             disabled: ((!__VLS_ctx.isExaminationDateValid || !__VLS_ctx.dirty)),
         });
     }
-    ['container-fluid', 'py-4', 'card', 'card-header', 'pb-0', 'mb-0', 'card-body', 'text-center', 'py-5', 'spinner-border', 'text-primary', 'visually-hidden', 'mt-2', 'alert', 'alert-danger', 'alert', 'alert-info', 'mb-4', 'row', 'mb-3', 'col-12', 'alert', 'alert-info', 'd-flex', 'align-items-center', 'fas', 'fa-info-circle', 'me-2', 'row', 'mb-4', 'col-md-5', 'card', 'bg-light', 'mb-4', 'card-body', 'card-title', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-select', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-control', 'is-invalid', 'invalid-feedback', 'mb-3', 'form-label', 'form-control', 'card', 'bg-light', 'card-body', 'card-title', 'mb-3', 'mt-3', 'img-fluid', 'btn', 'btn-info', 'btn-sm', 'mt-2', 'mt-3', 'btn', 'btn-primary', 'col-md-7', 'card', 'card-header', 'pb-0', 'mb-0', 'card-body', 'media-viewer-container', 'alert', 'alert-secondary', 'row', 'col-12', 'd-flex', 'justify-content-between', 'btn', 'btn-secondary', 'btn', 'btn-danger', 'me-2', 'btn', 'btn-success',];
+    ['container-fluid', 'py-4', 'card', 'card-header', 'pb-0', 'mb-0', 'card-body', 'text-center', 'py-5', 'spinner-border', 'text-primary', 'visually-hidden', 'mt-2', 'alert', 'alert-danger', 'alert', 'alert-info', 'mb-4', 'mb-4', 'd-flex', 'justify-content-between', 'align-items-center', 'mb-3', 'btn', 'btn-outline-primary', 'fas', 'fa-list', 'me-2', 'row', 'mb-3', 'col-12', 'alert', 'alert-info', 'd-flex', 'align-items-center', 'fas', 'fa-info-circle', 'me-2', 'row', 'mb-4', 'col-md-5', 'card', 'bg-light', 'mb-4', 'card-body', 'card-title', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-select', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-control', 'is-invalid', 'invalid-feedback', 'mb-3', 'form-label', 'form-control', 'card', 'bg-light', 'card-body', 'card-title', 'mb-3', 'mt-3', 'img-fluid', 'btn', 'btn-info', 'btn-sm', 'mt-2', 'mt-3', 'btn', 'btn-primary', 'col-md-7', 'card', 'card-header', 'pb-0', 'mb-0', 'card-body', 'media-viewer-container', 'alert', 'alert-secondary', 'row', 'col-12', 'd-flex', 'justify-content-between', 'btn', 'btn-secondary', 'btn', 'btn-danger', 'me-2', 'btn', 'btn-success',];
     var __VLS_slots;
     var $slots;
     let __VLS_inheritedAttrs;
     var $attrs;
     const __VLS_refs = {
-        'pond': __VLS_13,
+        'pond': __VLS_21,
     };
     var $refs;
     var $el;
@@ -560,6 +625,7 @@ const __VLS_self = (await import('vue')).defineComponent({
     setup() {
         return {
             FileDropZone: FileDropZone,
+            FileSelector: FileSelector,
             FilePond: FilePond,
             store: store,
             editedAnonymizedText: editedAnonymizedText,
@@ -570,6 +636,7 @@ const __VLS_self = (await import('vue')).defineComponent({
             showOriginal: showOriginal,
             isUploading: isUploading,
             hasSuccessfulUpload: hasSuccessfulUpload,
+            showFileSelector: showFileSelector,
             dirty: dirty,
             pond: pond,
             currentItem: currentItem,
@@ -578,6 +645,8 @@ const __VLS_self = (await import('vue')).defineComponent({
             toggleImage: toggleImage,
             saveAnnotation: saveAnnotation,
             handleFilesSelected: handleFilesSelected,
+            handleFileSelected: handleFileSelected,
+            toggleFileSelector: toggleFileSelector,
             skipItem: skipItem,
             approveItem: approveItem,
             rejectItem: rejectItem,

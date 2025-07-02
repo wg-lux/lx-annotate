@@ -169,4 +169,19 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
      * @returns Promise that resolves when upload and fetch are complete
      */
     uploadAndFetch(files: FileList | File[]): Promise<PatientData | null>;
+    /**
+     * Load a specific file by ID and type for anonymization validation
+     * @param type - 'pdf' or 'video'
+     * @param id - File ID
+     * @param sensitiveMetaId - Optional sensitive meta ID if known
+     * @returns Promise that resolves with the loaded data
+     */
+    fetchSpecificFile(type: 'pdf' | 'video', id: number, sensitiveMetaId?: number): Promise<PatientData | null>;
+    /**
+     * Load available files for selection
+     * @param type - Optional filter by type ('pdf', 'video', 'all')
+     * @param limit - Number of results to return
+     * @returns Promise with available files data
+     */
+    fetchAvailableFiles(type?: 'pdf' | 'video' | 'all', limit?: number): Promise<any>;
 }>;
