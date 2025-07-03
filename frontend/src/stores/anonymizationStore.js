@@ -11,11 +11,17 @@ export const useAnonymizationStore = defineStore('anonymization', {
         anonymizationStatus: 'idle',
         loading: false,
         error: null,
-        pending: [], // Beachte: pending verwendet jetzt auch PatientData mit SensitiveMetaApiResponse
-        current: null
+        pending: [],
+        current: null,
+        // New state
+        overview: [],
+        pollingHandles: {},
+        isPolling: false
     }),
     getters: {
         getCurrentItem: (state) => state.current,
+        isAnyFileProcessing: (state) => state.overview.some(f => f.anonymizationStatus === 'processing'),
+        processingFiles: (state) => state.overview.filter(f => f.anonymizationStatus === 'processing')
     },
     actions: {
         /** Holt den nächsten PDF-Datensatz + zugehöriges SensitiveMeta
@@ -137,5 +143,146 @@ export const useAnonymizationStore = defineStore('anonymization', {
                 this.loading = false;
             }
         },
+        /**
+         * Fetch overview of all uploaded files with their statuses
+         */
+        async fetchOverview() {
+            this.loading = true;
+            this.error = null;
+            try {
+                console.log('Fetching file overview...');
+                const { data } = await axiosInstance.get(r('anonymization/items/overview/'));
+                console.log('Received overview data:', data);
+                this.overview = data;
+                return data;
+            }
+            catch (err) {
+                console.error('Error fetching overview:', err);
+                if (axios.isAxiosError(err)) {
+                    this.error = `Fehler beim Laden der Übersicht (${err.response?.status}): ${err.message}`;
+                }
+                else {
+                    this.error = err?.message ?? 'Unbekannter Fehler beim Laden der Übersicht.';
+                }
+                return [];
+            }
+            finally {
+                this.loading = false;
+            }
+        },
+        /**
+         * Start anonymization for a specific file
+         */
+        async startAnonymization(id) {
+            const file = this.overview.find(f => f.id === id);
+            if (!file) {
+                this.error = `Datei mit ID ${id} nicht gefunden.`;
+                return false;
+            }
+            try {
+                console.log(`Starting anonymization for file ${id}...`);
+                // Optimistic UI update
+                file.anonymizationStatus = 'processing';
+                // Trigger anonymization
+                await axiosInstance.post(r(`anonymization/${id}/start/`));
+                console.log(`Anonymization started for file ${id}`);
+                // Start polling
+                this.startPolling(id);
+                return true;
+            }
+            catch (err) {
+                console.error(`Error starting anonymization for file ${id}:`, err);
+                // Revert optimistic update
+                file.anonymizationStatus = 'not_started';
+                if (axios.isAxiosError(err)) {
+                    this.error = `Fehler beim Starten der Anonymisierung (${err.response?.status}): ${err.message}`;
+                }
+                else {
+                    this.error = err?.message ?? 'Unbekannter Fehler beim Starten der Anonymisierung.';
+                }
+                return false;
+            }
+        },
+        /**
+         * Start polling status for a specific file
+         */
+        startPolling(id) {
+            // Clear existing polling for this file
+            this.stopPolling(id);
+            console.log(`Starting status polling for file ${id}`);
+            this.isPolling = true;
+            const timer = setInterval(async () => {
+                try {
+                    const { data } = await axiosInstance.get(r(`anonymization/${id}/status/`));
+                    const file = this.overview.find(f => f.id === id);
+                    if (file && data.anonymizationStatus) {
+                        console.log(`Status update for file ${id}: ${data.anonymizationStatus}`);
+                        file.anonymizationStatus = data.anonymizationStatus;
+                        // Stop polling if done or failed
+                        if (['done', 'failed'].includes(data.anonymizationStatus)) {
+                            console.log(`Stopping polling for file ${id} - status: ${data.anonymizationStatus}`);
+                            this.stopPolling(id);
+                        }
+                    }
+                }
+                catch (err) {
+                    console.error(`Error polling status for file ${id}:`, err);
+                    // Continue polling even on error to be resilient
+                }
+            }, 3000);
+            this.pollingHandles[id] = timer;
+        },
+        /**
+         * Stop polling for a specific file
+         */
+        stopPolling(id) {
+            const timer = this.pollingHandles[id];
+            if (timer) {
+                clearInterval(timer);
+                delete this.pollingHandles[id];
+                console.log(`Stopped polling for file ${id}`);
+            }
+            // Update global polling state
+            this.isPolling = Object.keys(this.pollingHandles).length > 0;
+        },
+        /**
+         * Stop all polling
+         */
+        stopAllPolling() {
+            Object.keys(this.pollingHandles).forEach(id => {
+                this.stopPolling(parseInt(id));
+            });
+            this.isPolling = false;
+            console.log('Stopped all polling');
+        },
+        /**
+         * Set current item for validation (called when clicking "Validate")
+         */
+        async setCurrentForValidation(id) {
+            try {
+                console.log(`Setting current item for validation: ${id}`);
+                const { data } = await axiosInstance.put(r(`anonymization/${id}/current/`));
+                console.log('Received validation data:', data);
+                this.current = data;
+                return data;
+            }
+            catch (err) {
+                console.error(`Error setting current for validation (ID: ${id}):`, err);
+                if (axios.isAxiosError(err)) {
+                    this.error = `Fehler beim Laden der Validierungsdaten (${err.response?.status}): ${err.message}`;
+                }
+                else {
+                    this.error = err?.message ?? 'Unbekannter Fehler beim Laden der Validierungsdaten.';
+                }
+                return null;
+            }
+        },
+        /**
+         * Refresh overview data
+         */
+        async refreshOverview() {
+            await this.fetchOverview();
+        }
+        // ...existing actions continue...
     }
 });

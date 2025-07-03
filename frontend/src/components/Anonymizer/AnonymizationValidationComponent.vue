@@ -24,10 +24,23 @@
         <!-- File Upload Zone - shown when no current item and no successful upload yet -->
         <div v-if="!currentItem && !hasSuccessfulUpload" class="mb-4">
           <FileDropZone 
-            :is-uploading="isUploading"
+            :is-uploading="isUploading || store.isAnyFileProcessing"
             @files-selected="handleFilesSelected"
             accepted-file-types="*"
           />
+          
+          <!-- Processing Status Alert -->
+          <div v-if="store.isAnyFileProcessing" class="alert alert-warning mt-3">
+            <i class="fas fa-info-circle me-2"></i>
+            <strong>{{ store.processingFiles.length }} Datei(en)</strong> werden gerade anonymisiert.
+            Der Upload neuer Dateien ist temporär deaktiviert.
+            <div class="mt-2">
+              <router-link to="/anonymisierung/uebersicht" class="btn btn-sm btn-outline-primary">
+                <i class="fas fa-eye me-1"></i>
+                Zur Übersicht
+              </router-link>
+            </div>
+          </div>
         </div>
 
         <!-- Main Content When Data is Available -->
@@ -463,7 +476,15 @@ const approveItem = async () => {
       }
     };
     
-    await store.patchPdf(updatedData);
+    // Determine media type and use appropriate endpoint
+    const isVideo = currentItem.value.reportMeta?.file && !currentItem.value.reportMeta?.pdfUrl;
+    
+    if (isVideo) {
+      await store.patchVideo(updatedData);
+    } else {
+      await store.patchPdf(updatedData);
+    }
+    
     await fetchNextItem();
     dirty.value = false;
   } catch (error) {

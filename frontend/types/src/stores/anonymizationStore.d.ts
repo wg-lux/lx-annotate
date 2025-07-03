@@ -1,8 +1,19 @@
+export interface FileItem {
+    id: number;
+    filename: string;
+    mediaType: "pdf" | "video";
+    anonymizationStatus: "not_started" | "processing" | "done" | "failed";
+    annotationStatus: "not_started" | "done";
+    createdAt: string;
+}
 export interface AnonymizationState {
     anonymizationStatus: string;
     loading: boolean;
     error: string | null;
     current: PatientData | null;
+    overview: FileItem[];
+    pollingHandles: Record<number, ReturnType<typeof setInterval>>;
+    isPolling: boolean;
 }
 export interface SensitiveMetaApiResponse {
     id: number;
@@ -74,6 +85,16 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
             status?: string | undefined;
             error?: boolean | undefined;
         } | null;
+        overview: {
+            id: number;
+            filename: string;
+            mediaType: "pdf" | "video";
+            anonymizationStatus: "not_started" | "processing" | "done" | "failed";
+            annotationStatus: "not_started" | "done";
+            createdAt: string;
+        }[];
+        pollingHandles: Record<number, ReturnType<typeof setInterval>>;
+        isPolling: boolean;
         pending: {
             id: number;
             sensitiveMetaId: number;
@@ -130,6 +151,155 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
         status?: string | undefined;
         error?: boolean | undefined;
     } | null;
+    isAnyFileProcessing: (state: {
+        anonymizationStatus: string;
+        loading: boolean;
+        error: string | null;
+        current: {
+            id: number;
+            sensitiveMetaId: number;
+            text: string;
+            anonymizedText: string;
+            reportMeta?: {
+                id: number;
+                patientFirstName: string;
+                patientLastName: string;
+                patientDob: string;
+                patientGender: string;
+                examinationDate: string;
+                casenumber?: string | null | undefined;
+                centerName?: string | undefined;
+                patientGenderName?: string | undefined;
+                endoscopeType?: string | undefined;
+                endoscopeSn?: string | undefined;
+                isVerified?: boolean | undefined;
+                dobVerified?: boolean | undefined;
+                namesVerified?: boolean | undefined;
+                file?: string | undefined;
+                pdfUrl?: string | undefined;
+                fullPdfPath?: string | undefined;
+            } | undefined;
+            status?: string | undefined;
+            error?: boolean | undefined;
+        } | null;
+        overview: {
+            id: number;
+            filename: string;
+            mediaType: "pdf" | "video";
+            anonymizationStatus: "not_started" | "processing" | "done" | "failed";
+            annotationStatus: "not_started" | "done";
+            createdAt: string;
+        }[];
+        pollingHandles: Record<number, ReturnType<typeof setInterval>>;
+        isPolling: boolean;
+        pending: {
+            id: number;
+            sensitiveMetaId: number;
+            text: string;
+            anonymizedText: string;
+            reportMeta?: {
+                id: number;
+                patientFirstName: string;
+                patientLastName: string;
+                patientDob: string;
+                patientGender: string;
+                examinationDate: string;
+                casenumber?: string | null | undefined;
+                centerName?: string | undefined;
+                patientGenderName?: string | undefined;
+                endoscopeType?: string | undefined;
+                endoscopeSn?: string | undefined;
+                isVerified?: boolean | undefined;
+                dobVerified?: boolean | undefined;
+                namesVerified?: boolean | undefined;
+                file?: string | undefined;
+                pdfUrl?: string | undefined;
+                fullPdfPath?: string | undefined;
+            } | undefined;
+            status?: string | undefined;
+            error?: boolean | undefined;
+        }[];
+    } & import("pinia").PiniaCustomStateProperties<AnonymizationState & {
+        pending: PatientData[];
+    }>) => boolean;
+    processingFiles: (state: {
+        anonymizationStatus: string;
+        loading: boolean;
+        error: string | null;
+        current: {
+            id: number;
+            sensitiveMetaId: number;
+            text: string;
+            anonymizedText: string;
+            reportMeta?: {
+                id: number;
+                patientFirstName: string;
+                patientLastName: string;
+                patientDob: string;
+                patientGender: string;
+                examinationDate: string;
+                casenumber?: string | null | undefined;
+                centerName?: string | undefined;
+                patientGenderName?: string | undefined;
+                endoscopeType?: string | undefined;
+                endoscopeSn?: string | undefined;
+                isVerified?: boolean | undefined;
+                dobVerified?: boolean | undefined;
+                namesVerified?: boolean | undefined;
+                file?: string | undefined;
+                pdfUrl?: string | undefined;
+                fullPdfPath?: string | undefined;
+            } | undefined;
+            status?: string | undefined;
+            error?: boolean | undefined;
+        } | null;
+        overview: {
+            id: number;
+            filename: string;
+            mediaType: "pdf" | "video";
+            anonymizationStatus: "not_started" | "processing" | "done" | "failed";
+            annotationStatus: "not_started" | "done";
+            createdAt: string;
+        }[];
+        pollingHandles: Record<number, ReturnType<typeof setInterval>>;
+        isPolling: boolean;
+        pending: {
+            id: number;
+            sensitiveMetaId: number;
+            text: string;
+            anonymizedText: string;
+            reportMeta?: {
+                id: number;
+                patientFirstName: string;
+                patientLastName: string;
+                patientDob: string;
+                patientGender: string;
+                examinationDate: string;
+                casenumber?: string | null | undefined;
+                centerName?: string | undefined;
+                patientGenderName?: string | undefined;
+                endoscopeType?: string | undefined;
+                endoscopeSn?: string | undefined;
+                isVerified?: boolean | undefined;
+                dobVerified?: boolean | undefined;
+                namesVerified?: boolean | undefined;
+                file?: string | undefined;
+                pdfUrl?: string | undefined;
+                fullPdfPath?: string | undefined;
+            } | undefined;
+            status?: string | undefined;
+            error?: boolean | undefined;
+        }[];
+    } & import("pinia").PiniaCustomStateProperties<AnonymizationState & {
+        pending: PatientData[];
+    }>) => {
+        id: number;
+        filename: string;
+        mediaType: "pdf" | "video";
+        anonymizationStatus: "not_started" | "processing" | "done" | "failed";
+        annotationStatus: "not_started" | "done";
+        createdAt: string;
+    }[];
 }, {
     /** Holt den nächsten PDF-Datensatz + zugehöriges SensitiveMeta
      *  und fügt beides zusammen. */
@@ -169,4 +339,32 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
      * @returns Promise that resolves when upload and fetch are complete
      */
     uploadAndFetch(files: FileList | File[]): Promise<PatientData | null>;
+    /**
+     * Fetch overview of all uploaded files with their statuses
+     */
+    fetchOverview(): Promise<FileItem[]>;
+    /**
+     * Start anonymization for a specific file
+     */
+    startAnonymization(id: number): Promise<boolean>;
+    /**
+     * Start polling status for a specific file
+     */
+    startPolling(id: number): void;
+    /**
+     * Stop polling for a specific file
+     */
+    stopPolling(id: number): void;
+    /**
+     * Stop all polling
+     */
+    stopAllPolling(): void;
+    /**
+     * Set current item for validation (called when clicking "Validate")
+     */
+    setCurrentForValidation(id: number): Promise<PatientData | null>;
+    /**
+     * Refresh overview data
+     */
+    refreshOverview(): Promise<void>;
 }>;

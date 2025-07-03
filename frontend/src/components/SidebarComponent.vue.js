@@ -331,12 +331,12 @@ function __VLS_template() {
     /** @type { [typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, ] } */ ;
     // @ts-ignore
     const __VLS_61 = __VLS_asFunctionalComponent(__VLS_60, new __VLS_60({
-        to: ("/anonymisierung"),
+        to: ("/anonymisierung/uebersicht"),
         ...{ class: ("nav-link") },
         ...{ class: (({ active: __VLS_ctx.$route.path === '/anonymisierung' })) },
     }));
     const __VLS_62 = __VLS_61({
-        to: ("/anonymisierung"),
+        to: ("/anonymisierung/uebersicht"),
         ...{ class: ("nav-link") },
         ...{ class: (({ active: __VLS_ctx.$route.path === '/anonymisierung' })) },
     }, ...__VLS_functionalComponentArgsRest(__VLS_61));
@@ -358,12 +358,12 @@ function __VLS_template() {
     /** @type { [typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, ] } */ ;
     // @ts-ignore
     const __VLS_67 = __VLS_asFunctionalComponent(__VLS_66, new __VLS_66({
-        to: ("/validierung"),
+        to: ("anonymisierung/validierung"),
         ...{ class: ("nav-link") },
         ...{ class: (({ active: __VLS_ctx.$route.path === '/validierung' })) },
     }));
     const __VLS_68 = __VLS_67({
-        to: ("/validierung"),
+        to: ("anonymisierung/validierung"),
         ...{ class: ("nav-link") },
         ...{ class: (({ active: __VLS_ctx.$route.path === '/validierung' })) },
     }, ...__VLS_functionalComponentArgsRest(__VLS_67));

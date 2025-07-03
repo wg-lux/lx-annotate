@@ -2,13 +2,13 @@ import AnonymizationValidationComponent from '../components/Anonymizer/Anonymiza
 export default (await import('vue')).defineComponent({
     name: 'Anonymisierung',
     components: {
-        AnonymizationValidationComponent
+        AnonymizationValidationComponent,
     }
 }); /* PartiallyEnd: #3632/script.vue */
 function __VLS_template() {
     const __VLS_ctx = {};
     const __VLS_componentsOption = {
-        AnonymizationValidationComponent
+        AnonymizationValidationComponent,
     };
     let __VLS_components;
     let __VLS_directives;
@@ -28,6 +28,11 @@ function __VLS_template() {
     // @ts-ignore
     const __VLS_1 = __VLS_asFunctionalComponent(__VLS_0, new __VLS_0({}));
     const __VLS_2 = __VLS_1({}, ...__VLS_functionalComponentArgsRest(__VLS_1));
+    const __VLS_6 = {}.AnonymizationOverview;
+    /** @type { [typeof __VLS_components.AnonymizationOverview, ] } */ ;
+    // @ts-ignore
+    const __VLS_7 = __VLS_asFunctionalComponent(__VLS_6, new __VLS_6({}));
+    const __VLS_8 = __VLS_7({}, ...__VLS_functionalComponentArgsRest(__VLS_7));
     ['container-fluid', 'h-100', 'w-100', 'py-1', 'px-4', 'row', 'col-12',];
     var __VLS_slots;
     var $slots;

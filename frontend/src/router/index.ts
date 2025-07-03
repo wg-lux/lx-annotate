@@ -124,6 +124,22 @@ const router = createRouter({
       }
     },
     {
+      path: '/anonymisierung/uebersicht',
+      name: 'Anonymisierung Übersicht',
+      component: () => import('@/views/AnonymizationOverview.vue'),
+      meta: {
+        description: 'Übersicht aller hochgeladenen Dateien und deren Anonymisierungsstatus.'
+      }
+    },
+    {
+      path: '/anonymisierung/validierung',
+      name: 'Anonymisierung Validierung',
+      component: () => import('@/components/Anonymizer/AnonymizationValidationComponent.vue'),
+      meta: {
+        description: 'Validierung anonymisierter Dateien.'
+      }
+    },
+    {
       path: '/validierung',
       name: 'Validierung',
       component: () => import('@/views/Validierung.vue'),

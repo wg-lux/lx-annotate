@@ -202,7 +202,14 @@ const approveItem = async () => {
                 id: currentItem.value.reportMeta?.id || 0
             }
         };
-        await store.patchPdf(updatedData);
+        // Determine media type and use appropriate endpoint
+        const isVideo = currentItem.value.reportMeta?.file && !currentItem.value.reportMeta?.pdfUrl;
+        if (isVideo) {
+            await store.patchVideo(updatedData);
+        }
+        else {
+            await store.patchPdf(updatedData);
+        }
         await fetchNextItem();
         dirty.value = false;
     }
@@ -282,12 +289,12 @@ function __VLS_template() {
         // @ts-ignore
         const __VLS_0 = __VLS_asFunctionalComponent(FileDropZone, new FileDropZone({
             ...{ 'onFilesSelected': {} },
-            isUploading: ((__VLS_ctx.isUploading)),
+            isUploading: ((__VLS_ctx.isUploading || __VLS_ctx.store.isAnyFileProcessing)),
             acceptedFileTypes: ("*"),
         }));
         const __VLS_1 = __VLS_0({
             ...{ 'onFilesSelected': {} },
-            isUploading: ((__VLS_ctx.isUploading)),
+            isUploading: ((__VLS_ctx.isUploading || __VLS_ctx.store.isAnyFileProcessing)),
             acceptedFileTypes: ("*"),
         }, ...__VLS_functionalComponentArgsRest(__VLS_0));
         let __VLS_5;
@@ -297,6 +304,35 @@ function __VLS_template() {
         let __VLS_2;
         let __VLS_3;
         var __VLS_4;
+        if (__VLS_ctx.store.isAnyFileProcessing) {
+            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: ("alert alert-warning mt-3") },
+            });
+            __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                ...{ class: ("fas fa-info-circle me-2") },
+            });
+            __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+            (__VLS_ctx.store.processingFiles.length);
+            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: ("mt-2") },
+            });
+            const __VLS_7 = {}.RouterLink;
+            /** @type { [typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, ] } */ ;
+            // @ts-ignore
+            const __VLS_8 = __VLS_asFunctionalComponent(__VLS_7, new __VLS_7({
+                to: ("/anonymisierung/uebersicht"),
+                ...{ class: ("btn btn-sm btn-outline-primary") },
+            }));
+            const __VLS_9 = __VLS_8({
+                to: ("/anonymisierung/uebersicht"),
+                ...{ class: ("btn btn-sm btn-outline-primary") },
+            }, ...__VLS_functionalComponentArgsRest(__VLS_8));
+            __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                ...{ class: ("fas fa-eye me-1") },
+            });
+            __VLS_12.slots.default;
+            var __VLS_12;
+        }
     }
     else {
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -434,25 +470,25 @@ function __VLS_template() {
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: ("mb-3") },
         });
-        const __VLS_7 = {}.FilePond;
+        const __VLS_13 = {}.FilePond;
         /** @type { [typeof __VLS_components.FilePond, ] } */ ;
         // @ts-ignore
-        const __VLS_8 = __VLS_asFunctionalComponent(__VLS_7, new __VLS_7({
+        const __VLS_14 = __VLS_asFunctionalComponent(__VLS_13, new __VLS_13({
             ref: ("pond"),
             name: ("file"),
             acceptedFileTypes: ("image/*"),
             labelIdle: ("Bild hier ablegen oder klicken"),
         }));
-        const __VLS_9 = __VLS_8({
+        const __VLS_15 = __VLS_14({
             ref: ("pond"),
             name: ("file"),
             acceptedFileTypes: ("image/*"),
             labelIdle: ("Bild hier ablegen oder klicken"),
-        }, ...__VLS_functionalComponentArgsRest(__VLS_8));
+        }, ...__VLS_functionalComponentArgsRest(__VLS_14));
         // @ts-ignore navigation for `const pond = ref()`
         /** @type { typeof __VLS_ctx.pond } */ ;
-        var __VLS_13 = {};
-        var __VLS_12;
+        var __VLS_19 = {};
+        var __VLS_18;
         if (__VLS_ctx.processedUrl) {
             __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
                 ...{ class: ("mt-3") },
@@ -538,13 +574,13 @@ function __VLS_template() {
             disabled: ((!__VLS_ctx.isExaminationDateValid || !__VLS_ctx.dirty)),
         });
     }
-    ['container-fluid', 'py-4', 'card', 'card-header', 'pb-0', 'mb-0', 'card-body', 'text-center', 'py-5', 'spinner-border', 'text-primary', 'visually-hidden', 'mt-2', 'alert', 'alert-danger', 'alert', 'alert-info', 'mb-4', 'row', 'mb-3', 'col-12', 'alert', 'alert-info', 'd-flex', 'align-items-center', 'fas', 'fa-info-circle', 'me-2', 'row', 'mb-4', 'col-md-5', 'card', 'bg-light', 'mb-4', 'card-body', 'card-title', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-select', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-control', 'is-invalid', 'invalid-feedback', 'mb-3', 'form-label', 'form-control', 'card', 'bg-light', 'card-body', 'card-title', 'mb-3', 'mt-3', 'img-fluid', 'btn', 'btn-info', 'btn-sm', 'mt-2', 'mt-3', 'btn', 'btn-primary', 'col-md-7', 'card', 'card-header', 'pb-0', 'mb-0', 'card-body', 'media-viewer-container', 'alert', 'alert-secondary', 'row', 'col-12', 'd-flex', 'justify-content-between', 'btn', 'btn-secondary', 'btn', 'btn-danger', 'me-2', 'btn', 'btn-success',];
+    ['container-fluid', 'py-4', 'card', 'card-header', 'pb-0', 'mb-0', 'card-body', 'text-center', 'py-5', 'spinner-border', 'text-primary', 'visually-hidden', 'mt-2', 'alert', 'alert-danger', 'alert', 'alert-info', 'mb-4', 'alert', 'alert-warning', 'mt-3', 'fas', 'fa-info-circle', 'me-2', 'mt-2', 'btn', 'btn-sm', 'btn-outline-primary', 'fas', 'fa-eye', 'me-1', 'row', 'mb-3', 'col-12', 'alert', 'alert-info', 'd-flex', 'align-items-center', 'fas', 'fa-info-circle', 'me-2', 'row', 'mb-4', 'col-md-5', 'card', 'bg-light', 'mb-4', 'card-body', 'card-title', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-select', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-control', 'is-invalid', 'invalid-feedback', 'mb-3', 'form-label', 'form-control', 'card', 'bg-light', 'card-body', 'card-title', 'mb-3', 'mt-3', 'img-fluid', 'btn', 'btn-info', 'btn-sm', 'mt-2', 'mt-3', 'btn', 'btn-primary', 'col-md-7', 'card', 'card-header', 'pb-0', 'mb-0', 'card-body', 'media-viewer-container', 'alert', 'alert-secondary', 'row', 'col-12', 'd-flex', 'justify-content-between', 'btn', 'btn-secondary', 'btn', 'btn-danger', 'me-2', 'btn', 'btn-success',];
     var __VLS_slots;
     var $slots;
     let __VLS_inheritedAttrs;
     var $attrs;
     const __VLS_refs = {
-        'pond': __VLS_13,
+        'pond': __VLS_19,
     };
     var $refs;
     var $el;

@@ -6,6 +6,7 @@
         <p>Hier finden Sie die aktuell verfügbaren Anonymisierungen.</p>
       </div>
       <AnonymizationValidationComponent />
+      <AnonymizationOverview />
     </div>
   </div>
 </template>
@@ -16,7 +17,7 @@ import AnonymizationValidationComponent from '../components/Anonymizer/Anonymiza
 export default {
   name: 'Anonymisierung',
   components: {
-    AnonymizationValidationComponent
+    AnonymizationValidationComponent,
   }
 }
 </script>
