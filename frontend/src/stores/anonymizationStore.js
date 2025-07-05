@@ -207,8 +207,9 @@ export const useAnonymizationStore = defineStore('anonymization', {
          * Start polling status for a specific file
          */
         startPolling(id) {
-            // Clear existing polling for this file
-            this.stopPolling(id);
+            /* if we are ALREADY polling this id do nothing */
+            if (this.pollingHandles[id])
+                return;
             console.log(`Starting status polling for file ${id}`);
             this.isPolling = true;
             const timer = setInterval(async () => {

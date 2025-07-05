@@ -1,4 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router';
+import { useAnonymizationStore } from '@/stores/anonymizationStore';
+
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL || '/'),
@@ -132,7 +134,7 @@ const router = createRouter({
       }
     },
     {
-      path: '/anonymisierung/validierung',
+      path: '/anonymisierung/validation',
       name: 'Anonymisierung Validierung',
       component: () => import('@/components/Anonymizer/AnonymizationValidationComponent.vue'),
       meta: {
@@ -154,5 +156,11 @@ const router = createRouter({
     }
   ]
 });
+
+router.beforeEach((_to, _from, next) => {
+    const store = useAnonymizationStore();
+    store.stopAllPolling();
+    next();
+  });
 
 export default router;

@@ -301,8 +301,8 @@ export const useAnonymizationStore = defineStore('anonymization', {
      * Start polling status for a specific file
      */
     startPolling(id: number) {
-      // Clear existing polling for this file
-      this.stopPolling(id);
+      /* if we are ALREADY polling this id do nothing */
+      if (this.pollingHandles[id]) return;
       
       console.log(`Starting status polling for file ${id}`);
       this.isPolling = true;
@@ -313,15 +313,20 @@ export const useAnonymizationStore = defineStore('anonymization', {
           const file = this.overview.find(f => f.id === id);
           
           if (file && data.anonymizationStatus) {
-            console.log(`Status update for file ${id}: ${data.anonymizationStatus}`);
-            file.anonymizationStatus = data.anonymizationStatus;
-            
-            // Stop polling if done or failed
-            if (['done', 'failed'].includes(data.anonymizationStatus)) {
-              console.log(`Stopping polling for file ${id} - status: ${data.anonymizationStatus}`);
-              this.stopPolling(id);
+              /* unify wording coming from the backend ------------------- */
+              const normalised =
+                data.anonymizationStatus === 'completed'
+                  ? 'done'
+                  : data.anonymizationStatus;
+  
+              console.log(`Status update for file ${id}: ${normalised}`);
+              file.anonymizationStatus = normalised as any;
+  
+              /* stop when finished or failed --------------------------- */
+              if (['done', 'failed'].includes(normalised)) {
+                this.stopPolling(id);
+              }
             }
-          }
         } catch (err) {
           console.error(`Error polling status for file ${id}:`, err);
           // Continue polling even on error to be resilient
@@ -363,7 +368,9 @@ export const useAnonymizationStore = defineStore('anonymization', {
     async setCurrentForValidation(id: number) {
       try {
         console.log(`Setting current item for validation: ${id}`);
-        const { data } = await axiosInstance.put<PatientData>(r(`anonymization/${id}/current/`));
+        const { data } = await axiosInstance.put<PatientData>(
+          r(`anonymization/${id}/current/`)
+        );
         console.log('Received validation data:', data);
         
         this.current = data;

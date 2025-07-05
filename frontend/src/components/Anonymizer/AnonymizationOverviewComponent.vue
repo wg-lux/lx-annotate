@@ -12,6 +12,7 @@
             <i class="fas fa-sync-alt" :class="{ 'fa-spin': isRefreshing }"></i>
             Aktualisieren
           </button>
+          <!-- use the SAME route the Validate-button jumps to -->
           <router-link 
             to="/anonymisierung/validation" 
             class="btn btn-primary btn-sm"
@@ -254,6 +255,11 @@ const startAnonymization = async (fileId: number) => {
     if (success) {
       // Refresh overview to get updated status
       await refreshOverview();
+      
+      // No redirect needed - user is already on the correct page
+      console.log('Anonymization started successfully for file', fileId);
+    } else {
+      console.warn('startAnonymization failed - staying on current page');
     }
   } finally {
     processingFiles.value.delete(fileId);
@@ -265,8 +271,11 @@ const validateFile = async (fileId: number) => {
   try {
     const result = await store.setCurrentForValidation(fileId);
     if (result) {
-      // Navigate to validation page
+
+      /* jump to the validation page that has an actual vue-route */
       router.push('/anonymisierung/validation');
+    } else {
+      console.warn('setCurrentForValidation returned null - navigation aborted');
     }
   } finally {
     processingFiles.value.delete(fileId);

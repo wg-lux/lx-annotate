@@ -131,7 +131,7 @@ const router = createRouter({
             }
         },
         {
-            path: '/anonymisierung/validierung',
+            path: '/anonymisierung/validation',
             name: 'Anonymisierung Validierung',
             component: () => import('@/components/Anonymizer/AnonymizationValidationComponent.vue'),
             meta: {

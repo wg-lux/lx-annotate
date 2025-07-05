@@ -26,6 +26,11 @@ const startAnonymization = async (fileId) => {
         if (success) {
             // Refresh overview to get updated status
             await refreshOverview();
+            // No redirect needed - user is already on the correct page
+            console.log('Anonymization started successfully for file', fileId);
+        }
+        else {
+            console.warn('startAnonymization failed - staying on current page');
         }
     }
     finally {
@@ -37,8 +42,13 @@ const validateFile = async (fileId) => {
     try {
         const result = await store.setCurrentForValidation(fileId);
         if (result) {
-            // Navigate to validation page
+            /* stop every running poll BEFORE we leave the page */
+            store.stopAllPolling();
+            /* jump to the validation page that has an actual vue-route */
             router.push('/anonymisierung/validation');
+        }
+        else {
+            console.warn('setCurrentForValidation returned null - navigation aborted');
         }
     }
     finally {
