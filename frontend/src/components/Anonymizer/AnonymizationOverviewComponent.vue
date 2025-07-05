@@ -155,14 +155,14 @@
                     </button>
 
                     <!-- Processing indicator -->
-                    <div
+                    <button
                       v-if="file.anonymizationStatus === 'processing'"
                       class="btn btn-outline-info"
                       disabled
                     >
                       <i class="fas fa-spinner fa-spin me-1"></i>
                       Verarbeitung...
-                    </div>
+                    </button>
                   </div>
                 </td>
               </tr>

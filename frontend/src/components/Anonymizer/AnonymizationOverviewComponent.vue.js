@@ -336,7 +336,7 @@ function __VLS_template() {
                 });
             }
             if (file.anonymizationStatus === 'processing') {
-                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
                     ...{ class: ("btn btn-outline-info") },
                     disabled: (true),
                 });
