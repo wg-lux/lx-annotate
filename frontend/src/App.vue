@@ -11,6 +11,13 @@
         type="text/css"
         href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700|Roboto+Slab:400,700|Material+Icons"
       />
+    <!-- Font Awesome 6.5.1 Free (CSS only, no JS kit required) -->
+    <link rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+      integrity="sha512-xh6IYswF2Yt+0e1yz3F6j2CvkJyDk6cfogmfVZBt3WgBp1x5Yp1p9ggbo2mcqzg4bV7+ydRZo7ljZHFQUNq9PQ=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer">
+
     <link rel="stylesheet" href="@assets/css/custom-overrides.css">
   </header>
   <meta name="viewport" content="width=device-width, initial-scale=1">

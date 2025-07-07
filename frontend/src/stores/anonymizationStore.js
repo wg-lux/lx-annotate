@@ -217,11 +217,14 @@ export const useAnonymizationStore = defineStore('anonymization', {
                     const { data } = await axiosInstance.get(r(`anonymization/${id}/status/`));
                     const file = this.overview.find(f => f.id === id);
                     if (file && data.anonymizationStatus) {
-                        console.log(`Status update for file ${id}: ${data.anonymizationStatus}`);
-                        file.anonymizationStatus = data.anonymizationStatus;
-                        // Stop polling if done or failed
-                        if (['done', 'failed'].includes(data.anonymizationStatus)) {
-                            console.log(`Stopping polling for file ${id} - status: ${data.anonymizationStatus}`);
+                        /* unify wording coming from the backend ------------------- */
+                        const normalised = data.anonymizationStatus === 'completed'
+                            ? 'done'
+                            : data.anonymizationStatus;
+                        console.log(`Status update for file ${id}: ${normalised}`);
+                        file.anonymizationStatus = normalised;
+                        /* stop when finished or failed --------------------------- */
+                        if (['done', 'failed'].includes(normalised)) {
                             this.stopPolling(id);
                         }
                     }

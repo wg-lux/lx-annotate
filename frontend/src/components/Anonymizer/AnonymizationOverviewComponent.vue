@@ -14,7 +14,7 @@
           </button>
           <!-- use the SAME route the Validate-button jumps to -->
           <router-link 
-            to="/anonymisierung/validation" 
+            to="/anonymisierung/validierung" 
             class="btn btn-primary btn-sm"
           >
             <i class="fas fa-play me-1"></i>
@@ -273,7 +273,7 @@ const validateFile = async (fileId: number) => {
     if (result) {
 
       /* jump to the validation page that has an actual vue-route */
-      router.push('/anonymisierung/validation');
+      router.push('/anonymisierung/validierung');
     } else {
       console.warn('setCurrentForValidation returned null - navigation aborted');
     }

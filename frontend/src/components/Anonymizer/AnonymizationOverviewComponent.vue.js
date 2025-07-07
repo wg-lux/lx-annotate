@@ -42,8 +42,6 @@ const validateFile = async (fileId) => {
     try {
         const result = await store.setCurrentForValidation(fileId);
         if (result) {
-            /* stop every running poll BEFORE we leave the page */
-            store.stopAllPolling();
             /* jump to the validation page that has an actual vue-route */
             router.push('/anonymisierung/validation');
         }
