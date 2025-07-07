@@ -283,10 +283,38 @@ export const useAnonymizationStore = defineStore('anonymization', {
         async setCurrentForValidation(id) {
             try {
                 console.log(`Setting current item for validation: ${id}`);
-                const { data } = await axiosInstance.put(r(`anonymization/${id}/current/`));
-                console.log('Received validation data:', data);
-                this.current = data;
-                return data;
+                // Find the item in overview to get mediaType and sensitiveMetaId
+                const item = this.overview.find(f => f.id === id);
+                if (!item) {
+                    throw new Error(`Item with ID ${id} not found in overview`);
+                }
+                console.log('Found item for validation:', item);
+                if (item.mediaType === 'video') {
+                    // For videos, use the sensitiveMetaId to load the video data
+                    if (!item.sensitiveMetaId || typeof item.sensitiveMetaId !== 'number') {
+                        throw new Error(`Video item with ID ${id} has no valid sensitiveMetaId (got: ${item.sensitiveMetaId})`);
+                        return null;
+                    }
+                    console.log(`Loading video data for sensitiveMetaId: ${item.sensitiveMetaId}`);
+                    const { data: meta } = await axiosInstance.get(r(`video/sensitivemeta/?id=${item.sensitiveMetaId}`));
+                    console.log('Received video sensitive meta:', meta);
+                    this.current = {
+                        id: item.sensitiveMetaId, // Use sensitiveMetaId for video stream URL
+                        sensitiveMetaId: item.sensitiveMetaId,
+                        text: '', // Videos don't have text
+                        anonymizedText: '', // Videos don't have anonymized text
+                        reportMeta: meta
+                    };
+                    return this.current;
+                }
+                else {
+                    // For PDFs, use the original endpoint
+                    console.log(`Setting current item for validation: ${id}`);
+                    const { data } = await axiosInstance.put(r(`anonymization/${id}/current/`));
+                    console.log('Received validation data:', data);
+                    this.current = data;
+                    return data;
+                }
             }
             catch (err) {
                 console.error(`Error setting current for validation (ID: ${id}):`, err);
@@ -304,6 +332,44 @@ export const useAnonymizationStore = defineStore('anonymization', {
          */
         async refreshOverview() {
             await this.fetchOverview();
+        },
+        /**
+         * Re-import a video file to regenerate metadata
+         */
+        async reimportVideo(fileId) {
+            const file = this.overview.find(f => f.id === fileId);
+            if (!file) {
+                this.error = `Video mit ID ${fileId} nicht gefunden.`;
+                return false;
+            }
+            if (file.mediaType !== 'video') {
+                this.error = `Datei mit ID ${fileId} ist kein Video.`;
+                return false;
+            }
+            try {
+                console.log(`Re-importing video ${fileId}...`);
+                // Optimistic UI update
+                file.anonymizationStatus = 'processing';
+                file.metadataImported = false;
+                // Trigger re-import via backend
+                await axiosInstance.post(r(`video/${fileId}/reimport/`));
+                console.log(`Video re-import started for file ${fileId}`);
+                // Start polling for status updates
+                this.startPolling(fileId);
+                return true;
+            }
+            catch (err) {
+                console.error(`Error re-importing video ${fileId}:`, err);
+                // Revert optimistic update
+                file.anonymizationStatus = 'not_started';
+                if (axios.isAxiosError(err)) {
+                    this.error = `Fehler beim erneuten Importieren (${err.response?.status}): ${err.message}`;
+                }
+                else {
+                    this.error = err?.message ?? 'Unbekannter Fehler beim erneuten Importieren.';
+                }
+                return false;
+            }
         }
         // ...existing actions continue...
     }

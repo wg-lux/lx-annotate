@@ -53,8 +53,28 @@ const validateFile = async (fileId) => {
         processingFiles.value.delete(fileId);
     }
 };
+const reimportVideo = async (fileId) => {
+    processingFiles.value.add(fileId);
+    try {
+        const success = await store.reimportVideo(fileId);
+        if (success) {
+            // Refresh overview to get updated status
+            await refreshOverview();
+            console.log('Video re-imported successfully:', fileId);
+        }
+        else {
+            console.warn('Re-import failed - staying on current page');
+        }
+    }
+    finally {
+        processingFiles.value.delete(fileId);
+    }
+};
 const isProcessing = (fileId) => {
     return processingFiles.value.has(fileId);
+};
+const needsReimport = (file) => {
+    return file.mediaType === 'video' && !file.metadataImported;
 };
 const getFileIcon = (mediaType) => {
     return mediaType === 'video' ? 'fas fa-video text-primary' : 'fas fa-file-pdf text-danger';
@@ -283,6 +303,27 @@ function __VLS_template() {
                 ...{ class: ("btn-group btn-group-sm") },
                 role: ("group"),
             });
+            if (file.mediaType === 'video' && __VLS_ctx.needsReimport(file)) {
+                __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+                    ...{ onClick: (...[$event]) => {
+                            if (!(!((__VLS_ctx.store.loading && !__VLS_ctx.store.overview.length))))
+                                return;
+                            if (!(!((__VLS_ctx.store.error))))
+                                return;
+                            if (!(!((!__VLS_ctx.store.overview.length))))
+                                return;
+                            if (!((file.mediaType === 'video' && __VLS_ctx.needsReimport(file))))
+                                return;
+                            __VLS_ctx.reimportVideo(file.id);
+                        } },
+                    ...{ class: ("btn btn-outline-info") },
+                    disabled: ((__VLS_ctx.isProcessing(file.id))),
+                    title: ("Video erneut importieren und Metadaten aktualisieren"),
+                });
+                __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                    ...{ class: ("fas fa-redo-alt") },
+                });
+            }
             if (file.anonymizationStatus === 'not_started') {
                 __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
                     ...{ onClick: (...[$event]) => {
@@ -426,7 +467,7 @@ function __VLS_template() {
             ...{ class: ("text-muted") },
         });
     }
-    ['container-fluid', 'py-4', 'card', 'card-header', 'pb-0', 'd-flex', 'justify-content-between', 'align-items-center', 'mb-0', 'd-flex', 'gap-2', 'btn', 'btn-outline-primary', 'btn-sm', 'fas', 'fa-sync-alt', 'fa-spin', 'btn', 'btn-primary', 'btn-sm', 'fas', 'fa-play', 'me-1', 'card-body', 'text-center', 'py-5', 'spinner-border', 'text-primary', 'visually-hidden', 'mt-2', 'alert', 'alert-danger', 'text-center', 'py-5', 'mb-4', 'fas', 'fa-folder-open', 'fa-3x', 'text-muted', 'text-muted', 'text-muted', 'mb-4', 'btn', 'btn-primary', 'fas', 'fa-upload', 'me-2', 'table-responsive', 'table', 'table-hover', 'table-light', 'd-flex', 'align-items-center', 'me-2', 'fw-medium', 'badge', 'badge', 'fas', 'fa-spinner', 'fa-spin', 'me-1', 'badge', 'text-muted', 'btn-group', 'btn-group-sm', 'btn', 'btn-outline-primary', 'fas', 'fa-play', 'btn', 'btn-outline-warning', 'fas', 'fa-redo', 'btn', 'btn-outline-success', 'fas', 'fa-eye', 'btn', 'btn-outline-info', 'fas', 'fa-spinner', 'fa-spin', 'me-1', 'row', 'mt-4', 'col-md-12', 'card', 'bg-light', 'card-body', 'card-title', 'row', 'text-center', 'col-md-3', 'mb-2', 'badge', 'bg-secondary', 'fs-6', 'text-muted', 'col-md-3', 'mb-2', 'badge', 'bg-warning', 'fs-6', 'text-muted', 'col-md-3', 'mb-2', 'badge', 'bg-success', 'fs-6', 'text-muted', 'col-md-3', 'mb-2', 'badge', 'bg-danger', 'fs-6', 'text-muted',];
+    ['container-fluid', 'py-4', 'card', 'card-header', 'pb-0', 'd-flex', 'justify-content-between', 'align-items-center', 'mb-0', 'd-flex', 'gap-2', 'btn', 'btn-outline-primary', 'btn-sm', 'fas', 'fa-sync-alt', 'fa-spin', 'btn', 'btn-primary', 'btn-sm', 'fas', 'fa-play', 'me-1', 'card-body', 'text-center', 'py-5', 'spinner-border', 'text-primary', 'visually-hidden', 'mt-2', 'alert', 'alert-danger', 'text-center', 'py-5', 'mb-4', 'fas', 'fa-folder-open', 'fa-3x', 'text-muted', 'text-muted', 'text-muted', 'mb-4', 'btn', 'btn-primary', 'fas', 'fa-upload', 'me-2', 'table-responsive', 'table', 'table-hover', 'table-light', 'd-flex', 'align-items-center', 'me-2', 'fw-medium', 'badge', 'badge', 'fas', 'fa-spinner', 'fa-spin', 'me-1', 'badge', 'text-muted', 'btn-group', 'btn-group-sm', 'btn', 'btn-outline-info', 'fas', 'fa-redo-alt', 'btn', 'btn-outline-primary', 'fas', 'fa-play', 'btn', 'btn-outline-warning', 'fas', 'fa-redo', 'btn', 'btn-outline-success', 'fas', 'fa-eye', 'btn', 'btn-outline-info', 'fas', 'fa-spinner', 'fa-spin', 'me-1', 'row', 'mt-4', 'col-md-12', 'card', 'bg-light', 'card-body', 'card-title', 'row', 'text-center', 'col-md-3', 'mb-2', 'badge', 'bg-secondary', 'fs-6', 'text-muted', 'col-md-3', 'mb-2', 'badge', 'bg-warning', 'fs-6', 'text-muted', 'col-md-3', 'mb-2', 'badge', 'bg-success', 'fs-6', 'text-muted', 'col-md-3', 'mb-2', 'badge', 'bg-danger', 'fs-6', 'text-muted',];
     var __VLS_slots;
     var $slots;
     let __VLS_inheritedAttrs;
@@ -450,7 +491,9 @@ const __VLS_self = (await import('vue')).defineComponent({
             refreshOverview: refreshOverview,
             startAnonymization: startAnonymization,
             validateFile: validateFile,
+            reimportVideo: reimportVideo,
             isProcessing: isProcessing,
+            needsReimport: needsReimport,
             getFileIcon: getFileIcon,
             getMediaTypeBadgeClass: getMediaTypeBadgeClass,
             getStatusBadgeClass: getStatusBadgeClass,

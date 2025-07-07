@@ -122,6 +122,18 @@
                 <!-- Actions -->
                 <td>
                   <div class="btn-group btn-group-sm" role="group">
+                    <!-- Re-import for videos with missing/incorrect metadata -->
+                    <button
+                      v-if="file.mediaType === 'video' && needsReimport(file)"
+                      @click="reimportVideo(file.id)"
+                      class="btn btn-outline-info"
+                      :disabled="isProcessing(file.id)"
+                      title="Video erneut importieren und Metadaten aktualisieren"
+                    >
+                      <i class="fas fa-redo-alt"></i>
+                      Erneut importieren
+                    </button>
+
                     <!-- Start Anonymization -->
                     <button
                       v-if="file.anonymizationStatus === 'not_started'"
@@ -282,8 +294,28 @@ const validateFile = async (fileId: number) => {
   }
 };
 
+const reimportVideo = async (fileId: number) => {
+  processingFiles.value.add(fileId);
+  try {
+    const success = await store.reimportVideo(fileId);
+    if (success) {
+      // Refresh overview to get updated status
+      await refreshOverview();
+      console.log('Video re-imported successfully:', fileId);
+    } else {
+      console.warn('Re-import failed - staying on current page');
+    }
+  } finally {
+    processingFiles.value.delete(fileId);
+  }
+};
+
 const isProcessing = (fileId: number) => {
   return processingFiles.value.has(fileId);
+};
+
+const needsReimport = (file: FileItem) => {
+  return file.mediaType === 'video' && !file.metadataImported;
 };
 
 const getFileIcon = (mediaType: string) => {

@@ -17,6 +17,7 @@ export interface FileItem {
   annotationStatus: "not_started" | "done";
   createdAt: string; // ISO
   sensitiveMetaId?: number; // Add this for video file lookup
+  metadataImported: boolean; // New field to track if metadata was properly imported
 }
 
 export interface AnonymizationState {
@@ -391,6 +392,39 @@ export const useAnonymizationStore = defineStore('anonymization', {
      */
     async setCurrentForValidation(id: number) {
       try {
+
+        console.log(`Setting current item for validation: ${id}`);
+
+                        
+        // Find the item in overview to get mediaType and sensitiveMetaId
+        const item = this.overview.find(f => f.id === id);
+        if (!item) {
+            throw new Error(`Item with ID ${id} not found in overview`);
+        }
+        
+        console.log('Found item for validation:', item);
+        
+        if (item.mediaType === 'video') {
+            // For videos, use the sensitiveMetaId to load the video data
+            if (!item.sensitiveMetaId || typeof item.sensitiveMetaId !== 'number') {
+              throw new Error(`Video item with ID ${id} has no valid sensitiveMetaId (got: ${item.sensitiveMetaId})`);
+              return null;
+            }
+            console.log(`Loading video data for sensitiveMetaId: ${item.sensitiveMetaId}`);
+            const { data: meta } = await axiosInstance.get(r(`video/sensitivemeta/?id=${item.sensitiveMetaId}`));
+            console.log('Received video sensitive meta:', meta);
+            
+            this.current = {
+              id: item.sensitiveMetaId, // Use sensitiveMetaId for video stream URL
+              sensitiveMetaId: item.sensitiveMetaId,
+              text: '', // Videos don't have text
+              anonymizedText: '', // Videos don't have anonymized text
+              reportMeta: meta
+            };
+            return this.current;
+        } 
+        else {
+            // For PDFs, use the original endpoint
         console.log(`Setting current item for validation: ${id}`);
         const { data } = await axiosInstance.put<PatientData>(
           r(`anonymization/${id}/current/`)
@@ -399,7 +433,10 @@ export const useAnonymizationStore = defineStore('anonymization', {
         
         this.current = data;
         return data;
-      } catch (err: any) {
+      } 
+    }
+      
+      catch (err: any) {
         console.error(`Error setting current for validation (ID: ${id}):`, err);
         if (axios.isAxiosError(err)) {
           this.error = `Fehler beim Laden der Validierungsdaten (${err.response?.status}): ${err.message}`;
@@ -415,6 +452,66 @@ export const useAnonymizationStore = defineStore('anonymization', {
      */
     async refreshOverview() {
       await this.fetchOverview();
+    },
+
+    /**
+     * Re-import a video file to regenerate metadata
+     */
+    async reimportVideo(fileId: number) {
+      const file = this.overview.find(f => f.id === fileId);
+      if (!file) {
+        this.error = `Video mit ID ${fileId} nicht gefunden.`;
+        return false;
+      }
+
+      if (file.mediaType !== 'video') {
+        this.error = `Datei mit ID ${fileId} ist kein Video.`;
+        return false;
+      }
+
+      try {
+        console.log(`Re-importing video ${fileId}...`);
+        
+        // Optimistic UI update
+        file.anonymizationStatus = 'processing';
+        file.metadataImported = false;
+        
+        // Trigger re-import via backend
+        const response = await axiosInstance.post(r(`video/${fileId}/reimport/`));
+        console.log(`Video re-import response:`, response.data);
+        
+        // Check if re-import was successful
+        if (response.data && response.data.sensitive_meta_created) {
+          // Update the file with successful re-import status
+          file.metadataImported = true;
+          file.anonymizationStatus = 'done';
+          console.log(`Video ${fileId} re-imported successfully with metadata`);
+        } else {
+          // Re-import completed but may not have created metadata
+          file.metadataImported = false;
+          file.anonymizationStatus = 'done';
+          console.log(`Video ${fileId} re-imported but metadata may be incomplete`);
+        }
+        
+        // Force refresh the overview to get latest data
+        await this.fetchOverview();
+        
+        return true;
+      } catch (err: any) {
+        console.error(`Error re-importing video ${fileId}:`, err);
+        
+        // Revert optimistic update
+        file.anonymizationStatus = 'not_started';
+        file.metadataImported = false;
+        
+        if (axios.isAxiosError(err)) {
+          const errorMessage = err.response?.data?.error || err.message;
+          this.error = `Fehler beim erneuten Importieren (${err.response?.status}): ${errorMessage}`;
+        } else {
+          this.error = err?.message ?? 'Unbekannter Fehler beim erneuten Importieren.';
+        }
+        return false;
+      }
     }
 
     // ...existing actions continue...

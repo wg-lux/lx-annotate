@@ -6,6 +6,7 @@ export interface FileItem {
     annotationStatus: "not_started" | "done";
     createdAt: string;
     sensitiveMetaId?: number;
+    metadataImported: boolean;
 }
 export interface AnonymizationState {
     anonymizationStatus: string;
@@ -94,6 +95,7 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
             annotationStatus: "not_started" | "done";
             createdAt: string;
             sensitiveMetaId?: number | undefined;
+            metadataImported: boolean;
         }[];
         pollingHandles: Record<number, ReturnType<typeof setInterval>>;
         isPolling: boolean;
@@ -192,6 +194,7 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
             annotationStatus: "not_started" | "done";
             createdAt: string;
             sensitiveMetaId?: number | undefined;
+            metadataImported: boolean;
         }[];
         pollingHandles: Record<number, ReturnType<typeof setInterval>>;
         isPolling: boolean;
@@ -264,6 +267,7 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
             annotationStatus: "not_started" | "done";
             createdAt: string;
             sensitiveMetaId?: number | undefined;
+            metadataImported: boolean;
         }[];
         pollingHandles: Record<number, ReturnType<typeof setInterval>>;
         isPolling: boolean;
@@ -304,6 +308,7 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
         annotationStatus: "not_started" | "done";
         createdAt: string;
         sensitiveMetaId?: number | undefined;
+        metadataImported: boolean;
     }[];
 }, {
     /** Holt den nächsten PDF-Datensatz + zugehöriges SensitiveMeta
@@ -372,4 +377,8 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
      * Refresh overview data
      */
     refreshOverview(): Promise<void>;
+    /**
+     * Re-import a video file to regenerate metadata
+     */
+    reimportVideo(fileId: number): Promise<boolean>;
 }>;
