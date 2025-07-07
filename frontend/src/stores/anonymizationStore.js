@@ -352,18 +352,33 @@ export const useAnonymizationStore = defineStore('anonymization', {
                 file.anonymizationStatus = 'processing';
                 file.metadataImported = false;
                 // Trigger re-import via backend
-                await axiosInstance.post(r(`video/${fileId}/reimport/`));
-                console.log(`Video re-import started for file ${fileId}`);
-                // Start polling for status updates
-                this.startPolling(fileId);
+                const response = await axiosInstance.post(r(`video/${fileId}/reimport/`));
+                console.log(`Video re-import response:`, response.data);
+                // Check if re-import was successful
+                if (response.data && response.data.sensitive_meta_created) {
+                    // Update the file with successful re-import status
+                    file.metadataImported = true;
+                    file.anonymizationStatus = 'done';
+                    console.log(`Video ${fileId} re-imported successfully with metadata`);
+                }
+                else {
+                    // Re-import completed but may not have created metadata
+                    file.metadataImported = false;
+                    file.anonymizationStatus = 'done';
+                    console.log(`Video ${fileId} re-imported but metadata may be incomplete`);
+                }
+                // Force refresh the overview to get latest data
+                await this.fetchOverview();
                 return true;
             }
             catch (err) {
                 console.error(`Error re-importing video ${fileId}:`, err);
                 // Revert optimistic update
                 file.anonymizationStatus = 'not_started';
+                file.metadataImported = false;
                 if (axios.isAxiosError(err)) {
-                    this.error = `Fehler beim erneuten Importieren (${err.response?.status}): ${err.message}`;
+                    const errorMessage = err.response?.data?.error || err.message;
+                    this.error = `Fehler beim erneuten Importieren (${err.response?.status}): ${errorMessage}`;
                 }
                 else {
                     this.error = err?.message ?? 'Unbekannter Fehler beim erneuten Importieren.';

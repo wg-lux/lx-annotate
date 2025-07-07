@@ -1,0 +1,33 @@
+[Unit]
+Description=LX-Annotate File Watcher Service
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=admin
+Group=admin
+WorkingDirectory=/home/admin/test/lx-annotate
+Environment=DJANGO_SETTINGS_MODULE=lx_annotate.settings.dev
+Environment=WATCHER_LOG_LEVEL=INFO
+Environment=PYTHONPATH=/home/admin/test/lx-annotate
+ExecStart=/home/admin/test/lx-annotate/.devenv/state/venv/bin/python /home/admin/test/lx-annotate/scripts/file_watcher.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+# Resource limits
+LimitNOFILE=65536
+MemoryMax=2G
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/home/admin/test/lx-annotate/data
+ReadWritePaths=/home/admin/test/lx-annotate/logs
+ReadWritePaths=/home/admin/test/lx-annotate/storage
+
+[Install]
+WantedBy=multi-user.target
