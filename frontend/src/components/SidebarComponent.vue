@@ -50,22 +50,6 @@
               </router-link>
             </li>
             <li class="nav-item">
-              <router-link to="/annotationen" class="nav-link" :class="{ active: $route.path === '/annotationen' }">
-                <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
-                  <i class="material-icons opacity-10">note_add</i>
-                </div>
-                <span class="nav-link-text ms-1">Annotationen Übersicht</span>
-              </router-link>
-            </li>
-            <li class="nav-item">
-              <router-link to="/video-meta-annotation" class="nav-link" :class="{ active: $route.path === '/video-annotation' }">
-                <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
-                  <i class="material-icons opacity-10">note_add</i>
-                </div>
-                <span class="nav-link-text ms-1">Video Annotation</span>
-              </router-link>
-            </li>
-            <li class="nav-item">
               <router-link to="/video-examination" class="nav-link" :class="{ active: $route.path === '/video-examination' }">
                 <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
                   <i class="material-icons opacity-10">video_call</i>
@@ -73,6 +57,7 @@
                 <span class="nav-link-text ms-1">Video-Untersuchung</span>
               </router-link>
             </li>
+            <!-- #TODO: Add back when ready
             <li class="nav-item">
               <router-link to="/frame-annotation" class="nav-link" :class="{ active: $route.path === '/frame-annotation' }">
                 <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
@@ -89,6 +74,8 @@
                 <span class="nav-link-text ms-1">Frame Auswahl</span>
               </router-link>
             </li>
+
+            
             <li class="nav-item">
               <router-link to="/fallgenerator" class="nav-link" :class="{ active: $route.path === '/fallgenerator' }">
                 <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
@@ -97,6 +84,8 @@
                 <span class="nav-link-text ms-1">Fallgenerator</span>
               </router-link>
             </li>
+                                    -->
+
             <li class="nav-item">
               <router-link to="/untersuchung" class="nav-link" :class="{ active: $route.path === '/untersuchung' }">
                 <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
@@ -121,6 +110,7 @@
                 <span class="nav-link-text ms-1">Datenvalidierung</span>
               </router-link>
             </li>
+            <!--
             <li class="nav-item">
               <router-link to="/pdf-meta-annotation" class="nav-link" :class="{ active: $route.path === '/pdf-annotation' }">
                 <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
@@ -145,6 +135,7 @@
                 <span class="nav-link-text ms-1">Über Uns</span>
               </router-link>
             </li>
+            -->
           </ul>
         </div>
       </div>

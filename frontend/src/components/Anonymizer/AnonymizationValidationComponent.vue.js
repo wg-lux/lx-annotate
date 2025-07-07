@@ -223,6 +223,51 @@ const rejectItem = async () => {
         dirty.value = false;
     }
 };
+// Video streaming methods
+const getVideoStreamUrl = () => {
+    if (!currentItem.value?.id)
+        return null;
+    // Use the correct video stream endpoint that serves raw bytes
+    return `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}/api/videostream/${currentItem.value.id}/`;
+};
+// PDF streaming methods - mirroring video streaming functionality
+const getPdfStreamUrl = () => {
+    if (!currentItem.value?.id)
+        return null;
+    // Use the new PDF stream endpoint with HTTP range support
+    return `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}/api/pdfstream/${currentItem.value.id}/`;
+};
+const debugGetVideoStreamUrl = () => {
+    // Debug version that shows the URL construction process
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+    const itemId = currentItem.value?.id;
+    const url = itemId ? `${baseUrl}/api/videostream/${itemId}/` : 'No item ID available';
+    return url;
+};
+const debugGetPdfStreamUrl = () => {
+    // Debug version for PDF stream URL construction
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+    const itemId = currentItem.value?.id;
+    const url = itemId ? `${baseUrl}/api/pdfstream/${itemId}/` : 'No item ID available';
+    return url;
+};
+// Video event handlers
+const onVideoError = (event) => {
+    console.error('Video loading error:', event);
+    const video = event.target;
+    console.error('Video error details:', {
+        error: video.error,
+        networkState: video.networkState,
+        readyState: video.readyState,
+        currentSrc: video.currentSrc
+    });
+};
+const onVideoLoadStart = () => {
+    console.log('Video loading started for:', getVideoStreamUrl());
+};
+const onVideoCanPlay = () => {
+    console.log('Video can play, loaded successfully');
+};
 // Lifecycle
 onMounted(() => {
     setupFilePond();
@@ -526,32 +571,79 @@ function __VLS_template() {
         });
         (__VLS_ctx.currentItem?.reportMeta?.pdfUrl ? 'PDF Vorschau' : 'Video Vorschau');
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("alert alert-info mt-2 mb-0") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: ("fas fa-info-circle me-2") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+        if (__VLS_ctx.currentItem?.reportMeta?.pdfUrl) {
+            __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+            (Math.round((__VLS_ctx.currentItem.reportMeta.file?.length || 0) / 1024) || 'Unbekannt');
+        }
+        else if (__VLS_ctx.getVideoStreamUrl()) {
+            __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+            (__VLS_ctx.getVideoStreamUrl());
+        }
+        else {
+            __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+            (__VLS_ctx.currentItem?.id);
+        }
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: ("card-body media-viewer-container") },
         });
-        if (__VLS_ctx.currentItem?.reportMeta?.pdfUrl) {
+        if (__VLS_ctx.currentItem?.reportMeta?.pdfUrl || (!__VLS_ctx.getVideoStreamUrl() && __VLS_ctx.getPdfStreamUrl())) {
             __VLS_elementAsFunction(__VLS_intrinsicElements.iframe, __VLS_intrinsicElements.iframe)({
-                src: ((__VLS_ctx.currentItem.reportMeta.pdfUrl)),
+                src: ((__VLS_ctx.getPdfStreamUrl() || __VLS_ctx.currentItem?.reportMeta?.pdfUrl)),
                 width: ("100%"),
                 height: ("800px"),
                 frameborder: ("0"),
                 title: ("PDF Vorschau"),
             });
             __VLS_elementAsFunction(__VLS_intrinsicElements.a, __VLS_intrinsicElements.a)({
-                href: ((__VLS_ctx.currentItem.reportMeta.pdfUrl)),
+                href: ((__VLS_ctx.getPdfStreamUrl() || __VLS_ctx.currentItem?.reportMeta?.pdfUrl)),
             });
         }
-        else if (__VLS_ctx.currentItem?.reportMeta?.file) {
+        else if (__VLS_ctx.getVideoStreamUrl()) {
             __VLS_elementAsFunction(__VLS_intrinsicElements.video, __VLS_intrinsicElements.video)({
+                ...{ onError: (__VLS_ctx.onVideoError) },
+                ...{ onLoadstart: (__VLS_ctx.onVideoLoadStart) },
+                ...{ onCanplay: (__VLS_ctx.onVideoCanPlay) },
                 controls: (true),
                 width: ("100%"),
                 height: ("600px"),
-                src: ((__VLS_ctx.currentItem.reportMeta.file)),
+                src: ((__VLS_ctx.getVideoStreamUrl() || undefined)),
             });
         }
         else {
             __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: ("alert alert-secondary") },
+                ...{ class: ("alert alert-warning") },
             });
+            __VLS_elementAsFunction(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({});
+            __VLS_elementAsFunction(__VLS_intrinsicElements.ul, __VLS_intrinsicElements.ul)({
+                ...{ class: ("mb-0") },
+            });
+            __VLS_elementAsFunction(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({});
+            __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+            (__VLS_ctx.currentItem?.id || 'Nicht verfügbar');
+            __VLS_elementAsFunction(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({});
+            __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+            (__VLS_ctx.currentItem?.sensitiveMetaId || 'Nicht verfügbar');
+            __VLS_elementAsFunction(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({});
+            __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+            (!!__VLS_ctx.currentItem?.reportMeta);
+            __VLS_elementAsFunction(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({});
+            __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+            (__VLS_ctx.currentItem?.reportMeta?.file || 'Nicht verfügbar');
+            __VLS_elementAsFunction(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({});
+            __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+            (__VLS_ctx.currentItem?.reportMeta?.pdfUrl || 'Nicht verfügbar');
+            __VLS_elementAsFunction(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({});
+            __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+            (__VLS_ctx.debugGetVideoStreamUrl());
+            __VLS_elementAsFunction(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({});
+            __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+            (__VLS_ctx.debugGetPdfStreamUrl());
         }
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: ("row") },
@@ -574,7 +666,7 @@ function __VLS_template() {
             disabled: ((!__VLS_ctx.isExaminationDateValid || !__VLS_ctx.dirty)),
         });
     }
-    ['container-fluid', 'py-4', 'card', 'card-header', 'pb-0', 'mb-0', 'card-body', 'text-center', 'py-5', 'spinner-border', 'text-primary', 'visually-hidden', 'mt-2', 'alert', 'alert-danger', 'alert', 'alert-info', 'mb-4', 'alert', 'alert-warning', 'mt-3', 'fas', 'fa-info-circle', 'me-2', 'mt-2', 'btn', 'btn-sm', 'btn-outline-primary', 'fas', 'fa-eye', 'me-1', 'row', 'mb-3', 'col-12', 'alert', 'alert-info', 'd-flex', 'align-items-center', 'fas', 'fa-info-circle', 'me-2', 'row', 'mb-4', 'col-md-5', 'card', 'bg-light', 'mb-4', 'card-body', 'card-title', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-select', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-control', 'is-invalid', 'invalid-feedback', 'mb-3', 'form-label', 'form-control', 'card', 'bg-light', 'card-body', 'card-title', 'mb-3', 'mt-3', 'img-fluid', 'btn', 'btn-info', 'btn-sm', 'mt-2', 'mt-3', 'btn', 'btn-primary', 'col-md-7', 'card', 'card-header', 'pb-0', 'mb-0', 'card-body', 'media-viewer-container', 'alert', 'alert-secondary', 'row', 'col-12', 'd-flex', 'justify-content-between', 'btn', 'btn-secondary', 'btn', 'btn-danger', 'me-2', 'btn', 'btn-success',];
+    ['container-fluid', 'py-4', 'card', 'card-header', 'pb-0', 'mb-0', 'card-body', 'text-center', 'py-5', 'spinner-border', 'text-primary', 'visually-hidden', 'mt-2', 'alert', 'alert-danger', 'alert', 'alert-info', 'mb-4', 'alert', 'alert-warning', 'mt-3', 'fas', 'fa-info-circle', 'me-2', 'mt-2', 'btn', 'btn-sm', 'btn-outline-primary', 'fas', 'fa-eye', 'me-1', 'row', 'mb-3', 'col-12', 'alert', 'alert-info', 'd-flex', 'align-items-center', 'fas', 'fa-info-circle', 'me-2', 'row', 'mb-4', 'col-md-5', 'card', 'bg-light', 'mb-4', 'card-body', 'card-title', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-select', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-control', 'is-invalid', 'invalid-feedback', 'mb-3', 'form-label', 'form-control', 'card', 'bg-light', 'card-body', 'card-title', 'mb-3', 'mt-3', 'img-fluid', 'btn', 'btn-info', 'btn-sm', 'mt-2', 'mt-3', 'btn', 'btn-primary', 'col-md-7', 'card', 'card-header', 'pb-0', 'mb-0', 'alert', 'alert-info', 'mt-2', 'mb-0', 'fas', 'fa-info-circle', 'me-2', 'card-body', 'media-viewer-container', 'alert', 'alert-warning', 'mb-0', 'row', 'col-12', 'd-flex', 'justify-content-between', 'btn', 'btn-secondary', 'btn', 'btn-danger', 'me-2', 'btn', 'btn-success',];
     var __VLS_slots;
     var $slots;
     let __VLS_inheritedAttrs;
@@ -617,6 +709,13 @@ const __VLS_self = (await import('vue')).defineComponent({
             skipItem: skipItem,
             approveItem: approveItem,
             rejectItem: rejectItem,
+            getVideoStreamUrl: getVideoStreamUrl,
+            getPdfStreamUrl: getPdfStreamUrl,
+            debugGetVideoStreamUrl: debugGetVideoStreamUrl,
+            debugGetPdfStreamUrl: debugGetPdfStreamUrl,
+            onVideoError: onVideoError,
+            onVideoLoadStart: onVideoLoadStart,
+            onVideoCanPlay: onVideoCanPlay,
         };
     },
 });

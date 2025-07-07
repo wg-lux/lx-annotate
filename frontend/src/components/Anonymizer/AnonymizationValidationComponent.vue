@@ -163,34 +163,60 @@
                   <h5 class="mb-0">
                     {{ currentItem?.reportMeta?.pdfUrl ? 'PDF Vorschau' : 'Video Vorschau' }}
                   </h5>
+                  <!-- Clear Data Format Message -->
+                  <div class="alert alert-info mt-2 mb-0">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>Datenformat:</strong> 
+                    <span v-if="currentItem?.reportMeta?.pdfUrl">
+                      PDF-Dokument ({{ Math.round((currentItem.reportMeta.file?.length || 0) / 1024) || 'Unbekannt' }} KB)
+                    </span>
+                    <span v-else-if="getVideoStreamUrl()">
+                      Video-Datei (Stream-URL: {{ getVideoStreamUrl() }})
+                    </span>
+                    <span v-else>
+                      Unbekanntes Format - ID: {{ currentItem?.id }}
+                    </span>
+                  </div>
                 </div>
                 <div class="card-body media-viewer-container">
-                  <!-- PDF Viewer -->
+                  <!-- PDF Viewer with streaming URL -->
                   <iframe
-                    v-if="currentItem?.reportMeta?.pdfUrl"
-                    :src="currentItem.reportMeta.pdfUrl"
+                    v-if="currentItem?.reportMeta?.pdfUrl || (!getVideoStreamUrl() && getPdfStreamUrl())"
+                    :src="getPdfStreamUrl() || currentItem?.reportMeta?.pdfUrl"
                     width="100%"
                     height="800px"
                     frameborder="0"
                     title="PDF Vorschau"
                   >
-                    Ihr Browser unterstützt keine eingebetteten PDFs. Sie können die Datei <a :href="currentItem.reportMeta.pdfUrl">hier herunterladen</a>.
+                    Ihr Browser unterstützt keine eingebetteten PDFs. Sie können die Datei <a :href="getPdfStreamUrl() || currentItem?.reportMeta?.pdfUrl">hier herunterladen</a>.
                   </iframe>
                   
-                  <!-- Video Viewer -->
+                  <!-- Video Viewer with corrected streaming URL -->
                   <video
-                    v-else-if="currentItem?.reportMeta?.file"
+                    v-else-if="getVideoStreamUrl()"
                     controls
                     width="100%"
                     height="600px"
-                    :src="currentItem.reportMeta.file"
+                    :src="getVideoStreamUrl() || undefined"
+                    @error="onVideoError"
+                    @loadstart="onVideoLoadStart"
+                    @canplay="onVideoCanPlay"
                   >
                     Ihr Browser unterstützt dieses Video-Format nicht.
                   </video>
                   
-                  <!-- No Media Available -->
-                  <div v-else class="alert alert-secondary">
-                    Keine Medien-URL verfügbar.
+                  <!-- Debug Information -->
+                  <div v-else class="alert alert-warning">
+                    <h6>Debug-Informationen:</h6>
+                    <ul class="mb-0">
+                      <li><strong>Current Item ID:</strong> {{ currentItem?.id || 'Nicht verfügbar' }}</li>
+                      <li><strong>SensitiveMeta ID:</strong> {{ currentItem?.sensitiveMetaId || 'Nicht verfügbar' }}</li>
+                      <li><strong>ReportMeta verfügbar:</strong> {{ !!currentItem?.reportMeta }}</li>
+                      <li><strong>File URL:</strong> {{ currentItem?.reportMeta?.file || 'Nicht verfügbar' }}</li>
+                      <li><strong>PDF URL:</strong> {{ currentItem?.reportMeta?.pdfUrl || 'Nicht verfügbar' }}</li>
+                      <li><strong>Generierte Video Stream URL:</strong> {{ debugGetVideoStreamUrl() }}</li>
+                      <li><strong>Generierte PDF Stream URL:</strong> {{ debugGetPdfStreamUrl() }}</li>
+                    </ul>
                   </div>
                 </div>
               </div>
@@ -497,6 +523,58 @@ const rejectItem = async () => {
     await fetchNextItem();
     dirty.value = false;
   }
+};
+
+// Video streaming methods
+const getVideoStreamUrl = () => {
+  if (!currentItem.value?.id) return null;
+  
+  // Use the correct video stream endpoint that serves raw bytes
+  return `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}/api/videostream/${currentItem.value.id}/`;
+};
+
+// PDF streaming methods - mirroring video streaming functionality
+const getPdfStreamUrl = () => {
+  if (!currentItem.value?.id) return null;
+  
+  // Use the new PDF stream endpoint with HTTP range support
+  return `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}/api/pdfstream/${currentItem.value.id}/`;
+};
+
+const debugGetVideoStreamUrl = () => {
+  // Debug version that shows the URL construction process
+  const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+  const itemId = currentItem.value?.id;
+  const url = itemId ? `${baseUrl}/api/videostream/${itemId}/` : 'No item ID available';
+  return url;
+};
+
+const debugGetPdfStreamUrl = () => {
+  // Debug version for PDF stream URL construction
+  const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+  const itemId = currentItem.value?.id;
+  const url = itemId ? `${baseUrl}/api/pdfstream/${itemId}/` : 'No item ID available';
+  return url;
+};
+
+// Video event handlers
+const onVideoError = (event: Event) => {
+  console.error('Video loading error:', event);
+  const video = event.target as HTMLVideoElement;
+  console.error('Video error details:', {
+    error: video.error,
+    networkState: video.networkState,
+    readyState: video.readyState,
+    currentSrc: video.currentSrc
+  });
+};
+
+const onVideoLoadStart = () => {
+  console.log('Video loading started for:', getVideoStreamUrl());
+};
+
+const onVideoCanPlay = () => {
+  console.log('Video can play, loaded successfully');
 };
 
 // Lifecycle
