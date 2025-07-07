@@ -66,6 +66,13 @@ function __VLS_template() {
     });
     __VLS_elementAsFunction(__VLS_intrinsicElements.link, __VLS_intrinsicElements.link)({
         rel: ("stylesheet"),
+        href: ("https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"),
+        integrity: ("sha512-xh6IYswF2Yt+0e1yz3F6j2CvkJyDk6cfogmfVZBt3WgBp1x5Yp1p9ggbo2mcqzg4bV7+ydRZo7ljZHFQUNq9PQ=="),
+        crossorigin: ("anonymous"),
+        referrerpolicy: ("no-referrer"),
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.link, __VLS_intrinsicElements.link)({
+        rel: ("stylesheet"),
         href: ("@assets/css/custom-overrides.css"),
     });
     __VLS_elementAsFunction(__VLS_intrinsicElements.meta, __VLS_intrinsicElements.meta)({

@@ -43,7 +43,7 @@ const validateFile = async (fileId) => {
         const result = await store.setCurrentForValidation(fileId);
         if (result) {
             /* jump to the validation page that has an actual vue-route */
-            router.push('/anonymisierung/validation');
+            router.push('/anonymisierung/validierung');
         }
         else {
             console.warn('setCurrentForValidation returned null - navigation aborted');
@@ -145,11 +145,11 @@ function __VLS_template() {
     /** @type { [typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, ] } */ ;
     // @ts-ignore
     const __VLS_1 = __VLS_asFunctionalComponent(__VLS_0, new __VLS_0({
-        to: ("/anonymisierung/validation"),
+        to: ("/anonymisierung/validierung"),
         ...{ class: ("btn btn-primary btn-sm") },
     }));
     const __VLS_2 = __VLS_1({
-        to: ("/anonymisierung/validation"),
+        to: ("/anonymisierung/validierung"),
         ...{ class: ("btn btn-primary btn-sm") },
     }, ...__VLS_functionalComponentArgsRest(__VLS_1));
     __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({

@@ -30,6 +30,24 @@ export const useAnonymizationStore = defineStore('anonymization', {
             this.loading = true;
             this.error = null;
             try {
+                // Check if we have a specific file selected from overview
+                if (lastId) {
+                    const item = this.overview.find(f => f.id === lastId);
+                    if (item?.mediaType === 'video') {
+                        // 1️⃣ get SensitiveMeta & video urls for video
+                        console.log(`Fetching video sensitive meta for ID: ${lastId}`);
+                        const { data: meta } = await axiosInstance.get(r(`video/sensitivemeta/?id=${item.sensitiveMetaId}`));
+                        console.log('Received video sensitive meta:', meta);
+                        this.current = {
+                            id: item.id,
+                            sensitiveMetaId: item.sensitiveMetaId || meta.id,
+                            text: '', // Videos don't have text
+                            anonymizedText: '', // Videos don't have anonymized text
+                            reportMeta: meta
+                        };
+                        return this.current;
+                    }
+                }
                 /* 1) PDF-Datensatz von anony_text endpoint -------------------- */
                 const pdfUrl = lastId
                     ? a(`anony_text/?last_id=${lastId}`)

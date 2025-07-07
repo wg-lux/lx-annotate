@@ -5,6 +5,7 @@ export interface FileItem {
     anonymizationStatus: "not_started" | "processing" | "done" | "failed";
     annotationStatus: "not_started" | "done";
     createdAt: string;
+    sensitiveMetaId?: number;
 }
 export interface AnonymizationState {
     anonymizationStatus: string;
@@ -92,6 +93,7 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
             anonymizationStatus: "not_started" | "processing" | "done" | "failed";
             annotationStatus: "not_started" | "done";
             createdAt: string;
+            sensitiveMetaId?: number | undefined;
         }[];
         pollingHandles: Record<number, ReturnType<typeof setInterval>>;
         isPolling: boolean;
@@ -189,6 +191,7 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
             anonymizationStatus: "not_started" | "processing" | "done" | "failed";
             annotationStatus: "not_started" | "done";
             createdAt: string;
+            sensitiveMetaId?: number | undefined;
         }[];
         pollingHandles: Record<number, ReturnType<typeof setInterval>>;
         isPolling: boolean;
@@ -260,6 +263,7 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
             anonymizationStatus: "not_started" | "processing" | "done" | "failed";
             annotationStatus: "not_started" | "done";
             createdAt: string;
+            sensitiveMetaId?: number | undefined;
         }[];
         pollingHandles: Record<number, ReturnType<typeof setInterval>>;
         isPolling: boolean;
@@ -299,6 +303,7 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
         anonymizationStatus: "not_started" | "processing" | "done" | "failed";
         annotationStatus: "not_started" | "done";
         createdAt: string;
+        sensitiveMetaId?: number | undefined;
     }[];
 }, {
     /** Holt den nächsten PDF-Datensatz + zugehöriges SensitiveMeta
