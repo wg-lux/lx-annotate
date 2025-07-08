@@ -16,9 +16,12 @@ let
   purgeTasks = (
     import ./purge.nix { }
   );
+  uvTasks = (
+    import ./uv.nix { }
+  );
 
   customTasks = {
     
-  } //envTasks //subrepoTasks //purgeTasks //vueTasks;
+  } //envTasks //subrepoTasks //purgeTasks //vueTasks //uvTasks;
 
 in customTasks 
