@@ -1,0 +1,16 @@
+{
+  "id": "annotation-456",
+  "videoId": "1", 
+  "type": "segment",
+  "startTime": 10.0,
+  "endTime": 10.0,
+  "text": "polyp",
+  "tags": ["polyp"],
+  "userId": "user-1",
+  "createdAt": "2025-01-08T12:00:00Z",
+  "updatedAt": "2025-01-08T12:00:00Z",
+  "metadata": {
+    "segmentId": 123,
+    "labelId": 3
+  }
+}

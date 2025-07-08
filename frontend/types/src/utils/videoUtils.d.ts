@@ -1,0 +1,20 @@
+export declare const translationMap: {
+    readonly appendix: "Appendix";
+    readonly blood: "Blut";
+    readonly diverticule: "Divertikel";
+    readonly grasper: "Greifer";
+    readonly ileocaecalvalve: "Ileozäkalklappe";
+    readonly ileum: "Ileum";
+    readonly low_quality: "Niedrige Bildqualität";
+    readonly nbi: "Narrow Band Imaging";
+    readonly needle: "Nadel";
+    readonly outside: "Außerhalb";
+    readonly polyp: "Polyp";
+    readonly snare: "Snare";
+    readonly water_jet: "Wasserstrahl";
+    readonly wound: "Wunde";
+};
+export type LabelKey = keyof typeof translationMap;
+export declare function getTranslationForLabel(label: string): string;
+export declare function getColorForLabel(label: string): string;
+export declare const formatTime: (seconds: number) => string;

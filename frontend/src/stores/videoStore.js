@@ -2,11 +2,13 @@ import { defineStore } from 'pinia';
 import { ref, computed, reactive, readonly } from 'vue';
 import axiosInstance, { r } from '../api/axiosInstance';
 import { AxiosError } from 'axios';
-import { framesToSeconds, secondsToFrames, safeTimeConversion, formatTime as formatTimeHelper, calculateSegmentWidth, calculateSegmentPosition } from '../utils/timeHelpers';
+import { formatTime, getTranslationForLabel, getColorForLabel } from '@/utils/videoUtils';
 import { convertBackendSegmentToFrontend, convertBackendSegmentsToFrontend, createSegmentUpdatePayload, debugSegmentConversion, } from '../utils/caseConversion';
+import { useAnonymizationStore } from './anonymizationStore';
 // ===================================================================
 // CONSTANTS
 // ===================================================================
+const videos = ref([]);
 const translationMap = {
     appendix: 'Appendix',
     blood: 'Blut',
@@ -43,6 +45,10 @@ export const useVideoStore = defineStore('video', () => {
     const _fetchToken = ref(0);
     const draftSegment = ref(null);
     const concurrencyToken = ref(null);
+    function buildVideoStreamUrl(id) {
+        const base = import.meta.env.VITE_API_BASE_URL || window.location.origin;
+        return `${base}/api/videostream/${id}/`;
+    }
     // ===================================================================
     // COMPUTED PROPERTIES
     // ===================================================================
@@ -157,37 +163,6 @@ export const useVideoStore = defineStore('video', () => {
             // Store frame data for future lazy loading
             frames: backendSegment.frames,
         };
-    }
-    function formatTime(seconds) {
-        const numSeconds = Number(seconds);
-        if (Number.isNaN(numSeconds) || seconds === null || seconds === undefined) {
-            return '00:00';
-        }
-        const mins = Math.floor(numSeconds / 60);
-        const secs = Math.floor(numSeconds % 60);
-        return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-    }
-    function getTranslationForLabel(label) {
-        return translationMap[label] || label;
-    }
-    function getColorForLabel(label) {
-        const colorMap = {
-            outside: '#e74c3c',
-            polyp: '#f39c12',
-            needle: '#3498db',
-            blood: '#e74c3c',
-            snare: '#9b59b6',
-            grasper: '#2ecc71',
-            water_jet: '#1abc9c',
-            appendix: '#f1c40f',
-            ileum: '#e67e22',
-            diverticule: '#34495e',
-            ileocaecalvalve: '#95a5a6',
-            nbi: '#8e44ad',
-            low_quality: '#7f8c8d',
-            wound: '#c0392b',
-        };
-        return colorMap[label] || '#95a5a6';
     }
     function setActiveSegment(segmentId) {
         activeSegmentId.value = segmentId;
@@ -327,6 +302,8 @@ export const useVideoStore = defineStore('video', () => {
                 status: video.status || 'available',
                 assignedUser: video.assignedUser || null,
                 anonymized: video.anonymized || false,
+                centerName: video.center_name || 'Unbekannt',
+                processorName: video.processor_name || 'Unbekannt'
             }));
             // Process labels
             const processedLabels = response.data.labels.map((label) => ({
@@ -404,6 +381,7 @@ export const useVideoStore = defineStore('video', () => {
             errorMessage.value = "Error loading video URL. Please check the API endpoint or try again later.";
         }
     }
+    const videoStreamUrl = computed(() => currentVideo.value ? buildVideoStreamUrl(currentVideo.value.id) : '');
     async function fetchSegmentsByLabel(id, label = 'outside') {
         try {
             const response = await axiosInstance.get(r(`video/${id}/label/${label}/`), { headers: { 'Accept': 'application/json' } });
@@ -647,6 +625,26 @@ export const useVideoStore = defineStore('video', () => {
             }
             segmentsByLabel[label].push(newSegment);
             console.log('[Draft] Added segment to segmentsByLabel[' + label + '], new count:', segmentsByLabel[label].length);
+            // ✅ NEW: Create corresponding annotation after successful segment creation
+            try {
+                const { useAnnotationStore } = await import('./annotationStore');
+                const { useAuthStore } = await import('./authStore');
+                const annotationStore = useAnnotationStore();
+                const authStore = useAuthStore();
+                // Ensure mock user is initialized
+                authStore.initMockUser();
+                if (authStore.user?.id) {
+                    await annotationStore.createSegmentAnnotation(currentVideo.value.id.toString(), newSegment, authStore.user.id);
+                    console.log(`✅ Created annotation for segment ${newSegment.id}`);
+                }
+                else {
+                    console.warn('No authenticated user found for annotation creation');
+                }
+            }
+            catch (annotationError) {
+                console.error('Failed to create segment annotation:', annotationError);
+                // Don't fail the segment creation if annotation fails
+            }
             // Clear draft AFTER successful creation
             const draftInfo = { ...draftSegment.value };
             draftSegment.value = null;
@@ -681,6 +679,14 @@ export const useVideoStore = defineStore('video', () => {
     }
     async function loadVideo(videoId) {
         console.log(`[VideoStore] loadVideo called with ID: ${videoId}`);
+        const anonStore = useAnonymizationStore();
+        const ok = anonStore.overview.some((f) => f.id === Number(videoId) &&
+            f.mediaType === 'video' &&
+            f.anonymizationStatus === 'done');
+        if (!ok) {
+            throw new Error(`Video ${videoId} darf nicht annotiert werden, ` +
+                `solange die Anonymisierung nicht abgeschlossen ist.`);
+        }
         try {
             // First create basic video object to ensure currentVideo exists
             currentVideo.value = {
@@ -724,6 +730,17 @@ export const useVideoStore = defineStore('video', () => {
             errorMessage.value = "Error loading video. Please try again.";
         }
     }
+    const timelineSegments = computed(() => allSegments.value.map(s => ({
+        id: s.id,
+        label: s.label,
+        label_display: getTranslationForLabel(s.label),
+        name: getTranslationForLabel(s.label),
+        startTime: s.startTime,
+        endTime: s.endTime,
+        avgConfidence: s.avgConfidence,
+        video_id: s.videoID,
+        label_id: s.labelID
+    })));
     // ===================================================================
     // PURE FRONTEND MUTATOR FOR LIVE PREVIEWS
     // ===================================================================
@@ -746,6 +763,7 @@ export const useVideoStore = defineStore('video', () => {
         videoList: readonly(videoList),
         videoMeta: readonly(videoMeta),
         // Computed properties
+        videos,
         allSegments,
         draftSegment: readonly(draftSegmentCompatible),
         activeSegment,
@@ -753,7 +771,10 @@ export const useVideoStore = defineStore('video', () => {
         hasVideo,
         segments,
         labels,
+        videoStreamUrl,
+        timelineSegments,
         // Actions
+        buildVideoStreamUrl,
         clearVideo,
         setVideo,
         loadVideo, // Added missing loadVideo export

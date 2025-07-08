@@ -2,7 +2,7 @@ export interface FileItem {
     id: number;
     filename: string;
     mediaType: "pdf" | "video";
-    anonymizationStatus: "not_started" | "processing" | "done" | "failed";
+    anonymizationStatus: "not_started" | "processing_anonymization" | "done" | "failed" | "validated" | "predicting_segments" | "extracting_frames";
     annotationStatus: "not_started" | "done";
     createdAt: string;
     sensitiveMetaId?: number;
@@ -91,7 +91,7 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
             id: number;
             filename: string;
             mediaType: "pdf" | "video";
-            anonymizationStatus: "not_started" | "processing" | "done" | "failed";
+            anonymizationStatus: "not_started" | "processing_anonymization" | "done" | "failed" | "validated" | "predicting_segments" | "extracting_frames";
             annotationStatus: "not_started" | "done";
             createdAt: string;
             sensitiveMetaId?: number | undefined;
@@ -190,7 +190,7 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
             id: number;
             filename: string;
             mediaType: "pdf" | "video";
-            anonymizationStatus: "not_started" | "processing" | "done" | "failed";
+            anonymizationStatus: "not_started" | "processing_anonymization" | "done" | "failed" | "validated" | "predicting_segments" | "extracting_frames";
             annotationStatus: "not_started" | "done";
             createdAt: string;
             sensitiveMetaId?: number | undefined;
@@ -263,7 +263,7 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
             id: number;
             filename: string;
             mediaType: "pdf" | "video";
-            anonymizationStatus: "not_started" | "processing" | "done" | "failed";
+            anonymizationStatus: "not_started" | "processing_anonymization" | "done" | "failed" | "validated" | "predicting_segments" | "extracting_frames";
             annotationStatus: "not_started" | "done";
             createdAt: string;
             sensitiveMetaId?: number | undefined;
@@ -304,7 +304,7 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
         id: number;
         filename: string;
         mediaType: "pdf" | "video";
-        anonymizationStatus: "not_started" | "processing" | "done" | "failed";
+        anonymizationStatus: "not_started" | "processing_anonymization" | "done" | "failed" | "validated" | "predicting_segments" | "extracting_frames";
         annotationStatus: "not_started" | "done";
         createdAt: string;
         sensitiveMetaId?: number | undefined;

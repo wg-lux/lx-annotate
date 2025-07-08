@@ -25,7 +25,7 @@
 
       <div class="card-body">
         <!-- Loading State -->
-        <div v-if="store.loading && !store.overview.length" class="text-center py-5">
+        <div v-if="anonymizationStore.loading && !anonymizationStore.overview.length" class="text-center py-5">
           <div class="spinner-border text-primary" role="status">
             <span class="visually-hidden">Wird geladen...</span>
           </div>
@@ -33,12 +33,12 @@
         </div>
 
         <!-- Error State -->
-        <div v-else-if="store.error" class="alert alert-danger" role="alert">
-          <strong>Fehler:</strong> {{ store.error }}
+        <div v-else-if="anonymizationStore.error" class="alert alert-danger" role="alert">
+          <strong>Fehler:</strong> {{ anonymizationStore.error }}
         </div>
 
         <!-- Empty State -->
-        <div v-else-if="!store.overview.length" class="text-center py-5">
+        <div v-else-if="!anonymizationStore.overview.length" class="text-center py-5">
           <div class="mb-4">
             <i class="fas fa-folder-open fa-3x text-muted"></i>
           </div>
@@ -66,7 +66,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="file in store.overview" :key="file.id">
+              <tr v-for="file in anonymizationStore.overview" :key="file.id">
                 <!-- Filename -->
                 <td>
                   <div class="d-flex align-items-center">
@@ -95,7 +95,7 @@
                     class="badge"
                   >
                     <i 
-                      v-if="file.anonymizationStatus === 'processing'"
+                      v-if="file.anonymizationStatus === 'processing_anonymization'"
                       class="fas fa-spinner fa-spin me-1"
                     ></i>
                     {{ getStatusText(file.anonymizationStatus) }}
@@ -167,15 +167,36 @@
                       Validieren
                     </button>
 
+                    <button
+                      v-if="file.anonymizationStatus === 'validated' && file.mediaType === 'video'"
+                      @click="validateSegmentsFile(file.id)"
+                      class="btn btn-outline-secondary"
+                      :disabled="isProcessing(file.id)"
+                    >
+                    <i class="fas fa-eye"></i>
+                      Validieren
+
+                    </button>
+
+
                     <!-- Processing indicator -->
                     <button
-                      v-if="file.anonymizationStatus === 'processing'"
+                      v-if="file.anonymizationStatus === 'processing_anonymization'"
                       class="btn btn-outline-info"
                       disabled
                     >
                       <i class="fas fa-spinner fa-spin me-1"></i>
-                      Verarbeitung...
+                      Anonymisierung...
                     </button>
+                    <button
+                      v-if="file.anonymizationStatus === 'extracting_frames'"
+                      class="btn btn-outline-info"
+                      disabled
+                    >
+                      <i class="fas fa-spinner fa-spin me-1"></i>
+                      Frames extrahieren...
+                  </button>
+
                   </div>
                 </td>
               </tr>
@@ -184,7 +205,7 @@
         </div>
 
         <!-- Status Summary -->
-        <div class="row mt-4" v-if="store.overview.length">
+        <div class="row mt-4" v-if="anonymizationStore.overview.length">
           <div class="col-md-12">
             <div class="card bg-light">
               <div class="card-body">
@@ -236,10 +257,14 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAnonymizationStore, type FileItem } from '@/stores/anonymizationStore';
+import { useVideoStore } from '@/stores/videoStore';
+import { useAnnotationStore } from '@/stores/annotationStore';
 
 // Composables
 const router = useRouter();
-const store = useAnonymizationStore();
+const anonymizationStore = useAnonymizationStore();
+const videoStore = useVideoStore();
+const annotationStore = useAnnotationStore();
 
 // Local state
 const isRefreshing = ref(false);
@@ -247,14 +272,14 @@ const processingFiles = ref<Set<number>>(new Set());
 
 // Computed
 const hasProcessingFiles = computed(() => 
-  store.overview.some(file => file.anonymizationStatus === 'processing')
+  anonymizationStore.overview.some(file => file.anonymizationStatus === 'processing_anonymization' || file.anonymizationStatus === 'extracting_frames')
 );
 
 // Methods
 const refreshOverview = async () => {
   isRefreshing.value = true;
   try {
-    await store.fetchOverview();
+    await anonymizationStore.fetchOverview();
   } finally {
     isRefreshing.value = false;
   }
@@ -263,7 +288,7 @@ const refreshOverview = async () => {
 const startAnonymization = async (fileId: number) => {
   processingFiles.value.add(fileId);
   try {
-    const success = await store.startAnonymization(fileId);
+    const success = await anonymizationStore.startAnonymization(fileId);
     if (success) {
       // Refresh overview to get updated status
       await refreshOverview();
@@ -281,7 +306,7 @@ const startAnonymization = async (fileId: number) => {
 const validateFile = async (fileId: number) => {
   processingFiles.value.add(fileId);
   try {
-    const result = await store.setCurrentForValidation(fileId);
+    const result = await anonymizationStore.setCurrentForValidation(fileId);
     if (result) {
 
       /* jump to the validation page that has an actual vue-route */
@@ -297,7 +322,7 @@ const validateFile = async (fileId: number) => {
 const reimportVideo = async (fileId: number) => {
   processingFiles.value.add(fileId);
   try {
-    const success = await store.reimportVideo(fileId);
+    const success = await anonymizationStore.reimportVideo(fileId);
     if (success) {
       // Refresh overview to get updated status
       await refreshOverview();
@@ -360,24 +385,41 @@ const formatDate = (dateString: string | null) => {
 };
 
 const getTotalByStatus = (status: string) => {
-  return store.overview.filter(file => file.anonymizationStatus === status).length;
+  return anonymizationStore.overview.filter(file => file.anonymizationStatus === status).length;
+};
+
+const validateSegmentsFile = async (fileId: number) => {
+  processingFiles.value.add(fileId);
+  try {
+
+    const success = await annotationStore.validateSegmentsAndExaminations(fileId);
+    if (success) {
+      // Refresh overview to get updated status
+      await refreshOverview();
+      console.log('Segments validated successfully for file', fileId);
+    } else {
+      console.warn('validateSegmentsFile failed - staying on current page');
+    }
+  } finally {
+    processingFiles.value.delete(fileId);
+  }
 };
 
 // Lifecycle
 onMounted(async () => {
-  await store.fetchOverview();
+  await anonymizationStore.fetchOverview();
   
   // Start polling if there are processing files
   if (hasProcessingFiles.value) {
-    store.overview
-      .filter(file => file.anonymizationStatus === 'processing')
-      .forEach(file => store.startPolling(file.id));
+    anonymizationStore.overview
+      .filter(file => file.anonymizationStatus === 'processing_anonymization')
+      .forEach(file => anonymizationStore.startPolling(file.id));
   }
 });
 
 onUnmounted(() => {
   // Clean up polling when component is unmounted
-  store.stopAllPolling();
+  anonymizationStore.stopAllPolling();
 });
 </script>
 

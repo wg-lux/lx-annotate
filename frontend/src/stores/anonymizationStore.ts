@@ -13,7 +13,7 @@ export interface FileItem {
   id: number;
   filename: string;
   mediaType: "pdf" | "video";
-  anonymizationStatus: "not_started" | "processing" | "done" | "failed";
+  anonymizationStatus: "not_started" | "processing_anonymization" | "done" | "failed" | "validated" | "predicting_segments" | "extracting_frames";
   annotationStatus: "not_started" | "done";
   createdAt: string; // ISO
   sensitiveMetaId?: number; // Add this for video file lookup
@@ -91,8 +91,8 @@ export const useAnonymizationStore = defineStore('anonymization', {
 
   getters: {
     getCurrentItem: (state) => state.current,
-    isAnyFileProcessing: (state) => state.overview.some(f => f.anonymizationStatus === 'processing'),
-    processingFiles: (state) => state.overview.filter(f => f.anonymizationStatus === 'processing')
+    isAnyFileProcessing: (state) => state.overview.some(f => f.anonymizationStatus === 'processing_anonymization' || f.anonymizationStatus === 'extracting_frames' || f.anonymizationStatus === 'predicting_segments'),
+    processingFiles: (state) => state.overview.filter(f => f.anonymizationStatus === 'processing_anonymization' || f.anonymizationStatus === 'extracting_frames' || f.anonymizationStatus === 'predicting_segments')
   },
 
   actions: {
@@ -297,7 +297,7 @@ export const useAnonymizationStore = defineStore('anonymization', {
         console.log(`Starting anonymization for file ${id}...`);
         
         // Optimistic UI update
-        file.anonymizationStatus = 'processing';
+        file.anonymizationStatus = 'processing_anonymization';
         
         // Trigger anonymization
         await axiosInstance.post(r(`anonymization/${id}/start/`));
@@ -473,7 +473,7 @@ export const useAnonymizationStore = defineStore('anonymization', {
         console.log(`Re-importing video ${fileId}...`);
         
         // Optimistic UI update
-        file.anonymizationStatus = 'processing';
+        file.anonymizationStatus = 'extracting_frames';
         file.metadataImported = false;
         
         // Trigger re-import via backend

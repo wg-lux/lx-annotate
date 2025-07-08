@@ -3,7 +3,7 @@ export declare const useReportStore: import("pinia").StoreDefinition<"report", i
     reports: import("vue").Ref<{
         id: number;
         anonymizedText: string;
-        status: "pending" | "failed" | "completed";
+        status: "pending" | "completed" | "failed";
         reportMeta: {
             patientFirstName: string;
             patientLastName: string;
@@ -22,7 +22,7 @@ export declare const useReportStore: import("pinia").StoreDefinition<"report", i
     }[], Report[] | {
         id: number;
         anonymizedText: string;
-        status: "pending" | "failed" | "completed";
+        status: "pending" | "completed" | "failed";
         reportMeta: {
             patientFirstName: string;
             patientLastName: string;
@@ -42,7 +42,7 @@ export declare const useReportStore: import("pinia").StoreDefinition<"report", i
     currentReport: import("vue").Ref<{
         id: number;
         anonymizedText: string;
-        status: "pending" | "failed" | "completed";
+        status: "pending" | "completed" | "failed";
         reportMeta: {
             patientFirstName: string;
             patientLastName: string;
@@ -61,7 +61,7 @@ export declare const useReportStore: import("pinia").StoreDefinition<"report", i
     } | null, Report | {
         id: number;
         anonymizedText: string;
-        status: "pending" | "failed" | "completed";
+        status: "pending" | "completed" | "failed";
         reportMeta: {
             patientFirstName: string;
             patientLastName: string;
@@ -81,7 +81,7 @@ export declare const useReportStore: import("pinia").StoreDefinition<"report", i
     annotations: import("vue").Ref<{
         id: number;
         reportId: number;
-        type: "highlight" | "note" | "tag";
+        type: "tag" | "note" | "highlight";
         content: string;
         position: {
             page?: number | undefined;
@@ -96,7 +96,7 @@ export declare const useReportStore: import("pinia").StoreDefinition<"report", i
     }[], Annotation[] | {
         id: number;
         reportId: number;
-        type: "highlight" | "note" | "tag";
+        type: "tag" | "note" | "highlight";
         content: string;
         position: {
             page?: number | undefined;
@@ -120,11 +120,11 @@ export declare const useReportStore: import("pinia").StoreDefinition<"report", i
     setCurrentReport: (report: Report | null) => void;
     clearError: () => void;
     reset: () => void;
-}, "loading" | "error" | "annotations" | "reports" | "currentReport">>, Pick<{
+}, "loading" | "error" | "annotations" | "currentReport" | "reports">>, Pick<{
     reports: import("vue").Ref<{
         id: number;
         anonymizedText: string;
-        status: "pending" | "failed" | "completed";
+        status: "pending" | "completed" | "failed";
         reportMeta: {
             patientFirstName: string;
             patientLastName: string;
@@ -143,7 +143,7 @@ export declare const useReportStore: import("pinia").StoreDefinition<"report", i
     }[], Report[] | {
         id: number;
         anonymizedText: string;
-        status: "pending" | "failed" | "completed";
+        status: "pending" | "completed" | "failed";
         reportMeta: {
             patientFirstName: string;
             patientLastName: string;
@@ -163,7 +163,7 @@ export declare const useReportStore: import("pinia").StoreDefinition<"report", i
     currentReport: import("vue").Ref<{
         id: number;
         anonymizedText: string;
-        status: "pending" | "failed" | "completed";
+        status: "pending" | "completed" | "failed";
         reportMeta: {
             patientFirstName: string;
             patientLastName: string;
@@ -182,7 +182,7 @@ export declare const useReportStore: import("pinia").StoreDefinition<"report", i
     } | null, Report | {
         id: number;
         anonymizedText: string;
-        status: "pending" | "failed" | "completed";
+        status: "pending" | "completed" | "failed";
         reportMeta: {
             patientFirstName: string;
             patientLastName: string;
@@ -202,7 +202,7 @@ export declare const useReportStore: import("pinia").StoreDefinition<"report", i
     annotations: import("vue").Ref<{
         id: number;
         reportId: number;
-        type: "highlight" | "note" | "tag";
+        type: "tag" | "note" | "highlight";
         content: string;
         position: {
             page?: number | undefined;
@@ -217,7 +217,7 @@ export declare const useReportStore: import("pinia").StoreDefinition<"report", i
     }[], Annotation[] | {
         id: number;
         reportId: number;
-        type: "highlight" | "note" | "tag";
+        type: "tag" | "note" | "highlight";
         content: string;
         position: {
             page?: number | undefined;
@@ -245,7 +245,7 @@ export declare const useReportStore: import("pinia").StoreDefinition<"report", i
     reports: import("vue").Ref<{
         id: number;
         anonymizedText: string;
-        status: "pending" | "failed" | "completed";
+        status: "pending" | "completed" | "failed";
         reportMeta: {
             patientFirstName: string;
             patientLastName: string;
@@ -264,7 +264,7 @@ export declare const useReportStore: import("pinia").StoreDefinition<"report", i
     }[], Report[] | {
         id: number;
         anonymizedText: string;
-        status: "pending" | "failed" | "completed";
+        status: "pending" | "completed" | "failed";
         reportMeta: {
             patientFirstName: string;
             patientLastName: string;
@@ -284,7 +284,7 @@ export declare const useReportStore: import("pinia").StoreDefinition<"report", i
     currentReport: import("vue").Ref<{
         id: number;
         anonymizedText: string;
-        status: "pending" | "failed" | "completed";
+        status: "pending" | "completed" | "failed";
         reportMeta: {
             patientFirstName: string;
             patientLastName: string;
@@ -303,7 +303,7 @@ export declare const useReportStore: import("pinia").StoreDefinition<"report", i
     } | null, Report | {
         id: number;
         anonymizedText: string;
-        status: "pending" | "failed" | "completed";
+        status: "pending" | "completed" | "failed";
         reportMeta: {
             patientFirstName: string;
             patientLastName: string;
@@ -323,7 +323,7 @@ export declare const useReportStore: import("pinia").StoreDefinition<"report", i
     annotations: import("vue").Ref<{
         id: number;
         reportId: number;
-        type: "highlight" | "note" | "tag";
+        type: "tag" | "note" | "highlight";
         content: string;
         position: {
             page?: number | undefined;
@@ -338,7 +338,7 @@ export declare const useReportStore: import("pinia").StoreDefinition<"report", i
     }[], Annotation[] | {
         id: number;
         reportId: number;
-        type: "highlight" | "note" | "tag";
+        type: "tag" | "note" | "highlight";
         content: string;
         position: {
             page?: number | undefined;
@@ -362,4 +362,4 @@ export declare const useReportStore: import("pinia").StoreDefinition<"report", i
     setCurrentReport: (report: Report | null) => void;
     clearError: () => void;
     reset: () => void;
-}, "reset" | "clearError" | "createAnnotation" | "fetchReports" | "fetchReportById" | "fetchReportAnnotations" | "setCurrentReport">>;
+}, "clearError" | "reset" | "createAnnotation" | "fetchReports" | "fetchReportById" | "fetchReportAnnotations" | "setCurrentReport">>;

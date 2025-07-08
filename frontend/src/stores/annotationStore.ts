@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
-import { ref, computed, reactive, toRefs } from 'vue'
+import { ref, computed, reactive, toRefs, readonly } from 'vue'
+import { useVideoStore } from '@/stores/videoStore'
 
 // Types for annotations
 export interface Annotation {
@@ -127,6 +128,15 @@ export const useAnnotationStore = defineStore('annotation', () => {
     state.annotations.filter(a => state.selectedAnnotations.includes(a.id))
   )
 
+  // Additional computed properties
+  const hasSelection = computed(() => state.selectedAnnotations.length > 0)
+  
+  const canDelete = computed(() => hasSelection.value)
+  
+  const canEdit = computed(() => state.selectedAnnotations.length === 1)
+  
+  const annotationCount = computed(() => state.annotations.length)
+
   // Actions
   async function loadAnnotations(videoId?: string) {
     state.isLoading = true
@@ -230,6 +240,7 @@ export const useAnnotationStore = defineStore('annotation', () => {
       state.isLoading = false
     }
   }
+
 
   async function deleteAnnotation(id: string) {
     state.isLoading = true
@@ -404,27 +415,212 @@ export const useAnnotationStore = defineStore('annotation', () => {
     state.isDirty = false
   }
 
+  /**
+   * Create an annotation for a segment from videoStore
+   */
+  async function createSegmentAnnotation(
+    videoId: string, 
+    segment: any, 
+    userId: string
+  ): Promise<Annotation | null> {
+    try {
+      const annotationData: Omit<Annotation, 'id' | 'createdAt' | 'updatedAt'> = {
+        videoId,
+        startTime: segment.startTime,
+        endTime: segment.endTime,
+        type: AnnotationType.SEGMENT,
+        text: segment.label || segment.name || `Segment ${segment.id}`,
+        tags: [segment.label || 'segment'],
+        userId,
+        isPublic: false,
+        confidence: segment.avgConfidence || segment.confidence,
+        metadata: { 
+          segmentId: segment.id,
+          labelId: segment.labelID || segment.label_id 
+        }
+      }
+
+      const newAnnotation = await createAnnotation(annotationData)
+      console.log(`✅ Created segment annotation for segment ${segment.id}:`, newAnnotation)
+      return newAnnotation
+    } catch (error) {
+      console.error('Failed to create segment annotation:', error)
+      state.error = error instanceof Error ? error.message : 'Failed to create segment annotation'
+      return null
+    }
+  }
+
+  /**
+   * Create an annotation for an examination
+   */
+  async function createExaminationAnnotation(
+    videoId: string,
+    timestamp: number,
+    examinationType: string,
+    examinationId: number,
+    userId: string
+  ): Promise<Annotation | null> {
+    try {
+      const annotationData: Omit<Annotation, 'id' | 'createdAt' | 'updatedAt'> = {
+        videoId,
+        startTime: timestamp,
+        endTime: timestamp, // Point annotation for examinations
+        type: AnnotationType.CLASSIFICATION,
+        text: examinationType,
+        tags: ['examination', examinationType],
+        userId,
+        isPublic: false,
+        metadata: { 
+          examinationId,
+          examinationType 
+        }
+      }
+
+      const newAnnotation = await createAnnotation(annotationData)
+      console.log(`✅ Created examination annotation:`, newAnnotation)
+      return newAnnotation
+    } catch (error) {
+      console.error('Failed to create examination annotation:', error)
+      state.error = error instanceof Error ? error.message : 'Failed to create examination annotation'
+      return null
+    }
+  }
+
+  /**
+   * Link a segment with its corresponding annotation
+   */
+  async function linkSegmentAndAnnotation(segment: any, userId: string): Promise<Annotation | null> {
+    if (!state.currentVideoId) {
+      console.warn('No current video ID set for annotation linking')
+      return null
+    }
+
+    // Check if annotation already exists for this segment
+    const existingAnnotation = state.annotations.find(
+      a => a.type === AnnotationType.SEGMENT && 
+           a.metadata?.segmentId === segment.id &&
+           a.videoId === state.currentVideoId
+    )
+
+    if (existingAnnotation) {
+      console.log(`Segment ${segment.id} already has annotation:`, existingAnnotation)
+      return existingAnnotation
+    }
+
+    // Create new annotation for segment
+    return await createSegmentAnnotation(state.currentVideoId, segment, userId)
+  }
+
+  /** convert *all* segments of the currently loaded video into Annotations
+   *  and put them in `state.annotations` (replacing old segment annotations
+   *  for that video, if any)                                         */
+  function syncSegmentsFromVideoStore(videoId: string) {
+    const { useVideoStore } = require('./videoStore')
+    const vStore = useVideoStore()
+    const segments = vStore.segments        // <-- reactive
+
+    /* strip previous SEGMENT annotations of that video --------------- */
+    state.annotations = state.annotations.filter(
+      a => !(a.videoId === videoId && a.type === AnnotationType.SEGMENT)
+    )
+
+    /* push a fresh annotation for every segment ---------------------- */
+    segments.value.forEach((seg: any) => {
+      state.annotations.push({
+        id: `seg-${seg.id}`,               // create client-side id
+        videoId,
+        startTime: seg.startTime,
+        endTime: seg.endTime,
+        type: AnnotationType.SEGMENT,
+        text: seg.label,
+        tags: [seg.label],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        userId: '',       // fill with auth user if available
+        isPublic: false,
+        confidence: seg.avgConfidence,
+        metadata: { segmentId: seg.id, labelId: seg.labelID }
+      })
+    })
+  }
+
+  /**  Called from Overview → "Validate segments" button                */
+  async function validateSegmentsAndExaminations(fileId: number): Promise<boolean> {
+    try {
+      /* 1. make the videoStore actually load the video --------------- */
+      const { useVideoStore } = require('./videoStore')
+      const vStore = useVideoStore()
+      await vStore.loadVideo(String(fileId))     // throws if not allowed
+
+      /* 2. remember which video we are on and mirror the segments ----- */
+      setCurrentVideoId(String(fileId))
+      syncSegmentsFromVideoStore(String(fileId))
+
+      /* 3. (optional) load additional annotations from backend --------*/
+      await loadAnnotations(String(fileId))      // your existing action
+      return true
+    } catch (err) {
+      console.error('validateSegments failed:', err)
+      state.error = err instanceof Error ? err.message : String(err)
+      return false
+    }
+  }
+
+  async function annotateSegmentsAndExaminations(fileId: number): Promise<boolean> {
+    try {
+      const { useVideoStore } = require('./videoStore')
+      const vStore = useVideoStore()
+      await vStore.loadVideo(String(fileId))     // throws if not allowed
+
+      /* 2. remember which video we are on and mirror the segments ----- */
+      setCurrentVideoId(String(fileId))
+      syncSegmentsFromVideoStore(String(fileId))
+      
+      return true
+    } catch (err) {
+      console.error('annotateSegments failed:', err)
+      state.error = err instanceof Error ? err.message : String(err)
+      return false
+    }
+  }
+
+  async function deleteSelectedAnnotations(): Promise<void> {
+    if (state.selectedAnnotations.length === 0) return
+    
+    try {
+      await bulkDeleteAnnotations(state.selectedAnnotations)
+      clearSelection()
+    } catch (error) {
+      console.error('Failed to delete selected annotations:', error)
+    }
+  }
+
   return {
-    // State
-    ...toRefs(state),
-    
-    // Computed
+    // State - use toRefs for primitives, readonly for objects/arrays
+    annotations: readonly(state.annotations),
+    isLoading: toRefs(state).isLoading,
+    error: toRefs(state).error,
+    selectedAnnotations: readonly(state.selectedAnnotations),
+    filter: readonly(state.filter),
+    currentVideoId: toRefs(state).currentVideoId,
+    playbackTime: toRefs(state).playbackTime,
+    isEditing: toRefs(state).isEditing,
+    isDirty: toRefs(state).isDirty,
+
+    // Getters
     filteredAnnotations,
-    currentVideoAnnotations,
-    annotationsAtCurrentTime,
-    totalAnnotations,
-    selectedAnnotationObjects,
-    
+    hasSelection,
+    canDelete,
+    canEdit,
+    annotationCount,
+
     // Actions
     loadAnnotations,
     createAnnotation,
     updateAnnotation,
     deleteAnnotation,
-    bulkDeleteAnnotations,
-    setCurrentAnnotation,
+    deleteSelectedAnnotations,
     selectAnnotation,
-    deselectAnnotation,
-    toggleAnnotationSelection,
     selectAllAnnotations,
     clearSelection,
     setFilter,
@@ -437,7 +633,13 @@ export const useAnnotationStore = defineStore('annotation', () => {
     seekToAnnotation,
     exportAnnotations,
     clearError,
-    reset
+    reset,
+    syncSegmentsFromVideoStore,
+    createSegmentAnnotation,
+    createExaminationAnnotation,
+    linkSegmentAndAnnotation,
+    validateSegmentsAndExaminations,
+    annotateSegmentsAndExaminations
   }
 })
 

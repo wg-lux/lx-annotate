@@ -61,6 +61,8 @@ describe('VideoStore - Frame to Time Conversion', () => {
                 anonymized: false,
                 duration: 10, // 10 seconds
                 fps: 30,
+                centerName: 'Universitätsklinikum Würzburg',
+                processorName: 'Olympus_CV_500'
             };
             // Mock axios response for fetchVideoSegments
             const mockSegmentData = [

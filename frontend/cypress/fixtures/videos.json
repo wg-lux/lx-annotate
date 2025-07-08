@@ -1,0 +1,26 @@
+{
+  "videos": [
+    {
+      "id": 1,
+      "original_file_name": "test_video.mp4",
+      "status": "available",
+      "anonymized": true,
+      "centerName": "Test Hospital",
+      "processorName": "Test Processor"
+    }
+  ],
+  "labels": [
+    {
+      "id": 1,
+      "name": "outside"
+    },
+    {
+      "id": 2,
+      "name": "blood"
+    },
+    {
+      "id": 3,
+      "name": "polyp"
+    }
+  ]
+}

@@ -1,33 +1,43 @@
-import { ref, computed, onMounted, nextTick } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useVideoStore } from '@/stores/videoStore';
+import { useAnonymizationStore } from '@/stores/anonymizationStore';
+import { useAnnotationStore } from '@/stores/annotationStore';
+import { useAuthStore } from '@/stores/authStore';
 import SimpleExaminationForm from './SimpleExaminationForm.vue';
 import axiosInstance, { r } from '@/api/axiosInstance';
 import Timeline from '@/components/EndoAI/Timeline.vue';
 import { storeToRefs } from 'pinia';
 import { useToastStore } from '@/stores/toastStore';
+import { formatTime, getTranslationForLabel, getColorForLabel } from '@/utils/videoUtils';
+import { useRoute, useRouter } from 'vue-router';
+const route = useRoute(); // ①
+const router = useRouter();
+// ------------------------------------------------------------------
+// pick the number once when the view is created
+// ------------------------------------------------------------------
+const initialVideoId = Number(route.query.video ?? '') || null;
 // Store setup
 const videoStore = useVideoStore();
+const { videoList, videoStreamUrl, timelineSegments } = storeToRefs(videoStore);
+const videos = computed(() => videoList.value.videos);
 const toastStore = useToastStore();
 const { allSegments: rawSegments } = storeToRefs(videoStore);
-const mappedTimelineSegments = computed(() => rawSegments.value.map((s) => ({
-    id: s.id,
-    label: s.label,
-    label_display: getTranslationForLabel(s.label),
-    name: getTranslationForLabel(s.label),
-    startTime: s.startTime ?? 0,
-    endTime: s.endTime ?? 0,
-    avgConfidence: s.avgConfidence ?? 1,
-    video_id: selectedVideoId.value ?? undefined,
-    label_id: s.labelID ?? undefined
-})));
+const anonymizationStore = useAnonymizationStore();
+const { overview } = storeToRefs(anonymizationStore);
 // Use spread operator to convert readonly array to mutable array
 const timelineLabels = computed(() => {
     const storeLabels = videoStore.labels || [];
     return [...storeLabels]; // Convert readonly array to mutable array
 });
+/**
+ * helper: returns true when a video's anonymization status is 'done'
+ */
+function isAnonymized(videoId) {
+    const item = overview.value.find(o => o.id === videoId && o.mediaType === 'video');
+    return item?.anonymizationStatus === 'done';
+}
 // Reactive data
-const videos = ref([]);
-const selectedVideoId = ref(null);
+const selectedVideoId = ref(initialVideoId);
 const currentTime = ref(0);
 const duration = ref(0);
 const fps = ref(50);
@@ -41,16 +51,37 @@ const selectedSegmentId = ref(null);
 // Template refs
 const videoRef = ref(null);
 const timelineRef = ref(null);
-// Computed properties
-const currentVideoUrl = computed(() => {
-    const video = videos.value.find(v => v.id === selectedVideoId.value);
-    if (!video)
-        return '';
-    // Use the dedicated streaming endpoint from urls.py
-    return video.video_url || `/api/videostream/${video.id}/`;
-});
+// Video Dropdown Watcher
+async function loadSelectedVideo() {
+    if (selectedVideoId.value == null) {
+        videoStore.clearVideo();
+        return;
+    }
+    try {
+        await videoStore.loadVideo(String(selectedVideoId.value));
+        await loadSavedExaminations(); // was only in the old onVideoChange
+        await loadVideoMetadata(); // keep segment behaviour
+    }
+    catch (err) {
+        console.error('loadVideo failed', err);
+    }
+}
+function onVideoChange() {
+    loadSelectedVideo();
+    /** update the url so users can bookmark / refresh */
+    router.replace({ query: { video: selectedVideoId.value } });
+}
+//  fire loader whenever selectedVideoId changes programmatically  */
+watch(selectedVideoId, loadSelectedVideo);
+watch(() => route.query.video, v => {
+    const id = Number(v ?? '') || null;
+    if (id !== selectedVideoId.value)
+        selectedVideoId.value = id;
+}, { immediate: true });
+// List of only videos that are both present in the list **and** in state `done` inside anonymizationStore
+const annotatableVideos = computed(() => videoList.value.videos.filter(v => isAnonymized(v.id)));
 const showExaminationForm = computed(() => {
-    return selectedVideoId.value !== null && currentVideoUrl.value !== '';
+    return selectedVideoId.value !== null && videoStreamUrl.value !== '';
 });
 const hasVideos = computed(() => {
     return videos.value && videos.value.length > 0;
@@ -65,37 +96,12 @@ const groupedSegments = computed(() => {
 });
 const canStartLabeling = computed(() => {
     return selectedVideoId.value &&
-        currentVideoUrl.value &&
+        videoStreamUrl.value &&
         selectedLabelType.value &&
         !isMarkingLabel.value &&
         duration.value > 0;
 });
-// Methods
-const loadVideos = async () => {
-    try {
-        console.log('Loading videos from API...');
-        const response = await axiosInstance.get(r('videos/'));
-        console.log('Videos API response:', response.data);
-        // API returns {videos: [...], labels: [...]} structure
-        const videosData = response.data.videos || response.data || [];
-        // Ensure IDs are numbers and add missing fields
-        videos.value = videosData.map((v) => ({
-            ...v,
-            id: Number(v.id),
-            center_name: v.center_name || v.original_file_name || 'Unbekannt',
-            processor_name: v.processor_name || v.status || 'Unbekannt',
-            video_url: `/api/videostream/${v.id}/`
-        }));
-        if (videos.value.length > 0) {
-            console.log('First video structure after processing:', videos.value[0]);
-        }
-    }
-    catch (error) {
-        console.error('Error loading videos:', error);
-        videos.value = [];
-    }
-};
-onMounted(loadVideos);
+onMounted(videoStore.fetchAllVideos);
 const loadSavedExaminations = async () => {
     if (selectedVideoId.value === null)
         return;
@@ -115,7 +121,7 @@ const loadSavedExaminations = async () => {
         examinationMarkers.value = [];
     }
 };
-const onVideoChange = async () => {
+const _onVideoChange = async () => {
     if (selectedVideoId.value !== null) {
         loadSavedExaminations();
         // Load all segments for all labels
@@ -124,7 +130,7 @@ const onVideoChange = async () => {
             await videoStore.loadVideo(selectedVideoId.value.toString());
             // 2. Wait for video metadata to load
             await loadVideoMetadata();
-            // 3. Fetch segments for ALL labels as specified in requirements
+            // 3. Fetch segments for all labels as specified in requirements
             console.log('Loading segments for all labels...');
             await Promise.all(videoStore.labels.map(l => videoStore.segmentsByLabel));
             // 4. Show toast message when all segments are loaded
@@ -185,9 +191,8 @@ const loadVideoSegments = async () => {
 const onVideoLoaded = () => {
     if (videoRef.value) {
         duration.value = videoRef.value.duration;
-        console.log('🎥 Video loaded - Frontend duration info:');
-        console.log(`- Duration from HTML5 video element: ${duration.value}s`);
-        console.log(`- Video source URL: ${currentVideoUrl.value}`);
+        console.log('🎥 Video loaded - Frontend');
+        console.log(`- Video source URL: ${videoStreamUrl.value}`);
         console.log(`- Video readyState: ${videoRef.value.readyState}`);
         console.log(`- Video networkState: ${videoRef.value.networkState}`);
         if (videoRef.value.videoWidth && videoRef.value.videoHeight) {
@@ -344,7 +349,7 @@ const cancelLabelMarking = () => {
     selectedLabelType.value = '';
     console.log('Label-Markierung abgebrochen');
 };
-const onExaminationSaved = (examination) => {
+const onExaminationSaved = async (examination) => {
     // Add new examination to list
     savedExaminations.value.push(examination);
     // Create new marker
@@ -354,6 +359,24 @@ const onExaminationSaved = (examination) => {
         examination_data: examination.data
     };
     examinationMarkers.value.push(marker);
+    // ✅ NEW: Create corresponding annotation for examination
+    try {
+        const annotationStore = useAnnotationStore();
+        const authStore = useAuthStore();
+        // Ensure mock user is initialized
+        authStore.initMockUser();
+        if (authStore.user?.id && selectedVideoId.value) {
+            await annotationStore.createExaminationAnnotation(selectedVideoId.value.toString(), examination.timestamp, examination.examination_type || 'examination', examination.id, authStore.user.id);
+            console.log(`✅ Created annotation for examination ${examination.id}`);
+        }
+        else {
+            console.warn('No authenticated user or video ID found for examination annotation creation');
+        }
+    }
+    catch (annotationError) {
+        console.error('Failed to create examination annotation:', annotationError);
+        // Don't fail the examination save if annotation fails
+    }
     console.log('Examination saved:', examination);
 };
 const jumpToExamination = (examination) => {
@@ -375,47 +398,7 @@ const deleteExamination = async (examinationId) => {
     catch (error) {
         console.error('Error deleting examination:', error);
     }
-};
-const formatTime = (seconds) => {
-    if (!seconds || seconds < 0)
-        return '00:00';
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-};
-const getTranslationForLabel = (label) => {
-    const translations = {
-        'appendix': 'Appendix',
-        'blood': 'Blut',
-        'diverticule': 'Divertikel',
-        'grasper': 'Greifer',
-        'ileocaecalvalve': 'Ileozäkalklappe',
-        'ileum': 'Ileum',
-        'low_quality': 'Niedrige Bildqualität',
-        'nbi': 'Narrow Band Imaging',
-        'needle': 'Nadel',
-        'outside': 'Außerhalb',
-        'polyp': 'Polyp',
-        'snare': 'Snare',
-        'water_jet': 'Wasserstrahl',
-        'wound': 'Wunde'
-    };
-    return translations[label] || label;
-};
-// Lifecycle
-onMounted(async () => {
-    await loadVideos();
-    if (videos.value.length) {
-        selectedVideoId.value = videos.value[0].id;
-        await onVideoChange();
-    }
-    else {
-        console.warn('No videos available to select.');
-    }
-    if (selectedVideoId.value) {
-        await loadVideoSegments();
-    }
-}); /* PartiallyEnd: #3632/scriptSetup.vue */
+}; /* PartiallyEnd: #3632/scriptSetup.vue */
 function __VLS_template() {
     const __VLS_ctx = {};
     let __VLS_components;
@@ -469,13 +452,14 @@ function __VLS_template() {
         value: ((null)),
     });
     (__VLS_ctx.hasVideos ? 'Bitte Video auswählen...' : 'Keine Videos verfügbar');
-    for (const [video] of __VLS_getVForSourceType((__VLS_ctx.videos))) {
+    for (const [annotatableVideos] of __VLS_getVForSourceType((__VLS_ctx.videos))) {
         __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-            key: ((video.id)),
-            value: ((video.id)),
+            key: ((annotatableVideos.id)),
+            value: ((annotatableVideos.id)),
         });
-        (video.center_name || 'Unbekannt');
-        (video.processor_name || 'Unbekannt');
+        (annotatableVideos.original_file_name || 'Video Nr. ' + annotatableVideos.id);
+        ('Center:' + annotatableVideos.centerName || 'Unbekanntes Zentrum');
+        ('Processor:' + annotatableVideos.processorName || 'Unbekannter Prozessor');
     }
     if (!__VLS_ctx.hasVideos) {
         __VLS_elementAsFunction(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
@@ -483,7 +467,7 @@ function __VLS_template() {
         });
         (__VLS_ctx.noVideosMessage);
     }
-    if (!__VLS_ctx.currentVideoUrl && __VLS_ctx.hasVideos) {
+    if (!__VLS_ctx.videoStreamUrl && __VLS_ctx.hasVideos) {
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: ("text-center text-muted py-5") },
         });
@@ -509,7 +493,7 @@ function __VLS_template() {
         (__VLS_ctx.noVideosMessage);
         __VLS_elementAsFunction(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({});
     }
-    if (__VLS_ctx.currentVideoUrl) {
+    if (__VLS_ctx.videoStreamUrl) {
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: ("video-container") },
         });
@@ -517,7 +501,8 @@ function __VLS_template() {
             ...{ onTimeupdate: (__VLS_ctx.handleTimeUpdate) },
             ...{ onLoadedmetadata: (__VLS_ctx.onVideoLoaded) },
             ref: ("videoRef"),
-            src: ((__VLS_ctx.currentVideoUrl)),
+            'data-cy': ("video-player"),
+            src: ((__VLS_ctx.videoStreamUrl)),
             controls: (true),
             ...{ class: ("w-100") },
             ...{ style: ({}) },
@@ -540,7 +525,7 @@ function __VLS_template() {
             ...{ 'onTimeSelection': {} },
             ...{ 'onDeleteSegment': {} },
             video: (({ duration: __VLS_ctx.duration })),
-            segments: ((__VLS_ctx.mappedTimelineSegments)),
+            segments: ((__VLS_ctx.timelineSegments)),
             labels: ((__VLS_ctx.timelineLabels)),
             currentTime: ((__VLS_ctx.currentTime)),
             isPlaying: ((false)),
@@ -557,7 +542,7 @@ function __VLS_template() {
             ...{ 'onTimeSelection': {} },
             ...{ 'onDeleteSegment': {} },
             video: (({ duration: __VLS_ctx.duration })),
-            segments: ((__VLS_ctx.mappedTimelineSegments)),
+            segments: ((__VLS_ctx.timelineSegments)),
             labels: ((__VLS_ctx.timelineLabels)),
             currentTime: ((__VLS_ctx.currentTime)),
             isPlaying: ((false)),
@@ -636,6 +621,7 @@ function __VLS_template() {
             ...{ onChange: (__VLS_ctx.onLabelSelect) },
             value: ((__VLS_ctx.selectedLabelType)),
             ...{ class: ("form-select form-select-sm control-select") },
+            'data-cy': ("label-select"),
         });
         __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
             value: (""),
@@ -690,6 +676,7 @@ function __VLS_template() {
                 ...{ onClick: (__VLS_ctx.startLabelMarking) },
                 ...{ class: ("btn btn-success btn-sm control-button") },
                 disabled: ((!__VLS_ctx.canStartLabeling)),
+                'data-cy': ("start-label-button"),
             });
             __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
                 ...{ class: ("material-icons") },
@@ -699,6 +686,7 @@ function __VLS_template() {
             __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
                 ...{ onClick: (__VLS_ctx.finishLabelMarking) },
                 ...{ class: ("btn btn-warning btn-sm control-button") },
+                'data-cy': ("finish-label-button"),
             });
             __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
                 ...{ class: ("material-icons") },
@@ -765,11 +753,13 @@ function __VLS_template() {
             ...{ 'onExaminationSaved': {} },
             videoTimestamp: ((__VLS_ctx.currentTime)),
             videoId: ((__VLS_ctx.selectedVideoId)),
+            dataCy: ("examination-form"),
         }));
         const __VLS_13 = __VLS_12({
             ...{ 'onExaminationSaved': {} },
             videoTimestamp: ((__VLS_ctx.currentTime)),
             videoId: ((__VLS_ctx.selectedVideoId)),
+            dataCy: ("examination-form"),
         }, ...__VLS_functionalComponentArgsRest(__VLS_12));
         let __VLS_17;
         const __VLS_18 = {
@@ -803,6 +793,7 @@ function __VLS_template() {
         });
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: ("card-body") },
+            'data-cy': ("saved-examinations"),
         });
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: ("list-group list-group-flush") },
@@ -868,11 +859,14 @@ const __VLS_self = (await import('vue')).defineComponent({
         return {
             SimpleExaminationForm: SimpleExaminationForm,
             Timeline: Timeline,
+            formatTime: formatTime,
+            getTranslationForLabel: getTranslationForLabel,
             videoStore: videoStore,
-            rawSegments: rawSegments,
-            mappedTimelineSegments: mappedTimelineSegments,
-            timelineLabels: timelineLabels,
+            videoStreamUrl: videoStreamUrl,
+            timelineSegments: timelineSegments,
             videos: videos,
+            rawSegments: rawSegments,
+            timelineLabels: timelineLabels,
             selectedVideoId: selectedVideoId,
             currentTime: currentTime,
             duration: duration,
@@ -885,13 +879,12 @@ const __VLS_self = (await import('vue')).defineComponent({
             selectedSegmentId: selectedSegmentId,
             videoRef: videoRef,
             timelineRef: timelineRef,
-            currentVideoUrl: currentVideoUrl,
+            onVideoChange: onVideoChange,
             showExaminationForm: showExaminationForm,
             hasVideos: hasVideos,
             noVideosMessage: noVideosMessage,
             groupedSegments: groupedSegments,
             canStartLabeling: canStartLabeling,
-            onVideoChange: onVideoChange,
             onVideoLoaded: onVideoLoaded,
             handleTimeUpdate: handleTimeUpdate,
             handleTimelineClick: handleTimelineClick,
@@ -908,8 +901,6 @@ const __VLS_self = (await import('vue')).defineComponent({
             onExaminationSaved: onExaminationSaved,
             jumpToExamination: jumpToExamination,
             deleteExamination: deleteExamination,
-            formatTime: formatTime,
-            getTranslationForLabel: getTranslationForLabel,
         };
     },
 });

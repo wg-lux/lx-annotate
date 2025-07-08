@@ -20,8 +20,8 @@ export const useAnonymizationStore = defineStore('anonymization', {
     }),
     getters: {
         getCurrentItem: (state) => state.current,
-        isAnyFileProcessing: (state) => state.overview.some(f => f.anonymizationStatus === 'processing'),
-        processingFiles: (state) => state.overview.filter(f => f.anonymizationStatus === 'processing')
+        isAnyFileProcessing: (state) => state.overview.some(f => f.anonymizationStatus === 'processing_anonymization' || f.anonymizationStatus === 'extracting_frames' || f.anonymizationStatus === 'predicting_segments'),
+        processingFiles: (state) => state.overview.filter(f => f.anonymizationStatus === 'processing_anonymization' || f.anonymizationStatus === 'extracting_frames' || f.anonymizationStatus === 'predicting_segments')
     },
     actions: {
         /** Holt den nächsten PDF-Datensatz + zugehöriges SensitiveMeta
@@ -200,7 +200,7 @@ export const useAnonymizationStore = defineStore('anonymization', {
             try {
                 console.log(`Starting anonymization for file ${id}...`);
                 // Optimistic UI update
-                file.anonymizationStatus = 'processing';
+                file.anonymizationStatus = 'processing_anonymization';
                 // Trigger anonymization
                 await axiosInstance.post(r(`anonymization/${id}/start/`));
                 console.log(`Anonymization started for file ${id}`);
@@ -349,7 +349,7 @@ export const useAnonymizationStore = defineStore('anonymization', {
             try {
                 console.log(`Re-importing video ${fileId}...`);
                 // Optimistic UI update
-                file.anonymizationStatus = 'processing';
+                file.anonymizationStatus = 'extracting_frames';
                 file.metadataImported = false;
                 // Trigger re-import via backend
                 const response = await axiosInstance.post(r(`video/${fileId}/reimport/`));

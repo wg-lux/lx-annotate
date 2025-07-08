@@ -51,6 +51,47 @@ export interface AnnotationState {
     isDirty: boolean;
 }
 export declare const useAnnotationStore: import("pinia").StoreDefinition<"annotation", import("pinia")._UnwrapAll<Pick<{
+    annotations: readonly {
+        readonly id: string;
+        readonly videoId: string;
+        readonly startTime: number;
+        readonly endTime: number;
+        readonly type: AnnotationType;
+        readonly text: string;
+        readonly tags: readonly string[];
+        readonly position?: {
+            readonly x: number;
+            readonly y: number;
+            readonly width: number;
+            readonly height: number;
+        } | undefined;
+        readonly createdAt: Date;
+        readonly updatedAt: Date;
+        readonly userId: string;
+        readonly isPublic: boolean;
+        readonly confidence?: number | undefined;
+        readonly metadata?: {
+            readonly [x: string]: any;
+        } | undefined;
+    }[];
+    isLoading: import("vue").Ref<boolean, boolean>;
+    error: import("vue").Ref<string | null, string | null>;
+    selectedAnnotations: readonly string[];
+    filter: {
+        readonly videoId?: string | undefined;
+        readonly type?: AnnotationType | undefined;
+        readonly userId?: string | undefined;
+        readonly tags?: readonly string[] | undefined;
+        readonly timeRange?: {
+            readonly start: number;
+            readonly end: number;
+        } | undefined;
+        readonly isPublic?: boolean | undefined;
+    };
+    currentVideoId: import("vue").Ref<string | null, string | null>;
+    playbackTime: import("vue").Ref<number, number>;
+    isEditing: import("vue").Ref<boolean, boolean>;
+    isDirty: import("vue").Ref<boolean, boolean>;
     filteredAnnotations: import("vue").ComputedRef<{
         id: string;
         videoId: string;
@@ -72,79 +113,16 @@ export declare const useAnnotationStore: import("pinia").StoreDefinition<"annota
         confidence?: number | undefined;
         metadata?: Record<string, any> | undefined;
     }[]>;
-    currentVideoAnnotations: import("vue").ComputedRef<{
-        id: string;
-        videoId: string;
-        startTime: number;
-        endTime: number;
-        type: AnnotationType;
-        text: string;
-        tags: string[];
-        position?: {
-            x: number;
-            y: number;
-            width: number;
-            height: number;
-        } | undefined;
-        createdAt: Date;
-        updatedAt: Date;
-        userId: string;
-        isPublic: boolean;
-        confidence?: number | undefined;
-        metadata?: Record<string, any> | undefined;
-    }[]>;
-    annotationsAtCurrentTime: import("vue").ComputedRef<{
-        id: string;
-        videoId: string;
-        startTime: number;
-        endTime: number;
-        type: AnnotationType;
-        text: string;
-        tags: string[];
-        position?: {
-            x: number;
-            y: number;
-            width: number;
-            height: number;
-        } | undefined;
-        createdAt: Date;
-        updatedAt: Date;
-        userId: string;
-        isPublic: boolean;
-        confidence?: number | undefined;
-        metadata?: Record<string, any> | undefined;
-    }[]>;
-    totalAnnotations: import("vue").ComputedRef<number>;
-    selectedAnnotationObjects: import("vue").ComputedRef<{
-        id: string;
-        videoId: string;
-        startTime: number;
-        endTime: number;
-        type: AnnotationType;
-        text: string;
-        tags: string[];
-        position?: {
-            x: number;
-            y: number;
-            width: number;
-            height: number;
-        } | undefined;
-        createdAt: Date;
-        updatedAt: Date;
-        userId: string;
-        isPublic: boolean;
-        confidence?: number | undefined;
-        metadata?: Record<string, any> | undefined;
-    }[]>;
+    hasSelection: import("vue").ComputedRef<boolean>;
+    canDelete: import("vue").ComputedRef<boolean>;
+    canEdit: import("vue").ComputedRef<boolean>;
+    annotationCount: import("vue").ComputedRef<number>;
     loadAnnotations: (videoId?: string) => Promise<void>;
     createAnnotation: (annotationData: Omit<Annotation, 'id' | 'createdAt' | 'updatedAt'>) => Promise<any>;
     updateAnnotation: (id: string, updates: Partial<Annotation>) => Promise<any>;
     deleteAnnotation: (id: string) => Promise<void>;
-    bulkDeleteAnnotations: (ids: string[]) => Promise<void>;
-    setCurrentAnnotation: (annotation: Annotation | null) => void;
+    deleteSelectedAnnotations: () => Promise<void>;
     selectAnnotation: (id: string) => void;
-    deselectAnnotation: (id: string) => void;
-    toggleAnnotationSelection: (id: string) => void;
     selectAllAnnotations: () => void;
     clearSelection: () => void;
     setFilter: (filter: Partial<AnnotationFilter>) => void;
@@ -158,117 +136,54 @@ export declare const useAnnotationStore: import("pinia").StoreDefinition<"annota
     exportAnnotations: (format?: 'json' | 'csv') => Promise<void>;
     clearError: () => void;
     reset: () => void;
-    annotations: import("vue").Ref<{
-        id: string;
-        videoId: string;
-        startTime: number;
-        endTime: number;
-        type: AnnotationType;
-        text: string;
-        tags: string[];
-        position?: {
-            x: number;
-            y: number;
-            width: number;
-            height: number;
+    syncSegmentsFromVideoStore: (videoId: string) => void;
+    createSegmentAnnotation: (videoId: string, segment: any, userId: string) => Promise<Annotation | null>;
+    createExaminationAnnotation: (videoId: string, timestamp: number, examinationType: string, examinationId: number, userId: string) => Promise<Annotation | null>;
+    linkSegmentAndAnnotation: (segment: any, userId: string) => Promise<Annotation | null>;
+    validateSegmentsAndExaminations: (fileId: number) => Promise<boolean>;
+    annotateSegmentsAndExaminations: (fileId: number) => Promise<boolean>;
+}, "isLoading" | "error" | "filter" | "annotations" | "selectedAnnotations" | "currentVideoId" | "playbackTime" | "isEditing" | "isDirty">>, Pick<{
+    annotations: readonly {
+        readonly id: string;
+        readonly videoId: string;
+        readonly startTime: number;
+        readonly endTime: number;
+        readonly type: AnnotationType;
+        readonly text: string;
+        readonly tags: readonly string[];
+        readonly position?: {
+            readonly x: number;
+            readonly y: number;
+            readonly width: number;
+            readonly height: number;
         } | undefined;
-        createdAt: Date;
-        updatedAt: Date;
-        userId: string;
-        isPublic: boolean;
-        confidence?: number | undefined;
-        metadata?: Record<string, any> | undefined;
-    }[], {
-        id: string;
-        videoId: string;
-        startTime: number;
-        endTime: number;
-        type: AnnotationType;
-        text: string;
-        tags: string[];
-        position?: {
-            x: number;
-            y: number;
-            width: number;
-            height: number;
+        readonly createdAt: Date;
+        readonly updatedAt: Date;
+        readonly userId: string;
+        readonly isPublic: boolean;
+        readonly confidence?: number | undefined;
+        readonly metadata?: {
+            readonly [x: string]: any;
         } | undefined;
-        createdAt: Date;
-        updatedAt: Date;
-        userId: string;
-        isPublic: boolean;
-        confidence?: number | undefined;
-        metadata?: Record<string, any> | undefined;
-    }[]>;
-    currentAnnotation: import("vue").Ref<{
-        id: string;
-        videoId: string;
-        startTime: number;
-        endTime: number;
-        type: AnnotationType;
-        text: string;
-        tags: string[];
-        position?: {
-            x: number;
-            y: number;
-            width: number;
-            height: number;
-        } | undefined;
-        createdAt: Date;
-        updatedAt: Date;
-        userId: string;
-        isPublic: boolean;
-        confidence?: number | undefined;
-        metadata?: Record<string, any> | undefined;
-    } | null, {
-        id: string;
-        videoId: string;
-        startTime: number;
-        endTime: number;
-        type: AnnotationType;
-        text: string;
-        tags: string[];
-        position?: {
-            x: number;
-            y: number;
-            width: number;
-            height: number;
-        } | undefined;
-        createdAt: Date;
-        updatedAt: Date;
-        userId: string;
-        isPublic: boolean;
-        confidence?: number | undefined;
-        metadata?: Record<string, any> | undefined;
-    } | null>;
-    selectedAnnotations: import("vue").Ref<string[], string[]>;
-    filter: import("vue").Ref<{
-        videoId?: string | undefined;
-        type?: AnnotationType | undefined;
-        userId?: string | undefined;
-        tags?: string[] | undefined;
-        timeRange?: {
-            start: number;
-            end: number;
-        } | undefined;
-        isPublic?: boolean | undefined;
-    }, {
-        videoId?: string | undefined;
-        type?: AnnotationType | undefined;
-        userId?: string | undefined;
-        tags?: string[] | undefined;
-        timeRange?: {
-            start: number;
-            end: number;
-        } | undefined;
-        isPublic?: boolean | undefined;
-    }>;
+    }[];
     isLoading: import("vue").Ref<boolean, boolean>;
     error: import("vue").Ref<string | null, string | null>;
+    selectedAnnotations: readonly string[];
+    filter: {
+        readonly videoId?: string | undefined;
+        readonly type?: AnnotationType | undefined;
+        readonly userId?: string | undefined;
+        readonly tags?: readonly string[] | undefined;
+        readonly timeRange?: {
+            readonly start: number;
+            readonly end: number;
+        } | undefined;
+        readonly isPublic?: boolean | undefined;
+    };
     currentVideoId: import("vue").Ref<string | null, string | null>;
     playbackTime: import("vue").Ref<number, number>;
     isEditing: import("vue").Ref<boolean, boolean>;
     isDirty: import("vue").Ref<boolean, boolean>;
-}, "filter" | "error" | "isLoading" | "annotations" | "currentAnnotation" | "selectedAnnotations" | "currentVideoId" | "playbackTime" | "isEditing" | "isDirty">>, Pick<{
     filteredAnnotations: import("vue").ComputedRef<{
         id: string;
         videoId: string;
@@ -290,79 +205,16 @@ export declare const useAnnotationStore: import("pinia").StoreDefinition<"annota
         confidence?: number | undefined;
         metadata?: Record<string, any> | undefined;
     }[]>;
-    currentVideoAnnotations: import("vue").ComputedRef<{
-        id: string;
-        videoId: string;
-        startTime: number;
-        endTime: number;
-        type: AnnotationType;
-        text: string;
-        tags: string[];
-        position?: {
-            x: number;
-            y: number;
-            width: number;
-            height: number;
-        } | undefined;
-        createdAt: Date;
-        updatedAt: Date;
-        userId: string;
-        isPublic: boolean;
-        confidence?: number | undefined;
-        metadata?: Record<string, any> | undefined;
-    }[]>;
-    annotationsAtCurrentTime: import("vue").ComputedRef<{
-        id: string;
-        videoId: string;
-        startTime: number;
-        endTime: number;
-        type: AnnotationType;
-        text: string;
-        tags: string[];
-        position?: {
-            x: number;
-            y: number;
-            width: number;
-            height: number;
-        } | undefined;
-        createdAt: Date;
-        updatedAt: Date;
-        userId: string;
-        isPublic: boolean;
-        confidence?: number | undefined;
-        metadata?: Record<string, any> | undefined;
-    }[]>;
-    totalAnnotations: import("vue").ComputedRef<number>;
-    selectedAnnotationObjects: import("vue").ComputedRef<{
-        id: string;
-        videoId: string;
-        startTime: number;
-        endTime: number;
-        type: AnnotationType;
-        text: string;
-        tags: string[];
-        position?: {
-            x: number;
-            y: number;
-            width: number;
-            height: number;
-        } | undefined;
-        createdAt: Date;
-        updatedAt: Date;
-        userId: string;
-        isPublic: boolean;
-        confidence?: number | undefined;
-        metadata?: Record<string, any> | undefined;
-    }[]>;
+    hasSelection: import("vue").ComputedRef<boolean>;
+    canDelete: import("vue").ComputedRef<boolean>;
+    canEdit: import("vue").ComputedRef<boolean>;
+    annotationCount: import("vue").ComputedRef<number>;
     loadAnnotations: (videoId?: string) => Promise<void>;
     createAnnotation: (annotationData: Omit<Annotation, 'id' | 'createdAt' | 'updatedAt'>) => Promise<any>;
     updateAnnotation: (id: string, updates: Partial<Annotation>) => Promise<any>;
     deleteAnnotation: (id: string) => Promise<void>;
-    bulkDeleteAnnotations: (ids: string[]) => Promise<void>;
-    setCurrentAnnotation: (annotation: Annotation | null) => void;
+    deleteSelectedAnnotations: () => Promise<void>;
     selectAnnotation: (id: string) => void;
-    deselectAnnotation: (id: string) => void;
-    toggleAnnotationSelection: (id: string) => void;
     selectAllAnnotations: () => void;
     clearSelection: () => void;
     setFilter: (filter: Partial<AnnotationFilter>) => void;
@@ -376,117 +228,54 @@ export declare const useAnnotationStore: import("pinia").StoreDefinition<"annota
     exportAnnotations: (format?: 'json' | 'csv') => Promise<void>;
     clearError: () => void;
     reset: () => void;
-    annotations: import("vue").Ref<{
-        id: string;
-        videoId: string;
-        startTime: number;
-        endTime: number;
-        type: AnnotationType;
-        text: string;
-        tags: string[];
-        position?: {
-            x: number;
-            y: number;
-            width: number;
-            height: number;
+    syncSegmentsFromVideoStore: (videoId: string) => void;
+    createSegmentAnnotation: (videoId: string, segment: any, userId: string) => Promise<Annotation | null>;
+    createExaminationAnnotation: (videoId: string, timestamp: number, examinationType: string, examinationId: number, userId: string) => Promise<Annotation | null>;
+    linkSegmentAndAnnotation: (segment: any, userId: string) => Promise<Annotation | null>;
+    validateSegmentsAndExaminations: (fileId: number) => Promise<boolean>;
+    annotateSegmentsAndExaminations: (fileId: number) => Promise<boolean>;
+}, "filteredAnnotations" | "hasSelection" | "canDelete" | "canEdit" | "annotationCount">, Pick<{
+    annotations: readonly {
+        readonly id: string;
+        readonly videoId: string;
+        readonly startTime: number;
+        readonly endTime: number;
+        readonly type: AnnotationType;
+        readonly text: string;
+        readonly tags: readonly string[];
+        readonly position?: {
+            readonly x: number;
+            readonly y: number;
+            readonly width: number;
+            readonly height: number;
         } | undefined;
-        createdAt: Date;
-        updatedAt: Date;
-        userId: string;
-        isPublic: boolean;
-        confidence?: number | undefined;
-        metadata?: Record<string, any> | undefined;
-    }[], {
-        id: string;
-        videoId: string;
-        startTime: number;
-        endTime: number;
-        type: AnnotationType;
-        text: string;
-        tags: string[];
-        position?: {
-            x: number;
-            y: number;
-            width: number;
-            height: number;
+        readonly createdAt: Date;
+        readonly updatedAt: Date;
+        readonly userId: string;
+        readonly isPublic: boolean;
+        readonly confidence?: number | undefined;
+        readonly metadata?: {
+            readonly [x: string]: any;
         } | undefined;
-        createdAt: Date;
-        updatedAt: Date;
-        userId: string;
-        isPublic: boolean;
-        confidence?: number | undefined;
-        metadata?: Record<string, any> | undefined;
-    }[]>;
-    currentAnnotation: import("vue").Ref<{
-        id: string;
-        videoId: string;
-        startTime: number;
-        endTime: number;
-        type: AnnotationType;
-        text: string;
-        tags: string[];
-        position?: {
-            x: number;
-            y: number;
-            width: number;
-            height: number;
-        } | undefined;
-        createdAt: Date;
-        updatedAt: Date;
-        userId: string;
-        isPublic: boolean;
-        confidence?: number | undefined;
-        metadata?: Record<string, any> | undefined;
-    } | null, {
-        id: string;
-        videoId: string;
-        startTime: number;
-        endTime: number;
-        type: AnnotationType;
-        text: string;
-        tags: string[];
-        position?: {
-            x: number;
-            y: number;
-            width: number;
-            height: number;
-        } | undefined;
-        createdAt: Date;
-        updatedAt: Date;
-        userId: string;
-        isPublic: boolean;
-        confidence?: number | undefined;
-        metadata?: Record<string, any> | undefined;
-    } | null>;
-    selectedAnnotations: import("vue").Ref<string[], string[]>;
-    filter: import("vue").Ref<{
-        videoId?: string | undefined;
-        type?: AnnotationType | undefined;
-        userId?: string | undefined;
-        tags?: string[] | undefined;
-        timeRange?: {
-            start: number;
-            end: number;
-        } | undefined;
-        isPublic?: boolean | undefined;
-    }, {
-        videoId?: string | undefined;
-        type?: AnnotationType | undefined;
-        userId?: string | undefined;
-        tags?: string[] | undefined;
-        timeRange?: {
-            start: number;
-            end: number;
-        } | undefined;
-        isPublic?: boolean | undefined;
-    }>;
+    }[];
     isLoading: import("vue").Ref<boolean, boolean>;
     error: import("vue").Ref<string | null, string | null>;
+    selectedAnnotations: readonly string[];
+    filter: {
+        readonly videoId?: string | undefined;
+        readonly type?: AnnotationType | undefined;
+        readonly userId?: string | undefined;
+        readonly tags?: readonly string[] | undefined;
+        readonly timeRange?: {
+            readonly start: number;
+            readonly end: number;
+        } | undefined;
+        readonly isPublic?: boolean | undefined;
+    };
     currentVideoId: import("vue").Ref<string | null, string | null>;
     playbackTime: import("vue").Ref<number, number>;
     isEditing: import("vue").Ref<boolean, boolean>;
     isDirty: import("vue").Ref<boolean, boolean>;
-}, "totalAnnotations" | "filteredAnnotations" | "currentVideoAnnotations" | "annotationsAtCurrentTime" | "selectedAnnotationObjects">, Pick<{
     filteredAnnotations: import("vue").ComputedRef<{
         id: string;
         videoId: string;
@@ -508,79 +297,16 @@ export declare const useAnnotationStore: import("pinia").StoreDefinition<"annota
         confidence?: number | undefined;
         metadata?: Record<string, any> | undefined;
     }[]>;
-    currentVideoAnnotations: import("vue").ComputedRef<{
-        id: string;
-        videoId: string;
-        startTime: number;
-        endTime: number;
-        type: AnnotationType;
-        text: string;
-        tags: string[];
-        position?: {
-            x: number;
-            y: number;
-            width: number;
-            height: number;
-        } | undefined;
-        createdAt: Date;
-        updatedAt: Date;
-        userId: string;
-        isPublic: boolean;
-        confidence?: number | undefined;
-        metadata?: Record<string, any> | undefined;
-    }[]>;
-    annotationsAtCurrentTime: import("vue").ComputedRef<{
-        id: string;
-        videoId: string;
-        startTime: number;
-        endTime: number;
-        type: AnnotationType;
-        text: string;
-        tags: string[];
-        position?: {
-            x: number;
-            y: number;
-            width: number;
-            height: number;
-        } | undefined;
-        createdAt: Date;
-        updatedAt: Date;
-        userId: string;
-        isPublic: boolean;
-        confidence?: number | undefined;
-        metadata?: Record<string, any> | undefined;
-    }[]>;
-    totalAnnotations: import("vue").ComputedRef<number>;
-    selectedAnnotationObjects: import("vue").ComputedRef<{
-        id: string;
-        videoId: string;
-        startTime: number;
-        endTime: number;
-        type: AnnotationType;
-        text: string;
-        tags: string[];
-        position?: {
-            x: number;
-            y: number;
-            width: number;
-            height: number;
-        } | undefined;
-        createdAt: Date;
-        updatedAt: Date;
-        userId: string;
-        isPublic: boolean;
-        confidence?: number | undefined;
-        metadata?: Record<string, any> | undefined;
-    }[]>;
+    hasSelection: import("vue").ComputedRef<boolean>;
+    canDelete: import("vue").ComputedRef<boolean>;
+    canEdit: import("vue").ComputedRef<boolean>;
+    annotationCount: import("vue").ComputedRef<number>;
     loadAnnotations: (videoId?: string) => Promise<void>;
     createAnnotation: (annotationData: Omit<Annotation, 'id' | 'createdAt' | 'updatedAt'>) => Promise<any>;
     updateAnnotation: (id: string, updates: Partial<Annotation>) => Promise<any>;
     deleteAnnotation: (id: string) => Promise<void>;
-    bulkDeleteAnnotations: (ids: string[]) => Promise<void>;
-    setCurrentAnnotation: (annotation: Annotation | null) => void;
+    deleteSelectedAnnotations: () => Promise<void>;
     selectAnnotation: (id: string) => void;
-    deselectAnnotation: (id: string) => void;
-    toggleAnnotationSelection: (id: string) => void;
     selectAllAnnotations: () => void;
     clearSelection: () => void;
     setFilter: (filter: Partial<AnnotationFilter>) => void;
@@ -594,116 +320,12 @@ export declare const useAnnotationStore: import("pinia").StoreDefinition<"annota
     exportAnnotations: (format?: 'json' | 'csv') => Promise<void>;
     clearError: () => void;
     reset: () => void;
-    annotations: import("vue").Ref<{
-        id: string;
-        videoId: string;
-        startTime: number;
-        endTime: number;
-        type: AnnotationType;
-        text: string;
-        tags: string[];
-        position?: {
-            x: number;
-            y: number;
-            width: number;
-            height: number;
-        } | undefined;
-        createdAt: Date;
-        updatedAt: Date;
-        userId: string;
-        isPublic: boolean;
-        confidence?: number | undefined;
-        metadata?: Record<string, any> | undefined;
-    }[], {
-        id: string;
-        videoId: string;
-        startTime: number;
-        endTime: number;
-        type: AnnotationType;
-        text: string;
-        tags: string[];
-        position?: {
-            x: number;
-            y: number;
-            width: number;
-            height: number;
-        } | undefined;
-        createdAt: Date;
-        updatedAt: Date;
-        userId: string;
-        isPublic: boolean;
-        confidence?: number | undefined;
-        metadata?: Record<string, any> | undefined;
-    }[]>;
-    currentAnnotation: import("vue").Ref<{
-        id: string;
-        videoId: string;
-        startTime: number;
-        endTime: number;
-        type: AnnotationType;
-        text: string;
-        tags: string[];
-        position?: {
-            x: number;
-            y: number;
-            width: number;
-            height: number;
-        } | undefined;
-        createdAt: Date;
-        updatedAt: Date;
-        userId: string;
-        isPublic: boolean;
-        confidence?: number | undefined;
-        metadata?: Record<string, any> | undefined;
-    } | null, {
-        id: string;
-        videoId: string;
-        startTime: number;
-        endTime: number;
-        type: AnnotationType;
-        text: string;
-        tags: string[];
-        position?: {
-            x: number;
-            y: number;
-            width: number;
-            height: number;
-        } | undefined;
-        createdAt: Date;
-        updatedAt: Date;
-        userId: string;
-        isPublic: boolean;
-        confidence?: number | undefined;
-        metadata?: Record<string, any> | undefined;
-    } | null>;
-    selectedAnnotations: import("vue").Ref<string[], string[]>;
-    filter: import("vue").Ref<{
-        videoId?: string | undefined;
-        type?: AnnotationType | undefined;
-        userId?: string | undefined;
-        tags?: string[] | undefined;
-        timeRange?: {
-            start: number;
-            end: number;
-        } | undefined;
-        isPublic?: boolean | undefined;
-    }, {
-        videoId?: string | undefined;
-        type?: AnnotationType | undefined;
-        userId?: string | undefined;
-        tags?: string[] | undefined;
-        timeRange?: {
-            start: number;
-            end: number;
-        } | undefined;
-        isPublic?: boolean | undefined;
-    }>;
-    isLoading: import("vue").Ref<boolean, boolean>;
-    error: import("vue").Ref<string | null, string | null>;
-    currentVideoId: import("vue").Ref<string | null, string | null>;
-    playbackTime: import("vue").Ref<number, number>;
-    isEditing: import("vue").Ref<boolean, boolean>;
-    isDirty: import("vue").Ref<boolean, boolean>;
-}, "reset" | "clearError" | "loadAnnotations" | "createAnnotation" | "updateAnnotation" | "deleteAnnotation" | "bulkDeleteAnnotations" | "setCurrentAnnotation" | "selectAnnotation" | "deselectAnnotation" | "toggleAnnotationSelection" | "selectAllAnnotations" | "clearSelection" | "setFilter" | "clearFilter" | "setCurrentVideoId" | "setPlaybackTime" | "startEditing" | "stopEditing" | "markDirty" | "seekToAnnotation" | "exportAnnotations">>;
+    syncSegmentsFromVideoStore: (videoId: string) => void;
+    createSegmentAnnotation: (videoId: string, segment: any, userId: string) => Promise<Annotation | null>;
+    createExaminationAnnotation: (videoId: string, timestamp: number, examinationType: string, examinationId: number, userId: string) => Promise<Annotation | null>;
+    linkSegmentAndAnnotation: (segment: any, userId: string) => Promise<Annotation | null>;
+    validateSegmentsAndExaminations: (fileId: number) => Promise<boolean>;
+    annotateSegmentsAndExaminations: (fileId: number) => Promise<boolean>;
+}, "clearError" | "reset" | "loadAnnotations" | "createAnnotation" | "updateAnnotation" | "deleteAnnotation" | "deleteSelectedAnnotations" | "selectAnnotation" | "selectAllAnnotations" | "clearSelection" | "setFilter" | "clearFilter" | "setCurrentVideoId" | "setPlaybackTime" | "startEditing" | "stopEditing" | "markDirty" | "seekToAnnotation" | "exportAnnotations" | "syncSegmentsFromVideoStore" | "createSegmentAnnotation" | "createExaminationAnnotation" | "linkSegmentAndAnnotation" | "validateSegmentsAndExaminations" | "annotateSegmentsAndExaminations">>;
 export declare function createDefaultAnnotation(videoId: string, type: AnnotationType, startTime: number, endTime: number, userId: string): Omit<Annotation, 'id' | 'createdAt' | 'updatedAt'>;
 export declare function validateAnnotation(annotation: Partial<Annotation>): string[];

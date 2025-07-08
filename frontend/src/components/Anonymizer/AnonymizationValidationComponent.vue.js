@@ -225,10 +225,15 @@ const rejectItem = async () => {
 };
 // Video streaming methods
 const getVideoStreamUrl = () => {
-    if (!currentItem.value?.id)
+    if (!currentItem.value ||
+        !currentItem.value.reportMeta ||
+        currentItem.value.reportMeta.pdfUrl // => we have a PDF
+    ) {
         return null;
+    }
+    const base = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
     // Use the correct video stream endpoint that serves raw bytes
-    return `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}/api/videostream/${currentItem.value.id}/`;
+    return `${base}/api/videostream/${currentItem.value.id}/`;
 };
 // PDF streaming methods - mirroring video streaming functionality
 const getPdfStreamUrl = () => {
@@ -269,9 +274,11 @@ const onVideoCanPlay = () => {
     console.log('Video can play, loaded successfully');
 };
 // Lifecycle
-onMounted(() => {
+onMounted(async () => {
     setupFilePond();
-    fetchNextItem();
+    if (!store.current) { // only pull the “next” item if nothing is pre-loaded
+        await fetchNextItem();
+    }
 });
 ; /* PartiallyEnd: #3632/scriptSetup.vue */
 function __VLS_template() {
@@ -592,7 +599,7 @@ function __VLS_template() {
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: ("card-body media-viewer-container") },
         });
-        if (__VLS_ctx.currentItem?.reportMeta?.pdfUrl || (!__VLS_ctx.getVideoStreamUrl() && __VLS_ctx.getPdfStreamUrl())) {
+        if (__VLS_ctx.getPdfStreamUrl() || __VLS_ctx.currentItem?.reportMeta?.pdfUrl) {
             __VLS_elementAsFunction(__VLS_intrinsicElements.iframe, __VLS_intrinsicElements.iframe)({
                 src: ((__VLS_ctx.getPdfStreamUrl() || __VLS_ctx.currentItem?.reportMeta?.pdfUrl)),
                 width: ("100%"),

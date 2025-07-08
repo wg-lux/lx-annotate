@@ -1,0 +1,10 @@
+{
+  "id": 123,
+  "label": "polyp", 
+  "start_time": 10.0,
+  "end_time": 10.0,
+  "start_frame_number": 300,
+  "end_frame_number": 300,
+  "video_id": 1,
+  "label_id": 3
+}
