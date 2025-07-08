@@ -3,7 +3,7 @@ let
   customTasks = {
   "uv:sync" = {
     description = "Run uv sync to synchronize Python packages";
-    after       = [ "purge:frontend-envrc" ];
+    after       = [ "purge:frontend_envrc" ];
     exec        = ''
           # Ensure dependencies are synced using uv
               # Check if venv exists. If not, run sync verbosely. If it exists, sync quietly.

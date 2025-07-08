@@ -148,10 +148,15 @@ in
       enable = true;
       sync.enable = true;
     };
-  };#
+  };
 
-  processes = customProcesses;
-  tasks = customTasks;
+  enterShell = 
+    ''
+
+    . .devenv/state/venv/bin/activate
+    '';
+
+
   
   # Import scripts from the scripts module
   scripts = customScripts.scripts // {

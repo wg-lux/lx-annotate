@@ -1,7 +1,7 @@
 {}@inputs:
 let
   customTasks = {
-  "purge:endoreg-db-envrc" = {
+  "purge:endoreg_db_envrc" = {
     description = "Remove endoreg-db .envrc file if it exists";
     after       = [ "setup:endoreg-db" ];
     exec        = ''
@@ -24,7 +24,7 @@ let
                   '';
   };
 
-  "purge:lx-anonymizer-envrc" = {
+  "purge:lx_anonymizer_envrc" = {
     description = "Remove lx-anonymizer .envrc file if it exists";
     after       = [ "setup:lx-anonymizer" ];
     exec        = ''
@@ -52,7 +52,7 @@ let
                   '';
   };
 
-  "purge:frontend-envrc" = {
+  "purge:frontend_envrc" = {
     description = "Remove frontend .envrc file if it exists";
     after       = [ "setup:frontend" ];
     exec        = ''
