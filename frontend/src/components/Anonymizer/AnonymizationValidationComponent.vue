@@ -181,7 +181,7 @@
                 <div class="card-body media-viewer-container">
                   <!-- PDF Viewer with streaming URL -->
                   <iframe
-                    v-if="currentItem?.reportMeta?.pdfUrl || (!getVideoStreamUrl() && getPdfStreamUrl())"
+                    v-if="getPdfStreamUrl() || currentItem?.reportMeta?.pdfUrl"
                     :src="getPdfStreamUrl() || currentItem?.reportMeta?.pdfUrl"
                     width="100%"
                     height="800px"
@@ -527,10 +527,17 @@ const rejectItem = async () => {
 
 // Video streaming methods
 const getVideoStreamUrl = () => {
-  if (!currentItem.value?.id) return null;
+  if (
+    !currentItem.value ||
+    !currentItem.value.reportMeta ||
+    currentItem.value.reportMeta.pdfUrl            // => we have a PDF
+  ) {
+    return null;
+  }
+  const base = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
   
   // Use the correct video stream endpoint that serves raw bytes
-  return `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}/api/videostream/${currentItem.value.id}/`;
+  return `${base}/api/videostream/${currentItem.value.id}/`;
 };
 
 // PDF streaming methods - mirroring video streaming functionality
@@ -578,9 +585,11 @@ const onVideoCanPlay = () => {
 };
 
 // Lifecycle
-onMounted(() => {
+ onMounted(async() => {
   setupFilePond();
-  fetchNextItem();
+  if (!store.current) {     // only pull the “next” item if nothing is pre-loaded
+    await fetchNextItem();
+  }
 });
 </script>
 
