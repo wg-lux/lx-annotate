@@ -10,9 +10,15 @@ let
   pytestTasks = (
     import ./pytest.nix { }
   );
+  subrepoTasks = (
+    import ./subrepos.nix { }
+  );
+  purgeTasks = (
+    import ./purge.nix { }
+  );
 
   customTasks = {
     
-  } //envTasks //vueTasks; # REMOVED PYTEST TASK AS THEY CAUSE DELAY TO SOME EXTENT; VERIFY IMPLEMENTATION //pytestTasks ;
+  } //envTasks //subrepoTasks //purgeTasks //vueTasks;
 
 in customTasks 

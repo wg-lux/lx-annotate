@@ -22,6 +22,7 @@ import subprocess
 import shutil
 from pathlib import Path
 from typing import Set, Optional
+from concurrent.futures import ThreadPoolExecutor
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler, FileCreatedEvent, FileMovedEvent
 
@@ -83,6 +84,11 @@ logging.basicConfig(
     ]
 )
 
+# ⭐ FIX: Reduce watchdog logging to prevent CPU overload
+logging.getLogger("watchdog").setLevel(logging.WARNING)
+logging.getLogger("watchdog.observers").setLevel(logging.WARNING)
+logging.getLogger("watchdog.observers.inotify_buffer").setLevel(logging.WARNING)
+
 logger = logging.getLogger(__name__)
 
 class AutoProcessingHandler(FileSystemEventHandler):
@@ -101,19 +107,46 @@ class AutoProcessingHandler(FileSystemEventHandler):
         self.default_processor = "olympus_cv_1500"
         self.default_model = "image_multilabel_classification_colonoscopy_default"
         
+        # ⭐ FIX: ThreadPoolExecutor for heavy processing
+        self.executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="FileProcessor")
+        
         logger.info("AutoProcessingHandler initialized")
         logger.info(f"Monitoring video extensions: {self.video_extensions}")
         logger.info(f"Monitoring PDF extensions: {self.pdf_extensions}")
 
+    def dispatch(self, event):
+        """⭐ FIX: Filter out noisy events to reduce CPU load."""
+        # Skip directory events
+        if event.is_directory:
+            return
+        
+        # Skip opened/closed events that don't indicate actual file completion
+        if hasattr(event, 'event_type') and event.event_type in {'opened', 'closed'}:
+            return
+            
+        # Skip temp files and FFmpeg intermediate files
+        if hasattr(event, 'src_path'):
+            path = Path(event.src_path)
+            if (path.name.startswith('.') or 
+                path.name.startswith('~') or
+                'tmp' in str(path) or
+                'transcoding' in str(path)):
+                return
+        
+        # Continue with normal dispatch
+        super().dispatch(event)
+
     def on_created(self, event):
         """Handle file creation events."""
         if isinstance(event, FileCreatedEvent) and not event.is_directory:
-            self._process_file(event.src_path)
+            # ⭐ FIX: Offload to thread pool instead of blocking inotify thread
+            self.executor.submit(self._process_file, event.src_path)
 
     def on_moved(self, event):
         """Handle file move events (useful for files moved into watched directories)."""
         if isinstance(event, FileMovedEvent) and not event.is_directory:
-            self._process_file(event.dest_path)
+            # ⭐ FIX: Offload to thread pool instead of blocking inotify thread
+            self.executor.submit(self._process_file, event.dest_path)
 
     def _process_file(self, file_path: str):
         """
@@ -272,6 +305,12 @@ class AutoProcessingHandler(FileSystemEventHandler):
             # Remove from processed set on error to allow retry
             self.processed_files.discard(str(pdf_path))
 
+    def shutdown(self):
+        """Shutdown the thread pool executor."""
+        logger.info("Shutting down file processor threads...")
+        self.executor.shutdown(wait=True)
+        logger.info("File processor threads shut down")
+
 
 class FileWatcherService:
     """
@@ -292,6 +331,7 @@ class FileWatcherService:
         
         logger.info(f"Video directory: {self.video_dir}")
         logger.info(f"PDF directory: {self.pdf_dir}")
+        logger.info(f"Using observer: {type(self.observer).__name__}")
 
     def start(self):
         """Start the file watcher service."""
@@ -299,7 +339,7 @@ class FileWatcherService:
             # Validate Django setup
             self._validate_django_setup()
             
-            # Schedule directory monitoring
+            # ⭐ FIX: Schedule WITHOUT ignore_patterns (not supported by watchdog)
             self.observer.schedule(
                 self.handler,
                 str(self.video_dir),
@@ -318,8 +358,8 @@ class FileWatcherService:
             logger.info(f"Monitoring: {self.video_dir}")
             logger.info(f"Monitoring: {self.pdf_dir}")
             
-            # Process any existing files on startup
-            self._process_existing_files()
+            # Process any existing files on startup (in background)
+            self.handler.executor.submit(self._process_existing_files)
             
             # Keep service running
             try:
@@ -341,6 +381,9 @@ class FileWatcherService:
             self.observer.stop()
             self.observer.join()
             logger.info("File watcher service stopped")
+        
+        # ⭐ FIX: Shutdown thread pool
+        self.handler.shutdown()
 
     def _validate_django_setup(self):
         """Validate that Django is properly configured."""

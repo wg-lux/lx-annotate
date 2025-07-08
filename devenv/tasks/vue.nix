@@ -7,10 +7,15 @@ let
     "vue:build".exec = 
       ''
       cd frontend
-      npm install
       npm run build
       cd ..
+      python manage.py collectstatic --noinput
       '';
+    "vue:build".execIfModified = [
+      "frontend"
+      "frontend/package.json"
+      "frontend/package-lock.json"
+    ];
   };
 
 in customTasks

@@ -1,6 +1,4 @@
-
-
-  { config, pkgs, lib, buildInputs
+{ config, pkgs, lib, buildInputs,
 ... }@inputs: 
 let
 

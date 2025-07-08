@@ -526,7 +526,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
     formatTime: (seconds: number) => string;
     getSegmentOptions: () => SegmentOption[];
     clearSegments: () => void;
-}, "duration" | "segments" | "labels" | "allSegments" | "activeSegment" | "hasVideo">, Pick<{
+}, "segments" | "duration" | "labels" | "allSegments" | "activeSegment" | "hasVideo">, Pick<{
     currentVideo: Readonly<Ref<{
         readonly id: string | number;
         readonly isAnnotated: boolean;
@@ -712,5 +712,5 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
     formatTime: (seconds: number) => string;
     getSegmentOptions: () => SegmentOption[];
     clearSegments: () => void;
-}, "clearVideo" | "setVideo" | "loadVideo" | "fetchVideoUrl" | "fetchAllSegments" | "fetchAllVideos" | "fetchVideoMeta" | "fetchVideoSegments" | "fetchSegmentsByLabel" | "createSegment" | "patchSegmentLocally" | "updateSegment" | "deleteSegment" | "removeSegment" | "saveAnnotations" | "uploadRevert" | "uploadProcess" | "getSegmentStyle" | "getColorForLabel" | "getTranslationForLabel" | "jumpToSegment" | "setActiveSegment" | "updateVideoStatus" | "assignUserToVideo" | "updateSensitiveMeta" | "clearVideoMeta" | "startDraft" | "updateDraftEnd" | "commitDraft" | "cancelDraft" | "createFiveSecondSegment" | "formatTime" | "getSegmentOptions" | "clearSegments">>;
+}, "startDraft" | "updateDraftEnd" | "cancelDraft" | "clearVideo" | "setVideo" | "loadVideo" | "fetchVideoUrl" | "fetchAllSegments" | "fetchAllVideos" | "fetchVideoMeta" | "fetchVideoSegments" | "fetchSegmentsByLabel" | "createSegment" | "patchSegmentLocally" | "updateSegment" | "deleteSegment" | "removeSegment" | "saveAnnotations" | "uploadRevert" | "uploadProcess" | "getSegmentStyle" | "getColorForLabel" | "getTranslationForLabel" | "jumpToSegment" | "setActiveSegment" | "updateVideoStatus" | "assignUserToVideo" | "updateSensitiveMeta" | "clearVideoMeta" | "commitDraft" | "createFiveSecondSegment" | "formatTime" | "getSegmentOptions" | "clearSegments">>;
 export type { Segment, VideoAnnotation, VideoMeta, LabelMeta, VideoList, DraftSegment, SegmentOption, SegmentStyle, VideoStatus, LabelKey, BackendFramePrediction };
