@@ -35,12 +35,24 @@ let
   "setup:lx-anonymizer" = {
     description = "Clone or update lx-anonymizer";
     before      = [ "env:build" ];
-    after      = [ "purge:endoreg-db" ];
+    after      = [ "purge:endoreg_db_envrc" ];
     exec        = ''
-      echo "Cloning ${LX_ANONYMIZER_REPO} (${BRANCH})…"
-      cd endoreg-db
-      git clone -b "${BRANCH}" "${LX_ANONYMIZER_REPO}" "${LX_ANONYMIZER_DIR}"
+      if [ -f "${ENDOREG_DB_DIR}/${LX_ANONYMIZER_DIR}/.pyproject.toml" ]; then
+        echo "lx-anonymizer already present";
+        cd "${ENDOREG_DB_DIR}"
+        cd "${LX_ANONYMIZER_DIR}"
+        git pull
+        cd ..
+      else
+        echo "Cloning ${LX_ANONYMIZER_REPO}"
+        cd "${ENDOREG_DB_DIR}"
+        rm -rf "lx-anonymizer"
+        git clone -b "${BRANCH}" "${LX_ANONYMIZER_REPO}"
+        cd ..
+      fi
     '';
+    status = "-f ${ENDOREG_DB_DIR}/${LX_ANONYMIZER_DIR}/.pyproject.toml";
+
   };
 
   "setup:frontend" = {
