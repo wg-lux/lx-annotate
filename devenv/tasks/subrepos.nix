@@ -37,7 +37,7 @@ let
     before      = [ "env:build" ];
     after      = [ "devenv:files" ];
     status      = ''
-      if [ -d "${LX_ANONYMIZER_DIR}/.git" ]; then exit 0; else exit 1; fi
+      if [ -d "${LX_ANONYMIZER_DIR}" ]; then exit 0; else exit 1; fi
     '';
     exec        = ''
       echo "Cloning ${LX_ANONYMIZER_REPO} (${BRANCH})…"
