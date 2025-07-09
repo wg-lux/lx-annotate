@@ -155,8 +155,10 @@ in
 
     . .devenv/state/venv/bin/activate
     '';
+  
+  tasks = customTasks;
 
-
+  processes = customProcesses;
   
   # Import scripts from the scripts module
   scripts = customScripts.scripts // {
