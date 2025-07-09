@@ -5,7 +5,7 @@ let
     "env:build" = {
       description = "Generate/update .env file with secrets and config";
       exec = "export-nix-vars && uv run env_setup.py";
-      after = ["devenv:enterShell"];
+      after = ["setup:endoreg-db" "setup:lx-anonymizer"];
       status = "test -f .env && grep -q 'DJANGO_SECRET_KEY=' .env";
     };
     "env:clean" = {
