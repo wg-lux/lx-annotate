@@ -40,16 +40,8 @@ let
       if [ -d "${LX_ANONYMIZER_DIR}/.git" ]; then exit 0; else exit 1; fi
     '';
     exec        = ''
-      if [ -d "${LX_ANONYMIZER_DIR}" ]; then
-        echo "Updating lx-anonymizer…"
-        ( cd "${LX_ANONYMIZER_DIR}" &&
-          git fetch origin &&
-          git checkout "${BRANCH}" &&
-          git reset --hard "origin/${BRANCH}" )
-      else
-        echo "Cloning ${LX_ANONYMIZER_REPO} (${BRANCH})…"
-        git clone -b "${BRANCH}" "${LX_ANONYMIZER_REPO}" "${LX_ANONYMIZER_DIR}"
-      fi
+      echo "Cloning ${LX_ANONYMIZER_REPO} (${BRANCH})…"
+      git clone -b "${BRANCH}" "${LX_ANONYMIZER_REPO}" "${LX_ANONYMIZER_DIR}"
     '';
   };
 
