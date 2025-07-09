@@ -146,13 +146,12 @@ in
     package = pkgs.python312Full;
     uv = {
       enable = true;
-      sync.enable = true;
+      sync.enable = false;
     };
   };
 
   enterShell = 
     ''
-
     . .devenv/state/venv/bin/activate
     '';
   
