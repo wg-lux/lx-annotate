@@ -1,96 +1,70 @@
 {}@inputs:
 let
+  ENDOREG_DB_DIR       = "endoreg-db";
+  LX_ANONYMIZER_DIR    = "lx-anonymizer";
+  FRONTEND_DIR         = "frontend";
+  ENDOREG_DB_REPO      = "https://github.com/wg-lux/endoreg-db";
+  LX_ANONYMIZER_REPO   = "https://github.com/wg-lux/lx-anonymizer";
+  BRANCH               = "prototype";
   customTasks = {
   "setup:endoreg-db" = {
-    description = "Run git clone for endoreg-db sub‑project";
-    after       = [ "devenv:enterShell" ];
-    exec        = ''
-                    ENDOREG_DB_REPO="https://github.com/wg-lux/endoreg-db"
-                    ENDOREG_DB_BRANCH="prototype"
-                    if [ -d "$ENDOREG_DB_DIR" ]; then
-                      echo "endoreg-db directory exists. Pulling latest changes from $ENDOREG_DB_BRANCH..."
-                      if [ -f "$ENDOREG_DB_DIR/.git/index.lock" ]; then
-                        echo "Warning: .git/index.lock exists in $ENDOREG_DB_DIR. Skipping git update to avoid conflicts."
-                      elif pgrep -f "git.*$ENDOREG_DB_DIR" > /dev/null; then
-                        echo "Warning: git process running in $ENDOREG_DB_DIR. Skipping git update."
-                      else
-                        sleep $((RANDOM % 3))
-                        (cd "$ENDOREG_DB_DIR" && git fetch origin && git checkout "$ENDOREG_DB_BRANCH" && git reset --hard "origin/$ENDOREG_DB_BRANCH")
-                      fi
-                    else
-                      echo "endoreg-db directory does not exist. Cloning repository..."
-                      git clone -b "$ENDOREG_DB_BRANCH" "$ENDOREG_DB_REPO" "$ENDOREG_DB_DIR"
-                    fi
-                      '';
+    description = "Clone or update endoreg-db";
+    before      = [ "env:build" ];
+    after      = [ "devenv:files" ];
     status      = ''
-                    ENDOREG_DB_DIR="endoreg-db"
-                    if [ -f ./$ENDOREG_DB_DIR ]; then
-                      echo "endoreg-db installed"
-                      exit 1
-                    else
-                      echo "running endoreg-db setup"
-                      exit 0
-                    fi
-                  '';
+      if [ -d "${ENDOREG_DB_DIR}/.git" ]; then
+        echo "endoreg-db already present"; exit 0   # ✅ up-to-date
+      else
+        exit 1                                       # ❌ needs exec
+      fi
+    '';
+    exec        = ''
+      if [ -d "${ENDOREG_DB_DIR}" ]; then
+        echo "Pulling ${BRANCH}…"
+        ( cd "${ENDOREG_DB_DIR}" &&
+          git fetch origin &&
+          git checkout "${BRANCH}" &&
+          git reset --hard "origin/${BRANCH}" )
+      else
+        echo "Cloning ${ENDOREG_DB_REPO} (${BRANCH})…"
+        git clone -b "${BRANCH}" "${ENDOREG_DB_REPO}" "${ENDOREG_DB_DIR}"
+      fi
+    '';
   };
 
   "setup:lx-anonymizer" = {
-    description = "Run git clone for lx-anonymizer sub‑project";
-    after       = [ "devenv:enterShell" ];
-    exec        = ''
-                    # check if the directory exists and is empty
-                    if [ -d "$LX_ANONYMIZER_DIR" ] && [ -z "$(ls -A $LX_ANONYMIZER_DIR)" ]; then
-                      echo "lx-anonymizer directory exists but is empty. Cloning repository..."
-                      rm -rf "$LX_ANONYMIZER_DIR"
-                    fi
-
-                    LX_ANONYMIZER_REPO="https://github.com/wg-lux/lx-anonymizer"
-                    LX_ANONYMIZER_BRANCH="prototype"
-
-                    if [ -d "$LX_ANONYMIZER_DIR" ]; then
-                      echo "lx-anonymizer directory exists. Pulling latest changes from $LX_ANONYMIZER_BRANCH..."
-                      if [ -f "$LX_ANONYMIZER_DIR/.git/index.lock" ]; then
-                        echo "Warning: .git/index.lock exists in $LX_ANONYMIZER_DIR. Skipping git update to avoid conflicts."
-                      elif pgrep -f "git.*$LX_ANONYMIZER_DIR" > /dev/null; then
-                        echo "Warning: git process running in $LX_ANONYMIZER_DIR. Skipping git update."
-                      else
-                        sleep $((RANDOM % 3))
-                        (cd "$LX_ANONYMIZER_DIR" && git fetch origin && git checkout "$LX_ANONYMIZER_BRANCH" && git reset --hard "origin/$LX_ANONYMIZER_BRANCH")
-                      fi
-                    else
-                      echo "lx-anonymizer directory does not exist. Cloning repository..."
-                      git clone -b "$LX_ANONYMIZER_BRANCH" "$LX_ANONYMIZER_REPO" "$LX_ANONYMIZER_DIR"
-                    fi              
-                  '';
+    description = "Clone or update lx-anonymizer";
+    before      = [ "env:build" ];
+    after      = [ "devenv:files" ];
     status      = ''
-                    LX_ANONYMIZER_DIR="$ENDOREG_DB_DIR/lx-anonymizer"
-                    if [ -f $LX_ANONYMIZER_DIR]; then
-                      echo "lx-anonymizer installed"
-                      exit 1
-                    else
-                      echo "running lx-anonymizer setup"
-                      exit 0
-                    fi
-                  '';
+      if [ -d "${LX_ANONYMIZER_DIR}/.git" ]; then exit 0; else exit 1; fi
+    '';
+    exec        = ''
+      if [ -d "${LX_ANONYMIZER_DIR}" ]; then
+        echo "Updating lx-anonymizer…"
+        ( cd "${LX_ANONYMIZER_DIR}" &&
+          git fetch origin &&
+          git checkout "${BRANCH}" &&
+          git reset --hard "origin/${BRANCH}" )
+      else
+        echo "Cloning ${LX_ANONYMIZER_REPO} (${BRANCH})…"
+        git clone -b "${BRANCH}" "${LX_ANONYMIZER_REPO}" "${LX_ANONYMIZER_DIR}"
+      fi
+    '';
   };
 
   "setup:frontend" = {
-    description = "Run git clone for frontend sub‑project";
-    after       = [ "devenv:enterShell" ];
-    exec        = ''
-                    FRONTEND_DIR="$./frontend"
-                    cd $FRONTEND_REPO
-                    npm ci
-                  '';
+    description = "Install frontend NPM deps";
+    before      = [ "env:build" ];
+    after      = [ "devenv:files" ];
     status      = ''
-                    if [ -d $FRONTEND_DIR/npm_modules ]; then
-                      echo "frontend dependencies installed"
-                      exit 1
-                    else
-                      echo "running frontend setup"
-                      exit 0
-                    fi
-                  '';
+      if [ -d "${FRONTEND_DIR}/node_modules" ]; then exit 0; else exit 1; fi
+    '';
+    exec        = ''
+      echo "Installing JS packages…"
+      cd "${FRONTEND_DIR}"
+      npm ci
+    '';  
   };
 };
 

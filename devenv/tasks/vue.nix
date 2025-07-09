@@ -2,7 +2,7 @@
 let
   customTasks = {
     "vue:build".after = 
-      ["devenv:enterShell"];
+      ["devenv:files"];
     
     "vue:build".exec = 
       ''

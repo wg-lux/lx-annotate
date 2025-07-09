@@ -11,11 +11,11 @@ let
     "env:clean" = {
       description = "Remove the uv virtual environment and lock file for a clean sync";
       exec = ''
-        echo "Removing uv virtual environment: .devenv/state/venv"
+        log_status "Removing uv virtual environment: .devenv/state/venv"
         rm -rf .devenv/state/venv
-        echo "Removing uv lock file: uv.lock"
+        log_status "Removing uv lock file: uv.lock"
         rm -f uv.lock
-        echo "Environment cleaned. Re-enter the shell (e.g., 'exit' then 'devenv up') to trigger uv sync."
+        log_status "Environment cleaned. Re-enter the shell (e.g., 'exit' then 'devenv up') to trigger uv sync."
       '';
     };
   };
