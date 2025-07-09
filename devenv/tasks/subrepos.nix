@@ -35,12 +35,10 @@ let
   "setup:lx-anonymizer" = {
     description = "Clone or update lx-anonymizer";
     before      = [ "env:build" ];
-    after      = [ "devenv:files" ];
-    status      = ''
-      if [ -d "${LX_ANONYMIZER_DIR}" ]; then exit 0; else exit 1; fi
-    '';
+    after      = [ "purge:endoreg-db" ];
     exec        = ''
       echo "Cloning ${LX_ANONYMIZER_REPO} (${BRANCH})…"
+      cd endoreg-db
       git clone -b "${BRANCH}" "${LX_ANONYMIZER_REPO}" "${LX_ANONYMIZER_DIR}"
     '';
   };
