@@ -107,7 +107,7 @@ let
 
   imports = [
     ./endoreg-db/devenv.nix
-    ./lx-anonymizer/devenv.nix
+    ./endoreg-db/lx-anonymizer/devenv.nix
     ./frontend/flake.nix
   ];
 
