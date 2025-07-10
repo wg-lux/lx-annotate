@@ -348,33 +348,28 @@ export const useAnonymizationStore = defineStore('anonymization', {
             }
             try {
                 console.log(`Re-importing video ${fileId}...`);
-                // Optimistic UI update
-                file.anonymizationStatus = 'extracting_frames';
+                // Optimistic UI update - set to processing to show user feedback
+                file.anonymizationStatus = 'processing_anonymization';
                 file.metadataImported = false;
                 // Trigger re-import via backend
                 const response = await axiosInstance.post(r(`video/${fileId}/reimport/`));
                 console.log(`Video re-import response:`, response.data);
+                // ✅ NEW: Start polling immediately after re-import to monitor status
+                console.log(`Starting polling for re-imported video ${fileId}`);
+                this.startPolling(fileId);
                 // Check if re-import was successful
                 if (response.data && response.data.sensitive_meta_created) {
-                    // Update the file with successful re-import status
-                    file.metadataImported = true;
-                    file.anonymizationStatus = 'done';
                     console.log(`Video ${fileId} re-imported successfully with metadata`);
                 }
                 else {
-                    // Re-import completed but may not have created metadata
-                    file.metadataImported = false;
-                    file.anonymizationStatus = 'done';
                     console.log(`Video ${fileId} re-imported but metadata may be incomplete`);
                 }
-                // Force refresh the overview to get latest data
-                await this.fetchOverview();
                 return true;
             }
             catch (err) {
                 console.error(`Error re-importing video ${fileId}:`, err);
                 // Revert optimistic update
-                file.anonymizationStatus = 'not_started';
+                file.anonymizationStatus = 'failed';
                 file.metadataImported = false;
                 if (axios.isAxiosError(err)) {
                     const errorMessage = err.response?.data?.error || err.message;

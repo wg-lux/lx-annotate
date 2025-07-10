@@ -142,14 +142,14 @@ function __VLS_template() {
     /** @type { [typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, ] } */ ;
     // @ts-ignore
     const __VLS_19 = __VLS_asFunctionalComponent(__VLS_18, new __VLS_18({
-        to: ("/video-examination"),
+        to: ("/anonymisierung/uebersicht"),
         ...{ class: ("nav-link") },
-        ...{ class: (({ active: __VLS_ctx.$route.path === '/video-examination' })) },
+        ...{ class: (({ active: __VLS_ctx.$route.path === '/anonymisierung' })) },
     }));
     const __VLS_20 = __VLS_19({
-        to: ("/video-examination"),
+        to: ("/anonymisierung/uebersicht"),
         ...{ class: ("nav-link") },
-        ...{ class: (({ active: __VLS_ctx.$route.path === '/video-examination' })) },
+        ...{ class: (({ active: __VLS_ctx.$route.path === '/anonymisierung' })) },
     }, ...__VLS_functionalComponentArgsRest(__VLS_19));
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: ("icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center") },
@@ -169,14 +169,14 @@ function __VLS_template() {
     /** @type { [typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, ] } */ ;
     // @ts-ignore
     const __VLS_25 = __VLS_asFunctionalComponent(__VLS_24, new __VLS_24({
-        to: ("/untersuchung"),
+        to: ("/video-examination"),
         ...{ class: ("nav-link") },
-        ...{ class: (({ active: __VLS_ctx.$route.path === '/untersuchung' })) },
+        ...{ class: (({ active: __VLS_ctx.$route.path === '/video-examination' })) },
     }));
     const __VLS_26 = __VLS_25({
-        to: ("/untersuchung"),
+        to: ("/video-examination"),
         ...{ class: ("nav-link") },
-        ...{ class: (({ active: __VLS_ctx.$route.path === '/untersuchung' })) },
+        ...{ class: (({ active: __VLS_ctx.$route.path === '/video-examination' })) },
     }, ...__VLS_functionalComponentArgsRest(__VLS_25));
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: ("icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center") },
@@ -196,14 +196,14 @@ function __VLS_template() {
     /** @type { [typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, ] } */ ;
     // @ts-ignore
     const __VLS_31 = __VLS_asFunctionalComponent(__VLS_30, new __VLS_30({
-        to: ("/anonymisierung/uebersicht"),
+        to: ("/untersuchung"),
         ...{ class: ("nav-link") },
-        ...{ class: (({ active: __VLS_ctx.$route.path === '/anonymisierung' })) },
+        ...{ class: (({ active: __VLS_ctx.$route.path === '/untersuchung' })) },
     }));
     const __VLS_32 = __VLS_31({
-        to: ("/anonymisierung/uebersicht"),
+        to: ("/untersuchung"),
         ...{ class: ("nav-link") },
-        ...{ class: (({ active: __VLS_ctx.$route.path === '/anonymisierung' })) },
+        ...{ class: (({ active: __VLS_ctx.$route.path === '/untersuchung' })) },
     }, ...__VLS_functionalComponentArgsRest(__VLS_31));
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: ("icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center") },

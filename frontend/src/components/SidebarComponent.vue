@@ -38,7 +38,7 @@
                 <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
                   <i class="material-icons opacity-10">dashboard</i>
                 </div>
-                <span class="nav-link-text ms-1">Übersicht</span>
+                <span class="nav-link-text ms-1">Alle Seiten</span>
               </router-link>
             </li>
             <li class="nav-item">
@@ -50,11 +50,19 @@
               </router-link>
             </li>
             <li class="nav-item">
+              <router-link to="/anonymisierung/uebersicht" class="nav-link" :class="{ active: $route.path === '/anonymisierung' }">
+                <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
+                  <i class="material-icons opacity-10">check_circle</i>
+                </div>
+                <span class="nav-link-text ms-1">1. Anonymisierung</span>
+              </router-link>
+            </li>
+            <li class="nav-item">
               <router-link to="/video-examination" class="nav-link" :class="{ active: $route.path === '/video-examination' }">
                 <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
                   <i class="material-icons opacity-10">video_call</i>
                 </div>
-                <span class="nav-link-text ms-1">Video-Untersuchung</span>
+                <span class="nav-link-text ms-1">2. Video-Untersuchung</span>
               </router-link>
             </li>
             <!-- #TODO: Add back when ready
@@ -92,14 +100,6 @@
                   <i class="material-icons opacity-10">check_circle</i>
                 </div>
                 <span class="nav-link-text ms-1">Untersuchung</span>
-              </router-link>
-            </li>
-            <li class="nav-item">
-              <router-link to="/anonymisierung/uebersicht" class="nav-link" :class="{ active: $route.path === '/anonymisierung' }">
-                <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
-                  <i class="material-icons opacity-10">check_circle</i>
-                </div>
-                <span class="nav-link-text ms-1">Anonymisierung</span>
               </router-link>
             </li>
             <li class="nav-item">

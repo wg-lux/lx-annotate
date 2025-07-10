@@ -450,6 +450,7 @@ onUnmounted(() => {
 
 .card-body .row.text-center .col-md-3 {
   margin-bottom: 1rem;
+  background-color: lightgray;
 }
 
 @media (max-width: 768px) {
