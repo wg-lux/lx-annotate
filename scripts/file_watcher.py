@@ -142,7 +142,7 @@ class AutoProcessingHandler(FileSystemEventHandler):
             # ⭐ FIX: Offload to thread pool instead of blocking inotify thread
             self.executor.submit(self._process_file, event.src_path)
 
-    def on_moved(self, event):
+    def on_moved(self, event) -> None:
         """Handle file move events (useful for files moved into watched directories)."""
         if isinstance(event, FileMovedEvent) and not event.is_directory:
             # ⭐ FIX: Offload to thread pool instead of blocking inotify thread
@@ -317,7 +317,7 @@ class FileWatcherService:
     Main service class for file watching and automatic processing.
     """
     
-    def __init__(self):
+    def __init__(self) -> None -> None:
         self.observer = Observer()
         self.handler = AutoProcessingHandler()
         
