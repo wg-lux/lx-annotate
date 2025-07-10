@@ -35,24 +35,31 @@ let
   "setup:lx-anonymizer" = {
     description = "Clone or update lx-anonymizer";
     before      = [ "env:build" ];
-    after      = [ "purge:endoreg_db_envrc" ];
-    exec        = ''
-      if [ -f "${ENDOREG_DB_DIR}/${LX_ANONYMIZER_DIR}/.pyproject.toml" ]; then
-        echo "lx-anonymizer already present";
-        cd "${ENDOREG_DB_DIR}"
-        cd "${LX_ANONYMIZER_DIR}"
-        git pull
-        cd ..
+    after       = [ "purge:endoreg_db_envrc" ];
+    status = ''
+      [ -d "${ENDOREG_DB_DIR}/${LX_ANONYMIZER_DIR}/.git" ] && exit 0 || exit 1
+    '';
+    exec = ''
+      set -e
+
+      TARGET="${ENDOREG_DB_DIR}/${LX_ANONYMIZER_DIR}"
+
+      if [ -d "$TARGET" ] && [ ! -d "$TARGET/.git" ]; then
+        echo "Removing corrupt $TARGET"
+        rm -rf "$TARGET"
+      fi
+
+      if [ -d "$TARGET/.git" ]; then
+        echo "Updating lx-anonymizer…"
+        git -C "$TARGET" fetch  --quiet origin "${BRANCH}"
+        git -C "$TARGET" checkout -q       "${BRANCH}"
+        git -C "$TARGET" reset    -q --hard "origin/${BRANCH}"
       else
-        echo "Cloning ${LX_ANONYMIZER_REPO}"
-        cd "${ENDOREG_DB_DIR}"
-        rm -rf "lx-anonymizer"
-        git clone -b "${BRANCH}" "${LX_ANONYMIZER_REPO}"
-        cd ..
+        echo "Cloning ${LX_ANONYMIZER_REPO} (${BRANCH})"
+        git clone --depth 1 --branch "${BRANCH}" \
+          "${LX_ANONYMIZER_REPO}" "$TARGET"
       fi
     '';
-    status = "-f ${ENDOREG_DB_DIR}/${LX_ANONYMIZER_DIR}/.pyproject.toml";
-
   };
 
   "setup:frontend" = {

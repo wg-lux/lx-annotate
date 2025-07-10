@@ -317,7 +317,7 @@ class FileWatcherService:
     Main service class for file watching and automatic processing.
     """
     
-    def __init__(self) -> None -> None:
+    def __init__(self) -> None:
         self.observer = Observer()
         self.handler = AutoProcessingHandler()
         
