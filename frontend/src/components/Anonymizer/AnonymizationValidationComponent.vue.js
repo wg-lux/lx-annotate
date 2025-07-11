@@ -239,7 +239,7 @@ const getVideoStreamUrl = () => {
 const getPdfStreamUrl = () => {
     if (!currentItem.value?.id)
         return null;
-    // Use the new PDF stream endpoint with HTTP range support
+    // Use the PDF stream endpoint with HTTP range support
     return `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}/api/pdfstream/${currentItem.value.id}/`;
 };
 const debugGetVideoStreamUrl = () => {
@@ -519,28 +519,6 @@ function __VLS_template() {
         __VLS_elementAsFunction(__VLS_intrinsicElements.h5, __VLS_intrinsicElements.h5)({
             ...{ class: ("card-title") },
         });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("mb-3") },
-        });
-        const __VLS_13 = {}.FilePond;
-        /** @type { [typeof __VLS_components.FilePond, ] } */ ;
-        // @ts-ignore
-        const __VLS_14 = __VLS_asFunctionalComponent(__VLS_13, new __VLS_13({
-            ref: ("pond"),
-            name: ("file"),
-            acceptedFileTypes: ("image/*"),
-            labelIdle: ("Bild hier ablegen oder klicken"),
-        }));
-        const __VLS_15 = __VLS_14({
-            ref: ("pond"),
-            name: ("file"),
-            acceptedFileTypes: ("image/*"),
-            labelIdle: ("Bild hier ablegen oder klicken"),
-        }, ...__VLS_functionalComponentArgsRest(__VLS_14));
-        // @ts-ignore navigation for `const pond = ref()`
-        /** @type { typeof __VLS_ctx.pond } */ ;
-        var __VLS_19 = {};
-        var __VLS_18;
         if (__VLS_ctx.processedUrl) {
             __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
                 ...{ class: ("mt-3") },
@@ -673,14 +651,12 @@ function __VLS_template() {
             disabled: ((!__VLS_ctx.isExaminationDateValid || !__VLS_ctx.dirty)),
         });
     }
-    ['container-fluid', 'py-4', 'card', 'card-header', 'pb-0', 'mb-0', 'card-body', 'text-center', 'py-5', 'spinner-border', 'text-primary', 'visually-hidden', 'mt-2', 'alert', 'alert-danger', 'alert', 'alert-info', 'mb-4', 'alert', 'alert-warning', 'mt-3', 'fas', 'fa-info-circle', 'me-2', 'mt-2', 'btn', 'btn-sm', 'btn-outline-primary', 'fas', 'fa-eye', 'me-1', 'row', 'mb-3', 'col-12', 'alert', 'alert-info', 'd-flex', 'align-items-center', 'fas', 'fa-info-circle', 'me-2', 'row', 'mb-4', 'col-md-5', 'card', 'bg-light', 'mb-4', 'card-body', 'card-title', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-select', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-control', 'is-invalid', 'invalid-feedback', 'mb-3', 'form-label', 'form-control', 'card', 'bg-light', 'card-body', 'card-title', 'mb-3', 'mt-3', 'img-fluid', 'btn', 'btn-info', 'btn-sm', 'mt-2', 'mt-3', 'btn', 'btn-primary', 'col-md-7', 'card', 'card-header', 'pb-0', 'mb-0', 'alert', 'alert-info', 'mt-2', 'mb-0', 'fas', 'fa-info-circle', 'me-2', 'card-body', 'media-viewer-container', 'alert', 'alert-warning', 'mb-0', 'row', 'col-12', 'd-flex', 'justify-content-between', 'btn', 'btn-secondary', 'btn', 'btn-danger', 'me-2', 'btn', 'btn-success',];
+    ['container-fluid', 'py-4', 'card', 'card-header', 'pb-0', 'mb-0', 'card-body', 'text-center', 'py-5', 'spinner-border', 'text-primary', 'visually-hidden', 'mt-2', 'alert', 'alert-danger', 'alert', 'alert-info', 'mb-4', 'alert', 'alert-warning', 'mt-3', 'fas', 'fa-info-circle', 'me-2', 'mt-2', 'btn', 'btn-sm', 'btn-outline-primary', 'fas', 'fa-eye', 'me-1', 'row', 'mb-3', 'col-12', 'alert', 'alert-info', 'd-flex', 'align-items-center', 'fas', 'fa-info-circle', 'me-2', 'row', 'mb-4', 'col-md-5', 'card', 'bg-light', 'mb-4', 'card-body', 'card-title', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-select', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-control', 'is-invalid', 'invalid-feedback', 'mb-3', 'form-label', 'form-control', 'card', 'bg-light', 'card-body', 'card-title', 'mt-3', 'img-fluid', 'btn', 'btn-info', 'btn-sm', 'mt-2', 'mt-3', 'btn', 'btn-primary', 'col-md-7', 'card', 'card-header', 'pb-0', 'mb-0', 'alert', 'alert-info', 'mt-2', 'mb-0', 'fas', 'fa-info-circle', 'me-2', 'card-body', 'media-viewer-container', 'alert', 'alert-warning', 'mb-0', 'row', 'col-12', 'd-flex', 'justify-content-between', 'btn', 'btn-secondary', 'btn', 'btn-danger', 'me-2', 'btn', 'btn-success',];
     var __VLS_slots;
     var $slots;
     let __VLS_inheritedAttrs;
     var $attrs;
-    const __VLS_refs = {
-        'pond': __VLS_19,
-    };
+    const __VLS_refs = {};
     var $refs;
     var $el;
     return {
@@ -695,7 +671,6 @@ const __VLS_self = (await import('vue')).defineComponent({
     setup() {
         return {
             FileDropZone: FileDropZone,
-            FilePond: FilePond,
             store: store,
             editedAnonymizedText: editedAnonymizedText,
             examinationDate: examinationDate,
@@ -706,7 +681,6 @@ const __VLS_self = (await import('vue')).defineComponent({
             isUploading: isUploading,
             hasSuccessfulUpload: hasSuccessfulUpload,
             dirty: dirty,
-            pond: pond,
             currentItem: currentItem,
             isExaminationDateValid: isExaminationDateValid,
             canSubmit: canSubmit,
@@ -730,7 +704,6 @@ export default (await import('vue')).defineComponent({
     setup() {
         return {};
     },
-    __typeRefs: {},
     __typeEl: {},
 });
 ; /* PartiallyEnd: #4569/main.vue */

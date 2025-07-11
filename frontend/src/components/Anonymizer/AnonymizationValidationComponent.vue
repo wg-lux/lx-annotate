@@ -130,12 +130,12 @@
               <div class="card bg-light">
                 <div class="card-body">
                   <h5 class="card-title">Annotationen</h5>
-                  <div class="mb-3">
-                    <!-- FilePond Component -->
+                  <!-- UNUSED <div class="mb-3">
+                    FilePond Component
                     <FilePond ref="pond" name="file"
                       accepted-file-types="image/*"
                       label-idle="Bild hier ablegen oder klicken" />
-                  </div>
+                  </div> -->
                   <div v-if="processedUrl" class="mt-3">
                     <img :src="showOriginal ? originalUrl : processedUrl"
                          class="img-fluid" alt="Uploaded Image">

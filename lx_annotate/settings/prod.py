@@ -5,6 +5,7 @@ This configuration enforces strict security policies and fails fast if
 misconfigured. All secrets must come from environment variables.
 """
 from .base import *  # noqa
+from .base import BASE_DIR 
 import os
 
 # SECURITY: Debug MUST be off in production
@@ -151,3 +152,23 @@ if DEBUG:
     raise RuntimeError("🚨 FATAL: DEBUG cannot be True in production!")
 
 print("✅ Production security validation passed")
+
+# Static files (CSS, JavaScript, Images)
+STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+# Media files
+MEDIA_URL = '/media/'
+# MEDIA_ROOT already configured above, removing duplicate
+MEDIA_ROOT = env.path('MEDIA_ROOT', default=BASE_DIR / 'media')
+
+# WhiteNoise configuration
+MIDDLEWARE = [
+    'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # Should be early in middleware
+    # ...rest of middleware...
+]
+
+# WhiteNoise settings
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+WHITENOISE_USE_FINDERS = True
+WHITENOISE_AUTOREFRESH = True
