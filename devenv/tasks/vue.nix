@@ -2,14 +2,14 @@
 let
   customTasks = {
     "vue:build".after = 
-      ["devenv:files"];
+      ["uv:sync"];
     
     "vue:build".exec = 
       ''
       cd frontend
       npm run build
       cd ..
-      uv sync --no-config --no-reload
+      uv sync --no-config
       python manage.py collectstatic --noinput
       '';
     "vue:build".execIfModified = [

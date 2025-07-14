@@ -379,7 +379,7 @@ const refreshSensitiveMeta = async () => {
   try {
     // Combine video and PDF sensitive meta data
     const [videoResponse, pdfResponse] = await Promise.all([
-      axiosInstance.get('/api/video/sensitivemeta/').catch(() => ({ data: [] })),
+      axiosInstance.get('/api/media/videos/').catch(() => ({ data: [] })),
       axiosInstance.get('/api/pdf/sensitivemeta/').catch(() => ({ data: [] }))
     ]);
 
@@ -509,8 +509,8 @@ const validateSensitiveMeta = (meta) => {
 const markSensitiveMetaComplete = async (meta) => {
   try {
     const endpoint = meta.content_type === 'video' 
-      ? `/api/video/update_sensitivemeta/`
-      : `/api/pdf/update_sensitivemeta/`;
+      ? `/api/media/videos/`
+      : `/api/media/pdf/`;
     
     await axiosInstance.patch(endpoint, { 
       sensitive_meta_id: meta.id,

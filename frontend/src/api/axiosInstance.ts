@@ -2,6 +2,7 @@ import axios, { type AxiosRequestConfig } from 'axios';
 import Cookies from 'js-cookie';
 import camelcaseKeys from 'camelcase-keys';
 import snakecaseKeys from 'snakecase-keys';
+import { useToastStore } from '@/stores/toastStore'
 
 // This handles requests to the local Django API
 
@@ -16,6 +17,23 @@ const axiosInstance = axios.create({
   },
   withCredentials: true,
 });
+
+// Error toast
+axiosInstance.interceptors.response.use(
+  r => r,
+  err => {
+    const toast = useToastStore()
+    const msg   =
+      err?.response?.data?.detail ||
+      err?.response?.data?.error  ||
+      err?.message ||
+      'Unbekannter Netzwerk- oder Serverfehler'
+
+    toast.error({ text: msg })
+    return Promise.reject(err)   // keep the rejection chain intact
+  }
+)
+
 
 // Helper zur Erzeugung des vollständigen API-Pfads
 export function r(path: string): string {

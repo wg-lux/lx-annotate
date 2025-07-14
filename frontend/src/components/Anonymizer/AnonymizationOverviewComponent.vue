@@ -12,7 +12,7 @@
             <i class="fas fa-sync-alt" :class="{ 'fa-spin': isRefreshing }"></i>
             Aktualisieren
           </button>
-          <!-- use the SAME route the Validate-button jumps to -->
+          <!-- use the same route the Validate-button jumps to -->
           <router-link 
             to="/anonymisierung/validierung" 
             class="btn btn-primary btn-sm"

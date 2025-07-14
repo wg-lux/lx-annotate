@@ -315,7 +315,7 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
      *  und fügt beides zusammen. */
     fetchNext(lastId?: number): Promise<PatientData | null>;
     patchPdf(payload: Partial<PatientData>): Promise<import("axios").AxiosResponse<any, any>>;
-    patchVideo(payload: any): Promise<import("axios").AxiosResponse<any, any>>;
+    patchVideo(payload: any): Promise<void>;
     fetchPendingAnonymizations(): {
         id: number;
         sensitiveMetaId: number;

@@ -77,7 +77,7 @@ class KeycloakMiddleware:
     def is_protected_route(self, path):
         """Define which routes require authentication"""
         protected_routes = [
-            '/videos/',
+            '/media/',
             '/api/',
             '/admin/',
         ]

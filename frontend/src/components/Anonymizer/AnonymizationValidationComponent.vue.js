@@ -1,5 +1,7 @@
 import { ref, computed, watch, onMounted } from 'vue';
 import { useAnonymizationStore } from '@/stores/anonymizationStore';
+import { useVideoStore } from '@/stores/videoStore';
+import { usePatientStore } from '@/stores/patientStore';
 // @ts-ignore
 import vueFilePond from 'vue-filepond';
 import axiosInstance, { r } from '@/api/axiosInstance';
@@ -10,10 +12,10 @@ import FileDropZone from '@/components/common/FileDropZone.vue';
 import FilePondPluginImagePreview from 'filepond-plugin-image-preview';
 // @ts-ignore
 import FilePondPluginFileValidateType from 'filepond-plugin-file-validate-type';
-registerPlugin(FilePondPluginImagePreview, FilePondPluginFileValidateType);
-const FilePond = vueFilePond(FilePondPluginImagePreview, FilePondPluginFileValidateType);
-// Store reference
-const store = useAnonymizationStore();
+// Store references
+const anonymizationStore = useAnonymizationStore();
+const videoStore = useVideoStore();
+const patientStore = usePatientStore();
 // Local state
 const editedAnonymizedText = ref('');
 const examinationDate = ref('');
@@ -32,10 +34,8 @@ const isUploading = ref(false);
 const hasSuccessfulUpload = ref(false);
 // Dirty tracking
 const dirty = ref(false);
-// Template refs
-const pond = ref();
 // Computed
-const currentItem = computed(() => store.current);
+const currentItem = computed(() => anonymizationStore.current);
 const isExaminationDateValid = computed(() => {
     if (!examinationDate.value || !editedPatient.value.patientDob) {
         return true;
@@ -60,58 +60,9 @@ watch(examinationDate, () => {
 watch(editedPatient, () => {
     dirty.value = true;
 }, { deep: true });
-// Methods
-const setupFilePond = () => {
-    setOptions({
-        allowRevert: true,
-        chunkUploads: true,
-        maxParallelUploads: 3,
-        server: {
-            process: (fieldName, file, metadata, load, error, progress, abort) => {
-                const fd = new FormData();
-                fd.append(fieldName, file);
-                axiosInstance.post(r('upload-image/'), fd, {
-                    onUploadProgress: e => {
-                        if (progress) {
-                            progress(true, e.loaded ?? 0, e.total ?? 0);
-                        }
-                    }
-                })
-                    .then(({ data }) => {
-                    originalUrl.value = data.original_image_url;
-                    processedUrl.value = data.processed_image_url;
-                    if (load) {
-                        load(data.upload_id);
-                    }
-                    hasSuccessfulUpload.value = true;
-                })
-                    .catch(err => {
-                    if (error) {
-                        error(err.message);
-                    }
-                });
-                // Return abort function for FilePond to cancel requests if needed
-                return {
-                    abort: () => {
-                        if (abort) {
-                            abort();
-                        }
-                    }
-                };
-            },
-            revert: (id, load) => {
-                axiosInstance.delete(r(`upload-image/${id}/`)).finally(() => {
-                    if (load) {
-                        load();
-                    }
-                });
-            }
-        }
-    });
-};
 const fetchNextItem = async () => {
     try {
-        await store.fetchNext();
+        await anonymizationStore.fetchNext();
     }
     catch (error) {
         console.error('Error fetching next item:', error);
@@ -134,31 +85,6 @@ const loadCurrentItemData = (item) => {
 const toggleImage = () => {
     showOriginal.value = !showOriginal.value;
 };
-const saveAnnotation = async () => {
-    if (!canSubmit.value)
-        return;
-    try {
-        const annotationData = {
-            original_image_url: originalUrl.value,
-            processed_image_url: processedUrl.value,
-            patient_data: editedPatient.value,
-            examinationDate: examinationDate.value,
-            anonymized_text: editedAnonymizedText.value
-        };
-        await axiosInstance.post(r('save-annotation/'), annotationData);
-        // Reset upload state
-        originalUrl.value = '';
-        processedUrl.value = '';
-        hasSuccessfulUpload.value = false;
-        if (pond.value) {
-            pond.value.removeFiles();
-        }
-        console.log('Annotation saved successfully');
-    }
-    catch (error) {
-        console.error('Error saving annotation:', error);
-    }
-};
 const handleFilesSelected = async (files) => {
     if (!files || files.length === 0) {
         console.warn('handleFilesSelected: empty file array received');
@@ -170,7 +96,7 @@ const handleFilesSelected = async (files) => {
         // Convert File[] to FileList using DataTransfer
         const dataTransfer = new DataTransfer();
         files.forEach(file => dataTransfer.items.add(file));
-        const result = await store.uploadAndFetch(dataTransfer.files);
+        const result = await anonymizationStore.uploadAndFetch(dataTransfer.files);
         if (result) {
             hasSuccessfulUpload.value = true;
         }
@@ -188,6 +114,12 @@ const skipItem = async () => {
         dirty.value = false;
     }
 };
+function isVideoFile(item) {
+    if (item.reportMeta?.file && !item.reportMeta?.pdfUrl) {
+        return true; // It's a video file if it has a file but no PDF URL
+    }
+    return false; // Otherwise, it's not a video file
+}
 const approveItem = async () => {
     if (!currentItem.value || !isExaminationDateValid.value)
         return;
@@ -205,16 +137,50 @@ const approveItem = async () => {
         // Determine media type and use appropriate endpoint
         const isVideo = currentItem.value.reportMeta?.file && !currentItem.value.reportMeta?.pdfUrl;
         if (isVideo) {
-            await store.patchVideo(updatedData);
+            await anonymizationStore.patchVideo(updatedData);
         }
         else {
-            await store.patchPdf(updatedData);
+            await anonymizationStore.patchPdf(updatedData);
         }
         await fetchNextItem();
         dirty.value = false;
     }
     catch (error) {
         console.error('Error approving item:', error);
+    }
+};
+const saveAnnotation = async () => {
+    if (!canSubmit.value)
+        return;
+    try {
+        const annotationData = {
+            original_image_url: originalUrl.value,
+            processed_image_url: processedUrl.value,
+            patient_data: editedPatient.value,
+            examinationDate: examinationDate.value,
+            anonymized_text: editedAnonymizedText.value
+        };
+        if (currentItem.value && isVideoFile(currentItem.value)) {
+            await axiosInstance.post(r('save-anonymization-annotation-video/'), {
+                ...annotationData,
+                itemId: currentItem.value.id
+            });
+        }
+        else if (currentItem.value && currentItem.value.reportMeta?.pdfUrl) {
+            await axiosInstance.post(r('save-anonymization-annotation-pdf/'), annotationData);
+        }
+        else {
+            console.warn('No valid item to save annotation for');
+            return;
+        }
+        // Reset upload state
+        originalUrl.value = '';
+        processedUrl.value = '';
+        hasSuccessfulUpload.value = false;
+        console.log('Annotation saved successfully');
+    }
+    catch (error) {
+        console.error('Error saving annotation:', error);
     }
 };
 const rejectItem = async () => {
@@ -233,7 +199,7 @@ const getVideoStreamUrl = () => {
     }
     const base = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
     // Use the correct video stream endpoint that serves raw bytes
-    return `${base}/api/videostream/${currentItem.value.id}/`;
+    return `${base}/api/media/videos/${currentItem.value.id}/`;
 };
 // PDF streaming methods - mirroring video streaming functionality
 const getPdfStreamUrl = () => {
@@ -246,7 +212,7 @@ const debugGetVideoStreamUrl = () => {
     // Debug version that shows the URL construction process
     const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
     const itemId = currentItem.value?.id;
-    const url = itemId ? `${baseUrl}/api/videostream/${itemId}/` : 'No item ID available';
+    const url = itemId ? `${baseUrl}/api/media/videos/${itemId}/` : 'No item ID available';
     return url;
 };
 const debugGetPdfStreamUrl = () => {
@@ -275,8 +241,7 @@ const onVideoCanPlay = () => {
 };
 // Lifecycle
 onMounted(async () => {
-    setupFilePond();
-    if (!store.current) { // only pull the “next” item if nothing is pre-loaded
+    if (!anonymizationStore.current) { // only pull the “next” item if nothing is pre-loaded
         await fetchNextItem();
     }
 });
@@ -303,7 +268,7 @@ function __VLS_template() {
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: ("card-body") },
     });
-    if (__VLS_ctx.store.loading) {
+    if (__VLS_ctx.anonymizationStore.loading) {
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: ("text-center py-5") },
         });
@@ -318,13 +283,13 @@ function __VLS_template() {
             ...{ class: ("mt-2") },
         });
     }
-    else if (__VLS_ctx.store.error) {
+    else if (__VLS_ctx.anonymizationStore.error) {
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: ("alert alert-danger") },
             role: ("alert"),
         });
         __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
-        (__VLS_ctx.store.error);
+        (__VLS_ctx.anonymizationStore.error);
     }
     else if (!__VLS_ctx.currentItem) {
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -341,12 +306,12 @@ function __VLS_template() {
         // @ts-ignore
         const __VLS_0 = __VLS_asFunctionalComponent(FileDropZone, new FileDropZone({
             ...{ 'onFilesSelected': {} },
-            isUploading: ((__VLS_ctx.isUploading || __VLS_ctx.store.isAnyFileProcessing)),
+            isUploading: ((__VLS_ctx.isUploading || __VLS_ctx.anonymizationStore.isAnyFileProcessing)),
             acceptedFileTypes: ("*"),
         }));
         const __VLS_1 = __VLS_0({
             ...{ 'onFilesSelected': {} },
-            isUploading: ((__VLS_ctx.isUploading || __VLS_ctx.store.isAnyFileProcessing)),
+            isUploading: ((__VLS_ctx.isUploading || __VLS_ctx.anonymizationStore.isAnyFileProcessing)),
             acceptedFileTypes: ("*"),
         }, ...__VLS_functionalComponentArgsRest(__VLS_0));
         let __VLS_5;
@@ -356,7 +321,7 @@ function __VLS_template() {
         let __VLS_2;
         let __VLS_3;
         var __VLS_4;
-        if (__VLS_ctx.store.isAnyFileProcessing) {
+        if (__VLS_ctx.anonymizationStore.isAnyFileProcessing) {
             __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
                 ...{ class: ("alert alert-warning mt-3") },
             });
@@ -364,7 +329,7 @@ function __VLS_template() {
                 ...{ class: ("fas fa-info-circle me-2") },
             });
             __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
-            (__VLS_ctx.store.processingFiles.length);
+            (__VLS_ctx.anonymizationStore.processingFiles.length);
             __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
                 ...{ class: ("mt-2") },
             });
@@ -671,7 +636,7 @@ const __VLS_self = (await import('vue')).defineComponent({
     setup() {
         return {
             FileDropZone: FileDropZone,
-            store: store,
+            anonymizationStore: anonymizationStore,
             editedAnonymizedText: editedAnonymizedText,
             examinationDate: examinationDate,
             editedPatient: editedPatient,
@@ -685,10 +650,10 @@ const __VLS_self = (await import('vue')).defineComponent({
             isExaminationDateValid: isExaminationDateValid,
             canSubmit: canSubmit,
             toggleImage: toggleImage,
-            saveAnnotation: saveAnnotation,
             handleFilesSelected: handleFilesSelected,
             skipItem: skipItem,
             approveItem: approveItem,
+            saveAnnotation: saveAnnotation,
             rejectItem: rejectItem,
             getVideoStreamUrl: getVideoStreamUrl,
             getPdfStreamUrl: getPdfStreamUrl,

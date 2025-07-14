@@ -384,7 +384,7 @@ export const useVideoStore = defineStore('video', () => {
 
     function buildVideoStreamUrl(id: string | number) {
         const base = import.meta.env.VITE_API_BASE_URL || window.location.origin
-        return `${base}/api/videostream/${id}/`
+        return `${base}/api/media/videos/${id}/`
       }
 
     // ===================================================================
@@ -584,7 +584,7 @@ export const useVideoStore = defineStore('video', () => {
     
     async function fetchVideoMeta(lastId?: string): Promise<any> {
         try {
-            const url = lastId ? r(`video/sensitivemeta/?last_id=${lastId}`) : r('video/sensitivemeta/')
+            const url = lastId ? r(`video/media/${lastId}`) : r('video/sensitivemeta/')
             const response: AxiosResponse = await axiosInstance.get(url)
             videoMeta.value = response.data
             return response.data
@@ -596,7 +596,7 @@ export const useVideoStore = defineStore('video', () => {
 
     async function updateSensitiveMeta(payload: any): Promise<boolean> {
         try {
-            await axiosInstance.patch(r('video/update_sensitivemeta/'), payload)
+            await axiosInstance.patch(r('media/videos/${payload.id}/'), payload)
             return true
         } catch (error) {
             console.error('Error updating sensitive meta:', error)
@@ -1219,7 +1219,7 @@ export const useVideoStore = defineStore('video', () => {
             
             // Try to fetch additional video metadata if available
             try {
-                const response: AxiosResponse = await axiosInstance.get(r(`videos/${videoId}/`))
+                const response: AxiosResponse = await axiosInstance.get(r(`media/videos/${videoId}/`))
                 const videoData = response.data
                 
                 console.log(`[VideoStore] Got video metadata:`, videoData)

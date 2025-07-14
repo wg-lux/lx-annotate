@@ -36,7 +36,7 @@ export const useAnonymizationStore = defineStore('anonymization', {
                     if (item?.mediaType === 'video') {
                         // 1️⃣ get SensitiveMeta & video urls for video
                         console.log(`Fetching video sensitive meta for ID: ${lastId}`);
-                        const { data: meta } = await axiosInstance.get(r(`video/sensitivemeta/?id=${item.sensitiveMetaId}`));
+                        const { data: meta } = await axiosInstance.get(r(`media/videos/${item.sensitiveMetaId}` + '/'));
                         console.log('Received video sensitive meta:', meta);
                         this.current = {
                             id: item.id,
@@ -110,7 +110,7 @@ export const useAnonymizationStore = defineStore('anonymization', {
             return axiosInstance.patch(a('update_anony_text/'), payload);
         },
         async patchVideo(payload) {
-            return axiosInstance.patch(r('video/update_sensitivemeta/'), payload);
+            await axiosInstance.patch((`media/videos/${payload.id}/`), payload);
         },
         fetchPendingAnonymizations() {
             return this.pending;
@@ -296,7 +296,7 @@ export const useAnonymizationStore = defineStore('anonymization', {
                         return null;
                     }
                     console.log(`Loading video data for sensitiveMetaId: ${item.sensitiveMetaId}`);
-                    const { data: meta } = await axiosInstance.get(r(`video/sensitivemeta/?id=${item.sensitiveMetaId}`));
+                    const { data: meta } = await axiosInstance.get(r(`media/videos/${item.sensitiveMetaId}`));
                     console.log('Received video sensitive meta:', meta);
                     this.current = {
                         id: item.sensitiveMetaId, // Use sensitiveMetaId for video stream URL

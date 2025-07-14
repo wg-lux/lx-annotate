@@ -14,43 +14,11 @@ const router = createRouter({
       }
     },
     {
-      path: '/video-meta-annotation',
-      name: 'Video Patienten Annotation',
-      component: () => import('@/views/VideoMetaAnnotation.vue'),
-      meta: {
-        description: 'Hier können Sie Videos annotieren.'
-      }
-    },
-    {
-      path: '/pdf-meta-annotation',
-      name: 'PDF Patienten Annotation',
-      component: () => import('@/views/PdfMetaAnnotation.vue'),
-      meta: {
-        description: 'Hier können Sie PDFs annotieren.' 
-      }
-    },
-    {
       path: '/video-examination',
       name: 'Video-Untersuchung',
       component: () => import('@/views/VideoExamination.vue'),
       meta: {
         description: 'Annotieren Sie Untersuchungen während der Videobetrachtung.'
-      }
-    },
-    {
-      path: '/frame-annotation',
-      name: 'Frame Annotation',
-      component: () => import('@/views/FrameAnnotation.vue'),
-      meta: {
-        description: 'Hier können Sie Frames annotieren.'
-      }
-    },
-    {
-      path: '/frame-selection',
-      name: 'Frame Auswahl',
-      component: () => import('@/views/FrameSelection.vue'),
-      meta: {
-        description: 'Wählen Sie Frames aus Videos für die Annotation aus.'
       }
     },
     {

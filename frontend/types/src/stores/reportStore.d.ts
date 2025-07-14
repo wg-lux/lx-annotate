@@ -81,7 +81,7 @@ export declare const useReportStore: import("pinia").StoreDefinition<"report", i
     annotations: import("vue").Ref<{
         id: number;
         reportId: number;
-        type: "tag" | "note" | "highlight";
+        type: "highlight" | "note" | "tag";
         content: string;
         position: {
             page?: number | undefined;
@@ -96,7 +96,7 @@ export declare const useReportStore: import("pinia").StoreDefinition<"report", i
     }[], Annotation[] | {
         id: number;
         reportId: number;
-        type: "tag" | "note" | "highlight";
+        type: "highlight" | "note" | "tag";
         content: string;
         position: {
             page?: number | undefined;
@@ -112,15 +112,15 @@ export declare const useReportStore: import("pinia").StoreDefinition<"report", i
     loading: import("vue").Ref<boolean, boolean>;
     error: import("vue").Ref<string | null, string | null>;
     hasReports: import("vue").ComputedRef<boolean>;
-    currentReportFileType: import("vue").ComputedRef<string>;
+    currentReportFileType: import("vue").ComputedRef<any>;
     fetchReports: () => Promise<void>;
-    fetchReportById: (id: number, withSecureUrl?: boolean) => Promise<Report>;
-    fetchReportAnnotations: (reportId: number) => Promise<Annotation[]>;
-    createAnnotation: (annotationData: any) => Promise<Annotation>;
+    fetchReportById: (id: number, withSecureUrl?: boolean) => Promise<any>;
+    fetchReportAnnotations: (reportId: number) => Promise<any>;
+    createAnnotation: (annotationData: any) => Promise<any>;
     setCurrentReport: (report: Report | null) => void;
     clearError: () => void;
     reset: () => void;
-}, "loading" | "error" | "annotations" | "currentReport" | "reports">>, Pick<{
+}, "reports" | "currentReport" | "annotations" | "loading" | "error">>, Pick<{
     reports: import("vue").Ref<{
         id: number;
         anonymizedText: string;
@@ -202,7 +202,7 @@ export declare const useReportStore: import("pinia").StoreDefinition<"report", i
     annotations: import("vue").Ref<{
         id: number;
         reportId: number;
-        type: "tag" | "note" | "highlight";
+        type: "highlight" | "note" | "tag";
         content: string;
         position: {
             page?: number | undefined;
@@ -217,7 +217,7 @@ export declare const useReportStore: import("pinia").StoreDefinition<"report", i
     }[], Annotation[] | {
         id: number;
         reportId: number;
-        type: "tag" | "note" | "highlight";
+        type: "highlight" | "note" | "tag";
         content: string;
         position: {
             page?: number | undefined;
@@ -233,11 +233,11 @@ export declare const useReportStore: import("pinia").StoreDefinition<"report", i
     loading: import("vue").Ref<boolean, boolean>;
     error: import("vue").Ref<string | null, string | null>;
     hasReports: import("vue").ComputedRef<boolean>;
-    currentReportFileType: import("vue").ComputedRef<string>;
+    currentReportFileType: import("vue").ComputedRef<any>;
     fetchReports: () => Promise<void>;
-    fetchReportById: (id: number, withSecureUrl?: boolean) => Promise<Report>;
-    fetchReportAnnotations: (reportId: number) => Promise<Annotation[]>;
-    createAnnotation: (annotationData: any) => Promise<Annotation>;
+    fetchReportById: (id: number, withSecureUrl?: boolean) => Promise<any>;
+    fetchReportAnnotations: (reportId: number) => Promise<any>;
+    createAnnotation: (annotationData: any) => Promise<any>;
     setCurrentReport: (report: Report | null) => void;
     clearError: () => void;
     reset: () => void;
@@ -323,7 +323,7 @@ export declare const useReportStore: import("pinia").StoreDefinition<"report", i
     annotations: import("vue").Ref<{
         id: number;
         reportId: number;
-        type: "tag" | "note" | "highlight";
+        type: "highlight" | "note" | "tag";
         content: string;
         position: {
             page?: number | undefined;
@@ -338,7 +338,7 @@ export declare const useReportStore: import("pinia").StoreDefinition<"report", i
     }[], Annotation[] | {
         id: number;
         reportId: number;
-        type: "tag" | "note" | "highlight";
+        type: "highlight" | "note" | "tag";
         content: string;
         position: {
             page?: number | undefined;
@@ -354,12 +354,12 @@ export declare const useReportStore: import("pinia").StoreDefinition<"report", i
     loading: import("vue").Ref<boolean, boolean>;
     error: import("vue").Ref<string | null, string | null>;
     hasReports: import("vue").ComputedRef<boolean>;
-    currentReportFileType: import("vue").ComputedRef<string>;
+    currentReportFileType: import("vue").ComputedRef<any>;
     fetchReports: () => Promise<void>;
-    fetchReportById: (id: number, withSecureUrl?: boolean) => Promise<Report>;
-    fetchReportAnnotations: (reportId: number) => Promise<Annotation[]>;
-    createAnnotation: (annotationData: any) => Promise<Annotation>;
+    fetchReportById: (id: number, withSecureUrl?: boolean) => Promise<any>;
+    fetchReportAnnotations: (reportId: number) => Promise<any>;
+    createAnnotation: (annotationData: any) => Promise<any>;
     setCurrentReport: (report: Report | null) => void;
     clearError: () => void;
     reset: () => void;
-}, "clearError" | "reset" | "createAnnotation" | "fetchReports" | "fetchReportById" | "fetchReportAnnotations" | "setCurrentReport">>;
+}, "fetchReports" | "fetchReportById" | "fetchReportAnnotations" | "createAnnotation" | "setCurrentReport" | "clearError" | "reset">>;
