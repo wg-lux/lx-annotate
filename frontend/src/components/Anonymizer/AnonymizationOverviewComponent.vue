@@ -24,17 +24,16 @@
       </div>
 
       <div class="card-body">
+        <!-- Error State -->
+        <div v-if="anonymizationStore.error" class="alert alert-danger" role="alert">
+          <strong>Fehler:</strong> {{ anonymizationStore.error }}
+        </div>
         <!-- Loading State -->
         <div v-if="anonymizationStore.loading && !anonymizationStore.overview.length" class="text-center py-5">
           <div class="spinner-border text-primary" role="status">
             <span class="visually-hidden">Wird geladen...</span>
           </div>
           <p class="mt-2">Dateien werden geladen...</p>
-        </div>
-
-        <!-- Error State -->
-        <div v-else-if="anonymizationStore.error" class="alert alert-danger" role="alert">
-          <strong>Fehler:</strong> {{ anonymizationStore.error }}
         </div>
 
         <!-- Empty State -->
@@ -167,15 +166,15 @@
                       Validieren
                     </button>
 
+                    <!-- Video Correction -->
                     <button
-                      v-if="file.anonymizationStatus === 'validated' && file.mediaType === 'video'"
-                      @click="validateSegmentsFile(file.id)"
-                      class="btn btn-outline-secondary"
+                      v-if="file.mediaType === 'video' && (file.anonymizationStatus === 'done' || file.anonymizationStatus === 'validated')"
+                      @click="correctVideo(file.id)"
+                      class="btn btn-outline-warning"
                       :disabled="isProcessing(file.id)"
                     >
-                    <i class="fas fa-eye"></i>
-                      Validieren
-
+                      <i class="fas fa-edit"></i>
+                      Korrektur
                     </button>
 
 
@@ -301,6 +300,11 @@ const startAnonymization = async (fileId: number) => {
   } finally {
     processingFiles.value.delete(fileId);
   }
+};
+
+const correctVideo = async (fileId: number) => {
+  // Navigate directly to the correction component with the video ID
+  router.push(`/anonymisierung/korrektur/${fileId}`);
 };
 
 const validateFile = async (fileId: number) => {

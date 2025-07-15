@@ -18,6 +18,7 @@ export interface FileItem {
   createdAt: string; // ISO
   sensitiveMetaId?: number; // Add this for video file lookup
   metadataImported: boolean; // New field to track if metadata was properly imported
+  fileSize?: number|undefined; // Optional field for file size
 }
 
 export interface AnonymizationState {

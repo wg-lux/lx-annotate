@@ -127,6 +127,7 @@ in
     inotify-tools 
     python312Packages.inotify-simple
     python312Packages.watchdog
+    ffmpeg_6-headless
   ] ++ runtimePackages;
 
 
@@ -139,6 +140,7 @@ in
       lib.makeLibraryPath buildInputs
     }:/run/opengl-driver/lib:/run/opengl-driver-32/lib";
   };
+
   
 
   languages.python = {

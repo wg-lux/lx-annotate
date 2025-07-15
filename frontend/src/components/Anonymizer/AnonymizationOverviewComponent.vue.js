@@ -41,6 +41,10 @@ const startAnonymization = async (fileId) => {
         processingFiles.value.delete(fileId);
     }
 };
+const correctVideo = async (fileId) => {
+    // Navigate directly to the correction component with the video ID
+    router.push(`/anonymisierung/korrektur/${fileId}`);
+};
 const validateFile = async (fileId) => {
     processingFiles.value.add(fileId);
     try {
@@ -201,6 +205,14 @@ function __VLS_template() {
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: ("card-body") },
     });
+    if (__VLS_ctx.anonymizationStore.error) {
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("alert alert-danger") },
+            role: ("alert"),
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+        (__VLS_ctx.anonymizationStore.error);
+    }
     if (__VLS_ctx.anonymizationStore.loading && !__VLS_ctx.anonymizationStore.overview.length) {
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: ("text-center py-5") },
@@ -215,14 +227,6 @@ function __VLS_template() {
         __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
             ...{ class: ("mt-2") },
         });
-    }
-    else if (__VLS_ctx.anonymizationStore.error) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("alert alert-danger") },
-            role: ("alert"),
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
-        (__VLS_ctx.anonymizationStore.error);
     }
     else if (!__VLS_ctx.anonymizationStore.overview.length) {
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -329,8 +333,6 @@ function __VLS_template() {
                     ...{ onClick: (...[$event]) => {
                             if (!(!((__VLS_ctx.anonymizationStore.loading && !__VLS_ctx.anonymizationStore.overview.length))))
                                 return;
-                            if (!(!((__VLS_ctx.anonymizationStore.error))))
-                                return;
                             if (!(!((!__VLS_ctx.anonymizationStore.overview.length))))
                                 return;
                             if (!((file.mediaType === 'video' && __VLS_ctx.needsReimport(file))))
@@ -350,8 +352,6 @@ function __VLS_template() {
                     ...{ onClick: (...[$event]) => {
                             if (!(!((__VLS_ctx.anonymizationStore.loading && !__VLS_ctx.anonymizationStore.overview.length))))
                                 return;
-                            if (!(!((__VLS_ctx.anonymizationStore.error))))
-                                return;
                             if (!(!((!__VLS_ctx.anonymizationStore.overview.length))))
                                 return;
                             if (!((file.anonymizationStatus === 'not_started')))
@@ -369,8 +369,6 @@ function __VLS_template() {
                 __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
                     ...{ onClick: (...[$event]) => {
                             if (!(!((__VLS_ctx.anonymizationStore.loading && !__VLS_ctx.anonymizationStore.overview.length))))
-                                return;
-                            if (!(!((__VLS_ctx.anonymizationStore.error))))
                                 return;
                             if (!(!((!__VLS_ctx.anonymizationStore.overview.length))))
                                 return;
@@ -390,8 +388,6 @@ function __VLS_template() {
                     ...{ onClick: (...[$event]) => {
                             if (!(!((__VLS_ctx.anonymizationStore.loading && !__VLS_ctx.anonymizationStore.overview.length))))
                                 return;
-                            if (!(!((__VLS_ctx.anonymizationStore.error))))
-                                return;
                             if (!(!((!__VLS_ctx.anonymizationStore.overview.length))))
                                 return;
                             if (!((file.anonymizationStatus === 'done')))
@@ -405,24 +401,22 @@ function __VLS_template() {
                     ...{ class: ("fas fa-eye") },
                 });
             }
-            if (file.anonymizationStatus === 'validated' && file.mediaType === 'video') {
+            if (file.mediaType === 'video' && (file.anonymizationStatus === 'done' || file.anonymizationStatus === 'validated')) {
                 __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
                     ...{ onClick: (...[$event]) => {
                             if (!(!((__VLS_ctx.anonymizationStore.loading && !__VLS_ctx.anonymizationStore.overview.length))))
                                 return;
-                            if (!(!((__VLS_ctx.anonymizationStore.error))))
-                                return;
                             if (!(!((!__VLS_ctx.anonymizationStore.overview.length))))
                                 return;
-                            if (!((file.anonymizationStatus === 'validated' && file.mediaType === 'video')))
+                            if (!((file.mediaType === 'video' && (file.anonymizationStatus === 'done' || file.anonymizationStatus === 'validated'))))
                                 return;
-                            __VLS_ctx.validateSegmentsFile(file.id);
+                            __VLS_ctx.correctVideo(file.id);
                         } },
-                    ...{ class: ("btn btn-outline-secondary") },
+                    ...{ class: ("btn btn-outline-warning") },
                     disabled: ((__VLS_ctx.isProcessing(file.id))),
                 });
                 __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                    ...{ class: ("fas fa-eye") },
+                    ...{ class: ("fas fa-edit") },
                 });
             }
             if (file.anonymizationStatus === 'processing_anonymization') {
@@ -517,7 +511,7 @@ function __VLS_template() {
             ...{ class: ("text-muted") },
         });
     }
-    ['container-fluid', 'py-4', 'card', 'card-header', 'pb-0', 'd-flex', 'justify-content-between', 'align-items-center', 'mb-0', 'd-flex', 'gap-2', 'btn', 'btn-outline-primary', 'btn-sm', 'fas', 'fa-sync-alt', 'fa-spin', 'btn', 'btn-primary', 'btn-sm', 'fas', 'fa-play', 'me-1', 'card-body', 'text-center', 'py-5', 'spinner-border', 'text-primary', 'visually-hidden', 'mt-2', 'alert', 'alert-danger', 'text-center', 'py-5', 'mb-4', 'fas', 'fa-folder-open', 'fa-3x', 'text-muted', 'text-muted', 'text-muted', 'mb-4', 'btn', 'btn-primary', 'fas', 'fa-upload', 'me-2', 'table-responsive', 'table', 'table-hover', 'table-light', 'd-flex', 'align-items-center', 'me-2', 'fw-medium', 'badge', 'badge', 'fas', 'fa-spinner', 'fa-spin', 'me-1', 'badge', 'text-muted', 'btn-group', 'btn-group-sm', 'btn', 'btn-outline-info', 'fas', 'fa-redo-alt', 'btn', 'btn-outline-primary', 'fas', 'fa-play', 'btn', 'btn-outline-warning', 'fas', 'fa-redo', 'btn', 'btn-outline-success', 'fas', 'fa-eye', 'btn', 'btn-outline-secondary', 'fas', 'fa-eye', 'btn', 'btn-outline-info', 'fas', 'fa-spinner', 'fa-spin', 'me-1', 'btn', 'btn-outline-info', 'fas', 'fa-spinner', 'fa-spin', 'me-1', 'row', 'mt-4', 'col-md-12', 'card', 'bg-light', 'card-body', 'card-title', 'row', 'text-center', 'col-md-3', 'mb-2', 'badge', 'bg-secondary', 'fs-6', 'text-muted', 'col-md-3', 'mb-2', 'badge', 'bg-warning', 'fs-6', 'text-muted', 'col-md-3', 'mb-2', 'badge', 'bg-success', 'fs-6', 'text-muted', 'col-md-3', 'mb-2', 'badge', 'bg-danger', 'fs-6', 'text-muted',];
+    ['container-fluid', 'py-4', 'card', 'card-header', 'pb-0', 'd-flex', 'justify-content-between', 'align-items-center', 'mb-0', 'd-flex', 'gap-2', 'btn', 'btn-outline-primary', 'btn-sm', 'fas', 'fa-sync-alt', 'fa-spin', 'btn', 'btn-primary', 'btn-sm', 'fas', 'fa-play', 'me-1', 'card-body', 'alert', 'alert-danger', 'text-center', 'py-5', 'spinner-border', 'text-primary', 'visually-hidden', 'mt-2', 'text-center', 'py-5', 'mb-4', 'fas', 'fa-folder-open', 'fa-3x', 'text-muted', 'text-muted', 'text-muted', 'mb-4', 'btn', 'btn-primary', 'fas', 'fa-upload', 'me-2', 'table-responsive', 'table', 'table-hover', 'table-light', 'd-flex', 'align-items-center', 'me-2', 'fw-medium', 'badge', 'badge', 'fas', 'fa-spinner', 'fa-spin', 'me-1', 'badge', 'text-muted', 'btn-group', 'btn-group-sm', 'btn', 'btn-outline-info', 'fas', 'fa-redo-alt', 'btn', 'btn-outline-primary', 'fas', 'fa-play', 'btn', 'btn-outline-warning', 'fas', 'fa-redo', 'btn', 'btn-outline-success', 'fas', 'fa-eye', 'btn', 'btn-outline-warning', 'fas', 'fa-edit', 'btn', 'btn-outline-info', 'fas', 'fa-spinner', 'fa-spin', 'me-1', 'btn', 'btn-outline-info', 'fas', 'fa-spinner', 'fa-spin', 'me-1', 'row', 'mt-4', 'col-md-12', 'card', 'bg-light', 'card-body', 'card-title', 'row', 'text-center', 'col-md-3', 'mb-2', 'badge', 'bg-secondary', 'fs-6', 'text-muted', 'col-md-3', 'mb-2', 'badge', 'bg-warning', 'fs-6', 'text-muted', 'col-md-3', 'mb-2', 'badge', 'bg-success', 'fs-6', 'text-muted', 'col-md-3', 'mb-2', 'badge', 'bg-danger', 'fs-6', 'text-muted',];
     var __VLS_slots;
     var $slots;
     let __VLS_inheritedAttrs;
@@ -540,6 +534,7 @@ const __VLS_self = (await import('vue')).defineComponent({
             isRefreshing: isRefreshing,
             refreshOverview: refreshOverview,
             startAnonymization: startAnonymization,
+            correctVideo: correctVideo,
             validateFile: validateFile,
             reimportVideo: reimportVideo,
             isProcessing: isProcessing,
@@ -550,7 +545,6 @@ const __VLS_self = (await import('vue')).defineComponent({
             getStatusText: getStatusText,
             formatDate: formatDate,
             getTotalByStatus: getTotalByStatus,
-            validateSegmentsFile: validateSegmentsFile,
         };
     },
 });

@@ -7,6 +7,7 @@ export interface FileItem {
     createdAt: string;
     sensitiveMetaId?: number;
     metadataImported: boolean;
+    fileSize?: number | undefined;
 }
 export interface AnonymizationState {
     anonymizationStatus: string;
@@ -96,6 +97,7 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
             createdAt: string;
             sensitiveMetaId?: number | undefined;
             metadataImported: boolean;
+            fileSize?: number | undefined;
         }[];
         pollingHandles: Record<number, ReturnType<typeof setInterval>>;
         isPolling: boolean;
@@ -195,6 +197,7 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
             createdAt: string;
             sensitiveMetaId?: number | undefined;
             metadataImported: boolean;
+            fileSize?: number | undefined;
         }[];
         pollingHandles: Record<number, ReturnType<typeof setInterval>>;
         isPolling: boolean;
@@ -268,6 +271,7 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
             createdAt: string;
             sensitiveMetaId?: number | undefined;
             metadataImported: boolean;
+            fileSize?: number | undefined;
         }[];
         pollingHandles: Record<number, ReturnType<typeof setInterval>>;
         isPolling: boolean;
@@ -309,6 +313,7 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
         createdAt: string;
         sensitiveMetaId?: number | undefined;
         metadataImported: boolean;
+        fileSize?: number | undefined;
     }[];
 }, {
     /** Holt den nächsten PDF-Datensatz + zugehöriges SensitiveMeta
