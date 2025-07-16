@@ -19,6 +19,7 @@ export interface FileItem {
   sensitiveMetaId?: number; // Add this for video file lookup
   metadataImported: boolean; // New field to track if metadata was properly imported
   fileSize?: number|undefined; // Optional field for file size
+  rawFile?: string; // New field for raw file path (for videos)
 }
 
 export interface AnonymizationState {
@@ -187,16 +188,34 @@ export const useAnonymizationStore = defineStore('anonymization', {
     /* ---------------------------------------------------------------- */
     /* Update-Methoden                                                  */
     /* ---------------------------------------------------------------- */
-    async patchPdf(payload: Partial<PatientData>) {
-      if (!payload.id) throw new Error('patchPdf: id fehlt im Payload.');
+
+    async patchPdf(payload: { id?: number; sensitive_meta_id?: number; [key: string]: any }): Promise<any> {
+      if (!payload.id && !payload.sensitive_meta_id) {
+        throw new Error('patchPdf: id oder sensitive_meta_id fehlt im Payload.');
+      }
       console.log('Patching PDF with payload:', payload);
-      return axiosInstance.patch(a('update_anony_text/'), payload);
+      
+      // Use the correct endpoint for PDF sensitive meta updates
+      if (payload.sensitive_meta_id) {
+        return axiosInstance.patch(a('update_sensitivemeta/'), payload);
+      } else {
+        return axiosInstance.patch(a('update_anony_text/'), payload);
+      }
     },
 
-    async patchVideo(payload: any) {
-      await axiosInstance.patch((`media/videos/${payload.id}/`), payload);
+    async patchVideo(payload: { id?: number; sensitive_meta_id?: number; [key: string]: any }): Promise<any> {
+        if (!payload.id && !payload.sensitive_meta_id) {
+            throw new Error('patchVideo: id oder sensitive_meta_id fehlt im Payload.');
+        }
+        console.log('Patching Video with payload:', payload);
+        
+        // Use the video media endpoint which handles both streaming and updates
+        if (payload.sensitive_meta_id) {
+            return axiosInstance.patch(`media/videos/`, payload);
+        } else {
+            return axiosInstance.patch(`media/videos/${payload.id}/`, payload);
+        }
     },
-
     fetchPendingAnonymizations() {
       return this.pending;
     },
@@ -333,6 +352,7 @@ export const useAnonymizationStore = defineStore('anonymization', {
       console.log(`Starting status polling for file ${id}`);
       this.isPolling = true;
       
+      // ⭐ FIX: Reduced polling interval from 3000ms to 1500ms for better responsiveness
       const timer = setInterval(async () => {
         try {
           const { data } = await axiosInstance.get(r(`anonymization/${id}/status/`));
@@ -357,7 +377,7 @@ export const useAnonymizationStore = defineStore('anonymization', {
           console.error(`Error polling status for file ${id}:`, err);
           // Continue polling even on error to be resilient
         }
-      }, 3000);
+      }, 1500); // ⭐ Reduced from 3000ms to 1500ms for better UX
       
       this.pollingHandles[id] = timer;
     },

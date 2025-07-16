@@ -8,6 +8,7 @@ export interface FileItem {
     sensitiveMetaId?: number;
     metadataImported: boolean;
     fileSize?: number | undefined;
+    rawFile?: string;
 }
 export interface AnonymizationState {
     anonymizationStatus: string;
@@ -98,6 +99,7 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
             sensitiveMetaId?: number | undefined;
             metadataImported: boolean;
             fileSize?: number | undefined;
+            rawFile?: string | undefined;
         }[];
         pollingHandles: Record<number, ReturnType<typeof setInterval>>;
         isPolling: boolean;
@@ -198,6 +200,7 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
             sensitiveMetaId?: number | undefined;
             metadataImported: boolean;
             fileSize?: number | undefined;
+            rawFile?: string | undefined;
         }[];
         pollingHandles: Record<number, ReturnType<typeof setInterval>>;
         isPolling: boolean;
@@ -272,6 +275,7 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
             sensitiveMetaId?: number | undefined;
             metadataImported: boolean;
             fileSize?: number | undefined;
+            rawFile?: string | undefined;
         }[];
         pollingHandles: Record<number, ReturnType<typeof setInterval>>;
         isPolling: boolean;
@@ -314,13 +318,22 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
         sensitiveMetaId?: number | undefined;
         metadataImported: boolean;
         fileSize?: number | undefined;
+        rawFile?: string | undefined;
     }[];
 }, {
     /** Holt den nächsten PDF-Datensatz + zugehöriges SensitiveMeta
      *  und fügt beides zusammen. */
     fetchNext(lastId?: number): Promise<PatientData | null>;
-    patchPdf(payload: Partial<PatientData>): Promise<import("axios").AxiosResponse<any, any>>;
-    patchVideo(payload: any): Promise<void>;
+    patchPdf(payload: {
+        id?: number;
+        sensitive_meta_id?: number;
+        [key: string]: any;
+    }): Promise<any>;
+    patchVideo(payload: {
+        id?: number;
+        sensitive_meta_id?: number;
+        [key: string]: any;
+    }): Promise<any>;
     fetchPendingAnonymizations(): {
         id: number;
         sensitiveMetaId: number;

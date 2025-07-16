@@ -12,7 +12,9 @@ const annotationStore = useAnnotationStore();
 const isRefreshing = ref(false);
 const processingFiles = ref(new Set());
 // Computed
-const hasProcessingFiles = computed(() => anonymizationStore.overview.some(file => file.anonymizationStatus === 'processing_anonymization' || file.anonymizationStatus === 'extracting_frames'));
+const availableFiles = computed(() => anonymizationStore.overview.filter(file => hasOriginalFile(file)));
+const filteredOutCount = computed(() => anonymizationStore.overview.length - availableFiles.value.length);
+const hasProcessingFiles = computed(() => availableFiles.value.some(file => file.anonymizationStatus === 'processing_anonymization' || file.anonymizationStatus === 'extracting_frames'));
 // Methods
 const refreshOverview = async () => {
     isRefreshing.value = true;
@@ -121,7 +123,7 @@ const formatDate = (dateString) => {
     });
 };
 const getTotalByStatus = (status) => {
-    return anonymizationStore.overview.filter(file => file.anonymizationStatus === status).length;
+    return availableFiles.value.filter(file => file.anonymizationStatus === status).length;
 };
 const validateSegmentsFile = async (fileId) => {
     processingFiles.value.add(fileId);
@@ -140,12 +142,25 @@ const validateSegmentsFile = async (fileId) => {
         processingFiles.value.delete(fileId);
     }
 };
+const hasOriginalFile = (file) => {
+    // Check if the file has the necessary properties to indicate original file exists
+    if (file.mediaType === 'video') {
+        // For videos, check if rawFile exists and has a valid path
+        return !!(file.rawFile && file.rawFile.trim() !== '');
+    }
+    else if (file.mediaType === 'pdf') {
+        // For PDFs, check if original_file exists and has a valid path
+        return !!(file.rawFile && file.rawFile.trim() !== '');
+    }
+    // If we can't determine the media type, assume it's available
+    return true;
+};
 // Lifecycle
 onMounted(async () => {
     await anonymizationStore.fetchOverview();
     // Start polling if there are processing files
     if (hasProcessingFiles.value) {
-        anonymizationStore.overview
+        availableFiles.value
             .filter(file => file.anonymizationStatus === 'processing_anonymization')
             .forEach(file => anonymizationStore.startPolling(file.id));
     }
@@ -213,7 +228,7 @@ function __VLS_template() {
         __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
         (__VLS_ctx.anonymizationStore.error);
     }
-    if (__VLS_ctx.anonymizationStore.loading && !__VLS_ctx.anonymizationStore.overview.length) {
+    if (__VLS_ctx.anonymizationStore.loading && !__VLS_ctx.availableFiles.length) {
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: ("text-center py-5") },
         });
@@ -228,7 +243,7 @@ function __VLS_template() {
             ...{ class: ("mt-2") },
         });
     }
-    else if (!__VLS_ctx.anonymizationStore.overview.length) {
+    else if (!__VLS_ctx.availableFiles.length) {
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: ("text-center py-5") },
         });
@@ -279,7 +294,7 @@ function __VLS_template() {
         __VLS_elementAsFunction(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
         __VLS_elementAsFunction(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
         __VLS_elementAsFunction(__VLS_intrinsicElements.tbody, __VLS_intrinsicElements.tbody)({});
-        for (const [file] of __VLS_getVForSourceType((__VLS_ctx.anonymizationStore.overview))) {
+        for (const [file] of __VLS_getVForSourceType((__VLS_ctx.availableFiles))) {
             __VLS_elementAsFunction(__VLS_intrinsicElements.tr, __VLS_intrinsicElements.tr)({
                 key: ((file.id)),
             });
@@ -331,9 +346,9 @@ function __VLS_template() {
             if (file.mediaType === 'video' && __VLS_ctx.needsReimport(file)) {
                 __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
                     ...{ onClick: (...[$event]) => {
-                            if (!(!((__VLS_ctx.anonymizationStore.loading && !__VLS_ctx.anonymizationStore.overview.length))))
+                            if (!(!((__VLS_ctx.anonymizationStore.loading && !__VLS_ctx.availableFiles.length))))
                                 return;
-                            if (!(!((!__VLS_ctx.anonymizationStore.overview.length))))
+                            if (!(!((!__VLS_ctx.availableFiles.length))))
                                 return;
                             if (!((file.mediaType === 'video' && __VLS_ctx.needsReimport(file))))
                                 return;
@@ -350,9 +365,9 @@ function __VLS_template() {
             if (file.anonymizationStatus === 'not_started') {
                 __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
                     ...{ onClick: (...[$event]) => {
-                            if (!(!((__VLS_ctx.anonymizationStore.loading && !__VLS_ctx.anonymizationStore.overview.length))))
+                            if (!(!((__VLS_ctx.anonymizationStore.loading && !__VLS_ctx.availableFiles.length))))
                                 return;
-                            if (!(!((!__VLS_ctx.anonymizationStore.overview.length))))
+                            if (!(!((!__VLS_ctx.availableFiles.length))))
                                 return;
                             if (!((file.anonymizationStatus === 'not_started')))
                                 return;
@@ -368,9 +383,9 @@ function __VLS_template() {
             if (file.anonymizationStatus === 'failed') {
                 __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
                     ...{ onClick: (...[$event]) => {
-                            if (!(!((__VLS_ctx.anonymizationStore.loading && !__VLS_ctx.anonymizationStore.overview.length))))
+                            if (!(!((__VLS_ctx.anonymizationStore.loading && !__VLS_ctx.availableFiles.length))))
                                 return;
-                            if (!(!((!__VLS_ctx.anonymizationStore.overview.length))))
+                            if (!(!((!__VLS_ctx.availableFiles.length))))
                                 return;
                             if (!((file.anonymizationStatus === 'failed')))
                                 return;
@@ -386,9 +401,9 @@ function __VLS_template() {
             if (file.anonymizationStatus === 'done') {
                 __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
                     ...{ onClick: (...[$event]) => {
-                            if (!(!((__VLS_ctx.anonymizationStore.loading && !__VLS_ctx.anonymizationStore.overview.length))))
+                            if (!(!((__VLS_ctx.anonymizationStore.loading && !__VLS_ctx.availableFiles.length))))
                                 return;
-                            if (!(!((!__VLS_ctx.anonymizationStore.overview.length))))
+                            if (!(!((!__VLS_ctx.availableFiles.length))))
                                 return;
                             if (!((file.anonymizationStatus === 'done')))
                                 return;
@@ -404,9 +419,9 @@ function __VLS_template() {
             if (file.mediaType === 'video' && (file.anonymizationStatus === 'done' || file.anonymizationStatus === 'validated')) {
                 __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
                     ...{ onClick: (...[$event]) => {
-                            if (!(!((__VLS_ctx.anonymizationStore.loading && !__VLS_ctx.anonymizationStore.overview.length))))
+                            if (!(!((__VLS_ctx.anonymizationStore.loading && !__VLS_ctx.availableFiles.length))))
                                 return;
-                            if (!(!((!__VLS_ctx.anonymizationStore.overview.length))))
+                            if (!(!((!__VLS_ctx.availableFiles.length))))
                                 return;
                             if (!((file.mediaType === 'video' && (file.anonymizationStatus === 'done' || file.anonymizationStatus === 'validated'))))
                                 return;
@@ -439,7 +454,7 @@ function __VLS_template() {
             }
         }
     }
-    if (__VLS_ctx.anonymizationStore.overview.length) {
+    if (__VLS_ctx.availableFiles.length) {
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: ("row mt-4") },
         });
@@ -511,7 +526,18 @@ function __VLS_template() {
             ...{ class: ("text-muted") },
         });
     }
-    ['container-fluid', 'py-4', 'card', 'card-header', 'pb-0', 'd-flex', 'justify-content-between', 'align-items-center', 'mb-0', 'd-flex', 'gap-2', 'btn', 'btn-outline-primary', 'btn-sm', 'fas', 'fa-sync-alt', 'fa-spin', 'btn', 'btn-primary', 'btn-sm', 'fas', 'fa-play', 'me-1', 'card-body', 'alert', 'alert-danger', 'text-center', 'py-5', 'spinner-border', 'text-primary', 'visually-hidden', 'mt-2', 'text-center', 'py-5', 'mb-4', 'fas', 'fa-folder-open', 'fa-3x', 'text-muted', 'text-muted', 'text-muted', 'mb-4', 'btn', 'btn-primary', 'fas', 'fa-upload', 'me-2', 'table-responsive', 'table', 'table-hover', 'table-light', 'd-flex', 'align-items-center', 'me-2', 'fw-medium', 'badge', 'badge', 'fas', 'fa-spinner', 'fa-spin', 'me-1', 'badge', 'text-muted', 'btn-group', 'btn-group-sm', 'btn', 'btn-outline-info', 'fas', 'fa-redo-alt', 'btn', 'btn-outline-primary', 'fas', 'fa-play', 'btn', 'btn-outline-warning', 'fas', 'fa-redo', 'btn', 'btn-outline-success', 'fas', 'fa-eye', 'btn', 'btn-outline-warning', 'fas', 'fa-edit', 'btn', 'btn-outline-info', 'fas', 'fa-spinner', 'fa-spin', 'me-1', 'btn', 'btn-outline-info', 'fas', 'fa-spinner', 'fa-spin', 'me-1', 'row', 'mt-4', 'col-md-12', 'card', 'bg-light', 'card-body', 'card-title', 'row', 'text-center', 'col-md-3', 'mb-2', 'badge', 'bg-secondary', 'fs-6', 'text-muted', 'col-md-3', 'mb-2', 'badge', 'bg-warning', 'fs-6', 'text-muted', 'col-md-3', 'mb-2', 'badge', 'bg-success', 'fs-6', 'text-muted', 'col-md-3', 'mb-2', 'badge', 'bg-danger', 'fs-6', 'text-muted',];
+    if (__VLS_ctx.filteredOutCount > 0) {
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("alert alert-warning mt-3") },
+            role: ("alert"),
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: ("fas fa-exclamation-triangle me-2") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+        (__VLS_ctx.filteredOutCount);
+    }
+    ['container-fluid', 'py-4', 'card', 'card-header', 'pb-0', 'd-flex', 'justify-content-between', 'align-items-center', 'mb-0', 'd-flex', 'gap-2', 'btn', 'btn-outline-primary', 'btn-sm', 'fas', 'fa-sync-alt', 'fa-spin', 'btn', 'btn-primary', 'btn-sm', 'fas', 'fa-play', 'me-1', 'card-body', 'alert', 'alert-danger', 'text-center', 'py-5', 'spinner-border', 'text-primary', 'visually-hidden', 'mt-2', 'text-center', 'py-5', 'mb-4', 'fas', 'fa-folder-open', 'fa-3x', 'text-muted', 'text-muted', 'text-muted', 'mb-4', 'btn', 'btn-primary', 'fas', 'fa-upload', 'me-2', 'table-responsive', 'table', 'table-hover', 'table-light', 'd-flex', 'align-items-center', 'me-2', 'fw-medium', 'badge', 'badge', 'fas', 'fa-spinner', 'fa-spin', 'me-1', 'badge', 'text-muted', 'btn-group', 'btn-group-sm', 'btn', 'btn-outline-info', 'fas', 'fa-redo-alt', 'btn', 'btn-outline-primary', 'fas', 'fa-play', 'btn', 'btn-outline-warning', 'fas', 'fa-redo', 'btn', 'btn-outline-success', 'fas', 'fa-eye', 'btn', 'btn-outline-warning', 'fas', 'fa-edit', 'btn', 'btn-outline-info', 'fas', 'fa-spinner', 'fa-spin', 'me-1', 'btn', 'btn-outline-info', 'fas', 'fa-spinner', 'fa-spin', 'me-1', 'row', 'mt-4', 'col-md-12', 'card', 'bg-light', 'card-body', 'card-title', 'row', 'text-center', 'col-md-3', 'mb-2', 'badge', 'bg-secondary', 'fs-6', 'text-muted', 'col-md-3', 'mb-2', 'badge', 'bg-warning', 'fs-6', 'text-muted', 'col-md-3', 'mb-2', 'badge', 'bg-success', 'fs-6', 'text-muted', 'col-md-3', 'mb-2', 'badge', 'bg-danger', 'fs-6', 'text-muted', 'alert', 'alert-warning', 'mt-3', 'fas', 'fa-exclamation-triangle', 'me-2',];
     var __VLS_slots;
     var $slots;
     let __VLS_inheritedAttrs;
@@ -532,6 +558,8 @@ const __VLS_self = (await import('vue')).defineComponent({
         return {
             anonymizationStore: anonymizationStore,
             isRefreshing: isRefreshing,
+            availableFiles: availableFiles,
+            filteredOutCount: filteredOutCount,
             refreshOverview: refreshOverview,
             startAnonymization: startAnonymization,
             correctVideo: correctVideo,

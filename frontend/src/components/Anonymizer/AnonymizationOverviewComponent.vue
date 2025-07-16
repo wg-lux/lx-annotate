@@ -29,7 +29,7 @@
           <strong>Fehler:</strong> {{ anonymizationStore.error }}
         </div>
         <!-- Loading State -->
-        <div v-if="anonymizationStore.loading && !anonymizationStore.overview.length" class="text-center py-5">
+        <div v-if="anonymizationStore.loading && !availableFiles.length" class="text-center py-5">
           <div class="spinner-border text-primary" role="status">
             <span class="visually-hidden">Wird geladen...</span>
           </div>
@@ -37,7 +37,7 @@
         </div>
 
         <!-- Empty State -->
-        <div v-else-if="!anonymizationStore.overview.length" class="text-center py-5">
+        <div v-else-if="!availableFiles.length" class="text-center py-5">
           <div class="mb-4">
             <i class="fas fa-folder-open fa-3x text-muted"></i>
           </div>
@@ -65,7 +65,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="file in anonymizationStore.overview" :key="file.id">
+              <tr v-for="file in availableFiles" :key="file.id">
                 <!-- Filename -->
                 <td>
                   <div class="d-flex align-items-center">
@@ -204,7 +204,7 @@
         </div>
 
         <!-- Status Summary -->
-        <div class="row mt-4" v-if="anonymizationStore.overview.length">
+        <div class="row mt-4" v-if="availableFiles.length">
           <div class="col-md-12">
             <div class="card bg-light">
               <div class="card-body">
@@ -247,6 +247,12 @@
             </div>
           </div>
         </div>
+
+        <!-- Show warning if files were filtered out -->
+        <div v-if="filteredOutCount > 0" class="alert alert-warning mt-3" role="alert">
+          <i class="fas fa-exclamation-triangle me-2"></i>
+          <strong>Hinweis:</strong> {{ filteredOutCount }} Datei(en) wurden ausgeblendet, da die ursprünglichen Dateien nicht mehr verfügbar sind.
+        </div>
       </div>
     </div>
   </div>
@@ -270,8 +276,16 @@ const isRefreshing = ref(false);
 const processingFiles = ref<Set<number>>(new Set());
 
 // Computed
+const availableFiles = computed(() => 
+  anonymizationStore.overview.filter(file => hasOriginalFile(file))
+);
+
+const filteredOutCount = computed(() => 
+  anonymizationStore.overview.length - availableFiles.value.length
+);
+
 const hasProcessingFiles = computed(() => 
-  anonymizationStore.overview.some(file => file.anonymizationStatus === 'processing_anonymization' || file.anonymizationStatus === 'extracting_frames')
+  availableFiles.value.some(file => file.anonymizationStatus === 'processing_anonymization' || file.anonymizationStatus === 'extracting_frames')
 );
 
 // Methods
@@ -389,7 +403,7 @@ const formatDate = (dateString: string | null) => {
 };
 
 const getTotalByStatus = (status: string) => {
-  return anonymizationStore.overview.filter(file => file.anonymizationStatus === status).length;
+  return availableFiles.value.filter(file => file.anonymizationStatus === status).length;
 };
 
 const validateSegmentsFile = async (fileId: number) => {
@@ -409,13 +423,27 @@ const validateSegmentsFile = async (fileId: number) => {
   }
 };
 
+const hasOriginalFile = (file: FileItem): boolean => {
+  // Check if the file has the necessary properties to indicate original file exists
+  if (file.mediaType === 'video') {
+    // For videos, check if rawFile exists and has a valid path
+    return !!(file.rawFile && file.rawFile.trim() !== '');
+  } else if (file.mediaType === 'pdf') {
+    // For PDFs, check if original_file exists and has a valid path
+    return !!(file.rawFile && file.rawFile.trim() !== '');
+  }
+  
+  // If we can't determine the media type, assume it's available
+  return true;
+};
+
 // Lifecycle
 onMounted(async () => {
   await anonymizationStore.fetchOverview();
   
   // Start polling if there are processing files
   if (hasProcessingFiles.value) {
-    anonymizationStore.overview
+    availableFiles.value
       .filter(file => file.anonymizationStatus === 'processing_anonymization')
       .forEach(file => anonymizationStore.startPolling(file.id));
   }

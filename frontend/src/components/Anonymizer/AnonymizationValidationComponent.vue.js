@@ -137,10 +137,27 @@ const approveItem = async () => {
         // Determine media type and use appropriate endpoint
         const isVideo = currentItem.value.reportMeta?.file && !currentItem.value.reportMeta?.pdfUrl;
         if (isVideo) {
-            await anonymizationStore.patchVideo(updatedData);
+            // For videos, add validation acceptance flag and trigger raw file deletion
+            const videoUpdateData = {
+                sensitive_meta_id: currentItem.value.reportMeta?.id,
+                is_verified: true,
+                delete_raw_files: true,
+                ...editedPatient.value,
+                examination_date: examinationDate.value
+            };
+            await anonymizationStore.patchVideo(videoUpdateData);
         }
         else {
-            await anonymizationStore.patchPdf(updatedData);
+            // For PDFs, add validation acceptance flag and trigger raw file deletion
+            const pdfUpdateData = {
+                sensitive_meta_id: currentItem.value.reportMeta?.id,
+                is_verified: true,
+                delete_raw_files: true,
+                ...editedPatient.value,
+                examination_date: examinationDate.value,
+                anonymized_text: editedAnonymizedText.value
+            };
+            await anonymizationStore.patchPdf(pdfUpdateData);
         }
         await fetchNextItem();
         dirty.value = false;

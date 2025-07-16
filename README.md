@@ -25,7 +25,7 @@ lx-annotate handles its setup mostly automatically using devenv.nix.
 
 ## Installation
 
-Lx-annotate is set up by a devenv.nix and uv2nix automatically. This file defines all inputs to the program, enables CUDA on the system and then sets up a python environment containing all the dependencies. To start the installation follow these steps:
+Lx-annotate is set up by a devenv.nix and pyproject.toml automatically. These define all inputs to the program, enable CUDA on the system and then set up a python environment containing all the dependencies. To start the installation follow these steps:
 
 1. **Clone the Repository**:
    ```bash
@@ -43,7 +43,7 @@ Lx-annotate is set up by a devenv.nix and uv2nix automatically. This file define
    direnv allow
    ```
 
-   Fallback:
+   You will probably need to run manually:
 
    ```bash
    uv sync
@@ -75,6 +75,11 @@ Lx-annotate is set up by a devenv.nix and uv2nix automatically. This file define
         ```
 
   should handle the setup steps mentioned above automatically.
+
+
+## File Import
+
+File import works by placing files into raw_frames and raw_videos.
 
 ## API Setup
 

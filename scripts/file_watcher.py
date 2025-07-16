@@ -231,7 +231,7 @@ class AutoProcessingHandler(FileSystemEventHandler):
 
     def _process_video(self, video_path: Path):
         """
-        Process a video file: import, anonymize, and segment.
+        Process a video file: import, anonymize, and segment with improved error handling.
         
         Args:
             video_path: Path to the video file
@@ -242,20 +242,61 @@ class AutoProcessingHandler(FileSystemEventHandler):
             # Mark as processed to avoid duplicate processing
             self.processed_files.add(str(video_path))
             
-            # Import and anonymize video
-            video_file = import_and_anonymize(
-                file_path=video_path,
-                center_name=self.default_center,
-                processor_name=self.default_processor,
-                save_video=True,
-                delete_source=False  # Keep original file
-            )
+            # Early storage capacity check
+            try:
+                from endoreg_db.exceptions import InsufficientStorageError
+                from endoreg_db.models.media.video.create_from_file import check_storage_capacity
+                storage_root = Path(PROJECT_ROOT) / 'storage' / 'videos'
+                check_storage_capacity(video_path, storage_root)
+            except InsufficientStorageError as storage_error:
+                logger.error(f"Insufficient storage space for {video_path}: {storage_error}")
+                # Don't mark as processed - allow retry when space is available
+                self.processed_files.discard(str(video_path))
+                # Set status to indicate storage issue
+                self._set_anonymization_status(video_path, 'failed', 
+                                             f"Storage full: {storage_error}", progress=0)
+                return
+            except Exception as storage_error:
+                logger.warning(f"Storage check failed, proceeding anyway: {storage_error}")
             
-            logger.info(f"Video imported successfully: {video_file.uuid}")
+            # Import and anonymize video
+            try:
+                video_file = import_and_anonymize(
+                    file_path=video_path,
+                    center_name=self.default_center,
+                    processor_name=self.default_processor,
+                    save_video=True,
+                    delete_source=False  # Keep original file
+                )
+                
+                logger.info(f"Video imported successfully: {video_file.uuid}")
+                
+            except Exception as import_error:
+                error_msg = str(import_error)
+                
+                # Handle specific error types
+                if "Insufficient storage" in error_msg or "No space left on device" in error_msg:
+                    logger.error(f"Storage error during import for {video_path}: {import_error}")
+                    self.processed_files.discard(str(video_path))
+                    self._set_anonymization_status(video_path, 'failed', 
+                                                 f"Storage error: {import_error}", progress=0)
+                    return
+                elif "already exists" in error_msg:
+                    logger.info(f"Video {video_path} already exists in database, skipping")
+                    return
+                else:
+                    logger.error(f"Import failed for {video_path}: {import_error}")
+                    self.processed_files.discard(str(video_path))
+                    self._set_anonymization_status(video_path, 'failed', 
+                                                 f"Import failed: {import_error}", progress=0)
+                    return
             
             # Run segmentation if video was imported successfully
             if video_file and video_file.pk:
                 try:
+                    self._set_anonymization_status(video_file, 'processing_anonymization', 
+                                                 'Running segmentation...', progress=50)
+                    
                     success = video_file.pipe_1(
                         model_name=self.default_model,
                         delete_frames_after=True
@@ -263,47 +304,103 @@ class AutoProcessingHandler(FileSystemEventHandler):
                     
                     if success:
                         logger.info(f"Video segmentation completed: {video_file.uuid}")
+                        
+                        # ⭐ IMPORTANT: Set anonymization status to "done" for frontend validation
+                        self._set_anonymization_status(video_file, 'done', 
+                                                     'Video processing completed successfully', progress=100)
+                        
                     else:
                         logger.error(f"Video segmentation failed: {video_file.uuid}")
+                        self._set_anonymization_status(video_file, 'failed', 
+                                                     'Video segmentation failed', progress=50)
                         
                 except Exception as e:
                     logger.error(f"Error during video segmentation: {str(e)}", exc_info=True)
+                    self._set_anonymization_status(video_file, 'failed', 
+                                                 f'Segmentation error: {str(e)}', progress=50)
             
             logger.info(f"Video processing completed: {video_path}")
             
         except Exception as e:
-            logger.error(f"Error processing video {video_path}: {str(e)}", exc_info=True)
-            # Remove from processed set on error to allow retry
-            self.processed_files.discard(str(video_path))
+            error_msg = str(e)
+            logger.error(f"Error processing video {video_path}: {error_msg}", exc_info=True)
+            
+            # Handle specific error types
+            if any(phrase in error_msg.lower() for phrase in ["insufficient storage", "no space left", "disk full"]):
+                logger.warning(f"Storage error for {video_path}, will retry when space is available")
+                # Don't mark as processed - allow retry
+                self.processed_files.discard(str(video_path))
+                self._set_anonymization_status(video_path, 'failed', 
+                                             f"Storage error: {error_msg}", progress=0)
+                # TODO: Implement exponential backoff retry mechanism
+                return
+            else:
+                # For other errors, remove from processed set to allow retry
+                logger.warning(f"Removing {video_path} from processed set due to error")
+                self.processed_files.discard(str(video_path))
+                self._set_anonymization_status(video_path, 'failed', 
+                                             f"Processing error: {error_msg}", progress=0)
 
-    def _process_pdf(self, pdf_path: Path):
+    def _set_anonymization_status(self, target, status: str, message: str, progress: int = 0):
         """
-        Process a PDF file: import and anonymize.
+        Set the anonymization status for frontend tracking.
         
         Args:
-            pdf_path: Path to the PDF file
+            target: VideoFile instance or Path to video file
+            status: Status string ('processing_anonymization', 'done', 'failed', etc.)
+            message: Status message
+            progress: Progress percentage (0-100)
         """
         try:
-            logger.info(f"Starting PDF processing: {pdf_path}")
+            # Import here to avoid circular imports
+            from endoreg_db.models import AnonymizationTask
             
-            # Mark as processed to avoid duplicate processing
-            self.processed_files.add(str(pdf_path))
+            video_file = None
+            video_path = None
             
-            # Use Django management command for PDF import
-            call_command(
-                'import_pdf',
-                str(pdf_path),
-                '--center_name', self.default_center,
-                '--delete_source', 'False',
-                '--verbose'
-            )
+            if isinstance(target, Path):
+                video_path = target
+                # Try to find existing video file by original filename
+                try:
+                    video_file = VideoFile.objects.filter(
+                        original_file_name=target.name
+                    ).first()
+                except Exception:
+                    pass
+            else:
+                video_file = target
             
-            logger.info(f"PDF processing completed: {pdf_path}")
+            if video_file:
+                # Find or create anonymization task for this video
+                anonymization_task, created = AnonymizationTask.objects.get_or_create(
+                    video_file=video_file,
+                    defaults={
+                        'status': status,
+                        'progress': progress,
+                        'message': message
+                    }
+                )
+                
+                if not created:
+                    # Update existing task
+                    anonymization_task.status = status
+                    anonymization_task.progress = progress
+                    anonymization_task.message = message
+                    anonymization_task.save(update_fields=['status', 'progress', 'message'])
+                
+                logger.info(f"Anonymization status set to '{status}' for video {video_file.uuid}")
+            else:
+                logger.warning(f"Could not set status for {target} - video file not found")
             
         except Exception as e:
-            logger.error(f"Error processing PDF {pdf_path}: {str(e)}", exc_info=True)
-            # Remove from processed set on error to allow retry
-            self.processed_files.discard(str(pdf_path))
+            logger.error(f"Failed to set anonymization status for {target}: {e}")
+
+    def _set_anonymization_done_status(self, video_file):
+        """
+        DEPRECATED: Use _set_anonymization_status instead.
+        """
+        self._set_anonymization_status(video_file, 'done', 
+                                     'Video processing completed successfully', progress=100)
 
     def shutdown(self):
         """Shutdown the thread pool executor."""
@@ -437,8 +534,29 @@ class FileWatcherService:
                 recursive=False
             )
             self.observer.start()
+        
+        # Check storage space periodically
+        try:
+            import shutil
+            storage_root = PROJECT_ROOT / 'storage' / 'videos'
+            if storage_root.exists():
+                total, used, free = shutil.disk_usage(storage_root)
+                free_gb = free / (1024**3)
+                total_gb = total / (1024**3)
+                usage_percent = (used / total) * 100
+                
+                logger.debug(f"Storage: {free_gb:.1f} GB free of {total_gb:.1f} GB ({usage_percent:.1f}% used)")
+                
+                # Warning thresholds
+                if free_gb < 5.0:  # Less than 5GB free
+                    logger.warning(f"Storage space running low: {free_gb:.1f} GB free")
+                elif usage_percent > 90:  # More than 90% used
+                    logger.warning(f"Storage usage high: {usage_percent:.1f}% used")
+                    
+        except Exception as e:
+            logger.debug(f"Storage check failed: {e}")
 
-
+    # ...existing code...
 def main():
     """Main entry point for the file watcher service."""
     logger.info("Starting File Watcher Service")

@@ -108,6 +108,11 @@ const router = createRouter({
             }
         },
         {
+            path: '/anonymisierung/korrektur',
+            name: 'Anonymisierung Korrektur',
+            component: () => import('@/components/Anonymizer/AnonymizationCorrectionComponent.vue')
+        },
+        {
             path: '/validierung',
             name: 'Validierung',
             component: () => import('@/views/Validierung.vue'),
