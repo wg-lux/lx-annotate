@@ -20,20 +20,11 @@
         <div v-else-if="!currentItem" class="alert alert-info" role="alert">
           Alle Anonymisierungen wurden bearbeitet.
         </div>
-
-        <!-- File Upload Zone - shown when no current item and no successful upload yet -->
-        <div v-if="!currentItem && !hasSuccessfulUpload" class="mb-4">
-          <FileDropZone 
-            :is-uploading="isUploading || anonymizationStore.isAnyFileProcessing"
-            @files-selected="handleFilesSelected"
-            accepted-file-types="*"
-          />
           
           <!-- Processing Status Alert -->
           <div v-if="anonymizationStore.isAnyFileProcessing" class="alert alert-warning mt-3">
             <i class="fas fa-info-circle me-2"></i>
             <strong>{{ anonymizationStore.processingFiles.length }} Datei(en)</strong> werden gerade anonymisiert.
-            Der Upload neuer Dateien ist temporär deaktiviert.
             <div class="mt-2">
               <router-link to="/anonymisierung/uebersicht" class="btn btn-sm btn-outline-primary">
                 <i class="fas fa-eye me-1"></i>
@@ -44,7 +35,7 @@
         </div>
 
         <!-- Main Content When Data is Available -->
-        <template v-else>
+        <template v-if="currentItem">
           <!-- Content Type Indicator -->
           <div class="row mb-3">
             <div class="col-12">
@@ -130,12 +121,6 @@
               <div class="card bg-light">
                 <div class="card-body">
                   <h5 class="card-title">Annotationen</h5>
-                  <!-- UNUSED <div class="mb-3">
-                    FilePond Component
-                    <FilePond ref="pond" name="file"
-                      accepted-file-types="image/*"
-                      label-idle="Bild hier ablegen oder klicken" />
-                  </div> -->
                   <div v-if="processedUrl" class="mt-3">
                     <img :src="showOriginal ? originalUrl : processedUrl"
                          class="img-fluid" alt="Uploaded Image">
@@ -245,7 +230,6 @@
         </template>
       </div>
     </div>
-  </div>
 </template>
 
 <script setup lang="ts">
@@ -255,16 +239,9 @@ import {useVideoStore, type Video} from '@/stores/videoStore';
 import { usePatientStore } from '@/stores/patientStore';
 
 // @ts-ignore
-import vueFilePond from 'vue-filepond';
 import axiosInstance, { r } from '@/api/axiosInstance';
 // @ts-ignore
-import { setOptions, registerPlugin } from 'filepond';
-import FileDropZone from '@/components/common/FileDropZone.vue';
 
-// @ts-ignore
-import FilePondPluginImagePreview from 'filepond-plugin-image-preview';
-// @ts-ignore
-import FilePondPluginFileValidateType from 'filepond-plugin-file-validate-type';
 
 
 
@@ -290,7 +267,6 @@ const editedPatient = ref({
 const originalUrl = ref('');
 const processedUrl = ref('');
 const showOriginal = ref(false);
-const isUploading = ref(false);
 const hasSuccessfulUpload = ref(false);
 
 // Dirty tracking
@@ -362,32 +338,6 @@ const toggleImage = () => {
 
 
 
-const handleFilesSelected = async (files: File[]) => {
-  if (!files || files.length === 0) {
-    console.warn('handleFilesSelected: empty file array received');
-    return;
-  }
-  
-  isUploading.value = true;
-  
-  try {
-    console.log('Processing files:', files.map(f => f.name));
-    
-    // Convert File[] to FileList using DataTransfer
-    const dataTransfer = new DataTransfer();
-    files.forEach(file => dataTransfer.items.add(file));
-    
-    const result = await anonymizationStore.uploadAndFetch(dataTransfer.files);
-    if (result) {
-      hasSuccessfulUpload.value = true;
-    }
-  } catch (error) {
-    console.error('Error uploading files:', error);
-  } finally {
-    isUploading.value = false;
-  }
-};
-
 const skipItem = async () => {
   if (currentItem.value) {
     await fetchNextItem();
@@ -422,6 +372,9 @@ const approveItem = async () => {
     
     if (isVideo) {
       // For videos, add validation acceptance flag and trigger raw file deletion
+      await videoStore.loadVideo(currentItem.value.id.toString());
+      
+      
       const videoUpdateData = {
         sensitive_meta_id: currentItem.value.reportMeta?.id,
         is_verified: true,
@@ -455,7 +408,6 @@ const saveAnnotation = async () => {
   
   try {
     const annotationData = {
-      original_image_url: originalUrl.value,
       processed_image_url: processedUrl.value,
       patient_data: editedPatient.value,
       examinationDate: examinationDate.value,
@@ -497,14 +449,12 @@ const getVideoStreamUrl = () => {
   if (
     !currentItem.value ||
     !currentItem.value.reportMeta ||
-    currentItem.value.reportMeta.pdfUrl            // => we have a PDF
+    currentItem.value.reportMeta.pdfUrl
   ) {
     return null;
   }
-  const base = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
-  
-  // Use the correct video stream endpoint that serves raw bytes
-  return `${base}/api/media/videos/${currentItem.value.id}/`;
+
+  return videoStore.videoStreamUrl;
 };
 
 // PDF streaming methods - mirroring video streaming functionality

@@ -366,7 +366,6 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
      * @param files - FileList or File array containing files to upload
      * @returns Promise that resolves when upload and fetch are complete
      */
-    uploadAndFetch(files: FileList | File[]): Promise<PatientData | null>;
     /**
      * Fetch overview of all uploaded files with their statuses
      */

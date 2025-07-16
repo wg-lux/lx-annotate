@@ -102,12 +102,10 @@ class AutoProcessingHandler(FileSystemEventHandler):
         self.video_extensions = {'.mp4', '.avi', '.mov', '.mkv', '.webm', '.m4v'}
         self.pdf_extensions = {'.pdf'}
         
-        # Default processing settings
         self.default_center = "university_hospital_wuerzburg"
         self.default_processor = "olympus_cv_1500"
         self.default_model = "image_multilabel_classification_colonoscopy_default"
         
-        # ⭐ FIX: ThreadPoolExecutor for heavy processing
         self.executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="FileProcessor")
         
         logger.info("AutoProcessingHandler initialized")
@@ -332,6 +330,7 @@ class AutoProcessingHandler(FileSystemEventHandler):
                 self.processed_files.discard(str(video_path))
                 self._set_anonymization_status(video_path, 'failed', 
                                              f"Storage error: {error_msg}", progress=0)
+                s = video_file.state if hasattr(video_file, 'state') else None
                 # TODO: Implement exponential backoff retry mechanism
                 return
             else:
@@ -352,8 +351,7 @@ class AutoProcessingHandler(FileSystemEventHandler):
             progress: Progress percentage (0-100)
         """
         try:
-            # Import here to avoid circular imports
-            from endoreg_db.models import AnonymizationTask
+            s = VideoFile.state if hasattr(VideoFile, 'state') else None
             
             video_file = None
             video_path = None
@@ -372,21 +370,15 @@ class AutoProcessingHandler(FileSystemEventHandler):
             
             if video_file:
                 # Find or create anonymization task for this video
-                anonymization_task, created = AnonymizationTask.objects.get_or_create(
-                    video_file=video_file,
-                    defaults={
-                        'status': status,
-                        'progress': progress,
-                        'message': message
-                    }
-                )
-                
-                if not created:
-                    # Update existing task
-                    anonymization_task.status = status
-                    anonymization_task.progress = progress
-                    anonymization_task.message = message
-                    anonymization_task.save(update_fields=['status', 'progress', 'message'])
+                if status in ["processing_anonymization", "extracting_frames" "done", "failed", "validated", "not_started"]:
+                    if not s:
+                        s = video_file.state
+                    
+                    # Update status and progress
+                    s.anonymization_status = status
+                    
+                    # Save state changes
+                    s.save(update_fields=["anonymization_status"])
                 
                 logger.info(f"Anonymization status set to '{status}' for video {video_file.uuid}")
             else:

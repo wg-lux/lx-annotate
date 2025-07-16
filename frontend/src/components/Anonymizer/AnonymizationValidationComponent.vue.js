@@ -3,15 +3,8 @@ import { useAnonymizationStore } from '@/stores/anonymizationStore';
 import { useVideoStore } from '@/stores/videoStore';
 import { usePatientStore } from '@/stores/patientStore';
 // @ts-ignore
-import vueFilePond from 'vue-filepond';
 import axiosInstance, { r } from '@/api/axiosInstance';
 // @ts-ignore
-import { setOptions, registerPlugin } from 'filepond';
-import FileDropZone from '@/components/common/FileDropZone.vue';
-// @ts-ignore
-import FilePondPluginImagePreview from 'filepond-plugin-image-preview';
-// @ts-ignore
-import FilePondPluginFileValidateType from 'filepond-plugin-file-validate-type';
 // Store references
 const anonymizationStore = useAnonymizationStore();
 const videoStore = useVideoStore();
@@ -30,7 +23,6 @@ const editedPatient = ref({
 const originalUrl = ref('');
 const processedUrl = ref('');
 const showOriginal = ref(false);
-const isUploading = ref(false);
 const hasSuccessfulUpload = ref(false);
 // Dirty tracking
 const dirty = ref(false);
@@ -85,29 +77,6 @@ const loadCurrentItemData = (item) => {
 const toggleImage = () => {
     showOriginal.value = !showOriginal.value;
 };
-const handleFilesSelected = async (files) => {
-    if (!files || files.length === 0) {
-        console.warn('handleFilesSelected: empty file array received');
-        return;
-    }
-    isUploading.value = true;
-    try {
-        console.log('Processing files:', files.map(f => f.name));
-        // Convert File[] to FileList using DataTransfer
-        const dataTransfer = new DataTransfer();
-        files.forEach(file => dataTransfer.items.add(file));
-        const result = await anonymizationStore.uploadAndFetch(dataTransfer.files);
-        if (result) {
-            hasSuccessfulUpload.value = true;
-        }
-    }
-    catch (error) {
-        console.error('Error uploading files:', error);
-    }
-    finally {
-        isUploading.value = false;
-    }
-};
 const skipItem = async () => {
     if (currentItem.value) {
         await fetchNextItem();
@@ -138,6 +107,7 @@ const approveItem = async () => {
         const isVideo = currentItem.value.reportMeta?.file && !currentItem.value.reportMeta?.pdfUrl;
         if (isVideo) {
             // For videos, add validation acceptance flag and trigger raw file deletion
+            await videoStore.loadVideo(currentItem.value.id.toString());
             const videoUpdateData = {
                 sensitive_meta_id: currentItem.value.reportMeta?.id,
                 is_verified: true,
@@ -171,7 +141,6 @@ const saveAnnotation = async () => {
         return;
     try {
         const annotationData = {
-            original_image_url: originalUrl.value,
             processed_image_url: processedUrl.value,
             patient_data: editedPatient.value,
             examinationDate: examinationDate.value,
@@ -210,13 +179,10 @@ const rejectItem = async () => {
 const getVideoStreamUrl = () => {
     if (!currentItem.value ||
         !currentItem.value.reportMeta ||
-        currentItem.value.reportMeta.pdfUrl // => we have a PDF
-    ) {
+        currentItem.value.reportMeta.pdfUrl) {
         return null;
     }
-    const base = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
-    // Use the correct video stream endpoint that serves raw bytes
-    return `${base}/api/media/videos/${currentItem.value.id}/`;
+    return videoStore.videoStreamUrl;
 };
 // PDF streaming methods - mirroring video streaming functionality
 const getPdfStreamUrl = () => {
@@ -314,61 +280,36 @@ function __VLS_template() {
             role: ("alert"),
         });
     }
-    if (!__VLS_ctx.currentItem && !__VLS_ctx.hasSuccessfulUpload) {
+    if (__VLS_ctx.anonymizationStore.isAnyFileProcessing) {
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("mb-4") },
+            ...{ class: ("alert alert-warning mt-3") },
         });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: ("fas fa-info-circle me-2") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+        (__VLS_ctx.anonymizationStore.processingFiles.length);
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("mt-2") },
+        });
+        const __VLS_0 = {}.RouterLink;
+        /** @type { [typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, ] } */ ;
         // @ts-ignore
-        /** @type { [typeof FileDropZone, ] } */ ;
-        // @ts-ignore
-        const __VLS_0 = __VLS_asFunctionalComponent(FileDropZone, new FileDropZone({
-            ...{ 'onFilesSelected': {} },
-            isUploading: ((__VLS_ctx.isUploading || __VLS_ctx.anonymizationStore.isAnyFileProcessing)),
-            acceptedFileTypes: ("*"),
+        const __VLS_1 = __VLS_asFunctionalComponent(__VLS_0, new __VLS_0({
+            to: ("/anonymisierung/uebersicht"),
+            ...{ class: ("btn btn-sm btn-outline-primary") },
         }));
-        const __VLS_1 = __VLS_0({
-            ...{ 'onFilesSelected': {} },
-            isUploading: ((__VLS_ctx.isUploading || __VLS_ctx.anonymizationStore.isAnyFileProcessing)),
-            acceptedFileTypes: ("*"),
-        }, ...__VLS_functionalComponentArgsRest(__VLS_0));
-        let __VLS_5;
-        const __VLS_6 = {
-            onFilesSelected: (__VLS_ctx.handleFilesSelected)
-        };
-        let __VLS_2;
-        let __VLS_3;
-        var __VLS_4;
-        if (__VLS_ctx.anonymizationStore.isAnyFileProcessing) {
-            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: ("alert alert-warning mt-3") },
-            });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: ("fas fa-info-circle me-2") },
-            });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
-            (__VLS_ctx.anonymizationStore.processingFiles.length);
-            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: ("mt-2") },
-            });
-            const __VLS_7 = {}.RouterLink;
-            /** @type { [typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, ] } */ ;
-            // @ts-ignore
-            const __VLS_8 = __VLS_asFunctionalComponent(__VLS_7, new __VLS_7({
-                to: ("/anonymisierung/uebersicht"),
-                ...{ class: ("btn btn-sm btn-outline-primary") },
-            }));
-            const __VLS_9 = __VLS_8({
-                to: ("/anonymisierung/uebersicht"),
-                ...{ class: ("btn btn-sm btn-outline-primary") },
-            }, ...__VLS_functionalComponentArgsRest(__VLS_8));
-            __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: ("fas fa-eye me-1") },
-            });
-            __VLS_12.slots.default;
-            var __VLS_12;
-        }
+        const __VLS_2 = __VLS_1({
+            to: ("/anonymisierung/uebersicht"),
+            ...{ class: ("btn btn-sm btn-outline-primary") },
+        }, ...__VLS_functionalComponentArgsRest(__VLS_1));
+        __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: ("fas fa-eye me-1") },
+        });
+        __VLS_5.slots.default;
+        var __VLS_5;
     }
-    else {
+    if (__VLS_ctx.currentItem) {
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: ("row mb-3") },
         });
@@ -633,7 +574,7 @@ function __VLS_template() {
             disabled: ((!__VLS_ctx.isExaminationDateValid || !__VLS_ctx.dirty)),
         });
     }
-    ['container-fluid', 'py-4', 'card', 'card-header', 'pb-0', 'mb-0', 'card-body', 'text-center', 'py-5', 'spinner-border', 'text-primary', 'visually-hidden', 'mt-2', 'alert', 'alert-danger', 'alert', 'alert-info', 'mb-4', 'alert', 'alert-warning', 'mt-3', 'fas', 'fa-info-circle', 'me-2', 'mt-2', 'btn', 'btn-sm', 'btn-outline-primary', 'fas', 'fa-eye', 'me-1', 'row', 'mb-3', 'col-12', 'alert', 'alert-info', 'd-flex', 'align-items-center', 'fas', 'fa-info-circle', 'me-2', 'row', 'mb-4', 'col-md-5', 'card', 'bg-light', 'mb-4', 'card-body', 'card-title', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-select', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-control', 'is-invalid', 'invalid-feedback', 'mb-3', 'form-label', 'form-control', 'card', 'bg-light', 'card-body', 'card-title', 'mt-3', 'img-fluid', 'btn', 'btn-info', 'btn-sm', 'mt-2', 'mt-3', 'btn', 'btn-primary', 'col-md-7', 'card', 'card-header', 'pb-0', 'mb-0', 'alert', 'alert-info', 'mt-2', 'mb-0', 'fas', 'fa-info-circle', 'me-2', 'card-body', 'media-viewer-container', 'alert', 'alert-warning', 'mb-0', 'row', 'col-12', 'd-flex', 'justify-content-between', 'btn', 'btn-secondary', 'btn', 'btn-danger', 'me-2', 'btn', 'btn-success',];
+    ['container-fluid', 'py-4', 'card', 'card-header', 'pb-0', 'mb-0', 'card-body', 'text-center', 'py-5', 'spinner-border', 'text-primary', 'visually-hidden', 'mt-2', 'alert', 'alert-danger', 'alert', 'alert-info', 'alert', 'alert-warning', 'mt-3', 'fas', 'fa-info-circle', 'me-2', 'mt-2', 'btn', 'btn-sm', 'btn-outline-primary', 'fas', 'fa-eye', 'me-1', 'row', 'mb-3', 'col-12', 'alert', 'alert-info', 'd-flex', 'align-items-center', 'fas', 'fa-info-circle', 'me-2', 'row', 'mb-4', 'col-md-5', 'card', 'bg-light', 'mb-4', 'card-body', 'card-title', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-select', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-control', 'is-invalid', 'invalid-feedback', 'mb-3', 'form-label', 'form-control', 'card', 'bg-light', 'card-body', 'card-title', 'mt-3', 'img-fluid', 'btn', 'btn-info', 'btn-sm', 'mt-2', 'mt-3', 'btn', 'btn-primary', 'col-md-7', 'card', 'card-header', 'pb-0', 'mb-0', 'alert', 'alert-info', 'mt-2', 'mb-0', 'fas', 'fa-info-circle', 'me-2', 'card-body', 'media-viewer-container', 'alert', 'alert-warning', 'mb-0', 'row', 'col-12', 'd-flex', 'justify-content-between', 'btn', 'btn-secondary', 'btn', 'btn-danger', 'me-2', 'btn', 'btn-success',];
     var __VLS_slots;
     var $slots;
     let __VLS_inheritedAttrs;
@@ -652,7 +593,6 @@ function __VLS_template() {
 const __VLS_self = (await import('vue')).defineComponent({
     setup() {
         return {
-            FileDropZone: FileDropZone,
             anonymizationStore: anonymizationStore,
             editedAnonymizedText: editedAnonymizedText,
             examinationDate: examinationDate,
@@ -660,14 +600,11 @@ const __VLS_self = (await import('vue')).defineComponent({
             originalUrl: originalUrl,
             processedUrl: processedUrl,
             showOriginal: showOriginal,
-            isUploading: isUploading,
-            hasSuccessfulUpload: hasSuccessfulUpload,
             dirty: dirty,
             currentItem: currentItem,
             isExaminationDateValid: isExaminationDateValid,
             canSubmit: canSubmit,
             toggleImage: toggleImage,
-            handleFilesSelected: handleFilesSelected,
             skipItem: skipItem,
             approveItem: approveItem,
             saveAnnotation: saveAnnotation,

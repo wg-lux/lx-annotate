@@ -2,7 +2,6 @@
 import { defineStore } from 'pinia';
 import axiosInstance, { a, r } from '@/api/axiosInstance';
 import axios from 'axios';
-import { uploadFiles, pollUploadStatus } from '@/api/upload';
 /* ------------------------------------------------------------------ */
 /* Store                                                               */
 /* ------------------------------------------------------------------ */
@@ -13,7 +12,6 @@ export const useAnonymizationStore = defineStore('anonymization', {
         error: null,
         pending: [],
         current: null,
-        // New state
         overview: [],
         pollingHandles: {},
         isPolling: false
@@ -137,47 +135,6 @@ export const useAnonymizationStore = defineStore('anonymization', {
          * @param files - FileList or File array containing files to upload
          * @returns Promise that resolves when upload and fetch are complete
          */
-        async uploadAndFetch(files) {
-            this.loading = true;
-            this.error = null;
-            try {
-                const fileArray = Array.from(files);
-                console.log('Starting upload process for files:', fileArray.map(f => f.name));
-                // 1) Upload files
-                const uploadResponse = await uploadFiles(files);
-                console.log('Upload initiated:', uploadResponse);
-                // 2) Poll status until completion
-                const finalStatus = await pollUploadStatus(uploadResponse.statusUrl, (status) => {
-                    console.log('Upload status update:', status);
-                    // Could emit progress events here if needed
-                });
-                console.log('Upload completed:', finalStatus);
-                if (finalStatus.status !== 'anonymized' || !finalStatus.sensitiveMetaId) {
-                    throw new Error('Upload completed but no sensitive meta ID received');
-                }
-                // 3) Fetch the newly created anonymization data
-                const result = await this.fetchNext(finalStatus.sensitiveMetaId);
-                if (!result) {
-                    throw new Error('Failed to fetch anonymization data after upload');
-                }
-                console.log('Upload and fetch process completed successfully');
-                return result;
-            }
-            catch (err) {
-                console.error('Error in uploadAndFetch:', err);
-                if (axios.isAxiosError(err)) {
-                    this.error = `Upload-Fehler (${err.response?.status}): ${err.message}`;
-                }
-                else {
-                    this.error = err?.message ?? 'Unbekannter Fehler beim Upload.';
-                }
-                this.$patch({ current: null });
-                return null;
-            }
-            finally {
-                this.loading = false;
-            }
-        },
         /**
          * Fetch overview of all uploaded files with their statuses
          */
@@ -311,13 +268,12 @@ export const useAnonymizationStore = defineStore('anonymization', {
                     // For videos, use the sensitiveMetaId to load the video data
                     if (!item.sensitiveMetaId || typeof item.sensitiveMetaId !== 'number') {
                         throw new Error(`Video item with ID ${id} has no valid sensitiveMetaId (got: ${item.sensitiveMetaId})`);
-                        return null;
                     }
                     console.log(`Loading video data for sensitiveMetaId: ${item.sensitiveMetaId}`);
-                    const { data: meta } = await axiosInstance.get(r(`media/videos/${item.sensitiveMetaId}`));
+                    const { data: meta } = await axiosInstance.get(r(`media/videos/${id}`));
                     console.log('Received video sensitive meta:', meta);
                     this.current = {
-                        id: item.sensitiveMetaId, // Use sensitiveMetaId for video stream URL
+                        id: id, // Use sensitiveMetaId for video stream URL
                         sensitiveMetaId: item.sensitiveMetaId,
                         text: '', // Videos don't have text
                         anonymizedText: '', // Videos don't have anonymized text
@@ -372,7 +328,6 @@ export const useAnonymizationStore = defineStore('anonymization', {
                 // Trigger re-import via backend
                 const response = await axiosInstance.post(r(`video/${fileId}/reimport/`));
                 console.log(`Video re-import response:`, response.data);
-                // ✅ NEW: Start polling immediately after re-import to monitor status
                 console.log(`Starting polling for re-imported video ${fileId}`);
                 this.startPolling(fileId);
                 // Check if re-import was successful
@@ -399,6 +354,5 @@ export const useAnonymizationStore = defineStore('anonymization', {
                 return false;
             }
         }
-        // ...existing actions continue...
     }
 });
