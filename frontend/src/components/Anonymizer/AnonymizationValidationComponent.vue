@@ -233,7 +233,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useAnonymizationStore, type PatientData } from '@/stores/anonymizationStore';
 import {useVideoStore, type Video} from '@/stores/videoStore';
 import { usePatientStore } from '@/stores/patientStore';
@@ -250,7 +250,9 @@ const anonymizationStore = useAnonymizationStore();
 const videoStore = useVideoStore();
 const patientStore = usePatientStore();
 
-
+// Polling state
+const pollingInterval = ref<number | null>(null);
+const POLLING_INTERVAL_MS = 3000; // Poll every 3 seconds
 
 // Local state
 const editedAnonymizedText = ref('');
@@ -501,11 +503,37 @@ const onVideoCanPlay = () => {
   console.log('Video can play, loaded successfully');
 };
 
+// Polling function
+const startPolling = () => {
+  if (pollingInterval.value !== null) return; // Already polling
+
+  pollingInterval.value = window.setInterval(async () => {
+    try {
+      await anonymizationStore.fetchNext();
+      console.log('Polling: Fetched next item');
+    } catch (error) {
+      console.error('Error during polling:', error);
+    }
+  }, POLLING_INTERVAL_MS);
+};
+
+const stopPolling = () => {
+  if (pollingInterval.value === null) return; // Not currently polling
+
+  clearInterval(pollingInterval.value);
+  pollingInterval.value = null;
+};
+
 // Lifecycle
  onMounted(async() => {
   if (!anonymizationStore.current) {     // only pull the “next” item if nothing is pre-loaded
     await fetchNextItem();
   }
+  startPolling();
+});
+
+onUnmounted(() => {
+  stopPolling();
 });
 </script>
 

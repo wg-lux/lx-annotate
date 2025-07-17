@@ -18,6 +18,8 @@ export interface AnonymizationState {
     overview: FileItem[];
     pollingHandles: Record<number, ReturnType<typeof setInterval>>;
     isPolling: boolean;
+    hasAvailableFiles: boolean;
+    availableFiles: FileItem[];
 }
 export interface SensitiveMetaApiResponse {
     id: number;
@@ -55,6 +57,29 @@ export interface PatientData {
     status?: string;
     error?: boolean;
 }
+export declare const availableFiles: import("vue").Ref<{
+    id: number;
+    filename: string;
+    mediaType: "pdf" | "video";
+    anonymizationStatus: "not_started" | "processing_anonymization" | "done" | "failed" | "validated" | "predicting_segments" | "extracting_frames";
+    annotationStatus: "not_started" | "done";
+    createdAt: string;
+    sensitiveMetaId?: number | undefined;
+    metadataImported: boolean;
+    fileSize?: number | undefined;
+    rawFile?: string | undefined;
+}[], FileItem[] | {
+    id: number;
+    filename: string;
+    mediaType: "pdf" | "video";
+    anonymizationStatus: "not_started" | "processing_anonymization" | "done" | "failed" | "validated" | "predicting_segments" | "extracting_frames";
+    annotationStatus: "not_started" | "done";
+    createdAt: string;
+    sensitiveMetaId?: number | undefined;
+    metadataImported: boolean;
+    fileSize?: number | undefined;
+    rawFile?: string | undefined;
+}[]>;
 export declare const useAnonymizationStore: import("pinia").StoreDefinition<"anonymization", AnonymizationState & {
     pending: PatientData[];
 }, {
@@ -103,6 +128,19 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
         }[];
         pollingHandles: Record<number, ReturnType<typeof setInterval>>;
         isPolling: boolean;
+        hasAvailableFiles: boolean;
+        availableFiles: {
+            id: number;
+            filename: string;
+            mediaType: "pdf" | "video";
+            anonymizationStatus: "not_started" | "processing_anonymization" | "done" | "failed" | "validated" | "predicting_segments" | "extracting_frames";
+            annotationStatus: "not_started" | "done";
+            createdAt: string;
+            sensitiveMetaId?: number | undefined;
+            metadataImported: boolean;
+            fileSize?: number | undefined;
+            rawFile?: string | undefined;
+        }[];
         pending: {
             id: number;
             sensitiveMetaId: number;
@@ -204,6 +242,19 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
         }[];
         pollingHandles: Record<number, ReturnType<typeof setInterval>>;
         isPolling: boolean;
+        hasAvailableFiles: boolean;
+        availableFiles: {
+            id: number;
+            filename: string;
+            mediaType: "pdf" | "video";
+            anonymizationStatus: "not_started" | "processing_anonymization" | "done" | "failed" | "validated" | "predicting_segments" | "extracting_frames";
+            annotationStatus: "not_started" | "done";
+            createdAt: string;
+            sensitiveMetaId?: number | undefined;
+            metadataImported: boolean;
+            fileSize?: number | undefined;
+            rawFile?: string | undefined;
+        }[];
         pending: {
             id: number;
             sensitiveMetaId: number;
@@ -279,6 +330,19 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
         }[];
         pollingHandles: Record<number, ReturnType<typeof setInterval>>;
         isPolling: boolean;
+        hasAvailableFiles: boolean;
+        availableFiles: {
+            id: number;
+            filename: string;
+            mediaType: "pdf" | "video";
+            anonymizationStatus: "not_started" | "processing_anonymization" | "done" | "failed" | "validated" | "predicting_segments" | "extracting_frames";
+            annotationStatus: "not_started" | "done";
+            createdAt: string;
+            sensitiveMetaId?: number | undefined;
+            metadataImported: boolean;
+            fileSize?: number | undefined;
+            rawFile?: string | undefined;
+        }[];
         pending: {
             id: number;
             sensitiveMetaId: number;

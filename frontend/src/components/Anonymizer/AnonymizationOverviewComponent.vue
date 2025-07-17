@@ -264,6 +264,7 @@ import { useRouter } from 'vue-router';
 import { useAnonymizationStore, type FileItem } from '@/stores/anonymizationStore';
 import { useVideoStore } from '@/stores/videoStore';
 import { useAnnotationStore } from '@/stores/annotationStore';
+import { availableFiles } from '../../stores/anonymizationStore';
 
 // Composables
 const router = useRouter();
@@ -275,17 +276,9 @@ const annotationStore = useAnnotationStore();
 const isRefreshing = ref(false);
 const processingFiles = ref<Set<number>>(new Set());
 
-// Computed
-const availableFiles = computed(() => 
-  anonymizationStore.overview.filter(file => hasOriginalFile(file))
-);
 
 const filteredOutCount = computed(() => 
   anonymizationStore.overview.length - availableFiles.value.length
-);
-
-const hasProcessingFiles = computed(() => 
-  availableFiles.value.some(file => file.anonymizationStatus === 'processing_anonymization' || file.anonymizationStatus === 'extracting_frames')
 );
 
 // Methods
@@ -306,7 +299,7 @@ const startAnonymization = async (fileId: number) => {
       // Refresh overview to get updated status
       await refreshOverview();
       
-      // No redirect needed - user is already on the correct page
+
       console.log('Anonymization started successfully for file', fileId);
     } else {
       console.warn('startAnonymization failed - staying on current page');
@@ -344,6 +337,7 @@ const reimportVideo = async (fileId: number) => {
     if (success) {
       // Refresh overview to get updated status
       await refreshOverview();
+            
       console.log('Video re-imported successfully:', fileId);
     } else {
       console.warn('Re-import failed - staying on current page');
@@ -372,8 +366,11 @@ const getMediaTypeBadgeClass = (mediaType: string) => {
 const getStatusBadgeClass = (status: string) => {
   const classes: { [key: string]: string } = {
     'not_started': 'bg-secondary',
-    'processing': 'bg-warning',
+    'processing_anonymization': 'bg-warning',
+    'extracting_frames': 'bg-info',
+    'predicting_segments': 'bg-info',
     'done': 'bg-success',
+    'validated': 'bg-success',
     'failed': 'bg-danger'
   };
   return classes[status] || 'bg-secondary';
@@ -382,8 +379,11 @@ const getStatusBadgeClass = (status: string) => {
 const getStatusText = (status: string) => {
   const texts: { [key: string]: string } = {
     'not_started': 'Nicht gestartet',
-    'processing': 'In Bearbeitung',
+    'processing_anonymization': 'Anonymisierung läuft',
+    'extracting_frames': 'Frames extrahieren',
+    'predicting_segments': 'Segmente vorhersagen',
     'done': 'Fertig',
+    'validated': 'Validiert',
     'failed': 'Fehlgeschlagen'
   };
   return texts[status] || status;
@@ -403,7 +403,17 @@ const formatDate = (dateString: string | null) => {
 };
 
 const getTotalByStatus = (status: string) => {
-  return availableFiles.value.filter(file => file.anonymizationStatus === status).length;
+  const statusMap: { [key: string]: string[] } = {
+    'not_started': ['not_started'],
+    'processing': ['processing_anonymization', 'extracting_frames', 'predicting_segments'],
+    'done': ['done', 'validated'],
+    'failed': ['failed']
+  };
+  
+  const relevantStatuses = statusMap[status] || [status];
+  return availableFiles.value.filter(file => 
+    relevantStatuses.includes(file.anonymizationStatus)
+  ).length;
 };
 
 const validateSegmentsFile = async (fileId: number) => {
@@ -441,16 +451,13 @@ const hasOriginalFile = (file: FileItem): boolean => {
 onMounted(async () => {
   await anonymizationStore.fetchOverview();
   
-  // Start polling if there are processing files
-  if (hasProcessingFiles.value) {
-    availableFiles.value
-      .filter(file => file.anonymizationStatus === 'processing_anonymization')
-      .forEach(file => anonymizationStore.startPolling(file.id));
-  }
+  availableFiles.value
+    .forEach(file => anonymizationStore.startPolling(file.id));
+  
 });
 
 onUnmounted(() => {
-  // Clean up polling when component is unmounted
+  // Clean up all polling when component is unmounted
   anonymizationStore.stopAllPolling();
 });
 </script>

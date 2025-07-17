@@ -3,6 +3,7 @@ import { useRouter } from 'vue-router';
 import { useAnonymizationStore } from '@/stores/anonymizationStore';
 import { useVideoStore } from '@/stores/videoStore';
 import { useAnnotationStore } from '@/stores/annotationStore';
+import { availableFiles } from '../../stores/anonymizationStore';
 // Composables
 const router = useRouter();
 const anonymizationStore = useAnonymizationStore();
@@ -11,10 +12,7 @@ const annotationStore = useAnnotationStore();
 // Local state
 const isRefreshing = ref(false);
 const processingFiles = ref(new Set());
-// Computed
-const availableFiles = computed(() => anonymizationStore.overview.filter(file => hasOriginalFile(file)));
 const filteredOutCount = computed(() => anonymizationStore.overview.length - availableFiles.value.length);
-const hasProcessingFiles = computed(() => availableFiles.value.some(file => file.anonymizationStatus === 'processing_anonymization' || file.anonymizationStatus === 'extracting_frames'));
 // Methods
 const refreshOverview = async () => {
     isRefreshing.value = true;
@@ -32,7 +30,6 @@ const startAnonymization = async (fileId) => {
         if (success) {
             // Refresh overview to get updated status
             await refreshOverview();
-            // No redirect needed - user is already on the correct page
             console.log('Anonymization started successfully for file', fileId);
         }
         else {
@@ -95,8 +92,11 @@ const getMediaTypeBadgeClass = (mediaType) => {
 const getStatusBadgeClass = (status) => {
     const classes = {
         'not_started': 'bg-secondary',
-        'processing': 'bg-warning',
+        'processing_anonymization': 'bg-warning',
+        'extracting_frames': 'bg-info',
+        'predicting_segments': 'bg-info',
         'done': 'bg-success',
+        'validated': 'bg-success',
         'failed': 'bg-danger'
     };
     return classes[status] || 'bg-secondary';
@@ -104,8 +104,11 @@ const getStatusBadgeClass = (status) => {
 const getStatusText = (status) => {
     const texts = {
         'not_started': 'Nicht gestartet',
-        'processing': 'In Bearbeitung',
+        'processing_anonymization': 'Anonymisierung läuft',
+        'extracting_frames': 'Frames extrahieren',
+        'predicting_segments': 'Segmente vorhersagen',
         'done': 'Fertig',
+        'validated': 'Validiert',
         'failed': 'Fehlgeschlagen'
     };
     return texts[status] || status;
@@ -123,7 +126,14 @@ const formatDate = (dateString) => {
     });
 };
 const getTotalByStatus = (status) => {
-    return availableFiles.value.filter(file => file.anonymizationStatus === status).length;
+    const statusMap = {
+        'not_started': ['not_started'],
+        'processing': ['processing_anonymization', 'extracting_frames', 'predicting_segments'],
+        'done': ['done', 'validated'],
+        'failed': ['failed']
+    };
+    const relevantStatuses = statusMap[status] || [status];
+    return availableFiles.value.filter(file => relevantStatuses.includes(file.anonymizationStatus)).length;
 };
 const validateSegmentsFile = async (fileId) => {
     processingFiles.value.add(fileId);
@@ -158,15 +168,11 @@ const hasOriginalFile = (file) => {
 // Lifecycle
 onMounted(async () => {
     await anonymizationStore.fetchOverview();
-    // Start polling if there are processing files
-    if (hasProcessingFiles.value) {
-        availableFiles.value
-            .filter(file => file.anonymizationStatus === 'processing_anonymization')
-            .forEach(file => anonymizationStore.startPolling(file.id));
-    }
+    availableFiles.value
+        .forEach(file => anonymizationStore.startPolling(file.id));
 });
 onUnmounted(() => {
-    // Clean up polling when component is unmounted
+    // Clean up all polling when component is unmounted
     anonymizationStore.stopAllPolling();
 });
 ; /* PartiallyEnd: #3632/scriptSetup.vue */
@@ -556,9 +562,9 @@ function __VLS_template() {
 const __VLS_self = (await import('vue')).defineComponent({
     setup() {
         return {
+            availableFiles: availableFiles,
             anonymizationStore: anonymizationStore,
             isRefreshing: isRefreshing,
-            availableFiles: availableFiles,
             filteredOutCount: filteredOutCount,
             refreshOverview: refreshOverview,
             startAnonymization: startAnonymization,

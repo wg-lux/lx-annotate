@@ -1,4 +1,4 @@
-import { ref, computed, watch, onMounted } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useAnonymizationStore } from '@/stores/anonymizationStore';
 import { useVideoStore } from '@/stores/videoStore';
 import { usePatientStore } from '@/stores/patientStore';
@@ -9,6 +9,9 @@ import axiosInstance, { r } from '@/api/axiosInstance';
 const anonymizationStore = useAnonymizationStore();
 const videoStore = useVideoStore();
 const patientStore = usePatientStore();
+// Polling state
+const pollingInterval = ref(null);
+const POLLING_INTERVAL_MS = 3000; // Poll every 3 seconds
 // Local state
 const editedAnonymizedText = ref('');
 const examinationDate = ref('');
@@ -222,11 +225,35 @@ const onVideoLoadStart = () => {
 const onVideoCanPlay = () => {
     console.log('Video can play, loaded successfully');
 };
+// Polling function
+const startPolling = () => {
+    if (pollingInterval.value !== null)
+        return; // Already polling
+    pollingInterval.value = window.setInterval(async () => {
+        try {
+            await anonymizationStore.fetchNext();
+            console.log('Polling: Fetched next item');
+        }
+        catch (error) {
+            console.error('Error during polling:', error);
+        }
+    }, POLLING_INTERVAL_MS);
+};
+const stopPolling = () => {
+    if (pollingInterval.value === null)
+        return; // Not currently polling
+    clearInterval(pollingInterval.value);
+    pollingInterval.value = null;
+};
 // Lifecycle
 onMounted(async () => {
     if (!anonymizationStore.current) { // only pull the “next” item if nothing is pre-loaded
         await fetchNextItem();
     }
+    startPolling();
+});
+onUnmounted(() => {
+    stopPolling();
 });
 ; /* PartiallyEnd: #3632/scriptSetup.vue */
 function __VLS_template() {

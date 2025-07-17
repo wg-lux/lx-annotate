@@ -2,9 +2,11 @@
 import { defineStore } from 'pinia';
 import axiosInstance, { a, r } from '@/api/axiosInstance';
 import axios from 'axios';
+import { ref } from 'vue';
 /* ------------------------------------------------------------------ */
 /* Store                                                               */
 /* ------------------------------------------------------------------ */
+export const availableFiles = ref([]);
 export const useAnonymizationStore = defineStore('anonymization', {
     state: () => ({
         anonymizationStatus: 'idle',
@@ -14,7 +16,9 @@ export const useAnonymizationStore = defineStore('anonymization', {
         current: null,
         overview: [],
         pollingHandles: {},
-        isPolling: false
+        isPolling: false,
+        hasAvailableFiles: false,
+        availableFiles: availableFiles.value // Use the value of the ref to get the actual array
     }),
     getters: {
         getCurrentItem: (state) => state.current,
@@ -145,7 +149,16 @@ export const useAnonymizationStore = defineStore('anonymization', {
                 console.log('Fetching file overview...');
                 const { data } = await axiosInstance.get(r('anonymization/items/overview/'));
                 console.log('Received overview data:', data);
+                if (this.overview.length > 0) {
+                    this.hasAvailableFiles = true;
+                }
+                else {
+                    this.hasAvailableFiles = false;
+                }
                 this.overview = data;
+                for (const file of this.overview) {
+                    this.availableFiles.push(file);
+                }
                 return data;
             }
             catch (err) {
@@ -199,25 +212,25 @@ export const useAnonymizationStore = defineStore('anonymization', {
          * Start polling status for a specific file
          */
         startPolling(id) {
-            /* if we are ALREADY polling this id do nothing */
-            if (this.pollingHandles[id])
+            // ✅ FIX: Check if already polling this specific file
+            if (this.pollingHandles[id]) {
+                console.log(`Polling for file ${id} is already running`);
                 return;
+            }
             console.log(`Starting status polling for file ${id}`);
             this.isPolling = true;
-            // ⭐ FIX: Reduced polling interval from 3000ms to 1500ms for better responsiveness
             const timer = setInterval(async () => {
                 try {
                     const { data } = await axiosInstance.get(r(`anonymization/${id}/status/`));
                     const file = this.overview.find(f => f.id === id);
                     if (file && data.anonymizationStatus) {
-                        /* unify wording coming from the backend ------------------- */
-                        const normalised = data.anonymizationStatus === 'completed'
-                            ? 'done'
-                            : data.anonymizationStatus;
-                        console.log(`Status update for file ${id}: ${normalised}`);
-                        file.anonymizationStatus = normalised;
-                        /* stop when finished or failed --------------------------- */
-                        if (['done', 'failed'].includes(normalised)) {
+                        // ✅ FIX: Remove redundant normalization
+                        const statusFromBackend = data.anonymizationStatus;
+                        console.log(`Status update for file ${id}: ${statusFromBackend}`);
+                        file.anonymizationStatus = statusFromBackend;
+                        // ✅ FIX: Include 'validated' as a stopping condition
+                        if (['done', 'validated', 'failed'].includes(statusFromBackend)) {
+                            console.log(`Stopping polling for file ${id} - final status: ${statusFromBackend}`);
                             this.stopPolling(id);
                         }
                     }
@@ -226,7 +239,7 @@ export const useAnonymizationStore = defineStore('anonymization', {
                     console.error(`Error polling status for file ${id}:`, err);
                     // Continue polling even on error to be resilient
                 }
-            }, 1500); // ⭐ Reduced from 3000ms to 1500ms for better UX
+            }, 1500);
             this.pollingHandles[id] = timer;
         },
         /**

@@ -9,8 +9,6 @@ let
       cd frontend
       npm run build
       cd ..
-      uv sync --no-config
-      python manage.py collectstatic --noinput
       '';
     "vue:build".execIfModified = [
       "frontend"
