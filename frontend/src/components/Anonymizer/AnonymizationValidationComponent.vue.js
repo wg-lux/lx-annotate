@@ -2,9 +2,11 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useAnonymizationStore } from '@/stores/anonymizationStore';
 import { useVideoStore } from '@/stores/videoStore';
 import { usePatientStore } from '@/stores/patientStore';
+import { useToastStore } from '@/stores/toastStore';
 // @ts-ignore
 import axiosInstance, { r } from '@/api/axiosInstance';
 // @ts-ignore
+const toast = useToastStore();
 // Store references
 const anonymizationStore = useAnonymizationStore();
 const videoStore = useVideoStore();
@@ -37,8 +39,17 @@ const isExaminationDateValid = computed(() => {
     }
     return new Date(examinationDate.value) >= new Date(editedPatient.value.patientDob);
 });
+const isPatientDataValid = computed(() => {
+    return editedPatient.value.patientFirstName.trim() !== '' &&
+        editedPatient.value.patientLastName.trim() !== '' &&
+        editedPatient.value.patientGender.trim() !== '' &&
+        editedPatient.value.patientDob.trim() !== '' &&
+        editedPatient.value.casenumber.trim() !== '';
+});
 const canSubmit = computed(() => {
-    return processedUrl.value && originalUrl.value && isExaminationDateValid.value;
+    return isExaminationDateValid.value &&
+        isPatientDataValid.value &&
+        dirty.value;
 });
 // Watch
 watch(currentItem, (newItem) => {
@@ -140,8 +151,7 @@ const approveItem = async () => {
     }
 };
 const saveAnnotation = async () => {
-    if (!canSubmit.value)
-        return;
+    /*if (!canSubmit.value) return*/
     try {
         const annotationData = {
             processed_image_url: processedUrl.value,
@@ -159,7 +169,7 @@ const saveAnnotation = async () => {
             await axiosInstance.post(r('save-anonymization-annotation-pdf/'), annotationData);
         }
         else {
-            console.warn('No valid item to save annotation for');
+            toast.error({ text: 'Keine gültige Anonymisierung zum Speichern gefunden.' });
             return;
         }
         // Reset upload state
@@ -238,8 +248,20 @@ const stopPolling = () => {
 };
 // Lifecycle
 onMounted(async () => {
-    if (!anonymizationStore.current) { // only pull the “next” item if nothing is pre-loaded
-        await fetchNextItem();
+    // 1 ‑ pull data from the API
+    await fetchNextItem(); // waits until store.current is set
+    // 2 ‑ explicitly populate the local form (optional: the watcher will
+    // do the same, but calling it once here avoids a tiny flicker)
+    if (anonymizationStore.current) {
+        loadCurrentItemData(anonymizationStore.current); // not .value here because
+        // current is already the
+        // raw object, *not* a ref
+    }
+    // 3 ‑ any toast that depends on store flags *after* they are up‑to‑date
+    if (anonymizationStore.isAnyFileProcessing) {
+        toast.warning({
+            text: 'Es werden noch Dateien anonymisiert. Bitte warten …'
+        });
     }
     startPolling();
 });
@@ -492,10 +514,6 @@ function __VLS_template() {
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: ("card-header pb-0") },
         });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.h5, __VLS_intrinsicElements.h5)({
-            ...{ class: ("mb-0") },
-        });
-        (__VLS_ctx.currentItem?.reportMeta?.pdfUrl ? 'PDF Vorschau' : 'Video Vorschau');
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: ("alert alert-info mt-2 mb-0") },
         });
@@ -506,10 +524,6 @@ function __VLS_template() {
         if (__VLS_ctx.currentItem?.reportMeta?.pdfUrl) {
             __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
             (Math.round((__VLS_ctx.currentItem.reportMeta.file?.length || 0) / 1024) || 'Unbekannt');
-        }
-        else if (__VLS_ctx.getVideoStreamUrl()) {
-            __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
-            (__VLS_ctx.getVideoStreamUrl());
         }
         else {
             __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
@@ -592,7 +606,7 @@ function __VLS_template() {
             disabled: ((!__VLS_ctx.isExaminationDateValid || !__VLS_ctx.dirty)),
         });
     }
-    ['container-fluid', 'py-4', 'card', 'card-header', 'pb-0', 'mb-0', 'card-body', 'text-center', 'py-5', 'spinner-border', 'text-primary', 'visually-hidden', 'mt-2', 'alert', 'alert-danger', 'alert', 'alert-info', 'alert', 'alert-warning', 'mt-3', 'fas', 'fa-info-circle', 'me-2', 'mt-2', 'btn', 'btn-sm', 'btn-outline-primary', 'fas', 'fa-eye', 'me-1', 'row', 'mb-3', 'col-12', 'alert', 'alert-info', 'd-flex', 'align-items-center', 'fas', 'fa-info-circle', 'me-2', 'row', 'mb-4', 'col-md-5', 'card', 'bg-light', 'mb-4', 'card-body', 'card-title', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-select', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-control', 'is-invalid', 'invalid-feedback', 'mb-3', 'form-label', 'form-control', 'card', 'bg-light', 'card-body', 'card-title', 'mt-3', 'img-fluid', 'btn', 'btn-info', 'btn-sm', 'mt-2', 'mt-3', 'btn', 'btn-primary', 'col-md-7', 'card', 'card-header', 'pb-0', 'mb-0', 'alert', 'alert-info', 'mt-2', 'mb-0', 'fas', 'fa-info-circle', 'me-2', 'card-body', 'media-viewer-container', 'alert', 'alert-warning', 'mb-0', 'row', 'col-12', 'd-flex', 'justify-content-between', 'btn', 'btn-secondary', 'btn', 'btn-danger', 'me-2', 'btn', 'btn-success',];
+    ['container-fluid', 'py-4', 'card', 'card-header', 'pb-0', 'mb-0', 'card-body', 'text-center', 'py-5', 'spinner-border', 'text-primary', 'visually-hidden', 'mt-2', 'alert', 'alert-danger', 'alert', 'alert-info', 'alert', 'alert-warning', 'mt-3', 'fas', 'fa-info-circle', 'me-2', 'mt-2', 'btn', 'btn-sm', 'btn-outline-primary', 'fas', 'fa-eye', 'me-1', 'row', 'mb-3', 'col-12', 'alert', 'alert-info', 'd-flex', 'align-items-center', 'fas', 'fa-info-circle', 'me-2', 'row', 'mb-4', 'col-md-5', 'card', 'bg-light', 'mb-4', 'card-body', 'card-title', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-select', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-control', 'is-invalid', 'invalid-feedback', 'mb-3', 'form-label', 'form-control', 'card', 'bg-light', 'card-body', 'card-title', 'mt-3', 'img-fluid', 'btn', 'btn-info', 'btn-sm', 'mt-2', 'mt-3', 'btn', 'btn-primary', 'col-md-7', 'card', 'card-header', 'pb-0', 'alert', 'alert-info', 'mt-2', 'mb-0', 'fas', 'fa-info-circle', 'me-2', 'card-body', 'media-viewer-container', 'alert', 'alert-warning', 'mb-0', 'row', 'col-12', 'd-flex', 'justify-content-between', 'btn', 'btn-secondary', 'btn', 'btn-danger', 'me-2', 'btn', 'btn-success',];
     var __VLS_slots;
     var $slots;
     let __VLS_inheritedAttrs;

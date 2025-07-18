@@ -145,18 +145,12 @@
             <div class="col-md-7">
               <div class="card">
                 <div class="card-header pb-0">
-                  <h5 class="mb-0">
-                    {{ currentItem?.reportMeta?.pdfUrl ? 'PDF Vorschau' : 'Video Vorschau' }}
-                  </h5>
                   <!-- Clear Data Format Message -->
                   <div class="alert alert-info mt-2 mb-0">
                     <i class="fas fa-info-circle me-2"></i>
                     <strong>Datenformat:</strong> 
                     <span v-if="currentItem?.reportMeta?.pdfUrl">
                       PDF-Dokument ({{ Math.round((currentItem.reportMeta.file?.length || 0) / 1024) || 'Unbekannt' }} KB)
-                    </span>
-                    <span v-else-if="getVideoStreamUrl()">
-                      Video-Datei (Stream-URL: {{ getVideoStreamUrl() }})
                     </span>
                     <span v-else>
                       Unbekanntes Format - ID: {{ currentItem?.id }}
@@ -237,13 +231,13 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useAnonymizationStore, type PatientData } from '@/stores/anonymizationStore';
 import {useVideoStore, type Video} from '@/stores/videoStore';
 import { usePatientStore } from '@/stores/patientStore';
-
+import { useToastStore } from '@/stores/toastStore';
 // @ts-ignore
 import axiosInstance, { r } from '@/api/axiosInstance';
 // @ts-ignore
 
 
-
+const toast = useToastStore();
 
 // Store references
 const anonymizationStore = useAnonymizationStore();
@@ -284,9 +278,18 @@ const isExaminationDateValid = computed(() => {
   }
   return new Date(examinationDate.value) >= new Date(editedPatient.value.patientDob);
 });
+const isPatientDataValid = computed(() => {
+  return editedPatient.value.patientFirstName.trim() !== '' &&
+         editedPatient.value.patientLastName.trim() !== '' &&
+         editedPatient.value.patientGender.trim() !== '' &&
+         editedPatient.value.patientDob.trim() !== '' &&
+         editedPatient.value.casenumber.trim() !== '';
+});
 
 const canSubmit = computed(() => {
-  return processedUrl.value && originalUrl.value && isExaminationDateValid.value;
+  return isExaminationDateValid.value &&
+         isPatientDataValid.value &&
+         dirty.value;
 });
 
 // Watch
@@ -406,7 +409,7 @@ const approveItem = async () => {
 };
 
 const saveAnnotation = async () => {
-  if (!canSubmit.value) return;
+  /*if (!canSubmit.value) return*/
   
   try {
     const annotationData = {
@@ -424,7 +427,7 @@ const saveAnnotation = async () => {
       await axiosInstance.post(r('save-anonymization-annotation-pdf/'), annotationData);
     }
     else {
-      console.warn('No valid item to save annotation for');
+      toast.error({text: 'Keine gültige Anonymisierung zum Speichern gefunden.'});
       return;
     }
     
@@ -513,10 +516,25 @@ const stopPolling = () => {
 };
 
 // Lifecycle
- onMounted(async() => {
-  if (!anonymizationStore.current) {     // only pull the “next” item if nothing is pre-loaded
-    await fetchNextItem();
+onMounted(async () => {
+  // 1 ‑ pull data from the API
+  await fetchNextItem();                      // waits until store.current is set
+
+  // 2 ‑ explicitly populate the local form (optional: the watcher will
+  // do the same, but calling it once here avoids a tiny flicker)
+  if (anonymizationStore.current) {
+    loadCurrentItemData(anonymizationStore.current);   // not .value here because
+                                                       // current is already the
+                                                       // raw object, *not* a ref
   }
+
+  // 3 ‑ any toast that depends on store flags *after* they are up‑to‑date
+  if (anonymizationStore.isAnyFileProcessing) {
+    toast.warning({
+      text: 'Es werden noch Dateien anonymisiert. Bitte warten …'
+    });
+  }
+
   startPolling();
 });
 
