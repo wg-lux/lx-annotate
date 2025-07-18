@@ -36,13 +36,13 @@ export interface AnonymizationState {
 }
 
 // Interface matching the actual API response for sensitivemeta
-export interface SensitiveMetaApiResponse {
+export interface SensitiveMeta {
   id: number;
-  patientFirstName: string;
-  patientLastName: string;
-  patientDob: string;
+  patientFirstName: string | null;
+  patientLastName: string | null;
+  patientDob: string | null;
   patientGender: string;
-  examinationDate: string;
+  examinationDate: string | null;
   casenumber?: string | null;
   centerName?: string;
   patientGenderName?: string;
@@ -55,6 +55,22 @@ export interface SensitiveMetaApiResponse {
   file?: string;
   pdfUrl?: string;
   fullPdfPath?: string;
+}
+
+// NEW – matches your VideoDetailSer
+export interface VideoDetailApiResponse {
+  id: number;                     // VideoFile pk
+  sensitive_meta_id: number;
+  video_url: string | null;
+  thumbnail: string | null;
+  duration: number | null;
+  patient_first_name: string | null;
+  patient_last_name: string | null;
+  patient_dob: string | null;
+  examination_date: string | null;
+  casenumber?: string | null;
+  file: string | null;      // processed or raw
+  // Add other fields as needed
 }
 
 // Updated interface for PDF data from anony_text endpoint
@@ -70,9 +86,11 @@ export interface PdfDataResponse {
 export interface PatientData {
   id: number;
   sensitiveMetaId: number;
+  videoUrl?: string | null;
+  thumbnail?: string | null;
   text: string;
   anonymizedText: string;
-  reportMeta?: SensitiveMetaApiResponse;
+  reportMeta?: SensitiveMeta;
   status?: string;
   error?: boolean;
 }
@@ -115,19 +133,29 @@ export const useAnonymizationStore = defineStore('anonymization', {
           const item = this.overview.find(f => f.id === lastId);
           
           if (item?.mediaType === 'video') {
-            // 1️⃣ get SensitiveMeta & video urls for video
-            console.log(`Fetching video sensitive meta for ID: ${lastId}`);
-            const { data: meta } = await axiosInstance.get<SensitiveMetaApiResponse>(
-              r(`media/videos/${item.sensitiveMetaId}`+'/')
+            // **Use the sensitive_meta_id (!) and keep the trailing slash**
+            console.log(`Fetching video detail for sensitiveMetaId: ${item.sensitiveMetaId}`);
+            const { data: video } = await axiosInstance.get<VideoDetailApiResponse>(
+              r(`media/videos/${item.sensitiveMetaId}/`)
             );
-            console.log('Received video sensitive meta:', meta);
+            console.log('Received video detail:', video);
             
             this.current = {
-              id: item.id,
-              sensitiveMetaId: item.sensitiveMetaId || meta.id,
+              id: video.id,
+              sensitiveMetaId: video.sensitive_meta_id,
+              videoUrl: video.video_url,
+              thumbnail: video.thumbnail,
               text: '', // Videos don't have text
               anonymizedText: '', // Videos don't have anonymized text
-              reportMeta: meta
+              reportMeta: {
+                id: video.sensitive_meta_id,
+                patientFirstName: video.patient_first_name,
+                patientLastName: video.patient_last_name,
+                patientDob: video.patient_dob,
+                patientGender: '', // Will be filled from backend if available
+                examinationDate: video.examination_date,
+                casenumber: video.casenumber
+              }
             };
             return this.current;
           }
@@ -154,7 +182,7 @@ export const useAnonymizationStore = defineStore('anonymization', {
         /* 2) Sensitive-Meta nachladen ---------------------------------- */
         const metaUrl = a(`sensitivemeta/?id=${pdf.sensitiveMetaId}`);
         console.log(`Fetching sensitive meta from: ${metaUrl}`);
-        const { data: metaResponse } = await axiosInstance.get<SensitiveMetaApiResponse>(metaUrl);
+        const { data: metaResponse } = await axiosInstance.get<SensitiveMeta>(metaUrl);
         console.log('Received sensitive meta response data:', metaResponse);
 
         if (typeof metaResponse?.id !== 'number') {
@@ -394,15 +422,27 @@ export const useAnonymizationStore = defineStore('anonymization', {
               throw new Error(`Video item with ID ${id} has no valid sensitiveMetaId (got: ${item.sensitiveMetaId})`);
             }
             console.log(`Loading video data for sensitiveMetaId: ${item.sensitiveMetaId}`);
-            const { data: meta } = await axiosInstance.get(r(`media/videos/${id}`));
-            console.log('Received video sensitive meta:', meta);
+            const { data: video } = await axiosInstance.get<VideoDetailApiResponse>(
+              r(`media/videos/${item.sensitiveMetaId}/`)
+            );
+            console.log('Received video detail:', video);
             
             this.current = {
-              id: id, // Use sensitiveMetaId for video stream URL
-              sensitiveMetaId: item.sensitiveMetaId,
+              id: video.id,
+              sensitiveMetaId: video.sensitive_meta_id,
+              videoUrl: video.video_url,
+              thumbnail: video.thumbnail,
               text: '', // Videos don't have text
               anonymizedText: '', // Videos don't have anonymized text
-              reportMeta: meta
+              reportMeta: {
+                id: video.sensitive_meta_id,
+                patientFirstName: video.patient_first_name,
+                patientLastName: video.patient_last_name,
+                patientDob: video.patient_dob,
+                patientGender: '', // Will be filled from backend if available
+                examinationDate: video.examination_date,
+                casenumber: video.casenumber
+              }
             };
             return this.current;
         } 

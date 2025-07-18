@@ -179,20 +179,11 @@ const rejectItem = async () => {
     }
 };
 // Video streaming methods
-const getVideoStreamUrl = () => {
-    if (!currentItem.value ||
-        !currentItem.value.reportMeta ||
-        currentItem.value.reportMeta.pdfUrl) {
-        return null;
-    }
-    return videoStore.videoStreamUrl;
-};
+const getVideoStreamUrl = () => currentItem.value?.videoUrl || null;
 // PDF streaming methods - mirroring video streaming functionality
 const getPdfStreamUrl = () => {
-    if (!currentItem.value?.id)
-        return null;
-    // Use the PDF stream endpoint with HTTP range support
-    return `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}/api/pdfstream/${currentItem.value.id}/`;
+    return currentItem.value?.reportMeta?.pdfUrl ??
+        (currentItem.value ? `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}/api/pdfstream/${currentItem.value.id}/` : null);
 };
 const debugGetVideoStreamUrl = () => {
     // Debug version that shows the URL construction process

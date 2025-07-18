@@ -36,16 +36,26 @@ export const useAnonymizationStore = defineStore('anonymization', {
                 if (lastId) {
                     const item = this.overview.find(f => f.id === lastId);
                     if (item?.mediaType === 'video') {
-                        // 1️⃣ get SensitiveMeta & video urls for video
-                        console.log(`Fetching video sensitive meta for ID: ${lastId}`);
-                        const { data: meta } = await axiosInstance.get(r(`media/videos/${item.sensitiveMetaId}` + '/'));
-                        console.log('Received video sensitive meta:', meta);
+                        // **Use the sensitive_meta_id (!) and keep the trailing slash**
+                        console.log(`Fetching video detail for sensitiveMetaId: ${item.sensitiveMetaId}`);
+                        const { data: video } = await axiosInstance.get(r(`media/videos/${item.sensitiveMetaId}/`));
+                        console.log('Received video detail:', video);
                         this.current = {
-                            id: item.id,
-                            sensitiveMetaId: item.sensitiveMetaId || meta.id,
+                            id: video.id,
+                            sensitiveMetaId: video.sensitive_meta_id,
+                            videoUrl: video.video_url,
+                            thumbnail: video.thumbnail,
                             text: '', // Videos don't have text
                             anonymizedText: '', // Videos don't have anonymized text
-                            reportMeta: meta
+                            reportMeta: {
+                                id: video.sensitive_meta_id,
+                                patientFirstName: video.patient_first_name,
+                                patientLastName: video.patient_last_name,
+                                patientDob: video.patient_dob,
+                                patientGender: '', // Will be filled from backend if available
+                                examinationDate: video.examination_date,
+                                casenumber: video.casenumber
+                            }
                         };
                         return this.current;
                     }
@@ -283,14 +293,24 @@ export const useAnonymizationStore = defineStore('anonymization', {
                         throw new Error(`Video item with ID ${id} has no valid sensitiveMetaId (got: ${item.sensitiveMetaId})`);
                     }
                     console.log(`Loading video data for sensitiveMetaId: ${item.sensitiveMetaId}`);
-                    const { data: meta } = await axiosInstance.get(r(`media/videos/${id}`));
-                    console.log('Received video sensitive meta:', meta);
+                    const { data: video } = await axiosInstance.get(r(`media/videos/${item.sensitiveMetaId}/`));
+                    console.log('Received video detail:', video);
                     this.current = {
-                        id: id, // Use sensitiveMetaId for video stream URL
-                        sensitiveMetaId: item.sensitiveMetaId,
+                        id: video.id,
+                        sensitiveMetaId: video.sensitive_meta_id,
+                        videoUrl: video.video_url,
+                        thumbnail: video.thumbnail,
                         text: '', // Videos don't have text
                         anonymizedText: '', // Videos don't have anonymized text
-                        reportMeta: meta
+                        reportMeta: {
+                            id: video.sensitive_meta_id,
+                            patientFirstName: video.patient_first_name,
+                            patientLastName: video.patient_last_name,
+                            patientDob: video.patient_dob,
+                            patientGender: '', // Will be filled from backend if available
+                            examinationDate: video.examination_date,
+                            casenumber: video.casenumber
+                        }
                     };
                     return this.current;
                 }

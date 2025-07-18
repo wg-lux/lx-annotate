@@ -21,13 +21,13 @@ export interface AnonymizationState {
     hasAvailableFiles: boolean;
     availableFiles: FileItem[];
 }
-export interface SensitiveMetaApiResponse {
+export interface SensitiveMeta {
     id: number;
-    patientFirstName: string;
-    patientLastName: string;
-    patientDob: string;
+    patientFirstName: string | null;
+    patientLastName: string | null;
+    patientDob: string | null;
     patientGender: string;
-    examinationDate: string;
+    examinationDate: string | null;
     casenumber?: string | null;
     centerName?: string;
     patientGenderName?: string;
@@ -40,6 +40,19 @@ export interface SensitiveMetaApiResponse {
     pdfUrl?: string;
     fullPdfPath?: string;
 }
+export interface VideoDetailApiResponse {
+    id: number;
+    sensitive_meta_id: number;
+    video_url: string | null;
+    thumbnail: string | null;
+    duration: number | null;
+    patient_first_name: string | null;
+    patient_last_name: string | null;
+    patient_dob: string | null;
+    examination_date: string | null;
+    casenumber?: string | null;
+    file: string | null;
+}
 export interface PdfDataResponse {
     id: number;
     sensitiveMetaId: number;
@@ -51,9 +64,11 @@ export interface PdfDataResponse {
 export interface PatientData {
     id: number;
     sensitiveMetaId: number;
+    videoUrl?: string | null;
+    thumbnail?: string | null;
     text: string;
     anonymizedText: string;
-    reportMeta?: SensitiveMetaApiResponse;
+    reportMeta?: SensitiveMeta;
     status?: string;
     error?: boolean;
 }
@@ -90,15 +105,17 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
         current: {
             id: number;
             sensitiveMetaId: number;
+            videoUrl?: string | null | undefined;
+            thumbnail?: string | null | undefined;
             text: string;
             anonymizedText: string;
             reportMeta?: {
                 id: number;
-                patientFirstName: string;
-                patientLastName: string;
-                patientDob: string;
+                patientFirstName: string | null;
+                patientLastName: string | null;
+                patientDob: string | null;
                 patientGender: string;
-                examinationDate: string;
+                examinationDate: string | null;
                 casenumber?: string | null | undefined;
                 centerName?: string | undefined;
                 patientGenderName?: string | undefined;
@@ -144,15 +161,17 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
         pending: {
             id: number;
             sensitiveMetaId: number;
+            videoUrl?: string | null | undefined;
+            thumbnail?: string | null | undefined;
             text: string;
             anonymizedText: string;
             reportMeta?: {
                 id: number;
-                patientFirstName: string;
-                patientLastName: string;
-                patientDob: string;
+                patientFirstName: string | null;
+                patientLastName: string | null;
+                patientDob: string | null;
                 patientGender: string;
-                examinationDate: string;
+                examinationDate: string | null;
                 casenumber?: string | null | undefined;
                 centerName?: string | undefined;
                 patientGenderName?: string | undefined;
@@ -173,15 +192,17 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
     }>) => {
         id: number;
         sensitiveMetaId: number;
+        videoUrl?: string | null | undefined;
+        thumbnail?: string | null | undefined;
         text: string;
         anonymizedText: string;
         reportMeta?: {
             id: number;
-            patientFirstName: string;
-            patientLastName: string;
-            patientDob: string;
+            patientFirstName: string | null;
+            patientLastName: string | null;
+            patientDob: string | null;
             patientGender: string;
-            examinationDate: string;
+            examinationDate: string | null;
             casenumber?: string | null | undefined;
             centerName?: string | undefined;
             patientGenderName?: string | undefined;
@@ -204,15 +225,17 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
         current: {
             id: number;
             sensitiveMetaId: number;
+            videoUrl?: string | null | undefined;
+            thumbnail?: string | null | undefined;
             text: string;
             anonymizedText: string;
             reportMeta?: {
                 id: number;
-                patientFirstName: string;
-                patientLastName: string;
-                patientDob: string;
+                patientFirstName: string | null;
+                patientLastName: string | null;
+                patientDob: string | null;
                 patientGender: string;
-                examinationDate: string;
+                examinationDate: string | null;
                 casenumber?: string | null | undefined;
                 centerName?: string | undefined;
                 patientGenderName?: string | undefined;
@@ -258,15 +281,17 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
         pending: {
             id: number;
             sensitiveMetaId: number;
+            videoUrl?: string | null | undefined;
+            thumbnail?: string | null | undefined;
             text: string;
             anonymizedText: string;
             reportMeta?: {
                 id: number;
-                patientFirstName: string;
-                patientLastName: string;
-                patientDob: string;
+                patientFirstName: string | null;
+                patientLastName: string | null;
+                patientDob: string | null;
                 patientGender: string;
-                examinationDate: string;
+                examinationDate: string | null;
                 casenumber?: string | null | undefined;
                 centerName?: string | undefined;
                 patientGenderName?: string | undefined;
@@ -292,15 +317,17 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
         current: {
             id: number;
             sensitiveMetaId: number;
+            videoUrl?: string | null | undefined;
+            thumbnail?: string | null | undefined;
             text: string;
             anonymizedText: string;
             reportMeta?: {
                 id: number;
-                patientFirstName: string;
-                patientLastName: string;
-                patientDob: string;
+                patientFirstName: string | null;
+                patientLastName: string | null;
+                patientDob: string | null;
                 patientGender: string;
-                examinationDate: string;
+                examinationDate: string | null;
                 casenumber?: string | null | undefined;
                 centerName?: string | undefined;
                 patientGenderName?: string | undefined;
@@ -346,15 +373,17 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
         pending: {
             id: number;
             sensitiveMetaId: number;
+            videoUrl?: string | null | undefined;
+            thumbnail?: string | null | undefined;
             text: string;
             anonymizedText: string;
             reportMeta?: {
                 id: number;
-                patientFirstName: string;
-                patientLastName: string;
-                patientDob: string;
+                patientFirstName: string | null;
+                patientLastName: string | null;
+                patientDob: string | null;
                 patientGender: string;
-                examinationDate: string;
+                examinationDate: string | null;
                 casenumber?: string | null | undefined;
                 centerName?: string | undefined;
                 patientGenderName?: string | undefined;
@@ -401,15 +430,17 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
     fetchPendingAnonymizations(): {
         id: number;
         sensitiveMetaId: number;
+        videoUrl?: string | null | undefined;
+        thumbnail?: string | null | undefined;
         text: string;
         anonymizedText: string;
         reportMeta?: {
             id: number;
-            patientFirstName: string;
-            patientLastName: string;
-            patientDob: string;
+            patientFirstName: string | null;
+            patientLastName: string | null;
+            patientDob: string | null;
             patientGender: string;
-            examinationDate: string;
+            examinationDate: string | null;
             casenumber?: string | null | undefined;
             centerName?: string | undefined;
             patientGenderName?: string | undefined;

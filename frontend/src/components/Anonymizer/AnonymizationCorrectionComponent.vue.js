@@ -16,8 +16,9 @@ const processingProgress = ref(0);
 const processingStatus = ref('');
 const previewMode = ref('original');
 const videoElement = ref(null);
-// Video data
+// Video data from anonymization store
 const currentVideo = ref(null);
+const videoDetailData = ref(null);
 const videoMetadata = ref({
     sensitiveFrameCount: null,
     totalFrames: null,
@@ -25,16 +26,37 @@ const videoMetadata = ref({
     duration: null,
     resolution: null
 });
-// Configuration
+// Patient data for correction
+const editedPatient = ref({
+    patientFirstName: '',
+    patientLastName: '',
+    patientGender: '',
+    patientDob: '',
+    casenumber: '',
+    examiner: '',
+    centerName: '',
+    endoscopeType: '',
+    endoscopeSn: ''
+});
+const examinationDate = ref('');
+const usesPseudonyms = ref(false);
+const pseudonymMapping = ref({
+    firstNamePseudonym: '',
+    lastNamePseudonym: '',
+    originalFirstName: '',
+    originalLastName: ''
+});
+// Configuration for masking
 const maskConfig = ref({
     type: 'device_default',
     deviceName: 'olympus_cv_1500',
+    processingMethod: 'streaming',
     endoscopeX: 550,
     endoscopeY: 0,
     endoscopeWidth: 1350,
-    endoscopeHeight: 1080,
-    processingMethod: 'streaming'
+    endoscopeHeight: 1080
 });
+// Configuration for frame removal
 const frameConfig = ref({
     selectionMethod: 'automatic',
     detectionEngine: 'minicpm',
@@ -44,27 +66,32 @@ const frameConfig = ref({
 // Processing history
 const processingHistory = ref([]);
 // Computed properties
+const canApplyMask = computed(() => {
+    return currentVideo.value && !isProcessing.value &&
+        (maskConfig.value.type !== 'custom' ||
+            (maskConfig.value.endoscopeX >= 0 && maskConfig.value.endoscopeY >= 0 &&
+                maskConfig.value.endoscopeWidth > 0 && maskConfig.value.endoscopeHeight > 0));
+});
+const canRemoveFrames = computed(() => {
+    return currentVideo.value && !isProcessing.value &&
+        (frameConfig.value.selectionMethod !== 'manual' ||
+            frameConfig.value.manualFrames.trim().length > 0);
+});
 const hasProcessedVersion = computed(() => {
     return processingHistory.value.some(entry => entry.status === 'success' && entry.outputPath);
 });
-const canApplyMask = computed(() => {
-    return currentVideo.value && !isProcessing.value;
-});
-const canRemoveFrames = computed(() => {
-    if (!currentVideo.value || isProcessing.value)
-        return false;
-    if (frameConfig.value.selectionMethod === 'manual') {
-        return frameConfig.value.manualFrames.trim().length > 0;
-    }
-    return true;
-});
+const props = defineProps();
 // Methods
 const goBack = () => {
     router.push('/anonymisierung/uebersicht');
 };
 const refreshCurrentVideo = async () => {
-    if (!currentVideo.value)
-        return;
+    if (!currentVideo.value) {
+        currentVideo.value = { id: props.fileId };
+    }
+    else {
+        currentVideo.value.id = props.fileId;
+    }
     isRefreshing.value = true;
     try {
         await loadVideoDetails(currentVideo.value.id);
@@ -1185,9 +1212,9 @@ const __VLS_self = (await import('vue')).defineComponent({
             maskConfig: maskConfig,
             frameConfig: frameConfig,
             processingHistory: processingHistory,
-            hasProcessedVersion: hasProcessedVersion,
             canApplyMask: canApplyMask,
             canRemoveFrames: canRemoveFrames,
+            hasProcessedVersion: hasProcessedVersion,
             goBack: goBack,
             refreshCurrentVideo: refreshCurrentVideo,
             analyzeVideo: analyzeVideo,
@@ -1211,11 +1238,13 @@ const __VLS_self = (await import('vue')).defineComponent({
             getOperationBadgeClass: getOperationBadgeClass,
         };
     },
+    __typeProps: {},
 });
 export default (await import('vue')).defineComponent({
     setup() {
         return {};
     },
+    __typeProps: {},
     __typeRefs: {},
     __typeEl: {},
 });

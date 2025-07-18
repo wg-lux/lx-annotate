@@ -492,8 +492,9 @@ const processingStatus = ref('');
 const previewMode = ref<'original' | 'processed'>('original');
 const videoElement = ref<HTMLVideoElement | null>(null);
 
-// Video data
-const currentVideo = ref<FileItem | null>(null);
+// Video data from anonymization store
+const currentVideo = ref<any | null>(null);
+const videoDetailData = ref<any | null>(null);
 const videoMetadata = ref({
   sensitiveFrameCount: null as number | null,
   totalFrames: null as number | null,
@@ -502,21 +503,44 @@ const videoMetadata = ref({
   resolution: null as string | null
 });
 
-// Configuration
+// Patient data for correction
+const editedPatient = ref({
+  patientFirstName: '',
+  patientLastName: '',
+  patientGender: '',
+  patientDob: '',
+  casenumber: '',
+  examiner: '',
+  centerName: '',
+  endoscopeType: '',
+  endoscopeSn: ''
+});
+
+const examinationDate = ref('');
+const usesPseudonyms = ref(false);
+const pseudonymMapping = ref({
+  firstNamePseudonym: '',
+  lastNamePseudonym: '',
+  originalFirstName: '',
+  originalLastName: ''
+});
+
+// Configuration for masking
 const maskConfig = ref({
-  type: 'device_default',
+  type: 'device_default' as 'device_default' | 'roi_based' | 'custom',
   deviceName: 'olympus_cv_1500',
+  processingMethod: 'streaming' as 'streaming' | 'direct',
   endoscopeX: 550,
   endoscopeY: 0,
   endoscopeWidth: 1350,
-  endoscopeHeight: 1080,
-  processingMethod: 'streaming'
+  endoscopeHeight: 1080
 });
 
+// Configuration for frame removal
 const frameConfig = ref({
-  selectionMethod: 'automatic',
-  detectionEngine: 'minicpm',
-  processingMethod: 'streaming',
+  selectionMethod: 'automatic' as 'automatic' | 'manual',
+  detectionEngine: 'minicpm' as 'minicpm' | 'traditional' | 'hybrid',
+  processingMethod: 'streaming' as 'streaming' | 'traditional',
   manualFrames: ''
 });
 
@@ -531,25 +555,31 @@ const processingHistory = ref<Array<{
 }>>([]);
 
 // Computed properties
+const canApplyMask = computed(() => {
+  return currentVideo.value && !isProcessing.value && 
+    (maskConfig.value.type !== 'custom' || 
+     (maskConfig.value.endoscopeX >= 0 && maskConfig.value.endoscopeY >= 0 &&
+      maskConfig.value.endoscopeWidth > 0 && maskConfig.value.endoscopeHeight > 0));
+});
+
+const canRemoveFrames = computed(() => {
+  return currentVideo.value && !isProcessing.value &&
+    (frameConfig.value.selectionMethod !== 'manual' || 
+     frameConfig.value.manualFrames.trim().length > 0);
+});
+
 const hasProcessedVersion = computed(() => {
   return processingHistory.value.some(entry => 
     entry.status === 'success' && entry.outputPath
   );
 });
 
-const canApplyMask = computed(() => {
-  return currentVideo.value && !isProcessing.value;
-});
+// Props interface for route params
+interface Props {
+  fileId: number;
+}
 
-const canRemoveFrames = computed(() => {
-  if (!currentVideo.value || isProcessing.value) return false;
-  
-  if (frameConfig.value.selectionMethod === 'manual') {
-    return frameConfig.value.manualFrames.trim().length > 0;
-  }
-  
-  return true;
-});
+const props = defineProps<Props>();
 
 // Methods
 const goBack = () => {
@@ -557,12 +587,17 @@ const goBack = () => {
 };
 
 const refreshCurrentVideo = async () => {
-  if (!currentVideo.value) return;
+  if (!currentVideo.value) {
+    currentVideo.value = { id: props.fileId } as FileItem;
+  } else {
+    currentVideo.value.id = props.fileId;
+  }
   
   isRefreshing.value = true;
   try {
     await loadVideoDetails(currentVideo.value.id);
-  } finally {
+  } 
+  finally {
     isRefreshing.value = false;
   }
 };

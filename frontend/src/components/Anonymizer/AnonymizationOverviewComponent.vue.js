@@ -42,7 +42,7 @@ const startAnonymization = async (fileId) => {
 };
 const correctVideo = async (fileId) => {
     // Navigate directly to the correction component with the video ID
-    router.push(`/anonymisierung/korrektur/${fileId}`);
+    router.push({ name: 'AnonymisierungKorrektur', params: { fileId } });
 };
 const validateFile = async (fileId) => {
     processingFiles.value.add(fileId);

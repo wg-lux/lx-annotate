@@ -3,7 +3,7 @@ import { useVideoStore } from '@/stores/videoStore';
 import { useAnonymizationStore } from '@/stores/anonymizationStore';
 import { useAnnotationStore } from '@/stores/annotationStore';
 import { useAuthStore } from '@/stores/authStore';
-import SimpleExaminationForm from './SimpleExaminationForm.vue';
+import SimpleExaminationForm from '@/components/Examination/SimpleExaminationForm.vue';
 import axiosInstance, { r } from '@/api/axiosInstance';
 import Timeline from '@/components/EndoAI/Timeline.vue';
 import { storeToRefs } from 'pinia';
