@@ -51,3 +51,7 @@ The router also supports the functionality to push to a new route.
 ## API helper
 
 axiosInstance.ts appends the correct prefix for the backend.
+
+## Importing VIdeos or PDFs
+
+When runing the server, the file watcher is running. The import starts after placing files in lx-annotate/data/raw-videos or lx-annotate/data/raw-pdf.
