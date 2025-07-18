@@ -145,12 +145,18 @@
             <div class="col-md-7">
               <div class="card">
                 <div class="card-header pb-0">
+                  <h5 class="mb-0">
+                    {{ isPdf ? 'PDF Vorschau' : 'Video Vorschau' }}
+                  </h5>
                   <!-- Clear Data Format Message -->
                   <div class="alert alert-info mt-2 mb-0">
                     <i class="fas fa-info-circle me-2"></i>
                     <strong>Datenformat:</strong> 
-                    <span v-if="currentItem?.reportMeta?.pdfUrl">
-                      PDF-Dokument ({{ Math.round((currentItem.reportMeta.file?.length || 0) / 1024) || 'Unbekannt' }} KB)
+                    <span v-if="isPdf">
+                      PDF-Dokument ({{ Math.round((currentItem?.reportMeta?.file?.length || 0) / 1024) || 'Unbekannt' }} KB)
+                    </span>
+                    <span v-else-if="isVideo">
+                      Video-Datei (Stream-URL: {{ videoSrc }})
                     </span>
                     <span v-else>
                       Unbekanntes Format - ID: {{ currentItem?.id }}
@@ -158,25 +164,25 @@
                   </div>
                 </div>
                 <div class="card-body media-viewer-container">
-                  <!-- PDF Viewer with streaming URL -->
+                  <!-- PDF Viewer - only for actual PDFs -->
                   <iframe
-                    v-if="getPdfStreamUrl() || currentItem?.reportMeta?.pdfUrl"
-                    :src="getPdfStreamUrl() || currentItem?.reportMeta?.pdfUrl"
+                    v-if="isPdf"
+                    :src="pdfSrc"
                     width="100%"
                     height="800px"
                     frameborder="0"
                     title="PDF Vorschau"
                   >
-                    Ihr Browser unterstützt keine eingebetteten PDFs. Sie können die Datei <a :href="getPdfStreamUrl() || currentItem?.reportMeta?.pdfUrl">hier herunterladen</a>.
+                    Ihr Browser unterstützt keine eingebetteten PDFs. Sie können die Datei <a :href="pdfSrc">hier herunterladen</a>.
                   </iframe>
                   
-                  <!-- Video Viewer with corrected streaming URL -->
+                  <!-- Video Viewer - only for actual videos -->
                   <video
-                    v-else-if="getVideoStreamUrl()"
+                    v-else-if="isVideo"
                     controls
                     width="100%"
                     height="600px"
-                    :src="getVideoStreamUrl() || undefined"
+                    :src="videoSrc"
                     @error="onVideoError"
                     @loadstart="onVideoLoadStart"
                     @canplay="onVideoCanPlay"
@@ -184,17 +190,16 @@
                     Ihr Browser unterstützt dieses Video-Format nicht.
                   </video>
                   
-                  <!-- Debug Information -->
+                  <!-- Debug Information - only when neither PDF nor video -->
                   <div v-else class="alert alert-warning">
                     <h6>Debug-Informationen:</h6>
                     <ul class="mb-0">
                       <li><strong>Current Item ID:</strong> {{ currentItem?.id || 'Nicht verfügbar' }}</li>
                       <li><strong>SensitiveMeta ID:</strong> {{ currentItem?.sensitiveMetaId || 'Nicht verfügbar' }}</li>
-                      <li><strong>ReportMeta verfügbar:</strong> {{ !!currentItem?.reportMeta }}</li>
-                      <li><strong>File URL:</strong> {{ currentItem?.reportMeta?.file || 'Nicht verfügbar' }}</li>
+                      <li><strong>Is PDF:</strong> {{ isPdf }}</li>
+                      <li><strong>Is Video:</strong> {{ isVideo }}</li>
                       <li><strong>PDF URL:</strong> {{ currentItem?.reportMeta?.pdfUrl || 'Nicht verfügbar' }}</li>
-                      <li><strong>Generierte Video Stream URL:</strong> {{ debugGetVideoStreamUrl() }}</li>
-                      <li><strong>Generierte PDF Stream URL:</strong> {{ debugGetPdfStreamUrl() }}</li>
+                      <li><strong>Video URL:</strong> {{ currentItem?.videoUrl || 'Nicht verfügbar' }}</li>
                     </ul>
                   </div>
                 </div>
@@ -244,10 +249,6 @@ const anonymizationStore = useAnonymizationStore();
 const videoStore = useVideoStore();
 const patientStore = usePatientStore();
 
-// Polling state
-const pollingInterval = ref<number | null>(null);
-const POLLING_INTERVAL_MS = 3000; // Poll every 3 seconds
-
 // Local state
 const editedAnonymizedText = ref('');
 const examinationDate = ref('');
@@ -272,24 +273,38 @@ const dirty = ref(false);
 // Computed
 const currentItem = computed(() => anonymizationStore.current);
 
+const mediaType = computed(() =>
+  currentItem.value?.reportMeta?.pdfUrl
+    ? 'pdf'
+    : currentItem.value?.videoUrl || currentItem.value?.reportMeta?.file
+      ? 'video'
+      : 'unknown'
+);
+
+const isPdf   = computed(() => mediaType.value === 'pdf');
+const isVideo = computed(() => mediaType.value === 'video');
+// Media URLs
+const pdfSrc = computed(() => {
+  if (!isPdf.value) return undefined;
+  
+  return currentItem.value!.reportMeta!.pdfUrl ?? 
+    `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}/api/pdfstream/${currentItem.value!.id}/`;
+});
+
+const videoSrc = computed(() => {
+  if (!isVideo.value) return undefined;
+  return currentItem.value?.videoUrl || undefined;
+});
+
 const isExaminationDateValid = computed(() => {
   if (!examinationDate.value || !editedPatient.value.patientDob) {
     return true;
   }
   return new Date(examinationDate.value) >= new Date(editedPatient.value.patientDob);
 });
-const isPatientDataValid = computed(() => {
-  return editedPatient.value.patientFirstName.trim() !== '' &&
-         editedPatient.value.patientLastName.trim() !== '' &&
-         editedPatient.value.patientGender.trim() !== '' &&
-         editedPatient.value.patientDob.trim() !== '' &&
-         editedPatient.value.casenumber.trim() !== '';
-});
 
 const canSubmit = computed(() => {
-  return isExaminationDateValid.value &&
-         isPatientDataValid.value &&
-         dirty.value;
+  return processedUrl.value && originalUrl.value && isExaminationDateValid.value;
 });
 
 // Watch
@@ -494,52 +509,19 @@ const onVideoCanPlay = () => {
   console.log('Video can play, loaded successfully');
 };
 
-// Polling function
-const startPolling = () => {
-  if (pollingInterval.value !== null) return; // Already polling
-
-  pollingInterval.value = window.setInterval(async () => {
-    try {
-      await anonymizationStore.fetchNext();
-      console.log('Polling: Fetched next item');
-    } catch (error) {
-      console.error('Error during polling:', error);
-    }
-  }, POLLING_INTERVAL_MS);
-};
-
-const stopPolling = () => {
-  if (pollingInterval.value === null) return; // Not currently polling
-
-  clearInterval(pollingInterval.value);
-  pollingInterval.value = null;
-};
 
 // Lifecycle
 onMounted(async () => {
-  // 1 ‑ pull data from the API
-  await fetchNextItem();                      // waits until store.current is set
-
-  // 2 ‑ explicitly populate the local form (optional: the watcher will
-  // do the same, but calling it once here avoids a tiny flicker)
+  if (!anonymizationStore.current) {         // nur wenn wirklich leer
+    await fetchNextItem();
+  }
   if (anonymizationStore.current) {
-    loadCurrentItemData(anonymizationStore.current);   // not .value here because
-                                                       // current is already the
-                                                       // raw object, *not* a ref
+    loadCurrentItemData(anonymizationStore.current);
   }
-
-  // 3 ‑ any toast that depends on store flags *after* they are up‑to‑date
-  if (anonymizationStore.isAnyFileProcessing) {
-    toast.warning({
-      text: 'Es werden noch Dateien anonymisiert. Bitte warten …'
-    });
-  }
-
-  startPolling();
 });
 
 onUnmounted(() => {
-  stopPolling();
+  fetchNextItem();
 });
 </script>
 

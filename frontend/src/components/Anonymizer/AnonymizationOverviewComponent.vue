@@ -159,7 +159,7 @@
                     <button
                       v-if="file.anonymizationStatus === 'done'"
                       @click="validateFile(file.id)"
-                      class="btn btn-outline-success"
+                      class="btn btn-outline-success bg-success"
                       :disabled="isProcessing(file.id)"
                     >
                       <i class="fas fa-eye"></i>
@@ -316,11 +316,10 @@ const correctVideo = async (fileId: number) => {
 
 const validateFile = async (fileId: number) => {
   processingFiles.value.add(fileId);
+
   try {
     const result = await anonymizationStore.setCurrentForValidation(fileId);
     if (result) {
-
-      /* jump to the validation page that has an actual vue-route */
       router.push('/anonymisierung/validierung');
     } else {
       console.warn('setCurrentForValidation returned null - navigation aborted');
@@ -449,8 +448,13 @@ const hasOriginalFile = (file: FileItem): boolean => {
 
 // Lifecycle
 onMounted(async () => {
+  if (!availableFiles.value.length) {
+    // Only fetch overview if we don't have files yet
+    isRefreshing.value = true;
+
+  }
   await anonymizationStore.fetchOverview();
-  
+
   availableFiles.value
     .forEach(file => anonymizationStore.startPolling(file.id));
   
@@ -463,6 +467,11 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+
+.bg-success {
+  background-color: #6c757d !important;
+}
+
 .table th {
   border-top: none;
   font-weight: 600;

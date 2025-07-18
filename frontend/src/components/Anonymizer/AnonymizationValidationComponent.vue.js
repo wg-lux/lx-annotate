@@ -11,9 +11,6 @@ const toast = useToastStore();
 const anonymizationStore = useAnonymizationStore();
 const videoStore = useVideoStore();
 const patientStore = usePatientStore();
-// Polling state
-const pollingInterval = ref(null);
-const POLLING_INTERVAL_MS = 3000; // Poll every 3 seconds
 // Local state
 const editedAnonymizedText = ref('');
 const examinationDate = ref('');
@@ -33,23 +30,33 @@ const hasSuccessfulUpload = ref(false);
 const dirty = ref(false);
 // Computed
 const currentItem = computed(() => anonymizationStore.current);
+const mediaType = computed(() => currentItem.value?.reportMeta?.pdfUrl
+    ? 'pdf'
+    : currentItem.value?.videoUrl || currentItem.value?.reportMeta?.file
+        ? 'video'
+        : 'unknown');
+const isPdf = computed(() => mediaType.value === 'pdf');
+const isVideo = computed(() => mediaType.value === 'video');
+// Media URLs
+const pdfSrc = computed(() => {
+    if (!isPdf.value)
+        return undefined;
+    return currentItem.value.reportMeta.pdfUrl ??
+        `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}/api/pdfstream/${currentItem.value.id}/`;
+});
+const videoSrc = computed(() => {
+    if (!isVideo.value)
+        return undefined;
+    return currentItem.value?.videoUrl || undefined;
+});
 const isExaminationDateValid = computed(() => {
     if (!examinationDate.value || !editedPatient.value.patientDob) {
         return true;
     }
     return new Date(examinationDate.value) >= new Date(editedPatient.value.patientDob);
 });
-const isPatientDataValid = computed(() => {
-    return editedPatient.value.patientFirstName.trim() !== '' &&
-        editedPatient.value.patientLastName.trim() !== '' &&
-        editedPatient.value.patientGender.trim() !== '' &&
-        editedPatient.value.patientDob.trim() !== '' &&
-        editedPatient.value.casenumber.trim() !== '';
-});
 const canSubmit = computed(() => {
-    return isExaminationDateValid.value &&
-        isPatientDataValid.value &&
-        dirty.value;
+    return processedUrl.value && originalUrl.value && isExaminationDateValid.value;
 });
 // Watch
 watch(currentItem, (newItem) => {
@@ -226,47 +233,17 @@ const onVideoLoadStart = () => {
 const onVideoCanPlay = () => {
     console.log('Video can play, loaded successfully');
 };
-// Polling function
-const startPolling = () => {
-    if (pollingInterval.value !== null)
-        return; // Already polling
-    pollingInterval.value = window.setInterval(async () => {
-        try {
-            await anonymizationStore.fetchNext();
-            console.log('Polling: Fetched next item');
-        }
-        catch (error) {
-            console.error('Error during polling:', error);
-        }
-    }, POLLING_INTERVAL_MS);
-};
-const stopPolling = () => {
-    if (pollingInterval.value === null)
-        return; // Not currently polling
-    clearInterval(pollingInterval.value);
-    pollingInterval.value = null;
-};
 // Lifecycle
 onMounted(async () => {
-    // 1 ‑ pull data from the API
-    await fetchNextItem(); // waits until store.current is set
-    // 2 ‑ explicitly populate the local form (optional: the watcher will
-    // do the same, but calling it once here avoids a tiny flicker)
+    if (!anonymizationStore.current) { // nur wenn wirklich leer
+        await fetchNextItem();
+    }
     if (anonymizationStore.current) {
-        loadCurrentItemData(anonymizationStore.current); // not .value here because
-        // current is already the
-        // raw object, *not* a ref
+        loadCurrentItemData(anonymizationStore.current);
     }
-    // 3 ‑ any toast that depends on store flags *after* they are up‑to‑date
-    if (anonymizationStore.isAnyFileProcessing) {
-        toast.warning({
-            text: 'Es werden noch Dateien anonymisiert. Bitte warten …'
-        });
-    }
-    startPolling();
 });
 onUnmounted(() => {
-    stopPolling();
+    fetchNextItem();
 });
 ; /* PartiallyEnd: #3632/scriptSetup.vue */
 function __VLS_template() {
@@ -514,6 +491,10 @@ function __VLS_template() {
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: ("card-header pb-0") },
         });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.h5, __VLS_intrinsicElements.h5)({
+            ...{ class: ("mb-0") },
+        });
+        (__VLS_ctx.isPdf ? 'PDF Vorschau' : 'Video Vorschau');
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: ("alert alert-info mt-2 mb-0") },
         });
@@ -521,9 +502,13 @@ function __VLS_template() {
             ...{ class: ("fas fa-info-circle me-2") },
         });
         __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
-        if (__VLS_ctx.currentItem?.reportMeta?.pdfUrl) {
+        if (__VLS_ctx.isPdf) {
             __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
-            (Math.round((__VLS_ctx.currentItem.reportMeta.file?.length || 0) / 1024) || 'Unbekannt');
+            (Math.round((__VLS_ctx.currentItem?.reportMeta?.file?.length || 0) / 1024) || 'Unbekannt');
+        }
+        else if (__VLS_ctx.isVideo) {
+            __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+            (__VLS_ctx.videoSrc);
         }
         else {
             __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
@@ -532,19 +517,19 @@ function __VLS_template() {
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: ("card-body media-viewer-container") },
         });
-        if (__VLS_ctx.getPdfStreamUrl() || __VLS_ctx.currentItem?.reportMeta?.pdfUrl) {
+        if (__VLS_ctx.isPdf) {
             __VLS_elementAsFunction(__VLS_intrinsicElements.iframe, __VLS_intrinsicElements.iframe)({
-                src: ((__VLS_ctx.getPdfStreamUrl() || __VLS_ctx.currentItem?.reportMeta?.pdfUrl)),
+                src: ((__VLS_ctx.pdfSrc)),
                 width: ("100%"),
                 height: ("800px"),
                 frameborder: ("0"),
                 title: ("PDF Vorschau"),
             });
             __VLS_elementAsFunction(__VLS_intrinsicElements.a, __VLS_intrinsicElements.a)({
-                href: ((__VLS_ctx.getPdfStreamUrl() || __VLS_ctx.currentItem?.reportMeta?.pdfUrl)),
+                href: ((__VLS_ctx.pdfSrc)),
             });
         }
-        else if (__VLS_ctx.getVideoStreamUrl()) {
+        else if (__VLS_ctx.isVideo) {
             __VLS_elementAsFunction(__VLS_intrinsicElements.video, __VLS_intrinsicElements.video)({
                 ...{ onError: (__VLS_ctx.onVideoError) },
                 ...{ onLoadstart: (__VLS_ctx.onVideoLoadStart) },
@@ -552,7 +537,7 @@ function __VLS_template() {
                 controls: (true),
                 width: ("100%"),
                 height: ("600px"),
-                src: ((__VLS_ctx.getVideoStreamUrl() || undefined)),
+                src: ((__VLS_ctx.videoSrc)),
             });
         }
         else {
@@ -571,19 +556,16 @@ function __VLS_template() {
             (__VLS_ctx.currentItem?.sensitiveMetaId || 'Nicht verfügbar');
             __VLS_elementAsFunction(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({});
             __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
-            (!!__VLS_ctx.currentItem?.reportMeta);
+            (__VLS_ctx.isPdf);
             __VLS_elementAsFunction(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({});
             __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
-            (__VLS_ctx.currentItem?.reportMeta?.file || 'Nicht verfügbar');
+            (__VLS_ctx.isVideo);
             __VLS_elementAsFunction(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({});
             __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
             (__VLS_ctx.currentItem?.reportMeta?.pdfUrl || 'Nicht verfügbar');
             __VLS_elementAsFunction(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({});
             __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
-            (__VLS_ctx.debugGetVideoStreamUrl());
-            __VLS_elementAsFunction(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({});
-            __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
-            (__VLS_ctx.debugGetPdfStreamUrl());
+            (__VLS_ctx.currentItem?.videoUrl || 'Nicht verfügbar');
         }
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: ("row") },
@@ -606,7 +588,7 @@ function __VLS_template() {
             disabled: ((!__VLS_ctx.isExaminationDateValid || !__VLS_ctx.dirty)),
         });
     }
-    ['container-fluid', 'py-4', 'card', 'card-header', 'pb-0', 'mb-0', 'card-body', 'text-center', 'py-5', 'spinner-border', 'text-primary', 'visually-hidden', 'mt-2', 'alert', 'alert-danger', 'alert', 'alert-info', 'alert', 'alert-warning', 'mt-3', 'fas', 'fa-info-circle', 'me-2', 'mt-2', 'btn', 'btn-sm', 'btn-outline-primary', 'fas', 'fa-eye', 'me-1', 'row', 'mb-3', 'col-12', 'alert', 'alert-info', 'd-flex', 'align-items-center', 'fas', 'fa-info-circle', 'me-2', 'row', 'mb-4', 'col-md-5', 'card', 'bg-light', 'mb-4', 'card-body', 'card-title', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-select', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-control', 'is-invalid', 'invalid-feedback', 'mb-3', 'form-label', 'form-control', 'card', 'bg-light', 'card-body', 'card-title', 'mt-3', 'img-fluid', 'btn', 'btn-info', 'btn-sm', 'mt-2', 'mt-3', 'btn', 'btn-primary', 'col-md-7', 'card', 'card-header', 'pb-0', 'alert', 'alert-info', 'mt-2', 'mb-0', 'fas', 'fa-info-circle', 'me-2', 'card-body', 'media-viewer-container', 'alert', 'alert-warning', 'mb-0', 'row', 'col-12', 'd-flex', 'justify-content-between', 'btn', 'btn-secondary', 'btn', 'btn-danger', 'me-2', 'btn', 'btn-success',];
+    ['container-fluid', 'py-4', 'card', 'card-header', 'pb-0', 'mb-0', 'card-body', 'text-center', 'py-5', 'spinner-border', 'text-primary', 'visually-hidden', 'mt-2', 'alert', 'alert-danger', 'alert', 'alert-info', 'alert', 'alert-warning', 'mt-3', 'fas', 'fa-info-circle', 'me-2', 'mt-2', 'btn', 'btn-sm', 'btn-outline-primary', 'fas', 'fa-eye', 'me-1', 'row', 'mb-3', 'col-12', 'alert', 'alert-info', 'd-flex', 'align-items-center', 'fas', 'fa-info-circle', 'me-2', 'row', 'mb-4', 'col-md-5', 'card', 'bg-light', 'mb-4', 'card-body', 'card-title', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-select', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-control', 'is-invalid', 'invalid-feedback', 'mb-3', 'form-label', 'form-control', 'card', 'bg-light', 'card-body', 'card-title', 'mt-3', 'img-fluid', 'btn', 'btn-info', 'btn-sm', 'mt-2', 'mt-3', 'btn', 'btn-primary', 'col-md-7', 'card', 'card-header', 'pb-0', 'mb-0', 'alert', 'alert-info', 'mt-2', 'mb-0', 'fas', 'fa-info-circle', 'me-2', 'card-body', 'media-viewer-container', 'alert', 'alert-warning', 'mb-0', 'row', 'col-12', 'd-flex', 'justify-content-between', 'btn', 'btn-secondary', 'btn', 'btn-danger', 'me-2', 'btn', 'btn-success',];
     var __VLS_slots;
     var $slots;
     let __VLS_inheritedAttrs;
@@ -634,6 +616,10 @@ const __VLS_self = (await import('vue')).defineComponent({
             showOriginal: showOriginal,
             dirty: dirty,
             currentItem: currentItem,
+            isPdf: isPdf,
+            isVideo: isVideo,
+            pdfSrc: pdfSrc,
+            videoSrc: videoSrc,
             isExaminationDateValid: isExaminationDateValid,
             canSubmit: canSubmit,
             toggleImage: toggleImage,
@@ -641,10 +627,6 @@ const __VLS_self = (await import('vue')).defineComponent({
             approveItem: approveItem,
             saveAnnotation: saveAnnotation,
             rejectItem: rejectItem,
-            getVideoStreamUrl: getVideoStreamUrl,
-            getPdfStreamUrl: getPdfStreamUrl,
-            debugGetVideoStreamUrl: debugGetVideoStreamUrl,
-            debugGetPdfStreamUrl: debugGetPdfStreamUrl,
             onVideoError: onVideoError,
             onVideoLoadStart: onVideoLoadStart,
             onVideoCanPlay: onVideoCanPlay,

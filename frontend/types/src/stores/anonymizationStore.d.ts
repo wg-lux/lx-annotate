@@ -42,14 +42,13 @@ export interface SensitiveMeta {
 }
 export interface VideoDetailApiResponse {
     id: number;
-    sensitive_meta_id: number;
-    video_url: string | null;
+    sensitiveMetaId: number;
+    videoUrl: string | null;
     thumbnail: string | null;
-    duration: number | null;
-    patient_first_name: string | null;
-    patient_last_name: string | null;
-    patient_dob: string | null;
-    examination_date: string | null;
+    patientFirstName: string | null;
+    patientLastName: string | null;
+    patientDob: string | null;
+    examinationDate: string | null;
     casenumber?: string | null;
     file: string | null;
 }
@@ -416,7 +415,7 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
 }, {
     /** Holt den nächsten PDF-Datensatz + zugehöriges SensitiveMeta
      *  und fügt beides zusammen. */
-    fetchNext(lastId?: number): Promise<PatientData | null>;
+    fetchNext(lastId?: number): Promise<PatientData | null | undefined>;
     patchPdf(payload: {
         id?: number;
         sensitive_meta_id?: number;

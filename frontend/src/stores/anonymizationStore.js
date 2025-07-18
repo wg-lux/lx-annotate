@@ -37,64 +37,77 @@ export const useAnonymizationStore = defineStore('anonymization', {
                     const item = this.overview.find(f => f.id === lastId);
                     if (item?.mediaType === 'video') {
                         // **Use the sensitive_meta_id (!) and keep the trailing slash**
-                        console.log(`Fetching video detail for sensitiveMetaId: ${item.sensitiveMetaId}`);
-                        const { data: video } = await axiosInstance.get(r(`media/videos/${item.sensitiveMetaId}/`));
+                        console.log(`Fetching video detail for sensitiveMetaId: ${item.id}`);
+                        const { data: video } = await axiosInstance.get(r(`media/videos/${item.id}/`));
                         console.log('Received video detail:', video);
                         this.current = {
                             id: video.id,
-                            sensitiveMetaId: video.sensitive_meta_id,
-                            videoUrl: video.video_url,
+                            sensitiveMetaId: video.sensitiveMetaId,
+                            videoUrl: video.videoUrl,
                             thumbnail: video.thumbnail,
-                            text: '', // Videos don't have text
-                            anonymizedText: '', // Videos don't have anonymized text
+                            text: '', // Videos haben keinen Text
+                            anonymizedText: '',
                             reportMeta: {
-                                id: video.sensitive_meta_id,
-                                patientFirstName: video.patient_first_name,
-                                patientLastName: video.patient_last_name,
-                                patientDob: video.patient_dob,
-                                patientGender: '', // Will be filled from backend if available
-                                examinationDate: video.examination_date,
+                                id: video.sensitiveMetaId,
+                                patientFirstName: video.patientFirstName,
+                                patientLastName: video.patientLastName,
+                                patientDob: video.patientDob,
+                                patientGender: '',
+                                examinationDate: video.examinationDate,
                                 casenumber: video.casenumber
                             }
                         };
                         return this.current;
                     }
+                    else {
+                        /* 1) PDF-Datensatz von anony_text endpoint -------------------- */
+                        const pdfUrl = lastId
+                            ? a(`anony_text/?last_id=${lastId}`)
+                            : a('anony_text/');
+                        console.log(`Fetching PDF data from: ${pdfUrl}`);
+                        const { data: pdf } = await axiosInstance.get(pdfUrl);
+                        console.log('Received PDF data:', pdf);
+                        if (!pdf?.id) {
+                            this.$patch({ current: null });
+                            throw new Error('Backend lieferte keinen gültigen PDF-Datensatz.');
+                        }
+                        if (pdf.error) {
+                            this.$patch({ current: null });
+                            throw new Error('Backend meldet Fehler-Flag im PDF-Datensatz.');
+                        }
+                        /* 2) Sensitive-Meta nachladen ---------------------------------- */
+                        const metaUrl = a(`sensitivemeta/?id=${pdf.sensitiveMetaId}`);
+                        console.log(`Fetching sensitive meta from: ${metaUrl}`);
+                        const { data: metaResponse } = await axiosInstance.get(metaUrl);
+                        console.log('Received sensitive meta response data:', metaResponse);
+                        if (typeof metaResponse?.id !== 'number') {
+                            console.error('Received invalid sensitive meta data structure:', metaResponse);
+                            this.$patch({ current: null });
+                            throw new Error('Ungültige Metadaten vom Backend empfangen (keine gültige ID gefunden).');
+                        }
+                        /* 3) Merge & State-Update -------------------------------------- */
+                        const merged = {
+                            ...pdf,
+                            reportMeta: metaResponse
+                        };
+                        console.log('Merged data:', merged);
+                        this.$patch({
+                            current: merged
+                        });
+                        return merged;
+                    }
                 }
-                /* 1) PDF-Datensatz von anony_text endpoint -------------------- */
-                const pdfUrl = lastId
-                    ? a(`anony_text/?last_id=${lastId}`)
-                    : a('anony_text/');
-                console.log(`Fetching PDF data from: ${pdfUrl}`);
-                const { data: pdf } = await axiosInstance.get(pdfUrl);
-                console.log('Received PDF data:', pdf);
-                if (!pdf?.id) {
-                    this.$patch({ current: null });
-                    throw new Error('Backend lieferte keinen gültigen PDF-Datensatz.');
+                else {
+                    if (this.current) {
+                        return;
+                    }
+                    else {
+                        console.warn('No lastId provided and current item is not set.');
+                        this.current = this.getCurrentItem;
+                        this.fetchNext(this.current?.id);
+                    }
+                    return null;
                 }
-                if (pdf.error) {
-                    this.$patch({ current: null });
-                    throw new Error('Backend meldet Fehler-Flag im PDF-Datensatz.');
-                }
-                /* 2) Sensitive-Meta nachladen ---------------------------------- */
-                const metaUrl = a(`sensitivemeta/?id=${pdf.sensitiveMetaId}`);
-                console.log(`Fetching sensitive meta from: ${metaUrl}`);
-                const { data: metaResponse } = await axiosInstance.get(metaUrl);
-                console.log('Received sensitive meta response data:', metaResponse);
-                if (typeof metaResponse?.id !== 'number') {
-                    console.error('Received invalid sensitive meta data structure:', metaResponse);
-                    this.$patch({ current: null });
-                    throw new Error('Ungültige Metadaten vom Backend empfangen (keine gültige ID gefunden).');
-                }
-                /* 3) Merge & State-Update -------------------------------------- */
-                const merged = {
-                    ...pdf,
-                    reportMeta: metaResponse
-                };
-                console.log('Merged data:', merged);
-                this.$patch({
-                    current: merged
-                });
-                return merged;
             }
             catch (err) {
                 console.error('Error in fetchNext:', err);
@@ -288,19 +301,16 @@ export const useAnonymizationStore = defineStore('anonymization', {
                 }
                 console.log('Found item for validation:', item);
                 if (item.mediaType === 'video') {
-                    // For videos, use the sensitiveMetaId to load the video data
-                    if (!item.sensitiveMetaId || typeof item.sensitiveMetaId !== 'number') {
-                        throw new Error(`Video item with ID ${id} has no valid sensitiveMetaId (got: ${item.sensitiveMetaId})`);
-                    }
-                    console.log(`Loading video data for sensitiveMetaId: ${item.sensitiveMetaId}`);
-                    const { data: video } = await axiosInstance.get(r(`media/videos/${item.sensitiveMetaId}/`));
+                    // For videos, use the ID to load the video data
+                    console.log(`Loading video data for sensitiveMetaId: ${item.id}`);
+                    const { data: video } = await axiosInstance.get(r(`media/videos/${item.id}/`));
                     console.log('Received video detail:', video);
                     this.current = {
                         id: video.id,
                         sensitiveMetaId: video.sensitive_meta_id,
                         videoUrl: video.video_url,
                         thumbnail: video.thumbnail,
-                        text: '', // Videos don't have text
+                        text: 'd', // Videos don't have text
                         anonymizedText: '', // Videos don't have anonymized text
                         reportMeta: {
                             id: video.sensitive_meta_id,
