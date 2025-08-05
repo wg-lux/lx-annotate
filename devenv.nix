@@ -16,18 +16,8 @@ let
     gnumake
     cmake
     gcc
-    # OpenCV dependencies
-    # gtk3
-    # gdk-pixbuf
-    # cairo
-    # pango
-    # atk
-    # harfbuzz
-    # fontconfig
-    # freetype
-    # libpng
-    # libjpeg
-    # opencv4
+    protobuf
+    libglvnd
   ];
 
   # Explicitly define the uv package

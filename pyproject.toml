@@ -62,4 +62,3 @@ addopts = [
 
 [tool.uv.sources]
 endoreg-db = { path = "endoreg-db", editable = true }
-lx-anonymizer = { path = "endoreg-db/lx-anonymizer", editable = true }
