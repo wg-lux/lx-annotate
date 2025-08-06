@@ -2,10 +2,11 @@
 let
   customTasks = {
     "env:fetch-db-pwd-file" = {
-      description = "Fetch the database password file";
+      description = "Fetch the database password file from luxnix vault";
       exec = "${pkgs.uv}/bin/uv run python scripts/fetch_db_pwd_file.py";
     };
     "env:init-conf" = {
+      description = "Initialize database configuration files";
       # after = ["env:psql-pwd-file-exists" "devenv:enterShell"];
       exec = "${pkgs.uv}/bin/uv run python scripts/make_conf.py";
     };

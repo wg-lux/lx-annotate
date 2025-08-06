@@ -51,6 +51,9 @@ let
     LX_ANONYMIZER_DIR = lxAnonymizerDir;
     ENDOREG_DB_DIR = endoregDbDir;
     LIB_DIR = libDir;
+    # LX Vault integration - this path must be accessible in luxnix environments
+    # The file contains the maintenance password for database access
+    # See docs/vault-setup.md for troubleshooting vault permission issues
     LX_MAINTENANCE_PASSWORD_FILE = "${homeDir}/secrets/vault/SCRT_local_password_maintenance_password";
   };
 
