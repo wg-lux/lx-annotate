@@ -25,5 +25,13 @@ let
         log_status "Environment cleaned. Re-enter the shell (e.g., 'exit' then 'devenv up') to trigger uv sync."
       '';
     };
+    "env:full-setup" = 
+      {
+        description = "Full setup of the environment including fetching DB password, initializing config, and building the .env file";
+        after = ["env:fetch-db-pwd-file" "env:init-conf"];
+        exec = ''
+          devenv tasks run env:fetch-db-pwd-file env:init-conf env:build
+        '';
+      };
   };
 in customTasks

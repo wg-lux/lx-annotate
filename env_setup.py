@@ -74,7 +74,7 @@ nix_vars = {
 
 }
 
-nix_vars_paths: Dict[str, Path] = {}
+nix_vars_paths: dict[str, Path] = {}
 for key, value in nix_vars.items():
     if value is None:
         raise ValueError(f"Missing required environment variable: {key}")

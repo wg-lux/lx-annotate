@@ -20,6 +20,7 @@ let
 
   python = pkgs.python312;
   uvPackage = pkgs.uv;
+  languages.python.activate = true;
 
   devenv_utils = import ./devenv/default.nix {
     pkgs = pkgs;
@@ -189,7 +190,7 @@ in
     deploy-collectstatic.exec = "${pkgs.uv}/bin/uv run python manage.py collectstatic --noinput";
   };
   
-  tasks = customTasks;
+    tasks = customTasks;
 
   processes = customProcesses;
   cachix.enable = true;
