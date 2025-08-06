@@ -1,4 +1,4 @@
-{}@inputs:
+{pkgs, lib, config, ...}@inputs:
 let
   ENDOREG_DB_DIR       = "endoreg-db";
   LX_ANONYMIZER_DIR    = "lx-anonymizer";

@@ -1,9 +1,9 @@
-{}@inputs:
+{pkgs, lib, config, ...}@inputs:
 let
   customTasks = {
   "purge:endoreg_db_envrc" = {
     description = "Remove endoreg-db .envrc file if it exists";
-    after       = [ "setup:endoreg-db" ];
+    after       = [ "env:build" ];
     exec        = ''
                     cd $ENDOREG_DB_DIR
                     if [ -f .envrc ]; then
@@ -26,7 +26,7 @@ let
 
   "purge:lx_anonymizer_envrc" = {
     description = "Remove lx-anonymizer .envrc file if it exists";
-    after       = [ "setup:lx-anonymizer" ];
+    after       = [ "env:build" ];
     exec        = ''
                     LX_ANONYMIZER_DIR="$ENDOREG_DB_DIR/lx-anonymizer"
                     if [ -d "$LX_ANONYMIZER_DIR" ]; then
@@ -54,7 +54,7 @@ let
 
   "purge:frontend_envrc" = {
     description = "Remove frontend .envrc file if it exists";
-    after       = [ "setup:frontend" ];
+    after       = [ "env:build" ];
     exec        = ''
                     if [ -d "$FRONTEND_DIR" ]; then
                       cd "$FRONTEND_DIR"

@@ -166,6 +166,10 @@ const hasOriginalFile = (file) => {
 };
 // Lifecycle
 onMounted(async () => {
+    if (!availableFiles.value.length) {
+        // Only fetch overview if we don't have files yet
+        isRefreshing.value = true;
+    }
     await anonymizationStore.fetchOverview();
     availableFiles.value
         .forEach(file => anonymizationStore.startPolling(file.id));

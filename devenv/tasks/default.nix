@@ -1,27 +1,30 @@
-{...}@inputs:
+{ pkgs, lib, config, ...}@inputs:
 let
 
   vueTasks = (
-    import ./vue.nix { }
+    import ./vue.nix { inherit config pkgs lib; }
   );
   envTasks = (
-    import ./env.nix { }
+    import ./env.nix { inherit config pkgs lib; }
   );
   pytestTasks = (
-    import ./pytest.nix { }
+    import ./pytest.nix { inherit config pkgs lib; }
   );
   subrepoTasks = (
-    import ./subrepos.nix { }
+    import ./subrepos.nix { inherit config pkgs lib; }
   );
   purgeTasks = (
-    import ./purge.nix { }
+    import ./purge.nix { inherit config pkgs lib; }
   );
   uvTasks = (
-    import ./uv.nix { }
+    import ./uv.nix { inherit config pkgs lib; }
+  );
+  deployTasks = (
+    import ./deploy.nix { inherit config pkgs lib; }
   );
 
   customTasks = {
     
-  } //envTasks //subrepoTasks //purgeTasks //vueTasks //uvTasks;
+  } //envTasks //deployTasks //purgeTasks //vueTasks //uvTasks;
 
 in customTasks 

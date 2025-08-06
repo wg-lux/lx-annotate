@@ -1,12 +1,7 @@
 ## lx-annotate - API
 
 LX-Annotate is a Vue-based Frontend living in a Django app. It utilizes an API to interact with the Endoreg-DB backend. This API is designed to facilitate the seamless integration of the annotation and review functionalities needed in day to day clinical work as well as for the basis of AI training.
-
-## Production TODO List
-
-- Switch out Base URL in .env - Setup is located in Tasks inside the devenv folder
-- export DJANGO_SETTINGS=prod
-- Set up NGINX and NGINX reverse proxy
+ 
 
 ## Features of the ecosystem - made available in a frontend
 

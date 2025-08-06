@@ -515,7 +515,7 @@ onMounted(async () => {
   if (!anonymizationStore.current) {         // nur wenn wirklich leer
     await fetchNextItem();
   }
-  if (anonymizationStore.current) {
+  else {
     loadCurrentItemData(anonymizationStore.current);
   }
 });

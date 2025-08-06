@@ -307,18 +307,18 @@ export const useAnonymizationStore = defineStore('anonymization', {
                     console.log('Received video detail:', video);
                     this.current = {
                         id: video.id,
-                        sensitiveMetaId: video.sensitive_meta_id,
-                        videoUrl: video.video_url,
+                        sensitiveMetaId: video.sensitiveMetaId,
+                        videoUrl: video.videoUrl,
                         thumbnail: video.thumbnail,
                         text: 'd', // Videos don't have text
                         anonymizedText: '', // Videos don't have anonymized text
                         reportMeta: {
-                            id: video.sensitive_meta_id,
-                            patientFirstName: video.patient_first_name,
-                            patientLastName: video.patient_last_name,
-                            patientDob: video.patient_dob,
+                            id: video.sensitiveMetaId,
+                            patientFirstName: video.patientFirstName,
+                            patientLastName: video.patientLastName,
+                            patientDob: video.patientDob,
                             patientGender: '', // Will be filled from backend if available
-                            examinationDate: video.examination_date,
+                            examinationDate: video.examinationDate,
                             casenumber: video.casenumber
                         }
                     };
