@@ -14,4 +14,9 @@ if not os.access(db_pwd_source, os.R_OK):
     raise PermissionError(f"Source file {db_pwd_source} is not readable")
 
 shutil.copyfile(db_pwd_source, db_pwd_target) #TODO Make sure file permissions are set correctly
+try:
+    os.chmod(db_pwd_target, 0o600)
+except PermissionError:
+    print(f"WARNING: Could not set permissions for {db_pwd_target}. Please set them manually to 600 (read/write for owner only).")
+    
 os.chmod(db_pwd_target, 0o600)  # Set permissions to read/write for owner only

@@ -20,7 +20,6 @@ let
 
   python = pkgs.python312;
   uvPackage = pkgs.uv;
-  languages.python.activate = true;
 
   devenv_utils = import ./devenv/default.nix {
     pkgs = pkgs;
@@ -40,6 +39,8 @@ let
 
   languages.javascript.enable = true;
   languages.javascript.package = pkgs.nodejs_22; # Specify the Node.js version
+  languages.python.enable = true;
+  languages.python.uv.enable = true;
 
   # Define the shellHook for convenience
   commonShellHook = ''
@@ -80,6 +81,8 @@ in
   dotenv.enable = true;
   dotenv.disableHint = true;
 
+
+
   packages = with pkgs; [
     stdenv.cc.cc
     nodejs_22
@@ -91,16 +94,12 @@ in
     ffmpeg_6-headless
   ] ++ runtimePackages;
 
-
-
   env = {
     LD_LIBRARY_PATH = "${
       with pkgs;
       lib.makeLibraryPath buildInputs
     }:/run/opengl-driver/lib:/run/opengl-driver-32/lib";
   } // lxVars;
-
-  
 
   languages.python = {
     enable = true;
@@ -194,7 +193,48 @@ in
 
   processes = customProcesses;
   cachix.enable = true;
+  enterShell = ''
+    git submodule init
+    git submodule update --remote --recursive
 
-  
+    export SYNC_CMD="uv sync"
+
+    # Ensure dependencies are synced using uv
+    # Check if venv exists. If not, run sync verbosely. If it exists, sync quietly.
+    if [ ! -d ".devenv/state/venv" ]; then
+       echo "Virtual environment not found. Running initial uv sync..."
+       $SYNC_CMD || echo "Error: Initial uv sync failed. Please check network and pyproject.toml."
+    else
+       # Sync quietly if venv exists
+       echo "Syncing Python dependencies with uv..."
+       $SYNC_CMD --quiet || echo "Warning: uv sync failed. Environment might be outdated."
+    fi
+
+    # Activate Python virtual environment managed by uv
+    ACTIVATED=false
+    if [ -f ".devenv/state/venv/bin/activate" ]; then
+      source .devenv/state/venv/bin/activate
+      ACTIVATED=true
+      echo "Virtual environment activated."
+    else
+      echo "Warning: uv virtual environment activation script not found. Run 'devenv task run env:clean' and re-enter shell."
+    fi
+
+    echo "Exporting environment variables from .env file..."
+    if [ -f ".env" ]; then
+      set -a
+      source .env
+      set +a
+      echo ".env file loaded successfully."
+    elif [ -f "local_settings.py" ]; then
+      echo "Detected luxnix managed environment - using system environment variables"
+      echo "No .env file needed"
+    else
+      echo "Warning: .env file not found. Please run 'devenv tasks run env:build' to create it."
+    fi
+
+    gpu-check
+
+  '';
 
 }

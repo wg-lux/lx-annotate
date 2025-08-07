@@ -244,7 +244,7 @@ class AutoProcessingHandler(FileSystemEventHandler):
             try:
                 from endoreg_db.exceptions import InsufficientStorageError
                 from endoreg_db.models.media.video.create_from_file import check_storage_capacity
-                storage_root = Path(PROJECT_ROOT) / 'storage' / 'videos'
+                storage_root = os.getenv('DJANGO_DATA_DIR', str(PROJECT_ROOT)/ 'data') / 'videos'
                 check_storage_capacity(video_path, storage_root)
             except InsufficientStorageError as storage_error:
                 logger.error(f"Insufficient storage space for {video_path}: {storage_error}")
@@ -319,6 +319,34 @@ class AutoProcessingHandler(FileSystemEventHandler):
                 # For other errors, remove from processed set to allow retry
                 logger.warning(f"Removing {video_path} from processed set due to error")
                 self.processed_files.discard(str(video_path))
+    
+    def _process_pdf(self, pdf_path: Path):
+        """
+        Process a PDF file: anonymize and import.
+        
+        Args:
+            pdf_path: Path to the PDF file
+        """
+        try:
+            logger.info(f"Starting PDF processing: {pdf_path}")
+            
+            # Mark as processed to avoid duplicate processing
+            self.processed_files.add(str(pdf_path))
+            
+            
+            # Early storage capacity check
+            try:
+                from endoreg_db.exceptions import InsufficientStorageError
+                from endoreg_db.models.media.pdf.raw_pdf import RawPdfFile
+                storage_root = os.getenv('PDF_STORAGE_ROOT', str(PROJECT_ROOT/ 'data') / 'pdfs')
+            except InsufficientStorageError as storage_error:
+                logger.error(f"Insufficient storage space for {video_path}: {storage_error}")
+                # Don't mark as processed - allow retry when space is available
+                self.processed_files.discard(str(video_path))
+                # Set status to indicate storage issue
+                return
+                
+                
     def shutdown(self):
         """Shutdown the thread pool executor."""
         logger.info("Shutting down file processor threads...")

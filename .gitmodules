@@ -1,8 +1,8 @@
 [submodule "lib/lx-anonymizer"]
-	path = lib/lx-anonymizer
+	path = libs/lx-anonymizer
 	url = https://github.com/wg-lux/lx-anonymizer.git
 	branch = main
 [submodule "lib/endoreg-db"]
-	path = lib/endoreg-db
+	path = libs/endoreg-db
 	url = https://github.com/wg-lux/endoreg-db.git
 	branch = prototype
