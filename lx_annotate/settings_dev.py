@@ -6,7 +6,7 @@ This configuration prioritizes developer productivity and ease of debugging.
 """
 from rest_framework.permissions import AllowAny, IsAuthenticated
 
-from .base import *  # noqa
+from .settings_base import *  # noqa
 
 
 # SECURITY WARNING: Debug mode is ON - only for development!

@@ -4,7 +4,9 @@ Base Django settings shared by all environments.
 These are the core settings that remain consistent across dev, staging, and production.
 Environment-specific settings override these in their respective modules.
 """
+import os
 from pathlib import Path
+from django.contrib.staticfiles.storage import ManifestStaticFilesStorage 
 import environ
 from django.core.management.utils import get_random_secret_key
 import re
@@ -13,7 +15,7 @@ import re
 env = environ.Env()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
-BASE_DIR = Path(__file__).resolve().parents[2]
+BASE_DIR = Path(__file__).resolve().parents[1]
 
 # Load environment variables from .env file
 env_file = BASE_DIR / ".env"
@@ -22,7 +24,8 @@ if env_file.exists():
 
 # SECURITY WARNING: This is a fallback only! 
 # Production MUST override this with a real secret from environment
-SECRET_KEY = env("DJANGO_SECRET_KEY", default="***UNSAFE-DEV-KEY-CHANGE-IN-PROD***")
+# Use same approach as endo-api for better reliability
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "***UNSAFE-DEV-KEY-CHANGE-IN-PROD***")
 
 # Application definition
 INSTALLED_APPS = [

@@ -4,8 +4,8 @@ Production settings - paranoid security mode.
 This configuration enforces strict security policies and fails fast if 
 misconfigured. All secrets must come from environment variables.
 """
-from .base import *  # noqa
-from .base import BASE_DIR 
+from .settings_base import *  # noqa
+from .settings_base import BASE_DIR 
 import os
 
 # SECURITY: Debug MUST be off in production

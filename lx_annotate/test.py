@@ -7,7 +7,7 @@ Diese Konfiguration optimiert die Testausführung durch:
 - Minimale Logging-Ausgabe
 - Deaktivierte externe Services
 """
-from .base import *  # noqa
+from .settings_base import *  # noqa
 import tempfile
 
 # Test-Modus aktivieren

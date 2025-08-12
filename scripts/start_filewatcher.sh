@@ -46,6 +46,7 @@ check_root() {
 install_dependencies() {
     print_status "Installing Python dependencies..."
     cd "$PROJECT_ROOT"
+    cd lx-annotate
     
     if command -v uv &> /dev/null; then
         print_status "Using uv to install dependencies"

@@ -345,7 +345,10 @@ class AutoProcessingHandler(FileSystemEventHandler):
                 self.processed_files.discard(str(video_path))
                 # Set status to indicate storage issue
                 return
-                
+        except Exception as e:
+            logger.error(f"Error processing pdf {pdf_path}: {str(e)}", exc_info=True)
+            self.processed_files.discard(str(pdf_path))
+            return
                 
     def shutdown(self):
         """Shutdown the thread pool executor."""
