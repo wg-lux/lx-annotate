@@ -63,6 +63,15 @@ function normalizeDateToISO(input) {
     }
     return null;
 }
+function buildSensitiveMetaSnake(dobIso) {
+    return {
+        patient_first_name: editedPatient.value.patientFirstName || '',
+        patient_last_name: editedPatient.value.patientLastName || '',
+        patient_gender: editedPatient.value.patientGender || '',
+        patient_dob: dobIso,
+        casenumber: editedPatient.value.casenumber || '',
+    };
+}
 function compareISODate(a, b) {
     if (a === b)
         return 0;
@@ -172,14 +181,14 @@ const approveItem = async () => {
     try {
         const normalizedDob = dobISO.value; // guaranteed by canSave
         const normalizedExam = examISO.value || '';
+        const snake = buildSensitiveMetaSnake(normalizedDob);
         if (isVideo.value) {
             await videoStore.loadVideo(currentItem.value.id.toString());
             await anonymizationStore.patchVideo({
                 sensitive_meta_id: currentItem.value.reportMeta?.id,
                 is_verified: true,
                 delete_raw_files: true,
-                ...editedPatient.value,
-                patient_dob: normalizedDob,
+                ...snake,
                 examination_date: normalizedExam,
             });
         }
@@ -187,7 +196,11 @@ const approveItem = async () => {
             // Prefer pdfStore when available
             if (currentItem.value.reportMeta?.pdfUrl && currentItem.value.sensitiveMetaId) {
                 await pdfStore.updateSensitiveMeta(currentItem.value.sensitiveMetaId, {
-                    ...editedPatient.value,
+                    // send snake_case (for DRF) AND camelCase (if your pdfStore needs it)
+                    ...snake,
+                    patientFirstName: editedPatient.value.patientFirstName,
+                    patientLastName: editedPatient.value.patientLastName,
+                    patientGender: editedPatient.value.patientGender,
                     patientDob: normalizedDob,
                     examinationDate: normalizedExam,
                     isVerified: true,
@@ -199,8 +212,7 @@ const approveItem = async () => {
                     sensitive_meta_id: currentItem.value.reportMeta?.id,
                     is_verified: true,
                     delete_raw_files: true,
-                    ...editedPatient.value,
-                    patient_dob: normalizedDob,
+                    ...snake,
                     examination_date: normalizedExam,
                     anonymized_text: editedAnonymizedText.value,
                 });
@@ -237,10 +249,7 @@ const saveAnnotation = async () => {
     try {
         const annotationData = {
             processed_image_url: processedUrl.value,
-            patient_data: {
-                ...editedPatient.value,
-                patientDob: dobISO.value, // normalized
-            },
+            patient_data: buildSensitiveMetaSnake(dobISO.value),
             examinationDate: examISO.value || '',
             anonymized_text: editedAnonymizedText.value,
         };
@@ -401,7 +410,7 @@ function __VLS_template() {
         });
         __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
         __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
-        (__VLS_ctx.currentItem?.reportMeta?.pdfUrl ? 'PDF-Dokument' : 'Video-Datei');
+        (__VLS_ctx.isPdf ? 'PDF-Dokument' : __VLS_ctx.isVideo ? 'Video-Datei' : 'Unbekanntes Format');
         (__VLS_ctx.currentItem?.reportMeta?.centerName ? `- ${__VLS_ctx.currentItem.reportMeta.centerName}` : '');
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: ("row mb-4") },
@@ -428,7 +437,13 @@ function __VLS_template() {
             type: ("text"),
             ...{ class: ("form-control") },
             value: ((__VLS_ctx.editedPatient.patientFirstName)),
+            ...{ class: (({ 'is-invalid': !__VLS_ctx.firstNameOk })) },
         });
+        if (!__VLS_ctx.firstNameOk) {
+            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: ("invalid-feedback") },
+            });
+        }
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: ("mb-3") },
         });
@@ -439,7 +454,13 @@ function __VLS_template() {
             type: ("text"),
             ...{ class: ("form-control") },
             value: ((__VLS_ctx.editedPatient.patientLastName)),
+            ...{ class: (({ 'is-invalid': !__VLS_ctx.lastNameOk })) },
         });
+        if (!__VLS_ctx.lastNameOk) {
+            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: ("invalid-feedback") },
+            });
+        }
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: ("mb-3") },
         });
@@ -468,8 +489,14 @@ function __VLS_template() {
         __VLS_elementAsFunction(__VLS_intrinsicElements.input, __VLS_intrinsicElements.input)({
             type: ("date"),
             ...{ class: ("form-control") },
+            ...{ class: (({ 'is-invalid': !__VLS_ctx.isDobValid })) },
         });
         (__VLS_ctx.editedPatient.patientDob);
+        if (!__VLS_ctx.isDobValid) {
+            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: ("invalid-feedback") },
+            });
+        }
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: ("mb-3") },
         });
@@ -663,7 +690,7 @@ function __VLS_template() {
         }
         (__VLS_ctx.isApproving ? 'Wird bestätigt...' : 'Bestätigen');
     }
-    ['container-fluid', 'py-4', 'card', 'card-header', 'pb-0', 'mb-0', 'card-body', 'text-center', 'py-5', 'spinner-border', 'text-primary', 'visually-hidden', 'mt-2', 'alert', 'alert-danger', 'alert', 'alert-info', 'alert', 'alert-warning', 'mt-3', 'fas', 'fa-info-circle', 'me-2', 'mt-2', 'btn', 'btn-sm', 'btn-outline-primary', 'fas', 'fa-eye', 'me-1', 'row', 'mb-3', 'col-12', 'alert', 'alert-info', 'd-flex', 'align-items-center', 'fas', 'fa-info-circle', 'me-2', 'row', 'mb-4', 'col-md-5', 'card', 'bg-light', 'mb-4', 'card-body', 'card-title', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-select', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-control', 'is-invalid', 'invalid-feedback', 'mb-3', 'form-label', 'form-control', 'card', 'bg-light', 'card-body', 'card-title', 'mt-3', 'img-fluid', 'btn', 'btn-info', 'btn-sm', 'mt-2', 'mt-3', 'btn', 'btn-primary', 'spinner-border', 'spinner-border-sm', 'me-2', 'col-md-7', 'card', 'card-header', 'pb-0', 'mb-0', 'alert', 'alert-info', 'mt-2', 'mb-0', 'fas', 'fa-info-circle', 'me-2', 'card-body', 'media-viewer-container', 'alert', 'alert-warning', 'mb-0', 'row', 'col-12', 'd-flex', 'justify-content-between', 'btn', 'btn-secondary', 'btn', 'btn-danger', 'me-2', 'btn', 'btn-success', 'spinner-border', 'spinner-border-sm', 'me-2',];
+    ['container-fluid', 'py-4', 'card', 'card-header', 'pb-0', 'mb-0', 'card-body', 'text-center', 'py-5', 'spinner-border', 'text-primary', 'visually-hidden', 'mt-2', 'alert', 'alert-danger', 'alert', 'alert-info', 'alert', 'alert-warning', 'mt-3', 'fas', 'fa-info-circle', 'me-2', 'mt-2', 'btn', 'btn-sm', 'btn-outline-primary', 'fas', 'fa-eye', 'me-1', 'row', 'mb-3', 'col-12', 'alert', 'alert-info', 'd-flex', 'align-items-center', 'fas', 'fa-info-circle', 'me-2', 'row', 'mb-4', 'col-md-5', 'card', 'bg-light', 'mb-4', 'card-body', 'card-title', 'mb-3', 'form-label', 'form-control', 'is-invalid', 'invalid-feedback', 'mb-3', 'form-label', 'form-control', 'is-invalid', 'invalid-feedback', 'mb-3', 'form-label', 'form-select', 'mb-3', 'form-label', 'form-control', 'is-invalid', 'invalid-feedback', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-control', 'is-invalid', 'invalid-feedback', 'mb-3', 'form-label', 'form-control', 'card', 'bg-light', 'card-body', 'card-title', 'mt-3', 'img-fluid', 'btn', 'btn-info', 'btn-sm', 'mt-2', 'mt-3', 'btn', 'btn-primary', 'spinner-border', 'spinner-border-sm', 'me-2', 'col-md-7', 'card', 'card-header', 'pb-0', 'mb-0', 'alert', 'alert-info', 'mt-2', 'mb-0', 'fas', 'fa-info-circle', 'me-2', 'card-body', 'media-viewer-container', 'alert', 'alert-warning', 'mb-0', 'row', 'col-12', 'd-flex', 'justify-content-between', 'btn', 'btn-secondary', 'btn', 'btn-danger', 'me-2', 'btn', 'btn-success', 'spinner-border', 'spinner-border-sm', 'me-2',];
     var __VLS_slots;
     var $slots;
     let __VLS_inheritedAttrs;
@@ -689,6 +716,9 @@ const __VLS_self = (await import('vue')).defineComponent({
             originalUrl: originalUrl,
             processedUrl: processedUrl,
             showOriginal: showOriginal,
+            firstNameOk: firstNameOk,
+            lastNameOk: lastNameOk,
+            isDobValid: isDobValid,
             isExaminationDateValid: isExaminationDateValid,
             canSave: canSave,
             canSubmit: canSubmit,

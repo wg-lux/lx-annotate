@@ -43,7 +43,7 @@
                 <i class="fas fa-info-circle me-2"></i>
                 <span>
                   <strong>Validierung:</strong> 
-                  {{ currentItem?.reportMeta?.pdfUrl ? 'PDF-Dokument' : 'Video-Datei' }}
+                  {{ isPdf ? 'PDF-Dokument' : isVideo ? 'Video-Datei' : 'Unbekanntes Format' }}
                   {{ currentItem?.reportMeta?.centerName ? `- ${currentItem.reportMeta.centerName}` : '' }}
                 </span>
               </div>
@@ -62,7 +62,11 @@
                       type="text" 
                       class="form-control" 
                       v-model="editedPatient.patientFirstName"
+                      :class="{ 'is-invalid': !firstNameOk }"
                     >
+                    <div class="invalid-feedback" v-if="!firstNameOk">
+                      Vorname ist erforderlich.
+                    </div>
                   </div>
                   <div class="mb-3">
                     <label class="form-label">Nachname:</label>
@@ -70,7 +74,11 @@
                       type="text" 
                       class="form-control" 
                       v-model="editedPatient.patientLastName"
+                      :class="{ 'is-invalid': !lastNameOk }"
                     >
+                    <div class="invalid-feedback" v-if="!lastNameOk">
+                      Nachname ist erforderlich.
+                    </div>
                   </div>
                   <div class="mb-3">
                     <label class="form-label">Geschlecht:</label>
@@ -86,7 +94,11 @@
                       type="date" 
                       class="form-control" 
                       v-model="editedPatient.patientDob"
+                      :class="{ 'is-invalid': !isDobValid }"
                     >
+                    <div class="invalid-feedback" v-if="!isDobValid">
+                      Gültiges Geburtsdatum ist erforderlich.
+                    </div>
                   </div>
                   <div class="mb-3">
                     <label class="form-label">Fallnummer:</label>
@@ -326,6 +338,16 @@ function normalizeDateToISO(input?: string | null): string | null {
   }
   return null;
 }
+
+function buildSensitiveMetaSnake(dobIso: string) {
+  return {
+    patient_first_name: editedPatient.value.patientFirstName || '',
+    patient_last_name:  editedPatient.value.patientLastName  || '',
+    patient_gender:     editedPatient.value.patientGender    || '',
+    patient_dob:        dobIso,
+    casenumber:         editedPatient.value.casenumber       || '',
+  };
+}
 function compareISODate(a: string, b: string): number {
   if (a === b) return 0;
   return a < b ? -1 : 1;
@@ -468,6 +490,7 @@ const approveItem = async () => {
   try {
     const normalizedDob  = dobISO.value!;           // guaranteed by canSave
     const normalizedExam = examISO.value || '';
+    const snake = buildSensitiveMetaSnake(normalizedDob);
 
     if (isVideo.value) {
       await videoStore.loadVideo(currentItem.value.id.toString());
@@ -475,17 +498,20 @@ const approveItem = async () => {
         sensitive_meta_id: currentItem.value.reportMeta?.id,
         is_verified: true,
         delete_raw_files: true,
-        ...editedPatient.value,
-        patient_dob: normalizedDob,
+        ...snake,
         examination_date: normalizedExam,
       });
     } else {
       // Prefer pdfStore when available
       if (currentItem.value.reportMeta?.pdfUrl && currentItem.value.sensitiveMetaId) {
         await pdfStore.updateSensitiveMeta(currentItem.value.sensitiveMetaId, {
-          ...editedPatient.value,
-          patientDob: normalizedDob,
-          examinationDate: normalizedExam,
+          // send snake_case (for DRF) AND camelCase (if your pdfStore needs it)
+          ...snake,
+          patientFirstName: editedPatient.value.patientFirstName,
+          patientLastName:  editedPatient.value.patientLastName,
+          patientGender:    editedPatient.value.patientGender,
+          patientDob:       normalizedDob,
+          examinationDate:  normalizedExam,
           isVerified: true,
         });
         await pdfStore.updateAnonymizedText(currentItem.value.id, editedAnonymizedText.value);
@@ -494,8 +520,7 @@ const approveItem = async () => {
           sensitive_meta_id: currentItem.value.reportMeta?.id,
           is_verified: true,
           delete_raw_files: true,
-          ...editedPatient.value,
-          patient_dob: normalizedDob,
+          ...snake,
           examination_date: normalizedExam,
           anonymized_text: editedAnonymizedText.value,
         });
@@ -532,10 +557,7 @@ const saveAnnotation = async () => {
   try {
     const annotationData = {
       processed_image_url: processedUrl.value,
-      patient_data: {
-        ...editedPatient.value,
-        patientDob: dobISO.value!,           // normalized
-      },
+      patient_data: buildSensitiveMetaSnake(dobISO.value!),
       examinationDate: examISO.value || '',
       anonymized_text: editedAnonymizedText.value,
     };

@@ -358,23 +358,23 @@ class AutoProcessingHandler(FileSystemEventHandler):
                 
                 pdf_import_service.check_storage_capacity(pdf_path, storage_root, MIN_REQUIRED_SPACE)
                 
-                try:
-                    # Import and anonymize PDF
-                    raw_pdf = pdf_import_service.import_and_anonymize(
-                        file_path=pdf_path,
-                        center_name=self.default_center,
-                        processor_name=self.default_processor,
-                        delete_source=True
-                    )
-                    
-                    
-                    logger.info(f"PDF imported successfully: {raw_pdf.uuid}")
-                    
-                except Exception as import_error:
-                    error_msg = str(import_error)
+                # Import and anonymize PDF
+                raw_pdf = pdf_import_service.import_and_anonymize(
+                    file_path=pdf_path,
+                    center_name=self.default_center,
+                    processor_name=self.default_processor,
+                    delete_source=False
+                )
+                
+                logger.info(f"PDF imported successfully: {raw_pdf.uuid}")
+                
             except InsufficientStorageError as storage_error:
                 logger.error(f"Insufficient storage space for {pdf_path}: {storage_error}")
                 # Don't mark as processed - allow retry when space is available
+                self.processed_files.discard(str(pdf_path))
+                return
+            except Exception as import_error:
+                logger.error(f"PDF import failed for {pdf_path}: {import_error}")
                 self.processed_files.discard(str(pdf_path))
                 return
             
