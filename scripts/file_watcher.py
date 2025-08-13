@@ -250,7 +250,7 @@ class AutoProcessingHandler(FileSystemEventHandler):
             try:
                 from endoreg_db.exceptions import InsufficientStorageError
                 from endoreg_db.models.media.video.create_from_file import check_storage_capacity
-                storage_root = os.getenv('DJANGO_DATA_DIR', str(PROJECT_ROOT)/ 'data') / 'videos'
+                storage_root = os.getenv('DJANGO_DATA_DIR', str(PROJECT_ROOT / 'data' / 'videos'))
                 check_storage_capacity(video_path, storage_root)
             except InsufficientStorageError as storage_error:
                 logger.error(f"Insufficient storage space for {video_path}: {storage_error}")
@@ -345,7 +345,7 @@ class AutoProcessingHandler(FileSystemEventHandler):
             # Early storage capacity check
             try:
                 from endoreg_db.exceptions import InsufficientStorageError
-                storage_root = os.getenv('PDF_STORAGE_ROOT', str(PROJECT_ROOT/ 'data') / 'pdfs')
+                storage_root = os.getenv('PDF_STORAGE_ROOT', str(PROJECT_ROOT / 'data' / 'pdfs'))
                 storage_root = Path(storage_root)
                 if not storage_root.is_absolute():
                     storage_root = PROJECT_ROOT / storage_root
@@ -364,7 +364,6 @@ class AutoProcessingHandler(FileSystemEventHandler):
                         file_path=pdf_path,
                         center_name=self.default_center,
                         processor_name=self.default_processor,
-                        save_pdf=True,
                         delete_source=False  # Keep original file
                     )
                     

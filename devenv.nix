@@ -106,7 +106,7 @@ in
     package = pkgs.python312Full;
     uv = {
       enable = true;
-      sync.enable = false;
+      sync.enable = true;
     };
   };
 
@@ -189,13 +189,17 @@ in
     deploy-collectstatic.exec = "${pkgs.uv}/bin/uv run python manage.py collectstatic --noinput";
   };
   
-    tasks = customTasks;
+  tasks = customTasks;
 
   processes = customProcesses;
   cachix.enable = true;
-  enterShell = ''
+
+
+  enterShell = lib.mkAfter ''
+
     git submodule init
     git submodule update --remote --recursive
+
 
     export SYNC_CMD="uv sync"
 

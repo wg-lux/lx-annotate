@@ -1,106 +1,218 @@
-import { type Ref, type ComputedRef } from 'vue';
-/**
- * PDF processing status types
- */
-type PdfStatus = 'processing' | 'available' | 'done' | 'failed' | 'not_started';
-/**
- * PDF file interface
- */
-interface PdfFile {
+export interface PdfMetadata {
     id: number;
-    centerName?: string;
-    processorName?: string;
-    originalFileName?: string;
-    status?: PdfStatus;
-    file?: string;
-    text?: string;
-    anonymizedText?: string;
-    sensitiveMetaId?: number;
-    [key: string]: any;
+    sensitiveMetaId: number | null;
+    text: string;
+    anonymizedText: string;
+    reportMeta?: {
+        id: number;
+        patientFirstName: string;
+        patientLastName: string;
+        patientDob: string;
+        patientGender: string;
+        examinationDate: string;
+        centerName: string;
+        endoscopeType: string;
+        endoscopeSn: string;
+        isVerified: boolean;
+    };
+    status: 'not_started' | 'processing' | 'done';
+    error: boolean;
+    pdfStreamUrl?: string;
 }
-/**
- * PDF annotation interface for validation workflow
- */
-interface PdfAnnotation {
-    id: string | number;
-    isAnnotated: boolean;
-    errorMessage: string;
-    pdfUrl: string;
-    status: PdfStatus;
-    assignedUser: string | null;
-    text?: string;
-    anonymizedText?: string;
-    sensitiveMetaId?: number;
+export interface PdfState {
+    currentPdf: PdfMetadata | null;
+    loading: boolean;
+    error: string | null;
+    streamingActive: boolean;
+    lastProcessedId: number | null;
 }
-/**
- * PDF metadata from backend
- */
-interface PdfMeta {
-    id: number;
-    originalFileName?: string;
-    status: PdfStatus;
-    assignedUser?: string | null;
-    anonymized: boolean;
-    centerName?: string;
-    processorName?: string;
-    sensitiveMetaId?: number;
-    text?: string;
-    anonymizedText?: string;
-}
-/**
- * PDF list response structure
- */
-interface PdfList {
-    pdfs: PdfMeta[];
-}
-/**
- * Store state interface
- */
-interface PdfStoreState {
-    currentPdf: Ref<PdfAnnotation | null>;
-    errorMessage: Ref<string>;
-    pdfUrl: Ref<string>;
-    pdfList: Ref<PdfList>;
-    pdfMeta: Ref<PdfMeta | null>;
-    _fetchToken: Ref<number>;
-}
-/**
- * Store getters interface
- */
-interface PdfStoreGetters {
-    hasPdf: ComputedRef<boolean>;
-    pdfStreamUrl: ComputedRef<string>;
-    isLoading: ComputedRef<boolean>;
-}
-/**
- * Store actions interface
- */
-interface PdfStoreActions {
-    clearPdf(): void;
-    setPdf(pdf: PdfAnnotation): void;
-    loadPdf(pdfId: string | number): Promise<void>;
-    fetchPdfUrl(pdfId?: string | number): Promise<void>;
-    fetchAllPdfs(): Promise<PdfList>;
-    fetchPdfMeta(pdfId: string | number): Promise<PdfMeta | null>;
-    buildPdfStreamUrl(id: string | number): string;
-    validatePdfAccess(pdfId: string | number): Promise<boolean>;
-    updateSensitiveMeta(sensitiveMetaId: number, data: any): Promise<boolean>;
-    updateAnonymizedText(pdfId: number, anonymizedText: string): Promise<boolean>;
-    fetchNextPdf(lastId?: number): Promise<PdfMeta | null>;
-}
-/**
- * PDF Store Implementation
- *
- * ID Usage Clarification:
- * - pdf_id: RawPdfFile.id (used for PDF streaming: /api/pdfstream/<pdf_id>/)
- * - sensitive_meta_id: SensitiveMeta.id (used for patient data: /api/pdf/sensitivemeta/<sensitive_meta_id>/)
- *
- * URL Patterns from backend:
- * - PDF Stream: /api/pdfstream/<int:pdf_id>/
- * - Patient Meta: /api/pdf/sensitivemeta/<int:sensitive_meta_id>/
- * - Update Meta: /api/pdf/update_sensitivemeta/ (body: {sensitive_meta_id: ...})
- * - Update Text: /api/pdf/update_anony_text/ (body: {id: pdf_id, ...})
- * - Fetch PDF: /api/pdf/anony_text/?last_id=<pdf_id>
- */
-export declare const usePdfStore: import("pinia").StoreDefinition<"pdf", import("pinia")._UnwrapAll<Pick<PdfStoreState & PdfStoreGetters & PdfStoreActions, "pdfUrl" | "errorMessage" | "currentPdf" | "pdfList" | "pdfMeta" | "_fetchToken">>, Pick<PdfStoreState & PdfStoreGetters & PdfStoreActions, "isLoading" | "hasPdf" | "pdfStreamUrl">, Pick<PdfStoreState & PdfStoreGetters & PdfStoreActions, "updateSensitiveMeta" | "clearPdf" | "setPdf" | "loadPdf" | "fetchPdfUrl" | "fetchAllPdfs" | "fetchPdfMeta" | "buildPdfStreamUrl" | "validatePdfAccess" | "updateAnonymizedText" | "fetchNextPdf">>;
-export type { PdfFile, PdfAnnotation, PdfMeta, PdfList, PdfStatus, PdfStoreState, PdfStoreGetters, PdfStoreActions };
+export declare const usePdfStore: import("pinia").StoreDefinition<"pdf", import("pinia")._UnwrapAll<Pick<{
+    currentPdf: import("vue").Ref<{
+        id: number;
+        sensitiveMetaId: number | null;
+        text: string;
+        anonymizedText: string;
+        reportMeta?: {
+            id: number;
+            patientFirstName: string;
+            patientLastName: string;
+            patientDob: string;
+            patientGender: string;
+            examinationDate: string;
+            centerName: string;
+            endoscopeType: string;
+            endoscopeSn: string;
+            isVerified: boolean;
+        } | undefined;
+        status: 'not_started' | 'processing' | 'done';
+        error: boolean;
+        pdfStreamUrl?: string | undefined;
+    } | null, PdfMetadata | {
+        id: number;
+        sensitiveMetaId: number | null;
+        text: string;
+        anonymizedText: string;
+        reportMeta?: {
+            id: number;
+            patientFirstName: string;
+            patientLastName: string;
+            patientDob: string;
+            patientGender: string;
+            examinationDate: string;
+            centerName: string;
+            endoscopeType: string;
+            endoscopeSn: string;
+            isVerified: boolean;
+        } | undefined;
+        status: 'not_started' | 'processing' | 'done';
+        error: boolean;
+        pdfStreamUrl?: string | undefined;
+    } | null>;
+    loading: import("vue").Ref<boolean, boolean>;
+    error: import("vue").Ref<string | null, string | null>;
+    streamingActive: import("vue").Ref<boolean, boolean>;
+    lastProcessedId: import("vue").Ref<number | null, number | null>;
+    hasCurrentPdf: import("vue").ComputedRef<boolean>;
+    isProcessing: import("vue").ComputedRef<boolean>;
+    isDone: import("vue").ComputedRef<boolean>;
+    hasError: import("vue").ComputedRef<boolean>;
+    pdfStreamUrl: import("vue").ComputedRef<string | null>;
+    buildPdfStreamUrl: (pdfId: number) => string;
+    fetchNextPdf: (lastId?: number) => Promise<void>;
+    updateSensitiveMeta: (sensitiveMetaId: number, data: Partial<PdfMetadata['reportMeta']>) => Promise<void>;
+    updateAnonymizedText: (pdfId: number, anonymizedText: string) => Promise<void>;
+    approvePdf: () => Promise<void>;
+    skipPdf: () => Promise<void>;
+    checkAnonymizationStatus: (pdfId: number) => Promise<{
+        status: string;
+        progress?: number;
+    }>;
+    stopStreaming: () => void;
+    clearState: () => void;
+}, "loading" | "error" | "currentPdf" | "streamingActive" | "lastProcessedId">>, Pick<{
+    currentPdf: import("vue").Ref<{
+        id: number;
+        sensitiveMetaId: number | null;
+        text: string;
+        anonymizedText: string;
+        reportMeta?: {
+            id: number;
+            patientFirstName: string;
+            patientLastName: string;
+            patientDob: string;
+            patientGender: string;
+            examinationDate: string;
+            centerName: string;
+            endoscopeType: string;
+            endoscopeSn: string;
+            isVerified: boolean;
+        } | undefined;
+        status: 'not_started' | 'processing' | 'done';
+        error: boolean;
+        pdfStreamUrl?: string | undefined;
+    } | null, PdfMetadata | {
+        id: number;
+        sensitiveMetaId: number | null;
+        text: string;
+        anonymizedText: string;
+        reportMeta?: {
+            id: number;
+            patientFirstName: string;
+            patientLastName: string;
+            patientDob: string;
+            patientGender: string;
+            examinationDate: string;
+            centerName: string;
+            endoscopeType: string;
+            endoscopeSn: string;
+            isVerified: boolean;
+        } | undefined;
+        status: 'not_started' | 'processing' | 'done';
+        error: boolean;
+        pdfStreamUrl?: string | undefined;
+    } | null>;
+    loading: import("vue").Ref<boolean, boolean>;
+    error: import("vue").Ref<string | null, string | null>;
+    streamingActive: import("vue").Ref<boolean, boolean>;
+    lastProcessedId: import("vue").Ref<number | null, number | null>;
+    hasCurrentPdf: import("vue").ComputedRef<boolean>;
+    isProcessing: import("vue").ComputedRef<boolean>;
+    isDone: import("vue").ComputedRef<boolean>;
+    hasError: import("vue").ComputedRef<boolean>;
+    pdfStreamUrl: import("vue").ComputedRef<string | null>;
+    buildPdfStreamUrl: (pdfId: number) => string;
+    fetchNextPdf: (lastId?: number) => Promise<void>;
+    updateSensitiveMeta: (sensitiveMetaId: number, data: Partial<PdfMetadata['reportMeta']>) => Promise<void>;
+    updateAnonymizedText: (pdfId: number, anonymizedText: string) => Promise<void>;
+    approvePdf: () => Promise<void>;
+    skipPdf: () => Promise<void>;
+    checkAnonymizationStatus: (pdfId: number) => Promise<{
+        status: string;
+        progress?: number;
+    }>;
+    stopStreaming: () => void;
+    clearState: () => void;
+}, "hasError" | "isProcessing" | "pdfStreamUrl" | "hasCurrentPdf" | "isDone">, Pick<{
+    currentPdf: import("vue").Ref<{
+        id: number;
+        sensitiveMetaId: number | null;
+        text: string;
+        anonymizedText: string;
+        reportMeta?: {
+            id: number;
+            patientFirstName: string;
+            patientLastName: string;
+            patientDob: string;
+            patientGender: string;
+            examinationDate: string;
+            centerName: string;
+            endoscopeType: string;
+            endoscopeSn: string;
+            isVerified: boolean;
+        } | undefined;
+        status: 'not_started' | 'processing' | 'done';
+        error: boolean;
+        pdfStreamUrl?: string | undefined;
+    } | null, PdfMetadata | {
+        id: number;
+        sensitiveMetaId: number | null;
+        text: string;
+        anonymizedText: string;
+        reportMeta?: {
+            id: number;
+            patientFirstName: string;
+            patientLastName: string;
+            patientDob: string;
+            patientGender: string;
+            examinationDate: string;
+            centerName: string;
+            endoscopeType: string;
+            endoscopeSn: string;
+            isVerified: boolean;
+        } | undefined;
+        status: 'not_started' | 'processing' | 'done';
+        error: boolean;
+        pdfStreamUrl?: string | undefined;
+    } | null>;
+    loading: import("vue").Ref<boolean, boolean>;
+    error: import("vue").Ref<string | null, string | null>;
+    streamingActive: import("vue").Ref<boolean, boolean>;
+    lastProcessedId: import("vue").Ref<number | null, number | null>;
+    hasCurrentPdf: import("vue").ComputedRef<boolean>;
+    isProcessing: import("vue").ComputedRef<boolean>;
+    isDone: import("vue").ComputedRef<boolean>;
+    hasError: import("vue").ComputedRef<boolean>;
+    pdfStreamUrl: import("vue").ComputedRef<string | null>;
+    buildPdfStreamUrl: (pdfId: number) => string;
+    fetchNextPdf: (lastId?: number) => Promise<void>;
+    updateSensitiveMeta: (sensitiveMetaId: number, data: Partial<PdfMetadata['reportMeta']>) => Promise<void>;
+    updateAnonymizedText: (pdfId: number, anonymizedText: string) => Promise<void>;
+    approvePdf: () => Promise<void>;
+    skipPdf: () => Promise<void>;
+    checkAnonymizationStatus: (pdfId: number) => Promise<{
+        status: string;
+        progress?: number;
+    }>;
+    stopStreaming: () => void;
+    clearState: () => void;
+}, "updateSensitiveMeta" | "buildPdfStreamUrl" | "fetchNextPdf" | "updateAnonymizedText" | "approvePdf" | "skipPdf" | "checkAnonymizationStatus" | "stopStreaming" | "clearState">>;

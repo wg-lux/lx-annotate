@@ -10,7 +10,6 @@ let
       npm run build
       cd ..
       python manage.py collectstatic --noinput
-      python manage.py compress --force
       '';
     "vue:build".execIfModified = [
       "frontend"

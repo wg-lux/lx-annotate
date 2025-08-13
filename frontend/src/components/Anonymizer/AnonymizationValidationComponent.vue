@@ -117,6 +117,11 @@
                 </div>
               </div>
 
+              <input v-model="editedPatient.patientFirstName" class="form-control" :class="{ 'is-invalid': !firstNameOk }" />
+              <input v-model="editedPatient.patientLastName"  class="form-control" :class="{ 'is-invalid': !lastNameOk }" />
+              <input v-model="editedPatient.patientDob" type="date" class="form-control" :class="{ 'is-invalid': !isDobValid }" />
+
+
               <!-- Annotation Section -->
               <div class="card bg-light">
                 <div class="card-body">
@@ -132,9 +137,10 @@
                     <button 
                       class="btn btn-primary"
                       @click="saveAnnotation"
-                      :disabled="!canSubmit"
+                      :disabled="isSaving || !canSubmit"
                     >
-                      Annotation speichern
+                      <span v-if="isSaving" class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                      {{ isSaving ? 'Speichern...' : 'Annotation speichern' }}
                     </button>
                   </div>
                 </div>
@@ -220,8 +226,10 @@
                 <button 
                   class="btn btn-success" 
                   @click="approveItem"
-                  :disabled="!isExaminationDateValid || !dirty">
-                  Bestätigen
+                  :disabled="!isApproving || !canSave || !dirty"
+                >
+                  <span v-if="isApproving" class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                  {{ isApproving ? 'Wird bestätigt...' : 'Bestätigen' }}
                 </button>
               </div>
             </div>
@@ -237,9 +245,12 @@ import { useAnonymizationStore, type PatientData } from '@/stores/anonymizationS
 import {useVideoStore, type Video} from '@/stores/videoStore';
 import { usePatientStore } from '@/stores/patientStore';
 import { useToastStore } from '@/stores/toastStore';
+import { usePdfStore } from '@/stores/pdfStore';
 // @ts-ignore
 import axiosInstance, { r } from '@/api/axiosInstance';
 // @ts-ignore
+
+
 
 
 const toast = useToastStore();
@@ -248,6 +259,7 @@ const toast = useToastStore();
 const anonymizationStore = useAnonymizationStore();
 const videoStore = useVideoStore();
 const patientStore = usePatientStore();
+const pdfStore = usePdfStore();
 
 // Local state
 const editedAnonymizedText = ref('');
@@ -266,8 +278,88 @@ const processedUrl = ref('');
 const showOriginal = ref(false);
 const hasSuccessfulUpload = ref(false);
 
-// Dirty tracking
-const dirty = ref(false);
+
+
+// Original state for dirty tracking
+
+type Editable = {
+  patientFirstName: string;
+  patientLastName: string;
+  patientGender: string;
+  patientDob: string; 
+  casenumber: string;
+};
+
+const original = ref<{
+  anonymizedText: string;
+  examinationDate: string; // raw as shown in UI
+  patient: Editable;
+}>({
+  anonymizedText: '',
+  examinationDate: '',
+  patient: {
+    patientFirstName: '',
+    patientLastName: '',
+    patientGender: '',
+    patientDob: '',
+    casenumber: '',
+  },
+});
+
+
+function shallowEqual(a: Editable, b: Editable): boolean {
+  return a.patientFirstName === b.patientFirstName &&
+         a.patientLastName === b.patientLastName &&
+         a.patientGender === b.patientGender &&
+         a.patientDob === b.patientDob &&
+         a.casenumber === b.casenumber;
+}
+
+// --- add below your imports/locals ---
+
+function normalizeDateToISO(input?: string | null): string | null {
+  if (!input) return null;
+  const s = input.trim();
+  const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  if (iso) return s;
+  const de = /^(\d{2})\.(\d{2})\.(\d{4})$/.exec(s);
+  if (de) {
+    const [, dd, mm, yyyy] = de;
+    const d = +dd, m = +mm, y = +yyyy;
+    if (y >= 1900 && m >= 1 && m <= 12 && d >= 1 && d <= 31) return `${yyyy}-${mm}-${dd}`;
+  }
+  return null;
+}
+function compareISODate(a: string, b: string): number {
+  if (a === b) return 0;
+  return a < b ? -1 : 1;
+}
+
+// Validations
+const firstNameOk = computed(() => editedPatient.value.patientFirstName.trim().length > 0);
+const lastNameOk  = computed(() => editedPatient.value.patientLastName.trim().length  > 0);
+
+const dobISO  = computed(() => normalizeDateToISO(editedPatient.value.patientDob));
+const examISO = computed(() => normalizeDateToISO(examinationDate.value));
+
+// DOB must be present & valid
+const isDobValid = computed(() => !!dobISO.value);
+
+// Exam optional; if present requires valid DOB and must be >= DOB
+const isExaminationDateValid = computed(() => {
+  if (!examISO.value) return true;
+  if (!dobISO.value)  return false;
+  return compareISODate(examISO.value, dobISO.value) >= 0;
+});
+
+// Global save gates
+const canSave = computed(() =>
+  firstNameOk.value && lastNameOk.value && isDobValid.value && isExaminationDateValid.value
+);
+
+const canSubmit = computed(() =>
+  !!processedUrl.value && !!originalUrl.value && canSave.value
+);
 
 
 // Computed
@@ -287,8 +379,10 @@ const isVideo = computed(() => mediaType.value === 'video');
 const pdfSrc = computed(() => {
   if (!isPdf.value) return undefined;
   
-  return currentItem.value!.reportMeta!.pdfUrl ?? 
-    `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}/api/media/pdfs/${currentItem.value!.id}/stream`;
+  // Use PDF stream URL from store if available, otherwise use report meta URL or fallback
+  return currentItem.value?.reportMeta?.pdfUrl || 
+         pdfStore.buildPdfStreamUrl(currentItem.value!.id) ||
+         `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}/api/media/pdfs/${currentItem.value!.id}/stream`;
 });
 
 const videoSrc = computed(() => {
@@ -296,16 +390,6 @@ const videoSrc = computed(() => {
   return currentItem.value?.videoUrl || undefined;
 });
 
-const isExaminationDateValid = computed(() => {
-  if (!examinationDate.value || !editedPatient.value.patientDob) {
-    return true;
-  }
-  return new Date(examinationDate.value) >= new Date(editedPatient.value.patientDob);
-});
-
-const canSubmit = computed(() => {
-  return processedUrl.value && originalUrl.value && isExaminationDateValid.value;
-});
 
 // Watch
 watch(currentItem, (newItem: PatientData | null) => {
@@ -314,17 +398,6 @@ watch(currentItem, (newItem: PatientData | null) => {
   }
 }, { immediate: true });
 
-watch(editedAnonymizedText, () => {
-  dirty.value = true;
-});
-
-watch(examinationDate, () => {
-  dirty.value = true;
-});
-
-watch(editedPatient, () => {
-  dirty.value = true;
-}, { deep: true });
 
 
 const fetchNextItem = async () => {
@@ -337,20 +410,42 @@ const fetchNextItem = async () => {
 
 const loadCurrentItemData = (item: PatientData) => {
   if (!item) return;
-  
+
   editedAnonymizedText.value = item.anonymizedText || '';
-  examinationDate.value = item.reportMeta?.examinationDate || '';
-  
-  if (item.reportMeta) {
-    editedPatient.value.patientFirstName = item.reportMeta.patientFirstName || '';
-    editedPatient.value.patientLastName = item.reportMeta.patientLastName || '';
-    editedPatient.value.patientGender = item.reportMeta.patientGender || '';
-    editedPatient.value.patientDob = item.reportMeta.patientDob || '';
-    editedPatient.value.casenumber = item.reportMeta.casenumber || '';
-  }
-  
-  dirty.value = false;
+
+  const rawExam = item.reportMeta?.examinationDate || '';
+  const rawDob  = item.reportMeta?.patientDob || '';  
+
+  examinationDate.value = normalizeDateToISO(rawExam) || '';
+
+
+
+  const p: Editable = {
+    patientFirstName: item.reportMeta?.patientFirstName || '',
+    patientLastName:  item.reportMeta?.patientLastName  || '',
+    patientGender:    item.reportMeta?.patientGender    || '',
+    patientDob:       normalizeDateToISO(rawDob)      || '',
+    casenumber:       item.reportMeta?.casenumber       || '',
+  };
+  editedPatient.value = { ...p };
+
+  original.value = {
+    anonymizedText: editedAnonymizedText.value,
+    examinationDate: examinationDate.value,
+    patient: { ...p },
+  };
 };
+
+const dirty = computed(() =>
+  editedAnonymizedText.value !== original.value.anonymizedText ||
+  examinationDate.value      !== original.value.examinationDate ||
+  !shallowEqual(editedPatient.value, original.value.patient)
+);
+
+// Concurrency guards
+const isSaving = ref(false);
+const isApproving = ref(false);
+
 
 const toggleImage = () => {
   showOriginal.value = !showOriginal.value;
@@ -361,133 +456,120 @@ const toggleImage = () => {
 const skipItem = async () => {
   if (currentItem.value) {
     await fetchNextItem();
-    dirty.value = false;
   }
 };
 
-function isVideoFile(item: PatientData): boolean {
-  if(item.reportMeta?.file && !item.reportMeta?.pdfUrl) {
-    return true; // It's a video file if it has a file but no PDF URL
-  }
-  return false; // Otherwise, it's not a video file
-}
 
 const approveItem = async () => {
-  if (!currentItem.value || !isExaminationDateValid.value) return;
-  
+  if (!currentItem.value || !canSave.value || isApproving.value) return;
+  isApproving.value = true;
   try {
-    const updatedData: Partial<PatientData> = {
-      id: currentItem.value.id,
-      anonymizedText: editedAnonymizedText.value,
-      reportMeta: {
-        ...(currentItem.value.reportMeta || {}),  
-        ...editedPatient.value,
-        examinationDate: examinationDate.value,
-        id: currentItem.value.reportMeta?.id || 0
-      }
-    };
-    
-    // Determine media type and use appropriate endpoint
-    const isVideo = currentItem.value.reportMeta?.file && !currentItem.value.reportMeta?.pdfUrl;
-    
-    if (isVideo) {
-      // For videos, add validation acceptance flag and trigger raw file deletion
+    const normalizedDob  = dobISO.value!;           // guaranteed by canSave
+    const normalizedExam = examISO.value || '';
+
+    if (isVideo.value) {
       await videoStore.loadVideo(currentItem.value.id.toString());
-      
-      
-      const videoUpdateData = {
+      await anonymizationStore.patchVideo({
         sensitive_meta_id: currentItem.value.reportMeta?.id,
         is_verified: true,
         delete_raw_files: true,
         ...editedPatient.value,
-        examination_date: examinationDate.value
-      };
-      await anonymizationStore.patchVideo(videoUpdateData);
+        patient_dob: normalizedDob,
+        examination_date: normalizedExam,
+      });
     } else {
-      // For PDFs, add validation acceptance flag and trigger raw file deletion
-      const pdfUpdateData = {
-        sensitive_meta_id: currentItem.value.reportMeta?.id,
-        is_verified: true,
-        delete_raw_files: true,
-        ...editedPatient.value,
-        examination_date: examinationDate.value,
-        anonymized_text: editedAnonymizedText.value
-      };
-      await anonymizationStore.patchPdf(pdfUpdateData);
+      // Prefer pdfStore when available
+      if (currentItem.value.reportMeta?.pdfUrl && currentItem.value.sensitiveMetaId) {
+        await pdfStore.updateSensitiveMeta(currentItem.value.sensitiveMetaId, {
+          ...editedPatient.value,
+          patientDob: normalizedDob,
+          examinationDate: normalizedExam,
+          isVerified: true,
+        });
+        await pdfStore.updateAnonymizedText(currentItem.value.id, editedAnonymizedText.value);
+      } else {
+        await anonymizationStore.patchPdf({
+          sensitive_meta_id: currentItem.value.reportMeta?.id,
+          is_verified: true,
+          delete_raw_files: true,
+          ...editedPatient.value,
+          patient_dob: normalizedDob,
+          examination_date: normalizedExam,
+          anonymized_text: editedAnonymizedText.value,
+        });
+      }
     }
-    
+
+    // ✅ NEW: Validate the anonymization status after successful approval
+    console.log(`Validating anonymization for file ${currentItem.value.id}...`);
+    try {
+      await axiosInstance.post(r(`anonymization/${currentItem.value.id}/validate/`));
+      console.log(`Anonymization validated successfully for file ${currentItem.value.id}`);
+      toast.success({ text: 'Dokument bestätigt und Anonymisierung validiert' });
+    } catch (validationError) {
+      console.error('Error validating anonymization:', validationError);
+      toast.warning({ text: 'Dokument bestätigt, aber Validierung fehlgeschlagen' });
+    }
+
     await fetchNextItem();
-    dirty.value = false;
   } catch (error) {
     console.error('Error approving item:', error);
+    toast.error({ text: 'Fehler beim Bestätigen des Elements' });
+  } finally {
+    isApproving.value = false;
   }
 };
 
+
 const saveAnnotation = async () => {
-  /*if (!canSubmit.value) return*/
-  
+  if (isSaving.value || !canSubmit.value) {
+    if (!isSaving.value) toast.error({ text: 'Bitte Namen und gültiges Geburtsdatum angeben.' });
+    return;
+  }
+  isSaving.value = true;
   try {
     const annotationData = {
       processed_image_url: processedUrl.value,
-      patient_data: editedPatient.value,
-      examinationDate: examinationDate.value,
-      anonymized_text: editedAnonymizedText.value
+      patient_data: {
+        ...editedPatient.value,
+        patientDob: dobISO.value!,           // normalized
+      },
+      examinationDate: examISO.value || '',
+      anonymized_text: editedAnonymizedText.value,
     };
-    if(currentItem.value && isVideoFile(currentItem.value)) {
+
+    if (currentItem.value && isVideo.value) {
       await axiosInstance.post(r('save-anonymization-annotation-video/'), {
         ...annotationData,
-        itemId: currentItem.value.id
+        itemId: currentItem.value.id,
       });
-    } else if(currentItem.value && currentItem.value.reportMeta?.pdfUrl) {
+    } else if (currentItem.value && isPdf.value) {
       await axiosInstance.post(r('save-anonymization-annotation-pdf/'), annotationData);
-    }
-    else {
-      toast.error({text: 'Keine gültige Anonymisierung zum Speichern gefunden.'});
+    } else {
+      toast.error({ text: 'Keine gültige Anonymisierung zum Speichern gefunden.' });
       return;
     }
-    
-    // Reset upload state
+
     originalUrl.value = '';
     processedUrl.value = '';
     hasSuccessfulUpload.value = false;
-    
-    console.log('Annotation saved successfully');
+    toast.success({ text: 'Annotation erfolgreich gespeichert' });
   } catch (error) {
     console.error('Error saving annotation:', error);
+    toast.error({ text: 'Fehler beim Speichern der Annotation' });
+  } finally {
+    isSaving.value = false;
   }
 };
+
 
 const rejectItem = async () => {
   if (currentItem.value) {
     await fetchNextItem();
-    dirty.value = false;
   }
 };
 
-// Video streaming methods
-const getVideoStreamUrl = () => currentItem.value?.videoUrl || null;
 
-// PDF streaming methods - mirroring video streaming functionality
-const getPdfStreamUrl = () => {
-  return currentItem.value?.reportMeta?.pdfUrl ?? 
-    (currentItem.value ? `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}/api/pdfstream/${currentItem.value.id}/` : null);
-};
-
-const debugGetVideoStreamUrl = () => {
-  // Debug version that shows the URL construction process
-  const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
-  const itemId = currentItem.value?.id;
-  const url = itemId ? `${baseUrl}/api/media/videos/${itemId}/` : 'No item ID available';
-  return url;
-};
-
-const debugGetPdfStreamUrl = () => {
-  // Debug version for PDF stream URL construction
-  const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
-  const itemId = currentItem.value?.id;
-  const url = itemId ? `${baseUrl}/api/pdfstream/${itemId}/` : 'No item ID available';
-  return url;
-};
 
 // Video event handlers
 const onVideoError = (event: Event) => {
@@ -502,7 +584,7 @@ const onVideoError = (event: Event) => {
 };
 
 const onVideoLoadStart = () => {
-  console.log('Video loading started for:', getVideoStreamUrl());
+  console.log('Video loading started for:', videoSrc.value);
 };
 
 const onVideoCanPlay = () => {
