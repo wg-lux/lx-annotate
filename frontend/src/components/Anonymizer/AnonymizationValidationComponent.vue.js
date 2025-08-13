@@ -88,7 +88,9 @@ const canSave = computed(() => firstNameOk.value && lastNameOk.value && isDobVal
 const canSubmit = computed(() => !!processedUrl.value && !!originalUrl.value && canSave.value);
 // Computed
 const currentItem = computed(() => anonymizationStore.current);
-const mediaType = computed(() => currentItem.value?.reportMeta?.pdfUrl
+const mediaType = computed(() => 
+// Check for PDF indicators: pdfStreamUrl on root level or pdfUrl in reportMeta
+currentItem.value?.pdfStreamUrl || currentItem.value?.reportMeta?.pdfUrl
     ? 'pdf'
     : currentItem.value?.videoUrl || currentItem.value?.reportMeta?.file
         ? 'video'
@@ -99,10 +101,15 @@ const isVideo = computed(() => mediaType.value === 'video');
 const pdfSrc = computed(() => {
     if (!isPdf.value)
         return undefined;
-    // Use PDF stream URL from store if available, otherwise use report meta URL or fallback
-    return currentItem.value?.reportMeta?.pdfUrl ||
-        pdfStore.buildPdfStreamUrl(currentItem.value.id) ||
-        `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}/api/media/pdfs/${currentItem.value.id}/stream`;
+    // Priority order for PDF URL:
+    // 1. pdfStreamUrl from currentItem (set by VoPPatientDataSerializer)
+    // 2. pdfStreamUrl from pdfStore
+    // 3. pdfUrl from reportMeta (legacy fallback)
+    // 4. buildPdfStreamUrl fallback
+    return currentItem.value?.pdfStreamUrl ||
+        pdfStore.pdfStreamUrl ||
+        currentItem.value?.reportMeta?.pdfUrl ||
+        pdfStore.buildPdfStreamUrl(currentItem.value.id);
 });
 const videoSrc = computed(() => {
     if (!isVideo.value)
@@ -127,12 +134,14 @@ const loadCurrentItemData = (item) => {
     if (!item)
         return;
     editedAnonymizedText.value = item.anonymizedText || '';
-    examinationDate.value = item.reportMeta?.examinationDate || '';
+    const rawExam = item.reportMeta?.examinationDate || '';
+    const rawDob = item.reportMeta?.patientDob || '';
+    examinationDate.value = normalizeDateToISO(rawExam) || '';
     const p = {
         patientFirstName: item.reportMeta?.patientFirstName || '',
         patientLastName: item.reportMeta?.patientLastName || '',
         patientGender: item.reportMeta?.patientGender || '',
-        patientDob: item.reportMeta?.patientDob || '',
+        patientDob: normalizeDateToISO(rawDob) || '',
         casenumber: item.reportMeta?.casenumber || '',
     };
     editedPatient.value = { ...p };
@@ -196,6 +205,17 @@ const approveItem = async () => {
                     anonymized_text: editedAnonymizedText.value,
                 });
             }
+        }
+        // ✅ NEW: Validate the anonymization status after successful approval
+        console.log(`Validating anonymization for file ${currentItem.value.id}...`);
+        try {
+            await axiosInstance.post(r(`anonymization/${currentItem.value.id}/validate/`));
+            console.log(`Anonymization validated successfully for file ${currentItem.value.id}`);
+            toast.success({ text: 'Dokument bestätigt und Anonymisierung validiert' });
+        }
+        catch (validationError) {
+            console.error('Error validating anonymization:', validationError);
+            toast.warning({ text: 'Dokument bestätigt, aber Validierung fehlgeschlagen' });
         }
         await fetchNextItem();
     }
@@ -489,22 +509,6 @@ function __VLS_template() {
             rows: ("6"),
             value: ((__VLS_ctx.editedAnonymizedText)),
         });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.input)({
-            ...{ class: ("form-control") },
-            ...{ class: (({ 'is-invalid': !__VLS_ctx.firstNameOk })) },
-        });
-        (__VLS_ctx.editedPatient.patientFirstName);
-        __VLS_elementAsFunction(__VLS_intrinsicElements.input)({
-            ...{ class: ("form-control") },
-            ...{ class: (({ 'is-invalid': !__VLS_ctx.lastNameOk })) },
-        });
-        (__VLS_ctx.editedPatient.patientLastName);
-        __VLS_elementAsFunction(__VLS_intrinsicElements.input)({
-            type: ("date"),
-            ...{ class: ("form-control") },
-            ...{ class: (({ 'is-invalid': !__VLS_ctx.isDobValid })) },
-        });
-        (__VLS_ctx.editedPatient.patientDob);
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: ("card bg-light") },
         });
@@ -648,7 +652,7 @@ function __VLS_template() {
         __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
             ...{ onClick: (__VLS_ctx.approveItem) },
             ...{ class: ("btn btn-success") },
-            disabled: ((!__VLS_ctx.isApproving || !__VLS_ctx.canSave || !__VLS_ctx.dirty)),
+            disabled: ((__VLS_ctx.isApproving || !__VLS_ctx.canSave || !__VLS_ctx.dirty)),
         });
         if (__VLS_ctx.isApproving) {
             __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
@@ -659,7 +663,7 @@ function __VLS_template() {
         }
         (__VLS_ctx.isApproving ? 'Wird bestätigt...' : 'Bestätigen');
     }
-    ['container-fluid', 'py-4', 'card', 'card-header', 'pb-0', 'mb-0', 'card-body', 'text-center', 'py-5', 'spinner-border', 'text-primary', 'visually-hidden', 'mt-2', 'alert', 'alert-danger', 'alert', 'alert-info', 'alert', 'alert-warning', 'mt-3', 'fas', 'fa-info-circle', 'me-2', 'mt-2', 'btn', 'btn-sm', 'btn-outline-primary', 'fas', 'fa-eye', 'me-1', 'row', 'mb-3', 'col-12', 'alert', 'alert-info', 'd-flex', 'align-items-center', 'fas', 'fa-info-circle', 'me-2', 'row', 'mb-4', 'col-md-5', 'card', 'bg-light', 'mb-4', 'card-body', 'card-title', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-select', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-control', 'is-invalid', 'invalid-feedback', 'mb-3', 'form-label', 'form-control', 'form-control', 'is-invalid', 'form-control', 'is-invalid', 'form-control', 'is-invalid', 'card', 'bg-light', 'card-body', 'card-title', 'mt-3', 'img-fluid', 'btn', 'btn-info', 'btn-sm', 'mt-2', 'mt-3', 'btn', 'btn-primary', 'spinner-border', 'spinner-border-sm', 'me-2', 'col-md-7', 'card', 'card-header', 'pb-0', 'mb-0', 'alert', 'alert-info', 'mt-2', 'mb-0', 'fas', 'fa-info-circle', 'me-2', 'card-body', 'media-viewer-container', 'alert', 'alert-warning', 'mb-0', 'row', 'col-12', 'd-flex', 'justify-content-between', 'btn', 'btn-secondary', 'btn', 'btn-danger', 'me-2', 'btn', 'btn-success', 'spinner-border', 'spinner-border-sm', 'me-2',];
+    ['container-fluid', 'py-4', 'card', 'card-header', 'pb-0', 'mb-0', 'card-body', 'text-center', 'py-5', 'spinner-border', 'text-primary', 'visually-hidden', 'mt-2', 'alert', 'alert-danger', 'alert', 'alert-info', 'alert', 'alert-warning', 'mt-3', 'fas', 'fa-info-circle', 'me-2', 'mt-2', 'btn', 'btn-sm', 'btn-outline-primary', 'fas', 'fa-eye', 'me-1', 'row', 'mb-3', 'col-12', 'alert', 'alert-info', 'd-flex', 'align-items-center', 'fas', 'fa-info-circle', 'me-2', 'row', 'mb-4', 'col-md-5', 'card', 'bg-light', 'mb-4', 'card-body', 'card-title', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-select', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-control', 'is-invalid', 'invalid-feedback', 'mb-3', 'form-label', 'form-control', 'card', 'bg-light', 'card-body', 'card-title', 'mt-3', 'img-fluid', 'btn', 'btn-info', 'btn-sm', 'mt-2', 'mt-3', 'btn', 'btn-primary', 'spinner-border', 'spinner-border-sm', 'me-2', 'col-md-7', 'card', 'card-header', 'pb-0', 'mb-0', 'alert', 'alert-info', 'mt-2', 'mb-0', 'fas', 'fa-info-circle', 'me-2', 'card-body', 'media-viewer-container', 'alert', 'alert-warning', 'mb-0', 'row', 'col-12', 'd-flex', 'justify-content-between', 'btn', 'btn-secondary', 'btn', 'btn-danger', 'me-2', 'btn', 'btn-success', 'spinner-border', 'spinner-border-sm', 'me-2',];
     var __VLS_slots;
     var $slots;
     let __VLS_inheritedAttrs;
@@ -685,9 +689,6 @@ const __VLS_self = (await import('vue')).defineComponent({
             originalUrl: originalUrl,
             processedUrl: processedUrl,
             showOriginal: showOriginal,
-            firstNameOk: firstNameOk,
-            lastNameOk: lastNameOk,
-            isDobValid: isDobValid,
             isExaminationDateValid: isExaminationDateValid,
             canSave: canSave,
             canSubmit: canSubmit,

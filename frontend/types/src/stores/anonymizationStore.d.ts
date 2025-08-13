@@ -70,6 +70,7 @@ export interface PatientData {
     reportMeta?: SensitiveMeta;
     status?: string;
     error?: boolean;
+    pdfStreamUrl?: string;
 }
 export declare const availableFiles: import("vue").Ref<{
     id: number;
@@ -129,6 +130,7 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
             } | undefined;
             status?: string | undefined;
             error?: boolean | undefined;
+            pdfStreamUrl?: string | undefined;
         } | null;
         overview: {
             id: number;
@@ -185,6 +187,7 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
             } | undefined;
             status?: string | undefined;
             error?: boolean | undefined;
+            pdfStreamUrl?: string | undefined;
         }[];
     } & import("pinia").PiniaCustomStateProperties<AnonymizationState & {
         pending: PatientData[];
@@ -216,6 +219,7 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
         } | undefined;
         status?: string | undefined;
         error?: boolean | undefined;
+        pdfStreamUrl?: string | undefined;
     } | null;
     isAnyFileProcessing: (state: {
         anonymizationStatus: string;
@@ -249,6 +253,7 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
             } | undefined;
             status?: string | undefined;
             error?: boolean | undefined;
+            pdfStreamUrl?: string | undefined;
         } | null;
         overview: {
             id: number;
@@ -305,6 +310,7 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
             } | undefined;
             status?: string | undefined;
             error?: boolean | undefined;
+            pdfStreamUrl?: string | undefined;
         }[];
     } & import("pinia").PiniaCustomStateProperties<AnonymizationState & {
         pending: PatientData[];
@@ -341,6 +347,7 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
             } | undefined;
             status?: string | undefined;
             error?: boolean | undefined;
+            pdfStreamUrl?: string | undefined;
         } | null;
         overview: {
             id: number;
@@ -397,6 +404,7 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
             } | undefined;
             status?: string | undefined;
             error?: boolean | undefined;
+            pdfStreamUrl?: string | undefined;
         }[];
     } & import("pinia").PiniaCustomStateProperties<AnonymizationState & {
         pending: PatientData[];
@@ -454,6 +462,7 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
         } | undefined;
         status?: string | undefined;
         error?: boolean | undefined;
+        pdfStreamUrl?: string | undefined;
     }[];
     /**
      * Upload files and fetch the resulting anonymization data

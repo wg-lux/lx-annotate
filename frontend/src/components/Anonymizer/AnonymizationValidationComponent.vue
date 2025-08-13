@@ -117,10 +117,6 @@
                 </div>
               </div>
 
-              <input v-model="editedPatient.patientFirstName" class="form-control" :class="{ 'is-invalid': !firstNameOk }" />
-              <input v-model="editedPatient.patientLastName"  class="form-control" :class="{ 'is-invalid': !lastNameOk }" />
-              <input v-model="editedPatient.patientDob" type="date" class="form-control" :class="{ 'is-invalid': !isDobValid }" />
-
 
               <!-- Annotation Section -->
               <div class="card bg-light">
@@ -226,7 +222,7 @@
                 <button 
                   class="btn btn-success" 
                   @click="approveItem"
-                  :disabled="!isApproving || !canSave || !dirty"
+                  :disabled="isApproving || !canSave || !dirty"
                 >
                   <span v-if="isApproving" class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
                   {{ isApproving ? 'Wird bestätigt...' : 'Bestätigen' }}
@@ -366,7 +362,8 @@ const canSubmit = computed(() =>
 const currentItem = computed(() => anonymizationStore.current);
 
 const mediaType = computed(() =>
-  currentItem.value?.reportMeta?.pdfUrl
+  // Check for PDF indicators: pdfStreamUrl on root level or pdfUrl in reportMeta
+  currentItem.value?.pdfStreamUrl || currentItem.value?.reportMeta?.pdfUrl
     ? 'pdf'
     : currentItem.value?.videoUrl || currentItem.value?.reportMeta?.file
       ? 'video'
@@ -379,10 +376,15 @@ const isVideo = computed(() => mediaType.value === 'video');
 const pdfSrc = computed(() => {
   if (!isPdf.value) return undefined;
   
-  // Use PDF stream URL from store if available, otherwise use report meta URL or fallback
-  return currentItem.value?.reportMeta?.pdfUrl || 
-         pdfStore.buildPdfStreamUrl(currentItem.value!.id) ||
-         `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}/api/media/pdfs/${currentItem.value!.id}/stream`;
+  // Priority order for PDF URL:
+  // 1. pdfStreamUrl from currentItem (set by VoPPatientDataSerializer)
+  // 2. pdfStreamUrl from pdfStore
+  // 3. pdfUrl from reportMeta (legacy fallback)
+  // 4. buildPdfStreamUrl fallback
+  return currentItem.value?.pdfStreamUrl ||
+         pdfStore.pdfStreamUrl ||
+         currentItem.value?.reportMeta?.pdfUrl ||
+         pdfStore.buildPdfStreamUrl(currentItem.value!.id);
 });
 
 const videoSrc = computed(() => {

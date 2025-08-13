@@ -91,6 +91,7 @@ export interface PatientData {
   reportMeta?: SensitiveMeta;
   status?: string;
   error?: boolean;
+  pdfStreamUrl?: string; // Add this field from VoPPatientDataSerializer
 }
 
 /* ------------------------------------------------------------------ */

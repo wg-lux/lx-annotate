@@ -268,10 +268,10 @@ class AutoProcessingHandler(FileSystemEventHandler):
                     center_name=self.default_center,
                     processor_name=self.default_processor,
                     save_video=True,
-                    delete_source=False  # Keep original file
+                    delete_source=True 
                 )
                 s = video_file.state if hasattr(video_file, 'state') else None
-                
+
                 
                 logger.info(f"Video imported successfully: {video_file.uuid}")
                 
@@ -356,7 +356,7 @@ class AutoProcessingHandler(FileSystemEventHandler):
                 if not storage_root.exists():
                     raise InsufficientStorageError(f"Storage root does not exist: {storage_root}")
                 
-                pdf_import_service.check_storage_capacity(pdf_path, storage_root, min_required_space=MIN_REQUIRED_SPACE)
+                pdf_import_service.check_storage_capacity(pdf_path, storage_root, MIN_REQUIRED_SPACE)
                 
                 try:
                     # Import and anonymize PDF
@@ -364,8 +364,9 @@ class AutoProcessingHandler(FileSystemEventHandler):
                         file_path=pdf_path,
                         center_name=self.default_center,
                         processor_name=self.default_processor,
-                        delete_source=False  # Keep original file
+                        delete_source=True
                     )
+                    
                     
                     logger.info(f"PDF imported successfully: {raw_pdf.uuid}")
                     

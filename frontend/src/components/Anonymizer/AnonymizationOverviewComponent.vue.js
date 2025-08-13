@@ -24,8 +24,6 @@ const refreshOverview = async () => {
     }
 };
 const startAnonymization = async (fileId) => {
-    if (isProcessing(fileId))
-        return; // Prevent concurrent calls
     processingFiles.value.add(fileId);
     try {
         const success = await anonymizationStore.startAnonymization(fileId);
@@ -38,9 +36,6 @@ const startAnonymization = async (fileId) => {
             console.warn('startAnonymization failed - staying on current page');
         }
     }
-    catch (error) {
-        console.error('Error starting anonymization:', error);
-    }
     finally {
         processingFiles.value.delete(fileId);
     }
@@ -50,37 +45,21 @@ const correctVideo = async (fileId) => {
     router.push({ name: 'AnonymisierungKorrektur', params: { fileId } });
 };
 const validateFile = async (fileId) => {
-    if (isProcessing(fileId))
-        return; // Prevent concurrent validation calls
     processingFiles.value.add(fileId);
     try {
-        // Debug: Log current file status before validation
-        const file = availableFiles.value.find(f => f.id === fileId);
-        console.log(`Validating file ${fileId}, current status:`, file?.anonymizationStatus);
-        // Temporarily stop polling for this file to prevent status conflicts
-        anonymizationStore.stopPolling(fileId);
         const result = await anonymizationStore.setCurrentForValidation(fileId);
         if (result) {
             router.push('/anonymisierung/validierung');
         }
         else {
             console.warn('setCurrentForValidation returned null - navigation aborted');
-            // Restart polling if validation failed
-            anonymizationStore.startPolling(fileId);
         }
-    }
-    catch (error) {
-        console.error('Error during file validation:', error);
-        // Restart polling on error
-        anonymizationStore.startPolling(fileId);
     }
     finally {
         processingFiles.value.delete(fileId);
     }
 };
 const reimportVideo = async (fileId) => {
-    if (isProcessing(fileId))
-        return; // Prevent concurrent calls
     processingFiles.value.add(fileId);
     try {
         const success = await anonymizationStore.reimportVideo(fileId);
@@ -92,9 +71,6 @@ const reimportVideo = async (fileId) => {
         else {
             console.warn('Re-import failed - staying on current page');
         }
-    }
-    catch (error) {
-        console.error('Error during video reimport:', error);
     }
     finally {
         processingFiles.value.delete(fileId);
@@ -120,8 +96,7 @@ const getStatusBadgeClass = (status) => {
         'predicting_segments': 'bg-info',
         'done': 'bg-success',
         'validated': 'bg-success',
-        'failed': 'bg-danger',
-        'unknown': 'bg-secondary'
+        'failed': 'bg-danger'
     };
     return classes[status] || 'bg-secondary';
 };
@@ -133,10 +108,9 @@ const getStatusText = (status) => {
         'predicting_segments': 'Segmente vorhersagen',
         'done': 'Fertig',
         'validated': 'Validiert',
-        'failed': 'Fehlgeschlagen',
-        'unknown': 'Status unbekannt'
+        'failed': 'Fehlgeschlagen'
     };
-    return texts[status] || `Unbekannt: ${status}`;
+    return texts[status] || status;
 };
 const formatDate = (dateString) => {
     if (!dateString)
@@ -155,7 +129,7 @@ const getTotalByStatus = (status) => {
         'not_started': ['not_started'],
         'processing': ['processing_anonymization', 'extracting_frames', 'predicting_segments'],
         'done': ['done', 'validated'],
-        'failed': ['failed', 'unknown'] // Include unknown as failed for safety
+        'failed': ['failed']
     };
     const relevantStatuses = statusMap[status] || [status];
     return availableFiles.value.filter(file => relevantStatuses.includes(file.anonymizationStatus)).length;
@@ -192,23 +166,13 @@ const hasOriginalFile = (file) => {
 };
 // Lifecycle
 onMounted(async () => {
-    try {
-        if (!availableFiles.value.length) {
-            // Only set refreshing state when actually refreshing
-            isRefreshing.value = true;
-        }
-        await anonymizationStore.fetchOverview();
-        // Start polling for all available files
-        availableFiles.value.forEach(file => {
-            anonymizationStore.startPolling(file.id);
-        });
+    if (!availableFiles.value.length) {
+        // Only fetch overview if we don't have files yet
+        isRefreshing.value = true;
     }
-    catch (error) {
-        console.error('Error during component mount:', error);
-    }
-    finally {
-        isRefreshing.value = false;
-    }
+    await anonymizationStore.fetchOverview();
+    availableFiles.value
+        .forEach(file => anonymizationStore.startPolling(file.id));
 });
 onUnmounted(() => {
     // Clean up all polling when component is unmounted
@@ -443,14 +407,14 @@ function __VLS_template() {
                     ...{ class: ("fas fa-redo") },
                 });
             }
-            if (file.anonymizationStatus === 'done' || file.anonymizationStatus === 'validated') {
+            if (file.anonymizationStatus === 'done') {
                 __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
                     ...{ onClick: (...[$event]) => {
                             if (!(!((__VLS_ctx.anonymizationStore.loading && !__VLS_ctx.availableFiles.length))))
                                 return;
                             if (!(!((!__VLS_ctx.availableFiles.length))))
                                 return;
-                            if (!((file.anonymizationStatus === 'done' || file.anonymizationStatus === 'validated')))
+                            if (!((file.anonymizationStatus === 'done')))
                                 return;
                             __VLS_ctx.validateFile(file.id);
                         } },
@@ -460,7 +424,6 @@ function __VLS_template() {
                 __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
                     ...{ class: ("fas fa-eye") },
                 });
-                (file.anonymizationStatus === 'validated' ? 'Erneut validieren' : 'Validieren');
             }
             if (file.mediaType === 'video' && (file.anonymizationStatus === 'done' || file.anonymizationStatus === 'validated')) {
                 __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
