@@ -142,7 +142,7 @@ export declare const useAnnotationStore: import("pinia").StoreDefinition<"annota
     linkSegmentAndAnnotation: (segment: any, userId: string) => Promise<Annotation | null>;
     validateSegmentsAndExaminations: (fileId: number) => Promise<boolean>;
     annotateSegmentsAndExaminations: (fileId: number) => Promise<boolean>;
-}, "isLoading" | "error" | "filter" | "annotations" | "selectedAnnotations" | "currentVideoId" | "playbackTime" | "isEditing" | "isDirty">>, Pick<{
+}, "filter" | "error" | "isLoading" | "annotations" | "selectedAnnotations" | "currentVideoId" | "playbackTime" | "isEditing" | "isDirty">>, Pick<{
     annotations: readonly {
         readonly id: string;
         readonly videoId: string;
@@ -326,6 +326,6 @@ export declare const useAnnotationStore: import("pinia").StoreDefinition<"annota
     linkSegmentAndAnnotation: (segment: any, userId: string) => Promise<Annotation | null>;
     validateSegmentsAndExaminations: (fileId: number) => Promise<boolean>;
     annotateSegmentsAndExaminations: (fileId: number) => Promise<boolean>;
-}, "clearError" | "reset" | "loadAnnotations" | "createAnnotation" | "updateAnnotation" | "deleteAnnotation" | "deleteSelectedAnnotations" | "selectAnnotation" | "selectAllAnnotations" | "clearSelection" | "setFilter" | "clearFilter" | "setCurrentVideoId" | "setPlaybackTime" | "startEditing" | "stopEditing" | "markDirty" | "seekToAnnotation" | "exportAnnotations" | "syncSegmentsFromVideoStore" | "createSegmentAnnotation" | "createExaminationAnnotation" | "linkSegmentAndAnnotation" | "validateSegmentsAndExaminations" | "annotateSegmentsAndExaminations">>;
+}, "reset" | "clearError" | "loadAnnotations" | "createAnnotation" | "updateAnnotation" | "deleteAnnotation" | "deleteSelectedAnnotations" | "selectAnnotation" | "selectAllAnnotations" | "clearSelection" | "setFilter" | "clearFilter" | "setCurrentVideoId" | "setPlaybackTime" | "startEditing" | "stopEditing" | "markDirty" | "seekToAnnotation" | "exportAnnotations" | "syncSegmentsFromVideoStore" | "createSegmentAnnotation" | "createExaminationAnnotation" | "linkSegmentAndAnnotation" | "validateSegmentsAndExaminations" | "annotateSegmentsAndExaminations">>;
 export declare function createDefaultAnnotation(videoId: string, type: AnnotationType, startTime: number, endTime: number, userId: string): Omit<Annotation, 'id' | 'createdAt' | 'updatedAt'>;
 export declare function validateAnnotation(annotation: Partial<Annotation>): string[];

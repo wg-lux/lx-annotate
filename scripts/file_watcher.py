@@ -23,6 +23,7 @@ import shutil
 from pathlib import Path
 from typing import Set, Optional
 from concurrent.futures import ThreadPoolExecutor
+
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler, FileCreatedEvent, FileMovedEvent
 
@@ -40,8 +41,13 @@ django.setup()
 # Import Django models and services after setup
 from django.core.management import call_command
 from endoreg_db.models import VideoFile, Center, EndoscopyProcessor
-from endoreg_db.services.video_import import import_and_anonymize
+from endoreg_db.services.video_import import VideoImportService
+from endoreg_db.services.pdf_import import PdfImportService
 
+video_import_service = VideoImportService()
+pdf_import_service = PdfImportService(
+    project_root=PROJECT_ROOT
+    )
 # Ensure FFmpeg is available
 def _setup_ffmpeg():
     """Ensure FFmpeg binaries are available in PATH."""
@@ -257,13 +263,15 @@ class AutoProcessingHandler(FileSystemEventHandler):
             
             # Import and anonymize video
             try:
-                video_file = import_and_anonymize(
+                video_file = video_import_service.import_and_anonymize(
                     file_path=video_path,
                     center_name=self.default_center,
                     processor_name=self.default_processor,
                     save_video=True,
                     delete_source=False  # Keep original file
                 )
+                s = video_file.state if hasattr(video_file, 'state') else None
+                
                 
                 logger.info(f"Video imported successfully: {video_file.uuid}")
                 
@@ -337,14 +345,39 @@ class AutoProcessingHandler(FileSystemEventHandler):
             # Early storage capacity check
             try:
                 from endoreg_db.exceptions import InsufficientStorageError
-                from endoreg_db.models.media.pdf.raw_pdf import RawPdfFile
                 storage_root = os.getenv('PDF_STORAGE_ROOT', str(PROJECT_ROOT/ 'data') / 'pdfs')
+                storage_root = Path(storage_root)
+                if not storage_root.is_absolute():
+                    storage_root = PROJECT_ROOT / storage_root
+                if not storage_root.exists():
+                    storage_root.mkdir(parents=True, exist_ok=True)
+                # Check if storage root exists and has enough space
+                MIN_REQUIRED_SPACE = 100 * 1024 * 1024  # 100 MB minimum
+                if not storage_root.exists():
+                    raise InsufficientStorageError(f"Storage root does not exist: {storage_root}")
+                
+                pdf_import_service.check_storage_capacity(pdf_path, storage_root, min_required_space=MIN_REQUIRED_SPACE)
+                
+                try:
+                    # Import and anonymize PDF
+                    raw_pdf = pdf_import_service.import_and_anonymize(
+                        file_path=pdf_path,
+                        center_name=self.default_center,
+                        processor_name=self.default_processor,
+                        save_pdf=True,
+                        delete_source=False  # Keep original file
+                    )
+                    
+                    logger.info(f"PDF imported successfully: {raw_pdf.uuid}")
+                    
+                except Exception as import_error:
+                    error_msg = str(import_error)
             except InsufficientStorageError as storage_error:
-                logger.error(f"Insufficient storage space for {video_path}: {storage_error}")
+                logger.error(f"Insufficient storage space for {pdf_path}: {storage_error}")
                 # Don't mark as processed - allow retry when space is available
-                self.processed_files.discard(str(video_path))
-                # Set status to indicate storage issue
+                self.processed_files.discard(str(pdf_path))
                 return
+            
         except Exception as e:
             logger.error(f"Error processing pdf {pdf_path}: {str(e)}", exc_info=True)
             self.processed_files.discard(str(pdf_path))

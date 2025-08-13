@@ -288,7 +288,7 @@ const pdfSrc = computed(() => {
   if (!isPdf.value) return undefined;
   
   return currentItem.value!.reportMeta!.pdfUrl ?? 
-    `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}/api/pdfstream/${currentItem.value!.id}/`;
+    `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}/api/media/pdfs/${currentItem.value!.id}/stream`;
 });
 
 const videoSrc = computed(() => {

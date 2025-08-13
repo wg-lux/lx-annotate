@@ -9,6 +9,8 @@ export interface FileItem {
     metadataImported: boolean;
     fileSize?: number | undefined;
     rawFile?: string;
+    text?: string;
+    anonymizedText?: string;
 }
 export interface AnonymizationState {
     anonymizationStatus: string;
@@ -82,6 +84,8 @@ export declare const availableFiles: import("vue").Ref<{
     metadataImported: boolean;
     fileSize?: number | undefined;
     rawFile?: string | undefined;
+    text?: string | undefined;
+    anonymizedText?: string | undefined;
 }[], FileItem[] | {
     id: number;
     filename: string;
@@ -93,6 +97,8 @@ export declare const availableFiles: import("vue").Ref<{
     metadataImported: boolean;
     fileSize?: number | undefined;
     rawFile?: string | undefined;
+    text?: string | undefined;
+    anonymizedText?: string | undefined;
 }[]>;
 export declare const useAnonymizationStore: import("pinia").StoreDefinition<"anonymization", AnonymizationState & {
     pending: PatientData[];
@@ -141,6 +147,8 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
             metadataImported: boolean;
             fileSize?: number | undefined;
             rawFile?: string | undefined;
+            text?: string | undefined;
+            anonymizedText?: string | undefined;
         }[];
         pollingHandles: Record<number, ReturnType<typeof setInterval>>;
         isPolling: boolean;
@@ -156,6 +164,8 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
             metadataImported: boolean;
             fileSize?: number | undefined;
             rawFile?: string | undefined;
+            text?: string | undefined;
+            anonymizedText?: string | undefined;
         }[];
         pending: {
             id: number;
@@ -261,6 +271,8 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
             metadataImported: boolean;
             fileSize?: number | undefined;
             rawFile?: string | undefined;
+            text?: string | undefined;
+            anonymizedText?: string | undefined;
         }[];
         pollingHandles: Record<number, ReturnType<typeof setInterval>>;
         isPolling: boolean;
@@ -276,6 +288,8 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
             metadataImported: boolean;
             fileSize?: number | undefined;
             rawFile?: string | undefined;
+            text?: string | undefined;
+            anonymizedText?: string | undefined;
         }[];
         pending: {
             id: number;
@@ -353,6 +367,8 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
             metadataImported: boolean;
             fileSize?: number | undefined;
             rawFile?: string | undefined;
+            text?: string | undefined;
+            anonymizedText?: string | undefined;
         }[];
         pollingHandles: Record<number, ReturnType<typeof setInterval>>;
         isPolling: boolean;
@@ -368,6 +384,8 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
             metadataImported: boolean;
             fileSize?: number | undefined;
             rawFile?: string | undefined;
+            text?: string | undefined;
+            anonymizedText?: string | undefined;
         }[];
         pending: {
             id: number;
@@ -411,6 +429,8 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
         metadataImported: boolean;
         fileSize?: number | undefined;
         rawFile?: string | undefined;
+        text?: string | undefined;
+        anonymizedText?: string | undefined;
     }[];
 }, {
     /** Holt den nächsten PDF-Datensatz + zugehöriges SensitiveMeta
