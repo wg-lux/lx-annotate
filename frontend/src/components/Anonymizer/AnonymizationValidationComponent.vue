@@ -123,8 +123,8 @@
                   <div class="mb-3">
                     <label class="form-label">Anonymisierter Text:</label>
                     <textarea class="form-control"
-                            rows="6"
-                            v-model="editedAnonymizedText" />
+                      rows="6"
+                      v-model="editedAnonymizedText"></textarea>
                   </div>
                 </div>
               </div>
@@ -327,17 +327,17 @@ function shallowEqual(a: Editable, b: Editable): boolean {
 
 function normalizeDateToISO(input?: string | null): string | null {
   if (!input) return null;
-  const s = input.trim();
+  const s = input.trim().split(' ')[0]; // remove time if present
   const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
   if (iso) return s;
   const de = /^(\d{2})\.(\d{2})\.(\d{4})$/.exec(s);
   if (de) {
     const [, dd, mm, yyyy] = de;
-    const d = +dd, m = +mm, y = +yyyy;
-    if (y >= 1900 && m >= 1 && m <= 12 && d >= 1 && d <= 31) return `${yyyy}-${mm}-${dd}`;
+    return `${yyyy}-${mm}-${dd}`;
   }
   return null;
 }
+
 
 function buildSensitiveMetaSnake(dobIso: string) {
   return {

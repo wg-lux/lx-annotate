@@ -8,7 +8,7 @@ import subprocess
 def main():
     """Run administrative tasks."""
     # Use the environment variable from .env, with fallback to dev settings
-    default_settings = os.environ.get('DJANGO_SETTINGS_MODULE', 'lx_annotate.settings.dev')
+    default_settings = os.environ.get('DJANGO_SETTINGS_MODULE', 'lx_annotate.settings_dev')
     os.environ.setdefault('DJANGO_SETTINGS_MODULE', default_settings)
     
     try:
