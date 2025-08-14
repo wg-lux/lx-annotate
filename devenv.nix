@@ -15,7 +15,7 @@ let
   djangoModuleName = let env = builtins.getEnv "DJANGO_MODULE"; in if env != "" then env else "endo_api";
   http_protocol = let env = builtins.getEnv "HTTP_PROTOCOL"; in if env != "" then env else "http";
   host = let env = builtins.getEnv "DJANGO_HOST"; in if env != "" then env else "localhost";
-  port = let env = builtins.getEnv "DJANGO_PORT"; in if env != "" then env else "8119    yarn";
+  port = let env = builtins.getEnv "DJANGO_PORT"; in if env != "" then env else "8119";
   base_url = let env = builtins.getEnv "BASE_URL"; in if env != "" then env else "${http_protocol}://${host}:${port}";
 
   python = pkgs.python312;

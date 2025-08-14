@@ -7,6 +7,7 @@ let
     "vue:build".exec = 
       ''
       cd frontend
+      direnv allow
       npm run build
       cd ..
       python manage.py collectstatic --noinput
