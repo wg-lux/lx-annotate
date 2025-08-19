@@ -133,6 +133,18 @@
                       Erneut importieren
                     </button>
 
+                    <!-- Re-import for PDFs (using reset-status for now) -->
+                    <button
+                      v-if="file.mediaType === 'pdf' && needsReimport(file)"
+                      @click="reimportPdf(file.id)"
+                      class="btn btn-outline-info"
+                      :disabled="isProcessing(file.id)"
+                      title="PDF erneut importieren und verarbeiten"
+                    >
+                      <i class="fas fa-redo-alt"></i>
+                      Erneut importieren
+                    </button>
+
                     <!-- Start Anonymization -->
                     <button
                       v-if="file.anonymizationStatus === 'not_started'"
@@ -155,12 +167,12 @@
                       Erneut versuchen
                     </button>
 
-                    <!-- View/Validate -->
+                    <!-- View/Validate - only show when anonymization is done -->
                     <button
                       v-if="file.anonymizationStatus === 'done'"
                       @click="validateFile(file.id)"
                       class="btn btn-outline-success bg-success"
-                      :disabled="isProcessing(file.id)"
+                      :disabled="!isReadyForValidation(file.id)"
                     >
                       <i class="fas fa-eye"></i>
                       Validieren
@@ -177,6 +189,16 @@
                       Korrektur
                     </button>
 
+                    <!-- Delete Button - Show for all files -->
+                    <button
+                      @click="deleteFile(file.id)"
+                      class="btn btn-outline-danger"
+                      :disabled="isProcessing(file.id)"
+                      title="Datei permanent löschen"
+                    >
+                      <i class="fas fa-trash"></i>
+                      Löschen
+                    </button>
 
                     <!-- Processing indicator -->
                     <button
@@ -194,7 +216,7 @@
                     >
                       <i class="fas fa-spinner fa-spin me-1"></i>
                       Frames extrahieren...
-                  </button>
+                    </button>
 
                   </div>
                 </td>
@@ -224,7 +246,16 @@
                         {{ getTotalByStatus('processing') }}
                       </span>
                     </div>
+                  
                     <small class="text-muted">In Bearbeitung</small>
+                  </div>
+                  <div class="col-md-3">
+                    <div class="mb-2">
+                      <span class="badge bg-warning fs-6">
+                        {{ getTotalByStatus('started') }}
+                      </span>
+                    </div>
+                    <small class="text-muted">Anonymisierung gestartet</small>
                   </div>
                   <div class="col-md-3">
                     <div class="mb-2">
@@ -264,18 +295,25 @@ import { useRouter } from 'vue-router';
 import { useAnonymizationStore, type FileItem } from '@/stores/anonymizationStore';
 import { useVideoStore } from '@/stores/videoStore';
 import { useAnnotationStore } from '@/stores/annotationStore';
-import { availableFiles } from '../../stores/anonymizationStore';
+import { useMediaTypeStore } from '@/stores/mediaTypeStore';
+import { usePollingProtection } from '@/composables/usePollingProtection';
+import { useMediaManagement } from '@/api/mediaManagement';
 
 // Composables
 const router = useRouter();
 const anonymizationStore = useAnonymizationStore();
 const videoStore = useVideoStore();
 const annotationStore = useAnnotationStore();
+const mediaStore = useMediaTypeStore();
+const pollingProtection = usePollingProtection();
+const mediaManagement = useMediaManagement();
 
 // Local state
 const isRefreshing = ref(false);
 const processingFiles = ref<Set<number>>(new Set());
 
+// Computed properties
+const availableFiles = computed(() => anonymizationStore.overview);
 
 const filteredOutCount = computed(() => 
   anonymizationStore.overview.length - availableFiles.value.length
@@ -292,39 +330,88 @@ const refreshOverview = async () => {
 };
 
 const startAnonymization = async (fileId: number) => {
-  processingFiles.value.add(fileId);
-  try {
-    const success = await anonymizationStore.startAnonymization(fileId);
-    if (success) {
-      // Refresh overview to get updated status
-      await refreshOverview();
-      
+  // Find the file to determine media type
+  const file = availableFiles.value.find(f => f.id === fileId);
+  if (!file) {
+    console.warn('File not found for anonymization:', fileId);
+    return;
+  }
 
-      console.log('Anonymization started successfully for file', fileId);
-    } else {
-      console.warn('startAnonymization failed - staying on current page');
-    }
-  } finally {
-    processingFiles.value.delete(fileId);
+  const mediaType = file.mediaType === 'video' ? 'video' : 'pdf';
+  
+  // Use polling protection for start anonymization
+  const result = await pollingProtection.startAnonymizationSafeWithProtection(fileId, mediaType);
+  
+  if (result?.success) {
+    // Refresh overview to get updated status
+    await refreshOverview();
+    console.log('Anonymization started successfully for file', fileId);
+  } else {
+    console.warn('startAnonymization failed - staying on current page');
   }
 };
 
 const correctVideo = async (fileId: number) => {
+  // Find the file to set it in MediaStore for consistency
+  const file = availableFiles.value.find(f => f.id === fileId);
+  if (file) {
+    mediaStore.setCurrentItem(file as any);
+  }
+  
   // Navigate directly to the correction component with the video ID
   router.push({ name: 'AnonymisierungKorrektur', params: { fileId } });
 };
 
+const isReadyForValidation = (fileId: number) => {
+  // Check if the file is ready for validation
+  const file = availableFiles.value.find(f => f.id === fileId);
+  if (!file) return false;
+
+  // Only allow validation if anonymization is done
+  return file.anonymizationStatus === 'done' || file.anonymizationStatus === 'validated';
+};
+
+const isValidated = (fileId: number) => {
+  // Check if the file is validated
+  const file = availableFiles.value.find(f => f.id === fileId);
+  if (!file) return false;
+
+  // Only allow validation if anonymization is done
+  return file.anonymizationStatus === 'validated';
+};
+
 const validateFile = async (fileId: number) => {
+  // Find the file to determine media type
   processingFiles.value.add(fileId);
+  if (!fileId) {
+    console.warn('File not found for validation:', fileId);
+    return;
+  }
 
   try {
+    // Set the file in MediaStore for consistency
     const result = await anonymizationStore.setCurrentForValidation(fileId);
     if (result) {
-      router.push('/anonymisierung/validierung');
-    } else {
-      console.warn('setCurrentForValidation returned null - navigation aborted');
+        const file = availableFiles.value.find(f => f.id === fileId);
+        if (!file) 
+        {
+          console.warn('File not found for validation:', fileId);
+          return;
+        }
+        else {
+          mediaStore.setCurrentItem(file as any);
     }
-  } finally {
+    
+    // Simply navigate to validation page without changing status
+    // The status should only change when user actually completes validation
+    router.push('/anonymisierung/validierung'); 
+    
+  }
+  }
+  catch (error) {
+    console.error('Navigation to validation failed:', error);
+  }
+  finally {
     processingFiles.value.delete(fileId);
   }
 };
@@ -346,20 +433,95 @@ const reimportVideo = async (fileId: number) => {
   }
 };
 
+const reimportPdf = async (fileId: number) => {
+  processingFiles.value.add(fileId);
+  try {
+    // For PDFs, use reset status for now as there's no specific PDF reimport endpoint
+    // This will reset the PDF to allow re-processing
+    const result = await mediaManagement.resetProcessingStatus(fileId);
+    if (result) {
+      // Refresh overview to get updated status
+      await refreshOverview();
+      console.log('PDF re-import initiated successfully:', fileId);
+    } else {
+      console.warn('PDF re-import failed - staying on current page');
+    }
+  } catch (error) {
+    console.error('PDF re-import failed:', error);
+  } finally {
+    processingFiles.value.delete(fileId);
+  }
+};
+
+const deleteFile = async (fileId: number) => {
+  // Find the file for confirmation
+  const file = availableFiles.value.find(f => f.id === fileId);
+  if (!file) {
+    console.warn('File not found for deletion:', fileId);
+    return;
+  }
+
+  // Ask for confirmation
+  const confirmed = confirm(`Sind Sie sicher, dass Sie die Datei "${file.filename}" permanent löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.`);
+  if (!confirmed) {
+    return;
+  }
+
+  processingFiles.value.add(fileId);
+  try {
+    // Use the media management API to delete the file
+    const result = await mediaManagement.deleteMediaFile(fileId);
+    if (result) {
+      // Refresh overview to remove the deleted file from the list
+      await refreshOverview();
+      console.log('File deleted successfully:', fileId);
+    } else {
+      console.warn('File deletion failed');
+    }
+  } catch (error) {
+    console.error('File deletion failed:', error);
+  } finally {
+    processingFiles.value.delete(fileId);
+  }
+};
+
 const isProcessing = (fileId: number) => {
-  return processingFiles.value.has(fileId);
+  // Find the file to determine media type
+  const file = availableFiles.value.find(f => f.id === fileId);
+  if (!file) return false;
+
+  const mediaType = mediaStore.detectMediaType(file);
+  
+  // Check both local processing and polling protection
+  // Handle unknown media type by falling back to local processing check only
+  if (mediaType === 'unknown') {
+    return processingFiles.value.has(fileId);
+  }
+  
+  return processingFiles.value.has(fileId) || 
+         !pollingProtection.canProcessMedia.value(fileId, mediaType as 'video' | 'pdf');
 };
 
 const needsReimport = (file: FileItem) => {
-  return file.mediaType === 'video' && !file.metadataImported;
+  // Video files need re-import if metadata is missing
+  if (file.mediaType === 'video') {
+    return !file.metadataImported;
+  }
+  
+  // PDF files might need re-import if anonymization failed or no text extracted
+  if (file.mediaType === 'pdf') {
+    return file.anonymizationStatus === 'failed' || file.anonymizationStatus === 'not_started';
+  }
+  
+  return false;
 };
 
 const getFileIcon = (mediaType: string) => {
-  return mediaType === 'video' ? 'fas fa-video text-primary' : 'fas fa-file-pdf text-danger';
+  return mediaStore.getMediaTypeIcon(mediaType as any);
 };
 
 const getMediaTypeBadgeClass = (mediaType: string) => {
-  return mediaType === 'video' ? 'bg-primary' : 'bg-danger';
+  return mediaStore.getMediaTypeBadgeClass(mediaType as any);
 };
 
 const getStatusBadgeClass = (status: string) => {
@@ -448,21 +610,21 @@ const hasOriginalFile = (file: FileItem): boolean => {
 
 // Lifecycle
 onMounted(async () => {
-  if (!availableFiles.value.length) {
-    // Only fetch overview if we don't have files yet
-    isRefreshing.value = true;
-
-  }
+  // Fetch overview data
   await anonymizationStore.fetchOverview();
-
-  availableFiles.value
-    .forEach(file => anonymizationStore.startPolling(file.id));
   
+  // Start polling for all files
+  anonymizationStore.overview.forEach((file: FileItem) => {
+    anonymizationStore.startPolling(file.id);
+  });
 });
 
 onUnmounted(() => {
   // Clean up all polling when component is unmounted
   anonymizationStore.stopAllPolling();
+  
+  // Clear any remaining processing locks
+  pollingProtection.clearAllLocalLocks();
 });
 </script>
 

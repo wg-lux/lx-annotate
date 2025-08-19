@@ -1,18 +1,23 @@
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
+import { useRouter } from 'vue-router';
 import { useAnonymizationStore } from '@/stores/anonymizationStore';
 import { useVideoStore } from '@/stores/videoStore';
 import { usePatientStore } from '@/stores/patientStore';
 import { useToastStore } from '@/stores/toastStore';
 import { usePdfStore } from '@/stores/pdfStore';
+import { useMediaTypeStore } from '@/stores/mediaTypeStore';
 // @ts-ignore
 import axiosInstance, { r } from '@/api/axiosInstance';
-// @ts-ignore
+import { usePollingProtection } from '@/composables/usePollingProtection';
+const pollingProtection = usePollingProtection();
 const toast = useToastStore();
+const router = useRouter();
 // Store references
 const anonymizationStore = useAnonymizationStore();
 const videoStore = useVideoStore();
 const patientStore = usePatientStore();
 const pdfStore = usePdfStore();
+const mediaStore = useMediaTypeStore();
 // Local state
 const editedAnonymizedText = ref('');
 const examinationDate = ref('');
@@ -50,16 +55,14 @@ function shallowEqual(a, b) {
 function normalizeDateToISO(input) {
     if (!input)
         return null;
-    const s = input.trim();
+    const s = input.trim().split(' ')[0]; // remove time if present
     const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
     if (iso)
         return s;
     const de = /^(\d{2})\.(\d{2})\.(\d{4})$/.exec(s);
     if (de) {
         const [, dd, mm, yyyy] = de;
-        const d = +dd, m = +mm, y = +yyyy;
-        if (y >= 1900 && m >= 1 && m <= 12 && d >= 1 && d <= 31)
-            return `${yyyy}-${mm}-${dd}`;
+        return `${yyyy}-${mm}-${dd}`;
     }
     return null;
 }
@@ -97,37 +100,36 @@ const canSave = computed(() => firstNameOk.value && lastNameOk.value && isDobVal
 const canSubmit = computed(() => !!processedUrl.value && !!originalUrl.value && canSave.value);
 // Computed
 const currentItem = computed(() => anonymizationStore.current);
-const mediaType = computed(() => 
-// Check for PDF indicators: pdfStreamUrl on root level or pdfUrl in reportMeta
-currentItem.value?.pdfStreamUrl || currentItem.value?.reportMeta?.pdfUrl
-    ? 'pdf'
-    : currentItem.value?.videoUrl || currentItem.value?.reportMeta?.file
-        ? 'video'
-        : 'unknown');
-const isPdf = computed(() => mediaType.value === 'pdf');
-const isVideo = computed(() => mediaType.value === 'video');
-// Media URLs
+// Use MediaStore for consistent media type detection
+const isPdf = computed(() => {
+    if (!currentItem.value)
+        return false;
+    return mediaStore.detectMediaType(currentItem.value) === 'pdf';
+});
+const isVideo = computed(() => {
+    if (!currentItem.value)
+        return false;
+    return mediaStore.detectMediaType(currentItem.value) === 'video';
+});
+// Media URLs with MediaStore logic
 const pdfSrc = computed(() => {
-    if (!isPdf.value)
+    if (!isPdf.value || !currentItem.value)
         return undefined;
-    // Priority order for PDF URL:
-    // 1. pdfStreamUrl from currentItem (set by VoPPatientDataSerializer)
-    // 2. pdfStreamUrl from pdfStore
-    // 3. pdfUrl from reportMeta (legacy fallback)
-    // 4. buildPdfStreamUrl fallback
-    return currentItem.value?.pdfStreamUrl ||
+    // Use MediaStore's URL resolution logic
+    return mediaStore.getPdfUrl(currentItem.value) ||
         pdfStore.pdfStreamUrl ||
-        currentItem.value?.reportMeta?.pdfUrl ||
         pdfStore.buildPdfStreamUrl(currentItem.value.id);
 });
 const videoSrc = computed(() => {
-    if (!isVideo.value)
+    if (!isVideo.value || !currentItem.value)
         return undefined;
-    return currentItem.value?.videoUrl || undefined;
+    return mediaStore.getVideoUrl(currentItem.value);
 });
 // Watch
 watch(currentItem, (newItem) => {
     if (newItem) {
+        // Update MediaStore with current item for consistent type detection
+        mediaStore.setCurrentItem(newItem);
         loadCurrentItemData(newItem);
     }
 }, { immediate: true });
@@ -191,6 +193,7 @@ const approveItem = async () => {
                 ...snake,
                 examination_date: normalizedExam,
             });
+            pollingProtection.validateAnonymizationSafeWithProtection(currentItem.value.id, 'video');
         }
         else {
             // Prefer pdfStore when available
@@ -217,6 +220,7 @@ const approveItem = async () => {
                     anonymized_text: editedAnonymizedText.value,
                 });
             }
+            pollingProtection.validateAnonymizationSafeWithProtection(currentItem.value.id, 'pdf');
         }
         // ✅ NEW: Validate the anonymization status after successful approval
         console.log(`Validating anonymization for file ${currentItem.value.id}...`);
@@ -283,6 +287,64 @@ const rejectItem = async () => {
     if (currentItem.value) {
         await fetchNextItem();
     }
+};
+const navigateToCorrection = async () => {
+    if (!currentItem.value) {
+        toast.error({ text: 'Kein Element zur Korrektur ausgewählt.' });
+        return;
+    }
+    // Check for unsaved changes
+    if (dirty.value) {
+        const saveFirst = confirm('Sie haben ungespeicherte Änderungen!\n\n' +
+            'Möchten Sie diese zuerst speichern, bevor Sie zur Korrektur wechseln?\n\n' +
+            '• Ja = Änderungen speichern und zur Korrektur\n' +
+            '• Nein = Änderungen verwerfen und zur Korrektur\n' +
+            '• Abbrechen = Hier bleiben');
+        if (saveFirst === null) {
+            // User cancelled
+            return;
+        }
+        if (saveFirst) {
+            // User wants to save first
+            if (!canSave.value) {
+                toast.error({ text: 'Bitte korrigieren Sie die Validierungsfehler vor dem Speichern.' });
+                return;
+            }
+            try {
+                await approveItem();
+                // approveItem will navigate to next item, so we need to return
+                toast.info({ text: 'Änderungen gespeichert. Bitte wählen Sie das Element erneut für die Korrektur aus.' });
+                return;
+            }
+            catch (error) {
+                toast.error({ text: 'Fehler beim Speichern. Korrektur-Navigation abgebrochen.' });
+                return;
+            }
+        }
+        // If saveFirst is false, continue with navigation (discard changes)
+    }
+    // Ensure MediaStore has the current item for consistent navigation
+    mediaStore.setCurrentItem(currentItem.value);
+    // Different confirmation messages based on media type
+    const mediaType = isVideo.value ? 'Video' : isPdf.value ? 'PDF' : 'Dokument';
+    const correctionOptions = isVideo.value
+        ? 'Verfügbare Optionen: Maskierung, Frame-Entfernung, Neuverarbeitung'
+        : 'Verfügbare Optionen: Text-Annotation anpassen, Metadaten korrigieren';
+    // Log navigation for debugging
+    console.log(`🔧 Navigating to correction for ${mediaType}:`, {
+        id: currentItem.value.id,
+        mediaType,
+        detectedType: mediaStore.detectMediaType(currentItem.value),
+        mediaUrl: mediaStore.currentMediaUrl
+    });
+    // Navigate to correction component with the current item's ID
+    router.push({
+        name: 'AnonymisierungKorrektur',
+        params: { fileId: currentItem.value.id.toString() }
+    });
+    toast.info({
+        text: `${mediaType}-Korrektur geöffnet. ${correctionOptions}`
+    });
 };
 // Video event handlers
 const onVideoError = (event) => {
@@ -402,9 +464,10 @@ function __VLS_template() {
             ...{ class: ("col-12") },
         });
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("alert alert-info d-flex align-items-center") },
+            ...{ class: ("alert alert-info d-flex align-items-center justify-content-between") },
             role: ("alert"),
         });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
         __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
             ...{ class: ("fas fa-info-circle me-2") },
         });
@@ -412,6 +475,18 @@ function __VLS_template() {
         __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
         (__VLS_ctx.isPdf ? 'PDF-Dokument' : __VLS_ctx.isVideo ? 'Video-Datei' : 'Unbekanntes Format');
         (__VLS_ctx.currentItem?.reportMeta?.centerName ? `- ${__VLS_ctx.currentItem.reportMeta.centerName}` : '');
+        if (__VLS_ctx.currentItem && (__VLS_ctx.isVideo || __VLS_ctx.isPdf)) {
+            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: ("text-end") },
+            });
+            __VLS_elementAsFunction(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+                ...{ class: ("text-muted") },
+            });
+            __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                ...{ class: ("fas fa-tools me-1") },
+            });
+            (__VLS_ctx.isVideo ? 'Video-Korrektur verfügbar' : 'Text-Korrektur verfügbar');
+        }
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: ("row mb-4") },
         });
@@ -531,7 +606,7 @@ function __VLS_template() {
         __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
             ...{ class: ("form-label") },
         });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.textarea)({
+        __VLS_elementAsFunction(__VLS_intrinsicElements.textarea, __VLS_intrinsicElements.textarea)({
             ...{ class: ("form-control") },
             rows: ("6"),
             value: ((__VLS_ctx.editedAnonymizedText)),
@@ -656,10 +731,19 @@ function __VLS_template() {
             (__VLS_ctx.isVideo);
             __VLS_elementAsFunction(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({});
             __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+            (__VLS_ctx.currentItem ? __VLS_ctx.mediaStore.detectMediaType(__VLS_ctx.currentItem) : 'N/A');
+            __VLS_elementAsFunction(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({});
+            __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+            (__VLS_ctx.currentItem ? __VLS_ctx.mediaStore.currentMediaUrl : 'N/A');
+            __VLS_elementAsFunction(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({});
+            __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
             (__VLS_ctx.currentItem?.reportMeta?.pdfUrl || 'Nicht verfügbar');
             __VLS_elementAsFunction(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({});
             __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
             (__VLS_ctx.currentItem?.videoUrl || 'Nicht verfügbar');
+            __VLS_elementAsFunction(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({});
+            __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+            (__VLS_ctx.currentItem?.pdfStreamUrl || 'Nicht verfügbar');
         }
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: ("row") },
@@ -671,7 +755,28 @@ function __VLS_template() {
             ...{ onClick: (__VLS_ctx.skipItem) },
             ...{ class: ("btn btn-secondary") },
         });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("d-flex gap-2") },
+        });
+        if (__VLS_ctx.currentItem && (__VLS_ctx.isVideo || __VLS_ctx.isPdf)) {
+            __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+                ...{ onClick: (__VLS_ctx.navigateToCorrection) },
+                ...{ class: ("btn btn-warning position-relative") },
+                disabled: ((__VLS_ctx.isApproving)),
+                title: ((__VLS_ctx.isVideo ? 'Video-Korrektur: Maskierung, Frame-Entfernung, etc.' : 'PDF-Korrektur: Text-Annotation anpassen')),
+            });
+            __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                ...{ class: ("fas fa-edit me-1") },
+            });
+            (__VLS_ctx.isVideo ? 'Video-Korrektur' : 'PDF-Korrektur');
+            if (__VLS_ctx.dirty) {
+                __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                    ...{ class: ("position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger") },
+                    ...{ style: ({}) },
+                    title: ("Ungespeicherte Änderungen"),
+                });
+            }
+        }
         __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
             ...{ onClick: (__VLS_ctx.rejectItem) },
             ...{ class: ("btn btn-danger me-2") },
@@ -690,7 +795,7 @@ function __VLS_template() {
         }
         (__VLS_ctx.isApproving ? 'Wird bestätigt...' : 'Bestätigen');
     }
-    ['container-fluid', 'py-4', 'card', 'card-header', 'pb-0', 'mb-0', 'card-body', 'text-center', 'py-5', 'spinner-border', 'text-primary', 'visually-hidden', 'mt-2', 'alert', 'alert-danger', 'alert', 'alert-info', 'alert', 'alert-warning', 'mt-3', 'fas', 'fa-info-circle', 'me-2', 'mt-2', 'btn', 'btn-sm', 'btn-outline-primary', 'fas', 'fa-eye', 'me-1', 'row', 'mb-3', 'col-12', 'alert', 'alert-info', 'd-flex', 'align-items-center', 'fas', 'fa-info-circle', 'me-2', 'row', 'mb-4', 'col-md-5', 'card', 'bg-light', 'mb-4', 'card-body', 'card-title', 'mb-3', 'form-label', 'form-control', 'is-invalid', 'invalid-feedback', 'mb-3', 'form-label', 'form-control', 'is-invalid', 'invalid-feedback', 'mb-3', 'form-label', 'form-select', 'mb-3', 'form-label', 'form-control', 'is-invalid', 'invalid-feedback', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-control', 'is-invalid', 'invalid-feedback', 'mb-3', 'form-label', 'form-control', 'card', 'bg-light', 'card-body', 'card-title', 'mt-3', 'img-fluid', 'btn', 'btn-info', 'btn-sm', 'mt-2', 'mt-3', 'btn', 'btn-primary', 'spinner-border', 'spinner-border-sm', 'me-2', 'col-md-7', 'card', 'card-header', 'pb-0', 'mb-0', 'alert', 'alert-info', 'mt-2', 'mb-0', 'fas', 'fa-info-circle', 'me-2', 'card-body', 'media-viewer-container', 'alert', 'alert-warning', 'mb-0', 'row', 'col-12', 'd-flex', 'justify-content-between', 'btn', 'btn-secondary', 'btn', 'btn-danger', 'me-2', 'btn', 'btn-success', 'spinner-border', 'spinner-border-sm', 'me-2',];
+    ['container-fluid', 'py-4', 'card', 'card-header', 'pb-0', 'mb-0', 'card-body', 'text-center', 'py-5', 'spinner-border', 'text-primary', 'visually-hidden', 'mt-2', 'alert', 'alert-danger', 'alert', 'alert-info', 'alert', 'alert-warning', 'mt-3', 'fas', 'fa-info-circle', 'me-2', 'mt-2', 'btn', 'btn-sm', 'btn-outline-primary', 'fas', 'fa-eye', 'me-1', 'row', 'mb-3', 'col-12', 'alert', 'alert-info', 'd-flex', 'align-items-center', 'justify-content-between', 'fas', 'fa-info-circle', 'me-2', 'text-end', 'text-muted', 'fas', 'fa-tools', 'me-1', 'row', 'mb-4', 'col-md-5', 'card', 'bg-light', 'mb-4', 'card-body', 'card-title', 'mb-3', 'form-label', 'form-control', 'is-invalid', 'invalid-feedback', 'mb-3', 'form-label', 'form-control', 'is-invalid', 'invalid-feedback', 'mb-3', 'form-label', 'form-select', 'mb-3', 'form-label', 'form-control', 'is-invalid', 'invalid-feedback', 'mb-3', 'form-label', 'form-control', 'mb-3', 'form-label', 'form-control', 'is-invalid', 'invalid-feedback', 'mb-3', 'form-label', 'form-control', 'card', 'bg-light', 'card-body', 'card-title', 'mt-3', 'img-fluid', 'btn', 'btn-info', 'btn-sm', 'mt-2', 'mt-3', 'btn', 'btn-primary', 'spinner-border', 'spinner-border-sm', 'me-2', 'col-md-7', 'card', 'card-header', 'pb-0', 'mb-0', 'alert', 'alert-info', 'mt-2', 'mb-0', 'fas', 'fa-info-circle', 'me-2', 'card-body', 'media-viewer-container', 'alert', 'alert-warning', 'mb-0', 'row', 'col-12', 'd-flex', 'justify-content-between', 'btn', 'btn-secondary', 'd-flex', 'gap-2', 'btn', 'btn-warning', 'position-relative', 'fas', 'fa-edit', 'me-1', 'position-absolute', 'top-0', 'start-100', 'translate-middle', 'badge', 'rounded-pill', 'bg-danger', 'btn', 'btn-danger', 'me-2', 'btn', 'btn-success', 'spinner-border', 'spinner-border-sm', 'me-2',];
     var __VLS_slots;
     var $slots;
     let __VLS_inheritedAttrs;
@@ -710,6 +815,7 @@ const __VLS_self = (await import('vue')).defineComponent({
     setup() {
         return {
             anonymizationStore: anonymizationStore,
+            mediaStore: mediaStore,
             editedAnonymizedText: editedAnonymizedText,
             examinationDate: examinationDate,
             editedPatient: editedPatient,
@@ -735,6 +841,7 @@ const __VLS_self = (await import('vue')).defineComponent({
             approveItem: approveItem,
             saveAnnotation: saveAnnotation,
             rejectItem: rejectItem,
+            navigateToCorrection: navigateToCorrection,
             onVideoError: onVideoError,
             onVideoLoadStart: onVideoLoadStart,
             onVideoCanPlay: onVideoCanPlay,

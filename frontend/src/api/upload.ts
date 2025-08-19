@@ -65,7 +65,7 @@ export const pollUploadStatus = async (
   statusUrl: string,
   onProgress?: (status: UploadStatusResponse) => void
 ): Promise<UploadStatusResponse> => {
-  const pollInterval = 2000; // 2 seconds
+  const pollInterval = 5000; // Increased from 2000ms to 5000ms (5 seconds)
   const maxAttempts = 30; // Maximum number of polling attempts
   let attempts = 0;
   

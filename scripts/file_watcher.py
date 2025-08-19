@@ -45,9 +45,7 @@ from endoreg_db.services.video_import import VideoImportService
 from endoreg_db.services.pdf_import import PdfImportService
 
 video_import_service = VideoImportService()
-pdf_import_service = PdfImportService(
-    project_root=PROJECT_ROOT
-    )
+pdf_import_service = PdfImportService()
 # Ensure FFmpeg is available
 def _setup_ffmpeg():
     """Ensure FFmpeg binaries are available in PATH."""
@@ -97,6 +95,26 @@ logging.getLogger("watchdog.observers.inotify_buffer").setLevel(logging.WARNING)
 
 logger = logging.getLogger(__name__)
 
+def should_ignore_file(file_path: str | Path) -> bool:
+    """
+    Central ignore helper to skip internal/temporary files and quarantine paths
+    Args:
+        file_path (str | Path): The file path to check.#
+    """
+
+    p = Path(file_path)
+    # Ignore lock files created by import services
+    if p.suffix == '.lock':
+        return True
+    # Ignore any files within quarantine/processing directories (PDFs and Videos)
+    # e.g., data/pdfs/_processing or data/videos/_processing
+    if any(part == '_processing' for part in p.parts):
+        return True
+    # Ignore hidden and temp files
+    if p.name.startswith('.') or p.name.startswith('~'):
+        return True
+    return False
+
 class AutoProcessingHandler(FileSystemEventHandler):
     """
     Handles file system events for automatic processing of videos and PDFs.
@@ -130,11 +148,17 @@ class AutoProcessingHandler(FileSystemEventHandler):
             
         # Skip temp files and FFmpeg intermediate files
         if hasattr(event, 'src_path'):
+            if should_ignore_file(event.src_path):
+                return
             path = Path(event.src_path)
             if (path.name.startswith('.') or 
                 path.name.startswith('~') or
                 'tmp' in str(path) or
                 'transcoding' in str(path)):
+                return
+        # Also check destination path for move events
+        if hasattr(event, 'dest_path'):
+            if should_ignore_file(event.dest_path):
                 return
         
         # Continue with normal dispatch
@@ -162,6 +186,11 @@ class AutoProcessingHandler(FileSystemEventHandler):
         try:
             path = Path(file_path)
             
+            # NEW: Ignore internal or quarantine files early
+            if should_ignore_file(path):
+                logger.debug(f"Skipping ignored file: {path}")
+                return
+            
             # Skip if already processed
             if str(path) in self.processed_files:
                 logger.debug(f"File already processed: {path}")
@@ -183,6 +212,7 @@ class AutoProcessingHandler(FileSystemEventHandler):
             
             if parent_dir == 'raw_videos' and file_extension in self.video_extensions:
                 logger.info(f"New video detected: {path}")
+                
                 self._process_video(path)
             elif parent_dir == 'raw_pdfs' and file_extension in self.pdf_extensions:
                 logger.info(f"New PDF detected: {path}")
@@ -205,6 +235,10 @@ class AutoProcessingHandler(FileSystemEventHandler):
             True if file is stable, False if timeout reached
         """
         if not path.exists():
+            return False
+        
+        # NEW: Ignore quarantine and lock files immediately
+        if should_ignore_file(path):
             return False
             
         initial_size = -1
@@ -270,9 +304,8 @@ class AutoProcessingHandler(FileSystemEventHandler):
                     save_video=True,
                     delete_source=True 
                 )
-                s = video_file.state if hasattr(video_file, 'state') else None
-
                 
+
                 logger.info(f"Video imported successfully: {video_file.uuid}")
                 
             except Exception as import_error:
@@ -320,7 +353,6 @@ class AutoProcessingHandler(FileSystemEventHandler):
                 logger.warning(f"Storage error for {video_path}, will retry when space is available")
                 # Don't mark as processed - allow retry
                 self.processed_files.discard(str(video_path))
-                s = video_file.state if hasattr(video_file, 'state') else None
                 # TODO: Implement exponential backoff retry mechanism
                 return
             else:
@@ -330,7 +362,7 @@ class AutoProcessingHandler(FileSystemEventHandler):
     
     def _process_pdf(self, pdf_path: Path):
         """
-        Process a PDF file: anonymize and import.
+        Process a PDF file: import and anonymize with improved error handling.
         
         Args:
             pdf_path: Path to the PDF file
@@ -366,7 +398,7 @@ class AutoProcessingHandler(FileSystemEventHandler):
                     delete_source=False
                 )
                 
-                logger.info(f"PDF imported successfully: {raw_pdf.uuid}")
+                logger.info(f"PDF imported successfully: {raw_pdf.pdf_hash}")
                 
             except InsufficientStorageError as storage_error:
                 logger.error(f"Insufficient storage space for {pdf_path}: {storage_error}")
@@ -417,7 +449,7 @@ class FileWatcherService:
             # Validate Django setup
             self._validate_django_setup()
             
-            # ⭐ FIX: Schedule WITHOUT ignore_patterns (not supported by watchdog)
+            # Schedule without ignore_patterns (not supported by watchdog)
             self.observer.schedule(
                 self.handler,
                 str(self.video_dir),

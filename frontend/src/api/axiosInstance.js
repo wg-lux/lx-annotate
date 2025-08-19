@@ -15,14 +15,19 @@ const axiosInstance = axios.create({
     },
     withCredentials: true,
 });
-// Error toast
+// Error toast - Skip toast messages for polling requests
 axiosInstance.interceptors.response.use(r => r, err => {
     const toast = useToastStore();
-    const msg = err?.response?.data?.detail ||
-        err?.response?.data?.error ||
-        err?.message ||
-        'Unbekannter Netzwerk- oder Serverfehler';
-    toast.error({ text: msg });
+    // Skip toast messages for polling/status requests to avoid spamming users
+    const url = err?.config?.url || '';
+    const isPollingRequest = url.includes('/status/') || url.includes('/polling-info/');
+    if (!isPollingRequest) {
+        const msg = err?.response?.data?.detail ||
+            err?.response?.data?.error ||
+            err?.message ||
+            'Unbekannter Netzwerk- oder Serverfehler';
+        toast.error({ text: msg });
+    }
     return Promise.reject(err); // keep the rejection chain intact
 });
 // Helper zur Erzeugung des vollständigen API-Pfads

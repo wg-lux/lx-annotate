@@ -1,11 +1,13 @@
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useAnonymizationStore } from '@/stores/anonymizationStore';
+import { useMediaTypeStore } from '@/stores/mediaTypeStore';
 import axiosInstance, { r } from '@/api/axiosInstance';
 // Composables
 const router = useRouter();
 const route = useRoute();
 const anonymizationStore = useAnonymizationStore();
+const mediaStore = useMediaTypeStore();
 // Reactive state
 const loading = ref(false);
 const error = ref('');
@@ -113,6 +115,10 @@ const loadVideoDetails = async (videoId) => {
         currentVideo.value = videoResponse.data;
         videoMetadata.value = metadataResponse.data;
         processingHistory.value = historyResponse.data;
+        // Update MediaStore with current video for consistent type detection
+        if (currentVideo.value) {
+            mediaStore.setCurrentItem(currentVideo.value);
+        }
     }
     catch (err) {
         error.value = err.response?.data?.error || 'Fehler beim Laden der Video-Details';
@@ -242,7 +248,7 @@ const parseManualFrames = (frameString) => {
     return [...new Set(frames)].sort((a, b) => a - b);
 };
 const pollTaskProgress = async (taskId, operation) => {
-    const pollInterval = 2000; // 2 seconds
+    const pollInterval = 5000; // Increased from 2000ms to 5000ms (5 seconds)
     const maxPolls = 300; // 10 minutes max
     let polls = 0;
     const poll = async () => {

@@ -39,13 +39,21 @@
           <!-- Content Type Indicator -->
           <div class="row mb-3">
             <div class="col-12">
-              <div class="alert alert-info d-flex align-items-center" role="alert">
-                <i class="fas fa-info-circle me-2"></i>
-                <span>
-                  <strong>Validierung:</strong> 
-                  {{ isPdf ? 'PDF-Dokument' : isVideo ? 'Video-Datei' : 'Unbekanntes Format' }}
-                  {{ currentItem?.reportMeta?.centerName ? `- ${currentItem.reportMeta.centerName}` : '' }}
-                </span>
+              <div class="alert alert-info d-flex align-items-center justify-content-between" role="alert">
+                <div>
+                  <i class="fas fa-info-circle me-2"></i>
+                  <span>
+                    <strong>Validierung:</strong> 
+                    {{ isPdf ? 'PDF-Dokument' : isVideo ? 'Video-Datei' : 'Unbekanntes Format' }}
+                    {{ currentItem?.reportMeta?.centerName ? `- ${currentItem.reportMeta.centerName}` : '' }}
+                  </span>
+                </div>
+                <div v-if="currentItem && (isVideo || isPdf)" class="text-end">
+                  <small class="text-muted">
+                    <i class="fas fa-tools me-1"></i>
+                    {{ isVideo ? 'Video-Korrektur verfügbar' : 'Text-Korrektur verfügbar' }}
+                  </small>
+                </div>
               </div>
             </div>
           </div>
@@ -212,8 +220,11 @@
                       <li><strong>SensitiveMeta ID:</strong> {{ currentItem?.sensitiveMetaId || 'Nicht verfügbar' }}</li>
                       <li><strong>Is PDF:</strong> {{ isPdf }}</li>
                       <li><strong>Is Video:</strong> {{ isVideo }}</li>
+                      <li><strong>Detected Media Type:</strong> {{ currentItem ? mediaStore.detectMediaType(currentItem as any) : 'N/A' }}</li>
+                      <li><strong>Media URL:</strong> {{ currentItem ? mediaStore.currentMediaUrl : 'N/A' }}</li>
                       <li><strong>PDF URL:</strong> {{ currentItem?.reportMeta?.pdfUrl || 'Nicht verfügbar' }}</li>
                       <li><strong>Video URL:</strong> {{ currentItem?.videoUrl || 'Nicht verfügbar' }}</li>
+                      <li><strong>PDF Stream URL:</strong> {{ currentItem?.pdfStreamUrl || 'Nicht verfügbar' }}</li>
                     </ul>
                   </div>
                 </div>
@@ -227,7 +238,28 @@
               <button class="btn btn-secondary" @click="skipItem">
                 Überspringen
               </button>
-              <div>
+              <div class="d-flex gap-2">
+                <!-- Correction Button - for videos and PDFs -->
+                <button 
+                  v-if="currentItem && (isVideo || isPdf)"
+                  class="btn btn-warning position-relative" 
+                  @click="navigateToCorrection"
+                  :disabled="isApproving"
+                  :title="isVideo ? 'Video-Korrektur: Maskierung, Frame-Entfernung, etc.' : 'PDF-Korrektur: Text-Annotation anpassen'"
+                >
+                  <i class="fas fa-edit me-1"></i>
+                  {{ isVideo ? 'Video-Korrektur' : 'PDF-Korrektur' }}
+                  <!-- Unsaved changes indicator -->
+                  <span 
+                    v-if="dirty" 
+                    class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
+                    style="font-size: 0.6em;"
+                    title="Ungespeicherte Änderungen"
+                  >
+                    !
+                  </span>
+                </button>
+                
                 <button class="btn btn-danger me-2" @click="rejectItem">
                   Ablehnen
                 </button>
@@ -249,25 +281,30 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
+import { useRouter } from 'vue-router';
 import { useAnonymizationStore, type PatientData } from '@/stores/anonymizationStore';
 import {useVideoStore, type Video} from '@/stores/videoStore';
 import { usePatientStore } from '@/stores/patientStore';
 import { useToastStore } from '@/stores/toastStore';
 import { usePdfStore } from '@/stores/pdfStore';
+import { useMediaTypeStore } from '@/stores/mediaTypeStore';
 // @ts-ignore
 import axiosInstance, { r } from '@/api/axiosInstance';
-// @ts-ignore
+import { usePollingProtection } from '@/composables/usePollingProtection';
 
 
+const pollingProtection = usePollingProtection();
 
 
 const toast = useToastStore();
+const router = useRouter();
 
 // Store references
 const anonymizationStore = useAnonymizationStore();
 const videoStore = useVideoStore();
 const patientStore = usePatientStore();
 const pdfStore = usePdfStore();
+const mediaStore = useMediaTypeStore();
 
 // Local state
 const editedAnonymizedText = ref('');
@@ -383,41 +420,38 @@ const canSubmit = computed(() =>
 // Computed
 const currentItem = computed(() => anonymizationStore.current);
 
-const mediaType = computed(() =>
-  // Check for PDF indicators: pdfStreamUrl on root level or pdfUrl in reportMeta
-  currentItem.value?.pdfStreamUrl || currentItem.value?.reportMeta?.pdfUrl
-    ? 'pdf'
-    : currentItem.value?.videoUrl || currentItem.value?.reportMeta?.file
-      ? 'video'
-      : 'unknown'
-);
+// Use MediaStore for consistent media type detection
+const isPdf = computed(() => {
+  if (!currentItem.value) return false;
+  return mediaStore.detectMediaType(currentItem.value as any) === 'pdf';
+});
 
-const isPdf   = computed(() => mediaType.value === 'pdf');
-const isVideo = computed(() => mediaType.value === 'video');
-// Media URLs
+const isVideo = computed(() => {
+  if (!currentItem.value) return false;
+  return mediaStore.detectMediaType(currentItem.value as any) === 'video';
+});
+
+// Media URLs with MediaStore logic
 const pdfSrc = computed(() => {
-  if (!isPdf.value) return undefined;
+  if (!isPdf.value || !currentItem.value) return undefined;
   
-  // Priority order for PDF URL:
-  // 1. pdfStreamUrl from currentItem (set by VoPPatientDataSerializer)
-  // 2. pdfStreamUrl from pdfStore
-  // 3. pdfUrl from reportMeta (legacy fallback)
-  // 4. buildPdfStreamUrl fallback
-  return currentItem.value?.pdfStreamUrl ||
+  // Use MediaStore's URL resolution logic
+  return mediaStore.getPdfUrl(currentItem.value as any) ||
          pdfStore.pdfStreamUrl ||
-         currentItem.value?.reportMeta?.pdfUrl ||
-         pdfStore.buildPdfStreamUrl(currentItem.value!.id);
+         pdfStore.buildPdfStreamUrl(currentItem.value.id);
 });
 
 const videoSrc = computed(() => {
-  if (!isVideo.value) return undefined;
-  return currentItem.value?.videoUrl || undefined;
+  if (!isVideo.value || !currentItem.value) return undefined;
+  return mediaStore.getVideoUrl(currentItem.value as any);
 });
 
 
 // Watch
 watch(currentItem, (newItem: PatientData | null) => {
   if (newItem) {
+    // Update MediaStore with current item for consistent type detection
+    mediaStore.setCurrentItem(newItem as any);
     loadCurrentItemData(newItem);
   }
 }, { immediate: true });
@@ -501,6 +535,8 @@ const approveItem = async () => {
         ...snake,
         examination_date: normalizedExam,
       });
+      pollingProtection.validateAnonymizationSafeWithProtection(currentItem.value.id, 'video');
+
     } else {
       // Prefer pdfStore when available
       if (currentItem.value.reportMeta?.pdfUrl && currentItem.value.sensitiveMetaId) {
@@ -525,6 +561,8 @@ const approveItem = async () => {
           anonymized_text: editedAnonymizedText.value,
         });
       }
+      pollingProtection.validateAnonymizationSafeWithProtection(currentItem.value.id, 'pdf');
+
     }
 
     // ✅ NEW: Validate the anonymization status after successful approval
@@ -591,6 +629,75 @@ const rejectItem = async () => {
   if (currentItem.value) {
     await fetchNextItem();
   }
+};
+
+const navigateToCorrection = async () => {
+  if (!currentItem.value) {
+    toast.error({ text: 'Kein Element zur Korrektur ausgewählt.' });
+    return;
+  }
+
+  // Check for unsaved changes
+  if (dirty.value) {
+    const saveFirst = confirm(
+      'Sie haben ungespeicherte Änderungen!\n\n' +
+      'Möchten Sie diese zuerst speichern, bevor Sie zur Korrektur wechseln?\n\n' +
+      '• Ja = Änderungen speichern und zur Korrektur\n' +
+      '• Nein = Änderungen verwerfen und zur Korrektur\n' +
+      '• Abbrechen = Hier bleiben'
+    );
+    
+    if (saveFirst === null) {
+      // User cancelled
+      return;
+    }
+    
+    if (saveFirst) {
+      // User wants to save first
+      if (!canSave.value) {
+        toast.error({ text: 'Bitte korrigieren Sie die Validierungsfehler vor dem Speichern.' });
+        return;
+      }
+      
+      try {
+        await approveItem();
+        // approveItem will navigate to next item, so we need to return
+        toast.info({ text: 'Änderungen gespeichert. Bitte wählen Sie das Element erneut für die Korrektur aus.' });
+        return;
+      } catch (error) {
+        toast.error({ text: 'Fehler beim Speichern. Korrektur-Navigation abgebrochen.' });
+        return;
+      }
+    }
+    // If saveFirst is false, continue with navigation (discard changes)
+  }
+
+  // Ensure MediaStore has the current item for consistent navigation
+  mediaStore.setCurrentItem(currentItem.value as any);
+  
+  // Different confirmation messages based on media type
+  const mediaType = isVideo.value ? 'Video' : isPdf.value ? 'PDF' : 'Dokument';
+  const correctionOptions = isVideo.value 
+    ? 'Verfügbare Optionen: Maskierung, Frame-Entfernung, Neuverarbeitung'
+    : 'Verfügbare Optionen: Text-Annotation anpassen, Metadaten korrigieren';
+  
+  // Log navigation for debugging
+  console.log(`🔧 Navigating to correction for ${mediaType}:`, {
+    id: currentItem.value.id,
+    mediaType,
+    detectedType: mediaStore.detectMediaType(currentItem.value as any),
+    mediaUrl: mediaStore.currentMediaUrl
+  });
+  
+  // Navigate to correction component with the current item's ID
+  router.push({ 
+    name: 'AnonymisierungKorrektur', 
+    params: { fileId: currentItem.value.id.toString() } 
+  });
+  
+  toast.info({ 
+    text: `${mediaType}-Korrektur geöffnet. ${correctionOptions}` 
+  });
 };
 
 

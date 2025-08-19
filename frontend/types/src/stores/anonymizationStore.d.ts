@@ -20,6 +20,7 @@ export interface AnonymizationState {
     isPolling: boolean;
     hasAvailableFiles: boolean;
     availableFiles: FileItem[];
+    needsValidationIds: number[];
 }
 export interface SensitiveMeta {
     id: number;
@@ -159,6 +160,7 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
             fileSize?: number | undefined;
             rawFile?: string | undefined;
         }[];
+        needsValidationIds: number[];
         pending: {
             id: number;
             sensitiveMetaId: number;
@@ -282,6 +284,7 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
             fileSize?: number | undefined;
             rawFile?: string | undefined;
         }[];
+        needsValidationIds: number[];
         pending: {
             id: number;
             sensitiveMetaId: number;
@@ -376,6 +379,7 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
             fileSize?: number | undefined;
             rawFile?: string | undefined;
         }[];
+        needsValidationIds: number[];
         pending: {
             id: number;
             sensitiveMetaId: number;
@@ -420,10 +424,199 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
         fileSize?: number | undefined;
         rawFile?: string | undefined;
     }[];
+    getState: (state: {
+        anonymizationStatus: string;
+        loading: boolean;
+        error: string | null;
+        current: {
+            id: number;
+            sensitiveMetaId: number;
+            videoUrl?: string | null | undefined;
+            thumbnail?: string | null | undefined;
+            text: string;
+            anonymizedText: string;
+            reportMeta?: {
+                id: number;
+                patientFirstName: string | null;
+                patientLastName: string | null;
+                patientDob: string | null;
+                patientGender: string;
+                examinationDate: string | null;
+                casenumber?: string | null | undefined;
+                centerName?: string | undefined;
+                patientGenderName?: string | undefined;
+                endoscopeType?: string | undefined;
+                endoscopeSn?: string | undefined;
+                isVerified?: boolean | undefined;
+                dobVerified?: boolean | undefined;
+                namesVerified?: boolean | undefined;
+                file?: string | undefined;
+                pdfUrl?: string | undefined;
+                fullPdfPath?: string | undefined;
+            } | undefined;
+            status?: string | undefined;
+            error?: boolean | undefined;
+            pdfStreamUrl?: string | undefined;
+        } | null;
+        overview: {
+            id: number;
+            filename: string;
+            mediaType: "pdf" | "video";
+            anonymizationStatus: "not_started" | "processing_anonymization" | "done" | "failed" | "validated" | "predicting_segments" | "extracting_frames";
+            annotationStatus: "not_started" | "done";
+            createdAt: string;
+            sensitiveMetaId?: number | undefined;
+            metadataImported: boolean;
+            fileSize?: number | undefined;
+            rawFile?: string | undefined;
+        }[];
+        pollingHandles: Record<number, ReturnType<typeof setInterval>>;
+        isPolling: boolean;
+        hasAvailableFiles: boolean;
+        availableFiles: {
+            id: number;
+            filename: string;
+            mediaType: "pdf" | "video";
+            anonymizationStatus: "not_started" | "processing_anonymization" | "done" | "failed" | "validated" | "predicting_segments" | "extracting_frames";
+            annotationStatus: "not_started" | "done";
+            createdAt: string;
+            sensitiveMetaId?: number | undefined;
+            metadataImported: boolean;
+            fileSize?: number | undefined;
+            rawFile?: string | undefined;
+        }[];
+        needsValidationIds: number[];
+        pending: {
+            id: number;
+            sensitiveMetaId: number;
+            videoUrl?: string | null | undefined;
+            thumbnail?: string | null | undefined;
+            text: string;
+            anonymizedText: string;
+            reportMeta?: {
+                id: number;
+                patientFirstName: string | null;
+                patientLastName: string | null;
+                patientDob: string | null;
+                patientGender: string;
+                examinationDate: string | null;
+                casenumber?: string | null | undefined;
+                centerName?: string | undefined;
+                patientGenderName?: string | undefined;
+                endoscopeType?: string | undefined;
+                endoscopeSn?: string | undefined;
+                isVerified?: boolean | undefined;
+                dobVerified?: boolean | undefined;
+                namesVerified?: boolean | undefined;
+                file?: string | undefined;
+                pdfUrl?: string | undefined;
+                fullPdfPath?: string | undefined;
+            } | undefined;
+            status?: string | undefined;
+            error?: boolean | undefined;
+            pdfStreamUrl?: string | undefined;
+        }[];
+    } & import("pinia").PiniaCustomStateProperties<AnonymizationState & {
+        pending: PatientData[];
+    }>) => {
+        anonymizationStatus: string;
+        loading: boolean;
+        error: string | null;
+        current: {
+            id: number;
+            sensitiveMetaId: number;
+            videoUrl?: string | null | undefined;
+            thumbnail?: string | null | undefined;
+            text: string;
+            anonymizedText: string;
+            reportMeta?: {
+                id: number;
+                patientFirstName: string | null;
+                patientLastName: string | null;
+                patientDob: string | null;
+                patientGender: string;
+                examinationDate: string | null;
+                casenumber?: string | null | undefined;
+                centerName?: string | undefined;
+                patientGenderName?: string | undefined;
+                endoscopeType?: string | undefined;
+                endoscopeSn?: string | undefined;
+                isVerified?: boolean | undefined;
+                dobVerified?: boolean | undefined;
+                namesVerified?: boolean | undefined;
+                file?: string | undefined;
+                pdfUrl?: string | undefined;
+                fullPdfPath?: string | undefined;
+            } | undefined;
+            status?: string | undefined;
+            error?: boolean | undefined;
+            pdfStreamUrl?: string | undefined;
+        } | null;
+        overview: {
+            id: number;
+            filename: string;
+            mediaType: "pdf" | "video";
+            anonymizationStatus: "not_started" | "processing_anonymization" | "done" | "failed" | "validated" | "predicting_segments" | "extracting_frames";
+            annotationStatus: "not_started" | "done";
+            createdAt: string;
+            sensitiveMetaId?: number | undefined;
+            metadataImported: boolean;
+            fileSize?: number | undefined;
+            rawFile?: string | undefined;
+        }[];
+        pollingHandles: Record<number, ReturnType<typeof setInterval>>;
+        isPolling: boolean;
+        hasAvailableFiles: boolean;
+        availableFiles: {
+            id: number;
+            filename: string;
+            mediaType: "pdf" | "video";
+            anonymizationStatus: "not_started" | "processing_anonymization" | "done" | "failed" | "validated" | "predicting_segments" | "extracting_frames";
+            annotationStatus: "not_started" | "done";
+            createdAt: string;
+            sensitiveMetaId?: number | undefined;
+            metadataImported: boolean;
+            fileSize?: number | undefined;
+            rawFile?: string | undefined;
+        }[];
+        needsValidationIds: number[];
+        pending: {
+            id: number;
+            sensitiveMetaId: number;
+            videoUrl?: string | null | undefined;
+            thumbnail?: string | null | undefined;
+            text: string;
+            anonymizedText: string;
+            reportMeta?: {
+                id: number;
+                patientFirstName: string | null;
+                patientLastName: string | null;
+                patientDob: string | null;
+                patientGender: string;
+                examinationDate: string | null;
+                casenumber?: string | null | undefined;
+                centerName?: string | undefined;
+                patientGenderName?: string | undefined;
+                endoscopeType?: string | undefined;
+                endoscopeSn?: string | undefined;
+                isVerified?: boolean | undefined;
+                dobVerified?: boolean | undefined;
+                namesVerified?: boolean | undefined;
+                file?: string | undefined;
+                pdfUrl?: string | undefined;
+                fullPdfPath?: string | undefined;
+            } | undefined;
+            status?: string | undefined;
+            error?: boolean | undefined;
+            pdfStreamUrl?: string | undefined;
+        }[];
+    } & import("pinia").PiniaCustomStateProperties<AnonymizationState & {
+        pending: PatientData[];
+    }>;
 }, {
     /** Holt den nächsten PDF-Datensatz + zugehöriges SensitiveMeta
      *  und fügt beides zusammen. */
-    fetchNext(lastId?: number): Promise<PatientData | null | undefined>;
+    fetchNext(lastId?: number): Promise<any>;
     patchPdf(payload: {
         id?: number;
         sensitive_meta_id?: number;

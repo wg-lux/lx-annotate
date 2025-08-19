@@ -18,12 +18,15 @@ export const useAnonymizationStore = defineStore('anonymization', {
         pollingHandles: {},
         isPolling: false,
         hasAvailableFiles: false,
-        availableFiles: availableFiles.value // Use the value of the ref to get the actual array
+        availableFiles: availableFiles.value, // Use the value of the ref to get the actual array
+        // NEW
+        needsValidationIds: [],
     }),
     getters: {
         getCurrentItem: (state) => state.current,
         isAnyFileProcessing: (state) => state.overview.some(f => f.anonymizationStatus === 'processing_anonymization' || f.anonymizationStatus === 'extracting_frames' || f.anonymizationStatus === 'predicting_segments'),
-        processingFiles: (state) => state.overview.filter(f => f.anonymizationStatus === 'processing_anonymization' || f.anonymizationStatus === 'extracting_frames' || f.anonymizationStatus === 'predicting_segments')
+        processingFiles: (state) => state.overview.filter(f => f.anonymizationStatus === 'processing_anonymization' || f.anonymizationStatus === 'extracting_frames' || f.anonymizationStatus === 'predicting_segments'),
+        getState: (state) => state
     },
     actions: {
         /** Holt den nächsten PDF-Datensatz + zugehöriges SensitiveMeta
@@ -103,10 +106,16 @@ export const useAnonymizationStore = defineStore('anonymization', {
                     }
                     else {
                         console.warn('No lastId provided and current item is not set.');
-                        this.current = this.getCurrentItem;
-                        this.fetchNext(this.current?.id);
+                        const currentItem = this.getCurrentItem;
+                        if (currentItem && currentItem.id) {
+                            this.current = currentItem;
+                            return this.fetchNext(currentItem.id);
+                        }
+                        else {
+                            console.warn('No valid current item available to fetch. Stopping to prevent infinite recursion.');
+                            return null;
+                        }
                     }
-                    return null;
                 }
             }
             catch (err) {
@@ -172,16 +181,35 @@ export const useAnonymizationStore = defineStore('anonymization', {
                 console.log('Fetching file overview...');
                 const { data } = await axiosInstance.get(r('anonymization/items/overview/'));
                 console.log('Received overview data:', data);
-                if (this.overview.length > 0) {
-                    this.hasAvailableFiles = true;
-                }
-                else {
-                    this.hasAvailableFiles = false;
-                }
+                // Update overview and available files
                 this.overview = data;
-                for (const file of this.overview) {
-                    this.availableFiles.push(file);
+                // Clear and update availableFiles to prevent duplicates
+                this.availableFiles.length = 0; // Clear the array
+                this.availableFiles.push(...data); // Add all files from the fresh data
+                // Update the reactive ref as well
+                availableFiles.value = [...data];
+                // NEW: Ermittele IDs, die validiert werden müssen (Anonymisierung abgeschlossen, Annotation noch nicht erledigt)
+                const needsValidation = data
+                    .filter(f => f.anonymizationStatus === 'done' && f.annotationStatus !== 'done')
+                    .map(f => f.id);
+                this.needsValidationIds = needsValidation;
+                // NEW: Polling sofort stoppen für
+                // 1) Dateien, die nicht mehr existieren
+                const currentPollingIds = Object.keys(this.pollingHandles).map((k) => Number(k));
+                const existingIds = new Set(data.map(f => f.id));
+                for (const pid of currentPollingIds) {
+                    if (!existingIds.has(pid)) {
+                        this.stopPolling(pid);
+                    }
                 }
+                // 2) Dateien mit finalem Status oder die nicht gepollt werden sollen
+                const stopStatuses = new Set(['done', 'validated', 'failed', 'not_started']);
+                for (const f of data) {
+                    if (stopStatuses.has(f.anonymizationStatus) && this.pollingHandles[f.id]) {
+                        this.stopPolling(f.id);
+                    }
+                }
+                this.hasAvailableFiles = data.length > 0;
                 return data;
             }
             catch (err) {
@@ -244,14 +272,20 @@ export const useAnonymizationStore = defineStore('anonymization', {
             this.isPolling = true;
             const timer = setInterval(async () => {
                 try {
+                    // ✅ Guard: stop polling if the item no longer exists in overview
+                    const exists = this.overview.some(f => f.id === id);
+                    if (!exists) {
+                        console.log(`Item ${id} no longer in overview. Stopping polling.`);
+                        this.stopPolling(id);
+                        return;
+                    }
                     const { data } = await axiosInstance.get(r(`anonymization/${id}/status/`));
                     const file = this.overview.find(f => f.id === id);
                     if (file && data.anonymizationStatus) {
-                        // ✅ FIX: Remove redundant normalization
                         const statusFromBackend = data.anonymizationStatus;
                         console.log(`Status update for file ${id}: ${statusFromBackend}`);
                         file.anonymizationStatus = statusFromBackend;
-                        // ✅ FIX: Include 'validated' as a stopping condition
+                        // ✅ Include 'validated' as a stopping condition
                         if (['done', 'validated', 'failed'].includes(statusFromBackend)) {
                             console.log(`Stopping polling for file ${id} - final status: ${statusFromBackend}`);
                             this.stopPolling(id);
@@ -259,10 +293,23 @@ export const useAnonymizationStore = defineStore('anonymization', {
                     }
                 }
                 catch (err) {
+                    if (axios.isAxiosError(err)) {
+                        const status = err.response?.status;
+                        // ✅ Stop polling on 404/410 (resource gone)
+                        if (status === 404 || status === 410) {
+                            console.warn(`Stopping polling for file ${id} due to ${status}`);
+                            this.stopPolling(id);
+                            return;
+                        }
+                        // 429: backend cooldown – keep polling at current cadence, just log
+                        if (status === 429) {
+                            console.warn(`Cooldown active for ${id} (429). Will retry later.`);
+                            return;
+                        }
+                    }
                     console.error(`Error polling status for file ${id}:`, err);
-                    // Continue polling even on error to be resilient
                 }
-            }, 1500);
+            }, 10000);
             this.pollingHandles[id] = timer;
         },
         /**
