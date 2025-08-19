@@ -4,6 +4,7 @@ let
     "env:fetch-db-pwd-file" = {
       description = "Fetch the database password file";
       exec = "${pkgs.uv}/bin/uv run python scripts/fetch_db_pwd_file.py";
+      status = "echo $DJANGO_SETTINGS_MODULE  == 'lx_annotate.settings_prod'";
     };
     "env:init-conf" = {
       # after = ["env:psql-pwd-file-exists" "devenv:enterShell"];
@@ -22,13 +23,5 @@ let
         rm -f uv.lock
       '';
     };
-    "env:full-setup" = 
-      {
-        description = "Full setup of the environment including fetching DB password, initializing config, and building the .env file";
-        after = ["env:fetch-db-pwd-file" "env:init-conf"];
-        exec = ''
-          devenv tasks run env:fetch-db-pwd-file env:init-conf env:build
-        '';
-      };
   };
 in customTasks

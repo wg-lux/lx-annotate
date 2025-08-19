@@ -22,9 +22,12 @@ let
   deployTasks = (
     import ./deploy.nix { inherit config pkgs lib; }
   );
+  dbTasks = (
+    import ./db.nix { inherit config pkgs lib; }
+  );
 
   customTasks = {
     
-  } //envTasks //deployTasks //purgeTasks //vueTasks //uvTasks;
+  } //envTasks //deployTasks //purgeTasks //vueTasks //uvTasks //dbTasks;
 
 in customTasks 

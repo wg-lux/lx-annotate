@@ -8,10 +8,12 @@ let
       ''
       cd frontend
       direnv allow
+      npm install
       npm run build
-      cd ..
-      python manage.py collectstatic --noinput
       '';
+      
+    "vue:build".before = 
+      ["devenv:enterShell"];
     "vue:build".execIfModified = [
       "frontend"
       "frontend/package.json"

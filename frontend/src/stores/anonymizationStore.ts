@@ -393,7 +393,10 @@ export const useAnonymizationStore = defineStore('anonymization', {
       }
       if (id in this.needsValidationIds) {
         console.log(`File ${id} is in needsValidationIds, skipping polling`);
-        file.anonymizationStatus = 'validated'; // Set status to validated
+        const file = this.overview.find(f => f.id === id);
+        if (file) {
+          file.anonymizationStatus = 'validated'; // Set status to validated
+        }
         return;
       }
       

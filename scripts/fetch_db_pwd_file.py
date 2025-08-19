@@ -1,5 +1,8 @@
 import shutil
 import os
+from logging import getLogger
+
+logger = getLogger(__name__)
 
 db_pwd_target = os.environ.get("DB_PWD_FILE")
 db_pwd_source = os.environ.get("LX_MAINTENANCE_PASSWORD_FILE")

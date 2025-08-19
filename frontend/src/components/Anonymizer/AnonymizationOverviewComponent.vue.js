@@ -287,12 +287,9 @@ const hasOriginalFile = (file) => {
 onMounted(async () => {
     // Fetch overview data
     await anonymizationStore.fetchOverview();
-    // Start polling only for files that are actually processing
-    const processingStatuses = new Set(['processing_anonymization', 'extracting_frames', 'predicting_segments']);
+    // Start polling for all files
     anonymizationStore.overview.forEach((file) => {
-        if (processingStatuses.has(file.anonymizationStatus)) {
-            anonymizationStore.startPolling(file.id);
-        }
+        anonymizationStore.startPolling(file.id);
     });
 });
 onUnmounted(() => {

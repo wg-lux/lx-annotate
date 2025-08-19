@@ -61,8 +61,7 @@ export class MediaManagementAPI {
      * @param fileType - Type of file ('video' or 'pdf')
      */
     static async getAnonymizationStatusSafe(fileId, fileType) {
-        const params = fileType ? `?type=${fileType}` : '';
-        const response = await api.get(`/api/anonymization/status/${fileId}/${params}`);
+        const response = await api.get(`/api/anonymization/${fileId}/status/`);
         return response.data;
     }
     /**

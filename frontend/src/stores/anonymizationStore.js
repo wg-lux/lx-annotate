@@ -263,29 +263,30 @@ export const useAnonymizationStore = defineStore('anonymization', {
          * Start polling status for a specific file
          */
         startPolling(id) {
-            // ✅ FIX: Check if already polling this specific file
             if (this.pollingHandles[id]) {
                 console.log(`Polling for file ${id} is already running`);
+                return;
+            }
+            if (id in this.needsValidationIds) {
+                console.log(`File ${id} is in needsValidationIds, skipping polling`);
+                const file = this.overview.find(f => f.id === id);
+                if (file) {
+                    file.anonymizationStatus = 'validated'; // Set status to validated
+                }
                 return;
             }
             console.log(`Starting status polling for file ${id}`);
             this.isPolling = true;
             const timer = setInterval(async () => {
                 try {
-                    // ✅ Guard: stop polling if the item no longer exists in overview
-                    const exists = this.overview.some(f => f.id === id);
-                    if (!exists) {
-                        console.log(`Item ${id} no longer in overview. Stopping polling.`);
-                        this.stopPolling(id);
-                        return;
-                    }
                     const { data } = await axiosInstance.get(r(`anonymization/${id}/status/`));
                     const file = this.overview.find(f => f.id === id);
                     if (file && data.anonymizationStatus) {
+                        // ✅ FIX: Remove redundant normalization
                         const statusFromBackend = data.anonymizationStatus;
                         console.log(`Status update for file ${id}: ${statusFromBackend}`);
                         file.anonymizationStatus = statusFromBackend;
-                        // ✅ Include 'validated' as a stopping condition
+                        // ✅ FIX: Include 'validated' as a stopping condition
                         if (['done', 'validated', 'failed'].includes(statusFromBackend)) {
                             console.log(`Stopping polling for file ${id} - final status: ${statusFromBackend}`);
                             this.stopPolling(id);
@@ -293,23 +294,10 @@ export const useAnonymizationStore = defineStore('anonymization', {
                     }
                 }
                 catch (err) {
-                    if (axios.isAxiosError(err)) {
-                        const status = err.response?.status;
-                        // ✅ Stop polling on 404/410 (resource gone)
-                        if (status === 404 || status === 410) {
-                            console.warn(`Stopping polling for file ${id} due to ${status}`);
-                            this.stopPolling(id);
-                            return;
-                        }
-                        // 429: backend cooldown – keep polling at current cadence, just log
-                        if (status === 429) {
-                            console.warn(`Cooldown active for ${id} (429). Will retry later.`);
-                            return;
-                        }
-                    }
                     console.error(`Error polling status for file ${id}:`, err);
+                    // Continue polling even on error to be resilient
                 }
-            }, 10000);
+            }, 10000); // Reduced from 1500ms to 10000ms (10 seconds)
             this.pollingHandles[id] = timer;
         },
         /**
