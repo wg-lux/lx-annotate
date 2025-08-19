@@ -68,7 +68,6 @@ nix_vars = {
     "CONF_TEMPLATE_DIR": os.environ.get("CONF_TEMPLATE_DIR", "./conf_template"),
     "DJANGO_SETTINGS_MODULE_PRODUCTION": os.environ.get("DJANGO_SETTINGS_MODULE_PRODUCTION"),
     "DJANGO_SETTINGS_MODULE_DEVELOPMENT": os.environ.get("DJANGO_SETTINGS_MODULE_DEVELOPMENT"),
-    # Add luxnix central node support
     "DJANGO_SETTINGS_MODULE_CENTRAL": os.environ.get("DJANGO_SETTINGS_MODULE_CENTRAL"),
     "STORAGE_DIR": os.environ.get("STORAGE_DIR", "data/storage"),
 
