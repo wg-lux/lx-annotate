@@ -14,7 +14,7 @@ let
       description = "Build the .env file";
       after = ["env:init-conf"];
       exec = "uv run env_setup.py";
-      # status = "test -f .env";
+      status = "test -f .env";
     };
     "env:clean" = {
       description = "Remove the uv virtual environment and lock file for a clean sync";

@@ -394,7 +394,6 @@ class AutoProcessingHandler(FileSystemEventHandler):
                 raw_pdf = pdf_import_service.import_and_anonymize(
                     file_path=pdf_path,
                     center_name=self.default_center,
-                    processor_name=self.default_processor,
                     delete_source=False
                 )
                 
