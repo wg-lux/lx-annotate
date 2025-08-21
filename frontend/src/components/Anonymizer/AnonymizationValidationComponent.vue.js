@@ -181,51 +181,18 @@ const approveItem = async () => {
         return;
     isApproving.value = true;
     try {
-        const normalizedDob = dobISO.value; // guaranteed by canSave
-        const normalizedExam = examISO.value || '';
-        const snake = buildSensitiveMetaSnake(normalizedDob);
-        if (isVideo.value) {
-            await videoStore.loadVideo(currentItem.value.id.toString());
-            await anonymizationStore.patchVideo({
-                sensitive_meta_id: currentItem.value.reportMeta?.id,
-                is_verified: true,
-                delete_raw_files: true,
-                ...snake,
-                examination_date: normalizedExam,
-            });
-            pollingProtection.validateAnonymizationSafeWithProtection(currentItem.value.id, 'video');
-        }
-        else {
-            // Prefer pdfStore when available
-            if (currentItem.value.reportMeta?.pdfUrl && currentItem.value.sensitiveMetaId) {
-                await pdfStore.updateSensitiveMeta(currentItem.value.sensitiveMetaId, {
-                    // send snake_case (for DRF) AND camelCase (if your pdfStore needs it)
-                    ...snake,
-                    patientFirstName: editedPatient.value.patientFirstName,
-                    patientLastName: editedPatient.value.patientLastName,
-                    patientGender: editedPatient.value.patientGender,
-                    patientDob: normalizedDob,
-                    examinationDate: normalizedExam,
-                    isVerified: true,
-                });
-                await pdfStore.updateAnonymizedText(currentItem.value.id, editedAnonymizedText.value);
-            }
-            else {
-                await anonymizationStore.patchPdf({
-                    sensitive_meta_id: currentItem.value.reportMeta?.id,
-                    is_verified: true,
-                    delete_raw_files: true,
-                    ...snake,
-                    examination_date: normalizedExam,
-                    anonymized_text: editedAnonymizedText.value,
-                });
-            }
-            pollingProtection.validateAnonymizationSafeWithProtection(currentItem.value.id, 'pdf');
-        }
-        // ✅ NEW: Validate the anonymization status after successful approval
         console.log(`Validating anonymization for file ${currentItem.value.id}...`);
         try {
-            await axiosInstance.post(r(`anonymization/${currentItem.value.id}/validate/`));
+            await axiosInstance.post(r(`anonymization/${currentItem.value.id}/validate/`), {
+                patient_first_name: editedPatient.value.patientFirstName,
+                patient_last_name: editedPatient.value.patientLastName,
+                patient_gender: editedPatient.value.patientGender, // if used by SensitiveMeta
+                patient_dob: dobISO.value, // "YYYY-MM-DD"
+                examination_date: examISO.value || "",
+                casenumber: editedPatient.value.casenumber || "",
+                anonymized_text: isPdf.value ? editedAnonymizedText.value : undefined,
+                is_verified: true,
+            });
             console.log(`Anonymization validated successfully for file ${currentItem.value.id}`);
             toast.success({ text: 'Dokument bestätigt und Anonymisierung validiert' });
         }
@@ -233,6 +200,7 @@ const approveItem = async () => {
             console.error('Error validating anonymization:', validationError);
             toast.warning({ text: 'Dokument bestätigt, aber Validierung fehlgeschlagen' });
         }
+        pollingProtection.validateAnonymizationSafeWithProtection(currentItem.value.id, 'pdf');
         await fetchNextItem();
     }
     catch (error) {

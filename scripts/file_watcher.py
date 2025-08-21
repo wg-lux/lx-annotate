@@ -397,7 +397,13 @@ class AutoProcessingHandler(FileSystemEventHandler):
                     delete_source=False
                 )
                 
-                logger.info(f"PDF imported successfully: {raw_pdf.pdf_hash}")
+                if raw_pdf:
+                    logger.info(f"PDF imported successfully: {raw_pdf.pdf_hash}")
+                else:
+                    logger.info(f"PDF import skipped (already being processed): {pdf_path}")
+                    # Remove from our local processed set since it was handled elsewhere
+                    self.processed_files.discard(str(pdf_path))
+                    return
                 
             except InsufficientStorageError as storage_error:
                 logger.error(f"Insufficient storage space for {pdf_path}: {storage_error}")
