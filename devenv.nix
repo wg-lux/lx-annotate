@@ -12,7 +12,7 @@ let
   dataDir = let env = builtins.getEnv "DATA_DIR"; in if env != "" then env else (let env2 = builtins.getEnv "STORAGE_DIR"; in if env2 != "" then env2 else "./data");
   confDir = let env = builtins.getEnv "CONF_DIR"; in if env != "" then env else "./conf";
   confTemplateDir = let env = builtins.getEnv "CONF_TEMPLATE_DIR"; in if env != "" then env else "./conf_template";
-  djangoModuleName = let env = builtins.getEnv "DJANGO_MODULE"; in if env != "" then env else "endo_api";
+  djangoModuleName = let env = builtins.getEnv "DJANGO_MODULE"; in if env != "" then env else "lx_annotate";
   http_protocol = let env = builtins.getEnv "HTTP_PROTOCOL"; in if env != "" then env else "http";
   host = let env = builtins.getEnv "DJANGO_HOST"; in if env != "" then env else "localhost";
   port = let env = builtins.getEnv "DJANGO_PORT"; in if env != "" then env else "8119";
