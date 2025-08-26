@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { Patient, PatientFormData, Gender, Center } from '@/api/patientService'
+import axiosInstance from '@/api/axiosInstance'
 
 // Re-export types for easier access
 export type { Patient, PatientFormData, Gender, Center } from '@/api/patientService'
@@ -24,49 +25,43 @@ export const usePatientStore = defineStore('patient', () => {
         }))
     })
 
+    const patientsWithDisplayName = computed(() => {
+        return patients.value.map(patient => ({
+            ...patient,
+            display_name: `${patient.first_name || ''} ${patient.last_name || ''} (ID: ${patient.id})`.trim()
+        }));
+    });
+
     // Actions
-    const fetchPatients = async (apiClient?: any) => {
+    const fetchPatients = async () => {
         try {
             loading.value = true
             error.value = null
-            
-            const response = await fetch('/api/patients/')
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`)
-            }
-            const data = await response.json()
-            patients.value = data.results || data
-        } catch (err) {
-            error.value = 'Fehler beim Laden der Patienten: ' + (err as Error).message
+            const response = await axiosInstance.get('/api/patients/')
+            patients.value = response.data.results || response.data
+        } catch (err: any) {
+            error.value = 'Fehler beim Laden der Patienten: ' + (err.response?.data?.detail || err.message)
             console.error('Fetch patients error:', err)
         } finally {
             loading.value = false
         }
     }
 
-    const fetchGenders = async (apiClient?: any) => {
+    const fetchGenders = async () => {
         try {
-            const response = await fetch('/api/gender/')
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`)
-            }
-            const data = await response.json()
-            genders.value = data.results || data
-        } catch (err) {
+            const response = await axiosInstance.get('/api/gender/')
+            genders.value = response.data.results || response.data
+        } catch (err: any) {
             console.error('Fetch genders error:', err)
             error.value = 'Fehler beim Laden der Geschlechter'
         }
     }
 
-    const fetchCenters = async (apiClient?: any) => {
+    const fetchCenters = async () => {
         try {
-            const response = await fetch('/api/centers/')
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`)
-            }
-            const data = await response.json()
-            centers.value = data.results || data
-        } catch (err) {
+            const response = await axiosInstance.get('/api/centers/')
+            centers.value = response.data.results || response.data
+        } catch (err: any) {
             console.error('Fetch centers error:', err)
             error.value = 'Fehler beim Laden der Zentren'
         }
@@ -79,63 +74,35 @@ export const usePatientStore = defineStore('patient', () => {
         ])
     }
 
-    const createPatient = async (apiClient: any, patientData: PatientFormData) => {
+    const createPatient = async (patientData: PatientFormData) => {
         try {
             loading.value = true
             error.value = null
-
-            const response = await fetch('/api/patients/', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': getCsrfToken()
-                },
-                body: JSON.stringify(patientData)
-            })
-
-            if (!response.ok) {
-                const errorData = await response.json()
-                throw new Error(errorData.detail || 'Fehler beim Erstellen des Patienten')
-            }
-
-            const newPatient = await response.json()
+            const response = await axiosInstance.post('/api/patients/', patientData)
+            const newPatient = response.data
             patients.value.push(newPatient)
             return newPatient
-        } catch (err) {
-            error.value = (err as Error).message
+        } catch (err: any) {
+            error.value = err.response?.data?.detail || 'Fehler beim Erstellen des Patienten'
             throw err
         } finally {
             loading.value = false
         }
     }
 
-    const updatePatient = async (apiClient: any, id: number, patientData: PatientFormData) => {
+    const updatePatient = async (id: number, patientData: PatientFormData) => {
         try {
             loading.value = true
             error.value = null
-
-            const response = await fetch(`/api/patients/${id}/`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': getCsrfToken()
-                },
-                body: JSON.stringify(patientData)
-            })
-
-            if (!response.ok) {
-                const errorData = await response.json()
-                throw new Error(errorData.detail || 'Fehler beim Aktualisieren des Patienten')
-            }
-
-            const updatedPatient = await response.json()
+            const response = await axiosInstance.put(`/api/patients/${id}/`, patientData)
+            const updatedPatient = response.data
             const index = patients.value.findIndex(p => p.id === id)
             if (index !== -1) {
                 patients.value[index] = updatedPatient
             }
             return updatedPatient
-        } catch (err) {
-            error.value = (err as Error).message
+        } catch (err: any) {
+            error.value = err.response?.data?.detail || 'Fehler beim Aktualisieren des Patienten'
             throw err
         } finally {
             loading.value = false
@@ -146,21 +113,10 @@ export const usePatientStore = defineStore('patient', () => {
         try {
             loading.value = true
             error.value = null
-
-            const response = await fetch(`/api/patients/${id}/`, {
-                method: 'DELETE',
-                headers: {
-                    'X-CSRFToken': getCsrfToken()
-                }
-            })
-
-            if (!response.ok) {
-                throw new Error('Fehler beim Löschen des Patienten')
-            }
-
+            await axiosInstance.delete(`/api/patients/${id}/`)
             patients.value = patients.value.filter(p => p.id !== id)
-        } catch (err) {
-            error.value = (err as Error).message
+        } catch (err: any) {
+            error.value = err.response?.data?.detail || 'Fehler beim Löschen des Patienten'
             throw err
         } finally {
             loading.value = false
@@ -238,18 +194,6 @@ export const usePatientStore = defineStore('patient', () => {
         }
     }
 
-    // CSRF Token helper
-    const getCsrfToken = (): string => {
-        const cookies = document.cookie.split(';')
-        for (let cookie of cookies) {
-            const [name, value] = cookie.trim().split('=')
-            if (name === 'csrftoken') {
-                return value
-            }
-        }
-        return ''
-    }
-
     const loadGenders = async () => {
         await fetchGenders()
     }
@@ -270,6 +214,7 @@ export const usePatientStore = defineStore('patient', () => {
         // Computed
         patientCount,
         patientsWithAge,
+        patientsWithDisplayName,
         
         // Actions
         fetchPatients,

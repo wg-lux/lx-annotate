@@ -1,4 +1,4 @@
-import ExaminationGenerator from '@/components/Examination/ExaminationForm.vue';
+import ExaminationGenerator from '@/components/RequirementReport/RequirementGenerator.vue';
 export default (await import('vue')).defineComponent({
     name: 'Befund',
     components: {

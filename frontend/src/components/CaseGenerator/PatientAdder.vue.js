@@ -1,12 +1,8 @@
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { usePatientStore } from '@/stores/patientStore';
-import { createApiClient } from '@/api/client';
-// Store und API Client
+// Store
 const patientStore = usePatientStore();
-const apiClient = createApiClient();
 // Reactive state
-const loading = ref(false);
-const errorMessage = ref('');
 const successMessage = ref('');
 // Form data mit korrekten Feldnamen und Typen
 const formData = ref({
@@ -22,8 +18,8 @@ const formData = ref({
     is_real_person: true
 });
 // Computed properties für Store-Daten
-const genders = ref(patientStore.genders);
-const centers = ref(patientStore.centers);
+const genders = computed(() => patientStore.genders);
+const centers = computed(() => patientStore.centers);
 // Methods
 const resetForm = () => {
     formData.value = {
@@ -41,8 +37,7 @@ const resetForm = () => {
 };
 const handleSubmit = async () => {
     try {
-        loading.value = true;
-        errorMessage.value = '';
+        patientStore.clearError();
         successMessage.value = '';
         // Validation
         if (!formData.value.first_name?.trim()) {
@@ -53,31 +48,29 @@ const handleSubmit = async () => {
         }
         // Create patient using store with formatted data
         const formattedData = patientStore.formatPatientForSubmission(formData.value);
-        const newPatient = await patientStore.createPatient(apiClient, formattedData);
+        const newPatient = await patientStore.createPatient(formattedData);
         successMessage.value = `Patient "${newPatient.first_name} ${newPatient.last_name}" wurde erfolgreich erstellt!`;
         // Reset form after successful creation
         resetForm();
     }
     catch (error) {
-        errorMessage.value = error.message || 'Fehler beim Erstellen des Patienten';
+        patientStore.error = error.message || 'Fehler beim Erstellen des Patienten';
         console.error('Error creating patient:', error);
-    }
-    finally {
-        loading.value = false;
     }
 };
 // Load required data on component mount
 onMounted(async () => {
     try {
+        patientStore.clearError();
         // Load genders and centers for dropdowns
         await Promise.all([
-            patientStore.fetchGenders(apiClient),
-            patientStore.fetchCenters(apiClient)
+            patientStore.fetchGenders(),
+            patientStore.fetchCenters()
         ]);
     }
     catch (error) {
         console.error('Error loading dropdown data:', error);
-        errorMessage.value = 'Fehler beim Laden der Auswahloptionen';
+        patientStore.error = 'Fehler beim Laden der Auswahloptionen';
     }
 }); /* PartiallyEnd: #3632/scriptSetup.vue */
 function __VLS_template() {
@@ -182,15 +175,15 @@ function __VLS_template() {
     __VLS_elementAsFunction(__VLS_intrinsicElements.hr)({});
     __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
         type: ("submit"),
-        disabled: ((__VLS_ctx.loading)),
+        disabled: ((__VLS_ctx.patientStore.loading)),
         ...{ class: ("btn btn-primary") },
     });
-    (__VLS_ctx.loading ? 'Wird gespeichert...' : 'Patient erstellen');
-    if (__VLS_ctx.errorMessage) {
+    (__VLS_ctx.patientStore.loading ? 'Wird gespeichert...' : 'Patient erstellen');
+    if (__VLS_ctx.patientStore.error) {
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: ("alert alert-danger mt-2") },
         });
-        (__VLS_ctx.errorMessage);
+        (__VLS_ctx.patientStore.error);
     }
     if (__VLS_ctx.successMessage) {
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -217,8 +210,7 @@ function __VLS_template() {
 const __VLS_self = (await import('vue')).defineComponent({
     setup() {
         return {
-            loading: loading,
-            errorMessage: errorMessage,
+            patientStore: patientStore,
             successMessage: successMessage,
             formData: formData,
             genders: genders,

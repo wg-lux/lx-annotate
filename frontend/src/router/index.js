@@ -121,6 +121,14 @@ const router = createRouter({
                 description: 'Hier können Sie Annotationen validieren.'
             }
         },
+        {
+            path: '/report-generator',
+            name: 'Report Generator',
+            component: () => import('@/views/ReportGenerator.vue'),
+            meta: {
+                description: 'Hier können Sie Reports generieren.'
+            }
+        },
         // Catch-all redirect to Dashboard for any unmatched route
         {
             path: '/:catchAll(.*)',

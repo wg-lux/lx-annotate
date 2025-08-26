@@ -76,12 +76,12 @@
         <hr />
 
         <!-- Submit Button -->
-        <button type="submit" :disabled="loading" class="btn btn-primary">
-          {{ loading ? 'Wird gespeichert...' : 'Patient erstellen' }}
+        <button type="submit" :disabled="patientStore.loading" class="btn btn-primary">
+          {{ patientStore.loading ? 'Wird gespeichert...' : 'Patient erstellen' }}
         </button>
         
-        <div v-if="errorMessage" class="alert alert-danger mt-2">
-          {{ errorMessage }}
+        <div v-if="patientStore.error" class="alert alert-danger mt-2">
+          {{ patientStore.error }}
         </div>
         
         <div v-if="successMessage" class="alert alert-success mt-2">
@@ -92,17 +92,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { usePatientStore, type PatientFormData } from '@/stores/patientStore'
-import { createApiClient } from '@/api/client'
 
-// Store und API Client
+// Store
 const patientStore = usePatientStore()
-const apiClient = createApiClient()
 
 // Reactive state
-const loading = ref(false)
-const errorMessage = ref('')
 const successMessage = ref('')
 
 // Form data mit korrekten Feldnamen und Typen
@@ -120,8 +116,8 @@ const formData = ref<PatientFormData>({
 })
 
 // Computed properties für Store-Daten
-const genders = ref(patientStore.genders)
-const centers = ref(patientStore.centers)
+const genders = computed(() => patientStore.genders)
+const centers = computed(() => patientStore.centers)
 
 // Methods
 const resetForm = () => {
@@ -141,8 +137,7 @@ const resetForm = () => {
 
 const handleSubmit = async () => {
   try {
-    loading.value = true
-    errorMessage.value = ''
+    patientStore.clearError()
     successMessage.value = ''
 
     // Validation
@@ -155,7 +150,7 @@ const handleSubmit = async () => {
 
     // Create patient using store with formatted data
     const formattedData = patientStore.formatPatientForSubmission(formData.value)
-    const newPatient = await patientStore.createPatient(apiClient, formattedData)
+    const newPatient = await patientStore.createPatient(formattedData)
     
     successMessage.value = `Patient "${newPatient.first_name} ${newPatient.last_name}" wurde erfolgreich erstellt!`
     
@@ -163,24 +158,23 @@ const handleSubmit = async () => {
     resetForm()
     
   } catch (error: any) {
-    errorMessage.value = error.message || 'Fehler beim Erstellen des Patienten'
+    patientStore.error = error.message || 'Fehler beim Erstellen des Patienten'
     console.error('Error creating patient:', error)
-  } finally {
-    loading.value = false
   }
 }
 
 // Load required data on component mount
 onMounted(async () => {
   try {
+    patientStore.clearError()
     // Load genders and centers for dropdowns
     await Promise.all([
-      patientStore.fetchGenders(apiClient),
-      patientStore.fetchCenters(apiClient)
+      patientStore.fetchGenders(),
+      patientStore.fetchCenters()
     ])
   } catch (error) {
     console.error('Error loading dropdown data:', error)
-    errorMessage.value = 'Fehler beim Laden der Auswahloptionen'
+    patientStore.error = 'Fehler beim Laden der Auswahloptionen'
   }
 })
 </script>

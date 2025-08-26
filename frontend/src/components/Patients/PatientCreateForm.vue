@@ -339,7 +339,7 @@ const handleSubmit = async () => {
     console.log('Full URL wird zu:', `${window.location.origin}/api/patients/`)
     
     // Use patientStore instead of patientService for consistency
-    const newPatient = await patientStore.createPatient(null, formattedData)
+    const newPatient = await patientStore.createPatient(formattedData)
     console.log('🎉 Patient erfolgreich erstellt:', newPatient)
     
     // Reset form
