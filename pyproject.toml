@@ -48,8 +48,12 @@ dependencies = [
 ]
 
 
-[tool.setuptools]
-packages = ["endoreg-db"]
+#[tool.setuptools]
+#packages = ["endoreg-db"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["lx_annotate*"]
 
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "lx_annotate.settings"
