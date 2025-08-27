@@ -128,10 +128,6 @@ metadata:
 spec:
   selector:
     app: lx-annotate
-  ports:
-    - name: http
-      port: 80
-      targetPort: 8000
   type: NodePort
   # Fix the nodePort so you always have localhost:30080
   externalTrafficPolicy: Cluster

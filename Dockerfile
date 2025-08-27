@@ -4,6 +4,7 @@ FROM python:3.12-slim
 # System deps for building wheels (torch/transformers may need build tools)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential git curl ca-certificates \
+    ffmpeg libgl1 inotify-tools \
  && rm -rf /var/lib/apt/lists/*
 
 # Runtime dirs
@@ -39,6 +40,7 @@ RUN pip install --no-cache-dir -e .
 
 # Default env (can be overridden in k8s)
 ENV DJANGO_SETTINGS_MODULE=lx_annotate.settings \
+    DJANGO_MODULE=lx_annotate \
     PYTHONUNBUFFERED=1 \
     PORT=8000
 
@@ -55,7 +57,7 @@ RUN printf '%s\n' \
 'cd /app' \
 'echo "[entrypoint] Ensuring .env and db.yaml..."' \
 'python env_setup.py || echo "[warn] env_setup.py finished with warnings or already set."' \
-'python make_conf.py || echo "[warn] make_conf.py finished with warnings or already set."' \
+'python scripts/make_conf.py || echo "[warn] make_conf.py finished with warnings or already set."' \
 'echo "[entrypoint] Django migrate & collectstatic..."' \
 'python -m django --version >/dev/null 2>&1 || true' \
 'python manage.py migrate --noinput' \

@@ -1,3 +1,5 @@
+lx-annotate-app.tar
+lx-annotate-app.tar.gz
 .devenv-vars.json
 .devenv/
 django-settings.json
@@ -16,8 +18,6 @@ result/
 result/*
 data/
 conf/*
-endoreg-db/
-lx-annotate/endoreg-db/
 # ignore any file that ends with .env anywhere
 **/*.env
 .devenv/
