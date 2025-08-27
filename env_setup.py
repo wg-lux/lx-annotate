@@ -48,7 +48,7 @@ def get_safe_random_secret_key():
 
 
 # --- Constants ---
-DEFAULT_DB_PASSWORD = get_safe_random_secret_key # Placeholder password
+DEFAULT_DB_PASSWORD = get_safe_random_secret_key() # Placeholder password
 
 # --- Load Envoronment Variables ---
 # Include luxnix-specific environment variables
@@ -183,7 +183,8 @@ try:
     with target.open("a", encoding="utf-8") as f:
         # Add secrets if missing
         if "DJANGO_SECRET_KEY" not in found_keys:
-            f.write(f'\nDJANGO_SECRET_KEY={SECRET_KEY}') # No quotes
+            f.write(f'\nDJANGO_SECRET_KEY="{SECRET_KEY}"')  # QUOTED
+            #f.write(f'\nDJANGO_SECRET_KEY={SECRET_KEY}') # No quotes
             print("Added DJANGO_SECRET_KEY to .env")
 
         if "DJANGO_SALT" not in found_keys:
