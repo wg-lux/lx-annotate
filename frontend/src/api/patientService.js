@@ -65,13 +65,13 @@ export const patientService = {
     async getGenders() {
         try {
             // Verwende den korrekten Gender-Endpunkt
-            const response = await axiosInstance.get(r('gender/')).catch(async () => {
+            const response = await axiosInstance.get(r('genders/')).catch(async () => {
                 // Fallback: Standard Gender-Optionen
                 return {
                     data: [
-                        { id: 1, name: 'female', name_de: 'Weiblich' },
-                        { id: 2, name: 'male', name_de: 'Männlich' },
-                        { id: 3, name: 'diverse', name_de: 'Divers' }
+                        { id: 1, name: 'female', nameDe: 'Weiblich' },
+                        { id: 2, name: 'male', nameDe: 'Männlich' },
+                        { id: 3, name: 'diverse', nameDe: 'Divers' }
                     ],
                     status: 200,
                     statusText: 'OK',
@@ -85,9 +85,9 @@ export const patientService = {
             console.error('Error getting genders:', error);
             // Fallback Gender-Optionen
             return [
-                { id: 1, name: 'female', name_de: 'Weiblich' },
-                { id: 2, name: 'male', name_de: 'Männlich' },
-                { id: 3, name: 'diverse', name_de: 'Divers' }
+                { id: 1, name: 'female', nameDe: 'Weiblich' },
+                { id: 2, name: 'male', nameDe: 'Männlich' },
+                { id: 3, name: 'diverse', nameDe: 'Divers' }
             ];
         }
     },
@@ -98,7 +98,7 @@ export const patientService = {
                 // Fallback über andere verfügbare Endpunkte
                 return {
                     data: [
-                        { id: 1, name: 'Hauptzentrum', name_de: 'Hauptzentrum' }
+                        { id: 1, name: 'Hauptzentrum', nameDe: 'Hauptzentrum' }
                     ],
                     status: 200,
                     statusText: 'OK',
@@ -112,22 +112,22 @@ export const patientService = {
             console.error('Error getting centers:', error);
             // Fallback Center-Optionen
             return [
-                { id: 1, name: 'Hauptzentrum', name_de: 'Hauptzentrum' }
+                { id: 1, name: 'Hauptzentrum', nameDe: 'Hauptzentrum' }
             ];
         }
     },
     // Hilfsmethoden
     formatPatientData(patientForm) {
         const formattedData = {
-            first_name: patientForm.first_name,
-            last_name: patientForm.last_name,
+            firstName: patientForm.firstName,
+            lastName: patientForm.lastName,
             dob: patientForm.dob || null,
             gender: patientForm.gender || null,
             center: patientForm.center || null,
             email: patientForm.email || undefined,
             phone: patientForm.phone || undefined,
-            patient_hash: patientForm.patient_hash || null,
-            is_real_person: patientForm.is_real_person ?? true
+            patientHash: patientForm.patientHash || null,
+            isRealPerson: patientForm.isRealPerson ?? true
         };
         // Entferne leere Strings
         Object.keys(formattedData).forEach(key => {
@@ -160,10 +160,10 @@ export const patientService = {
     },
     validatePatientData(patient) {
         const errors = [];
-        if (!patient.first_name?.trim()) {
+        if (!patient.firstName?.trim()) {
             errors.push('Vorname ist erforderlich');
         }
-        if (!patient.last_name?.trim()) {
+        if (!patient.lastName?.trim()) {
             errors.push('Nachname ist erforderlich');
         }
         if (patient.email && !this.isValidEmail(patient.email)) {

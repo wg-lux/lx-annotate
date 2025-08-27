@@ -47,6 +47,13 @@ let
     export PATH="$PATH:$(yarn global bin)"
   '';
 
+  enterShell = ''
+    if [ -x scripts/dev-sync-submodules.sh ]; then
+      echo "Syncing submodules to branch tips…"
+      scripts/dev-sync-submodules.sh || true
+    fi
+  '';
+
   # --- Directory Structure ---
   importDir = "endoreg_db/${dataDir}/import";
   importVideoDir = "endoreg_db/${importDir}/video";

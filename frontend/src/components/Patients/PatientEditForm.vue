@@ -11,38 +11,38 @@
           </h5>
           
           <div class="form-group">
-            <label for="first_name" class="form-label required">
+            <label for="firstName" class="form-label required">
               Vorname
             </label>
             <input
-              id="first_name"
-              v-model="form.first_name"
+              id="firstName"
+              v-model="form.firstName"
               type="text"
               class="form-control"
-              :class="{ 'is-invalid': errors.first_name }"
+              :class="{ 'is-invalid': errors.firstName }"
               required
               maxlength="100"
             >
-            <div v-if="errors.first_name" class="invalid-feedback">
-              {{ errors.first_name }}
+            <div v-if="errors.firstName" class="invalid-feedback">
+              {{ errors.firstName }}
             </div>
           </div>
 
           <div class="form-group">
-            <label for="last_name" class="form-label required">
+            <label for="lastName" class="form-label required">
               Nachname
             </label>
             <input
-              id="last_name"
-              v-model="form.last_name"
+              id="lastName"
+              v-model="form.lastName"
               type="text"
               class="form-control"
-              :class="{ 'is-invalid': errors.last_name }"
+              :class="{ 'is-invalid': errors.lastName }"
               required
               maxlength="100"
             >
-            <div v-if="errors.last_name" class="invalid-feedback">
-              {{ errors.last_name }}
+            <div v-if="errors.lastName" class="invalid-feedback">
+              {{ errors.lastName }}
             </div>
           </div>
 
@@ -82,7 +82,7 @@
                 :key="gender.id"
                 :value="gender.name"
               >
-                {{ gender.name_de || gender.name }}
+                {{ gender.nameDe || gender.name }}
               </option>
             </select>
             <div v-if="errors.gender" class="invalid-feedback">
@@ -148,7 +148,7 @@
                 :key="center.id"
                 :value="center.name"
               >
-                {{ center.name_de || center.name }}
+                {{ center.nameDe || center.name }}
               </option>
             </select>
             <div v-if="errors.center" class="invalid-feedback">
@@ -159,12 +159,12 @@
           <div class="form-group">
             <div class="form-check">
               <input
-                id="is_real_person"
-                v-model="form.is_real_person"
+                id="isRealPerson"
+                v-model="form.isRealPerson"
                 class="form-check-input"
                 type="checkbox"
               >
-              <label class="form-check-label" for="is_real_person">
+              <label class="form-check-label" for="isRealPerson">
                 <strong>Realer Patient</strong>
                 <small class="d-block text-muted">
                   Markieren Sie dies nur für echte Patientendaten
@@ -238,7 +238,7 @@
             
             <p>
               Möchten Sie den Patienten 
-              <strong>{{ patient.first_name }} {{ patient.last_name }}</strong> 
+              <strong>{{ patient.firstName }} {{ patient.lastName }}</strong> 
               wirklich löschen?
             </p>
 
@@ -318,28 +318,28 @@ const deletionInfo = ref<any>(null)
 // Form data
 const form = reactive<PatientFormData>({
   id: props.patient.id || null,
-  first_name: props.patient.first_name || '',
-  last_name: props.patient.last_name || '',
+  firstName: props.patient.firstName || '',
+  lastName: props.patient.lastName || '',
   dob: props.patient.dob ? props.patient.dob.split('T')[0] : null,
   gender: props.patient.gender || null,
   center: props.patient.center || null,
   email: props.patient.email || '',
   phone: props.patient.phone || '',
-  patient_hash: props.patient.patient_hash || '',
+  patientHash: props.patient.patientHash || '',
   comments: '', // Not used in this form
-  is_real_person: props.patient.is_real_person ?? true
+  isRealPerson: props.patient.isRealPerson ?? true
 })
 
 // Validation errors
 const errors = reactive({
-  first_name: '',
-  last_name: '',
+  firstName: '',
+  lastName: '',
   dob: '',
   gender: '',
   center: '',
   email: '',
   phone: '',
-  patient_hash: ''
+  patientHash: ''
 })
 
 // Computed
@@ -352,7 +352,7 @@ const maxDate = computed(() => {
 })
 
 const isFormValid = computed(() => {
-  return form.first_name.trim() && form.last_name.trim() && !Object.values(errors).some(error => error)
+  return form.firstName.trim() && form.lastName.trim() && !Object.values(errors).some(error => error)
 })
 
 // Methods
@@ -365,13 +365,13 @@ const validateForm = (): boolean => {
   let isValid = true
 
   // Validate required fields
-  if (!form.first_name.trim()) {
-    errors.first_name = 'Vorname ist erforderlich'
+  if (!form.firstName.trim()) {
+    errors.firstName = 'Vorname ist erforderlich'
     isValid = false
   }
 
-  if (!form.last_name.trim()) {
-    errors.last_name = 'Nachname ist erforderlich'
+  if (!form.lastName.trim()) {
+    errors.lastName = 'Nachname ist erforderlich'
     isValid = false
   }
 

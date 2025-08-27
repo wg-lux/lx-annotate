@@ -31,7 +31,7 @@ static/
 .staticfiles/
 staticfiles
 ./frontend/public/video.mp4
-
+libs/
 # C extensions
 *.so
 results/

@@ -20,7 +20,7 @@ export const usePatientStore = defineStore('patient', () => {
     const patientsWithDisplayName = computed(() => {
         return patients.value.map(patient => ({
             ...patient,
-            display_name: `${patient.first_name || ''} ${patient.last_name || ''} (ID: ${patient.id})`.trim()
+            displayName: `${patient.firstName || ''} ${patient.lastName || ''} (ID: ${patient.id})`.trim()
         }));
     });
     // Actions
@@ -41,7 +41,7 @@ export const usePatientStore = defineStore('patient', () => {
     };
     const fetchGenders = async () => {
         try {
-            const response = await axiosInstance.get('/api/gender/');
+            const response = await axiosInstance.get('/api/genders/');
             genders.value = response.data.results || response.data;
         }
         catch (err) {
@@ -142,20 +142,20 @@ export const usePatientStore = defineStore('patient', () => {
         if (!genderName)
             return 'Unbekannt';
         const gender = genders.value.find(g => g.name === genderName);
-        return gender?.name_de || gender?.name || genderName;
+        return gender?.nameDe || gender?.name || genderName;
     };
     const getCenterDisplayName = (centerName) => {
         if (!centerName)
             return 'Kein Zentrum';
         const center = centers.value.find(c => c.name === centerName);
-        return center?.name_de || center?.name || centerName;
+        return center?.nameDe || center?.name || centerName;
     };
     const validatePatientForm = (formData) => {
         const errors = [];
-        if (!formData.first_name?.trim()) {
+        if (!formData.firstName?.trim()) {
             errors.push('Vorname ist erforderlich');
         }
-        if (!formData.last_name?.trim()) {
+        if (!formData.lastName?.trim()) {
             errors.push('Nachname ist erforderlich');
         }
         if (formData.dob && new Date(formData.dob) > new Date()) {
@@ -172,16 +172,16 @@ export const usePatientStore = defineStore('patient', () => {
     const formatPatientForSubmission = (formData) => {
         return {
             id: formData.id,
-            first_name: formData.first_name?.trim(),
-            last_name: formData.last_name?.trim(),
+            firstName: formData.firstName?.trim(),
+            lastName: formData.lastName?.trim(),
             dob: formData.dob || null,
             gender: formData.gender || null,
             center: formData.center || null,
             email: formData.email?.trim() || '',
             phone: formData.phone?.trim() || '',
-            patient_hash: formData.patient_hash?.trim() || '',
+            patientHash: formData.patientHash?.trim() || '',
             comments: formData.comments?.trim() || '',
-            is_real_person: formData.is_real_person ?? true
+            isRealPerson: formData.isRealPerson ?? true
         };
     };
     const loadGenders = async () => {

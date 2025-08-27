@@ -84,7 +84,7 @@
           >
             <div class="patient-card-header">
               <h5 class="patient-name">
-                {{ patient.first_name }} {{ patient.last_name }}
+                {{ patient.firstName }} {{ patient.lastName }}
               </h5>
               <span class="patient-id">ID: {{ patient.id }}</span>
             </div>
@@ -176,10 +176,10 @@ const filteredPatients = computed(() => {
   
   const term = searchTerm.value.toLowerCase()
   return patients.value.filter(patient => 
-    patient.first_name?.toLowerCase().includes(term) ||
-    patient.last_name?.toLowerCase().includes(term) ||
+    patient.firstName?.toLowerCase().includes(term) ||
+    patient.lastName?.toLowerCase().includes(term) ||
     patient.email?.toLowerCase().includes(term) ||
-    `${patient.first_name} ${patient.last_name}`.toLowerCase().includes(term)
+    `${patient.firstName} ${patient.lastName}`.toLowerCase().includes(term)
   )
 })
 
@@ -233,7 +233,7 @@ const onPatientCreated = (patient: Patient) => {
   showCreateForm.value = false
   selectedPatient.value = patient
   
-  successMessage.value = `Patient "${patient.first_name} ${patient.last_name}" wurde erfolgreich erstellt!`
+  successMessage.value = `Patient "${patient.firstName} ${patient.lastName}" wurde erfolgreich erstellt!`
   
   // Clear success message after 5 seconds
   setTimeout(() => {
@@ -250,7 +250,7 @@ const onPatientUpdated = (patient: Patient) => {
     patientStore.patients[index] = patient
   }
   
-  successMessage.value = `Patient "${patient.first_name} ${patient.last_name}" wurde erfolgreich aktualisiert!`
+  successMessage.value = `Patient "${patient.firstName} ${patient.lastName}" wurde erfolgreich aktualisiert!`
   
   // Clear success message after 5 seconds
   setTimeout(() => {
@@ -265,7 +265,7 @@ const onPatientDeleted = (patientId: number) => {
     const deletedPatient = patientStore.patients[index]
     patientStore.patients.splice(index, 1)
     
-    successMessage.value = `Patient "${deletedPatient.first_name} ${deletedPatient.last_name}" wurde erfolgreich gelöscht!`
+    successMessage.value = `Patient "${deletedPatient.firstName} ${deletedPatient.lastName}" wurde erfolgreich gelöscht!`
   }
   
   // Close detail view

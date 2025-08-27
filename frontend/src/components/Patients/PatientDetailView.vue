@@ -5,9 +5,9 @@
       <div class="patient-header-info">
         <h2 class="patient-title">
           <i class="fas fa-user"></i>
-          {{ patient.first_name }} {{ patient.last_name }}
+          {{ patient.firstName }} {{ patient.lastName }}
         </h2>
-        <span v-if="patient.is_real_person" class="badge bg-success">
+        <span v-if="patient.isRealPerson" class="badge bg-success">
           <i class="fas fa-shield-alt"></i>
           Realer Patient
         </span>
@@ -94,16 +94,16 @@
               <div class="info-grid">
                 <div class="info-item">
                   <label>Vorname:</label>
-                  <span>{{ patient.first_name || 'Nicht angegeben' }}</span>
+                  <span>{{ patient.firstName || 'Nicht angegeben' }}</span>
                 </div>
                 <div class="info-item">
                   <label>Nachname:</label>
-                  <span>{{ patient.last_name || 'Nicht angegeben' }}</span>
+                  <span>{{ patient.lastName || 'Nicht angegeben' }}</span>
                 </div>
                 <div class="info-item">
                   <label>Pseudonym:</label>
-                  <span v-if="patient.pseudonym_first_name && patient.pseudonym_last_name" class="pseudonym-names">
-                    {{ patient.pseudonym_first_name }} {{ patient.pseudonym_last_name }}
+                  <span v-if="patient.pseudonymFirstName && patient.pseudonymLastName" class="pseudonym-names">
+                    {{ patient.pseudonymFirstName }} {{ patient.pseudonymLastName }}
                     <button 
                       class="btn btn-outline-secondary btn-sm ms-2"
                       @click="regeneratePseudonym"
@@ -177,7 +177,7 @@
                 </div>
                 <div class="info-item">
                   <label>Patient Hash:</label>
-                  <span class="font-mono">{{ patient.patient_hash || 'Nicht generiert' }}</span>
+                  <span class="font-mono">{{ patient.patientHash || 'Nicht generiert' }}</span>
                 </div>
               </div>
             </div>
@@ -219,11 +219,11 @@
                 <div class="col-md-6">
                   <div class="info-item">
                     <label>Erstellt am:</label>
-                    <span>{{ formatDateTime(patient.created_at) }}</span>
+                    <span>{{ formatDateTime(patient.createdAt) }}</span>
                   </div>
                   <div class="info-item">
                     <label>Zuletzt geändert:</label>
-                    <span>{{ formatDateTime(patient.updated_at) }}</span>
+                    <span>{{ formatDateTime(patient.updatedAt) }}</span>
                   </div>
                 </div>
               </div>
@@ -261,9 +261,9 @@
                       <div class="patient-header-info">
                         <h2 class="patient-title">
                           <i class="fas fa-user"></i>
-                          {{ patient.first_name }} {{ patient.last_name }}
+                          {{ patient.firstName }} {{ patient.lastName }}
                         </h2>
-                        <span v-if="patient.is_real_person" class="badge bg-success">
+                        <span v-if="patient.isRealPerson" class="badge bg-success">
                           <i class="fas fa-shield-alt"></i>
                           Realer Patient
                         </span>
@@ -350,16 +350,16 @@
                               <div class="info-grid">
                                 <div class="info-item">
                                   <label>Vorname:</label>
-                                  <span>{{ patient.first_name || 'Nicht angegeben' }}</span>
+                                  <span>{{ patient.firstName || 'Nicht angegeben' }}</span>
                                 </div>
                                 <div class="info-item">
                                   <label>Nachname:</label>
-                                  <span>{{ patient.last_name || 'Nicht angegeben' }}</span>
+                                  <span>{{ patient.lastName || 'Nicht angegeben' }}</span>
                                 </div>
                                 <div class="info-item">
                                   <label>Pseudonym:</label>
-                                  <span v-if="patient.pseudonym_first_name && patient.pseudonym_last_name" class="pseudonym-names">
-                                    {{ patient.pseudonym_first_name }} {{ patient.pseudonym_last_name }}
+                                  <span v-if="patient.pseudonymFirstName && patient.pseudonymLastName" class="pseudonym-names">
+                                    {{ patient.pseudonymFirstName }} {{ patient.pseudonymLastName }}
                                     <button 
                                       class="btn btn-outline-secondary btn-sm ms-2"
                                       @click="regeneratePseudonym"
@@ -433,7 +433,7 @@
                                 </div>
                                 <div class="info-item">
                                   <label>Patient Hash:</label>
-                                  <span class="font-mono">{{ patient.patient_hash || 'Nicht generiert' }}</span>
+                                  <span class="font-mono">{{ patient.patientHash || 'Nicht generiert' }}</span>
                                 </div>
                               </div>
                             </div>
@@ -475,11 +475,11 @@
                                 <div class="col-md-6">
                                   <div class="info-item">
                                     <label>Erstellt am:</label>
-                                    <span>{{ formatDateTime(patient.created_at) }}</span>
+                                    <span>{{ formatDateTime(patient.createdAt) }}</span>
                                   </div>
                                   <div class="info-item">
                                     <label>Zuletzt geändert:</label>
-                                    <span>{{ formatDateTime(patient.updated_at) }}</span>
+                                    <span>{{ formatDateTime(patient.updatedAt) }}</span>
                                   </div>
                                 </div>
                               </div>
@@ -570,6 +570,7 @@
                 import { usePatientStore, type Patient, type Gender, type Center } from '@/stores/patientStore'
                 import { patientService } from '@/api/patientService'
                 import PatientEditForm from './PatientEditForm.vue'
+                import camelcaseKeys from 'camelcase-keys'
 
                 // Interfaces
                 interface RelatedObjects {
@@ -644,7 +645,7 @@
                     
                     await patientService.deletePatient(props.patient.id!)
                     
-                    successMessage.value = `Patient "${props.patient.first_name} ${props.patient.last_name}" wurde erfolgreich gelöscht.`
+                    successMessage.value = `Patient "${props.patient.firstName} ${props.patient.lastName}" wurde erfolgreich gelöscht.`
                     
                     emit('patient-deleted', props.patient.id!)
                     closeDeletionModal()
@@ -702,13 +703,13 @@
                 const getGenderDisplay = (genderValue?: string | null): string => {
                   if (!genderValue) return 'Nicht angegeben'
                   const gender = genders.value.find((g: Gender) => g.name === genderValue)
-                  return gender?.name_de || gender?.name || genderValue
+                  return gender?.nameDe || gender?.name || genderValue
                 }
 
                 const getCenterDisplay = (centerValue?: string | null): string => {
                   if (!centerValue) return 'Nicht zugeordnet'
                   const center = centers.value.find((c: Center) => c.name === centerValue)
-                  return center?.name_de || center?.name || centerValue
+                  return center?.nameDe || center?.name || centerValue
                 }
 
                 // Pseudonamen-Funktionalität
@@ -723,7 +724,7 @@
                         'Content-Type': 'application/json',
                       },
                       body: JSON.stringify({
-                        sensitive_meta_id: props.patient.sensitive_meta_id,
+                        sensitive_meta_id: props.patient.sensitiveMetaId,
                         regenerate: false
                       })
                     })
@@ -734,11 +735,14 @@
                     
                     const data = await response.json()
                     
+                    // Convert snake_case to camelCase
+                    const convertedData = camelcaseKeys(data, { deep: true })
+                    
                     // Update patient data mit neuen Pseudonamen
                     const updatedPatient = {
                       ...props.patient,
-                      pseudonym_first_name: data.pseudonym_first_name,
-                      pseudonym_last_name: data.pseudonym_last_name
+                      pseudonymFirstName: convertedData.pseudonymFirstName,
+                      pseudonymLastName: convertedData.pseudonymLastName
                     }
                     
                     emit('patient-updated', updatedPatient)
@@ -766,7 +770,7 @@
                         'Content-Type': 'application/json',
                       },
                       body: JSON.stringify({
-                        sensitive_meta_id: props.patient.sensitive_meta_id,
+                        sensitive_meta_id: props.patient.sensitiveMetaId,
                         regenerate: true
                       })
                     })
@@ -777,11 +781,14 @@
                     
                     const data = await response.json()
                     
+                    // Convert snake_case to camelCase
+                    const convertedData = camelcaseKeys(data, { deep: true })
+                    
                     // Update patient data mit neuen Pseudonamen
                     const updatedPatient = {
                       ...props.patient,
-                      pseudonym_first_name: data.pseudonym_first_name,
-                      pseudonym_last_name: data.pseudonym_last_name
+                      pseudonymFirstName: convertedData.pseudonymFirstName,
+                      pseudonymLastName: convertedData.pseudonymLastName
                     }
                     
                     emit('patient-updated', updatedPatient)
@@ -1067,6 +1074,7 @@ import { ref, computed } from 'vue'
 import { usePatientStore, type Patient, type Gender, type Center } from '@/stores/patientStore'
 import { patientService } from '@/api/patientService'
 import PatientEditForm from './PatientEditForm.vue'
+import camelcaseKeys from 'camelcase-keys'
 
 // Props
 interface Props {
@@ -1127,7 +1135,7 @@ const confirmDeletion = async () => {
     
     await patientService.deletePatient(props.patient.id!)
     
-    successMessage.value = `Patient "${props.patient.first_name} ${props.patient.last_name}" wurde erfolgreich gelöscht.`
+    successMessage.value = `Patient "${props.patient.firstName} ${props.patient.lastName}" wurde erfolgreich gelöscht.`
     
     emit('patient-deleted', props.patient.id!)
     closeDeletionModal()
@@ -1185,13 +1193,13 @@ const formatDateTime = (dateString?: string | null) => {
 const getGenderDisplay = (genderValue?: string | null) => {
   if (!genderValue) return 'Nicht angegeben'
   const gender = genders.value.find(g => g.name === genderValue)
-  return gender?.name_de || gender?.name || genderValue
+  return gender?.nameDe || gender?.name || genderValue
 }
 
 const getCenterDisplay = (centerValue?: string | null) => {
   if (!centerValue) return 'Nicht zugeordnet'
   const center = centers.value.find(c => c.name === centerValue)
-  return center?.name_de || center?.name || centerValue
+  return center?.nameDe || center?.name || centerValue
 }
 
 // Pseudonamen-Funktionalität
@@ -1206,7 +1214,7 @@ const generatePseudonym = async (): Promise<void> => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        sensitive_meta_id: props.patient.sensitive_meta_id,
+        sensitive_meta_id: props.patient.sensitiveMetaId,
         regenerate: false
       })
     })
@@ -1217,11 +1225,14 @@ const generatePseudonym = async (): Promise<void> => {
     
     const data = await response.json()
     
+    // Convert snake_case to camelCase
+    const convertedData = camelcaseKeys(data, { deep: true })
+    
     // Update patient data mit neuen Pseudonamen
     const updatedPatient = {
       ...props.patient,
-      pseudonym_first_name: data.pseudonym_first_name,
-      pseudonym_last_name: data.pseudonym_last_name
+      pseudonymFirstName: convertedData.pseudonymFirstName,
+      pseudonymLastName: convertedData.pseudonymLastName
     }
     
     emit('patient-updated', updatedPatient)
@@ -1249,7 +1260,7 @@ const regeneratePseudonym = async (): Promise<void> => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        sensitive_meta_id: props.patient.sensitive_meta_id,
+        sensitive_meta_id: props.patient.sensitiveMetaId,
         regenerate: true
       })
     })
@@ -1260,11 +1271,14 @@ const regeneratePseudonym = async (): Promise<void> => {
     
     const data = await response.json()
     
+    // Convert snake_case to camelCase
+    const convertedData = camelcaseKeys(data, { deep: true })
+    
     // Update patient data mit neuen Pseudonamen
     const updatedPatient = {
       ...props.patient,
-      pseudonym_first_name: data.pseudonym_first_name,
-      pseudonym_last_name: data.pseudonym_last_name
+      pseudonymFirstName: convertedData.pseudonymFirstName,
+      pseudonymLastName: convertedData.pseudonymLastName
     }
     
     emit('patient-updated', updatedPatient)

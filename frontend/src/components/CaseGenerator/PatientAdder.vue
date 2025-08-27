@@ -6,7 +6,7 @@
         
         <label for="firstName">Vorname: *</label>
         <input 
-          v-model="formData.first_name" 
+          v-model="formData.firstName" 
           id="firstName" 
           type="text"
           required
@@ -15,7 +15,7 @@
 
         <label for="lastName">Nachname: *</label>
         <input 
-          v-model="formData.last_name" 
+          v-model="formData.lastName" 
           id="lastName" 
           type="text"
           required
@@ -51,7 +51,7 @@
           <select v-model="formData.gender" id="genderSelect">
             <option value="">Bitte wählen</option>
             <option v-for="gender in genders" :key="gender.id" :value="gender.name">
-              {{ gender.name_de || gender.name }}
+              {{ gender.nameDe || gender.name }}
             </option>
           </select>
         </div>
@@ -61,14 +61,14 @@
           <select v-model="formData.center" id="centerSelect">
             <option value="">Bitte wählen</option>
             <option v-for="center in centers" :key="center.id" :value="center.name">
-              {{ center.name_de || center.name }}
+              {{ center.nameDe || center.name }}
             </option>
           </select>
         </div>
 
         <div>
           <label>
-            <input type="checkbox" v-model="formData.is_real_person" />
+            <input type="checkbox" v-model="formData.isRealPerson" />
             Reale Person (abgehakt = ja, nicht abgehakt = Testdaten)
           </label>
         </div>
@@ -78,6 +78,10 @@
         <!-- Submit Button -->
         <button type="submit" :disabled="patientStore.loading" class="btn btn-primary">
           {{ patientStore.loading ? 'Wird gespeichert...' : 'Patient erstellen' }}
+        </button>
+        
+        <button type="button" class="btn btn-secondary ms-2" @click="handleCancel">
+          Abbrechen
         </button>
         
         <div v-if="patientStore.error" class="alert alert-danger mt-2">
@@ -93,7 +97,13 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
-import { usePatientStore, type PatientFormData } from '@/stores/patientStore'
+import { usePatientStore, type PatientFormData, type Patient } from '@/stores/patientStore'
+
+// Define emits with proper typing
+const emit = defineEmits<{
+  (e: 'patient-created', patient: Patient): void
+  (e: 'cancel'): void
+}>()
 
 // Store
 const patientStore = usePatientStore()
@@ -103,16 +113,16 @@ const successMessage = ref('')
 
 // Form data mit korrekten Feldnamen und Typen
 const formData = ref<PatientFormData>({
-  first_name: '',
-  last_name: '',
+  firstName: '',
+  lastName: '',
   dob: null,
   email: '',
   phone: '',
   gender: null,
   center: null,
-  patient_hash: '',
+  patientHash: '',
   comments: '',
-  is_real_person: true
+  isRealPerson: true
 })
 
 // Computed properties für Store-Daten
@@ -122,50 +132,74 @@ const centers = computed(() => patientStore.centers)
 // Methods
 const resetForm = () => {
   formData.value = {
-    first_name: '',
-    last_name: '',
+    firstName: '',
+    lastName: '',
     dob: null,
     email: '',
     phone: '',
     gender: null,
     center: null,
-    patient_hash: '',
+    patientHash: '',
     comments: '',
-    is_real_person: true
+    isRealPerson: true
   }
 }
 
 const handleSubmit = async () => {
+  patientStore.clearError()
+  successMessage.value = ''
+
+  // Validation
+  if (!formData.value.firstName?.trim()) {
+    patientStore.error = 'Vorname ist erforderlich'
+    return
+  }
+  if (!formData.value.lastName?.trim()) {
+    patientStore.error = 'Nachname ist erforderlich'
+    return
+  }
+
   try {
-    patientStore.clearError()
-    successMessage.value = ''
-
-    // Validation
-    if (!formData.value.first_name?.trim()) {
-      throw new Error('Vorname ist erforderlich')
-    }
-    if (!formData.value.last_name?.trim()) {
-      throw new Error('Nachname ist erforderlich')
-    }
-
     // Create patient using store with formatted data
     const formattedData = patientStore.formatPatientForSubmission(formData.value)
     const newPatient = await patientStore.createPatient(formattedData)
     
-    successMessage.value = `Patient "${newPatient.first_name} ${newPatient.last_name}" wurde erfolgreich erstellt!`
+    successMessage.value = `Patient "${newPatient.firstName} ${newPatient.lastName}" wurde erfolgreich erstellt!`
+    
+    // Emit event for parent component with error handling
+    try {
+      emit('patient-created', newPatient)
+    } catch (emitError) {
+      console.error('Error emitting patient-created event:', emitError)
+    }
     
     // Reset form after successful creation
     resetForm()
     
   } catch (error: any) {
+    // Fehler vom Store (z.B. API-Fehler) werden hier weiterhin behandelt
     patientStore.error = error.message || 'Fehler beim Erstellen des Patienten'
     console.error('Error creating patient:', error)
+  }
+}
+
+const handleCancel = () => {
+  try {
+    emit('cancel')
+  } catch (error) {
+    console.error('Error emitting cancel event:', error)
   }
 }
 
 // Load required data on component mount
 onMounted(async () => {
   try {
+    // Ensure store is available
+    if (!patientStore) {
+      console.error('PatientStore is not available')
+      return
+    }
+    
     patientStore.clearError()
     // Load genders and centers for dropdowns
     await Promise.all([
@@ -174,7 +208,9 @@ onMounted(async () => {
     ])
   } catch (error) {
     console.error('Error loading dropdown data:', error)
-    patientStore.error = 'Fehler beim Laden der Auswahloptionen'
+    if (patientStore?.error !== undefined) {
+      patientStore.error = 'Fehler beim Laden der Auswahloptionen'
+    }
   }
 })
 </script>

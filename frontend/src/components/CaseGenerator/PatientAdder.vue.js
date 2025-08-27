@@ -1,5 +1,6 @@
 import { ref, onMounted, computed } from 'vue';
 import { usePatientStore } from '@/stores/patientStore';
+const emit = defineEmits();
 // Store
 const patientStore = usePatientStore();
 // Reactive state
@@ -36,31 +37,54 @@ const resetForm = () => {
     };
 };
 const handleSubmit = async () => {
+    patientStore.clearError();
+    successMessage.value = '';
+    // Validation
+    if (!formData.value.first_name?.trim()) {
+        patientStore.error = 'Vorname ist erforderlich';
+        return;
+    }
+    if (!formData.value.last_name?.trim()) {
+        patientStore.error = 'Nachname ist erforderlich';
+        return;
+    }
     try {
-        patientStore.clearError();
-        successMessage.value = '';
-        // Validation
-        if (!formData.value.first_name?.trim()) {
-            throw new Error('Vorname ist erforderlich');
-        }
-        if (!formData.value.last_name?.trim()) {
-            throw new Error('Nachname ist erforderlich');
-        }
         // Create patient using store with formatted data
         const formattedData = patientStore.formatPatientForSubmission(formData.value);
         const newPatient = await patientStore.createPatient(formattedData);
         successMessage.value = `Patient "${newPatient.first_name} ${newPatient.last_name}" wurde erfolgreich erstellt!`;
+        // Emit event for parent component with error handling
+        try {
+            emit('patient-created', newPatient);
+        }
+        catch (emitError) {
+            console.error('Error emitting patient-created event:', emitError);
+        }
         // Reset form after successful creation
         resetForm();
     }
     catch (error) {
+        // Fehler vom Store (z.B. API-Fehler) werden hier weiterhin behandelt
         patientStore.error = error.message || 'Fehler beim Erstellen des Patienten';
         console.error('Error creating patient:', error);
+    }
+};
+const handleCancel = () => {
+    try {
+        emit('cancel');
+    }
+    catch (error) {
+        console.error('Error emitting cancel event:', error);
     }
 };
 // Load required data on component mount
 onMounted(async () => {
     try {
+        // Ensure store is available
+        if (!patientStore) {
+            console.error('PatientStore is not available');
+            return;
+        }
         patientStore.clearError();
         // Load genders and centers for dropdowns
         await Promise.all([
@@ -70,7 +94,9 @@ onMounted(async () => {
     }
     catch (error) {
         console.error('Error loading dropdown data:', error);
-        patientStore.error = 'Fehler beim Laden der Auswahloptionen';
+        if (patientStore?.error !== undefined) {
+            patientStore.error = 'Fehler beim Laden der Auswahloptionen';
+        }
     }
 }); /* PartiallyEnd: #3632/scriptSetup.vue */
 function __VLS_template() {
@@ -179,6 +205,11 @@ function __VLS_template() {
         ...{ class: ("btn btn-primary") },
     });
     (__VLS_ctx.patientStore.loading ? 'Wird gespeichert...' : 'Patient erstellen');
+    __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+        ...{ onClick: (__VLS_ctx.handleCancel) },
+        type: ("button"),
+        ...{ class: ("btn btn-secondary ms-2") },
+    });
     if (__VLS_ctx.patientStore.error) {
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: ("alert alert-danger mt-2") },
@@ -191,7 +222,7 @@ function __VLS_template() {
         });
         (__VLS_ctx.successMessage);
     }
-    ['btn', 'btn-primary', 'alert', 'alert-danger', 'mt-2', 'alert', 'alert-success', 'mt-2',];
+    ['btn', 'btn-primary', 'btn', 'btn-secondary', 'ms-2', 'alert', 'alert-danger', 'mt-2', 'alert', 'alert-success', 'mt-2',];
     var __VLS_slots;
     var $slots;
     let __VLS_inheritedAttrs;
@@ -216,13 +247,16 @@ const __VLS_self = (await import('vue')).defineComponent({
             genders: genders,
             centers: centers,
             handleSubmit: handleSubmit,
+            handleCancel: handleCancel,
         };
     },
+    __typeEmits: {},
 });
 export default (await import('vue')).defineComponent({
     setup() {
         return {};
     },
+    __typeEmits: {},
     __typeEl: {},
 });
 ; /* PartiallyEnd: #4569/main.vue */

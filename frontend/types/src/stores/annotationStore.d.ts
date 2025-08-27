@@ -142,7 +142,7 @@ export declare const useAnnotationStore: import("pinia").StoreDefinition<"annota
     linkSegmentAndAnnotation: (segment: any, userId: string) => Promise<Annotation | null>;
     validateSegmentsAndExaminations: (fileId: number) => Promise<boolean>;
     annotateSegmentsAndExaminations: (fileId: number) => Promise<boolean>;
-}, "isLoading" | "error" | "filter" | "annotations" | "selectedAnnotations" | "currentVideoId" | "playbackTime" | "isEditing" | "isDirty">>, Pick<{
+}, "filter" | "error" | "isLoading" | "annotations" | "selectedAnnotations" | "currentVideoId" | "playbackTime" | "isEditing" | "isDirty">>, Pick<{
     annotations: readonly {
         readonly id: string;
         readonly videoId: string;

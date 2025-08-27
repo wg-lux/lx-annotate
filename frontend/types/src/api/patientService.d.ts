@@ -1,60 +1,60 @@
 export interface Gender {
     id: number;
     name: string;
-    name_de?: string;
-    name_en?: string;
+    nameDe?: string;
+    nameEn?: string;
     abbreviation?: string;
     description?: string;
 }
 export interface Center {
     id: number;
     name: string;
-    name_de?: string;
-    name_en?: string;
+    nameDe?: string;
+    nameEn?: string;
     description?: string;
 }
 export interface Patient {
     id?: number;
-    first_name: string;
-    last_name: string;
+    firstName: string;
+    lastName: string;
     dob?: string | null;
     gender?: string | null;
     center?: string | null;
     email?: string;
     phone?: string;
-    patient_hash?: string | null;
+    patientHash?: string | null;
     comments?: string;
-    is_real_person?: boolean;
-    pseudonym_first_name?: string | null;
-    pseudonym_last_name?: string | null;
-    sensitive_meta_id?: number | null;
+    isRealPerson?: boolean;
+    pseudonymFirstName?: string | null;
+    pseudonymLastName?: string | null;
+    sensitiveMetaId?: number | null;
     age?: number | null;
-    created_at?: string;
-    updated_at?: string;
+    createdAt?: string;
+    updatedAt?: string;
 }
 export interface PatientFormData {
     id?: number | null;
-    first_name: string;
-    last_name: string;
+    firstName: string;
+    lastName: string;
     dob: string | null | undefined;
     gender: string | null;
     center: string | null;
     email: string;
     phone: string;
-    patient_hash: string;
+    patientHash: string;
     comments: string;
-    is_real_person?: boolean;
+    isRealPerson?: boolean;
 }
 export interface PatientCreateData {
-    first_name: string;
-    last_name: string;
+    firstName: string;
+    lastName: string;
     dob?: string | null;
     gender?: string | null;
     center?: string | null;
     email?: string;
     phone?: string;
-    patient_hash?: string | null;
-    is_real_person?: boolean;
+    patientHash?: string | null;
+    isRealPerson?: boolean;
 }
 export interface PatientUpdateData extends PatientCreateData {
     id: number;

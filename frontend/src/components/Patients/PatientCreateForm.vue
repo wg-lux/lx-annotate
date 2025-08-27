@@ -13,16 +13,16 @@
             <div class="form-group">
               <label for="firstName" class="required">Vorname</label>
               <input 
-                v-model="form.first_name"
+                v-model="form.firstName"
                 type="text"
                 id="firstName"
                 class="form-control"
-                :class="{ 'is-invalid': errors.first_name }"
+                :class="{ 'is-invalid': errors.firstName }"
                 required
                 placeholder="Vorname eingeben"
               />
-              <div v-if="errors.first_name" class="invalid-feedback">
-                {{ errors.first_name }}
+              <div v-if="errors.firstName" class="invalid-feedback">
+                {{ errors.firstName }}
               </div>
             </div>
           </div>
@@ -31,16 +31,16 @@
             <div class="form-group">
               <label for="lastName" class="required">Nachname</label>
               <input 
-                v-model="form.last_name"
+                v-model="form.lastName"
                 type="text"
                 id="lastName"
                 class="form-control"
-                :class="{ 'is-invalid': errors.last_name }"
+                :class="{ 'is-invalid': errors.lastName }"
                 required
                 placeholder="Nachname eingeben"
               />
-              <div v-if="errors.last_name" class="invalid-feedback">
-                {{ errors.last_name }}
+              <div v-if="errors.lastName" class="invalid-feedback">
+                {{ errors.lastName }}
               </div>
             </div>
           </div>
@@ -81,7 +81,7 @@
                   :key="gender.id" 
                   :value="gender.name"
                 >
-                  {{ gender.name_de || gender.name }}
+                  {{ gender.nameDe || gender.name }}
                 </option>
               </select>
               <div v-if="errors.gender" class="invalid-feedback">
@@ -159,7 +159,7 @@
                   :key="center.id" 
                   :value="center.name"
                 >
-                  {{ center.name_de || center.name }}
+                  {{ center.nameDe || center.name }}
                 </option>
               </select>
               <div v-if="errors.center" class="invalid-feedback">
@@ -172,7 +172,7 @@
             <div class="form-group">
               <label>
                 <input 
-                  v-model="form.is_real_person"
+                  v-model="form.isRealPerson"
                   type="checkbox"
                   class="form-check-input me-2"
                 />
@@ -237,16 +237,16 @@ const errors = ref<Record<string, string>>({})
 
 const form = ref<PatientFormData>({
   id: null,
-  first_name: '',
-  last_name: '',
+  firstName: '',
+  lastName: '',
   dob: null,
   email: '',
   phone: '',
   gender: null,
   center: null,
-  patient_hash: '',
+  patientHash: '',
   comments: '',
-  is_real_person: true
+  isRealPerson: true
 })
 
 // Computed
@@ -273,8 +273,8 @@ const calculatedAge = computed(() => {
 })
 
 const isFormValid = computed(() => {
-  return form.value.first_name.trim() !== '' && 
-         form.value.last_name.trim() !== '' &&
+  return form.value.firstName.trim() !== '' && 
+         form.value.lastName.trim() !== '' &&
          Object.keys(errors.value).length === 0
 })
 
@@ -283,12 +283,12 @@ const validateForm = () => {
   errors.value = {}
   
   // Required fields
-  if (!form.value.first_name?.trim()) {
-    errors.value.first_name = 'Vorname ist erforderlich'
+  if (!form.value.firstName?.trim()) {
+    errors.value.firstName = 'Vorname ist erforderlich'
   }
   
-  if (!form.value.last_name?.trim()) {
-    errors.value.last_name = 'Nachname ist erforderlich'
+  if (!form.value.lastName?.trim()) {
+    errors.value.lastName = 'Nachname ist erforderlich'
   }
   
   // Date validation
@@ -345,16 +345,16 @@ const handleSubmit = async () => {
     // Reset form
     form.value = {
       id: null,
-      first_name: '',
-      last_name: '',
+      firstName: '',
+      lastName: '',
       dob: null,
       email: '',
       phone: '',
       gender: null,
       center: null,
-      patient_hash: '',
+      patientHash: '',
       comments: '',
-      is_real_person: true
+      isRealPerson: true
     }
     
     // Emit event with the created patient

@@ -1,4 +1,3 @@
-
 <template>
   <div class="requirement-generator container-fluid py-4">
     <div v-if="patientStore.error || error || examinationStore.error" class="alert alert-danger">
@@ -17,7 +16,17 @@
           <!-- Patient Selection -->
           <div class="col-md-6">
             <div class="form-group">
-              <label for="patient-select">Patient auswählen</label>
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <label for="patient-select">Patient auswählen</label>
+                <button 
+                  type="button" 
+                  class="btn btn-sm btn-outline-primary"
+                  @click="showCreatePatientModal = true"
+                  :disabled="isLoadingPatients || loading"
+                >
+                  <i class="fas fa-plus"></i> Neuer Patient
+                </button>
+              </div>
               <select
                 id="patient-select"
                 v-model="selectedPatientId"
@@ -28,7 +37,7 @@
                   {{ isLoadingPatients ? 'Lade Patienten...' : 'Bitte wählen Sie einen Patienten' }}
                 </option>
                 <option v-for="patient in patients" :key="patient.id" :value="patient.id">
-                  {{ patient.display_name }}
+                  {{ patient.displayName }}
                 </option>
               </select>
             </div>
@@ -131,6 +140,30 @@
             </div>
         </div>
     </div>
+
+    <!-- Success Alert -->
+    <div v-if="successMessage" class="alert alert-success alert-dismissible">
+      <strong>Erfolg:</strong> {{ successMessage }}
+      <button type="button" class="btn-close" @click="successMessage = null"></button>
+    </div>
+
+    <!-- Patient Creation Modal -->
+    <div v-if="showCreatePatientModal" class="modal-overlay" @click="closeCreatePatientModal">
+      <div class="modal-dialog" @click.stop>
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Neuen Patienten erstellen</h5>
+            <button type="button" class="btn-close" @click="closeCreatePatientModal"></button>
+          </div>
+          <div class="modal-body">
+            <PatientAdder 
+              @patient-created="onPatientCreated" 
+              @cancel="closeCreatePatientModal"
+            />
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -141,6 +174,7 @@ import axiosInstance from '@/api/axiosInstance';
 import { usePatientStore } from '@/stores/patientStore';
 import { useExaminationStore } from '@/stores/examinationStore';
 import type { Patient } from '@/stores/patientStore';
+import PatientAdder from '@/components/CaseGenerator/PatientAdder.vue';
 
 // --- Types ---
 type RequirementSetLite = { id: number; name: string; type: string };
@@ -170,9 +204,16 @@ const lookupToken = ref<string | null>(null);
 const lookup = ref<LookupDict | null>(null);
 const error = ref<string | null>(null);
 const loading = ref(false);
+const showCreatePatientModal = ref(false);
+const successMessage = ref<string | null>(null);
 
 // --- Computed from Store ---
-const patients = computed(() => patientStore.patientsWithDisplayName);
+
+const patients = computed(() => {
+  const result = patientStore.patientsWithDisplayName;
+  console.log('Patients with display_name:', result); // Zum Debuggen
+  return result;
+});
 const isLoadingPatients = computed(() => patientStore.loading);
 const examinationsDropdown = computed(() => examinationStore.examinationsDropdown);
 const isLoadingExaminations = computed(() => examinationStore.loading);
@@ -286,6 +327,31 @@ function toggleRequirementSet(id: number, on: boolean) {
   patchLookup({ selectedRequirementSetIds: selectedRequirementSetIds.value });
 }
 
+function closeCreatePatientModal() {
+  showCreatePatientModal.value = false;
+  // Store-Fehler löschen beim Schließen
+  patientStore.clearError();
+}
+
+function onPatientCreated(patient: Patient) {
+  // Patient wurde erfolgreich erstellt - automatisch auswählen
+  selectedPatientId.value = patient.id || null;
+  
+  // Modal schließen
+  showCreatePatientModal.value = false;
+  
+  // Store-Fehler löschen (falls vorhanden)
+  patientStore.clearError();
+  
+  // Erfolgsmeldung anzeigen
+  successMessage.value = `Patient "${patient.firstName} ${patient.lastName}" wurde erfolgreich erstellt und ausgewählt!`;
+  
+  // Nach 5 Sekunden ausblenden
+  setTimeout(() => {
+    successMessage.value = null;
+  }, 5000);
+}
+
 // --- Watchers ---
 watch(selectedExaminationId, (newId) => {
   examinationStore.setSelectedExamination(newId);
@@ -295,9 +361,15 @@ watch(selectedExaminationId, (newId) => {
 });
 
 // --- Lifecycle ---
-onMounted(() => {
-  patientStore.fetchPatients();
-  examinationStore.fetchExaminations();
+onMounted(async () => {
+  // Patienten und Untersuchungen laden
+  await Promise.all([
+    patientStore.fetchPatients(),
+    examinationStore.fetchExaminations()
+  ]);
+  
+  // Nachschlagedaten für Patientenerstellung laden
+  await patientStore.initializeLookupData();
 });
 </script>
 
@@ -309,5 +381,81 @@ onMounted(() => {
   width: 1px;
   align-self: stretch;
   background-color: rgba(0,0,0,.1);
+}
+
+/* Modal styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1050;
+}
+
+.modal-dialog {
+  background: white;
+  border-radius: 8px;
+  max-width: 600px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.modal-content {
+  padding: 0;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.modal-title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.modal-body {
+  padding: 1.5rem;
+}
+
+.btn-close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  opacity: 0.5;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-close:hover {
+  opacity: 0.75;
+}
+
+.btn-close::before {
+  content: '×';
+}
+
+.alert-dismissible .btn-close {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 2;
+  padding: 0.75rem 1.25rem;
 }
 </style>

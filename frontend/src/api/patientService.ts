@@ -5,8 +5,8 @@ import type { AxiosResponse } from 'axios';
 export interface Gender {
   id: number;
   name: string;
-  name_de?: string;
-  name_en?: string;
+  nameDe?: string;
+  nameEn?: string;
   abbreviation?: string;
   description?: string;
 }
@@ -14,59 +14,59 @@ export interface Gender {
 export interface Center {
   id: number;
   name: string;
-  name_de?: string;
-  name_en?: string;
+  nameDe?: string;
+  nameEn?: string;
   description?: string;
 }
 
 export interface Patient {
   id?: number;
-  first_name: string;
-  last_name: string;
+  firstName: string;
+  lastName: string;
   dob?: string | null;
   gender?: string | null;  // Changed to string to match backend
   center?: string | null;  // Changed to string to match backend
   email?: string;
   phone?: string;
-  patient_hash?: string | null;
+  patientHash?: string | null;
   comments?: string;
-  is_real_person?: boolean;  // Added missing property
+  isRealPerson?: boolean;  // Added missing property
   
   // Pseudonym properties for anonymization validation
-  pseudonym_first_name?: string | null;
-  pseudonym_last_name?: string | null;
-  sensitive_meta_id?: number | null;
+  pseudonymFirstName?: string | null;
+  pseudonymLastName?: string | null;
+  sensitiveMetaId?: number | null;
   
   // Computed/readonly fields
   age?: number | null;
-  created_at?: string;
-  updated_at?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface PatientFormData {
   id?: number | null;
-  first_name: string;
-  last_name: string;
+  firstName: string;
+  lastName: string;
   dob: string | null | undefined;  // Allow undefined for compatibility
   gender: string | null;  // Changed to string to match backend
   center: string | null;  // Changed to string to match backend
   email: string;
   phone: string;
-  patient_hash: string;
+  patientHash: string;
   comments: string;
-  is_real_person?: boolean;  // Added missing property
+  isRealPerson?: boolean;  // Added missing property
 }
 
 export interface PatientCreateData {
-  first_name: string;
-  last_name: string;
+  firstName: string;
+  lastName: string;
   dob?: string | null;
   gender?: string | null;  // Changed to string
   center?: string | null;  // Changed to string
   email?: string;
   phone?: string;
-  patient_hash?: string | null;
-  is_real_person?: boolean;  // Added missing property
+  patientHash?: string | null;
+  isRealPerson?: boolean;  // Added missing property
 }
 
 export interface PatientUpdateData extends PatientCreateData {
@@ -146,13 +146,13 @@ export const patientService = {
   async getGenders(): Promise<Gender[]> {
     try {
       // Verwende den korrekten Gender-Endpunkt
-      const response: AxiosResponse<Gender[]> = await axiosInstance.get(r('gender/')).catch(async () => {
+      const response: AxiosResponse<Gender[]> = await axiosInstance.get(r('genders/')).catch(async () => {
         // Fallback: Standard Gender-Optionen
         return { 
           data: [
-            { id: 1, name: 'female', name_de: 'Weiblich' },
-            { id: 2, name: 'male', name_de: 'Männlich' },
-            { id: 3, name: 'diverse', name_de: 'Divers' }
+            { id: 1, name: 'female', nameDe: 'Weiblich' },
+            { id: 2, name: 'male', nameDe: 'Männlich' },
+            { id: 3, name: 'diverse', nameDe: 'Divers' }
           ] as Gender[],
           status: 200,
           statusText: 'OK',
@@ -165,9 +165,9 @@ export const patientService = {
       console.error('Error getting genders:', error);
       // Fallback Gender-Optionen
       return [
-        { id: 1, name: 'female', name_de: 'Weiblich' },
-        { id: 2, name: 'male', name_de: 'Männlich' },
-        { id: 3, name: 'diverse', name_de: 'Divers' }
+        { id: 1, name: 'female', nameDe: 'Weiblich' },
+        { id: 2, name: 'male', nameDe: 'Männlich' },
+        { id: 3, name: 'diverse', nameDe: 'Divers' }
       ];
     }
   },
@@ -179,7 +179,7 @@ export const patientService = {
         // Fallback über andere verfügbare Endpunkte
         return { 
           data: [
-            { id: 1, name: 'Hauptzentrum', name_de: 'Hauptzentrum' }
+            { id: 1, name: 'Hauptzentrum', nameDe: 'Hauptzentrum' }
           ] as Center[],
           status: 200,
           statusText: 'OK',
@@ -192,7 +192,7 @@ export const patientService = {
       console.error('Error getting centers:', error);
       // Fallback Center-Optionen
       return [
-        { id: 1, name: 'Hauptzentrum', name_de: 'Hauptzentrum' }
+        { id: 1, name: 'Hauptzentrum', nameDe: 'Hauptzentrum' }
       ];
     }
   },
@@ -200,15 +200,15 @@ export const patientService = {
   // Hilfsmethoden
   formatPatientData(patientForm: PatientFormData): PatientCreateData {
     const formattedData: PatientCreateData = {
-      first_name: patientForm.first_name,
-      last_name: patientForm.last_name,
+      firstName: patientForm.firstName,
+      lastName: patientForm.lastName,
       dob: patientForm.dob || null,
       gender: patientForm.gender || null,
       center: patientForm.center || null,
       email: patientForm.email || undefined,
       phone: patientForm.phone || undefined,
-      patient_hash: patientForm.patient_hash || null,
-      is_real_person: patientForm.is_real_person ?? true
+      patientHash: patientForm.patientHash || null,
+      isRealPerson: patientForm.isRealPerson ?? true
     };
 
     // Entferne leere Strings
@@ -250,11 +250,11 @@ export const patientService = {
   validatePatientData(patient: Partial<PatientFormData>): { isValid: boolean; errors: string[] } {
     const errors: string[] = [];
 
-    if (!patient.first_name?.trim()) {
+    if (!patient.firstName?.trim()) {
       errors.push('Vorname ist erforderlich');
     }
 
-    if (!patient.last_name?.trim()) {
+    if (!patient.lastName?.trim()) {
       errors.push('Nachname ist erforderlich');
     }
 

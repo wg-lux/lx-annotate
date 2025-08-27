@@ -2,6 +2,7 @@ import { ref, computed, onMounted, watch } from 'vue';
 import axiosInstance from '@/api/axiosInstance';
 import { usePatientStore } from '@/stores/patientStore';
 import { useExaminationStore } from '@/stores/examinationStore';
+import PatientAdder from '@/components/CaseGenerator/PatientAdder.vue';
 // --- Store ---
 const patientStore = usePatientStore();
 const examinationStore = useExaminationStore();
@@ -15,8 +16,14 @@ const lookupToken = ref(null);
 const lookup = ref(null);
 const error = ref(null);
 const loading = ref(false);
+const showCreatePatientModal = ref(false);
+const successMessage = ref(null);
 // --- Computed from Store ---
-const patients = computed(() => patientStore.patientsWithDisplayName);
+const patients = computed(() => {
+    const result = patientStore.patientsWithDisplayName;
+    console.log('Patients with display_name:', result); // Zum Debuggen
+    return result;
+});
 const isLoadingPatients = computed(() => patientStore.loading);
 const examinationsDropdown = computed(() => examinationStore.examinationsDropdown);
 const isLoadingExaminations = computed(() => examinationStore.loading);
@@ -131,6 +138,25 @@ function toggleRequirementSet(id, on) {
     selectedRequirementSetIds.value = Array.from(s);
     patchLookup({ selectedRequirementSetIds: selectedRequirementSetIds.value });
 }
+function closeCreatePatientModal() {
+    showCreatePatientModal.value = false;
+    // Store-Fehler löschen beim Schließen
+    patientStore.clearError();
+}
+function onPatientCreated(patient) {
+    // Patient wurde erfolgreich erstellt - automatisch auswählen
+    selectedPatientId.value = patient.id || null;
+    // Modal schließen
+    showCreatePatientModal.value = false;
+    // Store-Fehler löschen (falls vorhanden)
+    patientStore.clearError();
+    // Erfolgsmeldung anzeigen
+    successMessage.value = `Patient "${patient.first_name} ${patient.last_name}" wurde erfolgreich erstellt und ausgewählt!`;
+    // Nach 5 Sekunden ausblenden
+    setTimeout(() => {
+        successMessage.value = null;
+    }, 5000);
+}
 // --- Watchers ---
 watch(selectedExaminationId, (newId) => {
     examinationStore.setSelectedExamination(newId);
@@ -139,15 +165,21 @@ watch(selectedExaminationId, (newId) => {
     }
 });
 // --- Lifecycle ---
-onMounted(() => {
-    patientStore.fetchPatients();
-    examinationStore.fetchExaminations();
+onMounted(async () => {
+    // Patienten und Untersuchungen laden
+    await Promise.all([
+        patientStore.fetchPatients(),
+        examinationStore.fetchExaminations()
+    ]);
+    // Nachschlagedaten für Patientenerstellung laden
+    await patientStore.initializeLookupData();
 });
 ; /* PartiallyEnd: #3632/scriptSetup.vue */
 function __VLS_template() {
     const __VLS_ctx = {};
     let __VLS_components;
     let __VLS_directives;
+    ['btn-close', 'btn-close', 'btn-close',];
     // CSS variable injection 
     // CSS variable injection end 
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -191,8 +223,22 @@ function __VLS_template() {
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: ("form-group") },
     });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: ("d-flex justify-content-between align-items-center mb-2") },
+    });
     __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
         for: ("patient-select"),
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+        ...{ onClick: (...[$event]) => {
+                __VLS_ctx.showCreatePatientModal = true;
+            } },
+        type: ("button"),
+        ...{ class: ("btn btn-sm btn-outline-primary") },
+        disabled: ((__VLS_ctx.isLoadingPatients || __VLS_ctx.loading)),
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+        ...{ class: ("fas fa-plus") },
     });
     __VLS_elementAsFunction(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
         id: ("patient-select"),
@@ -210,7 +256,7 @@ function __VLS_template() {
             key: ((patient.id)),
             value: ((patient.id)),
         });
-        (patient.display_name);
+        (patient.displayName);
     }
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: ("col-md-6") },
@@ -386,7 +432,71 @@ function __VLS_template() {
         __VLS_elementAsFunction(__VLS_intrinsicElements.code, __VLS_intrinsicElements.code)({});
         (__VLS_ctx.selectionsPretty);
     }
-    ['requirement-generator', 'container-fluid', 'py-4', 'alert', 'alert-danger', 'card', 'mb-3', 'card-header', 'h5', 'mb-0', 'card-body', 'row', 'align-items-end', 'col-md-6', 'form-group', 'form-control', 'col-md-6', 'form-group', 'form-control', 'row', 'mt-3', 'col-12', 'btn', 'btn-primary', 'spinner-border', 'spinner-border-sm', 'row', 'g-3', 'col-12', 'col-xl-6', 'card', 'h-100', 'card-header', 'd-flex', 'justify-content-between', 'align-items-center', 'h5', 'mb-0', 'text-muted', 'btn', 'btn-sm', 'btn-outline-secondary', 'card-body', 'list-group', 'list-group-flush', 'list-group-item', 'd-flex', 'justify-content-between', 'align-items-center', 'fw-semibold', 'text-muted', 'd-block', 'form-check', 'form-switch', 'form-check-input', 'list-group-item', 'text-muted', 'col-12', 'col-xl-6', 'card', 'h-100', 'card-header', 'h5', 'mb-0', 'card-body', 'list-group', 'list-group-flush', 'list-group-item', 'text-muted', 'row', 'g-3', 'mt-3', 'col-12', 'card', 'card-header', 'h5', 'mb-0', 'card-body', 'bg-light', 'p-2', 'rounded',];
+    if (__VLS_ctx.successMessage) {
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("alert alert-success alert-dismissible") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+        (__VLS_ctx.successMessage);
+        __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+            ...{ onClick: (...[$event]) => {
+                    if (!((__VLS_ctx.successMessage)))
+                        return;
+                    __VLS_ctx.successMessage = null;
+                } },
+            type: ("button"),
+            ...{ class: ("btn-close") },
+        });
+    }
+    if (__VLS_ctx.showCreatePatientModal) {
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ onClick: (__VLS_ctx.closeCreatePatientModal) },
+            ...{ class: ("modal-overlay") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ onClick: () => { } },
+            ...{ class: ("modal-dialog") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("modal-content") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("modal-header") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.h5, __VLS_intrinsicElements.h5)({
+            ...{ class: ("modal-title") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+            ...{ onClick: (__VLS_ctx.closeCreatePatientModal) },
+            type: ("button"),
+            ...{ class: ("btn-close") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("modal-body") },
+        });
+        // @ts-ignore
+        /** @type { [typeof PatientAdder, ] } */ ;
+        // @ts-ignore
+        const __VLS_0 = __VLS_asFunctionalComponent(PatientAdder, new PatientAdder({
+            ...{ 'onPatientCreated': {} },
+            ...{ 'onCancel': {} },
+        }));
+        const __VLS_1 = __VLS_0({
+            ...{ 'onPatientCreated': {} },
+            ...{ 'onCancel': {} },
+        }, ...__VLS_functionalComponentArgsRest(__VLS_0));
+        let __VLS_5;
+        const __VLS_6 = {
+            onPatientCreated: (__VLS_ctx.onPatientCreated)
+        };
+        const __VLS_7 = {
+            onCancel: (__VLS_ctx.closeCreatePatientModal)
+        };
+        let __VLS_2;
+        let __VLS_3;
+        var __VLS_4;
+    }
+    ['requirement-generator', 'container-fluid', 'py-4', 'alert', 'alert-danger', 'card', 'mb-3', 'card-header', 'h5', 'mb-0', 'card-body', 'row', 'align-items-end', 'col-md-6', 'form-group', 'd-flex', 'justify-content-between', 'align-items-center', 'mb-2', 'btn', 'btn-sm', 'btn-outline-primary', 'fas', 'fa-plus', 'form-control', 'col-md-6', 'form-group', 'form-control', 'row', 'mt-3', 'col-12', 'btn', 'btn-primary', 'spinner-border', 'spinner-border-sm', 'row', 'g-3', 'col-12', 'col-xl-6', 'card', 'h-100', 'card-header', 'd-flex', 'justify-content-between', 'align-items-center', 'h5', 'mb-0', 'text-muted', 'btn', 'btn-sm', 'btn-outline-secondary', 'card-body', 'list-group', 'list-group-flush', 'list-group-item', 'd-flex', 'justify-content-between', 'align-items-center', 'fw-semibold', 'text-muted', 'd-block', 'form-check', 'form-switch', 'form-check-input', 'list-group-item', 'text-muted', 'col-12', 'col-xl-6', 'card', 'h-100', 'card-header', 'h5', 'mb-0', 'card-body', 'list-group', 'list-group-flush', 'list-group-item', 'text-muted', 'row', 'g-3', 'mt-3', 'col-12', 'card', 'card-header', 'h5', 'mb-0', 'card-body', 'bg-light', 'p-2', 'rounded', 'alert', 'alert-success', 'alert-dismissible', 'btn-close', 'modal-overlay', 'modal-dialog', 'modal-content', 'modal-header', 'modal-title', 'btn-close', 'modal-body',];
     var __VLS_slots;
     var $slots;
     let __VLS_inheritedAttrs;
@@ -405,6 +515,7 @@ function __VLS_template() {
 const __VLS_self = (await import('vue')).defineComponent({
     setup() {
         return {
+            PatientAdder: PatientAdder,
             patientStore: patientStore,
             examinationStore: examinationStore,
             selectedPatientId: selectedPatientId,
@@ -413,6 +524,8 @@ const __VLS_self = (await import('vue')).defineComponent({
             lookup: lookup,
             error: error,
             loading: loading,
+            showCreatePatientModal: showCreatePatientModal,
+            successMessage: successMessage,
             patients: patients,
             isLoadingPatients: isLoadingPatients,
             examinationsDropdown: examinationsDropdown,
@@ -424,6 +537,8 @@ const __VLS_self = (await import('vue')).defineComponent({
             createPatientExaminationAndInitLookup: createPatientExaminationAndInitLookup,
             fetchLookupAll: fetchLookupAll,
             toggleRequirementSet: toggleRequirementSet,
+            closeCreatePatientModal: closeCreatePatientModal,
+            onPatientCreated: onPatientCreated,
         };
     },
 });
