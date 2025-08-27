@@ -2,7 +2,9 @@
 	path = libs/lx-anonymizer
 	url = https://github.com/wg-lux/lx-anonymizer.git
 	branch = temp_kubernetes
+	ignore = all
 [submodule "libs/endoreg-db"]
 	path = libs/endoreg-db
 	url = https://github.com/wg-lux/endoreg-db.git
 	branch = prototype
+	ignore = all
