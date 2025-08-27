@@ -28,6 +28,6 @@ let
 
   customTasks = {
     
-  } //envTasks //deployTasks //purgeTasks //vueTasks //uvTasks //dbTasks;
+  } //envTasks //deployTasks //vueTasks //uvTasks //dbTasks; # //purgeTasks;
 
 in customTasks 

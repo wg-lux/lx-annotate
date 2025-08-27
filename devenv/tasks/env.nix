@@ -16,12 +16,12 @@ let
       exec = "uv run env_setup.py";
       status = "test -f .env";
     };
-    "env:clean" = {
-      description = "Remove the uv virtual environment and lock file for a clean sync";
-      exec = ''
-        rm -rf .devenv/state/venv
-        rm -f uv.lock
-      '';
-    };
+    # "env:clean" = {
+    #   description = "Remove the uv virtual environment and lock file for a clean sync";
+    #   exec = ''
+    #     rm -rf .devenv/state/venv
+    #     rm -f uv.lock
+    #   '';
+    # };
   };
 in customTasks
