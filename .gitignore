@@ -15,6 +15,7 @@ result
 result/
 result/*
 data/
+conf/*
 endoreg-db/
 lx-annotate/endoreg-db/
 # ignore any file that ends with .env anywhere
@@ -22,7 +23,7 @@ lx-annotate/endoreg-db/
 .devenv/
 .direnv/
 .devenv.flake.nix
-devenv.lock
+# devenv.lock
 .devenv.nix
 .env
 flake.json
