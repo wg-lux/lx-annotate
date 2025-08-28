@@ -19,10 +19,7 @@ COPY pyproject.toml /app/
 # NOTE: Make sure your local working tree has submodules checked out.
 COPY . /app
 
-# Create non-root user
-RUN useradd -m appuser
-RUN mkdir -p /data /app/conf /app/staticfiles && chown -R appuser:appuser /data /app
-USER appuser
+# (Don't switch user yet)
 
 # Upgrade pip tooling
 RUN python -m pip install --no-cache-dir --upgrade pip setuptools wheel
@@ -50,7 +47,7 @@ ENV DJANGO_SETTINGS_MODULE=lx_annotate.settings \
 # 3) runs migrate + collectstatic
 # 4) starts daphne
 # We keep it simple to avoid repeating this logic in an initContainer.
-COPY --chown=appuser:appuser ./ /app
+# COPY --chown=appuser:appuser ./ /app #happens before appuser exists. That can fail on many bases (the user/group doesn’t exist yet at that layer)
 RUN printf '%s\n' \
 '#!/usr/bin/env bash' \
 'set -euo pipefail' \
@@ -66,6 +63,13 @@ RUN printf '%s\n' \
 'exec daphne -b 0.0.0.0 -p "${PORT}" lx_annotate.asgi:application' \
 > /app/entrypoint.sh \
  && chmod +x /app/entrypoint.sh
+
+
+# NOW create/switch to non-root user (AFTER installs)
+RUN useradd -m appuser
+RUN mkdir -p /data /app/conf /app/staticfiles && chown -R appuser:appuser /data /app
+USER appuser
+
 
 EXPOSE 8000
 CMD ["/app/entrypoint.sh"]
