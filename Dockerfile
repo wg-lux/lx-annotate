@@ -15,11 +15,10 @@ COPY pyproject.toml /app/
 # If you have a README or license referenced by pyproject, copy them too:
 # COPY README.md /app/
 
-# Copy the rest of the repo, including submodules and templates
-# NOTE: Make sure your local working tree has submodules checked out.
-COPY . /app
 
-# (Don't switch user yet)
+#  Copy only the submodules, then install them (as root)
+COPY libs/endoreg-db /app/libs/endoreg-db
+COPY libs/lx-anonymizer /app/libs/lx-anonymizer
 
 # Upgrade pip tooling
 RUN python -m pip install --no-cache-dir --upgrade pip setuptools wheel
@@ -28,6 +27,16 @@ RUN python -m pip install --no-cache-dir --upgrade pip setuptools wheel
 # Your pyproject declares workspace members libs/endoreg-db and libs/lx-anonymizer. :contentReference[oaicite:4]{index=4}
 # We install them explicitly as editable so we don't need PyPI:
 RUN pip install --no-cache-dir -e libs/endoreg-db -e libs/lx-anonymizer
+
+
+# Copy the rest of the repo, including submodules and templates
+# NOTE: Make sure your local working tree has submodules checked out.
+COPY . /app
+
+# (Don't switch user yet)
+
+
+
 
 # Install the main project (editable so manage.py etc. stay in-place)
 RUN pip install --no-cache-dir -e .
