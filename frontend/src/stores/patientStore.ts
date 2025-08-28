@@ -123,8 +123,12 @@ export const usePatientStore = defineStore('patient', () => {
         }
     }
 
+    const getPatientById = (id: number): Patient | undefined => {
+        return patients.value.find(patient => patient.id === id);
+    };
+
     const clearError = () => {
-        error.value = null
+        error.value = null;
     }
 
     // Helper functions
@@ -202,6 +206,14 @@ export const usePatientStore = defineStore('patient', () => {
         await fetchCenters()
     }
 
+    const clearCurrentPatient = () => {
+        currentPatient.value = null;
+    }
+
+    const getCurrentPatient = (): Patient | null => {
+        return currentPatient.value;
+    }
+
     return {
         // State
         patients,
@@ -227,10 +239,13 @@ export const usePatientStore = defineStore('patient', () => {
         updatePatient,
         deletePatient,
         clearError,
+        getPatientById,
         calculatePatientAge,
         getGenderDisplayName,
         getCenterDisplayName,
         validatePatientForm,
-        formatPatientForSubmission
+        formatPatientForSubmission,
+        clearCurrentPatient,
+        getCurrentPatient,
     }
 })

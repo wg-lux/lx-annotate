@@ -205,7 +205,7 @@
                   <div class="info-item">
                     <label>Datentyp:</label>
                     <span>
-                      <span v-if="patient.is_real_person" class="badge bg-success">
+                      <span v-if="patient.isRealPerson" class="badge bg-success">
                         <i class="fas fa-shield-alt"></i>
                         Realer Patient
                       </span>
@@ -461,7 +461,7 @@
                                   <div class="info-item">
                                     <label>Datentyp:</label>
                                     <span>
-                                      <span v-if="patient.is_real_person" class="badge bg-success">
+                                      <span v-if="patient.isRealPerson" class="badge bg-success">
                                         <i class="fas fa-shield-alt"></i>
                                         Realer Patient
                                       </span>

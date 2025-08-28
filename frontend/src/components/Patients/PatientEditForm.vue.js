@@ -14,27 +14,27 @@ const deletionInfo = ref(null);
 // Form data
 const form = reactive({
     id: props.patient.id || null,
-    first_name: props.patient.first_name || '',
-    last_name: props.patient.last_name || '',
+    firstName: props.patient.firstName || '',
+    lastName: props.patient.lastName || '',
     dob: props.patient.dob ? props.patient.dob.split('T')[0] : null,
     gender: props.patient.gender || null,
     center: props.patient.center || null,
     email: props.patient.email || '',
     phone: props.patient.phone || '',
-    patient_hash: props.patient.patient_hash || '',
+    patientHash: props.patient.patientHash || '',
     comments: '', // Not used in this form
-    is_real_person: props.patient.is_real_person ?? true
+    isRealPerson: props.patient.isRealPerson ?? true
 });
 // Validation errors
 const errors = reactive({
-    first_name: '',
-    last_name: '',
+    firstName: '',
+    lastName: '',
     dob: '',
     gender: '',
     center: '',
     email: '',
     phone: '',
-    patient_hash: ''
+    patientHash: ''
 });
 // Computed
 const genders = computed(() => patientStore.genders);
@@ -44,7 +44,7 @@ const maxDate = computed(() => {
     return today.toISOString().split('T')[0];
 });
 const isFormValid = computed(() => {
-    return form.first_name.trim() && form.last_name.trim() && !Object.values(errors).some(error => error);
+    return form.firstName.trim() && form.lastName.trim() && !Object.values(errors).some(error => error);
 });
 // Methods
 const validateForm = () => {
@@ -54,12 +54,12 @@ const validateForm = () => {
     });
     let isValid = true;
     // Validate required fields
-    if (!form.first_name.trim()) {
-        errors.first_name = 'Vorname ist erforderlich';
+    if (!form.firstName.trim()) {
+        errors.firstName = 'Vorname ist erforderlich';
         isValid = false;
     }
-    if (!form.last_name.trim()) {
-        errors.last_name = 'Nachname ist erforderlich';
+    if (!form.lastName.trim()) {
+        errors.lastName = 'Nachname ist erforderlich';
         isValid = false;
     }
     // Validate email format
@@ -176,45 +176,45 @@ function __VLS_template() {
         ...{ class: ("form-group") },
     });
     __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
-        for: ("first_name"),
+        for: ("firstName"),
         ...{ class: ("form-label required") },
     });
     __VLS_elementAsFunction(__VLS_intrinsicElements.input, __VLS_intrinsicElements.input)({
-        id: ("first_name"),
-        value: ((__VLS_ctx.form.first_name)),
+        id: ("firstName"),
+        value: ((__VLS_ctx.form.firstName)),
         type: ("text"),
         ...{ class: ("form-control") },
-        ...{ class: (({ 'is-invalid': __VLS_ctx.errors.first_name })) },
+        ...{ class: (({ 'is-invalid': __VLS_ctx.errors.firstName })) },
         required: (true),
         maxlength: ("100"),
     });
-    if (__VLS_ctx.errors.first_name) {
+    if (__VLS_ctx.errors.firstName) {
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: ("invalid-feedback") },
         });
-        (__VLS_ctx.errors.first_name);
+        (__VLS_ctx.errors.firstName);
     }
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: ("form-group") },
     });
     __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
-        for: ("last_name"),
+        for: ("lastName"),
         ...{ class: ("form-label required") },
     });
     __VLS_elementAsFunction(__VLS_intrinsicElements.input, __VLS_intrinsicElements.input)({
-        id: ("last_name"),
-        value: ((__VLS_ctx.form.last_name)),
+        id: ("lastName"),
+        value: ((__VLS_ctx.form.lastName)),
         type: ("text"),
         ...{ class: ("form-control") },
-        ...{ class: (({ 'is-invalid': __VLS_ctx.errors.last_name })) },
+        ...{ class: (({ 'is-invalid': __VLS_ctx.errors.lastName })) },
         required: (true),
         maxlength: ("100"),
     });
-    if (__VLS_ctx.errors.last_name) {
+    if (__VLS_ctx.errors.lastName) {
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: ("invalid-feedback") },
         });
-        (__VLS_ctx.errors.last_name);
+        (__VLS_ctx.errors.lastName);
     }
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: ("form-group") },
@@ -261,7 +261,7 @@ function __VLS_template() {
             key: ((gender.id)),
             value: ((gender.name)),
         });
-        (gender.name_de || gender.name);
+        (gender.nameDe || gender.name);
     }
     if (__VLS_ctx.errors.gender) {
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -341,7 +341,7 @@ function __VLS_template() {
             key: ((center.id)),
             value: ((center.name)),
         });
-        (center.name_de || center.name);
+        (center.nameDe || center.name);
     }
     if (__VLS_ctx.errors.center) {
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -356,14 +356,14 @@ function __VLS_template() {
         ...{ class: ("form-check") },
     });
     __VLS_elementAsFunction(__VLS_intrinsicElements.input, __VLS_intrinsicElements.input)({
-        id: ("is_real_person"),
+        id: ("isRealPerson"),
         ...{ class: ("form-check-input") },
         type: ("checkbox"),
     });
-    (__VLS_ctx.form.is_real_person);
+    (__VLS_ctx.form.isRealPerson);
     __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
         ...{ class: ("form-check-label") },
-        for: ("is_real_person"),
+        for: ("isRealPerson"),
     });
     __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
     __VLS_elementAsFunction(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
@@ -457,8 +457,8 @@ function __VLS_template() {
         __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
         __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
         __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
-        (__VLS_ctx.patient.first_name);
-        (__VLS_ctx.patient.last_name);
+        (__VLS_ctx.patient.firstName);
+        (__VLS_ctx.patient.lastName);
         if (__VLS_ctx.deletionInfo) {
             __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
                 ...{ class: ("deletion-info") },

@@ -1,14 +1,10 @@
+import type { Finding } from '@/stores/findingStore';
 export interface Examination {
     id: number;
     name: string;
     name_de?: string;
     name_en?: string;
-    display_name?: string;
-}
-export interface Finding {
-    id: number;
-    name: string;
-    name_de?: string;
+    displayName?: string;
 }
 export interface LocationClassificationChoice {
     id: number;
@@ -54,13 +50,28 @@ export declare const useExaminationStore: import("pinia").StoreDefinition<"exami
             name: string;
             name_de?: string | undefined;
             name_en?: string | undefined;
-            display_name?: string | undefined;
+            displayName?: string | undefined;
         }[];
         selectedExaminationId: number | null;
         findingsByExam: Map<number, {
             id: number;
             name: string;
-            name_de?: string | undefined;
+            nameDe?: string | undefined;
+            description: string;
+            examinations: string[];
+            FindingClassifications: {
+                id: number;
+                name?: string | undefined;
+                description?: string | undefined;
+                classificationType?: string[] | undefined;
+                choices?: {
+                    id: number;
+                    name: string;
+                }[] | undefined;
+                required?: boolean | undefined;
+            }[];
+            findingTypes: string[];
+            findingInterventions: string[];
         }[]> & Omit<Map<number, Finding[]>, keyof Map<any, any>>;
         classificationsByFinding: Map<number, {
             locationClassifications: {
@@ -102,13 +113,28 @@ export declare const useExaminationStore: import("pinia").StoreDefinition<"exami
             name: string;
             name_de?: string | undefined;
             name_en?: string | undefined;
-            display_name?: string | undefined;
+            displayName?: string | undefined;
         }[];
         selectedExaminationId: number | null;
         findingsByExam: Map<number, {
             id: number;
             name: string;
-            name_de?: string | undefined;
+            nameDe?: string | undefined;
+            description: string;
+            examinations: string[];
+            FindingClassifications: {
+                id: number;
+                name?: string | undefined;
+                description?: string | undefined;
+                classificationType?: string[] | undefined;
+                choices?: {
+                    id: number;
+                    name: string;
+                }[] | undefined;
+                required?: boolean | undefined;
+            }[];
+            findingTypes: string[];
+            findingInterventions: string[];
         }[]> & Omit<Map<number, Finding[]>, keyof Map<any, any>>;
         classificationsByFinding: Map<number, {
             locationClassifications: {
@@ -144,7 +170,7 @@ export declare const useExaminationStore: import("pinia").StoreDefinition<"exami
     }>): {
         id: number;
         name: string;
-        display_name: string;
+        displayName: string;
     }[];
     selectedExamination(state: {
         loading: boolean;
@@ -154,13 +180,28 @@ export declare const useExaminationStore: import("pinia").StoreDefinition<"exami
             name: string;
             name_de?: string | undefined;
             name_en?: string | undefined;
-            display_name?: string | undefined;
+            displayName?: string | undefined;
         }[];
         selectedExaminationId: number | null;
         findingsByExam: Map<number, {
             id: number;
             name: string;
-            name_de?: string | undefined;
+            nameDe?: string | undefined;
+            description: string;
+            examinations: string[];
+            FindingClassifications: {
+                id: number;
+                name?: string | undefined;
+                description?: string | undefined;
+                classificationType?: string[] | undefined;
+                choices?: {
+                    id: number;
+                    name: string;
+                }[] | undefined;
+                required?: boolean | undefined;
+            }[];
+            findingTypes: string[];
+            findingInterventions: string[];
         }[]> & Omit<Map<number, Finding[]>, keyof Map<any, any>>;
         classificationsByFinding: Map<number, {
             locationClassifications: {
@@ -202,13 +243,28 @@ export declare const useExaminationStore: import("pinia").StoreDefinition<"exami
             name: string;
             name_de?: string | undefined;
             name_en?: string | undefined;
-            display_name?: string | undefined;
+            displayName?: string | undefined;
         }[];
         selectedExaminationId: number | null;
         findingsByExam: Map<number, {
             id: number;
             name: string;
-            name_de?: string | undefined;
+            nameDe?: string | undefined;
+            description: string;
+            examinations: string[];
+            FindingClassifications: {
+                id: number;
+                name?: string | undefined;
+                description?: string | undefined;
+                classificationType?: string[] | undefined;
+                choices?: {
+                    id: number;
+                    name: string;
+                }[] | undefined;
+                required?: boolean | undefined;
+            }[];
+            findingTypes: string[];
+            findingInterventions: string[];
         }[]> & Omit<Map<number, Finding[]>, keyof Map<any, any>>;
         classificationsByFinding: Map<number, {
             locationClassifications: {
@@ -246,16 +302,16 @@ export declare const useExaminationStore: import("pinia").StoreDefinition<"exami
     setSelectedExamination(id: number | null): void;
     /**
      * Load examinations list.
-     * You have 2 viable endpoints in your project:
+     * #TODO: You have 2 viable endpoints in your project:
      *  - /api/examinations/  (generic list)
      *  - /api/patient-examinations/examinations_dropdown/ (already tailored for dropdown)
      *
-     * Pick ONE. Below I show the dropdown endpoint because it already returns display_name.
+     * Pick ONE. Below I show the dropdown endpoint because it already returns displayName.
      */
     fetchExaminations(): Promise<void>;
     /**
      * Findings for the selected exam.
-     * Your URLs (from show_urls): /api/examinations/<int:examination_id>/findings/
+     * URLs (from show_urls): /api/examinations/<int:examination_id>/findings/
      */
     loadFindingsForExamination(examId: number): Promise<Finding[]>;
     /**

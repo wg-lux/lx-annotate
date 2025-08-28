@@ -27,6 +27,17 @@ REST_FRAMEWORK["DEFAULT_PERMISSION_CLASSES"] = [
     "rest_framework.permissions.AllowAny"
 ]
 
+#TODO implement cache for kubernetes deployment version (e.g. redis)
+# Use database-backed cache for development since it's easy to set up
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.db.DatabaseCache",
+        "LOCATION": "django_cache_table",
+        "TIMEOUT": 60 * 30,  # oder None für nie
+    }
+}
+
+
 if DEBUG:
     permission_classes = [AllowAny]    # plain attribute is enough
 else:

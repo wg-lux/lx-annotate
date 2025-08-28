@@ -9,16 +9,16 @@ const loading = ref(false);
 const errors = ref({});
 const form = ref({
     id: null,
-    first_name: '',
-    last_name: '',
+    firstName: '',
+    lastName: '',
     dob: null,
     email: '',
     phone: '',
     gender: null,
     center: null,
-    patient_hash: '',
+    patientHash: '',
     comments: '',
-    is_real_person: true
+    isRealPerson: true
 });
 // Computed
 const genders = computed(() => patientStore.genders);
@@ -41,19 +41,19 @@ const calculatedAge = computed(() => {
     }
 });
 const isFormValid = computed(() => {
-    return form.value.first_name.trim() !== '' &&
-        form.value.last_name.trim() !== '' &&
+    return form.value.firstName.trim() !== '' &&
+        form.value.lastName.trim() !== '' &&
         Object.keys(errors.value).length === 0;
 });
 // Methods
 const validateForm = () => {
     errors.value = {};
     // Required fields
-    if (!form.value.first_name?.trim()) {
-        errors.value.first_name = 'Vorname ist erforderlich';
+    if (!form.value.firstName?.trim()) {
+        errors.value.firstName = 'Vorname ist erforderlich';
     }
-    if (!form.value.last_name?.trim()) {
-        errors.value.last_name = 'Nachname ist erforderlich';
+    if (!form.value.lastName?.trim()) {
+        errors.value.lastName = 'Nachname ist erforderlich';
     }
     // Date validation
     if (form.value.dob) {
@@ -98,16 +98,16 @@ const handleSubmit = async () => {
         // Reset form
         form.value = {
             id: null,
-            first_name: '',
-            last_name: '',
+            firstName: '',
+            lastName: '',
             dob: null,
             email: '',
             phone: '',
             gender: null,
             center: null,
-            patient_hash: '',
+            patientHash: '',
             comments: '',
-            is_real_person: true
+            isRealPerson: true
         };
         // Emit event with the created patient
         emit('patient-created', newPatient);
@@ -200,19 +200,19 @@ function __VLS_template() {
         ...{ class: ("required") },
     });
     __VLS_elementAsFunction(__VLS_intrinsicElements.input)({
-        value: ((__VLS_ctx.form.first_name)),
+        value: ((__VLS_ctx.form.firstName)),
         type: ("text"),
         id: ("firstName"),
         ...{ class: ("form-control") },
-        ...{ class: (({ 'is-invalid': __VLS_ctx.errors.first_name })) },
+        ...{ class: (({ 'is-invalid': __VLS_ctx.errors.firstName })) },
         required: (true),
         placeholder: ("Vorname eingeben"),
     });
-    if (__VLS_ctx.errors.first_name) {
+    if (__VLS_ctx.errors.firstName) {
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: ("invalid-feedback") },
         });
-        (__VLS_ctx.errors.first_name);
+        (__VLS_ctx.errors.firstName);
     }
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: ("col-md-6") },
@@ -225,19 +225,19 @@ function __VLS_template() {
         ...{ class: ("required") },
     });
     __VLS_elementAsFunction(__VLS_intrinsicElements.input)({
-        value: ((__VLS_ctx.form.last_name)),
+        value: ((__VLS_ctx.form.lastName)),
         type: ("text"),
         id: ("lastName"),
         ...{ class: ("form-control") },
-        ...{ class: (({ 'is-invalid': __VLS_ctx.errors.last_name })) },
+        ...{ class: (({ 'is-invalid': __VLS_ctx.errors.lastName })) },
         required: (true),
         placeholder: ("Nachname eingeben"),
     });
-    if (__VLS_ctx.errors.last_name) {
+    if (__VLS_ctx.errors.lastName) {
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: ("invalid-feedback") },
         });
-        (__VLS_ctx.errors.last_name);
+        (__VLS_ctx.errors.lastName);
     }
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: ("row") },
@@ -293,7 +293,7 @@ function __VLS_template() {
             key: ((gender.id)),
             value: ((gender.name)),
         });
-        (gender.name_de || gender.name);
+        (gender.nameDe || gender.name);
     }
     if (__VLS_ctx.errors.gender) {
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -390,7 +390,7 @@ function __VLS_template() {
             key: ((center.id)),
             value: ((center.name)),
         });
-        (center.name_de || center.name);
+        (center.nameDe || center.name);
     }
     if (__VLS_ctx.errors.center) {
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -409,7 +409,7 @@ function __VLS_template() {
         type: ("checkbox"),
         ...{ class: ("form-check-input me-2") },
     });
-    (__VLS_ctx.form.is_real_person);
+    (__VLS_ctx.form.isRealPerson);
     __VLS_elementAsFunction(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
         ...{ class: ("form-text text-muted d-block") },
     });

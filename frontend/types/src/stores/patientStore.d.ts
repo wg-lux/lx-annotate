@@ -155,6 +155,7 @@ export declare const usePatientStore: import("pinia").StoreDefinition<"patient",
     updatePatient: (id: number, patientData: PatientFormData) => Promise<any>;
     deletePatient: (id: number) => Promise<void>;
     clearError: () => void;
+    getPatientById: (id: number) => Patient | undefined;
     calculatePatientAge: (dobString: string) => number | null;
     getGenderDisplayName: (genderName: string | null | undefined) => string;
     getCenterDisplayName: (centerName: string | null | undefined) => string;
@@ -163,7 +164,9 @@ export declare const usePatientStore: import("pinia").StoreDefinition<"patient",
         errors: string[];
     };
     formatPatientForSubmission: (formData: PatientFormData) => PatientFormData;
-}, "patients" | "currentPatient" | "genders" | "centers" | "loading" | "error">>, Pick<{
+    clearCurrentPatient: () => void;
+    getCurrentPatient: () => Patient | null;
+}, "loading" | "error" | "patients" | "currentPatient" | "genders" | "centers">>, Pick<{
     patients: import("vue").Ref<{
         id?: number | undefined;
         firstName: string;
@@ -318,6 +321,7 @@ export declare const usePatientStore: import("pinia").StoreDefinition<"patient",
     updatePatient: (id: number, patientData: PatientFormData) => Promise<any>;
     deletePatient: (id: number) => Promise<void>;
     clearError: () => void;
+    getPatientById: (id: number) => Patient | undefined;
     calculatePatientAge: (dobString: string) => number | null;
     getGenderDisplayName: (genderName: string | null | undefined) => string;
     getCenterDisplayName: (centerName: string | null | undefined) => string;
@@ -326,6 +330,8 @@ export declare const usePatientStore: import("pinia").StoreDefinition<"patient",
         errors: string[];
     };
     formatPatientForSubmission: (formData: PatientFormData) => PatientFormData;
+    clearCurrentPatient: () => void;
+    getCurrentPatient: () => Patient | null;
 }, "patientCount" | "patientsWithAge" | "patientsWithDisplayName">, Pick<{
     patients: import("vue").Ref<{
         id?: number | undefined;
@@ -481,6 +487,7 @@ export declare const usePatientStore: import("pinia").StoreDefinition<"patient",
     updatePatient: (id: number, patientData: PatientFormData) => Promise<any>;
     deletePatient: (id: number) => Promise<void>;
     clearError: () => void;
+    getPatientById: (id: number) => Patient | undefined;
     calculatePatientAge: (dobString: string) => number | null;
     getGenderDisplayName: (genderName: string | null | undefined) => string;
     getCenterDisplayName: (centerName: string | null | undefined) => string;
@@ -489,4 +496,6 @@ export declare const usePatientStore: import("pinia").StoreDefinition<"patient",
         errors: string[];
     };
     formatPatientForSubmission: (formData: PatientFormData) => PatientFormData;
-}, "fetchPatients" | "fetchGenders" | "fetchCenters" | "loadGenders" | "loadCenters" | "initializeLookupData" | "createPatient" | "updatePatient" | "deletePatient" | "clearError" | "calculatePatientAge" | "getGenderDisplayName" | "getCenterDisplayName" | "validatePatientForm" | "formatPatientForSubmission">>;
+    clearCurrentPatient: () => void;
+    getCurrentPatient: () => Patient | null;
+}, "clearError" | "fetchPatients" | "fetchGenders" | "fetchCenters" | "loadGenders" | "loadCenters" | "initializeLookupData" | "createPatient" | "updatePatient" | "deletePatient" | "getPatientById" | "calculatePatientAge" | "getGenderDisplayName" | "getCenterDisplayName" | "validatePatientForm" | "formatPatientForSubmission" | "clearCurrentPatient" | "getCurrentPatient">>;

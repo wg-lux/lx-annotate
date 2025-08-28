@@ -2,6 +2,7 @@ import { ref, computed } from 'vue';
 import { usePatientStore } from '@/stores/patientStore';
 import { patientService } from '@/api/patientService';
 import PatientEditForm from './PatientEditForm.vue';
+import camelcaseKeys from 'camelcase-keys';
 const props = defineProps();
 const emit = defineEmits();
 // Composables
@@ -42,7 +43,7 @@ const confirmDeletion = async () => {
     try {
         deleting.value = true;
         await patientService.deletePatient(props.patient.id);
-        successMessage.value = `Patient "${props.patient.first_name} ${props.patient.last_name}" wurde erfolgreich gelöscht.`;
+        successMessage.value = `Patient "${props.patient.firstName} ${props.patient.lastName}" wurde erfolgreich gelöscht.`;
         emit('patient-deleted', props.patient.id);
         closeDeletionModal();
     }
@@ -96,13 +97,13 @@ const getGenderDisplay = (genderValue) => {
     if (!genderValue)
         return 'Nicht angegeben';
     const gender = genders.value.find(g => g.name === genderValue);
-    return gender?.name_de || gender?.name || genderValue;
+    return gender?.nameDe || gender?.name || genderValue;
 };
 const getCenterDisplay = (centerValue) => {
     if (!centerValue)
         return 'Nicht zugeordnet';
     const center = centers.value.find(c => c.name === centerValue);
-    return center?.name_de || center?.name || centerValue;
+    return center?.nameDe || center?.name || centerValue;
 };
 // Pseudonamen-Funktionalität
 const generatePseudonym = async () => {
@@ -115,7 +116,7 @@ const generatePseudonym = async () => {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                sensitive_meta_id: props.patient.sensitive_meta_id,
+                sensitive_meta_id: props.patient.sensitiveMetaId,
                 regenerate: false
             })
         });
@@ -123,11 +124,13 @@ const generatePseudonym = async () => {
             throw new Error('Fehler beim Generieren der Pseudonamen');
         }
         const data = await response.json();
+        // Convert snake_case to camelCase
+        const convertedData = camelcaseKeys(data, { deep: true });
         // Update patient data mit neuen Pseudonamen
         const updatedPatient = {
             ...props.patient,
-            pseudonym_first_name: data.pseudonym_first_name,
-            pseudonym_last_name: data.pseudonym_last_name
+            pseudonymFirstName: convertedData.pseudonymFirstName,
+            pseudonymLastName: convertedData.pseudonymLastName
         };
         emit('patient-updated', updatedPatient);
         successMessage.value = 'Pseudonamen erfolgreich generiert!';
@@ -152,7 +155,7 @@ const regeneratePseudonym = async () => {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                sensitive_meta_id: props.patient.sensitive_meta_id,
+                sensitive_meta_id: props.patient.sensitiveMetaId,
                 regenerate: true
             })
         });
@@ -160,11 +163,13 @@ const regeneratePseudonym = async () => {
             throw new Error('Fehler beim Regenerieren der Pseudonamen');
         }
         const data = await response.json();
+        // Convert snake_case to camelCase
+        const convertedData = camelcaseKeys(data, { deep: true });
         // Update patient data mit neuen Pseudonamen
         const updatedPatient = {
             ...props.patient,
-            pseudonym_first_name: data.pseudonym_first_name,
-            pseudonym_last_name: data.pseudonym_last_name
+            pseudonymFirstName: convertedData.pseudonymFirstName,
+            pseudonymLastName: convertedData.pseudonymLastName
         };
         emit('patient-updated', updatedPatient);
         successMessage.value = 'Neue Pseudonamen erfolgreich generiert!';
@@ -201,9 +206,9 @@ function __VLS_template() {
     __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
         ...{ class: ("fas fa-user") },
     });
-    (__VLS_ctx.patient.first_name);
-    (__VLS_ctx.patient.last_name);
-    if (__VLS_ctx.patient.is_real_person) {
+    (__VLS_ctx.patient.firstName);
+    (__VLS_ctx.patient.lastName);
+    if (__VLS_ctx.patient.isRealPerson) {
         __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
             ...{ class: ("badge bg-success") },
         });
@@ -353,23 +358,23 @@ function __VLS_template() {
         });
         __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({});
         __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
-        (__VLS_ctx.patient.first_name || 'Nicht angegeben');
+        (__VLS_ctx.patient.firstName || 'Nicht angegeben');
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: ("info-item") },
         });
         __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({});
         __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
-        (__VLS_ctx.patient.last_name || 'Nicht angegeben');
+        (__VLS_ctx.patient.lastName || 'Nicht angegeben');
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: ("info-item") },
         });
         __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({});
-        if (__VLS_ctx.patient.pseudonym_first_name && __VLS_ctx.patient.pseudonym_last_name) {
+        if (__VLS_ctx.patient.pseudonymFirstName && __VLS_ctx.patient.pseudonymLastName) {
             __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
                 ...{ class: ("pseudonym-names") },
             });
-            (__VLS_ctx.patient.pseudonym_first_name);
-            (__VLS_ctx.patient.pseudonym_last_name);
+            (__VLS_ctx.patient.pseudonymFirstName);
+            (__VLS_ctx.patient.pseudonymLastName);
             __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
                 ...{ onClick: (__VLS_ctx.regeneratePseudonym) },
                 ...{ class: ("btn btn-outline-secondary btn-sm ms-2") },
@@ -492,7 +497,7 @@ function __VLS_template() {
         __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
             ...{ class: ("font-mono") },
         });
-        (__VLS_ctx.patient.patient_hash || 'Nicht generiert');
+        (__VLS_ctx.patient.patientHash || 'Nicht generiert');
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: ("row mt-3") },
         });
@@ -533,7 +538,7 @@ function __VLS_template() {
         });
         __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({});
         __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
-        if (__VLS_ctx.patient.is_real_person) {
+        if (__VLS_ctx.patient.isRealPerson) {
             __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
                 ...{ class: ("badge bg-success") },
             });
@@ -557,13 +562,13 @@ function __VLS_template() {
         });
         __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({});
         __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
-        (__VLS_ctx.formatDateTime(__VLS_ctx.patient.created_at));
+        (__VLS_ctx.formatDateTime(__VLS_ctx.patient.createdAt));
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: ("info-item") },
         });
         __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({});
         __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
-        (__VLS_ctx.formatDateTime(__VLS_ctx.patient.updated_at));
+        (__VLS_ctx.formatDateTime(__VLS_ctx.patient.updatedAt));
     }
     if (__VLS_ctx.showDeletionModal) {
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -626,9 +631,9 @@ function __VLS_template() {
             __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
                 ...{ class: ("fas fa-user") },
             });
-            (__VLS_ctx.patient.first_name);
-            (__VLS_ctx.patient.last_name);
-            if (__VLS_ctx.patient.is_real_person) {
+            (__VLS_ctx.patient.firstName);
+            (__VLS_ctx.patient.lastName);
+            if (__VLS_ctx.patient.isRealPerson) {
                 __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
                     ...{ class: ("badge bg-success") },
                 });
@@ -790,23 +795,23 @@ function __VLS_template() {
                 });
                 __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({});
                 __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
-                (__VLS_ctx.patient.first_name || 'Nicht angegeben');
+                (__VLS_ctx.patient.firstName || 'Nicht angegeben');
                 __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
                     ...{ class: ("info-item") },
                 });
                 __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({});
                 __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
-                (__VLS_ctx.patient.last_name || 'Nicht angegeben');
+                (__VLS_ctx.patient.lastName || 'Nicht angegeben');
                 __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
                     ...{ class: ("info-item") },
                 });
                 __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({});
-                if (__VLS_ctx.patient.pseudonym_first_name && __VLS_ctx.patient.pseudonym_last_name) {
+                if (__VLS_ctx.patient.pseudonymFirstName && __VLS_ctx.patient.pseudonymLastName) {
                     __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
                         ...{ class: ("pseudonym-names") },
                     });
-                    (__VLS_ctx.patient.pseudonym_first_name);
-                    (__VLS_ctx.patient.pseudonym_last_name);
+                    (__VLS_ctx.patient.pseudonymFirstName);
+                    (__VLS_ctx.patient.pseudonymLastName);
                     __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
                         ...{ onClick: (__VLS_ctx.regeneratePseudonym) },
                         ...{ class: ("btn btn-outline-secondary btn-sm ms-2") },
@@ -929,7 +934,7 @@ function __VLS_template() {
                 __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
                     ...{ class: ("font-mono") },
                 });
-                (__VLS_ctx.patient.patient_hash || 'Nicht generiert');
+                (__VLS_ctx.patient.patientHash || 'Nicht generiert');
                 __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
                     ...{ class: ("row mt-3") },
                 });
@@ -970,7 +975,7 @@ function __VLS_template() {
                 });
                 __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({});
                 __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
-                if (__VLS_ctx.patient.is_real_person) {
+                if (__VLS_ctx.patient.isRealPerson) {
                     __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
                         ...{ class: ("badge bg-success") },
                     });
@@ -994,13 +999,13 @@ function __VLS_template() {
                 });
                 __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({});
                 __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
-                (__VLS_ctx.formatDateTime(__VLS_ctx.patient.created_at));
+                (__VLS_ctx.formatDateTime(__VLS_ctx.patient.createdAt));
                 __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
                     ...{ class: ("info-item") },
                 });
                 __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({});
                 __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
-                (__VLS_ctx.formatDateTime(__VLS_ctx.patient.updated_at));
+                (__VLS_ctx.formatDateTime(__VLS_ctx.patient.updatedAt));
             }
             if (__VLS_ctx.showDeletionModal) {
                 __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({

@@ -1,0 +1,355 @@
+import { defineStore } from 'pinia'
+import { ref, computed } from 'vue'
+import axiosInstance from '@/api/axiosInstance'
+
+interface Requirement {
+    id: number;
+    name: string;
+    description?: string;
+    met: boolean;
+    details?: any;
+}
+
+interface RequirementSet {
+    id: number;
+    name: string;
+    description?: string;
+    type?: string;
+    requirements: Requirement[];
+    met: boolean; // Computed property
+}
+
+interface RequirementEvaluationResult {
+    requirement_name: string;
+    met: boolean;
+    details: any;
+}
+
+interface RequirementLinks {
+    examinations?: number[];
+    findings?: number[];
+    finding_classifications?: number[];
+    examination_indications?: number[];
+    indication_choices?: number[];
+    lab_values?: number[];
+    diseases?: number[];
+    disease_classification_choices?: number[];
+    events?: number[];
+    medications?: number[];
+    medication_indications?: number[];
+    medication_intake_times?: number[];
+    medication_schedules?: number[];
+    genders?: number[];
+}
+
+export const useRequirementStore = defineStore('requirement', () => {
+    // State
+    const requirementSets = ref<RequirementSet[]>([]);
+    const loading = ref(false);
+    const error = ref<string | null>(null);
+    const currentRequirementSet = ref<RequirementSet | null>(null);
+    const evaluationResults = ref<Record<number, RequirementEvaluationResult[]>>({});
+
+    // Computed
+    const isRequirementValidated = computed(() => {
+        return requirementSets.value.every(set => set.met);
+    });
+
+    const isRequirementSetValidated = computed(() => {
+        return currentRequirementSet.value ? currentRequirementSet.value.met : false;
+    });
+
+    const metRequirementsCount = computed(() => {
+        return requirementSets.value.reduce((count, set) => {
+            return count + set.requirements.filter(req => req.met).length;
+        }, 0);
+    });
+
+    const totalRequirementsCount = computed(() => {
+        return requirementSets.value.reduce((count, set) => {
+            return count + set.requirements.length;
+        }, 0);
+    });
+
+    // Actions
+    const setCurrentRequirementSet = (requirementSet: RequirementSet | null) => {
+        currentRequirementSet.value = requirementSet;
+    };
+
+    const fetchRequirementSets = async () => {
+        try {
+            loading.value = true;
+            error.value = null;
+            const response = await axiosInstance.get('/api/requirement-sets/');
+            requirementSets.value = response.data.results || response.data;
+        } catch (err: any) {
+            error.value = 'Fehler beim Laden der Anforderungssätze: ' + (err.response?.data?.detail || err.message);
+            console.error('Fetch requirement sets error:', err);
+        } finally {
+            loading.value = false;
+        }
+    };
+
+    const fetchRequirementSet = async (id: number): Promise<RequirementSet | null> => {
+        try {
+            const response = await axiosInstance.get(`/api/requirement-sets/${id}/`);
+            return response.data;
+        } catch (err: any) {
+            console.error(`Error fetching requirement set ${id}:`, err);
+            return null;
+        }
+    };
+
+    const evaluateRequirements = async (requirementSetIds?: number[], patientExaminationId?: number) => {
+        try {
+            loading.value = true;
+            error.value = null;
+
+            const payload: any = {
+                requirement_set_ids: requirementSetIds
+            };
+
+            if (patientExaminationId) {
+                payload.patient_examination_id = patientExaminationId;
+            }
+
+            const response = await axiosInstance.post('/api/evaluate-requirements/', payload);
+            const results = response.data.results || [];
+
+            // Update evaluation results
+            if (requirementSetIds) {
+                requirementSetIds.forEach(setId => {
+                    evaluationResults.value[setId] = results.filter((r: RequirementEvaluationResult) =>
+                        requirementSets.value.find(set => set.id === setId)?.requirements.some(req => req.name === r.requirement_name)
+                    );
+                });
+            } else {
+                // Store results for all sets
+                results.forEach((result: RequirementEvaluationResult) => {
+                    const setId = requirementSets.value.find(set =>
+                        set.requirements.some(req => req.name === result.requirement_name)
+                    )?.id;
+                    if (setId) {
+                        if (!evaluationResults.value[setId]) {
+                            evaluationResults.value[setId] = [];
+                        }
+                        evaluationResults.value[setId].push(result);
+                    }
+                });
+            }
+
+            // Update requirement met status
+            updateRequirementsStatus(results);
+
+            return results;
+        } catch (err: any) {
+            error.value = 'Fehler bei der Evaluierung der Anforderungen: ' + (err.response?.data?.detail || err.message);
+            console.error('Evaluate requirements error:', err);
+            throw err;
+        } finally {
+            loading.value = false;
+        }
+    };
+
+    const evaluateRequirementSet = async (requirementSetId: number, patientExaminationId?: number) => {
+        try {
+            loading.value = true;
+            error.value = null;
+
+            const payload: any = {
+                requirement_set_ids: [requirementSetId]
+            };
+
+            if (patientExaminationId) {
+                payload.patient_examination_id = patientExaminationId;
+            }
+
+            const response = await axiosInstance.post('/api/evaluate-requirement-set/', payload);
+            const results = response.data.results || [];
+
+            // Update evaluation results for this set
+            evaluationResults.value[requirementSetId] = results;
+
+            // Update requirement met status
+            updateRequirementsStatus(results);
+
+            return results;
+        } catch (err: any) {
+            error.value = 'Fehler bei der Evaluierung des Anforderungssatzes: ' + (err.response?.data?.detail || err.message);
+            console.error('Evaluate requirement set error:', err);
+            throw err;
+        } finally {
+            loading.value = false;
+        }
+    };
+
+    const updateRequirementsStatus = (results: RequirementEvaluationResult[]) => {
+        requirementSets.value.forEach(set => {
+            set.requirements.forEach(requirement => {
+                const result = results.find(r => r.requirement_name === requirement.name);
+                if (result) {
+                    requirement.met = result.met;
+                    requirement.details = result.details;
+                }
+            });
+            // Update set met status
+            set.met = set.requirements.every(req => req.met);
+        });
+
+        // Update current requirement set if it exists
+        if (currentRequirementSet.value) {
+            const currentSetResults = results.filter(r =>
+                currentRequirementSet.value!.requirements.some(req => req.name === r.requirement_name)
+            );
+            currentRequirementSet.value.requirements.forEach(requirement => {
+                const result = currentSetResults.find(r => r.requirement_name === requirement.name);
+                if (result) {
+                    requirement.met = result.met;
+                    requirement.details = result.details;
+                }
+            });
+            currentRequirementSet.value.met = currentRequirementSet.value.requirements.every(req => req.met);
+        }
+    };
+
+    const createRequirementLinksFromLookup = (lookupData: any): RequirementLinks => {
+        return {
+            examinations: lookupData.patientExaminationId ? [lookupData.patientExaminationId] : [],
+            findings: lookupData.availableFindings || [],
+            finding_classifications: lookupData.findingClassifications || [],
+            examination_indications: lookupData.examinationIndications || [],
+            indication_choices: lookupData.indicationChoices || [],
+            lab_values: lookupData.labValues || [],
+            diseases: lookupData.diseases || [],
+            disease_classification_choices: lookupData.diseaseClassificationChoices || [],
+            events: lookupData.events || [],
+            medications: lookupData.medications || [],
+            medication_indications: lookupData.medicationIndications || [],
+            medication_intake_times: lookupData.medicationIntakeTimes || [],
+            medication_schedules: lookupData.medicationSchedules || [],
+            genders: lookupData.genders || []
+        };
+    };
+
+    const evaluateFromLookupData = async (lookupData: any, requirementSetIds?: number[]) => {
+        const patientExaminationId = lookupData.patientExaminationId;
+        return await evaluateRequirements(requirementSetIds, patientExaminationId);
+    };
+
+    const evaluateCurrentSetFromLookupData = async (lookupData: any) => {
+        if (!currentRequirementSet.value) {
+            throw new Error('No current requirement set selected');
+        }
+        const patientExaminationId = lookupData.patientExaminationId;
+        return await evaluateRequirementSet(currentRequirementSet.value.id, patientExaminationId);
+    };
+
+    const getRequirementSetById = (id: number): RequirementSet | undefined => {
+        return requirementSets.value.find(set => set.id === id);
+    };
+
+    const getRequirementById = (setId: number, requirementId: number): Requirement | undefined => {
+        const set = getRequirementSetById(setId);
+        return set?.requirements.find(req => req.id === requirementId);
+    };
+
+    const clearError = () => {
+        error.value = null;
+    };
+    
+
+    const reset = () => {
+        requirementSets.value = [];
+        currentRequirementSet.value = null;
+        evaluationResults.value = {};
+        error.value = null;
+    };
+
+    const getRequirementSetEvaluationStatus = (requirementSetId: number) => {
+        const set = getRequirementSetById(requirementSetId);
+        if (!set) return null;
+
+        const metCount = set.requirements.filter(req => req.met).length;
+        const totalCount = set.requirements.length;
+
+        return {
+            met: set.met,
+            metRequirementsCount: metCount,
+            totalRequirementsCount: totalCount,
+            completionPercentage: totalCount > 0 ? Math.round((metCount / totalCount) * 100) : 0
+        };
+    };
+
+    const getRequirementEvaluationStatus = (requirementId: number) => {
+        for (const set of requirementSets.value) {
+            const requirement = set.requirements.find(req => req.id === requirementId);
+            if (requirement) {
+                return {
+                    met: requirement.met,
+                    details: requirement.details
+                };
+            }
+        }
+        return null;
+    };
+
+    const loadRequirementSetsFromLookup = (lookupData: any) => {
+        if (!lookupData.requirementsBySet) return;
+
+        const sets: RequirementSet[] = [];
+
+        Object.entries(lookupData.requirementsBySet).forEach(([setId, requirements]: [string, any]) => {
+            const setInfo = lookupData.requirementSets?.find((s: any) => s.id === parseInt(setId));
+            if (setInfo) {
+                sets.push({
+                    id: parseInt(setId),
+                    name: setInfo.name,
+                    description: setInfo.description,
+                    type: setInfo.type,
+                    requirements: requirements.map((req: any) => ({
+                        id: req.id,
+                        name: req.name,
+                        description: req.description,
+                        met: lookupData.requirementStatus?.[req.id] || false,
+                        details: null
+                    })),
+                    met: lookupData.requirementSetStatus?.[setId] || false
+                });
+            }
+        });
+
+        requirementSets.value = sets;
+    };
+
+    return {
+        // State
+        requirementSets,
+        currentRequirementSet,
+        evaluationResults,
+        loading,
+        error,
+
+        // Computed
+        isRequirementValidated,
+        isRequirementSetValidated,
+        metRequirementsCount,
+        totalRequirementsCount,
+
+        // Actions
+        setCurrentRequirementSet,
+        fetchRequirementSets,
+        fetchRequirementSet,
+        evaluateRequirements,
+        evaluateRequirementSet,
+        evaluateFromLookupData,
+        evaluateCurrentSetFromLookupData,
+        createRequirementLinksFromLookup,
+        getRequirementSetById,
+        getRequirementById,
+        getRequirementSetEvaluationStatus,
+        getRequirementEvaluationStatus,
+        loadRequirementSetsFromLookup,
+        clearError,
+        reset
+    };
+});

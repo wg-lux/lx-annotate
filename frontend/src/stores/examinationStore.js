@@ -19,7 +19,7 @@ export const useExaminationStore = defineStore('examination', {
             return state.exams.map(e => ({
                 id: e.id,
                 name: e.name,
-                display_name: e.display_name ?? e.name_de ?? e.name,
+                displayName: e.displayName ?? e.name_de ?? e.name,
             }));
         },
         selectedExamination(state) {
@@ -38,11 +38,11 @@ export const useExaminationStore = defineStore('examination', {
         },
         /**
          * Load examinations list.
-         * You have 2 viable endpoints in your project:
+         * #TODO: You have 2 viable endpoints in your project:
          *  - /api/examinations/  (generic list)
          *  - /api/patient-examinations/examinations_dropdown/ (already tailored for dropdown)
          *
-         * Pick ONE. Below I show the dropdown endpoint because it already returns display_name.
+         * Pick ONE. Below I show the dropdown endpoint because it already returns displayName.
          */
         async fetchExaminations() {
             this.loading = true;
@@ -55,7 +55,7 @@ export const useExaminationStore = defineStore('examination', {
                     name: e.name,
                     name_de: e.name_de,
                     name_en: e.name_en,
-                    display_name: e.display_name ?? e.name_de ?? e.name_en ?? e.name,
+                    displayName: e.displayName ?? e.name_de ?? e.name_en ?? e.name,
                 }));
             }
             catch (e) {
@@ -67,7 +67,7 @@ export const useExaminationStore = defineStore('examination', {
         },
         /**
          * Findings for the selected exam.
-         * Your URLs (from show_urls): /api/examinations/<int:examination_id>/findings/
+         * URLs (from show_urls): /api/examinations/<int:examination_id>/findings/
          */
         async loadFindingsForExamination(examId) {
             if (!examId)

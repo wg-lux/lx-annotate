@@ -1,84 +1,293 @@
-export declare const useRequirementStore: import("pinia").StoreDefinition<"requirement", import("pinia")._UnwrapAll<Pick<{
-    requirements: import("vue").Ref<{
-        id: string;
-        name: string;
-        description: string;
-        status: 'open' | 'true' | 'false';
-        errors?: string[] | undefined;
-        suggestions?: string[] | undefined;
-    }[], Requirement[] | {
-        id: string;
-        name: string;
-        description: string;
-        status: 'open' | 'true' | 'false';
-        errors?: string[] | undefined;
-        suggestions?: string[] | undefined;
-    }[]>;
-    addRequirement: (requirement: Requirement) => void;
-}, "requirements">>, Pick<{
-    requirements: import("vue").Ref<{
-        id: string;
-        name: string;
-        description: string;
-        status: 'open' | 'true' | 'false';
-        errors?: string[] | undefined;
-        suggestions?: string[] | undefined;
-    }[], Requirement[] | {
-        id: string;
-        name: string;
-        description: string;
-        status: 'open' | 'true' | 'false';
-        errors?: string[] | undefined;
-        suggestions?: string[] | undefined;
-    }[]>;
-    addRequirement: (requirement: Requirement) => void;
-}, never>, Pick<{
-    requirements: import("vue").Ref<{
-        id: string;
-        name: string;
-        description: string;
-        status: 'open' | 'true' | 'false';
-        errors?: string[] | undefined;
-        suggestions?: string[] | undefined;
-    }[], Requirement[] | {
-        id: string;
-        name: string;
-        description: string;
-        status: 'open' | 'true' | 'false';
-        errors?: string[] | undefined;
-        suggestions?: string[] | undefined;
-    }[]>;
-    addRequirement: (requirement: Requirement) => void;
-}, "addRequirement">>;
-export interface Requirement {
-    id: string;
+interface Requirement {
+    id: number;
     name: string;
-    description: string;
-    status: 'open' | 'true' | 'false';
-    errors?: string[];
-    suggestions?: string[];
+    description?: string;
+    met: boolean;
+    details?: any;
 }
-export interface RequirementSet {
-    id: string;
-    title: string;
+interface RequirementSet {
+    id: number;
+    name: string;
+    description?: string;
+    type?: string;
     requirements: Requirement[];
-    default: boolean;
+    met: boolean;
 }
-export interface Finding {
-    id: number;
-    title: string;
-    description: string;
-    severity: 'low' | 'medium' | 'high';
-    location: string;
-    recommendation: string;
-    status: 'open' | 'in_progress' | 'resolved';
-    createdAt: string;
-    updatedAt: string;
-    relatedRequirements?: Requirement[];
+interface RequirementEvaluationResult {
+    requirement_name: string;
+    met: boolean;
+    details: any;
 }
-export interface FindingClassification {
-    id: number;
-    name: string;
-    description: string;
-    choices: string[];
+interface RequirementLinks {
+    examinations?: number[];
+    findings?: number[];
+    finding_classifications?: number[];
+    examination_indications?: number[];
+    indication_choices?: number[];
+    lab_values?: number[];
+    diseases?: number[];
+    disease_classification_choices?: number[];
+    events?: number[];
+    medications?: number[];
+    medication_indications?: number[];
+    medication_intake_times?: number[];
+    medication_schedules?: number[];
+    genders?: number[];
 }
+export declare const useRequirementStore: import("pinia").StoreDefinition<"requirement", import("pinia")._UnwrapAll<Pick<{
+    requirementSets: import("vue").Ref<{
+        id: number;
+        name: string;
+        description?: string | undefined;
+        type?: string | undefined;
+        requirements: {
+            id: number;
+            name: string;
+            description?: string | undefined;
+            met: boolean;
+            details?: any;
+        }[];
+        met: boolean;
+    }[], RequirementSet[] | {
+        id: number;
+        name: string;
+        description?: string | undefined;
+        type?: string | undefined;
+        requirements: {
+            id: number;
+            name: string;
+            description?: string | undefined;
+            met: boolean;
+            details?: any;
+        }[];
+        met: boolean;
+    }[]>;
+    currentRequirementSet: import("vue").Ref<{
+        id: number;
+        name: string;
+        description?: string | undefined;
+        type?: string | undefined;
+        requirements: {
+            id: number;
+            name: string;
+            description?: string | undefined;
+            met: boolean;
+            details?: any;
+        }[];
+        met: boolean;
+    } | null, RequirementSet | {
+        id: number;
+        name: string;
+        description?: string | undefined;
+        type?: string | undefined;
+        requirements: {
+            id: number;
+            name: string;
+            description?: string | undefined;
+            met: boolean;
+            details?: any;
+        }[];
+        met: boolean;
+    } | null>;
+    evaluationResults: import("vue").Ref<Record<number, RequirementEvaluationResult[]>, Record<number, RequirementEvaluationResult[]>>;
+    loading: import("vue").Ref<boolean, boolean>;
+    error: import("vue").Ref<string | null, string | null>;
+    isRequirementValidated: import("vue").ComputedRef<boolean>;
+    isRequirementSetValidated: import("vue").ComputedRef<boolean>;
+    metRequirementsCount: import("vue").ComputedRef<number>;
+    totalRequirementsCount: import("vue").ComputedRef<number>;
+    setCurrentRequirementSet: (requirementSet: RequirementSet | null) => void;
+    fetchRequirementSets: () => Promise<void>;
+    fetchRequirementSet: (id: number) => Promise<RequirementSet | null>;
+    evaluateRequirements: (requirementSetIds?: number[], patientExaminationId?: number) => Promise<any>;
+    evaluateRequirementSet: (requirementSetId: number, patientExaminationId?: number) => Promise<any>;
+    evaluateFromLookupData: (lookupData: any, requirementSetIds?: number[]) => Promise<any>;
+    evaluateCurrentSetFromLookupData: (lookupData: any) => Promise<any>;
+    createRequirementLinksFromLookup: (lookupData: any) => RequirementLinks;
+    getRequirementSetById: (id: number) => RequirementSet | undefined;
+    getRequirementById: (setId: number, requirementId: number) => Requirement | undefined;
+    getRequirementSetEvaluationStatus: (requirementSetId: number) => {
+        met: boolean;
+        metRequirementsCount: number;
+        totalRequirementsCount: number;
+        completionPercentage: number;
+    } | null;
+    getRequirementEvaluationStatus: (requirementId: number) => {
+        met: boolean;
+        details: any;
+    } | null;
+    loadRequirementSetsFromLookup: (lookupData: any) => void;
+    clearError: () => void;
+    reset: () => void;
+}, "loading" | "error" | "requirementSets" | "currentRequirementSet" | "evaluationResults">>, Pick<{
+    requirementSets: import("vue").Ref<{
+        id: number;
+        name: string;
+        description?: string | undefined;
+        type?: string | undefined;
+        requirements: {
+            id: number;
+            name: string;
+            description?: string | undefined;
+            met: boolean;
+            details?: any;
+        }[];
+        met: boolean;
+    }[], RequirementSet[] | {
+        id: number;
+        name: string;
+        description?: string | undefined;
+        type?: string | undefined;
+        requirements: {
+            id: number;
+            name: string;
+            description?: string | undefined;
+            met: boolean;
+            details?: any;
+        }[];
+        met: boolean;
+    }[]>;
+    currentRequirementSet: import("vue").Ref<{
+        id: number;
+        name: string;
+        description?: string | undefined;
+        type?: string | undefined;
+        requirements: {
+            id: number;
+            name: string;
+            description?: string | undefined;
+            met: boolean;
+            details?: any;
+        }[];
+        met: boolean;
+    } | null, RequirementSet | {
+        id: number;
+        name: string;
+        description?: string | undefined;
+        type?: string | undefined;
+        requirements: {
+            id: number;
+            name: string;
+            description?: string | undefined;
+            met: boolean;
+            details?: any;
+        }[];
+        met: boolean;
+    } | null>;
+    evaluationResults: import("vue").Ref<Record<number, RequirementEvaluationResult[]>, Record<number, RequirementEvaluationResult[]>>;
+    loading: import("vue").Ref<boolean, boolean>;
+    error: import("vue").Ref<string | null, string | null>;
+    isRequirementValidated: import("vue").ComputedRef<boolean>;
+    isRequirementSetValidated: import("vue").ComputedRef<boolean>;
+    metRequirementsCount: import("vue").ComputedRef<number>;
+    totalRequirementsCount: import("vue").ComputedRef<number>;
+    setCurrentRequirementSet: (requirementSet: RequirementSet | null) => void;
+    fetchRequirementSets: () => Promise<void>;
+    fetchRequirementSet: (id: number) => Promise<RequirementSet | null>;
+    evaluateRequirements: (requirementSetIds?: number[], patientExaminationId?: number) => Promise<any>;
+    evaluateRequirementSet: (requirementSetId: number, patientExaminationId?: number) => Promise<any>;
+    evaluateFromLookupData: (lookupData: any, requirementSetIds?: number[]) => Promise<any>;
+    evaluateCurrentSetFromLookupData: (lookupData: any) => Promise<any>;
+    createRequirementLinksFromLookup: (lookupData: any) => RequirementLinks;
+    getRequirementSetById: (id: number) => RequirementSet | undefined;
+    getRequirementById: (setId: number, requirementId: number) => Requirement | undefined;
+    getRequirementSetEvaluationStatus: (requirementSetId: number) => {
+        met: boolean;
+        metRequirementsCount: number;
+        totalRequirementsCount: number;
+        completionPercentage: number;
+    } | null;
+    getRequirementEvaluationStatus: (requirementId: number) => {
+        met: boolean;
+        details: any;
+    } | null;
+    loadRequirementSetsFromLookup: (lookupData: any) => void;
+    clearError: () => void;
+    reset: () => void;
+}, "isRequirementValidated" | "isRequirementSetValidated" | "metRequirementsCount" | "totalRequirementsCount">, Pick<{
+    requirementSets: import("vue").Ref<{
+        id: number;
+        name: string;
+        description?: string | undefined;
+        type?: string | undefined;
+        requirements: {
+            id: number;
+            name: string;
+            description?: string | undefined;
+            met: boolean;
+            details?: any;
+        }[];
+        met: boolean;
+    }[], RequirementSet[] | {
+        id: number;
+        name: string;
+        description?: string | undefined;
+        type?: string | undefined;
+        requirements: {
+            id: number;
+            name: string;
+            description?: string | undefined;
+            met: boolean;
+            details?: any;
+        }[];
+        met: boolean;
+    }[]>;
+    currentRequirementSet: import("vue").Ref<{
+        id: number;
+        name: string;
+        description?: string | undefined;
+        type?: string | undefined;
+        requirements: {
+            id: number;
+            name: string;
+            description?: string | undefined;
+            met: boolean;
+            details?: any;
+        }[];
+        met: boolean;
+    } | null, RequirementSet | {
+        id: number;
+        name: string;
+        description?: string | undefined;
+        type?: string | undefined;
+        requirements: {
+            id: number;
+            name: string;
+            description?: string | undefined;
+            met: boolean;
+            details?: any;
+        }[];
+        met: boolean;
+    } | null>;
+    evaluationResults: import("vue").Ref<Record<number, RequirementEvaluationResult[]>, Record<number, RequirementEvaluationResult[]>>;
+    loading: import("vue").Ref<boolean, boolean>;
+    error: import("vue").Ref<string | null, string | null>;
+    isRequirementValidated: import("vue").ComputedRef<boolean>;
+    isRequirementSetValidated: import("vue").ComputedRef<boolean>;
+    metRequirementsCount: import("vue").ComputedRef<number>;
+    totalRequirementsCount: import("vue").ComputedRef<number>;
+    setCurrentRequirementSet: (requirementSet: RequirementSet | null) => void;
+    fetchRequirementSets: () => Promise<void>;
+    fetchRequirementSet: (id: number) => Promise<RequirementSet | null>;
+    evaluateRequirements: (requirementSetIds?: number[], patientExaminationId?: number) => Promise<any>;
+    evaluateRequirementSet: (requirementSetId: number, patientExaminationId?: number) => Promise<any>;
+    evaluateFromLookupData: (lookupData: any, requirementSetIds?: number[]) => Promise<any>;
+    evaluateCurrentSetFromLookupData: (lookupData: any) => Promise<any>;
+    createRequirementLinksFromLookup: (lookupData: any) => RequirementLinks;
+    getRequirementSetById: (id: number) => RequirementSet | undefined;
+    getRequirementById: (setId: number, requirementId: number) => Requirement | undefined;
+    getRequirementSetEvaluationStatus: (requirementSetId: number) => {
+        met: boolean;
+        metRequirementsCount: number;
+        totalRequirementsCount: number;
+        completionPercentage: number;
+    } | null;
+    getRequirementEvaluationStatus: (requirementId: number) => {
+        met: boolean;
+        details: any;
+    } | null;
+    loadRequirementSetsFromLookup: (lookupData: any) => void;
+    clearError: () => void;
+    reset: () => void;
+}, "clearError" | "reset" | "setCurrentRequirementSet" | "fetchRequirementSets" | "fetchRequirementSet" | "evaluateRequirements" | "evaluateRequirementSet" | "evaluateFromLookupData" | "evaluateCurrentSetFromLookupData" | "createRequirementLinksFromLookup" | "getRequirementSetById" | "getRequirementById" | "getRequirementSetEvaluationStatus" | "getRequirementEvaluationStatus" | "loadRequirementSetsFromLookup">>;
+export {};

@@ -291,13 +291,13 @@ const formatDate = (dateString?: string | null) => {
 const getGenderName = (genderValue?: string | null) => {
   if (!genderValue) return 'Nicht angegeben'
   const gender = genders.value.find(g => g.name === genderValue)
-  return gender?.name_de || gender?.name || genderValue
+  return gender?.nameDe || gender?.name || genderValue
 }
 
 const getCenterName = (centerValue?: string | null) => {
   if (!centerValue) return 'Nicht zugeordnet'
   const center = centers.value.find(c => c.name === centerValue)
-  return center?.name_de || center?.name || centerValue
+  return center?.nameDe || center?.name || centerValue
 }
 
 // Lifecycle

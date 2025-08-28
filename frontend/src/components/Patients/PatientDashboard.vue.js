@@ -20,10 +20,10 @@ const filteredPatients = computed(() => {
     if (!searchTerm.value)
         return patients.value;
     const term = searchTerm.value.toLowerCase();
-    return patients.value.filter(patient => patient.first_name?.toLowerCase().includes(term) ||
-        patient.last_name?.toLowerCase().includes(term) ||
+    return patients.value.filter(patient => patient.firstName?.toLowerCase().includes(term) ||
+        patient.lastName?.toLowerCase().includes(term) ||
         patient.email?.toLowerCase().includes(term) ||
-        `${patient.first_name} ${patient.last_name}`.toLowerCase().includes(term));
+        `${patient.firstName} ${patient.lastName}`.toLowerCase().includes(term));
 });
 // Methods
 const loadData = async () => {
@@ -71,7 +71,7 @@ const selectPatient = (patient) => {
 const onPatientCreated = (patient) => {
     showCreateForm.value = false;
     selectedPatient.value = patient;
-    successMessage.value = `Patient "${patient.first_name} ${patient.last_name}" wurde erfolgreich erstellt!`;
+    successMessage.value = `Patient "${patient.firstName} ${patient.lastName}" wurde erfolgreich erstellt!`;
     // Clear success message after 5 seconds
     setTimeout(() => {
         successMessage.value = '';
@@ -84,7 +84,7 @@ const onPatientUpdated = (patient) => {
     if (index !== -1) {
         patientStore.patients[index] = patient;
     }
-    successMessage.value = `Patient "${patient.first_name} ${patient.last_name}" wurde erfolgreich aktualisiert!`;
+    successMessage.value = `Patient "${patient.firstName} ${patient.lastName}" wurde erfolgreich aktualisiert!`;
     // Clear success message after 5 seconds
     setTimeout(() => {
         successMessage.value = '';
@@ -96,7 +96,7 @@ const onPatientDeleted = (patientId) => {
     if (index !== -1) {
         const deletedPatient = patientStore.patients[index];
         patientStore.patients.splice(index, 1);
-        successMessage.value = `Patient "${deletedPatient.first_name} ${deletedPatient.last_name}" wurde erfolgreich gelöscht!`;
+        successMessage.value = `Patient "${deletedPatient.firstName} ${deletedPatient.lastName}" wurde erfolgreich gelöscht!`;
     }
     // Close detail view
     selectedPatient.value = null;
@@ -120,13 +120,13 @@ const getGenderName = (genderValue) => {
     if (!genderValue)
         return 'Nicht angegeben';
     const gender = genders.value.find(g => g.name === genderValue);
-    return gender?.name_de || gender?.name || genderValue;
+    return gender?.nameDe || gender?.name || genderValue;
 };
 const getCenterName = (centerValue) => {
     if (!centerValue)
         return 'Nicht zugeordnet';
     const center = centers.value.find(c => c.name === centerValue);
-    return center?.name_de || center?.name || centerValue;
+    return center?.nameDe || center?.name || centerValue;
 };
 // Lifecycle
 onMounted(() => {
@@ -303,8 +303,8 @@ function __VLS_template() {
                 __VLS_elementAsFunction(__VLS_intrinsicElements.h5, __VLS_intrinsicElements.h5)({
                     ...{ class: ("patient-name") },
                 });
-                (patient.first_name);
-                (patient.last_name);
+                (patient.firstName);
+                (patient.lastName);
                 __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
                     ...{ class: ("patient-id") },
                 });

@@ -7,16 +7,16 @@ const patientStore = usePatientStore();
 const successMessage = ref('');
 // Form data mit korrekten Feldnamen und Typen
 const formData = ref({
-    first_name: '',
-    last_name: '',
+    firstName: '',
+    lastName: '',
     dob: null,
     email: '',
     phone: '',
     gender: null,
     center: null,
-    patient_hash: '',
+    patientHash: '',
     comments: '',
-    is_real_person: true
+    isRealPerson: true
 });
 // Computed properties für Store-Daten
 const genders = computed(() => patientStore.genders);
@@ -24,27 +24,27 @@ const centers = computed(() => patientStore.centers);
 // Methods
 const resetForm = () => {
     formData.value = {
-        first_name: '',
-        last_name: '',
+        firstName: '',
+        lastName: '',
         dob: null,
         email: '',
         phone: '',
         gender: null,
         center: null,
-        patient_hash: '',
+        patientHash: '',
         comments: '',
-        is_real_person: true
+        isRealPerson: true
     };
 };
 const handleSubmit = async () => {
     patientStore.clearError();
     successMessage.value = '';
     // Validation
-    if (!formData.value.first_name?.trim()) {
+    if (!formData.value.firstName?.trim()) {
         patientStore.error = 'Vorname ist erforderlich';
         return;
     }
-    if (!formData.value.last_name?.trim()) {
+    if (!formData.value.lastName?.trim()) {
         patientStore.error = 'Nachname ist erforderlich';
         return;
     }
@@ -52,7 +52,7 @@ const handleSubmit = async () => {
         // Create patient using store with formatted data
         const formattedData = patientStore.formatPatientForSubmission(formData.value);
         const newPatient = await patientStore.createPatient(formattedData);
-        successMessage.value = `Patient "${newPatient.first_name} ${newPatient.last_name}" wurde erfolgreich erstellt!`;
+        successMessage.value = `Patient "${newPatient.firstName} ${newPatient.lastName}" wurde erfolgreich erstellt!`;
         // Emit event for parent component with error handling
         try {
             emit('patient-created', newPatient);
@@ -115,7 +115,7 @@ function __VLS_template() {
         for: ("firstName"),
     });
     __VLS_elementAsFunction(__VLS_intrinsicElements.input)({
-        value: ((__VLS_ctx.formData.first_name)),
+        value: ((__VLS_ctx.formData.firstName)),
         id: ("firstName"),
         type: ("text"),
         required: (true),
@@ -125,7 +125,7 @@ function __VLS_template() {
         for: ("lastName"),
     });
     __VLS_elementAsFunction(__VLS_intrinsicElements.input)({
-        value: ((__VLS_ctx.formData.last_name)),
+        value: ((__VLS_ctx.formData.lastName)),
         id: ("lastName"),
         type: ("text"),
         required: (true),
@@ -172,7 +172,7 @@ function __VLS_template() {
             key: ((gender.id)),
             value: ((gender.name)),
         });
-        (gender.name_de || gender.name);
+        (gender.nameDe || gender.name);
     }
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
     __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
@@ -190,14 +190,14 @@ function __VLS_template() {
             key: ((center.id)),
             value: ((center.name)),
         });
-        (center.name_de || center.name);
+        (center.nameDe || center.name);
     }
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
     __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({});
     __VLS_elementAsFunction(__VLS_intrinsicElements.input)({
         type: ("checkbox"),
     });
-    (__VLS_ctx.formData.is_real_person);
+    (__VLS_ctx.formData.isRealPerson);
     __VLS_elementAsFunction(__VLS_intrinsicElements.hr)({});
     __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
         type: ("submit"),
