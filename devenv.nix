@@ -150,6 +150,26 @@ in
     '';
 
     run-prod-server.exec = ''
+
+      set -e
+
+      echo "[prod] Syncing submodule URLs from .gitmodules..."
+      git submodule sync --recursive
+
+      echo "[prod] Fetching latest commits for submodules and checking out remote-tracking branches..."
+      git submodule update --init --remote --recursive
+
+      echo "[prod] Submodule status after update:"
+      git submodule status --recursive || true
+
+      echo "[prod] Submodule branches and heads:"
+      git submodule foreach --recursive '
+        b=$(git rev-parse --abbrev-ref --symbolic-full-name @{u} 2>/dev/null || true)
+        h=$(git rev-parse --short HEAD 2>/dev/null || true)
+        [ -n "$b" ] || b="<no-upstream>"
+        [ -n "$h" ] || h="<no-head>"
+        echo "  $name -> upstream=$b @ $h"
+      '
   
       env-pipe
       # Detect if running in luxnix environment and use appropriate settings
@@ -198,7 +218,6 @@ in
   enterShell = lib.mkAfter ''
 
     git submodule init
-    git submodule update --remote --recursive
 
 
     export SYNC_CMD="uv sync"
