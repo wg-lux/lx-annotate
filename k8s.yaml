@@ -31,11 +31,11 @@ data:
   STORAGE_DIR: "/data/storage"
   DJANGO_HOST: "0.0.0.0"
   DJANGO_PORT: "8000"
-  DJANGO_SETTINGS_MODULE_DEVELOPMENT: "lx_annotate.settings"
-  DJANGO_SETTINGS_MODULE_PRODUCTION: "lx_annotate.settings"
+  DJANGO_SETTINGS_MODULE_DEVELOPMENT: "lx_annotate.settings_dev"
+  DJANGO_SETTINGS_MODULE_PRODUCTION: "lx_annotate.settings_prod"
   DJANGO_SETTINGS_MODULE_CENTRAL: "lx_annotate.settings"
   # Optional toggles used in env_setup.py defaults: :contentReference[oaicite:10]{index=10}
-  DJANGO_DEBUG: "True"
+  DJANGO_DEBUG: "False"
   # Allow localhost access
   DJANGO_ALLOWED_HOSTS: "localhost,127.0.0.1"
 ---
