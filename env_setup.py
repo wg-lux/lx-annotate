@@ -48,7 +48,7 @@ def get_safe_random_secret_key():
 
 
 # --- Constants ---
-DEFAULT_DB_PASSWORD = get_safe_random_secret_key # Placeholder password
+DEFAULT_DB_PASSWORD = get_safe_random_secret_key() # Placeholder password
 
 # --- Load Envoronment Variables ---
 # Include luxnix-specific environment variables
@@ -150,6 +150,14 @@ if target.exists():
 
 # Process and update entries
 updated_lines = []
+
+def ensure_quoted(val: str) -> str:
+    v = val.strip()
+    if (v.startswith('"') and v.endswith('"')) or (v.startswith("'") and v.endswith("'")):
+        return v
+    return f'"{v}"'
+
+
 django_settings_production = nix_vars.get("DJANGO_SETTINGS_MODULE_PRODUCTION")
 django_settings_development = nix_vars.get("DJANGO_SETTINGS_MODULE_DEVELOPMENT")
 django_module_from_nix = nix_vars.get("DJANGO_MODULE")
@@ -167,6 +175,15 @@ for line in lines:
     key, value = stripped_line.split("=", 1)
     key = key.strip()
     found_keys.add(key)
+
+
+    if key == "DJANGO_SECRET_KEY":
+        updated_lines.append(f'DJANGO_SECRET_KEY={ensure_quoted(value)}\n')
+        continue
+    if key == "DJANGO_SALT":
+        updated_lines.append(f'DJANGO_SALT={ensure_quoted(value)}\n')
+        continue
+
     # Keep existing line if no specific update rule matched
     updated_lines.append(line)
 
@@ -183,11 +200,12 @@ try:
     with target.open("a", encoding="utf-8") as f:
         # Add secrets if missing
         if "DJANGO_SECRET_KEY" not in found_keys:
-            f.write(f'\nDJANGO_SECRET_KEY={SECRET_KEY}') # No quotes
+            f.write(f'\nDJANGO_SECRET_KEY="{SECRET_KEY}"')  # QUOTED
+            #f.write(f'\nDJANGO_SECRET_KEY={SECRET_KEY}') # No quotes
             print("Added DJANGO_SECRET_KEY to .env")
 
         if "DJANGO_SALT" not in found_keys:
-            f.write(f'\nDJANGO_SALT={SALT}') # No quotes
+            f.write(f'\nDJANGO_SALT="{SALT}"')  # QUOTED
             print("Added DJANGO_SALT to .env")
         
 
