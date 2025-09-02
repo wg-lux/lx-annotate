@@ -91,6 +91,36 @@
 
     <!-- Lookup Data Display -->
     <div v-if="lookup" class="row g-3">
+      <!-- Debug Info -->
+      <div class="col-12">
+        <div class="card">
+          <div class="card-header">
+            <h2 class="h6 mb-0">Debug: Aktuelle Lookup-Daten</h2>
+          </div>
+          <div class="card-body">
+            <div class="row">
+              <div class="col-md-4">
+                <strong>Patient Examination ID:</strong> {{ lookup.patientExaminationId || 'Nicht verfügbar' }}
+              </div>
+              <div class="col-md-4">
+                <strong>Token:</strong> {{ lookupToken }}
+              </div>
+              <div class="col-md-4">
+                <strong>Requirement Sets:</strong> {{ requirementSets.length }}
+              </div>
+            </div>
+            <div class="row mt-2">
+              <div class="col-md-6">
+                <strong>Ausgewählte Sets:</strong> {{ selectedRequirementSetIds.join(', ') || 'Keine' }}
+              </div>
+              <div class="col-md-6">
+                <strong>Verfügbare Findings:</strong> {{ availableFindings.length }}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Requirement Sets -->
       <div class="col-12 col-xl-6">
         <div class="card h-100">
@@ -114,16 +144,26 @@
               </button>
             </div>
           </div>
-          <div class="card-body">
-            <!-- Debug output -->
-            <div class="alert alert-info mb-3" v-if="lookup">
-              <strong>Debug Info:</strong><br>
-              Lookup exists: {{ !!lookup }}<br>
-              Requirement sets count: {{ requirementSets.length }}<br>
-              Raw lookup data: <pre>{{ JSON.stringify(lookup, null, 2) }}</pre>
+          <div v-if="lookup" class="row g-3 mt-3 card-body pre-scrollable" style="max-height: 70vh; overflow: auto;">
+            <div class="col-12 col-xl-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="h5 mb-0">Befunde in der aktuellen Untersuchung</h2>
+                    </div>
+                    <div class="card-body">
+                      <!-- AddableFindingsDetail Component für CRUD-Funktionalität -->
+                      <AddableFindingsDetail
+                          :examination-id="selectedExaminationId || undefined"
+                          :patient-examination-id="currentPatientExaminationId || undefined"
+                          @finding-added="onFindingAddedToExamination"
+                          @finding-error="(errorMsg) => error = errorMsg"
+                      />
+                    </div>
+                </div>
             </div>
-            
-            <ul class="list-group list-group-flush">
+        </div>
+
+                    <ul class="list-group list-group-flush">
               <li v-for="rs in requirementSets" :key="rs.id" class="list-group-item d-flex justify-content-between align-items-center">
                 <div class="flex-grow-1">
                   <div class="d-flex justify-content-between align-items-center">
@@ -193,6 +233,17 @@
                 </button>
               </div>
             </div>
+
+          <div class="card-body">
+            <!-- Debug output -->
+            <div class="mb-3" v-if="lookup">
+              <strong>Debug Info:</strong><br>
+              Lookup exists: {{ !!lookup }}<br>
+              Requirement sets count: {{ requirementSets.length }}<br>
+              Raw lookup data: <pre>{{ JSON.stringify(lookup, null, 2) }}</pre>
+            </div>
+            
+
           </div>
         </div>
       </div>
@@ -201,7 +252,8 @@
       <div class="col-12 col-xl-6">
         <div class="card h-100">
            <div class="card-header d-flex justify-content-between align-items-center">
-                <h2 class="h5 mb-0">Verfügbare Befunde</h2>
+                <h2 class="h5 mb-0">Um die Untersuchung abzuschließen, müssen die folgenden Befunde vorhanden sein.</h2>
+                <p class="text-muted mb-0">Hinweis: Ändern Sie die Klassifikationen auf ihr bevorzugtes Format.</p>
                 <div v-if="availableFindings.length > 0" class="d-flex align-items-center gap-2">
                   <small class="text-muted">{{ availableFindings.length }} verfügbar</small>
                   <button
@@ -214,7 +266,7 @@
                   </button>
                 </div>
             </div>
-            <div class="card-body">
+            <div class="card-body pre-scrollable" style="max-height: 70vh; overflow: auto;">
                 <div v-if="findingStore.loading" class="text-center py-4">
                     <div class="spinner-border" role="status">
                         <span class="visually-hidden">Loading...</span>
@@ -227,7 +279,7 @@
                         :key="findingId"
                         :finding-id="findingId"
                         :is-added-to-examination="isFindingAddedToExamination(findingId)"
-                        :patient-examination-id="currentPatientExaminationId || undefined"
+                        :patient-examination-id="lookup?.patientExaminationId || undefined"
                         @added-to-examination="onFindingAddedToExamination"
                         @classification-updated="onClassificationUpdated"
                     />
@@ -238,27 +290,10 @@
                   <small class="text-muted">Wählen Sie eine Untersuchung aus, um verfügbare Befunde zu laden.</small>
                 </div>
             </div>
-        </div>
+        </div>alert
       </div>
     </div>
-    <div v-if="lookup" class="row g-3 mt-3">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header">
-                    <h2 class="h5 mb-0">Befunde in der aktuellen Untersuchung</h2>
-                </div>
-                <div class="card-body">
-                  <!-- AddableFindingsDetail Component für CRUD-Funktionalität -->
-                  <AddableFindingsDetail
-                      :examination-id="selectedExaminationId || undefined"
-                      :patient-examination-id="currentPatientExaminationId || undefined"
-                      @finding-added="onFindingAddedToExamination"
-                      @finding-error="(errorMsg) => error = errorMsg"
-                  />
-                </div>
-            </div>
-        </div>
-    </div>
+
 
     <!-- Success Alert -->
     <div v-if="successMessage" class="alert alert-success alert-dismissible">
@@ -367,11 +402,30 @@ const selectedRequirementSetIds = computed<number[]>({
 const selectedRequirementSetIdSet = computed(() => new Set(selectedRequirementSetIds.value));
 const availableFindings = computed<number[]>(() => lookup.value?.availableFindings ?? []);
 
-// NEW: Computed properties for expanded lookup data
-const requirementsBySet = computed<Record<string, RequirementLite[]>>(() => lookup.value?.requirementsBySet ?? {});
-const requirementStatus = computed<Record<string, boolean>>(() => lookup.value?.requirementStatus ?? {});
-const requirementSetStatus = computed<Record<string, boolean>>(() => lookup.value?.requirementSetStatus ?? {});
-const suggestedActions = computed<Record<string, any[]>>(() => lookup.value?.suggestedActions ?? {});
+const watchingLookup = ref(false);
+watch(lookup, (newVal, oldVal) => {
+  if (watchingLookup.value) return; // Prevent recursive calls
+  watchingLookup.value = true;
+  console.log('Lookup changed:', { newVal, oldVal });
+  if (newVal && newVal.patientExaminationId !== currentPatientExaminationId.value) {
+    currentPatientExaminationId.value = newVal.patientExaminationId;
+    console.log('Updated currentPatientExaminationId to:', currentPatientExaminationId.value);
+  }
+  watchingLookup.value = false;
+}, { deep: true });
+
+const watchingRequirementSetIds = ref(false);
+watch(selectedRequirementSetIds, (newVal, oldVal) => {
+  if (watchingRequirementSetIds.value) return; // Prevent recursive calls
+  watchingRequirementSetIds.value = true;
+  console.log('Selected Requirement Set IDs changed:', { newVal, oldVal });
+  if (newVal !== oldVal) {
+    // Trigger evaluation when selected sets change
+    requirementStore.setCurrentRequirementSetIds(newVal);
+  }
+  // Removed: requirementStore.deleteRequirementSetById(oldVal[0]); // This was incorrect and caused issues
+  watchingRequirementSetIds.value = false;
+});
 
 const selectionsPretty = computed(() => JSON.stringify({
   token: lookupToken.value,
@@ -382,24 +436,57 @@ const selectionsPretty = computed(() => JSON.stringify({
 
 // --- Finding Management Methods ---
 const isFindingAddedToExamination = (findingId: number): boolean => {
-  // Check if finding is already added to current examination
-  // This would need to be implemented based on your examination data structure
-  // For now, return false - you can implement this based on your needs
+  if (!lookup.value) return false;
+  const currentFindingIds = findingStore.getFindingIdsByPatientExaminationId(lookup.value.patientExaminationId);
+  if (currentFindingIds.includes(findingId)) return true;
   return false;
 };
 
-const onFindingAddedToExamination = (findingId: number, findingName?: string) => {
-  // Handle when a finding is added to examination
-  console.log('Finding added to examination:', findingId, findingName);
 
-  // Use provided finding name or get it from store
-  const name = findingName || findingStore.getFindingById(findingId)?.name || `Befund ${findingId}`;
+const onFindingAddedToExamination = (
+  findingIdOrData: number | {
+    findingId: number;
+    findingName?: string;
+    selectedClassifications: any[];
+    response: any;
+  },
+  findingName?: string
+) => {
+  // Handle both old and new signatures
+  let findingId: number;
+  let name: string;
+  let selectedClassifications: any[] = [];
+  let response: any = null;
 
-  // Show success message
-  successMessage.value = `Befund "${name}" wurde erfolgreich hinzugefügt!`;
+  if (typeof findingIdOrData === 'number') {
+    // Old signature: (findingId: number, findingName: string)
+    findingId = findingIdOrData;
+    name = findingName || findingStore.getFindingById(findingId)?.name || `Befund ${findingId}`;
+  } else {
+    // New signature: (data: { findingId, findingName?, selectedClassifications, response })
+    findingId = findingIdOrData.findingId;
+    name = findingIdOrData.findingName || findingStore.getFindingById(findingId)?.name || `Befund ${findingId}`;
+    selectedClassifications = findingIdOrData.selectedClassifications || [];
+    response = findingIdOrData.response;
+  }
+
+  console.log('Finding added to examination:', {
+    findingId,
+    name,
+    selectedClassifications: selectedClassifications.length,
+    hasResponse: !!response
+  });
+
+  // Enhanced success message with classification info
+  const classificationCount = selectedClassifications.length;
+  const message = classificationCount > 0
+    ? `Befund "${name}" wurde erfolgreich hinzugefügt mit ${classificationCount} Klassifikation${classificationCount !== 1 ? 'en' : ''}!`
+    : `Befund "${name}" wurde erfolgreich hinzugefügt!`;
+
+  successMessage.value = message;
   setTimeout(() => {
     successMessage.value = null;
-  }, 3000);
+  }, 5000); // Longer display for more detailed message
 
   // Trigger requirement evaluation after finding is added
   setTimeout(() => {
@@ -442,7 +529,15 @@ const loadFindingsData = async () => {
 
 // Evaluate requirements when findings are added/removed
 const evaluateRequirementsOnChange = async () => {
-  if (!lookup.value || !lookupToken.value) return;
+  if (!lookup.value || !lookupToken.value) {
+    console.log('Skipping evaluation: lookup or token not available');
+    return;
+  }
+
+  if (!lookup.value.patientExaminationId) {
+    console.log('Skipping evaluation: patientExaminationId not available in lookup', lookup.value);
+    return;
+  }
 
   try {
     console.log('Evaluating requirements based on current lookup data...');
@@ -694,6 +789,7 @@ function toggleRequirementSet(id: number, on: boolean) {
   if (on) s.add(id); else s.delete(id);
   selectedRequirementSetIds.value = Array.from(s);
   patchLookup({ selectedRequirementSetIds: selectedRequirementSetIds.value });
+  requirementStore.setCurrentRequirementSetIds(selectedRequirementSetIds.value);
   
   // Trigger recomputation when requirement sets change
   if (lookupToken.value) {
@@ -1104,6 +1200,7 @@ onUnmounted(() => {
 
 <style scoped>
 /* small UI niceties */
+
 .vr {
   width: 1px;
   align-self: stretch;

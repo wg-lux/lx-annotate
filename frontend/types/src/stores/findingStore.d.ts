@@ -4,6 +4,7 @@ interface Finding {
     nameDe?: string;
     description: string;
     examinations: Array<string>;
+    PatientExaminationId?: number;
     FindingClassifications: Array<FindingClassification>;
     findingTypes: Array<string>;
     findingInterventions: Array<string>;
@@ -28,6 +29,7 @@ export declare const useFindingStore: import("pinia").StoreDefinition<"finding",
         readonly nameDe?: string | undefined;
         readonly description: string;
         readonly examinations: readonly string[];
+        readonly PatientExaminationId?: number | undefined;
         readonly FindingClassifications: readonly {
             readonly id: number;
             readonly name?: string | undefined;
@@ -47,6 +49,7 @@ export declare const useFindingStore: import("pinia").StoreDefinition<"finding",
         readonly nameDe?: string | undefined;
         readonly description: string;
         readonly examinations: readonly string[];
+        readonly PatientExaminationId?: number | undefined;
         readonly FindingClassifications: readonly {
             readonly id: number;
             readonly name?: string | undefined;
@@ -90,6 +93,7 @@ export declare const useFindingStore: import("pinia").StoreDefinition<"finding",
         readonly nameDe?: string | undefined;
         readonly description: string;
         readonly examinations: readonly string[];
+        readonly PatientExaminationId?: number | undefined;
         readonly FindingClassifications: readonly {
             readonly id: number;
             readonly name?: string | undefined;
@@ -109,6 +113,7 @@ export declare const useFindingStore: import("pinia").StoreDefinition<"finding",
         readonly nameDe?: string | undefined;
         readonly description: string;
         readonly examinations: readonly string[];
+        readonly PatientExaminationId?: number | undefined;
         readonly FindingClassifications: readonly {
             readonly id: number;
             readonly name?: string | undefined;
@@ -123,6 +128,47 @@ export declare const useFindingStore: import("pinia").StoreDefinition<"finding",
         readonly findingTypes: readonly string[];
         readonly findingInterventions: readonly string[];
     } | null>>;
+    examinationFindings: Readonly<import("vue").Ref<ReadonlyMap<number, readonly {
+        readonly id: number;
+        readonly name: string;
+        readonly nameDe?: string | undefined;
+        readonly description: string;
+        readonly examinations: readonly string[];
+        readonly PatientExaminationId?: number | undefined;
+        readonly FindingClassifications: readonly {
+            readonly id: number;
+            readonly name?: string | undefined;
+            readonly description?: string | undefined;
+            readonly classificationType?: readonly string[] | undefined;
+            readonly choices?: readonly {
+                readonly id: number;
+                readonly name: string;
+            }[] | undefined;
+            readonly required?: boolean | undefined;
+        }[];
+        readonly findingTypes: readonly string[];
+        readonly findingInterventions: readonly string[];
+    }[]>, ReadonlyMap<number, readonly {
+        readonly id: number;
+        readonly name: string;
+        readonly nameDe?: string | undefined;
+        readonly description: string;
+        readonly examinations: readonly string[];
+        readonly PatientExaminationId?: number | undefined;
+        readonly FindingClassifications: readonly {
+            readonly id: number;
+            readonly name?: string | undefined;
+            readonly description?: string | undefined;
+            readonly classificationType?: readonly string[] | undefined;
+            readonly choices?: readonly {
+                readonly id: number;
+                readonly name: string;
+            }[] | undefined;
+            readonly required?: boolean | undefined;
+        }[];
+        readonly findingTypes: readonly string[];
+        readonly findingInterventions: readonly string[];
+    }[]>>>;
     areFindingsLoaded: import("vue").ComputedRef<boolean>;
     fetchFindings: () => Promise<void>;
     fetchFindingClassifications: (findingId: number) => Promise<FindingClassification[]>;
@@ -130,14 +176,19 @@ export declare const useFindingStore: import("pinia").StoreDefinition<"finding",
     fetchExaminationClassifications: (examinationId: number) => Promise<FindingClassification[]>;
     getFindingsByExamination: (examinationId: number) => Finding[];
     getFindingById: (id: number) => Finding | undefined;
+    getFindingIdsByPatientExaminationId: (patientExaminationId: number) => number[];
     setCurrentFinding: (finding: Finding | null) => void;
-}, "loading" | "error" | "findings" | "FindingClassification" | "currentFinding">>, Pick<{
+    isExaminationFindingsLoaded: (examinationId: number) => boolean;
+    isExaminationFindingsLoading: (examinationId: number) => boolean;
+    clearExaminationFindingsCache: (examinationId?: number) => void;
+}, "loading" | "error" | "findings" | "FindingClassification" | "currentFinding" | "examinationFindings">>, Pick<{
     findings: Readonly<import("vue").Ref<readonly {
         readonly id: number;
         readonly name: string;
         readonly nameDe?: string | undefined;
         readonly description: string;
         readonly examinations: readonly string[];
+        readonly PatientExaminationId?: number | undefined;
         readonly FindingClassifications: readonly {
             readonly id: number;
             readonly name?: string | undefined;
@@ -157,6 +208,7 @@ export declare const useFindingStore: import("pinia").StoreDefinition<"finding",
         readonly nameDe?: string | undefined;
         readonly description: string;
         readonly examinations: readonly string[];
+        readonly PatientExaminationId?: number | undefined;
         readonly FindingClassifications: readonly {
             readonly id: number;
             readonly name?: string | undefined;
@@ -200,6 +252,7 @@ export declare const useFindingStore: import("pinia").StoreDefinition<"finding",
         readonly nameDe?: string | undefined;
         readonly description: string;
         readonly examinations: readonly string[];
+        readonly PatientExaminationId?: number | undefined;
         readonly FindingClassifications: readonly {
             readonly id: number;
             readonly name?: string | undefined;
@@ -219,6 +272,7 @@ export declare const useFindingStore: import("pinia").StoreDefinition<"finding",
         readonly nameDe?: string | undefined;
         readonly description: string;
         readonly examinations: readonly string[];
+        readonly PatientExaminationId?: number | undefined;
         readonly FindingClassifications: readonly {
             readonly id: number;
             readonly name?: string | undefined;
@@ -233,6 +287,47 @@ export declare const useFindingStore: import("pinia").StoreDefinition<"finding",
         readonly findingTypes: readonly string[];
         readonly findingInterventions: readonly string[];
     } | null>>;
+    examinationFindings: Readonly<import("vue").Ref<ReadonlyMap<number, readonly {
+        readonly id: number;
+        readonly name: string;
+        readonly nameDe?: string | undefined;
+        readonly description: string;
+        readonly examinations: readonly string[];
+        readonly PatientExaminationId?: number | undefined;
+        readonly FindingClassifications: readonly {
+            readonly id: number;
+            readonly name?: string | undefined;
+            readonly description?: string | undefined;
+            readonly classificationType?: readonly string[] | undefined;
+            readonly choices?: readonly {
+                readonly id: number;
+                readonly name: string;
+            }[] | undefined;
+            readonly required?: boolean | undefined;
+        }[];
+        readonly findingTypes: readonly string[];
+        readonly findingInterventions: readonly string[];
+    }[]>, ReadonlyMap<number, readonly {
+        readonly id: number;
+        readonly name: string;
+        readonly nameDe?: string | undefined;
+        readonly description: string;
+        readonly examinations: readonly string[];
+        readonly PatientExaminationId?: number | undefined;
+        readonly FindingClassifications: readonly {
+            readonly id: number;
+            readonly name?: string | undefined;
+            readonly description?: string | undefined;
+            readonly classificationType?: readonly string[] | undefined;
+            readonly choices?: readonly {
+                readonly id: number;
+                readonly name: string;
+            }[] | undefined;
+            readonly required?: boolean | undefined;
+        }[];
+        readonly findingTypes: readonly string[];
+        readonly findingInterventions: readonly string[];
+    }[]>>>;
     areFindingsLoaded: import("vue").ComputedRef<boolean>;
     fetchFindings: () => Promise<void>;
     fetchFindingClassifications: (findingId: number) => Promise<FindingClassification[]>;
@@ -240,7 +335,11 @@ export declare const useFindingStore: import("pinia").StoreDefinition<"finding",
     fetchExaminationClassifications: (examinationId: number) => Promise<FindingClassification[]>;
     getFindingsByExamination: (examinationId: number) => Finding[];
     getFindingById: (id: number) => Finding | undefined;
+    getFindingIdsByPatientExaminationId: (patientExaminationId: number) => number[];
     setCurrentFinding: (finding: Finding | null) => void;
+    isExaminationFindingsLoaded: (examinationId: number) => boolean;
+    isExaminationFindingsLoading: (examinationId: number) => boolean;
+    clearExaminationFindingsCache: (examinationId?: number) => void;
 }, "areFindingsLoaded">, Pick<{
     findings: Readonly<import("vue").Ref<readonly {
         readonly id: number;
@@ -248,6 +347,7 @@ export declare const useFindingStore: import("pinia").StoreDefinition<"finding",
         readonly nameDe?: string | undefined;
         readonly description: string;
         readonly examinations: readonly string[];
+        readonly PatientExaminationId?: number | undefined;
         readonly FindingClassifications: readonly {
             readonly id: number;
             readonly name?: string | undefined;
@@ -267,6 +367,7 @@ export declare const useFindingStore: import("pinia").StoreDefinition<"finding",
         readonly nameDe?: string | undefined;
         readonly description: string;
         readonly examinations: readonly string[];
+        readonly PatientExaminationId?: number | undefined;
         readonly FindingClassifications: readonly {
             readonly id: number;
             readonly name?: string | undefined;
@@ -310,6 +411,7 @@ export declare const useFindingStore: import("pinia").StoreDefinition<"finding",
         readonly nameDe?: string | undefined;
         readonly description: string;
         readonly examinations: readonly string[];
+        readonly PatientExaminationId?: number | undefined;
         readonly FindingClassifications: readonly {
             readonly id: number;
             readonly name?: string | undefined;
@@ -329,6 +431,7 @@ export declare const useFindingStore: import("pinia").StoreDefinition<"finding",
         readonly nameDe?: string | undefined;
         readonly description: string;
         readonly examinations: readonly string[];
+        readonly PatientExaminationId?: number | undefined;
         readonly FindingClassifications: readonly {
             readonly id: number;
             readonly name?: string | undefined;
@@ -343,6 +446,47 @@ export declare const useFindingStore: import("pinia").StoreDefinition<"finding",
         readonly findingTypes: readonly string[];
         readonly findingInterventions: readonly string[];
     } | null>>;
+    examinationFindings: Readonly<import("vue").Ref<ReadonlyMap<number, readonly {
+        readonly id: number;
+        readonly name: string;
+        readonly nameDe?: string | undefined;
+        readonly description: string;
+        readonly examinations: readonly string[];
+        readonly PatientExaminationId?: number | undefined;
+        readonly FindingClassifications: readonly {
+            readonly id: number;
+            readonly name?: string | undefined;
+            readonly description?: string | undefined;
+            readonly classificationType?: readonly string[] | undefined;
+            readonly choices?: readonly {
+                readonly id: number;
+                readonly name: string;
+            }[] | undefined;
+            readonly required?: boolean | undefined;
+        }[];
+        readonly findingTypes: readonly string[];
+        readonly findingInterventions: readonly string[];
+    }[]>, ReadonlyMap<number, readonly {
+        readonly id: number;
+        readonly name: string;
+        readonly nameDe?: string | undefined;
+        readonly description: string;
+        readonly examinations: readonly string[];
+        readonly PatientExaminationId?: number | undefined;
+        readonly FindingClassifications: readonly {
+            readonly id: number;
+            readonly name?: string | undefined;
+            readonly description?: string | undefined;
+            readonly classificationType?: readonly string[] | undefined;
+            readonly choices?: readonly {
+                readonly id: number;
+                readonly name: string;
+            }[] | undefined;
+            readonly required?: boolean | undefined;
+        }[];
+        readonly findingTypes: readonly string[];
+        readonly findingInterventions: readonly string[];
+    }[]>>>;
     areFindingsLoaded: import("vue").ComputedRef<boolean>;
     fetchFindings: () => Promise<void>;
     fetchFindingClassifications: (findingId: number) => Promise<FindingClassification[]>;
@@ -350,5 +494,9 @@ export declare const useFindingStore: import("pinia").StoreDefinition<"finding",
     fetchExaminationClassifications: (examinationId: number) => Promise<FindingClassification[]>;
     getFindingsByExamination: (examinationId: number) => Finding[];
     getFindingById: (id: number) => Finding | undefined;
+    getFindingIdsByPatientExaminationId: (patientExaminationId: number) => number[];
     setCurrentFinding: (finding: Finding | null) => void;
-}, "fetchFindings" | "fetchFindingClassifications" | "fetchFindingsByExamination" | "fetchExaminationClassifications" | "getFindingsByExamination" | "getFindingById" | "setCurrentFinding">>;
+    isExaminationFindingsLoaded: (examinationId: number) => boolean;
+    isExaminationFindingsLoading: (examinationId: number) => boolean;
+    clearExaminationFindingsCache: (examinationId?: number) => void;
+}, "fetchFindings" | "fetchFindingClassifications" | "fetchFindingsByExamination" | "fetchExaminationClassifications" | "getFindingsByExamination" | "getFindingById" | "getFindingIdsByPatientExaminationId" | "setCurrentFinding" | "isExaminationFindingsLoaded" | "isExaminationFindingsLoading" | "clearExaminationFindingsCache">>;

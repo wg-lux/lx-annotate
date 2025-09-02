@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import axiosInstance from '@/api/axiosInstance';
+import { useToastStore } from '@/stores/toastStore';
 export const useRequirementStore = defineStore('requirement', () => {
     // State
     const requirementSets = ref([]);
@@ -8,6 +9,32 @@ export const useRequirementStore = defineStore('requirement', () => {
     const error = ref(null);
     const currentRequirementSet = ref(null);
     const evaluationResults = ref({});
+    const currentRequirementSetIds = ref([]);
+    // Actions
+    const setCurrentRequirementSet = (requirementSet) => {
+        currentRequirementSet.value = requirementSet;
+        currentRequirementSetIds.value = requirementSet ? [requirementSet.id] : [];
+    };
+    const setCurrentRequirementSetIds = (ids) => {
+        currentRequirementSetIds.value = ids;
+        // When multiple sets are selected, currentRequirementSet (singular) is ambiguous.
+        // Let's clear it or set it to the first one if that's the desired behavior.
+        // Clearing it seems safer to avoid confusion.
+        if (ids.length !== 1) {
+            currentRequirementSet.value = null;
+        }
+        else {
+            currentRequirementSet.value = getRequirementSetById(ids[0]) || null;
+        }
+    };
+    const deleteRequirementSetById = (id) => {
+        requirementSets.value = requirementSets.value.filter(set => set.id !== id);
+        if (currentRequirementSet.value?.id === id) {
+            currentRequirementSet.value = null;
+            currentRequirementSetIds.value = [];
+        }
+        delete evaluationResults.value[id];
+    };
     // Computed
     const isRequirementValidated = computed(() => {
         return requirementSets.value.every(set => set.met);
@@ -25,10 +52,6 @@ export const useRequirementStore = defineStore('requirement', () => {
             return count + set.requirements.length;
         }, 0);
     });
-    // Actions
-    const setCurrentRequirementSet = (requirementSet) => {
-        currentRequirementSet.value = requirementSet;
-    };
     const fetchRequirementSets = async () => {
         try {
             loading.value = true;
@@ -59,13 +82,38 @@ export const useRequirementStore = defineStore('requirement', () => {
             loading.value = true;
             error.value = null;
             const payload = {
-                requirement_set_ids: requirementSetIds
+                requirement_set_ids: requirementSetIds,
+                patient_examination_id: patientExaminationId
             };
             if (patientExaminationId) {
                 payload.patient_examination_id = patientExaminationId;
             }
+            if (!requirementSetIds) {
+                // If no specific sets are provided, evaluate all sets
+                payload.requirementSetIds = requirementSets.value.map(set => set.id);
+            }
+            else {
+                payload.requirementSetIds = requirementSetIds;
+            }
             const response = await axiosInstance.post('/api/evaluate-requirements/', payload);
             const results = response.data.results || [];
+            // Show debug information about the evaluation
+            if (results.length > 0) {
+                const toast = useToastStore();
+                const failedResults = results.filter((r) => !r.met);
+                if (failedResults.length > 0) {
+                    toast.warning({
+                        text: `${failedResults.length} von ${results.length} Anforderungen nicht erfüllt. Überprüfen Sie die Patientendaten.`,
+                        timeout: 5000
+                    });
+                }
+                else {
+                    toast.success({
+                        text: `Alle ${results.length} Anforderungen erfolgreich erfüllt!`,
+                        timeout: 3000
+                    });
+                }
+            }
             // Update evaluation results
             if (requirementSetIds) {
                 requirementSetIds.forEach(setId => {
@@ -91,6 +139,12 @@ export const useRequirementStore = defineStore('requirement', () => {
         catch (err) {
             error.value = 'Fehler bei der Evaluierung der Anforderungen: ' + (err.response?.data?.detail || err.message);
             console.error('Evaluate requirements error:', err);
+            // Show error in toast
+            const toast = useToastStore();
+            toast.error({
+                text: 'Fehler bei der Anforderungsevaluierung: ' + (err.response?.data?.detail || err.message),
+                timeout: 5000
+            });
             throw err;
         }
         finally {
@@ -101,8 +155,13 @@ export const useRequirementStore = defineStore('requirement', () => {
         try {
             loading.value = true;
             error.value = null;
+            const requirementSetIds = currentRequirementSetIds.value.length > 0 ? currentRequirementSetIds.value : [requirementSetId];
+            if (requirementSetId.valueOf.length > 0) {
+                requirementSetIds.push(requirementSetId);
+            }
             const payload = {
-                requirement_set_ids: [requirementSetId]
+                requirement_set_ids: requirementSetIds,
+                patient_examination_id: patientExaminationId
             };
             if (patientExaminationId) {
                 payload.patient_examination_id = patientExaminationId;
@@ -271,6 +330,8 @@ export const useRequirementStore = defineStore('requirement', () => {
         getRequirementEvaluationStatus,
         loadRequirementSetsFromLookup,
         clearError,
+        setCurrentRequirementSetIds,
+        deleteRequirementSetById,
         reset
     };
 });

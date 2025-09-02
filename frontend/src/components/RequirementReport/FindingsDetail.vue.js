@@ -1,7 +1,9 @@
 import { ref, computed, onMounted, watch } from 'vue';
 import { useFindingStore } from '../../stores/findingStore';
+import { useExaminationStore } from '@/stores/examinationStore';
 import axiosInstance from '@/api/axiosInstance';
 const findingStore = useFindingStore();
+const examinationStore = useExaminationStore();
 const props = withDefaults(defineProps(), {
     isAddedToExamination: false,
     patientExaminationId: undefined
@@ -30,6 +32,16 @@ const classificationStatus = computed(() => {
         complete: selectedCount === requiredCount
     };
 });
+// Debug-Informationen
+const debugInfo = computed(() => ({
+    findingId: props.findingId,
+    findingName: finding.value?.name,
+    totalClassifications: classifications.value.length,
+    requiredClassifications: classifications.value.filter(c => c.required).length,
+    selectedClassifications: Object.keys(selectedChoices.value).filter(id => selectedChoices.value[Number(id)]).length,
+    selectedChoices: selectedChoices.value,
+    hasAllRequired: hasAllRequiredClassifications.value
+}));
 // Methods
 const loadClassifications = async () => {
     if (!props.findingId)
@@ -49,7 +61,15 @@ const updateChoice = (classificationId, event) => {
     const target = event.target;
     const choiceId = target.value ? parseInt(target.value) : null;
     selectedChoices.value[classificationId] = choiceId;
-    // Emit event to parent component about classification update
+    // Animation für Update-Feedback
+    const classificationElement = target.closest('.classification-item');
+    if (classificationElement) {
+        classificationElement.classList.add('updated');
+        setTimeout(() => {
+            classificationElement.classList.remove('updated');
+        }, 500);
+    }
+    // Emit event mit zusätzlichen Informationen
     emit('classification-updated', props.findingId, classificationId, choiceId);
 };
 const getChoiceKey = (choice, index) => {
@@ -70,36 +90,114 @@ const getChoiceLabel = (choice) => {
     }
     return choice.toString();
 };
+const getSelectedChoiceLabel = (classificationId) => {
+    const choiceId = selectedChoices.value[classificationId];
+    if (!choiceId)
+        return '';
+    const classification = classifications.value.find(c => c.id === classificationId);
+    if (!classification?.choices)
+        return '';
+    const choice = classification.choices.find(c => (typeof c === 'object' ? c.id : c) == choiceId);
+    if (choice === null || choice === undefined) {
+        return '';
+    }
+    return typeof choice === 'object' && choice.name ? choice.name : choice.toString();
+};
+const getSelectedChoiceObject = (classificationId) => {
+    const choiceId = selectedChoices.value[classificationId];
+    if (!choiceId)
+        return null;
+    const classification = classifications.value.find(c => c.id === classificationId);
+    if (!classification?.choices)
+        return null;
+    return classification.choices.find(c => (typeof c === 'object' ? c.id : c) == choiceId);
+};
 const addToExamination = async () => {
     if (!props.patientExaminationId || !props.findingId) {
-        console.error('Missing patientExaminationId or findingId');
+        console.error('Missing patientExaminationId or findingId'), {
+            propsPatientExamId: props.patientExaminationId,
+            findingId: props.findingId,
+            currentPatientExamId: examinationStore.getCurrentPatientExaminationId()
+        };
         return;
     }
     try {
         loading.value = true;
-        // Add finding to examination
-        await axiosInstance.post('/api/patient-finding/create/', {
+        // Sammle alle ausgewählten Klassifikationen
+        const selectedClassifications = Object.entries(selectedChoices.value)
+            .filter(([_, choiceId]) => choiceId !== null && choiceId !== undefined)
+            .map(([classificationId, choiceId]) => ({
+            classification: parseInt(classificationId),
+            choice: choiceId,
+            // Zusätzliche Metadaten für bessere Nachverfolgung
+            classificationName: classifications.value.find(c => c.id === parseInt(classificationId))?.name,
+            choiceLabel: getSelectedChoiceLabel(parseInt(classificationId))
+        }));
+        console.log('Sending classifications to backend:', selectedClassifications);
+        // API-Request mit strukturierten Daten
+        const requestPayload = {
             patientExamination: props.patientExaminationId,
             finding: props.findingId,
-            // Add selected choices if any
-            classifications: Object.entries(selectedChoices.value).map(([classificationId, choiceId]) => ({
-                classification: parseInt(classificationId),
-                choice: choiceId
-            }))
+            classifications: selectedClassifications,
+            // Metadaten für Debugging und Nachverfolgung
+            metadata: {
+                findingName: finding.value?.name,
+                selectedClassificationCount: selectedClassifications.length,
+                requiredClassificationCount: classifications.value.filter(c => c.required).length,
+                timestamp: new Date().toISOString()
+            }
+        };
+        const response = await axiosInstance.post('/api/patient-finding/create/', requestPayload);
+        console.log('Backend response:', response.data);
+        // Erfolgs-Feedback mit Details
+        const successMessage = `Befund "${finding.value?.name}" erfolgreich hinzugefügt mit ${selectedClassifications.length} Klassifikationen`;
+        // Emit event mit zusätzlichen Details
+        emit('added-to-examination', {
+            findingId: props.findingId,
+            findingName: finding.value?.name,
+            selectedClassifications: selectedClassifications,
+            response: response.data
         });
-        // Emit event to parent to update the added status
-        emit('added-to-examination', props.findingId);
-        console.log('Finding added to examination successfully');
     }
     catch (error) {
         console.error('Error adding finding to examination:', error);
+        // Detaillierte Fehlerbehandlung
+        let errorMessage = 'Fehler beim Hinzufügen des Befunds';
+        if (error.response?.data?.detail) {
+            errorMessage = error.response.data.detail;
+        }
+        else if (error.response?.data?.classifications) {
+            errorMessage = `Klassifikationsfehler: ${error.response.data.classifications.join(', ')}`;
+        }
+        // Emit error event für parent component
+        emit('error-occurred', {
+            findingId: props.findingId,
+            error: errorMessage,
+            selectedClassifications: Object.keys(selectedChoices.value).length
+        });
     }
     finally {
         loading.value = false;
     }
 };
+const getSelectClass = (classificationId, required = false) => {
+    const baseClass = 'form-select form-select-sm';
+    const hasSelection = selectedChoices.value[classificationId];
+    if (hasSelection) {
+        return `${baseClass} border-success`;
+    }
+    else if (required) {
+        return `${baseClass} border-warning`;
+    }
+    return baseClass;
+};
 // Lifecycle
 onMounted(() => {
+    console.log('FindingsDetail mounted with:', {
+        findingId: props.findingId,
+        patientExaminationId: props.patientExaminationId,
+        isAddedToExamination: props.isAddedToExamination
+    });
     loadClassifications();
 });
 // Watch for finding changes
@@ -122,7 +220,7 @@ function __VLS_template() {
     const __VLS_ctx = {};
     let __VLS_components;
     let __VLS_directives;
-    ['finding-card', 'classification-item', 'form-select-sm', 'form-select-sm', 'finding-card', 'badge',];
+    ['finding-card', 'classification-item', 'form-select-sm', 'form-select-sm', 'finding-card', 'badge', 'classification-item', 'classification-item', 'form-select-sm', 'border-success', 'form-select-sm', 'border-warning', 'classification-item', 'updated', 'selected-classifications-summary', 'selected-classifications-summary', 'badge',];
     // CSS variable injection 
     // CSS variable injection end 
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -242,21 +340,24 @@ function __VLS_template() {
             for (const [classification] of __VLS_getVForSourceType((__VLS_ctx.classifications))) {
                 __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
                     key: ((classification.id)),
-                    ...{ class: ("classification-item mb-3 p-2 border rounded") },
+                    ...{ class: ("classification-item mb-3 p-3 border rounded") },
                 });
                 __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                    ...{ class: ("d-flex justify-content-between align-items-center mb-2") },
+                    ...{ class: ("d-flex justify-content-between align-items-start mb-2") },
+                });
+                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                    ...{ class: ("flex-grow-1") },
                 });
                 __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
                 (classification.name);
-                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                    ...{ class: ("d-flex align-items-center gap-1") },
-                });
                 if (classification.required) {
-                    __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-                        ...{ class: ("badge bg-warning") },
+                    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                        ...{ class: ("badge bg-warning ms-2") },
                     });
                 }
+                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                    ...{ class: ("d-flex align-items-center gap-2") },
+                });
                 if (__VLS_ctx.selectedChoices[classification.id]) {
                     __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
                         ...{ class: ("badge bg-success") },
@@ -264,6 +365,15 @@ function __VLS_template() {
                     });
                     __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
                         ...{ class: ("fas fa-check") },
+                    });
+                }
+                else if (classification.required) {
+                    __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                        ...{ class: ("badge bg-warning") },
+                        title: ("Nicht ausgewählt"),
+                    });
+                    __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                        ...{ class: ("fas fa-exclamation-triangle") },
                     });
                 }
                 if (classification.description) {
@@ -276,33 +386,9 @@ function __VLS_template() {
                     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
                         ...{ class: ("mb-2") },
                     });
-                    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                        ...{ class: ("d-flex justify-content-between align-items-center mb-1") },
-                    });
                     __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
-                        ...{ class: ("form-label small mb-0") },
+                        ...{ class: ("form-label small mb-1") },
                     });
-                    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                        ...{ class: ("d-flex align-items-center gap-1") },
-                    });
-                    if (__VLS_ctx.selectedChoices[classification.id]) {
-                        __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-                            ...{ class: ("badge bg-success") },
-                            title: ("Klassifikation ausgewählt"),
-                        });
-                        __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                            ...{ class: ("fas fa-check") },
-                        });
-                    }
-                    else if (classification.required) {
-                        __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-                            ...{ class: ("badge bg-warning") },
-                            title: ("Erforderliche Klassifikation nicht ausgewählt"),
-                        });
-                        __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                            ...{ class: ("fas fa-exclamation-triangle") },
-                        });
-                    }
                     __VLS_elementAsFunction(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
                         ...{ onChange: (...[$event]) => {
                                 if (!(!((__VLS_ctx.loading))))
@@ -317,10 +403,7 @@ function __VLS_template() {
                             } },
                         ...{ class: ("form-select form-select-sm") },
                         value: ((__VLS_ctx.selectedChoices[classification.id] || '')),
-                        ...{ class: (({
-                                'border-success': __VLS_ctx.selectedChoices[classification.id],
-                                'border-warning': !__VLS_ctx.selectedChoices[classification.id] && classification.required
-                            })) },
+                        ...{ class: ((__VLS_ctx.getSelectClass(classification.id, classification.required))) },
                     });
                     __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
                         value: (""),
@@ -332,6 +415,17 @@ function __VLS_template() {
                         });
                         (__VLS_ctx.getChoiceLabel(choice));
                     }
+                }
+                if (__VLS_ctx.selectedChoices[classification.id]) {
+                    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                        ...{ class: ("selected-choice-alert alert alert-success py-1 px-2 mb-0") },
+                    });
+                    __VLS_elementAsFunction(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({});
+                    __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                        ...{ class: ("fas fa-check-circle") },
+                    });
+                    __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+                    (__VLS_ctx.getSelectedChoiceLabel(classification.id));
                 }
             }
         }
@@ -368,7 +462,41 @@ function __VLS_template() {
             }
         }
     }
-    ['finding-card', 'card', 'mb-3', 'card-header', 'd-flex', 'justify-content-between', 'align-items-center', 'd-flex', 'align-items-center', 'gap-2', 'card-title', 'mb-0', 'badge', 'bg-success', 'fas', 'fa-check-circle', 'd-flex', 'gap-2', 'btn', 'btn-sm', 'fas', 'btn', 'btn-sm', 'btn-success', 'fas', 'fa-check', 'card-body', 'text-center', 'spinner-border', 'spinner-border-sm', 'visually-hidden', 'text-center', 'text-muted', 'row', 'mb-3', 'col-md-6', 'col-md-6', 'text-muted', 'mb-3', 'd-flex', 'justify-content-between', 'align-items-center', 'mb-2', 'mb-0', 'text-muted', 'fas', 'classification-item', 'mb-3', 'p-2', 'border', 'rounded', 'd-flex', 'justify-content-between', 'align-items-center', 'mb-2', 'd-flex', 'align-items-center', 'gap-1', 'badge', 'bg-warning', 'badge', 'bg-success', 'fas', 'fa-check', 'text-muted', 'small', 'mb-2', 'mb-2', 'd-flex', 'justify-content-between', 'align-items-center', 'mb-1', 'form-label', 'small', 'mb-0', 'd-flex', 'align-items-center', 'gap-1', 'badge', 'bg-success', 'fas', 'fa-check', 'badge', 'bg-warning', 'fas', 'fa-exclamation-triangle', 'form-select', 'form-select-sm', 'border-success', 'border-warning', 'mb-2', 'd-flex', 'flex-wrap', 'gap-1', 'mt-1', 'badge', 'bg-secondary', 'mb-2', 'd-flex', 'flex-wrap', 'gap-1', 'mt-1', 'badge', 'bg-info',];
+    if (Object.keys(__VLS_ctx.selectedChoices).length > 0) {
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("selected-classifications-summary mt-3 p-3 bg-light rounded") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({
+            ...{ class: ("mb-2") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: ("fas fa-list-check") },
+        });
+        (Object.keys(__VLS_ctx.selectedChoices).filter(id => __VLS_ctx.selectedChoices[Number(id)]).length);
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("row") },
+        });
+        for (const [classification] of __VLS_getVForSourceType((__VLS_ctx.classifications))) {
+            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                key: ((classification.id)),
+                ...{ class: ("col-md-6 mb-2") },
+            });
+            if (__VLS_ctx.selectedChoices[classification.id]) {
+                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                    ...{ class: ("d-flex justify-content-between align-items-center") },
+                });
+                __VLS_elementAsFunction(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+                    ...{ class: ("text-muted") },
+                });
+                (classification.name);
+                __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                    ...{ class: ("badge bg-success") },
+                });
+                (__VLS_ctx.getSelectedChoiceLabel(classification.id));
+            }
+        }
+    }
+    ['finding-card', 'card', 'mb-3', 'card-header', 'd-flex', 'justify-content-between', 'align-items-center', 'd-flex', 'align-items-center', 'gap-2', 'card-title', 'mb-0', 'badge', 'bg-success', 'fas', 'fa-check-circle', 'd-flex', 'gap-2', 'btn', 'btn-sm', 'fas', 'btn', 'btn-sm', 'btn-success', 'fas', 'fa-check', 'card-body', 'text-center', 'spinner-border', 'spinner-border-sm', 'visually-hidden', 'text-center', 'text-muted', 'row', 'mb-3', 'col-md-6', 'col-md-6', 'text-muted', 'mb-3', 'd-flex', 'justify-content-between', 'align-items-center', 'mb-2', 'mb-0', 'text-muted', 'fas', 'classification-item', 'mb-3', 'p-3', 'border', 'rounded', 'd-flex', 'justify-content-between', 'align-items-start', 'mb-2', 'flex-grow-1', 'badge', 'bg-warning', 'ms-2', 'd-flex', 'align-items-center', 'gap-2', 'badge', 'bg-success', 'fas', 'fa-check', 'badge', 'bg-warning', 'fas', 'fa-exclamation-triangle', 'text-muted', 'small', 'mb-2', 'mb-2', 'form-label', 'small', 'mb-1', 'form-select', 'form-select-sm', 'selected-choice-alert', 'alert', 'alert-success', 'py-1', 'px-2', 'mb-0', 'fas', 'fa-check-circle', 'mb-2', 'd-flex', 'flex-wrap', 'gap-1', 'mt-1', 'badge', 'bg-secondary', 'mb-2', 'd-flex', 'flex-wrap', 'gap-1', 'mt-1', 'badge', 'bg-info', 'selected-classifications-summary', 'mt-3', 'p-3', 'bg-light', 'rounded', 'mb-2', 'fas', 'fa-list-check', 'row', 'col-md-6', 'mb-2', 'd-flex', 'justify-content-between', 'align-items-center', 'text-muted', 'badge', 'bg-success',];
     var __VLS_slots;
     var $slots;
     let __VLS_inheritedAttrs;
@@ -397,7 +525,9 @@ const __VLS_self = (await import('vue')).defineComponent({
             getChoiceKey: getChoiceKey,
             getChoiceValue: getChoiceValue,
             getChoiceLabel: getChoiceLabel,
+            getSelectedChoiceLabel: getSelectedChoiceLabel,
             addToExamination: addToExamination,
+            getSelectClass: getSelectClass,
         };
     },
     __typeEmits: {},

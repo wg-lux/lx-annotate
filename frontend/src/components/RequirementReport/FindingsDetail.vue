@@ -71,11 +71,14 @@
                             {{ classificationStatus.selected }}/{{ classificationStatus.required }} erforderlich
                         </small>
                     </div>
-                    <div v-for="classification in classifications" :key="classification.id" class="classification-item mb-3 p-2 border rounded">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <strong>{{ classification.name }}</strong>
-                            <div class="d-flex align-items-center gap-1">
-                                <span v-if="classification.required" class="badge bg-warning">Erforderlich</span>
+                    <div v-for="classification in classifications" :key="classification.id" class="classification-item mb-3 p-3 border rounded">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div class="flex-grow-1">
+                                <strong>{{ classification.name }}</strong>
+                                <div v-if="classification.required" class="badge bg-warning ms-2">Erforderlich</div>
+                            </div>
+                            <div class="d-flex align-items-center gap-2">
+                                <!-- Status-Indikator -->
                                 <span
                                     v-if="selectedChoices[classification.id]"
                                     class="badge bg-success"
@@ -83,42 +86,29 @@
                                 >
                                     <i class="fas fa-check"></i>
                                 </span>
+                                <span
+                                    v-else-if="classification.required"
+                                    class="badge bg-warning"
+                                    title="Nicht ausgewählt"
+                                >
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                </span>
                             </div>
                         </div>
 
+                        <!-- Beschreibung -->
                         <p v-if="classification.description" class="text-muted small mb-2">
                             {{ classification.description }}
                         </p>
 
-                        <!-- Choices Dropdown -->
+                        <!-- Auswahl-Dropdown -->
                         <div v-if="classification.choices && classification.choices.length" class="mb-2">
-                            <div class="d-flex justify-content-between align-items-center mb-1">
-                                <label class="form-label small mb-0">Auswahl:</label>
-                                <div class="d-flex align-items-center gap-1">
-                                    <span
-                                        v-if="selectedChoices[classification.id]"
-                                        class="badge bg-success"
-                                        title="Klassifikation ausgewählt"
-                                    >
-                                        <i class="fas fa-check"></i>
-                                    </span>
-                                    <span
-                                        v-else-if="classification.required"
-                                        class="badge bg-warning"
-                                        title="Erforderliche Klassifikation nicht ausgewählt"
-                                    >
-                                        <i class="fas fa-exclamation-triangle"></i>
-                                    </span>
-                                </div>
-                            </div>
+                            <label class="form-label small mb-1">Auswahl:</label>
                             <select
                                 class="form-select form-select-sm"
                                 :value="selectedChoices[classification.id] || ''"
                                 @change="updateChoice(classification.id, $event)"
-                                :class="{
-                                    'border-success': selectedChoices[classification.id],
-                                    'border-warning': !selectedChoices[classification.id] && classification.required
-                                }"
+                                :class="getSelectClass(classification.id, classification.required)"
                             >
                                 <option value="">Bitte wählen...</option>
                                 <option
@@ -129,6 +119,14 @@
                                     {{ getChoiceLabel(choice) }}
                                 </option>
                             </select>
+                        </div>
+
+                        <!-- Ausgewählte Wahl anzeigen -->
+                        <div v-if="selectedChoices[classification.id]" class="selected-choice-alert alert alert-success py-1 px-2 mb-0">
+                            <small>
+                                <i class="fas fa-check-circle"></i>
+                                <strong>Ausgewählt:</strong> {{ getSelectedChoiceLabel(classification.id) }}
+                            </small>
                         </div>
                     </div>
                 </div>
@@ -154,15 +152,33 @@
                 </div>
             </div>
         </div>
+
+        <!-- Zusammenfassung der ausgewählten Klassifikationen -->
+        <div v-if="Object.keys(selectedChoices).length > 0" class="selected-classifications-summary mt-3 p-3 bg-light rounded">
+            <h6 class="mb-2">
+                <i class="fas fa-list-check"></i>
+                Ausgewählte Klassifikationen ({{ Object.keys(selectedChoices).filter(id => selectedChoices[Number(id)]).length }})
+            </h6>
+            <div class="row">
+                <div v-for="classification in classifications" :key="classification.id" class="col-md-6 mb-2">
+                    <div v-if="selectedChoices[classification.id]" class="d-flex justify-content-between align-items-center">
+                        <small class="text-muted">{{ classification.name }}:</small>
+                        <span class="badge bg-success">{{ getSelectedChoiceLabel(classification.id) }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue';
 import { useFindingStore, type Finding, type FindingClassification } from '../../stores/findingStore';
+import { useExaminationStore } from '@/stores/examinationStore';
 import axiosInstance from '@/api/axiosInstance';
 
 const findingStore = useFindingStore();
+const examinationStore = useExaminationStore();
 
 interface Props {
     findingId: number;
@@ -176,8 +192,18 @@ const props = withDefaults(defineProps<Props>(), {
 });
 
 const emit = defineEmits<{
-  'added-to-examination': [findingId: number]
-  'classification-updated': [findingId: number, classificationId: number, choiceId: number | null]
+  'added-to-examination': [data: {
+    findingId: number;
+    findingName?: string;
+    selectedClassifications: any[];
+    response: any;
+  }];
+  'classification-updated': [findingId: number, classificationId: number, choiceId: number | null];
+  'error-occurred': [data: {
+    findingId: number;
+    error: string;
+    selectedClassifications: number;
+  }];
 }>();
 
 const loading = ref(false);
@@ -208,6 +234,17 @@ const classificationStatus = computed(() => {
     };
 });
 
+// Debug-Informationen
+const debugInfo = computed(() => ({
+    findingId: props.findingId,
+    findingName: finding.value?.name,
+    totalClassifications: classifications.value.length,
+    requiredClassifications: classifications.value.filter(c => c.required).length,
+    selectedClassifications: Object.keys(selectedChoices.value).filter(id => selectedChoices.value[Number(id)]).length,
+    selectedChoices: selectedChoices.value,
+    hasAllRequired: hasAllRequiredClassifications.value
+}));
+
 // Methods
 const loadClassifications = async () => {
     if (!props.findingId) return;
@@ -228,7 +265,16 @@ const updateChoice = (classificationId: number, event: Event) => {
 
     selectedChoices.value[classificationId] = choiceId;
 
-    // Emit event to parent component about classification update
+    // Animation für Update-Feedback
+    const classificationElement = target.closest('.classification-item');
+    if (classificationElement) {
+        classificationElement.classList.add('updated');
+        setTimeout(() => {
+            classificationElement.classList.remove('updated');
+        }, 500);
+    }
+
+    // Emit event mit zusätzlichen Informationen
     emit('classification-updated', props.findingId, classificationId, choiceId);
 };
 
@@ -253,39 +299,136 @@ const getChoiceLabel = (choice: any): string => {
     return choice.toString();
 };
 
+const getSelectedChoiceLabel = (classificationId: number): string => {
+    const choiceId = selectedChoices.value[classificationId];
+    if (!choiceId) return '';
+    
+    const classification = classifications.value.find(c => c.id === classificationId);
+    if (!classification?.choices) return '';
+    
+    const choice = classification.choices.find(c => 
+        (typeof c === 'object' ? c.id : c) == choiceId
+    );
+
+    if (choice === null || choice === undefined) {
+        return '';
+    }
+    
+    return typeof choice === 'object' && choice.name ? choice.name : choice.toString();
+};
+
+const getSelectedChoiceObject = (classificationId: number): any => {
+    const choiceId = selectedChoices.value[classificationId];
+    if (!choiceId) return null;
+    
+    const classification = classifications.value.find(c => c.id === classificationId);
+    if (!classification?.choices) return null;
+    
+    return classification.choices.find(c => 
+        (typeof c === 'object' ? c.id : c) == choiceId
+    );
+};
+
 const addToExamination = async () => {
     if (!props.patientExaminationId || !props.findingId) {
-        console.error('Missing patientExaminationId or findingId');
+        console.error('Missing patientExaminationId or findingId'),{
+            propsPatientExamId: props.patientExaminationId,
+            findingId: props.findingId,
+            currentPatientExamId: examinationStore.getCurrentPatientExaminationId()
+        };
         return;
     }
 
     try {
         loading.value = true;
         
-        // Add finding to examination
-        await axiosInstance.post('/api/patient-finding/create/', {
+        // Sammle alle ausgewählten Klassifikationen
+        const selectedClassifications = Object.entries(selectedChoices.value)
+            .filter(([_, choiceId]) => choiceId !== null && choiceId !== undefined)
+            .map(([classificationId, choiceId]) => ({
+                classification: parseInt(classificationId),
+                choice: choiceId,
+                // Zusätzliche Metadaten für bessere Nachverfolgung
+                classificationName: classifications.value.find(c => c.id === parseInt(classificationId))?.name,
+                choiceLabel: getSelectedChoiceLabel(parseInt(classificationId))
+            }));
+
+        console.log('Sending classifications to backend:', selectedClassifications);
+        
+        // API-Request mit strukturierten Daten
+        const requestPayload = {
             patientExamination: props.patientExaminationId,
             finding: props.findingId,
-            // Add selected choices if any
-            classifications: Object.entries(selectedChoices.value).map(([classificationId, choiceId]) => ({
-                classification: parseInt(classificationId),
-                choice: choiceId
-            }))
+            classifications: selectedClassifications,
+            // Metadaten für Debugging und Nachverfolgung
+            metadata: {
+                findingName: finding.value?.name,
+                selectedClassificationCount: selectedClassifications.length,
+                requiredClassificationCount: classifications.value.filter(c => c.required).length,
+                timestamp: new Date().toISOString()
+            }
+        };
+
+        const response = await axiosInstance.post('/api/patient-finding/create/', requestPayload);
+        
+        console.log('Backend response:', response.data);
+        
+        // Erfolgs-Feedback mit Details
+        const successMessage = `Befund "${finding.value?.name}" erfolgreich hinzugefügt mit ${selectedClassifications.length} Klassifikationen`;
+        
+        // Emit event mit zusätzlichen Details
+        emit('added-to-examination', {
+            findingId: props.findingId,
+            findingName: finding.value?.name,
+            selectedClassifications: selectedClassifications,
+            response: response.data
         });
         
-        // Emit event to parent to update the added status
-        emit('added-to-examination', props.findingId);
-        
-        console.log('Finding added to examination successfully');
-    } catch (error) {
+    } catch (error: any) {
         console.error('Error adding finding to examination:', error);
+        
+        // Detaillierte Fehlerbehandlung
+        let errorMessage = 'Fehler beim Hinzufügen des Befunds';
+        
+        if (error.response?.data?.detail) {
+            errorMessage = error.response.data.detail;
+        } else if (error.response?.data?.classifications) {
+            errorMessage = `Klassifikationsfehler: ${error.response.data.classifications.join(', ')}`;
+        }
+        
+        // Emit error event für parent component
+        emit('error-occurred', {
+            findingId: props.findingId,
+            error: errorMessage,
+            selectedClassifications: Object.keys(selectedChoices.value).length
+        });
+        
     } finally {
         loading.value = false;
     }
 };
 
+const getSelectClass = (classificationId: number, required: boolean = false): string => {
+    const baseClass = 'form-select form-select-sm';
+    const hasSelection = selectedChoices.value[classificationId];
+    
+    if (hasSelection) {
+        return `${baseClass} border-success`;
+    } else if (required) {
+        return `${baseClass} border-warning`;
+    }
+    
+    return baseClass;
+};
+
+
 // Lifecycle
 onMounted(() => {
+    console.log('FindingsDetail mounted with:', {
+        findingId: props.findingId,
+        patientExaminationId: props.patientExaminationId,
+        isAddedToExamination: props.isAddedToExamination
+    });
     loadClassifications();
 });
 
@@ -363,5 +506,58 @@ watch(() => findingStore.findings, () => {
 
 .btn-outline-primary:hover {
     transform: scale(1.02);
+}
+/* Verbesserte Klassifikations-Darstellung */
+.classification-item {
+    background-color: #f8f9fa;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.classification-item:hover {
+    background-color: #e9ecef;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.selected-choice-alert {
+    background-color: rgba(25, 135, 84, 0.1);
+    border: 1px solid rgba(25, 135, 84, 0.2);
+    border-radius: 4px;
+    font-size: 0.875rem;
+}
+
+.form-select-sm.border-success {
+    border-color: #198754 !important;
+    box-shadow: 0 0 0 0.2rem rgba(25, 135, 84, 0.25);
+}
+
+.form-select-sm.border-warning {
+    border-color: #ffc107 !important;
+    box-shadow: 0 0 0 0.2rem rgba(255, 193, 7, 0.25);
+}
+
+@keyframes highlight {
+    0% { background-color: #d1ecf1; }
+    100% { background-color: #f8f9fa; }
+}
+
+/* Animation für Auswahl-Updates */
+.classification-item.updated {
+    animation: highlight 0.5s ease-out;
+}
+
+/* Styles für die Zusammenfassung der ausgewählten Klassifikationen */
+.selected-classifications-summary {
+    border: 1px solid #007bff;
+    background-color: #e7f1ff;
+}
+
+.selected-classifications-summary h6 {
+    color: #0056b3;
+}
+
+.selected-classifications-summary .badge {
+    font-size: 0.8rem;
+    padding: 0.2rem 0.4rem;
 }
 </style>

@@ -88,6 +88,12 @@ export const useExaminationStore = defineStore('examination', {
                 this.loading = false;
             }
         },
+        async getCurrentPatientExaminationId() {
+            if (this.selectedExaminationId)
+                return this.selectedExaminationId;
+            await this.fetchExaminations();
+            return this.selectedExaminationId;
+        },
         /**
          * Classifications for a finding
          * Your URLs: /api/findings/<int:finding_id>/classifications/

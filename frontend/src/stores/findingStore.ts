@@ -1,6 +1,7 @@
 import {defineStore} from "pinia";
 import axiosInstance from "@/api/axiosInstance";
 import {ref, readonly, computed} from "vue";
+import type { Patient } from '../api/patientService';
 
 interface Finding {
     id: number;
@@ -8,6 +9,7 @@ interface Finding {
     nameDe?: string;
     description: string;
     examinations: Array<string>;
+    PatientExaminationId?: number;
     FindingClassifications: Array<FindingClassification>;
     findingTypes: Array<string>;
     findingInterventions: Array<string>;
@@ -36,7 +38,9 @@ export const useFindingStore = defineStore('finding', () => {
     const currentFinding = ref<Finding | null>(null);
     const FindingClassification = ref<FindingClassification[]>([]);
 
-
+    // Neue Felder für examination-spezifische Findings
+    const examinationFindings = ref<Map<number, Finding[]>>(new Map());
+    const examinationFindingsLoading = ref<Map<number, boolean>>(new Map());
 
     const fetchFindings = async () => {
         try {
@@ -64,12 +68,27 @@ export const useFindingStore = defineStore('finding', () => {
 
     const fetchFindingsByExamination = async (examinationId: number): Promise<Finding[]> => {
         try {
+            // Prüfe Cache zuerst
+            if (examinationFindings.value.has(examinationId)) {
+                return examinationFindings.value.get(examinationId)!;
+            }
+
+            // Setze Loading-State
+            examinationFindingsLoading.value.set(examinationId, true);
+
             // Use the existing examination findings endpoint
             const response = await axiosInstance.get(`/api/examinations/${examinationId}/findings/`);
-            return response.data as Finding[];
+            const findingsData = response.data as Finding[];
+
+            // Cache die Findings
+            examinationFindings.value.set(examinationId, findingsData);
+
+            return findingsData;
         } catch (err: any) {
             console.error(`Error fetching findings for examination ${examinationId}:`, err);
             throw err;
+        } finally {
+            examinationFindingsLoading.value.set(examinationId, false);
         }
     };
 
@@ -97,9 +116,48 @@ export const useFindingStore = defineStore('finding', () => {
 
     const areFindingsLoaded = computed(() => findings.value.length > 0);
     const getFindingsByExamination = (examinationId: number): Finding[] => {
-        // For now, return all findings since we don't have examination-specific filtering
-        // In the future, this could be enhanced to filter by examination
-        return findings.value;
+        // Verwende gecachte Findings falls verfügbar
+        if (examinationFindings.value.has(examinationId)) {
+            console.log("Using cached findings for examination", examinationId);
+            return examinationFindings.value.get(examinationId)!;
+        }
+        console.log("No cached findings for examination", examinationId);
+        console.log("Using the following findings:")
+
+        // Fallback: Filtere aus allen Findings (für den Fall, dass noch nicht geladen wurde)
+        // Dies ist weniger effizient, aber funktioniert als Fallback
+        return findings.value.filter(finding => {
+            console.log(finding);
+            return finding.examinations && finding.examinations.includes(examinationId.toString());
+        });
+    };
+
+    const getFindingIdsByPatientExaminationId = (patientExaminationId: number): number[] => {
+        const findingIds: number[] = [];
+        for (const finding of findings.value) {
+            if (finding.PatientExaminationId === patientExaminationId) {
+                findingIds.push(finding.id);
+            }
+        }
+        return findingIds;
+    };
+
+    const isExaminationFindingsLoaded = (examinationId: number): boolean => {
+        return examinationFindings.value.has(examinationId);
+    };
+
+    const isExaminationFindingsLoading = (examinationId: number): boolean => {
+        return examinationFindingsLoading.value.get(examinationId) || false;
+    };
+
+    const clearExaminationFindingsCache = (examinationId?: number) => {
+        if (examinationId) {
+            examinationFindings.value.delete(examinationId);
+            examinationFindingsLoading.value.delete(examinationId);
+        } else {
+            examinationFindings.value.clear();
+            examinationFindingsLoading.value.clear();
+        }
     };
 
     return {
@@ -108,6 +166,7 @@ export const useFindingStore = defineStore('finding', () => {
         loading: readonly(loading),
         error: readonly(error),
         currentFinding: readonly(currentFinding),
+        examinationFindings: readonly(examinationFindings),
         areFindingsLoaded,
 
         fetchFindings,
@@ -116,6 +175,10 @@ export const useFindingStore = defineStore('finding', () => {
         fetchExaminationClassifications,
         getFindingsByExamination,
         getFindingById,
+        getFindingIdsByPatientExaminationId,
         setCurrentFinding,
+        isExaminationFindingsLoaded,
+        isExaminationFindingsLoading,
+        clearExaminationFindingsCache,
     };
 });

@@ -43,6 +43,8 @@ INSTALLED_APPS = [
     'corsheaders',
     'whitenoise.runserver_nostatic',
     'whitenoise',
+    'drf_spectacular',
+    'modeltranslation',
 ]
 
 # Base middleware - environments can extend this
@@ -185,6 +187,7 @@ REST_FRAMEWORK = {
     'DEFAULT_RENDERER_CLASSES': [
         'rest_framework.renderers.JSONRenderer',
     ],
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
 
 # Video-specific MIME types
@@ -241,3 +244,10 @@ KEYCLOAK_SERVER_URL = env('KEYCLOAK_SERVER_URL', default='https://keycloak-endor
 KEYCLOAK_REALM = env('KEYCLOAK_REALM', default='master')
 KEYCLOAK_CLIENT_ID = env('KEYCLOAK_CLIENT_ID', default='lx-frontend')
 KEYCLOAK_CLIENT_SECRET = env('KEYCLOAK_CLIENT_SECRET', default='')
+
+
+# Modeltranslation settings, english and german as defaults
+LANGUAGES = (('de', 'German'), ('en', 'English'))
+MODELTRANSLATION_LANGUAGES = ('de', 'en')
+MODELTRANSLATION_DEFAULT_LANGUAGE = 'de'
+MODELTRANSLATION_FALLBACK_LANGUAGES = ('de', 'en')

@@ -118,6 +118,8 @@ export declare const useRequirementStore: import("pinia").StoreDefinition<"requi
     } | null;
     loadRequirementSetsFromLookup: (lookupData: any) => void;
     clearError: () => void;
+    setCurrentRequirementSetIds: (ids: number[]) => void;
+    deleteRequirementSetById: (id: number) => void;
     reset: () => void;
 }, "loading" | "error" | "requirementSets" | "currentRequirementSet" | "evaluationResults">>, Pick<{
     requirementSets: import("vue").Ref<{
@@ -203,6 +205,8 @@ export declare const useRequirementStore: import("pinia").StoreDefinition<"requi
     } | null;
     loadRequirementSetsFromLookup: (lookupData: any) => void;
     clearError: () => void;
+    setCurrentRequirementSetIds: (ids: number[]) => void;
+    deleteRequirementSetById: (id: number) => void;
     reset: () => void;
 }, "isRequirementValidated" | "isRequirementSetValidated" | "metRequirementsCount" | "totalRequirementsCount">, Pick<{
     requirementSets: import("vue").Ref<{
@@ -288,6 +292,8 @@ export declare const useRequirementStore: import("pinia").StoreDefinition<"requi
     } | null;
     loadRequirementSetsFromLookup: (lookupData: any) => void;
     clearError: () => void;
+    setCurrentRequirementSetIds: (ids: number[]) => void;
+    deleteRequirementSetById: (id: number) => void;
     reset: () => void;
-}, "clearError" | "reset" | "setCurrentRequirementSet" | "fetchRequirementSets" | "fetchRequirementSet" | "evaluateRequirements" | "evaluateRequirementSet" | "evaluateFromLookupData" | "evaluateCurrentSetFromLookupData" | "createRequirementLinksFromLookup" | "getRequirementSetById" | "getRequirementById" | "getRequirementSetEvaluationStatus" | "getRequirementEvaluationStatus" | "loadRequirementSetsFromLookup">>;
+}, "clearError" | "reset" | "setCurrentRequirementSet" | "fetchRequirementSets" | "fetchRequirementSet" | "evaluateRequirements" | "evaluateRequirementSet" | "evaluateFromLookupData" | "evaluateCurrentSetFromLookupData" | "createRequirementLinksFromLookup" | "getRequirementSetById" | "getRequirementById" | "getRequirementSetEvaluationStatus" | "getRequirementEvaluationStatus" | "loadRequirementSetsFromLookup" | "setCurrentRequirementSetIds" | "deleteRequirementSetById">>;
 export {};

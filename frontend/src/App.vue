@@ -1,4 +1,4 @@
-{% load static %}
+<!doctype html>
 <template>
   <header>
         <!--     Fonts and icons     -->
@@ -121,6 +121,8 @@ export default {
 </script>
 
 <style>
+@import url('https://fonts.googleapis.com/css2?family=Comfortaa:wght@300..700&display=swap');
+@import url('@/../src/assets/custom-overrides.css');
 @media (max-width: 1200px) {
   .sidenav {
     transform: none !important;

@@ -7,6 +7,9 @@ export const useFindingStore = defineStore('finding', () => {
     const error = ref(null);
     const currentFinding = ref(null);
     const FindingClassification = ref([]);
+    // Neue Felder für examination-spezifische Findings
+    const examinationFindings = ref(new Map());
+    const examinationFindingsLoading = ref(new Map());
     const fetchFindings = async () => {
         try {
             loading.value = true;
@@ -34,13 +37,25 @@ export const useFindingStore = defineStore('finding', () => {
     };
     const fetchFindingsByExamination = async (examinationId) => {
         try {
+            // Prüfe Cache zuerst
+            if (examinationFindings.value.has(examinationId)) {
+                return examinationFindings.value.get(examinationId);
+            }
+            // Setze Loading-State
+            examinationFindingsLoading.value.set(examinationId, true);
             // Use the existing examination findings endpoint
             const response = await axiosInstance.get(`/api/examinations/${examinationId}/findings/`);
-            return response.data;
+            const findingsData = response.data;
+            // Cache die Findings
+            examinationFindings.value.set(examinationId, findingsData);
+            return findingsData;
         }
         catch (err) {
             console.error(`Error fetching findings for examination ${examinationId}:`, err);
             throw err;
+        }
+        finally {
+            examinationFindingsLoading.value.set(examinationId, false);
         }
     };
     const fetchExaminationClassifications = async (examinationId) => {
@@ -64,9 +79,44 @@ export const useFindingStore = defineStore('finding', () => {
     };
     const areFindingsLoaded = computed(() => findings.value.length > 0);
     const getFindingsByExamination = (examinationId) => {
-        // For now, return all findings since we don't have examination-specific filtering
-        // In the future, this could be enhanced to filter by examination
-        return findings.value;
+        // Verwende gecachte Findings falls verfügbar
+        if (examinationFindings.value.has(examinationId)) {
+            console.log("Using cached findings for examination", examinationId);
+            return examinationFindings.value.get(examinationId);
+        }
+        console.log("No cached findings for examination", examinationId);
+        console.log("Using the following findings:");
+        // Fallback: Filtere aus allen Findings (für den Fall, dass noch nicht geladen wurde)
+        // Dies ist weniger effizient, aber funktioniert als Fallback
+        return findings.value.filter(finding => {
+            console.log(finding);
+            return finding.examinations && finding.examinations.includes(examinationId.toString());
+        });
+    };
+    const getFindingIdsByPatientExaminationId = (patientExaminationId) => {
+        const findingIds = [];
+        for (const finding of findings.value) {
+            if (finding.PatientExaminationId === patientExaminationId) {
+                findingIds.push(finding.id);
+            }
+        }
+        return findingIds;
+    };
+    const isExaminationFindingsLoaded = (examinationId) => {
+        return examinationFindings.value.has(examinationId);
+    };
+    const isExaminationFindingsLoading = (examinationId) => {
+        return examinationFindingsLoading.value.get(examinationId) || false;
+    };
+    const clearExaminationFindingsCache = (examinationId) => {
+        if (examinationId) {
+            examinationFindings.value.delete(examinationId);
+            examinationFindingsLoading.value.delete(examinationId);
+        }
+        else {
+            examinationFindings.value.clear();
+            examinationFindingsLoading.value.clear();
+        }
     };
     return {
         findings: readonly(findings),
@@ -74,6 +124,7 @@ export const useFindingStore = defineStore('finding', () => {
         loading: readonly(loading),
         error: readonly(error),
         currentFinding: readonly(currentFinding),
+        examinationFindings: readonly(examinationFindings),
         areFindingsLoaded,
         fetchFindings,
         fetchFindingClassifications,
@@ -81,6 +132,10 @@ export const useFindingStore = defineStore('finding', () => {
         fetchExaminationClassifications,
         getFindingsByExamination,
         getFindingById,
+        getFindingIdsByPatientExaminationId,
         setCurrentFinding,
+        isExaminationFindingsLoaded,
+        isExaminationFindingsLoading,
+        clearExaminationFindingsCache,
     };
 });

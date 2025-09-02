@@ -59,6 +59,7 @@ export declare const useExaminationStore: import("pinia").StoreDefinition<"exami
             nameDe?: string | undefined;
             description: string;
             examinations: string[];
+            PatientExaminationId?: number | undefined;
             FindingClassifications: {
                 id: number;
                 name?: string | undefined;
@@ -122,6 +123,7 @@ export declare const useExaminationStore: import("pinia").StoreDefinition<"exami
             nameDe?: string | undefined;
             description: string;
             examinations: string[];
+            PatientExaminationId?: number | undefined;
             FindingClassifications: {
                 id: number;
                 name?: string | undefined;
@@ -189,6 +191,7 @@ export declare const useExaminationStore: import("pinia").StoreDefinition<"exami
             nameDe?: string | undefined;
             description: string;
             examinations: string[];
+            PatientExaminationId?: number | undefined;
             FindingClassifications: {
                 id: number;
                 name?: string | undefined;
@@ -252,6 +255,7 @@ export declare const useExaminationStore: import("pinia").StoreDefinition<"exami
             nameDe?: string | undefined;
             description: string;
             examinations: string[];
+            PatientExaminationId?: number | undefined;
             FindingClassifications: {
                 id: number;
                 name?: string | undefined;
@@ -314,6 +318,7 @@ export declare const useExaminationStore: import("pinia").StoreDefinition<"exami
      * URLs (from show_urls): /api/examinations/<int:examination_id>/findings/
      */
     loadFindingsForExamination(examId: number): Promise<Finding[]>;
+    getCurrentPatientExaminationId(): Promise<number | null>;
     /**
      * Classifications for a finding
      * Your URLs: /api/findings/<int:finding_id>/classifications/

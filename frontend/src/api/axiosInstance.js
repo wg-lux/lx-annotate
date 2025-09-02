@@ -55,12 +55,12 @@ axiosInstance.interceptors.request.use((config) => {
 });
 function localSnakecaseKeys(obj, options = {}) {
     if (Array.isArray(obj)) {
-        return obj.map((item) => snakecaseKeys(item, options));
+        return obj.map((item) => item && typeof item === 'object' ? snakecaseKeys(item, options) : item);
     }
     else if (obj && typeof obj === 'object') {
         return Object.keys(obj).reduce((acc, key) => {
             const newKey = key.replace(/([A-Z])/g, (match) => `_${match.toLowerCase()}`);
-            acc[newKey] = options.deep && typeof obj[key] === 'object' ? snakecaseKeys(obj[key], options) : obj[key];
+            acc[newKey] = options.deep && obj[key] && typeof obj[key] === 'object' ? snakecaseKeys(obj[key], options) : obj[key];
             return acc;
         }, {});
     }

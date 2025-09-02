@@ -45,6 +45,8 @@ dependencies = [
     "pillow>=9.0.0",
     "numpy>=1.21.0",
     "celery>=5.5.3",
+    "drf-spectacular>=0.28.0",
+    "django-modeltranslation>=0.19.16",
 ]
 
 

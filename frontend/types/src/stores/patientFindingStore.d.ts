@@ -34,6 +34,7 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
             readonly nameDe?: string | undefined;
             readonly description: string;
             readonly examinations: readonly string[];
+            readonly PatientExaminationId?: number | undefined;
             readonly FindingClassifications: readonly {
                 readonly id: number;
                 readonly name?: string | undefined;
@@ -106,6 +107,7 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
             readonly nameDe?: string | undefined;
             readonly description: string;
             readonly examinations: readonly string[];
+            readonly PatientExaminationId?: number | undefined;
             readonly FindingClassifications: readonly {
                 readonly id: number;
                 readonly name?: string | undefined;
@@ -179,6 +181,7 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
             nameDe?: string | undefined;
             description: string;
             examinations: string[];
+            PatientExaminationId?: number | undefined;
             FindingClassifications: {
                 id: number;
                 name?: string | undefined;
@@ -262,6 +265,7 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
             readonly nameDe?: string | undefined;
             readonly description: string;
             readonly examinations: readonly string[];
+            readonly PatientExaminationId?: number | undefined;
             readonly FindingClassifications: readonly {
                 readonly id: number;
                 readonly name?: string | undefined;
@@ -334,6 +338,7 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
             readonly nameDe?: string | undefined;
             readonly description: string;
             readonly examinations: readonly string[];
+            readonly PatientExaminationId?: number | undefined;
             readonly FindingClassifications: readonly {
                 readonly id: number;
                 readonly name?: string | undefined;
@@ -407,6 +412,7 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
             nameDe?: string | undefined;
             description: string;
             examinations: string[];
+            PatientExaminationId?: number | undefined;
             FindingClassifications: {
                 id: number;
                 name?: string | undefined;
@@ -490,6 +496,7 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
             readonly nameDe?: string | undefined;
             readonly description: string;
             readonly examinations: readonly string[];
+            readonly PatientExaminationId?: number | undefined;
             readonly FindingClassifications: readonly {
                 readonly id: number;
                 readonly name?: string | undefined;
@@ -562,6 +569,7 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
             readonly nameDe?: string | undefined;
             readonly description: string;
             readonly examinations: readonly string[];
+            readonly PatientExaminationId?: number | undefined;
             readonly FindingClassifications: readonly {
                 readonly id: number;
                 readonly name?: string | undefined;
@@ -635,6 +643,7 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
             nameDe?: string | undefined;
             description: string;
             examinations: string[];
+            PatientExaminationId?: number | undefined;
             FindingClassifications: {
                 id: number;
                 name?: string | undefined;

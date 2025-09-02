@@ -51,32 +51,77 @@ const selectedRequirementSetIds = computed({
 });
 const selectedRequirementSetIdSet = computed(() => new Set(selectedRequirementSetIds.value));
 const availableFindings = computed(() => lookup.value?.availableFindings ?? []);
-// NEW: Computed properties for expanded lookup data
-const requirementsBySet = computed(() => lookup.value?.requirementsBySet ?? {});
-const requirementStatus = computed(() => lookup.value?.requirementStatus ?? {});
-const requirementSetStatus = computed(() => lookup.value?.requirementSetStatus ?? {});
-const suggestedActions = computed(() => lookup.value?.suggestedActions ?? {});
+const watchingLookup = ref(false);
+watch(lookup, (newVal, oldVal) => {
+    if (watchingLookup.value)
+        return; // Prevent recursive calls
+    watchingLookup.value = true;
+    console.log('Lookup changed:', { newVal, oldVal });
+    if (newVal && newVal.patientExaminationId !== currentPatientExaminationId.value) {
+        currentPatientExaminationId.value = newVal.patientExaminationId;
+        console.log('Updated currentPatientExaminationId to:', currentPatientExaminationId.value);
+    }
+    watchingLookup.value = false;
+}, { deep: true });
+const watchingRequirementSetIds = ref(false);
+watch(selectedRequirementSetIds, (newVal, oldVal) => {
+    if (watchingRequirementSetIds.value)
+        return; // Prevent recursive calls
+    watchingRequirementSetIds.value = true;
+    console.log('Selected Requirement Set IDs changed:', { newVal, oldVal });
+    if (newVal !== oldVal) {
+        // Trigger evaluation when selected sets change
+        requirementStore.setCurrentRequirementSetIds(newVal);
+    }
+    // Removed: requirementStore.deleteRequirementSetById(oldVal[0]); // This was incorrect and caused issues
+    watchingRequirementSetIds.value = false;
+});
 const selectionsPretty = computed(() => JSON.stringify({
     token: lookupToken.value,
     selectedRequirementSetIds: selectedRequirementSetIds.value,
 }, null, 2));
 // --- Finding Management Methods ---
 const isFindingAddedToExamination = (findingId) => {
-    // Check if finding is already added to current examination
-    // This would need to be implemented based on your examination data structure
-    // For now, return false - you can implement this based on your needs
+    if (!lookup.value)
+        return false;
+    const currentFindingIds = findingStore.getFindingIdsByPatientExaminationId(lookup.value.patientExaminationId);
+    if (currentFindingIds.includes(findingId))
+        return true;
     return false;
 };
-const onFindingAddedToExamination = (findingId, findingName) => {
-    // Handle when a finding is added to examination
-    console.log('Finding added to examination:', findingId, findingName);
-    // Use provided finding name or get it from store
-    const name = findingName || findingStore.getFindingById(findingId)?.name || `Befund ${findingId}`;
-    // Show success message
-    successMessage.value = `Befund "${name}" wurde erfolgreich hinzugefügt!`;
+const onFindingAddedToExamination = (findingIdOrData, findingName) => {
+    // Handle both old and new signatures
+    let findingId;
+    let name;
+    let selectedClassifications = [];
+    let response = null;
+    if (typeof findingIdOrData === 'number') {
+        // Old signature: (findingId: number, findingName: string)
+        findingId = findingIdOrData;
+        name = findingName || findingStore.getFindingById(findingId)?.name || `Befund ${findingId}`;
+    }
+    else {
+        // New signature: (data: { findingId, findingName?, selectedClassifications, response })
+        findingId = findingIdOrData.findingId;
+        name = findingIdOrData.findingName || findingStore.getFindingById(findingId)?.name || `Befund ${findingId}`;
+        selectedClassifications = findingIdOrData.selectedClassifications || [];
+        response = findingIdOrData.response;
+    }
+    console.log('Finding added to examination:', {
+        findingId,
+        name,
+        selectedClassifications: selectedClassifications.length,
+        hasResponse: !!response
+    });
+    // Enhanced success message with classification info
+    const classificationCount = selectedClassifications.length;
+    const message = classificationCount > 0
+        ? `Befund "${name}" wurde erfolgreich hinzugefügt mit ${classificationCount} Klassifikation${classificationCount !== 1 ? 'en' : ''}!`
+        : `Befund "${name}" wurde erfolgreich hinzugefügt!`;
+    successMessage.value = message;
     setTimeout(() => {
         successMessage.value = null;
-    }, 3000);
+    }, 5000); // Longer display for more detailed message
     // Trigger requirement evaluation after finding is added
     setTimeout(() => {
         evaluateRequirementsOnChange();
@@ -110,8 +155,14 @@ const loadFindingsData = async () => {
 // --- Requirement Evaluation Methods ---
 // Evaluate requirements when findings are added/removed
 const evaluateRequirementsOnChange = async () => {
-    if (!lookup.value || !lookupToken.value)
+    if (!lookup.value || !lookupToken.value) {
+        console.log('Skipping evaluation: lookup or token not available');
         return;
+    }
+    if (!lookup.value.patientExaminationId) {
+        console.log('Skipping evaluation: patientExaminationId not available in lookup', lookup.value);
+        return;
+    }
     try {
         console.log('Evaluating requirements based on current lookup data...');
         // Use the requirement store to evaluate from lookup data
@@ -346,6 +397,7 @@ function toggleRequirementSet(id, on) {
         s.delete(id);
     selectedRequirementSetIds.value = Array.from(s);
     patchLookup({ selectedRequirementSetIds: selectedRequirementSetIds.value });
+    requirementStore.setCurrentRequirementSetIds(selectedRequirementSetIds.value);
     // Trigger recomputation when requirement sets change
     if (lookupToken.value) {
         triggerRecompute();
@@ -865,6 +917,52 @@ function __VLS_template() {
             ...{ class: ("row g-3") },
         });
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("col-12") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("card") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("card-header") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.h2, __VLS_intrinsicElements.h2)({
+            ...{ class: ("h6 mb-0") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("card-body") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("row") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("col-md-4") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+        (__VLS_ctx.lookup.patientExaminationId || 'Nicht verfügbar');
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("col-md-4") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+        (__VLS_ctx.lookupToken);
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("col-md-4") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+        (__VLS_ctx.requirementSets.length);
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("row mt-2") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("col-md-6") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+        (__VLS_ctx.selectedRequirementSetIds.join(', ') || 'Keine');
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("col-md-6") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+        (__VLS_ctx.availableFindings.length);
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: ("col-12 col-xl-6") },
         });
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -904,21 +1002,51 @@ function __VLS_template() {
             ...{ class: ("btn btn-sm btn-outline-danger") },
             disabled: ((__VLS_ctx.loading || !__VLS_ctx.lookupToken)),
         });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("card-body") },
-        });
         if (__VLS_ctx.lookup) {
             __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: ("alert alert-info mb-3") },
+                ...{ class: ("row g-3 mt-3 card-body pre-scrollable") },
+                ...{ style: ({}) },
             });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
-            __VLS_elementAsFunction(__VLS_intrinsicElements.br, __VLS_intrinsicElements.br)({});
-            (!!__VLS_ctx.lookup);
-            __VLS_elementAsFunction(__VLS_intrinsicElements.br, __VLS_intrinsicElements.br)({});
-            (__VLS_ctx.requirementSets.length);
-            __VLS_elementAsFunction(__VLS_intrinsicElements.br, __VLS_intrinsicElements.br)({});
-            __VLS_elementAsFunction(__VLS_intrinsicElements.pre, __VLS_intrinsicElements.pre)({});
-            (JSON.stringify(__VLS_ctx.lookup, null, 2));
+            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: ("col-12 col-xl-6") },
+            });
+            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: ("card") },
+            });
+            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: ("card-header") },
+            });
+            __VLS_elementAsFunction(__VLS_intrinsicElements.h2, __VLS_intrinsicElements.h2)({
+                ...{ class: ("h5 mb-0") },
+            });
+            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: ("card-body") },
+            });
+            // @ts-ignore
+            /** @type { [typeof AddableFindingsDetail, ] } */ ;
+            // @ts-ignore
+            const __VLS_0 = __VLS_asFunctionalComponent(AddableFindingsDetail, new AddableFindingsDetail({
+                ...{ 'onFindingAdded': {} },
+                ...{ 'onFindingError': {} },
+                examinationId: ((__VLS_ctx.selectedExaminationId || undefined)),
+                patientExaminationId: ((__VLS_ctx.currentPatientExaminationId || undefined)),
+            }));
+            const __VLS_1 = __VLS_0({
+                ...{ 'onFindingAdded': {} },
+                ...{ 'onFindingError': {} },
+                examinationId: ((__VLS_ctx.selectedExaminationId || undefined)),
+                patientExaminationId: ((__VLS_ctx.currentPatientExaminationId || undefined)),
+            }, ...__VLS_functionalComponentArgsRest(__VLS_0));
+            let __VLS_5;
+            const __VLS_6 = {
+                onFindingAdded: (__VLS_ctx.onFindingAddedToExamination)
+            };
+            const __VLS_7 = {
+                onFindingError: ((errorMsg) => __VLS_ctx.error = errorMsg)
+            };
+            let __VLS_2;
+            let __VLS_3;
+            var __VLS_4;
         }
         __VLS_elementAsFunction(__VLS_intrinsicElements.ul, __VLS_intrinsicElements.ul)({
             ...{ class: ("list-group list-group-flush") },
@@ -1033,6 +1161,22 @@ function __VLS_template() {
             });
         }
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("card-body") },
+        });
+        if (__VLS_ctx.lookup) {
+            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: ("mb-3") },
+            });
+            __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+            __VLS_elementAsFunction(__VLS_intrinsicElements.br, __VLS_intrinsicElements.br)({});
+            (!!__VLS_ctx.lookup);
+            __VLS_elementAsFunction(__VLS_intrinsicElements.br, __VLS_intrinsicElements.br)({});
+            (__VLS_ctx.requirementSets.length);
+            __VLS_elementAsFunction(__VLS_intrinsicElements.br, __VLS_intrinsicElements.br)({});
+            __VLS_elementAsFunction(__VLS_intrinsicElements.pre, __VLS_intrinsicElements.pre)({});
+            (JSON.stringify(__VLS_ctx.lookup, null, 2));
+        }
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: ("col-12 col-xl-6") },
         });
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -1043,6 +1187,9 @@ function __VLS_template() {
         });
         __VLS_elementAsFunction(__VLS_intrinsicElements.h2, __VLS_intrinsicElements.h2)({
             ...{ class: ("h5 mb-0") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
+            ...{ class: ("text-muted mb-0") },
         });
         if (__VLS_ctx.availableFindings.length > 0) {
             __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -1069,7 +1216,8 @@ function __VLS_template() {
             });
         }
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("card-body") },
+            ...{ class: ("card-body pre-scrollable") },
+            ...{ style: ({}) },
         });
         if (__VLS_ctx.findingStore.loading) {
             __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -1094,32 +1242,32 @@ function __VLS_template() {
                 // @ts-ignore
                 /** @type { [typeof FindingsDetail, ] } */ ;
                 // @ts-ignore
-                const __VLS_0 = __VLS_asFunctionalComponent(FindingsDetail, new FindingsDetail({
+                const __VLS_8 = __VLS_asFunctionalComponent(FindingsDetail, new FindingsDetail({
                     ...{ 'onAddedToExamination': {} },
                     ...{ 'onClassificationUpdated': {} },
                     key: ((findingId)),
                     findingId: ((findingId)),
                     isAddedToExamination: ((__VLS_ctx.isFindingAddedToExamination(findingId))),
-                    patientExaminationId: ((__VLS_ctx.currentPatientExaminationId || undefined)),
+                    patientExaminationId: ((__VLS_ctx.lookup?.patientExaminationId || undefined)),
                 }));
-                const __VLS_1 = __VLS_0({
+                const __VLS_9 = __VLS_8({
                     ...{ 'onAddedToExamination': {} },
                     ...{ 'onClassificationUpdated': {} },
                     key: ((findingId)),
                     findingId: ((findingId)),
                     isAddedToExamination: ((__VLS_ctx.isFindingAddedToExamination(findingId))),
-                    patientExaminationId: ((__VLS_ctx.currentPatientExaminationId || undefined)),
-                }, ...__VLS_functionalComponentArgsRest(__VLS_0));
-                let __VLS_5;
-                const __VLS_6 = {
+                    patientExaminationId: ((__VLS_ctx.lookup?.patientExaminationId || undefined)),
+                }, ...__VLS_functionalComponentArgsRest(__VLS_8));
+                let __VLS_13;
+                const __VLS_14 = {
                     onAddedToExamination: (__VLS_ctx.onFindingAddedToExamination)
                 };
-                const __VLS_7 = {
+                const __VLS_15 = {
                     onClassificationUpdated: (__VLS_ctx.onClassificationUpdated)
                 };
-                let __VLS_2;
-                let __VLS_3;
-                var __VLS_4;
+                let __VLS_10;
+                let __VLS_11;
+                var __VLS_12;
             }
         }
         else {
@@ -1136,51 +1284,6 @@ function __VLS_template() {
                 ...{ class: ("text-muted") },
             });
         }
-    }
-    if (__VLS_ctx.lookup) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("row g-3 mt-3") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("col-12") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("card") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("card-header") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.h2, __VLS_intrinsicElements.h2)({
-            ...{ class: ("h5 mb-0") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("card-body") },
-        });
-        // @ts-ignore
-        /** @type { [typeof AddableFindingsDetail, ] } */ ;
-        // @ts-ignore
-        const __VLS_8 = __VLS_asFunctionalComponent(AddableFindingsDetail, new AddableFindingsDetail({
-            ...{ 'onFindingAdded': {} },
-            ...{ 'onFindingError': {} },
-            examinationId: ((__VLS_ctx.selectedExaminationId || undefined)),
-            patientExaminationId: ((__VLS_ctx.currentPatientExaminationId || undefined)),
-        }));
-        const __VLS_9 = __VLS_8({
-            ...{ 'onFindingAdded': {} },
-            ...{ 'onFindingError': {} },
-            examinationId: ((__VLS_ctx.selectedExaminationId || undefined)),
-            patientExaminationId: ((__VLS_ctx.currentPatientExaminationId || undefined)),
-        }, ...__VLS_functionalComponentArgsRest(__VLS_8));
-        let __VLS_13;
-        const __VLS_14 = {
-            onFindingAdded: (__VLS_ctx.onFindingAddedToExamination)
-        };
-        const __VLS_15 = {
-            onFindingError: ((errorMsg) => __VLS_ctx.error = errorMsg)
-        };
-        let __VLS_10;
-        let __VLS_11;
-        var __VLS_12;
     }
     if (__VLS_ctx.successMessage) {
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -1246,7 +1349,7 @@ function __VLS_template() {
         let __VLS_19;
         var __VLS_20;
     }
-    ['requirement-generator', 'container-fluid', 'py-4', 'alert', 'alert-danger', 'card', 'mb-3', 'card-header', 'h5', 'mb-0', 'card-body', 'row', 'align-items-end', 'col-md-6', 'form-group', 'd-flex', 'justify-content-between', 'align-items-center', 'mb-2', 'd-flex', 'align-items-center', 'gap-2', 'badge', 'bg-info', 'fas', 'fa-user', 'btn', 'btn-sm', 'btn-outline-secondary', 'fas', 'fa-times', 'form-control', 'mt-2', 'text-muted', 'fas', 'fa-info-circle', 'col-md-6', 'form-group', 'form-control', 'row', 'mt-3', 'col-12', 'btn', 'btn-primary', 'spinner-border', 'spinner-border-sm', 'row', 'g-3', 'col-12', 'col-xl-6', 'card', 'h-100', 'card-header', 'd-flex', 'justify-content-between', 'align-items-center', 'h5', 'mb-0', 'text-muted', 'd-flex', 'gap-2', 'btn', 'btn-sm', 'btn-outline-secondary', 'btn', 'btn-sm', 'btn-outline-info', 'btn', 'btn-sm', 'btn-outline-info', 'btn', 'btn-sm', 'btn-outline-danger', 'card-body', 'alert', 'alert-info', 'mb-3', 'list-group', 'list-group-flush', 'list-group-item', 'd-flex', 'justify-content-between', 'align-items-center', 'flex-grow-1', 'd-flex', 'justify-content-between', 'align-items-center', 'fw-semibold', 'd-flex', 'align-items-center', 'gap-2', 'badge', 'fas', 'btn', 'btn-sm', 'btn-outline-info', 'fas', 'fa-calculator', 'text-muted', 'd-block', 'mt-2', 'text-muted', 'form-check', 'form-switch', 'ms-3', 'form-check-input', 'list-group-item', 'text-muted', 'mt-3', 'p-3', 'bg-light', 'rounded', 'mb-2', 'progress', 'mb-2', 'progress-bar', 'text-muted', 'mt-2', 'btn', 'btn-sm', 'btn-primary', 'fas', 'fa-sync', 'col-12', 'col-xl-6', 'card', 'h-100', 'card-header', 'd-flex', 'justify-content-between', 'align-items-center', 'h5', 'mb-0', 'd-flex', 'align-items-center', 'gap-2', 'text-muted', 'btn', 'btn-sm', 'btn-outline-info', 'fas', 'fa-sync-alt', 'card-body', 'text-center', 'py-4', 'spinner-border', 'visually-hidden', 'mt-2', 'text-muted', 'findings-container', 'text-center', 'py-4', 'fas', 'fa-info-circle', 'fa-2x', 'text-muted', 'mb-3', 'text-muted', 'text-muted', 'row', 'g-3', 'mt-3', 'col-12', 'card', 'card-header', 'h5', 'mb-0', 'card-body', 'alert', 'alert-success', 'alert-dismissible', 'btn-close', 'modal-overlay', 'modal-dialog', 'modal-content', 'modal-header', 'modal-title', 'btn-close', 'modal-body',];
+    ['requirement-generator', 'container-fluid', 'py-4', 'alert', 'alert-danger', 'card', 'mb-3', 'card-header', 'h5', 'mb-0', 'card-body', 'row', 'align-items-end', 'col-md-6', 'form-group', 'd-flex', 'justify-content-between', 'align-items-center', 'mb-2', 'd-flex', 'align-items-center', 'gap-2', 'badge', 'bg-info', 'fas', 'fa-user', 'btn', 'btn-sm', 'btn-outline-secondary', 'fas', 'fa-times', 'form-control', 'mt-2', 'text-muted', 'fas', 'fa-info-circle', 'col-md-6', 'form-group', 'form-control', 'row', 'mt-3', 'col-12', 'btn', 'btn-primary', 'spinner-border', 'spinner-border-sm', 'row', 'g-3', 'col-12', 'card', 'card-header', 'h6', 'mb-0', 'card-body', 'row', 'col-md-4', 'col-md-4', 'col-md-4', 'row', 'mt-2', 'col-md-6', 'col-md-6', 'col-12', 'col-xl-6', 'card', 'h-100', 'card-header', 'd-flex', 'justify-content-between', 'align-items-center', 'h5', 'mb-0', 'text-muted', 'd-flex', 'gap-2', 'btn', 'btn-sm', 'btn-outline-secondary', 'btn', 'btn-sm', 'btn-outline-info', 'btn', 'btn-sm', 'btn-outline-info', 'btn', 'btn-sm', 'btn-outline-danger', 'row', 'g-3', 'mt-3', 'card-body', 'pre-scrollable', 'col-12', 'col-xl-6', 'card', 'card-header', 'h5', 'mb-0', 'card-body', 'list-group', 'list-group-flush', 'list-group-item', 'd-flex', 'justify-content-between', 'align-items-center', 'flex-grow-1', 'd-flex', 'justify-content-between', 'align-items-center', 'fw-semibold', 'd-flex', 'align-items-center', 'gap-2', 'badge', 'fas', 'btn', 'btn-sm', 'btn-outline-info', 'fas', 'fa-calculator', 'text-muted', 'd-block', 'mt-2', 'text-muted', 'form-check', 'form-switch', 'ms-3', 'form-check-input', 'list-group-item', 'text-muted', 'mt-3', 'p-3', 'bg-light', 'rounded', 'mb-2', 'progress', 'mb-2', 'progress-bar', 'text-muted', 'mt-2', 'btn', 'btn-sm', 'btn-primary', 'fas', 'fa-sync', 'card-body', 'mb-3', 'col-12', 'col-xl-6', 'card', 'h-100', 'card-header', 'd-flex', 'justify-content-between', 'align-items-center', 'h5', 'mb-0', 'text-muted', 'mb-0', 'd-flex', 'align-items-center', 'gap-2', 'text-muted', 'btn', 'btn-sm', 'btn-outline-info', 'fas', 'fa-sync-alt', 'card-body', 'pre-scrollable', 'text-center', 'py-4', 'spinner-border', 'visually-hidden', 'mt-2', 'text-muted', 'findings-container', 'text-center', 'py-4', 'fas', 'fa-info-circle', 'fa-2x', 'text-muted', 'mb-3', 'text-muted', 'text-muted', 'alert', 'alert-success', 'alert-dismissible', 'btn-close', 'modal-overlay', 'modal-dialog', 'modal-content', 'modal-header', 'modal-title', 'btn-close', 'modal-body',];
     var __VLS_slots;
     var $slots;
     let __VLS_inheritedAttrs;
@@ -1285,6 +1388,7 @@ const __VLS_self = (await import('vue')).defineComponent({
             examinationsDropdown: examinationsDropdown,
             isLoadingExaminations: isLoadingExaminations,
             requirementSets: requirementSets,
+            selectedRequirementSetIds: selectedRequirementSetIds,
             selectedRequirementSetIdSet: selectedRequirementSetIdSet,
             availableFindings: availableFindings,
             isFindingAddedToExamination: isFindingAddedToExamination,
