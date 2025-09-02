@@ -2,6 +2,7 @@ import {defineStore} from "pinia";
 import axiosInstance from "@/api/axiosInstance";
 import {ref, readonly, computed} from "vue";
 import type { Patient } from '../api/patientService';
+import { useExaminationStore } from "@/stores/examinationStore";
 
 interface Finding {
     id: number;
@@ -41,6 +42,10 @@ export const useFindingStore = defineStore('finding', () => {
     // Neue Felder für examination-spezifische Findings
     const examinationFindings = ref<Map<number, Finding[]>>(new Map());
     const examinationFindingsLoading = ref<Map<number, boolean>>(new Map());
+
+    const examinationStore = useExaminationStore();
+    
+    
 
     const fetchFindings = async () => {
         try {
@@ -159,6 +164,10 @@ export const useFindingStore = defineStore('finding', () => {
             examinationFindingsLoading.value.clear();
         }
     };
+
+    const getCurrentPatientExaminationId = () => {
+        return examinationStore.getCurrentExaminationId();
+    }
 
     return {
         findings: readonly(findings),

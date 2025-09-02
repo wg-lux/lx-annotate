@@ -118,7 +118,7 @@ export const useExaminationStore = defineStore('examination', {
         this.loading = false;
       }
     },
-    async getCurrentPatientExaminationId(): Promise<number | null> {
+    async getCurrentExaminationId(): Promise<number | null> {
       if (this.selectedExaminationId) return this.selectedExaminationId;
       await this.fetchExaminations();
       return this.selectedExaminationId;

@@ -326,10 +326,12 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import type { Ref } from 'vue';
 import axiosInstance from '@/api/axiosInstance';
 import { usePatientStore } from '@/stores/patientStore';
+import type { Patient } from '@/stores/patientStore';
 import { useExaminationStore } from '@/stores/examinationStore';
 import { useFindingStore } from '@/stores/findingStore';
 import { useRequirementStore } from '@/stores/requirementStore';
-import type { Patient } from '@/stores/patientStore';
+import { usePatientExaminationStore } from '@/stores/patientExaminationStore';
+import type { PatientExamination } from '@/stores/patientExaminationStore';
 import PatientAdder from '@/components/CaseGenerator/PatientAdder.vue';
 import FindingsDetail from './FindingsDetail.vue';
 import AddableFindingsDetail from './AddableFindingsDetail.vue';
@@ -357,6 +359,7 @@ const patientStore = usePatientStore();
 const examinationStore = useExaminationStore();
 const findingStore = useFindingStore();
 const requirementStore = useRequirementStore();
+const patientExaminationStore = usePatientExaminationStore();
 
 // --- API ---
 const LOOKUP_BASE = '/api/lookup';
@@ -425,6 +428,18 @@ watch(selectedRequirementSetIds, (newVal, oldVal) => {
   }
   // Removed: requirementStore.deleteRequirementSetById(oldVal[0]); // This was incorrect and caused issues
   watchingRequirementSetIds.value = false;
+});
+
+const watchingPatientExaminationIds = ref(false);
+watch(currentPatientExaminationId, (newVal, oldVal) => {
+  if (watchingPatientExaminationIds.value) return; // Prevent recursive calls
+  watchingPatientExaminationIds.value = true;
+  console.log('Current Examination ID changed:', { newVal, oldVal });
+  if (newVal !== oldVal) {
+    // Trigger evaluation when examination changes
+    patientExaminationStore.setCurrentPatientExaminationId(newVal);
+  }
+  watchingPatientExaminationIds.value = false;
 });
 
 const selectionsPretty = computed(() => JSON.stringify({
@@ -673,6 +688,8 @@ async function createPatientExaminationAndInitLookup() {
       examination: selectedExam.name,
       date_start: formattedDate, // Fixed field name
     });
+
+    patientExaminationStore.addPatientExamination(peRes.data as PatientExamination);
 
     console.log('PatientExamination created:', peRes.data);
     currentPatientExaminationId.value = peRes.data.id;

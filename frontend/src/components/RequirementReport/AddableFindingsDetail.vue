@@ -22,6 +22,15 @@
             <div v-if="showFindingSelector" class="mb-3">
                 <div class="finding-selector">
                     <label class="form-label">Verfügbare Befunde:</label>
+                    
+                    <!-- Debug Info -->
+                    <div class="alert alert-info small mb-2">
+                        <strong>Debug Info:</strong><br>
+                        PatientExaminationId: {{ props.patientExaminationId || 'Nicht verfügbar' }}<br>
+                        ExaminationId: {{ props.examinationId || 'Nicht verfügbar' }}<br>
+                        Gefundene Befunde: {{ availableFindings.length }}
+                    </div>
+                    
                     <div v-if="availableFindings.length === 0" class="text-center py-3">
                         <i class="fas fa-info-circle fa-2x text-muted mb-2"></i>
                         <p class="text-muted">Keine Befunde verfügbar</p>
@@ -196,6 +205,11 @@ import { ref, computed, onMounted, watch } from 'vue';
 import { useFindingStore, type Finding, type FindingClassification, type FindingClassificationChoice } from '@/stores/findingStore';
 import { usePatientFindingStore } from '@/stores/patientFindingStore';
 import axiosInstance from '@/api/axiosInstance';
+import { usePatientExaminationStore } from '@/stores/patientExaminationStore';
+
+const patientExaminationStore = usePatientExaminationStore();
+
+const patientExaminationId = patientExaminationStore.getCurrentPatientExaminationId();
 
 interface Props {
     patientExaminationId?: number;
@@ -206,6 +220,17 @@ const props = withDefaults(defineProps<Props>(), {
     patientExaminationId: undefined,
     examinationId: undefined
 });
+
+watch(() => patientExaminationStore.getCurrentPatientExaminationId, (newId) => {
+    if (newId && !props.patientExaminationId) {
+        // This is generally not recommended as it can lead to synchronization issues.
+        // The component should ideally receive the ID via props.
+        // This watcher acts as a fallback to sync with the store if the prop is not provided.
+        console.warn('[AddableFindingsDetail] Syncing patientExaminationId from store as prop was not provided. New ID:', newId);
+        // We will trigger the logic that depends on patientExaminationId changing.
+        loadFindingsAndClassificationsNew();
+    }
+}, { immediate: true });
 
 const emit = defineEmits<{
   'finding-added': [findingId: number, findingName: string]
@@ -221,16 +246,17 @@ const showFindingSelector = ref(false);
 const selectedFindingId = ref<number | null>(null);
 const findingClassifications = ref<FindingClassification[]>([]);
 const selectedChoices = ref<Record<number, number>>({});
+const availableExaminationFindings = ref<Finding[]>([]);
 
 // Computed Properties
 const availableFindings = computed(() => {
-    if (!props.examinationId) return [];
-    return findingStore.getFindingsByExamination(props.examinationId);
+    return availableExaminationFindings.value;
 });
 
 const selectedFinding = computed((): Finding | undefined => {
     if (!selectedFindingId.value) return undefined;
-    return findingStore.getFindingById(selectedFindingId.value);
+    return availableFindings.value.find(f => f.id === selectedFindingId.value) || 
+           findingStore.getFindingById(selectedFindingId.value);
 });
 
 const hasAllRequiredClassifications = computed(() => {
@@ -365,17 +391,64 @@ const loadFindingsAndClassifications = async (examinationId: number) => {
     }
 };
 
-// Load findings when examination changes
-watch(() => props.examinationId, async (newExaminationId) => {
-    if (newExaminationId) {
-        await loadFindingsAndClassifications(newExaminationId);
+// Neue Methode: Lade Befunde basierend auf der PatientExamination
+const loadAvailableFindingsForPatientExamination = async () => {
+    try {
+        loading.value = true;
+        
+        // Erst die PatientExamination holen, um die examinationId zu bekommen
+        if (props.patientExaminationId) {
+            const response = await axiosInstance.get(`/api/patient-examinations/${props.patientExaminationId}/`);
+            const patientExamination = response.data;
+            
+            if (patientExamination.id) {
+                // Dann die verfügbaren Befunde für diese Examination laden
+                const examinationId = patientExamination.getCurrentExaminationId;
+                const findingsResponse = await axiosInstance.get(`/api/examinations/${patientExamination.id}/findings/`);
+                availableExaminationFindings.value = findingsResponse.data;
+                
+                console.log('📋 [AddableFindingsDetail] Loaded findings for patientExaminationId:', props.patientExaminationId, 'examinationId:', examinationId, 'findings count:', availableExaminationFindings.value.length);
+            }
+        } else if (props.examinationId) {
+            // Fallback: Direkt über die examinationId laden
+            const findingsResponse = await axiosInstance.get(`/api/examinations/${props.examinationId}/findings/`);
+            availableExaminationFindings.value = findingsResponse.data;
+            
+            console.log('📋 [AddableFindingsDetail] Loaded findings for examinationId:', props.examinationId, 'findings count:', availableExaminationFindings.value.length);
+        } else {
+            const patientExaminationId = patientExaminationStore.getCurrentPatientExaminationId;
+            const findingsResponse = await axiosInstance.get(`/api/patient-examinations/${patientExaminationId}/findings/`);
+            availableExaminationFindings.value = findingsResponse.data;
+            console.log('📋 [AddableFindingsDetail] Loaded findings for patientExaminationId from store:', patientExaminationId, 'findings count:', availableExaminationFindings.value.length);
+        }
+        
+    } catch (error) {
+        console.error('Error loading available findings:', error);
+        emit('finding-error', 'Fehler beim Laden der verfügbaren Befunde');
+    } finally {
+        loading.value = false;
+    }
+};
+
+const loadFindingsAndClassificationsNew = async () => {
+    await loadAvailableFindingsForPatientExamination();
+};
+
+// Watchers
+watch(() => props.patientExaminationId, async () => {
+    if (props.patientExaminationId) {
+        await loadFindingsAndClassificationsNew();
+    }
+}, { immediate: true });
+
+watch(() => props.examinationId, async () => {
+    if (props.examinationId && !props.patientExaminationId) {
+        await loadFindingsAndClassificationsNew();
     }
 }, { immediate: true });
 
 // Load initial data
 onMounted(async () => {
-    if (props.examinationId) {
-        await loadFindingsAndClassifications(props.examinationId);
-    }
+    await loadFindingsAndClassificationsNew();
 });
 </script>

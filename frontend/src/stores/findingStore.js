@@ -1,6 +1,7 @@
 import { defineStore } from "pinia";
 import axiosInstance from "@/api/axiosInstance";
 import { ref, readonly, computed } from "vue";
+import { useExaminationStore } from "@/stores/examinationStore";
 export const useFindingStore = defineStore('finding', () => {
     const findings = ref([]);
     const loading = ref(false);
@@ -10,6 +11,7 @@ export const useFindingStore = defineStore('finding', () => {
     // Neue Felder für examination-spezifische Findings
     const examinationFindings = ref(new Map());
     const examinationFindingsLoading = ref(new Map());
+    const examinationStore = useExaminationStore();
     const fetchFindings = async () => {
         try {
             loading.value = true;
@@ -117,6 +119,9 @@ export const useFindingStore = defineStore('finding', () => {
             examinationFindings.value.clear();
             examinationFindingsLoading.value.clear();
         }
+    };
+    const getCurrentPatientExaminationId = () => {
+        return examinationStore.getCurrentExaminationId();
     };
     return {
         findings: readonly(findings),

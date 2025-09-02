@@ -2,10 +2,23 @@ import { ref, computed, onMounted, watch } from 'vue';
 import { useFindingStore } from '@/stores/findingStore';
 import { usePatientFindingStore } from '@/stores/patientFindingStore';
 import axiosInstance from '@/api/axiosInstance';
+import { usePatientExaminationStore } from '@/stores/patientExaminationStore';
+const patientExaminationStore = usePatientExaminationStore();
+const patientExaminationId = patientExaminationStore.getCurrentPatientExaminationId();
 const props = withDefaults(defineProps(), {
     patientExaminationId: undefined,
     examinationId: undefined
 });
+watch(() => patientExaminationStore.getCurrentPatientExaminationId, (newId) => {
+    if (newId && !props.patientExaminationId) {
+        // This is generally not recommended as it can lead to synchronization issues.
+        // The component should ideally receive the ID via props.
+        // This watcher acts as a fallback to sync with the store if the prop is not provided.
+        console.warn('[AddableFindingsDetail] Syncing patientExaminationId from store as prop was not provided. New ID:', newId);
+        // We will trigger the logic that depends on patientExaminationId changing.
+        loadFindingsAndClassificationsNew();
+    }
+}, { immediate: true });
 const emit = defineEmits();
 const findingStore = useFindingStore();
 const patientFindingStore = usePatientFindingStore();
@@ -15,16 +28,16 @@ const showFindingSelector = ref(false);
 const selectedFindingId = ref(null);
 const findingClassifications = ref([]);
 const selectedChoices = ref({});
+const availableExaminationFindings = ref([]);
 // Computed Properties
 const availableFindings = computed(() => {
-    if (!props.examinationId)
-        return [];
-    return findingStore.getFindingsByExamination(props.examinationId);
+    return availableExaminationFindings.value;
 });
 const selectedFinding = computed(() => {
     if (!selectedFindingId.value)
         return undefined;
-    return findingStore.getFindingById(selectedFindingId.value);
+    return availableFindings.value.find(f => f.id === selectedFindingId.value) ||
+        findingStore.getFindingById(selectedFindingId.value);
 });
 const hasAllRequiredClassifications = computed(() => {
     if (!findingClassifications.value.length)
@@ -141,17 +154,60 @@ const loadFindingsAndClassifications = async (examinationId) => {
         loading.value = false;
     }
 };
-// Load findings when examination changes
-watch(() => props.examinationId, async (newExaminationId) => {
-    if (newExaminationId) {
-        await loadFindingsAndClassifications(newExaminationId);
+// Neue Methode: Lade Befunde basierend auf der PatientExamination
+const loadAvailableFindingsForPatientExamination = async () => {
+    try {
+        loading.value = true;
+        // Erst die PatientExamination holen, um die examinationId zu bekommen
+        if (props.patientExaminationId) {
+            const response = await axiosInstance.get(`/api/patient-examinations/${props.patientExaminationId}/`);
+            const patientExamination = response.data;
+            if (patientExamination.id) {
+                // Dann die verfügbaren Befunde für diese Examination laden
+                const examinationId = patientExamination.getCurrentExaminationId;
+                const findingsResponse = await axiosInstance.get(`/api/examinations/${patientExamination.id}/findings/`);
+                availableExaminationFindings.value = findingsResponse.data;
+                console.log('📋 [AddableFindingsDetail] Loaded findings for patientExaminationId:', props.patientExaminationId, 'examinationId:', examinationId, 'findings count:', availableExaminationFindings.value.length);
+            }
+        }
+        else if (props.examinationId) {
+            // Fallback: Direkt über die examinationId laden
+            const findingsResponse = await axiosInstance.get(`/api/examinations/${props.examinationId}/findings/`);
+            availableExaminationFindings.value = findingsResponse.data;
+            console.log('📋 [AddableFindingsDetail] Loaded findings for examinationId:', props.examinationId, 'findings count:', availableExaminationFindings.value.length);
+        }
+        else {
+            const patientExaminationId = patientExaminationStore.getCurrentPatientExaminationId;
+            const findingsResponse = await axiosInstance.get(`/api/patient-examinations/${patientExaminationId}/findings/`);
+            availableExaminationFindings.value = findingsResponse.data;
+            console.log('📋 [AddableFindingsDetail] Loaded findings for patientExaminationId from store:', patientExaminationId, 'findings count:', availableExaminationFindings.value.length);
+        }
+    }
+    catch (error) {
+        console.error('Error loading available findings:', error);
+        emit('finding-error', 'Fehler beim Laden der verfügbaren Befunde');
+    }
+    finally {
+        loading.value = false;
+    }
+};
+const loadFindingsAndClassificationsNew = async () => {
+    await loadAvailableFindingsForPatientExamination();
+};
+// Watchers
+watch(() => props.patientExaminationId, async () => {
+    if (props.patientExaminationId) {
+        await loadFindingsAndClassificationsNew();
+    }
+}, { immediate: true });
+watch(() => props.examinationId, async () => {
+    if (props.examinationId && !props.patientExaminationId) {
+        await loadFindingsAndClassificationsNew();
     }
 }, { immediate: true });
 // Load initial data
 onMounted(async () => {
-    if (props.examinationId) {
-        await loadFindingsAndClassifications(props.examinationId);
-    }
+    await loadFindingsAndClassificationsNew();
 });
 ; /* PartiallyEnd: #3632/scriptSetup.vue */
 const __VLS_withDefaultsArg = (function (t) { return t; })({
@@ -205,6 +261,16 @@ function __VLS_template() {
         __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
             ...{ class: ("form-label") },
         });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: ("alert alert-info small mb-2") },
+        });
+        __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+        __VLS_elementAsFunction(__VLS_intrinsicElements.br, __VLS_intrinsicElements.br)({});
+        (props.patientExaminationId || 'Nicht verfügbar');
+        __VLS_elementAsFunction(__VLS_intrinsicElements.br, __VLS_intrinsicElements.br)({});
+        (props.examinationId || 'Nicht verfügbar');
+        __VLS_elementAsFunction(__VLS_intrinsicElements.br, __VLS_intrinsicElements.br)({});
+        (__VLS_ctx.availableFindings.length);
         if (__VLS_ctx.availableFindings.length === 0) {
             __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
                 ...{ class: ("text-center py-3") },
@@ -438,7 +504,7 @@ function __VLS_template() {
             ...{ class: ("text-muted") },
         });
     }
-    ['addable-finding-card', 'card', 'mb-3', 'border-primary', 'card-header', 'd-flex', 'justify-content-between', 'align-items-center', 'bg-light', 'd-flex', 'align-items-center', 'gap-2', 'fas', 'fa-plus-circle', 'text-primary', 'card-title', 'mb-0', 'd-flex', 'gap-2', 'btn', 'btn-sm', 'btn-primary', 'fas', 'card-body', 'mb-3', 'finding-selector', 'form-label', 'text-center', 'py-3', 'fas', 'fa-info-circle', 'fa-2x', 'text-muted', 'mb-2', 'text-muted', 'text-muted', 'row', 'g-2', 'col-md-6', 'col-lg-4', 'finding-option', 'card', 'h-100', 'cursor-pointer', 'border-primary', 'bg-light', 'card-body', 'p-2', 'd-flex', 'align-items-center', 'gap-2', 'fas', 'fa-search', 'text-primary', 'small', 'fw-semibold', 'small', 'text-muted', 'mt-1', 'mb-0', 'selected-finding-config', 'd-flex', 'justify-content-between', 'align-items-center', 'mb-3', 'mb-0', 'fas', 'fa-cog', 'text-primary', 'me-2', 'btn', 'btn-sm', 'btn-outline-secondary', 'fas', 'fa-times', 'mb-3', 'alert', 'alert-info', 'mb-0', 'small', 'mb-3', 'classification-config-list', 'classification-config-item', 'mb-3', 'p-3', 'border', 'rounded', 'd-flex', 'justify-content-between', 'align-items-center', 'mb-2', 'd-flex', 'align-items-center', 'gap-2', 'badge', 'bg-warning', 'fas', 'fa-exclamation-triangle', 'badge', 'bg-success', 'fas', 'fa-check', 'text-muted', 'small', 'mb-2', 'mb-2', 'form-label', 'small', 'form-select', 'form-select-sm', 'border-success', 'border-warning', 'classification-progress', 'mb-3', 'd-flex', 'justify-content-between', 'align-items-center', 'mb-1', 'text-muted', 'fw-semibold', 'progress', 'progress-bar', 'text-end', 'btn', 'btn-success', 'spinner-border', 'spinner-border-sm', 'me-2', 'fas', 'fa-plus', 'me-2', 'text-center', 'py-4', 'fas', 'fa-plus-circle', 'fa-3x', 'text-primary', 'mb-3', 'opacity-50', 'text-muted',];
+    ['addable-finding-card', 'card', 'mb-3', 'border-primary', 'card-header', 'd-flex', 'justify-content-between', 'align-items-center', 'bg-light', 'd-flex', 'align-items-center', 'gap-2', 'fas', 'fa-plus-circle', 'text-primary', 'card-title', 'mb-0', 'd-flex', 'gap-2', 'btn', 'btn-sm', 'btn-primary', 'fas', 'card-body', 'mb-3', 'finding-selector', 'form-label', 'alert', 'alert-info', 'small', 'mb-2', 'text-center', 'py-3', 'fas', 'fa-info-circle', 'fa-2x', 'text-muted', 'mb-2', 'text-muted', 'text-muted', 'row', 'g-2', 'col-md-6', 'col-lg-4', 'finding-option', 'card', 'h-100', 'cursor-pointer', 'border-primary', 'bg-light', 'card-body', 'p-2', 'd-flex', 'align-items-center', 'gap-2', 'fas', 'fa-search', 'text-primary', 'small', 'fw-semibold', 'small', 'text-muted', 'mt-1', 'mb-0', 'selected-finding-config', 'd-flex', 'justify-content-between', 'align-items-center', 'mb-3', 'mb-0', 'fas', 'fa-cog', 'text-primary', 'me-2', 'btn', 'btn-sm', 'btn-outline-secondary', 'fas', 'fa-times', 'mb-3', 'alert', 'alert-info', 'mb-0', 'small', 'mb-3', 'classification-config-list', 'classification-config-item', 'mb-3', 'p-3', 'border', 'rounded', 'd-flex', 'justify-content-between', 'align-items-center', 'mb-2', 'd-flex', 'align-items-center', 'gap-2', 'badge', 'bg-warning', 'fas', 'fa-exclamation-triangle', 'badge', 'bg-success', 'fas', 'fa-check', 'text-muted', 'small', 'mb-2', 'mb-2', 'form-label', 'small', 'form-select', 'form-select-sm', 'border-success', 'border-warning', 'classification-progress', 'mb-3', 'd-flex', 'justify-content-between', 'align-items-center', 'mb-1', 'text-muted', 'fw-semibold', 'progress', 'progress-bar', 'text-end', 'btn', 'btn-success', 'spinner-border', 'spinner-border-sm', 'me-2', 'fas', 'fa-plus', 'me-2', 'text-center', 'py-4', 'fas', 'fa-plus-circle', 'fa-3x', 'text-primary', 'mb-3', 'opacity-50', 'text-muted',];
     var __VLS_slots;
     var $slots;
     let __VLS_inheritedAttrs;

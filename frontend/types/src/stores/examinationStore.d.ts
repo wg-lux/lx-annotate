@@ -318,7 +318,7 @@ export declare const useExaminationStore: import("pinia").StoreDefinition<"exami
      * URLs (from show_urls): /api/examinations/<int:examination_id>/findings/
      */
     loadFindingsForExamination(examId: number): Promise<Finding[]>;
-    getCurrentPatientExaminationId(): Promise<number | null>;
+    getCurrentExaminationId(): Promise<number | null>;
     /**
      * Classifications for a finding
      * Your URLs: /api/findings/<int:finding_id>/classifications/

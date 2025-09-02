@@ -1,37 +1,6 @@
 <template>
     <div class="finding-card card mb-3">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <div class="d-flex align-items-center gap-2">
-                <h5 class="card-title mb-0">{{ finding?.name || 'Undefinierter Befund' }}</h5>
-                <span
-                    v-if="isAddedToExamination"
-                    class="badge bg-success"
-                    title="Bereits zur Untersuchung hinzugefügt"
-                >
-                    <i class="fas fa-check-circle"></i> Hinzugefügt
-                </span>
-            </div>
-            <div class="d-flex gap-2">
-                <button 
-                    v-if="!isAddedToExamination"
-                    class="btn btn-sm"
-                    :class="hasAllRequiredClassifications ? 'btn-outline-primary' : 'btn-outline-warning'"
-                    @click="addToExamination"
-                    :disabled="loading || !hasAllRequiredClassifications"
-                    :title="hasAllRequiredClassifications ? 'Befund hinzufügen' : 'Bitte alle erforderlichen Klassifikationen auswählen'"
-                >
-                    <i class="fas" :class="hasAllRequiredClassifications ? 'fa-plus' : 'fa-exclamation-triangle'"></i>
-                    {{ hasAllRequiredClassifications ? 'Hinzufügen' : 'Klassifikation erforderlich' }}
-                </button>
-                <button
-                    v-else
-                    class="btn btn-sm btn-success"
-                    disabled
-                >
-                    <i class="fas fa-check"></i> Hinzugefügt
-                </button>
-            </div>
-        </div>
+
         
         <div class="card-body">
             <div v-if="loading" class="text-center">
@@ -168,6 +137,21 @@
                 </div>
             </div>
         </div>
+
+        <!-- Debug Info -->
+        <div v-if="debugInfo.findingId" class="mt-3 p-2 bg-light border rounded">
+            <h6 class="mb-2">🐛 Debug Info:</h6>
+            <small class="text-muted">
+                <div>Finding ID: {{ debugInfo.findingId }}</div>
+                <div>Finding Name: {{ debugInfo.findingName || 'Not loaded' }}</div>
+                <div>Classifications: {{ debugInfo.totalClassifications }} ({{ debugInfo.requiredClassifications }} required)</div>
+                <div>Selected: {{ debugInfo.selectedClassifications }}</div>
+                <div>Store Findings: {{ debugInfo.findingStoreFindingsCount }}</div>
+                <div>Finding from Store: {{ !!debugInfo.findingFromStore }}</div>
+                <div>Classifications Loaded: {{ debugInfo.classificationsLoaded }}</div>
+                <div>Has All Required: {{ debugInfo.hasAllRequired }}</div>
+            </small>
+        </div>
     </div>
 </template>
 
@@ -242,18 +226,32 @@ const debugInfo = computed(() => ({
     requiredClassifications: classifications.value.filter(c => c.required).length,
     selectedClassifications: Object.keys(selectedChoices.value).filter(id => selectedChoices.value[Number(id)]).length,
     selectedChoices: selectedChoices.value,
-    hasAllRequired: hasAllRequiredClassifications.value
+    hasAllRequired: hasAllRequiredClassifications.value,
+    findingStoreFindingsCount: findingStore.findings.length,
+    findingFromStore: findingStore.getFindingById(props.findingId),
+    classificationsLoaded: classifications.value.length > 0
 }));
 
 // Methods
 const loadClassifications = async () => {
-    if (!props.findingId) return;
+    console.log('🔍 [FindingsDetail] loadClassifications called with findingId:', props.findingId);
+    
+    if (!props.findingId) {
+        console.warn('⚠️ [FindingsDetail] No findingId provided');
+        return;
+    }
     
     try {
         loading.value = true;
+        console.log('⏳ [FindingsDetail] Loading classifications for findingId:', props.findingId);
+        
         classifications.value = await findingStore.fetchFindingClassifications(props.findingId);
+        
+        console.log('✅ [FindingsDetail] Classifications loaded:', classifications.value.length, 'items');
+        console.log('📋 [FindingsDetail] Classifications data:', classifications.value);
+        
     } catch (error) {
-        console.error('Error loading classifications:', error);
+        console.error('❌ [FindingsDetail] Error loading classifications:', error);
     } finally {
         loading.value = false;
     }
@@ -329,85 +327,6 @@ const getSelectedChoiceObject = (classificationId: number): any => {
     );
 };
 
-const addToExamination = async () => {
-    if (!props.patientExaminationId || !props.findingId) {
-        console.error('Missing patientExaminationId or findingId'),{
-            propsPatientExamId: props.patientExaminationId,
-            findingId: props.findingId,
-            currentPatientExamId: examinationStore.getCurrentPatientExaminationId()
-        };
-        return;
-    }
-
-    try {
-        loading.value = true;
-        
-        // Sammle alle ausgewählten Klassifikationen
-        const selectedClassifications = Object.entries(selectedChoices.value)
-            .filter(([_, choiceId]) => choiceId !== null && choiceId !== undefined)
-            .map(([classificationId, choiceId]) => ({
-                classification: parseInt(classificationId),
-                choice: choiceId,
-                // Zusätzliche Metadaten für bessere Nachverfolgung
-                classificationName: classifications.value.find(c => c.id === parseInt(classificationId))?.name,
-                choiceLabel: getSelectedChoiceLabel(parseInt(classificationId))
-            }));
-
-        console.log('Sending classifications to backend:', selectedClassifications);
-        
-        // API-Request mit strukturierten Daten
-        const requestPayload = {
-            patientExamination: props.patientExaminationId,
-            finding: props.findingId,
-            classifications: selectedClassifications,
-            // Metadaten für Debugging und Nachverfolgung
-            metadata: {
-                findingName: finding.value?.name,
-                selectedClassificationCount: selectedClassifications.length,
-                requiredClassificationCount: classifications.value.filter(c => c.required).length,
-                timestamp: new Date().toISOString()
-            }
-        };
-
-        const response = await axiosInstance.post('/api/patient-finding/create/', requestPayload);
-        
-        console.log('Backend response:', response.data);
-        
-        // Erfolgs-Feedback mit Details
-        const successMessage = `Befund "${finding.value?.name}" erfolgreich hinzugefügt mit ${selectedClassifications.length} Klassifikationen`;
-        
-        // Emit event mit zusätzlichen Details
-        emit('added-to-examination', {
-            findingId: props.findingId,
-            findingName: finding.value?.name,
-            selectedClassifications: selectedClassifications,
-            response: response.data
-        });
-        
-    } catch (error: any) {
-        console.error('Error adding finding to examination:', error);
-        
-        // Detaillierte Fehlerbehandlung
-        let errorMessage = 'Fehler beim Hinzufügen des Befunds';
-        
-        if (error.response?.data?.detail) {
-            errorMessage = error.response.data.detail;
-        } else if (error.response?.data?.classifications) {
-            errorMessage = `Klassifikationsfehler: ${error.response.data.classifications.join(', ')}`;
-        }
-        
-        // Emit error event für parent component
-        emit('error-occurred', {
-            findingId: props.findingId,
-            error: errorMessage,
-            selectedClassifications: Object.keys(selectedChoices.value).length
-        });
-        
-    } finally {
-        loading.value = false;
-    }
-};
-
 const getSelectClass = (classificationId: number, required: boolean = false): string => {
     const baseClass = 'form-select form-select-sm';
     const hasSelection = selectedChoices.value[classificationId];
@@ -424,23 +343,35 @@ const getSelectClass = (classificationId: number, required: boolean = false): st
 
 // Lifecycle
 onMounted(() => {
-    console.log('FindingsDetail mounted with:', {
+    console.log('🚀 [FindingsDetail] Component mounted with props:', {
         findingId: props.findingId,
         patientExaminationId: props.patientExaminationId,
-        isAddedToExamination: props.isAddedToExamination
+        isAddedToExamination: props.isAddedToExamination,
+        findingStoreFindingsCount: findingStore.findings.length,
+        findingFromStore: findingStore.getFindingById(props.findingId)
     });
+    
     loadClassifications();
 });
 
 // Watch for finding changes
-watch(() => props.findingId, () => {
+watch(() => props.findingId, (newVal, oldVal) => {
+    console.log('👀 [FindingsDetail] findingId changed:', { oldVal, newVal });
     loadClassifications();
 }, { immediate: true });
 
 // Watch for finding data availability
-watch(() => findingStore.findings, () => {
+watch(() => findingStore.findings, (newVal, oldVal) => {
+    console.log('📊 [FindingsDetail] findingStore.findings changed:', { 
+        oldCount: oldVal?.length || 0, 
+        newCount: newVal?.length || 0,
+        findingId: props.findingId,
+        findingExists: !!findingStore.getFindingById(props.findingId)
+    });
+    
     // Reload classifications when findings data is available
     if (findingStore.findings.length > 0) {
+        console.log('🔄 [FindingsDetail] Reloading classifications due to findings data change');
         loadClassifications();
     }
 }, { immediate: true });
