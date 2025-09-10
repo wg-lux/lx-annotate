@@ -328,9 +328,12 @@ export declare const usePatientExaminationStore: import("pinia").StoreDefinition
         selectedPatientExaminationId: number | null;
     }>) => number | null;
 }, {
+    doesPatientExaminationExist(id: number): Promise<boolean>;
     fetchPatientExaminations(patientId: number): Promise<void>;
+    fetchPatientExaminationById(id: number): Promise<void>;
     addPatientExamination(pe: PatientExamination): void;
     removePatientExamination(id: number): void;
     setCurrentPatientExaminationId(id: number | null): void;
     getCurrentPatientExaminationId(): number | null;
+    getCurrentPatientExaminationExaminationId(): number | null;
 }>;

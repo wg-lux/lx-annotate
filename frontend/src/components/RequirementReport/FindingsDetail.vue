@@ -10,92 +10,49 @@
                 Lade Details...
             </div>
             
-            <div v-else-if="!finding" class="text-center text-muted">
-                <p>Finding-Daten werden geladen...</p>
-                <small>Finding ID: {{ findingId }}</small>
-            </div>
-            
-            <div v-else>
-                <!-- Basic Finding Info -->
+            <div v-else-if="!loading && finding" class="text-center text-muted">
+                                <!-- Basic Finding Info -->
                 <div class="row mb-3">
                     <div class="col-md-6">
                         <p><strong>ID:</strong> {{ finding.id }}</p>
-                        <p><strong>Name (DE):</strong> {{ finding.nameDe || 'N/A' }}</p>
+                        <p><strong>Name (DE):</strong> {{ findingsInfo.findingName || 'N/A' }}</p>
                     </div>
                     <div class="col-md-6">
                         <p><strong>Beschreibung:</strong></p>
-                        <p class="text-muted">{{ finding.description || 'Keine Beschreibung verfügbar' }}</p>
+                        <p class="text-muted">{{ findingsInfo.findingDescription || 'Keine Beschreibung verfügbar' }}</p>
                     </div>
+                    <div class="col-md-6">
+                        <p><strong>Data Source:</strong> {{ findingsInfo.dataSource }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Klassifikationen gesamt:</strong> {{ findingsInfo.totalClassifications }} ({{ findingsInfo.requiredClassifications }} erforderlich)</p>
+                        <p v-if="findingsInfo.classificationsLoaded">Die Klassifikationen wurden erfolgreich geladen.</p>
+                        <p v-else>Die Klassifikationen konnten nicht geladen werden.</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Erforderliche Klassifikationen:</strong> {{ findingsInfo.requiredClassifications }}</p>
+                    </div>
+
                 </div>
 
-                <!-- Classifications with Choices Dropdown -->
-                <div v-if="classifications.length" class="mb-3">
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <h6 class="mb-0">Klassifikationen:</h6>
-                        <small
-                            class="text-muted"
-                            :class="classificationStatus.complete ? 'text-success' : 'text-warning'"
+                <!-- Classifications (nur erforderliche anzeigen) -->
+                <div v-if="requiredClassifications.length > 0" class="mb-3">
+                    <h6>Erforderliche Klassifikationen:</h6>
+                    <div class="classification-list">
+                        <div
+                            v-for="classification in requiredClassifications"
+                            :key="classification.id"
+                            class="classification-item mb-2 p-2 border rounded bg-light"
                         >
-                            <i class="fas" :class="classificationStatus.complete ? 'fa-check-circle' : 'fa-exclamation-triangle'"></i>
-                            {{ classificationStatus.selected }}/{{ classificationStatus.required }} erforderlich
-                        </small>
-                    </div>
-                    <div v-for="classification in classifications" :key="classification.id" class="classification-item mb-3 p-3 border rounded">
-                        <div class="d-flex justify-content-between align-items-start mb-2">
-                            <div class="flex-grow-1">
-                                <strong>{{ classification.name }}</strong>
-                                <div v-if="classification.required" class="badge bg-warning ms-2">Erforderlich</div>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong>{{ classification.name }}</strong>
+                                    <div v-if="classification.description" class="text-muted small">
+                                        {{ classification.description }}
+                                    </div>
+                                </div>
+                                <div class="badge bg-warning">Erforderlich</div>
                             </div>
-                            <div class="d-flex align-items-center gap-2">
-                                <!-- Status-Indikator -->
-                                <span
-                                    v-if="selectedChoices[classification.id]"
-                                    class="badge bg-success"
-                                    title="Ausgewählt"
-                                >
-                                    <i class="fas fa-check"></i>
-                                </span>
-                                <span
-                                    v-else-if="classification.required"
-                                    class="badge bg-warning"
-                                    title="Nicht ausgewählt"
-                                >
-                                    <i class="fas fa-exclamation-triangle"></i>
-                                </span>
-                            </div>
-                        </div>
-
-                        <!-- Beschreibung -->
-                        <p v-if="classification.description" class="text-muted small mb-2">
-                            {{ classification.description }}
-                        </p>
-
-                        <!-- Auswahl-Dropdown -->
-                        <div v-if="classification.choices && classification.choices.length" class="mb-2">
-                            <label class="form-label small mb-1">Auswahl:</label>
-                            <select
-                                class="form-select form-select-sm"
-                                :value="selectedChoices[classification.id] || ''"
-                                @change="updateChoice(classification.id, $event)"
-                                :class="getSelectClass(classification.id, classification.required)"
-                            >
-                                <option value="">Bitte wählen...</option>
-                                <option
-                                    v-for="(choice, index) in classification.choices"
-                                    :key="getChoiceKey(choice, index)"
-                                    :value="getChoiceValue(choice)"
-                                >
-                                    {{ getChoiceLabel(choice) }}
-                                </option>
-                            </select>
-                        </div>
-
-                        <!-- Ausgewählte Wahl anzeigen -->
-                        <div v-if="selectedChoices[classification.id]" class="selected-choice-alert alert alert-success py-1 px-2 mb-0">
-                            <small>
-                                <i class="fas fa-check-circle"></i>
-                                <strong>Ausgewählt:</strong> {{ getSelectedChoiceLabel(classification.id) }}
-                            </small>
                         </div>
                     </div>
                 </div>
@@ -120,19 +77,25 @@
                     </div>
                 </div>
             </div>
+            <div v-else>
+                <p>Befunde konnten nicht geladen werden...</p>
+                <small>Finding ID: {{ findingId }}</small>
+                <button v-if="examinationId" class="btn btn-primary mt-2" @click="safeLoadFindingsAndClassifications">Erneut versuchen</button>
+            </div>
         </div>
 
-        <!-- Zusammenfassung der ausgewählten Klassifikationen -->
-        <div v-if="Object.keys(selectedChoices).length > 0" class="selected-classifications-summary mt-3 p-3 bg-light rounded">
+
+        <!-- Zusammenfassung der erforderlichen Klassifikationen -->
+        <div v-if="requiredClassifications.length > 0" class="selected-classifications-summary mt-3 p-3 bg-light rounded">
             <h6 class="mb-2">
                 <i class="fas fa-list-check"></i>
-                Ausgewählte Klassifikationen ({{ Object.keys(selectedChoices).filter(id => selectedChoices[Number(id)]).length }})
+                Erforderliche Klassifikationen ({{ requiredClassifications.length }})
             </h6>
             <div class="row">
-                <div v-for="classification in classifications" :key="classification.id" class="col-md-6 mb-2">
-                    <div v-if="selectedChoices[classification.id]" class="d-flex justify-content-between align-items-center">
+                <div v-for="classification in requiredClassifications" :key="classification.id" class="col-md-6 mb-2">
+                    <div class="d-flex justify-content-between align-items-center">
                         <small class="text-muted">{{ classification.name }}:</small>
-                        <span class="badge bg-success">{{ getSelectedChoiceLabel(classification.id) }}</span>
+                        <span class="badge bg-warning">Erforderlich</span>
                     </div>
                 </div>
             </div>
@@ -145,11 +108,8 @@
                 <div>Finding ID: {{ debugInfo.findingId }}</div>
                 <div>Finding Name: {{ debugInfo.findingName || 'Not loaded' }}</div>
                 <div>Classifications: {{ debugInfo.totalClassifications }} ({{ debugInfo.requiredClassifications }} required)</div>
-                <div>Selected: {{ debugInfo.selectedClassifications }}</div>
-                <div>Store Findings: {{ debugInfo.findingStoreFindingsCount }}</div>
-                <div>Finding from Store: {{ !!debugInfo.findingFromStore }}</div>
                 <div>Classifications Loaded: {{ debugInfo.classificationsLoaded }}</div>
-                <div>Has All Required: {{ debugInfo.hasAllRequired }}</div>
+                <div>Data Source: {{ debugInfo.dataSource }}</div>
             </small>
         </div>
     </div>
@@ -160,9 +120,13 @@ import { ref, computed, onMounted, watch } from 'vue';
 import { useFindingStore, type Finding, type FindingClassification } from '../../stores/findingStore';
 import { useExaminationStore } from '@/stores/examinationStore';
 import axiosInstance from '@/api/axiosInstance';
+import { useFindingClassificationStore } from '@/stores/findingClassificationStore';
 
 const findingStore = useFindingStore();
 const examinationStore = useExaminationStore();
+const findingClassificationStore = useFindingClassificationStore();
+
+const examinationId = computed(() => examinationStore.selectedExaminationId || undefined);
 
 interface Props {
     findingId: number;
@@ -192,76 +156,128 @@ const emit = defineEmits<{
 
 const loading = ref(false);
 const classifications = ref<FindingClassification[]>([]);
-const selectedChoices = ref<Record<number, any>>({});
 
 // Computed
 const finding = computed((): Finding | undefined => {
+    // First try findingClassificationStore (where AddableFindingsDetail stores data)
+    const findingFromClassificationStore = findingClassificationStore.getFindingById(props.findingId);
+    if (findingFromClassificationStore) {
+        return findingFromClassificationStore;
+    }
+    
+    // Fallback to findingStore
     return findingStore.getFindingById(props.findingId);
 });
 
-const hasAllRequiredClassifications = computed(() => {
-    if (!classifications.value.length) return true;
 
-    return classifications.value
-        .filter(classification => classification.required)
-        .every(classification => selectedChoices.value[classification.id]);
-});
-
-const classificationStatus = computed(() => {
-    const requiredCount = classifications.value.filter(c => c.required).length;
-    const selectedCount = classifications.value.filter(c => c.required && selectedChoices.value[c.id]).length;
-
-    return {
-        required: requiredCount,
-        selected: selectedCount,
-        complete: selectedCount === requiredCount
-    };
+const requiredClassifications = computed(() => {
+    return classifications.value.filter(classification => classification.required);
 });
 
 // Debug-Informationen
-const debugInfo = computed(() => ({
-    findingId: props.findingId,
-    findingName: finding.value?.name,
-    totalClassifications: classifications.value.length,
-    requiredClassifications: classifications.value.filter(c => c.required).length,
-    selectedClassifications: Object.keys(selectedChoices.value).filter(id => selectedChoices.value[Number(id)]).length,
-    selectedChoices: selectedChoices.value,
-    hasAllRequired: hasAllRequiredClassifications.value,
-    findingStoreFindingsCount: findingStore.findings.length,
-    findingFromStore: findingStore.getFindingById(props.findingId),
-    classificationsLoaded: classifications.value.length > 0
-}));
+const debugInfo = computed(() => {
+    const findingFromClassificationStore = findingClassificationStore.getFindingById(props.findingId);
+    const findingFromFindingStore = findingStore.getFindingById(props.findingId);
+    const dataSource = findingFromClassificationStore ? 'findingClassificationStore' : (findingFromFindingStore ? 'findingStore' : 'none');
+    
+    return {
+        findingId: props.findingId,
+        findingName: finding.value?.nameDe || finding.value?.name,
+        totalClassifications: classifications.value.length,
+        requiredClassifications: requiredClassifications.value.length,
+        classificationsLoaded: classifications.value.length > 0,
+        dataSource: dataSource
+    };
+});
 
-// Methods
-const loadClassifications = async () => {
-    console.log('🔍 [FindingsDetail] loadClassifications called with findingId:', props.findingId);
+const findingsInfo = computed(() => {
+    const findingFromClassificationStore = findingClassificationStore.getFindingById(props.findingId);
+    const findingFromFindingStore = findingStore.getFindingById(props.findingId);
+    const dataSource = findingFromClassificationStore ? 'findingClassificationStore' : (findingFromFindingStore ? 'findingStore' : 'none');
     
-    if (!props.findingId) {
-        console.warn('⚠️ [FindingsDetail] No findingId provided');
-        return;
-    }
-    
+    return {
+        findingId: props.findingId,
+        findingName: finding.value?.nameDe || finding.value?.name,
+        findingDescription: finding.value?.description || 'Keine Beschreibung verfügbar',
+        totalClassifications: classifications.value.length,
+        requiredClassifications: requiredClassifications.value.length,
+        classificationsLoaded: classifications.value.length > 0,
+        dataSource: dataSource
+    };
+});
+
+const loadFindingsAndClassifications = async (examinationId: number) => {
     try {
         loading.value = true;
-        console.log('⏳ [FindingsDetail] Loading classifications for findingId:', props.findingId);
         
-        classifications.value = await findingStore.fetchFindingClassifications(props.findingId);
-        
-        console.log('✅ [FindingsDetail] Classifications loaded:', classifications.value.length, 'items');
-        console.log('📋 [FindingsDetail] Classifications data:', classifications.value);
+        // Load findings for the examination
+        if (findingClassificationStore.getAllFindings.length === 0) {
+            // Findings will be loaded from API below
+        }
+
+        // Load findings from the API
+        const response = await axiosInstance.get(`/api/examinations/${examinationId}/findings`);
+        const findings = response.data;
+        findingClassificationStore.setClassificationChoicesFromLookup(findings);
+
+        console.log('Loaded findings for examination:', findings.length);
         
     } catch (error) {
-        console.error('❌ [FindingsDetail] Error loading classifications:', error);
+        console.error('Error loading examination data:', error);
+        emit('error-occurred', {
+            findingId: props.findingId,
+            error: 'Fehler beim Laden der Untersuchungsdaten',
+            selectedClassifications: 0
+        });
     } finally {
         loading.value = false;
     }
 };
 
+const loadClassifications = async () => {
+    if (!props.findingId) {
+        console.log('📋 [FindingsDetail] No findingId provided, skipping classifications load');
+        return;
+    }
+    
+    try {
+        loading.value = true;
+        
+        // Get classifications from the store
+        const findingClassifications = findingClassificationStore.getClassificationsForFinding(props.findingId);
+        
+        if (findingClassifications.length > 0) {
+            classifications.value = findingClassifications;
+            console.log('📋 [FindingsDetail] Loaded classifications from store:', findingClassifications.length);
+        } else {
+            // Try to get from finding data if available
+            const finding = findingClassificationStore.getFindingById(props.findingId);
+            if (finding?.FindingClassifications) {
+                classifications.value = finding.FindingClassifications;
+                console.log('📋 [FindingsDetail] Loaded classifications from finding data:', finding.FindingClassifications.length);
+            } else {
+                console.warn('📋 [FindingsDetail] No classifications found for finding:', props.findingId);
+                classifications.value = [];
+            }
+        }
+        
+    } catch (error) {
+        console.error('Error loading classifications:', error);
+        classifications.value = [];
+    } finally {
+        loading.value = false;
+    }
+};
+
+// Safe wrapper for loading with examination ID check
+const safeLoadFindingsAndClassifications = async () => {
+    // Just load classifications from the store - data should already be available from AddableFindingsDetail
+    await loadClassifications();
+};
+
 const updateChoice = (classificationId: number, event: Event) => {
     const target = event.target as HTMLSelectElement;
     const choiceId = target.value ? parseInt(target.value) : null;
-
-    selectedChoices.value[classificationId] = choiceId;
 
     // Animation für Update-Feedback
     const classificationElement = target.closest('.classification-item');
@@ -276,71 +292,6 @@ const updateChoice = (classificationId: number, event: Event) => {
     emit('classification-updated', props.findingId, classificationId, choiceId);
 };
 
-const getChoiceKey = (choice: any, index: number): string => {
-    if (typeof choice === 'object' && choice.id) {
-        return choice.id.toString();
-    }
-    return `choice-${index}`;
-};
-
-const getChoiceValue = (choice: any): string => {
-    if (typeof choice === 'object' && choice.id) {
-        return choice.id.toString();
-    }
-    return choice.toString();
-};
-
-const getChoiceLabel = (choice: any): string => {
-    if (typeof choice === 'object' && choice.name) {
-        return choice.name;
-    }
-    return choice.toString();
-};
-
-const getSelectedChoiceLabel = (classificationId: number): string => {
-    const choiceId = selectedChoices.value[classificationId];
-    if (!choiceId) return '';
-    
-    const classification = classifications.value.find(c => c.id === classificationId);
-    if (!classification?.choices) return '';
-    
-    const choice = classification.choices.find(c => 
-        (typeof c === 'object' ? c.id : c) == choiceId
-    );
-
-    if (choice === null || choice === undefined) {
-        return '';
-    }
-    
-    return typeof choice === 'object' && choice.name ? choice.name : choice.toString();
-};
-
-const getSelectedChoiceObject = (classificationId: number): any => {
-    const choiceId = selectedChoices.value[classificationId];
-    if (!choiceId) return null;
-    
-    const classification = classifications.value.find(c => c.id === classificationId);
-    if (!classification?.choices) return null;
-    
-    return classification.choices.find(c => 
-        (typeof c === 'object' ? c.id : c) == choiceId
-    );
-};
-
-const getSelectClass = (classificationId: number, required: boolean = false): string => {
-    const baseClass = 'form-select form-select-sm';
-    const hasSelection = selectedChoices.value[classificationId];
-    
-    if (hasSelection) {
-        return `${baseClass} border-success`;
-    } else if (required) {
-        return `${baseClass} border-warning`;
-    }
-    
-    return baseClass;
-};
-
-
 // Lifecycle
 onMounted(() => {
     console.log('🚀 [FindingsDetail] Component mounted with props:', {
@@ -350,14 +301,21 @@ onMounted(() => {
         findingStoreFindingsCount: findingStore.findings.length,
         findingFromStore: findingStore.getFindingById(props.findingId)
     });
-    
-    loadClassifications();
+
+    safeLoadFindingsAndClassifications();
 });
 
-// Watch for finding changes
 watch(() => props.findingId, (newVal, oldVal) => {
     console.log('👀 [FindingsDetail] findingId changed:', { oldVal, newVal });
-    loadClassifications();
+    safeLoadFindingsAndClassifications();
+}, { immediate: true });
+
+// Watch for finding data availability in findingClassificationStore
+watch(() => findingClassificationStore.getFindingById(props.findingId), (newFinding: Finding | undefined, oldFinding: Finding | undefined) => {
+    if (newFinding) {
+        console.log('🔄 [FindingsDetail] Finding data now available in findingClassificationStore, loading classifications', { findingId: newFinding.id });
+        loadClassifications();
+    }
 }, { immediate: true });
 
 // Watch for finding data availability
@@ -365,14 +323,13 @@ watch(() => findingStore.findings, (newVal, oldVal) => {
     console.log('📊 [FindingsDetail] findingStore.findings changed:', { 
         oldCount: oldVal?.length || 0, 
         newCount: newVal?.length || 0,
-        findingId: props.findingId,
-        findingExists: !!findingStore.getFindingById(props.findingId)
+        findingId: props.findingId
     });
     
     // Reload classifications when findings data is available
-    if (findingStore.findings.length > 0) {
+    if (newVal && newVal.length > 0) {
         console.log('🔄 [FindingsDetail] Reloading classifications due to findings data change');
-        loadClassifications();
+        safeLoadFindingsAndClassifications();
     }
 }, { immediate: true });
 </script>

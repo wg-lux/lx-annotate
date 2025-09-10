@@ -12,7 +12,7 @@ const router = createRouter({
             }
         },
         {
-            path: '/video-examination',
+            path: '/video-untersuchung',
             name: 'Video-Untersuchung',
             component: () => import('@/views/VideoExamination.vue'),
             meta: {

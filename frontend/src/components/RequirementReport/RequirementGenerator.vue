@@ -145,7 +145,7 @@
             </div>
           </div>
           <div v-if="lookup" class="row g-3 mt-3 card-body pre-scrollable" style="max-height: 70vh; overflow: auto;">
-            <div class="col-12 col-xl-6">
+            <div class="col-12">
                 <div class="card">
                     <div class="card-header">
                         <h2 class="h5 mb-0">Befunde in der aktuellen Untersuchung</h2>

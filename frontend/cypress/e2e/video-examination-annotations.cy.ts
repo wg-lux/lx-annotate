@@ -7,7 +7,7 @@ describe('VideoExaminationAnnotation - Segment Annotations Integration', () => {
     cy.intercept('POST', '/api/annotations/', { fixture: 'newAnnotation.json' }).as('createAnnotation')
     
     // Visit the video examination page
-    cy.visit('/video-examination?video=1')
+    cy.visit('/video-untersuchung?video=1')
   })
 
   it('should create both segment and annotation when drafting a segment', () => {

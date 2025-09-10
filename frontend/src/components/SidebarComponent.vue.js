@@ -169,14 +169,14 @@ function __VLS_template() {
     /** @type { [typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, ] } */ ;
     // @ts-ignore
     const __VLS_25 = __VLS_asFunctionalComponent(__VLS_24, new __VLS_24({
-        to: ("/video-examination"),
+        to: ("/video-untersuchung"),
         ...{ class: ("nav-link") },
-        ...{ class: (({ active: __VLS_ctx.$route.path === '/video-examination' })) },
+        ...{ class: (({ active: __VLS_ctx.$route.path === '/video-untersuchung' })) },
     }));
     const __VLS_26 = __VLS_25({
-        to: ("/video-examination"),
+        to: ("/video-untersuchung"),
         ...{ class: ("nav-link") },
-        ...{ class: (({ active: __VLS_ctx.$route.path === '/video-examination' })) },
+        ...{ class: (({ active: __VLS_ctx.$route.path === '/video-untersuchung' })) },
     }, ...__VLS_functionalComponentArgsRest(__VLS_25));
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: ("icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center") },

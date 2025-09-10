@@ -4,6 +4,8 @@ import {ref, readonly, computed} from "vue";
 import type { Patient } from '../api/patientService';
 import { useExaminationStore } from "@/stores/examinationStore";
 
+// --- Interfaces ---
+
 interface Finding {
     id: number;
     name: string;
@@ -97,6 +99,23 @@ export const useFindingStore = defineStore('finding', () => {
         }
     };
 
+    const fetchFindingsByPatientExamination = async (patientExaminationId: number | null): Promise<Finding[]> => {
+        if (!patientExaminationId) return [];
+        try {
+            loading.value = true;
+            error.value = null;
+            const response = await axiosInstance.get(`/api/patient-examinations/${patientExaminationId}/findings/`);
+            findings.value = response.data.results || response.data;
+            return findings.value as Finding[];
+        } catch (err: any) {
+            error.value = 'Fehler beim Laden der Befunde für die Patientenuntersuchung: ' + (err.response?.data?.detail || err.message);
+            console.error('Fetch findings by patient examination error:', err);
+            return [];
+        } finally {
+            loading.value = false;
+        }
+    };
+
     const fetchExaminationClassifications = async (examinationId: number): Promise<FindingClassification[]> => {
         try {
             const response = await axiosInstance.get(`/api/examinations/${examinationId}/classifications/`);
@@ -169,6 +188,9 @@ export const useFindingStore = defineStore('finding', () => {
         return examinationStore.getCurrentExaminationId();
     }
 
+        
+
+
     return {
         findings: readonly(findings),
         FindingClassification: FindingClassification,
@@ -189,5 +211,6 @@ export const useFindingStore = defineStore('finding', () => {
         isExaminationFindingsLoaded,
         isExaminationFindingsLoading,
         clearExaminationFindingsCache,
+        fetchFindingsByPatientExamination,
     };
 });

@@ -181,6 +181,7 @@ export declare const useFindingStore: import("pinia").StoreDefinition<"finding",
     isExaminationFindingsLoaded: (examinationId: number) => boolean;
     isExaminationFindingsLoading: (examinationId: number) => boolean;
     clearExaminationFindingsCache: (examinationId?: number) => void;
+    fetchFindingsByPatientExamination: (patientExaminationId: number | null) => Promise<Finding[]>;
 }, "loading" | "error" | "findings" | "FindingClassification" | "currentFinding" | "examinationFindings">>, Pick<{
     findings: Readonly<import("vue").Ref<readonly {
         readonly id: number;
@@ -340,6 +341,7 @@ export declare const useFindingStore: import("pinia").StoreDefinition<"finding",
     isExaminationFindingsLoaded: (examinationId: number) => boolean;
     isExaminationFindingsLoading: (examinationId: number) => boolean;
     clearExaminationFindingsCache: (examinationId?: number) => void;
+    fetchFindingsByPatientExamination: (patientExaminationId: number | null) => Promise<Finding[]>;
 }, "areFindingsLoaded">, Pick<{
     findings: Readonly<import("vue").Ref<readonly {
         readonly id: number;
@@ -499,4 +501,5 @@ export declare const useFindingStore: import("pinia").StoreDefinition<"finding",
     isExaminationFindingsLoaded: (examinationId: number) => boolean;
     isExaminationFindingsLoading: (examinationId: number) => boolean;
     clearExaminationFindingsCache: (examinationId?: number) => void;
-}, "fetchFindings" | "fetchFindingClassifications" | "fetchFindingsByExamination" | "fetchExaminationClassifications" | "getFindingsByExamination" | "getFindingById" | "getFindingIdsByPatientExaminationId" | "setCurrentFinding" | "isExaminationFindingsLoaded" | "isExaminationFindingsLoading" | "clearExaminationFindingsCache">>;
+    fetchFindingsByPatientExamination: (patientExaminationId: number | null) => Promise<Finding[]>;
+}, "fetchFindings" | "fetchFindingClassifications" | "fetchFindingsByExamination" | "fetchExaminationClassifications" | "getFindingsByExamination" | "getFindingById" | "getFindingIdsByPatientExaminationId" | "setCurrentFinding" | "isExaminationFindingsLoaded" | "isExaminationFindingsLoading" | "clearExaminationFindingsCache" | "fetchFindingsByPatientExamination">>;
