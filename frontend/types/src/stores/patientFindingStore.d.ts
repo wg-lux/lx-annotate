@@ -240,7 +240,7 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
     }[]>;
     loading: Readonly<import("vue").Ref<boolean, boolean>>;
     error: Readonly<import("vue").Ref<string | null, string | null>>;
-    fetchPatientFindings: (patientId: number) => Promise<void>;
+    fetchPatientFindings: (patientExaminationId: number) => Promise<void>;
     createPatientFinding: (patientFindingData: {
         patientExamination: number;
         finding: number;
@@ -471,7 +471,7 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
     }[]>;
     loading: Readonly<import("vue").Ref<boolean, boolean>>;
     error: Readonly<import("vue").Ref<string | null, string | null>>;
-    fetchPatientFindings: (patientId: number) => Promise<void>;
+    fetchPatientFindings: (patientExaminationId: number) => Promise<void>;
     createPatientFinding: (patientFindingData: {
         patientExamination: number;
         finding: number;
@@ -702,7 +702,7 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
     }[]>;
     loading: Readonly<import("vue").Ref<boolean, boolean>>;
     error: Readonly<import("vue").Ref<string | null, string | null>>;
-    fetchPatientFindings: (patientId: number) => Promise<void>;
+    fetchPatientFindings: (patientExaminationId: number) => Promise<void>;
     createPatientFinding: (patientFindingData: {
         patientExamination: number;
         finding: number;

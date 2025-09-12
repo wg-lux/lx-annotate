@@ -287,7 +287,7 @@ async function createPatientExaminationAndInitLookup() {
         if (!selectedExam) {
             throw new Error('Selected examination not found');
         }
-        const peRes = await axiosInstance.post('/api/patient-examinations/create/', {
+        const peRes = await axiosInstance.post('/api/patient-examinations/', {
             patient: selectedPatient.patientHash || `patient_${selectedPatient.id}`,
             examination: selectedExam.name,
             date_start: formattedDate, // Fixed field name

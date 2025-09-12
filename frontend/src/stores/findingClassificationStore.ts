@@ -39,10 +39,6 @@ export const useFindingClassificationStore = defineStore('findingsClassification
   const error = ref<string | null>(null);
 
   // Getters
-  const getFindingById = (id: number): Finding | undefined => {
-    return findings.value[id];
-  };
-
   const getClassificationsForFinding = (findingId: number): FindingClassification[] => {
     const finding = findings.value[findingId];
     if (!finding) return [];
@@ -54,6 +50,13 @@ export const useFindingClassificationStore = defineStore('findingsClassification
   };
 
   const getAllFindings = computed(() => Object.values(findings.value));
+
+  const getFindingById = (id: number): Finding | undefined => {
+    if (!findings.value[id]) {
+      getAllFindings.value; // Trigger loading if not already loaded
+    }
+    return findings.value[id];
+  };
 
   // Actions
   const clearFindings = () => {

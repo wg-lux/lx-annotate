@@ -15,9 +15,7 @@
                 <li class="nav-item">
                     <a class="nav-link" :class="{ active: activeTab === 'added' }" @click.prevent="activeTab = 'added'" href="#">
                         <i class="fas fa-check-circle me-1"></i> Hinzugefügte Befunde
-                        <div v-for="value in addedFindings" :key="value.id">
-                            <span class="badge rounded-pill bg-success ms-1">{{ value.nameDe || value.name }}</span>
-                        </div>
+                        <span class="badge rounded-pill bg-success ms-1">{{ addedFindings.length }}</span>
                     </a>
                 </li>
             </ul>
@@ -169,14 +167,22 @@ import { usePatientFindingStore } from '@/stores/patientFindingStore';
 import axiosInstance from '@/api/axiosInstance';
 import { usePatientExaminationStore } from '@/stores/patientExaminationStore';
 import { useExaminationStore } from '@/stores/examinationStore';
-import type { PatientExamination } from '@/stores/patientExaminationStore';
 import { useFindingClassificationStore } from '@/stores/findingClassificationStore';
 
 const patientExaminationStore = usePatientExaminationStore();
 const findingClassificationStore = useFindingClassificationStore();
+const examinationStore = useExaminationStore();
+const findingStore = useFindingStore();
+const patientFindingStore = usePatientFindingStore();
 
+const props = withDefaults(defineProps<Props>(), {
+    patientExaminationId: undefined,
+    examinationId: undefined
+});
 
-const patientExaminationId = patientExaminationStore.getCurrentPatientExaminationId();
+const patientExaminationId = props.patientExaminationId || patientExaminationStore.getCurrentPatientExaminationId();
+const examinationId = props.examinationId ||examinationStore.getCurrentExaminationId();
+
 
 patientExaminationStore.setCurrentPatientExaminationId(patientExaminationId);
 interface Props {
@@ -184,28 +190,24 @@ interface Props {
     examinationId?: number;
 }
 
-const props = withDefaults(defineProps<Props>(), {
-    patientExaminationId: undefined,
-    examinationId: undefined
-});
-
-watch(() => patientExaminationStore.getCurrentPatientExaminationId, (newId) => {
+watch(
+  () => patientExaminationStore.getCurrentPatientExaminationId(),
+  (newId) => {
     if (newId && !props.patientExaminationId) {
-
-        console.warn('[AddableFindingsDetail] Syncing patientExaminationId from store as prop was not provided. New ID:', newId);
-        // We will trigger the logic that depends on patientExaminationId changing.
-        loadFindingsAndClassificationsNew();
+      console.warn('[AddableFindingsDetail] Syncing patientExaminationId...');
+      loadFindingsAndClassificationsNew();
     }
-}, { immediate: true });
+  },
+  { immediate: true }
+);
+
 
 const emit = defineEmits<{
   'finding-added': [findingId: number, findingName: string]
   'finding-error': [error: string]
 }>();
 
-const findingStore = useFindingStore();
-const patientFindingStore = usePatientFindingStore();
-const examinationStore = useExaminationStore();
+
 
 // Component State
 const loading = ref(false);
@@ -222,16 +224,25 @@ const availableFindings = computed(() => {
     return availableExaminationFindings.value;
 });
 
-const fetchedAddedFindings = computed(async () => {
-    const currentPatientExaminationId = patientExaminationStore.getCurrentPatientExaminationId();
-    if (!currentPatientExaminationId) return [];
-    const findings = await findingStore.fetchFindingsByPatientExamination(currentPatientExaminationId);
-    return findings || [];
-});
 
-watch(fetchedAddedFindings, async (newFindingsPromise) => {
-    addedFindings.value = await newFindingsPromise;
-});
+
+async function loadAddedFindingsForCurrentExam() {
+  const id = patientExaminationStore.getCurrentPatientExaminationId();
+  if (!id) {
+    addedFindings.value = [];
+    return;
+  }
+  await patientFindingStore.fetchPatientFindings(id);
+  addedFindings.value = patientFindingStore.patientFindings.map(pf => JSON.parse(JSON.stringify(pf.finding)));
+}
+
+watch(
+  () => patientExaminationStore.getCurrentPatientExaminationId(),
+  async (newId) => {
+    if (newId) await loadAddedFindingsForCurrentExam();
+  },
+  { immediate: true }
+);
 
 const selectedFinding = computed((): Finding | undefined => {
     if (!selectedFindingId.value) return undefined;
@@ -248,10 +259,10 @@ const hasAllRequiredClassifications = computed(() => {
 });
 
 const canAddFinding = computed(() => {
-    return selectedFindingId.value &&
-           hasAllRequiredClassifications.value &&
-           props.patientExaminationId &&
-           !loading.value;
+  return selectedFindingId.value &&
+         hasAllRequiredClassifications.value &&
+         props.patientExaminationId &&  // <-- blocks when undefined
+         !loading.value;
 });
 
 const classificationProgress = computed(() => {
@@ -325,10 +336,13 @@ const addFindingToExamination = async () => {
             }))
         };
 
-        // Use patientFindingStore to create the patient finding
+        // Use patientFindingStore to create the patient finding - should be linked to the patient examination!
         const newPatientFinding = await patientFindingStore.createPatientFinding(findingData);
-        addedFindings.value.push(newPatientFinding.finding);
-
+        const newFindingId = newPatientFinding.finding.id;
+        const createdFinding = findingClassificationStore.getFindingById(newFindingId);
+        if (createdFinding) {
+            addedFindings.value.push(createdFinding);
+        }
         const findingName = selectedFinding.value.nameDe || selectedFinding.value.name;
         emit('finding-added', selectedFindingId.value, findingName);
 
@@ -379,13 +393,13 @@ const loadAvailableFindingsForPatientExamination = async () => {
     loading.value = true;
     
     // Priorisiere props.examinationId, falls verfügbar
-    let examId = props.examinationId;
-    if (!examId && props.patientExaminationId) {
-      // Hole Examination ID aus PatientExamination
-      const patientExamination = patientExaminationStore.getPatientExaminationById(props.patientExaminationId);
-      examId = patientExamination?.examination?.id;
+    let examId: number | null | undefined = props.examinationId;
+
+    if (!examId) {
+        const currentId = await examinationStore.getCurrentExaminationId();
+        examId = currentId;
     }
-    
+
     if (!examId) {
       console.warn('Keine Examination ID verfügbar für Findings-Laden');
       return;

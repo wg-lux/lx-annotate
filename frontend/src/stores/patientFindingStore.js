@@ -6,11 +6,18 @@ const usePatientFindingStore = defineStore('patientFinding', () => {
     const patientFindings = ref([]);
     const loading = ref(false);
     const error = ref(null);
-    const fetchPatientFindings = async (patientId) => {
+    const fetchPatientFindings = async (patientExaminationId) => {
+        if (!patientExaminationId) {
+            console.warn('fetchPatientFindings wurde ohne patientExaminationId aufgerufen.');
+            patientFindings.value = [];
+            return;
+        }
         try {
             loading.value = true;
             error.value = null;
-            const response = await axiosInstance.get(`/api/patient-findings/?patient_id=${patientId}`);
+            const response = await axiosInstance.get('/api/patient-findings/', {
+                params: { patient_examination: patientExaminationId }
+            });
             patientFindings.value = response.data.results || response.data;
         }
         catch (err) {

@@ -7,23 +7,23 @@ import { useExaminationStore } from '@/stores/examinationStore';
 import { useFindingClassificationStore } from '@/stores/findingClassificationStore';
 const patientExaminationStore = usePatientExaminationStore();
 const findingClassificationStore = useFindingClassificationStore();
-const patientExaminationId = patientExaminationStore.getCurrentPatientExaminationId();
-patientExaminationStore.setCurrentPatientExaminationId(patientExaminationId);
+const examinationStore = useExaminationStore();
+const findingStore = useFindingStore();
+const patientFindingStore = usePatientFindingStore();
 const props = withDefaults(defineProps(), {
     patientExaminationId: undefined,
     examinationId: undefined
 });
-watch(() => patientExaminationStore.getCurrentPatientExaminationId, (newId) => {
+const patientExaminationId = props.patientExaminationId || patientExaminationStore.getCurrentPatientExaminationId();
+const examinationId = props.examinationId || examinationStore.getCurrentExaminationId();
+patientExaminationStore.setCurrentPatientExaminationId(patientExaminationId);
+watch(() => patientExaminationStore.getCurrentPatientExaminationId(), (newId) => {
     if (newId && !props.patientExaminationId) {
-        console.warn('[AddableFindingsDetail] Syncing patientExaminationId from store as prop was not provided. New ID:', newId);
-        // We will trigger the logic that depends on patientExaminationId changing.
+        console.warn('[AddableFindingsDetail] Syncing patientExaminationId...');
         loadFindingsAndClassificationsNew();
     }
 }, { immediate: true });
 const emit = defineEmits();
-const findingStore = useFindingStore();
-const patientFindingStore = usePatientFindingStore();
-const examinationStore = useExaminationStore();
 // Component State
 const loading = ref(false);
 const activeTab = ref('available');
@@ -37,16 +37,19 @@ const addedFindings = ref([]);
 const availableFindings = computed(() => {
     return availableExaminationFindings.value;
 });
-const fetchedAddedFindings = computed(async () => {
-    const currentPatientExaminationId = patientExaminationStore.getCurrentPatientExaminationId();
-    if (!currentPatientExaminationId)
-        return [];
-    const findings = await findingStore.fetchFindingsByPatientExamination(currentPatientExaminationId);
-    return findings || [];
-});
-watch(fetchedAddedFindings, async (newFindingsPromise) => {
-    addedFindings.value = await newFindingsPromise;
-});
+async function loadAddedFindingsForCurrentExam() {
+    const id = patientExaminationStore.getCurrentPatientExaminationId();
+    if (!id) {
+        addedFindings.value = [];
+        return;
+    }
+    await patientFindingStore.fetchPatientFindings(id);
+    addedFindings.value = patientFindingStore.patientFindings.map(pf => JSON.parse(JSON.stringify(pf.finding)));
+}
+watch(() => patientExaminationStore.getCurrentPatientExaminationId(), async (newId) => {
+    if (newId)
+        await loadAddedFindingsForCurrentExam();
+}, { immediate: true });
 const selectedFinding = computed(() => {
     if (!selectedFindingId.value)
         return undefined;
@@ -63,7 +66,7 @@ const hasAllRequiredClassifications = computed(() => {
 const canAddFinding = computed(() => {
     return selectedFindingId.value &&
         hasAllRequiredClassifications.value &&
-        props.patientExaminationId &&
+        props.patientExaminationId && // <-- blocks when undefined
         !loading.value;
 });
 const classificationProgress = computed(() => {
@@ -126,9 +129,13 @@ const addFindingToExamination = async () => {
                 choice: choiceId
             }))
         };
-        // Use patientFindingStore to create the patient finding
+        // Use patientFindingStore to create the patient finding - should be linked to the patient examination!
         const newPatientFinding = await patientFindingStore.createPatientFinding(findingData);
-        addedFindings.value.push(newPatientFinding.finding);
+        const newFindingId = newPatientFinding.finding.id;
+        const createdFinding = findingClassificationStore.getFindingById(newFindingId);
+        if (createdFinding) {
+            addedFindings.value.push(createdFinding);
+        }
         const findingName = selectedFinding.value.nameDe || selectedFinding.value.name;
         emit('finding-added', selectedFindingId.value, findingName);
         // Reset the component state
@@ -175,10 +182,9 @@ const loadAvailableFindingsForPatientExamination = async () => {
         loading.value = true;
         // Priorisiere props.examinationId, falls verfügbar
         let examId = props.examinationId;
-        if (!examId && props.patientExaminationId) {
-            // Hole Examination ID aus PatientExamination
-            const patientExamination = patientExaminationStore.getPatientExaminationById(props.patientExaminationId);
-            examId = patientExamination?.examination?.id;
+        if (!examId) {
+            const currentId = await examinationStore.getCurrentExaminationId();
+            examId = currentId;
         }
         if (!examId) {
             console.warn('Keine Examination ID verfügbar für Findings-Laden');
