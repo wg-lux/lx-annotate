@@ -1224,7 +1224,7 @@ const generatePseudonym = async (): Promise<void> => {
     generatingPseudonym.value = true
     error.value = ''
     
-    const response = await fetch('/api/generate-pseudonym/', {
+    const response = await fetch('/api/patients/${props.patient.id}/pseudonym//', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -1270,7 +1270,7 @@ const regeneratePseudonym = async (): Promise<void> => {
     generatingPseudonym.value = true
     error.value = ''
     
-    const response = await fetch('/api/generate-pseudonym/', {
+    const response = await fetch(`/api/patients/${props.patient.id}/pseudonym/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
