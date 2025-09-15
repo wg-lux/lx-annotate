@@ -295,5 +295,5 @@ export declare const useRequirementStore: import("pinia").StoreDefinition<"requi
     setCurrentRequirementSetIds: (ids: number[]) => void;
     deleteRequirementSetById: (id: number) => void;
     reset: () => void;
-}, "clearError" | "reset" | "setCurrentRequirementSet" | "fetchRequirementSets" | "fetchRequirementSet" | "evaluateRequirements" | "evaluateRequirementSet" | "evaluateFromLookupData" | "evaluateCurrentSetFromLookupData" | "createRequirementLinksFromLookup" | "getRequirementSetById" | "getRequirementById" | "getRequirementSetEvaluationStatus" | "getRequirementEvaluationStatus" | "loadRequirementSetsFromLookup" | "setCurrentRequirementSetIds" | "deleteRequirementSetById">>;
+}, "reset" | "clearError" | "setCurrentRequirementSet" | "fetchRequirementSets" | "fetchRequirementSet" | "evaluateRequirements" | "evaluateRequirementSet" | "evaluateFromLookupData" | "evaluateCurrentSetFromLookupData" | "createRequirementLinksFromLookup" | "getRequirementSetById" | "getRequirementById" | "getRequirementSetEvaluationStatus" | "getRequirementEvaluationStatus" | "loadRequirementSetsFromLookup" | "setCurrentRequirementSetIds" | "deleteRequirementSetById">>;
 export {};

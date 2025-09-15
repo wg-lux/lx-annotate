@@ -177,7 +177,19 @@
                 </div>
                 <div class="info-item">
                   <label>Patient Hash:</label>
-                  <span class="font-mono">{{ patient.patientHash || 'Nicht generiert' }}</span>
+                  <div class="d-flex align-items-center gap-2">
+                    <span class="font-mono">{{ patient.patientHash || 'Nicht generiert' }}</span>
+                    <button 
+                      class="btn btn-sm btn-outline-primary"
+                      @click="generatePseudonym"
+                      :disabled="generatingPseudonym"
+                      title="Pseudonym-Hash generieren"
+                    >
+                      <span v-if="generatingPseudonym" class="spinner-border spinner-border-sm me-1"></span>
+                      <i v-else class="fas fa-key me-1"></i>
+                      {{ generatingPseudonym ? 'Generiere...' : (patient.patientHash ? 'Aktualisieren' : 'Generieren') }}
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -718,35 +730,36 @@
                     generatingPseudonym.value = true
                     error.value = ''
                     
-                    const response = await fetch('/api/generate-pseudonym/', {
+                    const response = await fetch(`/api/patients/${props.patient.id}/pseudonym/`, {
                       method: 'POST',
                       headers: {
                         'Content-Type': 'application/json',
-                      },
-                      body: JSON.stringify({
-                        sensitive_meta_id: props.patient.sensitiveMetaId,
-                        regenerate: false
-                      })
+                      }
                     })
                     
                     if (!response.ok) {
-                      throw new Error('Fehler beim Generieren der Pseudonamen')
+                      const errorData = await response.json()
+                      let errorMessage = 'Fehler beim Generieren des Pseudonym-Hashes'
+                      
+                      if (errorData.missing_fields?.length) {
+                        errorMessage += `: Fehlende Felder: ${errorData.missing_fields.join(', ')}`
+                      } else if (errorData.detail) {
+                        errorMessage += `: ${errorData.detail}`
+                      }
+                      
+                      throw new Error(errorMessage)
                     }
                     
                     const data = await response.json()
                     
-                    // Convert snake_case to camelCase
-                    const convertedData = camelcaseKeys(data, { deep: true })
-                    
-                    // Update patient data mit neuen Pseudonamen
+                    // Update patient data with new hash
                     const updatedPatient = {
                       ...props.patient,
-                      pseudonymFirstName: convertedData.pseudonymFirstName,
-                      pseudonymLastName: convertedData.pseudonymLastName
+                      patientHash: data.patient_hash
                     }
                     
                     emit('patient-updated', updatedPatient)
-                    successMessage.value = 'Pseudonamen erfolgreich generiert!'
+                    successMessage.value = `Pseudonym-Hash erfolgreich generiert: ${data.patient_hash.substring(0, 8)}...`
                     
                     setTimeout(() => {
                       successMessage.value = ''
@@ -764,35 +777,38 @@
                     generatingPseudonym.value = true
                     error.value = ''
                     
-                    const response = await fetch('/api/generate-pseudonym/', {
+                    // For regeneration, we call the same endpoint since it will return existing hash if already generated
+                    // To force regeneration, we could add a query parameter, but for now just call the same endpoint
+                    const response = await fetch(`/api/patients/${props.patient.id}/pseudonym/`, {
                       method: 'POST',
                       headers: {
                         'Content-Type': 'application/json',
-                      },
-                      body: JSON.stringify({
-                        sensitive_meta_id: props.patient.sensitiveMetaId,
-                        regenerate: true
-                      })
+                      }
                     })
                     
                     if (!response.ok) {
-                      throw new Error('Fehler beim Regenerieren der Pseudonamen')
+                      const errorData = await response.json()
+                      let errorMessage = 'Fehler beim Regenerieren des Pseudonym-Hashes'
+                      
+                      if (errorData.missing_fields?.length) {
+                        errorMessage += `: Fehlende Felder: ${errorData.missing_fields.join(', ')}`
+                      } else if (errorData.detail) {
+                        errorMessage += `: ${errorData.detail}`
+                      }
+                      
+                      throw new Error(errorMessage)
                     }
                     
                     const data = await response.json()
                     
-                    // Convert snake_case to camelCase
-                    const convertedData = camelcaseKeys(data, { deep: true })
-                    
-                    // Update patient data mit neuen Pseudonamen
+                    // Update patient data with hash
                     const updatedPatient = {
                       ...props.patient,
-                      pseudonymFirstName: convertedData.pseudonymFirstName,
-                      pseudonymLastName: convertedData.pseudonymLastName
+                      patientHash: data.patient_hash
                     }
                     
                     emit('patient-updated', updatedPatient)
-                    successMessage.value = 'Neue Pseudonamen erfolgreich generiert!'
+                    successMessage.value = `Pseudonym-Hash aktualisiert: ${data.patient_hash.substring(0, 8)}...`
                     
                     setTimeout(() => {
                       successMessage.value = ''
