@@ -149,7 +149,7 @@ const regeneratePseudonym = async () => {
     try {
         generatingPseudonym.value = true;
         error.value = '';
-        const response = await fetch('/api/patients/${props.patient.id}/pseudonym//', {
+        const response = await fetch(`/api/patients/${props.patient.id}/pseudonym/`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
