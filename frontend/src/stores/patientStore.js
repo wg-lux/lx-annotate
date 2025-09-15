@@ -5,6 +5,7 @@ export const usePatientStore = defineStore('patient', () => {
     // State
     const patients = ref([]);
     const currentPatient = ref(null);
+    const selectedPatientId = ref(null);
     const genders = ref([]);
     const centers = ref([]);
     const loading = ref(false);
@@ -199,10 +200,33 @@ export const usePatientStore = defineStore('patient', () => {
     const getCurrentPatient = () => {
         return currentPatient.value;
     };
+    const setSelectedPatientId = (id) => {
+        selectedPatientId.value = id;
+    };
+    const getSelectedPatientId = () => {
+        return selectedPatientId.value;
+    };
+    const clearSelectedPatientId = () => {
+        selectedPatientId.value = null;
+    };
+    const setCurrentPatient = (p) => {
+        currentPatient.value = p;
+    };
+    // ID RESOLVER (no router deps, minimal)
+    const resolveCurrentPatientId = (propId, strict = true) => {
+        const id = (propId && propId > 0 ? propId : null) ??
+            (currentPatient.value?.id && currentPatient.value.id > 0 ? currentPatient.value.id : null) ??
+            (selectedPatientId.value && selectedPatientId.value > 0 ? selectedPatientId.value : null);
+        if (strict && !id) {
+            throw new Error('Kein Patient ausgewählt – patientId konnte nicht ermittelt werden.');
+        }
+        return id;
+    };
     return {
         // State
         patients,
         currentPatient,
+        selectedPatientId,
         genders,
         centers,
         loading,
@@ -230,5 +254,10 @@ export const usePatientStore = defineStore('patient', () => {
         formatPatientForSubmission,
         clearCurrentPatient,
         getCurrentPatient,
+        setSelectedPatientId,
+        getSelectedPatientId,
+        clearSelectedPatientId,
+        setCurrentPatient,
+        resolveCurrentPatientId,
     };
 });

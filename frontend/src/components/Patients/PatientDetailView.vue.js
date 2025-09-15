@@ -1,8 +1,8 @@
 import { ref, computed } from 'vue';
 import { usePatientStore } from '@/stores/patientStore';
-import { patientService } from '@/api/patientService';
+import { patientService, generatePatientPseudonym } from '@/api/patientService';
 import PatientEditForm from './PatientEditForm.vue';
-import camelcaseKeys from 'camelcase-keys';
+import axiosInstance from '@/api/axiosInstance';
 const props = defineProps();
 const emit = defineEmits();
 // Composables
@@ -24,16 +24,18 @@ const checkDeletionSafety = async () => {
     try {
         loading.value = true;
         error.value = '';
-        // Call the backend safety check endpoint
-        const response = await fetch(`/api/patients/${props.patient.id}/check_deletion_safety/`);
-        if (!response.ok) {
-            throw new Error('Fehler beim Prüfen der Löschbarkeit');
+        const currentPatient = patientStore.getCurrentPatient();
+        if (!currentPatient || !currentPatient.id) {
+            throw new Error('Aktueller Patient nicht gefunden');
         }
-        deletionCheck.value = await response.json();
+        const patientId = patientStore.resolveCurrentPatientId(currentPatient.id, true);
+        // Use axiosInstance instead of fetch
+        const response = await axiosInstance.get(`/api/patients/${patientId}/check_deletion_safety/`);
+        deletionCheck.value = response.data;
         showDeletionModal.value = true;
     }
     catch (err) {
-        error.value = err.message || 'Fehler beim Prüfen der Löschbarkeit';
+        error.value = err.response?.data?.detail || err.message || 'Fehler beim Prüfen der Löschbarkeit';
     }
     finally {
         loading.value = false;
@@ -105,84 +107,40 @@ const getCenterDisplay = (centerValue) => {
     const center = centers.value.find(c => c.name === centerValue);
     return center?.nameDe || center?.name || centerValue;
 };
-// Pseudonamen-Funktionalität
+const applyPatientHashUpdate = (hash) => {
+    const updated = { ...props.patient, patientHash: hash };
+    emit('patient-updated', updated);
+};
+// Pseudonym generation with robust patient ID resolution
 const generatePseudonym = async () => {
     try {
         generatingPseudonym.value = true;
         error.value = '';
-        const response = await fetch('/api/patients/${props.patient.id}/pseudonym//', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                sensitive_meta_id: props.patient.sensitiveMetaId,
-                regenerate: false
-            })
-        });
-        if (!response.ok) {
-            throw new Error('Fehler beim Generieren der Pseudonamen');
-        }
-        const data = await response.json();
-        // Convert snake_case to camelCase
-        const convertedData = camelcaseKeys(data, { deep: true });
-        // Update patient data mit neuen Pseudonamen
-        const updatedPatient = {
-            ...props.patient,
-            pseudonymFirstName: convertedData.pseudonymFirstName,
-            pseudonymLastName: convertedData.pseudonymLastName
-        };
-        emit('patient-updated', updatedPatient);
-        successMessage.value = 'Pseudonamen erfolgreich generiert!';
-        setTimeout(() => {
-            successMessage.value = '';
-        }, 3000);
+        const id = patientStore.resolveCurrentPatientId(props.patient?.id, true);
+        const data = await generatePatientPseudonym(id);
+        // Map snake_case → camelCase locally
+        applyPatientHashUpdate(data.patientHash);
+        // Safe UI text (guard substring)
+        const short = (data.patientHash && data.patientHash.length >= 8)
+            ? data.patientHash.substring(0, 8) + '...'
+            : data.patientHash || '—';
+        successMessage.value = `Pseudonym-Hash erfolgreich generiert: ${short}`;
+        setTimeout(() => { successMessage.value = ''; }, 3000);
     }
-    catch (err) {
-        error.value = err.message || 'Fehler beim Generieren der Pseudonamen';
+    catch (e) {
+        const detail = e?.response?.data?.detail || e?.message || 'Unbekannter Fehler';
+        const missing = e?.response?.data?.missingFields;
+        error.value = missing?.length
+            ? `Fehlende Felder: ${missing.join(', ')}`
+            : `Fehler beim Generieren des Pseudonym-Hashes: ${detail}`;
     }
     finally {
         generatingPseudonym.value = false;
     }
 };
 const regeneratePseudonym = async () => {
-    try {
-        generatingPseudonym.value = true;
-        error.value = '';
-        const response = await fetch(`/api/patients/${props.patient.id}/pseudonym/`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                sensitive_meta_id: props.patient.sensitiveMetaId,
-                regenerate: true
-            })
-        });
-        if (!response.ok) {
-            throw new Error('Fehler beim Regenerieren der Pseudonamen');
-        }
-        const data = await response.json();
-        // Convert snake_case to camelCase
-        const convertedData = camelcaseKeys(data, { deep: true });
-        // Update patient data mit neuen Pseudonamen
-        const updatedPatient = {
-            ...props.patient,
-            pseudonymFirstName: convertedData.pseudonymFirstName,
-            pseudonymLastName: convertedData.pseudonymLastName
-        };
-        emit('patient-updated', updatedPatient);
-        successMessage.value = 'Neue Pseudonamen erfolgreich generiert!';
-        setTimeout(() => {
-            successMessage.value = '';
-        }, 3000);
-    }
-    catch (err) {
-        error.value = err.message || 'Fehler beim Regenerieren der Pseudonamen';
-    }
-    finally {
-        generatingPseudonym.value = false;
-    }
+    // same endpoint; backend is idempotent/deterministic
+    await generatePseudonym();
 }; /* PartiallyEnd: #3632/scriptSetup.vue */
 function __VLS_template() {
     const __VLS_ctx = {};
@@ -500,7 +458,7 @@ function __VLS_template() {
         __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
             ...{ class: ("font-mono") },
         });
-        (__VLS_ctx.patient.patientHash || 'Nicht generiert');
+        (__VLS_ctx.patient.patientHash ? (__VLS_ctx.patient.patientHash.length >= 8 ? __VLS_ctx.patient.patientHash.substring(0, 8) + '...' : __VLS_ctx.patient.patientHash) : 'Nicht generiert');
         __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
             ...{ onClick: (__VLS_ctx.generatePseudonym) },
             ...{ class: ("btn btn-sm btn-outline-primary") },
@@ -612,7 +570,7 @@ function __VLS_template() {
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: ("modal-body") },
         });
-        if (__VLS_ctx.deletionCheck?.can_delete) {
+        if (__VLS_ctx.deletionCheck?.canDelete) {
             __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
                 ...{ class: ("alert alert-info") },
             });
@@ -676,7 +634,7 @@ function __VLS_template() {
                 ...{ onClick: (...[$event]) => {
                         if (!((__VLS_ctx.showDeletionModal)))
                             return;
-                        if (!(!((__VLS_ctx.deletionCheck?.can_delete))))
+                        if (!(!((__VLS_ctx.deletionCheck?.canDelete))))
                             return;
                         __VLS_ctx.$emit('close');
                     } },
@@ -690,7 +648,7 @@ function __VLS_template() {
                 ...{ onClick: (...[$event]) => {
                         if (!((__VLS_ctx.showDeletionModal)))
                             return;
-                        if (!(!((__VLS_ctx.deletionCheck?.can_delete))))
+                        if (!(!((__VLS_ctx.deletionCheck?.canDelete))))
                             return;
                         __VLS_ctx.showEditForm = true;
                     } },
@@ -771,7 +729,7 @@ function __VLS_template() {
                     onCancel: (...[$event]) => {
                         if (!((__VLS_ctx.showDeletionModal)))
                             return;
-                        if (!(!((__VLS_ctx.deletionCheck?.can_delete))))
+                        if (!(!((__VLS_ctx.deletionCheck?.canDelete))))
                             return;
                         if (!((__VLS_ctx.showEditForm)))
                             return;
@@ -954,7 +912,7 @@ function __VLS_template() {
                 __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
                     ...{ class: ("font-mono") },
                 });
-                (__VLS_ctx.patient.patientHash || 'Nicht generiert');
+                (__VLS_ctx.patient.patientHash ? (__VLS_ctx.patient.patientHash.length >= 8 ? __VLS_ctx.patient.patientHash.substring(0, 8) + '...' : __VLS_ctx.patient.patientHash) : 'Nicht generiert');
                 __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
                     ...{ class: ("row mt-3") },
                 });
@@ -1049,7 +1007,7 @@ function __VLS_template() {
                 __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
                     ...{ class: ("modal-body") },
                 });
-                if (__VLS_ctx.deletionCheck?.can_delete) {
+                if (__VLS_ctx.deletionCheck?.canDelete) {
                     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
                         ...{ class: ("alert alert-info") },
                     });
@@ -1079,7 +1037,7 @@ function __VLS_template() {
                         (warning);
                     }
                 }
-                if (__VLS_ctx.deletionCheck?.related_objects) {
+                if (__VLS_ctx.deletionCheck?.relatedObjects) {
                     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
                         ...{ class: ("mt-3") },
                     });
@@ -1093,28 +1051,28 @@ function __VLS_template() {
                     __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
                         ...{ class: ("fas fa-stethoscope") },
                     });
-                    (__VLS_ctx.deletionCheck.related_objects.examinations);
+                    (__VLS_ctx.deletionCheck.relatedObjects.examinations);
                     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
                         ...{ class: ("object-count") },
                     });
                     __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
                         ...{ class: ("fas fa-search") },
                     });
-                    (__VLS_ctx.deletionCheck.related_objects.findings);
+                    (__VLS_ctx.deletionCheck.relatedObjects.findings);
                     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
                         ...{ class: ("object-count") },
                     });
                     __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
                         ...{ class: ("fas fa-video") },
                     });
-                    (__VLS_ctx.deletionCheck.related_objects.videos);
+                    (__VLS_ctx.deletionCheck.relatedObjects.videos);
                     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
                         ...{ class: ("object-count") },
                     });
                     __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
                         ...{ class: ("fas fa-file-pdf") },
                     });
-                    (__VLS_ctx.deletionCheck.related_objects.reports);
+                    (__VLS_ctx.deletionCheck.relatedObjects.reports);
                 }
                 __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
                     ...{ class: ("modal-footer") },
@@ -1125,7 +1083,7 @@ function __VLS_template() {
                     ...{ class: ("btn btn-secondary") },
                     disabled: ((__VLS_ctx.deleting)),
                 });
-                if (__VLS_ctx.deletionCheck?.can_delete) {
+                if (__VLS_ctx.deletionCheck?.canDelete) {
                     __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
                         ...{ onClick: (__VLS_ctx.confirmDeletion) },
                         type: ("button"),
@@ -1146,7 +1104,7 @@ function __VLS_template() {
                 }
             }
         }
-        if (__VLS_ctx.deletionCheck?.related_objects) {
+        if (__VLS_ctx.deletionCheck?.relatedObjects) {
             __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
                 ...{ class: ("mt-3") },
             });
@@ -1160,28 +1118,28 @@ function __VLS_template() {
             __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
                 ...{ class: ("fas fa-stethoscope") },
             });
-            (__VLS_ctx.deletionCheck.related_objects.examinations);
+            (__VLS_ctx.deletionCheck.relatedObjects.examinations);
             __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
                 ...{ class: ("object-count") },
             });
             __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
                 ...{ class: ("fas fa-search") },
             });
-            (__VLS_ctx.deletionCheck.related_objects.findings);
+            (__VLS_ctx.deletionCheck.relatedObjects.findings);
             __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
                 ...{ class: ("object-count") },
             });
             __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
                 ...{ class: ("fas fa-video") },
             });
-            (__VLS_ctx.deletionCheck.related_objects.videos);
+            (__VLS_ctx.deletionCheck.relatedObjects.videos);
             __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
                 ...{ class: ("object-count") },
             });
             __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
                 ...{ class: ("fas fa-file-pdf") },
             });
-            (__VLS_ctx.deletionCheck.related_objects.reports);
+            (__VLS_ctx.deletionCheck.relatedObjects.reports);
         }
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: ("modal-footer") },
@@ -1192,7 +1150,7 @@ function __VLS_template() {
             ...{ class: ("btn btn-secondary") },
             disabled: ((__VLS_ctx.deleting)),
         });
-        if (__VLS_ctx.deletionCheck?.can_delete) {
+        if (__VLS_ctx.deletionCheck?.canDelete) {
             __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
                 ...{ onClick: (__VLS_ctx.confirmDeletion) },
                 type: ("button"),

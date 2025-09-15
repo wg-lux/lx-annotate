@@ -1,6 +1,22 @@
 import axiosInstance, { r } from './axiosInstance';
 import type { AxiosResponse } from 'axios';
 
+// Shape returned by backend (snake_case); we'll map in the component
+export type GeneratePseudonymResponse = {
+  patientId: number
+  patientHash: string
+  persisted: boolean
+  source: 'server'
+  message?: string
+  missingFields?: string[]
+}
+
+export async function generatePatientPseudonym(id: number): Promise<GeneratePseudonymResponse> {
+  if (!Number.isFinite(id) || id <= 0) throw new Error('Ungültige patientId')
+  const { data } = await axiosInstance.post(`/api/patients/${id}/pseudonym/`)
+  return data as GeneratePseudonymResponse
+}
+
 // TypeScript Interfaces für Patient-bezogene Daten
 export interface Gender {
   id: number;
@@ -276,5 +292,6 @@ export const patientService = {
       isValid: errors.length === 0,
       errors
     };
-  }
+  },
+
 };

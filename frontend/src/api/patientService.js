@@ -1,4 +1,10 @@
 import axiosInstance, { r } from './axiosInstance';
+export async function generatePatientPseudonym(id) {
+    if (!Number.isFinite(id) || id <= 0)
+        throw new Error('Ungültige patientId');
+    const { data } = await axiosInstance.post(`/api/patients/${id}/pseudonym/`);
+    return data;
+}
 export const patientService = {
     async getPatients() {
         try {
@@ -183,5 +189,5 @@ export const patientService = {
             isValid: errors.length === 0,
             errors
         };
-    }
+    },
 };

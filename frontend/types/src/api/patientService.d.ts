@@ -1,3 +1,12 @@
+export type GeneratePseudonymResponse = {
+    patientId: number;
+    patientHash: string;
+    persisted: boolean;
+    source: 'server';
+    message?: string;
+    missingFields?: string[];
+};
+export declare function generatePatientPseudonym(id: number): Promise<GeneratePseudonymResponse>;
 export interface Gender {
     id: number;
     name: string;

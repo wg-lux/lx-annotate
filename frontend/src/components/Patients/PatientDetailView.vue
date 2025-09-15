@@ -178,7 +178,9 @@
                 <div class="info-item">
                   <label>Patient Hash:</label>
                   <div class="d-flex align-items-center gap-2">
-                    <span class="font-mono">{{ patient.patientHash || 'Nicht generiert' }}</span>
+                    <span class="font-mono">
+                      {{ patient.patientHash ? (patient.patientHash.length >= 8 ? patient.patientHash.substring(0, 8) + '...' : patient.patientHash) : 'Nicht generiert' }}
+                    </span>
                     <button 
                       class="btn btn-sm btn-outline-primary"
                       @click="generatePseudonym"
@@ -256,7 +258,7 @@
             </h5>
           </div>
           <div class="modal-body">
-            <div v-if="deletionCheck?.can_delete" class="alert alert-info">
+            <div v-if="deletionCheck?.canDelete" class="alert alert-info">
               <i class="fas fa-info-circle"></i>
               <strong>Patient kann gelöscht werden.</strong>
               <p class="mb-0 mt-2">Sind Sie sicher, dass Sie diesen Patienten löschen möchten?</p>
@@ -445,7 +447,9 @@
                                 </div>
                                 <div class="info-item">
                                   <label>Patient Hash:</label>
-                                  <span class="font-mono">{{ patient.patientHash || 'Nicht generiert' }}</span>
+                                  <span class="font-mono">
+                                    {{ patient.patientHash ? (patient.patientHash.length >= 8 ? patient.patientHash.substring(0, 8) + '...' : patient.patientHash) : 'Nicht generiert' }}
+                                  </span>
                                 </div>
                               </div>
                             </div>
@@ -512,7 +516,7 @@
                             </h5>
                           </div>
                           <div class="modal-body">
-                            <div v-if="deletionCheck?.can_delete" class="alert alert-info">
+                            <div v-if="deletionCheck?.canDelete" class="alert alert-info">
                               <i class="fas fa-info-circle"></i>
                               <strong>Patient kann gelöscht werden.</strong>
                               <p class="mb-0 mt-2">Sind Sie sicher, dass Sie diesen Patienten löschen möchten?</p>
@@ -528,24 +532,24 @@
                               </ul>
                             </div>
 
-                            <div v-if="deletionCheck?.related_objects" class="mt-3">
+                            <div v-if="deletionCheck?.relatedObjects" class="mt-3">
                               <h6>Verknüpfte Objekte:</h6>
                               <div class="related-objects">
                                 <div class="object-count">
                                   <i class="fas fa-stethoscope"></i>
-                                  {{ deletionCheck.related_objects.examinations }} Untersuchung(en)
+                                  {{ deletionCheck.relatedObjects.examinations }} Untersuchung(en)
                                 </div>
                                 <div class="object-count">
                                   <i class="fas fa-search"></i>
-                                  {{ deletionCheck.related_objects.findings }} Befund(e)
+                                  {{ deletionCheck.relatedObjects.findings }} Befund(e)
                                 </div>
                                 <div class="object-count">
                                   <i class="fas fa-video"></i>
-                                  {{ deletionCheck.related_objects.videos }} Video(s)
+                                  {{ deletionCheck.relatedObjects.videos }} Video(s)
                                 </div>
                                 <div class="object-count">
                                   <i class="fas fa-file-pdf"></i>
-                                  {{ deletionCheck.related_objects.reports }} Bericht(e)
+                                  {{ deletionCheck.relatedObjects.reports }} Bericht(e)
                                 </div>
                               </div>
                             </div>
@@ -560,7 +564,7 @@
                               Abbrechen
                             </button>
                             <button 
-                              v-if="deletionCheck?.can_delete"
+                              v-if="deletionCheck?.canDelete"
                               type="button" 
                               class="btn btn-danger"
                               @click="confirmDeletion"
@@ -593,9 +597,9 @@
                 }
 
                 interface DeletionCheck {
-                  can_delete: boolean
+                  canDelete: boolean
                   warnings: string[]
-                  related_objects: RelatedObjects
+                  relatedObjects: RelatedObjects
                 }
 
                 // Props
@@ -741,8 +745,8 @@
                       const errorData = await response.json()
                       let errorMessage = 'Fehler beim Generieren des Pseudonym-Hashes'
                       
-                      if (errorData.missing_fields?.length) {
-                        errorMessage += `: Fehlende Felder: ${errorData.missing_fields.join(', ')}`
+                      if (errorData.missingFields?.length) {
+                        errorMessage += `: Fehlende Felder: ${errorData.missingFields.join(', ')}`
                       } else if (errorData.detail) {
                         errorMessage += `: ${errorData.detail}`
                       }
@@ -755,12 +759,12 @@
                     // Update patient data with new hash
                     const updatedPatient = {
                       ...props.patient,
-                      patientHash: data.patient_hash
+                      patientHash: data.patientHash
                     }
                     
                     emit('patient-updated', updatedPatient)
-                    successMessage.value = `Pseudonym-Hash erfolgreich generiert: ${data.patient_hash.substring(0, 8)}...`
-                    
+                    successMessage.value = `Pseudonym-Hash erfolgreich generiert: ${data.patientHash.substring(0, 8)}...`
+
                     setTimeout(() => {
                       successMessage.value = ''
                     }, 3000)
@@ -790,8 +794,8 @@
                       const errorData = await response.json()
                       let errorMessage = 'Fehler beim Regenerieren des Pseudonym-Hashes'
                       
-                      if (errorData.missing_fields?.length) {
-                        errorMessage += `: Fehlende Felder: ${errorData.missing_fields.join(', ')}`
+                      if (errorData.missingFields?.length) {
+                        errorMessage += `: Fehlende Felder: ${errorData.missingFields.join(', ')}`
                       } else if (errorData.detail) {
                         errorMessage += `: ${errorData.detail}`
                       }
@@ -804,12 +808,12 @@
                     // Update patient data with hash
                     const updatedPatient = {
                       ...props.patient,
-                      patientHash: data.patient_hash
+                      patientHash: data.patientHash
                     }
                     
                     emit('patient-updated', updatedPatient)
-                    successMessage.value = `Pseudonym-Hash aktualisiert: ${data.patient_hash.substring(0, 8)}...`
-                    
+                    successMessage.value = `Pseudonym-Hash aktualisiert: ${data.patientHash.substring(0, 8)}...`
+
                     setTimeout(() => {
                       successMessage.value = ''
                     }, 3000)
@@ -1036,24 +1040,24 @@
               </ul>
             </div>
 
-            <div v-if="deletionCheck?.related_objects" class="mt-3">
+            <div v-if="deletionCheck?.relatedObjects" class="mt-3">
               <h6>Verknüpfte Objekte:</h6>
               <div class="related-objects">
                 <div class="object-count">
                   <i class="fas fa-stethoscope"></i>
-                  {{ deletionCheck.related_objects.examinations }} Untersuchung(en)
+                  {{ deletionCheck.relatedObjects.examinations }} Untersuchung(en)
                 </div>
                 <div class="object-count">
                   <i class="fas fa-search"></i>
-                  {{ deletionCheck.related_objects.findings }} Befund(e)
+                  {{ deletionCheck.relatedObjects.findings }} Befund(e)
                 </div>
                 <div class="object-count">
                   <i class="fas fa-video"></i>
-                  {{ deletionCheck.related_objects.videos }} Video(s)
+                  {{ deletionCheck.relatedObjects.videos }} Video(s)
                 </div>
                 <div class="object-count">
                   <i class="fas fa-file-pdf"></i>
-                  {{ deletionCheck.related_objects.reports }} Bericht(e)
+                  {{ deletionCheck.relatedObjects.reports }} Bericht(e)
                 </div>
               </div>
             </div>
@@ -1068,7 +1072,7 @@
               Abbrechen
             </button>
             <button 
-              v-if="deletionCheck?.can_delete"
+              v-if="deletionCheck?.canDelete"
               type="button" 
               class="btn btn-danger"
               @click="confirmDeletion"
@@ -1088,9 +1092,9 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { usePatientStore, type Patient, type Gender, type Center } from '@/stores/patientStore'
-import { patientService } from '@/api/patientService'
+import { patientService, generatePatientPseudonym } from '@/api/patientService'
 import PatientEditForm from './PatientEditForm.vue'
-import camelcaseKeys from 'camelcase-keys'
+import axiosInstance from '@/api/axiosInstance'
 
 // Props
 interface Props {
@@ -1123,23 +1127,28 @@ const generatingPseudonym = ref<boolean>(false)
 const genders = computed(() => patientStore.genders)
 const centers = computed(() => patientStore.centers)
 
+
 // Methods
 const checkDeletionSafety = async () => {
   try {
     loading.value = true
     error.value = ''
-    
-    // Call the backend safety check endpoint
-    const response = await fetch(`/api/patients/${props.patient.id}/check_deletion_safety/`)
-    if (!response.ok) {
-      throw new Error('Fehler beim Prüfen der Löschbarkeit')
+
+    const currentPatient = patientStore.getCurrentPatient()
+
+    if (!currentPatient || !currentPatient.id) {
+      throw new Error('Aktueller Patient nicht gefunden')
     }
+    const patientId = patientStore.resolveCurrentPatientId(currentPatient.id, true)!
     
-    deletionCheck.value = await response.json()
+    // Use axiosInstance instead of fetch
+    const response = await axiosInstance.get(`/api/patients/${patientId}/check_deletion_safety/`)
+    
+    deletionCheck.value = response.data
     showDeletionModal.value = true
     
   } catch (err: any) {
-    error.value = err.message || 'Fehler beim Prüfen der Löschbarkeit'
+    error.value = err.response?.data?.detail || err.message || 'Fehler beim Prüfen der Löschbarkeit'
   } finally {
     loading.value = false
   }
@@ -1218,97 +1227,45 @@ const getCenterDisplay = (centerValue?: string | null) => {
   return center?.nameDe || center?.name || centerValue
 }
 
-// Pseudonamen-Funktionalität
+const applyPatientHashUpdate = (hash: string) => {
+  const updated = { ...props.patient, patientHash: hash }
+  emit('patient-updated', updated)
+}
+
+// Pseudonym generation with robust patient ID resolution
 const generatePseudonym = async (): Promise<void> => {
   try {
     generatingPseudonym.value = true
     error.value = ''
     
-    const response = await fetch('/api/patients/${props.patient.id}/pseudonym//', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        sensitive_meta_id: props.patient.sensitiveMetaId,
-        regenerate: false
-      })
-    })
-    
-    if (!response.ok) {
-      throw new Error('Fehler beim Generieren der Pseudonamen')
-    }
-    
-    const data = await response.json()
-    
-    // Convert snake_case to camelCase
-    const convertedData = camelcaseKeys(data, { deep: true })
-    
-    // Update patient data mit neuen Pseudonamen
-    const updatedPatient = {
-      ...props.patient,
-      pseudonymFirstName: convertedData.pseudonymFirstName,
-      pseudonymLastName: convertedData.pseudonymLastName
-    }
-    
-    emit('patient-updated', updatedPatient)
-    successMessage.value = 'Pseudonamen erfolgreich generiert!'
-    
-    setTimeout(() => {
-      successMessage.value = ''
-    }, 3000)
-    
-  } catch (err: any) {
-    error.value = err.message || 'Fehler beim Generieren der Pseudonamen'
+    const id = patientStore.resolveCurrentPatientId(props.patient?.id, true)!
+    const data = await generatePatientPseudonym(id)
+
+    // Map snake_case → camelCase locally
+    applyPatientHashUpdate(data.patientHash)
+
+    // Safe UI text (guard substring)
+    const short = (data.patientHash && data.patientHash.length >= 8)
+      ? data.patientHash.substring(0, 8) + '...'
+      : data.patientHash || '—'
+
+    successMessage.value = `Pseudonym-Hash erfolgreich generiert: ${short}`
+
+    setTimeout(() => { successMessage.value = '' }, 3000)
+  } catch (e: any) {
+    const detail = e?.response?.data?.detail || e?.message || 'Unbekannter Fehler'
+    const missing = e?.response?.data?.missingFields
+    error.value = missing?.length
+      ? `Fehlende Felder: ${missing.join(', ')}`
+      : `Fehler beim Generieren des Pseudonym-Hashes: ${detail}`
   } finally {
     generatingPseudonym.value = false
   }
 }
 
 const regeneratePseudonym = async (): Promise<void> => {
-  try {
-    generatingPseudonym.value = true
-    error.value = ''
-    
-    const response = await fetch(`/api/patients/${props.patient.id}/pseudonym/`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        sensitive_meta_id: props.patient.sensitiveMetaId,
-        regenerate: true
-      })
-    })
-    
-    if (!response.ok) {
-      throw new Error('Fehler beim Regenerieren der Pseudonamen')
-    }
-    
-    const data = await response.json()
-    
-    // Convert snake_case to camelCase
-    const convertedData = camelcaseKeys(data, { deep: true })
-    
-    // Update patient data mit neuen Pseudonamen
-    const updatedPatient = {
-      ...props.patient,
-      pseudonymFirstName: convertedData.pseudonymFirstName,
-      pseudonymLastName: convertedData.pseudonymLastName
-    }
-    
-    emit('patient-updated', updatedPatient)
-    successMessage.value = 'Neue Pseudonamen erfolgreich generiert!'
-    
-    setTimeout(() => {
-      successMessage.value = ''
-    }, 3000)
-    
-  } catch (err: any) {
-    error.value = err.message || 'Fehler beim Regenerieren der Pseudonamen'
-  } finally {
-    generatingPseudonym.value = false
-  }
+  // same endpoint; backend is idempotent/deterministic
+  await generatePseudonym()
 }
 </script>
 
