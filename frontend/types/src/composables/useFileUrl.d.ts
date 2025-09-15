@@ -25,7 +25,7 @@ export declare function useFileUrl(): {
             original_filename: string;
         } | undefined;
         file_type?: string | undefined;
-        status: "pending" | "approved" | "rejected";
+        status: "pending" | "rejected" | "approved";
     } | null>;
     secureUrl: import("vue").ComputedRef<string>;
     urlExpiresAt: import("vue").ComputedRef<Date | null>;

@@ -287,10 +287,17 @@ async function createPatientExaminationAndInitLookup() {
         if (!selectedExam) {
             throw new Error('Selected examination not found');
         }
+        // Format patient birth date for backend (ISO date format)
+        const formattedBirthDate = selectedPatient.dob
+            ? new Date(selectedPatient.dob).toISOString().split('T')[0]
+            : null;
         const peRes = await axiosInstance.post('/api/patient-examinations/', {
             patient: selectedPatient.patientHash || `patient_${selectedPatient.id}`,
             examination: selectedExam.name,
             date_start: formattedDate, // Fixed field name
+            // 🎯 NEW: Include patient birth date and gender for age calculation
+            patient_birth_date: formattedBirthDate,
+            patient_gender: selectedPatient.gender || null,
         });
         patientExaminationStore.addPatientExamination(peRes.data);
         console.log('PatientExamination created:', peRes.data);

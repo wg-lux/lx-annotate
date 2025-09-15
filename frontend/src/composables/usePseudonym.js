@@ -1,7 +1,7 @@
 // Vue 3 + TypeScript snippet for pseudonym generation button
 // Add this to your patient detail/edit component
 import { ref } from 'vue';
-import { axiosInstance } from '@/api/axiosConfig'; // Adjust import path as needed
+import axios from 'axios'; // Using axios directly - adjust to your setup
 // Reactive state
 const isGeneratingPseudonym = ref(false);
 const pseudonymError = ref(null);
@@ -16,7 +16,7 @@ async function generatePseudonym(patientId) {
     pseudonymError.value = null;
     pseudonymSuccess.value = null;
     try {
-        const response = await axiosInstance.post(`/patients/${patientId}/pseudonym/`);
+        const response = await axios.post(`/api/patients/${patientId}/pseudonym/`);
         const { patient_hash, persisted, message } = response.data;
         pseudonymSuccess.value = `${message} - Hash: ${patient_hash.substring(0, 8)}...`;
         // If you want to update the patient object in your store:
