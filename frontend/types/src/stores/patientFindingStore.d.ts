@@ -240,6 +240,8 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
     }[]>;
     loading: Readonly<import("vue").Ref<boolean, boolean>>;
     error: Readonly<import("vue").Ref<string | null, string | null>>;
+    currentPatientExaminationId: Readonly<import("vue").Ref<number | null, number | null>>;
+    setCurrentPatientExaminationId: (id: number | null) => void;
     fetchPatientFindings: (patientExaminationId: number) => Promise<void>;
     createPatientFinding: (patientFindingData: {
         patientExamination: number;
@@ -251,7 +253,7 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
     }) => Promise<PatientFinding>;
     updatePatientFinding: (id: number, updateData: Partial<PatientFinding>) => Promise<PatientFinding>;
     deletePatientFinding: (id: number) => Promise<void>;
-}, "loading" | "error" | "patientFindings">>, Pick<{
+}, "loading" | "error" | "patientFindings" | "currentPatientExaminationId">>, Pick<{
     patientFindings: Readonly<import("vue").Ref<readonly {
         readonly id: number;
         readonly examination: string;
@@ -471,6 +473,8 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
     }[]>;
     loading: Readonly<import("vue").Ref<boolean, boolean>>;
     error: Readonly<import("vue").Ref<string | null, string | null>>;
+    currentPatientExaminationId: Readonly<import("vue").Ref<number | null, number | null>>;
+    setCurrentPatientExaminationId: (id: number | null) => void;
     fetchPatientFindings: (patientExaminationId: number) => Promise<void>;
     createPatientFinding: (patientFindingData: {
         patientExamination: number;
@@ -702,6 +706,8 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
     }[]>;
     loading: Readonly<import("vue").Ref<boolean, boolean>>;
     error: Readonly<import("vue").Ref<string | null, string | null>>;
+    currentPatientExaminationId: Readonly<import("vue").Ref<number | null, number | null>>;
+    setCurrentPatientExaminationId: (id: number | null) => void;
     fetchPatientFindings: (patientExaminationId: number) => Promise<void>;
     createPatientFinding: (patientFindingData: {
         patientExamination: number;
@@ -713,5 +719,5 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
     }) => Promise<PatientFinding>;
     updatePatientFinding: (id: number, updateData: Partial<PatientFinding>) => Promise<PatientFinding>;
     deletePatientFinding: (id: number) => Promise<void>;
-}, "fetchPatientFindings" | "createPatientFinding" | "updatePatientFinding" | "deletePatientFinding">>;
+}, "setCurrentPatientExaminationId" | "fetchPatientFindings" | "createPatientFinding" | "updatePatientFinding" | "deletePatientFinding">>;
 export { usePatientFindingStore };

@@ -74,7 +74,7 @@
           </div>
         </div>
         <div class="row mt-3">
-            <div class="col-12">
+            <div class="col-12"">
                  <button
                     class="btn btn-primary"
                     :disabled="!selectedPatientId || !selectedExaminationId || loading || !!lookupToken"
@@ -89,8 +89,8 @@
       </div>
     </div>
 
-    <!-- Lookup Data Display -->
-    <div v-if="lookup" class="row g-3">
+    <!-- Lookup Data Display - Shown when all data is set and the lookup is available -->
+    <div class="row g-3" v-if="selectedPatientId && selectedExaminationId && lookup">
       <!-- Debug Info -->
       <div class="col-12">
         <div class="card">

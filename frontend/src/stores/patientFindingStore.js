@@ -6,6 +6,11 @@ const usePatientFindingStore = defineStore('patientFinding', () => {
     const patientFindings = ref([]);
     const loading = ref(false);
     const error = ref(null);
+    const byPatientExamination = ref(new Map());
+    const currentPatientExaminationId = ref(null);
+    const setCurrentPatientExaminationId = (id) => {
+        currentPatientExaminationId.value = id;
+    };
     const fetchPatientFindings = async (patientExaminationId) => {
         if (!patientExaminationId) {
             console.warn('fetchPatientFindings wurde ohne patientExaminationId aufgerufen.');
@@ -19,6 +24,8 @@ const usePatientFindingStore = defineStore('patientFinding', () => {
                 params: { patient_examination: patientExaminationId }
             });
             patientFindings.value = response.data.results || response.data;
+            const rows = response.data.results || response.data;
+            byPatientExamination.value.set(patientExaminationId, rows);
         }
         catch (err) {
             error.value = 'Fehler beim Laden der Patientenbefunde: ' + (err.response?.data?.detail || err.message);
@@ -44,6 +51,7 @@ const usePatientFindingStore = defineStore('patientFinding', () => {
             const newPatientFinding = response.data;
             // Add to local state
             patientFindings.value.push(newPatientFinding);
+            console.log('New finding created', newPatientFinding);
             return newPatientFinding;
         }
         catch (err) {
@@ -94,11 +102,18 @@ const usePatientFindingStore = defineStore('patientFinding', () => {
             loading.value = false;
         }
     };
+    const currentPatientFindings = computed(() => {
+        const id = currentPatientExaminationId.value;
+        return id ? (byPatientExamination.value.get(id) ?? []) : [];
+    });
+    const getByPatientExamination = (id) => byPatientExamination.value.get(id) ?? [];
     return {
-        patientFindings: readonly(patientFindings),
+        patientFindings: readonly(currentPatientFindings),
         patientFindingsByCurrentPatient,
         loading: readonly(loading),
         error: readonly(error),
+        currentPatientExaminationId: readonly(currentPatientExaminationId),
+        setCurrentPatientExaminationId,
         fetchPatientFindings,
         createPatientFinding,
         updatePatientFinding,

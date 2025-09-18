@@ -5,6 +5,7 @@ import type { Finding, FindingClassification, FindingClassificationChoice } from
 import type { Patient } from "@/stores/patientStore";
 
 import { usePatientStore } from "@/stores/patientStore";
+import type { PatientExamination } from '@/stores/patientExaminationStore';
 
 interface PatientFinding {
     id: number;
@@ -33,6 +34,13 @@ const usePatientFindingStore = defineStore('patientFinding', () => {
     const loading = ref(false);
     const error = ref<string | null>(null);
 
+    const byPatientExamination = ref(new Map<number, PatientFinding[]>());
+    const currentPatientExaminationId = ref<number | null>(null);
+
+    const setCurrentPatientExaminationId = (id: number | null) => {
+    currentPatientExaminationId.value = id;
+    };
+
     const fetchPatientFindings = async (patientExaminationId: number) => {
         if (!patientExaminationId) {
             console.warn('fetchPatientFindings wurde ohne patientExaminationId aufgerufen.');
@@ -46,6 +54,8 @@ const usePatientFindingStore = defineStore('patientFinding', () => {
                 params: { patient_examination: patientExaminationId }
             });
             patientFindings.value = response.data.results || response.data;
+            const rows = response.data.results || response.data;
+            byPatientExamination.value.set(patientExaminationId, rows);
         } 
         catch (err: any) {
             error.value = 'Fehler beim Laden der Patientenbefunde: ' + (err.response?.data?.detail || err.message);
@@ -76,11 +86,13 @@ const usePatientFindingStore = defineStore('patientFinding', () => {
         try {
             loading.value = true;
             error.value = null;
+
             const response = await axiosInstance.post('/api/patient-findings/', patientFindingData);
             const newPatientFinding = response.data as PatientFinding;
             
             // Add to local state
             patientFindings.value.push(newPatientFinding);
+            console.log('New finding created', newPatientFinding)
             
             return newPatientFinding;
         } catch (err: any) {
@@ -88,7 +100,7 @@ const usePatientFindingStore = defineStore('patientFinding', () => {
             console.error('Create patient finding error:', err);
             throw err;
         } finally {
-            loading.value = false;
+            loading.value = false; 
         }
     };
 
@@ -131,12 +143,21 @@ const usePatientFindingStore = defineStore('patientFinding', () => {
             loading.value = false;
         }
     };
+    const currentPatientFindings = computed(() => {
+    const id = currentPatientExaminationId.value;
+    return id ? (byPatientExamination.value.get(id) ?? []) : [];
+    });
+
+    const getByPatientExamination = (id: number) =>
+    byPatientExamination.value.get(id) ?? [];
 
     return {
-        patientFindings: readonly(patientFindings),
+        patientFindings: readonly(currentPatientFindings),
         patientFindingsByCurrentPatient,
         loading: readonly(loading),
         error: readonly(error),
+        currentPatientExaminationId: readonly(currentPatientExaminationId),
+        setCurrentPatientExaminationId,
         fetchPatientFindings,
         createPatientFinding,
         updatePatientFinding,

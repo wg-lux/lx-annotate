@@ -915,6 +915,7 @@ function __VLS_template() {
     });
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: ("col-12") },
+        '"': (true),
     });
     __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
         ...{ onClick: (__VLS_ctx.createPatientExaminationAndInitLookup) },
@@ -934,7 +935,7 @@ function __VLS_template() {
     else {
         __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
     }
-    if (__VLS_ctx.lookup) {
+    if (__VLS_ctx.selectedPatientId && __VLS_ctx.selectedExaminationId && __VLS_ctx.lookup) {
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: ("row g-3") },
         });
@@ -1104,7 +1105,7 @@ function __VLS_template() {
             }
             __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
                 ...{ onClick: (...[$event]) => {
-                        if (!((__VLS_ctx.lookup)))
+                        if (!((__VLS_ctx.selectedPatientId && __VLS_ctx.selectedExaminationId && __VLS_ctx.lookup)))
                             return;
                         __VLS_ctx.evaluateRequirementSet(rs.id);
                     } },
@@ -1134,7 +1135,7 @@ function __VLS_template() {
             });
             __VLS_elementAsFunction(__VLS_intrinsicElements.input)({
                 ...{ onChange: (...[$event]) => {
-                        if (!((__VLS_ctx.lookup)))
+                        if (!((__VLS_ctx.selectedPatientId && __VLS_ctx.selectedExaminationId && __VLS_ctx.lookup)))
                             return;
                         __VLS_ctx.toggleRequirementSet(rs.id, $event.target.checked);
                     } },
@@ -1223,7 +1224,7 @@ function __VLS_template() {
             (__VLS_ctx.availableFindings.length);
             __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
                 ...{ onClick: (...[$event]) => {
-                        if (!((__VLS_ctx.lookup)))
+                        if (!((__VLS_ctx.selectedPatientId && __VLS_ctx.selectedExaminationId && __VLS_ctx.lookup)))
                             return;
                         if (!((__VLS_ctx.availableFindings.length > 0)))
                             return;

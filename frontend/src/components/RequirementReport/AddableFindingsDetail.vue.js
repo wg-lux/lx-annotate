@@ -1,22 +1,32 @@
 import { ref, computed, onMounted, watch } from 'vue';
+import { debounce } from 'lodash-es';
 import { useFindingStore } from '@/stores/findingStore';
 import { usePatientFindingStore } from '@/stores/patientFindingStore';
 import axiosInstance from '@/api/axiosInstance';
 import { usePatientExaminationStore } from '@/stores/patientExaminationStore';
 import { useExaminationStore } from '@/stores/examinationStore';
 import { useFindingClassificationStore } from '@/stores/findingClassificationStore';
+import { deepMutable } from '@/utils/deepMutable';
+// Store instances
 const patientExaminationStore = usePatientExaminationStore();
 const findingClassificationStore = useFindingClassificationStore();
-const examinationStore = useExaminationStore();
 const findingStore = useFindingStore();
 const patientFindingStore = usePatientFindingStore();
+const examinationStore = useExaminationStore();
+// Get current patient examination ID from store
+const patientExaminationId = patientExaminationStore.getCurrentPatientExaminationId();
+patientExaminationStore.setCurrentPatientExaminationId(patientExaminationId);
 const props = withDefaults(defineProps(), {
     patientExaminationId: undefined,
     examinationId: undefined
 });
-const patientExaminationId = props.patientExaminationId || patientExaminationStore.getCurrentPatientExaminationId();
-const examinationId = props.examinationId || examinationStore.getCurrentExaminationId();
-patientExaminationStore.setCurrentPatientExaminationId(patientExaminationId);
+/**
+ * Watcher for patient examination ID changes
+ *
+ * Monitors changes to the current patient examination ID and triggers
+ * data reloading when the ID changes, ensuring UI stays synchronized
+ * with the current examination context.
+ */
 watch(() => patientExaminationStore.getCurrentPatientExaminationId(), (newId) => {
     if (newId && !props.patientExaminationId) {
         console.warn('[AddableFindingsDetail] Syncing patientExaminationId...');
@@ -24,38 +34,75 @@ watch(() => patientExaminationStore.getCurrentPatientExaminationId(), (newId) =>
     }
 }, { immediate: true });
 const emit = defineEmits();
-// Component State
+/**
+ * Component Reactive State
+ *
+ * Manages the local state for the component including UI state,
+ * selected findings, and classification configurations.
+ */
+// UI State
 const loading = ref(false);
 const activeTab = ref('available');
 const showFindingSelector = ref(false);
+// Finding Selection State
 const selectedFindingId = ref(null);
 const findingClassifications = ref([]);
 const selectedChoices = ref({});
 const availableExaminationFindings = ref([]);
 const addedFindings = ref([]);
-// Computed Properties
+/**
+ * Computed Properties
+ *
+ * Reactive computed values that automatically update based on component state
+ * and store changes, providing derived data for the template and methods.
+ */
+/**
+ * Resolved patient examination ID
+ *
+ * Returns the patient examination ID from props if provided,
+ * otherwise falls back to the store value.
+ */
+const resolvedPatientExaminationId = computed(() => props.patientExaminationId ?? patientExaminationStore.getCurrentPatientExaminationId());
+/**
+ * Available findings for the current examination
+ *
+ * Returns the list of findings that can be added to the current examination.
+ * This is filtered based on the examination context.
+ */
 const availableFindings = computed(() => {
     return availableExaminationFindings.value;
 });
-async function loadAddedFindingsForCurrentExam() {
-    const id = patientExaminationStore.getCurrentPatientExaminationId();
-    if (!id) {
-        addedFindings.value = [];
-        return;
-    }
-    await patientFindingStore.fetchPatientFindings(id);
-    addedFindings.value = patientFindingStore.patientFindings.map(pf => JSON.parse(JSON.stringify(pf.finding)));
-}
-watch(() => patientExaminationStore.getCurrentPatientExaminationId(), async (newId) => {
-    if (newId)
-        await loadAddedFindingsForCurrentExam();
-}, { immediate: true });
+/**
+ * Fetched added findings (computed async)
+ *
+ * Asynchronously computes the findings that have already been added
+ * to the current patient examination.
+ */
+const fetchedAddedFindings = computed(async () => {
+    const currentPatientExaminationId = patientExaminationStore.getCurrentPatientExaminationId();
+    if (!currentPatientExaminationId)
+        return [];
+    const findings = await findingStore.fetchFindingsByPatientExamination(currentPatientExaminationId);
+    return findings || [];
+});
+/**
+ * Currently selected finding
+ *
+ * Returns the Finding object for the currently selected finding ID,
+ * searching through available findings and classification store.
+ */
 const selectedFinding = computed(() => {
     if (!selectedFindingId.value)
         return undefined;
     return availableFindings.value.find(f => f.id === selectedFindingId.value) ||
         findingClassificationStore.getFindingById(selectedFindingId.value);
 });
+/**
+ * Validation: All required classifications selected
+ *
+ * Checks if all required classifications for the selected finding
+ * have been properly configured by the user.
+ */
 const hasAllRequiredClassifications = computed(() => {
     if (!findingClassifications.value.length)
         return true;
@@ -63,12 +110,22 @@ const hasAllRequiredClassifications = computed(() => {
         .filter(classification => classification.required)
         .every(classification => selectedChoices.value[classification.id]);
 });
-const canAddFinding = computed(() => {
-    return selectedFindingId.value &&
-        hasAllRequiredClassifications.value &&
-        props.patientExaminationId && // <-- blocks when undefined
-        !loading.value;
-});
+/**
+ * Can add finding validation
+ *
+ * Determines if the current state allows adding a finding to the patient.
+ * Checks for selected finding, required classifications, and valid context.
+ */
+const canAddFinding = computed(() => Boolean(selectedFindingId.value &&
+    hasAllRequiredClassifications.value &&
+    resolvedPatientExaminationId.value &&
+    !loading.value));
+/**
+ * Classification completion progress
+ *
+ * Calculates the progress of required classification selection,
+ * providing data for progress indicators in the UI.
+ */
 const classificationProgress = computed(() => {
     const required = findingClassifications.value.filter(c => c.required).length;
     const selected = findingClassifications.value.filter(c => c.required && selectedChoices.value[c.id]).length;
@@ -79,18 +136,82 @@ const classificationProgress = computed(() => {
         percentage: required > 0 ? Math.round((selected / required) * 100) : 100
     };
 });
-// Methods
+/**
+ * Component Methods
+ *
+ * Functions that handle user interactions, data loading, and business logic
+ * for managing findings and their classifications.
+ */
+/**
+ * Loads added findings for the current examination
+ *
+ * Fetches patient findings from the store and converts them to mutable
+ * format using deepMutable utility to handle readonly constraints.
+ */
+async function loadAddedFindingsForCurrentExam() {
+    const id = patientExaminationStore.getCurrentPatientExaminationId();
+    if (!id) {
+        addedFindings.value = [];
+        return;
+    }
+    await patientFindingStore.fetchPatientFindings(id);
+    // Thaw potential readonly arrays coming from store/API
+    addedFindings.value = patientFindingStore.patientFindings.map(pf => deepMutable(pf.finding));
+}
+/**
+ * Debounced function to load added findings
+ *
+ * Prevents multiple rapid API calls when patient examination ID changes
+ * by debouncing the loadAddedFindingsForCurrentExam function.
+ */
+const debouncedLoadFindings = debounce(async (newId) => {
+    if (newId) {
+        console.log('🔄 [AddableFindingsDetail] Loading findings for PE:', newId);
+        await loadAddedFindingsForCurrentExam();
+    }
+}, 150); // 150ms debounce
+/**
+ * Watcher for patient examination ID changes
+ *
+ * Automatically reloads added findings when the patient examination changes,
+ * ensuring the UI shows the correct findings for the current context.
+ * Uses debouncing to prevent multiple rapid API calls.
+ */
+watch(() => patientExaminationStore.getCurrentPatientExaminationId(), debouncedLoadFindings, { immediate: true });
+/**
+ * Selects a finding and loads its classifications
+ *
+ * Handles user selection of a finding from the available list,
+ * hides the selector, and loads the required classifications.
+ *
+ * @param {number} findingId - The ID of the finding to select
+ */
 const selectFinding = async (findingId) => {
     selectedFindingId.value = findingId;
     showFindingSelector.value = false;
     // Load classifications for the selected finding
     await loadFindingClassifications(findingId);
 };
+/**
+ * Clears the current finding selection
+ *
+ * Resets all selection state including the selected finding,
+ * its classifications, and user choices. Used when user
+ * wants to start over or cancel current selection.
+ */
 const clearSelection = () => {
     selectedFindingId.value = null;
     findingClassifications.value = [];
     selectedChoices.value = {};
 };
+/**
+ * Loads classifications for a specific finding
+ *
+ * Fetches the available classifications from the store for the given
+ * finding ID. Handles loading state and error scenarios.
+ *
+ * @param {number} findingId - The ID of the finding to load classifications for
+ */
 const loadFindingClassifications = async (findingId) => {
     try {
         loading.value = true;
@@ -104,6 +225,15 @@ const loadFindingClassifications = async (findingId) => {
         loading.value = false;
     }
 };
+/**
+ * Updates classification choice selection
+ *
+ * Handles user selection of classification choices from dropdown menus.
+ * Updates the selectedChoices reactive object and manages form validation.
+ *
+ * @param {number} classificationId - The ID of the classification being updated
+ * @param {Event} event - The change event from the select element
+ */
 const updateChoice = (classificationId, event) => {
     const target = event.target;
     const choiceId = target.value ? parseInt(target.value) : undefined;
@@ -114,15 +244,22 @@ const updateChoice = (classificationId, event) => {
         delete selectedChoices.value[classificationId];
     }
 };
+/**
+ * Adds the configured finding to the patient examination
+ *
+ * Validates the current state, prepares the finding data with classifications,
+ * and submits it to the patient finding store. Handles success/error states
+ * and emits appropriate events for parent components.
+ */
 const addFindingToExamination = async () => {
-    if (!canAddFinding.value || !selectedFinding.value || !props.patientExaminationId || !selectedFindingId.value) {
+    if (!canAddFinding.value || !selectedFinding.value || !resolvedPatientExaminationId.value || !selectedFindingId.value) {
         return;
     }
     try {
         loading.value = true;
         // Prepare the data for the patient finding store
         const findingData = {
-            patientExamination: props.patientExaminationId,
+            patientExamination: resolvedPatientExaminationId.value,
             finding: selectedFindingId.value,
             classifications: Object.entries(selectedChoices.value).map(([classificationId, choiceId]) => ({
                 classification: parseInt(classificationId),
@@ -130,12 +267,22 @@ const addFindingToExamination = async () => {
             }))
         };
         // Use patientFindingStore to create the patient finding - should be linked to the patient examination!
+        patientFindingStore.setCurrentPatientExaminationId(resolvedPatientExaminationId.value);
         const newPatientFinding = await patientFindingStore.createPatientFinding(findingData);
+        // WICHTIG: Store sollte automatisch aktualisiert werden, aber erzwinge lokale UI-Update
+        console.log('✅ Finding created, updating UI directly');
+        // Füge direkt zur lokalen Liste hinzu (sofortige UI-Update)
         const newFindingId = newPatientFinding.finding.id;
         const createdFinding = findingClassificationStore.getFindingById(newFindingId);
         if (createdFinding) {
-            addedFindings.value.push(createdFinding);
+            console.log('📋 Found created finding in store, using store version');
+            addedFindings.value.push(deepMutable(createdFinding));
         }
+        else {
+            console.log('📋 Created finding not found in store, using response data');
+            addedFindings.value.push(deepMutable(newPatientFinding.finding));
+        }
+        // ENTFERNT: await loadAddedFindingsForCurrentExam() - verhindert doppelte API calls
         const findingName = selectedFinding.value.nameDe || selectedFinding.value.name;
         emit('finding-added', selectedFindingId.value, findingName);
         // Reset the component state
@@ -182,9 +329,10 @@ const loadAvailableFindingsForPatientExamination = async () => {
         loading.value = true;
         // Priorisiere props.examinationId, falls verfügbar
         let examId = props.examinationId;
-        if (!examId) {
-            const currentId = await examinationStore.getCurrentExaminationId();
-            examId = currentId;
+        if (!examId && props.patientExaminationId) {
+            // Hole Examination ID aus PatientExamination
+            const patientExamination = patientExaminationStore.getPatientExaminationById(props.patientExaminationId);
+            examId = patientExamination?.examination?.id;
         }
         if (!examId) {
             console.warn('Keine Examination ID verfügbar für Findings-Laden');
@@ -192,7 +340,7 @@ const loadAvailableFindingsForPatientExamination = async () => {
         }
         // Verwende den korrigierten Store-Aufruf
         const findings = await examinationStore.loadFindingsForExamination(examId);
-        availableExaminationFindings.value = findings;
+        availableExaminationFindings.value = findings.map((f) => deepMutable(f));
         console.log('📋 [AddableFindingsDetail] Loaded findings for examinationId:', examId, 'findings count:', findings.length);
     }
     catch (error) {
@@ -209,14 +357,24 @@ const loadFindingsAndClassificationsNew = async () => {
         await loadFindingsAndClassifications(props.examinationId);
     }
 };
-// Watchers
+/**
+ * Debounced function to load findings and classifications
+ *
+ * Prevents multiple rapid API calls when component props change.
+ */
+const debouncedLoadFindingsAndClassifications = debounce(async () => {
+    await loadFindingsAndClassificationsNew();
+}, 100);
+// Watchers with debouncing to prevent excessive API calls
 watch(() => props.patientExaminationId, async () => {
     if (props.patientExaminationId) {
-        await loadFindingsAndClassificationsNew();
+        console.log('🔄 [AddableFindingsDetail] patientExaminationId prop changed:', props.patientExaminationId);
+        await debouncedLoadFindingsAndClassifications();
     }
 }, { immediate: true });
 watch(() => props.examinationId, async () => {
     if (props.examinationId) {
+        console.log('🔄 [AddableFindingsDetail] examinationId prop changed:', props.examinationId);
         await loadAvailableFindingsForPatientExamination();
     }
 }, { immediate: true });
