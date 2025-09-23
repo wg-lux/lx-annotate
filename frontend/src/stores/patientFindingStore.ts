@@ -50,16 +50,63 @@ const usePatientFindingStore = defineStore('patientFinding', () => {
         try {
             loading.value = true;
             error.value = null;
-            const response = await axiosInstance.get('/api/patient-findings/', {
+            console.log('🔄 [PatientFindingStore] Fetching patient findings for PE:', patientExaminationId);
+            
+            // FIRST: Get PatientFindings from the original endpoint
+            const patientFindingsResponse = await axiosInstance.get('/api/patient-findings/', {
                 params: { patient_examination: patientExaminationId }
             });
-            patientFindings.value = response.data.results || response.data;
-            const rows = response.data.results || response.data;
-            byPatientExamination.value.set(patientExaminationId, rows);
+            console.log('📥 [PatientFindingStore] PatientFindings API Response:', patientFindingsResponse.data);
+            
+            // SECOND: Get Findings with classifications from the findings endpoint
+            const findingsResponse = await axiosInstance.get('/api/findings/', {
+                params: { patient_examination: patientExaminationId }
+            });
+            console.log('� [PatientFindingStore] Findings API Response:', findingsResponse.data);
+            
+            // 🔧 MERGE: Combine data from both endpoints
+            const rawPatientFindings = patientFindingsResponse.data.results || patientFindingsResponse.data;
+            const findingsWithClassifications = findingsResponse.data.results || findingsResponse.data;
+            
+            // Map findings with classifications by finding ID for quick lookup
+            const findingClassificationMap = new Map();
+            findingsWithClassifications.forEach((finding: any) => {
+                findingClassificationMap.set(finding.id, finding.classifications || []);
+            });
+            
+            // Enhance PatientFindings with classification data
+            const enhancedPatientFindings = rawPatientFindings.map((pf: any) => {
+                const findingId = typeof pf.finding === 'object' ? pf.finding?.id : pf.finding;
+                const findingClassifications = findingClassificationMap.get(findingId) || [];
+                
+                console.log(`🔧 [PatientFindingStore] Enhancing PatientFinding ${pf.id} with ${findingClassifications.length} classifications`);
+                
+                return {
+                    ...pf,
+                    classifications: findingClassifications // Add classifications from findings endpoint
+                };
+            });
+            
+            // 🐛 PRÜFE: Sind die Finding-Objekte vollständig?
+            enhancedPatientFindings.forEach((pf: any, index: number) => {
+              console.log(`🔍 [PatientFindingStore] Enhanced PatientFinding ${index}:`, {
+                id: pf.id,
+                finding: pf.finding,
+                findingId: typeof pf.finding === 'object' ? pf.finding?.id : pf.finding,
+                findingName: typeof pf.finding === 'object' ? (pf.finding?.name || pf.finding?.nameDe) : 'ID only',
+                findingType: typeof pf.finding,
+                classificationsCount: pf.classifications?.length || 0
+              });
+            });
+            
+            patientFindings.value = enhancedPatientFindings;
+            byPatientExamination.value.set(patientExaminationId, enhancedPatientFindings);
+            
+            console.log('✅ [PatientFindingStore] Stored enhanced patient findings:', enhancedPatientFindings.length);
         } 
         catch (err: any) {
+            console.error('❌ [PatientFindingStore] Error fetching patient findings:', err);
             error.value = 'Fehler beim Laden der Patientenbefunde: ' + (err.response?.data?.detail || err.message);
-            console.error('Fetch patient findings error:', err);
             }
         finally {
             loading.value = false;

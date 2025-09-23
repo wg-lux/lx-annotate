@@ -46,7 +46,7 @@
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" :class="{ active: activeTab === 'added' }" @click.prevent="activeTab = 'added'" href="#">
+                    <a class="nav-link" :class="{ active: activeTab === 'added' }" @click.prevent="switchToAddedTab" href="#">
                         <i class="fas fa-check-circle me-1"></i> Hinzugefügte Befunde
                         <span class="badge rounded-pill bg-success ms-1">{{ addedFindings.length }}</span>
                     </a>
@@ -166,6 +166,26 @@
 
             <!-- Tab: Hinzugefügte Befunde -->
             <div v-show="activeTab === 'added'">
+                <!-- Debug Information -->
+                <details class="mb-3">
+                    <summary class="alert alert-info mb-0 cursor-pointer">🐛 Debug Information (Click to expand)</summary>
+                    <div class="alert alert-info mb-0 mt-2">
+                        <p><strong>AddedFindings Count:</strong> {{ addedFindings.length }}</p>
+                        <p><strong>Current PatientExaminationId:</strong> {{ resolvedPatientExaminationId }}</p>
+                        <p><strong>PatientFindingStore Count:</strong> {{ patientFindingStore.patientFindings.length }}</p>
+                        <p><strong>Store Loading:</strong> {{ patientFindingStore.loading }}</p>
+                        <p><strong>Store Error:</strong> {{ patientFindingStore.error || 'None' }}</p>
+                        <details class="mt-2">
+                            <summary>Raw Store Data</summary>
+                            <pre>{{ JSON.stringify(patientFindingStore.patientFindings, null, 2) }}</pre>
+                        </details>
+                        <details class="mt-2">
+                            <summary>Processed addedFindings</summary>
+                            <pre>{{ JSON.stringify(addedFindings, null, 2) }}</pre>
+                        </details>
+                    </div>
+                </details>
+                
                 <div v-if="addedFindings.length === 0" class="text-center py-5 text-muted">
                     <i class="fas fa-folder-open fa-3x mb-3"></i>
                     <p>Noch keine Befunde zu dieser Untersuchung hinzugefügt.</p>
@@ -177,11 +197,38 @@
                                 <div class="d-flex align-items-start gap-2">
                                     <i class="fas fa-check-circle text-success mt-1"></i>
                                     <div class="flex-grow-1">
-                                        <h6 class="card-title small fw-bold text-success">{{ finding.nameDe || finding.name }}</h6>
+                                        <h6 class="card-title small fw-bold text-success">{{ finding.nameDe || finding.name || 'Unnamed Finding' }}</h6>
                                         <p v-if="finding.description" class="card-text small text-muted mb-2">
                                             {{ finding.description.length > 80 ? finding.description.substring(0, 80) + '...' : finding.description }}
                                         </p>
-                                        <span class="badge bg-info text-dark small">ID: {{ finding.id }}</span>
+                                        <span class="badge bg-info text-dark small">ID: {{ finding.id || 'No ID' }}</span>
+                                        
+                                        <!-- Classifications Display -->
+                                        <div v-if="finding.patientClassifications && finding.patientClassifications.length > 0" class="mt-2">
+                                            <small class="text-muted d-block mb-1">
+                                                <i class="fas fa-tags me-1"></i>
+                                                Klassifikationen ({{ finding.patientClassifications.length }}):
+                                            </small>
+                                            <div class="classification-list">
+                                                <div 
+                                                    v-for="classification in finding.patientClassifications" 
+                                                    :key="classification.id"
+                                                    class="classification-item mb-1"
+                                                >
+                                                    <span class="badge bg-light text-dark small border">
+                                                        <strong>{{ classification.classification.name }}:</strong>
+                                                        <span class="text-primary">{{ classification.choice.name }}</span>
+                                                        <i v-if="!classification.is_active" class="fas fa-exclamation-triangle text-warning ms-1" title="Inactive"></i>
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div v-else class="mt-2">
+                                            <small class="text-muted">
+                                                <i class="fas fa-info-circle me-1"></i>
+                                                Keine Klassifikationen
+                                            </small>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -298,8 +345,25 @@ const selectedChoices = ref<Record<number, number>>({});
 // State for mutable finding management
 type Mutable<T> = { -readonly [K in keyof T]: Mutable<T[K]> };
 type MutableFinding = Mutable<Finding>;
+type EnhancedFinding = MutableFinding & {
+  patientFindingId?: number;
+  patientClassifications?: Array<{
+    id: number;
+    classification: {
+      id: number;
+      name: string;
+      description?: string;
+    };
+    choice: {
+      id: number;
+      name: string;
+      description?: string;
+    };
+    is_active: boolean;
+  }>;
+};
 const availableExaminationFindings = ref<Finding[]>([]);
-const addedFindings = ref<MutableFinding[]>([]);
+const addedFindings = ref<EnhancedFinding[]>([]);
 
 /**
  * Computed Properties
@@ -419,11 +483,88 @@ async function loadAddedFindingsForCurrentExam() {
     addedFindings.value = [];
     return;
   }
+  
   await patientFindingStore.fetchPatientFindings(id);
-  // Thaw potential readonly arrays coming from store/API
-  addedFindings.value = patientFindingStore.patientFindings.map(pf =>
-    deepMutable(pf.finding) as unknown as Finding
-  );
+  
+  // 🐛 PROBLEM DEBUG: PatientFinding hat möglicherweise keine Finding-Daten
+  console.log('🔍 [AddableFindingsDetail] Debug PatientFindings:', patientFindingStore.patientFindings);
+  
+  addedFindings.value = patientFindingStore.patientFindings.map(pf => {
+    console.log('🔍 [AddableFindingsDetail] PatientFinding:', pf);
+    console.log('🔍 [AddableFindingsDetail] Finding in PatientFinding:', pf.finding);
+    
+    let finding = pf.finding;
+    
+    // 🔧 FIX: Wenn nur Finding-ID vorhanden, lade vollständiges Finding
+    if (typeof finding === 'number' || (finding && !finding.name && !finding.nameDe)) {
+      const findingId = typeof finding === 'number' ? finding : finding.id;
+      console.log('🔄 [AddableFindingsDetail] Loading complete finding for ID:', findingId);
+      
+      // Suche im FindingClassificationStore
+      const completeFinding = findingClassificationStore.getFindingById(findingId);
+      if (completeFinding) {
+        finding = completeFinding;
+        console.log('✅ [AddableFindingsDetail] Found complete finding:', finding);
+      } else {
+        console.warn('⚠️ [AddableFindingsDetail] Complete finding not found for ID:', findingId);
+        return null;
+      }
+    }
+    
+    // Prüfe, ob pf.finding existiert und vollständig ist
+    if (!finding || !finding.id) {
+      console.error('❌ [AddableFindingsDetail] PatientFinding has no valid finding data:', pf);
+      return null;
+    }
+    
+    return deepMutable(finding) as MutableFinding;
+  }).filter((finding): finding is MutableFinding => finding !== null); // Type guard für null-Filterung
+  
+  // 🔧 ENHANCE: Klassifikationen zu den Findings hinzufügen
+  const enhancedFindings: EnhancedFinding[] = patientFindingStore.patientFindings.map(pf => {
+    // Hole das korrespondierende Finding aus der gefilterten Liste
+    const correspondingFinding = addedFindings.value.find(f => {
+      const pfFindingId = typeof pf.finding === 'number' ? pf.finding : pf.finding?.id;
+      return f.id === pfFindingId;
+    });
+    
+    if (correspondingFinding) {
+      const enhanced: EnhancedFinding = {
+        ...correspondingFinding,
+        patientFindingId: pf.id,
+        patientClassifications: pf.classifications?.map(cls => ({
+          id: cls.id,
+          classification: {
+            id: cls.classification.id,
+            name: cls.classification.name || 'Unnamed Classification',
+            description: cls.classification.description
+          },
+          choice: {
+            id: cls.classification_choice.id,
+            name: cls.classification_choice.name,
+            description: undefined // FindingClassificationChoice doesn't have description
+          },
+          is_active: cls.is_active
+        })) || []
+      };
+      
+      console.log('🔧 [AddableFindingsDetail] Enhanced finding with classifications:', {
+        findingId: enhanced.id,
+        name: enhanced.name,
+        classificationsCount: enhanced.patientClassifications?.length || 0,
+        rawClassifications: pf.classifications,
+        patientFindingId: pf.id
+      });
+      
+      return enhanced;
+    }
+    
+    return correspondingFinding;
+  }).filter((finding): finding is EnhancedFinding => finding !== null);
+  
+  addedFindings.value = enhancedFindings;
+  
+  console.log('✅ [AddableFindingsDetail] Final addedFindings:', addedFindings.value);
 }
 
 /**
@@ -560,10 +701,46 @@ const addFindingToExamination = async () => {
         const createdFinding = findingClassificationStore.getFindingById(newFindingId);
         if (createdFinding) {
             console.log('📋 Found created finding in store, using store version');
-            addedFindings.value.push(deepMutable(createdFinding));
+            const enhancedCreatedFinding: EnhancedFinding = {
+                ...deepMutable(createdFinding),
+                patientFindingId: newPatientFinding.id,
+                patientClassifications: newPatientFinding.classifications?.map(cls => ({
+                    id: cls.id,
+                    classification: {
+                        id: cls.classification.id,
+                        name: cls.classification.name || 'Unnamed Classification',
+                        description: cls.classification.description
+                    },
+                    choice: {
+                        id: cls.classification_choice.id,
+                        name: cls.classification_choice.name,
+                        description: undefined
+                    },
+                    is_active: cls.is_active
+                })) || []
+            };
+            addedFindings.value.push(enhancedCreatedFinding);
         } else {
             console.log('📋 Created finding not found in store, using response data');
-            addedFindings.value.push(deepMutable(newPatientFinding.finding));
+            const enhancedResponseFinding: EnhancedFinding = {
+                ...deepMutable(newPatientFinding.finding),
+                patientFindingId: newPatientFinding.id,
+                patientClassifications: newPatientFinding.classifications?.map(cls => ({
+                    id: cls.id,
+                    classification: {
+                        id: cls.classification.id,
+                        name: cls.classification.name || 'Unnamed Classification',
+                        description: cls.classification.description
+                    },
+                    choice: {
+                        id: cls.classification_choice.id,
+                        name: cls.classification_choice.name,
+                        description: undefined
+                    },
+                    is_active: cls.is_active
+                })) || []
+            };
+            addedFindings.value.push(enhancedResponseFinding);
         }
         
         // ENTFERNT: await loadAddedFindingsForCurrentExam() - verhindert doppelte API calls
@@ -585,6 +762,21 @@ const addFindingToExamination = async () => {
     } finally {
         loading.value = false;
     }
+};
+
+/**
+ * Switches to the added findings tab and ensures data is loaded
+ */
+const switchToAddedTab = async () => {
+    console.log('🔄 [AddableFindingsDetail] Switching to added findings tab');
+    console.log('🔍 [AddableFindingsDetail] Current addedFindings count before load:', addedFindings.value.length);
+    
+    activeTab.value = 'added';
+    
+    // Force reload of added findings when switching to tab
+    await loadAddedFindingsForCurrentExam();
+    
+    console.log('🔍 [AddableFindingsDetail] addedFindings count after load:', addedFindings.value.length);
 };
 
 const loadFindingsAndClassifications = async (examinationId: number) => {
@@ -675,6 +867,17 @@ watch(() => props.examinationId, async () => {
 
 // Load initial data
 onMounted(async () => {
+    console.log('🚀 [AddableFindingsDetail] Component mounted');
+    console.log('🔍 [AddableFindingsDetail] Props:', {
+        patientExaminationId: props.patientExaminationId,
+        examinationId: props.examinationId
+    });
+    console.log('🔍 [AddableFindingsDetail] Store state at mount:', {
+        currentPatientExaminationId: patientExaminationStore.getCurrentPatientExaminationId(),
+        findingClassificationStoreFindings: findingClassificationStore.getAllFindings.length,
+        patientFindingStoreCount: patientFindingStore.patientFindings.length
+    });
+    
     await loadFindingsAndClassificationsNew();
 });
 </script>

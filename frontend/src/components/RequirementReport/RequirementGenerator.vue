@@ -74,7 +74,7 @@
           </div>
         </div>
         <div class="row mt-3">
-            <div class="col-12"">
+            <div class="col-12">
                  <button
                     class="btn btn-primary"
                     :disabled="!selectedPatientId || !selectedExaminationId || loading || !!lookupToken"
@@ -290,7 +290,7 @@
                   <small class="text-muted">Wählen Sie eine Untersuchung aus, um verfügbare Befunde zu laden.</small>
                 </div>
             </div>
-        </div>alert
+        </div>
       </div>
     </div>
 

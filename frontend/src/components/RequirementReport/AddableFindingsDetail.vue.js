@@ -155,8 +155,73 @@ async function loadAddedFindingsForCurrentExam() {
         return;
     }
     await patientFindingStore.fetchPatientFindings(id);
-    // Thaw potential readonly arrays coming from store/API
-    addedFindings.value = patientFindingStore.patientFindings.map(pf => deepMutable(pf.finding));
+    // 🐛 PROBLEM DEBUG: PatientFinding hat möglicherweise keine Finding-Daten
+    console.log('🔍 [AddableFindingsDetail] Debug PatientFindings:', patientFindingStore.patientFindings);
+    addedFindings.value = patientFindingStore.patientFindings.map(pf => {
+        console.log('🔍 [AddableFindingsDetail] PatientFinding:', pf);
+        console.log('🔍 [AddableFindingsDetail] Finding in PatientFinding:', pf.finding);
+        let finding = pf.finding;
+        // 🔧 FIX: Wenn nur Finding-ID vorhanden, lade vollständiges Finding
+        if (typeof finding === 'number' || (finding && !finding.name && !finding.nameDe)) {
+            const findingId = typeof finding === 'number' ? finding : finding.id;
+            console.log('🔄 [AddableFindingsDetail] Loading complete finding for ID:', findingId);
+            // Suche im FindingClassificationStore
+            const completeFinding = findingClassificationStore.getFindingById(findingId);
+            if (completeFinding) {
+                finding = completeFinding;
+                console.log('✅ [AddableFindingsDetail] Found complete finding:', finding);
+            }
+            else {
+                console.warn('⚠️ [AddableFindingsDetail] Complete finding not found for ID:', findingId);
+                return null;
+            }
+        }
+        // Prüfe, ob pf.finding existiert und vollständig ist
+        if (!finding || !finding.id) {
+            console.error('❌ [AddableFindingsDetail] PatientFinding has no valid finding data:', pf);
+            return null;
+        }
+        return deepMutable(finding);
+    }).filter((finding) => finding !== null); // Type guard für null-Filterung
+    // 🔧 ENHANCE: Klassifikationen zu den Findings hinzufügen
+    const enhancedFindings = patientFindingStore.patientFindings.map(pf => {
+        // Hole das korrespondierende Finding aus der gefilterten Liste
+        const correspondingFinding = addedFindings.value.find(f => {
+            const pfFindingId = typeof pf.finding === 'number' ? pf.finding : pf.finding?.id;
+            return f.id === pfFindingId;
+        });
+        if (correspondingFinding) {
+            const enhanced = {
+                ...correspondingFinding,
+                patientFindingId: pf.id,
+                patientClassifications: pf.classifications?.map(cls => ({
+                    id: cls.id,
+                    classification: {
+                        id: cls.classification.id,
+                        name: cls.classification.name || 'Unnamed Classification',
+                        description: cls.classification.description
+                    },
+                    choice: {
+                        id: cls.classification_choice.id,
+                        name: cls.classification_choice.name,
+                        description: undefined // FindingClassificationChoice doesn't have description
+                    },
+                    is_active: cls.is_active
+                })) || []
+            };
+            console.log('🔧 [AddableFindingsDetail] Enhanced finding with classifications:', {
+                findingId: enhanced.id,
+                name: enhanced.name,
+                classificationsCount: enhanced.patientClassifications?.length || 0,
+                rawClassifications: pf.classifications,
+                patientFindingId: pf.id
+            });
+            return enhanced;
+        }
+        return correspondingFinding;
+    }).filter((finding) => finding !== null);
+    addedFindings.value = enhancedFindings;
+    console.log('✅ [AddableFindingsDetail] Final addedFindings:', addedFindings.value);
 }
 /**
  * Debounced function to load added findings
@@ -276,11 +341,47 @@ const addFindingToExamination = async () => {
         const createdFinding = findingClassificationStore.getFindingById(newFindingId);
         if (createdFinding) {
             console.log('📋 Found created finding in store, using store version');
-            addedFindings.value.push(deepMutable(createdFinding));
+            const enhancedCreatedFinding = {
+                ...deepMutable(createdFinding),
+                patientFindingId: newPatientFinding.id,
+                patientClassifications: newPatientFinding.classifications?.map(cls => ({
+                    id: cls.id,
+                    classification: {
+                        id: cls.classification.id,
+                        name: cls.classification.name || 'Unnamed Classification',
+                        description: cls.classification.description
+                    },
+                    choice: {
+                        id: cls.classification_choice.id,
+                        name: cls.classification_choice.name,
+                        description: undefined
+                    },
+                    is_active: cls.is_active
+                })) || []
+            };
+            addedFindings.value.push(enhancedCreatedFinding);
         }
         else {
             console.log('📋 Created finding not found in store, using response data');
-            addedFindings.value.push(deepMutable(newPatientFinding.finding));
+            const enhancedResponseFinding = {
+                ...deepMutable(newPatientFinding.finding),
+                patientFindingId: newPatientFinding.id,
+                patientClassifications: newPatientFinding.classifications?.map(cls => ({
+                    id: cls.id,
+                    classification: {
+                        id: cls.classification.id,
+                        name: cls.classification.name || 'Unnamed Classification',
+                        description: cls.classification.description
+                    },
+                    choice: {
+                        id: cls.classification_choice.id,
+                        name: cls.classification_choice.name,
+                        description: undefined
+                    },
+                    is_active: cls.is_active
+                })) || []
+            };
+            addedFindings.value.push(enhancedResponseFinding);
         }
         // ENTFERNT: await loadAddedFindingsForCurrentExam() - verhindert doppelte API calls
         const findingName = selectedFinding.value.nameDe || selectedFinding.value.name;
@@ -301,6 +402,17 @@ const addFindingToExamination = async () => {
     finally {
         loading.value = false;
     }
+};
+/**
+ * Switches to the added findings tab and ensures data is loaded
+ */
+const switchToAddedTab = async () => {
+    console.log('🔄 [AddableFindingsDetail] Switching to added findings tab');
+    console.log('🔍 [AddableFindingsDetail] Current addedFindings count before load:', addedFindings.value.length);
+    activeTab.value = 'added';
+    // Force reload of added findings when switching to tab
+    await loadAddedFindingsForCurrentExam();
+    console.log('🔍 [AddableFindingsDetail] addedFindings count after load:', addedFindings.value.length);
 };
 const loadFindingsAndClassifications = async (examinationId) => {
     try {
@@ -380,6 +492,16 @@ watch(() => props.examinationId, async () => {
 }, { immediate: true });
 // Load initial data
 onMounted(async () => {
+    console.log('🚀 [AddableFindingsDetail] Component mounted');
+    console.log('🔍 [AddableFindingsDetail] Props:', {
+        patientExaminationId: props.patientExaminationId,
+        examinationId: props.examinationId
+    });
+    console.log('🔍 [AddableFindingsDetail] Store state at mount:', {
+        currentPatientExaminationId: patientExaminationStore.getCurrentPatientExaminationId(),
+        findingClassificationStoreFindings: findingClassificationStore.getAllFindings.length,
+        patientFindingStoreCount: patientFindingStore.patientFindings.length
+    });
     await loadFindingsAndClassificationsNew();
 });
 ; /* PartiallyEnd: #3632/scriptSetup.vue */
@@ -431,9 +553,7 @@ function __VLS_template() {
         ...{ class: ("nav-item") },
     });
     __VLS_elementAsFunction(__VLS_intrinsicElements.a, __VLS_intrinsicElements.a)({
-        ...{ onClick: (...[$event]) => {
-                __VLS_ctx.activeTab = 'added';
-            } },
+        ...{ onClick: (__VLS_ctx.switchToAddedTab) },
         ...{ class: ("nav-link") },
         ...{ class: (({ active: __VLS_ctx.activeTab === 'added' })) },
         href: ("#"),
@@ -670,6 +790,42 @@ function __VLS_template() {
     }
     __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
     __VLS_asFunctionalDirective(__VLS_directives.vShow)(null, { ...__VLS_directiveBindingRestFields, value: (__VLS_ctx.activeTab === 'added') }, null, null);
+    __VLS_elementAsFunction(__VLS_intrinsicElements.details, __VLS_intrinsicElements.details)({
+        ...{ class: ("mb-3") },
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.summary, __VLS_intrinsicElements.summary)({
+        ...{ class: ("alert alert-info mb-0 cursor-pointer") },
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: ("alert alert-info mb-0 mt-2") },
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
+    __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+    (__VLS_ctx.addedFindings.length);
+    __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
+    __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+    (__VLS_ctx.resolvedPatientExaminationId);
+    __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
+    __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+    (__VLS_ctx.patientFindingStore.patientFindings.length);
+    __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
+    __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+    (__VLS_ctx.patientFindingStore.loading);
+    __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
+    __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+    (__VLS_ctx.patientFindingStore.error || 'None');
+    __VLS_elementAsFunction(__VLS_intrinsicElements.details, __VLS_intrinsicElements.details)({
+        ...{ class: ("mt-2") },
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.summary, __VLS_intrinsicElements.summary)({});
+    __VLS_elementAsFunction(__VLS_intrinsicElements.pre, __VLS_intrinsicElements.pre)({});
+    (JSON.stringify(__VLS_ctx.patientFindingStore.patientFindings, null, 2));
+    __VLS_elementAsFunction(__VLS_intrinsicElements.details, __VLS_intrinsicElements.details)({
+        ...{ class: ("mt-2") },
+    });
+    __VLS_elementAsFunction(__VLS_intrinsicElements.summary, __VLS_intrinsicElements.summary)({});
+    __VLS_elementAsFunction(__VLS_intrinsicElements.pre, __VLS_intrinsicElements.pre)({});
+    (JSON.stringify(__VLS_ctx.addedFindings, null, 2));
     if (__VLS_ctx.addedFindings.length === 0) {
         __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: ("text-center py-5 text-muted") },
@@ -706,7 +862,7 @@ function __VLS_template() {
             __VLS_elementAsFunction(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({
                 ...{ class: ("card-title small fw-bold text-success") },
             });
-            (finding.nameDe || finding.name);
+            (finding.nameDe || finding.name || 'Unnamed Finding');
             if (finding.description) {
                 __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
                     ...{ class: ("card-text small text-muted mb-2") },
@@ -716,10 +872,57 @@ function __VLS_template() {
             __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
                 ...{ class: ("badge bg-info text-dark small") },
             });
-            (finding.id);
+            (finding.id || 'No ID');
+            if (finding.patientClassifications && finding.patientClassifications.length > 0) {
+                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                    ...{ class: ("mt-2") },
+                });
+                __VLS_elementAsFunction(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+                    ...{ class: ("text-muted d-block mb-1") },
+                });
+                __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                    ...{ class: ("fas fa-tags me-1") },
+                });
+                (finding.patientClassifications.length);
+                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                    ...{ class: ("classification-list") },
+                });
+                for (const [classification] of __VLS_getVForSourceType((finding.patientClassifications))) {
+                    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                        key: ((classification.id)),
+                        ...{ class: ("classification-item mb-1") },
+                    });
+                    __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                        ...{ class: ("badge bg-light text-dark small border") },
+                    });
+                    __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+                    (classification.classification.name);
+                    __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                        ...{ class: ("text-primary") },
+                    });
+                    (classification.choice.name);
+                    if (!classification.is_active) {
+                        __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                            ...{ class: ("fas fa-exclamation-triangle text-warning ms-1") },
+                            title: ("Inactive"),
+                        });
+                    }
+                }
+            }
+            else {
+                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                    ...{ class: ("mt-2") },
+                });
+                __VLS_elementAsFunction(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+                    ...{ class: ("text-muted") },
+                });
+                __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                    ...{ class: ("fas fa-info-circle me-1") },
+                });
+            }
         }
     }
-    ['addable-finding-card', 'card', 'mb-3', 'border-primary', 'card-header', 'd-flex', 'justify-content-between', 'align-items-center', 'bg-light', 'd-flex', 'align-items-center', 'gap-2', 'fas', 'fa-plus-circle', 'text-primary', 'card-title', 'mb-0', 'nav', 'nav-tabs', 'card-header-tabs', 'nav-item', 'nav-link', 'active', 'fas', 'fa-list', 'me-1', 'badge', 'rounded-pill', 'bg-primary', 'ms-1', 'nav-item', 'nav-link', 'active', 'fas', 'fa-check-circle', 'me-1', 'badge', 'rounded-pill', 'bg-success', 'ms-1', 'card-body', 'd-flex', 'justify-content-end', 'mb-3', 'btn', 'btn-sm', 'btn-primary', 'fas', 'mb-3', 'finding-selector', 'form-label', 'fw-bold', 'text-center', 'py-3', 'text-muted', 'fas', 'fa-info-circle', 'fa-2x', 'mb-2', 'row', 'g-3', 'col-12', 'col-sm-6', 'col-md-4', 'finding-option', 'card', 'h-100', 'cursor-pointer', 'border-primary', 'shadow-sm', 'card-body', 'p-3', 'card-title', 'small', 'fw-bold', 'card-text', 'small', 'text-muted', 'mb-0', 'selected-finding-config', 'mt-4', 'p-4', 'border', 'rounded', 'bg-light', 'd-flex', 'justify-content-between', 'align-items-center', 'mb-3', 'mb-0', 'fas', 'fa-cog', 'text-primary', 'me-2', 'btn', 'btn-sm', 'btn-outline-secondary', 'fas', 'fa-times', 'mb-3', 'classification-config-list', 'classification-config-item', 'mb-3', 'p-3', 'border', 'rounded', 'd-flex', 'justify-content-between', 'align-items-center', 'mb-2', 'd-flex', 'align-items-center', 'gap-2', 'badge', 'bg-warning', 'text-dark', 'fas', 'fa-exclamation-triangle', 'badge', 'bg-success', 'fas', 'fa-check', 'text-muted', 'small', 'mb-2', 'form-select', 'form-select-sm', 'border-success', 'border-warning', 'classification-progress', 'd-flex', 'justify-content-between', 'align-items-center', 'mb-1', 'text-muted', 'fw-semibold', 'progress', 'progress-bar', 'text-end', 'mt-3', 'btn', 'btn-success', 'spinner-border', 'spinner-border-sm', 'me-2', 'fas', 'fa-plus', 'me-2', 'text-center', 'py-5', 'text-muted', 'fas', 'fa-plus-circle', 'fa-3x', 'mb-3', 'opacity-50', 'text-center', 'py-5', 'text-muted', 'fas', 'fa-folder-open', 'fa-3x', 'mb-3', 'row', 'g-3', 'col-12', 'col-sm-6', 'col-md-4', 'col-lg-3', 'card', 'h-100', 'border-success', 'card-body', 'p-3', 'd-flex', 'align-items-start', 'gap-2', 'fas', 'fa-check-circle', 'text-success', 'mt-1', 'flex-grow-1', 'card-title', 'small', 'fw-bold', 'text-success', 'card-text', 'small', 'text-muted', 'mb-2', 'badge', 'bg-info', 'text-dark', 'small',];
+    ['addable-finding-card', 'card', 'mb-3', 'border-primary', 'card-header', 'd-flex', 'justify-content-between', 'align-items-center', 'bg-light', 'd-flex', 'align-items-center', 'gap-2', 'fas', 'fa-plus-circle', 'text-primary', 'card-title', 'mb-0', 'nav', 'nav-tabs', 'card-header-tabs', 'nav-item', 'nav-link', 'active', 'fas', 'fa-list', 'me-1', 'badge', 'rounded-pill', 'bg-primary', 'ms-1', 'nav-item', 'nav-link', 'active', 'fas', 'fa-check-circle', 'me-1', 'badge', 'rounded-pill', 'bg-success', 'ms-1', 'card-body', 'd-flex', 'justify-content-end', 'mb-3', 'btn', 'btn-sm', 'btn-primary', 'fas', 'mb-3', 'finding-selector', 'form-label', 'fw-bold', 'text-center', 'py-3', 'text-muted', 'fas', 'fa-info-circle', 'fa-2x', 'mb-2', 'row', 'g-3', 'col-12', 'col-sm-6', 'col-md-4', 'finding-option', 'card', 'h-100', 'cursor-pointer', 'border-primary', 'shadow-sm', 'card-body', 'p-3', 'card-title', 'small', 'fw-bold', 'card-text', 'small', 'text-muted', 'mb-0', 'selected-finding-config', 'mt-4', 'p-4', 'border', 'rounded', 'bg-light', 'd-flex', 'justify-content-between', 'align-items-center', 'mb-3', 'mb-0', 'fas', 'fa-cog', 'text-primary', 'me-2', 'btn', 'btn-sm', 'btn-outline-secondary', 'fas', 'fa-times', 'mb-3', 'classification-config-list', 'classification-config-item', 'mb-3', 'p-3', 'border', 'rounded', 'd-flex', 'justify-content-between', 'align-items-center', 'mb-2', 'd-flex', 'align-items-center', 'gap-2', 'badge', 'bg-warning', 'text-dark', 'fas', 'fa-exclamation-triangle', 'badge', 'bg-success', 'fas', 'fa-check', 'text-muted', 'small', 'mb-2', 'form-select', 'form-select-sm', 'border-success', 'border-warning', 'classification-progress', 'd-flex', 'justify-content-between', 'align-items-center', 'mb-1', 'text-muted', 'fw-semibold', 'progress', 'progress-bar', 'text-end', 'mt-3', 'btn', 'btn-success', 'spinner-border', 'spinner-border-sm', 'me-2', 'fas', 'fa-plus', 'me-2', 'text-center', 'py-5', 'text-muted', 'fas', 'fa-plus-circle', 'fa-3x', 'mb-3', 'opacity-50', 'mb-3', 'alert', 'alert-info', 'mb-0', 'cursor-pointer', 'alert', 'alert-info', 'mb-0', 'mt-2', 'mt-2', 'mt-2', 'text-center', 'py-5', 'text-muted', 'fas', 'fa-folder-open', 'fa-3x', 'mb-3', 'row', 'g-3', 'col-12', 'col-sm-6', 'col-md-4', 'col-lg-3', 'card', 'h-100', 'border-success', 'card-body', 'p-3', 'd-flex', 'align-items-start', 'gap-2', 'fas', 'fa-check-circle', 'text-success', 'mt-1', 'flex-grow-1', 'card-title', 'small', 'fw-bold', 'text-success', 'card-text', 'small', 'text-muted', 'mb-2', 'badge', 'bg-info', 'text-dark', 'small', 'mt-2', 'text-muted', 'd-block', 'mb-1', 'fas', 'fa-tags', 'me-1', 'classification-list', 'classification-item', 'mb-1', 'badge', 'bg-light', 'text-dark', 'small', 'border', 'text-primary', 'fas', 'fa-exclamation-triangle', 'text-warning', 'ms-1', 'mt-2', 'text-muted', 'fas', 'fa-info-circle', 'me-1',];
     var __VLS_slots;
     var $slots;
     let __VLS_inheritedAttrs;
@@ -738,6 +941,7 @@ function __VLS_template() {
 const __VLS_self = (await import('vue')).defineComponent({
     setup() {
         return {
+            patientFindingStore: patientFindingStore,
             loading: loading,
             activeTab: activeTab,
             showFindingSelector: showFindingSelector,
@@ -745,6 +949,7 @@ const __VLS_self = (await import('vue')).defineComponent({
             findingClassifications: findingClassifications,
             selectedChoices: selectedChoices,
             addedFindings: addedFindings,
+            resolvedPatientExaminationId: resolvedPatientExaminationId,
             availableFindings: availableFindings,
             selectedFinding: selectedFinding,
             canAddFinding: canAddFinding,
@@ -753,6 +958,7 @@ const __VLS_self = (await import('vue')).defineComponent({
             clearSelection: clearSelection,
             updateChoice: updateChoice,
             addFindingToExamination: addFindingToExamination,
+            switchToAddedTab: switchToAddedTab,
         };
     },
     __typeEmits: {},
