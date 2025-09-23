@@ -1,0 +1,85 @@
+{
+  "summary": "RequirementGenerator Test-Suite zeigt 73% Pass-Rate (8/11) mit solider Grundstruktur. Haupt-Problem: vi.mock() statische Mocks erreichen Komponente nicht aufgrund Pinia-Integration-Konflikten. Drei kritische Tests schlagen fehl wegen fehlender Store-Daten-Propagation. Setup korrekt für grundlegende Rendering-Tests, aber Store-Mock-Integration braucht createTestingPinia mit initialState statt vi.mock() Ansatz.",
+  "scores": {
+    "pass_rate_pct": 72.73,
+    "coverage_statements_pct": 70.83,
+    "coverage_lines_pct": 71.11,
+    "setup_correctness_pct": 65,
+    "determinism_pct": 60,
+    "overall_pct": 67.95
+  },
+  "verdict": "soft-fail",
+  "missing_artifacts": [],
+  "findings": [
+    {
+      "id": "F1",
+      "category": "pinia-setup",
+      "severity": "high",
+      "evidence": "Store mock data (John Doe, Jane Smith) not reaching component - Expected options.length > 2 but got 1",
+      "impact": "3 von 11 Tests schlagen fehl weil vi.mock() statische Mocks nicht mit Pinia-Store-Instanzen zur Laufzeit integrieren",
+      "fix": {
+        "type": "refactor",
+        "patch": "// Ersetze vi.mock() mit createTestingPinia\nconst pinia = createTestingPinia({\n  initialState: {\n    patient: {\n      patients: [\n        { id: 1, first_name: 'John', last_name: 'Doe', displayName: 'John Doe' },\n        { id: 2, first_name: 'Jane', last_name: 'Smith', displayName: 'Jane Smith' }\n      ]\n    },\n    examination: {\n      examinations: [{ id: 1, name: 'Blood Test' }, { id: 2, name: 'X-Ray' }]\n    }\n  }\n});\n\nconst wrapper = mount(RequirementGenerator, {\n  global: { plugins: [pinia] }\n});",
+        "notes": "createTestingPinia garantiert deterministische Store-Zustände und korrekte Daten-Propagation"
+      }
+    },
+    {
+      "id": "F2",
+      "category": "global-providers",
+      "severity": "medium",
+      "evidence": "Mount configuration inkonsistent - manche Tests verwenden createPinia(), andere nicht",
+      "impact": "Inkonsistente Test-Umgebung führt zu unvorhersagbaren Fehlern bei Store-abhängigen Tests",
+      "fix": {
+        "type": "minimal-patch",
+        "patch": "// Zentralisiere mountComponent utility\nfunction mountComponent(options = {}) {\n  return mount(RequirementGenerator, {\n    global: {\n      plugins: [createTestingPinia({ initialState: mockStoreState })],\n      stubs: { AddableFindingsDetail: true, FindingsDetail: true, PatientAdder: true },\n      ...options.global\n    },\n    ...options\n  });\n}",
+        "notes": "Einheitliche Mount-Funktion verhindert Setup-Inkonsistenzen"
+      }
+    },
+    {
+      "id": "F3",
+      "category": "vi.mock-hoisting",
+      "severity": "medium",
+      "evidence": "vi.mock() calls korrekt positioniert, aber Integration mit Pinia-Providern funktioniert nicht",
+      "impact": "Mock-Setup folgt Vitest-Konventionen, aber statische Mocks können Pinia-Store-Instanzen nicht ersetzen",
+      "fix": {
+        "type": "config",
+        "patch": "// Entferne vi.mock() für Stores komplett\n// vi.mock('@/stores/patientStore') <- entfernen\n\n// Nutze nur createTestingPinia\nimport { createTestingPinia } from '@pinia/testing';\n\nbeforeEach(() => {\n  vi.clearAllMocks();\n  // Kein setActivePinia() mehr nötig\n});",
+        "notes": "createTestingPinia ersetzt vi.mock() komplett für Store-Mocking"
+      }
+    }
+  ],
+  "actions": [
+    {
+      "priority": 1,
+      "title": "Implementiere createTestingPinia mit initialState",
+      "eta_minutes": 15,
+      "depends_on": [],
+      "details": "Ersetze alle vi.mock() Store-Aufrufe mit createTestingPinia({ initialState }). Definiere mockStoreState mit Testdaten für patient, examination, finding, requirement stores."
+    },
+    {
+      "priority": 2,
+      "title": "Zentralisiere mountComponent utility",
+      "eta_minutes": 10,
+      "depends_on": ["1"],
+      "details": "Erstelle gemeinsame mountComponent() Funktion mit standard Pinia-Setup und Stubs. Refaktoriere alle mount() Aufrufe."
+    },
+    {
+      "priority": 3,
+      "title": "Refaktoriere fehlschlagende Tests",
+      "eta_minutes": 20,
+      "depends_on": ["1", "2"],
+      "details": "Update 'populate patient options', 'enable examination select', 'button enabled' Tests mit korrekter Store-Integration. Validiere v-if Bedingungen."
+    }
+  ],
+  "metrics": {
+    "total_tests": 11,
+    "passed": 8,
+    "failed": 3,
+    "skipped": 0
+  },
+  "context": {
+    "tooling": "Vue 3 + Pinia + Vitest",
+    "assumptions": ["Component verwendet usePatientStore/useExaminationStore", "v-if conditional rendering basiert auf selectedPatientId/selectedExaminationId", "Tests benötigen deterministische Store-Zustände"],
+    "notes": "Solides Test-Fundament vorhanden. createTestingPinia ist der Standard-Ansatz für Pinia-Store-Tests in Vue 3, nicht vi.mock()."
+  }
+}

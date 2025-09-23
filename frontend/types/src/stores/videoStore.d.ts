@@ -166,7 +166,7 @@ export interface SegmentUpdatePayload {
  */
 type UploadLoadCallback = (serverFileId?: string) => void;
 type UploadErrorCallback = (message: string) => void;
-export declare const useVideoStore: import("pinia").StoreDefinition<"video", import("pinia")._UnwrapAll<Pick<{
+export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pick<{
     currentVideo: Readonly<Ref<{
         readonly id: string | number;
         readonly isAnnotated: boolean;
@@ -390,7 +390,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", imp
     formatTime: (seconds: number) => string;
     getSegmentOptions: () => SegmentOption[];
     clearSegments: () => void;
-}, "videoUrl" | "errorMessage" | "videos" | "currentVideo" | "segmentsByLabel" | "videoList" | "videoMeta" | "draftSegment">>, Pick<{
+}, "videoUrl" | "errorMessage" | "videos" | "currentVideo" | "segmentsByLabel" | "videoList" | "videoMeta" | "draftSegment">, Pick<{
     currentVideo: Readonly<Ref<{
         readonly id: string | number;
         readonly isAnnotated: boolean;

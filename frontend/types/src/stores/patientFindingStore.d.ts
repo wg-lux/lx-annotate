@@ -20,7 +20,7 @@ interface PatientFindingClassification {
     subcategories?: Record<string, any>;
     numerical_descriptors?: Record<string, any>;
 }
-declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFinding", import("pinia")._UnwrapAll<Pick<{
+declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFinding", Pick<{
     patientFindings: Readonly<import("vue").Ref<readonly {
         readonly id: number;
         readonly examination: string;
@@ -253,7 +253,7 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
     }) => Promise<PatientFinding>;
     updatePatientFinding: (id: number, updateData: Partial<PatientFinding>) => Promise<PatientFinding>;
     deletePatientFinding: (id: number) => Promise<void>;
-}, "loading" | "error" | "patientFindings" | "currentPatientExaminationId">>, Pick<{
+}, "loading" | "error" | "patientFindings" | "currentPatientExaminationId">, Pick<{
     patientFindings: Readonly<import("vue").Ref<readonly {
         readonly id: number;
         readonly examination: string;

@@ -278,7 +278,7 @@
   import { useVideoStore } from '@/stores/videoStore';
   import SimpleExaminationForm from './SimpleExaminationForm.vue';
   import axiosInstance, { r } from '@/api/axiosInstance';
-  import Timeline from '@/components/EndoAI/Timeline.vue';
+  import Timeline from '@/components/VideoExamination/Timeline.vue';
   
   export default {
     name: 'VideoExaminationAnnotation',

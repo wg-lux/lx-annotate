@@ -26,7 +26,7 @@ export interface Finding {
     location_classifications?: FindingClassification[];
     morphology_classifications?: FindingClassification[];
 }
-export declare const useFindingClassificationStore: import("pinia").StoreDefinition<"findingsClassificationStore", import("pinia")._UnwrapAll<Pick<{
+export declare const useFindingClassificationStore: import("pinia").StoreDefinition<"findingsClassificationStore", Pick<{
     findings: Readonly<import("vue").Ref<{
         readonly [x: number]: {
             readonly id: number;
@@ -195,7 +195,7 @@ export declare const useFindingClassificationStore: import("pinia").StoreDefinit
     setError: (err: string) => void;
     setLoading: (isLoading: boolean) => void;
     setClassificationChoicesFromLookup: (lookupFindings: Finding[]) => void;
-}, "loading" | "error" | "findings">>, Pick<{
+}, "loading" | "error" | "findings">, Pick<{
     findings: Readonly<import("vue").Ref<{
         readonly [x: number]: {
             readonly id: number;

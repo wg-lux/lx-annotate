@@ -4,7 +4,7 @@ import type { AnnotationDraft, DraftSegment, DraftBucket } from '@/types/annotat
  * Draft Store – handles both the *in‑progress* segment the user is currently
  * drawing and the list of annotation drafts that are waiting to be committed.
  */
-export declare const useDraftStore: import("pinia").StoreDefinition<"draft", import("pinia")._UnwrapAll<Pick<{
+export declare const useDraftStore: import("pinia").StoreDefinition<"draft", Pick<{
     draft: Ref<{
         label: string;
         start: number;
@@ -29,7 +29,7 @@ export declare const useDraftStore: import("pinia").StoreDefinition<"draft", imp
     clearAllDrafts: () => void;
     loadFromStorage: () => void;
     saveToStorage: () => void;
-}, "draft" | "draftAnnotations" | "lastSaved">>, Pick<{
+}, "draft" | "draftAnnotations" | "lastSaved">, Pick<{
     draft: Ref<{
         label: string;
         start: number;

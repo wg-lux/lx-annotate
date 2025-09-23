@@ -23,7 +23,7 @@ export interface MediaTypeConfig {
     displayName: string;
     supportedExtensions: string[];
 }
-export declare const useMediaTypeStore: import("pinia").StoreDefinition<"mediaType", import("pinia")._UnwrapAll<Pick<{
+export declare const useMediaTypeStore: import("pinia").StoreDefinition<"mediaType", Pick<{
     currentItem: import("vue").Ref<{
         id: number;
         mediaType: MediaType;
@@ -73,7 +73,7 @@ export declare const useMediaTypeStore: import("pinia").StoreDefinition<"mediaTy
     isSupportedExtension: (filename: string) => boolean;
     getMediaTypeIcon: (mediaType: MediaType) => string;
     getMediaTypeBadgeClass: (mediaType: MediaType) => string;
-}, "currentItem">>, Pick<{
+}, "currentItem">, Pick<{
     currentItem: import("vue").Ref<{
         id: number;
         mediaType: MediaType;

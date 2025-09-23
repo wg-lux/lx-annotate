@@ -82,7 +82,7 @@ export type { Finding, FindingClassification, FindingClassificationChoice };
  *
  * @returns Pinia store instance with reactive state and methods
  */
-export declare const useFindingStore: import("pinia").StoreDefinition<"finding", import("pinia")._UnwrapAll<Pick<{
+export declare const useFindingStore: import("pinia").StoreDefinition<"finding", Pick<{
     findings: Readonly<import("vue").Ref<readonly {
         readonly id: number;
         readonly name: string;
@@ -242,7 +242,7 @@ export declare const useFindingStore: import("pinia").StoreDefinition<"finding",
     isExaminationFindingsLoading: (examinationId: number) => boolean;
     clearExaminationFindingsCache: (examinationId?: number) => void;
     fetchFindingsByPatientExamination: (patientExaminationId: number | null) => Promise<Finding[]>;
-}, "loading" | "error" | "findings" | "FindingClassification" | "currentFinding" | "examinationFindings">>, Pick<{
+}, "loading" | "error" | "findings" | "FindingClassification" | "currentFinding" | "examinationFindings">, Pick<{
     findings: Readonly<import("vue").Ref<readonly {
         readonly id: number;
         readonly name: string;

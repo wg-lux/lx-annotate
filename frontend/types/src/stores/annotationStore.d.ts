@@ -50,7 +50,7 @@ export interface AnnotationState {
     isEditing: boolean;
     isDirty: boolean;
 }
-export declare const useAnnotationStore: import("pinia").StoreDefinition<"annotation", import("pinia")._UnwrapAll<Pick<{
+export declare const useAnnotationStore: import("pinia").StoreDefinition<"annotation", Pick<{
     annotations: readonly {
         readonly id: string;
         readonly videoId: string;
@@ -142,7 +142,7 @@ export declare const useAnnotationStore: import("pinia").StoreDefinition<"annota
     linkSegmentAndAnnotation: (segment: any, userId: string) => Promise<Annotation | null>;
     validateSegmentsAndExaminations: (fileId: number) => Promise<boolean>;
     annotateSegmentsAndExaminations: (fileId: number) => Promise<boolean>;
-}, "isLoading" | "error" | "filter" | "annotations" | "selectedAnnotations" | "currentVideoId" | "playbackTime" | "isEditing" | "isDirty">>, Pick<{
+}, "isLoading" | "error" | "filter" | "annotations" | "selectedAnnotations" | "currentVideoId" | "playbackTime" | "isEditing" | "isDirty">, Pick<{
     annotations: readonly {
         readonly id: string;
         readonly videoId: string;

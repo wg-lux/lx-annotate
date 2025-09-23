@@ -239,16 +239,70 @@ const props = defineProps<{
   fps?: number
 }>()
 
+// ✅ FIXED: Strongly typed emits to resolve TS2322 in parent listeners
+type TimelineSegment = {
+  id: string | number
+  label: string
+  label_display?: string
+  name?: string
+  startTime: number
+  endTime: number
+  avgConfidence: number
+  video_id?: number
+  label_id?: number
+}
+
+type CreateSegmentPayload = {
+  label: string
+  start: number
+  end: number
+}
+
+type TimeSelectionPayload = {
+  start: number
+  end: number
+}
+
 const emit = defineEmits<{
+  /** Seek the external video element to absolute time (seconds) */
   (e: 'seek', time: number): void
+
+  /** Toggle playback externally (leave control to parent) */
   (e: 'play-pause'): void
-  (e: 'segment-select', segment: Segment): void
-  (e: 'segment-edit', segment: Segment): void
-  (e: 'segment-delete', segment: Segment): void
-  (e: 'segment-create', data: { label: string; start: number; end: number }): void
-  (e: 'segment-resize', segmentId: string | number, newStart: number, newEnd: number, mode: string, final?: boolean): void
-  (e: 'segment-move', segmentId: string | number, newStart: number, newEnd: number, final?: boolean): void
-  (e: 'time-selection', data: { start: number; end: number }): void
+
+  /** User highlighted/selected a segment in the timeline UI */
+  (e: 'segment-select', segment: TimelineSegment): void
+
+  /** User requested to edit a segment via context menu */
+  (e: 'segment-edit', segment: TimelineSegment): void
+
+  /** User requested to delete a segment via UI control (X button) */
+  (e: 'segment-delete', segment: TimelineSegment): void
+
+  /** User finished drawing a new segment (via selection overlay) */
+  (e: 'segment-create', data: CreateSegmentPayload): void
+
+  /** Segment resized (live preview + final on mouseup) */
+  (
+    e: 'segment-resize',
+    segmentId: string | number,
+    newStart: number,
+    newEnd: number,
+    mode: 'start' | 'end',
+    final?: boolean
+  ): void
+
+  /** Segment moved (live preview + final on mouseup) */
+  (
+    e: 'segment-move',
+    segmentId: string | number,
+    newStart: number,
+    newEnd: number,
+    final?: boolean
+  ): void
+
+  /** Selection overlay produced an interval (used by parent to create a segment) */
+  (e: 'time-selection', data: TimeSelectionPayload): void
 }>()
 
 // Refs with proper types
@@ -365,7 +419,8 @@ const selectedLabel = ref<string | null>(null)
 
 const selectSegment = (segment: Segment): void => {
   selectedLabel.value = segment.label // ✅ FIX: Use segment.label instead of segment.label_name
-  emit('segment-select', segment)
+  // ✅ FIXED: Cast to TimelineSegment for type safety
+  emit('segment-select', segment as TimelineSegment)
 }
 
 // ✅ FIX: Add getTranslationForLabel function from videoStore
@@ -614,21 +669,24 @@ const initializeDragResize = () => {
               localSegment.startTime = startS
               localSegment.endTime = endS
             }
+            // ✅ FIXED: Ensure mode is typed correctly
             emit('segment-resize', segment.id, startS, endS, edge)
           },
           onDone: () => {
             const localSegment = displayedSegments.value.find(s => s.id === segment.id)
             if (localSegment) {
-              // Handle draft segments differently
-              if (typeof segment.id === 'string' && 
-                  (segment.id === 'draft' || segment.id.startsWith('temp-'))) {
-                emit('segment-resize', segment.id, localSegment.start, localSegment.end, 'end', true)
-              } else {
-                const numericId = getNumericSegmentId(segment.id)
-                if (numericId !== null) {
-                  emit('segment-resize', numericId, localSegment.start, localSegment.end, 'end', true)
-                }
+                          // Handle draft segments differently
+            if (typeof segment.id === 'string' && 
+                (segment.id === 'draft' || segment.id.startsWith('temp-'))) {
+              // ✅ FIXED: Use correct emit parameters for final resize
+              emit('segment-move', segment.id, localSegment.start, localSegment.end, true)
+            } else {
+              const numericId = getNumericSegmentId(segment.id)
+              if (numericId !== null) {
+                // ✅ FIXED: Use correct emit parameters for final move
+                emit('segment-move', numericId, localSegment.start, localSegment.end, true)
               }
+            }
             }
           }
         })
@@ -660,13 +718,15 @@ const playPause = (): void => {
 const editSegment = (segment: Segment | null): void => {
   if (!segment) return
   hideContextMenu()
-  emit('segment-edit', segment)
+  // ✅ FIXED: Cast to TimelineSegment for type safety
+  emit('segment-edit', segment as TimelineSegment)
 }
 
 const deleteSegment = (segment: Segment | null): void => {
   if (!segment) return
   hideContextMenu()
-  emit('segment-delete', segment)
+  // ✅ FIXED: Cast to TimelineSegment for type safety
+  emit('segment-delete', segment as TimelineSegment)
 }
 
 const playSegment = (segment: Segment | null): void => {
@@ -732,7 +792,9 @@ const onSelectionMouseUp = (event: MouseEvent): void => {
   
   // Only create segment if selection is meaningful (> 0.1 seconds)
   if (endTime - startTime > 0.1) {
-    emit('time-selection', { start: startTime, end: endTime })
+    // ✅ FIXED: Use properly typed payload
+    const timeSelectionData: TimeSelectionPayload = { start: startTime, end: endTime }
+    emit('time-selection', timeSelectionData)
   }
   
   // Cleanup

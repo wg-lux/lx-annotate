@@ -34,7 +34,7 @@ interface RequirementLinks {
     medication_schedules?: number[];
     genders?: number[];
 }
-export declare const useRequirementStore: import("pinia").StoreDefinition<"requirement", import("pinia")._UnwrapAll<Pick<{
+export declare const useRequirementStore: import("pinia").StoreDefinition<"requirement", Pick<{
     requirementSets: import("vue").Ref<{
         id: number;
         name: string;
@@ -121,7 +121,7 @@ export declare const useRequirementStore: import("pinia").StoreDefinition<"requi
     setCurrentRequirementSetIds: (ids: number[]) => void;
     deleteRequirementSetById: (id: number) => void;
     reset: () => void;
-}, "loading" | "error" | "requirementSets" | "currentRequirementSet" | "evaluationResults">>, Pick<{
+}, "loading" | "error" | "requirementSets" | "currentRequirementSet" | "evaluationResults">, Pick<{
     requirementSets: import("vue").Ref<{
         id: number;
         name: string;

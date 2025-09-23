@@ -1,8 +1,8 @@
-export declare const useCounterStore: import("pinia").StoreDefinition<"counter", import("pinia")._UnwrapAll<Pick<{
+export declare const useCounterStore: import("pinia").StoreDefinition<"counter", Pick<{
     count: import("vue").Ref<number, number>;
     doubleCount: import("vue").ComputedRef<number>;
     increment: () => void;
-}, "count">>, Pick<{
+}, "count">, Pick<{
     count: import("vue").Ref<number, number>;
     doubleCount: import("vue").ComputedRef<number>;
     increment: () => void;

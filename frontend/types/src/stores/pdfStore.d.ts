@@ -26,7 +26,7 @@ export interface PdfState {
     streamingActive: boolean;
     lastProcessedId: number | null;
 }
-export declare const usePdfStore: import("pinia").StoreDefinition<"pdf", import("pinia")._UnwrapAll<Pick<{
+export declare const usePdfStore: import("pinia").StoreDefinition<"pdf", Pick<{
     currentPdf: import("vue").Ref<{
         id: number;
         sensitiveMetaId: number | null;
@@ -89,7 +89,7 @@ export declare const usePdfStore: import("pinia").StoreDefinition<"pdf", import(
     }>;
     stopStreaming: () => void;
     clearState: () => void;
-}, "loading" | "error" | "currentPdf" | "streamingActive" | "lastProcessedId">>, Pick<{
+}, "loading" | "error" | "currentPdf" | "streamingActive" | "lastProcessedId">, Pick<{
     currentPdf: import("vue").Ref<{
         id: number;
         sensitiveMetaId: number | null;
@@ -152,7 +152,7 @@ export declare const usePdfStore: import("pinia").StoreDefinition<"pdf", import(
     }>;
     stopStreaming: () => void;
     clearState: () => void;
-}, "hasError" | "pdfStreamUrl" | "isProcessing" | "hasCurrentPdf" | "isDone">, Pick<{
+}, "hasError" | "pdfStreamUrl" | "hasCurrentPdf" | "isProcessing" | "isDone">, Pick<{
     currentPdf: import("vue").Ref<{
         id: number;
         sensitiveMetaId: number | null;

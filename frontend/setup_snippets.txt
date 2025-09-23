@@ -1,0 +1,49 @@
+// Top-level vi.mock() calls for Vitest hoisting compliance
+vi.mock('@/stores/patientStore', () => ({
+  usePatientStore: () => ({
+    patients: ref([
+      { id: 1, first_name: 'John', last_name: 'Doe', displayName: 'John Doe' },
+      { id: 2, first_name: 'Jane', last_name: 'Smith', displayName: 'Jane Smith' },
+    ]),
+    genders: ref([]),
+    centers: ref([]),
+    isLoading: ref(false),
+    isError: ref(false),
+    error: ref(null),
+    fetchPatients: vi.fn(),
+    initializeLookupData: vi.fn(),
+  }),
+}));
+
+// Mount configuration with global plugins
+const wrapper = mount(RequirementGenerator, {
+  global: {
+    plugins: [createPinia()],  // ✓ Correct Pinia setup
+    stubs: {
+      AddableFindingsDetail: true,
+      FindingsDetail: true,
+      PatientAdder: true,
+    },
+  },
+});
+
+// BeforeEach setup
+beforeEach(() => {
+  setActivePinia(createPinia());  // Fresh Pinia instance
+  vi.clearAllMocks();            // Reset all mocks
+  
+  // Mock localStorage
+  Object.defineProperty(window, 'localStorage', {
+    value: {
+      getItem: vi.fn(),
+      setItem: vi.fn(),
+      removeItem: vi.fn(),
+    },
+    writable: true,
+  });
+});
+
+// Known Issues:
+// 1. Store mock data not reaching component (vi.mock hoisting issue)
+// 2. Component conditional rendering: v-if="selectedPatientId && selectedExaminationId"
+// 3. Missing createTestingPinia with initialState for deterministic test data

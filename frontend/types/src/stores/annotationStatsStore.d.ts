@@ -1,5 +1,4 @@
 /// <reference types="node" />
-/// <reference types="node" />
 export interface OverviewStats {
     total_videos: number;
     total_raw_videos: number;
@@ -249,10 +248,12 @@ export declare const useAnnotationStatsStore: import("pinia").StoreDefinition<"a
         lastRealtimeUpdate: Date | null;
         autoRefreshEnabled: boolean;
         autoRefreshInterval: {
-            ref: () => NodeJS.Timeout;
-            unref: () => NodeJS.Timeout;
+            close: () => NodeJS.Timeout;
             hasRef: () => boolean;
+            ref: () => NodeJS.Timeout;
             refresh: () => NodeJS.Timeout;
+            unref: () => NodeJS.Timeout;
+            _onTimeout: (...args: any[]) => void;
             [Symbol.toPrimitive]: () => number;
             [Symbol.dispose]: () => void;
         } | null;
@@ -394,10 +395,12 @@ export declare const useAnnotationStatsStore: import("pinia").StoreDefinition<"a
         lastRealtimeUpdate: Date | null;
         autoRefreshEnabled: boolean;
         autoRefreshInterval: {
-            ref: () => NodeJS.Timeout;
-            unref: () => NodeJS.Timeout;
+            close: () => NodeJS.Timeout;
             hasRef: () => boolean;
+            ref: () => NodeJS.Timeout;
             refresh: () => NodeJS.Timeout;
+            unref: () => NodeJS.Timeout;
+            _onTimeout: (...args: any[]) => void;
             [Symbol.toPrimitive]: () => number;
             [Symbol.dispose]: () => void;
         } | null;
@@ -539,10 +542,12 @@ export declare const useAnnotationStatsStore: import("pinia").StoreDefinition<"a
         lastRealtimeUpdate: Date | null;
         autoRefreshEnabled: boolean;
         autoRefreshInterval: {
-            ref: () => NodeJS.Timeout;
-            unref: () => NodeJS.Timeout;
+            close: () => NodeJS.Timeout;
             hasRef: () => boolean;
+            ref: () => NodeJS.Timeout;
             refresh: () => NodeJS.Timeout;
+            unref: () => NodeJS.Timeout;
+            _onTimeout: (...args: any[]) => void;
             [Symbol.toPrimitive]: () => number;
             [Symbol.dispose]: () => void;
         } | null;
@@ -684,10 +689,12 @@ export declare const useAnnotationStatsStore: import("pinia").StoreDefinition<"a
         lastRealtimeUpdate: Date | null;
         autoRefreshEnabled: boolean;
         autoRefreshInterval: {
-            ref: () => NodeJS.Timeout;
-            unref: () => NodeJS.Timeout;
+            close: () => NodeJS.Timeout;
             hasRef: () => boolean;
+            ref: () => NodeJS.Timeout;
             refresh: () => NodeJS.Timeout;
+            unref: () => NodeJS.Timeout;
+            _onTimeout: (...args: any[]) => void;
             [Symbol.toPrimitive]: () => number;
             [Symbol.dispose]: () => void;
         } | null;
@@ -829,10 +836,12 @@ export declare const useAnnotationStatsStore: import("pinia").StoreDefinition<"a
         lastRealtimeUpdate: Date | null;
         autoRefreshEnabled: boolean;
         autoRefreshInterval: {
-            ref: () => NodeJS.Timeout;
-            unref: () => NodeJS.Timeout;
+            close: () => NodeJS.Timeout;
             hasRef: () => boolean;
+            ref: () => NodeJS.Timeout;
             refresh: () => NodeJS.Timeout;
+            unref: () => NodeJS.Timeout;
+            _onTimeout: (...args: any[]) => void;
             [Symbol.toPrimitive]: () => number;
             [Symbol.dispose]: () => void;
         } | null;
@@ -982,10 +991,12 @@ export declare const useAnnotationStatsStore: import("pinia").StoreDefinition<"a
         lastRealtimeUpdate: Date | null;
         autoRefreshEnabled: boolean;
         autoRefreshInterval: {
-            ref: () => NodeJS.Timeout;
-            unref: () => NodeJS.Timeout;
+            close: () => NodeJS.Timeout;
             hasRef: () => boolean;
+            ref: () => NodeJS.Timeout;
             refresh: () => NodeJS.Timeout;
+            unref: () => NodeJS.Timeout;
+            _onTimeout: (...args: any[]) => void;
             [Symbol.toPrimitive]: () => number;
             [Symbol.dispose]: () => void;
         } | null;

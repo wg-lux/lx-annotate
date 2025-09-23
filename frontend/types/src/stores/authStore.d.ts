@@ -5,7 +5,7 @@ export interface User {
     firstName?: string;
     lastName?: string;
 }
-export declare const useAuthStore: import("pinia").StoreDefinition<"auth", import("pinia")._UnwrapAll<Pick<{
+export declare const useAuthStore: import("pinia").StoreDefinition<"auth", Pick<{
     user: import("vue").Ref<{
         id: string;
         username: string;
@@ -23,7 +23,7 @@ export declare const useAuthStore: import("pinia").StoreDefinition<"auth", impor
     setUser: (userData: User) => void;
     logout: () => void;
     initMockUser: () => void;
-}, "user">>, Pick<{
+}, "user">, Pick<{
     user: import("vue").Ref<{
         id: string;
         username: string;
