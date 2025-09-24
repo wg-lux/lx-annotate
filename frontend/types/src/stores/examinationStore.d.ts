@@ -306,11 +306,11 @@ export declare const useExaminationStore: import("pinia").StoreDefinition<"exami
     setSelectedExamination(id: number | null): void;
     /**
      * Load examinations list.
-     * #TODO: You have 2 viable endpoints in your project:
+     * We have 2 viable endpoints in your project:
      *  - /api/examinations/  (generic list)
      *  - /api/patient-examinations/examinations_dropdown/ (already tailored for dropdown)
      *
-     * Pick ONE. Below I show the dropdown endpoint because it already returns displayName.
+     * While patient Examinations will filter the examinations available for the patient, examinations query will return all available examinations.
      */
     fetchExaminations(): Promise<void>;
     /**

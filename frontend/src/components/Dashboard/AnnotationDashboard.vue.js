@@ -211,513 +211,667 @@ onMounted(async () => {
         refreshSensitiveMeta()
     ]);
 });
-; /* PartiallyEnd: #3632/scriptSetup.vue */
-function __VLS_template() {
-    const __VLS_ctx = {};
-    let __VLS_components;
-    let __VLS_directives;
-    ['table', 'table', 'header-actions',];
-    // CSS variable injection 
-    // CSS variable injection end 
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("container-fluid py-4") },
+debugger; /* PartiallyEnd: #3632/scriptSetup.vue */
+const __VLS_ctx = {};
+let __VLS_components;
+let __VLS_directives;
+/** @type {__VLS_StyleScopedClasses['table']} */ ;
+/** @type {__VLS_StyleScopedClasses['table']} */ ;
+/** @type {__VLS_StyleScopedClasses['header-actions']} */ ;
+// CSS variable injection 
+// CSS variable injection end 
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "container-fluid py-4" },
+});
+/** @type {[typeof AnnotationStatsComponent, ]} */ ;
+// @ts-ignore
+const __VLS_0 = __VLS_asFunctionalComponent(AnnotationStatsComponent, new AnnotationStatsComponent({}));
+const __VLS_1 = __VLS_0({}, ...__VLS_functionalComponentArgsRest(__VLS_0));
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "row mt-4" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "col-12 mb-4" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "card" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "card-header d-flex justify-content-between align-items-center" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.h5, __VLS_intrinsicElements.h5)({
+    ...{ class: "mb-0" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+    ...{ class: "fas fa-video text-primary me-2" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "header-actions" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+    ...{ onClick: (__VLS_ctx.refreshSegments) },
+    ...{ class: "btn btn-outline-primary btn-sm me-2" },
+    disabled: (__VLS_ctx.loadingSegments),
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+    ...{ class: "fas fa-sync-alt" },
+    ...{ class: ({ 'fa-spin': __VLS_ctx.loadingSegments }) },
+});
+const __VLS_3 = {}.RouterLink;
+/** @type {[typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, ]} */ ;
+// @ts-ignore
+const __VLS_4 = __VLS_asFunctionalComponent(__VLS_3, new __VLS_3({
+    to: "/frame-annotation",
+    ...{ class: "btn btn-primary btn-sm" },
+}));
+const __VLS_5 = __VLS_4({
+    to: "/frame-annotation",
+    ...{ class: "btn btn-primary btn-sm" },
+}, ...__VLS_functionalComponentArgsRest(__VLS_4));
+__VLS_6.slots.default;
+__VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+    ...{ class: "fas fa-plus me-1" },
+});
+var __VLS_6;
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "card-body" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "table-responsive" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.table, __VLS_intrinsicElements.table)({
+    ...{ class: "table table-hover" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.thead, __VLS_intrinsicElements.thead)({
+    ...{ class: "table-dark" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.tr, __VLS_intrinsicElements.tr)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.tbody, __VLS_intrinsicElements.tbody)({});
+if (__VLS_ctx.loadingSegments) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.tr, __VLS_intrinsicElements.tr)({});
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({
+        colspan: "7",
+        ...{ class: "text-center" },
     });
-    // @ts-ignore
-    /** @type { [typeof AnnotationStatsComponent, ] } */ ;
-    // @ts-ignore
-    const __VLS_0 = __VLS_asFunctionalComponent(AnnotationStatsComponent, new AnnotationStatsComponent({}));
-    const __VLS_1 = __VLS_0({}, ...__VLS_functionalComponentArgsRest(__VLS_0));
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("row mt-4") },
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "spinner-border text-primary" },
+        role: "status",
     });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("col-12 mb-4") },
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+        ...{ class: "visually-hidden" },
     });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("card") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("card-header d-flex justify-content-between align-items-center") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.h5, __VLS_intrinsicElements.h5)({
-        ...{ class: ("mb-0") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: ("fas fa-video text-primary me-2") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("header-actions") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-        ...{ onClick: (__VLS_ctx.refreshSegments) },
-        ...{ class: ("btn btn-outline-primary btn-sm me-2") },
-        disabled: ((__VLS_ctx.loadingSegments)),
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: ("fas fa-sync-alt") },
-        ...{ class: (({ 'fa-spin': __VLS_ctx.loadingSegments })) },
-    });
-    const __VLS_5 = {}.RouterLink;
-    /** @type { [typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, ] } */ ;
-    // @ts-ignore
-    const __VLS_6 = __VLS_asFunctionalComponent(__VLS_5, new __VLS_5({
-        to: ("/frame-annotation"),
-        ...{ class: ("btn btn-primary btn-sm") },
-    }));
-    const __VLS_7 = __VLS_6({
-        to: ("/frame-annotation"),
-        ...{ class: ("btn btn-primary btn-sm") },
-    }, ...__VLS_functionalComponentArgsRest(__VLS_6));
-    __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: ("fas fa-plus me-1") },
-    });
-    __VLS_10.slots.default;
-    var __VLS_10;
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("card-body") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("table-responsive") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.table, __VLS_intrinsicElements.table)({
-        ...{ class: ("table table-hover") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.thead, __VLS_intrinsicElements.thead)({
-        ...{ class: ("table-dark") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.tr, __VLS_intrinsicElements.tr)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.tbody, __VLS_intrinsicElements.tbody)({});
-    if (__VLS_ctx.loadingSegments) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.tr, __VLS_intrinsicElements.tr)({});
-        __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({
-            colspan: ("7"),
-            ...{ class: ("text-center") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("spinner-border text-primary") },
-            role: ("status"),
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-            ...{ class: ("visually-hidden") },
-        });
-    }
-    else if (__VLS_ctx.segments.length === 0) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.tr, __VLS_intrinsicElements.tr)({});
-        __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({
-            colspan: ("7"),
-            ...{ class: ("text-center text-muted") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: ("fas fa-video fa-2x mb-2") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.br, __VLS_intrinsicElements.br)({});
-    }
-    else {
-        for (const [segment] of __VLS_getVForSourceType((__VLS_ctx.segments))) {
-            __VLS_elementAsFunction(__VLS_intrinsicElements.tr, __VLS_intrinsicElements.tr)({
-                key: ((segment.id)),
-            });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
-            __VLS_elementAsFunction(__VLS_intrinsicElements.code, __VLS_intrinsicElements.code)({});
-            (segment.videoId);
-            __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
-            (segment.startTime);
-            (segment.endTime);
-            __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
-            __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-                ...{ class: ("badge bg-info") },
-            });
-            (segment.labelName);
-            __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
-            __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-                ...{ class: ("badge") },
-                ...{ class: ((__VLS_ctx.getSegmentStatusClass(segment.status))) },
-            });
-            (__VLS_ctx.getSegmentStatusText(segment.status));
-            __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
-            __VLS_elementAsFunction(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({});
-            (segment.annotated_by || 'Nicht zugewiesen');
-            __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
-            __VLS_elementAsFunction(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({});
-            (__VLS_ctx.formatDate(segment.updated_at));
-            __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
-            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: ("btn-group btn-group-sm") },
-            });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-                ...{ onClick: (...[$event]) => {
-                        if (!(!((__VLS_ctx.loadingSegments))))
-                            return;
-                        if (!(!((__VLS_ctx.segments.length === 0))))
-                            return;
-                        __VLS_ctx.editSegment(segment);
-                    } },
-                ...{ class: ("btn btn-outline-primary") },
-                title: (('Segment bearbeiten')),
-            });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: ("fas fa-edit") },
-            });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-                ...{ onClick: (...[$event]) => {
-                        if (!(!((__VLS_ctx.loadingSegments))))
-                            return;
-                        if (!(!((__VLS_ctx.segments.length === 0))))
-                            return;
-                        __VLS_ctx.markSegmentComplete(segment);
-                    } },
-                ...{ class: ("btn btn-outline-success") },
-                disabled: ((segment.status === 'completed')),
-                title: (('Als abgeschlossen markieren')),
-            });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: ("fas fa-check") },
-            });
-        }
-    }
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("col-12 mb-4") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("card") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("card-header d-flex justify-content-between align-items-center") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.h5, __VLS_intrinsicElements.h5)({
-        ...{ class: ("mb-0") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: ("fas fa-stethoscope text-success me-2") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("header-actions") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-        ...{ onClick: (__VLS_ctx.refreshExaminations) },
-        ...{ class: ("btn btn-outline-primary btn-sm me-2") },
-        disabled: ((__VLS_ctx.loadingExaminations)),
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: ("fas fa-sync-alt") },
-        ...{ class: (({ 'fa-spin': __VLS_ctx.loadingExaminations })) },
-    });
-    const __VLS_11 = {}.RouterLink;
-    /** @type { [typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, ] } */ ;
-    // @ts-ignore
-    const __VLS_12 = __VLS_asFunctionalComponent(__VLS_11, new __VLS_11({
-        to: ("/untersuchung"),
-        ...{ class: ("btn btn-success btn-sm") },
-    }));
-    const __VLS_13 = __VLS_12({
-        to: ("/untersuchung"),
-        ...{ class: ("btn btn-success btn-sm") },
-    }, ...__VLS_functionalComponentArgsRest(__VLS_12));
-    __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: ("fas fa-plus me-1") },
-    });
-    __VLS_16.slots.default;
-    var __VLS_16;
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("card-body") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("table-responsive") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.table, __VLS_intrinsicElements.table)({
-        ...{ class: ("table table-hover") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.thead, __VLS_intrinsicElements.thead)({
-        ...{ class: ("table-dark") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.tr, __VLS_intrinsicElements.tr)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.tbody, __VLS_intrinsicElements.tbody)({});
-    if (__VLS_ctx.loadingExaminations) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.tr, __VLS_intrinsicElements.tr)({});
-        __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({
-            colspan: ("7"),
-            ...{ class: ("text-center") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("spinner-border text-primary") },
-            role: ("status"),
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-            ...{ class: ("visually-hidden") },
-        });
-    }
-    else if (__VLS_ctx.examinations.length === 0) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.tr, __VLS_intrinsicElements.tr)({});
-        __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({
-            colspan: ("7"),
-            ...{ class: ("text-center text-muted") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: ("fas fa-stethoscope fa-2x mb-2") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.br, __VLS_intrinsicElements.br)({});
-    }
-    else {
-        for (const [examination] of __VLS_getVForSourceType((__VLS_ctx.examinations))) {
-            __VLS_elementAsFunction(__VLS_intrinsicElements.tr, __VLS_intrinsicElements.tr)({
-                key: ((examination.id)),
-            });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
-            __VLS_elementAsFunction(__VLS_intrinsicElements.code, __VLS_intrinsicElements.code)({});
-            (examination.id);
-            __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
-            (examination.patient?.first_name);
-            (examination.patient?.last_name);
-            __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
-            (__VLS_ctx.formatDate(examination.examination_date));
-            __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
-            for (const [finding] of __VLS_getVForSourceType((examination.findings?.slice(0, 2)))) {
-                __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-                    ...{ class: ("badge bg-secondary me-1") },
-                    key: ((finding.id)),
-                });
-                (finding.name);
-            }
-            if (examination.findings?.length > 2) {
-                __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-                    ...{ class: ("badge bg-light text-dark") },
-                });
-                (examination.findings.length - 2);
-            }
-            __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
-            __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-                ...{ class: ("badge") },
-                ...{ class: ((__VLS_ctx.getExaminationStatusClass(examination.status))) },
-            });
-            (__VLS_ctx.getExaminationStatusText(examination.status));
-            __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
-            __VLS_elementAsFunction(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({});
-            (examination.created_by || 'Unbekannt');
-            __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
-            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: ("btn-group btn-group-sm") },
-            });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-                ...{ onClick: (...[$event]) => {
-                        if (!(!((__VLS_ctx.loadingExaminations))))
-                            return;
-                        if (!(!((__VLS_ctx.examinations.length === 0))))
-                            return;
-                        __VLS_ctx.editExamination(examination);
-                    } },
-                ...{ class: ("btn btn-outline-primary") },
-                title: (('Untersuchung bearbeiten')),
-            });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: ("fas fa-edit") },
-            });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-                ...{ onClick: (...[$event]) => {
-                        if (!(!((__VLS_ctx.loadingExaminations))))
-                            return;
-                        if (!(!((__VLS_ctx.examinations.length === 0))))
-                            return;
-                        __VLS_ctx.markExaminationComplete(examination);
-                    } },
-                ...{ class: ("btn btn-outline-success") },
-                disabled: ((examination.status === 'completed')),
-                title: (('Als abgeschlossen markieren')),
-            });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: ("fas fa-check") },
-            });
-        }
-    }
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("col-12 mb-4") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("card") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("card-header d-flex justify-content-between align-items-center") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.h5, __VLS_intrinsicElements.h5)({
-        ...{ class: ("mb-0") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: ("fas fa-user-shield text-warning me-2") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("header-actions") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-        ...{ onClick: (__VLS_ctx.refreshSensitiveMeta) },
-        ...{ class: ("btn btn-outline-primary btn-sm me-2") },
-        disabled: ((__VLS_ctx.loadingSensitiveMeta)),
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: ("fas fa-sync-alt") },
-        ...{ class: (({ 'fa-spin': __VLS_ctx.loadingSensitiveMeta })) },
-    });
-    const __VLS_17 = {}.RouterLink;
-    /** @type { [typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, ] } */ ;
-    // @ts-ignore
-    const __VLS_18 = __VLS_asFunctionalComponent(__VLS_17, new __VLS_17({
-        to: ("/video-meta-annotation"),
-        ...{ class: ("btn btn-warning btn-sm") },
-    }));
-    const __VLS_19 = __VLS_18({
-        to: ("/video-meta-annotation"),
-        ...{ class: ("btn btn-warning btn-sm") },
-    }, ...__VLS_functionalComponentArgsRest(__VLS_18));
-    __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: ("fas fa-play me-1") },
-    });
-    __VLS_22.slots.default;
-    var __VLS_22;
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("card-body") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("table-responsive") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.table, __VLS_intrinsicElements.table)({
-        ...{ class: ("table table-hover") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.thead, __VLS_intrinsicElements.thead)({
-        ...{ class: ("table-dark") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.tr, __VLS_intrinsicElements.tr)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.tbody, __VLS_intrinsicElements.tbody)({});
-    if (__VLS_ctx.loadingSensitiveMeta) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.tr, __VLS_intrinsicElements.tr)({});
-        __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({
-            colspan: ("7"),
-            ...{ class: ("text-center") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("spinner-border text-primary") },
-            role: ("status"),
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-            ...{ class: ("visually-hidden") },
-        });
-    }
-    else if (__VLS_ctx.sensitiveMetaData.length === 0) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.tr, __VLS_intrinsicElements.tr)({});
-        __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({
-            colspan: ("7"),
-            ...{ class: ("text-center text-muted") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: ("fas fa-user-shield fa-2x mb-2") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.br, __VLS_intrinsicElements.br)({});
-    }
-    else {
-        for (const [meta] of __VLS_getVForSourceType((__VLS_ctx.sensitiveMetaData))) {
-            __VLS_elementAsFunction(__VLS_intrinsicElements.tr, __VLS_intrinsicElements.tr)({
-                key: ((meta.id)),
-            });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
-            __VLS_elementAsFunction(__VLS_intrinsicElements.code, __VLS_intrinsicElements.code)({});
-            (meta.id);
-            __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
-            __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-                ...{ class: ("badge") },
-                ...{ class: ((meta.content_type === 'video' ? 'bg-primary' : 'bg-danger')) },
-            });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: ((meta.content_type === 'video' ? 'fas fa-video' : 'fas fa-file-pdf')) },
-            });
-            (meta.content_type?.toUpperCase() || 'UNBEKANNT');
-            __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
-            (meta.patient_first_name);
-            (meta.patient_last_name);
-            __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
-            (__VLS_ctx.formatDate(meta.examination_date));
-            __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
-            __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-                ...{ class: ("badge") },
-                ...{ class: ((__VLS_ctx.getSensitiveMetaStatusClass(meta.anonymization_status))) },
-            });
-            (__VLS_ctx.getSensitiveMetaStatusText(meta.anonymization_status));
-            __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
-            __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-                ...{ class: ((meta.requires_validation ? 'text-warning' : 'text-success')) },
-            });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: ((meta.requires_validation ? 'fas fa-exclamation-triangle' : 'fas fa-check-circle')) },
-            });
-            (meta.requires_validation ? 'Ja' : 'Nein');
-            __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
-            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: ("btn-group btn-group-sm") },
-            });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-                ...{ onClick: (...[$event]) => {
-                        if (!(!((__VLS_ctx.loadingSensitiveMeta))))
-                            return;
-                        if (!(!((__VLS_ctx.sensitiveMetaData.length === 0))))
-                            return;
-                        __VLS_ctx.validateSensitiveMeta(meta);
-                    } },
-                ...{ class: ("btn btn-outline-primary") },
-                title: (('Patientendaten validieren')),
-            });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: ("fas fa-edit") },
-            });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-                ...{ onClick: (...[$event]) => {
-                        if (!(!((__VLS_ctx.loadingSensitiveMeta))))
-                            return;
-                        if (!(!((__VLS_ctx.sensitiveMetaData.length === 0))))
-                            return;
-                        __VLS_ctx.markSensitiveMetaComplete(meta);
-                    } },
-                ...{ class: ("btn btn-outline-success") },
-                disabled: ((!meta.requires_validation)),
-                title: (('Als validiert markieren')),
-            });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: ("fas fa-check") },
-            });
-        }
-    }
-    ['container-fluid', 'py-4', 'row', 'mt-4', 'col-12', 'mb-4', 'card', 'card-header', 'd-flex', 'justify-content-between', 'align-items-center', 'mb-0', 'fas', 'fa-video', 'text-primary', 'me-2', 'header-actions', 'btn', 'btn-outline-primary', 'btn-sm', 'me-2', 'fas', 'fa-sync-alt', 'fa-spin', 'btn', 'btn-primary', 'btn-sm', 'fas', 'fa-plus', 'me-1', 'card-body', 'table-responsive', 'table', 'table-hover', 'table-dark', 'text-center', 'spinner-border', 'text-primary', 'visually-hidden', 'text-center', 'text-muted', 'fas', 'fa-video', 'fa-2x', 'mb-2', 'badge', 'bg-info', 'badge', 'btn-group', 'btn-group-sm', 'btn', 'btn-outline-primary', 'fas', 'fa-edit', 'btn', 'btn-outline-success', 'fas', 'fa-check', 'col-12', 'mb-4', 'card', 'card-header', 'd-flex', 'justify-content-between', 'align-items-center', 'mb-0', 'fas', 'fa-stethoscope', 'text-success', 'me-2', 'header-actions', 'btn', 'btn-outline-primary', 'btn-sm', 'me-2', 'fas', 'fa-sync-alt', 'fa-spin', 'btn', 'btn-success', 'btn-sm', 'fas', 'fa-plus', 'me-1', 'card-body', 'table-responsive', 'table', 'table-hover', 'table-dark', 'text-center', 'spinner-border', 'text-primary', 'visually-hidden', 'text-center', 'text-muted', 'fas', 'fa-stethoscope', 'fa-2x', 'mb-2', 'badge', 'bg-secondary', 'me-1', 'badge', 'bg-light', 'text-dark', 'badge', 'btn-group', 'btn-group-sm', 'btn', 'btn-outline-primary', 'fas', 'fa-edit', 'btn', 'btn-outline-success', 'fas', 'fa-check', 'col-12', 'mb-4', 'card', 'card-header', 'd-flex', 'justify-content-between', 'align-items-center', 'mb-0', 'fas', 'fa-user-shield', 'text-warning', 'me-2', 'header-actions', 'btn', 'btn-outline-primary', 'btn-sm', 'me-2', 'fas', 'fa-sync-alt', 'fa-spin', 'btn', 'btn-warning', 'btn-sm', 'fas', 'fa-play', 'me-1', 'card-body', 'table-responsive', 'table', 'table-hover', 'table-dark', 'text-center', 'spinner-border', 'text-primary', 'visually-hidden', 'text-center', 'text-muted', 'fas', 'fa-user-shield', 'fa-2x', 'mb-2', 'badge', 'badge', 'btn-group', 'btn-group-sm', 'btn', 'btn-outline-primary', 'fas', 'fa-edit', 'btn', 'btn-outline-success', 'fas', 'fa-check',];
-    var __VLS_slots;
-    var $slots;
-    let __VLS_inheritedAttrs;
-    var $attrs;
-    const __VLS_refs = {};
-    var $refs;
-    var $el;
-    return {
-        attrs: {},
-        slots: __VLS_slots,
-        refs: $refs,
-        rootEl: $el,
-    };
 }
-;
+else if (__VLS_ctx.segments.length === 0) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.tr, __VLS_intrinsicElements.tr)({});
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({
+        colspan: "7",
+        ...{ class: "text-center text-muted" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+        ...{ class: "fas fa-video fa-2x mb-2" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.br, __VLS_intrinsicElements.br)({});
+}
+else {
+    for (const [segment] of __VLS_getVForSourceType((__VLS_ctx.segments))) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.tr, __VLS_intrinsicElements.tr)({
+            key: (segment.id),
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.code, __VLS_intrinsicElements.code)({});
+        (segment.videoId);
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
+        (segment.startTime);
+        (segment.endTime);
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+            ...{ class: "badge bg-info" },
+        });
+        (segment.labelName);
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+            ...{ class: "badge" },
+            ...{ class: (__VLS_ctx.getSegmentStatusClass(segment.status)) },
+        });
+        (__VLS_ctx.getSegmentStatusText(segment.status));
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({});
+        (segment.annotated_by || 'Nicht zugewiesen');
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({});
+        (__VLS_ctx.formatDate(segment.updated_at));
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "btn-group btn-group-sm" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+            ...{ onClick: (...[$event]) => {
+                    if (!!(__VLS_ctx.loadingSegments))
+                        return;
+                    if (!!(__VLS_ctx.segments.length === 0))
+                        return;
+                    __VLS_ctx.editSegment(segment);
+                } },
+            ...{ class: "btn btn-outline-primary" },
+            title: ('Segment bearbeiten'),
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: "fas fa-edit" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+            ...{ onClick: (...[$event]) => {
+                    if (!!(__VLS_ctx.loadingSegments))
+                        return;
+                    if (!!(__VLS_ctx.segments.length === 0))
+                        return;
+                    __VLS_ctx.markSegmentComplete(segment);
+                } },
+            ...{ class: "btn btn-outline-success" },
+            disabled: (segment.status === 'completed'),
+            title: ('Als abgeschlossen markieren'),
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: "fas fa-check" },
+        });
+    }
+}
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "col-12 mb-4" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "card" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "card-header d-flex justify-content-between align-items-center" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.h5, __VLS_intrinsicElements.h5)({
+    ...{ class: "mb-0" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+    ...{ class: "fas fa-stethoscope text-success me-2" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "header-actions" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+    ...{ onClick: (__VLS_ctx.refreshExaminations) },
+    ...{ class: "btn btn-outline-primary btn-sm me-2" },
+    disabled: (__VLS_ctx.loadingExaminations),
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+    ...{ class: "fas fa-sync-alt" },
+    ...{ class: ({ 'fa-spin': __VLS_ctx.loadingExaminations }) },
+});
+const __VLS_7 = {}.RouterLink;
+/** @type {[typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, ]} */ ;
+// @ts-ignore
+const __VLS_8 = __VLS_asFunctionalComponent(__VLS_7, new __VLS_7({
+    to: "/untersuchung",
+    ...{ class: "btn btn-success btn-sm" },
+}));
+const __VLS_9 = __VLS_8({
+    to: "/untersuchung",
+    ...{ class: "btn btn-success btn-sm" },
+}, ...__VLS_functionalComponentArgsRest(__VLS_8));
+__VLS_10.slots.default;
+__VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+    ...{ class: "fas fa-plus me-1" },
+});
+var __VLS_10;
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "card-body" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "table-responsive" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.table, __VLS_intrinsicElements.table)({
+    ...{ class: "table table-hover" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.thead, __VLS_intrinsicElements.thead)({
+    ...{ class: "table-dark" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.tr, __VLS_intrinsicElements.tr)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.tbody, __VLS_intrinsicElements.tbody)({});
+if (__VLS_ctx.loadingExaminations) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.tr, __VLS_intrinsicElements.tr)({});
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({
+        colspan: "7",
+        ...{ class: "text-center" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "spinner-border text-primary" },
+        role: "status",
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+        ...{ class: "visually-hidden" },
+    });
+}
+else if (__VLS_ctx.examinations.length === 0) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.tr, __VLS_intrinsicElements.tr)({});
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({
+        colspan: "7",
+        ...{ class: "text-center text-muted" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+        ...{ class: "fas fa-stethoscope fa-2x mb-2" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.br, __VLS_intrinsicElements.br)({});
+}
+else {
+    for (const [examination] of __VLS_getVForSourceType((__VLS_ctx.examinations))) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.tr, __VLS_intrinsicElements.tr)({
+            key: (examination.id),
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.code, __VLS_intrinsicElements.code)({});
+        (examination.id);
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
+        (examination.patient?.first_name);
+        (examination.patient?.last_name);
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
+        (__VLS_ctx.formatDate(examination.examination_date));
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
+        for (const [finding] of __VLS_getVForSourceType((examination.findings?.slice(0, 2)))) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                ...{ class: "badge bg-secondary me-1" },
+                key: (finding.id),
+            });
+            (finding.name);
+        }
+        if (examination.findings?.length > 2) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                ...{ class: "badge bg-light text-dark" },
+            });
+            (examination.findings.length - 2);
+        }
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+            ...{ class: "badge" },
+            ...{ class: (__VLS_ctx.getExaminationStatusClass(examination.status)) },
+        });
+        (__VLS_ctx.getExaminationStatusText(examination.status));
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({});
+        (examination.created_by || 'Unbekannt');
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "btn-group btn-group-sm" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+            ...{ onClick: (...[$event]) => {
+                    if (!!(__VLS_ctx.loadingExaminations))
+                        return;
+                    if (!!(__VLS_ctx.examinations.length === 0))
+                        return;
+                    __VLS_ctx.editExamination(examination);
+                } },
+            ...{ class: "btn btn-outline-primary" },
+            title: ('Untersuchung bearbeiten'),
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: "fas fa-edit" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+            ...{ onClick: (...[$event]) => {
+                    if (!!(__VLS_ctx.loadingExaminations))
+                        return;
+                    if (!!(__VLS_ctx.examinations.length === 0))
+                        return;
+                    __VLS_ctx.markExaminationComplete(examination);
+                } },
+            ...{ class: "btn btn-outline-success" },
+            disabled: (examination.status === 'completed'),
+            title: ('Als abgeschlossen markieren'),
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: "fas fa-check" },
+        });
+    }
+}
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "col-12 mb-4" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "card" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "card-header d-flex justify-content-between align-items-center" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.h5, __VLS_intrinsicElements.h5)({
+    ...{ class: "mb-0" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+    ...{ class: "fas fa-user-shield text-warning me-2" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "header-actions" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+    ...{ onClick: (__VLS_ctx.refreshSensitiveMeta) },
+    ...{ class: "btn btn-outline-primary btn-sm me-2" },
+    disabled: (__VLS_ctx.loadingSensitiveMeta),
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+    ...{ class: "fas fa-sync-alt" },
+    ...{ class: ({ 'fa-spin': __VLS_ctx.loadingSensitiveMeta }) },
+});
+const __VLS_11 = {}.RouterLink;
+/** @type {[typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, ]} */ ;
+// @ts-ignore
+const __VLS_12 = __VLS_asFunctionalComponent(__VLS_11, new __VLS_11({
+    to: "/video-meta-annotation",
+    ...{ class: "btn btn-warning btn-sm" },
+}));
+const __VLS_13 = __VLS_12({
+    to: "/video-meta-annotation",
+    ...{ class: "btn btn-warning btn-sm" },
+}, ...__VLS_functionalComponentArgsRest(__VLS_12));
+__VLS_14.slots.default;
+__VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+    ...{ class: "fas fa-play me-1" },
+});
+var __VLS_14;
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "card-body" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "table-responsive" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.table, __VLS_intrinsicElements.table)({
+    ...{ class: "table table-hover" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.thead, __VLS_intrinsicElements.thead)({
+    ...{ class: "table-dark" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.tr, __VLS_intrinsicElements.tr)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.tbody, __VLS_intrinsicElements.tbody)({});
+if (__VLS_ctx.loadingSensitiveMeta) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.tr, __VLS_intrinsicElements.tr)({});
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({
+        colspan: "7",
+        ...{ class: "text-center" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "spinner-border text-primary" },
+        role: "status",
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+        ...{ class: "visually-hidden" },
+    });
+}
+else if (__VLS_ctx.sensitiveMetaData.length === 0) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.tr, __VLS_intrinsicElements.tr)({});
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({
+        colspan: "7",
+        ...{ class: "text-center text-muted" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+        ...{ class: "fas fa-user-shield fa-2x mb-2" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.br, __VLS_intrinsicElements.br)({});
+}
+else {
+    for (const [meta] of __VLS_getVForSourceType((__VLS_ctx.sensitiveMetaData))) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.tr, __VLS_intrinsicElements.tr)({
+            key: (meta.id),
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.code, __VLS_intrinsicElements.code)({});
+        (meta.id);
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+            ...{ class: "badge" },
+            ...{ class: (meta.content_type === 'video' ? 'bg-primary' : 'bg-danger') },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: (meta.content_type === 'video' ? 'fas fa-video' : 'fas fa-file-pdf') },
+        });
+        (meta.content_type?.toUpperCase() || 'UNBEKANNT');
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
+        (meta.patient_first_name);
+        (meta.patient_last_name);
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
+        (__VLS_ctx.formatDate(meta.examination_date));
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+            ...{ class: "badge" },
+            ...{ class: (__VLS_ctx.getSensitiveMetaStatusClass(meta.anonymization_status)) },
+        });
+        (__VLS_ctx.getSensitiveMetaStatusText(meta.anonymization_status));
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+            ...{ class: (meta.requires_validation ? 'text-warning' : 'text-success') },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: (meta.requires_validation ? 'fas fa-exclamation-triangle' : 'fas fa-check-circle') },
+        });
+        (meta.requires_validation ? 'Ja' : 'Nein');
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "btn-group btn-group-sm" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+            ...{ onClick: (...[$event]) => {
+                    if (!!(__VLS_ctx.loadingSensitiveMeta))
+                        return;
+                    if (!!(__VLS_ctx.sensitiveMetaData.length === 0))
+                        return;
+                    __VLS_ctx.validateSensitiveMeta(meta);
+                } },
+            ...{ class: "btn btn-outline-primary" },
+            title: ('Patientendaten validieren'),
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: "fas fa-edit" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+            ...{ onClick: (...[$event]) => {
+                    if (!!(__VLS_ctx.loadingSensitiveMeta))
+                        return;
+                    if (!!(__VLS_ctx.sensitiveMetaData.length === 0))
+                        return;
+                    __VLS_ctx.markSensitiveMetaComplete(meta);
+                } },
+            ...{ class: "btn btn-outline-success" },
+            disabled: (!meta.requires_validation),
+            title: ('Als validiert markieren'),
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: "fas fa-check" },
+        });
+    }
+}
+/** @type {__VLS_StyleScopedClasses['container-fluid']} */ ;
+/** @type {__VLS_StyleScopedClasses['py-4']} */ ;
+/** @type {__VLS_StyleScopedClasses['row']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-4']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-12']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-4']} */ ;
+/** @type {__VLS_StyleScopedClasses['card']} */ ;
+/** @type {__VLS_StyleScopedClasses['card-header']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['justify-content-between']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-video']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-primary']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['header-actions']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-primary']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-sync-alt']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-spin']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-primary']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-plus']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['card-body']} */ ;
+/** @type {__VLS_StyleScopedClasses['table-responsive']} */ ;
+/** @type {__VLS_StyleScopedClasses['table']} */ ;
+/** @type {__VLS_StyleScopedClasses['table-hover']} */ ;
+/** @type {__VLS_StyleScopedClasses['table-dark']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['spinner-border']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-primary']} */ ;
+/** @type {__VLS_StyleScopedClasses['visually-hidden']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-video']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-2x']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['bg-info']} */ ;
+/** @type {__VLS_StyleScopedClasses['badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-group']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-group-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-primary']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-edit']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-success']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-check']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-12']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-4']} */ ;
+/** @type {__VLS_StyleScopedClasses['card']} */ ;
+/** @type {__VLS_StyleScopedClasses['card-header']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['justify-content-between']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-stethoscope']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-success']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['header-actions']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-primary']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-sync-alt']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-spin']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-success']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-plus']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['card-body']} */ ;
+/** @type {__VLS_StyleScopedClasses['table-responsive']} */ ;
+/** @type {__VLS_StyleScopedClasses['table']} */ ;
+/** @type {__VLS_StyleScopedClasses['table-hover']} */ ;
+/** @type {__VLS_StyleScopedClasses['table-dark']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['spinner-border']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-primary']} */ ;
+/** @type {__VLS_StyleScopedClasses['visually-hidden']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-stethoscope']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-2x']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['bg-secondary']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['bg-light']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-dark']} */ ;
+/** @type {__VLS_StyleScopedClasses['badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-group']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-group-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-primary']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-edit']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-success']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-check']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-12']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-4']} */ ;
+/** @type {__VLS_StyleScopedClasses['card']} */ ;
+/** @type {__VLS_StyleScopedClasses['card-header']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['justify-content-between']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-user-shield']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-warning']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['header-actions']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-primary']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-sync-alt']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-spin']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-warning']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-play']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['card-body']} */ ;
+/** @type {__VLS_StyleScopedClasses['table-responsive']} */ ;
+/** @type {__VLS_StyleScopedClasses['table']} */ ;
+/** @type {__VLS_StyleScopedClasses['table-hover']} */ ;
+/** @type {__VLS_StyleScopedClasses['table-dark']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['spinner-border']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-primary']} */ ;
+/** @type {__VLS_StyleScopedClasses['visually-hidden']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-user-shield']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-2x']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-group']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-group-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-primary']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-edit']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-success']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-check']} */ ;
+var __VLS_dollars;
 const __VLS_self = (await import('vue')).defineComponent({
     setup() {
         return {
@@ -751,6 +905,5 @@ export default (await import('vue')).defineComponent({
     setup() {
         return {};
     },
-    __typeEl: {},
 });
 ; /* PartiallyEnd: #4569/main.vue */

@@ -56,7 +56,7 @@ python3 tools/agent-review/cli/python/agent_cli.py validate \
 # 🎯 Priorisierte Action Items
 ```
 
-## 3. Fixes implementieren (Beispiel aus deiner aktuellen Situation)
+## 3. Fixes implementieren
 
 ### Fix 1: Store-Integration Problem lösen
 

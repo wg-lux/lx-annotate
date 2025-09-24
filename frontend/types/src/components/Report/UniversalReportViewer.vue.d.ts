@@ -16,9 +16,9 @@ declare const _default: import("vue").DefineComponent<Props, {
     validateUrl: typeof handleValidateUrl;
     clearReport: () => void;
 }, {}, {}, {}, import("vue").ComponentOptionsMixin, import("vue").ComponentOptionsMixin, {
+    error: (error: string) => any;
     reportLoaded: (report: ReportData) => any;
     urlExpired: () => any;
-    error: (error: string) => any;
 }, string, import("vue").PublicProps, Readonly<Props> & Readonly<{
     onError?: ((error: string) => any) | undefined;
     onReportLoaded?: ((report: ReportData) => any) | undefined;
@@ -29,5 +29,5 @@ declare const _default: import("vue").DefineComponent<Props, {
     showMetaInfo: boolean;
     autoRefresh: boolean;
     refreshInterval: number;
-}, {}, {}, {}, string, import("vue").ComponentProvideOptions, false, {}, HTMLDivElement>;
+}, {}, {}, {}, string, import("vue").ComponentProvideOptions, false, {}, any>;
 export default _default;

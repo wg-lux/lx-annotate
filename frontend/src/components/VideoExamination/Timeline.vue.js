@@ -104,6 +104,7 @@ const toCanonical = (s) => {
 const selectedLabel = ref(null);
 const selectSegment = (segment) => {
     selectedLabel.value = segment.label; // ✅ FIX: Use segment.label instead of segment.label_name
+    // ✅ FIXED: Cast to TimelineSegment for type safety
     emit('segment-select', segment);
 };
 // ✅ FIX: Add getTranslationForLabel function from videoStore
@@ -311,6 +312,7 @@ const initializeDragResize = () => {
                             localSegment.startTime = startS;
                             localSegment.endTime = endS;
                         }
+                        // ✅ FIXED: Ensure mode is typed correctly
                         emit('segment-resize', segment.id, startS, endS, edge);
                     },
                     onDone: () => {
@@ -319,12 +321,14 @@ const initializeDragResize = () => {
                             // Handle draft segments differently
                             if (typeof segment.id === 'string' &&
                                 (segment.id === 'draft' || segment.id.startsWith('temp-'))) {
-                                emit('segment-resize', segment.id, localSegment.start, localSegment.end, 'end', true);
+                                // ✅ FIXED: Use correct emit parameters for final resize
+                                emit('segment-move', segment.id, localSegment.start, localSegment.end, true);
                             }
                             else {
                                 const numericId = getNumericSegmentId(segment.id);
                                 if (numericId !== null) {
-                                    emit('segment-resize', numericId, localSegment.start, localSegment.end, 'end', true);
+                                    // ✅ FIXED: Use correct emit parameters for final move
+                                    emit('segment-move', numericId, localSegment.start, localSegment.end, true);
                                 }
                             }
                         }
@@ -354,12 +358,14 @@ const editSegment = (segment) => {
     if (!segment)
         return;
     hideContextMenu();
+    // ✅ FIXED: Cast to TimelineSegment for type safety
     emit('segment-edit', segment);
 };
 const deleteSegment = (segment) => {
     if (!segment)
         return;
     hideContextMenu();
+    // ✅ FIXED: Cast to TimelineSegment for type safety
     emit('segment-delete', segment);
 };
 const playSegment = (segment) => {
@@ -418,7 +424,9 @@ const onSelectionMouseUp = (event) => {
     const endTime = (endPercent / 100) * duration.value;
     // Only create segment if selection is meaningful (> 0.1 seconds)
     if (endTime - startTime > 0.1) {
-        emit('time-selection', { start: startTime, end: endTime });
+        // ✅ FIXED: Use properly typed payload
+        const timeSelectionData = { start: startTime, end: endTime };
+        emit('time-selection', timeSelectionData);
     }
     // Cleanup
     isSelecting.value = false;
@@ -527,269 +535,322 @@ const getNumericSegmentId = (segmentId) => {
     console.error('[Timeline] Unexpected segment ID type:', typeof segmentId, segmentId);
     return null;
 };
-; /* PartiallyEnd: #3632/scriptSetup.vue */
-function __VLS_template() {
-    const __VLS_ctx = {};
-    let __VLS_components;
-    let __VLS_directives;
-    ['play-btn', 'play-btn', 'zoom-controls', 'zoom-controls', 'zoom-controls', 'segment-row', 'segment', 'segment', 'segment', 'context-menu-item', 'context-menu-item', 'context-menu-item', 'resize-handle', 'segment', 'resize-handle', 'resize-handle', 'resize-handle', 'resize-handle', 'segment', 'segment',];
-    // CSS variable injection 
-    // CSS variable injection end 
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("timeline-container") },
+debugger; /* PartiallyEnd: #3632/scriptSetup.vue */
+const __VLS_ctx = {};
+let __VLS_components;
+let __VLS_directives;
+/** @type {__VLS_StyleScopedClasses['play-btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['play-btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['zoom-controls']} */ ;
+/** @type {__VLS_StyleScopedClasses['zoom-controls']} */ ;
+/** @type {__VLS_StyleScopedClasses['zoom-controls']} */ ;
+/** @type {__VLS_StyleScopedClasses['segment-row']} */ ;
+/** @type {__VLS_StyleScopedClasses['segment']} */ ;
+/** @type {__VLS_StyleScopedClasses['segment']} */ ;
+/** @type {__VLS_StyleScopedClasses['segment']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-menu-item']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-menu-item']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-menu-item']} */ ;
+/** @type {__VLS_StyleScopedClasses['resize-handle']} */ ;
+/** @type {__VLS_StyleScopedClasses['segment']} */ ;
+/** @type {__VLS_StyleScopedClasses['resize-handle']} */ ;
+/** @type {__VLS_StyleScopedClasses['resize-handle']} */ ;
+/** @type {__VLS_StyleScopedClasses['resize-handle']} */ ;
+/** @type {__VLS_StyleScopedClasses['resize-handle']} */ ;
+/** @type {__VLS_StyleScopedClasses['segment']} */ ;
+/** @type {__VLS_StyleScopedClasses['segment']} */ ;
+// CSS variable injection 
+// CSS variable injection end 
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "timeline-container" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "timeline-header" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "timeline-controls" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+    ...{ onClick: (__VLS_ctx.playPause) },
+    ...{ class: "play-btn" },
+    disabled: (!__VLS_ctx.video),
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+    ...{ class: (__VLS_ctx.isPlaying ? 'fas fa-pause' : 'fas fa-play') },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+    ...{ class: "time-display" },
+});
+(__VLS_ctx.formatTime(__VLS_ctx.currentTime));
+(__VLS_ctx.formatTime(__VLS_ctx.duration));
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "zoom-controls" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+    ...{ onClick: (__VLS_ctx.zoomOut) },
+    disabled: (__VLS_ctx.zoomLevel <= 1),
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+    ...{ class: "fas fa-search-minus" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+    ...{ class: "zoom-level" },
+});
+(Math.round(__VLS_ctx.zoomLevel * 100));
+__VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+    ...{ onClick: (__VLS_ctx.zoomIn) },
+    disabled: (__VLS_ctx.zoomLevel >= 5),
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+    ...{ class: "fas fa-search-plus" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "timeline-wrapper" },
+    ...{ style: ({ height: __VLS_ctx.timelineHeight + 'px' }) },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ onMousedown: (__VLS_ctx.onTimelineMouseDown) },
+    ...{ class: "timeline" },
+    ref: "timeline",
+    ...{ style: ({ height: __VLS_ctx.timelineHeight + 'px' }) },
+});
+/** @type {typeof __VLS_ctx.timeline} */ ;
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "time-markers" },
+});
+for (const [marker] of __VLS_getVForSourceType((__VLS_ctx.timeMarkers))) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        key: (marker.time),
+        ...{ class: "time-marker" },
+        ...{ style: ({ left: marker.position + '%' }) },
     });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("timeline-header") },
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "marker-line" },
+        ...{ style: ({ height: __VLS_ctx.timelineHeight + 'px' }) },
     });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("timeline-controls") },
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "marker-text" },
     });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-        ...{ onClick: (__VLS_ctx.playPause) },
-        ...{ class: ("play-btn") },
-        disabled: ((!__VLS_ctx.video)),
+    (__VLS_ctx.formatTime(marker.time));
+}
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "segments-container" },
+});
+for (const [row] of __VLS_getVForSourceType((__VLS_ctx.segmentRows))) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        key: (row.key),
+        ...{ class: "segment-row" },
+        ...{ class: ({ 'active': row.label === __VLS_ctx.selectedLabel }) },
+        ...{ style: ({
+                top: (row.rowNumber * 45) + 'px',
+                height: '40px'
+            }) },
     });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: ((__VLS_ctx.isPlaying ? 'fas fa-pause' : 'fas fa-play')) },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-        ...{ class: ("time-display") },
-    });
-    (__VLS_ctx.formatTime(__VLS_ctx.currentTime));
-    (__VLS_ctx.formatTime(__VLS_ctx.duration));
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("zoom-controls") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-        ...{ onClick: (__VLS_ctx.zoomOut) },
-        disabled: ((__VLS_ctx.zoomLevel <= 1)),
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: ("fas fa-search-minus") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-        ...{ class: ("zoom-level") },
-    });
-    (Math.round(__VLS_ctx.zoomLevel * 100));
-    __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-        ...{ onClick: (__VLS_ctx.zoomIn) },
-        disabled: ((__VLS_ctx.zoomLevel >= 5)),
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: ("fas fa-search-plus") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("timeline-wrapper") },
-        ...{ style: (({ height: __VLS_ctx.timelineHeight + 'px' })) },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ onMousedown: (__VLS_ctx.onTimelineMouseDown) },
-        ...{ class: ("timeline") },
-        ref: ("timeline"),
-        ...{ style: (({ height: __VLS_ctx.timelineHeight + 'px' })) },
-    });
-    // @ts-ignore navigation for `const timeline = ref()`
-    /** @type { typeof __VLS_ctx.timeline } */ ;
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("time-markers") },
-    });
-    for (const [marker] of __VLS_getVForSourceType((__VLS_ctx.timeMarkers))) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            key: ((marker.time)),
-            ...{ class: ("time-marker") },
-            ...{ style: (({ left: marker.position + '%' })) },
+    for (const [segment] of __VLS_getVForSourceType((row.segments))) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ onClick: (...[$event]) => {
+                    __VLS_ctx.selectSegment(segment);
+                } },
+            ...{ onContextmenu: (...[$event]) => {
+                    __VLS_ctx.showSegmentMenu(segment, $event);
+                } },
+            key: (segment.id),
+            ref: "segmentElements",
+            ...{ class: "segment" },
+            ...{ class: ({
+                    'active': segment.id === __VLS_ctx.activeSegmentId,
+                    'draft': segment.isDraft,
+                }) },
+            ...{ style: ({
+                    left: __VLS_ctx.getSegmentPosition(segment.start) + '%',
+                    width: __VLS_ctx.getSegmentWidth(segment.start, segment.end) + '%',
+                    backgroundColor: segment.color || __VLS_ctx.getColorForLabel(segment.label),
+                    borderColor: segment.isDraft ? '#ff9800' : 'transparent'
+                }) },
+            'data-id': (segment.id),
         });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("marker-line") },
-            ...{ style: (({ height: __VLS_ctx.timelineHeight + 'px' })) },
+        /** @type {typeof __VLS_ctx.segmentElements} */ ;
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "resize-handle start-handle" },
+            title: ('Segment-Start ändern'),
         });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("marker-text") },
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: "fas fa-grip-lines-vertical" },
         });
-        (__VLS_ctx.formatTime(marker.time));
-    }
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("segments-container") },
-    });
-    for (const [row] of __VLS_getVForSourceType((__VLS_ctx.segmentRows))) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            key: ((row.key)),
-            ...{ class: ("segment-row") },
-            ...{ class: (({ 'active': row.label === __VLS_ctx.selectedLabel })) },
-            ...{ style: (({
-                    top: (row.rowNumber * 45) + 'px',
-                    height: '40px'
-                })) },
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "segment-content" },
         });
-        for (const [segment] of __VLS_getVForSourceType((row.segments))) {
-            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ onClick: (...[$event]) => {
-                        __VLS_ctx.selectSegment(segment);
-                    } },
-                ...{ onContextmenu: (...[$event]) => {
-                        __VLS_ctx.showSegmentMenu(segment, $event);
-                    } },
-                key: ((segment.id)),
-                ref: ("segmentElements"),
-                ...{ class: ("segment") },
-                ...{ class: (({
-                        'active': segment.id === __VLS_ctx.activeSegmentId,
-                        'draft': segment.isDraft,
-                    })) },
-                ...{ style: (({
-                        left: __VLS_ctx.getSegmentPosition(segment.start) + '%',
-                        width: __VLS_ctx.getSegmentWidth(segment.start, segment.end) + '%',
-                        backgroundColor: segment.color || __VLS_ctx.getColorForLabel(segment.label),
-                        borderColor: segment.isDraft ? '#ff9800' : 'transparent'
-                    })) },
-                'data-id': ((segment.id)),
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+            ...{ class: "segment-label" },
+        });
+        (__VLS_ctx.getTranslationForLabel(segment.label));
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+            ...{ class: "segment-duration" },
+        });
+        (__VLS_ctx.formatDuration(segment.start, segment.end));
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ onClick: (...[$event]) => {
+                    __VLS_ctx.deleteSegment(segment);
+                } },
+            ...{ class: "segment-delete-btn" },
+            title: ('Segment löschen'),
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "resize-handle end-handle" },
+            title: ('Segment-Ende ändern'),
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: "fas fa-grip-lines-vertical" },
+        });
+        if (segment.isDraft) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: "draft-indicator" },
             });
-            // @ts-ignore navigation for `const segmentElements = ref()`
-            /** @type { typeof __VLS_ctx.segmentElements } */ ;
-            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: ("resize-handle start-handle") },
-                title: (('Segment-Start ändern')),
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                ...{ class: "fas fa-edit" },
             });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: ("fas fa-grip-lines-vertical") },
-            });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: ("segment-content") },
-            });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-                ...{ class: ("segment-label") },
-            });
-            (__VLS_ctx.getTranslationForLabel(segment.label));
-            __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-                ...{ class: ("segment-duration") },
-            });
-            (__VLS_ctx.formatDuration(segment.start, segment.end));
-            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ onClick: (...[$event]) => {
-                        __VLS_ctx.deleteSegment(segment);
-                    } },
-                ...{ class: ("segment-delete-btn") },
-                title: (('Segment löschen')),
-            });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: ("resize-handle end-handle") },
-                title: (('Segment-Ende ändern')),
-            });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: ("fas fa-grip-lines-vertical") },
-            });
-            if (segment.isDraft) {
-                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                    ...{ class: ("draft-indicator") },
-                });
-                __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                    ...{ class: ("fas fa-edit") },
-                });
-            }
         }
     }
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("playhead") },
-        ...{ style: (({ left: __VLS_ctx.playheadPosition + '%', height: __VLS_ctx.timelineHeight + 'px' })) },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("playhead-line") },
-        ...{ style: (({ height: __VLS_ctx.timelineHeight + 'px' })) },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("playhead-handle") },
-    });
-    if (__VLS_ctx.isSelecting) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("selection-overlay") },
-            ...{ style: (({
-                    left: Math.min(__VLS_ctx.selectionStart, __VLS_ctx.selectionEnd) + '%',
-                    width: Math.abs(__VLS_ctx.selectionEnd - __VLS_ctx.selectionStart) + '%',
-                    height: __VLS_ctx.timelineHeight + 'px'
-                })) },
-        });
-    }
-    if (__VLS_ctx.showWaveform) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("waveform-container") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.canvas, __VLS_intrinsicElements.canvas)({
-            ref: ("waveformCanvas"),
-            ...{ class: ("waveform-canvas") },
-        });
-        // @ts-ignore navigation for `const waveformCanvas = ref()`
-        /** @type { typeof __VLS_ctx.waveformCanvas } */ ;
-    }
-    if (__VLS_ctx.contextMenu.visible) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ onClick: () => { } },
-            ...{ class: ("context-menu") },
-            ...{ style: (({ left: __VLS_ctx.contextMenu.x + 'px', top: __VLS_ctx.contextMenu.y + 'px' })) },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ onClick: (...[$event]) => {
-                    if (!((__VLS_ctx.contextMenu.visible)))
-                        return;
-                    __VLS_ctx.editSegment(__VLS_ctx.contextMenu.segment);
-                } },
-            ...{ class: ("context-menu-item") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: ("fas fa-edit") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ onClick: (...[$event]) => {
-                    if (!((__VLS_ctx.contextMenu.visible)))
-                        return;
-                    __VLS_ctx.deleteSegment(__VLS_ctx.contextMenu.segment);
-                } },
-            ...{ class: ("context-menu-item danger") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: ("fas fa-trash") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("context-menu-separator") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ onClick: (...[$event]) => {
-                    if (!((__VLS_ctx.contextMenu.visible)))
-                        return;
-                    __VLS_ctx.playSegment(__VLS_ctx.contextMenu.segment);
-                } },
-            ...{ class: ("context-menu-item") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: ("fas fa-play") },
-        });
-    }
-    if (__VLS_ctx.tooltip.visible) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("timeline-tooltip") },
-            ...{ style: (({ left: __VLS_ctx.tooltip.x + 'px', top: __VLS_ctx.tooltip.y + 'px' })) },
-        });
-        (__VLS_ctx.tooltip.text);
-    }
-    ['timeline-container', 'timeline-header', 'timeline-controls', 'play-btn', 'time-display', 'zoom-controls', 'fas', 'fa-search-minus', 'zoom-level', 'fas', 'fa-search-plus', 'timeline-wrapper', 'timeline', 'time-markers', 'time-marker', 'marker-line', 'marker-text', 'segments-container', 'segment-row', 'active', 'segment', 'active', 'draft', 'resize-handle', 'start-handle', 'fas', 'fa-grip-lines-vertical', 'segment-content', 'segment-label', 'segment-duration', 'segment-delete-btn', 'resize-handle', 'end-handle', 'fas', 'fa-grip-lines-vertical', 'draft-indicator', 'fas', 'fa-edit', 'playhead', 'playhead-line', 'playhead-handle', 'selection-overlay', 'waveform-container', 'waveform-canvas', 'context-menu', 'context-menu-item', 'fas', 'fa-edit', 'context-menu-item', 'danger', 'fas', 'fa-trash', 'context-menu-separator', 'context-menu-item', 'fas', 'fa-play', 'timeline-tooltip',];
-    var __VLS_slots;
-    var $slots;
-    let __VLS_inheritedAttrs;
-    var $attrs;
-    const __VLS_refs = {
-        'timeline': __VLS_nativeElements['div'],
-        'segmentElements': [__VLS_nativeElements['div']],
-        'waveformCanvas': __VLS_nativeElements['canvas'],
-    };
-    var $refs;
-    var $el;
-    return {
-        attrs: {},
-        slots: __VLS_slots,
-        refs: $refs,
-        rootEl: $el,
-    };
 }
-;
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "playhead" },
+    ...{ style: ({ left: __VLS_ctx.playheadPosition + '%', height: __VLS_ctx.timelineHeight + 'px' }) },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "playhead-line" },
+    ...{ style: ({ height: __VLS_ctx.timelineHeight + 'px' }) },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "playhead-handle" },
+});
+if (__VLS_ctx.isSelecting) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "selection-overlay" },
+        ...{ style: ({
+                left: Math.min(__VLS_ctx.selectionStart, __VLS_ctx.selectionEnd) + '%',
+                width: Math.abs(__VLS_ctx.selectionEnd - __VLS_ctx.selectionStart) + '%',
+                height: __VLS_ctx.timelineHeight + 'px'
+            }) },
+    });
+}
+if (__VLS_ctx.showWaveform) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "waveform-container" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.canvas, __VLS_intrinsicElements.canvas)({
+        ref: "waveformCanvas",
+        ...{ class: "waveform-canvas" },
+    });
+    /** @type {typeof __VLS_ctx.waveformCanvas} */ ;
+}
+if (__VLS_ctx.contextMenu.visible) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ onClick: () => { } },
+        ...{ class: "context-menu" },
+        ...{ style: ({ left: __VLS_ctx.contextMenu.x + 'px', top: __VLS_ctx.contextMenu.y + 'px' }) },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ onClick: (...[$event]) => {
+                if (!(__VLS_ctx.contextMenu.visible))
+                    return;
+                __VLS_ctx.editSegment(__VLS_ctx.contextMenu.segment);
+            } },
+        ...{ class: "context-menu-item" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+        ...{ class: "fas fa-edit" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ onClick: (...[$event]) => {
+                if (!(__VLS_ctx.contextMenu.visible))
+                    return;
+                __VLS_ctx.deleteSegment(__VLS_ctx.contextMenu.segment);
+            } },
+        ...{ class: "context-menu-item danger" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+        ...{ class: "fas fa-trash" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "context-menu-separator" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ onClick: (...[$event]) => {
+                if (!(__VLS_ctx.contextMenu.visible))
+                    return;
+                __VLS_ctx.playSegment(__VLS_ctx.contextMenu.segment);
+            } },
+        ...{ class: "context-menu-item" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+        ...{ class: "fas fa-play" },
+    });
+}
+if (__VLS_ctx.tooltip.visible) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "timeline-tooltip" },
+        ...{ style: ({ left: __VLS_ctx.tooltip.x + 'px', top: __VLS_ctx.tooltip.y + 'px' }) },
+    });
+    (__VLS_ctx.tooltip.text);
+}
+/** @type {__VLS_StyleScopedClasses['timeline-container']} */ ;
+/** @type {__VLS_StyleScopedClasses['timeline-header']} */ ;
+/** @type {__VLS_StyleScopedClasses['timeline-controls']} */ ;
+/** @type {__VLS_StyleScopedClasses['play-btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['time-display']} */ ;
+/** @type {__VLS_StyleScopedClasses['zoom-controls']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-search-minus']} */ ;
+/** @type {__VLS_StyleScopedClasses['zoom-level']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-search-plus']} */ ;
+/** @type {__VLS_StyleScopedClasses['timeline-wrapper']} */ ;
+/** @type {__VLS_StyleScopedClasses['timeline']} */ ;
+/** @type {__VLS_StyleScopedClasses['time-markers']} */ ;
+/** @type {__VLS_StyleScopedClasses['time-marker']} */ ;
+/** @type {__VLS_StyleScopedClasses['marker-line']} */ ;
+/** @type {__VLS_StyleScopedClasses['marker-text']} */ ;
+/** @type {__VLS_StyleScopedClasses['segments-container']} */ ;
+/** @type {__VLS_StyleScopedClasses['segment-row']} */ ;
+/** @type {__VLS_StyleScopedClasses['active']} */ ;
+/** @type {__VLS_StyleScopedClasses['segment']} */ ;
+/** @type {__VLS_StyleScopedClasses['active']} */ ;
+/** @type {__VLS_StyleScopedClasses['draft']} */ ;
+/** @type {__VLS_StyleScopedClasses['resize-handle']} */ ;
+/** @type {__VLS_StyleScopedClasses['start-handle']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-grip-lines-vertical']} */ ;
+/** @type {__VLS_StyleScopedClasses['segment-content']} */ ;
+/** @type {__VLS_StyleScopedClasses['segment-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['segment-duration']} */ ;
+/** @type {__VLS_StyleScopedClasses['segment-delete-btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['resize-handle']} */ ;
+/** @type {__VLS_StyleScopedClasses['end-handle']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-grip-lines-vertical']} */ ;
+/** @type {__VLS_StyleScopedClasses['draft-indicator']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-edit']} */ ;
+/** @type {__VLS_StyleScopedClasses['playhead']} */ ;
+/** @type {__VLS_StyleScopedClasses['playhead-line']} */ ;
+/** @type {__VLS_StyleScopedClasses['playhead-handle']} */ ;
+/** @type {__VLS_StyleScopedClasses['selection-overlay']} */ ;
+/** @type {__VLS_StyleScopedClasses['waveform-container']} */ ;
+/** @type {__VLS_StyleScopedClasses['waveform-canvas']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-menu']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-menu-item']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-edit']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-menu-item']} */ ;
+/** @type {__VLS_StyleScopedClasses['danger']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-trash']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-menu-separator']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-menu-item']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-play']} */ ;
+/** @type {__VLS_StyleScopedClasses['timeline-tooltip']} */ ;
+var __VLS_dollars;
 const __VLS_self = (await import('vue')).defineComponent({
     setup() {
         return {
@@ -834,7 +895,5 @@ export default (await import('vue')).defineComponent({
     },
     __typeEmits: {},
     __typeProps: {},
-    __typeRefs: {},
-    __typeEl: {},
 });
 ; /* PartiallyEnd: #4569/main.vue */

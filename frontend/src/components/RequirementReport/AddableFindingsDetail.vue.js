@@ -7,6 +7,7 @@ import { usePatientExaminationStore } from '@/stores/patientExaminationStore';
 import { useExaminationStore } from '@/stores/examinationStore';
 import { useFindingClassificationStore } from '@/stores/findingClassificationStore';
 import { deepMutable } from '@/utils/deepMutable';
+import { filterNecessaryFindings } from '@/utils/findingFilters';
 // Store instances
 const patientExaminationStore = usePatientExaminationStore();
 const findingClassificationStore = useFindingClassificationStore();
@@ -62,7 +63,11 @@ const addedFindings = ref([]);
  * Returns the patient examination ID from props if provided,
  * otherwise falls back to the store value.
  */
-const resolvedPatientExaminationId = computed(() => props.patientExaminationId ?? patientExaminationStore.getCurrentPatientExaminationId());
+const resolvedPatientExaminationId = computed(() => {
+    const resolved = props.patientExaminationId ?? patientExaminationStore.getCurrentPatientExaminationId();
+    console.log('🔍 [DEBUG] resolvedPatientExaminationId:', resolved);
+    return resolved;
+});
 /**
  * Available findings for the current examination
  *
@@ -70,8 +75,20 @@ const resolvedPatientExaminationId = computed(() => props.patientExaminationId ?
  * This is filtered based on the examination context.
  */
 const availableFindings = computed(() => {
+    console.log('🔍 [DEBUG] availableFindings computed - availableExaminationFindings.value:', availableExaminationFindings.value);
+    console.log('🔍 [DEBUG] availableFindings computed - count:', availableExaminationFindings.value.length);
+    if (availableExaminationFindings.value.length > 0) {
+        console.log('🔍 [DEBUG] availableFindings computed - erste 3 Findings:', availableExaminationFindings.value.slice(0, 3));
+    }
     return availableExaminationFindings.value;
 });
+/**
+ * Necessary findings (computed from availableFindings)
+ *
+ * Returns findings that have at least one required classification.
+ * Uses the filterNecessaryFindings utility for consistent logic.
+ */
+const necessaryFindings = computed(() => filterNecessaryFindings(availableFindings.value));
 /**
  * Fetched added findings (computed async)
  *
@@ -190,35 +207,69 @@ async function loadAddedFindingsForCurrentExam() {
             const pfFindingId = typeof pf.finding === 'number' ? pf.finding : pf.finding?.id;
             return f.id === pfFindingId;
         });
-        if (correspondingFinding) {
-            const enhanced = {
-                ...correspondingFinding,
-                patientFindingId: pf.id,
-                patientClassifications: pf.classifications?.map(cls => ({
+        if (!correspondingFinding)
+            return null;
+        // 🔒 SAFETY: Only treat pf.classifications as patient-side if the shape fits
+        const pcs = Array.isArray(pf.classifications)
+            && pf.classifications.length > 0
+            && 'classification_choice' in pf.classifications[0]
+            ? pf.classifications
+            : [];
+        // 🛡️ DEFENSE: Debug invalid classifications before filtering
+        const invalidClassifications = pcs.filter((cls) => !cls.classification || !cls.classification_choice);
+        if (invalidClassifications.length > 0) {
+            console.warn('🚨 [AddableFindingsDetail] Found invalid classifications:', {
+                findingId: correspondingFinding.id,
+                findingName: correspondingFinding.name,
+                invalidCount: invalidClassifications.length,
+                invalidClassifications: invalidClassifications.map((cls) => ({
                     id: cls.id,
-                    classification: {
-                        id: cls.classification.id,
-                        name: cls.classification.name || 'Unnamed Classification',
-                        description: cls.classification.description
-                    },
-                    choice: {
-                        id: cls.classification_choice.id,
-                        name: cls.classification_choice.name,
-                        description: undefined // FindingClassificationChoice doesn't have description
-                    },
-                    is_active: cls.is_active
-                })) || []
-            };
-            console.log('🔧 [AddableFindingsDetail] Enhanced finding with classifications:', {
-                findingId: enhanced.id,
-                name: enhanced.name,
-                classificationsCount: enhanced.patientClassifications?.length || 0,
-                rawClassifications: pf.classifications,
-                patientFindingId: pf.id
+                    hasClassification: !!cls.classification,
+                    hasClassificationChoice: !!cls.classification_choice,
+                    classification: cls.classification,
+                    classificationChoice: cls.classification_choice
+                }))
             });
-            return enhanced;
         }
-        return correspondingFinding;
+        const enhanced = {
+            ...correspondingFinding,
+            patientFindingId: pf.id,
+            patientClassifications: pcs
+                .filter((cls) => {
+                const isValid = cls.classification && cls.classification_choice;
+                if (!isValid) {
+                    console.warn('🚫 [AddableFindingsDetail] Filtering out invalid classification:', {
+                        id: cls.id,
+                        hasClassification: !!cls.classification,
+                        hasClassificationChoice: !!cls.classification_choice
+                    });
+                }
+                return isValid;
+            })
+                .map((cls) => ({
+                id: cls.id,
+                classification: {
+                    id: cls.classification.id,
+                    name: cls.classification.name,
+                    description: cls.classification.description ?? null
+                },
+                choice: {
+                    id: cls.classification_choice.id,
+                    name: cls.classification_choice.name,
+                    description: undefined // FindingClassificationChoice doesn't have description
+                },
+                is_active: cls.is_active
+            }))
+        };
+        console.log('🔧 [AddableFindingsDetail] Enhanced finding with classifications:', {
+            findingId: enhanced.id,
+            name: enhanced.name,
+            patientClassificationsCount: enhanced.patientClassifications?.length || 0,
+            rawClassificationsType: Array.isArray(pf.classifications) && pf.classifications.length > 0 ?
+                ('classification_choice' in pf.classifications[0] ? 'patient-side' : 'definition-side') : 'none',
+            patientFindingId: pf.id
+        });
+        return enhanced;
     }).filter((finding) => finding !== null);
     addedFindings.value = enhancedFindings;
     console.log('✅ [AddableFindingsDetail] Final addedFindings:', addedFindings.value);
@@ -336,20 +387,41 @@ const addFindingToExamination = async () => {
         const newPatientFinding = await patientFindingStore.createPatientFinding(findingData);
         // WICHTIG: Store sollte automatisch aktualisiert werden, aber erzwinge lokale UI-Update
         console.log('✅ Finding created, updating UI directly');
+        // 🎯 IMMEDIATE UI FEEDBACK: Create patient classifications for immediate display
+        const defs = findingClassifications.value; // definitions for selected finding
+        const immediatePatientClassifications = defs
+            .filter(d => selectedChoices.value[d.id])
+            .map(d => ({
+            id: -1, // temporary ID
+            classification: {
+                id: d.id,
+                name: d.name ?? 'Unnamed Classification',
+                description: d.description
+            },
+            choice: {
+                id: selectedChoices.value[d.id],
+                name: d.choices?.find(c => c.id === selectedChoices.value[d.id])?.name ?? String(selectedChoices.value[d.id]),
+                description: undefined
+            },
+            is_active: true,
+        }));
         // Füge direkt zur lokalen Liste hinzu (sofortige UI-Update)
         const newFindingId = newPatientFinding.finding.id;
         const createdFinding = findingClassificationStore.getFindingById(newFindingId);
         if (createdFinding) {
             console.log('📋 Found created finding in store, using store version');
-            const enhancedCreatedFinding = {
-                ...deepMutable(createdFinding),
-                patientFindingId: newPatientFinding.id,
-                patientClassifications: newPatientFinding.classifications?.map(cls => ({
+            // 🔒 SAFETY: Check if server returned proper patient classifications
+            const serverPatientClassifications = Array.isArray(newPatientFinding.classifications)
+                && newPatientFinding.classifications.length > 0
+                && 'classification_choice' in newPatientFinding.classifications[0]
+                ? newPatientFinding.classifications
+                    .filter((cls) => cls.classification && cls.classification_choice) // Filter out invalid
+                    .map((cls) => ({
                     id: cls.id,
                     classification: {
                         id: cls.classification.id,
-                        name: cls.classification.name || 'Unnamed Classification',
-                        description: cls.classification.description
+                        name: cls.classification.name,
+                        description: cls.classification.description ?? null
                     },
                     choice: {
                         id: cls.classification_choice.id,
@@ -357,7 +429,14 @@ const addFindingToExamination = async () => {
                         description: undefined
                     },
                     is_active: cls.is_active
-                })) || []
+                }))
+                : [];
+            const enhancedCreatedFinding = {
+                ...deepMutable(createdFinding),
+                patientFindingId: newPatientFinding.id,
+                patientClassifications: serverPatientClassifications.length > 0
+                    ? serverPatientClassifications
+                    : immediatePatientClassifications
             };
             addedFindings.value.push(enhancedCreatedFinding);
         }
@@ -366,20 +445,7 @@ const addFindingToExamination = async () => {
             const enhancedResponseFinding = {
                 ...deepMutable(newPatientFinding.finding),
                 patientFindingId: newPatientFinding.id,
-                patientClassifications: newPatientFinding.classifications?.map(cls => ({
-                    id: cls.id,
-                    classification: {
-                        id: cls.classification.id,
-                        name: cls.classification.name || 'Unnamed Classification',
-                        description: cls.classification.description
-                    },
-                    choice: {
-                        id: cls.classification_choice.id,
-                        name: cls.classification_choice.name,
-                        description: undefined
-                    },
-                    is_active: cls.is_active
-                })) || []
+                patientClassifications: immediatePatientClassifications // Use immediate for fallback
             };
             addedFindings.value.push(enhancedResponseFinding);
         }
@@ -423,7 +489,7 @@ const loadFindingsAndClassifications = async (examinationId) => {
         }
         // Load findings from the API
         const response = await axiosInstance.get(`/api/examinations/${examinationId}/findings`);
-        const findings = response.data;
+        const findings = response?.data || [];
         findingClassificationStore.setClassificationChoicesFromLookup(findings);
         console.log('Loaded findings for examination:', findings.length);
     }
@@ -439,24 +505,31 @@ const loadFindingsAndClassifications = async (examinationId) => {
 const loadAvailableFindingsForPatientExamination = async () => {
     try {
         loading.value = true;
+        console.log('🔍 [DEBUG] Props:', { examinationId: props.examinationId, patientExaminationId: props.patientExaminationId });
         // Priorisiere props.examinationId, falls verfügbar
         let examId = props.examinationId;
         if (!examId && props.patientExaminationId) {
             // Hole Examination ID aus PatientExamination
             const patientExamination = patientExaminationStore.getPatientExaminationById(props.patientExaminationId);
+            console.log('🔍 [DEBUG] PatientExamination gefunden:', patientExamination);
+            console.log('🔍 [DEBUG] Examination in PatientExamination:', patientExamination?.examination);
             examId = patientExamination?.examination?.id;
+            console.log('🔍 [DEBUG] Extrahierte examId:', examId);
         }
         if (!examId) {
-            console.warn('Keine Examination ID verfügbar für Findings-Laden');
+            console.warn('⚠️ Keine Examination ID verfügbar für Findings-Laden');
             return;
         }
+        console.log('🔄 [DEBUG] Lade Findings für Examination ID:', examId);
         // Verwende den korrigierten Store-Aufruf
         const findings = await examinationStore.loadFindingsForExamination(examId);
-        availableExaminationFindings.value = findings.map((f) => deepMutable(f));
-        console.log('📋 [AddableFindingsDetail] Loaded findings for examinationId:', examId, 'findings count:', findings.length);
+        const safeFindings = Array.isArray(findings) ? findings : [];
+        availableExaminationFindings.value = safeFindings.map((f) => deepMutable(f));
+        console.log('📋 [DEBUG] Geladene Findings für examinationId:', examId, 'findings count:', findings.length);
+        console.log('📋 [DEBUG] Findings Details:', findings);
     }
     catch (error) {
-        console.error('Error loading available findings:', error);
+        console.error('❌ Error loading available findings:', error);
         emit('finding-error', 'Fehler beim Laden der verfügbaren Befunde');
     }
     finally {
@@ -504,440 +577,654 @@ onMounted(async () => {
     });
     await loadFindingsAndClassificationsNew();
 });
-; /* PartiallyEnd: #3632/scriptSetup.vue */
+debugger; /* PartiallyEnd: #3632/scriptSetup.vue */
 const __VLS_withDefaultsArg = (function (t) { return t; })({
     patientExaminationId: undefined,
     examinationId: undefined
 });
-function __VLS_template() {
-    const __VLS_ctx = {};
-    let __VLS_components;
-    let __VLS_directives;
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("addable-finding-card card mb-3 border-primary") },
+const __VLS_ctx = {};
+let __VLS_components;
+let __VLS_directives;
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "addable-finding-card card mb-3 border-primary" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "card-header d-flex justify-content-between align-items-center bg-light" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "d-flex align-items-center gap-2" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+    ...{ class: "fas fa-plus-circle text-primary" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({
+    ...{ class: "card-title mb-0" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.ul, __VLS_intrinsicElements.ul)({
+    ...{ class: "nav nav-tabs card-header-tabs" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({
+    ...{ class: "nav-item" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.a, __VLS_intrinsicElements.a)({
+    ...{ onClick: (...[$event]) => {
+            __VLS_ctx.activeTab = 'available';
+        } },
+    ...{ class: "nav-link" },
+    ...{ class: ({ active: __VLS_ctx.activeTab === 'available' }) },
+    href: "#",
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+    ...{ class: "fas fa-list me-1" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+    ...{ class: "badge rounded-pill bg-primary ms-1" },
+});
+(__VLS_ctx.availableFindings.length);
+__VLS_asFunctionalElement(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({
+    ...{ class: "nav-item" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.a, __VLS_intrinsicElements.a)({
+    ...{ onClick: (__VLS_ctx.switchToAddedTab) },
+    ...{ class: "nav-link" },
+    ...{ class: ({ active: __VLS_ctx.activeTab === 'added' }) },
+    href: "#",
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+    ...{ class: "fas fa-check-circle me-1" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+    ...{ class: "badge rounded-pill bg-success ms-1" },
+});
+(__VLS_ctx.addedFindings.length);
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "card-body" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
+__VLS_asFunctionalDirective(__VLS_directives.vShow)(null, { ...__VLS_directiveBindingRestFields, value: (__VLS_ctx.activeTab === 'available') }, null, null);
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "d-flex justify-content-end mb-3" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+    ...{ onClick: (...[$event]) => {
+            __VLS_ctx.showFindingSelector = !__VLS_ctx.showFindingSelector;
+        } },
+    ...{ class: "btn btn-sm btn-primary" },
+    disabled: (__VLS_ctx.loading),
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+    ...{ class: "fas" },
+    ...{ class: (__VLS_ctx.showFindingSelector ? 'fa-minus' : 'fa-plus') },
+});
+(__VLS_ctx.showFindingSelector ? 'Auswahl ausblenden' : 'Befund auswählen');
+if (__VLS_ctx.showFindingSelector) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "mb-3 finding-selector" },
     });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("card-header d-flex justify-content-between align-items-center bg-light") },
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+        ...{ class: "form-label fw-bold" },
     });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("d-flex align-items-center gap-2") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: ("fas fa-plus-circle text-primary") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({
-        ...{ class: ("card-title mb-0") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.ul, __VLS_intrinsicElements.ul)({
-        ...{ class: ("nav nav-tabs card-header-tabs") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({
-        ...{ class: ("nav-item") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.a, __VLS_intrinsicElements.a)({
-        ...{ onClick: (...[$event]) => {
-                __VLS_ctx.activeTab = 'available';
-            } },
-        ...{ class: ("nav-link") },
-        ...{ class: (({ active: __VLS_ctx.activeTab === 'available' })) },
-        href: ("#"),
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: ("fas fa-list me-1") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-        ...{ class: ("badge rounded-pill bg-primary ms-1") },
-    });
-    (__VLS_ctx.availableFindings.length);
-    __VLS_elementAsFunction(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({
-        ...{ class: ("nav-item") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.a, __VLS_intrinsicElements.a)({
-        ...{ onClick: (__VLS_ctx.switchToAddedTab) },
-        ...{ class: ("nav-link") },
-        ...{ class: (({ active: __VLS_ctx.activeTab === 'added' })) },
-        href: ("#"),
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: ("fas fa-check-circle me-1") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-        ...{ class: ("badge rounded-pill bg-success ms-1") },
-    });
-    (__VLS_ctx.addedFindings.length);
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("card-body") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
-    __VLS_asFunctionalDirective(__VLS_directives.vShow)(null, { ...__VLS_directiveBindingRestFields, value: (__VLS_ctx.activeTab === 'available') }, null, null);
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("d-flex justify-content-end mb-3") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-        ...{ onClick: (...[$event]) => {
-                __VLS_ctx.showFindingSelector = !__VLS_ctx.showFindingSelector;
-            } },
-        ...{ class: ("btn btn-sm btn-primary") },
-        disabled: ((__VLS_ctx.loading)),
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: ("fas") },
-        ...{ class: ((__VLS_ctx.showFindingSelector ? 'fa-minus' : 'fa-plus')) },
-    });
-    (__VLS_ctx.showFindingSelector ? 'Auswahl ausblenden' : 'Befund auswählen');
-    if (__VLS_ctx.showFindingSelector) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("mb-3 finding-selector") },
+    if (__VLS_ctx.availableFindings.length === 0) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "text-center py-3 text-muted" },
         });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
-            ...{ class: ("form-label fw-bold") },
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: "fas fa-info-circle fa-2x mb-2" },
         });
-        if (__VLS_ctx.availableFindings.length === 0) {
-            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: ("text-center py-3 text-muted") },
-            });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: ("fas fa-info-circle fa-2x mb-2") },
-            });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
-        }
-        else {
-            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: ("row g-3") },
-            });
-            for (const [finding] of __VLS_getVForSourceType((__VLS_ctx.availableFindings))) {
-                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                    key: ((finding.id)),
-                    ...{ class: ("col-12 col-sm-6 col-md-4") },
-                });
-                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                    ...{ onClick: (...[$event]) => {
-                            if (!((__VLS_ctx.showFindingSelector)))
-                                return;
-                            if (!(!((__VLS_ctx.availableFindings.length === 0))))
-                                return;
-                            __VLS_ctx.selectFinding(finding.id);
-                        } },
-                    ...{ class: ("finding-option card h-100 cursor-pointer") },
-                    ...{ class: (({ 'border-primary shadow-sm': __VLS_ctx.selectedFindingId === finding.id })) },
-                });
-                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                    ...{ class: ("card-body p-3") },
-                });
-                __VLS_elementAsFunction(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({
-                    ...{ class: ("card-title small fw-bold") },
-                });
-                (finding.nameDe || finding.name);
-                if (finding.description) {
-                    __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
-                        ...{ class: ("card-text small text-muted mb-0") },
-                    });
-                    (finding.description.length > 80 ? finding.description.substring(0, 80) + '...' : finding.description);
-                }
-            }
-        }
-    }
-    if (__VLS_ctx.selectedFindingId) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("selected-finding-config mt-4 p-4 border rounded bg-light") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("d-flex justify-content-between align-items-center mb-3") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({
-            ...{ class: ("mb-0") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: ("fas fa-cog text-primary me-2") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
-        (__VLS_ctx.selectedFinding?.nameDe || __VLS_ctx.selectedFinding?.name);
-        __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-            ...{ onClick: (__VLS_ctx.clearSelection) },
-            ...{ class: ("btn btn-sm btn-outline-secondary") },
-            title: ("Auswahl zurücksetzen"),
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: ("fas fa-times") },
-        });
-        if (__VLS_ctx.findingClassifications.length > 0) {
-            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: ("mb-3") },
-            });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({});
-            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: ("classification-config-list") },
-            });
-            for (const [classification] of __VLS_getVForSourceType((__VLS_ctx.findingClassifications))) {
-                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                    key: ((classification.id)),
-                    ...{ class: ("classification-config-item mb-3 p-3 border rounded") },
-                });
-                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                    ...{ class: ("d-flex justify-content-between align-items-center mb-2") },
-                });
-                __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
-                (classification.name);
-                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                    ...{ class: ("d-flex align-items-center gap-2") },
-                });
-                if (classification.required) {
-                    __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-                        ...{ class: ("badge bg-warning text-dark") },
-                        title: ("Erforderlich"),
-                    });
-                    __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                        ...{ class: ("fas fa-exclamation-triangle") },
-                    });
-                }
-                if (__VLS_ctx.selectedChoices[classification.id]) {
-                    __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-                        ...{ class: ("badge bg-success") },
-                        title: ("Ausgewählt"),
-                    });
-                    __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                        ...{ class: ("fas fa-check") },
-                    });
-                }
-                if (classification.description) {
-                    __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
-                        ...{ class: ("text-muted small mb-2") },
-                    });
-                    (classification.description);
-                }
-                __VLS_elementAsFunction(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
-                    ...{ onChange: (...[$event]) => {
-                            if (!((__VLS_ctx.selectedFindingId)))
-                                return;
-                            if (!((__VLS_ctx.findingClassifications.length > 0)))
-                                return;
-                            __VLS_ctx.updateChoice(classification.id, $event);
-                        } },
-                    ...{ class: ("form-select form-select-sm") },
-                    value: ((__VLS_ctx.selectedChoices[classification.id] || '')),
-                    ...{ class: (({ 'border-success': __VLS_ctx.selectedChoices[classification.id], 'border-warning': !__VLS_ctx.selectedChoices[classification.id] && classification.required })) },
-                });
-                __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-                    value: (""),
-                });
-                if (!classification.choices || classification.choices.length === 0) {
-                    __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-                        value: (""),
-                        disabled: (true),
-                    });
-                }
-                else {
-                    for (const [choice] of __VLS_getVForSourceType((classification.choices))) {
-                        __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-                            key: ((choice.id)),
-                            value: ((choice.id)),
-                        });
-                        (choice.name);
-                    }
-                }
-            }
-            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: ("classification-progress") },
-            });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: ("d-flex justify-content-between align-items-center mb-1") },
-            });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
-                ...{ class: ("text-muted") },
-            });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
-                ...{ class: ("fw-semibold") },
-                ...{ class: ((__VLS_ctx.classificationProgress.complete ? 'text-success' : 'text-warning')) },
-            });
-            (__VLS_ctx.classificationProgress.selected);
-            (__VLS_ctx.classificationProgress.required);
-            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: ("progress") },
-                ...{ style: ({}) },
-            });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: ("progress-bar") },
-                ...{ class: ((__VLS_ctx.classificationProgress.complete ? 'bg-success' : 'bg-warning')) },
-                ...{ style: (({ width: __VLS_ctx.classificationProgress.percentage + '%' })) },
-            });
-        }
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("text-end mt-3") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-            ...{ onClick: (__VLS_ctx.addFindingToExamination) },
-            ...{ class: ("btn btn-success") },
-            disabled: ((__VLS_ctx.loading || !__VLS_ctx.canAddFinding)),
-            title: ((__VLS_ctx.canAddFinding ? 'Befund zur Untersuchung hinzufügen' : 'Bitte alle erforderlichen Klassifikationen auswählen')),
-        });
-        if (__VLS_ctx.loading) {
-            __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-                ...{ class: ("spinner-border spinner-border-sm me-2") },
-            });
-        }
-        __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: ("fas fa-plus me-2") },
-        });
-    }
-    else if (!__VLS_ctx.showFindingSelector) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("text-center py-5 text-muted") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: ("fas fa-plus-circle fa-3x mb-3 opacity-50") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
-    }
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
-    __VLS_asFunctionalDirective(__VLS_directives.vShow)(null, { ...__VLS_directiveBindingRestFields, value: (__VLS_ctx.activeTab === 'added') }, null, null);
-    __VLS_elementAsFunction(__VLS_intrinsicElements.details, __VLS_intrinsicElements.details)({
-        ...{ class: ("mb-3") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.summary, __VLS_intrinsicElements.summary)({
-        ...{ class: ("alert alert-info mb-0 cursor-pointer") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("alert alert-info mb-0 mt-2") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
-    (__VLS_ctx.addedFindings.length);
-    __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
-    (__VLS_ctx.resolvedPatientExaminationId);
-    __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
-    (__VLS_ctx.patientFindingStore.patientFindings.length);
-    __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
-    (__VLS_ctx.patientFindingStore.loading);
-    __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
-    (__VLS_ctx.patientFindingStore.error || 'None');
-    __VLS_elementAsFunction(__VLS_intrinsicElements.details, __VLS_intrinsicElements.details)({
-        ...{ class: ("mt-2") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.summary, __VLS_intrinsicElements.summary)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.pre, __VLS_intrinsicElements.pre)({});
-    (JSON.stringify(__VLS_ctx.patientFindingStore.patientFindings, null, 2));
-    __VLS_elementAsFunction(__VLS_intrinsicElements.details, __VLS_intrinsicElements.details)({
-        ...{ class: ("mt-2") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.summary, __VLS_intrinsicElements.summary)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.pre, __VLS_intrinsicElements.pre)({});
-    (JSON.stringify(__VLS_ctx.addedFindings, null, 2));
-    if (__VLS_ctx.addedFindings.length === 0) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("text-center py-5 text-muted") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: ("fas fa-folder-open fa-3x mb-3") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
     }
     else {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("row g-3") },
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "row g-3" },
         });
-        for (const [finding] of __VLS_getVForSourceType((__VLS_ctx.addedFindings))) {
-            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                key: ((finding.id)),
-                ...{ class: ("col-12 col-sm-6 col-md-4 col-lg-3") },
+        for (const [finding] of __VLS_getVForSourceType((__VLS_ctx.availableFindings))) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                key: (finding.id),
+                ...{ class: "col-12 col-sm-6 col-md-4" },
             });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: ("card h-100 border-success") },
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ onClick: (...[$event]) => {
+                        if (!(__VLS_ctx.showFindingSelector))
+                            return;
+                        if (!!(__VLS_ctx.availableFindings.length === 0))
+                            return;
+                        __VLS_ctx.selectFinding(finding.id);
+                    } },
+                ...{ class: "finding-option card h-100 cursor-pointer" },
+                ...{ class: ({ 'border-primary shadow-sm': __VLS_ctx.selectedFindingId === finding.id }) },
             });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: ("card-body p-3") },
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: "card-body p-3" },
             });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: ("d-flex align-items-start gap-2") },
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({
+                ...{ class: "card-title small fw-bold" },
             });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: ("fas fa-check-circle text-success mt-1") },
-            });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: ("flex-grow-1") },
-            });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({
-                ...{ class: ("card-title small fw-bold text-success") },
-            });
-            (finding.nameDe || finding.name || 'Unnamed Finding');
+            (finding.nameDe || finding.name);
             if (finding.description) {
-                __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
-                    ...{ class: ("card-text small text-muted mb-2") },
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
+                    ...{ class: "card-text small text-muted mb-0" },
                 });
                 (finding.description.length > 80 ? finding.description.substring(0, 80) + '...' : finding.description);
             }
-            __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-                ...{ class: ("badge bg-info text-dark small") },
-            });
-            (finding.id || 'No ID');
-            if (finding.patientClassifications && finding.patientClassifications.length > 0) {
-                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                    ...{ class: ("mt-2") },
-                });
-                __VLS_elementAsFunction(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
-                    ...{ class: ("text-muted d-block mb-1") },
-                });
-                __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                    ...{ class: ("fas fa-tags me-1") },
-                });
-                (finding.patientClassifications.length);
-                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                    ...{ class: ("classification-list") },
-                });
-                for (const [classification] of __VLS_getVForSourceType((finding.patientClassifications))) {
-                    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                        key: ((classification.id)),
-                        ...{ class: ("classification-item mb-1") },
-                    });
-                    __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-                        ...{ class: ("badge bg-light text-dark small border") },
-                    });
-                    __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
-                    (classification.classification.name);
-                    __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-                        ...{ class: ("text-primary") },
-                    });
-                    (classification.choice.name);
-                    if (!classification.is_active) {
-                        __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                            ...{ class: ("fas fa-exclamation-triangle text-warning ms-1") },
-                            title: ("Inactive"),
-                        });
-                    }
-                }
-            }
-            else {
-                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                    ...{ class: ("mt-2") },
-                });
-                __VLS_elementAsFunction(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
-                    ...{ class: ("text-muted") },
-                });
-                __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                    ...{ class: ("fas fa-info-circle me-1") },
-                });
-            }
         }
     }
-    ['addable-finding-card', 'card', 'mb-3', 'border-primary', 'card-header', 'd-flex', 'justify-content-between', 'align-items-center', 'bg-light', 'd-flex', 'align-items-center', 'gap-2', 'fas', 'fa-plus-circle', 'text-primary', 'card-title', 'mb-0', 'nav', 'nav-tabs', 'card-header-tabs', 'nav-item', 'nav-link', 'active', 'fas', 'fa-list', 'me-1', 'badge', 'rounded-pill', 'bg-primary', 'ms-1', 'nav-item', 'nav-link', 'active', 'fas', 'fa-check-circle', 'me-1', 'badge', 'rounded-pill', 'bg-success', 'ms-1', 'card-body', 'd-flex', 'justify-content-end', 'mb-3', 'btn', 'btn-sm', 'btn-primary', 'fas', 'mb-3', 'finding-selector', 'form-label', 'fw-bold', 'text-center', 'py-3', 'text-muted', 'fas', 'fa-info-circle', 'fa-2x', 'mb-2', 'row', 'g-3', 'col-12', 'col-sm-6', 'col-md-4', 'finding-option', 'card', 'h-100', 'cursor-pointer', 'border-primary', 'shadow-sm', 'card-body', 'p-3', 'card-title', 'small', 'fw-bold', 'card-text', 'small', 'text-muted', 'mb-0', 'selected-finding-config', 'mt-4', 'p-4', 'border', 'rounded', 'bg-light', 'd-flex', 'justify-content-between', 'align-items-center', 'mb-3', 'mb-0', 'fas', 'fa-cog', 'text-primary', 'me-2', 'btn', 'btn-sm', 'btn-outline-secondary', 'fas', 'fa-times', 'mb-3', 'classification-config-list', 'classification-config-item', 'mb-3', 'p-3', 'border', 'rounded', 'd-flex', 'justify-content-between', 'align-items-center', 'mb-2', 'd-flex', 'align-items-center', 'gap-2', 'badge', 'bg-warning', 'text-dark', 'fas', 'fa-exclamation-triangle', 'badge', 'bg-success', 'fas', 'fa-check', 'text-muted', 'small', 'mb-2', 'form-select', 'form-select-sm', 'border-success', 'border-warning', 'classification-progress', 'd-flex', 'justify-content-between', 'align-items-center', 'mb-1', 'text-muted', 'fw-semibold', 'progress', 'progress-bar', 'text-end', 'mt-3', 'btn', 'btn-success', 'spinner-border', 'spinner-border-sm', 'me-2', 'fas', 'fa-plus', 'me-2', 'text-center', 'py-5', 'text-muted', 'fas', 'fa-plus-circle', 'fa-3x', 'mb-3', 'opacity-50', 'mb-3', 'alert', 'alert-info', 'mb-0', 'cursor-pointer', 'alert', 'alert-info', 'mb-0', 'mt-2', 'mt-2', 'mt-2', 'text-center', 'py-5', 'text-muted', 'fas', 'fa-folder-open', 'fa-3x', 'mb-3', 'row', 'g-3', 'col-12', 'col-sm-6', 'col-md-4', 'col-lg-3', 'card', 'h-100', 'border-success', 'card-body', 'p-3', 'd-flex', 'align-items-start', 'gap-2', 'fas', 'fa-check-circle', 'text-success', 'mt-1', 'flex-grow-1', 'card-title', 'small', 'fw-bold', 'text-success', 'card-text', 'small', 'text-muted', 'mb-2', 'badge', 'bg-info', 'text-dark', 'small', 'mt-2', 'text-muted', 'd-block', 'mb-1', 'fas', 'fa-tags', 'me-1', 'classification-list', 'classification-item', 'mb-1', 'badge', 'bg-light', 'text-dark', 'small', 'border', 'text-primary', 'fas', 'fa-exclamation-triangle', 'text-warning', 'ms-1', 'mt-2', 'text-muted', 'fas', 'fa-info-circle', 'me-1',];
-    var __VLS_slots;
-    var $slots;
-    let __VLS_inheritedAttrs;
-    var $attrs;
-    const __VLS_refs = {};
-    var $refs;
-    var $el;
-    return {
-        attrs: {},
-        slots: __VLS_slots,
-        refs: $refs,
-        rootEl: $el,
-    };
 }
-;
+if (__VLS_ctx.selectedFindingId) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "selected-finding-config mt-4 p-4 border rounded bg-light" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "d-flex justify-content-between align-items-center mb-3" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({
+        ...{ class: "mb-0" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+        ...{ class: "fas fa-cog text-primary me-2" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+    (__VLS_ctx.selectedFinding?.nameDe || __VLS_ctx.selectedFinding?.name);
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+        ...{ onClick: (__VLS_ctx.clearSelection) },
+        ...{ class: "btn btn-sm btn-outline-secondary" },
+        title: "Auswahl zurücksetzen",
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+        ...{ class: "fas fa-times" },
+    });
+    if (__VLS_ctx.findingClassifications.length > 0) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "mb-3" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "classification-config-list" },
+        });
+        for (const [classification] of __VLS_getVForSourceType((__VLS_ctx.findingClassifications))) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                key: (classification.id),
+                ...{ class: "classification-config-item mb-3 p-3 border rounded" },
+            });
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: "d-flex justify-content-between align-items-center mb-2" },
+            });
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+            (classification.name);
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: "d-flex align-items-center gap-2" },
+            });
+            if (classification.required) {
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                    ...{ class: "badge bg-warning text-dark" },
+                    title: "Erforderlich",
+                });
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                    ...{ class: "fas fa-exclamation-triangle" },
+                });
+            }
+            if (__VLS_ctx.selectedChoices[classification.id]) {
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                    ...{ class: "badge bg-success" },
+                    title: "Ausgewählt",
+                });
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                    ...{ class: "fas fa-check" },
+                });
+            }
+            if (classification.description) {
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
+                    ...{ class: "text-muted small mb-2" },
+                });
+                (classification.description);
+            }
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
+                ...{ onChange: (...[$event]) => {
+                        if (!(__VLS_ctx.selectedFindingId))
+                            return;
+                        if (!(__VLS_ctx.findingClassifications.length > 0))
+                            return;
+                        __VLS_ctx.updateChoice(classification.id, $event);
+                    } },
+                ...{ class: "form-select form-select-sm" },
+                value: (__VLS_ctx.selectedChoices[classification.id] || ''),
+                ...{ class: ({ 'border-success': __VLS_ctx.selectedChoices[classification.id], 'border-warning': !__VLS_ctx.selectedChoices[classification.id] && classification.required }) },
+            });
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+                value: "",
+            });
+            if (!classification.choices || classification.choices.length === 0) {
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+                    value: "",
+                    disabled: true,
+                });
+            }
+            else {
+                for (const [choice] of __VLS_getVForSourceType((classification.choices))) {
+                    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+                        key: (choice.id),
+                        value: (choice.id),
+                    });
+                    (choice.name);
+                }
+            }
+        }
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "classification-progress" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "d-flex justify-content-between align-items-center mb-1" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+            ...{ class: "text-muted" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+            ...{ class: "fw-semibold" },
+            ...{ class: (__VLS_ctx.classificationProgress.complete ? 'text-success' : 'text-warning') },
+        });
+        (__VLS_ctx.classificationProgress.selected);
+        (__VLS_ctx.classificationProgress.required);
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "progress" },
+            ...{ style: {} },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "progress-bar" },
+            ...{ class: (__VLS_ctx.classificationProgress.complete ? 'bg-success' : 'bg-warning') },
+            ...{ style: ({ width: __VLS_ctx.classificationProgress.percentage + '%' }) },
+        });
+    }
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "text-end mt-3" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+        ...{ onClick: (__VLS_ctx.addFindingToExamination) },
+        ...{ class: "btn btn-success" },
+        disabled: (__VLS_ctx.loading || !__VLS_ctx.canAddFinding),
+        title: (__VLS_ctx.canAddFinding ? 'Befund zur Untersuchung hinzufügen' : 'Bitte alle erforderlichen Klassifikationen auswählen'),
+    });
+    if (__VLS_ctx.loading) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+            ...{ class: "spinner-border spinner-border-sm me-2" },
+        });
+    }
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+        ...{ class: "fas fa-plus me-2" },
+    });
+}
+else if (!__VLS_ctx.showFindingSelector) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "text-center py-5 text-muted" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+        ...{ class: "fas fa-plus-circle fa-3x mb-3 opacity-50" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
+}
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
+__VLS_asFunctionalDirective(__VLS_directives.vShow)(null, { ...__VLS_directiveBindingRestFields, value: (__VLS_ctx.activeTab === 'added') }, null, null);
+__VLS_asFunctionalElement(__VLS_intrinsicElements.details, __VLS_intrinsicElements.details)({
+    ...{ class: "mb-3" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.summary, __VLS_intrinsicElements.summary)({
+    ...{ class: "alert alert-info mb-0 cursor-pointer" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "alert alert-info mb-0 mt-2" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+(__VLS_ctx.addedFindings.length);
+__VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+(__VLS_ctx.resolvedPatientExaminationId);
+__VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+(__VLS_ctx.patientFindingStore.patientFindings.length);
+__VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+(__VLS_ctx.patientFindingStore.loading);
+__VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+(__VLS_ctx.patientFindingStore.error || 'None');
+__VLS_asFunctionalElement(__VLS_intrinsicElements.details, __VLS_intrinsicElements.details)({
+    ...{ class: "mt-2" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.summary, __VLS_intrinsicElements.summary)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.pre, __VLS_intrinsicElements.pre)({});
+(JSON.stringify(__VLS_ctx.patientFindingStore.patientFindings, null, 2));
+__VLS_asFunctionalElement(__VLS_intrinsicElements.details, __VLS_intrinsicElements.details)({
+    ...{ class: "mt-2" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.summary, __VLS_intrinsicElements.summary)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.pre, __VLS_intrinsicElements.pre)({});
+(JSON.stringify(__VLS_ctx.addedFindings, null, 2));
+if (__VLS_ctx.addedFindings.length === 0) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "text-center py-5 text-muted" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+        ...{ class: "fas fa-folder-open fa-3x mb-3" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
+}
+else {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "row g-3" },
+    });
+    for (const [finding] of __VLS_getVForSourceType((__VLS_ctx.addedFindings))) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            key: (finding.id),
+            ...{ class: "col-12 col-sm-6 col-md-4 col-lg-3" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "card h-100 border-success" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "card-body p-3" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "d-flex align-items-start gap-2" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: "fas fa-check-circle text-success mt-1" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "flex-grow-1" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({
+            ...{ class: "card-title small fw-bold text-success" },
+        });
+        (finding.nameDe || finding.name || 'Unnamed Finding');
+        if (finding.description) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
+                ...{ class: "card-text small text-muted mb-2" },
+            });
+            (finding.description.length > 80 ? finding.description.substring(0, 80) + '...' : finding.description);
+        }
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+            ...{ class: "badge bg-info text-dark small" },
+        });
+        (finding.id || 'No ID');
+        if (finding.patientClassifications) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: "mt-2" },
+            });
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+                ...{ class: "text-muted d-block mb-1" },
+            });
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                ...{ class: "fas fa-tags me-1" },
+            });
+            (finding.patientClassifications.length);
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: "classification-list" },
+            });
+            for (const [classification] of __VLS_getVForSourceType((finding.patientClassifications?.filter(c => c.classification && c.choice) || []))) {
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                    key: (classification.id),
+                    ...{ class: "classification-item mb-1" },
+                });
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                    ...{ class: "badge bg-light text-dark small border" },
+                });
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+                (classification.classification.name);
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                    ...{ class: "text-primary" },
+                });
+                (classification.choice.name);
+                if (!classification.is_active) {
+                    __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                        ...{ class: "fas fa-exclamation-triangle text-warning ms-1" },
+                        title: "Inactive",
+                    });
+                }
+            }
+        }
+        else {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: "mt-2" },
+            });
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+                ...{ class: "text-muted" },
+            });
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                ...{ class: "fas fa-info-circle me-1" },
+            });
+        }
+    }
+}
+/** @type {__VLS_StyleScopedClasses['addable-finding-card']} */ ;
+/** @type {__VLS_StyleScopedClasses['card']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['border-primary']} */ ;
+/** @type {__VLS_StyleScopedClasses['card-header']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['justify-content-between']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['bg-light']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['gap-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-plus-circle']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-primary']} */ ;
+/** @type {__VLS_StyleScopedClasses['card-title']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['nav']} */ ;
+/** @type {__VLS_StyleScopedClasses['nav-tabs']} */ ;
+/** @type {__VLS_StyleScopedClasses['card-header-tabs']} */ ;
+/** @type {__VLS_StyleScopedClasses['nav-item']} */ ;
+/** @type {__VLS_StyleScopedClasses['nav-link']} */ ;
+/** @type {__VLS_StyleScopedClasses['active']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-list']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['rounded-pill']} */ ;
+/** @type {__VLS_StyleScopedClasses['bg-primary']} */ ;
+/** @type {__VLS_StyleScopedClasses['ms-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['nav-item']} */ ;
+/** @type {__VLS_StyleScopedClasses['nav-link']} */ ;
+/** @type {__VLS_StyleScopedClasses['active']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-check-circle']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['rounded-pill']} */ ;
+/** @type {__VLS_StyleScopedClasses['bg-success']} */ ;
+/** @type {__VLS_StyleScopedClasses['ms-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['card-body']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['justify-content-end']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-primary']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['finding-selector']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['fw-bold']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['py-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-info-circle']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-2x']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['row']} */ ;
+/** @type {__VLS_StyleScopedClasses['g-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-12']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-sm-6']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-md-4']} */ ;
+/** @type {__VLS_StyleScopedClasses['finding-option']} */ ;
+/** @type {__VLS_StyleScopedClasses['card']} */ ;
+/** @type {__VLS_StyleScopedClasses['h-100']} */ ;
+/** @type {__VLS_StyleScopedClasses['cursor-pointer']} */ ;
+/** @type {__VLS_StyleScopedClasses['border-primary']} */ ;
+/** @type {__VLS_StyleScopedClasses['shadow-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['card-body']} */ ;
+/** @type {__VLS_StyleScopedClasses['p-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['card-title']} */ ;
+/** @type {__VLS_StyleScopedClasses['small']} */ ;
+/** @type {__VLS_StyleScopedClasses['fw-bold']} */ ;
+/** @type {__VLS_StyleScopedClasses['card-text']} */ ;
+/** @type {__VLS_StyleScopedClasses['small']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['selected-finding-config']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-4']} */ ;
+/** @type {__VLS_StyleScopedClasses['p-4']} */ ;
+/** @type {__VLS_StyleScopedClasses['border']} */ ;
+/** @type {__VLS_StyleScopedClasses['rounded']} */ ;
+/** @type {__VLS_StyleScopedClasses['bg-light']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['justify-content-between']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-cog']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-primary']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-secondary']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-times']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['classification-config-list']} */ ;
+/** @type {__VLS_StyleScopedClasses['classification-config-item']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['p-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['border']} */ ;
+/** @type {__VLS_StyleScopedClasses['rounded']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['justify-content-between']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['gap-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['bg-warning']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-dark']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-exclamation-triangle']} */ ;
+/** @type {__VLS_StyleScopedClasses['badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['bg-success']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-check']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['small']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-select']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-select-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['border-success']} */ ;
+/** @type {__VLS_StyleScopedClasses['border-warning']} */ ;
+/** @type {__VLS_StyleScopedClasses['classification-progress']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['justify-content-between']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['fw-semibold']} */ ;
+/** @type {__VLS_StyleScopedClasses['progress']} */ ;
+/** @type {__VLS_StyleScopedClasses['progress-bar']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-end']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-success']} */ ;
+/** @type {__VLS_StyleScopedClasses['spinner-border']} */ ;
+/** @type {__VLS_StyleScopedClasses['spinner-border-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-plus']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['py-5']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-plus-circle']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-3x']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['opacity-50']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert-info']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['cursor-pointer']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert-info']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['py-5']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-folder-open']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-3x']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['row']} */ ;
+/** @type {__VLS_StyleScopedClasses['g-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-12']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-sm-6']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-md-4']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-lg-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['card']} */ ;
+/** @type {__VLS_StyleScopedClasses['h-100']} */ ;
+/** @type {__VLS_StyleScopedClasses['border-success']} */ ;
+/** @type {__VLS_StyleScopedClasses['card-body']} */ ;
+/** @type {__VLS_StyleScopedClasses['p-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-start']} */ ;
+/** @type {__VLS_StyleScopedClasses['gap-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-check-circle']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-success']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['flex-grow-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['card-title']} */ ;
+/** @type {__VLS_StyleScopedClasses['small']} */ ;
+/** @type {__VLS_StyleScopedClasses['fw-bold']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-success']} */ ;
+/** @type {__VLS_StyleScopedClasses['card-text']} */ ;
+/** @type {__VLS_StyleScopedClasses['small']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['bg-info']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-dark']} */ ;
+/** @type {__VLS_StyleScopedClasses['small']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-block']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-tags']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['classification-list']} */ ;
+/** @type {__VLS_StyleScopedClasses['classification-item']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['bg-light']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-dark']} */ ;
+/** @type {__VLS_StyleScopedClasses['small']} */ ;
+/** @type {__VLS_StyleScopedClasses['border']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-primary']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-exclamation-triangle']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-warning']} */ ;
+/** @type {__VLS_StyleScopedClasses['ms-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-info-circle']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-1']} */ ;
+var __VLS_dollars;
 const __VLS_self = (await import('vue')).defineComponent({
     setup() {
         return {
@@ -972,6 +1259,5 @@ export default (await import('vue')).defineComponent({
     __typeEmits: {},
     __typeProps: {},
     props: {},
-    __typeEl: {},
 });
 ; /* PartiallyEnd: #4569/main.vue */

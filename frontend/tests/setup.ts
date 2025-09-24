@@ -1,4 +1,8 @@
 import { vi } from 'vitest'
+import { config } from '@vue/test-utils'
+
+// Remove global Pinia setup to avoid conflicts with createTestingPinia
+// Each test will use its own testing Pinia instance
 
 // ✅ jsdom polyfills for modern DOM APIs
 if (typeof (global as any).PointerEvent === 'undefined') {

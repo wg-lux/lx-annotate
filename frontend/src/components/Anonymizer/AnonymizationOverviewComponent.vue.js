@@ -298,437 +298,574 @@ onUnmounted(() => {
     // Clear any remaining processing locks
     pollingProtection.clearAllLocalLocks();
 });
-; /* PartiallyEnd: #3632/scriptSetup.vue */
-function __VLS_template() {
-    const __VLS_ctx = {};
-    let __VLS_components;
-    let __VLS_directives;
-    ['table', 'btn-group-sm', 'btn',];
-    // CSS variable injection 
-    // CSS variable injection end 
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("container-fluid py-4") },
+debugger; /* PartiallyEnd: #3632/scriptSetup.vue */
+const __VLS_ctx = {};
+let __VLS_components;
+let __VLS_directives;
+/** @type {__VLS_StyleScopedClasses['table']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-group-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+// CSS variable injection 
+// CSS variable injection end 
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "container-fluid py-4" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "card" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "card-header pb-0 d-flex justify-content-between align-items-center" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.h4, __VLS_intrinsicElements.h4)({
+    ...{ class: "mb-0" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "d-flex gap-2" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+    ...{ onClick: (__VLS_ctx.refreshOverview) },
+    ...{ class: "btn btn-outline-primary btn-sm" },
+    disabled: (__VLS_ctx.isRefreshing),
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+    ...{ class: "fas fa-sync-alt" },
+    ...{ class: ({ 'fa-spin': __VLS_ctx.isRefreshing }) },
+});
+const __VLS_0 = {}.RouterLink;
+/** @type {[typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, ]} */ ;
+// @ts-ignore
+const __VLS_1 = __VLS_asFunctionalComponent(__VLS_0, new __VLS_0({
+    to: "/anonymisierung/validierung",
+    ...{ class: "btn btn-primary btn-sm" },
+}));
+const __VLS_2 = __VLS_1({
+    to: "/anonymisierung/validierung",
+    ...{ class: "btn btn-primary btn-sm" },
+}, ...__VLS_functionalComponentArgsRest(__VLS_1));
+__VLS_3.slots.default;
+__VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+    ...{ class: "fas fa-play me-1" },
+});
+var __VLS_3;
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "card-body" },
+});
+if (__VLS_ctx.anonymizationStore.error) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "alert alert-danger" },
+        role: "alert",
     });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("card") },
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+    (__VLS_ctx.anonymizationStore.error);
+}
+if (__VLS_ctx.anonymizationStore.loading && !__VLS_ctx.availableFiles.length) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "text-center py-5" },
     });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("card-header pb-0 d-flex justify-content-between align-items-center") },
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "spinner-border text-primary" },
+        role: "status",
     });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.h4, __VLS_intrinsicElements.h4)({
-        ...{ class: ("mb-0") },
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+        ...{ class: "visually-hidden" },
     });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("d-flex gap-2") },
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
+        ...{ class: "mt-2" },
     });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-        ...{ onClick: (__VLS_ctx.refreshOverview) },
-        ...{ class: ("btn btn-outline-primary btn-sm") },
-        disabled: ((__VLS_ctx.isRefreshing)),
+}
+else if (!__VLS_ctx.availableFiles.length) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "text-center py-5" },
     });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: ("fas fa-sync-alt") },
-        ...{ class: (({ 'fa-spin': __VLS_ctx.isRefreshing })) },
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "mb-4" },
     });
-    const __VLS_0 = {}.RouterLink;
-    /** @type { [typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, ] } */ ;
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+        ...{ class: "fas fa-folder-open fa-3x text-muted" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.h5, __VLS_intrinsicElements.h5)({
+        ...{ class: "text-muted" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
+        ...{ class: "text-muted mb-4" },
+    });
+    const __VLS_4 = {}.RouterLink;
+    /** @type {[typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, ]} */ ;
     // @ts-ignore
-    const __VLS_1 = __VLS_asFunctionalComponent(__VLS_0, new __VLS_0({
-        to: ("/anonymisierung/validierung"),
-        ...{ class: ("btn btn-primary btn-sm") },
+    const __VLS_5 = __VLS_asFunctionalComponent(__VLS_4, new __VLS_4({
+        to: "/upload",
+        ...{ class: "btn btn-primary" },
     }));
-    const __VLS_2 = __VLS_1({
-        to: ("/anonymisierung/validierung"),
-        ...{ class: ("btn btn-primary btn-sm") },
-    }, ...__VLS_functionalComponentArgsRest(__VLS_1));
-    __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: ("fas fa-play me-1") },
+    const __VLS_6 = __VLS_5({
+        to: "/upload",
+        ...{ class: "btn btn-primary" },
+    }, ...__VLS_functionalComponentArgsRest(__VLS_5));
+    __VLS_7.slots.default;
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+        ...{ class: "fas fa-upload me-2" },
     });
-    __VLS_5.slots.default;
-    var __VLS_5;
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("card-body") },
+    var __VLS_7;
+}
+else {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "table-responsive" },
     });
-    if (__VLS_ctx.anonymizationStore.error) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("alert alert-danger") },
-            role: ("alert"),
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.table, __VLS_intrinsicElements.table)({
+        ...{ class: "table table-hover" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.thead, __VLS_intrinsicElements.thead)({
+        ...{ class: "table-light" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.tr, __VLS_intrinsicElements.tr)({});
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.tbody, __VLS_intrinsicElements.tbody)({});
+    for (const [file] of __VLS_getVForSourceType((__VLS_ctx.availableFiles))) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.tr, __VLS_intrinsicElements.tr)({
+            key: (file.id),
         });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
-        (__VLS_ctx.anonymizationStore.error);
-    }
-    if (__VLS_ctx.anonymizationStore.loading && !__VLS_ctx.availableFiles.length) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("text-center py-5") },
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "d-flex align-items-center" },
         });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("spinner-border text-primary") },
-            role: ("status"),
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: (__VLS_ctx.getFileIcon(file.mediaType)) },
+            ...{ class: "me-2" },
         });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-            ...{ class: ("visually-hidden") },
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+            ...{ class: "fw-medium" },
         });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
-            ...{ class: ("mt-2") },
+        (file.filename);
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+            ...{ class: (__VLS_ctx.getMediaTypeBadgeClass(file.mediaType)) },
+            ...{ class: "badge" },
         });
-    }
-    else if (!__VLS_ctx.availableFiles.length) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("text-center py-5") },
+        (file.mediaType.toUpperCase());
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+            ...{ class: (__VLS_ctx.getStatusBadgeClass(file.anonymizationStatus)) },
+            ...{ class: "badge" },
         });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("mb-4") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: ("fas fa-folder-open fa-3x text-muted") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.h5, __VLS_intrinsicElements.h5)({
-            ...{ class: ("text-muted") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
-            ...{ class: ("text-muted mb-4") },
-        });
-        const __VLS_6 = {}.RouterLink;
-        /** @type { [typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, ] } */ ;
-        // @ts-ignore
-        const __VLS_7 = __VLS_asFunctionalComponent(__VLS_6, new __VLS_6({
-            to: ("/upload"),
-            ...{ class: ("btn btn-primary") },
-        }));
-        const __VLS_8 = __VLS_7({
-            to: ("/upload"),
-            ...{ class: ("btn btn-primary") },
-        }, ...__VLS_functionalComponentArgsRest(__VLS_7));
-        __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: ("fas fa-upload me-2") },
-        });
-        __VLS_11.slots.default;
-        var __VLS_11;
-    }
-    else {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("table-responsive") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.table, __VLS_intrinsicElements.table)({
-            ...{ class: ("table table-hover") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.thead, __VLS_intrinsicElements.thead)({
-            ...{ class: ("table-light") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.tr, __VLS_intrinsicElements.tr)({});
-        __VLS_elementAsFunction(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
-        __VLS_elementAsFunction(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
-        __VLS_elementAsFunction(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
-        __VLS_elementAsFunction(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
-        __VLS_elementAsFunction(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
-        __VLS_elementAsFunction(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
-        __VLS_elementAsFunction(__VLS_intrinsicElements.tbody, __VLS_intrinsicElements.tbody)({});
-        for (const [file] of __VLS_getVForSourceType((__VLS_ctx.availableFiles))) {
-            __VLS_elementAsFunction(__VLS_intrinsicElements.tr, __VLS_intrinsicElements.tr)({
-                key: ((file.id)),
+        if (file.anonymizationStatus === 'processing_anonymization') {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                ...{ class: "fas fa-spinner fa-spin me-1" },
             });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
-            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: ("d-flex align-items-center") },
-            });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: ((__VLS_ctx.getFileIcon(file.mediaType))) },
-                ...{ class: ("me-2") },
-            });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-                ...{ class: ("fw-medium") },
-            });
-            (file.filename);
-            __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
-            __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-                ...{ class: ((__VLS_ctx.getMediaTypeBadgeClass(file.mediaType))) },
-                ...{ class: ("badge") },
-            });
-            (file.mediaType.toUpperCase());
-            __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
-            __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-                ...{ class: ((__VLS_ctx.getStatusBadgeClass(file.anonymizationStatus))) },
-                ...{ class: ("badge") },
-            });
-            if (file.anonymizationStatus === 'processing_anonymization') {
-                __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                    ...{ class: ("fas fa-spinner fa-spin me-1") },
-                });
-            }
-            (__VLS_ctx.getStatusText(file.anonymizationStatus));
-            __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
-            __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-                ...{ class: ((__VLS_ctx.getStatusBadgeClass(file.annotationStatus))) },
-                ...{ class: ("badge") },
-            });
-            (__VLS_ctx.getStatusText(file.annotationStatus));
-            __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
-            __VLS_elementAsFunction(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
-                ...{ class: ("text-muted") },
-            });
-            (__VLS_ctx.formatDate(file.createdAt));
-            __VLS_elementAsFunction(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
-            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: ("btn-group btn-group-sm") },
-                role: ("group"),
-            });
-            if (file.mediaType === 'video' && __VLS_ctx.needsReimport(file)) {
-                __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-                    ...{ onClick: (...[$event]) => {
-                            if (!(!((__VLS_ctx.anonymizationStore.loading && !__VLS_ctx.availableFiles.length))))
-                                return;
-                            if (!(!((!__VLS_ctx.availableFiles.length))))
-                                return;
-                            if (!((file.mediaType === 'video' && __VLS_ctx.needsReimport(file))))
-                                return;
-                            __VLS_ctx.reimportVideo(file.id);
-                        } },
-                    ...{ class: ("btn btn-outline-info") },
-                    disabled: ((__VLS_ctx.isProcessing(file.id))),
-                    title: ("Video erneut importieren und Metadaten aktualisieren"),
-                });
-                __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                    ...{ class: ("fas fa-redo-alt") },
-                });
-            }
-            if (file.mediaType === 'pdf' && __VLS_ctx.needsReimport(file)) {
-                __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-                    ...{ onClick: (...[$event]) => {
-                            if (!(!((__VLS_ctx.anonymizationStore.loading && !__VLS_ctx.availableFiles.length))))
-                                return;
-                            if (!(!((!__VLS_ctx.availableFiles.length))))
-                                return;
-                            if (!((file.mediaType === 'pdf' && __VLS_ctx.needsReimport(file))))
-                                return;
-                            __VLS_ctx.reimportPdf(file.id);
-                        } },
-                    ...{ class: ("btn btn-outline-info") },
-                    disabled: ((__VLS_ctx.isProcessing(file.id))),
-                    title: ("PDF erneut importieren und verarbeiten"),
-                });
-                __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                    ...{ class: ("fas fa-redo-alt") },
-                });
-            }
-            if (file.anonymizationStatus === 'not_started') {
-                __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-                    ...{ onClick: (...[$event]) => {
-                            if (!(!((__VLS_ctx.anonymizationStore.loading && !__VLS_ctx.availableFiles.length))))
-                                return;
-                            if (!(!((!__VLS_ctx.availableFiles.length))))
-                                return;
-                            if (!((file.anonymizationStatus === 'not_started')))
-                                return;
-                            __VLS_ctx.startAnonymization(file.id);
-                        } },
-                    ...{ class: ("btn btn-outline-primary") },
-                    disabled: ((__VLS_ctx.isProcessing(file.id))),
-                });
-                __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                    ...{ class: ("fas fa-play") },
-                });
-            }
-            if (file.anonymizationStatus === 'failed') {
-                __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-                    ...{ onClick: (...[$event]) => {
-                            if (!(!((__VLS_ctx.anonymizationStore.loading && !__VLS_ctx.availableFiles.length))))
-                                return;
-                            if (!(!((!__VLS_ctx.availableFiles.length))))
-                                return;
-                            if (!((file.anonymizationStatus === 'failed')))
-                                return;
-                            __VLS_ctx.startAnonymization(file.id);
-                        } },
-                    ...{ class: ("btn btn-outline-warning") },
-                    disabled: ((__VLS_ctx.isProcessing(file.id))),
-                });
-                __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                    ...{ class: ("fas fa-redo") },
-                });
-            }
-            if (file.anonymizationStatus === 'done') {
-                __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-                    ...{ onClick: (...[$event]) => {
-                            if (!(!((__VLS_ctx.anonymizationStore.loading && !__VLS_ctx.availableFiles.length))))
-                                return;
-                            if (!(!((!__VLS_ctx.availableFiles.length))))
-                                return;
-                            if (!((file.anonymizationStatus === 'done')))
-                                return;
-                            __VLS_ctx.validateFile(file.id);
-                        } },
-                    ...{ class: ("btn btn-outline-success bg-success") },
-                    disabled: ((!__VLS_ctx.isReadyForValidation(file.id))),
-                });
-                __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                    ...{ class: ("fas fa-eye") },
-                });
-            }
-            if (file.mediaType === 'video' && (file.anonymizationStatus === 'done' || file.anonymizationStatus === 'validated')) {
-                __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-                    ...{ onClick: (...[$event]) => {
-                            if (!(!((__VLS_ctx.anonymizationStore.loading && !__VLS_ctx.availableFiles.length))))
-                                return;
-                            if (!(!((!__VLS_ctx.availableFiles.length))))
-                                return;
-                            if (!((file.mediaType === 'video' && (file.anonymizationStatus === 'done' || file.anonymizationStatus === 'validated'))))
-                                return;
-                            __VLS_ctx.correctVideo(file.id);
-                        } },
-                    ...{ class: ("btn btn-outline-warning") },
-                    disabled: ((__VLS_ctx.isProcessing(file.id))),
-                });
-                __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                    ...{ class: ("fas fa-edit") },
-                });
-            }
-            __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+        }
+        (__VLS_ctx.getStatusText(file.anonymizationStatus));
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+            ...{ class: (__VLS_ctx.getStatusBadgeClass(file.annotationStatus)) },
+            ...{ class: "badge" },
+        });
+        (__VLS_ctx.getStatusText(file.annotationStatus));
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+            ...{ class: "text-muted" },
+        });
+        (__VLS_ctx.formatDate(file.createdAt));
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "btn-group btn-group-sm" },
+            role: "group",
+        });
+        if (file.mediaType === 'video' && __VLS_ctx.needsReimport(file)) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
                 ...{ onClick: (...[$event]) => {
-                        if (!(!((__VLS_ctx.anonymizationStore.loading && !__VLS_ctx.availableFiles.length))))
+                        if (!!(__VLS_ctx.anonymizationStore.loading && !__VLS_ctx.availableFiles.length))
                             return;
-                        if (!(!((!__VLS_ctx.availableFiles.length))))
+                        if (!!(!__VLS_ctx.availableFiles.length))
                             return;
-                        __VLS_ctx.deleteFile(file.id);
+                        if (!(file.mediaType === 'video' && __VLS_ctx.needsReimport(file)))
+                            return;
+                        __VLS_ctx.reimportVideo(file.id);
                     } },
-                ...{ class: ("btn btn-outline-danger") },
-                disabled: ((__VLS_ctx.isProcessing(file.id))),
-                title: ("Datei permanent löschen"),
+                ...{ class: "btn btn-outline-info" },
+                disabled: (__VLS_ctx.isProcessing(file.id)),
+                title: "Video erneut importieren und Metadaten aktualisieren",
             });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: ("fas fa-trash") },
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                ...{ class: "fas fa-redo-alt" },
             });
-            if (file.anonymizationStatus === 'processing_anonymization') {
-                __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-                    ...{ class: ("btn btn-outline-info") },
-                    disabled: (true),
-                });
-                __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                    ...{ class: ("fas fa-spinner fa-spin me-1") },
-                });
-            }
-            if (file.anonymizationStatus === 'extracting_frames') {
-                __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-                    ...{ class: ("btn btn-outline-info") },
-                    disabled: (true),
-                });
-                __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                    ...{ class: ("fas fa-spinner fa-spin me-1") },
-                });
-            }
+        }
+        if (file.mediaType === 'pdf' && __VLS_ctx.needsReimport(file)) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+                ...{ onClick: (...[$event]) => {
+                        if (!!(__VLS_ctx.anonymizationStore.loading && !__VLS_ctx.availableFiles.length))
+                            return;
+                        if (!!(!__VLS_ctx.availableFiles.length))
+                            return;
+                        if (!(file.mediaType === 'pdf' && __VLS_ctx.needsReimport(file)))
+                            return;
+                        __VLS_ctx.reimportPdf(file.id);
+                    } },
+                ...{ class: "btn btn-outline-info" },
+                disabled: (__VLS_ctx.isProcessing(file.id)),
+                title: "PDF erneut importieren und verarbeiten",
+            });
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                ...{ class: "fas fa-redo-alt" },
+            });
+        }
+        if (file.anonymizationStatus === 'not_started') {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+                ...{ onClick: (...[$event]) => {
+                        if (!!(__VLS_ctx.anonymizationStore.loading && !__VLS_ctx.availableFiles.length))
+                            return;
+                        if (!!(!__VLS_ctx.availableFiles.length))
+                            return;
+                        if (!(file.anonymizationStatus === 'not_started'))
+                            return;
+                        __VLS_ctx.startAnonymization(file.id);
+                    } },
+                ...{ class: "btn btn-outline-primary" },
+                disabled: (__VLS_ctx.isProcessing(file.id)),
+            });
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                ...{ class: "fas fa-play" },
+            });
+        }
+        if (file.anonymizationStatus === 'failed') {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+                ...{ onClick: (...[$event]) => {
+                        if (!!(__VLS_ctx.anonymizationStore.loading && !__VLS_ctx.availableFiles.length))
+                            return;
+                        if (!!(!__VLS_ctx.availableFiles.length))
+                            return;
+                        if (!(file.anonymizationStatus === 'failed'))
+                            return;
+                        __VLS_ctx.startAnonymization(file.id);
+                    } },
+                ...{ class: "btn btn-outline-warning" },
+                disabled: (__VLS_ctx.isProcessing(file.id)),
+            });
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                ...{ class: "fas fa-redo" },
+            });
+        }
+        if (file.anonymizationStatus === 'done') {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+                ...{ onClick: (...[$event]) => {
+                        if (!!(__VLS_ctx.anonymizationStore.loading && !__VLS_ctx.availableFiles.length))
+                            return;
+                        if (!!(!__VLS_ctx.availableFiles.length))
+                            return;
+                        if (!(file.anonymizationStatus === 'done'))
+                            return;
+                        __VLS_ctx.validateFile(file.id);
+                    } },
+                ...{ class: "btn btn-outline-success bg-success" },
+                disabled: (!__VLS_ctx.isReadyForValidation(file.id)),
+            });
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                ...{ class: "fas fa-eye" },
+            });
+        }
+        if (file.mediaType === 'video' && (file.anonymizationStatus === 'done' || file.anonymizationStatus === 'validated')) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+                ...{ onClick: (...[$event]) => {
+                        if (!!(__VLS_ctx.anonymizationStore.loading && !__VLS_ctx.availableFiles.length))
+                            return;
+                        if (!!(!__VLS_ctx.availableFiles.length))
+                            return;
+                        if (!(file.mediaType === 'video' && (file.anonymizationStatus === 'done' || file.anonymizationStatus === 'validated')))
+                            return;
+                        __VLS_ctx.correctVideo(file.id);
+                    } },
+                ...{ class: "btn btn-outline-warning" },
+                disabled: (__VLS_ctx.isProcessing(file.id)),
+            });
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                ...{ class: "fas fa-edit" },
+            });
+        }
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+            ...{ onClick: (...[$event]) => {
+                    if (!!(__VLS_ctx.anonymizationStore.loading && !__VLS_ctx.availableFiles.length))
+                        return;
+                    if (!!(!__VLS_ctx.availableFiles.length))
+                        return;
+                    __VLS_ctx.deleteFile(file.id);
+                } },
+            ...{ class: "btn btn-outline-danger" },
+            disabled: (__VLS_ctx.isProcessing(file.id)),
+            title: "Datei permanent löschen",
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: "fas fa-trash" },
+        });
+        if (file.anonymizationStatus === 'processing_anonymization') {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+                ...{ class: "btn btn-outline-info" },
+                disabled: true,
+            });
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                ...{ class: "fas fa-spinner fa-spin me-1" },
+            });
+        }
+        if (file.anonymizationStatus === 'extracting_frames') {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+                ...{ class: "btn btn-outline-info" },
+                disabled: true,
+            });
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                ...{ class: "fas fa-spinner fa-spin me-1" },
+            });
         }
     }
-    if (__VLS_ctx.availableFiles.length) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("row mt-4") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("col-md-12") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("card bg-light") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("card-body") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({
-            ...{ class: ("card-title") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("row text-center") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("col-md-3") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("mb-2") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-            ...{ class: ("badge bg-secondary fs-6") },
-        });
-        (__VLS_ctx.getTotalByStatus('not_started'));
-        __VLS_elementAsFunction(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
-            ...{ class: ("text-muted") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("col-md-3") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("mb-2") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-            ...{ class: ("badge bg-warning fs-6") },
-        });
-        (__VLS_ctx.getTotalByStatus('processing'));
-        __VLS_elementAsFunction(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
-            ...{ class: ("text-muted") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("col-md-3") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("mb-2") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-            ...{ class: ("badge bg-warning fs-6") },
-        });
-        (__VLS_ctx.getTotalByStatus('started'));
-        __VLS_elementAsFunction(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
-            ...{ class: ("text-muted") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("col-md-3") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("mb-2") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-            ...{ class: ("badge bg-success fs-6") },
-        });
-        (__VLS_ctx.getTotalByStatus('done'));
-        __VLS_elementAsFunction(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
-            ...{ class: ("text-muted") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("col-md-3") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("mb-2") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-            ...{ class: ("badge bg-danger fs-6") },
-        });
-        (__VLS_ctx.getTotalByStatus('failed'));
-        __VLS_elementAsFunction(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
-            ...{ class: ("text-muted") },
-        });
-    }
-    if (__VLS_ctx.filteredOutCount > 0) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("alert alert-warning mt-3") },
-            role: ("alert"),
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: ("fas fa-exclamation-triangle me-2") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
-        (__VLS_ctx.filteredOutCount);
-    }
-    ['container-fluid', 'py-4', 'card', 'card-header', 'pb-0', 'd-flex', 'justify-content-between', 'align-items-center', 'mb-0', 'd-flex', 'gap-2', 'btn', 'btn-outline-primary', 'btn-sm', 'fas', 'fa-sync-alt', 'fa-spin', 'btn', 'btn-primary', 'btn-sm', 'fas', 'fa-play', 'me-1', 'card-body', 'alert', 'alert-danger', 'text-center', 'py-5', 'spinner-border', 'text-primary', 'visually-hidden', 'mt-2', 'text-center', 'py-5', 'mb-4', 'fas', 'fa-folder-open', 'fa-3x', 'text-muted', 'text-muted', 'text-muted', 'mb-4', 'btn', 'btn-primary', 'fas', 'fa-upload', 'me-2', 'table-responsive', 'table', 'table-hover', 'table-light', 'd-flex', 'align-items-center', 'me-2', 'fw-medium', 'badge', 'badge', 'fas', 'fa-spinner', 'fa-spin', 'me-1', 'badge', 'text-muted', 'btn-group', 'btn-group-sm', 'btn', 'btn-outline-info', 'fas', 'fa-redo-alt', 'btn', 'btn-outline-info', 'fas', 'fa-redo-alt', 'btn', 'btn-outline-primary', 'fas', 'fa-play', 'btn', 'btn-outline-warning', 'fas', 'fa-redo', 'btn', 'btn-outline-success', 'bg-success', 'fas', 'fa-eye', 'btn', 'btn-outline-warning', 'fas', 'fa-edit', 'btn', 'btn-outline-danger', 'fas', 'fa-trash', 'btn', 'btn-outline-info', 'fas', 'fa-spinner', 'fa-spin', 'me-1', 'btn', 'btn-outline-info', 'fas', 'fa-spinner', 'fa-spin', 'me-1', 'row', 'mt-4', 'col-md-12', 'card', 'bg-light', 'card-body', 'card-title', 'row', 'text-center', 'col-md-3', 'mb-2', 'badge', 'bg-secondary', 'fs-6', 'text-muted', 'col-md-3', 'mb-2', 'badge', 'bg-warning', 'fs-6', 'text-muted', 'col-md-3', 'mb-2', 'badge', 'bg-warning', 'fs-6', 'text-muted', 'col-md-3', 'mb-2', 'badge', 'bg-success', 'fs-6', 'text-muted', 'col-md-3', 'mb-2', 'badge', 'bg-danger', 'fs-6', 'text-muted', 'alert', 'alert-warning', 'mt-3', 'fas', 'fa-exclamation-triangle', 'me-2',];
-    var __VLS_slots;
-    var $slots;
-    let __VLS_inheritedAttrs;
-    var $attrs;
-    const __VLS_refs = {};
-    var $refs;
-    var $el;
-    return {
-        attrs: {},
-        slots: __VLS_slots,
-        refs: $refs,
-        rootEl: $el,
-    };
 }
-;
+if (__VLS_ctx.availableFiles.length) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "row mt-4" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "col-md-12" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "card bg-light" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "card-body" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({
+        ...{ class: "card-title" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "row text-center" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "col-md-3" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "mb-2" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+        ...{ class: "badge bg-secondary fs-6" },
+    });
+    (__VLS_ctx.getTotalByStatus('not_started'));
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+        ...{ class: "text-muted" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "col-md-3" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "mb-2" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+        ...{ class: "badge bg-warning fs-6" },
+    });
+    (__VLS_ctx.getTotalByStatus('processing'));
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+        ...{ class: "text-muted" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "col-md-3" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "mb-2" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+        ...{ class: "badge bg-warning fs-6" },
+    });
+    (__VLS_ctx.getTotalByStatus('started'));
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+        ...{ class: "text-muted" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "col-md-3" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "mb-2" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+        ...{ class: "badge bg-success fs-6" },
+    });
+    (__VLS_ctx.getTotalByStatus('done'));
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+        ...{ class: "text-muted" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "col-md-3" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "mb-2" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+        ...{ class: "badge bg-danger fs-6" },
+    });
+    (__VLS_ctx.getTotalByStatus('failed'));
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+        ...{ class: "text-muted" },
+    });
+}
+if (__VLS_ctx.filteredOutCount > 0) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "alert alert-warning mt-3" },
+        role: "alert",
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+        ...{ class: "fas fa-exclamation-triangle me-2" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+    (__VLS_ctx.filteredOutCount);
+}
+/** @type {__VLS_StyleScopedClasses['container-fluid']} */ ;
+/** @type {__VLS_StyleScopedClasses['py-4']} */ ;
+/** @type {__VLS_StyleScopedClasses['card']} */ ;
+/** @type {__VLS_StyleScopedClasses['card-header']} */ ;
+/** @type {__VLS_StyleScopedClasses['pb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['justify-content-between']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['gap-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-primary']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-sync-alt']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-spin']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-primary']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-play']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['card-body']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert-danger']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['py-5']} */ ;
+/** @type {__VLS_StyleScopedClasses['spinner-border']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-primary']} */ ;
+/** @type {__VLS_StyleScopedClasses['visually-hidden']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['py-5']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-4']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-folder-open']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-3x']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-4']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-primary']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-upload']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['table-responsive']} */ ;
+/** @type {__VLS_StyleScopedClasses['table']} */ ;
+/** @type {__VLS_StyleScopedClasses['table-hover']} */ ;
+/** @type {__VLS_StyleScopedClasses['table-light']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['fw-medium']} */ ;
+/** @type {__VLS_StyleScopedClasses['badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-spinner']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-spin']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-group']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-group-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-info']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-redo-alt']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-info']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-redo-alt']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-primary']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-play']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-warning']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-redo']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-success']} */ ;
+/** @type {__VLS_StyleScopedClasses['bg-success']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-eye']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-warning']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-edit']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-danger']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-trash']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-info']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-spinner']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-spin']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-info']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-spinner']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-spin']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['row']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-4']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-md-12']} */ ;
+/** @type {__VLS_StyleScopedClasses['card']} */ ;
+/** @type {__VLS_StyleScopedClasses['bg-light']} */ ;
+/** @type {__VLS_StyleScopedClasses['card-body']} */ ;
+/** @type {__VLS_StyleScopedClasses['card-title']} */ ;
+/** @type {__VLS_StyleScopedClasses['row']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-md-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['bg-secondary']} */ ;
+/** @type {__VLS_StyleScopedClasses['fs-6']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-md-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['bg-warning']} */ ;
+/** @type {__VLS_StyleScopedClasses['fs-6']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-md-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['bg-warning']} */ ;
+/** @type {__VLS_StyleScopedClasses['fs-6']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-md-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['bg-success']} */ ;
+/** @type {__VLS_StyleScopedClasses['fs-6']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-md-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['bg-danger']} */ ;
+/** @type {__VLS_StyleScopedClasses['fs-6']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert-warning']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-exclamation-triangle']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-2']} */ ;
+var __VLS_dollars;
 const __VLS_self = (await import('vue')).defineComponent({
     setup() {
         return {
@@ -759,6 +896,5 @@ export default (await import('vue')).defineComponent({
     setup() {
         return {};
     },
-    __typeEl: {},
 });
 ; /* PartiallyEnd: #4569/main.vue */

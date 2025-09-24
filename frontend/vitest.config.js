@@ -10,9 +10,9 @@ export default defineConfig({
     plugins: [vue(), vueJsx()],
     test: {
         environment: 'jsdom',
-        exclude: ['**/node_modules/**', '**/dist/**', '**/e2e/**'],
+        exclude: ['**/node_modules/**', '**/dist/**', '**/e2e/**', '**/.direnv/**'],
         globals: true,
-        setupFiles: [],
+        setupFiles: ['./tests/setup.ts'],
         pool: 'threads',
         poolOptions: {
             threads: {

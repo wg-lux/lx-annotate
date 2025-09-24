@@ -245,292 +245,312 @@ export default (await import('vue')).defineComponent({
         this.loadExaminations();
     }
 });
-; /* PartiallyEnd: #3632/script.vue */
-function __VLS_template() {
-    const __VLS_ctx = {};
-    let __VLS_components;
-    let __VLS_directives;
-    ['form-check',];
-    // CSS variable injection 
-    // CSS variable injection end 
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("examination-form") },
+const __VLS_ctx = {};
+let __VLS_components;
+let __VLS_directives;
+/** @type {__VLS_StyleScopedClasses['form-check']} */ ;
+// CSS variable injection 
+// CSS variable injection end 
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "examination-form" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({
+    ...{ class: "mb-3" },
+});
+if (__VLS_ctx.loading) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "alert alert-info" },
     });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({
-        ...{ class: ("mb-3") },
-    });
-    if (__VLS_ctx.loading) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("alert alert-info") },
-        });
-    }
-    if (__VLS_ctx.error) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("alert alert-danger") },
-        });
-        (__VLS_ctx.error);
-    }
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("mb-3") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
-        ...{ class: ("form-label") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
-        ...{ onChange: (__VLS_ctx.onExaminationChange) },
-        value: ((__VLS_ctx.selectedExaminationId)),
-        modelModifiers: { number: true, },
-        ...{ class: ("form-select") },
-        disabled: ((__VLS_ctx.loading)),
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-        value: ((null)),
-    });
-    for (const [exam] of __VLS_getVForSourceType((__VLS_ctx.examinations))) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-            key: ((exam.id)),
-            value: ((exam.id)),
-        });
-        (exam.name);
-    }
-    if (__VLS_ctx.selectedExaminationId) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("mb-3") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
-            ...{ class: ("form-label") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
-            ...{ onChange: (__VLS_ctx.onFindingChange) },
-            value: ((__VLS_ctx.selectedFindingId)),
-            modelModifiers: { number: true, },
-            ...{ class: ("form-select") },
-            disabled: ((__VLS_ctx.loading || !__VLS_ctx.findings.length)),
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-            value: ((null)),
-        });
-        for (const [finding] of __VLS_getVForSourceType((__VLS_ctx.findings))) {
-            __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-                key: ((finding.id)),
-                value: ((finding.id)),
-            });
-            (finding.name);
-        }
-    }
-    if (__VLS_ctx.selectedFindingId) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("mb-3") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
-            ...{ class: ("form-label") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
-            ...{ onChange: (__VLS_ctx.onLocationClassificationChange) },
-            value: ((__VLS_ctx.selectedLocationClassificationId)),
-            modelModifiers: { number: true, },
-            ...{ class: ("form-select") },
-            disabled: ((__VLS_ctx.loading || !__VLS_ctx.locationClassifications.length)),
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-            value: ((null)),
-        });
-        for (const [lc] of __VLS_getVForSourceType((__VLS_ctx.locationClassifications))) {
-            __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-                key: ((lc.id)),
-                value: ((lc.id)),
-            });
-            (lc.name);
-        }
-    }
-    if (__VLS_ctx.selectedLocationClassificationId) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("mb-3") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
-            ...{ class: ("form-label") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
-            value: ((__VLS_ctx.selectedLocationChoiceId)),
-            modelModifiers: { number: true, },
-            ...{ class: ("form-select") },
-            disabled: ((__VLS_ctx.loading || !__VLS_ctx.locationChoices.length)),
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-            value: ((null)),
-        });
-        for (const [choice] of __VLS_getVForSourceType((__VLS_ctx.locationChoices))) {
-            __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-                key: ((choice.id)),
-                value: ((choice.id)),
-            });
-            (choice.name);
-        }
-    }
-    if (__VLS_ctx.selectedFindingId) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("mb-3") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
-            ...{ class: ("form-label") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
-            ...{ onChange: (__VLS_ctx.onMorphologyClassificationChange) },
-            value: ((__VLS_ctx.selectedMorphologyClassificationId)),
-            modelModifiers: { number: true, },
-            ...{ class: ("form-select") },
-            disabled: ((__VLS_ctx.loading || !__VLS_ctx.morphologyClassifications.length)),
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-            value: ((null)),
-        });
-        for (const [mc] of __VLS_getVForSourceType((__VLS_ctx.morphologyClassifications))) {
-            __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-                key: ((mc.id)),
-                value: ((mc.id)),
-            });
-            (mc.name);
-        }
-    }
-    if (__VLS_ctx.selectedMorphologyClassificationId) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("mb-3") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
-            ...{ class: ("form-label") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
-            value: ((__VLS_ctx.selectedMorphologyChoiceId)),
-            modelModifiers: { number: true, },
-            ...{ class: ("form-select") },
-            disabled: ((__VLS_ctx.loading || !__VLS_ctx.morphologyChoices.length)),
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-            value: ((null)),
-        });
-        for (const [choice] of __VLS_getVForSourceType((__VLS_ctx.morphologyChoices))) {
-            __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-                key: ((choice.id)),
-                value: ((choice.id)),
-            });
-            (choice.name);
-        }
-    }
-    if (__VLS_ctx.selectedFindingId) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("mb-3") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
-            ...{ class: ("form-label") },
-        });
-        if (__VLS_ctx.interventions.length > 0) {
-            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: ("form-check-group") },
-            });
-            for (const [intervention] of __VLS_getVForSourceType((__VLS_ctx.interventions))) {
-                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                    key: ((intervention.id)),
-                    ...{ class: ("form-check") },
-                });
-                __VLS_elementAsFunction(__VLS_intrinsicElements.input)({
-                    type: ("checkbox"),
-                    id: ((`intervention-${intervention.id}`)),
-                    value: ((intervention.id)),
-                    ...{ class: ("form-check-input") },
-                });
-                (__VLS_ctx.selectedInterventions);
-                __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
-                    for: ((`intervention-${intervention.id}`)),
-                    ...{ class: ("form-check-label") },
-                });
-                (intervention.name);
-            }
-        }
-        else {
-            __VLS_elementAsFunction(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
-                ...{ class: ("text-muted") },
-            });
-        }
-    }
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("mb-3") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
-        ...{ class: ("form-label") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.textarea, __VLS_intrinsicElements.textarea)({
-        value: ((__VLS_ctx.notes)),
-        ...{ class: ("form-control") },
-        rows: ("3"),
-        placeholder: ("Zusätzliche Bemerkungen..."),
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("d-grid") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-        ...{ onClick: (__VLS_ctx.saveExamination) },
-        disabled: ((!__VLS_ctx.canSave || __VLS_ctx.loading)),
-        ...{ class: ("btn btn-primary") },
-    });
-    (__VLS_ctx.loading ? 'Speichere...' : 'Untersuchung speichern');
-    if (__VLS_ctx.hasSelections) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("mt-3 p-3 bg-light rounded") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({});
-        __VLS_elementAsFunction(__VLS_intrinsicElements.ul, __VLS_intrinsicElements.ul)({
-            ...{ class: ("list-unstyled mb-0") },
-        });
-        if (__VLS_ctx.selectedExamination) {
-            __VLS_elementAsFunction(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({});
-            __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
-            (__VLS_ctx.selectedExamination.name);
-        }
-        if (__VLS_ctx.selectedFinding) {
-            __VLS_elementAsFunction(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({});
-            __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
-            (__VLS_ctx.selectedFinding.name);
-        }
-        if (__VLS_ctx.selectedLocationClassification) {
-            __VLS_elementAsFunction(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({});
-            __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
-            (__VLS_ctx.selectedLocationClassification.name);
-        }
-        if (__VLS_ctx.selectedLocationChoice) {
-            __VLS_elementAsFunction(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({});
-            __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
-            (__VLS_ctx.selectedLocationChoice.name);
-        }
-        if (__VLS_ctx.selectedMorphologyClassification) {
-            __VLS_elementAsFunction(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({});
-            __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
-            (__VLS_ctx.selectedMorphologyClassification.name);
-        }
-        if (__VLS_ctx.selectedMorphologyChoice) {
-            __VLS_elementAsFunction(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({});
-            __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
-            (__VLS_ctx.selectedMorphologyChoice.name);
-        }
-        if (__VLS_ctx.selectedInterventions.length > 0) {
-            __VLS_elementAsFunction(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({});
-            __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
-            (__VLS_ctx.interventions.filter(i => __VLS_ctx.selectedInterventions.includes(i.id)).map(i => i.name).join(', '));
-        }
-    }
-    ['examination-form', 'mb-3', 'alert', 'alert-info', 'alert', 'alert-danger', 'mb-3', 'form-label', 'form-select', 'mb-3', 'form-label', 'form-select', 'mb-3', 'form-label', 'form-select', 'mb-3', 'form-label', 'form-select', 'mb-3', 'form-label', 'form-select', 'mb-3', 'form-label', 'form-select', 'mb-3', 'form-label', 'form-check-group', 'form-check', 'form-check-input', 'form-check-label', 'text-muted', 'mb-3', 'form-label', 'form-control', 'd-grid', 'btn', 'btn-primary', 'mt-3', 'p-3', 'bg-light', 'rounded', 'list-unstyled', 'mb-0',];
-    var __VLS_slots;
-    var $slots;
-    let __VLS_inheritedAttrs;
-    var $attrs;
-    const __VLS_refs = {};
-    var $refs;
-    var $el;
-    return {
-        attrs: {},
-        slots: __VLS_slots,
-        refs: $refs,
-        rootEl: $el,
-    };
 }
-;
+if (__VLS_ctx.error) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "alert alert-danger" },
+    });
+    (__VLS_ctx.error);
+}
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "mb-3" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+    ...{ class: "form-label" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
+    ...{ onChange: (__VLS_ctx.onExaminationChange) },
+    value: (__VLS_ctx.selectedExaminationId),
+    ...{ class: "form-select" },
+    disabled: (__VLS_ctx.loading),
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+    value: (null),
+});
+for (const [exam] of __VLS_getVForSourceType((__VLS_ctx.examinations))) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+        key: (exam.id),
+        value: (exam.id),
+    });
+    (exam.name);
+}
+if (__VLS_ctx.selectedExaminationId) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "mb-3" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+        ...{ class: "form-label" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
+        ...{ onChange: (__VLS_ctx.onFindingChange) },
+        value: (__VLS_ctx.selectedFindingId),
+        ...{ class: "form-select" },
+        disabled: (__VLS_ctx.loading || !__VLS_ctx.findings.length),
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+        value: (null),
+    });
+    for (const [finding] of __VLS_getVForSourceType((__VLS_ctx.findings))) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+            key: (finding.id),
+            value: (finding.id),
+        });
+        (finding.name);
+    }
+}
+if (__VLS_ctx.selectedFindingId) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "mb-3" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+        ...{ class: "form-label" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
+        ...{ onChange: (__VLS_ctx.onLocationClassificationChange) },
+        value: (__VLS_ctx.selectedLocationClassificationId),
+        ...{ class: "form-select" },
+        disabled: (__VLS_ctx.loading || !__VLS_ctx.locationClassifications.length),
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+        value: (null),
+    });
+    for (const [lc] of __VLS_getVForSourceType((__VLS_ctx.locationClassifications))) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+            key: (lc.id),
+            value: (lc.id),
+        });
+        (lc.name);
+    }
+}
+if (__VLS_ctx.selectedLocationClassificationId) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "mb-3" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+        ...{ class: "form-label" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
+        value: (__VLS_ctx.selectedLocationChoiceId),
+        ...{ class: "form-select" },
+        disabled: (__VLS_ctx.loading || !__VLS_ctx.locationChoices.length),
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+        value: (null),
+    });
+    for (const [choice] of __VLS_getVForSourceType((__VLS_ctx.locationChoices))) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+            key: (choice.id),
+            value: (choice.id),
+        });
+        (choice.name);
+    }
+}
+if (__VLS_ctx.selectedFindingId) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "mb-3" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+        ...{ class: "form-label" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
+        ...{ onChange: (__VLS_ctx.onMorphologyClassificationChange) },
+        value: (__VLS_ctx.selectedMorphologyClassificationId),
+        ...{ class: "form-select" },
+        disabled: (__VLS_ctx.loading || !__VLS_ctx.morphologyClassifications.length),
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+        value: (null),
+    });
+    for (const [mc] of __VLS_getVForSourceType((__VLS_ctx.morphologyClassifications))) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+            key: (mc.id),
+            value: (mc.id),
+        });
+        (mc.name);
+    }
+}
+if (__VLS_ctx.selectedMorphologyClassificationId) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "mb-3" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+        ...{ class: "form-label" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
+        value: (__VLS_ctx.selectedMorphologyChoiceId),
+        ...{ class: "form-select" },
+        disabled: (__VLS_ctx.loading || !__VLS_ctx.morphologyChoices.length),
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+        value: (null),
+    });
+    for (const [choice] of __VLS_getVForSourceType((__VLS_ctx.morphologyChoices))) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+            key: (choice.id),
+            value: (choice.id),
+        });
+        (choice.name);
+    }
+}
+if (__VLS_ctx.selectedFindingId) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "mb-3" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+        ...{ class: "form-label" },
+    });
+    if (__VLS_ctx.interventions.length > 0) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "form-check-group" },
+        });
+        for (const [intervention] of __VLS_getVForSourceType((__VLS_ctx.interventions))) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                key: (intervention.id),
+                ...{ class: "form-check" },
+            });
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
+                type: "checkbox",
+                id: (`intervention-${intervention.id}`),
+                value: (intervention.id),
+                ...{ class: "form-check-input" },
+            });
+            (__VLS_ctx.selectedInterventions);
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+                for: (`intervention-${intervention.id}`),
+                ...{ class: "form-check-label" },
+            });
+            (intervention.name);
+        }
+    }
+    else {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+            ...{ class: "text-muted" },
+        });
+    }
+}
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "mb-3" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+    ...{ class: "form-label" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.textarea, __VLS_intrinsicElements.textarea)({
+    value: (__VLS_ctx.notes),
+    ...{ class: "form-control" },
+    rows: "3",
+    placeholder: "Zusätzliche Bemerkungen...",
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "d-grid" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+    ...{ onClick: (__VLS_ctx.saveExamination) },
+    disabled: (!__VLS_ctx.canSave || __VLS_ctx.loading),
+    ...{ class: "btn btn-primary" },
+});
+(__VLS_ctx.loading ? 'Speichere...' : 'Untersuchung speichern');
+if (__VLS_ctx.hasSelections) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "mt-3 p-3 bg-light rounded" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({});
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.ul, __VLS_intrinsicElements.ul)({
+        ...{ class: "list-unstyled mb-0" },
+    });
+    if (__VLS_ctx.selectedExamination) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+        (__VLS_ctx.selectedExamination.name);
+    }
+    if (__VLS_ctx.selectedFinding) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+        (__VLS_ctx.selectedFinding.name);
+    }
+    if (__VLS_ctx.selectedLocationClassification) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+        (__VLS_ctx.selectedLocationClassification.name);
+    }
+    if (__VLS_ctx.selectedLocationChoice) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+        (__VLS_ctx.selectedLocationChoice.name);
+    }
+    if (__VLS_ctx.selectedMorphologyClassification) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+        (__VLS_ctx.selectedMorphologyClassification.name);
+    }
+    if (__VLS_ctx.selectedMorphologyChoice) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+        (__VLS_ctx.selectedMorphologyChoice.name);
+    }
+    if (__VLS_ctx.selectedInterventions.length > 0) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+        (__VLS_ctx.interventions.filter(i => __VLS_ctx.selectedInterventions.includes(i.id)).map(i => i.name).join(', '));
+    }
+}
+/** @type {__VLS_StyleScopedClasses['examination-form']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert-info']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert-danger']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-select']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-select']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-select']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-select']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-select']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-select']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-check-group']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-check']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-check-input']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-check-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-control']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-grid']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-primary']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['p-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['bg-light']} */ ;
+/** @type {__VLS_StyleScopedClasses['rounded']} */ ;
+/** @type {__VLS_StyleScopedClasses['list-unstyled']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+var __VLS_dollars;
 let __VLS_self;

@@ -1,10 +1,10 @@
 declare const _default: import("vue").DefineComponent<{}, {}, {}, {}, {}, import("vue").ComponentOptionsMixin, import("vue").ComponentOptionsMixin, {}, string, import("vue").PublicProps, Readonly<{}> & Readonly<{}>, {}, {}, {
-    PatientAdder: import("vue").DefineComponent<{}, {}, {}, {}, {}, import("vue").ComponentOptionsMixin, import("vue").ComponentOptionsMixin, {
-        cancel: () => any;
-        "patient-created": (patient: import("../api/patientService.js").Patient) => any;
+    PatientAdder: import("vue").DefineComponent<{}, {}, {}, {}, {}, import("vue").ComponentOptionsMixin, import("vue").ComponentOptionsMixin, {} & {
+        cancel: any;
+        "patient-created": any;
     }, string, import("vue").PublicProps, Readonly<{}> & Readonly<{
-        onCancel?: (() => any) | undefined;
-        "onPatient-created"?: ((patient: import("../api/patientService.js").Patient) => any) | undefined;
-    }>, {}, {}, {}, {}, string, import("vue").ComponentProvideOptions, true, {}, HTMLDivElement>;
+        onCancel?: ((...args: any) => any) | undefined;
+        "onPatient-created"?: ((...args: any) => any) | undefined;
+    }>, {}, {}, {}, {}, string, import("vue").ComponentProvideOptions, true, {}, any>;
 }, {}, string, import("vue").ComponentProvideOptions, true, {}, any>;
 export default _default;

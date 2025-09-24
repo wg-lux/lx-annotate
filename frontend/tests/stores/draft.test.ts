@@ -9,11 +9,16 @@ describe('Draft Store', () => {
     setActivePinia(createPinia())
     vi.clearAllMocks()
     
-    // Clear localStorage before each test
-    vi.spyOn(Storage.prototype, 'getItem').mockReturnValue(null)
-    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {})
-    vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(() => {})
-    vi.spyOn(Storage.prototype, 'clear').mockImplementation(() => {})
+    // Mock localStorage
+    Object.defineProperty(window, 'localStorage', {
+      value: {
+        getItem: vi.fn(() => null),
+        setItem: vi.fn(() => null),
+        removeItem: vi.fn(() => null),
+        clear: vi.fn(() => null),
+      },
+      writable: true
+    })
   })
 
   it('should initialize with empty state', () => {

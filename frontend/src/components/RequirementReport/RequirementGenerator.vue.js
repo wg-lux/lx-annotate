@@ -775,618 +775,802 @@ onMounted(async () => {
 onUnmounted(() => {
     stopHeartbeat();
 });
-; /* PartiallyEnd: #3632/scriptSetup.vue */
-function __VLS_template() {
-    const __VLS_ctx = {};
-    let __VLS_components;
-    let __VLS_directives;
-    ['btn-close', 'btn-close', 'btn-close', 'card', 'btn', 'status-indicator', 'status-indicator', 'status-indicator',];
-    // CSS variable injection 
-    // CSS variable injection end 
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("requirement-generator container-fluid py-4") },
+debugger; /* PartiallyEnd: #3632/scriptSetup.vue */
+const __VLS_ctx = {};
+let __VLS_components;
+let __VLS_directives;
+/** @type {__VLS_StyleScopedClasses['btn-close']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-close']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-close']} */ ;
+/** @type {__VLS_StyleScopedClasses['card']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['status-indicator']} */ ;
+/** @type {__VLS_StyleScopedClasses['status-indicator']} */ ;
+/** @type {__VLS_StyleScopedClasses['status-indicator']} */ ;
+// CSS variable injection 
+// CSS variable injection end 
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "requirement-generator container-fluid py-4" },
+});
+if (__VLS_ctx.patientStore.error || __VLS_ctx.error || __VLS_ctx.examinationStore.error) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "alert alert-danger" },
     });
-    if (__VLS_ctx.patientStore.error || __VLS_ctx.error || __VLS_ctx.examinationStore.error) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("alert alert-danger") },
-        });
-        if (__VLS_ctx.patientStore.error) {
-            __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
-            (__VLS_ctx.patientStore.error);
-        }
-        if (__VLS_ctx.examinationStore.error) {
-            __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
-            (__VLS_ctx.examinationStore.error);
-        }
-        if (__VLS_ctx.error) {
-            __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
-            (__VLS_ctx.error);
-        }
+    if (__VLS_ctx.patientStore.error) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
+        (__VLS_ctx.patientStore.error);
     }
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("card mb-3") },
+    if (__VLS_ctx.examinationStore.error) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
+        (__VLS_ctx.examinationStore.error);
+    }
+    if (__VLS_ctx.error) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
+        (__VLS_ctx.error);
+    }
+}
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "card mb-3" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "card-header" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.h2, __VLS_intrinsicElements.h2)({
+    ...{ class: "h5 mb-0" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "card-body" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "row align-items-end" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "col-md-6" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "form-group" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "d-flex justify-content-between align-items-center mb-2" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+    for: "patient-select",
+});
+if (__VLS_ctx.selectedPatientId) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "d-flex align-items-center gap-2" },
     });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("card-header") },
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+        ...{ class: "badge bg-info" },
     });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.h2, __VLS_intrinsicElements.h2)({
-        ...{ class: ("h5 mb-0") },
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+        ...{ class: "fas fa-user" },
     });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("card-body") },
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+        ...{ onClick: (...[$event]) => {
+                if (!(__VLS_ctx.selectedPatientId))
+                    return;
+                __VLS_ctx.patientStore.clearCurrentPatient();
+            } },
+        type: "button",
+        ...{ class: "btn btn-sm btn-outline-secondary" },
+        title: "Patientenauswahl zurücksetzen",
     });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("row align-items-end") },
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+        ...{ class: "fas fa-times" },
     });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("col-md-6") },
+}
+__VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
+    id: "patient-select",
+    value: (__VLS_ctx.selectedPatientId),
+    ...{ class: "form-control" },
+    disabled: (__VLS_ctx.isLoadingPatients || __VLS_ctx.loading),
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+    value: (null),
+    disabled: true,
+});
+(__VLS_ctx.isLoadingPatients ? 'Lade Patienten...' : 'Bitte wählen Sie einen Patienten');
+for (const [patient] of __VLS_getVForSourceType((__VLS_ctx.patients))) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+        key: (patient.id),
+        value: (patient.id),
     });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("form-group") },
+    (patient.displayName);
+}
+if (__VLS_ctx.selectedPatientId) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "mt-2" },
     });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("d-flex justify-content-between align-items-center mb-2") },
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+        ...{ class: "text-muted" },
     });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
-        for: ("patient-select"),
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+        ...{ class: "fas fa-info-circle" },
     });
-    if (__VLS_ctx.selectedPatientId) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("d-flex align-items-center gap-2") },
+}
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "col-md-6" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "form-group" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+    for: "examination-select",
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
+    id: "examination-select",
+    value: (__VLS_ctx.selectedExaminationId),
+    ...{ class: "form-control" },
+    disabled: (__VLS_ctx.isLoadingExaminations || !__VLS_ctx.selectedPatientId || __VLS_ctx.loading),
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+    value: (null),
+    disabled: true,
+});
+(__VLS_ctx.isLoadingExaminations ? 'Lade Untersuchungen...' : 'Bitte wählen Sie eine Untersuchung');
+for (const [exam] of __VLS_getVForSourceType((__VLS_ctx.examinationsDropdown))) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+        key: (exam.id),
+        value: (exam.id),
+    });
+    (exam.displayName);
+}
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "row mt-3" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "col-12" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+    ...{ onClick: (__VLS_ctx.createPatientExaminationAndInitLookup) },
+    ...{ class: "btn btn-primary" },
+    disabled: (!__VLS_ctx.selectedPatientId || !__VLS_ctx.selectedExaminationId || __VLS_ctx.loading || !!__VLS_ctx.lookupToken),
+});
+if (__VLS_ctx.loading) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+        ...{ class: "spinner-border spinner-border-sm" },
+        role: "status",
+        'aria-hidden': "true",
+    });
+}
+if (!__VLS_ctx.lookupToken) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+}
+else {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+}
+if (__VLS_ctx.selectedPatientId && __VLS_ctx.selectedExaminationId && __VLS_ctx.lookup) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "row g-3" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "col-12" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "card" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "card-header" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.h2, __VLS_intrinsicElements.h2)({
+        ...{ class: "h6 mb-0" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "card-body" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "row" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "col-md-4" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+    (__VLS_ctx.lookup.patientExaminationId || 'Nicht verfügbar');
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "col-md-4" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+    (__VLS_ctx.lookupToken);
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "col-md-4" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+    (__VLS_ctx.requirementSets.length);
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "row mt-2" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "col-md-6" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+    (__VLS_ctx.selectedRequirementSetIds.join(', ') || 'Keine');
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "col-md-6" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+    (__VLS_ctx.availableFindings.length);
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "col-12 col-xl-6" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "card h-100" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "card-header d-flex justify-content-between align-items-center" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.h2, __VLS_intrinsicElements.h2)({
+        ...{ class: "h5 mb-0" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+        ...{ class: "text-muted" },
+    });
+    (__VLS_ctx.lookupToken);
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "d-flex gap-2" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+        ...{ onClick: (__VLS_ctx.fetchLookupAll) },
+        ...{ class: "btn btn-sm btn-outline-secondary" },
+        disabled: (__VLS_ctx.loading),
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+        ...{ onClick: (__VLS_ctx.triggerRecompute) },
+        ...{ class: "btn btn-sm btn-outline-info" },
+        disabled: (__VLS_ctx.loading || !__VLS_ctx.lookupToken),
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+        ...{ onClick: (__VLS_ctx.manualRenewSession) },
+        ...{ class: "btn btn-sm btn-outline-info" },
+        disabled: (__VLS_ctx.loading || !__VLS_ctx.lookupToken),
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+        ...{ onClick: (__VLS_ctx.resetLookupSession) },
+        ...{ class: "btn btn-sm btn-outline-danger" },
+        disabled: (__VLS_ctx.loading || !__VLS_ctx.lookupToken),
+    });
+    if (__VLS_ctx.lookup) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "row g-3 mt-3 card-body pre-scrollable" },
+            ...{ style: {} },
         });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-            ...{ class: ("badge bg-info") },
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "col-12" },
         });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: ("fas fa-user") },
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "card" },
         });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "card-header" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.h2, __VLS_intrinsicElements.h2)({
+            ...{ class: "h5 mb-0" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "card-body" },
+        });
+        /** @type {[typeof AddableFindingsDetail, ]} */ ;
+        // @ts-ignore
+        const __VLS_0 = __VLS_asFunctionalComponent(AddableFindingsDetail, new AddableFindingsDetail({
+            ...{ 'onFindingAdded': {} },
+            ...{ 'onFindingError': {} },
+            examinationId: (__VLS_ctx.selectedExaminationId || undefined),
+            patientExaminationId: (__VLS_ctx.currentPatientExaminationId || undefined),
+        }));
+        const __VLS_1 = __VLS_0({
+            ...{ 'onFindingAdded': {} },
+            ...{ 'onFindingError': {} },
+            examinationId: (__VLS_ctx.selectedExaminationId || undefined),
+            patientExaminationId: (__VLS_ctx.currentPatientExaminationId || undefined),
+        }, ...__VLS_functionalComponentArgsRest(__VLS_0));
+        let __VLS_3;
+        let __VLS_4;
+        let __VLS_5;
+        const __VLS_6 = {
+            onFindingAdded: (__VLS_ctx.onFindingAddedToExamination)
+        };
+        const __VLS_7 = {
+            onFindingError: ((errorMsg) => __VLS_ctx.error = errorMsg)
+        };
+        var __VLS_2;
+    }
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.ul, __VLS_intrinsicElements.ul)({
+        ...{ class: "list-group list-group-flush" },
+    });
+    for (const [rs] of __VLS_getVForSourceType((__VLS_ctx.requirementSets))) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({
+            key: (rs.id),
+            ...{ class: "list-group-item d-flex justify-content-between align-items-center" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "flex-grow-1" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "d-flex justify-content-between align-items-center" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+            ...{ class: "fw-semibold" },
+        });
+        (rs.name);
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "d-flex align-items-center gap-2" },
+        });
+        if (__VLS_ctx.getRequirementSetEvaluationStatus(rs.id)) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                ...{ class: "badge" },
+                ...{ class: (__VLS_ctx.getRequirementSetEvaluationStatus(rs.id).met ? 'bg-success' : 'bg-warning') },
+            });
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                ...{ class: "fas" },
+                ...{ class: (__VLS_ctx.getRequirementSetEvaluationStatus(rs.id).met ? 'fa-check' : 'fa-exclamation-triangle') },
+            });
+            (__VLS_ctx.getRequirementSetEvaluationStatus(rs.id).met ? 'Erfüllt' : 'Nicht erfüllt');
+        }
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
             ...{ onClick: (...[$event]) => {
-                    if (!((__VLS_ctx.selectedPatientId)))
+                    if (!(__VLS_ctx.selectedPatientId && __VLS_ctx.selectedExaminationId && __VLS_ctx.lookup))
                         return;
-                    __VLS_ctx.patientStore.clearCurrentPatient();
+                    __VLS_ctx.evaluateRequirementSet(rs.id);
                 } },
-            type: ("button"),
-            ...{ class: ("btn btn-sm btn-outline-secondary") },
-            title: ("Patientenauswahl zurücksetzen"),
+            ...{ class: "btn btn-sm btn-outline-info" },
+            disabled: (__VLS_ctx.loading),
+            title: "Anforderungsset evaluieren",
         });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: ("fas fa-times") },
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: "fas fa-calculator" },
         });
-    }
-    __VLS_elementAsFunction(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
-        id: ("patient-select"),
-        value: ((__VLS_ctx.selectedPatientId)),
-        ...{ class: ("form-control") },
-        disabled: ((__VLS_ctx.isLoadingPatients || __VLS_ctx.loading)),
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-        value: ((null)),
-        disabled: (true),
-    });
-    (__VLS_ctx.isLoadingPatients ? 'Lade Patienten...' : 'Bitte wählen Sie einen Patienten');
-    for (const [patient] of __VLS_getVForSourceType((__VLS_ctx.patients))) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-            key: ((patient.id)),
-            value: ((patient.id)),
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+            ...{ class: "text-muted d-block" },
         });
-        (patient.displayName);
-    }
-    if (__VLS_ctx.selectedPatientId) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("mt-2") },
+        (rs.type);
+        if (__VLS_ctx.getRequirementSetEvaluationStatus(rs.id)) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: "mt-2" },
+            });
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+                ...{ class: "text-muted" },
+            });
+            (__VLS_ctx.getRequirementSetEvaluationStatus(rs.id)?.metRequirementsCount);
+            (__VLS_ctx.getRequirementSetEvaluationStatus(rs.id)?.totalRequirementsCount);
+        }
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "form-check form-switch ms-3" },
         });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
-            ...{ class: ("text-muted") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: ("fas fa-info-circle") },
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
+            ...{ onChange: (...[$event]) => {
+                    if (!(__VLS_ctx.selectedPatientId && __VLS_ctx.selectedExaminationId && __VLS_ctx.lookup))
+                        return;
+                    __VLS_ctx.toggleRequirementSet(rs.id, $event.target.checked);
+                } },
+            ...{ class: "form-check-input" },
+            type: "checkbox",
+            checked: (__VLS_ctx.selectedRequirementSetIdSet.has(rs.id)),
         });
     }
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("col-md-6") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("form-group") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
-        for: ("examination-select"),
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
-        id: ("examination-select"),
-        value: ((__VLS_ctx.selectedExaminationId)),
-        ...{ class: ("form-control") },
-        disabled: ((__VLS_ctx.isLoadingExaminations || !__VLS_ctx.selectedPatientId || __VLS_ctx.loading)),
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-        value: ((null)),
-        disabled: (true),
-    });
-    (__VLS_ctx.isLoadingExaminations ? 'Lade Untersuchungen...' : 'Bitte wählen Sie eine Untersuchung');
-    for (const [exam] of __VLS_getVForSourceType((__VLS_ctx.examinationsDropdown))) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-            key: ((exam.id)),
-            value: ((exam.id)),
-        });
-        (exam.displayName);
-    }
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("row mt-3") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("col-12") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-        ...{ onClick: (__VLS_ctx.createPatientExaminationAndInitLookup) },
-        ...{ class: ("btn btn-primary") },
-        disabled: ((!__VLS_ctx.selectedPatientId || !__VLS_ctx.selectedExaminationId || __VLS_ctx.loading || !!__VLS_ctx.lookupToken)),
-    });
-    if (__VLS_ctx.loading) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-            ...{ class: ("spinner-border spinner-border-sm") },
-            role: ("status"),
-            'aria-hidden': ("true"),
+    if (!__VLS_ctx.requirementSets.length) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({
+            ...{ class: "list-group-item text-muted" },
         });
     }
-    if (!__VLS_ctx.lookupToken) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+    if (__VLS_ctx.evaluationSummary && __VLS_ctx.evaluationSummary.totalSets > 0) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "mt-3 p-3 bg-light rounded" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({
+            ...{ class: "mb-2" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "progress mb-2" },
+            ...{ style: {} },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "progress-bar" },
+            ...{ class: (__VLS_ctx.evaluationSummary.completionPercentage === 100 ? 'bg-success' : 'bg-info') },
+            ...{ style: ({ width: __VLS_ctx.evaluationSummary.completionPercentage + '%' }) },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+            ...{ class: "text-muted" },
+        });
+        (__VLS_ctx.evaluationSummary.evaluatedSets);
+        (__VLS_ctx.evaluationSummary.totalSets);
+        (__VLS_ctx.evaluationSummary.completionPercentage);
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "mt-2" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+            ...{ onClick: (__VLS_ctx.evaluateRequirementsOnChange) },
+            ...{ class: "btn btn-sm btn-primary" },
+            disabled: (__VLS_ctx.loading),
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: "fas fa-sync" },
+        });
+    }
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "card-body" },
+    });
+    if (__VLS_ctx.lookup) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "mb-3" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.br, __VLS_intrinsicElements.br)({});
+        (!!__VLS_ctx.lookup);
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.br, __VLS_intrinsicElements.br)({});
+        (__VLS_ctx.requirementSets.length);
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.br, __VLS_intrinsicElements.br)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.pre, __VLS_intrinsicElements.pre)({});
+        (JSON.stringify(__VLS_ctx.lookup, null, 2));
+    }
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "col-12 col-xl-6" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "card h-100" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "card-header d-flex justify-content-between align-items-center" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.h2, __VLS_intrinsicElements.h2)({
+        ...{ class: "h5 mb-0" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
+        ...{ class: "text-muted mb-0" },
+    });
+    if (__VLS_ctx.availableFindings.length > 0) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "d-flex align-items-center gap-2" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+            ...{ class: "text-muted" },
+        });
+        (__VLS_ctx.availableFindings.length);
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+            ...{ onClick: (...[$event]) => {
+                    if (!(__VLS_ctx.selectedPatientId && __VLS_ctx.selectedExaminationId && __VLS_ctx.lookup))
+                        return;
+                    if (!(__VLS_ctx.availableFindings.length > 0))
+                        return;
+                    __VLS_ctx.loadFindingsData();
+                } },
+            ...{ class: "btn btn-sm btn-outline-info" },
+            disabled: (__VLS_ctx.loading),
+            title: "Befunde aktualisieren",
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: "fas fa-sync-alt" },
+        });
+    }
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "card-body pre-scrollable" },
+        ...{ style: {} },
+    });
+    if (__VLS_ctx.findingStore.loading) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "text-center py-4" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "spinner-border" },
+            role: "status",
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+            ...{ class: "visually-hidden" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
+            ...{ class: "mt-2 text-muted" },
+        });
+    }
+    else if (__VLS_ctx.availableFindings.length) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "findings-container" },
+        });
+        for (const [findingId] of __VLS_getVForSourceType((__VLS_ctx.availableFindings))) {
+            /** @type {[typeof FindingsDetail, ]} */ ;
+            // @ts-ignore
+            const __VLS_8 = __VLS_asFunctionalComponent(FindingsDetail, new FindingsDetail({
+                ...{ 'onAddedToExamination': {} },
+                ...{ 'onClassificationUpdated': {} },
+                key: (findingId),
+                findingId: (findingId),
+                isAddedToExamination: (__VLS_ctx.isFindingAddedToExamination(findingId)),
+                patientExaminationId: (__VLS_ctx.lookup?.patientExaminationId || undefined),
+            }));
+            const __VLS_9 = __VLS_8({
+                ...{ 'onAddedToExamination': {} },
+                ...{ 'onClassificationUpdated': {} },
+                key: (findingId),
+                findingId: (findingId),
+                isAddedToExamination: (__VLS_ctx.isFindingAddedToExamination(findingId)),
+                patientExaminationId: (__VLS_ctx.lookup?.patientExaminationId || undefined),
+            }, ...__VLS_functionalComponentArgsRest(__VLS_8));
+            let __VLS_11;
+            let __VLS_12;
+            let __VLS_13;
+            const __VLS_14 = {
+                onAddedToExamination: (__VLS_ctx.onFindingAddedToExamination)
+            };
+            const __VLS_15 = {
+                onClassificationUpdated: (__VLS_ctx.onClassificationUpdated)
+            };
+            var __VLS_10;
+        }
     }
     else {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
-    }
-    if (__VLS_ctx.selectedPatientId && __VLS_ctx.selectedExaminationId && __VLS_ctx.lookup) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("row g-3") },
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "text-center py-4" },
         });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("col-12") },
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: "fas fa-info-circle fa-2x text-muted mb-3" },
         });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("card") },
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
+            ...{ class: "text-muted" },
         });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("card-header") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.h2, __VLS_intrinsicElements.h2)({
-            ...{ class: ("h6 mb-0") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("card-body") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("row") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("col-md-4") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
-        (__VLS_ctx.lookup.patientExaminationId || 'Nicht verfügbar');
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("col-md-4") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
-        (__VLS_ctx.lookupToken);
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("col-md-4") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
-        (__VLS_ctx.requirementSets.length);
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("row mt-2") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("col-md-6") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
-        (__VLS_ctx.selectedRequirementSetIds.join(', ') || 'Keine');
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("col-md-6") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
-        (__VLS_ctx.availableFindings.length);
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("col-12 col-xl-6") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("card h-100") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("card-header d-flex justify-content-between align-items-center") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
-        __VLS_elementAsFunction(__VLS_intrinsicElements.h2, __VLS_intrinsicElements.h2)({
-            ...{ class: ("h5 mb-0") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
-            ...{ class: ("text-muted") },
-        });
-        (__VLS_ctx.lookupToken);
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("d-flex gap-2") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-            ...{ onClick: (__VLS_ctx.fetchLookupAll) },
-            ...{ class: ("btn btn-sm btn-outline-secondary") },
-            disabled: ((__VLS_ctx.loading)),
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-            ...{ onClick: (__VLS_ctx.triggerRecompute) },
-            ...{ class: ("btn btn-sm btn-outline-info") },
-            disabled: ((__VLS_ctx.loading || !__VLS_ctx.lookupToken)),
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-            ...{ onClick: (__VLS_ctx.manualRenewSession) },
-            ...{ class: ("btn btn-sm btn-outline-info") },
-            disabled: ((__VLS_ctx.loading || !__VLS_ctx.lookupToken)),
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-            ...{ onClick: (__VLS_ctx.resetLookupSession) },
-            ...{ class: ("btn btn-sm btn-outline-danger") },
-            disabled: ((__VLS_ctx.loading || !__VLS_ctx.lookupToken)),
-        });
-        if (__VLS_ctx.lookup) {
-            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: ("row g-3 mt-3 card-body pre-scrollable") },
-                ...{ style: ({}) },
-            });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: ("col-12") },
-            });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: ("card") },
-            });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: ("card-header") },
-            });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.h2, __VLS_intrinsicElements.h2)({
-                ...{ class: ("h5 mb-0") },
-            });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: ("card-body") },
-            });
-            // @ts-ignore
-            /** @type { [typeof AddableFindingsDetail, ] } */ ;
-            // @ts-ignore
-            const __VLS_0 = __VLS_asFunctionalComponent(AddableFindingsDetail, new AddableFindingsDetail({
-                ...{ 'onFindingAdded': {} },
-                ...{ 'onFindingError': {} },
-                examinationId: ((__VLS_ctx.selectedExaminationId || undefined)),
-                patientExaminationId: ((__VLS_ctx.currentPatientExaminationId || undefined)),
-            }));
-            const __VLS_1 = __VLS_0({
-                ...{ 'onFindingAdded': {} },
-                ...{ 'onFindingError': {} },
-                examinationId: ((__VLS_ctx.selectedExaminationId || undefined)),
-                patientExaminationId: ((__VLS_ctx.currentPatientExaminationId || undefined)),
-            }, ...__VLS_functionalComponentArgsRest(__VLS_0));
-            let __VLS_5;
-            const __VLS_6 = {
-                onFindingAdded: (__VLS_ctx.onFindingAddedToExamination)
-            };
-            const __VLS_7 = {
-                onFindingError: ((errorMsg) => __VLS_ctx.error = errorMsg)
-            };
-            let __VLS_2;
-            let __VLS_3;
-            var __VLS_4;
-        }
-        __VLS_elementAsFunction(__VLS_intrinsicElements.ul, __VLS_intrinsicElements.ul)({
-            ...{ class: ("list-group list-group-flush") },
-        });
-        for (const [rs] of __VLS_getVForSourceType((__VLS_ctx.requirementSets))) {
-            __VLS_elementAsFunction(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({
-                key: ((rs.id)),
-                ...{ class: ("list-group-item d-flex justify-content-between align-items-center") },
-            });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: ("flex-grow-1") },
-            });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: ("d-flex justify-content-between align-items-center") },
-            });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-                ...{ class: ("fw-semibold") },
-            });
-            (rs.name);
-            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: ("d-flex align-items-center gap-2") },
-            });
-            if (__VLS_ctx.getRequirementSetEvaluationStatus(rs.id)) {
-                __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-                    ...{ class: ("badge") },
-                    ...{ class: ((__VLS_ctx.getRequirementSetEvaluationStatus(rs.id).met ? 'bg-success' : 'bg-warning')) },
-                });
-                __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                    ...{ class: ("fas") },
-                    ...{ class: ((__VLS_ctx.getRequirementSetEvaluationStatus(rs.id).met ? 'fa-check' : 'fa-exclamation-triangle')) },
-                });
-                (__VLS_ctx.getRequirementSetEvaluationStatus(rs.id).met ? 'Erfüllt' : 'Nicht erfüllt');
-            }
-            __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-                ...{ onClick: (...[$event]) => {
-                        if (!((__VLS_ctx.selectedPatientId && __VLS_ctx.selectedExaminationId && __VLS_ctx.lookup)))
-                            return;
-                        __VLS_ctx.evaluateRequirementSet(rs.id);
-                    } },
-                ...{ class: ("btn btn-sm btn-outline-info") },
-                disabled: ((__VLS_ctx.loading)),
-                title: ("Anforderungsset evaluieren"),
-            });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: ("fas fa-calculator") },
-            });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
-                ...{ class: ("text-muted d-block") },
-            });
-            (rs.type);
-            if (__VLS_ctx.getRequirementSetEvaluationStatus(rs.id)) {
-                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                    ...{ class: ("mt-2") },
-                });
-                __VLS_elementAsFunction(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
-                    ...{ class: ("text-muted") },
-                });
-                (__VLS_ctx.getRequirementSetEvaluationStatus(rs.id)?.metRequirementsCount);
-                (__VLS_ctx.getRequirementSetEvaluationStatus(rs.id)?.totalRequirementsCount);
-            }
-            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: ("form-check form-switch ms-3") },
-            });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.input)({
-                ...{ onChange: (...[$event]) => {
-                        if (!((__VLS_ctx.selectedPatientId && __VLS_ctx.selectedExaminationId && __VLS_ctx.lookup)))
-                            return;
-                        __VLS_ctx.toggleRequirementSet(rs.id, $event.target.checked);
-                    } },
-                ...{ class: ("form-check-input") },
-                type: ("checkbox"),
-                checked: ((__VLS_ctx.selectedRequirementSetIdSet.has(rs.id))),
-            });
-        }
-        if (!__VLS_ctx.requirementSets.length) {
-            __VLS_elementAsFunction(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({
-                ...{ class: ("list-group-item text-muted") },
-            });
-        }
-        if (__VLS_ctx.evaluationSummary && __VLS_ctx.evaluationSummary.totalSets > 0) {
-            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: ("mt-3 p-3 bg-light rounded") },
-            });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({
-                ...{ class: ("mb-2") },
-            });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: ("progress mb-2") },
-                ...{ style: ({}) },
-            });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: ("progress-bar") },
-                ...{ class: ((__VLS_ctx.evaluationSummary.completionPercentage === 100 ? 'bg-success' : 'bg-info')) },
-                ...{ style: (({ width: __VLS_ctx.evaluationSummary.completionPercentage + '%' })) },
-            });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
-                ...{ class: ("text-muted") },
-            });
-            (__VLS_ctx.evaluationSummary.evaluatedSets);
-            (__VLS_ctx.evaluationSummary.totalSets);
-            (__VLS_ctx.evaluationSummary.completionPercentage);
-            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: ("mt-2") },
-            });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-                ...{ onClick: (__VLS_ctx.evaluateRequirementsOnChange) },
-                ...{ class: ("btn btn-sm btn-primary") },
-                disabled: ((__VLS_ctx.loading)),
-            });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: ("fas fa-sync") },
-            });
-        }
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("card-body") },
-        });
-        if (__VLS_ctx.lookup) {
-            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: ("mb-3") },
-            });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
-            __VLS_elementAsFunction(__VLS_intrinsicElements.br, __VLS_intrinsicElements.br)({});
-            (!!__VLS_ctx.lookup);
-            __VLS_elementAsFunction(__VLS_intrinsicElements.br, __VLS_intrinsicElements.br)({});
-            (__VLS_ctx.requirementSets.length);
-            __VLS_elementAsFunction(__VLS_intrinsicElements.br, __VLS_intrinsicElements.br)({});
-            __VLS_elementAsFunction(__VLS_intrinsicElements.pre, __VLS_intrinsicElements.pre)({});
-            (JSON.stringify(__VLS_ctx.lookup, null, 2));
-        }
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("col-12 col-xl-6") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("card h-100") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("card-header d-flex justify-content-between align-items-center") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.h2, __VLS_intrinsicElements.h2)({
-            ...{ class: ("h5 mb-0") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
-            ...{ class: ("text-muted mb-0") },
-        });
-        if (__VLS_ctx.availableFindings.length > 0) {
-            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: ("d-flex align-items-center gap-2") },
-            });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
-                ...{ class: ("text-muted") },
-            });
-            (__VLS_ctx.availableFindings.length);
-            __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-                ...{ onClick: (...[$event]) => {
-                        if (!((__VLS_ctx.selectedPatientId && __VLS_ctx.selectedExaminationId && __VLS_ctx.lookup)))
-                            return;
-                        if (!((__VLS_ctx.availableFindings.length > 0)))
-                            return;
-                        __VLS_ctx.loadFindingsData();
-                    } },
-                ...{ class: ("btn btn-sm btn-outline-info") },
-                disabled: ((__VLS_ctx.loading)),
-                title: ("Befunde aktualisieren"),
-            });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: ("fas fa-sync-alt") },
-            });
-        }
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("card-body pre-scrollable") },
-            ...{ style: ({}) },
-        });
-        if (__VLS_ctx.findingStore.loading) {
-            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: ("text-center py-4") },
-            });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: ("spinner-border") },
-                role: ("status"),
-            });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-                ...{ class: ("visually-hidden") },
-            });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
-                ...{ class: ("mt-2 text-muted") },
-            });
-        }
-        else if (__VLS_ctx.availableFindings.length) {
-            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: ("findings-container") },
-            });
-            for (const [findingId] of __VLS_getVForSourceType((__VLS_ctx.availableFindings))) {
-                // @ts-ignore
-                /** @type { [typeof FindingsDetail, ] } */ ;
-                // @ts-ignore
-                const __VLS_8 = __VLS_asFunctionalComponent(FindingsDetail, new FindingsDetail({
-                    ...{ 'onAddedToExamination': {} },
-                    ...{ 'onClassificationUpdated': {} },
-                    key: ((findingId)),
-                    findingId: ((findingId)),
-                    isAddedToExamination: ((__VLS_ctx.isFindingAddedToExamination(findingId))),
-                    patientExaminationId: ((__VLS_ctx.lookup?.patientExaminationId || undefined)),
-                }));
-                const __VLS_9 = __VLS_8({
-                    ...{ 'onAddedToExamination': {} },
-                    ...{ 'onClassificationUpdated': {} },
-                    key: ((findingId)),
-                    findingId: ((findingId)),
-                    isAddedToExamination: ((__VLS_ctx.isFindingAddedToExamination(findingId))),
-                    patientExaminationId: ((__VLS_ctx.lookup?.patientExaminationId || undefined)),
-                }, ...__VLS_functionalComponentArgsRest(__VLS_8));
-                let __VLS_13;
-                const __VLS_14 = {
-                    onAddedToExamination: (__VLS_ctx.onFindingAddedToExamination)
-                };
-                const __VLS_15 = {
-                    onClassificationUpdated: (__VLS_ctx.onClassificationUpdated)
-                };
-                let __VLS_10;
-                let __VLS_11;
-                var __VLS_12;
-            }
-        }
-        else {
-            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: ("text-center py-4") },
-            });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: ("fas fa-info-circle fa-2x text-muted mb-3") },
-            });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
-                ...{ class: ("text-muted") },
-            });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
-                ...{ class: ("text-muted") },
-            });
-        }
-    }
-    if (__VLS_ctx.successMessage) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("alert alert-success alert-dismissible") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
-        (__VLS_ctx.successMessage);
-        __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-            ...{ onClick: (...[$event]) => {
-                    if (!((__VLS_ctx.successMessage)))
-                        return;
-                    __VLS_ctx.successMessage = null;
-                } },
-            type: ("button"),
-            ...{ class: ("btn-close") },
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+            ...{ class: "text-muted" },
         });
     }
-    if (__VLS_ctx.showCreatePatientModal) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ onClick: (__VLS_ctx.closeCreatePatientModal) },
-            ...{ class: ("modal-overlay") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ onClick: () => { } },
-            ...{ class: ("modal-dialog") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("modal-content") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("modal-header") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.h5, __VLS_intrinsicElements.h5)({
-            ...{ class: ("modal-title") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-            ...{ onClick: (__VLS_ctx.closeCreatePatientModal) },
-            type: ("button"),
-            ...{ class: ("btn-close") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("modal-body") },
-        });
-        // @ts-ignore
-        /** @type { [typeof PatientAdder, ] } */ ;
-        // @ts-ignore
-        const __VLS_16 = __VLS_asFunctionalComponent(PatientAdder, new PatientAdder({
-            ...{ 'onPatientCreated': {} },
-            ...{ 'onCancel': {} },
-        }));
-        const __VLS_17 = __VLS_16({
-            ...{ 'onPatientCreated': {} },
-            ...{ 'onCancel': {} },
-        }, ...__VLS_functionalComponentArgsRest(__VLS_16));
-        let __VLS_21;
-        const __VLS_22 = {
-            onPatientCreated: (__VLS_ctx.onPatientCreated)
-        };
-        const __VLS_23 = {
-            onCancel: (__VLS_ctx.closeCreatePatientModal)
-        };
-        let __VLS_18;
-        let __VLS_19;
-        var __VLS_20;
-    }
-    ['requirement-generator', 'container-fluid', 'py-4', 'alert', 'alert-danger', 'card', 'mb-3', 'card-header', 'h5', 'mb-0', 'card-body', 'row', 'align-items-end', 'col-md-6', 'form-group', 'd-flex', 'justify-content-between', 'align-items-center', 'mb-2', 'd-flex', 'align-items-center', 'gap-2', 'badge', 'bg-info', 'fas', 'fa-user', 'btn', 'btn-sm', 'btn-outline-secondary', 'fas', 'fa-times', 'form-control', 'mt-2', 'text-muted', 'fas', 'fa-info-circle', 'col-md-6', 'form-group', 'form-control', 'row', 'mt-3', 'col-12', 'btn', 'btn-primary', 'spinner-border', 'spinner-border-sm', 'row', 'g-3', 'col-12', 'card', 'card-header', 'h6', 'mb-0', 'card-body', 'row', 'col-md-4', 'col-md-4', 'col-md-4', 'row', 'mt-2', 'col-md-6', 'col-md-6', 'col-12', 'col-xl-6', 'card', 'h-100', 'card-header', 'd-flex', 'justify-content-between', 'align-items-center', 'h5', 'mb-0', 'text-muted', 'd-flex', 'gap-2', 'btn', 'btn-sm', 'btn-outline-secondary', 'btn', 'btn-sm', 'btn-outline-info', 'btn', 'btn-sm', 'btn-outline-info', 'btn', 'btn-sm', 'btn-outline-danger', 'row', 'g-3', 'mt-3', 'card-body', 'pre-scrollable', 'col-12', 'card', 'card-header', 'h5', 'mb-0', 'card-body', 'list-group', 'list-group-flush', 'list-group-item', 'd-flex', 'justify-content-between', 'align-items-center', 'flex-grow-1', 'd-flex', 'justify-content-between', 'align-items-center', 'fw-semibold', 'd-flex', 'align-items-center', 'gap-2', 'badge', 'fas', 'btn', 'btn-sm', 'btn-outline-info', 'fas', 'fa-calculator', 'text-muted', 'd-block', 'mt-2', 'text-muted', 'form-check', 'form-switch', 'ms-3', 'form-check-input', 'list-group-item', 'text-muted', 'mt-3', 'p-3', 'bg-light', 'rounded', 'mb-2', 'progress', 'mb-2', 'progress-bar', 'text-muted', 'mt-2', 'btn', 'btn-sm', 'btn-primary', 'fas', 'fa-sync', 'card-body', 'mb-3', 'col-12', 'col-xl-6', 'card', 'h-100', 'card-header', 'd-flex', 'justify-content-between', 'align-items-center', 'h5', 'mb-0', 'text-muted', 'mb-0', 'd-flex', 'align-items-center', 'gap-2', 'text-muted', 'btn', 'btn-sm', 'btn-outline-info', 'fas', 'fa-sync-alt', 'card-body', 'pre-scrollable', 'text-center', 'py-4', 'spinner-border', 'visually-hidden', 'mt-2', 'text-muted', 'findings-container', 'text-center', 'py-4', 'fas', 'fa-info-circle', 'fa-2x', 'text-muted', 'mb-3', 'text-muted', 'text-muted', 'alert', 'alert-success', 'alert-dismissible', 'btn-close', 'modal-overlay', 'modal-dialog', 'modal-content', 'modal-header', 'modal-title', 'btn-close', 'modal-body',];
-    var __VLS_slots;
-    var $slots;
-    let __VLS_inheritedAttrs;
-    var $attrs;
-    const __VLS_refs = {};
-    var $refs;
-    var $el;
-    return {
-        attrs: {},
-        slots: __VLS_slots,
-        refs: $refs,
-        rootEl: $el,
-    };
 }
-;
+if (__VLS_ctx.successMessage) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "alert alert-success alert-dismissible" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+    (__VLS_ctx.successMessage);
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+        ...{ onClick: (...[$event]) => {
+                if (!(__VLS_ctx.successMessage))
+                    return;
+                __VLS_ctx.successMessage = null;
+            } },
+        type: "button",
+        ...{ class: "btn-close" },
+    });
+}
+if (__VLS_ctx.showCreatePatientModal) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ onClick: (__VLS_ctx.closeCreatePatientModal) },
+        ...{ class: "modal-overlay" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ onClick: () => { } },
+        ...{ class: "modal-dialog" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "modal-content" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "modal-header" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.h5, __VLS_intrinsicElements.h5)({
+        ...{ class: "modal-title" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+        ...{ onClick: (__VLS_ctx.closeCreatePatientModal) },
+        type: "button",
+        ...{ class: "btn-close" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "modal-body" },
+    });
+    /** @type {[typeof PatientAdder, ]} */ ;
+    // @ts-ignore
+    const __VLS_16 = __VLS_asFunctionalComponent(PatientAdder, new PatientAdder({
+        ...{ 'onPatientCreated': {} },
+        ...{ 'onCancel': {} },
+    }));
+    const __VLS_17 = __VLS_16({
+        ...{ 'onPatientCreated': {} },
+        ...{ 'onCancel': {} },
+    }, ...__VLS_functionalComponentArgsRest(__VLS_16));
+    let __VLS_19;
+    let __VLS_20;
+    let __VLS_21;
+    const __VLS_22 = {
+        onPatientCreated: (__VLS_ctx.onPatientCreated)
+    };
+    const __VLS_23 = {
+        onCancel: (__VLS_ctx.closeCreatePatientModal)
+    };
+    var __VLS_18;
+}
+/** @type {__VLS_StyleScopedClasses['requirement-generator']} */ ;
+/** @type {__VLS_StyleScopedClasses['container-fluid']} */ ;
+/** @type {__VLS_StyleScopedClasses['py-4']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert-danger']} */ ;
+/** @type {__VLS_StyleScopedClasses['card']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['card-header']} */ ;
+/** @type {__VLS_StyleScopedClasses['h5']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['card-body']} */ ;
+/** @type {__VLS_StyleScopedClasses['row']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-end']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-md-6']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-group']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['justify-content-between']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['gap-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['bg-info']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-user']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-secondary']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-times']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-control']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-info-circle']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-md-6']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-group']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-control']} */ ;
+/** @type {__VLS_StyleScopedClasses['row']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-12']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-primary']} */ ;
+/** @type {__VLS_StyleScopedClasses['spinner-border']} */ ;
+/** @type {__VLS_StyleScopedClasses['spinner-border-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['row']} */ ;
+/** @type {__VLS_StyleScopedClasses['g-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-12']} */ ;
+/** @type {__VLS_StyleScopedClasses['card']} */ ;
+/** @type {__VLS_StyleScopedClasses['card-header']} */ ;
+/** @type {__VLS_StyleScopedClasses['h6']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['card-body']} */ ;
+/** @type {__VLS_StyleScopedClasses['row']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-md-4']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-md-4']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-md-4']} */ ;
+/** @type {__VLS_StyleScopedClasses['row']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-md-6']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-md-6']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-12']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-xl-6']} */ ;
+/** @type {__VLS_StyleScopedClasses['card']} */ ;
+/** @type {__VLS_StyleScopedClasses['h-100']} */ ;
+/** @type {__VLS_StyleScopedClasses['card-header']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['justify-content-between']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['h5']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['gap-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-secondary']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-info']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-info']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-danger']} */ ;
+/** @type {__VLS_StyleScopedClasses['row']} */ ;
+/** @type {__VLS_StyleScopedClasses['g-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['card-body']} */ ;
+/** @type {__VLS_StyleScopedClasses['pre-scrollable']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-12']} */ ;
+/** @type {__VLS_StyleScopedClasses['card']} */ ;
+/** @type {__VLS_StyleScopedClasses['card-header']} */ ;
+/** @type {__VLS_StyleScopedClasses['h5']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['card-body']} */ ;
+/** @type {__VLS_StyleScopedClasses['list-group']} */ ;
+/** @type {__VLS_StyleScopedClasses['list-group-flush']} */ ;
+/** @type {__VLS_StyleScopedClasses['list-group-item']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['justify-content-between']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['flex-grow-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['justify-content-between']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['fw-semibold']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['gap-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-info']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-calculator']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-block']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-check']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-switch']} */ ;
+/** @type {__VLS_StyleScopedClasses['ms-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-check-input']} */ ;
+/** @type {__VLS_StyleScopedClasses['list-group-item']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['p-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['bg-light']} */ ;
+/** @type {__VLS_StyleScopedClasses['rounded']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['progress']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['progress-bar']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-primary']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-sync']} */ ;
+/** @type {__VLS_StyleScopedClasses['card-body']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-12']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-xl-6']} */ ;
+/** @type {__VLS_StyleScopedClasses['card']} */ ;
+/** @type {__VLS_StyleScopedClasses['h-100']} */ ;
+/** @type {__VLS_StyleScopedClasses['card-header']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['justify-content-between']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['h5']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['gap-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-info']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-sync-alt']} */ ;
+/** @type {__VLS_StyleScopedClasses['card-body']} */ ;
+/** @type {__VLS_StyleScopedClasses['pre-scrollable']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['py-4']} */ ;
+/** @type {__VLS_StyleScopedClasses['spinner-border']} */ ;
+/** @type {__VLS_StyleScopedClasses['visually-hidden']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['findings-container']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['py-4']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-info-circle']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-2x']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert-success']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert-dismissible']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-close']} */ ;
+/** @type {__VLS_StyleScopedClasses['modal-overlay']} */ ;
+/** @type {__VLS_StyleScopedClasses['modal-dialog']} */ ;
+/** @type {__VLS_StyleScopedClasses['modal-content']} */ ;
+/** @type {__VLS_StyleScopedClasses['modal-header']} */ ;
+/** @type {__VLS_StyleScopedClasses['modal-title']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-close']} */ ;
+/** @type {__VLS_StyleScopedClasses['modal-body']} */ ;
+var __VLS_dollars;
 const __VLS_self = (await import('vue')).defineComponent({
     setup() {
         return {
@@ -1436,6 +1620,5 @@ export default (await import('vue')).defineComponent({
     setup() {
         return {};
     },
-    __typeEl: {},
 });
 ; /* PartiallyEnd: #4569/main.vue */

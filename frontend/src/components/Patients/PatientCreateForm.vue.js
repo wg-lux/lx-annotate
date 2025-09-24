@@ -165,307 +165,385 @@ const loadLookupData = async () => {
 // Lifecycle
 onMounted(() => {
     loadLookupData();
-}); /* PartiallyEnd: #3632/scriptSetup.vue */
-function __VLS_template() {
-    const __VLS_ctx = {};
-    let __VLS_components;
-    let __VLS_directives;
-    ['form-section', 'form-section', 'form-section', 'form-group', 'form-group', 'form-control', 'form-control', 'form-control', 'is-invalid', 'btn', 'btn-primary', 'btn-secondary', 'form-actions', 'form-actions', 'btn',];
-    // CSS variable injection 
-    // CSS variable injection end 
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("patient-create-form") },
+});
+debugger; /* PartiallyEnd: #3632/scriptSetup.vue */
+const __VLS_ctx = {};
+let __VLS_components;
+let __VLS_directives;
+/** @type {__VLS_StyleScopedClasses['form-section']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-section']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-section']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-group']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-group']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-control']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-control']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-control']} */ ;
+/** @type {__VLS_StyleScopedClasses['is-invalid']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-primary']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-secondary']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-actions']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-actions']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+// CSS variable injection 
+// CSS variable injection end 
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "patient-create-form" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.form, __VLS_intrinsicElements.form)({
+    ...{ onSubmit: (__VLS_ctx.handleSubmit) },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "form-section" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.h4, __VLS_intrinsicElements.h4)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+    ...{ class: "fas fa-user" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "row" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "col-md-6" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "form-group" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+    for: "firstName",
+    ...{ class: "required" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
+    value: (__VLS_ctx.form.firstName),
+    type: "text",
+    id: "firstName",
+    ...{ class: "form-control" },
+    ...{ class: ({ 'is-invalid': __VLS_ctx.errors.firstName }) },
+    required: true,
+    placeholder: "Vorname eingeben",
+});
+if (__VLS_ctx.errors.firstName) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "invalid-feedback" },
     });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.form, __VLS_intrinsicElements.form)({
-        ...{ onSubmit: (__VLS_ctx.handleSubmit) },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("form-section") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.h4, __VLS_intrinsicElements.h4)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: ("fas fa-user") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("row") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("col-md-6") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("form-group") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
-        for: ("firstName"),
-        ...{ class: ("required") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.input)({
-        value: ((__VLS_ctx.form.firstName)),
-        type: ("text"),
-        id: ("firstName"),
-        ...{ class: ("form-control") },
-        ...{ class: (({ 'is-invalid': __VLS_ctx.errors.firstName })) },
-        required: (true),
-        placeholder: ("Vorname eingeben"),
-    });
-    if (__VLS_ctx.errors.firstName) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("invalid-feedback") },
-        });
-        (__VLS_ctx.errors.firstName);
-    }
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("col-md-6") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("form-group") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
-        for: ("lastName"),
-        ...{ class: ("required") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.input)({
-        value: ((__VLS_ctx.form.lastName)),
-        type: ("text"),
-        id: ("lastName"),
-        ...{ class: ("form-control") },
-        ...{ class: (({ 'is-invalid': __VLS_ctx.errors.lastName })) },
-        required: (true),
-        placeholder: ("Nachname eingeben"),
-    });
-    if (__VLS_ctx.errors.lastName) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("invalid-feedback") },
-        });
-        (__VLS_ctx.errors.lastName);
-    }
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("row") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("col-md-6") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("form-group") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
-        for: ("dob"),
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.input)({
-        type: ("date"),
-        id: ("dob"),
-        ...{ class: ("form-control") },
-        ...{ class: (({ 'is-invalid': __VLS_ctx.errors.dob })) },
-    });
-    (__VLS_ctx.form.dob);
-    if (__VLS_ctx.errors.dob) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("invalid-feedback") },
-        });
-        (__VLS_ctx.errors.dob);
-    }
-    if (__VLS_ctx.calculatedAge) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
-            ...{ class: ("form-text text-muted") },
-        });
-        (__VLS_ctx.calculatedAge);
-    }
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("col-md-6") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("form-group") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
-        for: ("gender"),
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
-        value: ((__VLS_ctx.form.gender)),
-        id: ("gender"),
-        ...{ class: ("form-control") },
-        ...{ class: (({ 'is-invalid': __VLS_ctx.errors.gender })) },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-        value: (""),
-    });
-    for (const [gender] of __VLS_getVForSourceType((__VLS_ctx.genders))) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-            key: ((gender.id)),
-            value: ((gender.name)),
-        });
-        (gender.nameDe || gender.name);
-    }
-    if (__VLS_ctx.errors.gender) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("invalid-feedback") },
-        });
-        (__VLS_ctx.errors.gender);
-    }
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("form-section") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.h4, __VLS_intrinsicElements.h4)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: ("fas fa-address-book") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("row") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("col-md-6") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("form-group") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
-        for: ("email"),
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.input)({
-        type: ("email"),
-        id: ("email"),
-        ...{ class: ("form-control") },
-        ...{ class: (({ 'is-invalid': __VLS_ctx.errors.email })) },
-        placeholder: ("email@beispiel.de"),
-    });
-    (__VLS_ctx.form.email);
-    if (__VLS_ctx.errors.email) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("invalid-feedback") },
-        });
-        (__VLS_ctx.errors.email);
-    }
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("col-md-6") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("form-group") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
-        for: ("phone"),
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.input)({
-        type: ("tel"),
-        id: ("phone"),
-        ...{ class: ("form-control") },
-        ...{ class: (({ 'is-invalid': __VLS_ctx.errors.phone })) },
-        placeholder: ("+49 123 456789"),
-    });
-    (__VLS_ctx.form.phone);
-    if (__VLS_ctx.errors.phone) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("invalid-feedback") },
-        });
-        (__VLS_ctx.errors.phone);
-    }
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("form-section") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.h4, __VLS_intrinsicElements.h4)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: ("fas fa-hospital") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("row") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("col-md-6") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("form-group") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
-        for: ("center"),
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
-        value: ((__VLS_ctx.form.center)),
-        id: ("center"),
-        ...{ class: ("form-control") },
-        ...{ class: (({ 'is-invalid': __VLS_ctx.errors.center })) },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-        value: (""),
-    });
-    for (const [center] of __VLS_getVForSourceType((__VLS_ctx.centers))) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-            key: ((center.id)),
-            value: ((center.name)),
-        });
-        (center.nameDe || center.name);
-    }
-    if (__VLS_ctx.errors.center) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("invalid-feedback") },
-        });
-        (__VLS_ctx.errors.center);
-    }
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("col-md-6") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("form-group") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.input)({
-        type: ("checkbox"),
-        ...{ class: ("form-check-input me-2") },
-    });
-    (__VLS_ctx.form.isRealPerson);
-    __VLS_elementAsFunction(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
-        ...{ class: ("form-text text-muted d-block") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("form-actions") },
-    });
-    if (__VLS_ctx.errors.general) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("alert alert-danger w-100 mb-3") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
-        (__VLS_ctx.errors.general);
-    }
-    __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-        type: ("submit"),
-        ...{ class: ("btn btn-primary") },
-        disabled: ((__VLS_ctx.loading || !__VLS_ctx.isFormValid)),
-    });
-    if (__VLS_ctx.loading) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-            ...{ class: ("spinner-border spinner-border-sm me-2") },
-        });
-    }
-    else {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: ("fas fa-save me-2") },
-        });
-    }
-    (__VLS_ctx.loading ? 'Wird gespeichert...' : 'Patient erstellen');
-    __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-        ...{ onClick: (...[$event]) => {
-                __VLS_ctx.$emit('cancel');
-            } },
-        type: ("button"),
-        ...{ class: ("btn btn-secondary ms-2") },
-        disabled: ((__VLS_ctx.loading)),
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: ("fas fa-times me-2") },
-    });
-    ['patient-create-form', 'form-section', 'fas', 'fa-user', 'row', 'col-md-6', 'form-group', 'required', 'form-control', 'is-invalid', 'invalid-feedback', 'col-md-6', 'form-group', 'required', 'form-control', 'is-invalid', 'invalid-feedback', 'row', 'col-md-6', 'form-group', 'form-control', 'is-invalid', 'invalid-feedback', 'form-text', 'text-muted', 'col-md-6', 'form-group', 'form-control', 'is-invalid', 'invalid-feedback', 'form-section', 'fas', 'fa-address-book', 'row', 'col-md-6', 'form-group', 'form-control', 'is-invalid', 'invalid-feedback', 'col-md-6', 'form-group', 'form-control', 'is-invalid', 'invalid-feedback', 'form-section', 'fas', 'fa-hospital', 'row', 'col-md-6', 'form-group', 'form-control', 'is-invalid', 'invalid-feedback', 'col-md-6', 'form-group', 'form-check-input', 'me-2', 'form-text', 'text-muted', 'd-block', 'form-actions', 'alert', 'alert-danger', 'w-100', 'mb-3', 'btn', 'btn-primary', 'spinner-border', 'spinner-border-sm', 'me-2', 'fas', 'fa-save', 'me-2', 'btn', 'btn-secondary', 'ms-2', 'fas', 'fa-times', 'me-2',];
-    var __VLS_slots;
-    var $slots;
-    let __VLS_inheritedAttrs;
-    var $attrs;
-    const __VLS_refs = {};
-    var $refs;
-    var $el;
-    return {
-        attrs: {},
-        slots: __VLS_slots,
-        refs: $refs,
-        rootEl: $el,
-    };
+    (__VLS_ctx.errors.firstName);
 }
-;
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "col-md-6" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "form-group" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+    for: "lastName",
+    ...{ class: "required" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
+    value: (__VLS_ctx.form.lastName),
+    type: "text",
+    id: "lastName",
+    ...{ class: "form-control" },
+    ...{ class: ({ 'is-invalid': __VLS_ctx.errors.lastName }) },
+    required: true,
+    placeholder: "Nachname eingeben",
+});
+if (__VLS_ctx.errors.lastName) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "invalid-feedback" },
+    });
+    (__VLS_ctx.errors.lastName);
+}
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "row" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "col-md-6" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "form-group" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+    for: "dob",
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
+    type: "date",
+    id: "dob",
+    ...{ class: "form-control" },
+    ...{ class: ({ 'is-invalid': __VLS_ctx.errors.dob }) },
+});
+(__VLS_ctx.form.dob);
+if (__VLS_ctx.errors.dob) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "invalid-feedback" },
+    });
+    (__VLS_ctx.errors.dob);
+}
+if (__VLS_ctx.calculatedAge) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+        ...{ class: "form-text text-muted" },
+    });
+    (__VLS_ctx.calculatedAge);
+}
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "col-md-6" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "form-group" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+    for: "gender",
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
+    value: (__VLS_ctx.form.gender),
+    id: "gender",
+    ...{ class: "form-control" },
+    ...{ class: ({ 'is-invalid': __VLS_ctx.errors.gender }) },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+    value: "",
+});
+for (const [gender] of __VLS_getVForSourceType((__VLS_ctx.genders))) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+        key: (gender.id),
+        value: (gender.name),
+    });
+    (gender.nameDe || gender.name);
+}
+if (__VLS_ctx.errors.gender) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "invalid-feedback" },
+    });
+    (__VLS_ctx.errors.gender);
+}
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "form-section" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.h4, __VLS_intrinsicElements.h4)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+    ...{ class: "fas fa-address-book" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "row" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "col-md-6" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "form-group" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+    for: "email",
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
+    type: "email",
+    id: "email",
+    ...{ class: "form-control" },
+    ...{ class: ({ 'is-invalid': __VLS_ctx.errors.email }) },
+    placeholder: "email@beispiel.de",
+});
+(__VLS_ctx.form.email);
+if (__VLS_ctx.errors.email) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "invalid-feedback" },
+    });
+    (__VLS_ctx.errors.email);
+}
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "col-md-6" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "form-group" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+    for: "phone",
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
+    type: "tel",
+    id: "phone",
+    ...{ class: "form-control" },
+    ...{ class: ({ 'is-invalid': __VLS_ctx.errors.phone }) },
+    placeholder: "+49 123 456789",
+});
+(__VLS_ctx.form.phone);
+if (__VLS_ctx.errors.phone) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "invalid-feedback" },
+    });
+    (__VLS_ctx.errors.phone);
+}
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "form-section" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.h4, __VLS_intrinsicElements.h4)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+    ...{ class: "fas fa-hospital" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "row" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "col-md-6" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "form-group" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+    for: "center",
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
+    value: (__VLS_ctx.form.center),
+    id: "center",
+    ...{ class: "form-control" },
+    ...{ class: ({ 'is-invalid': __VLS_ctx.errors.center }) },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+    value: "",
+});
+for (const [center] of __VLS_getVForSourceType((__VLS_ctx.centers))) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+        key: (center.id),
+        value: (center.name),
+    });
+    (center.nameDe || center.name);
+}
+if (__VLS_ctx.errors.center) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "invalid-feedback" },
+    });
+    (__VLS_ctx.errors.center);
+}
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "col-md-6" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "form-group" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
+    type: "checkbox",
+    ...{ class: "form-check-input me-2" },
+});
+(__VLS_ctx.form.isRealPerson);
+__VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+    ...{ class: "form-text text-muted d-block" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "form-actions" },
+});
+if (__VLS_ctx.errors.general) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "alert alert-danger w-100 mb-3" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+    (__VLS_ctx.errors.general);
+}
+__VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+    type: "submit",
+    ...{ class: "btn btn-primary" },
+    disabled: (__VLS_ctx.loading || !__VLS_ctx.isFormValid),
+});
+if (__VLS_ctx.loading) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+        ...{ class: "spinner-border spinner-border-sm me-2" },
+    });
+}
+else {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+        ...{ class: "fas fa-save me-2" },
+    });
+}
+(__VLS_ctx.loading ? 'Wird gespeichert...' : 'Patient erstellen');
+__VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+    ...{ onClick: (...[$event]) => {
+            __VLS_ctx.$emit('cancel');
+        } },
+    type: "button",
+    ...{ class: "btn btn-secondary ms-2" },
+    disabled: (__VLS_ctx.loading),
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+    ...{ class: "fas fa-times me-2" },
+});
+/** @type {__VLS_StyleScopedClasses['patient-create-form']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-section']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-user']} */ ;
+/** @type {__VLS_StyleScopedClasses['row']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-md-6']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-group']} */ ;
+/** @type {__VLS_StyleScopedClasses['required']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-control']} */ ;
+/** @type {__VLS_StyleScopedClasses['is-invalid']} */ ;
+/** @type {__VLS_StyleScopedClasses['invalid-feedback']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-md-6']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-group']} */ ;
+/** @type {__VLS_StyleScopedClasses['required']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-control']} */ ;
+/** @type {__VLS_StyleScopedClasses['is-invalid']} */ ;
+/** @type {__VLS_StyleScopedClasses['invalid-feedback']} */ ;
+/** @type {__VLS_StyleScopedClasses['row']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-md-6']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-group']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-control']} */ ;
+/** @type {__VLS_StyleScopedClasses['is-invalid']} */ ;
+/** @type {__VLS_StyleScopedClasses['invalid-feedback']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-text']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-md-6']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-group']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-control']} */ ;
+/** @type {__VLS_StyleScopedClasses['is-invalid']} */ ;
+/** @type {__VLS_StyleScopedClasses['invalid-feedback']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-section']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-address-book']} */ ;
+/** @type {__VLS_StyleScopedClasses['row']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-md-6']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-group']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-control']} */ ;
+/** @type {__VLS_StyleScopedClasses['is-invalid']} */ ;
+/** @type {__VLS_StyleScopedClasses['invalid-feedback']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-md-6']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-group']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-control']} */ ;
+/** @type {__VLS_StyleScopedClasses['is-invalid']} */ ;
+/** @type {__VLS_StyleScopedClasses['invalid-feedback']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-section']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-hospital']} */ ;
+/** @type {__VLS_StyleScopedClasses['row']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-md-6']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-group']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-control']} */ ;
+/** @type {__VLS_StyleScopedClasses['is-invalid']} */ ;
+/** @type {__VLS_StyleScopedClasses['invalid-feedback']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-md-6']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-group']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-check-input']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-text']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-block']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-actions']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert-danger']} */ ;
+/** @type {__VLS_StyleScopedClasses['w-100']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-primary']} */ ;
+/** @type {__VLS_StyleScopedClasses['spinner-border']} */ ;
+/** @type {__VLS_StyleScopedClasses['spinner-border-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-save']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-secondary']} */ ;
+/** @type {__VLS_StyleScopedClasses['ms-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-times']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-2']} */ ;
+var __VLS_dollars;
 const __VLS_self = (await import('vue')).defineComponent({
     setup() {
         return {
@@ -486,6 +564,5 @@ export default (await import('vue')).defineComponent({
         return {};
     },
     __typeEmits: {},
-    __typeEl: {},
 });
 ; /* PartiallyEnd: #4569/main.vue */

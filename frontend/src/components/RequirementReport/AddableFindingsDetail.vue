@@ -204,14 +204,14 @@
                                         <span class="badge bg-info text-dark small">ID: {{ finding.id || 'No ID' }}</span>
                                         
                                         <!-- Classifications Display -->
-                                        <div v-if="finding.patientClassifications && finding.patientClassifications.length > 0" class="mt-2">
+                                        <div v-if="finding.patientClassifications" class="mt-2">
                                             <small class="text-muted d-block mb-1">
                                                 <i class="fas fa-tags me-1"></i>
                                                 Klassifikationen ({{ finding.patientClassifications.length }}):
                                             </small>
                                             <div class="classification-list">
                                                 <div 
-                                                    v-for="classification in finding.patientClassifications" 
+                                                    v-for="classification in finding.patientClassifications?.filter(c => c.classification && c.choice) || []" 
                                                     :key="classification.id"
                                                     class="classification-item mb-1"
                                                 >
@@ -265,6 +265,7 @@ import { usePatientExaminationStore } from '@/stores/patientExaminationStore';
 import { useExaminationStore } from '@/stores/examinationStore';
 import { useFindingClassificationStore } from '@/stores/findingClassificationStore';
 import { deepMutable } from '@/utils/deepMutable';
+import { filterNecessaryFindings } from '@/utils/findingFilters';
 
 // Store instances
 const patientExaminationStore = usePatientExaminationStore();
@@ -378,9 +379,11 @@ const addedFindings = ref<EnhancedFinding[]>([]);
  * Returns the patient examination ID from props if provided,
  * otherwise falls back to the store value.
  */
-const resolvedPatientExaminationId = computed(
-  () => props.patientExaminationId ?? patientExaminationStore.getCurrentPatientExaminationId()
-);
+const resolvedPatientExaminationId = computed(() => {
+  const resolved = props.patientExaminationId ?? patientExaminationStore.getCurrentPatientExaminationId();
+  console.log('🔍 [DEBUG] resolvedPatientExaminationId:', resolved);
+  return resolved;
+});
 
 /**
  * Available findings for the current examination
@@ -389,8 +392,21 @@ const resolvedPatientExaminationId = computed(
  * This is filtered based on the examination context.
  */
 const availableFindings = computed(() => {
+    console.log('🔍 [DEBUG] availableFindings computed - availableExaminationFindings.value:', availableExaminationFindings.value);
+    console.log('🔍 [DEBUG] availableFindings computed - count:', availableExaminationFindings.value.length);
+    if (availableExaminationFindings.value.length > 0) {
+        console.log('🔍 [DEBUG] availableFindings computed - erste 3 Findings:', availableExaminationFindings.value.slice(0, 3));
+    }
     return availableExaminationFindings.value;
 });
+
+/**
+ * Necessary findings (computed from availableFindings)
+ * 
+ * Returns findings that have at least one required classification.
+ * Uses the filterNecessaryFindings utility for consistent logic.
+ */
+const necessaryFindings = computed(() => filterNecessaryFindings(availableFindings.value));
 
 /**
  * Fetched added findings (computed async)
@@ -528,16 +544,53 @@ async function loadAddedFindingsForCurrentExam() {
       return f.id === pfFindingId;
     });
     
-    if (correspondingFinding) {
-      const enhanced: EnhancedFinding = {
-        ...correspondingFinding,
-        patientFindingId: pf.id,
-        patientClassifications: pf.classifications?.map(cls => ({
+    if (!correspondingFinding) return null;
+
+    // 🔒 SAFETY: Only treat pf.classifications as patient-side if the shape fits
+    const pcs = Array.isArray(pf.classifications)
+      && pf.classifications.length > 0
+      && 'classification_choice' in pf.classifications[0]
+        ? (pf.classifications as any)
+        : [];
+
+    // 🛡️ DEFENSE: Debug invalid classifications before filtering
+    const invalidClassifications = pcs.filter((cls: any) => !cls.classification || !cls.classification_choice);
+    if (invalidClassifications.length > 0) {
+      console.warn('🚨 [AddableFindingsDetail] Found invalid classifications:', {
+        findingId: correspondingFinding.id,
+        findingName: correspondingFinding.name,
+        invalidCount: invalidClassifications.length,
+        invalidClassifications: invalidClassifications.map((cls: any) => ({
+          id: cls.id,
+          hasClassification: !!cls.classification,
+          hasClassificationChoice: !!cls.classification_choice,
+          classification: cls.classification,
+          classificationChoice: cls.classification_choice
+        }))
+      });
+    }
+
+    const enhanced: EnhancedFinding = {
+      ...correspondingFinding,
+      patientFindingId: pf.id,
+      patientClassifications: pcs
+        .filter((cls: any) => {
+          const isValid = cls.classification && cls.classification_choice;
+          if (!isValid) {
+            console.warn('🚫 [AddableFindingsDetail] Filtering out invalid classification:', {
+              id: cls.id,
+              hasClassification: !!cls.classification,
+              hasClassificationChoice: !!cls.classification_choice
+            });
+          }
+          return isValid;
+        })
+        .map((cls: any) => ({
           id: cls.id,
           classification: {
             id: cls.classification.id,
-            name: cls.classification.name || 'Unnamed Classification',
-            description: cls.classification.description
+            name: cls.classification.name,
+            description: cls.classification.description ?? null
           },
           choice: {
             id: cls.classification_choice.id,
@@ -545,21 +598,19 @@ async function loadAddedFindingsForCurrentExam() {
             description: undefined // FindingClassificationChoice doesn't have description
           },
           is_active: cls.is_active
-        })) || []
-      };
-      
-      console.log('🔧 [AddableFindingsDetail] Enhanced finding with classifications:', {
-        findingId: enhanced.id,
-        name: enhanced.name,
-        classificationsCount: enhanced.patientClassifications?.length || 0,
-        rawClassifications: pf.classifications,
-        patientFindingId: pf.id
-      });
-      
-      return enhanced;
-    }
+        }))
+    };
     
-    return correspondingFinding;
+    console.log('🔧 [AddableFindingsDetail] Enhanced finding with classifications:', {
+      findingId: enhanced.id,
+      name: enhanced.name,
+      patientClassificationsCount: enhanced.patientClassifications?.length || 0,
+      rawClassificationsType: Array.isArray(pf.classifications) && pf.classifications.length > 0 ? 
+        ('classification_choice' in pf.classifications[0] ? 'patient-side' : 'definition-side') : 'none',
+      patientFindingId: pf.id
+    });
+    
+    return enhanced;
   }).filter((finding): finding is EnhancedFinding => finding !== null);
   
   addedFindings.value = enhancedFindings;
@@ -696,28 +747,59 @@ const addFindingToExamination = async () => {
         // WICHTIG: Store sollte automatisch aktualisiert werden, aber erzwinge lokale UI-Update
         console.log('✅ Finding created, updating UI directly');
         
+        // 🎯 IMMEDIATE UI FEEDBACK: Create patient classifications for immediate display
+        const defs = findingClassifications.value; // definitions for selected finding
+        const immediatePatientClassifications = defs
+          .filter(d => selectedChoices.value[d.id])
+          .map(d => ({
+            id: -1, // temporary ID
+            classification: { 
+              id: d.id, 
+              name: d.name ?? 'Unnamed Classification', 
+              description: d.description 
+            },
+            choice: {
+              id: selectedChoices.value[d.id],
+              name: d.choices?.find(c => c.id === selectedChoices.value[d.id])?.name ?? String(selectedChoices.value[d.id]),
+              description: undefined
+            },
+            is_active: true,
+          }));
+
         // Füge direkt zur lokalen Liste hinzu (sofortige UI-Update)
         const newFindingId = newPatientFinding.finding.id;
         const createdFinding = findingClassificationStore.getFindingById(newFindingId);
         if (createdFinding) {
             console.log('📋 Found created finding in store, using store version');
+            
+            // 🔒 SAFETY: Check if server returned proper patient classifications
+            const serverPatientClassifications = Array.isArray(newPatientFinding.classifications)
+              && newPatientFinding.classifications.length > 0
+              && 'classification_choice' in newPatientFinding.classifications[0]
+                ? newPatientFinding.classifications
+                    .filter((cls: any) => cls.classification && cls.classification_choice) // Filter out invalid
+                    .map((cls: any) => ({
+                      id: cls.id,
+                      classification: {
+                          id: cls.classification.id,
+                          name: cls.classification.name,
+                          description: cls.classification.description ?? null
+                      },
+                      choice: {
+                          id: cls.classification_choice.id,
+                          name: cls.classification_choice.name,
+                          description: undefined
+                      },
+                      is_active: cls.is_active
+                    }))
+                : [];
+
             const enhancedCreatedFinding: EnhancedFinding = {
                 ...deepMutable(createdFinding),
                 patientFindingId: newPatientFinding.id,
-                patientClassifications: newPatientFinding.classifications?.map(cls => ({
-                    id: cls.id,
-                    classification: {
-                        id: cls.classification.id,
-                        name: cls.classification.name || 'Unnamed Classification',
-                        description: cls.classification.description
-                    },
-                    choice: {
-                        id: cls.classification_choice.id,
-                        name: cls.classification_choice.name,
-                        description: undefined
-                    },
-                    is_active: cls.is_active
-                })) || []
+                patientClassifications: serverPatientClassifications.length > 0 
+                  ? serverPatientClassifications 
+                  : immediatePatientClassifications
             };
             addedFindings.value.push(enhancedCreatedFinding);
         } else {
@@ -725,20 +807,7 @@ const addFindingToExamination = async () => {
             const enhancedResponseFinding: EnhancedFinding = {
                 ...deepMutable(newPatientFinding.finding),
                 patientFindingId: newPatientFinding.id,
-                patientClassifications: newPatientFinding.classifications?.map(cls => ({
-                    id: cls.id,
-                    classification: {
-                        id: cls.classification.id,
-                        name: cls.classification.name || 'Unnamed Classification',
-                        description: cls.classification.description
-                    },
-                    choice: {
-                        id: cls.classification_choice.id,
-                        name: cls.classification_choice.name,
-                        description: undefined
-                    },
-                    is_active: cls.is_active
-                })) || []
+                patientClassifications: immediatePatientClassifications // Use immediate for fallback
             };
             addedFindings.value.push(enhancedResponseFinding);
         }
@@ -790,7 +859,7 @@ const loadFindingsAndClassifications = async (examinationId: number) => {
 
         // Load findings from the API
         const response = await axiosInstance.get(`/api/examinations/${examinationId}/findings`);
-        const findings = response.data;
+        const findings = response?.data || [];
         findingClassificationStore.setClassificationChoicesFromLookup(findings);
 
         console.log('Loaded findings for examination:', findings.length);
@@ -808,26 +877,35 @@ const loadAvailableFindingsForPatientExamination = async () => {
   try {
     loading.value = true;
     
+    console.log('🔍 [DEBUG] Props:', { examinationId: props.examinationId, patientExaminationId: props.patientExaminationId });
+    
     // Priorisiere props.examinationId, falls verfügbar
     let examId = props.examinationId;
     if (!examId && props.patientExaminationId) {
       // Hole Examination ID aus PatientExamination
       const patientExamination = patientExaminationStore.getPatientExaminationById(props.patientExaminationId);
+      console.log('🔍 [DEBUG] PatientExamination gefunden:', patientExamination);
+      console.log('🔍 [DEBUG] Examination in PatientExamination:', patientExamination?.examination);
       examId = patientExamination?.examination?.id;
+      console.log('🔍 [DEBUG] Extrahierte examId:', examId);
     }
     
     if (!examId) {
-      console.warn('Keine Examination ID verfügbar für Findings-Laden');
+      console.warn('⚠️ Keine Examination ID verfügbar für Findings-Laden');
       return;
     }
     
+    console.log('🔄 [DEBUG] Lade Findings für Examination ID:', examId);
+    
     // Verwende den korrigierten Store-Aufruf
     const findings = await examinationStore.loadFindingsForExamination(examId);
-    availableExaminationFindings.value = findings.map((f: any) => deepMutable(f)) as unknown as Finding[];
+    const safeFindings = Array.isArray(findings) ? findings : [];
+    availableExaminationFindings.value = safeFindings.map((f: any) => deepMutable(f)) as unknown as Finding[];
     
-    console.log('📋 [AddableFindingsDetail] Loaded findings for examinationId:', examId, 'findings count:', findings.length);
+    console.log('📋 [DEBUG] Geladene Findings für examinationId:', examId, 'findings count:', findings.length);
+    console.log('📋 [DEBUG] Findings Details:', findings);
   } catch (error) {
-    console.error('Error loading available findings:', error);
+    console.error('❌ Error loading available findings:', error);
     emit('finding-error', 'Fehler beim Laden der verfügbaren Befunde');
   } finally {
     loading.value = false;

@@ -109,7 +109,7 @@ describe('Timeline.vue - Typed Emits & Interactions', () => {
       await timeline.trigger('mousedown', { clientX: 250 })
       
       const seekEvents = wrapper.emitted('seek')
-      expect(seekEvents).toBeFalsy()
+      expect(seekEvents).toBeUndefined()
     })
   })
 
@@ -280,7 +280,7 @@ describe('Timeline.vue - Typed Emits & Interactions', () => {
       await nextTick()
       
       const resizeEvents = wrapper.emitted('segment-resize')
-      expect(resizeEvents).toBeTruthy()
+      expect(resizeEvents).toBeDefined()
       
       // Should have at least 2 events: live updates + final
       expect(resizeEvents!.length).toBeGreaterThanOrEqual(1)
@@ -329,7 +329,7 @@ describe('Timeline.vue - Typed Emits & Interactions', () => {
       await nextTick()
       
       const moveEvents = wrapper.emitted('segment-move')
-      expect(moveEvents).toBeTruthy()
+      expect(moveEvents).toBeDefined()
       expect(moveEvents!.length).toBeGreaterThanOrEqual(1)
       
       // Check final event

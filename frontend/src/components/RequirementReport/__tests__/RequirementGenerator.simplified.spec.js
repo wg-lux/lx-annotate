@@ -1,56 +1,23 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
-import { nextTick, ref } from 'vue';
-import { createPinia, setActivePinia } from 'pinia';
+import { nextTick } from 'vue';
+import { createTestingPinia } from '@pinia/testing';
 import RequirementGenerator from '../RequirementGenerator.vue';
-// Mock modules at the top level
-// Top-level mocks for Vitest hoisting
-vi.mock('@/stores/patientStore', () => ({
-    usePatientStore: () => ({
-        patients: ref([
-            { id: 1, first_name: 'John', last_name: 'Doe', displayName: 'John Doe' },
-            { id: 2, first_name: 'Jane', last_name: 'Smith', displayName: 'Jane Smith' },
-        ]),
-        genders: ref([]),
-        centers: ref([]),
-        isLoading: ref(false),
-        isError: ref(false),
-        error: ref(null),
-        fetchPatients: vi.fn(),
-        initializeLookupData: vi.fn(),
-    }),
-}));
-vi.mock('@/stores/examinationStore', () => ({
-    useExaminationStore: () => ({
-        examinations: ref([
-            { id: 1, name: 'Blood Test' },
-            { id: 2, name: 'X-Ray' },
-        ]),
-        isLoading: ref(false),
-        isError: ref(false),
-        error: ref(null),
-        fetchExaminations: vi.fn(),
-    }),
-}));
-vi.mock('@/stores/finding', () => ({
-    useFindingStore: vi.fn(() => ({
-        loading: false,
-        findingsData: new Map(),
-        loadFindingsData: vi.fn(),
-    }))
-}));
-vi.mock('@/stores/requirement', () => ({
-    useRequirementStore: vi.fn(() => ({
-        evaluateRequirements: vi.fn(),
-        evaluateFromLookupData: vi.fn(),
-        reset: vi.fn(),
-    }))
-}));
-vi.mock('@/stores/patientExamination', () => ({
-    usePatientExaminationStore: vi.fn(() => ({
-        createPatientExamination: vi.fn().mockResolvedValue({ id: 80 }),
-    }))
-}));
+// Initial store state for testing
+const mockPatients = [
+    { id: 1, first_name: 'John', last_name: 'Doe', displayName: 'John Doe' },
+    { id: 2, first_name: 'Jane', last_name: 'Smith', displayName: 'Jane Smith' },
+];
+const mockExaminations = [
+    { id: 1, name: 'Blood Test' },
+    { id: 2, name: 'X-Ray' },
+];
+const mockRequirements = [
+    { id: 1, name: 'Requirement 1' },
+    { id: 2, name: 'Requirement 2' },
+];
+// Remove all store mocks - createTestingPinia will handle this
+// Mock non-Pinia dependencies only
 vi.mock('@/api/axiosInstance', () => ({
     default: {
         get: vi.fn(),
@@ -58,10 +25,51 @@ vi.mock('@/api/axiosInstance', () => ({
         patch: vi.fn(),
     }
 }));
+// Simple mount utility with createTestingPinia
+function mountComponent() {
+    return mount(RequirementGenerator, {
+        global: {
+            plugins: [
+                createTestingPinia({
+                    createSpy: vi.fn,
+                    initialState: {
+                        patient: {
+                            patients: mockPatients,
+                            currentPatient: null,
+                            selectedPatientId: null,
+                            genders: [],
+                            centers: [],
+                            loading: false,
+                            error: null,
+                        },
+                        examination: {
+                            examinations: mockExaminations,
+                            loading: false,
+                            error: null,
+                        },
+                        requirement: {
+                            requirements: mockRequirements,
+                        },
+                        finding: {
+                            loading: false,
+                            findingsData: new Map(),
+                        },
+                        patientExamination: {
+                            currentExamination: null,
+                        },
+                    },
+                }),
+            ],
+            stubs: {
+                AddableFindingsDetail: true,
+                FindingsDetail: true,
+                PatientAdder: true,
+            },
+        },
+    });
+}
 describe('RequirementGenerator - Simplified Tests', () => {
     beforeEach(() => {
-        // Set up fresh Pinia instance for each test
-        setActivePinia(createPinia());
         vi.clearAllMocks();
         // Mock localStorage
         Object.defineProperty(window, 'localStorage', {
@@ -75,58 +83,23 @@ describe('RequirementGenerator - Simplified Tests', () => {
     });
     describe('Basic rendering', () => {
         it('should render the main title', () => {
-            const wrapper = mount(RequirementGenerator, {
-                global: {
-                    plugins: [createPinia()],
-                    stubs: {
-                        AddableFindingsDetail: true,
-                        FindingsDetail: true,
-                        PatientAdder: true,
-                    },
-                },
-            });
+            const wrapper = mountComponent();
             expect(wrapper.text()).toContain('1. Patient und Untersuchung auswählen');
         });
         it('should render patient and examination selects', () => {
-            const wrapper = mount(RequirementGenerator, {
-                global: {
-                    plugins: [createPinia()],
-                    stubs: {
-                        AddableFindingsDetail: true,
-                        FindingsDetail: true,
-                        PatientAdder: true,
-                    },
-                },
-            });
+            const wrapper = mountComponent();
             expect(wrapper.find('#patient-select').exists()).toBe(true);
             expect(wrapper.find('#examination-select').exists()).toBe(true);
         });
         it('should disable examination select initially', () => {
-            const wrapper = mount(RequirementGenerator, {
-                global: {
-                    plugins: [createPinia()],
-                    stubs: {
-                        AddableFindingsDetail: true,
-                        FindingsDetail: true,
-                        PatientAdder: true,
-                    },
-                },
-            });
+            const wrapper = mountComponent();
             const examinationSelect = wrapper.find('#examination-select');
             expect(examinationSelect.attributes('disabled')).toBeDefined();
         });
     });
     describe('Patient selection', () => {
         it('should populate patient options', () => {
-            const wrapper = mount(RequirementGenerator, {
-                global: {
-                    stubs: {
-                        AddableFindingsDetail: true,
-                        FindingsDetail: true,
-                        PatientAdder: true,
-                    },
-                },
-            });
+            const wrapper = mountComponent();
             const patientSelect = wrapper.find('#patient-select');
             const options = patientSelect.findAll('option');
             expect(options.length).toBeGreaterThan(2); // At least disabled option + 2 patients
@@ -134,15 +107,7 @@ describe('RequirementGenerator - Simplified Tests', () => {
             expect(wrapper.text()).toContain('Jane Smith');
         });
         it('should enable examination select when patient is selected', async () => {
-            const wrapper = mount(RequirementGenerator, {
-                global: {
-                    stubs: {
-                        AddableFindingsDetail: true,
-                        FindingsDetail: true,
-                        PatientAdder: true,
-                    },
-                },
-            });
+            const wrapper = mountComponent();
             const patientSelect = wrapper.find('#patient-select');
             await patientSelect.setValue(1);
             await nextTick();
@@ -152,28 +117,12 @@ describe('RequirementGenerator - Simplified Tests', () => {
     });
     describe('Create PatientExamination button', () => {
         it('should be disabled initially', () => {
-            const wrapper = mount(RequirementGenerator, {
-                global: {
-                    stubs: {
-                        AddableFindingsDetail: true,
-                        FindingsDetail: true,
-                        PatientAdder: true,
-                    },
-                },
-            });
+            const wrapper = mountComponent();
             const createButton = wrapper.find('button').element;
             expect(createButton.disabled).toBe(true);
         });
         it('should be enabled when both patient and examination are selected', async () => {
-            const wrapper = mount(RequirementGenerator, {
-                global: {
-                    stubs: {
-                        AddableFindingsDetail: true,
-                        FindingsDetail: true,
-                        PatientAdder: true,
-                    },
-                },
-            });
+            const wrapper = mountComponent();
             // Select patient
             const patientSelect = wrapper.find('#patient-select');
             await patientSelect.setValue(1);

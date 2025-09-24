@@ -324,6 +324,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import type { Ref } from 'vue';
+import { debounce } from 'lodash-es';
 import axiosInstance from '@/api/axiosInstance';
 import { usePatientStore } from '@/stores/patientStore';
 import type { Patient } from '@/stores/patientStore';

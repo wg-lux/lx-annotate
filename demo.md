@@ -1,12 +1,3 @@
-
-
-
-# Setup Shell Session
-```shell
-export DJANGO_SETTINGS_MODULE=prod_settings
-echo $DJANGO_SETTINGS_MODULE
-```
-
 # Setup Database
 If not sure, delete prod_sim_db.sqlite3 before beginning to work with a clean state
 

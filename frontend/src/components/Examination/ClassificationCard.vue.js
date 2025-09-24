@@ -87,150 +87,158 @@ export default defineComponent({
         };
     }
 });
-; /* PartiallyEnd: #3632/script.vue */
-function __VLS_template() {
-    const __VLS_ctx = {};
-    let __VLS_components;
-    let __VLS_directives;
-    ['remove-btn',];
-    // CSS variable injection 
-    // CSS variable injection end 
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("classification-card") },
-        ...{ class: (({ 'compact-mode': __VLS_ctx.compact })) },
+debugger; /* PartiallyEnd: #3632/script.vue */
+const __VLS_ctx = {};
+let __VLS_components;
+let __VLS_directives;
+/** @type {__VLS_StyleScopedClasses['remove-btn']} */ ;
+// CSS variable injection 
+// CSS variable injection end 
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "classification-card" },
+    ...{ class: ({ 'compact-mode': __VLS_ctx.compact }) },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.h5, __VLS_intrinsicElements.h5)({
+    ...{ class: "card-title" },
+});
+(__VLS_ctx.label);
+if (__VLS_ctx.compact) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "compact-summary" },
     });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.h5, __VLS_intrinsicElements.h5)({
-        ...{ class: ("card-title") },
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "selected-items" },
     });
-    (__VLS_ctx.label);
-    if (__VLS_ctx.compact) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("compact-summary") },
+    if (__VLS_ctx.selectedLabels.length) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "selected-tags" },
         });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("selected-items") },
-        });
-        if (__VLS_ctx.selectedLabels.length) {
-            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: ("selected-tags") },
+        for (const [item] of __VLS_getVForSourceType((__VLS_ctx.selectedLabels))) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                key: (item.id),
+                ...{ class: "selected-tag" },
             });
-            for (const [item] of __VLS_getVForSourceType((__VLS_ctx.selectedLabels))) {
-                __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-                    key: ((item.id)),
-                    ...{ class: ("selected-tag") },
-                });
-                (item.name);
-                __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-                    ...{ onClick: (...[$event]) => {
-                            if (!((__VLS_ctx.compact)))
-                                return;
-                            if (!((__VLS_ctx.selectedLabels.length)))
-                                return;
-                            __VLS_ctx.removeItem(item.id);
-                        } },
-                    type: ("button"),
-                    ...{ class: ("remove-btn") },
-                });
-            }
-        }
-        else {
-            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: ("no-selection") },
-            });
-        }
-        if (__VLS_ctx.options.length > 0) {
-            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: ("selection-controls") },
-            });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
-                value: ((__VLS_ctx.localTempValue)),
-                ...{ class: ("form-select") },
-            });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-                value: ((undefined)),
-                disabled: (true),
-            });
-            (__VLS_ctx.selectPrompt);
-            for (const [option] of __VLS_getVForSourceType((__VLS_ctx.availableOptions))) {
-                __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-                    key: ((option.id)),
-                    value: ((option.id)),
-                });
-                (option.name);
-            }
-            __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-                ...{ onClick: (__VLS_ctx.addSelected) },
-                type: ("button"),
-                ...{ class: ("btn btn-sm btn-primary add-btn") },
-                disabled: ((!__VLS_ctx.localTempValue)),
+            (item.name);
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+                ...{ onClick: (...[$event]) => {
+                        if (!(__VLS_ctx.compact))
+                            return;
+                        if (!(__VLS_ctx.selectedLabels.length))
+                            return;
+                        __VLS_ctx.removeItem(item.id);
+                    } },
+                type: "button",
+                ...{ class: "remove-btn" },
             });
         }
     }
     else {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("full-selection") },
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "no-selection" },
         });
-        if (__VLS_ctx.isSingleSelection) {
-            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: ("radio-group") },
+    }
+    if (__VLS_ctx.options.length > 0) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "selection-controls" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
+            value: (__VLS_ctx.localTempValue),
+            ...{ class: "form-select" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+            value: (undefined),
+            disabled: true,
+        });
+        (__VLS_ctx.selectPrompt);
+        for (const [option] of __VLS_getVForSourceType((__VLS_ctx.availableOptions))) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+                key: (option.id),
+                value: (option.id),
             });
-            for (const [option] of __VLS_getVForSourceType((__VLS_ctx.options))) {
-                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                    key: ((option.id)),
-                    ...{ class: ("form-check") },
-                });
-                __VLS_elementAsFunction(__VLS_intrinsicElements.input)({
-                    type: ("radio"),
-                    id: ((`${__VLS_ctx.label}-${option.id}`)),
-                    value: ((option.id)),
-                    ...{ class: ("form-check-input") },
-                });
-                (__VLS_ctx.singleSelectedValue);
-                __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
-                    for: ((`${__VLS_ctx.label}-${option.id}`)),
-                    ...{ class: ("form-check-label") },
-                });
-                (option.name);
-            }
+            (option.name);
         }
-        else {
-            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: ("checkbox-group") },
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+            ...{ onClick: (__VLS_ctx.addSelected) },
+            type: "button",
+            ...{ class: "btn btn-sm btn-primary add-btn" },
+            disabled: (!__VLS_ctx.localTempValue),
+        });
+    }
+}
+else {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "full-selection" },
+    });
+    if (__VLS_ctx.isSingleSelection) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "radio-group" },
+        });
+        for (const [option] of __VLS_getVForSourceType((__VLS_ctx.options))) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                key: (option.id),
+                ...{ class: "form-check" },
             });
-            for (const [option] of __VLS_getVForSourceType((__VLS_ctx.options))) {
-                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                    key: ((option.id)),
-                    ...{ class: ("form-check") },
-                });
-                __VLS_elementAsFunction(__VLS_intrinsicElements.input)({
-                    type: ("checkbox"),
-                    id: ((`${__VLS_ctx.label}-${option.id}`)),
-                    value: ((option.id)),
-                    ...{ class: ("form-check-input") },
-                });
-                (__VLS_ctx.localModelValue);
-                __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
-                    for: ((`${__VLS_ctx.label}-${option.id}`)),
-                    ...{ class: ("form-check-label") },
-                });
-                (option.name);
-            }
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
+                type: "radio",
+                id: (`${__VLS_ctx.label}-${option.id}`),
+                value: (option.id),
+                ...{ class: "form-check-input" },
+            });
+            (__VLS_ctx.singleSelectedValue);
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+                for: (`${__VLS_ctx.label}-${option.id}`),
+                ...{ class: "form-check-label" },
+            });
+            (option.name);
         }
     }
-    ['classification-card', 'compact-mode', 'card-title', 'compact-summary', 'selected-items', 'selected-tags', 'selected-tag', 'remove-btn', 'no-selection', 'selection-controls', 'form-select', 'btn', 'btn-sm', 'btn-primary', 'add-btn', 'full-selection', 'radio-group', 'form-check', 'form-check-input', 'form-check-label', 'checkbox-group', 'form-check', 'form-check-input', 'form-check-label',];
-    var __VLS_slots;
-    var $slots;
-    let __VLS_inheritedAttrs;
-    var $attrs;
-    const __VLS_refs = {};
-    var $refs;
-    var $el;
-    return {
-        attrs: {},
-        slots: __VLS_slots,
-        refs: $refs,
-        rootEl: $el,
-    };
+    else {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "checkbox-group" },
+        });
+        for (const [option] of __VLS_getVForSourceType((__VLS_ctx.options))) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                key: (option.id),
+                ...{ class: "form-check" },
+            });
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
+                type: "checkbox",
+                id: (`${__VLS_ctx.label}-${option.id}`),
+                value: (option.id),
+                ...{ class: "form-check-input" },
+            });
+            (__VLS_ctx.localModelValue);
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+                for: (`${__VLS_ctx.label}-${option.id}`),
+                ...{ class: "form-check-label" },
+            });
+            (option.name);
+        }
+    }
 }
-;
+/** @type {__VLS_StyleScopedClasses['classification-card']} */ ;
+/** @type {__VLS_StyleScopedClasses['compact-mode']} */ ;
+/** @type {__VLS_StyleScopedClasses['card-title']} */ ;
+/** @type {__VLS_StyleScopedClasses['compact-summary']} */ ;
+/** @type {__VLS_StyleScopedClasses['selected-items']} */ ;
+/** @type {__VLS_StyleScopedClasses['selected-tags']} */ ;
+/** @type {__VLS_StyleScopedClasses['selected-tag']} */ ;
+/** @type {__VLS_StyleScopedClasses['remove-btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['no-selection']} */ ;
+/** @type {__VLS_StyleScopedClasses['selection-controls']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-select']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-primary']} */ ;
+/** @type {__VLS_StyleScopedClasses['add-btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['full-selection']} */ ;
+/** @type {__VLS_StyleScopedClasses['radio-group']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-check']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-check-input']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-check-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['checkbox-group']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-check']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-check-input']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-check-label']} */ ;
+var __VLS_dollars;
 let __VLS_self;

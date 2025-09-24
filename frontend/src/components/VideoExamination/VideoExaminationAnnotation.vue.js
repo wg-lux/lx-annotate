@@ -5,7 +5,7 @@ import { useAnnotationStore } from '@/stores/annotationStore';
 import { useAuthStore } from '@/stores/authStore';
 import SimpleExaminationForm from '@/components/Examination/SimpleExaminationForm.vue';
 import axiosInstance, { r } from '@/api/axiosInstance';
-import Timeline from '@/components/EndoAI/Timeline.vue';
+import Timeline from '@/components/VideoExamination/Timeline.vue';
 import { storeToRefs } from 'pinia';
 import { useToastStore } from '@/stores/toastStore';
 import { formatTime, getTranslationForLabel, getColorForLabel } from '@/utils/videoUtils';
@@ -220,6 +220,31 @@ const handleTimelineClick = (event) => {
 const handleTimelineSeek = (time) => {
     seekToTime(time);
 };
+// ✅ Event Handler Wrapper für Vue Template Compatibility
+const onTimelineSeek = (...args) => {
+    const time = args[0];
+    handleTimelineSeek(time);
+};
+const onSegmentResize = (...args) => {
+    const [segmentId, newStart, newEnd, mode, final] = args;
+    handleSegmentResize(segmentId, newStart, newEnd, mode, final);
+};
+const onSegmentMove = (...args) => {
+    const [segmentId, newStart, newEnd, final] = args;
+    handleSegmentMove(segmentId, newStart, newEnd, final);
+};
+const onSegmentCreate = (...args) => {
+    const event = args[0];
+    handleCreateSegment(event);
+};
+const onTimeSelection = (...args) => {
+    const data = args[0];
+    handleTimeSelection(data);
+};
+const onSegmentDelete = (...args) => {
+    const segment = args[0];
+    handleSegmentDelete(segment);
+};
 const handleSegmentResize = (segmentId, newStart, newEnd, mode, final) => {
     // ✅ NEW: Verbesserte Guard für Draft/Temp-Segmente (camelCase in finalen PATCH-Aufrufen)
     if (typeof segmentId === 'string') {
@@ -398,462 +423,550 @@ const deleteExamination = async (examinationId) => {
     catch (error) {
         console.error('Error deleting examination:', error);
     }
-}; /* PartiallyEnd: #3632/scriptSetup.vue */
-function __VLS_template() {
-    const __VLS_ctx = {};
-    let __VLS_components;
-    let __VLS_directives;
-    ['examination-marker', 'list-group-item',];
-    // CSS variable injection 
-    // CSS variable injection end 
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("container-fluid py-4") },
+};
+debugger; /* PartiallyEnd: #3632/scriptSetup.vue */
+const __VLS_ctx = {};
+let __VLS_components;
+let __VLS_directives;
+/** @type {__VLS_StyleScopedClasses['examination-marker']} */ ;
+/** @type {__VLS_StyleScopedClasses['list-group-item']} */ ;
+// CSS variable injection 
+// CSS variable injection end 
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "container-fluid py-4" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "row" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "col-12" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.h1, __VLS_intrinsicElements.h1)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "row" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "col-lg-8" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "card" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "card-header pb-0" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.h5, __VLS_intrinsicElements.h5)({
+    ...{ class: "mb-0" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "card-body" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "mb-3" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+    ...{ class: "form-label" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
+    ...{ onChange: (__VLS_ctx.onVideoChange) },
+    value: (__VLS_ctx.selectedVideoId),
+    ...{ class: "form-select" },
+    disabled: (!__VLS_ctx.hasVideos),
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+    value: (null),
+});
+(__VLS_ctx.hasVideos ? 'Bitte Video auswählen...' : 'Keine Videos verfügbar');
+for (const [annotatableVideos] of __VLS_getVForSourceType((__VLS_ctx.videos))) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+        key: (annotatableVideos.id),
+        value: (annotatableVideos.id),
     });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("row") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("col-12") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.h1, __VLS_intrinsicElements.h1)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("row") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("col-lg-8") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("card") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("card-header pb-0") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.h5, __VLS_intrinsicElements.h5)({
-        ...{ class: ("mb-0") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("card-body") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("mb-3") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
-        ...{ class: ("form-label") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
-        ...{ onChange: (__VLS_ctx.onVideoChange) },
-        value: ((__VLS_ctx.selectedVideoId)),
-        modelModifiers: { number: true, },
-        ...{ class: ("form-select") },
-        disabled: ((!__VLS_ctx.hasVideos)),
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-        value: ((null)),
-    });
-    (__VLS_ctx.hasVideos ? 'Bitte Video auswählen...' : 'Keine Videos verfügbar');
-    for (const [annotatableVideos] of __VLS_getVForSourceType((__VLS_ctx.videos))) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-            key: ((annotatableVideos.id)),
-            value: ((annotatableVideos.id)),
-        });
-        (annotatableVideos.original_file_name || 'Video Nr. ' + annotatableVideos.id);
-        ('Center:' + annotatableVideos.centerName || 'Unbekanntes Zentrum');
-        ('Processor:' + annotatableVideos.processorName || 'Unbekannter Prozessor');
-    }
-    if (!__VLS_ctx.hasVideos) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
-            ...{ class: ("text-muted") },
-        });
-        (__VLS_ctx.noVideosMessage);
-    }
-    if (!__VLS_ctx.videoStreamUrl && __VLS_ctx.hasVideos) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("text-center text-muted py-5") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: ("material-icons") },
-            ...{ style: ({}) },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
-            ...{ class: ("mt-2") },
-        });
-    }
-    if (!__VLS_ctx.hasVideos) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("text-center text-muted py-5") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: ("material-icons") },
-            ...{ style: ({}) },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
-            ...{ class: ("mt-2") },
-        });
-        (__VLS_ctx.noVideosMessage);
-        __VLS_elementAsFunction(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({});
-    }
-    if (__VLS_ctx.videoStreamUrl) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("video-container") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.video, __VLS_intrinsicElements.video)({
-            ...{ onTimeupdate: (__VLS_ctx.handleTimeUpdate) },
-            ...{ onLoadedmetadata: (__VLS_ctx.onVideoLoaded) },
-            ref: ("videoRef"),
-            'data-cy': ("video-player"),
-            src: ((__VLS_ctx.videoStreamUrl)),
-            controls: (true),
-            ...{ class: ("w-100") },
-            ...{ style: ({}) },
-        });
-        // @ts-ignore navigation for `const videoRef = ref()`
-        /** @type { typeof __VLS_ctx.videoRef } */ ;
-    }
-    if (__VLS_ctx.duration > 0) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("timeline-wrapper mt-3") },
-        });
-        // @ts-ignore
-        /** @type { [typeof Timeline, ] } */ ;
-        // @ts-ignore
-        const __VLS_0 = __VLS_asFunctionalComponent(Timeline, new Timeline({
-            ...{ 'onSeek': {} },
-            ...{ 'onSegmentResize': {} },
-            ...{ 'onSegmentMove': {} },
-            ...{ 'onSegmentCreate': {} },
-            ...{ 'onTimeSelection': {} },
-            ...{ 'onDeleteSegment': {} },
-            video: (({ duration: __VLS_ctx.duration })),
-            segments: ((__VLS_ctx.timelineSegments)),
-            labels: ((__VLS_ctx.timelineLabels)),
-            currentTime: ((__VLS_ctx.currentTime)),
-            isPlaying: ((false)),
-            activeSegmentId: ((__VLS_ctx.selectedSegmentId)),
-            showWaveform: ((false)),
-            selectionMode: ((true)),
-            fps: ((__VLS_ctx.fps)),
-        }));
-        const __VLS_1 = __VLS_0({
-            ...{ 'onSeek': {} },
-            ...{ 'onSegmentResize': {} },
-            ...{ 'onSegmentMove': {} },
-            ...{ 'onSegmentCreate': {} },
-            ...{ 'onTimeSelection': {} },
-            ...{ 'onDeleteSegment': {} },
-            video: (({ duration: __VLS_ctx.duration })),
-            segments: ((__VLS_ctx.timelineSegments)),
-            labels: ((__VLS_ctx.timelineLabels)),
-            currentTime: ((__VLS_ctx.currentTime)),
-            isPlaying: ((false)),
-            activeSegmentId: ((__VLS_ctx.selectedSegmentId)),
-            showWaveform: ((false)),
-            selectionMode: ((true)),
-            fps: ((__VLS_ctx.fps)),
-        }, ...__VLS_functionalComponentArgsRest(__VLS_0));
-        let __VLS_5;
-        const __VLS_6 = {
-            onSeek: (__VLS_ctx.handleTimelineSeek)
-        };
-        const __VLS_7 = {
-            onSegmentResize: (__VLS_ctx.handleSegmentResize)
-        };
-        const __VLS_8 = {
-            onSegmentMove: (__VLS_ctx.handleSegmentMove)
-        };
-        const __VLS_9 = {
-            onSegmentCreate: (__VLS_ctx.handleCreateSegment)
-        };
-        const __VLS_10 = {
-            onTimeSelection: (__VLS_ctx.handleTimeSelection)
-        };
-        const __VLS_11 = {
-            onDeleteSegment: (__VLS_ctx.handleSegmentDelete)
-        };
-        let __VLS_2;
-        let __VLS_3;
-        var __VLS_4;
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ onClick: (__VLS_ctx.handleTimelineClick) },
-            ...{ class: ("simple-timeline-track mt-2") },
-            ref: ("timelineRef"),
-        });
-        // @ts-ignore navigation for `const timelineRef = ref()`
-        /** @type { typeof __VLS_ctx.timelineRef } */ ;
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("progress-bar") },
-            ...{ style: (({ width: `${(__VLS_ctx.currentTime / __VLS_ctx.duration) * 100}%` })) },
-        });
-        for (const [marker] of __VLS_getVForSourceType((__VLS_ctx.examinationMarkers))) {
-            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                key: ((marker.id)),
-                ...{ class: ("examination-marker") },
-                ...{ style: (({ left: `${(marker.timestamp / __VLS_ctx.duration) * 100}%` })) },
-                title: ((`Untersuchung bei ${__VLS_ctx.formatTime(marker.timestamp)}`)),
-            });
-        }
-    }
-    if (__VLS_ctx.duration > 0) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("debug-info mt-2") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
-            ...{ class: ("text-muted") },
-        });
-        (__VLS_ctx.rawSegments.length);
-        (__VLS_ctx.formatTime(__VLS_ctx.duration));
-        (Object.keys(__VLS_ctx.groupedSegments).length);
-    }
-    if (__VLS_ctx.selectedVideoId) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("timeline-controls mt-4") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("d-flex align-items-center gap-3") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("d-flex align-items-center") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
-            ...{ class: ("form-label mb-0 me-2") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
-            ...{ onChange: (__VLS_ctx.onLabelSelect) },
-            value: ((__VLS_ctx.selectedLabelType)),
-            ...{ class: ("form-select form-select-sm control-select") },
-            'data-cy': ("label-select"),
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-            value: (""),
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-            value: ("appendix"),
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-            value: ("blood"),
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-            value: ("diverticule"),
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-            value: ("grasper"),
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-            value: ("ileocaecalvalve"),
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-            value: ("ileum"),
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-            value: ("low_quality"),
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-            value: ("nbi"),
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-            value: ("needle"),
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-            value: ("outside"),
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-            value: ("polyp"),
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-            value: ("snare"),
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-            value: ("water_jet"),
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-            value: ("wound"),
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("d-flex align-items-center gap-2") },
-        });
-        if (!__VLS_ctx.isMarkingLabel) {
-            __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-                ...{ onClick: (__VLS_ctx.startLabelMarking) },
-                ...{ class: ("btn btn-success btn-sm control-button") },
-                disabled: ((!__VLS_ctx.canStartLabeling)),
-                'data-cy': ("start-label-button"),
-            });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: ("material-icons") },
-            });
-        }
-        if (__VLS_ctx.isMarkingLabel) {
-            __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-                ...{ onClick: (__VLS_ctx.finishLabelMarking) },
-                ...{ class: ("btn btn-warning btn-sm control-button") },
-                'data-cy': ("finish-label-button"),
-            });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: ("material-icons") },
-            });
-        }
-        if (__VLS_ctx.isMarkingLabel) {
-            __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-                ...{ onClick: (__VLS_ctx.cancelLabelMarking) },
-                ...{ class: ("btn btn-outline-secondary btn-sm control-button") },
-            });
-        }
-        __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-            ...{ class: ("ms-3 text-muted") },
-        });
-        (__VLS_ctx.formatTime(__VLS_ctx.currentTime));
-        (__VLS_ctx.formatTime(__VLS_ctx.duration));
-        if (__VLS_ctx.videoStore.draftSegment) {
-            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: ("alert alert-info mt-2 mb-0") },
-            });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({});
-            __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: ("material-icons align-middle me-1") },
-                ...{ style: ({}) },
-            });
-            (__VLS_ctx.getTranslationForLabel(__VLS_ctx.videoStore.draftSegment.label));
-            if (__VLS_ctx.videoStore.draftSegment.end) {
-                __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
-                (__VLS_ctx.formatTime(__VLS_ctx.videoStore.draftSegment.start));
-                (__VLS_ctx.formatTime(__VLS_ctx.videoStore.draftSegment.end));
-            }
-            else {
-                __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
-                (__VLS_ctx.formatTime(__VLS_ctx.videoStore.draftSegment.start));
-            }
-        }
-    }
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("col-lg-4") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("card") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("card-header pb-0") },
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.h5, __VLS_intrinsicElements.h5)({
-        ...{ class: ("mb-0") },
-    });
-    if (__VLS_ctx.currentMarker) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
-            ...{ class: ("text-muted") },
-        });
-        (__VLS_ctx.formatTime(__VLS_ctx.currentMarker.timestamp));
-    }
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("card-body") },
-    });
-    if (__VLS_ctx.showExaminationForm) {
-        // @ts-ignore
-        /** @type { [typeof SimpleExaminationForm, ] } */ ;
-        // @ts-ignore
-        const __VLS_12 = __VLS_asFunctionalComponent(SimpleExaminationForm, new SimpleExaminationForm({
-            ...{ 'onExaminationSaved': {} },
-            videoTimestamp: ((__VLS_ctx.currentTime)),
-            videoId: ((__VLS_ctx.selectedVideoId)),
-            dataCy: ("examination-form"),
-        }));
-        const __VLS_13 = __VLS_12({
-            ...{ 'onExaminationSaved': {} },
-            videoTimestamp: ((__VLS_ctx.currentTime)),
-            videoId: ((__VLS_ctx.selectedVideoId)),
-            dataCy: ("examination-form"),
-        }, ...__VLS_functionalComponentArgsRest(__VLS_12));
-        let __VLS_17;
-        const __VLS_18 = {
-            onExaminationSaved: (__VLS_ctx.onExaminationSaved)
-        };
-        let __VLS_14;
-        let __VLS_15;
-        var __VLS_16;
-    }
-    else {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("text-center text-muted py-5") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: ("material-icons") },
-            ...{ style: ({}) },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
-            ...{ class: ("mt-2") },
-        });
-    }
-    if (__VLS_ctx.savedExaminations.length > 0) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("card mt-3") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("card-header pb-0") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({
-            ...{ class: ("mb-0") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("card-body") },
-            'data-cy': ("saved-examinations"),
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("list-group list-group-flush") },
-        });
-        for (const [exam] of __VLS_getVForSourceType((__VLS_ctx.savedExaminations))) {
-            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                key: ((exam.id)),
-                ...{ class: ("list-group-item d-flex justify-content-between align-items-center px-0") },
-            });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
-            __VLS_elementAsFunction(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
-                ...{ class: ("text-muted") },
-            });
-            (__VLS_ctx.formatTime(exam.timestamp));
-            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
-            (exam.examination_type || 'Untersuchung');
-            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
-            __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-                ...{ onClick: (...[$event]) => {
-                        if (!((__VLS_ctx.savedExaminations.length > 0)))
-                            return;
-                        __VLS_ctx.jumpToExamination(exam);
-                    } },
-                ...{ class: ("btn btn-sm btn-outline-primary me-2") },
-            });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: ("material-icons") },
-            });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-                ...{ onClick: (...[$event]) => {
-                        if (!((__VLS_ctx.savedExaminations.length > 0)))
-                            return;
-                        __VLS_ctx.deleteExamination(exam.id);
-                    } },
-                ...{ class: ("btn btn-sm btn-outline-danger") },
-            });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: ("material-icons") },
-            });
-        }
-    }
-    ['container-fluid', 'py-4', 'row', 'col-12', 'row', 'col-lg-8', 'card', 'card-header', 'pb-0', 'mb-0', 'card-body', 'mb-3', 'form-label', 'form-select', 'text-muted', 'text-center', 'text-muted', 'py-5', 'material-icons', 'mt-2', 'text-center', 'text-muted', 'py-5', 'material-icons', 'mt-2', 'video-container', 'w-100', 'timeline-wrapper', 'mt-3', 'simple-timeline-track', 'mt-2', 'progress-bar', 'examination-marker', 'debug-info', 'mt-2', 'text-muted', 'timeline-controls', 'mt-4', 'd-flex', 'align-items-center', 'gap-3', 'd-flex', 'align-items-center', 'form-label', 'mb-0', 'me-2', 'form-select', 'form-select-sm', 'control-select', 'd-flex', 'align-items-center', 'gap-2', 'btn', 'btn-success', 'btn-sm', 'control-button', 'material-icons', 'btn', 'btn-warning', 'btn-sm', 'control-button', 'material-icons', 'btn', 'btn-outline-secondary', 'btn-sm', 'control-button', 'ms-3', 'text-muted', 'alert', 'alert-info', 'mt-2', 'mb-0', 'material-icons', 'align-middle', 'me-1', 'col-lg-4', 'card', 'card-header', 'pb-0', 'mb-0', 'text-muted', 'card-body', 'text-center', 'text-muted', 'py-5', 'material-icons', 'mt-2', 'card', 'mt-3', 'card-header', 'pb-0', 'mb-0', 'card-body', 'list-group', 'list-group-flush', 'list-group-item', 'd-flex', 'justify-content-between', 'align-items-center', 'px-0', 'text-muted', 'btn', 'btn-sm', 'btn-outline-primary', 'me-2', 'material-icons', 'btn', 'btn-sm', 'btn-outline-danger', 'material-icons',];
-    var __VLS_slots;
-    var $slots;
-    let __VLS_inheritedAttrs;
-    var $attrs;
-    const __VLS_refs = {
-        'videoRef': __VLS_nativeElements['video'],
-        'timelineRef': __VLS_nativeElements['div'],
-    };
-    var $refs;
-    var $el;
-    return {
-        attrs: {},
-        slots: __VLS_slots,
-        refs: $refs,
-        rootEl: $el,
-    };
+    (annotatableVideos.original_file_name || 'Video Nr. ' + annotatableVideos.id);
+    ('Center:' + annotatableVideos.centerName || 'Unbekanntes Zentrum');
+    ('Processor:' + annotatableVideos.processorName || 'Unbekannter Prozessor');
 }
-;
+if (!__VLS_ctx.hasVideos) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+        ...{ class: "text-muted" },
+    });
+    (__VLS_ctx.noVideosMessage);
+}
+if (!__VLS_ctx.videoStreamUrl && __VLS_ctx.hasVideos) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "text-center text-muted py-5" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+        ...{ class: "material-icons" },
+        ...{ style: {} },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
+        ...{ class: "mt-2" },
+    });
+}
+if (!__VLS_ctx.hasVideos) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "text-center text-muted py-5" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+        ...{ class: "material-icons" },
+        ...{ style: {} },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
+        ...{ class: "mt-2" },
+    });
+    (__VLS_ctx.noVideosMessage);
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({});
+}
+if (__VLS_ctx.videoStreamUrl) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "video-container" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.video, __VLS_intrinsicElements.video)({
+        ...{ onTimeupdate: (__VLS_ctx.handleTimeUpdate) },
+        ...{ onLoadedmetadata: (__VLS_ctx.onVideoLoaded) },
+        ref: "videoRef",
+        'data-cy': "video-player",
+        src: (__VLS_ctx.videoStreamUrl),
+        controls: true,
+        ...{ class: "w-100" },
+        ...{ style: {} },
+    });
+    /** @type {typeof __VLS_ctx.videoRef} */ ;
+}
+if (__VLS_ctx.duration > 0) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "timeline-wrapper mt-3" },
+    });
+    /** @type {[typeof Timeline, ]} */ ;
+    // @ts-ignore
+    const __VLS_0 = __VLS_asFunctionalComponent(Timeline, new Timeline({
+        ...{ 'onSeek': {} },
+        ...{ 'onSegmentResize': {} },
+        ...{ 'onSegmentMove': {} },
+        ...{ 'onSegmentCreate': {} },
+        ...{ 'onTimeSelection': {} },
+        ...{ 'onDeleteSegment': {} },
+        video: ({ duration: __VLS_ctx.duration }),
+        segments: (__VLS_ctx.timelineSegments),
+        labels: (__VLS_ctx.timelineLabels),
+        currentTime: (__VLS_ctx.currentTime),
+        isPlaying: (false),
+        activeSegmentId: (__VLS_ctx.selectedSegmentId),
+        showWaveform: (false),
+        selectionMode: (true),
+        fps: (__VLS_ctx.fps),
+    }));
+    const __VLS_1 = __VLS_0({
+        ...{ 'onSeek': {} },
+        ...{ 'onSegmentResize': {} },
+        ...{ 'onSegmentMove': {} },
+        ...{ 'onSegmentCreate': {} },
+        ...{ 'onTimeSelection': {} },
+        ...{ 'onDeleteSegment': {} },
+        video: ({ duration: __VLS_ctx.duration }),
+        segments: (__VLS_ctx.timelineSegments),
+        labels: (__VLS_ctx.timelineLabels),
+        currentTime: (__VLS_ctx.currentTime),
+        isPlaying: (false),
+        activeSegmentId: (__VLS_ctx.selectedSegmentId),
+        showWaveform: (false),
+        selectionMode: (true),
+        fps: (__VLS_ctx.fps),
+    }, ...__VLS_functionalComponentArgsRest(__VLS_0));
+    let __VLS_3;
+    let __VLS_4;
+    let __VLS_5;
+    const __VLS_6 = {
+        onSeek: (__VLS_ctx.onTimelineSeek)
+    };
+    const __VLS_7 = {
+        onSegmentResize: (__VLS_ctx.onSegmentResize)
+    };
+    const __VLS_8 = {
+        onSegmentMove: (__VLS_ctx.onSegmentMove)
+    };
+    const __VLS_9 = {
+        onSegmentCreate: (__VLS_ctx.onSegmentCreate)
+    };
+    const __VLS_10 = {
+        onTimeSelection: (__VLS_ctx.onTimeSelection)
+    };
+    const __VLS_11 = {
+        onDeleteSegment: (__VLS_ctx.onSegmentDelete)
+    };
+    var __VLS_2;
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ onClick: (__VLS_ctx.handleTimelineClick) },
+        ...{ class: "simple-timeline-track mt-2" },
+        ref: "timelineRef",
+    });
+    /** @type {typeof __VLS_ctx.timelineRef} */ ;
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "progress-bar" },
+        ...{ style: ({ width: `${(__VLS_ctx.currentTime / __VLS_ctx.duration) * 100}%` }) },
+    });
+    for (const [marker] of __VLS_getVForSourceType((__VLS_ctx.examinationMarkers))) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            key: (marker.id),
+            ...{ class: "examination-marker" },
+            ...{ style: ({ left: `${(marker.timestamp / __VLS_ctx.duration) * 100}%` }) },
+            title: (`Untersuchung bei ${__VLS_ctx.formatTime(marker.timestamp)}`),
+        });
+    }
+}
+if (__VLS_ctx.duration > 0) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "debug-info mt-2" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+        ...{ class: "text-muted" },
+    });
+    (__VLS_ctx.rawSegments.length);
+    (__VLS_ctx.formatTime(__VLS_ctx.duration));
+    (Object.keys(__VLS_ctx.groupedSegments).length);
+}
+if (__VLS_ctx.selectedVideoId) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "timeline-controls mt-4" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "d-flex align-items-center gap-3" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "d-flex align-items-center" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+        ...{ class: "form-label mb-0 me-2" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
+        ...{ onChange: (__VLS_ctx.onLabelSelect) },
+        value: (__VLS_ctx.selectedLabelType),
+        ...{ class: "form-select form-select-sm control-select" },
+        'data-cy': "label-select",
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+        value: "",
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+        value: "appendix",
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+        value: "blood",
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+        value: "diverticule",
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+        value: "grasper",
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+        value: "ileocaecalvalve",
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+        value: "ileum",
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+        value: "low_quality",
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+        value: "nbi",
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+        value: "needle",
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+        value: "outside",
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+        value: "polyp",
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+        value: "snare",
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+        value: "water_jet",
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+        value: "wound",
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "d-flex align-items-center gap-2" },
+    });
+    if (!__VLS_ctx.isMarkingLabel) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+            ...{ onClick: (__VLS_ctx.startLabelMarking) },
+            ...{ class: "btn btn-success btn-sm control-button" },
+            disabled: (!__VLS_ctx.canStartLabeling),
+            'data-cy': "start-label-button",
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: "material-icons" },
+        });
+    }
+    if (__VLS_ctx.isMarkingLabel) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+            ...{ onClick: (__VLS_ctx.finishLabelMarking) },
+            ...{ class: "btn btn-warning btn-sm control-button" },
+            'data-cy': "finish-label-button",
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: "material-icons" },
+        });
+    }
+    if (__VLS_ctx.isMarkingLabel) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+            ...{ onClick: (__VLS_ctx.cancelLabelMarking) },
+            ...{ class: "btn btn-outline-secondary btn-sm control-button" },
+        });
+    }
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+        ...{ class: "ms-3 text-muted" },
+    });
+    (__VLS_ctx.formatTime(__VLS_ctx.currentTime));
+    (__VLS_ctx.formatTime(__VLS_ctx.duration));
+    if (__VLS_ctx.videoStore.draftSegment) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "alert alert-info mt-2 mb-0" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: "material-icons align-middle me-1" },
+            ...{ style: {} },
+        });
+        (__VLS_ctx.getTranslationForLabel(__VLS_ctx.videoStore.draftSegment.label));
+        if (__VLS_ctx.videoStore.draftSegment.end) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+            (__VLS_ctx.formatTime(__VLS_ctx.videoStore.draftSegment.start));
+            (__VLS_ctx.formatTime(__VLS_ctx.videoStore.draftSegment.end));
+        }
+        else {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+            (__VLS_ctx.formatTime(__VLS_ctx.videoStore.draftSegment.start));
+        }
+    }
+}
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "col-lg-4" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "card" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "card-header pb-0" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.h5, __VLS_intrinsicElements.h5)({
+    ...{ class: "mb-0" },
+});
+if (__VLS_ctx.currentMarker) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+        ...{ class: "text-muted" },
+    });
+    (__VLS_ctx.formatTime(__VLS_ctx.currentMarker.timestamp));
+}
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "card-body" },
+});
+if (__VLS_ctx.showExaminationForm) {
+    /** @type {[typeof SimpleExaminationForm, ]} */ ;
+    // @ts-ignore
+    const __VLS_12 = __VLS_asFunctionalComponent(SimpleExaminationForm, new SimpleExaminationForm({
+        ...{ 'onExaminationSaved': {} },
+        videoTimestamp: (__VLS_ctx.currentTime),
+        videoId: (__VLS_ctx.selectedVideoId),
+        dataCy: "examination-form",
+    }));
+    const __VLS_13 = __VLS_12({
+        ...{ 'onExaminationSaved': {} },
+        videoTimestamp: (__VLS_ctx.currentTime),
+        videoId: (__VLS_ctx.selectedVideoId),
+        dataCy: "examination-form",
+    }, ...__VLS_functionalComponentArgsRest(__VLS_12));
+    let __VLS_15;
+    let __VLS_16;
+    let __VLS_17;
+    const __VLS_18 = {
+        onExaminationSaved: (__VLS_ctx.onExaminationSaved)
+    };
+    var __VLS_14;
+}
+else {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "text-center text-muted py-5" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+        ...{ class: "material-icons" },
+        ...{ style: {} },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
+        ...{ class: "mt-2" },
+    });
+}
+if (__VLS_ctx.savedExaminations.length > 0) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "card mt-3" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "card-header pb-0" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({
+        ...{ class: "mb-0" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "card-body" },
+        'data-cy': "saved-examinations",
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "list-group list-group-flush" },
+    });
+    for (const [exam] of __VLS_getVForSourceType((__VLS_ctx.savedExaminations))) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            key: (exam.id),
+            ...{ class: "list-group-item d-flex justify-content-between align-items-center px-0" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+            ...{ class: "text-muted" },
+        });
+        (__VLS_ctx.formatTime(exam.timestamp));
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
+        (exam.examination_type || 'Untersuchung');
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+            ...{ onClick: (...[$event]) => {
+                    if (!(__VLS_ctx.savedExaminations.length > 0))
+                        return;
+                    __VLS_ctx.jumpToExamination(exam);
+                } },
+            ...{ class: "btn btn-sm btn-outline-primary me-2" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: "material-icons" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+            ...{ onClick: (...[$event]) => {
+                    if (!(__VLS_ctx.savedExaminations.length > 0))
+                        return;
+                    __VLS_ctx.deleteExamination(exam.id);
+                } },
+            ...{ class: "btn btn-sm btn-outline-danger" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: "material-icons" },
+        });
+    }
+}
+/** @type {__VLS_StyleScopedClasses['container-fluid']} */ ;
+/** @type {__VLS_StyleScopedClasses['py-4']} */ ;
+/** @type {__VLS_StyleScopedClasses['row']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-12']} */ ;
+/** @type {__VLS_StyleScopedClasses['row']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-lg-8']} */ ;
+/** @type {__VLS_StyleScopedClasses['card']} */ ;
+/** @type {__VLS_StyleScopedClasses['card-header']} */ ;
+/** @type {__VLS_StyleScopedClasses['pb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['card-body']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-select']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['py-5']} */ ;
+/** @type {__VLS_StyleScopedClasses['material-icons']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['py-5']} */ ;
+/** @type {__VLS_StyleScopedClasses['material-icons']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['video-container']} */ ;
+/** @type {__VLS_StyleScopedClasses['w-100']} */ ;
+/** @type {__VLS_StyleScopedClasses['timeline-wrapper']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['simple-timeline-track']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['progress-bar']} */ ;
+/** @type {__VLS_StyleScopedClasses['examination-marker']} */ ;
+/** @type {__VLS_StyleScopedClasses['debug-info']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['timeline-controls']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-4']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['gap-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-select']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-select-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['control-select']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['gap-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-success']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['control-button']} */ ;
+/** @type {__VLS_StyleScopedClasses['material-icons']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-warning']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['control-button']} */ ;
+/** @type {__VLS_StyleScopedClasses['material-icons']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-secondary']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['control-button']} */ ;
+/** @type {__VLS_StyleScopedClasses['ms-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert-info']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['material-icons']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-middle']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-lg-4']} */ ;
+/** @type {__VLS_StyleScopedClasses['card']} */ ;
+/** @type {__VLS_StyleScopedClasses['card-header']} */ ;
+/** @type {__VLS_StyleScopedClasses['pb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['card-body']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['py-5']} */ ;
+/** @type {__VLS_StyleScopedClasses['material-icons']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['card']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['card-header']} */ ;
+/** @type {__VLS_StyleScopedClasses['pb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['card-body']} */ ;
+/** @type {__VLS_StyleScopedClasses['list-group']} */ ;
+/** @type {__VLS_StyleScopedClasses['list-group-flush']} */ ;
+/** @type {__VLS_StyleScopedClasses['list-group-item']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['justify-content-between']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['px-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-primary']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['material-icons']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-danger']} */ ;
+/** @type {__VLS_StyleScopedClasses['material-icons']} */ ;
+var __VLS_dollars;
 const __VLS_self = (await import('vue')).defineComponent({
     setup() {
         return {
@@ -888,12 +1001,12 @@ const __VLS_self = (await import('vue')).defineComponent({
             onVideoLoaded: onVideoLoaded,
             handleTimeUpdate: handleTimeUpdate,
             handleTimelineClick: handleTimelineClick,
-            handleTimelineSeek: handleTimelineSeek,
-            handleSegmentResize: handleSegmentResize,
-            handleSegmentMove: handleSegmentMove,
-            handleTimeSelection: handleTimeSelection,
-            handleCreateSegment: handleCreateSegment,
-            handleSegmentDelete: handleSegmentDelete,
+            onTimelineSeek: onTimelineSeek,
+            onSegmentResize: onSegmentResize,
+            onSegmentMove: onSegmentMove,
+            onSegmentCreate: onSegmentCreate,
+            onTimeSelection: onTimeSelection,
+            onSegmentDelete: onSegmentDelete,
             onLabelSelect: onLabelSelect,
             startLabelMarking: startLabelMarking,
             finishLabelMarking: finishLabelMarking,
@@ -908,7 +1021,5 @@ export default (await import('vue')).defineComponent({
     setup() {
         return {};
     },
-    __typeRefs: {},
-    __typeEl: {},
 });
 ; /* PartiallyEnd: #4569/main.vue */

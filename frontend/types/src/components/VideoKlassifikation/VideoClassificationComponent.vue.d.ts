@@ -84,6 +84,8 @@ declare const _default: import("vue").DefineComponent<{}, {}, {
         fps?: number | undefined;
     }, {}, {}, {}, {}, import("vue").ComponentOptionsMixin, import("vue").ComponentOptionsMixin, {
         [x: string]: any;
+    } & {
+        [x: string]: any;
     }, string, import("vue").PublicProps, Readonly<{
         video?: {
             duration?: number | undefined;
@@ -97,11 +99,7 @@ declare const _default: import("vue").DefineComponent<{}, {}, {
         selectionMode?: boolean | undefined;
         fps?: number | undefined;
     }> & Readonly<{
-        [x: `on${Capitalize<any>}`]: ((...args: any) => any) | undefined;
-    }>, {}, {}, {}, {}, string, import("vue").ComponentProvideOptions, false, {
-        timeline: HTMLDivElement;
-        segmentElements: HTMLDivElement[];
-        waveformCanvas: HTMLCanvasElement;
-    }, HTMLDivElement>;
+        [x: `on${Capitalize<any>}`]: ((...args: any[] | unknown[]) => any) | undefined;
+    }>, {}, {}, {}, {}, string, import("vue").ComponentProvideOptions, false, {}, any>;
 }, {}, string, import("vue").ComponentProvideOptions, true, {}, any>;
 export default _default;

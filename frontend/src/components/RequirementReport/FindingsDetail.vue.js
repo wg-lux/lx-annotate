@@ -1,19 +1,25 @@
 import { ref, computed, onMounted, watch } from 'vue';
 import { useFindingStore } from '../../stores/findingStore';
 import { useExaminationStore } from '@/stores/examinationStore';
+import { usePatientExaminationStore } from '@/stores/patientExaminationStore';
 import axiosInstance from '@/api/axiosInstance';
 import { useFindingClassificationStore } from '@/stores/findingClassificationStore';
+import { filterNecessaryFindings } from '@/utils/findingFilters';
 const findingStore = useFindingStore();
 const examinationStore = useExaminationStore();
+const patientExaminationStore = usePatientExaminationStore();
 const findingClassificationStore = useFindingClassificationStore();
 const examinationId = computed(() => examinationStore.selectedExaminationId || undefined);
 const props = withDefaults(defineProps(), {
     isAddedToExamination: false,
-    patientExaminationId: undefined
+    patientExaminationId: undefined,
+    availableFindings: undefined,
 });
 const emit = defineEmits();
 const loading = ref(false);
 const classifications = ref([]);
+// NEW: derive necessary findings from availableFindings prop when provided
+const necessaryFindings = computed(() => filterNecessaryFindings(props.availableFindings));
 // Computed
 const finding = computed(() => {
     // First try findingClassificationStore (where AddableFindingsDetail stores data)
@@ -38,7 +44,10 @@ const debugInfo = computed(() => {
         totalClassifications: classifications.value.length,
         requiredClassifications: requiredClassifications.value.length,
         classificationsLoaded: classifications.value.length > 0,
-        dataSource: dataSource
+        dataSource,
+        // NEW:
+        availableCount: props.availableFindings?.length ?? 0,
+        necessaryCount: necessaryFindings.value.length,
     };
 });
 const findingsInfo = computed(() => {
@@ -52,7 +61,10 @@ const findingsInfo = computed(() => {
         totalClassifications: classifications.value.length,
         requiredClassifications: requiredClassifications.value.length,
         classificationsLoaded: classifications.value.length > 0,
-        dataSource: dataSource
+        dataSource,
+        // NEW:
+        availableCount: props.availableFindings?.length ?? 0,
+        necessaryCount: necessaryFindings.value.length,
     };
 });
 const loadFindingsAndClassifications = async (examinationId) => {
@@ -168,230 +180,320 @@ watch(() => findingStore.findings, (newVal, oldVal) => {
         safeLoadFindingsAndClassifications();
     }
 }, { immediate: true });
-; /* PartiallyEnd: #3632/scriptSetup.vue */
+// Watch for patient examination ID changes - similar to AddableFindingsDetail
+watch(() => patientExaminationStore.getCurrentPatientExaminationId(), (newId) => {
+    if (newId && !props.patientExaminationId) {
+        console.warn('[FindingsDetail] Syncing patientExaminationId, reloading data...');
+        safeLoadFindingsAndClassifications();
+    }
+}, { immediate: true });
+debugger; /* PartiallyEnd: #3632/scriptSetup.vue */
 const __VLS_withDefaultsArg = (function (t) { return t; })({
     isAddedToExamination: false,
-    patientExaminationId: undefined
+    patientExaminationId: undefined,
+    availableFindings: undefined,
 });
-function __VLS_template() {
-    const __VLS_ctx = {};
-    let __VLS_components;
-    let __VLS_directives;
-    ['finding-card', 'classification-item', 'form-select-sm', 'form-select-sm', 'finding-card', 'badge', 'classification-item', 'classification-item', 'form-select-sm', 'border-success', 'form-select-sm', 'border-warning', 'classification-item', 'updated', 'selected-classifications-summary', 'selected-classifications-summary', 'badge',];
-    // CSS variable injection 
-    // CSS variable injection end 
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("finding-card card mb-3") },
+const __VLS_ctx = {};
+let __VLS_components;
+let __VLS_directives;
+/** @type {__VLS_StyleScopedClasses['finding-card']} */ ;
+/** @type {__VLS_StyleScopedClasses['classification-item']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-select-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-select-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['finding-card']} */ ;
+/** @type {__VLS_StyleScopedClasses['badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['classification-item']} */ ;
+/** @type {__VLS_StyleScopedClasses['classification-item']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-select-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['border-success']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-select-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['border-warning']} */ ;
+/** @type {__VLS_StyleScopedClasses['classification-item']} */ ;
+/** @type {__VLS_StyleScopedClasses['updated']} */ ;
+/** @type {__VLS_StyleScopedClasses['selected-classifications-summary']} */ ;
+/** @type {__VLS_StyleScopedClasses['selected-classifications-summary']} */ ;
+/** @type {__VLS_StyleScopedClasses['badge']} */ ;
+// CSS variable injection 
+// CSS variable injection end 
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "finding-card card mb-3" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "card-body" },
+});
+if (__VLS_ctx.loading) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "text-center" },
     });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: ("card-body") },
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "spinner-border spinner-border-sm" },
+        role: "status",
     });
-    if (__VLS_ctx.loading) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("text-center") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("spinner-border spinner-border-sm") },
-            role: ("status"),
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-            ...{ class: ("visually-hidden") },
-        });
-    }
-    else if (!__VLS_ctx.loading && __VLS_ctx.finding) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("text-center text-muted") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("row mb-3") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("col-md-6") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
-        __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
-        (__VLS_ctx.finding.id);
-        __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
-        __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
-        (__VLS_ctx.findingsInfo.findingName || 'N/A');
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("col-md-6") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
-        __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
-        __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
-            ...{ class: ("text-muted") },
-        });
-        (__VLS_ctx.findingsInfo.findingDescription || 'Keine Beschreibung verfügbar');
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("col-md-6") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
-        __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
-        (__VLS_ctx.findingsInfo.dataSource);
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("col-md-6") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
-        __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
-        (__VLS_ctx.findingsInfo.totalClassifications);
-        (__VLS_ctx.findingsInfo.requiredClassifications);
-        if (__VLS_ctx.findingsInfo.classificationsLoaded) {
-            __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
-        }
-        else {
-            __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
-        }
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("col-md-6") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
-        __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
-        (__VLS_ctx.findingsInfo.requiredClassifications);
-        if (__VLS_ctx.requiredClassifications.length > 0) {
-            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: ("mb-3") },
-            });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({});
-            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: ("classification-list") },
-            });
-            for (const [classification] of __VLS_getVForSourceType((__VLS_ctx.requiredClassifications))) {
-                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                    key: ((classification.id)),
-                    ...{ class: ("classification-item mb-2 p-2 border rounded bg-light") },
-                });
-                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                    ...{ class: ("d-flex justify-content-between align-items-center") },
-                });
-                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
-                __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
-                (classification.name);
-                if (classification.description) {
-                    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                        ...{ class: ("text-muted small") },
-                    });
-                    (classification.description);
-                }
-                __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                    ...{ class: ("badge bg-warning") },
-                });
-            }
-        }
-        if (__VLS_ctx.finding.findingTypes && __VLS_ctx.finding.findingTypes.length) {
-            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: ("mb-2") },
-            });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
-            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: ("d-flex flex-wrap gap-1 mt-1") },
-            });
-            for (const [type] of __VLS_getVForSourceType((__VLS_ctx.finding.findingTypes))) {
-                __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-                    key: ((type)),
-                    ...{ class: ("badge bg-secondary") },
-                });
-                (type);
-            }
-        }
-        if (__VLS_ctx.finding.findingInterventions && __VLS_ctx.finding.findingInterventions.length) {
-            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: ("mb-2") },
-            });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
-            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: ("d-flex flex-wrap gap-1 mt-1") },
-            });
-            for (const [intervention] of __VLS_getVForSourceType((__VLS_ctx.finding.findingInterventions))) {
-                __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-                    key: ((intervention)),
-                    ...{ class: ("badge bg-info") },
-                });
-                (intervention);
-            }
-        }
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+        ...{ class: "visually-hidden" },
+    });
+}
+else if (!__VLS_ctx.loading && __VLS_ctx.finding) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "text-center text-muted" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "row mb-3" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "col-md-6" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+    (__VLS_ctx.finding.id);
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+    (__VLS_ctx.findingsInfo.findingName || 'N/A');
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "col-md-6" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
+        ...{ class: "text-muted" },
+    });
+    (__VLS_ctx.findingsInfo.findingDescription || 'Keine Beschreibung verfügbar');
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "col-md-6" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+    (__VLS_ctx.findingsInfo.dataSource);
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "col-md-6" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+    (__VLS_ctx.findingsInfo.totalClassifications);
+    (__VLS_ctx.findingsInfo.requiredClassifications);
+    if (__VLS_ctx.findingsInfo.classificationsLoaded) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
     }
     else {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
-        __VLS_elementAsFunction(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
-        __VLS_elementAsFunction(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({});
-        (__VLS_ctx.findingId);
-        if (__VLS_ctx.examinationId) {
-            __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-                ...{ onClick: (__VLS_ctx.safeLoadFindingsAndClassifications) },
-                ...{ class: ("btn btn-primary mt-2") },
-            });
-        }
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
     }
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "col-md-6" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+    (__VLS_ctx.findingsInfo.requiredClassifications);
     if (__VLS_ctx.requiredClassifications.length > 0) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("selected-classifications-summary mt-3 p-3 bg-light rounded") },
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "mb-3" },
         });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({
-            ...{ class: ("mb-2") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: ("fas fa-list-check") },
-        });
-        (__VLS_ctx.requiredClassifications.length);
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("row") },
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "classification-list" },
         });
         for (const [classification] of __VLS_getVForSourceType((__VLS_ctx.requiredClassifications))) {
-            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                key: ((classification.id)),
-                ...{ class: ("col-md-6 mb-2") },
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                key: (classification.id),
+                ...{ class: "classification-item mb-2 p-2 border rounded bg-light" },
             });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: ("d-flex justify-content-between align-items-center") },
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: "d-flex justify-content-between align-items-center" },
             });
-            __VLS_elementAsFunction(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
-                ...{ class: ("text-muted") },
-            });
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
             (classification.name);
-            __VLS_elementAsFunction(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-                ...{ class: ("badge bg-warning") },
+            if (classification.description) {
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                    ...{ class: "text-muted small" },
+                });
+                (classification.description);
+            }
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: "badge bg-warning" },
             });
         }
     }
-    if (__VLS_ctx.debugInfo.findingId) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("mt-3 p-2 bg-light border rounded") },
+    if (__VLS_ctx.finding.findingTypes && __VLS_ctx.finding.findingTypes.length) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "mb-2" },
         });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({
-            ...{ class: ("mb-2") },
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "d-flex flex-wrap gap-1 mt-1" },
         });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
-            ...{ class: ("text-muted") },
-        });
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
-        (__VLS_ctx.debugInfo.findingId);
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
-        (__VLS_ctx.debugInfo.findingName || 'Not loaded');
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
-        (__VLS_ctx.debugInfo.totalClassifications);
-        (__VLS_ctx.debugInfo.requiredClassifications);
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
-        (__VLS_ctx.debugInfo.classificationsLoaded);
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
-        (__VLS_ctx.debugInfo.dataSource);
+        for (const [type] of __VLS_getVForSourceType((__VLS_ctx.finding.findingTypes))) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                key: (type),
+                ...{ class: "badge bg-secondary" },
+            });
+            (type);
+        }
     }
-    ['finding-card', 'card', 'mb-3', 'card-body', 'text-center', 'spinner-border', 'spinner-border-sm', 'visually-hidden', 'text-center', 'text-muted', 'row', 'mb-3', 'col-md-6', 'col-md-6', 'text-muted', 'col-md-6', 'col-md-6', 'col-md-6', 'mb-3', 'classification-list', 'classification-item', 'mb-2', 'p-2', 'border', 'rounded', 'bg-light', 'd-flex', 'justify-content-between', 'align-items-center', 'text-muted', 'small', 'badge', 'bg-warning', 'mb-2', 'd-flex', 'flex-wrap', 'gap-1', 'mt-1', 'badge', 'bg-secondary', 'mb-2', 'd-flex', 'flex-wrap', 'gap-1', 'mt-1', 'badge', 'bg-info', 'btn', 'btn-primary', 'mt-2', 'selected-classifications-summary', 'mt-3', 'p-3', 'bg-light', 'rounded', 'mb-2', 'fas', 'fa-list-check', 'row', 'col-md-6', 'mb-2', 'd-flex', 'justify-content-between', 'align-items-center', 'text-muted', 'badge', 'bg-warning', 'mt-3', 'p-2', 'bg-light', 'border', 'rounded', 'mb-2', 'text-muted',];
-    var __VLS_slots;
-    var $slots;
-    let __VLS_inheritedAttrs;
-    var $attrs;
-    const __VLS_refs = {};
-    var $refs;
-    var $el;
-    return {
-        attrs: {},
-        slots: __VLS_slots,
-        refs: $refs,
-        rootEl: $el,
-    };
+    if (__VLS_ctx.finding.findingInterventions && __VLS_ctx.finding.findingInterventions.length) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "mb-2" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "d-flex flex-wrap gap-1 mt-1" },
+        });
+        for (const [intervention] of __VLS_getVForSourceType((__VLS_ctx.finding.findingInterventions))) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                key: (intervention),
+                ...{ class: "badge bg-info" },
+            });
+            (intervention);
+        }
+    }
 }
-;
+else {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({});
+    (__VLS_ctx.findingId);
+    if (__VLS_ctx.examinationId) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+            ...{ onClick: (__VLS_ctx.safeLoadFindingsAndClassifications) },
+            ...{ class: "btn btn-primary mt-2" },
+        });
+    }
+}
+if (__VLS_ctx.requiredClassifications.length > 0) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "selected-classifications-summary mt-3 p-3 bg-light rounded" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({
+        ...{ class: "mb-2" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+        ...{ class: "fas fa-list-check" },
+    });
+    (__VLS_ctx.requiredClassifications.length);
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "row" },
+    });
+    for (const [classification] of __VLS_getVForSourceType((__VLS_ctx.requiredClassifications))) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            key: (classification.id),
+            ...{ class: "col-md-6 mb-2" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "d-flex justify-content-between align-items-center" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+            ...{ class: "text-muted" },
+        });
+        (classification.name);
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+            ...{ class: "badge bg-warning" },
+        });
+    }
+}
+if (__VLS_ctx.debugInfo.findingId) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "mt-3 p-2 bg-light border rounded" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({
+        ...{ class: "mb-2" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+        ...{ class: "text-muted" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
+    (__VLS_ctx.debugInfo.findingId);
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
+    (__VLS_ctx.debugInfo.findingName || 'Not loaded');
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
+    (__VLS_ctx.debugInfo.totalClassifications);
+    (__VLS_ctx.debugInfo.requiredClassifications);
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
+    (__VLS_ctx.debugInfo.classificationsLoaded);
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
+    (__VLS_ctx.debugInfo.dataSource);
+    if (__VLS_ctx.debugInfo.availableCount > 0) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
+        (__VLS_ctx.debugInfo.availableCount);
+    }
+    if (__VLS_ctx.debugInfo.necessaryCount > 0) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
+        (__VLS_ctx.debugInfo.necessaryCount);
+    }
+}
+/** @type {__VLS_StyleScopedClasses['finding-card']} */ ;
+/** @type {__VLS_StyleScopedClasses['card']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['card-body']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['spinner-border']} */ ;
+/** @type {__VLS_StyleScopedClasses['spinner-border-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['visually-hidden']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['row']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-md-6']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-md-6']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-md-6']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-md-6']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-md-6']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['classification-list']} */ ;
+/** @type {__VLS_StyleScopedClasses['classification-item']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['p-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['border']} */ ;
+/** @type {__VLS_StyleScopedClasses['rounded']} */ ;
+/** @type {__VLS_StyleScopedClasses['bg-light']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['justify-content-between']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['small']} */ ;
+/** @type {__VLS_StyleScopedClasses['badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['bg-warning']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['flex-wrap']} */ ;
+/** @type {__VLS_StyleScopedClasses['gap-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['bg-secondary']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['flex-wrap']} */ ;
+/** @type {__VLS_StyleScopedClasses['gap-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['bg-info']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-primary']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['selected-classifications-summary']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['p-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['bg-light']} */ ;
+/** @type {__VLS_StyleScopedClasses['rounded']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-list-check']} */ ;
+/** @type {__VLS_StyleScopedClasses['row']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-md-6']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['justify-content-between']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['bg-warning']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['p-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['bg-light']} */ ;
+/** @type {__VLS_StyleScopedClasses['border']} */ ;
+/** @type {__VLS_StyleScopedClasses['rounded']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+var __VLS_dollars;
 const __VLS_self = (await import('vue')).defineComponent({
     setup() {
         return {
@@ -415,6 +517,5 @@ export default (await import('vue')).defineComponent({
     __typeEmits: {},
     __typeProps: {},
     props: {},
-    __typeEl: {},
 });
 ; /* PartiallyEnd: #4569/main.vue */

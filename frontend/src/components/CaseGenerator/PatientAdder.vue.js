@@ -98,146 +98,143 @@ onMounted(async () => {
             patientStore.error = 'Fehler beim Laden der Auswahloptionen';
         }
     }
-}); /* PartiallyEnd: #3632/scriptSetup.vue */
-function __VLS_template() {
-    const __VLS_ctx = {};
-    let __VLS_components;
-    let __VLS_directives;
-    ['btn-primary', 'btn',];
-    // CSS variable injection 
-    // CSS variable injection end 
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.form, __VLS_intrinsicElements.form)({
-        ...{ onSubmit: (__VLS_ctx.handleSubmit) },
+});
+debugger; /* PartiallyEnd: #3632/scriptSetup.vue */
+const __VLS_ctx = {};
+let __VLS_components;
+let __VLS_directives;
+/** @type {__VLS_StyleScopedClasses['btn-primary']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+// CSS variable injection 
+// CSS variable injection end 
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.form, __VLS_intrinsicElements.form)({
+    ...{ onSubmit: (__VLS_ctx.handleSubmit) },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.h2, __VLS_intrinsicElements.h2)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+    for: "firstName",
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
+    value: (__VLS_ctx.formData.firstName),
+    id: "firstName",
+    type: "text",
+    required: true,
+    placeholder: "Vorname eingeben",
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+    for: "lastName",
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
+    value: (__VLS_ctx.formData.lastName),
+    id: "lastName",
+    type: "text",
+    required: true,
+    placeholder: "Nachname eingeben",
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+    for: "dob",
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
+    id: "dob",
+    type: "date",
+    placeholder: "YYYY-MM-DD",
+});
+(__VLS_ctx.formData.dob);
+__VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+    for: "email",
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
+    id: "email",
+    type: "email",
+    placeholder: "email@beispiel.de",
+});
+(__VLS_ctx.formData.email);
+__VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+    for: "phone",
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
+    id: "phone",
+    type: "tel",
+    placeholder: "Telefonnummer",
+});
+(__VLS_ctx.formData.phone);
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
+    value: (__VLS_ctx.formData.gender),
+    id: "genderSelect",
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+    value: "",
+});
+for (const [gender] of __VLS_getVForSourceType((__VLS_ctx.genders))) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+        key: (gender.id),
+        value: (gender.name),
     });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.h2, __VLS_intrinsicElements.h2)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
-        for: ("firstName"),
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.input)({
-        value: ((__VLS_ctx.formData.firstName)),
-        id: ("firstName"),
-        type: ("text"),
-        required: (true),
-        placeholder: ("Vorname eingeben"),
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
-        for: ("lastName"),
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.input)({
-        value: ((__VLS_ctx.formData.lastName)),
-        id: ("lastName"),
-        type: ("text"),
-        required: (true),
-        placeholder: ("Nachname eingeben"),
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
-        for: ("dob"),
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.input)({
-        id: ("dob"),
-        type: ("date"),
-        placeholder: ("YYYY-MM-DD"),
-    });
-    (__VLS_ctx.formData.dob);
-    __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
-        for: ("email"),
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.input)({
-        id: ("email"),
-        type: ("email"),
-        placeholder: ("email@beispiel.de"),
-    });
-    (__VLS_ctx.formData.email);
-    __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
-        for: ("phone"),
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.input)({
-        id: ("phone"),
-        type: ("tel"),
-        placeholder: ("Telefonnummer"),
-    });
-    (__VLS_ctx.formData.phone);
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
-        value: ((__VLS_ctx.formData.gender)),
-        id: ("genderSelect"),
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-        value: (""),
-    });
-    for (const [gender] of __VLS_getVForSourceType((__VLS_ctx.genders))) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-            key: ((gender.id)),
-            value: ((gender.name)),
-        });
-        (gender.nameDe || gender.name);
-    }
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
-        for: ("centerSelect"),
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
-        value: ((__VLS_ctx.formData.center)),
-        id: ("centerSelect"),
-    });
-    __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-        value: (""),
-    });
-    for (const [center] of __VLS_getVForSourceType((__VLS_ctx.centers))) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-            key: ((center.id)),
-            value: ((center.name)),
-        });
-        (center.nameDe || center.name);
-    }
-    __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.input)({
-        type: ("checkbox"),
-    });
-    (__VLS_ctx.formData.isRealPerson);
-    __VLS_elementAsFunction(__VLS_intrinsicElements.hr)({});
-    __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-        type: ("submit"),
-        disabled: ((__VLS_ctx.patientStore.loading)),
-        ...{ class: ("btn btn-primary") },
-    });
-    (__VLS_ctx.patientStore.loading ? 'Wird gespeichert...' : 'Patient erstellen');
-    __VLS_elementAsFunction(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-        ...{ onClick: (__VLS_ctx.handleCancel) },
-        type: ("button"),
-        ...{ class: ("btn btn-secondary ms-2") },
-    });
-    if (__VLS_ctx.patientStore.error) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("alert alert-danger mt-2") },
-        });
-        (__VLS_ctx.patientStore.error);
-    }
-    if (__VLS_ctx.successMessage) {
-        __VLS_elementAsFunction(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: ("alert alert-success mt-2") },
-        });
-        (__VLS_ctx.successMessage);
-    }
-    ['btn', 'btn-primary', 'btn', 'btn-secondary', 'ms-2', 'alert', 'alert-danger', 'mt-2', 'alert', 'alert-success', 'mt-2',];
-    var __VLS_slots;
-    var $slots;
-    let __VLS_inheritedAttrs;
-    var $attrs;
-    const __VLS_refs = {};
-    var $refs;
-    var $el;
-    return {
-        attrs: {},
-        slots: __VLS_slots,
-        refs: $refs,
-        rootEl: $el,
-    };
+    (gender.nameDe || gender.name);
 }
-;
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+    for: "centerSelect",
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
+    value: (__VLS_ctx.formData.center),
+    id: "centerSelect",
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+    value: "",
+});
+for (const [center] of __VLS_getVForSourceType((__VLS_ctx.centers))) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+        key: (center.id),
+        value: (center.name),
+    });
+    (center.nameDe || center.name);
+}
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
+    type: "checkbox",
+});
+(__VLS_ctx.formData.isRealPerson);
+__VLS_asFunctionalElement(__VLS_intrinsicElements.hr)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+    type: "submit",
+    disabled: (__VLS_ctx.patientStore.loading),
+    ...{ class: "btn btn-primary" },
+});
+(__VLS_ctx.patientStore.loading ? 'Wird gespeichert...' : 'Patient erstellen');
+__VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+    ...{ onClick: (__VLS_ctx.handleCancel) },
+    type: "button",
+    ...{ class: "btn btn-secondary ms-2" },
+});
+if (__VLS_ctx.patientStore.error) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "alert alert-danger mt-2" },
+    });
+    (__VLS_ctx.patientStore.error);
+}
+if (__VLS_ctx.successMessage) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "alert alert-success mt-2" },
+    });
+    (__VLS_ctx.successMessage);
+}
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-primary']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-secondary']} */ ;
+/** @type {__VLS_StyleScopedClasses['ms-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert-danger']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert-success']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
+var __VLS_dollars;
 const __VLS_self = (await import('vue')).defineComponent({
     setup() {
         return {
@@ -257,6 +254,5 @@ export default (await import('vue')).defineComponent({
         return {};
     },
     __typeEmits: {},
-    __typeEl: {},
 });
 ; /* PartiallyEnd: #4569/main.vue */
