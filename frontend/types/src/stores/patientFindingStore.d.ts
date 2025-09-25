@@ -1,6 +1,15 @@
 import type { Finding, FindingClassification, FindingClassificationChoice } from "@/stores/findingStore";
 import type { Patient } from "@/stores/patientStore";
-interface PatientFinding {
+export interface PatientFindingClassification {
+    id: number;
+    finding: number;
+    classification: FindingClassification;
+    classification_choice: FindingClassificationChoice;
+    is_active: boolean;
+    subcategories?: Record<string, any>;
+    numerical_descriptors?: Record<string, any>;
+}
+export interface PatientFinding {
     id: number;
     examination: string;
     createdAt: number;
@@ -9,17 +18,10 @@ interface PatientFinding {
     updatedBy?: string;
     finding: Finding;
     patient: Patient;
+    /** Patient-side (with choices, returned by /api/patient-findings/) */
     classifications?: PatientFindingClassification[];
+    /** Definition-side (available/eligible options, from /api/findings/) */
     available_classifications?: FindingClassification[];
-}
-interface PatientFindingClassification {
-    id: number;
-    finding: number;
-    classification: FindingClassification;
-    classification_choice: FindingClassificationChoice;
-    is_active: boolean;
-    subcategories?: Record<string, any>;
-    numerical_descriptors?: Record<string, any>;
 }
 declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFinding", Pick<{
     patientFindings: Readonly<import("vue").Ref<readonly {
@@ -287,6 +289,8 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
     }) => Promise<PatientFinding>;
     updatePatientFinding: (id: number, updateData: Partial<PatientFinding>) => Promise<PatientFinding>;
     deletePatientFinding: (id: number) => Promise<void>;
+    getPatientClassifications: (patientFindingId: number) => PatientFindingClassification[];
+    readPatientFindings: (id: number) => PatientFinding[];
 }, "loading" | "error" | "patientFindings" | "currentPatientExaminationId">, Pick<{
     patientFindings: Readonly<import("vue").Ref<readonly {
         readonly id: number;
@@ -553,6 +557,8 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
     }) => Promise<PatientFinding>;
     updatePatientFinding: (id: number, updateData: Partial<PatientFinding>) => Promise<PatientFinding>;
     deletePatientFinding: (id: number) => Promise<void>;
+    getPatientClassifications: (patientFindingId: number) => PatientFindingClassification[];
+    readPatientFindings: (id: number) => PatientFinding[];
 }, "patientFindingsByCurrentPatient">, Pick<{
     patientFindings: Readonly<import("vue").Ref<readonly {
         readonly id: number;
@@ -819,5 +825,7 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
     }) => Promise<PatientFinding>;
     updatePatientFinding: (id: number, updateData: Partial<PatientFinding>) => Promise<PatientFinding>;
     deletePatientFinding: (id: number) => Promise<void>;
-}, "setCurrentPatientExaminationId" | "fetchPatientFindings" | "createPatientFinding" | "updatePatientFinding" | "deletePatientFinding">>;
+    getPatientClassifications: (patientFindingId: number) => PatientFindingClassification[];
+    readPatientFindings: (id: number) => PatientFinding[];
+}, "setCurrentPatientExaminationId" | "fetchPatientFindings" | "createPatientFinding" | "updatePatientFinding" | "deletePatientFinding" | "getPatientClassifications" | "readPatientFindings">>;
 export { usePatientFindingStore };

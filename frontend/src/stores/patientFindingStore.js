@@ -1,7 +1,23 @@
+// stores/patientFindingStore.ts
 import { defineStore } from "pinia";
 import axiosInstance from "@/api/axiosInstance";
 import { ref, readonly, computed } from "vue";
 import { usePatientStore } from "@/stores/patientStore";
+import { read } from "fs";
+/* ---------- Type guards & helpers ---------- */
+function isValidPatientClassification(x) {
+    return !!(x &&
+        x.classification &&
+        typeof x.classification.id === "number" &&
+        x.classification_choice &&
+        typeof x.classification_choice.id === "number");
+}
+function filterValidPatientClassifications(arr) {
+    if (!Array.isArray(arr))
+        return [];
+    return arr.filter(isValidPatientClassification);
+}
+/* ---------- Store ---------- */
 const usePatientFindingStore = defineStore('patientFinding', () => {
     const patientFindings = ref([]);
     const patientFindingClassifications = ref(new Map());
@@ -12,6 +28,11 @@ const usePatientFindingStore = defineStore('patientFinding', () => {
     const setCurrentPatientExaminationId = (id) => {
         currentPatientExaminationId.value = id;
     };
+    /**
+     * Loads patient findings (with patient-side classifications),
+     * and augments each item with available_classifications (definitions)
+     * without touching the patient-side `classifications`.
+     */
     const fetchPatientFindings = async (patientExaminationId) => {
         if (!patientExaminationId) {
             console.warn('fetchPatientFindings wurde ohne patientExaminationId aufgerufen.');
@@ -22,64 +43,60 @@ const usePatientFindingStore = defineStore('patientFinding', () => {
             loading.value = true;
             error.value = null;
             console.log('🔄 [PatientFindingStore] Fetching patient findings for PE:', patientExaminationId);
-            // FIRST: Get PatientFindings from the original endpoint
+            // 1) Patient findings (contains patient-side selections)
             const patientFindingsResponse = await axiosInstance.get('/api/patient-findings/', {
                 params: { patient_examination: patientExaminationId }
             });
             console.log('📥 [PatientFindingStore] PatientFindings API Response:', patientFindingsResponse.data);
-            // SECOND: Get Findings with classifications from the findings endpoint
+            // 2) Findings + definitions (available classifications)
             const findingsResponse = await axiosInstance.get('/api/findings/', {
                 params: { patient_examination: patientExaminationId }
             });
             console.log('� [PatientFindingStore] Findings API Response:', findingsResponse.data);
-            // 🔧 MERGE: Combine data from both endpoints
             const rawPatientFindings = patientFindingsResponse.data.results || patientFindingsResponse.data;
             const findingsWithClassifications = findingsResponse.data.results || findingsResponse.data;
-            // Map findings with classifications by finding ID for quick lookup
+            // Map findingId -> definition classifications
             const findingClassificationMap = new Map();
             findingsWithClassifications.forEach((finding) => {
                 findingClassificationMap.set(finding.id, finding.classifications || []);
             });
-            // Enhance PatientFindings with classification data
+            // Enhance: attach definitions under `available_classifications`
             const enhancedPatientFindings = rawPatientFindings.map((pf) => {
-                const findingId = typeof pf.finding === 'object' ? pf.finding?.id : pf.finding;
+                const findingId = typeof pf.finding === 'object'
+                    ? pf.finding?.id
+                    : pf.finding;
                 const defClassifications = findingClassificationMap.get(findingId) || [];
-                console.log(`🔧 [PatientFindingStore] Enhancing PatientFinding ${pf.id} with ${defClassifications.length} definition classifications`);
-                console.log(`🔧 [PatientFindingStore] PatientFinding ${pf.id} has ${pf.classifications?.length || 0} patient classifications`);
-                // 🛡️ DEFENSE: Check for invalid classifications in API response
-                if (pf.classifications && Array.isArray(pf.classifications)) {
-                    const invalidClassifications = pf.classifications.filter((cls) => !cls.classification || !cls.classification_choice);
-                    if (invalidClassifications.length > 0) {
-                        console.error('🚨 [PatientFindingStore] API returned invalid classifications:', {
-                            patientFindingId: pf.id,
-                            findingId: findingId,
-                            totalClassifications: pf.classifications.length,
-                            invalidCount: invalidClassifications.length,
-                            invalidClassifications: invalidClassifications.map((cls) => ({
-                                id: cls.id,
-                                hasClassification: !!cls.classification,
-                                hasClassificationChoice: !!cls.classification_choice,
-                                classification: cls.classification,
-                                classificationChoice: cls.classification_choice
-                            }))
-                        });
-                    }
+                // Diagnostics for invalid patient-side classifications
+                const invalid = (pf.classifications || []).filter((cls) => !isValidPatientClassification(cls));
+                if (invalid.length > 0) {
+                    console.error('🚨 [PatientFindingStore] API returned invalid patient classifications', {
+                        patientFindingId: pf.id,
+                        findingId,
+                        totalClassifications: pf.classifications?.length || 0,
+                        invalidCount: invalid.length,
+                        sample: invalid.slice(0, 2)
+                    });
                 }
+                // DO NOT overwrite pf.classifications (patient data)
+                // Only add available_classifications (definitions)
                 return {
                     ...pf,
-                    available_classifications: defClassifications, // Keep separate - definitions only
-                    // DO NOT touch pf.classifications (patient-side stays as returned by /api/patient-findings/)
+                    classifications: filterValidPatientClassifications(pf.classifications),
+                    available_classifications: defClassifications
                 };
             });
-            // 🐛 PRÜFE: Sind die Finding-Objekte vollständig?
-            enhancedPatientFindings.forEach((pf, index) => {
-                console.log(`🔍 [PatientFindingStore] Enhanced PatientFinding ${index}:`, {
+            // Log completeness
+            enhancedPatientFindings.forEach((pf, idx) => {
+                console.log(`🔍 [PatientFindingStore] Enhanced PatientFinding ${idx}:`, {
                     id: pf.id,
                     finding: pf.finding,
                     findingId: typeof pf.finding === 'object' ? pf.finding?.id : pf.finding,
-                    findingName: typeof pf.finding === 'object' ? (pf.finding?.name || pf.finding?.nameDe) : 'ID only',
+                    findingName: typeof pf.finding === 'object'
+                        ? (pf.finding?.name || pf.finding?.nameDe)
+                        : 'ID only',
                     findingType: typeof pf.finding,
-                    classificationsCount: pf.classifications?.length || 0
+                    classificationsCount: pf.classifications?.length || 0,
+                    availableDefs: pf.available_classifications?.length || 0
                 });
             });
             patientFindings.value = enhancedPatientFindings;
@@ -97,9 +114,8 @@ const usePatientFindingStore = defineStore('patientFinding', () => {
     const patientFindingsByCurrentPatient = computed(() => {
         const patientStore = usePatientStore();
         const currentPatient = patientStore.getCurrentPatient();
-        if (!currentPatient) {
+        if (!currentPatient)
             return [];
-        }
         return patientFindings.value.filter(pf => pf.patient.id === currentPatient.id);
     });
     const createPatientFinding = async (patientFindingData) => {
@@ -108,19 +124,21 @@ const usePatientFindingStore = defineStore('patientFinding', () => {
             error.value = null;
             const response = await axiosInstance.post('/api/patient-findings/', patientFindingData);
             const newPatientFinding = response.data;
-            // Add Findings to local state in BOTH locations
-            patientFindings.value.push(newPatientFinding);
-            patientFindingClassifications.value.set(newPatientFinding.id, newPatientFinding.classifications || []);
-            // CRITICAL: Also add to byPatientExamination map for computed property access
-            const patientExaminationId = patientFindingData.patientExamination;
-            const existingForExamination = byPatientExamination.value.get(patientExaminationId) || [];
-            byPatientExamination.value.set(patientExaminationId, [...existingForExamination, newPatientFinding]);
-            console.log('New finding created', newPatientFinding);
-            console.log(`🔧 [PatientFindingStore] Added to byPatientExamination[${patientExaminationId}], total count: ${byPatientExamination.value.get(patientExaminationId)?.length || 0}`);
+            // Normalize patient-side classifications immediately
+            const normalized = {
+                ...newPatientFinding,
+                classifications: filterValidPatientClassifications(newPatientFinding.classifications),
+            };
+            patientFindings.value.push(normalized);
+            patientFindingClassifications.value.set(normalized.id, normalized.classifications || []);
+            // Also add to byPatientExamination
+            const peId = patientFindingData.patientExamination;
+            const existing = byPatientExamination.value.get(peId) || [];
+            byPatientExamination.value.set(peId, [...existing, normalized]);
+            console.log('New finding created', normalized);
+            console.log(`🔧 [PatientFindingStore] Added to byPatientExamination[${peId}], total: ${byPatientExamination.value.get(peId)?.length || 0}`);
             console.log(`🔧 [PatientFindingStore] Current examination ID: ${currentPatientExaminationId.value}`);
-            console.log(`🔧 [PatientFindingStore] Computed patientFindings should now show: ${patientExaminationId === currentPatientExaminationId.value ? 'YES' : 'NO - ID MISMATCH'}`);
-            console.log(`🔧 [PatientFindingStore] patientFindings.value length: ${patientFindings.value.length}`);
-            return newPatientFinding;
+            return normalized;
         }
         catch (err) {
             error.value = 'Fehler beim Erstellen des Patientenbefunds: ' + (err.response?.data?.detail || err.message);
@@ -136,20 +154,25 @@ const usePatientFindingStore = defineStore('patientFinding', () => {
             loading.value = true;
             error.value = null;
             const response = await axiosInstance.patch(`/api/patient-findings/${id}/`, updateData);
-            const updatedFinding = response.data;
-            // Update local state in BOTH locations
-            const index = patientFindings.value.findIndex(pf => pf.id === id);
-            if (index !== -1) {
-                patientFindings.value[index] = updatedFinding;
+            const updatedFindingRaw = response.data;
+            const updatedFinding = {
+                ...updatedFindingRaw,
+                classifications: filterValidPatientClassifications(updatedFindingRaw.classifications),
+            };
+            // Update top-level list
+            const idx = patientFindings.value.findIndex(pf => pf.id === id);
+            if (idx !== -1) {
+                patientFindings.value[idx] = updatedFinding;
             }
+            // Update classifications map
             patientFindingClassifications.value.set(updatedFinding.id, updatedFinding.classifications || []);
-            // CRITICAL: Also update in byPatientExamination map
+            // Update in byPatientExamination
             for (const [examinationId, findings] of byPatientExamination.value.entries()) {
-                const findingIndex = findings.findIndex(pf => pf.id === id);
-                if (findingIndex !== -1) {
-                    const updatedFindings = [...findings];
-                    updatedFindings[findingIndex] = updatedFinding;
-                    byPatientExamination.value.set(examinationId, updatedFindings);
+                const fIdx = findings.findIndex(pf => pf.id === id);
+                if (fIdx !== -1) {
+                    const next = findings.slice();
+                    next[fIdx] = updatedFinding;
+                    byPatientExamination.value.set(examinationId, next);
                 }
             }
             console.log('Finding updated', updatedFinding);
@@ -169,13 +192,13 @@ const usePatientFindingStore = defineStore('patientFinding', () => {
             loading.value = true;
             error.value = null;
             await axiosInstance.delete(`/api/patient-findings/${id}/`);
-            // Remove from local state in BOTH locations
+            // Remove from list
             patientFindings.value = patientFindings.value.filter(pf => pf.id !== id);
-            // CRITICAL: Also remove from byPatientExamination map
+            // Remove from byPatientExamination
             for (const [examinationId, findings] of byPatientExamination.value.entries()) {
-                const filteredFindings = findings.filter(pf => pf.id !== id);
-                if (filteredFindings.length !== findings.length) {
-                    byPatientExamination.value.set(examinationId, filteredFindings);
+                const filtered = findings.filter(pf => pf.id !== id);
+                if (filtered.length !== findings.length) {
+                    byPatientExamination.value.set(examinationId, filtered);
                 }
             }
         }
@@ -193,6 +216,20 @@ const usePatientFindingStore = defineStore('patientFinding', () => {
         return id ? (byPatientExamination.value.get(id) ?? []) : [];
     });
     const getByPatientExamination = (id) => byPatientExamination.value.get(id) ?? [];
+    /** Public safe getter for patient-side classifications */
+    const getPatientClassifications = (patientFindingId) => {
+        const pf = patientFindings.value.find(x => x.id === patientFindingId) ??
+            currentPatientFindings.value.find(x => x.id === patientFindingId);
+        return filterValidPatientClassifications(pf?.classifications);
+    };
+    const readPatientFindings = (id) => {
+        for (const pf of patientFindings.value) {
+            if (pf.id === id) {
+                return [pf];
+            }
+        }
+        return [];
+    };
     return {
         patientFindings: readonly(currentPatientFindings),
         patientFindingsByCurrentPatient,
@@ -204,6 +241,9 @@ const usePatientFindingStore = defineStore('patientFinding', () => {
         createPatientFinding,
         updatePatientFinding,
         deletePatientFinding,
+        // helpers
+        getPatientClassifications,
+        readPatientFindings,
     };
 });
 export { usePatientFindingStore };

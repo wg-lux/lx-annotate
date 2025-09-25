@@ -12,7 +12,11 @@
  * - Finding selection with search and filter capabilities
  * - Classification configuration for each finding
  * - Real-time validation of required classifications
- * - CRUD operations for patient findings
+ * - CRUD operations for pa;
+      // Use adapter for safe processing
+      const processedClassifications = adaptPatientClassifications(patientClassifications, pf.finding);
+      
+      return processedClassifications;
  * - Responsive design with Bootstrap styling
  * 
  * Component Structure:
@@ -177,7 +181,8 @@
                         <p><strong>Store Error:</strong> {{ patientFindingStore.error || 'None' }}</p>
                         <details class="mt-2">
                             <summary>Raw Store Data</summary>
-                            <pre>{{ JSON.stringify(patientFindingStore.patientFindings, null, 2) }}</pre>
+                            <pre class="small">{{ JSON.stringify(patientFindingStore.patientFindings.slice(0, 1), null, 2) }}</pre>
+                <p class="small text-muted mt-2">Showing first PatientFinding only. Total: {{ patientFindingStore.patientFindings.length }}</p>
                         </details>
                         <details class="mt-2">
                             <summary>Processed addedFindings</summary>
@@ -211,14 +216,14 @@
                                             </small>
                                             <div class="classification-list">
                                                 <div 
-                                                    v-for="classification in finding.patientClassifications?.filter(c => c.classification && c.choice) || []" 
-                                                    :key="classification.id"
+                                                    v-for="(classification, idx) in finding.patientClassifications" 
+                                                    :key="`pc-${finding.id}-${idx}-${idx}`"
                                                     class="classification-item mb-1"
                                                 >
                                                     <span class="badge bg-light text-dark small border">
-                                                        <strong>{{ classification.classification.name }}:</strong>
-                                                        <span class="text-primary">{{ classification.choice.name }}</span>
-                                                        <i v-if="!classification.is_active" class="fas fa-exclamation-triangle text-warning ms-1" title="Inactive"></i>
+                                                        <strong>{{ classification.classification?.name ?? 'Unknown' }}:</strong>
+                                                        <span class="text-primary">{{ classification.choice?.name ?? 'Unknown Choice' }}</span>
+                                                        <i v-if="classification.is_active === false" class="fas fa-exclamation-triangle text-warning ms-1" title="Inactive"></i>
                                                     </span>
                                                 </div>
                                             </div>
@@ -239,6 +244,7 @@
         </div>
     </div>
 </template>
+
 
 <script setup lang="ts">
 /**
@@ -266,6 +272,27 @@ import { useExaminationStore } from '@/stores/examinationStore';
 import { useFindingClassificationStore } from '@/stores/findingClassificationStore';
 import { deepMutable } from '@/utils/deepMutable';
 import { filterNecessaryFindings } from '@/utils/findingFilters';
+import type { SafePatientClassification } from '@/adapters/patientFinding';
+
+// Type Guards for Classification Shape Detection
+type ClassificationDefinition = { id: number; name: string; choices?: any[] };
+type PatientClassificationRaw = { 
+    id: number;
+    finding: number;
+    classification: { id: number; name?: string; description?: string }, 
+    classification_choice: { id: number; name?: string }
+    is_active?: boolean;
+    subcategories?: any;
+    numerical_descriptors?: any;
+};
+
+const isPatientClassification = (x: any): x is PatientClassificationRaw => 
+    !!x?.classification?.id && !!x?.classification_choice?.id;
+
+const isClassificationDefinition = (x: any): x is ClassificationDefinition => 
+    !!x?.id && typeof x?.name === 'string' && (!x.choices || Array.isArray(x.choices));
+
+// Direct store data access - no complex filtering needed
 
 // Store instances
 const patientExaminationStore = usePatientExaminationStore();
@@ -348,20 +375,7 @@ type Mutable<T> = { -readonly [K in keyof T]: Mutable<T[K]> };
 type MutableFinding = Mutable<Finding>;
 type EnhancedFinding = MutableFinding & {
   patientFindingId?: number;
-  patientClassifications?: Array<{
-    id: number;
-    classification: {
-      id: number;
-      name: string;
-      description?: string;
-    };
-    choice: {
-      id: number;
-      name: string;
-      description?: string;
-    };
-    is_active: boolean;
-  }>;
+  patientClassifications?: SafePatientClassification[];
 };
 const availableExaminationFindings = ref<Finding[]>([]);
 const addedFindings = ref<EnhancedFinding[]>([]);
@@ -490,8 +504,8 @@ const classificationProgress = computed(() => {
 /**
  * Loads added findings for the current examination
  * 
- * Fetches patient findings from the store and converts them to mutable
- * format using deepMutable utility to handle readonly constraints.
+ * Fetches patient findings from the store and converts them to enhanced
+ * format with proper finding details and classifications.
  */
 async function loadAddedFindingsForCurrentExam() {
   const id = patientExaminationStore.getCurrentPatientExaminationId();
@@ -502,120 +516,83 @@ async function loadAddedFindingsForCurrentExam() {
   
   await patientFindingStore.fetchPatientFindings(id);
   
-  // 🐛 PROBLEM DEBUG: PatientFinding hat möglicherweise keine Finding-Daten
-  console.log('🔍 [AddableFindingsDetail] Debug PatientFindings:', patientFindingStore.patientFindings);
+  console.log('🔍 [AddableFindingsDetail] Raw store data:', patientFindingStore.patientFindings);
   
-  addedFindings.value = patientFindingStore.patientFindings.map(pf => {
-    console.log('🔍 [AddableFindingsDetail] PatientFinding:', pf);
-    console.log('🔍 [AddableFindingsDetail] Finding in PatientFinding:', pf.finding);
-    
-    let finding = pf.finding;
-    
-    // 🔧 FIX: Wenn nur Finding-ID vorhanden, lade vollständiges Finding
-    if (typeof finding === 'number' || (finding && !finding.name && !finding.nameDe)) {
-      const findingId = typeof finding === 'number' ? finding : finding.id;
-      console.log('🔄 [AddableFindingsDetail] Loading complete finding for ID:', findingId);
-      
-      // Suche im FindingClassificationStore
-      const completeFinding = findingClassificationStore.getFindingById(findingId);
-      if (completeFinding) {
-        finding = completeFinding;
-        console.log('✅ [AddableFindingsDetail] Found complete finding:', finding);
-      } else {
-        console.warn('⚠️ [AddableFindingsDetail] Complete finding not found for ID:', findingId);
-        return null;
-      }
-    }
-    
-    // Prüfe, ob pf.finding existiert und vollständig ist
-    if (!finding || !finding.id) {
-      console.error('❌ [AddableFindingsDetail] PatientFinding has no valid finding data:', pf);
-      return null;
-    }
-    
-    return deepMutable(finding) as MutableFinding;
-  }).filter((finding): finding is MutableFinding => finding !== null); // Type guard für null-Filterung
+  // 🔧 COMPLETE REWRITE: Handle the actual store structure
+  const enhancedFindings: EnhancedFinding[] = [];
   
-  // 🔧 ENHANCE: Klassifikationen zu den Findings hinzufügen
-  const enhancedFindings: EnhancedFinding[] = patientFindingStore.patientFindings.map(pf => {
-    // Hole das korrespondierende Finding aus der gefilterten Liste
-    const correspondingFinding = addedFindings.value.find(f => {
-      const pfFindingId = typeof pf.finding === 'number' ? pf.finding : pf.finding?.id;
-      return f.id === pfFindingId;
+  for (const pf of patientFindingStore.patientFindings) {
+    console.log('� [AddableFindingsDetail] Processing PatientFinding:', {
+      id: pf.id,
+      findingRef: pf.finding,
+      classificationsCount: pf.classifications?.length || 0
     });
     
-    if (!correspondingFinding) return null;
-
-    // 🔒 SAFETY: Only treat pf.classifications as patient-side if the shape fits
-    const pcs = Array.isArray(pf.classifications)
-      && pf.classifications.length > 0
-      && 'classification_choice' in pf.classifications[0]
-        ? (pf.classifications as any)
-        : [];
-
-    // 🛡️ DEFENSE: Debug invalid classifications before filtering
-    const invalidClassifications = pcs.filter((cls: any) => !cls.classification || !cls.classification_choice);
-    if (invalidClassifications.length > 0) {
-      console.warn('🚨 [AddableFindingsDetail] Found invalid classifications:', {
-        findingId: correspondingFinding.id,
-        findingName: correspondingFinding.name,
-        invalidCount: invalidClassifications.length,
-        invalidClassifications: invalidClassifications.map((cls: any) => ({
-          id: cls.id,
-          hasClassification: !!cls.classification,
-          hasClassificationChoice: !!cls.classification_choice,
-          classification: cls.classification,
-          classificationChoice: cls.classification_choice
-        }))
-      });
+    // 1️⃣ Get the complete Finding object
+    let completeFinding: Finding | undefined;
+    const findingId = typeof pf.finding === 'number' ? pf.finding : pf.finding?.id;
+    
+    if (typeof pf.finding === 'object' && pf.finding?.name) {
+      // Finding object is complete
+      completeFinding = pf.finding as Finding;
+      console.log('✅ [AddableFindingsDetail] Using complete finding from store');
+    } else if (findingId) {
+      // Finding is just an ID, need to fetch complete object
+      completeFinding = findingClassificationStore.getFindingById(findingId);
+      console.log('🔄 [AddableFindingsDetail] Fetched finding by ID:', findingId, completeFinding?.name);
     }
-
+    
+    if (!completeFinding) {
+      console.warn('⚠️ [AddableFindingsDetail] Could not resolve finding for:', findingId);
+      continue;
+    }
+    
+    // 2️⃣ Use PatientFinding classifications directly from store
+    const patientClassifications = pf.classifications || [];
+    
+    console.log('🔍 [DEBUG] Using PatientFinding classifications:', {
+      findingId: completeFinding.id,
+      findingName: completeFinding.name,
+      classificationsCount: patientClassifications.length,
+      firstClassification: patientClassifications[0]
+    });
+    
+    // 3️⃣ Use PatientFinding classifications directly - they already have the correct structure
+    const displayClassifications: SafePatientClassification[] = patientClassifications.map((pc: any) => ({
+      id: pc.id,
+      finding: completeFinding.id,
+      classification: {
+        id: pc.classification.id,
+        name: pc.classification.name,
+        description: pc.classification.description
+      },
+      choice: {
+        id: pc.classification_choice.id,
+        name: pc.classification_choice.name
+      },
+      is_active: pc.is_active,
+      subcategories: pc.subcategories || {},
+      numerical_descriptors: pc.numerical_descriptors || {}
+    }));
+    
     const enhanced: EnhancedFinding = {
-      ...correspondingFinding,
+      ...deepMutable(completeFinding),
       patientFindingId: pf.id,
-      patientClassifications: pcs
-        .filter((cls: any) => {
-          const isValid = cls.classification && cls.classification_choice;
-          if (!isValid) {
-            console.warn('🚫 [AddableFindingsDetail] Filtering out invalid classification:', {
-              id: cls.id,
-              hasClassification: !!cls.classification,
-              hasClassificationChoice: !!cls.classification_choice
-            });
-          }
-          return isValid;
-        })
-        .map((cls: any) => ({
-          id: cls.id,
-          classification: {
-            id: cls.classification.id,
-            name: cls.classification.name,
-            description: cls.classification.description ?? null
-          },
-          choice: {
-            id: cls.classification_choice.id,
-            name: cls.classification_choice.name,
-            description: undefined // FindingClassificationChoice doesn't have description
-          },
-          is_active: cls.is_active
-        }))
+      patientClassifications: displayClassifications
     };
     
-    console.log('🔧 [AddableFindingsDetail] Enhanced finding with classifications:', {
-      findingId: enhanced.id,
-      name: enhanced.name,
-      patientClassificationsCount: enhanced.patientClassifications?.length || 0,
-      rawClassificationsType: Array.isArray(pf.classifications) && pf.classifications.length > 0 ? 
-        ('classification_choice' in pf.classifications[0] ? 'patient-side' : 'definition-side') : 'none',
-      patientFindingId: pf.id
-    });
+    enhancedFindings.push(enhanced);
     
-    return enhanced;
-  }).filter((finding): finding is EnhancedFinding => finding !== null);
+    console.log('✅ [AddableFindingsDetail] Created enhanced finding:', {
+      id: enhanced.id,
+      name: enhanced.name || enhanced.nameDe,
+      patientFindingId: enhanced.patientFindingId,
+      patientClassificationsCount: enhanced.patientClassifications?.length || 0
+    });
+  }
   
   addedFindings.value = enhancedFindings;
-  
-  console.log('✅ [AddableFindingsDetail] Final addedFindings:', addedFindings.value);
+  console.log('✅ [AddableFindingsDetail] Final enhanced findings:', enhancedFindings.length);
 }
 
 /**
@@ -749,22 +726,32 @@ const addFindingToExamination = async () => {
         
         // 🎯 IMMEDIATE UI FEEDBACK: Create patient classifications for immediate display
         const defs = findingClassifications.value; // definitions for selected finding
-        const immediatePatientClassifications = defs
-          .filter(d => selectedChoices.value[d.id])
-          .map(d => ({
-            id: -1, // temporary ID
-            classification: { 
-              id: d.id, 
-              name: d.name ?? 'Unnamed Classification', 
-              description: d.description 
-            },
-            choice: {
-              id: selectedChoices.value[d.id],
-              name: d.choices?.find(c => c.id === selectedChoices.value[d.id])?.name ?? String(selectedChoices.value[d.id]),
-              description: undefined
-            },
-            is_active: true,
-          }));
+        const immediatePatientClassifications: SafePatientClassification[] = defs
+          .filter(d => d?.id && selectedChoices.value[d.id])
+          .map(d => {
+            try {
+              return {
+                id: -1, // temporary ID
+                finding: selectedFindingId.value!,
+                classification: { 
+                  id: d?.id ?? -1, 
+                  name: d?.name ?? 'Unnamed Classification', 
+                  description: d?.description ?? undefined
+                },
+                choice: {
+                  id: selectedChoices.value[d.id] ?? -1,
+                  name: d?.choices?.find(c => c?.id === selectedChoices.value[d.id])?.name ?? String(selectedChoices.value[d.id] ?? 'Unknown')
+                },
+                is_active: true,
+                subcategories: {},
+                numerical_descriptors: {}
+              };
+            } catch (error) {
+              console.error('🚨 [AddableFindingsDetail] Error creating immediate classification:', { error, definition: d });
+              return null;
+            }
+          })
+          .filter((item): item is NonNullable<typeof item> => item !== null);
 
         // Füge direkt zur lokalen Liste hinzu (sofortige UI-Update)
         const newFindingId = newPatientFinding.finding.id;
@@ -772,33 +759,38 @@ const addFindingToExamination = async () => {
         if (createdFinding) {
             console.log('📋 Found created finding in store, using store version');
             
-            // 🔒 SAFETY: Check if server returned proper patient classifications
-            const serverPatientClassifications = Array.isArray(newPatientFinding.classifications)
-              && newPatientFinding.classifications.length > 0
-              && 'classification_choice' in newPatientFinding.classifications[0]
-                ? newPatientFinding.classifications
-                    .filter((cls: any) => cls.classification && cls.classification_choice) // Filter out invalid
-                    .map((cls: any) => ({
-                      id: cls.id,
-                      classification: {
-                          id: cls.classification.id,
-                          name: cls.classification.name,
-                          description: cls.classification.description ?? null
-                      },
-                      choice: {
-                          id: cls.classification_choice.id,
-                          name: cls.classification_choice.name,
-                          description: undefined
-                      },
-                      is_active: cls.is_active
-                    }))
-                : [];
+            // 🔒 Use the complete finding's classifications from store
+            const serverPatientClassifications = (createdFinding as any).classifications || [];
+            const displayServerClassifications: SafePatientClassification[] = [];
+            
+            serverPatientClassifications.forEach((classification: any) => {
+              if (classification.choices && Array.isArray(classification.choices)) {
+                classification.choices.forEach((choice: any) => {
+                  displayServerClassifications.push({
+                    id: choice.id,
+                    finding: createdFinding.id,
+                    classification: {
+                      id: classification.id,
+                      name: classification.name || 'Unnamed Classification',
+                      description: classification.description
+                    },
+                    choice: {
+                      id: choice.id,
+                      name: choice.name || 'Unknown Choice'
+                    },
+                    is_active: true,
+                    subcategories: choice.subcategories || {},
+                    numerical_descriptors: choice.numerical_descriptors || {}
+                  });
+                });
+              }
+            });
 
             const enhancedCreatedFinding: EnhancedFinding = {
                 ...deepMutable(createdFinding),
                 patientFindingId: newPatientFinding.id,
-                patientClassifications: serverPatientClassifications.length > 0 
-                  ? serverPatientClassifications 
+                patientClassifications: displayServerClassifications.length > 0 
+                  ? displayServerClassifications
                   : immediatePatientClassifications
             };
             addedFindings.value.push(enhancedCreatedFinding);
@@ -807,7 +799,7 @@ const addFindingToExamination = async () => {
             const enhancedResponseFinding: EnhancedFinding = {
                 ...deepMutable(newPatientFinding.finding),
                 patientFindingId: newPatientFinding.id,
-                patientClassifications: immediatePatientClassifications // Use immediate for fallback
+                patientClassifications: immediatePatientClassifications
             };
             addedFindings.value.push(enhancedResponseFinding);
         }

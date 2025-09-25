@@ -10,6 +10,9 @@ export const useRequirementStore = defineStore('requirement', () => {
     const currentRequirementSet = ref(null);
     const evaluationResults = ref({});
     const currentRequirementSetIds = ref([]);
+    // Issues State
+    const issuesBySet = ref({});
+    const issuesGlobal = ref([]);
     // Actions
     const setCurrentRequirementSet = (requirementSet) => {
         currentRequirementSet.value = requirementSet;
@@ -134,6 +137,8 @@ export const useRequirementStore = defineStore('requirement', () => {
             }
             // Update requirement met status
             updateRequirementsStatus(results);
+            // Ingest issues from evaluation response
+            ingestIssues(response.data);
             return results;
         }
         catch (err) {
@@ -172,6 +177,8 @@ export const useRequirementStore = defineStore('requirement', () => {
             evaluationResults.value[requirementSetId] = results;
             // Update requirement met status
             updateRequirementsStatus(results);
+            // Ingest issues from evaluation response
+            ingestIssues(response.data);
             return results;
         }
         catch (err) {
@@ -228,14 +235,24 @@ export const useRequirementStore = defineStore('requirement', () => {
     };
     const evaluateFromLookupData = async (lookupData, requirementSetIds) => {
         const patientExaminationId = lookupData.patientExaminationId;
-        return await evaluateRequirements(requirementSetIds, patientExaminationId);
+        // Ingest issues from lookup data first
+        ingestIssues(lookupData);
+        const result = await evaluateRequirements(requirementSetIds, patientExaminationId);
+        // Ingest issues from evaluation response if present
+        ingestIssues(result);
+        return result;
     };
     const evaluateCurrentSetFromLookupData = async (lookupData) => {
         if (!currentRequirementSet.value) {
             throw new Error('No current requirement set selected');
         }
         const patientExaminationId = lookupData.patientExaminationId;
-        return await evaluateRequirementSet(currentRequirementSet.value.id, patientExaminationId);
+        // Ingest issues from lookup data first
+        ingestIssues(lookupData);
+        const result = await evaluateRequirementSet(currentRequirementSet.value.id, patientExaminationId);
+        // Ingest issues from evaluation response if present
+        ingestIssues(result);
+        return result;
     };
     const getRequirementSetById = (id) => {
         return requirementSets.value.find(set => set.id === id);
@@ -278,6 +295,75 @@ export const useRequirementStore = defineStore('requirement', () => {
         }
         return null;
     };
+    const issues = computed(() => {
+        const allIssues = [];
+        requirementSets.value.forEach(set => {
+            set.requirements.forEach(req => {
+                if (!req.met && req.details) {
+                    if (Array.isArray(req.details)) {
+                        req.details.forEach((detail) => {
+                            if (detail.error) {
+                                allIssues.push(`Anforderung "${req.name}": ${detail.error}`);
+                            }
+                        });
+                    }
+                    else if (req.details.error) {
+                        allIssues.push(`Anforderung "${req.name}": ${req.details.error}`);
+                    }
+                }
+            });
+        });
+        return allIssues;
+    });
+    // Computed für strukturierte Anforderungsprobleme für RequirementIssues Component
+    const requirementIssuesPayload = computed(() => {
+        if (requirementSets.value.length === 0)
+            return null;
+        const unmetResults = [];
+        requirementSets.value.forEach(set => {
+            set.requirements.forEach(req => {
+                if (!req.met) {
+                    unmetResults.push({
+                        requirement_set_id: set.id,
+                        requirement_set_name: set.name,
+                        requirement_name: req.name,
+                        met: false,
+                        details: req.details || 'Nicht erfüllt',
+                        error: null
+                    });
+                }
+            });
+        });
+        const totalRequirements = requirementSets.value.reduce((sum, set) => sum + set.requirements.length, 0);
+        return {
+            ok: unmetResults.length === 0,
+            errors: [],
+            meta: {
+                patientExaminationId: null, // wird später gesetzt
+                setsEvaluated: requirementSets.value.length,
+                requirementsEvaluated: totalRequirements,
+                status: unmetResults.length === 0 ? 'ok' : 'partial'
+            },
+            results: unmetResults
+        };
+    });
+    const requirementIssuesUnmetBySet = computed(() => {
+        if (!requirementIssuesPayload.value)
+            return {};
+        const groupedBySet = {};
+        requirementIssuesPayload.value.results.forEach(item => {
+            const key = item.requirement_set_id?.toString() || 'unknown';
+            if (!groupedBySet[key]) {
+                groupedBySet[key] = {
+                    setId: item.requirement_set_id,
+                    setName: item.requirement_set_name,
+                    items: []
+                };
+            }
+            groupedBySet[key].items.push(item);
+        });
+        return groupedBySet;
+    });
     const loadRequirementSetsFromLookup = (lookupData) => {
         if (!lookupData.requirementsBySet)
             return;
@@ -303,6 +389,60 @@ export const useRequirementStore = defineStore('requirement', () => {
         });
         requirementSets.value = sets;
     };
+    // Issues Management Functions
+    const ingestIssues = (payload) => {
+        const raw = payload?.requirementIssues ||
+            payload?.requirement_issues ||
+            payload?.issues ||
+            [];
+        const normalizedIssues = Array.isArray(raw)
+            ? raw.map((i) => ({
+                id: i.id,
+                set_id: i.set_id ?? i.requirement_set_id,
+                requirement_name: i.requirement_name ?? i.name,
+                code: i.code,
+                message: i.message ?? i.detail ?? String(i),
+                severity: i.severity ?? 'warning',
+                finding_id: i.finding_id,
+                extra: i.extra ?? i.details ?? {}
+            }))
+            : [];
+        // Clear and repopulate issues
+        issuesBySet.value = {};
+        issuesGlobal.value = [];
+        normalizedIssues.forEach(issue => {
+            if (issue.set_id) {
+                if (!issuesBySet.value[issue.set_id]) {
+                    issuesBySet.value[issue.set_id] = [];
+                }
+                issuesBySet.value[issue.set_id].push(issue);
+            }
+            else {
+                issuesGlobal.value.push(issue);
+            }
+        });
+        console.log('📝 [RequirementStore] Issues ingested:', {
+            raw: raw?.length || 0,
+            normalized: normalizedIssues.length,
+            bySet: Object.keys(issuesBySet.value).length,
+            global: issuesGlobal.value.length
+        });
+    };
+    const getIssuesForSet = (setId) => {
+        return issuesBySet.value[setId] || [];
+    };
+    const getAllIssues = () => {
+        const allSetIssues = Object.values(issuesBySet.value).flat();
+        return [...allSetIssues, ...issuesGlobal.value];
+    };
+    const getSeverityCounts = (setId) => {
+        const issues = setId ? getIssuesForSet(setId) : getAllIssues();
+        return {
+            info: issues.filter(i => i.severity === 'info').length,
+            warning: issues.filter(i => i.severity === 'warning').length,
+            error: issues.filter(i => i.severity === 'error').length
+        };
+    };
     return {
         // State
         requirementSets,
@@ -310,11 +450,16 @@ export const useRequirementStore = defineStore('requirement', () => {
         evaluationResults,
         loading,
         error,
+        issues,
+        issuesBySet,
+        issuesGlobal,
         // Computed
         isRequirementValidated,
         isRequirementSetValidated,
         metRequirementsCount,
         totalRequirementsCount,
+        requirementIssuesPayload,
+        requirementIssuesUnmetBySet,
         // Actions
         setCurrentRequirementSet,
         fetchRequirementSets,
@@ -332,6 +477,11 @@ export const useRequirementStore = defineStore('requirement', () => {
         clearError,
         setCurrentRequirementSetIds,
         deleteRequirementSetById,
-        reset
+        reset,
+        // Issues Functions
+        ingestIssues,
+        getIssuesForSet,
+        getAllIssues,
+        getSeverityCounts
     };
 });

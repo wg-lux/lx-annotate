@@ -119,6 +119,18 @@ else {
     });
     (__VLS_ctx.payload?.meta?.requirementsEvaluated ?? 0);
     (__VLS_ctx.totalUnmet);
+    if (__VLS_ctx.payload?.meta?.setsEvaluated) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+        (__VLS_ctx.payload.meta.setsEvaluated);
+    }
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+        ...{ class: "badge" },
+        ...{ class: ({
+                'bg-success': __VLS_ctx.payload?.meta?.status === 'ok',
+                'bg-warning': __VLS_ctx.payload?.meta?.status === 'partial',
+                'bg-danger': __VLS_ctx.payload?.meta?.status === 'failed'
+            }) },
+    });
     (__VLS_ctx.payload?.meta?.status || 'unknown');
 }
 /** @type {__VLS_StyleScopedClasses['card']} */ ;
@@ -184,6 +196,10 @@ else {
 /** @type {__VLS_StyleScopedClasses['fas']} */ ;
 /** @type {__VLS_StyleScopedClasses['fa-info-circle']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['bg-success']} */ ;
+/** @type {__VLS_StyleScopedClasses['bg-warning']} */ ;
+/** @type {__VLS_StyleScopedClasses['bg-danger']} */ ;
 var __VLS_dollars;
 const __VLS_self = (await import('vue')).defineComponent({
     setup() {

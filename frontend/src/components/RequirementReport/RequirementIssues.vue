@@ -56,8 +56,17 @@
         <!-- Meta footer -->
         <div class="text-muted small">
           <i class="fas fa-info-circle me-1"></i>
-          {{ payload?.meta?.requirementsEvaluated ?? 0 }} geprüft,
-          {{ totalUnmet }} nicht erfüllt · Status: {{ payload?.meta?.status || 'unknown' }}
+          {{ payload?.meta?.requirementsEvaluated ?? 0 }} Anforderungen geprüft,
+          {{ totalUnmet }} nicht erfüllt
+          <span v-if="payload?.meta?.setsEvaluated">({{ payload.meta.setsEvaluated }} Sets)</span>
+          · Status: 
+          <span class="badge" :class="{
+            'bg-success': payload?.meta?.status === 'ok',
+            'bg-warning': payload?.meta?.status === 'partial', 
+            'bg-danger': payload?.meta?.status === 'failed'
+          }">
+            {{ payload?.meta?.status || 'unknown' }}
+          </span>
         </div>
       </div>
     </div>
