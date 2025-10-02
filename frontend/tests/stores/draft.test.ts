@@ -1,24 +1,19 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
-import { useDraftStore } from '../../src/stores/draft'
-import type { AnnotationDraft } from '../../src/types/annotation'
+import { useDraftStore } from '../draft'
+import type { AnnotationDraft } from '@/types/annotation'
 
 describe('Draft Store', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     vi.clearAllMocks()
     
-    // Mock localStorage
-    Object.defineProperty(window, 'localStorage', {
-      value: {
-        getItem: vi.fn(() => null),
-        setItem: vi.fn(() => null),
-        removeItem: vi.fn(() => null),
-        clear: vi.fn(() => null),
-      },
-      writable: true
-    })
+    // Clear localStorage before each test
+    vi.spyOn(Storage.prototype, 'getItem').mockReturnValue(null)
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {})
+    vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(() => {})
+    vi.spyOn(Storage.prototype, 'clear').mockImplementation(() => {})
   })
 
   it('should initialize with empty state', () => {

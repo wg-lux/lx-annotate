@@ -8,19 +8,13 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 
 export default defineConfig({
-  root: __dirname,        // <-- pin root to frontend explicitly
   plugins: [vue(), vueJsx()],
   test: {
     environment: 'jsdom',
-    exclude: ['**/node_modules/**', '**/dist/**', '**/e2e/**', '**/.direnv/**'],
+    exclude: ['**/node_modules/**', '**/dist/**', '**/e2e/**'],
+    root: fileURLToPath(new URL('./', import.meta.url)),
     globals: true,
-    setupFiles: ['./tests/setup.ts'],
-    pool: 'threads',
-    poolOptions: {
-      threads: {
-        singleThread: true  // <-- Ultimativer Fix: Single-Thread = kein Tinypool Worker
-      }
-    }
+    setupFiles: []
   },
   resolve: {
     alias: {

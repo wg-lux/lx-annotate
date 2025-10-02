@@ -24,11 +24,20 @@ from pathlib import Path
 from typing import Set, Optional
 from concurrent.futures import ThreadPoolExecutor
 
+from torch.utils import data
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler, FileCreatedEvent, FileMovedEvent
 
+try:
+    from endoreg_db.utils import data_paths
+    project_root = data_paths["project_root"]
+except (ImportError, ModuleNotFoundError, KeyError):
+    # Fallback to determining project root from file location
+    project_root = Path(__file__).parent.parent
+
+PROJECT_ROOT = project_root
+
 # Add project root to Python path
-PROJECT_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 # Set Django settings before importing Django

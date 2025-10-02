@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import type { MockedFunction } from 'vitest';
 import { setActivePinia, createPinia } from 'pinia';
-import { useVideoStore } from '../../src/stores/videoStore';
-import axiosInstance from '../../src/api/axiosInstance';
+import { useVideoStore } from '@/stores/videoStore';
+import axiosInstance from '@/api/axiosInstance';
 
 // ✅ FIX: Proper mock setup with explicit types
-vi.mock('../../src/api/axiosInstance', () => ({
+vi.mock('@/api/axiosInstance', () => ({
   default: {
     get: vi.fn(),
     post: vi.fn(),

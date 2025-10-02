@@ -71,6 +71,14 @@ Lx-annotate is set up by a devenv.nix and pyproject.toml automatically. These de
 
   should handle the setup steps mentioned above automatically.
 
+Before starting the import and anonymization of a video, the model meta needs to be initialized from endoreg dbs included model.
+
+```bash
+python manage.py migrate
+python manage.py load_base_db_data
+python manage.py create_multilabel_model_meta --model_path "./libs/endoreg-db/tests/assets/colo_segmentation_RegNetX800MF_6.ckpt"
+```
+
 
 ## File Import
 

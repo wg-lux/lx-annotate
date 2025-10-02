@@ -70,12 +70,12 @@
                 :show-waveform="false"
                 :selection-mode="true"
                 :fps="fps"
-                @seek="onTimelineSeek"
-                @segment-resize="onSegmentResize"
-                @segment-move="onSegmentMove"
-                @segment-create="onSegmentCreate"
-                @time-selection="onTimeSelection"
-                @delete-segment="onSegmentDelete"
+                @seek="handleTimelineSeek"
+                @segment-resize="handleSegmentResize"
+                @segment-move="handleSegmentMove"
+                @segment-create="handleCreateSegment"
+                @time-selection="handleTimeSelection"
+                @delete-segment="handleSegmentDelete"
               />
               
               <!-- Simple progress bar as fallback -->
@@ -553,37 +553,6 @@ const handleTimelineClick = (event: MouseEvent): void => {
 
 const handleTimelineSeek = (time: number): void => {
   seekToTime(time)
-}
-
-// ✅ Event Handler Wrapper für Vue Template Compatibility
-const onTimelineSeek = (...args: any[]): void => {
-  const time = args[0] as number
-  handleTimelineSeek(time)
-}
-
-const onSegmentResize = (...args: any[]): void => {
-  const [segmentId, newStart, newEnd, mode, final] = args as [string | number, number, number, string, boolean?]
-  handleSegmentResize(segmentId, newStart, newEnd, mode, final)
-}
-
-const onSegmentMove = (...args: any[]): void => {
-  const [segmentId, newStart, newEnd, final] = args as [string | number, number, number, boolean?]
-  handleSegmentMove(segmentId, newStart, newEnd, final)
-}
-
-const onSegmentCreate = (...args: any[]): void => {
-  const event = args[0] as CreateSegmentEvent
-  handleCreateSegment(event)
-}
-
-const onTimeSelection = (...args: any[]): void => {
-  const data = args[0] as { start: number; end: number }
-  handleTimeSelection(data)
-}
-
-const onSegmentDelete = (...args: any[]): void => {
-  const segment = args[0] as Segment
-  handleSegmentDelete(segment)
 }
 
 const handleSegmentResize = (segmentId: string | number, newStart: number, newEnd: number, mode: string, final?: boolean): void => {

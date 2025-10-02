@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { setActivePinia, createPinia } from 'pinia';
-import { useVideoStore } from '../../src/stores/videoStore';
-import { framesToSeconds, secondsToFrames, safeTimeConversion } from '../../src/utils/timeHelpers';
+import { useVideoStore } from '@/stores/videoStore';
+import { framesToSeconds, secondsToFrames, safeTimeConversion } from '@/utils/timeHelpers';
 
 // ✅ FIX: Mock axiosInstance at the top level with a factory function
-vi.mock('../../src/api/axiosInstance', () => ({
+vi.mock('@/api/axiosInstance', () => ({
   default: {
     get: vi.fn(),
     post: vi.fn(),

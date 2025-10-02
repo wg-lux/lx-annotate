@@ -59,74 +59,96 @@
           </div>
 
           <div class="row mb-4">
+            <!--Checkbox indicating if there are no more names present in the video or pdf-->
+            <div class="col-12">
+              <div class="form-check">
+                <input 
+                  type="checkbox" 
+                  class="form-check-input" 
+                  id="noMoreNames" 
+                  v-model="noMoreNames"
+                >
+                <label class="form-check-label" for="noMoreNames">
+                  Keine weiteren Namen im Video oder PDF vorhanden
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div class="row mb-4">
             <!-- Patient Information & Annotation Section (Reduced Width) -->
             <div class="col-md-5">
               <div class="card bg-light mb-4">
                 <div class="card-body">
-                  <h5 class="card-title">Patienteninformationen</h5>
+                  <h5 class="card-title d-flex align-items-center">
+                    <i class="fas fa-eye me-2 text-info"></i>
+                    Automatisch extrahierte Patienteninformationen
+                  </h5>
+                  <div class="alert alert-info mb-3">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <small>
+                      <strong>Nur zur Anzeige:</strong> Diese Daten wurden automatisch aus dem Dokument extrahiert und dienen zur Überprüfung der Anonymisierung.
+                    </small>
+                  </div>
                   <div class="mb-3">
                     <label class="form-label">Vorname:</label>
                     <input 
                       type="text" 
-                      class="form-control" 
+                      class="form-control bg-light" 
                       v-model="editedPatient.patientFirstName"
-                      :class="{ 'is-invalid': !firstNameOk }"
+                      readonly
+                      disabled
                     >
-                    <div class="invalid-feedback" v-if="!firstNameOk">
-                      Vorname ist erforderlich.
-                    </div>
                   </div>
                   <div class="mb-3">
                     <label class="form-label">Nachname:</label>
                     <input 
                       type="text" 
-                      class="form-control" 
+                      class="form-control bg-light" 
                       v-model="editedPatient.patientLastName"
-                      :class="{ 'is-invalid': !lastNameOk }"
+                      readonly
+                      disabled
                     >
-                    <div class="invalid-feedback" v-if="!lastNameOk">
-                      Nachname ist erforderlich.
-                    </div>
                   </div>
                   <div class="mb-3">
                     <label class="form-label">Geschlecht:</label>
-                    <select class="form-select" v-model="editedPatient.patientGender">
-                      <option value="male">Männlich</option>
-                      <option value="female">Weiblich</option>
-                      <option value="other">Divers</option>
-                    </select>
+                    <input 
+                      type="text" 
+                      class="form-control bg-light" 
+                      :value="editedPatient.patientGender === 'male' ? 'Männlich' : editedPatient.patientGender === 'female' ? 'Weiblich' : editedPatient.patientGender === 'other' ? 'Divers' : editedPatient.patientGender"
+                      readonly
+                      disabled
+                    >
                   </div>
                   <div class="mb-3">
                     <label class="form-label">Geburtsdatum:</label>
                     <input 
-                      type="date" 
-                      class="form-control" 
-                      v-model="editedPatient.patientDob"
-                      :class="{ 'is-invalid': !isDobValid }"
+                      type="text" 
+                      class="form-control bg-light" 
+                      :value="editedPatient.patientDob"
+                      readonly
+                      disabled
                     >
-                    <div class="invalid-feedback" v-if="!isDobValid">
-                      Gültiges Geburtsdatum ist erforderlich.
-                    </div>
                   </div>
                   <div class="mb-3">
                     <label class="form-label">Fallnummer:</label>
                     <input 
                       type="text" 
-                      class="form-control" 
+                      class="form-control bg-light" 
                       v-model="editedPatient.casenumber"
+                      readonly
+                      disabled
                     >
                   </div>
                   <div class="mb-3">
                     <label class="form-label">Untersuchungsdatum:</label>
                     <input 
-                      type="date" 
-                      class="form-control" 
-                      v-model="examinationDate"
-                      :class="{ 'is-invalid': !isExaminationDateValid }"
+                      type="text" 
+                      class="form-control bg-light" 
+                      :value="examinationDate"
+                      readonly
+                      disabled
                     >
-                    <div class="invalid-feedback" v-if="!isExaminationDateValid">
-                      Das Untersuchungsdatum darf nicht vor dem Geburtsdatum liegen.
-                    </div>
                   </div>
                   <div class="mb-3">
                     <label class="form-label">Anonymisierter Text:</label>
@@ -244,9 +266,12 @@
                   v-if="currentItem && (isVideo || isPdf)"
                   class="btn btn-warning position-relative" 
                   @click="navigateToCorrection"
-                  :disabled="isApproving"
+                  :disabled="isApproving || !noMoreNames"
                   :title="isVideo ? 'Video-Korrektur: Maskierung, Frame-Entfernung, etc.' : 'PDF-Korrektur: Text-Annotation anpassen'"
                 >
+                <div v-if="!noMoreNames" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 0.6em;" title="Bitte bestätigen Sie, dass keine weiteren Namen im Video oder PDF vorhanden sind.">
+                  !
+                </div>
                   <i class="fas fa-edit me-1"></i>
                   {{ isVideo ? 'Video-Korrektur' : 'PDF-Korrektur' }}
                   <!-- Unsaved changes indicator -->
@@ -266,7 +291,7 @@
                 <button 
                   class="btn btn-success" 
                   @click="approveItem"
-                  :disabled="isApproving || !canSave || !dirty"
+                  :disabled="isApproving"
                 >
                   <span v-if="isApproving" class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
                   {{ isApproving ? 'Wird bestätigt...' : 'Bestätigen' }}
@@ -323,7 +348,7 @@ const processedUrl = ref('');
 const showOriginal = ref(false);
 const hasSuccessfulUpload = ref(false);
 
-
+const noMoreNames = ref(false);
 
 // Original state for dirty tracking
 
@@ -408,12 +433,13 @@ const isExaminationDateValid = computed(() => {
 });
 
 // Global save gates
-const canSave = computed(() =>
+const dataOk = computed(() =>
   firstNameOk.value && lastNameOk.value && isDobValid.value && isExaminationDateValid.value
 );
 
+
 const canSubmit = computed(() =>
-  !!processedUrl.value && !!originalUrl.value && canSave.value
+  !!processedUrl.value && !!originalUrl.value
 );
 
 
@@ -519,7 +545,7 @@ const skipItem = async () => {
 
 
 const approveItem = async () => {
-  if (!currentItem.value || !canSave.value || isApproving.value) return;
+  if (!currentItem.value || isApproving.value) return;
   isApproving.value = true;
   try {
 
@@ -625,11 +651,6 @@ const navigateToCorrection = async () => {
     
     if (saveFirst) {
       // User wants to save first
-      if (!canSave.value) {
-        toast.error({ text: 'Bitte korrigieren Sie die Validierungsfehler vor dem Speichern.' });
-        return;
-      }
-      
       try {
         await approveItem();
         // approveItem will navigate to next item, so we need to return
