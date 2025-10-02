@@ -491,7 +491,7 @@ if (__VLS_ctx.currentItem) {
         ...{ class: "fas fa-eye me-2 text-info" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "alert alert-info mb-3" },
+        ...{ class: "alert alert-success mb-3" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
         ...{ class: "fas fa-info-circle me-2" },
@@ -587,46 +587,6 @@ if (__VLS_ctx.currentItem) {
         rows: "6",
         value: (__VLS_ctx.editedAnonymizedText),
     });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "card bg-light" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "card-body" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.h5, __VLS_intrinsicElements.h5)({
-        ...{ class: "card-title" },
-    });
-    if (__VLS_ctx.processedUrl) {
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: "mt-3" },
-        });
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.img, __VLS_intrinsicElements.img)({
-            src: (__VLS_ctx.showOriginal ? __VLS_ctx.originalUrl : __VLS_ctx.processedUrl),
-            ...{ class: "img-fluid" },
-            alt: "Uploaded Image",
-        });
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-            ...{ onClick: (__VLS_ctx.toggleImage) },
-            ...{ class: "btn btn-info btn-sm mt-2" },
-        });
-        (__VLS_ctx.showOriginal ? 'Bearbeitetes Bild anzeigen' : 'Original anzeigen');
-    }
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "mt-3" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-        ...{ onClick: (__VLS_ctx.saveAnnotation) },
-        ...{ class: "btn btn-primary" },
-        disabled: (__VLS_ctx.isSaving || !__VLS_ctx.canSubmit),
-    });
-    if (__VLS_ctx.isSaving) {
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-            ...{ class: "spinner-border spinner-border-sm me-2" },
-            role: "status",
-            'aria-hidden': "true",
-        });
-    }
-    (__VLS_ctx.isSaving ? 'Speichern...' : 'Annotation speichern');
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "col-md-7" },
     });
@@ -845,7 +805,7 @@ if (__VLS_ctx.currentItem) {
 /** @type {__VLS_StyleScopedClasses['me-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-info']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert']} */ ;
-/** @type {__VLS_StyleScopedClasses['alert-info']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert-success']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['fas']} */ ;
 /** @type {__VLS_StyleScopedClasses['fa-info-circle']} */ ;
@@ -877,22 +837,6 @@ if (__VLS_ctx.currentItem) {
 /** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['form-label']} */ ;
 /** @type {__VLS_StyleScopedClasses['form-control']} */ ;
-/** @type {__VLS_StyleScopedClasses['card']} */ ;
-/** @type {__VLS_StyleScopedClasses['bg-light']} */ ;
-/** @type {__VLS_StyleScopedClasses['card-body']} */ ;
-/** @type {__VLS_StyleScopedClasses['card-title']} */ ;
-/** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
-/** @type {__VLS_StyleScopedClasses['img-fluid']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn-info']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
-/** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
-/** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn-primary']} */ ;
-/** @type {__VLS_StyleScopedClasses['spinner-border']} */ ;
-/** @type {__VLS_StyleScopedClasses['spinner-border-sm']} */ ;
-/** @type {__VLS_StyleScopedClasses['me-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['col-md-7']} */ ;
 /** @type {__VLS_StyleScopedClasses['card']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-header']} */ ;
@@ -955,23 +899,16 @@ const __VLS_self = (await import('vue')).defineComponent({
             editedAnonymizedText: editedAnonymizedText,
             examinationDate: examinationDate,
             editedPatient: editedPatient,
-            originalUrl: originalUrl,
-            processedUrl: processedUrl,
-            showOriginal: showOriginal,
             noMoreNames: noMoreNames,
-            canSubmit: canSubmit,
             currentItem: currentItem,
             isPdf: isPdf,
             isVideo: isVideo,
             pdfSrc: pdfSrc,
             videoSrc: videoSrc,
             dirty: dirty,
-            isSaving: isSaving,
             isApproving: isApproving,
-            toggleImage: toggleImage,
             skipItem: skipItem,
             approveItem: approveItem,
-            saveAnnotation: saveAnnotation,
             rejectItem: rejectItem,
             navigateToCorrection: navigateToCorrection,
             onVideoError: onVideoError,

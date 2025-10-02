@@ -84,7 +84,7 @@
                     <i class="fas fa-eye me-2 text-info"></i>
                     Automatisch extrahierte Patienteninformationen
                   </h5>
-                  <div class="alert alert-info mb-3">
+                  <div class="alert alert-success mb-3">
                     <i class="fas fa-info-circle me-2"></i>
                     <small>
                       <strong>Nur zur Anzeige:</strong> Diese Daten wurden automatisch aus dem Dokument extrahiert und dienen zur Überprüfung der Anonymisierung.
@@ -155,31 +155,6 @@
                     <textarea class="form-control"
                       rows="6"
                       v-model="editedAnonymizedText"></textarea>
-                  </div>
-                </div>
-              </div>
-
-
-              <!-- Annotation Section -->
-              <div class="card bg-light">
-                <div class="card-body">
-                  <h5 class="card-title">Annotationen</h5>
-                  <div v-if="processedUrl" class="mt-3">
-                    <img :src="showOriginal ? originalUrl : processedUrl"
-                         class="img-fluid" alt="Uploaded Image">
-                    <button class="btn btn-info btn-sm mt-2" @click="toggleImage">
-                      {{ showOriginal ? 'Bearbeitetes Bild anzeigen' : 'Original anzeigen' }}
-                    </button>
-                  </div>
-                  <div class="mt-3">
-                    <button 
-                      class="btn btn-primary"
-                      @click="saveAnnotation"
-                      :disabled="isSaving || !canSubmit"
-                    >
-                      <span v-if="isSaving" class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                      {{ isSaving ? 'Speichern...' : 'Annotation speichern' }}
-                    </button>
                   </div>
                 </div>
               </div>
