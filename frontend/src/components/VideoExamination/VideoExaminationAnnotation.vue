@@ -551,11 +551,14 @@ const handleTimelineClick = (event: MouseEvent): void => {
   seekToTime(newTime)
 }
 
-const handleTimelineSeek = (time: number): void => {
+const handleTimelineSeek = (...args: any[]): void => {
+  const time = args[0] as number;
   seekToTime(time)
 }
 
-const handleSegmentResize = (segmentId: string | number, newStart: number, newEnd: number, mode: string, final?: boolean): void => {
+const handleSegmentResize = (...args: any[]): void => {
+  const [segmentId, newStart, newEnd, mode, final] = args as [string | number, number, number, string, boolean?];
+  
   // ✅ NEW: Verbesserte Guard für Draft/Temp-Segmente (camelCase in finalen PATCH-Aufrufen)
   if (typeof segmentId === 'string') {
     if (segmentId === 'draft' || /^temp-/.test(segmentId)) {
@@ -583,7 +586,9 @@ const handleSegmentResize = (segmentId: string | number, newStart: number, newEn
   }
 }
 
-const handleSegmentMove = (segmentId: string | number, newStart: number, newEnd: number, final?: boolean): void => {
+const handleSegmentMove = (...args: any[]): void => {
+  const [segmentId, newStart, newEnd, final] = args as [string | number, number, number, boolean?];
+  
   // Verbesserte Guard für Draft/Temp-Segmente (camelCase in finalen PATCH-Aufrufen)
   if (typeof segmentId === 'string') {
     if (segmentId === 'draft' || /^temp-/.test(segmentId)) {
@@ -610,7 +615,8 @@ const handleSegmentMove = (segmentId: string | number, newStart: number, newEnd:
   }
 }
 
-const handleTimeSelection = (data: { start: number; end: number }): void => {
+const handleTimeSelection = (...args: any[]): void => {
+  const data = args[0] as { start: number; end: number };
   // Handle time selection for creating new segments
   if (selectedLabelType.value && selectedVideoId.value) {
     handleCreateSegment({
@@ -621,40 +627,54 @@ const handleTimeSelection = (data: { start: number; end: number }): void => {
   }
 }
 
-const handleCreateSegment = async (event: CreateSegmentEvent): Promise<void> => {
-  if (selectedVideoId.value) {
-    // FIX: Use the correct method signature from videoStore
-    await videoStore.createSegment?.(
-      selectedVideoId.value.toString(), 
-      event.label, 
-      event.start, 
-      event.end
-    )
-  }
+const handleCreateSegment = (...args: any[]): Promise<void> => {
+  const event = args[0] as CreateSegmentEvent;
+  return new Promise<void>(async (resolve, reject) => {
+    try {
+      if (selectedVideoId.value) {
+        // FIX: Use the correct method signature from videoStore
+        await videoStore.createSegment?.(
+          selectedVideoId.value.toString(), 
+          event.label, 
+          event.start, 
+          event.end
+        )
+      }
+      resolve();
+    } catch (error) {
+      reject(error);
+    }
+  });
 }
 
-const handleSegmentDelete = async (segment: Segment): Promise<void> => {
-  if (!segment.id || typeof segment.id !== 'number') {
-    console.warn('Cannot delete draft or temporary segment:', segment.id)
-    return
-  }
+const handleSegmentDelete = (...args: any[]): Promise<void> => {
+  const segment = args[0] as Segment;
+  return new Promise<void>(async (resolve, reject) => {
+    if (!segment.id || typeof segment.id !== 'number') {
+      console.warn('Cannot delete draft or temporary segment:', segment.id)
+      resolve();
+      return;
+    }
 
-  try {
-    // 1. Remove from store
-    videoStore.removeSegment(segment.id)
+    try {
+      // 1. Remove from store
+      videoStore.removeSegment(segment.id)
 
-    // 2. Perform API call
-    await videoStore.deleteSegment(segment.id)
+      // 2. Perform API call
+      await videoStore.deleteSegment(segment.id)
 
-    toastStore.success({
-      text: `Segment gelöscht: ${getTranslationForLabel(segment.label)}`
-    })
-  } catch (err) {
-    console.error('Segment konnte nicht gelöscht werden:', err)
-    toastStore.error({
-      text: 'Fehler beim Löschen des Segments'
-    })
-  }
+      toastStore.success({
+        text: `Segment gelöscht: ${getTranslationForLabel(segment.label)}`
+      })
+      resolve();
+    } catch (err) {
+      console.error('Segment konnte nicht gelöscht werden:', err)
+      toastStore.error({
+        text: 'Fehler beim Löschen des Segments'
+      })
+      reject(err);
+    }
+  });
 }
 
 

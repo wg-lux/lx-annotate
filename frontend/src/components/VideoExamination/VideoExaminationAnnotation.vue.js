@@ -217,35 +217,12 @@ const handleTimelineClick = (event) => {
     const newTime = percentage * duration.value;
     seekToTime(newTime);
 };
-const handleTimelineSeek = (time) => {
+const handleTimelineSeek = (...args) => {
+    const time = args[0];
     seekToTime(time);
 };
-// ✅ Event Handler Wrapper für Vue Template Compatibility
-const onTimelineSeek = (...args) => {
-    const time = args[0];
-    handleTimelineSeek(time);
-};
-const onSegmentResize = (...args) => {
+const handleSegmentResize = (...args) => {
     const [segmentId, newStart, newEnd, mode, final] = args;
-    handleSegmentResize(segmentId, newStart, newEnd, mode, final);
-};
-const onSegmentMove = (...args) => {
-    const [segmentId, newStart, newEnd, final] = args;
-    handleSegmentMove(segmentId, newStart, newEnd, final);
-};
-const onSegmentCreate = (...args) => {
-    const event = args[0];
-    handleCreateSegment(event);
-};
-const onTimeSelection = (...args) => {
-    const data = args[0];
-    handleTimeSelection(data);
-};
-const onSegmentDelete = (...args) => {
-    const segment = args[0];
-    handleSegmentDelete(segment);
-};
-const handleSegmentResize = (segmentId, newStart, newEnd, mode, final) => {
     // ✅ NEW: Verbesserte Guard für Draft/Temp-Segmente (camelCase in finalen PATCH-Aufrufen)
     if (typeof segmentId === 'string') {
         if (segmentId === 'draft' || /^temp-/.test(segmentId)) {
@@ -270,7 +247,8 @@ const handleSegmentResize = (segmentId, newStart, newEnd, mode, final) => {
         console.log(`Preview resize segment ${numericId} ${mode}: ${formatTime(newStart)} - ${formatTime(newEnd)}`);
     }
 };
-const handleSegmentMove = (segmentId, newStart, newEnd, final) => {
+const handleSegmentMove = (...args) => {
+    const [segmentId, newStart, newEnd, final] = args;
     // Verbesserte Guard für Draft/Temp-Segmente (camelCase in finalen PATCH-Aufrufen)
     if (typeof segmentId === 'string') {
         if (segmentId === 'draft' || /^temp-/.test(segmentId)) {
@@ -294,7 +272,8 @@ const handleSegmentMove = (segmentId, newStart, newEnd, final) => {
         console.log(`Preview move segment ${numericId}: ${formatTime(newStart)} - ${formatTime(newEnd)}`);
     }
 };
-const handleTimeSelection = (data) => {
+const handleTimeSelection = (...args) => {
+    const data = args[0];
     // Handle time selection for creating new segments
     if (selectedLabelType.value && selectedVideoId.value) {
         handleCreateSegment({
@@ -304,32 +283,47 @@ const handleTimeSelection = (data) => {
         });
     }
 };
-const handleCreateSegment = async (event) => {
-    if (selectedVideoId.value) {
-        // FIX: Use the correct method signature from videoStore
-        await videoStore.createSegment?.(selectedVideoId.value.toString(), event.label, event.start, event.end);
-    }
+const handleCreateSegment = (...args) => {
+    const event = args[0];
+    return new Promise(async (resolve, reject) => {
+        try {
+            if (selectedVideoId.value) {
+                // FIX: Use the correct method signature from videoStore
+                await videoStore.createSegment?.(selectedVideoId.value.toString(), event.label, event.start, event.end);
+            }
+            resolve();
+        }
+        catch (error) {
+            reject(error);
+        }
+    });
 };
-const handleSegmentDelete = async (segment) => {
-    if (!segment.id || typeof segment.id !== 'number') {
-        console.warn('Cannot delete draft or temporary segment:', segment.id);
-        return;
-    }
-    try {
-        // 1. Remove from store
-        videoStore.removeSegment(segment.id);
-        // 2. Perform API call
-        await videoStore.deleteSegment(segment.id);
-        toastStore.success({
-            text: `Segment gelöscht: ${getTranslationForLabel(segment.label)}`
-        });
-    }
-    catch (err) {
-        console.error('Segment konnte nicht gelöscht werden:', err);
-        toastStore.error({
-            text: 'Fehler beim Löschen des Segments'
-        });
-    }
+const handleSegmentDelete = (...args) => {
+    const segment = args[0];
+    return new Promise(async (resolve, reject) => {
+        if (!segment.id || typeof segment.id !== 'number') {
+            console.warn('Cannot delete draft or temporary segment:', segment.id);
+            resolve();
+            return;
+        }
+        try {
+            // 1. Remove from store
+            videoStore.removeSegment(segment.id);
+            // 2. Perform API call
+            await videoStore.deleteSegment(segment.id);
+            toastStore.success({
+                text: `Segment gelöscht: ${getTranslationForLabel(segment.label)}`
+            });
+            resolve();
+        }
+        catch (err) {
+            console.error('Segment konnte nicht gelöscht werden:', err);
+            toastStore.error({
+                text: 'Fehler beim Löschen des Segments'
+            });
+            reject(err);
+        }
+    });
 };
 const seekToTime = (time) => {
     if (videoRef.value && time >= 0 && time <= duration.value) {
@@ -578,22 +572,22 @@ if (__VLS_ctx.duration > 0) {
     let __VLS_4;
     let __VLS_5;
     const __VLS_6 = {
-        onSeek: (__VLS_ctx.onTimelineSeek)
+        onSeek: (__VLS_ctx.handleTimelineSeek)
     };
     const __VLS_7 = {
-        onSegmentResize: (__VLS_ctx.onSegmentResize)
+        onSegmentResize: (__VLS_ctx.handleSegmentResize)
     };
     const __VLS_8 = {
-        onSegmentMove: (__VLS_ctx.onSegmentMove)
+        onSegmentMove: (__VLS_ctx.handleSegmentMove)
     };
     const __VLS_9 = {
-        onSegmentCreate: (__VLS_ctx.onSegmentCreate)
+        onSegmentCreate: (__VLS_ctx.handleCreateSegment)
     };
     const __VLS_10 = {
-        onTimeSelection: (__VLS_ctx.onTimeSelection)
+        onTimeSelection: (__VLS_ctx.handleTimeSelection)
     };
     const __VLS_11 = {
-        onDeleteSegment: (__VLS_ctx.onSegmentDelete)
+        onDeleteSegment: (__VLS_ctx.handleSegmentDelete)
     };
     var __VLS_2;
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -1001,12 +995,12 @@ const __VLS_self = (await import('vue')).defineComponent({
             onVideoLoaded: onVideoLoaded,
             handleTimeUpdate: handleTimeUpdate,
             handleTimelineClick: handleTimelineClick,
-            onTimelineSeek: onTimelineSeek,
-            onSegmentResize: onSegmentResize,
-            onSegmentMove: onSegmentMove,
-            onSegmentCreate: onSegmentCreate,
-            onTimeSelection: onTimeSelection,
-            onSegmentDelete: onSegmentDelete,
+            handleTimelineSeek: handleTimelineSeek,
+            handleSegmentResize: handleSegmentResize,
+            handleSegmentMove: handleSegmentMove,
+            handleTimeSelection: handleTimeSelection,
+            handleCreateSegment: handleCreateSegment,
+            handleSegmentDelete: handleSegmentDelete,
             onLabelSelect: onLabelSelect,
             startLabelMarking: startLabelMarking,
             finishLabelMarking: finishLabelMarking,

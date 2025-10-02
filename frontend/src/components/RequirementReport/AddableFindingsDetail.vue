@@ -236,7 +236,7 @@ async function loadAddedFindingsForCurrentExam() {
     return;
   }
   await patientFindingStore.fetchPatientFindings(id);
-  addedFindings.value = patientFindingStore.patientFindings.map(pf => ({ ...pf.finding }));
+  addedFindings.value = patientFindingStore.patientFindings.map(pf => JSON.parse(JSON.stringify(pf.finding)) as Finding);
 }
 
 watch(

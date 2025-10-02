@@ -33,6 +33,7 @@ const originalUrl = ref('');
 const processedUrl = ref('');
 const showOriginal = ref(false);
 const hasSuccessfulUpload = ref(false);
+const noMoreNames = ref(false);
 const original = ref({
     anonymizedText: '',
     examinationDate: '',
@@ -96,8 +97,8 @@ const isExaminationDateValid = computed(() => {
     return compareISODate(examISO.value, dobISO.value) >= 0;
 });
 // Global save gates
-const canSave = computed(() => firstNameOk.value && lastNameOk.value && isDobValid.value && isExaminationDateValid.value);
-const canSubmit = computed(() => !!processedUrl.value && !!originalUrl.value && canSave.value);
+const dataOk = computed(() => firstNameOk.value && lastNameOk.value && isDobValid.value && isExaminationDateValid.value);
+const canSubmit = computed(() => !!processedUrl.value && !!originalUrl.value);
 // Computed
 const currentItem = computed(() => anonymizationStore.current);
 // Use MediaStore for consistent media type detection
@@ -177,7 +178,7 @@ const skipItem = async () => {
     }
 };
 const approveItem = async () => {
-    if (!currentItem.value || !canSave.value || isApproving.value)
+    if (!currentItem.value || isApproving.value)
         return;
     isApproving.value = true;
     try {
@@ -274,10 +275,6 @@ const navigateToCorrection = async () => {
         }
         if (saveFirst) {
             // User wants to save first
-            if (!canSave.value) {
-                toast.error({ text: 'Bitte korrigieren Sie die Validierungsfehler vor dem Speichern.' });
-                return;
-            }
             try {
                 await approveItem();
                 // approveItem will navigate to next item, so we need to return
@@ -460,6 +457,25 @@ if (__VLS_ctx.currentItem) {
         ...{ class: "row mb-4" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "col-12" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "form-check" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.input, __VLS_intrinsicElements.input)({
+        type: "checkbox",
+        ...{ class: "form-check-input" },
+        id: "noMoreNames",
+    });
+    (__VLS_ctx.noMoreNames);
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+        ...{ class: "form-check-label" },
+        for: "noMoreNames",
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "row mb-4" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "col-md-5" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -469,8 +485,19 @@ if (__VLS_ctx.currentItem) {
         ...{ class: "card-body" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.h5, __VLS_intrinsicElements.h5)({
-        ...{ class: "card-title" },
+        ...{ class: "card-title d-flex align-items-center" },
     });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+        ...{ class: "fas fa-eye me-2 text-info" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "alert alert-info mb-3" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+        ...{ class: "fas fa-info-circle me-2" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({});
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "mb-3" },
     });
@@ -479,15 +506,11 @@ if (__VLS_ctx.currentItem) {
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.input, __VLS_intrinsicElements.input)({
         type: "text",
-        ...{ class: "form-control" },
+        ...{ class: "form-control bg-light" },
         value: (__VLS_ctx.editedPatient.patientFirstName),
-        ...{ class: ({ 'is-invalid': !__VLS_ctx.firstNameOk }) },
+        readonly: true,
+        disabled: true,
     });
-    if (!__VLS_ctx.firstNameOk) {
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: "invalid-feedback" },
-        });
-    }
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "mb-3" },
     });
@@ -496,51 +519,11 @@ if (__VLS_ctx.currentItem) {
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.input, __VLS_intrinsicElements.input)({
         type: "text",
-        ...{ class: "form-control" },
+        ...{ class: "form-control bg-light" },
         value: (__VLS_ctx.editedPatient.patientLastName),
-        ...{ class: ({ 'is-invalid': !__VLS_ctx.lastNameOk }) },
+        readonly: true,
+        disabled: true,
     });
-    if (!__VLS_ctx.lastNameOk) {
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: "invalid-feedback" },
-        });
-    }
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "mb-3" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
-        ...{ class: "form-label" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
-        ...{ class: "form-select" },
-        value: (__VLS_ctx.editedPatient.patientGender),
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-        value: "male",
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-        value: "female",
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-        value: "other",
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "mb-3" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
-        ...{ class: "form-label" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.input, __VLS_intrinsicElements.input)({
-        type: "date",
-        ...{ class: "form-control" },
-        ...{ class: ({ 'is-invalid': !__VLS_ctx.isDobValid }) },
-    });
-    (__VLS_ctx.editedPatient.patientDob);
-    if (!__VLS_ctx.isDobValid) {
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: "invalid-feedback" },
-        });
-    }
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "mb-3" },
     });
@@ -549,8 +532,10 @@ if (__VLS_ctx.currentItem) {
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.input, __VLS_intrinsicElements.input)({
         type: "text",
-        ...{ class: "form-control" },
-        value: (__VLS_ctx.editedPatient.casenumber),
+        ...{ class: "form-control bg-light" },
+        value: (__VLS_ctx.editedPatient.patientGender === 'male' ? 'Männlich' : __VLS_ctx.editedPatient.patientGender === 'female' ? 'Weiblich' : __VLS_ctx.editedPatient.patientGender === 'other' ? 'Divers' : __VLS_ctx.editedPatient.patientGender),
+        readonly: true,
+        disabled: true,
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "mb-3" },
@@ -559,16 +544,38 @@ if (__VLS_ctx.currentItem) {
         ...{ class: "form-label" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.input, __VLS_intrinsicElements.input)({
-        type: "date",
-        ...{ class: "form-control" },
-        ...{ class: ({ 'is-invalid': !__VLS_ctx.isExaminationDateValid }) },
+        type: "text",
+        ...{ class: "form-control bg-light" },
+        value: (__VLS_ctx.editedPatient.patientDob),
+        readonly: true,
+        disabled: true,
     });
-    (__VLS_ctx.examinationDate);
-    if (!__VLS_ctx.isExaminationDateValid) {
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: "invalid-feedback" },
-        });
-    }
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "mb-3" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+        ...{ class: "form-label" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.input, __VLS_intrinsicElements.input)({
+        type: "text",
+        ...{ class: "form-control bg-light" },
+        value: (__VLS_ctx.editedPatient.casenumber),
+        readonly: true,
+        disabled: true,
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "mb-3" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+        ...{ class: "form-label" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.input, __VLS_intrinsicElements.input)({
+        type: "text",
+        ...{ class: "form-control bg-light" },
+        value: (__VLS_ctx.examinationDate),
+        readonly: true,
+        disabled: true,
+    });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "mb-3" },
     });
@@ -731,9 +738,16 @@ if (__VLS_ctx.currentItem) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
             ...{ onClick: (__VLS_ctx.navigateToCorrection) },
             ...{ class: "btn btn-warning position-relative" },
-            disabled: (__VLS_ctx.isApproving),
+            disabled: (__VLS_ctx.isApproving || !__VLS_ctx.noMoreNames),
             title: (__VLS_ctx.isVideo ? 'Video-Korrektur: Maskierung, Frame-Entfernung, etc.' : 'PDF-Korrektur: Text-Annotation anpassen'),
         });
+        if (!__VLS_ctx.noMoreNames) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: "position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" },
+                ...{ style: {} },
+                title: "Bitte bestätigen Sie, dass keine weiteren Namen im Video oder PDF vorhanden sind.",
+            });
+        }
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
             ...{ class: "fas fa-edit me-1" },
         });
@@ -753,7 +767,7 @@ if (__VLS_ctx.currentItem) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
         ...{ onClick: (__VLS_ctx.approveItem) },
         ...{ class: "btn btn-success" },
-        disabled: (__VLS_ctx.isApproving || !__VLS_ctx.canSave || !__VLS_ctx.dirty),
+        disabled: (__VLS_ctx.isApproving),
     });
     if (__VLS_ctx.isApproving) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
@@ -812,38 +826,54 @@ if (__VLS_ctx.currentItem) {
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['row']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-4']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-12']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-check']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-check-input']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-check-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['row']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-4']} */ ;
 /** @type {__VLS_StyleScopedClasses['col-md-5']} */ ;
 /** @type {__VLS_StyleScopedClasses['card']} */ ;
 /** @type {__VLS_StyleScopedClasses['bg-light']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-4']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-body']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-title']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-eye']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-info']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert-info']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-info-circle']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['form-label']} */ ;
 /** @type {__VLS_StyleScopedClasses['form-control']} */ ;
-/** @type {__VLS_StyleScopedClasses['is-invalid']} */ ;
-/** @type {__VLS_StyleScopedClasses['invalid-feedback']} */ ;
+/** @type {__VLS_StyleScopedClasses['bg-light']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['form-label']} */ ;
 /** @type {__VLS_StyleScopedClasses['form-control']} */ ;
-/** @type {__VLS_StyleScopedClasses['is-invalid']} */ ;
-/** @type {__VLS_StyleScopedClasses['invalid-feedback']} */ ;
-/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
-/** @type {__VLS_StyleScopedClasses['form-label']} */ ;
-/** @type {__VLS_StyleScopedClasses['form-select']} */ ;
+/** @type {__VLS_StyleScopedClasses['bg-light']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['form-label']} */ ;
 /** @type {__VLS_StyleScopedClasses['form-control']} */ ;
-/** @type {__VLS_StyleScopedClasses['is-invalid']} */ ;
-/** @type {__VLS_StyleScopedClasses['invalid-feedback']} */ ;
+/** @type {__VLS_StyleScopedClasses['bg-light']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['form-label']} */ ;
 /** @type {__VLS_StyleScopedClasses['form-control']} */ ;
+/** @type {__VLS_StyleScopedClasses['bg-light']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['form-label']} */ ;
 /** @type {__VLS_StyleScopedClasses['form-control']} */ ;
-/** @type {__VLS_StyleScopedClasses['is-invalid']} */ ;
-/** @type {__VLS_StyleScopedClasses['invalid-feedback']} */ ;
+/** @type {__VLS_StyleScopedClasses['bg-light']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-control']} */ ;
+/** @type {__VLS_StyleScopedClasses['bg-light']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['form-label']} */ ;
 /** @type {__VLS_StyleScopedClasses['form-control']} */ ;
@@ -891,6 +921,13 @@ if (__VLS_ctx.currentItem) {
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-warning']} */ ;
 /** @type {__VLS_StyleScopedClasses['position-relative']} */ ;
+/** @type {__VLS_StyleScopedClasses['position-absolute']} */ ;
+/** @type {__VLS_StyleScopedClasses['top-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['start-100']} */ ;
+/** @type {__VLS_StyleScopedClasses['translate-middle']} */ ;
+/** @type {__VLS_StyleScopedClasses['badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['rounded-pill']} */ ;
+/** @type {__VLS_StyleScopedClasses['bg-danger']} */ ;
 /** @type {__VLS_StyleScopedClasses['fas']} */ ;
 /** @type {__VLS_StyleScopedClasses['fa-edit']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
@@ -921,11 +958,7 @@ const __VLS_self = (await import('vue')).defineComponent({
             originalUrl: originalUrl,
             processedUrl: processedUrl,
             showOriginal: showOriginal,
-            firstNameOk: firstNameOk,
-            lastNameOk: lastNameOk,
-            isDobValid: isDobValid,
-            isExaminationDateValid: isExaminationDateValid,
-            canSave: canSave,
+            noMoreNames: noMoreNames,
             canSubmit: canSubmit,
             currentItem: currentItem,
             isPdf: isPdf,
