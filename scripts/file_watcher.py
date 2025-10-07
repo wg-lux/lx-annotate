@@ -311,8 +311,11 @@ class AutoProcessingHandler(FileSystemEventHandler):
                     center_name=self.default_center,
                     processor_name=self.default_processor,
                     save_video=True,
-                    delete_source=True 
+                    delete_source=False,
                 )
+                
+                if not video_file.sensitive_meta:
+                    logger.warning(f"Video imported but no SensitiveMeta created: {video_file.uuid}")
                 
 
                 logger.info(f"Video imported successfully: {video_file.uuid}")
@@ -336,6 +339,10 @@ class AutoProcessingHandler(FileSystemEventHandler):
             # Run segmentation if video was imported successfully
             if video_file and video_file.pk:
                 try:
+                    if not Path("./data/model_weights").exists():
+                        Path("./data/model_weights").mkdir(parents=True, exist_ok=True)
+                    if not Path("./data/model_weights/colo_segmentation_RegNetX800MF_6.ckpt").exists():
+                        subprocess.run(['cp', './libs/endoreg-db/tests/assets/colo_segmentation_RegNetX800MF_6.ckpt', './data/model_weights/'])
 
                     success = video_file.pipe_1(
                         model_name=self.default_model,

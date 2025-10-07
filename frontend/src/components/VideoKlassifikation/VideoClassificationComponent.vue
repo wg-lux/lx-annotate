@@ -1,5 +1,19 @@
 <template>
     <div class="container-fluid py-4">
+      <!-- Error Message Alert -->
+      <div v-if="errorMessage" class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="material-icons me-2">error</i>
+        <strong>Fehler:</strong> {{ errorMessage }}
+        <button type="button" class="btn-close" @click="clearErrorMessage" aria-label="Close"></button>
+      </div>
+      
+      <!-- Success Message Alert -->
+      <div v-if="successMessage" class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="material-icons me-2">check_circle</i>
+        <strong>Erfolg:</strong> {{ successMessage }}
+        <button type="button" class="btn-close" @click="clearSuccessMessage" aria-label="Close"></button>
+      </div>
+      
       <div class="row">
         <div class="col-12">
           <h1>Video-Untersuchung Annotation</h1>
@@ -83,10 +97,10 @@
                         :key="segment.id"
                         class="timeline-segment"
                         :style="getSegmentStyle(segment)"
-                        :title="`${segment.label_name}: ${formatTime(getSegmentStartTime(segment))} - ${formatTime(getSegmentEndTime(segment))}`"
+                        :title="`${getTranslationForLabel(segment.label)}: ${formatTime(getSegmentStartTime(segment))} - ${formatTime(getSegmentEndTime(segment))}`"
                         @click="seekToSegment(segment)"
                       >
-                        <span class="segment-label">{{ segment.label_name }}</span>
+                        <span class="segment-label">{{ getTranslationForLabel(segment.label) }}</span>
                       </div>
                     </div>
                     
@@ -120,16 +134,16 @@
                       class="segment-item"
                     >
                       <div class="segment-info">
-                        <strong>{{ segment.label_name }}</strong>
+                        <strong>{{ getTranslationForLabel(segment.label) }}</strong>
                         <span class="segment-time">
                           {{ formatTime(getSegmentStartTime(segment)) }} - {{ formatTime(getSegmentEndTime(segment)) }}
                         </span>
                       </div>
                       <div class="segment-actions">
-                        <button @click="seekToSegment(segment)" class="btn-secondary">
+                        <button @click="seekToSegment(segment)" class="btn btn-sm btn-secondary">
                           Springen zu
                         </button>
-                        <button @click="deleteSegment(segment.id)" class="btn-danger">
+                        <button @click="deleteSegment(segment.id)" class="btn btn-sm btn-danger">
                           Löschen
                         </button>
                       </div>
@@ -289,6 +303,7 @@
     data() {
       return {
         videos: [],
+        videoLabels: [], // Store labels from API
         selectedVideoId: null,
         currentTime: 0,
         duration: 0,
@@ -299,11 +314,13 @@
         selectedLabelType: '',
         isMarkingLabel: false,
         labelMarkingStart: 0,
-        labelSegments: [], // Array to store created label segments
+        // Remove local labelSegments - use VideoStore instead
         currentLabel: null, // Current selected label object
         isMarking: false, // Tracking if currently marking
         markingStartTime: null, // Start time for marking
-        videoId: null // Current video ID for API calls
+        videoId: null, // Current video ID for API calls
+        errorMessage: null, // Error message to display
+        successMessage: null // Success message to display
       };
     },
     computed: {
@@ -344,11 +361,18 @@
         return (this.currentTime / this.duration) * 100;
       },
       timelineMarkers() {
-        // Generate markers for the timeline based on label segments
-        return this.labelSegments.map(segment => ({
-          time: this.getSegmentStartTime(segment),
-          position: (this.getSegmentStartTime(segment) / this.duration) * 100
+        // Generate markers for the timeline based on video store segments
+        const videoStore = useVideoStore();
+        const allSegments = videoStore.allSegments;
+        return allSegments.map(segment => ({
+          time: segment.startTime || 0,
+          position: ((segment.startTime || 0) / this.duration) * 100
         }));
+      },
+      // Get all segments from VideoStore
+      labelSegments() {
+        const videoStore = useVideoStore();
+        return videoStore.allSegments || [];
       }
     },
     methods: {
@@ -358,18 +382,40 @@
           const response = await axiosInstance.get(r('videos/'));
           console.log('Videos API response:', response.data);
           
+          // Store the labels for later use
+          this.videoLabels = response.data.labels || [];
+          
           // Fix: API returns {videos: [...], labels: [...]} structure
           const videosData = response.data.videos || response.data || [];
           
-          // Ensure IDs are numbers and add missing fields
-          this.videos = videosData.map(v => ({ 
-            ...v, 
-            id: Number(v.id),
-            // Add fallback fields for display
-            center_name: v.center_name || v.original_file_name || 'Unbekannt',
-            processor_name: v.processor_name || v.status || 'Unbekannt',
-            // Use the new streaming endpoint directly
-            video_url: `http://127.0.0.1:8000/api/media/videos/${v.id}/`
+          // Get detailed video info with proper streaming URLs
+          this.videos = await Promise.all(videosData.map(async (v) => {
+            try {
+              // Fetch detailed video info including the correct video_url
+              const detailResponse = await axiosInstance.get(r(`media/videos/${v.id}/`));
+              const videoDetail = detailResponse.data;
+              
+              return { 
+                ...v, 
+                ...videoDetail,
+                id: Number(v.id),
+                // Add fallback fields for display
+                center_name: videoDetail.center_name || v.center_name || v.original_file_name || 'Unbekannt',
+                processor_name: videoDetail.processor_name || v.processor_name || v.status || 'Unbekannt',
+                // Use the video_url from the detailed API response
+                video_url: videoDetail.video_url
+              };
+            } catch (error) {
+              console.warn(`Could not load details for video ${v.id}:`, error);
+              // Fallback to basic info
+              return {
+                ...v,
+                id: Number(v.id),
+                center_name: v.center_name || v.original_file_name || 'Unbekannt',
+                processor_name: v.processor_name || v.status || 'Unbekannt',
+                video_url: `http://127.0.0.1:8000/api/media/videos/${v.id}/`
+              };
+            }
           }));
           
           // Log the structure of the first video to help debug
@@ -397,13 +443,52 @@
           }));
         } catch (error) {
           console.error('Error loading saved examinations:', error);
-          // Don't crash on 404 - just set empty arrays
+          
+          // Check if this is an anonymization error
+          const errorMessage = error.response?.data?.error || error.message || error.toString();
+          if (errorMessage.includes('darf nicht annotiert werden') || 
+              errorMessage.includes('Anonymisierung') ||
+              errorMessage.includes('anonymization')) {
+            this.showErrorMessage(`Video ${this.selectedVideoId} darf nicht annotiert werden, solange die Anonymisierung nicht abgeschlossen ist.`);
+          } else if (error.response?.status !== 404) {
+            // Don't show error for 404 - that's normal for videos without examinations
+            this.showErrorMessage(`Fehler beim Laden der Untersuchungen: ${errorMessage}`);
+          }
+          
+          // Set empty arrays regardless of error type
           this.savedExaminations = [];
           this.examinationMarkers = [];
         }
       },
       onVideoChange() {
+        // Clear any previous error messages when changing videos
+        this.clearErrorMessage();
+        this.clearSuccessMessage();
+        
         if (this.selectedVideoId !== null) {
+          // Initialize VideoStore for the selected video
+          const videoStore = useVideoStore();
+          
+          // Set current video in VideoStore
+          const selectedVideo = this.videos.find(v => v.id === this.selectedVideoId);
+          if (selectedVideo) {
+            videoStore.currentVideo = {
+              id: selectedVideo.id,
+              isAnnotated: false,
+              errorMessage: '',
+              segments: [],
+              videoUrl: selectedVideo.video_url,
+              status: selectedVideo.status || 'available',
+              assignedUser: selectedVideo.assignedUser || null
+            };
+            
+            // Set video metadata
+            videoStore.videoMeta = {
+              duration: selectedVideo.duration || 0,
+              fps: this.fps
+            };
+          }
+          
           this.loadSavedExaminations();
           this.loadVideoSegments();
           this.currentMarker = null;
@@ -419,11 +504,27 @@
         
         const videoStore = useVideoStore();
         try {
-          // Lade alle Segmente für das Video
+          // Load all segments for the video using VideoStore
           await videoStore.fetchAllSegments(this.selectedVideoId.toString());
           console.log('Video segments loaded for video:', this.selectedVideoId);
+          console.log('Loaded segments:', videoStore.allSegments);
+          
+          // Show success message if segments were loaded
+          if (videoStore.allSegments.length > 0) {
+            this.showSuccessMessage(`${videoStore.allSegments.length} Segmente geladen`);
+          }
         } catch (error) {
           console.error('Error loading video segments:', error);
+          
+          // Check if this is an anonymization error
+          const errorMessage = error.message || error.toString();
+          if (errorMessage.includes('darf nicht annotiert werden') || 
+              errorMessage.includes('Anonymisierung') ||
+              errorMessage.includes('anonymization')) {
+            this.showErrorMessage(`Video ${this.selectedVideoId} darf nicht annotiert werden, solange die Anonymisierung nicht abgeschlossen ist.`);
+          } else {
+            this.showErrorMessage(`Fehler beim Laden der Video-Segmente: ${errorMessage}`);
+          }
         }
       },
       onVideoLoaded() {
@@ -539,49 +640,48 @@
       async saveNewLabelSegment(startTime, endTime, labelType) {
         if (!this.selectedVideoId) {
           console.error('Keine Video-ID verfügbar');
-          alert('Fehler: Keine Video-ID verfügbar');
+          this.showErrorMessage('Fehler: Keine Video-ID verfügbar');
           return;
         }
         
         try {
-          // First, get the label ID from the label name
-          const labelId = await this.getLabelIdByName(labelType);
-          if (!labelId) {
-            throw new Error(`Label "${labelType}" nicht gefunden`);
+          const videoStore = useVideoStore();
+          
+          // Use VideoStore to create the segment
+          const result = await videoStore.createSegment(
+            this.selectedVideoId.toString(), 
+            labelType, 
+            startTime, 
+            endTime
+          );
+          
+          if (result) {
+            console.log('Label-Segment erfolgreich erstellt:', result);
+            this.showSuccessMessage(`Label-Segment "${this.getTranslationForLabel(labelType)}" erfolgreich erstellt`);
+            
+            // Refresh segments to show new segment
+            await this.loadVideoSegments();
+          } else {
+            throw new Error('Segment konnte nicht erstellt werden');
           }
-          
-          // Send time-based data - the backend will calculate frame numbers
-          const segmentData = {
-            videoId: this.selectedVideoId,
-            labelId: labelId,
-            startTime: startTime,
-            endTime: endTime,
-          };
-          
-          console.log('Speichere Label-Segment:', segmentData);
-          
-          const response = await axiosInstance.post(r('video-segments/'), segmentData);
-          
-          const createdSegment = response.data;
-          console.log('Label-Segment erfolgreich erstellt:', createdSegment);
-          
-          // Add to local segments array
-          this.labelSegments.push(createdSegment);
-          
-          // Refresh timeline to show new segment
-          this.loadLabelSegments();
-          
-          alert(`Label-Segment erfolgreich erstellt: ${startTime.toFixed(2)}s - ${endTime.toFixed(2)}s`);
           
         } catch (error) {
           console.error('Fehler beim Speichern des Label-Segments:', error);
           const errorMessage = error.response?.data?.details || error.response?.data?.error || error.message;
-          alert(`Fehler beim Speichern: ${errorMessage}`);
+          this.showErrorMessage(`Fehler beim Speichern: ${errorMessage}`);
         }
       },
       async getLabelIdByName(labelName) {
         try {
-          // Get labels from API to find the ID
+          // First try to get from stored labels
+          if (this.videoLabels && this.videoLabels.length > 0) {
+            const label = this.videoLabels.find(l => l.name === labelName);
+            if (label) {
+              return label.id;
+            }
+          }
+          
+          // Fallback: get from API
           const response = await axiosInstance.get(r('videos/'));
           const data = response.data;
           
@@ -593,37 +693,26 @@
             return label.id;
           }
           
-          // If not found in API response, try predefined mapping
-          const labelMapping = {
-            'appendix': 1,
-            'blood': 2, 
-            'diverticule': 3,
-            'grasper': 4,
-            'ileocaecalvalve': 5,
-            'ileum': 6,
-            'low_quality': 7,
-            'nbi': 8,
-            'needle': 9,
-            'outside': 10,
-            'polyp': 11,
-            'snare': 12,
-            'water_jet': 13,
-            'wound': 14
-          };
-          
-          return labelMapping[labelName] || null;
+          console.error(`Label ${labelName} not found in API response`);
+          return null;
         } catch (error) {
           console.error('Error getting label ID:', error);
           return null;
         }
       },
       showSuccessMessage(message) {
-        // Implement toast/notification system
-        alert(`✅ ${message}`); // Replace with proper notification component
+        this.successMessage = message;
+        // Auto-clear after 5 seconds
+        setTimeout(() => {
+          this.clearSuccessMessage();
+        }, 5000);
       },
       showErrorMessage(message) {
-        // Implement toast/notification system  
-        alert(`❌ ${message}`); // Replace with proper notification component
+        this.errorMessage = message;
+        // Auto-clear after 10 seconds
+        setTimeout(() => {
+          this.clearErrorMessage();
+        }, 10000);
       },
       getTranslationForLabel(labelKey) {
         const translations = {
@@ -664,12 +753,12 @@
         return colors[labelKey] || '#FFFFFF';
       },
       getSegmentStartTime(segment) {
-        // Get start time of the segment, fallback to 0
-        return segment.start_time || 0;
+        // Get start time of the segment (VideoStore uses camelCase)
+        return segment.startTime || segment.start_time || 0;
       },
       getSegmentEndTime(segment) {
-        // Get end time of the segment, fallback to duration
-        return segment.end_time || this.duration;
+        // Get end time of the segment (VideoStore uses camelCase)
+        return segment.endTime || segment.end_time || this.duration;
       },
       getSegmentStyle(segment) {
         const start = this.getSegmentStartTime(segment);
@@ -681,7 +770,7 @@
           position: 'absolute',
           left: `${left}%`,
           width: `${width}%`,
-          backgroundColor: this.getLabelColor(segment.label_id),
+          backgroundColor: this.getLabelColor(segment.label || segment.label_id),
           borderRadius: '4px',
           height: '100%',
           cursor: 'pointer',
@@ -696,14 +785,25 @@
       },
       async deleteSegment(segmentId) {
         try {
-          await axiosInstance.delete(r(`video-segments/${segmentId}/`));
-          // Remove from local segments array
-          this.labelSegments = this.labelSegments.filter(seg => seg.id !== segmentId);
+          const videoStore = useVideoStore();
+          
+          // Use VideoStore to delete the segment
+          await videoStore.deleteSegment(segmentId);
+          
           this.showSuccessMessage('Segment erfolgreich gelöscht');
+          
+          // Refresh segments to update display
+          await this.loadVideoSegments();
         } catch (error) {
           console.error('Error deleting segment:', error);
           this.showErrorMessage('Fehler beim Löschen des Segments');
         }
+      },
+      clearErrorMessage() {
+        this.errorMessage = null;
+      },
+      clearSuccessMessage() {
+        this.successMessage = null;
       },
       getCsrfToken() {
         // Get CSRF token from Django cookie
@@ -725,8 +825,17 @@
         return '';
       }
     },
-    mounted() {
-      this.loadVideos();
+    async mounted() {
+      // Initialize VideoStore with video list
+      const videoStore = useVideoStore();
+      
+      // Load videos first
+      await this.loadVideos();
+      
+      // Initialize VideoStore with labels if available
+      if (this.videoLabels && this.videoLabels.length > 0) {
+        videoStore.videoList.labels = this.videoLabels;
+      }
     }
   };
   </script>

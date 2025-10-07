@@ -6,6 +6,7 @@ import { usePatientStore } from '@/stores/patientStore';
 import { useToastStore } from '@/stores/toastStore';
 import { usePdfStore } from '@/stores/pdfStore';
 import { useMediaTypeStore } from '@/stores/mediaTypeStore';
+import OutsideTimelineComponent from '@/components/Anonymizer/OutsideSegmentComponent.vue';
 // @ts-ignore
 import axiosInstance, { r } from '@/api/axiosInstance';
 import { usePollingProtection } from '@/composables/usePollingProtection';
@@ -21,6 +22,7 @@ const mediaStore = useMediaTypeStore();
 // Local state
 const editedAnonymizedText = ref('');
 const examinationDate = ref('');
+const noMoreNames = ref(false);
 const editedPatient = ref({
     patientFirstName: '',
     patientLastName: '',
@@ -28,12 +30,17 @@ const editedPatient = ref({
     patientDob: '',
     casenumber: ''
 });
+// ✅ NEW: Video validation state for segment annotation
+const isValidatingVideo = ref(false);
+const shouldShowOutsideTimeline = ref(false);
+const videoValidationStatus = ref(null);
+const outsideSegmentsValidated = ref(0);
+const totalOutsideSegments = ref(0);
 // Upload-related state
 const originalUrl = ref('');
 const processedUrl = ref('');
 const showOriginal = ref(false);
 const hasSuccessfulUpload = ref(false);
-const noMoreNames = ref(false);
 const original = ref({
     anonymizedText: '',
     examinationDate: '',
@@ -53,7 +60,46 @@ function shallowEqual(a, b) {
         a.casenumber === b.casenumber;
 }
 // --- add below your imports/locals ---
+function fromUiToISO(input) {
+    /**
+     * Konvertiert Browser Date Input (YYYY-MM-DD) zu ISO String
+     */
+    if (!input)
+        return null;
+    const s = input.trim().split(' ')[0];
+    const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+    return iso ? s : null;
+}
+function toGerman(iso) {
+    /**
+     * Konvertiert ISO-Datum (YYYY-MM-DD) zu deutschem Format (DD.MM.YYYY)
+     */
+    if (!iso)
+        return '';
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso.trim());
+    if (!m)
+        return '';
+    const [, y, mo, d] = m;
+    return `${d}.${mo}.${y}`;
+}
+function fromGermanToISO(input) {
+    /**
+     * Konvertiert deutsches Datum (DD.MM.YYYY) zu ISO-Format (YYYY-MM-DD)
+     */
+    if (!input)
+        return null;
+    const s = input.trim();
+    const m = /^(\d{2})\.(\d{2})\.(\d{4})$/.exec(s);
+    if (!m)
+        return null;
+    const [, dd, mm, yyyy] = m;
+    return `${yyyy}-${mm}-${dd}`;
+}
 function normalizeDateToISO(input) {
+    /**
+     * DEPRECATED: Verwende fromUiToISO oder fromGermanToISO
+     * Zur Rückwärtskompatibilität noch vorhanden
+     */
     if (!input)
         return null;
     const s = input.trim().split(' ')[0]; // remove time if present
@@ -67,12 +113,12 @@ function normalizeDateToISO(input) {
     }
     return null;
 }
-function buildSensitiveMetaSnake(dobIso) {
+function buildSensitiveMetaSnake(dobGerman) {
     return {
         patient_first_name: editedPatient.value.patientFirstName || '',
         patient_last_name: editedPatient.value.patientLastName || '',
         patient_gender: editedPatient.value.patientGender || '',
-        patient_dob: dobIso,
+        patient_dob: dobGerman, // 🎯 Jetzt deutsches Format
         casenumber: editedPatient.value.casenumber || '',
     };
 }
@@ -81,11 +127,12 @@ function compareISODate(a, b) {
         return 0;
     return a < b ? -1 : 1;
 }
-// Validations
+// Validations mit neuen Helfern - intern weiterhin ISO für Vergleiche
 const firstNameOk = computed(() => editedPatient.value.patientFirstName.trim().length > 0);
 const lastNameOk = computed(() => editedPatient.value.patientLastName.trim().length > 0);
-const dobISO = computed(() => normalizeDateToISO(editedPatient.value.patientDob));
-const examISO = computed(() => normalizeDateToISO(examinationDate.value));
+// Unterstütze sowohl UI-Input (ISO) als auch deutsche Eingaben
+const dobISO = computed(() => fromUiToISO(editedPatient.value.patientDob) || fromGermanToISO(editedPatient.value.patientDob));
+const examISO = computed(() => fromUiToISO(examinationDate.value) || fromGermanToISO(examinationDate.value));
 // DOB must be present & valid
 const isDobValid = computed(() => !!dobISO.value);
 // Exam optional; if present requires valid DOB and must be >= DOB
@@ -121,11 +168,195 @@ const pdfSrc = computed(() => {
         pdfStore.pdfStreamUrl ||
         pdfStore.buildPdfStreamUrl(currentItem.value.id);
 });
+// ✅ ENHANCED: Dual video streaming for raw vs anonymized comparison
 const videoSrc = computed(() => {
     if (!isVideo.value || !currentItem.value)
         return undefined;
     return mediaStore.getVideoUrl(currentItem.value);
 });
+// ✅ NEW: Raw video URL (original unprocessed video)
+const rawVideoSrc = computed(() => {
+    if (!isVideo.value || !currentItem.value)
+        return undefined;
+    // Build raw video URL with explicit raw parameter
+    const base = import.meta.env.VITE_API_BASE_URL || window.location.origin;
+    return `${base}/api/media/videos/${currentItem.value.id}/?type=raw`;
+});
+// ✅ NEW: Anonymized video URL (processed/anonymized video)
+const anonymizedVideoSrc = computed(() => {
+    if (!isVideo.value || !currentItem.value)
+        return undefined;
+    const base = import.meta.env.VITE_API_BASE_URL || window.location.origin;
+    return `${base}/api/media/videos/${currentItem.value.id}/?type=processed`;
+});
+// ✅ NEW: Refs for dual video elements
+const rawVideoElement = ref(null);
+const anonymizedVideoElement = ref(null);
+// ✅ NEW: Video event handlers for raw video
+const onRawVideoError = (event) => {
+    console.error('Raw video error:', event);
+    // Handle raw video errors gracefully
+};
+const onRawVideoLoadStart = () => {
+    console.log('Raw video load started');
+};
+const onRawVideoCanPlay = () => {
+    console.log('Raw video can play');
+};
+// ✅ NEW: Video event handlers for anonymized video
+const onAnonymizedVideoError = (event) => {
+    console.error('Anonymized video error:', event);
+    // Handle anonymized video errors gracefully
+};
+const onAnonymizedVideoLoadStart = () => {
+    console.log('Anonymized video load started');
+};
+const onAnonymizedVideoCanPlay = () => {
+    console.log('Anonymized video can play');
+};
+// ✅ NEW: Video synchronization functions
+const syncVideoTime = (source, event) => {
+    if (!rawVideoElement.value || !anonymizedVideoElement.value)
+        return;
+    const sourceElement = source === 'raw' ? rawVideoElement.value : anonymizedVideoElement.value;
+    const targetElement = source === 'raw' ? anonymizedVideoElement.value : rawVideoElement.value;
+    // Sync time only if there's a significant difference (avoid infinite loops)
+    const timeDiff = Math.abs(sourceElement.currentTime - targetElement.currentTime);
+    if (timeDiff > 0.5) { // 0.5 second tolerance
+        targetElement.currentTime = sourceElement.currentTime;
+    }
+};
+const syncVideos = () => {
+    if (!rawVideoElement.value || !anonymizedVideoElement.value)
+        return;
+    // Sync to the average time of both videos
+    const avgTime = (rawVideoElement.value.currentTime + anonymizedVideoElement.value.currentTime) / 2;
+    rawVideoElement.value.currentTime = avgTime;
+    anonymizedVideoElement.value.currentTime = avgTime;
+    console.log('Videos synchronized to time:', avgTime);
+};
+const pauseAllVideos = () => {
+    if (rawVideoElement.value)
+        rawVideoElement.value.pause();
+    if (anonymizedVideoElement.value)
+        anonymizedVideoElement.value.pause();
+    console.log('All videos paused');
+};
+// ✅ NEW: Video validation functions for segment annotation
+const validateVideoForSegmentAnnotation = async () => {
+    if (!currentItem.value || !isVideo.value) {
+        toast.warning({ text: 'Kein Video zur Validierung ausgewählt.' });
+        return;
+    }
+    isValidatingVideo.value = true;
+    shouldShowOutsideTimeline.value = false;
+    videoValidationStatus.value = null;
+    try {
+        // Check if video is eligible for segment annotation
+        console.log(`🔍 Validating video ${currentItem.value.id} for segment annotation...`);
+        const response = await axiosInstance.get(r(`media/videos/${currentItem.value.id}/validation/segments/`));
+        const validation = response.data;
+        console.log('Video validation response:', validation);
+        if (validation.eligible) {
+            // Video is eligible - check for outside segments
+            const outsideSegmentsResponse = await axiosInstance.get(r(`video/${currentItem.value.id}/segments/?label=outside`));
+            const outsideSegments = outsideSegmentsResponse.data;
+            totalOutsideSegments.value = outsideSegments.length;
+            outsideSegmentsValidated.value = 0;
+            if (outsideSegments.length > 0) {
+                shouldShowOutsideTimeline.value = true;
+                videoValidationStatus.value = {
+                    class: 'alert-warning',
+                    icon: 'fas fa-exclamation-triangle',
+                    title: 'Segmentvalidierung erforderlich',
+                    message: `${outsideSegments.length} "Outside"-Segmente gefunden, die validiert werden müssen.`,
+                    details: 'Verwenden Sie die Timeline unten, um die Segmente zu überprüfen und zu bestätigen.'
+                };
+            }
+            else {
+                videoValidationStatus.value = {
+                    class: 'alert-success',
+                    icon: 'fas fa-check-circle',
+                    title: 'Video bereit für Annotation',
+                    message: 'Keine "Outside"-Segmente gefunden. Video ist bereit für die Segment-Annotation.',
+                    details: `Video ID: ${currentItem.value.id} - Alle Validierungen bestanden.`
+                };
+            }
+        }
+        else {
+            videoValidationStatus.value = {
+                class: 'alert-danger',
+                icon: 'fas fa-times-circle',
+                title: 'Video nicht bereit',
+                message: validation.reasons?.join(', ') || 'Video ist nicht für Segment-Annotation geeignet.',
+                details: 'Überprüfen Sie die Video-Verarbeitung und Metadaten-Extraktion.'
+            };
+        }
+        toast.info({ text: `Video ${currentItem.value.id} validiert` });
+    }
+    catch (error) {
+        console.error('Error validating video for segment annotation:', error);
+        // Fallback validation using video store if API endpoint doesn't exist
+        try {
+            await videoStore.fetchAllSegments(currentItem.value.id.toString());
+            const outsideSegments = videoStore.allSegments.filter(s => s.label === 'outside');
+            totalOutsideSegments.value = outsideSegments.length;
+            outsideSegmentsValidated.value = 0;
+            if (outsideSegments.length > 0) {
+                shouldShowOutsideTimeline.value = true;
+                videoValidationStatus.value = {
+                    class: 'alert-warning',
+                    icon: 'fas fa-exclamation-triangle',
+                    title: 'Outside-Segmente gefunden (Fallback)',
+                    message: `${outsideSegments.length} "Outside"-Segmente zur Validierung gefunden.`,
+                    details: 'Fallback-Validierung über VideoStore. API-Endpoint nicht verfügbar.'
+                };
+            }
+            else {
+                videoValidationStatus.value = {
+                    class: 'alert-info',
+                    icon: 'fas fa-info-circle',
+                    title: 'Fallback-Validierung',
+                    message: 'Keine "Outside"-Segmente gefunden (über VideoStore).',
+                    details: 'API-Validierung fehlgeschlagen, Fallback verwendet.'
+                };
+            }
+        }
+        catch (fallbackError) {
+            videoValidationStatus.value = {
+                class: 'alert-danger',
+                icon: 'fas fa-times-circle',
+                title: 'Validierung fehlgeschlagen',
+                message: 'Video konnte nicht für Segment-Annotation validiert werden.',
+                details: error?.response?.data?.detail || error?.message || 'Unbekannter Fehler'
+            };
+        }
+    }
+    finally {
+        isValidatingVideo.value = false;
+    }
+};
+const onSegmentValidated = (segmentId) => {
+    outsideSegmentsValidated.value++;
+    console.log(`✅ Segment ${segmentId} validated. Progress: ${outsideSegmentsValidated.value}/${totalOutsideSegments.value}`);
+    // Update validation status
+    if (videoValidationStatus.value) {
+        videoValidationStatus.value.message =
+            `Fortschritt: ${outsideSegmentsValidated.value}/${totalOutsideSegments.value} Outside-Segmente validiert.`;
+    }
+};
+const onOutsideValidationComplete = () => {
+    console.log('🎉 All outside segments validated!');
+    shouldShowOutsideTimeline.value = false;
+    videoValidationStatus.value = {
+        class: 'alert-success',
+        icon: 'fas fa-check-circle',
+        title: 'Validierung abgeschlossen',
+        message: 'Alle Outside-Segmente wurden erfolgreich validiert.',
+        details: `Video ${currentItem.value?.id} ist jetzt bereit für die vollständige Segment-Annotation.`
+    };
+    toast.success({ text: 'Outside-Segment Validierung abgeschlossen!' });
+};
 // Watch
 watch(currentItem, (newItem) => {
     if (newItem) {
@@ -145,15 +376,22 @@ const fetchNextItem = async () => {
 const loadCurrentItemData = (item) => {
     if (!item)
         return;
+    // ✅ NEW: Reset video validation state when loading new item
+    shouldShowOutsideTimeline.value = false;
+    videoValidationStatus.value = null;
+    outsideSegmentsValidated.value = 0;
+    totalOutsideSegments.value = 0;
+    isValidatingVideo.value = false;
     editedAnonymizedText.value = item.anonymizedText || '';
     const rawExam = item.reportMeta?.examinationDate || '';
     const rawDob = item.reportMeta?.patientDob || '';
-    examinationDate.value = normalizeDateToISO(rawExam) || '';
+    // Unterstütze sowohl eingehende ISO- als auch deutsche Daten
+    examinationDate.value = fromUiToISO(rawExam) || fromGermanToISO(rawExam) || '';
     const p = {
         patientFirstName: item.reportMeta?.patientFirstName || '',
         patientLastName: item.reportMeta?.patientLastName || '',
         patientGender: item.reportMeta?.patientGender || '',
-        patientDob: normalizeDateToISO(rawDob) || '',
+        patientDob: fromUiToISO(rawDob) || fromGermanToISO(rawDob) || '',
         casenumber: item.reportMeta?.casenumber || '',
     };
     editedPatient.value = { ...p };
@@ -166,6 +404,11 @@ const loadCurrentItemData = (item) => {
 const dirty = computed(() => editedAnonymizedText.value !== original.value.anonymizedText ||
     examinationDate.value !== original.value.examinationDate ||
     !shallowEqual(editedPatient.value, original.value.patient));
+// ✅ NEW: Can save computed property
+const canSave = computed(() => {
+    // Can save if we have a current item and data is not currently being processed
+    return currentItem.value && !isSaving.value && !isApproving.value;
+});
 // Concurrency guards
 const isSaving = ref(false);
 const isApproving = ref(false);
@@ -177,8 +420,11 @@ const skipItem = async () => {
         await fetchNextItem();
     }
 };
+const navigateToSegmentation = () => {
+    router.push({ name: 'Video-Untersuchung', params: { fileId: currentItem.value?.id.toString() || '' } });
+};
 const approveItem = async () => {
-    if (!currentItem.value || isApproving.value)
+    if (!currentItem.value || !canSave.value || isApproving.value)
         return;
     isApproving.value = true;
     try {
@@ -187,9 +433,9 @@ const approveItem = async () => {
             await axiosInstance.post(r(`anonymization/${currentItem.value.id}/validate/`), {
                 patient_first_name: editedPatient.value.patientFirstName,
                 patient_last_name: editedPatient.value.patientLastName,
-                patient_gender: editedPatient.value.patientGender, // if used by SensitiveMeta
-                patient_dob: dobISO.value, // "YYYY-MM-DD"
-                examination_date: examISO.value || "",
+                patient_gender: editedPatient.value.patientGender,
+                patient_dob: toGerman(dobISO.value || '') || '', // 🎯 SENDE DEUTSCHES FORMAT
+                examination_date: toGerman(examISO.value || '') || '', // 🎯 SENDE DEUTSCHES FORMAT
                 casenumber: editedPatient.value.casenumber || "",
                 anonymized_text: isPdf.value ? editedAnonymizedText.value : undefined,
                 is_verified: true,
@@ -202,7 +448,7 @@ const approveItem = async () => {
             toast.warning({ text: 'Dokument bestätigt, aber Validierung fehlgeschlagen' });
         }
         pollingProtection.validateAnonymizationSafeWithProtection(currentItem.value.id, 'pdf');
-        await fetchNextItem();
+        await navigateToSegmentation();
     }
     catch (error) {
         console.error('Error approving item:', error);
@@ -222,8 +468,8 @@ const saveAnnotation = async () => {
     try {
         const annotationData = {
             processed_image_url: processedUrl.value,
-            patient_data: buildSensitiveMetaSnake(dobISO.value),
-            examinationDate: examISO.value || '',
+            patient_data: buildSensitiveMetaSnake(toGerman(dobISO.value || '') || ''), // 🎯 DEUTSCHES FORMAT
+            examinationDate: toGerman(examISO.value || '') || '', // 🎯 DEUTSCHES FORMAT
             anonymized_text: editedAnonymizedText.value,
         };
         if (currentItem.value && isVideo.value) {
@@ -275,6 +521,10 @@ const navigateToCorrection = async () => {
         }
         if (saveFirst) {
             // User wants to save first
+            if (!canSave.value) {
+                toast.error({ text: 'Bitte korrigieren Sie die Validierungsfehler vor dem Speichern.' });
+                return;
+            }
             try {
                 await approveItem();
                 // approveItem will navigate to next item, so we need to return
@@ -311,23 +561,6 @@ const navigateToCorrection = async () => {
         text: `${mediaType}-Korrektur geöffnet. ${correctionOptions}`
     });
 };
-// Video event handlers
-const onVideoError = (event) => {
-    console.error('Video loading error:', event);
-    const video = event.target;
-    console.error('Video error details:', {
-        error: video.error,
-        networkState: video.networkState,
-        readyState: video.readyState,
-        currentSrc: video.currentSrc
-    });
-};
-const onVideoLoadStart = () => {
-    console.log('Video loading started for:', videoSrc.value);
-};
-const onVideoCanPlay = () => {
-    console.log('Video can play, loaded successfully');
-};
 // Lifecycle
 onMounted(async () => {
     if (!anonymizationStore.current) { // nur wenn wirklich leer
@@ -347,6 +580,17 @@ let __VLS_directives;
 /** @type {__VLS_StyleScopedClasses['pdf-viewer-container']} */ ;
 /** @type {__VLS_StyleScopedClasses['media-viewer-container']} */ ;
 /** @type {__VLS_StyleScopedClasses['media-viewer-container']} */ ;
+/** @type {__VLS_StyleScopedClasses['dual-video-container']} */ ;
+/** @type {__VLS_StyleScopedClasses['video-section']} */ ;
+/** @type {__VLS_StyleScopedClasses['dual-video-container']} */ ;
+/** @type {__VLS_StyleScopedClasses['video-section']} */ ;
+/** @type {__VLS_StyleScopedClasses['outside-timeline-container']} */ ;
+/** @type {__VLS_StyleScopedClasses['outside-timeline-container']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert']} */ ;
+/** @type {__VLS_StyleScopedClasses['video-controls']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
 // CSS variable injection 
 // CSS variable injection end 
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -485,19 +729,8 @@ if (__VLS_ctx.currentItem) {
         ...{ class: "card-body" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.h5, __VLS_intrinsicElements.h5)({
-        ...{ class: "card-title d-flex align-items-center" },
+        ...{ class: "card-title" },
     });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-eye me-2 text-info" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "alert alert-success mb-3" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-info-circle me-2" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({});
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "mb-3" },
     });
@@ -506,11 +739,15 @@ if (__VLS_ctx.currentItem) {
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.input, __VLS_intrinsicElements.input)({
         type: "text",
-        ...{ class: "form-control bg-light" },
+        ...{ class: "form-control" },
         value: (__VLS_ctx.editedPatient.patientFirstName),
-        readonly: true,
-        disabled: true,
+        ...{ class: ({ 'is-invalid': !__VLS_ctx.firstNameOk }) },
     });
+    if (!__VLS_ctx.firstNameOk) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "invalid-feedback" },
+        });
+    }
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "mb-3" },
     });
@@ -519,10 +756,33 @@ if (__VLS_ctx.currentItem) {
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.input, __VLS_intrinsicElements.input)({
         type: "text",
-        ...{ class: "form-control bg-light" },
+        ...{ class: "form-control" },
         value: (__VLS_ctx.editedPatient.patientLastName),
-        readonly: true,
-        disabled: true,
+        ...{ class: ({ 'is-invalid': !__VLS_ctx.lastNameOk }) },
+    });
+    if (!__VLS_ctx.lastNameOk) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "invalid-feedback" },
+        });
+    }
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "mb-3" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+        ...{ class: "form-label" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
+        ...{ class: "form-select" },
+        value: (__VLS_ctx.editedPatient.patientGender),
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+        value: "male",
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+        value: "female",
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+        value: "other",
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "mb-3" },
@@ -531,12 +791,16 @@ if (__VLS_ctx.currentItem) {
         ...{ class: "form-label" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.input, __VLS_intrinsicElements.input)({
-        type: "text",
-        ...{ class: "form-control bg-light" },
-        value: (__VLS_ctx.editedPatient.patientGender === 'male' ? 'Männlich' : __VLS_ctx.editedPatient.patientGender === 'female' ? 'Weiblich' : __VLS_ctx.editedPatient.patientGender === 'other' ? 'Divers' : __VLS_ctx.editedPatient.patientGender),
-        readonly: true,
-        disabled: true,
+        type: "date",
+        ...{ class: "form-control" },
+        ...{ class: ({ 'is-invalid': !__VLS_ctx.isDobValid }) },
     });
+    (__VLS_ctx.editedPatient.patientDob);
+    if (!__VLS_ctx.isDobValid) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "invalid-feedback" },
+        });
+    }
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "mb-3" },
     });
@@ -545,23 +809,8 @@ if (__VLS_ctx.currentItem) {
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.input, __VLS_intrinsicElements.input)({
         type: "text",
-        ...{ class: "form-control bg-light" },
-        value: (__VLS_ctx.editedPatient.patientDob),
-        readonly: true,
-        disabled: true,
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "mb-3" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
-        ...{ class: "form-label" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.input, __VLS_intrinsicElements.input)({
-        type: "text",
-        ...{ class: "form-control bg-light" },
+        ...{ class: "form-control" },
         value: (__VLS_ctx.editedPatient.casenumber),
-        readonly: true,
-        disabled: true,
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "mb-3" },
@@ -570,12 +819,16 @@ if (__VLS_ctx.currentItem) {
         ...{ class: "form-label" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.input, __VLS_intrinsicElements.input)({
-        type: "text",
-        ...{ class: "form-control bg-light" },
-        value: (__VLS_ctx.examinationDate),
-        readonly: true,
-        disabled: true,
+        type: "date",
+        ...{ class: "form-control" },
+        ...{ class: ({ 'is-invalid': !__VLS_ctx.isExaminationDateValid }) },
     });
+    (__VLS_ctx.examinationDate);
+    if (!__VLS_ctx.isExaminationDateValid) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "invalid-feedback" },
+        });
+    }
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "mb-3" },
     });
@@ -587,6 +840,45 @@ if (__VLS_ctx.currentItem) {
         rows: "6",
         value: (__VLS_ctx.editedAnonymizedText),
     });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "card bg-light" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "card-body" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.h5, __VLS_intrinsicElements.h5)({
+        ...{ class: "card-title" },
+    });
+    if (__VLS_ctx.processedUrl) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "mt-3" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.img, __VLS_intrinsicElements.img)({
+            src: (__VLS_ctx.showOriginal ? __VLS_ctx.originalUrl : __VLS_ctx.processedUrl),
+            ...{ class: "img-fluid" },
+            alt: "Uploaded Image",
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+            ...{ onClick: (__VLS_ctx.toggleImage) },
+            ...{ class: "btn btn-info btn-sm mt-2" },
+        });
+        (__VLS_ctx.showOriginal ? 'Bearbeitetes Bild anzeigen' : 'Original anzeigen');
+    }
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "mt-3" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+        ...{ onClick: (__VLS_ctx.saveAnnotation) },
+        ...{ class: "btn btn-primary" },
+    });
+    if (__VLS_ctx.isSaving) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+            ...{ class: "spinner-border spinner-border-sm me-2" },
+            role: "status",
+            'aria-hidden': "true",
+        });
+    }
+    (__VLS_ctx.isSaving ? 'Speichern...' : 'Annotation zwischenspeichern');
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "col-md-7" },
     });
@@ -613,7 +905,8 @@ if (__VLS_ctx.currentItem) {
     }
     else if (__VLS_ctx.isVideo) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
-        (__VLS_ctx.videoSrc);
+        (__VLS_ctx.rawVideoSrc || 'N/A');
+        (__VLS_ctx.anonymizedVideoSrc || 'N/A');
     }
     else {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
@@ -635,15 +928,173 @@ if (__VLS_ctx.currentItem) {
         });
     }
     else if (__VLS_ctx.isVideo) {
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.video, __VLS_intrinsicElements.video)({
-            ...{ onError: (__VLS_ctx.onVideoError) },
-            ...{ onLoadstart: (__VLS_ctx.onVideoLoadStart) },
-            ...{ onCanplay: (__VLS_ctx.onVideoCanPlay) },
-            controls: true,
-            width: "100%",
-            height: "600px",
-            src: (__VLS_ctx.videoSrc),
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "dual-video-container" },
         });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "row" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "col-md-6" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "video-section raw-video" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({
+            ...{ class: "text-center mb-3 text-danger" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: "fas fa-eye me-1" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.video, __VLS_intrinsicElements.video)({
+            ...{ onError: (__VLS_ctx.onRawVideoError) },
+            ...{ onLoadstart: (__VLS_ctx.onRawVideoLoadStart) },
+            ...{ onCanplay: (__VLS_ctx.onRawVideoCanPlay) },
+            ...{ onTimeupdate: ((event) => __VLS_ctx.syncVideoTime('raw', event)) },
+            ref: "rawVideoElement",
+            src: (__VLS_ctx.rawVideoSrc),
+            controls: true,
+            ...{ style: {} },
+            preload: "metadata",
+        });
+        /** @type {typeof __VLS_ctx.rawVideoElement} */ ;
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "mt-2 text-center" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+            ...{ class: "text-muted" },
+        });
+        (__VLS_ctx.rawVideoSrc || 'Nicht verfügbar');
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "col-md-6" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "video-section anonymized-video" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({
+            ...{ class: "text-center mb-3 text-success" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: "fas fa-shield-alt me-1" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.video, __VLS_intrinsicElements.video)({
+            ...{ onError: (__VLS_ctx.onAnonymizedVideoError) },
+            ...{ onLoadstart: (__VLS_ctx.onAnonymizedVideoLoadStart) },
+            ...{ onCanplay: (__VLS_ctx.onAnonymizedVideoCanPlay) },
+            ...{ onTimeupdate: ((event) => __VLS_ctx.syncVideoTime('anonymized', event)) },
+            ref: "anonymizedVideoElement",
+            src: (__VLS_ctx.anonymizedVideoSrc),
+            controls: true,
+            ...{ style: {} },
+            preload: "metadata",
+        });
+        /** @type {typeof __VLS_ctx.anonymizedVideoElement} */ ;
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "mt-2 text-center" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+            ...{ class: "text-muted" },
+        });
+        (__VLS_ctx.anonymizedVideoSrc || 'Nicht verfügbar');
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "video-controls mt-3 text-center" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+            ...{ onClick: (__VLS_ctx.syncVideos) },
+            ...{ class: "btn btn-outline-primary btn-sm me-2" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: "fas fa-sync me-1" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+            ...{ onClick: (__VLS_ctx.pauseAllVideos) },
+            ...{ class: "btn btn-outline-secondary btn-sm" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: "fas fa-pause me-1" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+            ...{ onClick: (__VLS_ctx.validateVideoForSegmentAnnotation) },
+            ...{ class: "btn btn-outline-info btn-sm ms-2" },
+            disabled: (__VLS_ctx.isValidatingVideo),
+        });
+        if (__VLS_ctx.isValidatingVideo) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                ...{ class: "spinner-border spinner-border-sm me-1" },
+                role: "status",
+            });
+        }
+        else {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                ...{ class: "fas fa-check me-1" },
+            });
+        }
+        if (__VLS_ctx.shouldShowOutsideTimeline && __VLS_ctx.currentItem) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: "outside-timeline-container mt-4" },
+            });
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: "card border-warning" },
+            });
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: "card-header bg-warning bg-opacity-10" },
+            });
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({
+                ...{ class: "mb-0 text-warning" },
+            });
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                ...{ class: "fas fa-exclamation-triangle me-2" },
+            });
+            (__VLS_ctx.currentItem.id);
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+                ...{ class: "text-muted" },
+            });
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: "card-body" },
+            });
+            /** @type {[typeof OutsideTimelineComponent, ]} */ ;
+            // @ts-ignore
+            const __VLS_4 = __VLS_asFunctionalComponent(OutsideTimelineComponent, new OutsideTimelineComponent({
+                ...{ 'onSegmentValidated': {} },
+                ...{ 'onValidationComplete': {} },
+                videoId: (__VLS_ctx.currentItem.id),
+            }));
+            const __VLS_5 = __VLS_4({
+                ...{ 'onSegmentValidated': {} },
+                ...{ 'onValidationComplete': {} },
+                videoId: (__VLS_ctx.currentItem.id),
+            }, ...__VLS_functionalComponentArgsRest(__VLS_4));
+            let __VLS_7;
+            let __VLS_8;
+            let __VLS_9;
+            const __VLS_10 = {
+                onSegmentValidated: (__VLS_ctx.onSegmentValidated)
+            };
+            const __VLS_11 = {
+                onValidationComplete: (__VLS_ctx.onOutsideValidationComplete)
+            };
+            var __VLS_6;
+        }
+        if (__VLS_ctx.videoValidationStatus) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: "alert mt-3" },
+                ...{ class: (__VLS_ctx.videoValidationStatus.class) },
+            });
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                ...{ class: (__VLS_ctx.videoValidationStatus.icon) },
+                ...{ class: "me-2" },
+            });
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+            (__VLS_ctx.videoValidationStatus.title);
+            (__VLS_ctx.videoValidationStatus.message);
+            if (__VLS_ctx.videoValidationStatus.details) {
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                    ...{ class: "mt-2" },
+                });
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({});
+                (__VLS_ctx.videoValidationStatus.details);
+            }
+        }
     }
     else {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -698,16 +1149,9 @@ if (__VLS_ctx.currentItem) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
             ...{ onClick: (__VLS_ctx.navigateToCorrection) },
             ...{ class: "btn btn-warning position-relative" },
-            disabled: (__VLS_ctx.isApproving || !__VLS_ctx.noMoreNames),
+            disabled: (__VLS_ctx.isApproving),
             title: (__VLS_ctx.isVideo ? 'Video-Korrektur: Maskierung, Frame-Entfernung, etc.' : 'PDF-Korrektur: Text-Annotation anpassen'),
         });
-        if (!__VLS_ctx.noMoreNames) {
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: "position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" },
-                ...{ style: {} },
-                title: "Bitte bestätigen Sie, dass keine weiteren Namen im Video oder PDF vorhanden sind.",
-            });
-        }
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
             ...{ class: "fas fa-edit me-1" },
         });
@@ -798,45 +1242,51 @@ if (__VLS_ctx.currentItem) {
 /** @type {__VLS_StyleScopedClasses['mb-4']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-body']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-title']} */ ;
-/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
-/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-eye']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-control']} */ ;
+/** @type {__VLS_StyleScopedClasses['is-invalid']} */ ;
+/** @type {__VLS_StyleScopedClasses['invalid-feedback']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-control']} */ ;
+/** @type {__VLS_StyleScopedClasses['is-invalid']} */ ;
+/** @type {__VLS_StyleScopedClasses['invalid-feedback']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-select']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-control']} */ ;
+/** @type {__VLS_StyleScopedClasses['is-invalid']} */ ;
+/** @type {__VLS_StyleScopedClasses['invalid-feedback']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-control']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-control']} */ ;
+/** @type {__VLS_StyleScopedClasses['is-invalid']} */ ;
+/** @type {__VLS_StyleScopedClasses['invalid-feedback']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-control']} */ ;
+/** @type {__VLS_StyleScopedClasses['card']} */ ;
+/** @type {__VLS_StyleScopedClasses['bg-light']} */ ;
+/** @type {__VLS_StyleScopedClasses['card-body']} */ ;
+/** @type {__VLS_StyleScopedClasses['card-title']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['img-fluid']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-info']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-primary']} */ ;
+/** @type {__VLS_StyleScopedClasses['spinner-border']} */ ;
+/** @type {__VLS_StyleScopedClasses['spinner-border-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-2']} */ ;
-/** @type {__VLS_StyleScopedClasses['text-info']} */ ;
-/** @type {__VLS_StyleScopedClasses['alert']} */ ;
-/** @type {__VLS_StyleScopedClasses['alert-success']} */ ;
-/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-info-circle']} */ ;
-/** @type {__VLS_StyleScopedClasses['me-2']} */ ;
-/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
-/** @type {__VLS_StyleScopedClasses['form-label']} */ ;
-/** @type {__VLS_StyleScopedClasses['form-control']} */ ;
-/** @type {__VLS_StyleScopedClasses['bg-light']} */ ;
-/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
-/** @type {__VLS_StyleScopedClasses['form-label']} */ ;
-/** @type {__VLS_StyleScopedClasses['form-control']} */ ;
-/** @type {__VLS_StyleScopedClasses['bg-light']} */ ;
-/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
-/** @type {__VLS_StyleScopedClasses['form-label']} */ ;
-/** @type {__VLS_StyleScopedClasses['form-control']} */ ;
-/** @type {__VLS_StyleScopedClasses['bg-light']} */ ;
-/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
-/** @type {__VLS_StyleScopedClasses['form-label']} */ ;
-/** @type {__VLS_StyleScopedClasses['form-control']} */ ;
-/** @type {__VLS_StyleScopedClasses['bg-light']} */ ;
-/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
-/** @type {__VLS_StyleScopedClasses['form-label']} */ ;
-/** @type {__VLS_StyleScopedClasses['form-control']} */ ;
-/** @type {__VLS_StyleScopedClasses['bg-light']} */ ;
-/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
-/** @type {__VLS_StyleScopedClasses['form-label']} */ ;
-/** @type {__VLS_StyleScopedClasses['form-control']} */ ;
-/** @type {__VLS_StyleScopedClasses['bg-light']} */ ;
-/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
-/** @type {__VLS_StyleScopedClasses['form-label']} */ ;
-/** @type {__VLS_StyleScopedClasses['form-control']} */ ;
 /** @type {__VLS_StyleScopedClasses['col-md-7']} */ ;
 /** @type {__VLS_StyleScopedClasses['card']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-header']} */ ;
@@ -851,6 +1301,76 @@ if (__VLS_ctx.currentItem) {
 /** @type {__VLS_StyleScopedClasses['me-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-body']} */ ;
 /** @type {__VLS_StyleScopedClasses['media-viewer-container']} */ ;
+/** @type {__VLS_StyleScopedClasses['dual-video-container']} */ ;
+/** @type {__VLS_StyleScopedClasses['row']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-md-6']} */ ;
+/** @type {__VLS_StyleScopedClasses['video-section']} */ ;
+/** @type {__VLS_StyleScopedClasses['raw-video']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-danger']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-eye']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-md-6']} */ ;
+/** @type {__VLS_StyleScopedClasses['video-section']} */ ;
+/** @type {__VLS_StyleScopedClasses['anonymized-video']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-success']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-shield-alt']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['video-controls']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-primary']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-sync']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-secondary']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-pause']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-info']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['ms-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['spinner-border']} */ ;
+/** @type {__VLS_StyleScopedClasses['spinner-border-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-check']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['outside-timeline-container']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-4']} */ ;
+/** @type {__VLS_StyleScopedClasses['card']} */ ;
+/** @type {__VLS_StyleScopedClasses['border-warning']} */ ;
+/** @type {__VLS_StyleScopedClasses['card-header']} */ ;
+/** @type {__VLS_StyleScopedClasses['bg-warning']} */ ;
+/** @type {__VLS_StyleScopedClasses['bg-opacity-10']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-warning']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-exclamation-triangle']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['card-body']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert-warning']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
@@ -865,13 +1385,6 @@ if (__VLS_ctx.currentItem) {
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-warning']} */ ;
 /** @type {__VLS_StyleScopedClasses['position-relative']} */ ;
-/** @type {__VLS_StyleScopedClasses['position-absolute']} */ ;
-/** @type {__VLS_StyleScopedClasses['top-0']} */ ;
-/** @type {__VLS_StyleScopedClasses['start-100']} */ ;
-/** @type {__VLS_StyleScopedClasses['translate-middle']} */ ;
-/** @type {__VLS_StyleScopedClasses['badge']} */ ;
-/** @type {__VLS_StyleScopedClasses['rounded-pill']} */ ;
-/** @type {__VLS_StyleScopedClasses['bg-danger']} */ ;
 /** @type {__VLS_StyleScopedClasses['fas']} */ ;
 /** @type {__VLS_StyleScopedClasses['fa-edit']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
@@ -894,26 +1407,52 @@ var __VLS_dollars;
 const __VLS_self = (await import('vue')).defineComponent({
     setup() {
         return {
+            OutsideTimelineComponent: OutsideTimelineComponent,
             anonymizationStore: anonymizationStore,
             mediaStore: mediaStore,
             editedAnonymizedText: editedAnonymizedText,
             examinationDate: examinationDate,
-            editedPatient: editedPatient,
             noMoreNames: noMoreNames,
+            editedPatient: editedPatient,
+            isValidatingVideo: isValidatingVideo,
+            shouldShowOutsideTimeline: shouldShowOutsideTimeline,
+            videoValidationStatus: videoValidationStatus,
+            originalUrl: originalUrl,
+            processedUrl: processedUrl,
+            showOriginal: showOriginal,
+            firstNameOk: firstNameOk,
+            lastNameOk: lastNameOk,
+            isDobValid: isDobValid,
+            isExaminationDateValid: isExaminationDateValid,
             currentItem: currentItem,
             isPdf: isPdf,
             isVideo: isVideo,
             pdfSrc: pdfSrc,
-            videoSrc: videoSrc,
+            rawVideoSrc: rawVideoSrc,
+            anonymizedVideoSrc: anonymizedVideoSrc,
+            rawVideoElement: rawVideoElement,
+            anonymizedVideoElement: anonymizedVideoElement,
+            onRawVideoError: onRawVideoError,
+            onRawVideoLoadStart: onRawVideoLoadStart,
+            onRawVideoCanPlay: onRawVideoCanPlay,
+            onAnonymizedVideoError: onAnonymizedVideoError,
+            onAnonymizedVideoLoadStart: onAnonymizedVideoLoadStart,
+            onAnonymizedVideoCanPlay: onAnonymizedVideoCanPlay,
+            syncVideoTime: syncVideoTime,
+            syncVideos: syncVideos,
+            pauseAllVideos: pauseAllVideos,
+            validateVideoForSegmentAnnotation: validateVideoForSegmentAnnotation,
+            onSegmentValidated: onSegmentValidated,
+            onOutsideValidationComplete: onOutsideValidationComplete,
             dirty: dirty,
+            isSaving: isSaving,
             isApproving: isApproving,
+            toggleImage: toggleImage,
             skipItem: skipItem,
             approveItem: approveItem,
+            saveAnnotation: saveAnnotation,
             rejectItem: rejectItem,
             navigateToCorrection: navigateToCorrection,
-            onVideoError: onVideoError,
-            onVideoLoadStart: onVideoLoadStart,
-            onVideoCanPlay: onVideoCanPlay,
         };
     },
 });
