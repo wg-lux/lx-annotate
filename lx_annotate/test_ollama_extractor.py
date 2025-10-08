@@ -13,7 +13,7 @@ from pathlib import Path
 # Füge den Pfad zum Modul hinzu
 sys.path.append(str(Path(__file__).parent))
 
-from ollama_llm_meta_extraction_optimized import create_ollama_extractor, PatientMetadata
+from lx_anonymizer.ollama_llm_meta_extraction_optimized import create_ollama_extractor, PatientMetadata
 
 # Konfiguriere detailliertes Logging
 logging.basicConfig(
