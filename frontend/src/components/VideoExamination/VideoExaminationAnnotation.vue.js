@@ -106,27 +106,16 @@ const showExaminationForm = computed(() => {
 const videoStreamSrc = computed(() => {
     if (!selectedVideoId.value)
         return undefined;
-    // Try to get URL from MediaStore if available
-    const currentVideo = videos.value.find(v => v.id === selectedVideoId.value);
-    if (currentVideo) {
-        mediaStore.setCurrentItem(currentVideo);
-        const streamUrl = mediaStore.getVideoUrl(currentVideo);
-        if (streamUrl) {
-            console.log('🎬 Using MediaStore video URL:', streamUrl);
-            return streamUrl;
-        }
-    }
-    // Fallback to videoDetail URL if available
-    if (videoDetail.value?.video_url) {
-        console.log('🎬 Using videoDetail URL:', videoDetail.value.video_url);
-        return videoDetail.value.video_url;
-    }
-    // Final fallback to legacy videoStreamUrl from store
+    // ✅ PRIMARY: Use videoStore.videoStreamUrl which includes ?type=processed
     if (videoStreamUrl.value) {
-        console.log('🎬 Using legacy store URL:', videoStreamUrl.value);
+        console.log('🎬 Using videoStore URL (processed):', videoStreamUrl.value);
         return videoStreamUrl.value;
     }
-    return undefined;
+    // ✅ FALLBACK: Build URL directly if store URL not available
+    const base = import.meta.env.VITE_API_BASE_URL || window.location.origin;
+    const fallbackUrl = `${base}/api/media/videos/${selectedVideoId.value}/?type=processed`;
+    console.log('🎬 Using fallback URL (processed):', fallbackUrl);
+    return fallbackUrl;
 });
 const hasVideos = computed(() => {
     return videos.value && videos.value.length > 0;
@@ -566,6 +555,37 @@ const deleteExamination = async (examinationId) => {
         await guarded(Promise.reject(error));
     }
 };
+// ✅ NEW: Validate all video segments (complete video review)
+const submitVideoSegments = async () => {
+    if (!selectedVideoId.value) {
+        showErrorMessage('Kein Video ausgewählt');
+        return;
+    }
+    const segmentCount = timelineSegmentsForSelectedVideo.value.length;
+    if (segmentCount === 0) {
+        showErrorMessage('Keine Segmente zum Validieren vorhanden');
+        return;
+    }
+    // Confirm with user before validation
+    if (!confirm(`Möchten Sie alle ${segmentCount} Segmente von Video ${selectedVideoId.value} als validiert markieren?`)) {
+        return;
+    }
+    try {
+        console.log(`🔍 Validating all segments for video ${selectedVideoId.value}...`);
+        const response = await axiosInstance.post(r(`videos/${selectedVideoId.value}/segments/validate-complete/`), {
+            notes: `Vollständige Video-Review abgeschlossen am ${new Date().toLocaleString('de-DE')}`
+        });
+        console.log('✅ Validation response:', response.data);
+        showSuccessMessage(`Erfolgreich! ${response.data.updated_count} von ${response.data.total_segments} Segmenten validiert.`);
+        // Reload segments to reflect validation status
+        await loadVideoSegments();
+    }
+    catch (error) {
+        console.error('❌ Error validating video segments:', error);
+        const errorMsg = error?.response?.data?.error || error?.message || 'Unbekannter Fehler';
+        showErrorMessage(`Validierung fehlgeschlagen: ${errorMsg}`);
+    }
+};
 // Video event handlers from AnonymizationValidationComponent
 const onVideoError = (event) => {
     console.error('Video loading error:', event);
@@ -968,6 +988,29 @@ if (__VLS_ctx.selectedVideoId) {
         }
     }
 }
+if (__VLS_ctx.selectedVideoId && __VLS_ctx.timelineSegmentsForSelectedVideo.length > 0) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "mt-3" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+        ...{ onClick: (__VLS_ctx.submitVideoSegments) },
+        ...{ class: "btn btn-success btn-lg w-100 d-flex align-items-center justify-content-center gap-2" },
+        ...{ style: {} },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+        ...{ class: "material-icons" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+    (__VLS_ctx.timelineSegmentsForSelectedVideo.length);
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
+        ...{ class: "text-muted text-center mt-2 mb-0" },
+        ...{ style: {} },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+        ...{ class: "material-icons" },
+        ...{ style: {} },
+    });
+}
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "col-lg-4" },
 });
@@ -1172,6 +1215,21 @@ if (__VLS_ctx.savedExaminations.length > 0) {
 /** @type {__VLS_StyleScopedClasses['material-icons']} */ ;
 /** @type {__VLS_StyleScopedClasses['align-middle']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-success']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-lg']} */ ;
+/** @type {__VLS_StyleScopedClasses['w-100']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['justify-content-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['gap-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['material-icons']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['material-icons']} */ ;
 /** @type {__VLS_StyleScopedClasses['col-lg-4']} */ ;
 /** @type {__VLS_StyleScopedClasses['card']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-header']} */ ;
@@ -1263,6 +1321,7 @@ const __VLS_self = (await import('vue')).defineComponent({
             onExaminationSaved: onExaminationSaved,
             jumpToExamination: jumpToExamination,
             deleteExamination: deleteExamination,
+            submitVideoSegments: submitVideoSegments,
             onVideoError: onVideoError,
             onVideoLoadStart: onVideoLoadStart,
             onVideoCanPlay: onVideoCanPlay,

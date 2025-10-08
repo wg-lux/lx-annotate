@@ -60,6 +60,7 @@
                 <th>Typ</th>
                 <th>Anonymisierung</th>
                 <th>Annotation</th>
+                <th>Unverarbeitete Daten vorhanden</th>
                 <th>Erstellt</th>
                 <th>Aktionen</th>
               </tr>
@@ -108,6 +109,18 @@
                     class="badge"
                   >
                     {{ getStatusText(file.annotationStatus) }}
+                  </span>
+                </td>
+
+                <!-- Raw File Available -->
+                <td>
+                  <span v-if="hasOriginalFile(file)" class="text-success">
+                    <i class="fas fa-check-circle me-1"></i>
+                    Ja
+                  </span>
+                  <span v-else class="text-danger">
+                    <i class="fas fa-times-circle me-1"></i>
+                    Nein
                   </span>
                 </td>
 
@@ -598,7 +611,7 @@ const hasOriginalFile = (file: FileItem): boolean => {
   // Check if the file has the necessary properties to indicate original file exists
   if (file.mediaType === 'video') {
     // For videos, check if rawFile exists and has a valid path
-    return !!(file.rawFile && file.rawFile.trim() !== '');
+    return videoStore.hasRawVideoFile?.valueOf() ?? false;
   } else if (file.mediaType === 'pdf') {
     // For PDFs, check if original_file exists and has a valid path
     return !!(file.rawFile && file.rawFile.trim() !== '');

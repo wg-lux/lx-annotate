@@ -355,6 +355,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
         video_id: number | undefined;
         label_id: number | undefined;
     }[]>;
+    hasRawVideoFile: Readonly<Ref<boolean | null, boolean | null>>;
     buildVideoStreamUrl: (id: string | number) => string;
     clearVideo: () => void;
     setVideo: (video: VideoAnnotation) => void;
@@ -382,6 +383,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
     assignUserToVideo: (user: string) => Promise<void>;
     updateSensitiveMeta: (payload: any) => Promise<boolean>;
     clearVideoMeta: () => void;
+    hasRawVideoFileFn: () => void;
     startDraft: (label: string, startTime: number) => void;
     updateDraftEnd: (endTime: number) => void;
     commitDraft: () => Promise<Segment | null>;
@@ -390,7 +392,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
     formatTime: (seconds: number) => string;
     getSegmentOptions: () => SegmentOption[];
     clearSegments: () => void;
-}, "videoUrl" | "errorMessage" | "videos" | "currentVideo" | "segmentsByLabel" | "videoList" | "videoMeta" | "draftSegment">, Pick<{
+}, "videoUrl" | "errorMessage" | "videos" | "currentVideo" | "segmentsByLabel" | "videoList" | "videoMeta" | "draftSegment" | "hasRawVideoFile">, Pick<{
     currentVideo: Readonly<Ref<{
         readonly id: string | number;
         readonly isAnnotated: boolean;
@@ -579,6 +581,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
         video_id: number | undefined;
         label_id: number | undefined;
     }[]>;
+    hasRawVideoFile: Readonly<Ref<boolean | null, boolean | null>>;
     buildVideoStreamUrl: (id: string | number) => string;
     clearVideo: () => void;
     setVideo: (video: VideoAnnotation) => void;
@@ -606,6 +609,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
     assignUserToVideo: (user: string) => Promise<void>;
     updateSensitiveMeta: (payload: any) => Promise<boolean>;
     clearVideoMeta: () => void;
+    hasRawVideoFileFn: () => void;
     startDraft: (label: string, startTime: number) => void;
     updateDraftEnd: (endTime: number) => void;
     commitDraft: () => Promise<Segment | null>;
@@ -803,6 +807,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
         video_id: number | undefined;
         label_id: number | undefined;
     }[]>;
+    hasRawVideoFile: Readonly<Ref<boolean | null, boolean | null>>;
     buildVideoStreamUrl: (id: string | number) => string;
     clearVideo: () => void;
     setVideo: (video: VideoAnnotation) => void;
@@ -830,6 +835,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
     assignUserToVideo: (user: string) => Promise<void>;
     updateSensitiveMeta: (payload: any) => Promise<boolean>;
     clearVideoMeta: () => void;
+    hasRawVideoFileFn: () => void;
     startDraft: (label: string, startTime: number) => void;
     updateDraftEnd: (endTime: number) => void;
     commitDraft: () => Promise<Segment | null>;
@@ -838,5 +844,5 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
     formatTime: (seconds: number) => string;
     getSegmentOptions: () => SegmentOption[];
     clearSegments: () => void;
-}, "buildVideoStreamUrl" | "clearVideo" | "setVideo" | "loadVideo" | "fetchVideoUrl" | "fetchAllSegments" | "fetchAllVideos" | "fetchVideoMeta" | "fetchVideoSegments" | "fetchSegmentsByLabel" | "createSegment" | "patchSegmentLocally" | "updateSegment" | "deleteSegment" | "removeSegment" | "saveAnnotations" | "uploadRevert" | "uploadProcess" | "getSegmentStyle" | "getColorForLabel" | "getTranslationForLabel" | "jumpToSegment" | "setActiveSegment" | "updateVideoStatus" | "assignUserToVideo" | "updateSensitiveMeta" | "clearVideoMeta" | "startDraft" | "updateDraftEnd" | "commitDraft" | "cancelDraft" | "createFiveSecondSegment" | "formatTime" | "getSegmentOptions" | "clearSegments">>;
+}, "buildVideoStreamUrl" | "clearVideo" | "setVideo" | "loadVideo" | "fetchVideoUrl" | "fetchAllSegments" | "fetchAllVideos" | "fetchVideoMeta" | "fetchVideoSegments" | "fetchSegmentsByLabel" | "createSegment" | "patchSegmentLocally" | "updateSegment" | "deleteSegment" | "removeSegment" | "saveAnnotations" | "uploadRevert" | "uploadProcess" | "getSegmentStyle" | "getColorForLabel" | "getTranslationForLabel" | "jumpToSegment" | "setActiveSegment" | "updateVideoStatus" | "assignUserToVideo" | "updateSensitiveMeta" | "clearVideoMeta" | "hasRawVideoFileFn" | "startDraft" | "updateDraftEnd" | "commitDraft" | "cancelDraft" | "createFiveSecondSegment" | "formatTime" | "getSegmentOptions" | "clearSegments">>;
 export type { Video, Segment, VideoAnnotation, VideoMeta, LabelMeta, VideoList, DraftSegment, SegmentOption, SegmentStyle, VideoStatus, LabelKey, BackendFramePrediction };

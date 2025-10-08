@@ -592,9 +592,10 @@ const dataOk = computed(() =>
 );
 
 
-const canSubmit = computed(() =>
-  !!processedUrl.value && !!originalUrl.value
-);
+const canSubmit = computed(() => {
+  // For annotation saving, we need both uploaded images AND valid patient data
+  return dataOk.value;
+});
 
 
 // Computed
@@ -917,7 +918,18 @@ const skipItem = async () => {
 };
 
 const navigateToSegmentation = () => {
-  router.push({ name: 'Video-Untersuchung', params: { fileId: currentItem.value?.id.toString() || '' } });
+  if (!currentItem.value) {
+    toast.error({ text: 'Kein Video zur Segmentierung ausgewählt.' });
+    return;
+  }
+  
+  // Navigate with video ID as query parameter to ensure correct video selection
+  router.push({ 
+    name: 'Video-Untersuchung', 
+    query: { video: currentItem.value.id.toString() }
+  });
+  
+  console.log(`🎯 Navigating to Video-Untersuchung with video ID: ${currentItem.value.id}`);
 };
 
 
@@ -957,10 +969,27 @@ const approveItem = async () => {
 
 
 const saveAnnotation = async () => {
-  if (isSaving.value || !canSubmit.value) {
-    if (!isSaving.value) toast.error({ text: 'Bitte Namen und gültiges Geburtsdatum angeben.' });
+  if (isSaving.value) {
+    return; // Already saving
+  }
+  
+  if (!canSubmit.value) {
+    // Provide more specific error messages
+    if (!processedUrl.value || !originalUrl.value) {
+      toast.error({ text: 'Bitte laden Sie zuerst Bilder hoch (Original und bearbeitetes Bild).' });
+    } else if (!dataOk.value) {
+      // Specific validation errors
+      const errors = [];
+      if (!firstNameOk.value) errors.push('Vorname');
+      if (!lastNameOk.value) errors.push('Nachname');
+      if (!isDobValid.value) errors.push('gültiges Geburtsdatum');
+      if (!isExaminationDateValid.value) errors.push('gültiges Untersuchungsdatum (darf nicht vor Geburtsdatum liegen)');
+      
+      toast.error({ text: `Bitte korrigieren Sie: ${errors.join(', ')}` });
+    }
     return;
   }
+  
   isSaving.value = true;
   try {
     const annotationData = {

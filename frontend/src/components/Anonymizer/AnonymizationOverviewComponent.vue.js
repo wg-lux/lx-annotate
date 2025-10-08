@@ -274,7 +274,7 @@ const hasOriginalFile = (file) => {
     // Check if the file has the necessary properties to indicate original file exists
     if (file.mediaType === 'video') {
         // For videos, check if rawFile exists and has a valid path
-        return !!(file.rawFile && file.rawFile.trim() !== '');
+        return videoStore.hasRawVideoFile?.valueOf() ?? false;
     }
     else if (file.mediaType === 'pdf') {
         // For PDFs, check if original_file exists and has a valid path
@@ -423,6 +423,7 @@ else {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
     __VLS_asFunctionalElement(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
     __VLS_asFunctionalElement(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
     __VLS_asFunctionalElement(__VLS_intrinsicElements.tbody, __VLS_intrinsicElements.tbody)({});
     for (const [file] of __VLS_getVForSourceType((__VLS_ctx.availableFiles))) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.tr, __VLS_intrinsicElements.tr)({
@@ -463,6 +464,23 @@ else {
             ...{ class: "badge" },
         });
         (__VLS_ctx.getStatusText(file.annotationStatus));
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
+        if (__VLS_ctx.hasOriginalFile(file)) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                ...{ class: "text-success" },
+            });
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                ...{ class: "fas fa-check-circle me-1" },
+            });
+        }
+        else {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                ...{ class: "text-danger" },
+            });
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                ...{ class: "fas fa-times-circle me-1" },
+            });
+        }
         __VLS_asFunctionalElement(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
         __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
             ...{ class: "text-muted" },
@@ -776,6 +794,14 @@ if (__VLS_ctx.filteredOutCount > 0) {
 /** @type {__VLS_StyleScopedClasses['fa-spin']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-success']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-check-circle']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-danger']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-times-circle']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-group']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-group-sm']} */ ;
@@ -889,6 +915,7 @@ const __VLS_self = (await import('vue')).defineComponent({
             getStatusText: getStatusText,
             formatDate: formatDate,
             getTotalByStatus: getTotalByStatus,
+            hasOriginalFile: hasOriginalFile,
         };
     },
 });

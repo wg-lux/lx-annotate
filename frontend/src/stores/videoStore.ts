@@ -381,6 +381,8 @@ export const useVideoStore = defineStore('video', () => {
     const _fetchToken = ref<number>(0)
     const draftSegment = ref<DraftSegment | null>(null)
     const concurrencyToken = ref<string | null>(null)
+    const hasRawVideoFile = ref<boolean | null>(null)
+
 
     function buildVideoStreamUrl(id: string | number) {
         const base = import.meta.env.VITE_API_BASE_URL || window.location.origin
@@ -794,8 +796,26 @@ export const useVideoStore = defineStore('video', () => {
     }
 
     const videoStreamUrl = computed(() =>
-        currentVideo.value ? buildVideoStreamUrl(currentVideo.value.id) : ''
+        currentVideo.value ? buildVideoStreamUrl(currentVideo.value.id) + '?type=processed' : ''
       )
+
+    function hasRawVideoFileFn() {
+    if (!currentVideo.value?.id) {
+        hasRawVideoFile.value = null
+        return
+    }
+    
+    const videoId = currentVideo.value.id
+    axiosInstance.get(r(`anonymization/${videoId}/has-raw/`))
+        .then(response => {
+        hasRawVideoFile.value = response.data.has_raw_file
+        console.log(`Raw video file for ID ${videoId}:`, hasRawVideoFile.value)
+        })
+        .catch(error => {
+        console.error('Error checking raw video file:', error)
+        hasRawVideoFile.value = null
+        })
+    }
 
     async function fetchSegmentsByLabel(id: string, label = 'outside'): Promise<void> {
         try {
@@ -1305,6 +1325,7 @@ export const useVideoStore = defineStore('video', () => {
         labels,
         videoStreamUrl,
         timelineSegments,
+        hasRawVideoFile: readonly(hasRawVideoFile),
 
         
         // Actions
@@ -1335,6 +1356,7 @@ export const useVideoStore = defineStore('video', () => {
         assignUserToVideo,
         updateSensitiveMeta,
         clearVideoMeta,
+        hasRawVideoFileFn,
         
         // Draft actions
         startDraft,

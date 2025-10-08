@@ -226,6 +226,11 @@ LOGGING = {
             'level': 'INFO',
             'propagate': True,
         },
+        'lx_anonymizer': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
         'django.utils.autoreload': {
             'handlers': ['console'],
             'level': 'INFO',

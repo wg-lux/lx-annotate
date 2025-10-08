@@ -212,6 +212,22 @@
             </div>
           </div>
         </div>
+        
+        <!-- ✅ Validation Button - Prominent placement after video card -->
+        <div v-if="selectedVideoId && timelineSegmentsForSelectedVideo.length > 0" class="mt-3">
+          <button 
+            class="btn btn-success btn-lg w-100 d-flex align-items-center justify-content-center gap-2"
+            @click="submitVideoSegments"
+            style="font-size: 1.1rem; padding: 15px;"
+          >
+            <i class="material-icons">check_circle</i>
+            <span>Alle Segmente validieren ({{ timelineSegmentsForSelectedVideo.length }})</span>
+          </button>
+          <p class="text-muted text-center mt-2 mb-0" style="font-size: 0.9rem;">
+            <i class="material-icons" style="font-size: 16px; vertical-align: middle;">info</i>
+            Markiert alle Segmente als überprüft und abgeschlossen
+          </p>
+        </div>
       </div>
 
       <!-- Examination Form Section -->
@@ -352,6 +368,7 @@ const anonymizationStore = useAnonymizationStore()
 
 const { overview } = storeToRefs(anonymizationStore)
 
+
 // Use spread operator to convert readonly array to mutable array
 const timelineLabels = computed(() => {
   const storeLabels = videoStore.labels || []
@@ -422,6 +439,7 @@ async function loadSelectedVideo() {
   }
 }
 
+
 function onVideoChange() {                // handler for the <select>
   loadSelectedVideo()
   /** update the url so users can bookmark / refresh */
@@ -452,30 +470,17 @@ const showExaminationForm = computed(() => {
 const videoStreamSrc = computed(() => {
   if (!selectedVideoId.value) return undefined
   
-  // Try to get URL from MediaStore if available
-  const currentVideo = videos.value.find(v => v.id === selectedVideoId.value)
-  if (currentVideo) {
-    mediaStore.setCurrentItem(currentVideo as any)
-    const streamUrl = mediaStore.getVideoUrl(currentVideo as any)
-    if (streamUrl) {
-      console.log('🎬 Using MediaStore video URL:', streamUrl)
-      return streamUrl
-    }
-  }
-  
-  // Fallback to videoDetail URL if available
-  if (videoDetail.value?.video_url) {
-    console.log('🎬 Using videoDetail URL:', videoDetail.value.video_url)
-    return videoDetail.value.video_url
-  }
-  
-  // Final fallback to legacy videoStreamUrl from store
+  // ✅ PRIMARY: Use videoStore.videoStreamUrl which includes ?type=processed
   if (videoStreamUrl.value) {
-    console.log('🎬 Using legacy store URL:', videoStreamUrl.value)
+    console.log('🎬 Using videoStore URL (processed):', videoStreamUrl.value)
     return videoStreamUrl.value
   }
   
-  return undefined
+  // ✅ FALLBACK: Build URL directly if store URL not available
+  const base = import.meta.env.VITE_API_BASE_URL || window.location.origin
+  const fallbackUrl = `${base}/api/media/videos/${selectedVideoId.value}/?type=processed`
+  console.log('🎬 Using fallback URL (processed):', fallbackUrl)
+  return fallbackUrl
 })
 
 const hasVideos = computed(() => {
@@ -986,6 +991,51 @@ const deleteExamination = async (examinationId: number): Promise<void> => {
   } catch (error: any) {
     console.error('Error deleting examination:', error)
     await guarded(Promise.reject(error))
+  }
+}
+
+// ✅ NEW: Validate all video segments (complete video review)
+const submitVideoSegments = async (): Promise<void> => {
+  if (!selectedVideoId.value) {
+    showErrorMessage('Kein Video ausgewählt')
+    return
+  }
+
+  const segmentCount = timelineSegmentsForSelectedVideo.value.length
+  
+  if (segmentCount === 0) {
+    showErrorMessage('Keine Segmente zum Validieren vorhanden')
+    return
+  }
+
+  // Confirm with user before validation
+  if (!confirm(`Möchten Sie alle ${segmentCount} Segmente von Video ${selectedVideoId.value} als validiert markieren?`)) {
+    return
+  }
+
+  try {
+    console.log(`🔍 Validating all segments for video ${selectedVideoId.value}...`)
+    
+    const response = await axiosInstance.post(
+      r(`videos/${selectedVideoId.value}/segments/validate-complete/`),
+      {
+        notes: `Vollständige Video-Review abgeschlossen am ${new Date().toLocaleString('de-DE')}`
+      }
+    )
+    
+    console.log('✅ Validation response:', response.data)
+    
+    showSuccessMessage(
+      `Erfolgreich! ${response.data.updated_count} von ${response.data.total_segments} Segmenten validiert.`
+    )
+    
+    // Reload segments to reflect validation status
+    await loadVideoSegments()
+    
+  } catch (error: any) {
+    console.error('❌ Error validating video segments:', error)
+    const errorMsg = error?.response?.data?.error || error?.message || 'Unbekannter Fehler'
+    showErrorMessage(`Validierung fehlgeschlagen: ${errorMsg}`)
   }
 }
 
