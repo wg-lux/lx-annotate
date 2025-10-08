@@ -19,7 +19,7 @@ export default defineConfig(({ mode }) => {
 
     build: {
       manifest: mode === 'production' ? 'manifest.json' : false,
-      outDir: resolve(__dirname, 'dist'), // FIXED: Keep within frontend
+      outDir: resolve(__dirname, '../static/dist'),
       target: 'esnext', // Ermöglicht Top-level await
       rollupOptions: {
         input: {

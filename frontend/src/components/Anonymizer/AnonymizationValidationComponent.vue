@@ -59,6 +59,23 @@
           </div>
 
           <div class="row mb-4">
+            <!--Checkbox indicating if there are no more names present in the video or pdf-->
+            <div class="col-12">
+              <div class="form-check">
+                <input 
+                  type="checkbox" 
+                  class="form-check-input" 
+                  id="noMoreNames" 
+                  v-model="noMoreNames"
+                >
+                <label class="form-check-label" for="noMoreNames">
+                  Keine weiteren Namen im Video oder PDF vorhanden
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div class="row mb-4">
             <!-- Patient Information & Annotation Section (Reduced Width) -->
             <div class="col-md-5">
               <div class="card bg-light mb-4">
@@ -153,10 +170,9 @@
                     <button 
                       class="btn btn-primary"
                       @click="saveAnnotation"
-                      :disabled="isSaving || !canSubmit"
                     >
                       <span v-if="isSaving" class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                      {{ isSaving ? 'Speichern...' : 'Annotation speichern' }}
+                      {{ isSaving ? 'Speichern...' : 'Annotation zwischenspeichern' }}
                     </button>
                   </div>
                 </div>
@@ -178,7 +194,7 @@
                       PDF-Dokument ({{ Math.round((currentItem?.reportMeta?.file?.length || 0) / 1024) || 'Unbekannt' }} KB)
                     </span>
                     <span v-else-if="isVideo">
-                      Video-Datei (Stream-URL: {{ videoSrc }})
+                      Video-Datei (Raw: {{ rawVideoSrc || 'N/A' }} | Anonymized: {{ anonymizedVideoSrc || 'N/A' }})
                     </span>
                     <span v-else>
                       Unbekanntes Format - ID: {{ currentItem?.id }}
@@ -198,19 +214,125 @@
                     Ihr Browser unterstützt keine eingebetteten PDFs. Sie können die Datei <a :href="pdfSrc">hier herunterladen</a>.
                   </iframe>
                   
-                  <!-- Video Viewer - only for actual videos -->
-                  <video
-                    v-else-if="isVideo"
-                    controls
-                    width="100%"
-                    height="600px"
-                    :src="videoSrc"
-                    @error="onVideoError"
-                    @loadstart="onVideoLoadStart"
-                    @canplay="onVideoCanPlay"
-                  >
-                    Ihr Browser unterstützt dieses Video-Format nicht.
-                  </video>
+                                    <!-- ✅ ENHANCED: Dual Video Viewer for Raw vs Anonymized Comparison -->
+                  <div v-else-if="isVideo" class="dual-video-container">
+                    <div class="row">
+                      <!-- Raw Video (Original) -->
+                      <div class="col-md-6">
+                        <div class="video-section raw-video">
+                          <h6 class="text-center mb-3 text-danger">
+                            <i class="fas fa-eye me-1"></i>
+                            Original Video (Raw)
+                          </h6>
+                          <video
+                            ref="rawVideoElement"
+                            :src="rawVideoSrc"
+                            controls
+                            style="width: 100%; max-height: 350px;"
+                            preload="metadata"
+                            @error="onRawVideoError"
+                            @loadstart="onRawVideoLoadStart"
+                            @canplay="onRawVideoCanPlay"
+                            @timeupdate="(event) => syncVideoTime('raw', event)"
+                          >
+                            Ihr Browser unterstützt dieses Video-Format nicht.
+                          </video>
+                          <div class="mt-2 text-center">
+                            <small class="text-muted">
+                              URL: {{ rawVideoSrc || 'Nicht verfügbar' }}
+                            </small>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <!-- Anonymized Video (Processed) -->
+                      <div class="col-md-6">
+                        <div class="video-section anonymized-video">
+                          <h6 class="text-center mb-3 text-success">
+                            <i class="fas fa-shield-alt me-1"></i>
+                            Anonymisiertes Video (Processed)
+                          </h6>
+                          <video
+                            ref="anonymizedVideoElement"
+                            :src="anonymizedVideoSrc"
+                            controls
+                            style="width: 100%; max-height: 350px;"
+                            preload="metadata"
+                            @error="onAnonymizedVideoError"
+                            @loadstart="onAnonymizedVideoLoadStart"
+                            @canplay="onAnonymizedVideoCanPlay"
+                            @timeupdate="(event) => syncVideoTime('anonymized', event)"
+                          >
+                            Ihr Browser unterstützt dieses Video-Format nicht.
+                          </video>
+                          <div class="mt-2 text-center">
+                            <small class="text-muted">
+                              URL: {{ anonymizedVideoSrc || 'Nicht verfügbar' }}
+                            </small>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <!-- Video Sync Controls -->
+                    <div class="video-controls mt-3 text-center">
+                      <button 
+                        class="btn btn-outline-primary btn-sm me-2"
+                        @click="syncVideos"
+                      >
+                        <i class="fas fa-sync me-1"></i>
+                        Videos synchronisieren
+                      </button>
+                      <button 
+                        class="btn btn-outline-secondary btn-sm"
+                        @click="pauseAllVideos"
+                      >
+                        <i class="fas fa-pause me-1"></i>
+                        Alle pausieren
+                      </button>
+                      <button 
+                        class="btn btn-outline-info btn-sm ms-2"
+                        @click="validateVideoForSegmentAnnotation"
+                        :disabled="isValidatingVideo"
+                      >
+                        <span v-if="isValidatingVideo" class="spinner-border spinner-border-sm me-1" role="status"></span>
+                        <i v-else class="fas fa-check me-1"></i>
+                        Segment-Annotation prüfen
+                      </button>
+                    </div>
+                    
+                    <!-- ✅ NEW: Outside Timeline Component for Segment Validation -->
+                    <div v-if="shouldShowOutsideTimeline && currentItem" class="outside-timeline-container mt-4">
+                      <div class="card border-warning">
+                        <div class="card-header bg-warning bg-opacity-10">
+                          <h6 class="mb-0 text-warning">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            Segmente zur Entfernung - Video ID: {{ currentItem.id }}
+                          </h6>
+                          <small class="text-muted">
+                            Diese Segmente wurden als "outside" klassifiziert und sollten aus dem Video entfernt werden.
+                          </small>
+                        </div>
+                        <div class="card-body">
+                          <OutsideTimelineComponent 
+                            :videoId="currentItem.id"
+                            @segment-validated="onSegmentValidated"
+                            @validation-complete="onOutsideValidationComplete"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <!-- Video Validation Status -->
+                    <div v-if="videoValidationStatus" class="alert mt-3" :class="videoValidationStatus.class">
+                      <i :class="videoValidationStatus.icon" class="me-2"></i>
+                      <strong>{{ videoValidationStatus.title }}:</strong>
+                      {{ videoValidationStatus.message }}
+                      <div v-if="videoValidationStatus.details" class="mt-2">
+                        <small>{{ videoValidationStatus.details }}</small>
+                      </div>
+                    </div>
+                  </div>
                   
                   <!-- Debug Information - only when neither PDF nor video -->
                   <div v-else class="alert alert-warning">
@@ -266,7 +388,7 @@
                 <button 
                   class="btn btn-success" 
                   @click="approveItem"
-                  :disabled="isApproving || !canSave || !dirty"
+                  :disabled="isApproving"
                 >
                   <span v-if="isApproving" class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
                   {{ isApproving ? 'Wird bestätigt...' : 'Bestätigen' }}
@@ -288,6 +410,7 @@ import { usePatientStore } from '@/stores/patientStore';
 import { useToastStore } from '@/stores/toastStore';
 import { usePdfStore } from '@/stores/pdfStore';
 import { useMediaTypeStore } from '@/stores/mediaTypeStore';
+import OutsideTimelineComponent from '@/components/Anonymizer/OutsideSegmentComponent.vue';
 // @ts-ignore
 import axiosInstance, { r } from '@/api/axiosInstance';
 import { usePollingProtection } from '@/composables/usePollingProtection';
@@ -309,6 +432,7 @@ const mediaStore = useMediaTypeStore();
 // Local state
 const editedAnonymizedText = ref('');
 const examinationDate = ref('');
+const noMoreNames = ref(false);
 const editedPatient = ref({
   patientFirstName: '',
   patientLastName: '',
@@ -316,6 +440,19 @@ const editedPatient = ref({
   patientDob: '',
   casenumber: ''
 });
+
+// ✅ NEW: Video validation state for segment annotation
+const isValidatingVideo = ref(false);
+const shouldShowOutsideTimeline = ref(false);
+const videoValidationStatus = ref<{
+  class: string;
+  icon: string;
+  title: string;
+  message: string;
+  details?: string;
+} | null>(null);
+const outsideSegmentsValidated = ref(0);
+const totalOutsideSegments = ref(0);
 
 // Upload-related state
 const originalUrl = ref('');
@@ -362,7 +499,44 @@ function shallowEqual(a: Editable, b: Editable): boolean {
 
 // --- add below your imports/locals ---
 
+function fromUiToISO(input?: string | null): string | null {
+  /**
+   * Konvertiert Browser Date Input (YYYY-MM-DD) zu ISO String
+   */
+  if (!input) return null;
+  const s = input.trim().split(' ')[0];
+  const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  return iso ? s : null;
+}
+
+function toGerman(iso?: string | null): string {
+  /**
+   * Konvertiert ISO-Datum (YYYY-MM-DD) zu deutschem Format (DD.MM.YYYY)
+   */
+  if (!iso) return '';
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso.trim());
+  if (!m) return '';
+  const [, y, mo, d] = m;
+  return `${d}.${mo}.${y}`;
+}
+
+function fromGermanToISO(input?: string | null): string | null {
+  /**
+   * Konvertiert deutsches Datum (DD.MM.YYYY) zu ISO-Format (YYYY-MM-DD)
+   */
+  if (!input) return null;
+  const s = input.trim();
+  const m = /^(\d{2})\.(\d{2})\.(\d{4})$/.exec(s);
+  if (!m) return null;
+  const [, dd, mm, yyyy] = m;
+  return `${yyyy}-${mm}-${dd}`;
+}
+
 function normalizeDateToISO(input?: string | null): string | null {
+  /**
+   * DEPRECATED: Verwende fromUiToISO oder fromGermanToISO
+   * Zur Rückwärtskompatibilität noch vorhanden
+   */
   if (!input) return null;
   const s = input.trim().split(' ')[0]; // remove time if present
   const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
@@ -376,12 +550,12 @@ function normalizeDateToISO(input?: string | null): string | null {
 }
 
 
-function buildSensitiveMetaSnake(dobIso: string) {
+function buildSensitiveMetaSnake(dobGerman: string) {
   return {
     patient_first_name: editedPatient.value.patientFirstName || '',
     patient_last_name:  editedPatient.value.patientLastName  || '',
     patient_gender:     editedPatient.value.patientGender    || '',
-    patient_dob:        dobIso,
+    patient_dob:        dobGerman,  // 🎯 Jetzt deutsches Format
     casenumber:         editedPatient.value.casenumber       || '',
   };
 }
@@ -390,12 +564,17 @@ function compareISODate(a: string, b: string): number {
   return a < b ? -1 : 1;
 }
 
-// Validations
+// Validations mit neuen Helfern - intern weiterhin ISO für Vergleiche
 const firstNameOk = computed(() => editedPatient.value.patientFirstName.trim().length > 0);
 const lastNameOk  = computed(() => editedPatient.value.patientLastName.trim().length  > 0);
 
-const dobISO  = computed(() => normalizeDateToISO(editedPatient.value.patientDob));
-const examISO = computed(() => normalizeDateToISO(examinationDate.value));
+// Unterstütze sowohl UI-Input (ISO) als auch deutsche Eingaben
+const dobISO  = computed(() => 
+  fromUiToISO(editedPatient.value.patientDob) || fromGermanToISO(editedPatient.value.patientDob)
+);
+const examISO = computed(() => 
+  fromUiToISO(examinationDate.value) || fromGermanToISO(examinationDate.value)
+);
 
 // DOB must be present & valid
 const isDobValid = computed(() => !!dobISO.value);
@@ -408,12 +587,13 @@ const isExaminationDateValid = computed(() => {
 });
 
 // Global save gates
-const canSave = computed(() =>
+const dataOk = computed(() =>
   firstNameOk.value && lastNameOk.value && isDobValid.value && isExaminationDateValid.value
 );
 
+
 const canSubmit = computed(() =>
-  !!processedUrl.value && !!originalUrl.value && canSave.value
+  !!processedUrl.value && !!originalUrl.value
 );
 
 
@@ -441,11 +621,218 @@ const pdfSrc = computed(() => {
          pdfStore.buildPdfStreamUrl(currentItem.value.id);
 });
 
+// ✅ ENHANCED: Dual video streaming for raw vs anonymized comparison
 const videoSrc = computed(() => {
   if (!isVideo.value || !currentItem.value) return undefined;
   return mediaStore.getVideoUrl(currentItem.value as any);
 });
 
+// ✅ NEW: Raw video URL (original unprocessed video)
+const rawVideoSrc = computed(() => {
+  if (!isVideo.value || !currentItem.value) return undefined;
+  
+  // Build raw video URL with explicit raw parameter
+  const base = import.meta.env.VITE_API_BASE_URL || window.location.origin;
+  return `${base}/api/media/videos/${currentItem.value.id}/?type=raw`;
+});
+
+// ✅ NEW: Anonymized video URL (processed/anonymized video)
+const anonymizedVideoSrc = computed(() => {
+  if (!isVideo.value || !currentItem.value) return undefined;
+  const base = import.meta.env.VITE_API_BASE_URL || window.location.origin;
+  return `${base}/api/media/videos/${currentItem.value.id}/?type=processed`;
+});
+
+
+// ✅ NEW: Refs for dual video elements
+const rawVideoElement = ref<HTMLVideoElement | null>(null);
+const anonymizedVideoElement = ref<HTMLVideoElement | null>(null);
+
+// ✅ NEW: Video event handlers for raw video
+const onRawVideoError = (event: Event) => {
+  console.error('Raw video error:', event);
+  // Handle raw video errors gracefully
+};
+
+const onRawVideoLoadStart = () => {
+  console.log('Raw video load started');
+};
+
+const onRawVideoCanPlay = () => {
+  console.log('Raw video can play');
+};
+
+// ✅ NEW: Video event handlers for anonymized video
+const onAnonymizedVideoError = (event: Event) => {
+  console.error('Anonymized video error:', event);
+  // Handle anonymized video errors gracefully
+};
+
+const onAnonymizedVideoLoadStart = () => {
+  console.log('Anonymized video load started');
+};
+
+const onAnonymizedVideoCanPlay = () => {
+  console.log('Anonymized video can play');
+};
+
+// ✅ NEW: Video synchronization functions
+const syncVideoTime = (source: 'raw' | 'anonymized', event: Event) => {
+  if (!rawVideoElement.value || !anonymizedVideoElement.value) return;
+  
+  const sourceElement = source === 'raw' ? rawVideoElement.value : anonymizedVideoElement.value;
+  const targetElement = source === 'raw' ? anonymizedVideoElement.value : rawVideoElement.value;
+  
+  // Sync time only if there's a significant difference (avoid infinite loops)
+  const timeDiff = Math.abs(sourceElement.currentTime - targetElement.currentTime);
+  if (timeDiff > 0.5) { // 0.5 second tolerance
+    targetElement.currentTime = sourceElement.currentTime;
+  }
+};
+
+const syncVideos = () => {
+  if (!rawVideoElement.value || !anonymizedVideoElement.value) return;
+  
+  // Sync to the average time of both videos
+  const avgTime = (rawVideoElement.value.currentTime + anonymizedVideoElement.value.currentTime) / 2;
+  rawVideoElement.value.currentTime = avgTime;
+  anonymizedVideoElement.value.currentTime = avgTime;
+  
+  console.log('Videos synchronized to time:', avgTime);
+};
+
+const pauseAllVideos = () => {
+  if (rawVideoElement.value) rawVideoElement.value.pause();
+  if (anonymizedVideoElement.value) anonymizedVideoElement.value.pause();
+  console.log('All videos paused');
+};
+
+// ✅ NEW: Video validation functions for segment annotation
+const validateVideoForSegmentAnnotation = async () => {
+  if (!currentItem.value || !isVideo.value) {
+    toast.warning({ text: 'Kein Video zur Validierung ausgewählt.' });
+    return;
+  }
+
+  isValidatingVideo.value = true;
+  shouldShowOutsideTimeline.value = false;
+  videoValidationStatus.value = null;
+
+  try {
+    // Check if video is eligible for segment annotation
+    console.log(`🔍 Validating video ${currentItem.value.id} for segment annotation...`);
+    
+    const response = await axiosInstance.get(r(`media/videos/${currentItem.value.id}/validation/segments/`));
+    const validation = response.data;
+    
+    console.log('Video validation response:', validation);
+    
+    if (validation.eligible) {
+      // Video is eligible - check for outside segments
+      const outsideSegmentsResponse = await axiosInstance.get(r(`video/${currentItem.value.id}/segments/?label=outside`));
+      const outsideSegments = outsideSegmentsResponse.data;
+      
+      totalOutsideSegments.value = outsideSegments.length;
+      outsideSegmentsValidated.value = 0;
+      
+      if (outsideSegments.length > 0) {
+        shouldShowOutsideTimeline.value = true;
+        videoValidationStatus.value = {
+          class: 'alert-warning',
+          icon: 'fas fa-exclamation-triangle',
+          title: 'Segmentvalidierung erforderlich',
+          message: `${outsideSegments.length} "Outside"-Segmente gefunden, die validiert werden müssen.`,
+          details: 'Verwenden Sie die Timeline unten, um die Segmente zu überprüfen und zu bestätigen.'
+        };
+      } else {
+        videoValidationStatus.value = {
+          class: 'alert-success',
+          icon: 'fas fa-check-circle',
+          title: 'Video bereit für Annotation',
+          message: 'Keine "Outside"-Segmente gefunden. Video ist bereit für die Segment-Annotation.',
+          details: `Video ID: ${currentItem.value.id} - Alle Validierungen bestanden.`
+        };
+      }
+    } else {
+      videoValidationStatus.value = {
+        class: 'alert-danger',
+        icon: 'fas fa-times-circle',
+        title: 'Video nicht bereit',
+        message: validation.reasons?.join(', ') || 'Video ist nicht für Segment-Annotation geeignet.',
+        details: 'Überprüfen Sie die Video-Verarbeitung und Metadaten-Extraktion.'
+      };
+    }
+    
+    toast.info({ text: `Video ${currentItem.value.id} validiert` });
+    
+  } catch (error: any) {
+    console.error('Error validating video for segment annotation:', error);
+    
+    // Fallback validation using video store if API endpoint doesn't exist
+    try {
+      await videoStore.fetchAllSegments(currentItem.value.id.toString());
+      const outsideSegments = videoStore.allSegments.filter(s => s.label === 'outside');
+      
+      totalOutsideSegments.value = outsideSegments.length;
+      outsideSegmentsValidated.value = 0;
+      
+      if (outsideSegments.length > 0) {
+        shouldShowOutsideTimeline.value = true;
+        videoValidationStatus.value = {
+          class: 'alert-warning',
+          icon: 'fas fa-exclamation-triangle',
+          title: 'Outside-Segmente gefunden (Fallback)',
+          message: `${outsideSegments.length} "Outside"-Segmente zur Validierung gefunden.`,
+          details: 'Fallback-Validierung über VideoStore. API-Endpoint nicht verfügbar.'
+        };
+      } else {
+        videoValidationStatus.value = {
+          class: 'alert-info',
+          icon: 'fas fa-info-circle',
+          title: 'Fallback-Validierung',
+          message: 'Keine "Outside"-Segmente gefunden (über VideoStore).',
+          details: 'API-Validierung fehlgeschlagen, Fallback verwendet.'
+        };
+      }
+    } catch (fallbackError) {
+      videoValidationStatus.value = {
+        class: 'alert-danger',
+        icon: 'fas fa-times-circle',
+        title: 'Validierung fehlgeschlagen',
+        message: 'Video konnte nicht für Segment-Annotation validiert werden.',
+        details: error?.response?.data?.detail || error?.message || 'Unbekannter Fehler'
+      };
+    }
+  } finally {
+    isValidatingVideo.value = false;
+  }
+};
+
+const onSegmentValidated = (segmentId: string | number) => {
+  outsideSegmentsValidated.value++;
+  console.log(`✅ Segment ${segmentId} validated. Progress: ${outsideSegmentsValidated.value}/${totalOutsideSegments.value}`);
+  
+  // Update validation status
+  if (videoValidationStatus.value) {
+    videoValidationStatus.value.message = 
+      `Fortschritt: ${outsideSegmentsValidated.value}/${totalOutsideSegments.value} Outside-Segmente validiert.`;
+  }
+};
+
+const onOutsideValidationComplete = () => {
+  console.log('🎉 All outside segments validated!');
+  shouldShowOutsideTimeline.value = false;
+  
+  videoValidationStatus.value = {
+    class: 'alert-success',
+    icon: 'fas fa-check-circle',
+    title: 'Validierung abgeschlossen',
+    message: 'Alle Outside-Segmente wurden erfolgreich validiert.',
+    details: `Video ${currentItem.value?.id} ist jetzt bereit für die vollständige Segment-Annotation.`
+  };
+  
+  toast.success({ text: 'Outside-Segment Validierung abgeschlossen!' });
+};
 
 // Watch
 watch(currentItem, (newItem: PatientData | null) => {
@@ -469,20 +856,26 @@ const fetchNextItem = async () => {
 const loadCurrentItemData = (item: PatientData) => {
   if (!item) return;
 
+  // ✅ NEW: Reset video validation state when loading new item
+  shouldShowOutsideTimeline.value = false;
+  videoValidationStatus.value = null;
+  outsideSegmentsValidated.value = 0;
+  totalOutsideSegments.value = 0;
+  isValidatingVideo.value = false;
+
   editedAnonymizedText.value = item.anonymizedText || '';
 
   const rawExam = item.reportMeta?.examinationDate || '';
   const rawDob  = item.reportMeta?.patientDob || '';  
 
-  examinationDate.value = normalizeDateToISO(rawExam) || '';
-
-
+  // Unterstütze sowohl eingehende ISO- als auch deutsche Daten
+  examinationDate.value = fromUiToISO(rawExam) || fromGermanToISO(rawExam) || '';
 
   const p: Editable = {
     patientFirstName: item.reportMeta?.patientFirstName || '',
     patientLastName:  item.reportMeta?.patientLastName  || '',
     patientGender:    item.reportMeta?.patientGender    || '',
-    patientDob:       normalizeDateToISO(rawDob)      || '',
+    patientDob:       fromUiToISO(rawDob) || fromGermanToISO(rawDob) || '',
     casenumber:       item.reportMeta?.casenumber       || '',
   };
   editedPatient.value = { ...p };
@@ -499,6 +892,12 @@ const dirty = computed(() =>
   examinationDate.value      !== original.value.examinationDate ||
   !shallowEqual(editedPatient.value, original.value.patient)
 );
+
+// ✅ NEW: Can save computed property
+const canSave = computed(() => {
+  // Can save if we have a current item and data is not currently being processed
+  return currentItem.value && !isSaving.value && !isApproving.value;
+});
 
 // Concurrency guards
 const isSaving = ref(false);
@@ -517,23 +916,24 @@ const skipItem = async () => {
   }
 };
 
+const navigateToSegmentation = () => {
+  router.push({ name: 'Video-Untersuchung', params: { fileId: currentItem.value?.id.toString() || '' } });
+};
+
 
 const approveItem = async () => {
   if (!currentItem.value || !canSave.value || isApproving.value) return;
   isApproving.value = true;
   try {
-
-
  
-
     console.log(`Validating anonymization for file ${currentItem.value.id}...`);
     try {
       await axiosInstance.post(r(`anonymization/${currentItem.value.id}/validate/`), {
           patient_first_name: editedPatient.value.patientFirstName,
           patient_last_name:  editedPatient.value.patientLastName,
-          patient_gender:     editedPatient.value.patientGender, // if used by SensitiveMeta
-          patient_dob:        dobISO.value,                      // "YYYY-MM-DD"
-          examination_date:   examISO.value || "",
+          patient_gender:     editedPatient.value.patientGender,
+          patient_dob:        toGerman(dobISO.value || '') || '',          // 🎯 SENDE DEUTSCHES FORMAT
+          examination_date:   toGerman(examISO.value || '') || '',         // 🎯 SENDE DEUTSCHES FORMAT
           casenumber:         editedPatient.value.casenumber || "",
           anonymized_text:    isPdf.value ? editedAnonymizedText.value : undefined,
           is_verified:        true,
@@ -545,9 +945,8 @@ const approveItem = async () => {
       toast.warning({ text: 'Dokument bestätigt, aber Validierung fehlgeschlagen' });
     }
     pollingProtection.validateAnonymizationSafeWithProtection(currentItem.value.id, 'pdf');
+    await navigateToSegmentation();
 
-
-    await fetchNextItem();
   } catch (error) {
     console.error('Error approving item:', error);
     toast.error({ text: 'Fehler beim Bestätigen des Elements' });
@@ -566,8 +965,8 @@ const saveAnnotation = async () => {
   try {
     const annotationData = {
       processed_image_url: processedUrl.value,
-      patient_data: buildSensitiveMetaSnake(dobISO.value!),
-      examinationDate: examISO.value || '',
+      patient_data: buildSensitiveMetaSnake(toGerman(dobISO.value || '') || ''),  // 🎯 DEUTSCHES FORMAT
+      examinationDate: toGerman(examISO.value || '') || '',                       // 🎯 DEUTSCHES FORMAT
       anonymized_text: editedAnonymizedText.value,
     };
 
@@ -643,6 +1042,7 @@ const navigateToCorrection = async () => {
     // If saveFirst is false, continue with navigation (discard changes)
   }
 
+
   // Ensure MediaStore has the current item for consistent navigation
   mediaStore.setCurrentItem(currentItem.value as any);
   
@@ -669,28 +1069,6 @@ const navigateToCorrection = async () => {
   toast.info({ 
     text: `${mediaType}-Korrektur geöffnet. ${correctionOptions}` 
   });
-};
-
-
-
-// Video event handlers
-const onVideoError = (event: Event) => {
-  console.error('Video loading error:', event);
-  const video = event.target as HTMLVideoElement;
-  console.error('Video error details:', {
-    error: video.error,
-    networkState: video.networkState,
-    readyState: video.readyState,
-    currentSrc: video.currentSrc
-  });
-};
-
-const onVideoLoadStart = () => {
-  console.log('Video loading started for:', videoSrc.value);
-};
-
-const onVideoCanPlay = () => {
-  console.log('Video can play, loaded successfully');
 };
 
 
@@ -746,5 +1124,67 @@ pre {
 .media-viewer-container video {
   border: 1px solid #dee2e6;
   border-radius: 0.25rem;
+}
+
+/* Outside Timeline Styles */
+.dual-video-container .video-section {
+  border: 1px solid #e9ecef;
+  border-radius: 0.375rem;
+  padding: 1rem;
+  background-color: #f8f9fa;
+}
+
+.dual-video-container .video-section.raw-video {
+  border-color: #dc3545;
+  background-color: #fff5f5;
+}
+
+.dual-video-container .video-section.anonymized-video {
+  border-color: #198754;
+  background-color: #f0fff4;
+}
+
+/* ✅ NEW: Outside Timeline Container Styles */
+.outside-timeline-container {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.outside-timeline-container .card {
+  margin-bottom: 0;
+}
+
+.outside-timeline-container .card-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  border-bottom: 2px solid #ffc107;
+}
+
+/* Video validation status styles */
+.alert.alert-warning {
+  border-left: 4px solid #ffc107;
+}
+
+.alert.alert-success {
+  border-left: 4px solid #198754;
+}
+
+.alert.alert-danger {
+  border-left: 4px solid #dc3545;
+}
+
+.alert.alert-info {
+  border-left: 4px solid #0dcaf0;
+}
+
+/* Video controls enhancement */
+.video-controls .btn {
+  min-width: 150px;
+}
+
+.video-controls .btn .spinner-border-sm {
+  width: 0.875rem;
+  height: 0.875rem;
 }
 </style>

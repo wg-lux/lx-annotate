@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatTime, parseTime, isValidTimeRange, calculateDuration } from '../../src/utils/timeUtils';
+import { formatTime, parseTime, isValidTimeRange, calculateDuration } from '../timeUtils';
 
 describe('timeUtils', () => {
   describe('formatTime', () => {
