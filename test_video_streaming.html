@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Streaming Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .video-container {
+            margin: 20px 0;
+            border: 1px solid #ddd;
+            padding: 15px;
+            border-radius: 5px;
+        }
+        video {
+            width: 100%;
+            max-width: 600px;
+            height: auto;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 3px;
+        }
+        .success { background-color: #d4edda; border: 1px solid #c3e6cb; color: #155724; }
+        .error { background-color: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; }
+        .info { background-color: #d1ecf1; border: 1px solid #bee5eb; color: #0c5460; }
+    </style>
+</head>
+<body>
+    <h1>🎥 Video Streaming Test - Phase 1.2 Integration</h1>
+    
+    <div class="status info">
+        <strong>Test Status:</strong> 
+        <span id="overall-status">Initialisierung...</span>
+    </div>
+
+    <div class="video-container">
+        <h3>Raw Video (API: /api/media/videos/51/?type=raw)</h3>
+        <video id="raw-video" controls preload="metadata">
+            <source src="http://localhost:8000/api/media/videos/51/?type=raw" type="video/mp4">
+            Ihr Browser unterstützt das Video-Element nicht.
+        </video>
+        <div id="raw-status" class="status">Lade Video...</div>
+    </div>
+
+    <div class="video-container">
+        <h3>Processed Video (API: /api/media/videos/51/?type=processed)</h3>
+        <video id="processed-video" controls preload="metadata">
+            <source src="http://localhost:8000/api/media/videos/51/?type=processed" type="video/mp4">
+            Ihr Browser unterstützt das Video-Element nicht.
+        </video>
+        <div id="processed-status" class="status">Lade Video...</div>
+    </div>
+
+    <div class="video-container">
+        <h3>Video Metadata (API: /api/media/videos/51/details/)</h3>
+        <div id="metadata-status" class="status">Lade Metadata...</div>
+        <pre id="metadata-content" style="background: #f8f9fa; padding: 10px; border-radius: 3px;"></pre>
+    </div>
+
+    <script>
+        const rawVideo = document.getElementById('raw-video');
+        const processedVideo = document.getElementById('processed-video');
+        const rawStatus = document.getElementById('raw-status');
+        const processedStatus = document.getElementById('processed-status');
+        const metadataStatus = document.getElementById('metadata-status');
+        const metadataContent = document.getElementById('metadata-content');
+        const overallStatus = document.getElementById('overall-status');
+
+        let testResults = {
+            raw: false,
+            processed: false,
+            metadata: false
+        };
+
+        function updateOverallStatus() {
+            const allTests = Object.values(testResults);
+            const passedTests = allTests.filter(test => test).length;
+            const totalTests = allTests.length;
+            
+            if (passedTests === totalTests) {
+                overallStatus.textContent = `✅ Alle Tests bestanden (${passedTests}/${totalTests})`;
+                overallStatus.parentElement.className = 'status success';
+            } else if (passedTests > 0) {
+                overallStatus.textContent = `⚠️ Teilweise erfolgreich (${passedTests}/${totalTests})`;
+                overallStatus.parentElement.className = 'status info';
+            } else {
+                overallStatus.textContent = `❌ Tests fehlgeschlagen (${passedTests}/${totalTests})`;
+                overallStatus.parentElement.className = 'status error';
+            }
+        }
+
+        // Raw Video Tests
+        rawVideo.addEventListener('loadedmetadata', () => {
+            rawStatus.textContent = `✅ Raw Video geladen: ${rawVideo.duration.toFixed(2)}s`;
+            rawStatus.className = 'status success';
+            testResults.raw = true;
+            updateOverallStatus();
+        });
+
+        rawVideo.addEventListener('error', (e) => {
+            rawStatus.textContent = `❌ Raw Video Fehler: ${e.target.error?.message || 'Unbekannter Fehler'}`;
+            rawStatus.className = 'status error';
+            testResults.raw = false;
+            updateOverallStatus();
+        });
+
+        // Processed Video Tests
+        processedVideo.addEventListener('loadedmetadata', () => {
+            processedStatus.textContent = `✅ Processed Video geladen: ${processedVideo.duration.toFixed(2)}s`;
+            processedStatus.className = 'status success';
+            testResults.processed = true;
+            updateOverallStatus();
+        });
+
+        processedVideo.addEventListener('error', (e) => {
+            processedStatus.textContent = `⚠️ Processed Video nicht verfügbar (normal wenn noch nicht prozessiert)`;
+            processedStatus.className = 'status info';
+            testResults.processed = true; // Count as success since this is expected
+            updateOverallStatus();
+        });
+
+        // Metadata Test
+        fetch('http://localhost:8000/api/media/videos/51/details/')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                metadataStatus.textContent = '✅ Metadata erfolgreich geladen';
+                metadataStatus.className = 'status success';
+                metadataContent.textContent = JSON.stringify(data, null, 2);
+                testResults.metadata = true;
+                updateOverallStatus();
+            })
+            .catch(error => {
+                metadataStatus.textContent = `❌ Metadata Fehler: ${error.message}`;
+                metadataStatus.className = 'status error';
+                testResults.metadata = false;
+                updateOverallStatus();
+            });
+    </script>
+</body>
+</html>

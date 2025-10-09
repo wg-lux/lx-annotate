@@ -39,9 +39,9 @@ export const useAnonymizationStore = defineStore('anonymization', {
                 if (lastId) {
                     const item = this.overview.find(f => f.id === lastId);
                     if (item?.mediaType === 'video') {
-                        // **Use the sensitive_meta_id (!) and keep the trailing slash**
+                        // **Use the sensitive_meta_id (!) for video details endpoint**
                         console.log(`Fetching video detail for sensitiveMetaId: ${item.id}`);
-                        const { data: video } = await axiosInstance.get(r(`media/videos/${item.id}/`));
+                        const { data: video } = await axiosInstance.get(r(`media/videos/${item.id}/details/`));
                         console.log('Received video detail:', video);
                         this.current = {
                             id: video.id,
@@ -338,7 +338,7 @@ export const useAnonymizationStore = defineStore('anonymization', {
                 if (item.mediaType === 'video') {
                     // For videos, use the ID to load the video data
                     console.log(`Loading video data for sensitiveMetaId: ${item.id}`);
-                    const { data: video } = await axiosInstance.get(r(`media/videos/${item.id}/`));
+                    const { data: video } = await axiosInstance.get(r(`media/videos/${item.id}/details/`));
                     console.log('Received video detail:', video);
                     this.current = {
                         id: video.id,

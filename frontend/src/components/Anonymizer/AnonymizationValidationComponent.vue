@@ -75,6 +75,25 @@
             </div>
           </div>
 
+          <!-- ✨ Phase 2.2: Centralized Validation Error Panel -->
+          <div v-if="validationErrors.length > 0" class="row mb-4">
+            <div class="col-12">
+              <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <h6 class="alert-heading">
+                  <i class="fas fa-exclamation-triangle me-2"></i>
+                  {{ validationErrorSummary }}
+                </h6>
+                <hr>
+                <ul class="mb-0">
+                  <li v-for="(error, index) in validationErrors" :key="index">
+                    {{ error }}
+                  </li>
+                </ul>
+                <button type="button" class="btn-close" @click="clearValidationErrors" aria-label="Schließen"></button>
+              </div>
+            </div>
+          </div>
+
           <div class="row mb-4">
             <!-- Patient Information & Annotation Section (Reduced Width) -->
             <div class="col-md-5">
@@ -120,9 +139,17 @@
                       class="form-control" 
                       v-model="editedPatient.patientDob"
                       :class="{ 'is-invalid': !isDobValid }"
+                      @blur="onDobBlur"
                     >
+                    <small class="form-text text-muted">
+                      <i class="fas fa-info-circle me-1"></i>
+                      Format: DD.MM.YYYY oder YYYY-MM-DD
+                      <span v-if="dobDisplayFormat" class="ms-2 badge bg-secondary">
+                        {{ dobDisplayFormat }}
+                      </span>
+                    </small>
                     <div class="invalid-feedback" v-if="!isDobValid">
-                      Gültiges Geburtsdatum ist erforderlich.
+                      {{ dobErrorMessage || 'Gültiges Geburtsdatum ist erforderlich.' }}
                     </div>
                   </div>
                   <div class="mb-3">
@@ -140,9 +167,17 @@
                       class="form-control" 
                       v-model="examinationDate"
                       :class="{ 'is-invalid': !isExaminationDateValid }"
+                      @blur="onExamDateBlur"
                     >
+                    <small class="form-text text-muted">
+                      <i class="fas fa-info-circle me-1"></i>
+                      Format: DD.MM.YYYY oder YYYY-MM-DD
+                      <span v-if="examDateDisplayFormat" class="ms-2 badge bg-secondary">
+                        {{ examDateDisplayFormat }}
+                      </span>
+                    </small>
                     <div class="invalid-feedback" v-if="!isExaminationDateValid">
-                      Das Untersuchungsdatum darf nicht vor dem Geburtsdatum liegen.
+                      {{ examDateErrorMessage || 'Das Untersuchungsdatum darf nicht vor dem Geburtsdatum liegen.' }}
                     </div>
                   </div>
                   <div class="mb-3">
@@ -305,13 +340,34 @@
                     <div v-if="shouldShowOutsideTimeline && currentItem" class="outside-timeline-container mt-4">
                       <div class="card border-warning">
                         <div class="card-header bg-warning bg-opacity-10">
-                          <h6 class="mb-0 text-warning">
-                            <i class="fas fa-exclamation-triangle me-2"></i>
-                            Segmente zur Entfernung - Video ID: {{ currentItem.id }}
-                          </h6>
-                          <small class="text-muted">
-                            Diese Segmente wurden als "outside" klassifiziert und sollten aus dem Video entfernt werden.
-                          </small>
+                          <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                              <h6 class="mb-0 text-warning">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                Segmente zur Entfernung - Video ID: {{ currentItem.id }}
+                              </h6>
+                              <small class="text-muted">
+                                Diese Segmente wurden als "outside" klassifiziert und sollten aus dem Video entfernt werden.
+                              </small>
+                            </div>
+                            <!-- Phase 3.1: Validation Progress Indicator -->
+                            <div class="text-end">
+                              <div class="badge bg-warning text-dark fs-6">
+                                {{ outsideSegmentsValidated }} / {{ totalOutsideSegments }}
+                              </div>
+                              <div class="progress mt-2" style="width: 200px; height: 8px;">
+                                <div 
+                                  class="progress-bar bg-success" 
+                                  role="progressbar" 
+                                  :style="{ width: validationProgressPercent + '%' }"
+                                  :aria-valuenow="outsideSegmentsValidated" 
+                                  :aria-valuemin="0" 
+                                  :aria-valuemax="totalOutsideSegments"
+                                ></div>
+                              </div>
+                              <small class="text-muted">{{ validationProgressPercent }}% validiert</small>
+                            </div>
+                          </div>
                         </div>
                         <div class="card-body">
                           <OutsideTimelineComponent 
@@ -385,14 +441,23 @@
                 <button class="btn btn-danger me-2" @click="rejectItem">
                   Ablehnen
                 </button>
+                
+                <!-- Phase 3.1: Approval button with segment validation enforcement -->
                 <button 
                   class="btn btn-success" 
                   @click="approveItem"
-                  :disabled="isApproving"
+                  :disabled="isApproving || !canApprove"
+                  :title="approvalBlockReason"
                 >
                   <span v-if="isApproving" class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
                   {{ isApproving ? 'Wird bestätigt...' : 'Bestätigen' }}
                 </button>
+                
+                <!-- Phase 3.1: Show warning if approval blocked due to unvalidated segments -->
+                <div v-if="!canApprove && approvalBlockReason" class="alert alert-warning mt-2 mb-0">
+                  <i class="fas fa-exclamation-triangle me-2"></i>
+                  <strong>Bestätigung blockiert:</strong> {{ approvalBlockReason }}
+                </div>
               </div>
             </div>
           </div>
@@ -411,6 +476,7 @@ import { useToastStore } from '@/stores/toastStore';
 import { usePdfStore } from '@/stores/pdfStore';
 import { useMediaTypeStore } from '@/stores/mediaTypeStore';
 import OutsideTimelineComponent from '@/components/Anonymizer/OutsideSegmentComponent.vue';
+import { DateConverter, DateValidator } from '@/utils/dateHelpers';
 // @ts-ignore
 import axiosInstance, { r } from '@/api/axiosInstance';
 import { usePollingProtection } from '@/composables/usePollingProtection';
@@ -440,6 +506,13 @@ const editedPatient = ref({
   patientDob: '',
   casenumber: ''
 });
+
+// ✨ Phase 2.2: Validation error tracking
+const validationErrors = ref<string[]>([]);
+const dobErrorMessage = ref<string>('');
+const examDateErrorMessage = ref<string>('');
+const dobDisplayFormat = ref<string>('');
+const examDateDisplayFormat = ref<string>('');
 
 // ✅ NEW: Video validation state for segment annotation
 const isValidatingVideo = ref(false);
@@ -499,56 +572,11 @@ function shallowEqual(a: Editable, b: Editable): boolean {
 
 // --- add below your imports/locals ---
 
-function fromUiToISO(input?: string | null): string | null {
-  /**
-   * Konvertiert Browser Date Input (YYYY-MM-DD) zu ISO String
-   */
-  if (!input) return null;
-  const s = input.trim().split(' ')[0];
-  const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
-  return iso ? s : null;
-}
-
-function toGerman(iso?: string | null): string {
-  /**
-   * Konvertiert ISO-Datum (YYYY-MM-DD) zu deutschem Format (DD.MM.YYYY)
-   */
-  if (!iso) return '';
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso.trim());
-  if (!m) return '';
-  const [, y, mo, d] = m;
-  return `${d}.${mo}.${y}`;
-}
-
-function fromGermanToISO(input?: string | null): string | null {
-  /**
-   * Konvertiert deutsches Datum (DD.MM.YYYY) zu ISO-Format (YYYY-MM-DD)
-   */
-  if (!input) return null;
-  const s = input.trim();
-  const m = /^(\d{2})\.(\d{2})\.(\d{4})$/.exec(s);
-  if (!m) return null;
-  const [, dd, mm, yyyy] = m;
-  return `${yyyy}-${mm}-${dd}`;
-}
-
-function normalizeDateToISO(input?: string | null): string | null {
-  /**
-   * DEPRECATED: Verwende fromUiToISO oder fromGermanToISO
-   * Zur Rückwärtskompatibilität noch vorhanden
-   */
-  if (!input) return null;
-  const s = input.trim().split(' ')[0]; // remove time if present
-  const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
-  if (iso) return s;
-  const de = /^(\d{2})\.(\d{2})\.(\d{4})$/.exec(s);
-  if (de) {
-    const [, dd, mm, yyyy] = de;
-    return `${yyyy}-${mm}-${dd}`;
-  }
-  return null;
-}
-
+// ============================================================================
+// DATE CONVERSION UTILITIES - Using centralized DateConverter (Phase 2.1)
+// ============================================================================
+// Legacy functions removed - now using DateConverter from @/utils/dateHelpers
+// Migration: Oct 2025 (Phase 2.1)
 
 function buildSensitiveMetaSnake(dobGerman: string) {
   return {
@@ -559,22 +587,24 @@ function buildSensitiveMetaSnake(dobGerman: string) {
     casenumber:         editedPatient.value.casenumber       || '',
   };
 }
-function compareISODate(a: string, b: string): number {
-  if (a === b) return 0;
-  return a < b ? -1 : 1;
-}
 
-// Validations mit neuen Helfern - intern weiterhin ISO für Vergleiche
+// ============================================================================
+// COMPUTED PROPERTIES - Validation
+// ============================================================================
 const firstNameOk = computed(() => editedPatient.value.patientFirstName.trim().length > 0);
 const lastNameOk  = computed(() => editedPatient.value.patientLastName.trim().length  > 0);
 
-// Unterstütze sowohl UI-Input (ISO) als auch deutsche Eingaben
-const dobISO  = computed(() => 
-  fromUiToISO(editedPatient.value.patientDob) || fromGermanToISO(editedPatient.value.patientDob)
-);
-const examISO = computed(() => 
-  fromUiToISO(examinationDate.value) || fromGermanToISO(examinationDate.value)
-);
+// ✨ Phase 2.1: Using centralized DateConverter
+const dobISO  = computed(() => DateConverter.toISO(editedPatient.value.patientDob));
+const examISO = computed(() => DateConverter.toISO(examinationDate.value));
+
+// ✨ Phase 2.2: Validation error summary
+const validationErrorSummary = computed(() => {
+  const count = validationErrors.value.length;
+  if (count === 0) return 'Alle Felder sind gültig';
+  if (count === 1) return '1 Validierungsfehler gefunden';
+  return `${count} Validierungsfehler gefunden`;
+});
 
 // DOB must be present & valid
 const isDobValid = computed(() => !!dobISO.value);
@@ -583,7 +613,7 @@ const isDobValid = computed(() => !!dobISO.value);
 const isExaminationDateValid = computed(() => {
   if (!examISO.value) return true;
   if (!dobISO.value)  return false;
-  return compareISODate(examISO.value, dobISO.value) >= 0;
+  return DateConverter.isAfterOrEqual(examISO.value, dobISO.value);
 });
 
 // Global save gates
@@ -596,6 +626,61 @@ const canSubmit = computed(() => {
   // For annotation saving, we need both uploaded images AND valid patient data
   return dataOk.value;
 });
+
+// ============================================================================
+// Phase 3.1: Segment Validation Enforcement
+// ============================================================================
+
+/**
+ * Determines if approval is allowed based on validation state.
+ * Blocks approval if video has unvalidated outside segments.
+ */
+const canApprove = computed(() => {
+  // Basic data validation must pass
+  if (!dataOk.value) return false;
+  
+  // For videos: Check if outside segments need validation
+  if (isVideo.value && shouldShowOutsideTimeline.value) {
+    // Block approval until all outside segments are validated
+    return false;
+  }
+  
+  // All checks passed
+  return true;
+});
+
+/**
+ * Returns a user-friendly message explaining why approval is blocked.
+ */
+const approvalBlockReason = computed(() => {
+  if (!dataOk.value) {
+    const errors = [];
+    if (!firstNameOk.value) errors.push('Vorname');
+    if (!lastNameOk.value) errors.push('Nachname');
+    if (!isDobValid.value) errors.push('gültiges Geburtsdatum');
+    if (!isExaminationDateValid.value) errors.push('gültiges Untersuchungsdatum');
+    return `Bitte korrigieren Sie: ${errors.join(', ')}`;
+  }
+  
+  if (isVideo.value && shouldShowOutsideTimeline.value) {
+    const remaining = totalOutsideSegments.value - outsideSegmentsValidated.value;
+    return `Bitte validieren Sie zuerst alle Outside-Segmente (${remaining} verbleibend)`;
+  }
+  
+  return '';
+});
+
+/**
+ * Calculates validation progress percentage for progress bar.
+ */
+const validationProgressPercent = computed(() => {
+  if (totalOutsideSegments.value === 0) return 0;
+  return Math.round((outsideSegmentsValidated.value / totalOutsideSegments.value) * 100);
+});
+
+// ============================================================================
+// End Phase 3.1
+// ============================================================================
 
 
 // Computed
@@ -835,6 +920,40 @@ const onOutsideValidationComplete = () => {
   toast.success({ text: 'Outside-Segment Validierung abgeschlossen!' });
 };
 
+const loadCurrentItemData = (item: PatientData) => {
+  if (!item) return;
+
+  // ✅ NEW: Reset video validation state when loading new item
+  shouldShowOutsideTimeline.value = false;
+  videoValidationStatus.value = null;
+  outsideSegmentsValidated.value = 0;
+  totalOutsideSegments.value = 0;
+  isValidatingVideo.value = false;
+
+  editedAnonymizedText.value = item.anonymizedText || '';
+
+  const rawExam = item.reportMeta?.examinationDate || '';
+  const rawDob  = item.reportMeta?.patientDob || '';  
+
+  // ✨ Phase 2.1: Using DateConverter for consistent format handling
+  examinationDate.value = DateConverter.toISO(rawExam) || '';
+
+  const p: Editable = {
+    patientFirstName: item.reportMeta?.patientFirstName || '',
+    patientLastName:  item.reportMeta?.patientLastName  || '',
+    patientGender:    item.reportMeta?.patientGender    || '',
+    patientDob:       DateConverter.toISO(rawDob) || '',
+    casenumber:       item.reportMeta?.casenumber       || '',
+  };
+  editedPatient.value = { ...p };
+
+  original.value = {
+    anonymizedText: editedAnonymizedText.value,
+    examinationDate: examinationDate.value,
+    patient: { ...p },
+  };
+};
+
 // Watch
 watch(currentItem, (newItem: PatientData | null) => {
   if (newItem) {
@@ -852,40 +971,6 @@ const fetchNextItem = async () => {
   } catch (error) {
     console.error('Error fetching next item:', error);
   }
-};
-
-const loadCurrentItemData = (item: PatientData) => {
-  if (!item) return;
-
-  // ✅ NEW: Reset video validation state when loading new item
-  shouldShowOutsideTimeline.value = false;
-  videoValidationStatus.value = null;
-  outsideSegmentsValidated.value = 0;
-  totalOutsideSegments.value = 0;
-  isValidatingVideo.value = false;
-
-  editedAnonymizedText.value = item.anonymizedText || '';
-
-  const rawExam = item.reportMeta?.examinationDate || '';
-  const rawDob  = item.reportMeta?.patientDob || '';  
-
-  // Unterstütze sowohl eingehende ISO- als auch deutsche Daten
-  examinationDate.value = fromUiToISO(rawExam) || fromGermanToISO(rawExam) || '';
-
-  const p: Editable = {
-    patientFirstName: item.reportMeta?.patientFirstName || '',
-    patientLastName:  item.reportMeta?.patientLastName  || '',
-    patientGender:    item.reportMeta?.patientGender    || '',
-    patientDob:       fromUiToISO(rawDob) || fromGermanToISO(rawDob) || '',
-    casenumber:       item.reportMeta?.casenumber       || '',
-  };
-  editedPatient.value = { ...p };
-
-  original.value = {
-    anonymizedText: editedAnonymizedText.value,
-    examinationDate: examinationDate.value,
-    patient: { ...p },
-  };
 };
 
 const dirty = computed(() =>
@@ -909,6 +994,131 @@ const toggleImage = () => {
   showOriginal.value = !showOriginal.value;
 };
 
+// ============================================================================
+// Phase 2.2: Date Validation Functions
+// ============================================================================
+
+/**
+ * Validate all dates and update error panel
+ */
+function validateAllDates() {
+  const validator = new DateValidator();
+  
+  // Clear previous errors
+  validationErrors.value = [];
+  dobErrorMessage.value = '';
+  examDateErrorMessage.value = '';
+  
+  // Validate DOB
+  if (editedPatient.value.patientDob) {
+    const dobValue = editedPatient.value.patientDob;
+    
+    // Try to determine format
+    if (DateConverter.validate(dobValue, 'ISO')) {
+      dobDisplayFormat.value = 'ISO (YYYY-MM-DD)';
+    } else if (DateConverter.validate(dobValue, 'German')) {
+      dobDisplayFormat.value = 'Deutsch (DD.MM.YYYY)';
+    } else {
+      dobDisplayFormat.value = '';
+      dobErrorMessage.value = 'Ungültiges Format. Verwenden Sie DD.MM.YYYY oder YYYY-MM-DD';
+      validator.addField('Geburtsdatum', dobValue, 'German'); // Will fail
+    }
+  } else {
+    dobDisplayFormat.value = '';
+  }
+  
+  // Validate Exam Date
+  if (examinationDate.value) {
+    const examValue = examinationDate.value;
+    
+    // Try to determine format
+    if (DateConverter.validate(examValue, 'ISO')) {
+      examDateDisplayFormat.value = 'ISO (YYYY-MM-DD)';
+    } else if (DateConverter.validate(examValue, 'German')) {
+      examDateDisplayFormat.value = 'Deutsch (DD.MM.YYYY)';
+    } else {
+      examDateDisplayFormat.value = '';
+      examDateErrorMessage.value = 'Ungültiges Format. Verwenden Sie DD.MM.YYYY oder YYYY-MM-DD';
+      validator.addField('Untersuchungsdatum', examValue, 'ISO'); // Will fail
+    }
+  } else {
+    examDateDisplayFormat.value = '';
+  }
+  
+  // Validate DOB < ExamDate constraint
+  if (dobISO.value && examISO.value) {
+    validator.addConstraint(
+      'DOB_BEFORE_EXAM',
+      DateConverter.isBeforeOrEqual(dobISO.value, examISO.value),
+      'Geburtsdatum muss vor oder am selben Tag wie das Untersuchungsdatum liegen'
+    );
+  }
+  
+  // Update validation errors
+  if (validator.hasErrors()) {
+    validationErrors.value = validator.getErrors();
+    
+    // Set specific error messages
+    const errors = validator.getErrors();
+    errors.forEach(error => {
+      if (error.includes('Geburtsdatum')) {
+        dobErrorMessage.value = error.replace('Geburtsdatum: ', '');
+      }
+      if (error.includes('Untersuchungsdatum')) {
+        examDateErrorMessage.value = error.replace('Untersuchungsdatum: ', '');
+      }
+    });
+  }
+}
+
+/**
+ * Handle DOB blur event - validate and convert format
+ */
+function onDobBlur() {
+  const value = editedPatient.value.patientDob;
+  if (!value) return;
+  
+  // Try to convert to ISO for consistent storage
+  const isoDate = DateConverter.toISO(value);
+  if (isoDate) {
+    editedPatient.value.patientDob = isoDate;
+    dobDisplayFormat.value = 'ISO (YYYY-MM-DD)';
+  }
+  
+  // Validate all dates
+  validateAllDates();
+}
+
+/**
+ * Handle Exam Date blur event - validate and convert format
+ */
+function onExamDateBlur() {
+  const value = examinationDate.value;
+  if (!value) return;
+  
+  // Try to convert to ISO for consistent storage
+  const isoDate = DateConverter.toISO(value);
+  if (isoDate) {
+    examinationDate.value = isoDate;
+    examDateDisplayFormat.value = 'ISO (YYYY-MM-DD)';
+  }
+  
+  // Validate all dates
+  validateAllDates();
+}
+
+/**
+ * Clear all validation errors
+ */
+function clearValidationErrors() {
+  validationErrors.value = [];
+  dobErrorMessage.value = '';
+  examDateErrorMessage.value = '';
+}
+
+// ============================================================================
+// End Phase 2.2
+// ============================================================================
 
 
 const skipItem = async () => {
@@ -935,6 +1145,32 @@ const navigateToSegmentation = () => {
 
 const approveItem = async () => {
   if (!currentItem.value || !canSave.value || isApproving.value) return;
+  
+  // ============================================================================
+  // Phase 3.1: Segment Validation Enforcement
+  // ============================================================================
+  
+  // Additional safety check: Prevent approval if outside segments not validated
+  if (!canApprove.value) {
+    const reason = approvalBlockReason.value;
+    console.warn(`❌ Approval blocked: ${reason}`);
+    toast.warning({ text: reason });
+    return;
+  }
+  
+  // For videos with outside segments: Ensure validation was completed
+  if (isVideo.value && shouldShowOutsideTimeline.value) {
+    console.warn('❌ Outside segments still pending validation');
+    toast.error({ 
+      text: 'Bitte validieren Sie zuerst alle Outside-Segmente, bevor Sie das Video bestätigen.' 
+    });
+    return;
+  }
+  
+  // ============================================================================
+  // End Phase 3.1
+  // ============================================================================
+  
   isApproving.value = true;
   try {
  
@@ -944,8 +1180,8 @@ const approveItem = async () => {
           patient_first_name: editedPatient.value.patientFirstName,
           patient_last_name:  editedPatient.value.patientLastName,
           patient_gender:     editedPatient.value.patientGender,
-          patient_dob:        toGerman(dobISO.value || '') || '',          // 🎯 SENDE DEUTSCHES FORMAT
-          examination_date:   toGerman(examISO.value || '') || '',         // 🎯 SENDE DEUTSCHES FORMAT
+          patient_dob:        DateConverter.toGerman(dobISO.value || '') || '',          // 🎯 Phase 2.1: SENDE DEUTSCHES FORMAT
+          examination_date:   DateConverter.toGerman(examISO.value || '') || '',         // 🎯 Phase 2.1: SENDE DEUTSCHES FORMAT
           casenumber:         editedPatient.value.casenumber || "",
           anonymized_text:    isPdf.value ? editedAnonymizedText.value : undefined,
           is_verified:        true,
@@ -994,8 +1230,8 @@ const saveAnnotation = async () => {
   try {
     const annotationData = {
       processed_image_url: processedUrl.value,
-      patient_data: buildSensitiveMetaSnake(toGerman(dobISO.value || '') || ''),  // 🎯 DEUTSCHES FORMAT
-      examinationDate: toGerman(examISO.value || '') || '',                       // 🎯 DEUTSCHES FORMAT
+      patient_data: buildSensitiveMetaSnake(DateConverter.toGerman(dobISO.value || '') || ''),  // 🎯 Phase 2.1: DEUTSCHES FORMAT
+      examinationDate: DateConverter.toGerman(examISO.value || '') || '',                       // 🎯 Phase 2.1: DEUTSCHES FORMAT
       anonymized_text: editedAnonymizedText.value,
     };
 

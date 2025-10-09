@@ -7,6 +7,7 @@ import { useToastStore } from '@/stores/toastStore';
 import { usePdfStore } from '@/stores/pdfStore';
 import { useMediaTypeStore } from '@/stores/mediaTypeStore';
 import OutsideTimelineComponent from '@/components/Anonymizer/OutsideSegmentComponent.vue';
+import { DateConverter, DateValidator } from '@/utils/dateHelpers';
 // @ts-ignore
 import axiosInstance, { r } from '@/api/axiosInstance';
 import { usePollingProtection } from '@/composables/usePollingProtection';
@@ -30,6 +31,12 @@ const editedPatient = ref({
     patientDob: '',
     casenumber: ''
 });
+// ✨ Phase 2.2: Validation error tracking
+const validationErrors = ref([]);
+const dobErrorMessage = ref('');
+const examDateErrorMessage = ref('');
+const dobDisplayFormat = ref('');
+const examDateDisplayFormat = ref('');
 // ✅ NEW: Video validation state for segment annotation
 const isValidatingVideo = ref(false);
 const shouldShowOutsideTimeline = ref(false);
@@ -60,59 +67,11 @@ function shallowEqual(a, b) {
         a.casenumber === b.casenumber;
 }
 // --- add below your imports/locals ---
-function fromUiToISO(input) {
-    /**
-     * Konvertiert Browser Date Input (YYYY-MM-DD) zu ISO String
-     */
-    if (!input)
-        return null;
-    const s = input.trim().split(' ')[0];
-    const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
-    return iso ? s : null;
-}
-function toGerman(iso) {
-    /**
-     * Konvertiert ISO-Datum (YYYY-MM-DD) zu deutschem Format (DD.MM.YYYY)
-     */
-    if (!iso)
-        return '';
-    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso.trim());
-    if (!m)
-        return '';
-    const [, y, mo, d] = m;
-    return `${d}.${mo}.${y}`;
-}
-function fromGermanToISO(input) {
-    /**
-     * Konvertiert deutsches Datum (DD.MM.YYYY) zu ISO-Format (YYYY-MM-DD)
-     */
-    if (!input)
-        return null;
-    const s = input.trim();
-    const m = /^(\d{2})\.(\d{2})\.(\d{4})$/.exec(s);
-    if (!m)
-        return null;
-    const [, dd, mm, yyyy] = m;
-    return `${yyyy}-${mm}-${dd}`;
-}
-function normalizeDateToISO(input) {
-    /**
-     * DEPRECATED: Verwende fromUiToISO oder fromGermanToISO
-     * Zur Rückwärtskompatibilität noch vorhanden
-     */
-    if (!input)
-        return null;
-    const s = input.trim().split(' ')[0]; // remove time if present
-    const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
-    if (iso)
-        return s;
-    const de = /^(\d{2})\.(\d{2})\.(\d{4})$/.exec(s);
-    if (de) {
-        const [, dd, mm, yyyy] = de;
-        return `${yyyy}-${mm}-${dd}`;
-    }
-    return null;
-}
+// ============================================================================
+// DATE CONVERSION UTILITIES - Using centralized DateConverter (Phase 2.1)
+// ============================================================================
+// Legacy functions removed - now using DateConverter from @/utils/dateHelpers
+// Migration: Oct 2025 (Phase 2.1)
 function buildSensitiveMetaSnake(dobGerman) {
     return {
         patient_first_name: editedPatient.value.patientFirstName || '',
@@ -122,17 +81,23 @@ function buildSensitiveMetaSnake(dobGerman) {
         casenumber: editedPatient.value.casenumber || '',
     };
 }
-function compareISODate(a, b) {
-    if (a === b)
-        return 0;
-    return a < b ? -1 : 1;
-}
-// Validations mit neuen Helfern - intern weiterhin ISO für Vergleiche
+// ============================================================================
+// COMPUTED PROPERTIES - Validation
+// ============================================================================
 const firstNameOk = computed(() => editedPatient.value.patientFirstName.trim().length > 0);
 const lastNameOk = computed(() => editedPatient.value.patientLastName.trim().length > 0);
-// Unterstütze sowohl UI-Input (ISO) als auch deutsche Eingaben
-const dobISO = computed(() => fromUiToISO(editedPatient.value.patientDob) || fromGermanToISO(editedPatient.value.patientDob));
-const examISO = computed(() => fromUiToISO(examinationDate.value) || fromGermanToISO(examinationDate.value));
+// ✨ Phase 2.1: Using centralized DateConverter
+const dobISO = computed(() => DateConverter.toISO(editedPatient.value.patientDob));
+const examISO = computed(() => DateConverter.toISO(examinationDate.value));
+// ✨ Phase 2.2: Validation error summary
+const validationErrorSummary = computed(() => {
+    const count = validationErrors.value.length;
+    if (count === 0)
+        return 'Alle Felder sind gültig';
+    if (count === 1)
+        return '1 Validierungsfehler gefunden';
+    return `${count} Validierungsfehler gefunden`;
+});
 // DOB must be present & valid
 const isDobValid = computed(() => !!dobISO.value);
 // Exam optional; if present requires valid DOB and must be >= DOB
@@ -141,7 +106,7 @@ const isExaminationDateValid = computed(() => {
         return true;
     if (!dobISO.value)
         return false;
-    return compareISODate(examISO.value, dobISO.value) >= 0;
+    return DateConverter.isAfterOrEqual(examISO.value, dobISO.value);
 });
 // Global save gates
 const dataOk = computed(() => firstNameOk.value && lastNameOk.value && isDobValid.value && isExaminationDateValid.value);
@@ -149,6 +114,58 @@ const canSubmit = computed(() => {
     // For annotation saving, we need both uploaded images AND valid patient data
     return dataOk.value;
 });
+// ============================================================================
+// Phase 3.1: Segment Validation Enforcement
+// ============================================================================
+/**
+ * Determines if approval is allowed based on validation state.
+ * Blocks approval if video has unvalidated outside segments.
+ */
+const canApprove = computed(() => {
+    // Basic data validation must pass
+    if (!dataOk.value)
+        return false;
+    // For videos: Check if outside segments need validation
+    if (isVideo.value && shouldShowOutsideTimeline.value) {
+        // Block approval until all outside segments are validated
+        return false;
+    }
+    // All checks passed
+    return true;
+});
+/**
+ * Returns a user-friendly message explaining why approval is blocked.
+ */
+const approvalBlockReason = computed(() => {
+    if (!dataOk.value) {
+        const errors = [];
+        if (!firstNameOk.value)
+            errors.push('Vorname');
+        if (!lastNameOk.value)
+            errors.push('Nachname');
+        if (!isDobValid.value)
+            errors.push('gültiges Geburtsdatum');
+        if (!isExaminationDateValid.value)
+            errors.push('gültiges Untersuchungsdatum');
+        return `Bitte korrigieren Sie: ${errors.join(', ')}`;
+    }
+    if (isVideo.value && shouldShowOutsideTimeline.value) {
+        const remaining = totalOutsideSegments.value - outsideSegmentsValidated.value;
+        return `Bitte validieren Sie zuerst alle Outside-Segmente (${remaining} verbleibend)`;
+    }
+    return '';
+});
+/**
+ * Calculates validation progress percentage for progress bar.
+ */
+const validationProgressPercent = computed(() => {
+    if (totalOutsideSegments.value === 0)
+        return 0;
+    return Math.round((outsideSegmentsValidated.value / totalOutsideSegments.value) * 100);
+});
+// ============================================================================
+// End Phase 3.1
+// ============================================================================
 // Computed
 const currentItem = computed(() => anonymizationStore.current);
 // Use MediaStore for consistent media type detection
@@ -360,6 +377,34 @@ const onOutsideValidationComplete = () => {
     };
     toast.success({ text: 'Outside-Segment Validierung abgeschlossen!' });
 };
+const loadCurrentItemData = (item) => {
+    if (!item)
+        return;
+    // ✅ NEW: Reset video validation state when loading new item
+    shouldShowOutsideTimeline.value = false;
+    videoValidationStatus.value = null;
+    outsideSegmentsValidated.value = 0;
+    totalOutsideSegments.value = 0;
+    isValidatingVideo.value = false;
+    editedAnonymizedText.value = item.anonymizedText || '';
+    const rawExam = item.reportMeta?.examinationDate || '';
+    const rawDob = item.reportMeta?.patientDob || '';
+    // ✨ Phase 2.1: Using DateConverter for consistent format handling
+    examinationDate.value = DateConverter.toISO(rawExam) || '';
+    const p = {
+        patientFirstName: item.reportMeta?.patientFirstName || '',
+        patientLastName: item.reportMeta?.patientLastName || '',
+        patientGender: item.reportMeta?.patientGender || '',
+        patientDob: DateConverter.toISO(rawDob) || '',
+        casenumber: item.reportMeta?.casenumber || '',
+    };
+    editedPatient.value = { ...p };
+    original.value = {
+        anonymizedText: editedAnonymizedText.value,
+        examinationDate: examinationDate.value,
+        patient: { ...p },
+    };
+};
 // Watch
 watch(currentItem, (newItem) => {
     if (newItem) {
@@ -376,34 +421,6 @@ const fetchNextItem = async () => {
         console.error('Error fetching next item:', error);
     }
 };
-const loadCurrentItemData = (item) => {
-    if (!item)
-        return;
-    // ✅ NEW: Reset video validation state when loading new item
-    shouldShowOutsideTimeline.value = false;
-    videoValidationStatus.value = null;
-    outsideSegmentsValidated.value = 0;
-    totalOutsideSegments.value = 0;
-    isValidatingVideo.value = false;
-    editedAnonymizedText.value = item.anonymizedText || '';
-    const rawExam = item.reportMeta?.examinationDate || '';
-    const rawDob = item.reportMeta?.patientDob || '';
-    // Unterstütze sowohl eingehende ISO- als auch deutsche Daten
-    examinationDate.value = fromUiToISO(rawExam) || fromGermanToISO(rawExam) || '';
-    const p = {
-        patientFirstName: item.reportMeta?.patientFirstName || '',
-        patientLastName: item.reportMeta?.patientLastName || '',
-        patientGender: item.reportMeta?.patientGender || '',
-        patientDob: fromUiToISO(rawDob) || fromGermanToISO(rawDob) || '',
-        casenumber: item.reportMeta?.casenumber || '',
-    };
-    editedPatient.value = { ...p };
-    original.value = {
-        anonymizedText: editedAnonymizedText.value,
-        examinationDate: examinationDate.value,
-        patient: { ...p },
-    };
-};
 const dirty = computed(() => editedAnonymizedText.value !== original.value.anonymizedText ||
     examinationDate.value !== original.value.examinationDate ||
     !shallowEqual(editedPatient.value, original.value.patient));
@@ -418,6 +435,118 @@ const isApproving = ref(false);
 const toggleImage = () => {
     showOriginal.value = !showOriginal.value;
 };
+// ============================================================================
+// Phase 2.2: Date Validation Functions
+// ============================================================================
+/**
+ * Validate all dates and update error panel
+ */
+function validateAllDates() {
+    const validator = new DateValidator();
+    // Clear previous errors
+    validationErrors.value = [];
+    dobErrorMessage.value = '';
+    examDateErrorMessage.value = '';
+    // Validate DOB
+    if (editedPatient.value.patientDob) {
+        const dobValue = editedPatient.value.patientDob;
+        // Try to determine format
+        if (DateConverter.validate(dobValue, 'ISO')) {
+            dobDisplayFormat.value = 'ISO (YYYY-MM-DD)';
+        }
+        else if (DateConverter.validate(dobValue, 'German')) {
+            dobDisplayFormat.value = 'Deutsch (DD.MM.YYYY)';
+        }
+        else {
+            dobDisplayFormat.value = '';
+            dobErrorMessage.value = 'Ungültiges Format. Verwenden Sie DD.MM.YYYY oder YYYY-MM-DD';
+            validator.addField('Geburtsdatum', dobValue, 'German'); // Will fail
+        }
+    }
+    else {
+        dobDisplayFormat.value = '';
+    }
+    // Validate Exam Date
+    if (examinationDate.value) {
+        const examValue = examinationDate.value;
+        // Try to determine format
+        if (DateConverter.validate(examValue, 'ISO')) {
+            examDateDisplayFormat.value = 'ISO (YYYY-MM-DD)';
+        }
+        else if (DateConverter.validate(examValue, 'German')) {
+            examDateDisplayFormat.value = 'Deutsch (DD.MM.YYYY)';
+        }
+        else {
+            examDateDisplayFormat.value = '';
+            examDateErrorMessage.value = 'Ungültiges Format. Verwenden Sie DD.MM.YYYY oder YYYY-MM-DD';
+            validator.addField('Untersuchungsdatum', examValue, 'ISO'); // Will fail
+        }
+    }
+    else {
+        examDateDisplayFormat.value = '';
+    }
+    // Validate DOB < ExamDate constraint
+    if (dobISO.value && examISO.value) {
+        validator.addConstraint('DOB_BEFORE_EXAM', DateConverter.isBeforeOrEqual(dobISO.value, examISO.value), 'Geburtsdatum muss vor oder am selben Tag wie das Untersuchungsdatum liegen');
+    }
+    // Update validation errors
+    if (validator.hasErrors()) {
+        validationErrors.value = validator.getErrors();
+        // Set specific error messages
+        const errors = validator.getErrors();
+        errors.forEach(error => {
+            if (error.includes('Geburtsdatum')) {
+                dobErrorMessage.value = error.replace('Geburtsdatum: ', '');
+            }
+            if (error.includes('Untersuchungsdatum')) {
+                examDateErrorMessage.value = error.replace('Untersuchungsdatum: ', '');
+            }
+        });
+    }
+}
+/**
+ * Handle DOB blur event - validate and convert format
+ */
+function onDobBlur() {
+    const value = editedPatient.value.patientDob;
+    if (!value)
+        return;
+    // Try to convert to ISO for consistent storage
+    const isoDate = DateConverter.toISO(value);
+    if (isoDate) {
+        editedPatient.value.patientDob = isoDate;
+        dobDisplayFormat.value = 'ISO (YYYY-MM-DD)';
+    }
+    // Validate all dates
+    validateAllDates();
+}
+/**
+ * Handle Exam Date blur event - validate and convert format
+ */
+function onExamDateBlur() {
+    const value = examinationDate.value;
+    if (!value)
+        return;
+    // Try to convert to ISO for consistent storage
+    const isoDate = DateConverter.toISO(value);
+    if (isoDate) {
+        examinationDate.value = isoDate;
+        examDateDisplayFormat.value = 'ISO (YYYY-MM-DD)';
+    }
+    // Validate all dates
+    validateAllDates();
+}
+/**
+ * Clear all validation errors
+ */
+function clearValidationErrors() {
+    validationErrors.value = [];
+    dobErrorMessage.value = '';
+    examDateErrorMessage.value = '';
+}
+// ============================================================================
+// End Phase 2.2
+// ============================================================================
 const skipItem = async () => {
     if (currentItem.value) {
         await fetchNextItem();
@@ -438,6 +567,27 @@ const navigateToSegmentation = () => {
 const approveItem = async () => {
     if (!currentItem.value || !canSave.value || isApproving.value)
         return;
+    // ============================================================================
+    // Phase 3.1: Segment Validation Enforcement
+    // ============================================================================
+    // Additional safety check: Prevent approval if outside segments not validated
+    if (!canApprove.value) {
+        const reason = approvalBlockReason.value;
+        console.warn(`❌ Approval blocked: ${reason}`);
+        toast.warning({ text: reason });
+        return;
+    }
+    // For videos with outside segments: Ensure validation was completed
+    if (isVideo.value && shouldShowOutsideTimeline.value) {
+        console.warn('❌ Outside segments still pending validation');
+        toast.error({
+            text: 'Bitte validieren Sie zuerst alle Outside-Segmente, bevor Sie das Video bestätigen.'
+        });
+        return;
+    }
+    // ============================================================================
+    // End Phase 3.1
+    // ============================================================================
     isApproving.value = true;
     try {
         console.log(`Validating anonymization for file ${currentItem.value.id}...`);
@@ -446,8 +596,8 @@ const approveItem = async () => {
                 patient_first_name: editedPatient.value.patientFirstName,
                 patient_last_name: editedPatient.value.patientLastName,
                 patient_gender: editedPatient.value.patientGender,
-                patient_dob: toGerman(dobISO.value || '') || '', // 🎯 SENDE DEUTSCHES FORMAT
-                examination_date: toGerman(examISO.value || '') || '', // 🎯 SENDE DEUTSCHES FORMAT
+                patient_dob: DateConverter.toGerman(dobISO.value || '') || '', // 🎯 Phase 2.1: SENDE DEUTSCHES FORMAT
+                examination_date: DateConverter.toGerman(examISO.value || '') || '', // 🎯 Phase 2.1: SENDE DEUTSCHES FORMAT
                 casenumber: editedPatient.value.casenumber || "",
                 anonymized_text: isPdf.value ? editedAnonymizedText.value : undefined,
                 is_verified: true,
@@ -498,8 +648,8 @@ const saveAnnotation = async () => {
     try {
         const annotationData = {
             processed_image_url: processedUrl.value,
-            patient_data: buildSensitiveMetaSnake(toGerman(dobISO.value || '') || ''), // 🎯 DEUTSCHES FORMAT
-            examinationDate: toGerman(examISO.value || '') || '', // 🎯 DEUTSCHES FORMAT
+            patient_data: buildSensitiveMetaSnake(DateConverter.toGerman(dobISO.value || '') || ''), // 🎯 Phase 2.1: DEUTSCHES FORMAT
+            examinationDate: DateConverter.toGerman(examISO.value || '') || '', // 🎯 Phase 2.1: DEUTSCHES FORMAT
             anonymized_text: editedAnonymizedText.value,
         };
         if (currentItem.value && isVideo.value) {
@@ -746,6 +896,41 @@ if (__VLS_ctx.currentItem) {
         ...{ class: "form-check-label" },
         for: "noMoreNames",
     });
+    if (__VLS_ctx.validationErrors.length > 0) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "row mb-4" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "col-12" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "alert alert-danger alert-dismissible fade show" },
+            role: "alert",
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({
+            ...{ class: "alert-heading" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: "fas fa-exclamation-triangle me-2" },
+        });
+        (__VLS_ctx.validationErrorSummary);
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.hr, __VLS_intrinsicElements.hr)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.ul, __VLS_intrinsicElements.ul)({
+            ...{ class: "mb-0" },
+        });
+        for (const [error, index] of __VLS_getVForSourceType((__VLS_ctx.validationErrors))) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({
+                key: (index),
+            });
+            (error);
+        }
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+            ...{ onClick: (__VLS_ctx.clearValidationErrors) },
+            type: "button",
+            ...{ class: "btn-close" },
+            'aria-label': "Schließen",
+        });
+    }
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "row mb-4" },
     });
@@ -821,15 +1006,29 @@ if (__VLS_ctx.currentItem) {
         ...{ class: "form-label" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.input, __VLS_intrinsicElements.input)({
+        ...{ onBlur: (__VLS_ctx.onDobBlur) },
         type: "date",
         ...{ class: "form-control" },
         ...{ class: ({ 'is-invalid': !__VLS_ctx.isDobValid }) },
     });
     (__VLS_ctx.editedPatient.patientDob);
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+        ...{ class: "form-text text-muted" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+        ...{ class: "fas fa-info-circle me-1" },
+    });
+    if (__VLS_ctx.dobDisplayFormat) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+            ...{ class: "ms-2 badge bg-secondary" },
+        });
+        (__VLS_ctx.dobDisplayFormat);
+    }
     if (!__VLS_ctx.isDobValid) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: "invalid-feedback" },
         });
+        (__VLS_ctx.dobErrorMessage || 'Gültiges Geburtsdatum ist erforderlich.');
     }
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "mb-3" },
@@ -849,15 +1048,29 @@ if (__VLS_ctx.currentItem) {
         ...{ class: "form-label" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.input, __VLS_intrinsicElements.input)({
+        ...{ onBlur: (__VLS_ctx.onExamDateBlur) },
         type: "date",
         ...{ class: "form-control" },
         ...{ class: ({ 'is-invalid': !__VLS_ctx.isExaminationDateValid }) },
     });
     (__VLS_ctx.examinationDate);
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+        ...{ class: "form-text text-muted" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+        ...{ class: "fas fa-info-circle me-1" },
+    });
+    if (__VLS_ctx.examDateDisplayFormat) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+            ...{ class: "ms-2 badge bg-secondary" },
+        });
+        (__VLS_ctx.examDateDisplayFormat);
+    }
     if (!__VLS_ctx.isExaminationDateValid) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: "invalid-feedback" },
         });
+        (__VLS_ctx.examDateErrorMessage || 'Das Untersuchungsdatum darf nicht vor dem Geburtsdatum liegen.');
     }
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "mb-3" },
@@ -1069,6 +1282,10 @@ if (__VLS_ctx.currentItem) {
             __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
                 ...{ class: "card-header bg-warning bg-opacity-10" },
             });
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: "d-flex justify-content-between align-items-center" },
+            });
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
             __VLS_asFunctionalElement(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({
                 ...{ class: "mb-0 text-warning" },
             });
@@ -1079,6 +1296,30 @@ if (__VLS_ctx.currentItem) {
             __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
                 ...{ class: "text-muted" },
             });
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: "text-end" },
+            });
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: "badge bg-warning text-dark fs-6" },
+            });
+            (__VLS_ctx.outsideSegmentsValidated);
+            (__VLS_ctx.totalOutsideSegments);
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: "progress mt-2" },
+                ...{ style: {} },
+            });
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: "progress-bar bg-success" },
+                role: "progressbar",
+                ...{ style: ({ width: __VLS_ctx.validationProgressPercent + '%' }) },
+                'aria-valuenow': (__VLS_ctx.outsideSegmentsValidated),
+                'aria-valuemin': (0),
+                'aria-valuemax': (__VLS_ctx.totalOutsideSegments),
+            });
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+                ...{ class: "text-muted" },
+            });
+            (__VLS_ctx.validationProgressPercent);
             __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
                 ...{ class: "card-body" },
             });
@@ -1201,7 +1442,8 @@ if (__VLS_ctx.currentItem) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
         ...{ onClick: (__VLS_ctx.approveItem) },
         ...{ class: "btn btn-success" },
-        disabled: (__VLS_ctx.isApproving),
+        disabled: (__VLS_ctx.isApproving || !__VLS_ctx.canApprove),
+        title: (__VLS_ctx.approvalBlockReason),
     });
     if (__VLS_ctx.isApproving) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
@@ -1211,6 +1453,16 @@ if (__VLS_ctx.currentItem) {
         });
     }
     (__VLS_ctx.isApproving ? 'Wird bestätigt...' : 'Bestätigen');
+    if (!__VLS_ctx.canApprove && __VLS_ctx.approvalBlockReason) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "alert alert-warning mt-2 mb-0" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: "fas fa-exclamation-triangle me-2" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+        (__VLS_ctx.approvalBlockReason);
+    }
 }
 /** @type {__VLS_StyleScopedClasses['container-fluid']} */ ;
 /** @type {__VLS_StyleScopedClasses['py-4']} */ ;
@@ -1266,6 +1518,20 @@ if (__VLS_ctx.currentItem) {
 /** @type {__VLS_StyleScopedClasses['form-check-label']} */ ;
 /** @type {__VLS_StyleScopedClasses['row']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-4']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-12']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert-danger']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert-dismissible']} */ ;
+/** @type {__VLS_StyleScopedClasses['fade']} */ ;
+/** @type {__VLS_StyleScopedClasses['show']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert-heading']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-exclamation-triangle']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-close']} */ ;
+/** @type {__VLS_StyleScopedClasses['row']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-4']} */ ;
 /** @type {__VLS_StyleScopedClasses['col-md-5']} */ ;
 /** @type {__VLS_StyleScopedClasses['card']} */ ;
 /** @type {__VLS_StyleScopedClasses['bg-light']} */ ;
@@ -1289,6 +1555,14 @@ if (__VLS_ctx.currentItem) {
 /** @type {__VLS_StyleScopedClasses['form-label']} */ ;
 /** @type {__VLS_StyleScopedClasses['form-control']} */ ;
 /** @type {__VLS_StyleScopedClasses['is-invalid']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-text']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-info-circle']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['ms-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['bg-secondary']} */ ;
 /** @type {__VLS_StyleScopedClasses['invalid-feedback']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['form-label']} */ ;
@@ -1297,6 +1571,14 @@ if (__VLS_ctx.currentItem) {
 /** @type {__VLS_StyleScopedClasses['form-label']} */ ;
 /** @type {__VLS_StyleScopedClasses['form-control']} */ ;
 /** @type {__VLS_StyleScopedClasses['is-invalid']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-text']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-info-circle']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['ms-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['bg-secondary']} */ ;
 /** @type {__VLS_StyleScopedClasses['invalid-feedback']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['form-label']} */ ;
@@ -1390,11 +1672,24 @@ if (__VLS_ctx.currentItem) {
 /** @type {__VLS_StyleScopedClasses['card-header']} */ ;
 /** @type {__VLS_StyleScopedClasses['bg-warning']} */ ;
 /** @type {__VLS_StyleScopedClasses['bg-opacity-10']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['justify-content-between']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-warning']} */ ;
 /** @type {__VLS_StyleScopedClasses['fas']} */ ;
 /** @type {__VLS_StyleScopedClasses['fa-exclamation-triangle']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-end']} */ ;
+/** @type {__VLS_StyleScopedClasses['badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['bg-warning']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-dark']} */ ;
+/** @type {__VLS_StyleScopedClasses['fs-6']} */ ;
+/** @type {__VLS_StyleScopedClasses['progress']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['progress-bar']} */ ;
+/** @type {__VLS_StyleScopedClasses['bg-success']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-body']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert']} */ ;
@@ -1433,6 +1728,13 @@ if (__VLS_ctx.currentItem) {
 /** @type {__VLS_StyleScopedClasses['spinner-border']} */ ;
 /** @type {__VLS_StyleScopedClasses['spinner-border-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert-warning']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-exclamation-triangle']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-2']} */ ;
 var __VLS_dollars;
 const __VLS_self = (await import('vue')).defineComponent({
     setup() {
@@ -1444,16 +1746,27 @@ const __VLS_self = (await import('vue')).defineComponent({
             examinationDate: examinationDate,
             noMoreNames: noMoreNames,
             editedPatient: editedPatient,
+            validationErrors: validationErrors,
+            dobErrorMessage: dobErrorMessage,
+            examDateErrorMessage: examDateErrorMessage,
+            dobDisplayFormat: dobDisplayFormat,
+            examDateDisplayFormat: examDateDisplayFormat,
             isValidatingVideo: isValidatingVideo,
             shouldShowOutsideTimeline: shouldShowOutsideTimeline,
             videoValidationStatus: videoValidationStatus,
+            outsideSegmentsValidated: outsideSegmentsValidated,
+            totalOutsideSegments: totalOutsideSegments,
             originalUrl: originalUrl,
             processedUrl: processedUrl,
             showOriginal: showOriginal,
             firstNameOk: firstNameOk,
             lastNameOk: lastNameOk,
+            validationErrorSummary: validationErrorSummary,
             isDobValid: isDobValid,
             isExaminationDateValid: isExaminationDateValid,
+            canApprove: canApprove,
+            approvalBlockReason: approvalBlockReason,
+            validationProgressPercent: validationProgressPercent,
             currentItem: currentItem,
             isPdf: isPdf,
             isVideo: isVideo,
@@ -1478,6 +1791,9 @@ const __VLS_self = (await import('vue')).defineComponent({
             isSaving: isSaving,
             isApproving: isApproving,
             toggleImage: toggleImage,
+            onDobBlur: onDobBlur,
+            onExamDateBlur: onExamDateBlur,
+            clearValidationErrors: clearValidationErrors,
             skipItem: skipItem,
             approveItem: approveItem,
             saveAnnotation: saveAnnotation,

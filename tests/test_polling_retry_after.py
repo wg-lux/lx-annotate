@@ -7,7 +7,7 @@ from django.urls import reverse
 from rest_framework.test import APIClient
 from rest_framework import status
 from endoreg_db.services.polling_coordinator import PollingCoordinator
-from endoreg_db.services.anonymization_service import AnonymizationService
+from endoreg_db.services.anonymization import AnonymizationService
 
 
 class TestPollingRetryAfter(TestCase):
