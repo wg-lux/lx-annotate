@@ -9,14 +9,44 @@ export default (await import('vue')).defineComponent({
     methods: {
         toggleSidebar() {
             this.isSidebarOpen = !this.isSidebarOpen;
+        },
+        closeSidebar() {
+            this.isSidebarOpen = false;
+        },
+        openSidebar() {
+            this.isSidebarOpen = true;
         }
+    },
+    mounted() {
+        // Listen for custom events from navbar
+        const handleToggle = () => {
+            this.toggleSidebar();
+        };
+        document.addEventListener('toggleSidebar', handleToggle);
+        // Handle window resize to close sidebar on larger screens
+        const handleResize = () => {
+            if (window.innerWidth >= 1200) {
+                this.isSidebarOpen = false;
+            }
+        };
+        window.addEventListener('resize', handleResize);
+        // Cleanup event listeners
+        this.$once('hook:beforeDestroy', () => {
+            document.removeEventListener('toggleSidebar', handleToggle);
+            window.removeEventListener('resize', handleResize);
+        });
     }
 });
 const __VLS_ctx = {};
 let __VLS_components;
 let __VLS_directives;
 /** @type {__VLS_StyleScopedClasses['nav-link']} */ ;
+/** @type {__VLS_StyleScopedClasses['sidenav']} */ ;
+/** @type {__VLS_StyleScopedClasses['sidenav']} */ ;
+/** @type {__VLS_StyleScopedClasses['show']} */ ;
 /** @type {__VLS_StyleScopedClasses['nav-link']} */ ;
+/** @type {__VLS_StyleScopedClasses['sidebar-backdrop']} */ ;
+/** @type {__VLS_StyleScopedClasses['sidenav']} */ ;
 // CSS variable injection 
 // CSS variable injection end 
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
@@ -30,8 +60,15 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.link)({
     rel: "stylesheet",
     href: "https://maxcdn.bootstrapcdn.com/font-awesome/latest/css/font-awesome.min.css",
 });
+if (__VLS_ctx.isSidebarOpen) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ onClick: (__VLS_ctx.closeSidebar) },
+        ...{ class: "sidebar-backdrop" },
+    });
+}
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "sidenav" },
+    ...{ class: ({ show: __VLS_ctx.isSidebarOpen }) },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "sidenav-header" },
@@ -270,7 +307,9 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.
     ...{ class: "nav-link-text ms-1" },
 });
 var __VLS_31;
+/** @type {__VLS_StyleScopedClasses['sidebar-backdrop']} */ ;
 /** @type {__VLS_StyleScopedClasses['sidenav']} */ ;
+/** @type {__VLS_StyleScopedClasses['show']} */ ;
 /** @type {__VLS_StyleScopedClasses['sidenav-header']} */ ;
 /** @type {__VLS_StyleScopedClasses['navbar-brand']} */ ;
 /** @type {__VLS_StyleScopedClasses['m-0']} */ ;

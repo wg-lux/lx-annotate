@@ -1,6 +1,22 @@
 <template>
   <nav class="navbar navbar-main navbar-expand-lg px-0 mx-4 shadow-none border-radius-xl position-sticky top-1" id="navbarBlur" navbar-scroll="true">
     <div class="container-fluid py-1 px-3">
+      <!-- Mobile sidebar toggle button -->
+      <button 
+        class="navbar-toggler d-lg-none" 
+        type="button" 
+        @click="toggleSidebar"
+        aria-controls="sidebar"
+        aria-expanded="false"
+        aria-label="Toggle navigation"
+      >
+        <span class="navbar-toggler-icon">
+          <span class="navbar-toggler-bar"></span>
+          <span class="navbar-toggler-bar"></span>
+          <span class="navbar-toggler-bar"></span>
+        </span>
+      </button>
+      
       <div class="collapse navbar-collapse mt-sm-0 mt-2 me-md-0 me-sm-4" id="navbar">
         <div class="ms-md-auto pe-md-3 d-flex align-items-center">
           <nav aria-label="breadcrumb">
@@ -97,6 +113,12 @@ const handleLogout = () => {
   authStore.logout();
 };
 
+const toggleSidebar = () => {
+  // Dispatch custom event to toggle sidebar
+  const event = new CustomEvent('toggleSidebar');
+  document.dispatchEvent(event);
+};
+
 // Load annotation stats on mount and refresh periodically
 onMounted(async () => {
   await annotationStatsStore.fetchAnnotationStats();
@@ -159,5 +181,44 @@ onMounted(async () => {
 
 .btn:hover {
   transform: translateY(-1px);
+}
+
+/* Mobile sidebar toggle button */
+.navbar-toggler {
+  border: none;
+  padding: 0.25rem 0.5rem;
+  background: transparent;
+  margin-right: 1rem;
+}
+
+.navbar-toggler:focus {
+  box-shadow: none;
+}
+
+.navbar-toggler-icon {
+  background-image: none;
+  display: inline-block;
+  width: 1.5em;
+  height: 1.5em;
+}
+
+.navbar-toggler-bar {
+  display: block;
+  width: 22px;
+  height: 2px;
+  background-color: #2d3047;
+  border-radius: 1px;
+  margin: 4px 0;
+  transition: all 0.2s;
+}
+
+.navbar-toggler:hover .navbar-toggler-bar {
+  background-color: #596CFF;
+}
+
+@media (min-width: 1200px) {
+  .navbar-toggler {
+    display: none !important;
+  }
 }
 </style>

@@ -23,7 +23,7 @@
 
     <div class="row">
       <!-- Video Player Section -->
-      <div class="col-lg-8">
+      <div class="col-lg-12">
         <div class="card">
           <div class="card-header pb-0">
             <h5 class="mb-0">Video Player</h5>
@@ -230,26 +230,39 @@
         </div>
       </div>
 
-      <!-- Examination Form Section -->
-      <div class="col-lg-4">
+      <!-- Advanced Requirement Generator Section -->
+      <div class="col-lg-12">
         <div class="card">
           <div class="card-header pb-0">
-            <h5 class="mb-0">Untersuchungsdetails</h5>
+            <h5 class="mb-0">
+              <i class="fas fa-clipboard-list me-2"></i>
+              Anforderungsbasierte Annotation
+            </h5>
             <small class="text-muted" v-if="currentMarker">
               Zeitpunkt: {{ formatTime(currentMarker.timestamp) }}
             </small>
+            <div class="mt-2" v-if="selectedVideoId">
+              <div class="alert alert-info alert-sm mb-0">
+                <i class="fas fa-info-circle me-1"></i>
+                <strong>Video {{ selectedVideoId }}:</strong> 
+                Erweiterte Untersuchungsannotation mit Anforderungssets und Befunden
+              </div>
+            </div>
           </div>
-          <div class="card-body">
-            <SimpleExaminationForm 
+          <div class="card-body p-0" style="max-height: 80vh; overflow-y: auto;">
+            <!-- ✅ ENHANCED: Integrated RequirementGenerator instead of simple form -->
+            <RequirementGenerator 
               v-if="showExaminationForm"
-              :video-timestamp="currentTime"
-              :video-id="selectedVideoId"
-              @examination-saved="onExaminationSaved"
-              data-cy="examination-form"
+              class="requirement-generator-embedded"
+              data-cy="requirement-generator"
             />
-            <div v-else class="text-center text-muted py-5">
-              <i class="material-icons" style="font-size: 48px;">videocam</i>
-              <p class="mt-2">Wählen Sie ein Video aus, um mit der Annotation zu beginnen</p>
+            <div v-else class="text-center text-muted py-5 px-3">
+              <i class="fas fa-video fa-3x mb-3 text-muted"></i>
+              <h6>Video-Untersuchung</h6>
+              <p class="mb-0">Wählen Sie ein Video aus, um mit der erweiterten Annotation zu beginnen</p>
+              <small class="text-muted">
+                Anforderungssets, Befunde und Klassifikationen werden automatisch geladen
+              </small>
             </div>
           </div>
         </div>
@@ -300,7 +313,7 @@ import { useAnonymizationStore } from '@/stores/anonymizationStore'
 import { useAnnotationStore } from '@/stores/annotationStore'
 import { useAuthStore } from '@/stores/authStore'
 import { useMediaTypeStore } from '@/stores/mediaTypeStore'
-import SimpleExaminationForm from '@/components/Examination/SimpleExaminationForm.vue'
+import RequirementGenerator from '@/components/RequirementReport/RequirementGenerator.vue'
 import axiosInstance, { r } from '@/api/axiosInstance'
 import Timeline from '@/components/VideoExamination/Timeline.vue'
 import { storeToRefs } from 'pinia'
@@ -1137,5 +1150,62 @@ const onVideoCanPlay = (): void => {
 
 .list-group-item:last-child {
   border-bottom: none;
+}
+
+/* ✅ NEW: Embedded RequirementGenerator Styles */
+.requirement-generator-embedded {
+  /* Remove container padding for embedded use */
+  padding: 0 !important;
+}
+
+.requirement-generator-embedded .container-fluid {
+  padding: 0 !important;
+}
+
+.requirement-generator-embedded .card {
+  border: none !important;
+  box-shadow: none !important;
+  margin-bottom: 1rem !important;
+}
+
+.requirement-generator-embedded .card-header {
+  background: transparent !important;
+  border-bottom: 1px solid #e9ecef !important;
+  padding: 0.75rem !important;
+}
+
+.requirement-generator-embedded .card-body {
+  padding: 0.75rem !important;
+}
+
+/* Compact alert styles for embedded view */
+.requirement-generator-embedded .alert {
+  padding: 0.5rem 0.75rem !important;
+  margin-bottom: 0.75rem !important;
+  font-size: 0.875rem !important;
+}
+
+/* Compact form controls */
+.requirement-generator-embedded .form-control,
+.requirement-generator-embedded .form-select {
+  padding: 0.375rem 0.75rem !important;
+  font-size: 0.875rem !important;
+}
+
+/* Compact buttons */
+.requirement-generator-embedded .btn {
+  padding: 0.375rem 0.75rem !important;
+  font-size: 0.875rem !important;
+}
+
+/* Reduce spacing for embedded layout */
+.requirement-generator-embedded .row {
+  margin: 0 -0.5rem !important;
+}
+
+.requirement-generator-embedded .col-12,
+.requirement-generator-embedded .col-md-6,
+.requirement-generator-embedded .col-xl-6 {
+  padding: 0 0.5rem !important;
 }
 </style>

@@ -4,7 +4,7 @@ import { useAnonymizationStore } from '@/stores/anonymizationStore';
 import { useAnnotationStore } from '@/stores/annotationStore';
 import { useAuthStore } from '@/stores/authStore';
 import { useMediaTypeStore } from '@/stores/mediaTypeStore';
-import SimpleExaminationForm from '@/components/Examination/SimpleExaminationForm.vue';
+import RequirementGenerator from '@/components/RequirementReport/RequirementGenerator.vue';
 import axiosInstance, { r } from '@/api/axiosInstance';
 import Timeline from '@/components/VideoExamination/Timeline.vue';
 import { storeToRefs } from 'pinia';
@@ -611,6 +611,18 @@ let __VLS_components;
 let __VLS_directives;
 /** @type {__VLS_StyleScopedClasses['examination-marker']} */ ;
 /** @type {__VLS_StyleScopedClasses['list-group-item']} */ ;
+/** @type {__VLS_StyleScopedClasses['requirement-generator-embedded']} */ ;
+/** @type {__VLS_StyleScopedClasses['requirement-generator-embedded']} */ ;
+/** @type {__VLS_StyleScopedClasses['requirement-generator-embedded']} */ ;
+/** @type {__VLS_StyleScopedClasses['requirement-generator-embedded']} */ ;
+/** @type {__VLS_StyleScopedClasses['requirement-generator-embedded']} */ ;
+/** @type {__VLS_StyleScopedClasses['requirement-generator-embedded']} */ ;
+/** @type {__VLS_StyleScopedClasses['requirement-generator-embedded']} */ ;
+/** @type {__VLS_StyleScopedClasses['requirement-generator-embedded']} */ ;
+/** @type {__VLS_StyleScopedClasses['requirement-generator-embedded']} */ ;
+/** @type {__VLS_StyleScopedClasses['requirement-generator-embedded']} */ ;
+/** @type {__VLS_StyleScopedClasses['requirement-generator-embedded']} */ ;
+/** @type {__VLS_StyleScopedClasses['requirement-generator-embedded']} */ ;
 // CSS variable injection 
 // CSS variable injection end 
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -662,7 +674,7 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.d
     ...{ class: "row" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "col-lg-8" },
+    ...{ class: "col-lg-12" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "card" },
@@ -1012,7 +1024,7 @@ if (__VLS_ctx.selectedVideoId && __VLS_ctx.timelineSegmentsForSelectedVideo.leng
     });
 }
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "col-lg-4" },
+    ...{ class: "col-lg-12" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "card" },
@@ -1023,48 +1035,57 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.d
 __VLS_asFunctionalElement(__VLS_intrinsicElements.h5, __VLS_intrinsicElements.h5)({
     ...{ class: "mb-0" },
 });
+__VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+    ...{ class: "fas fa-clipboard-list me-2" },
+});
 if (__VLS_ctx.currentMarker) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
         ...{ class: "text-muted" },
     });
     (__VLS_ctx.formatTime(__VLS_ctx.currentMarker.timestamp));
 }
+if (__VLS_ctx.selectedVideoId) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "mt-2" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "alert alert-info alert-sm mb-0" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+        ...{ class: "fas fa-info-circle me-1" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+    (__VLS_ctx.selectedVideoId);
+}
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "card-body" },
+    ...{ class: "card-body p-0" },
+    ...{ style: {} },
 });
 if (__VLS_ctx.showExaminationForm) {
-    /** @type {[typeof SimpleExaminationForm, ]} */ ;
+    /** @type {[typeof RequirementGenerator, ]} */ ;
     // @ts-ignore
-    const __VLS_14 = __VLS_asFunctionalComponent(SimpleExaminationForm, new SimpleExaminationForm({
-        ...{ 'onExaminationSaved': {} },
-        videoTimestamp: (__VLS_ctx.currentTime),
-        videoId: (__VLS_ctx.selectedVideoId),
-        dataCy: "examination-form",
+    const __VLS_14 = __VLS_asFunctionalComponent(RequirementGenerator, new RequirementGenerator({
+        ...{ class: "requirement-generator-embedded" },
+        dataCy: "requirement-generator",
     }));
     const __VLS_15 = __VLS_14({
-        ...{ 'onExaminationSaved': {} },
-        videoTimestamp: (__VLS_ctx.currentTime),
-        videoId: (__VLS_ctx.selectedVideoId),
-        dataCy: "examination-form",
+        ...{ class: "requirement-generator-embedded" },
+        dataCy: "requirement-generator",
     }, ...__VLS_functionalComponentArgsRest(__VLS_14));
-    let __VLS_17;
-    let __VLS_18;
-    let __VLS_19;
-    const __VLS_20 = {
-        onExaminationSaved: (__VLS_ctx.onExaminationSaved)
-    };
-    var __VLS_16;
 }
 else {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "text-center text-muted py-5" },
+        ...{ class: "text-center text-muted py-5 px-3" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "material-icons" },
-        ...{ style: {} },
+        ...{ class: "fas fa-video fa-3x mb-3 text-muted" },
     });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({});
     __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
-        ...{ class: "mt-2" },
+        ...{ class: "mb-0" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+        ...{ class: "text-muted" },
     });
 }
 if (__VLS_ctx.savedExaminations.length > 0) {
@@ -1142,7 +1163,7 @@ if (__VLS_ctx.savedExaminations.length > 0) {
 /** @type {__VLS_StyleScopedClasses['row']} */ ;
 /** @type {__VLS_StyleScopedClasses['col-12']} */ ;
 /** @type {__VLS_StyleScopedClasses['row']} */ ;
-/** @type {__VLS_StyleScopedClasses['col-lg-8']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-lg-12']} */ ;
 /** @type {__VLS_StyleScopedClasses['card']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-header']} */ ;
 /** @type {__VLS_StyleScopedClasses['pb-0']} */ ;
@@ -1230,18 +1251,37 @@ if (__VLS_ctx.savedExaminations.length > 0) {
 /** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
 /** @type {__VLS_StyleScopedClasses['material-icons']} */ ;
-/** @type {__VLS_StyleScopedClasses['col-lg-4']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-lg-12']} */ ;
 /** @type {__VLS_StyleScopedClasses['card']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-header']} */ ;
 /** @type {__VLS_StyleScopedClasses['pb-0']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-clipboard-list']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert-info']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-info-circle']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-body']} */ ;
+/** @type {__VLS_StyleScopedClasses['p-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['requirement-generator-embedded']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['py-5']} */ ;
-/** @type {__VLS_StyleScopedClasses['material-icons']} */ ;
-/** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['px-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-video']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-3x']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['card']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-header']} */ ;
@@ -1269,7 +1309,7 @@ var __VLS_dollars;
 const __VLS_self = (await import('vue')).defineComponent({
     setup() {
         return {
-            SimpleExaminationForm: SimpleExaminationForm,
+            RequirementGenerator: RequirementGenerator,
             Timeline: Timeline,
             formatTime: formatTime,
             getTranslationForLabel: getTranslationForLabel,
@@ -1318,7 +1358,6 @@ const __VLS_self = (await import('vue')).defineComponent({
             startLabelMarking: startLabelMarking,
             finishLabelMarking: finishLabelMarking,
             cancelLabelMarking: cancelLabelMarking,
-            onExaminationSaved: onExaminationSaved,
             jumpToExamination: jumpToExamination,
             deleteExamination: deleteExamination,
             submitVideoSegments: submitVideoSegments,
