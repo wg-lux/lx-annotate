@@ -7,13 +7,20 @@ The Anonymizer module is a comprehensive system for managing the anonymization w
 **Component Locations:**
 - Overview: `/home/admin/dev/lx-annotate/frontend/src/components/Anonymizer/AnonymizationOverviewComponent.vue`
 - Validation: `/home/admin/dev/lx-annotate/frontend/src/components/Anonymizer/AnonymizationValidationComponent.vue`
-- Correction: `/home/admin/dev/lx-anonymate/frontend/src/components/Anonymizer/AnonymizationCorrectionComponent.vue`
+- Correction: `/home/admin/dev/lx-annotate/frontend/src/components/Anonymizer/AnonymizationCorrectionComponent.vue`
+
+**Related Documentation:**
+- 📊 **Import Services Comparison:** `/IMPORT_SERVICES_COMPARISON.md` - Comprehensive analysis of video_import.py vs pdf_import.py
+- 🔧 **Path Fix Documentation:** `/PROCESSED_VIDEO_PATH_FIX.md` - October 14, 2025 path storage fix
+- 📁 **Storage Analysis:** `/STORAGE_PATH_ANALYSIS_FINAL.md` - Path resolution architecture
 
 ---
 
 ## Anonymization Workflow
 
 After media is imported by `endoreg_db/services/video_import.py` or `endoreg_db/services/pdf_import.py` (using lx-anonymizer modules or not), the anonymization must be human-validated and potentially corrected before final approval.
+
+**⚠️ Important:** See `/IMPORT_SERVICES_COMPARISON.md` for detailed comparison of the two import services, including strengths, weaknesses, and harmonization recommendations.
 
 ### Workflow States
 
@@ -93,10 +100,11 @@ After media is imported by `endoreg_db/services/video_import.py` or `endoreg_db/
    }
    ```
 
-2. **Re-import Logic Incomplete** (Lines 168-192)
-   - PDF re-import uses `resetProcessingStatus` (workaround) instead of dedicated endpoint
-   - No validation that re-import actually triggered backend processing
-   - Missing feedback on re-import failures
+2. **Re-import Feature** (Lines 168-192)
+   - ✅ **Video Re-import:** Uses dedicated `/api/video/{id}/reimport/` endpoint
+   - ✅ **PDF Re-import:** Uses dedicated `/api/media/pdfs/{id}/reimport/` endpoint (implemented October 2025)
+   - Both follow modern media framework architecture
+   - Automatic polling after reimport with optimistic UI updates
 
 3. **Polling Lifecycle Issues**
    - Polling starts for all files on mount (Line 367-369) even if not visible
@@ -352,16 +360,125 @@ See `/libs/endoreg-db/docs/VIDEO_CORRECTION_MODULES.md` for detailed implementat
 | `/api/videostream/<id>/` | GET | Stream video | ✅ Working |
 | `/api/pdfstream/<id>/` | GET | Stream PDF | ✅ Working |
 
-### Video Correction Endpoints ✅ (Phase 1.1 Complete)
+### Re-import Endpoints ✅ (October 2025)
 
 | Endpoint | Method | Purpose | Status |
 |----------|--------|---------|--------|
-| `/api/video-metadata/<id>/` | GET | Get video metadata | ✅ Working |
-| `/api/video-processing-history/<id>/` | GET | Get processing history | ✅ Working |
-| `/api/video-analyze/<id>/` | POST | Analyze sensitive frames | ✅ Working |
-| `/api/video-apply-mask/<id>/` | POST | Apply masking | ✅ Working (Sync) |
-| `/api/video-remove-frames/<id>/` | POST | Remove frames | ✅ Working (Sync) |
-| `/api/video-reprocess/<id>/` | POST | Reprocess video | ✅ Working |
+| `/api/media/videos/<id>/reimport/` | POST | Re-import video with metadata regeneration | ✅ Working (UPDATED) |
+| `/api/media/pdfs/<id>/reimport/` | POST | Re-import PDF with metadata regeneration | ✅ Working |
+
+**Implementation Details:**
+
+**Video Re-import** (`endoreg_db/views/video/reimport.py`):
+- Clears existing `SensitiveMeta` data
+- Re-runs `VideoImportService` to regenerate metadata
+- Uses modern media framework parameter: `pk`
+- Returns processing response with status
+- **Updated October 14, 2025**: Migrated from legacy `/api/video/<video_id>/` to modern `/api/media/videos/<pk>/`
+
+**PDF Re-import** (`endoreg_db/views/pdf/reimport.py`):
+- Clears existing `SensitiveMeta` data  
+- Re-runs `PdfImportService` to regenerate metadata
+- Uses modern media framework parameter: `pk`
+- Returns processing response with status
+- Follows exact video reimport pattern
+
+**Frontend Integration:**
+
+Both reimport operations follow the same pattern in `anonymizationStore.ts`:
+
+```typescript
+async reimportVideo(fileId: number) {
+  // 1. Validate file type
+  const file = this.overview.find(f => f.id === fileId);
+  if (file?.mediaType !== 'video') return false;
+  
+  // 2. Optimistic UI update
+  file.anonymizationStatus = 'processing_anonymization';
+  
+  // 3. Call backend endpoint (modern media framework)
+  await a(api.post(`/api/media/videos/${fileId}/reimport/`));
+  
+  // 4. Start automatic polling
+  this.startPolling(fileId);
+  
+  // 5. Handle errors with status revert
+  return true;
+}
+
+async reimportPdf(fileId: number) {
+  // Same pattern, same URL structure
+  await a(api.post(`/api/media/pdfs/${fileId}/reimport/`));
+}
+```
+
+**Key Features:**
+- ✅ Optimistic UI updates (status set to processing immediately)
+- ✅ Automatic polling after reimport (10-second interval)
+- ✅ Error handling with status rollback on failure
+- ✅ Type validation before processing
+- ✅ Consistent architecture between video and PDF
+- ✅ **Unified URL structure using modern media framework**
+
+**URL Registration:**
+- Video: `endoreg_db/urls/media.py` → `path("media/videos/<int:pk>/reimport/", ...)`
+- PDF: `endoreg_db/urls/media.py` → `path("media/pdfs/<int:pk>/reimport/", ...)`
+- **Both use consistent `/api/media/{type}/<pk>/reimport/` pattern**
+
+**Migration Notes:**
+- **October 14, 2025:** Complete migration of all video endpoints to modern media framework
+- Legacy video endpoint (`/api/video/<video_id>/reimport/`) **deprecated**
+- Legacy video reprocess endpoint (`/api/video-reprocess/<id>/`) **deprecated**
+- Legacy video correction endpoints (`/api/video-metadata/<id>/`, etc.) **deprecated**
+- Legacy PDF workaround (`resetProcessingStatus`) deprecated
+- Modern media framework (`/api/media/`) used throughout for consistency
+- Parameter naming unified: `pk` for all resources (no more `video_id` vs `pdf_id` vs `id`)
+- All video operations now under `/api/media/videos/<pk>/` prefix
+- All PDF operations now under `/api/media/pdfs/<pk>/` prefix
+
+**Unified API Structure:**
+```
+/api/media/videos/<pk>/                  # Video metadata
+/api/media/videos/<pk>/stream/           # Video streaming
+/api/media/videos/<pk>/reimport/         # Re-import video
+/api/media/videos/<pk>/reprocess/        # Reprocess video
+/api/media/videos/<pk>/metadata/         # Analysis metadata
+/api/media/videos/<pk>/processing-history/ # Operation history
+/api/media/videos/<pk>/analyze/          # Analyze frames
+/api/media/videos/<pk>/apply-mask/       # Apply masking
+/api/media/videos/<pk>/remove-frames/    # Remove frames
+
+/api/media/pdfs/<pk>/                    # PDF metadata
+/api/media/pdfs/<pk>/stream/             # PDF streaming
+/api/media/pdfs/<pk>/reimport/           # Re-import PDF
+```
+
+**Documentation:**
+- See `/docs/PDF_REIMPORT_DOCUMENTATION.md` for complete implementation details
+- See `/docs/VIDEO_IMPORT_LOGIC_SUMMARY.md` for video reimport background
+
+### Video Correction Endpoints ✅ (Phase 1.1 Complete - Migrated October 14, 2025)
+
+| Endpoint | Method | Purpose | Status |
+|----------|--------|---------|--------|
+| `/api/media/videos/<pk>/metadata/` | GET | Get video metadata | ✅ Working (Modern) |
+| `/api/media/videos/<pk>/processing-history/` | GET | Get processing history | ✅ Working (Modern) |
+| `/api/media/videos/<pk>/analyze/` | POST | Analyze sensitive frames | ✅ Working (Modern) |
+| `/api/media/videos/<pk>/apply-mask/` | POST | Apply masking | ✅ Working (Modern) |
+| `/api/media/videos/<pk>/remove-frames/` | POST | Remove frames | ✅ Working (Modern) |
+| `/api/media/videos/<pk>/reprocess/` | POST | Reprocess video | ✅ Working (Modern) |
+
+**Migration Complete (October 14, 2025):** All video correction endpoints now use modern media framework.
+
+**Legacy endpoints (deprecated):**
+- `GET /api/video-metadata/<id>/` → Use `/api/media/videos/<pk>/metadata/`
+- `GET /api/video-processing-history/<id>/` → Use `/api/media/videos/<pk>/processing-history/`
+- `POST /api/video-analyze/<id>/` → Use `/api/media/videos/<pk>/analyze/`
+- `POST /api/video-apply-mask/<id>/` → Use `/api/media/videos/<pk>/apply-mask/`
+- `POST /api/video-remove-frames/<id>/` → Use `/api/media/videos/<pk>/remove-frames/`
+- `POST /api/video-reprocess/<id>/` → Use `/api/media/videos/<pk>/reprocess/`
+
+**Unified URL Pattern:** All video operations follow `/api/media/videos/<pk>/{action}/`
 
 ### Missing Endpoints ⏳
 
@@ -905,14 +1022,7 @@ const validationProgressPercent = computed(() => {
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
 │  Video Validation & Approval Workflow (Phase 3.1)                   │
-└─────────────────────────────────────────────────────────────────────┘
-
-1. User loads video
-         │
-         ▼
-2. Click "Segment-Annotation prüfen"
-         │
-         ▼
+└────────────────────────────────────────────────────────────────────
 3. System checks for "outside" segments
          │
          ├─────────────────────────────────────┐

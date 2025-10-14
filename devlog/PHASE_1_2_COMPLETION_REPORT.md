@@ -28,7 +28,7 @@ Phase 1.2 successfully implemented the missing `VideoMediaView` and `PDFMediaVie
 - ✅ Proper error handling with HTTP status codes
 - ✅ Integration with `EnvironmentAwarePermission`
 
-#### 2. PDFMediaManagementView (`/home/admin/dev/lx-annotate/libs/endoreg-db/endoreg_db/views/media/pdf_media.py`)
+#### 2. PdfMediaView (`/home/admin/dev/lx-annotate/libs/endoreg-db/endoreg_db/views/media/pdf_media.py`)
 - **Lines:** 365 lines
 - **Endpoints:**
   - `GET /api/media/pdfs/` - List PDFs with filtering/pagination
@@ -56,7 +56,7 @@ Phase 1.2 successfully implemented the missing `VideoMediaView` and `PDFMediaVie
 # Updated endoreg_db/urls/media.py
 from endoreg_db.views.media import (
     VideoMediaView,
-    PDFMediaManagementView as PDFMediaView,  # Alias to avoid conflict
+    PdfMediaView as PDFMediaView,  # Alias to avoid conflict
 )
 
 urlpatterns = [
@@ -124,7 +124,7 @@ curl http://localhost:8000/api/media/videos/51/
 }
 ```
 
-### PDFMediaManagementView API ✅
+### PdfMediaView API ✅
 
 **List PDFs:**
 ```bash
@@ -165,7 +165,7 @@ curl http://localhost:8000/api/media/pdfs/
 ### Issue: Naming Conflict
 **Problem:** Existing `PDFMediaView` in `pdf/` module conflicts with new implementation
 **Root Cause:** Two different PDF workflows (legacy vs. media management)
-**Solution:** Used alias `PDFMediaManagementView as PDFMediaView` in imports
+**Solution:** Used alias `PdfMediaView as PDFMediaView` in imports
 
 ## Key Benefits
 
@@ -191,7 +191,7 @@ curl http://localhost:8000/api/media/pdfs/
 - **Serializers:** Leverages existing `VideoFileListSerializer` and `VideoDetailSerializer`
 - **Error Handling:** Comprehensive exception handling with user-friendly messages
 
-### PDFMediaManagementView Features
+### PdfMediaView Features
 - **Streaming:** Direct PDF file serving with `Content-Disposition: inline`
 - **Manual Serialization:** Custom JSON response building (no dedicated serializer)
 - **Status Logic:** Based on `anonymized_text` presence and `is_verified` flag
