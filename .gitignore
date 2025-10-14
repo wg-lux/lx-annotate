@@ -1,3 +1,5 @@
+conf/db.yaml
+
 .devenv-vars.json
 .devenv/
 django-settings.json
