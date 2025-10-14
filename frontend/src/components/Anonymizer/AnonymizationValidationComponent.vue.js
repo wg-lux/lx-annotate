@@ -279,7 +279,7 @@ const validateVideoForSegmentAnnotation = async () => {
         console.log('Video validation response:', validation);
         if (validation.eligible) {
             // Video is eligible - check for outside segments
-            const outsideSegmentsResponse = await axiosInstance.get(r(`video/${currentItem.value.id}/segments/?label=outside`));
+            const outsideSegmentsResponse = await axiosInstance.get(r(`media/videos/${currentItem.value.id}/segments/?label=outside`));
             const outsideSegments = outsideSegmentsResponse.data;
             totalOutsideSegments.value = outsideSegments.length;
             outsideSegmentsValidated.value = 0;
@@ -601,6 +601,7 @@ const approveItem = async () => {
                 casenumber: editedPatient.value.casenumber || "",
                 anonymized_text: isPdf.value ? editedAnonymizedText.value : undefined,
                 is_verified: true,
+                file_type: isPdf.value ? 'pdf' : isVideo.value ? 'video' : 'unknown',
             });
             console.log(`Anonymization validated successfully for file ${currentItem.value.id}`);
             toast.success({ text: 'Dokument bestätigt und Anonymisierung validiert' });

@@ -558,7 +558,7 @@ $piniaStores.videoStore.allSegments
 
 **✅ Network requests validated**:
 * ✅ `/api/media/videos/{id}/` → 200 (video detail)
-* ✅ `/api/video-segments/?video_id={id}` → 200 with segments array
+* ✅ `/api/media/videos/segments/?video_id={id}` → 200 with segments array
 * ✅ Video stream URLs resolve correctly
 
 > ✅ **Diagnostic Status**: All diagnostic tools working, network requests validated, no persistent errors.

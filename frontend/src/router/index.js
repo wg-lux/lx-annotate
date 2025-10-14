@@ -44,14 +44,6 @@ const router = createRouter({
             }
         },
         {
-            path: '/fallgenerator',
-            name: 'Fallgenerator',
-            component: () => import('@/views/Fallgenerator.vue'),
-            meta: {
-                description: 'Hier können Sie Fälle generieren.'
-            }
-        },
-        {
             path: '/untersuchung',
             name: 'Untersuchung',
             component: () => import('@/views/Examination.vue'),

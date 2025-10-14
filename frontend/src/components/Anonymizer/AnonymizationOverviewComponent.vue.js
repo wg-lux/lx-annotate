@@ -125,13 +125,12 @@ const reimportVideo = async (fileId) => {
 const reimportPdf = async (fileId) => {
     processingFiles.value.add(fileId);
     try {
-        // For PDFs, use reset status for now as there's no specific PDF reimport endpoint
-        // This will reset the PDF to allow re-processing
-        const result = await mediaManagement.resetProcessingStatus(fileId);
-        if (result) {
+        // Use the dedicated PDF reimport endpoint from the anonymization store
+        const success = await anonymizationStore.reimportPdf(fileId);
+        if (success) {
             // Refresh overview to get updated status
             await refreshOverview();
-            console.log('PDF re-import initiated successfully:', fileId);
+            console.log('PDF re-imported successfully:', fileId);
         }
         else {
             console.warn('PDF re-import failed - staying on current page');

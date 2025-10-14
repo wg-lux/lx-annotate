@@ -278,7 +278,8 @@ class VideoSegmentationViewTests(TestCase):
             self.video.raw_file = str(storage_video)
             self.video.save()
             
-            url = f"/api/videostream/{self.video.id}/"
+            # Modern media framework endpoint
+            url = f"/api/media/videos/{self.video.id}/"
             
             # Test normal request
             response = self.client.get(url)
@@ -316,7 +317,8 @@ class VideoSegmentationViewTests(TestCase):
             if os.path.exists(temp_file.name):
                 os.unlink(temp_file.name)
             
-            url = f"/api/videostream/{video_without_file.id}/"
+            # Modern media framework endpoint
+            url = f"/api/media/videos/{video_without_file.id}/"
             response = self.client.get(url)
             
             self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
@@ -327,7 +329,8 @@ class VideoSegmentationViewTests(TestCase):
 
     def test_video_stream_view_missing_video_returns_404(self):
         """Test 404 response when video doesn't exist."""
-        url = "/api/videostream/99999/"
+        # Modern media framework endpoint
+        url = "/api/media/videos/99999/"
         
         response = self.client.get(url)
         

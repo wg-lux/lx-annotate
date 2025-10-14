@@ -614,17 +614,14 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
         pending: PatientData[];
     }>;
 }, {
-    /** Holt den nächsten PDF-Datensatz + zugehöriges SensitiveMeta
-     *  und fügt beides zusammen. */
+    /** Gets the next anonymization file + its metadata */
     fetchNext(lastId?: number): Promise<any>;
     patchPdf(payload: {
-        id?: number;
-        sensitive_meta_id?: number;
+        id: number;
         [key: string]: any;
     }): Promise<any>;
     patchVideo(payload: {
-        id?: number;
-        sensitive_meta_id?: number;
+        id: number;
         [key: string]: any;
     }): Promise<any>;
     fetchPendingAnonymizations(): {
@@ -694,4 +691,9 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
      * Re-import a video file to regenerate metadata
      */
     reimportVideo(fileId: number): Promise<boolean>;
+    /**
+     * Re-import a PDF file to regenerate metadata
+     * Follows the same pattern as reimportVideo for consistency
+     */
+    reimportPdf(fileId: number): Promise<boolean>;
 }>;

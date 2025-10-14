@@ -29,8 +29,7 @@ export const useAnonymizationStore = defineStore('anonymization', {
         getState: (state) => state
     },
     actions: {
-        /** Holt den nächsten PDF-Datensatz + zugehöriges SensitiveMeta
-         *  und fügt beides zusammen. */
+        /** Gets the next anonymization file + its metadata */
         async fetchNext(lastId) {
             this.loading = true;
             this.error = null;
@@ -79,7 +78,7 @@ export const useAnonymizationStore = defineStore('anonymization', {
                             throw new Error('Backend meldet Fehler-Flag im PDF-Datensatz.');
                         }
                         /* 2) Sensitive-Meta nachladen ---------------------------------- */
-                        const metaUrl = a(`sensitivemeta/?id=${pdf.sensitiveMetaId}`);
+                        const metaUrl = r(`media/pdfs/${pdf.id}/sensitive-metadata/`);
                         console.log(`Fetching sensitive meta from: ${metaUrl}`);
                         const { data: metaResponse } = await axiosInstance.get(metaUrl);
                         console.log('Received sensitive meta response data:', metaResponse);
@@ -91,6 +90,7 @@ export const useAnonymizationStore = defineStore('anonymization', {
                         /* 3) Merge & State-Update -------------------------------------- */
                         const merged = {
                             ...pdf,
+                            sensitiveMetaId: metaResponse.id, // Add sensitiveMetaId for compatibility
                             reportMeta: metaResponse
                         };
                         console.log('Merged data:', merged);
@@ -138,30 +138,24 @@ export const useAnonymizationStore = defineStore('anonymization', {
         /* Update-Methoden                                                  */
         /* ---------------------------------------------------------------- */
         async patchPdf(payload) {
-            if (!payload.id && !payload.sensitive_meta_id) {
-                throw new Error('patchPdf: id oder sensitive_meta_id fehlt im Payload.');
+            if (!payload.id) {
+                throw new Error('patchPdf: PDF ID fehlt im Payload.');
             }
-            console.log('Patching PDF with payload:', payload);
-            // Use the correct endpoint for PDF sensitive meta updates
-            if (payload.sensitive_meta_id) {
-                return axiosInstance.patch(a('update_sensitivemeta/'), payload);
-            }
-            else {
-                return axiosInstance.patch(a('update_anony_text/'), payload);
-            }
+            console.log('Patching PDF sensitive metadata with payload:', payload);
+            // Remove id from payload before sending (it's in URL)
+            const { id, ...updateData } = payload;
+            // Use Modern Media Framework endpoint
+            return axiosInstance.patch(r(`media/pdfs/${id}/sensitive-metadata/`), updateData);
         },
         async patchVideo(payload) {
-            if (!payload.id && !payload.sensitive_meta_id) {
-                throw new Error('patchVideo: id oder sensitive_meta_id fehlt im Payload.');
+            if (!payload.id) {
+                throw new Error('patchVideo: Video ID fehlt im Payload.');
             }
-            console.log('Patching Video with payload:', payload);
-            // Use the video media endpoint which handles both streaming and updates
-            if (payload.sensitive_meta_id) {
-                return axiosInstance.patch(`media/videos/`, payload);
-            }
-            else {
-                return axiosInstance.patch(`media/videos/${payload.id}/`, payload);
-            }
+            console.log('Patching video sensitive metadata with payload:', payload);
+            // Remove id from payload before sending (it's in URL)
+            const { id, ...updateData } = payload;
+            // Use Modern Media Framework endpoint
+            return axiosInstance.patch(r(`media/videos/${id}/sensitive-metadata/`), updateData);
         },
         fetchPendingAnonymizations() {
             return this.pending;
@@ -404,7 +398,7 @@ export const useAnonymizationStore = defineStore('anonymization', {
                 file.anonymizationStatus = 'processing_anonymization';
                 file.metadataImported = false;
                 // Trigger re-import via backend
-                const response = await axiosInstance.post(r(`video/${fileId}/reimport/`));
+                const response = await axiosInstance.post(r(`media/video/${fileId}/reimport/`));
                 console.log(`Video re-import response:`, response.data);
                 console.log(`Starting polling for re-imported video ${fileId}`);
                 this.startPolling(fileId);
@@ -419,6 +413,54 @@ export const useAnonymizationStore = defineStore('anonymization', {
             }
             catch (err) {
                 console.error(`Error re-importing video ${fileId}:`, err);
+                // Revert optimistic update
+                file.anonymizationStatus = 'failed';
+                file.metadataImported = false;
+                if (axios.isAxiosError(err)) {
+                    const errorMessage = err.response?.data?.error || err.message;
+                    this.error = `Fehler beim erneuten Importieren (${err.response?.status}): ${errorMessage}`;
+                }
+                else {
+                    this.error = err?.message ?? 'Unbekannter Fehler beim erneuten Importieren.';
+                }
+                return false;
+            }
+        },
+        /**
+         * Re-import a PDF file to regenerate metadata
+         * Follows the same pattern as reimportVideo for consistency
+         */
+        async reimportPdf(fileId) {
+            const file = this.overview.find(f => f.id === fileId);
+            if (!file) {
+                this.error = `PDF mit ID ${fileId} nicht gefunden.`;
+                return false;
+            }
+            if (file.mediaType !== 'pdf') {
+                this.error = `Datei mit ID ${fileId} ist kein PDF.`;
+                return false;
+            }
+            try {
+                console.log(`Re-importing PDF ${fileId}...`);
+                // Optimistic UI update - set to processing to show user feedback
+                file.anonymizationStatus = 'processing_anonymization';
+                file.metadataImported = false;
+                // Trigger re-import via backend using media framework endpoint
+                const response = await axiosInstance.post(r(`media/pdfs/${fileId}/reimport/`));
+                console.log(`PDF re-import response:`, response.data);
+                console.log(`Starting polling for re-imported PDF ${fileId}`);
+                this.startPolling(fileId);
+                // Check if re-import was successful
+                if (response.data && response.data.sensitive_meta_created) {
+                    console.log(`PDF ${fileId} re-imported successfully with metadata`);
+                }
+                else {
+                    console.log(`PDF ${fileId} re-imported but metadata may be incomplete`);
+                }
+                return true;
+            }
+            catch (err) {
+                console.error(`Error re-importing PDF ${fileId}:`, err);
                 // Revert optimistic update
                 file.anonymizationStatus = 'failed';
                 file.metadataImported = false;

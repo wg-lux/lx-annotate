@@ -178,10 +178,21 @@ export class MediaManagementAPI {
 
   /**
    * Re-import a video file to regenerate metadata
+   * Uses the modern media framework endpoint aligned with PDF reimport
    * @param fileId - ID of the video file to re-import
    */
   static async reimportVideo(fileId: number): Promise<ProcessingResponse> {
-    const response = await api.post(`/api/video/${fileId}/reimport/`);
+    const response = await api.post(`/api/media/videos/${fileId}/reimport/`);
+    return response.data;
+  }
+
+  /**
+   * Re-import a PDF file to regenerate metadata
+   * Uses the modern media framework endpoint aligned with video reimport
+   * @param fileId - ID of the PDF file to re-import
+   */
+  static async reimportPdf(fileId: number): Promise<ProcessingResponse> {
+    const response = await api.post(`/api/media/pdfs/${fileId}/reimport/`);
     return response.data;
   }
 
@@ -252,6 +263,8 @@ export function useMediaManagement() {
       safeApiCall(() => MediaManagementAPI.deleteMediaFile(fileId)),
     reimportVideo: (fileId: number) => 
       safeApiCall(() => MediaManagementAPI.reimportVideo(fileId)),
+    reimportPdf: (fileId: number) => 
+      safeApiCall(() => MediaManagementAPI.reimportPdf(fileId)),
     
     // Safe anonymization operations
     getStatusSafe: (fileId: number, fileType?: 'video' | 'pdf') => 

@@ -1029,8 +1029,9 @@ const submitVideoSegments = async (): Promise<void> => {
   try {
     console.log(`🔍 Validating all segments for video ${selectedVideoId.value}...`)
     
+    // ✅ MODERN FRAMEWORK: Use /api/media/videos/<pk>/segments/validation-status/ (POST)
     const response = await axiosInstance.post(
-      r(`videos/${selectedVideoId.value}/segments/validate-complete/`),
+      r(`media/videos/${selectedVideoId.value}/segments/validation-status/`),
       {
         notes: `Vollständige Video-Review abgeschlossen am ${new Date().toLocaleString('de-DE')}`
       }

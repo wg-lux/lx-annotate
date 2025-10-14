@@ -2,8 +2,8 @@ describe('VideoExaminationAnnotation - Segment Annotations Integration', () => {
   beforeEach(() => {
     // Mock the stores and their dependencies
     cy.intercept('GET', '/api/media/videos/', { fixture: 'videos.json' }).as('getVideos')
-    cy.intercept('GET', '/api/video-segments/*', { fixture: 'segments.json' }).as('getSegments')
-    cy.intercept('POST', '/api/video-segments/', { fixture: 'newSegment.json' }).as('createSegment')
+    cy.intercept('GET', '/api/media/videos/*/segments/', { fixture: 'segments.json' }).as('getSegments')
+    cy.intercept('POST', '/api/media/videos/*/segments/', { fixture: 'newSegment.json' }).as('createSegment')
     cy.intercept('POST', '/api/annotations/', { fixture: 'newAnnotation.json' }).as('createAnnotation')
     
     // Visit the video examination page

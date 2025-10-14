@@ -717,7 +717,8 @@ export const useVideoStore = defineStore('video', () => {
             const videosWithSegments = await Promise.all(
                 processedVideos.map(async (video) => {
                     try {
-                        const segmentsResponse = await axiosInstance.get(r(`video-segments/?video_id=${video.id}`))
+                        // Modern media framework endpoint
+                        const segmentsResponse = await axiosInstance.get(r(`media/videos/${video.id}/segments/`))
                         console.log(`Video ${video.id}: Found ${segmentsResponse.data.length} segments`)
                         
                         const backendSegments: BackendSegment[] = segmentsResponse.data
@@ -854,8 +855,9 @@ export const useVideoStore = defineStore('video', () => {
     async function fetchVideoSegments(videoId: string): Promise<void> {
         const token = ++_fetchToken.value
         try {
+            // Modern media framework endpoint
             const response: AxiosResponse<BackendSegment[]> = await axiosInstance.get(
-                r(`video-segments/?video_id=${videoId}`), 
+                r(`media/videos/${videoId}/segments/`), 
                 { headers: { 'Accept': 'application/json' } }
             )
             
@@ -939,8 +941,9 @@ export const useVideoStore = defineStore('video', () => {
                 end_frame_number: endFrame,
             }
 
+            // Modern media framework endpoint - video-specific
             const response: AxiosResponse<CreateSegmentResponse> = await axiosInstance.post(
-                r('video-segments/'), 
+                r(`media/videos/${videoId}/segments/`), 
                 segmentData
             )
 
@@ -989,8 +992,14 @@ export const useVideoStore = defineStore('video', () => {
                 debugSegmentConversion(updates, updatePayload, 'toBackend')
             }
 
+            // Modern media framework - use video-specific endpoint if video is known
+            const videoId = currentVideo.value?.id
+            const url = videoId 
+                ? r(`media/videos/${videoId}/segments/${segmentId}/`)
+                : r(`media/videos/segments/${segmentId}/`) // Fallback to collection endpoint
+            
             const response: AxiosResponse<BackendSegment> = await axiosInstance.patch(
-                r(`video-segments/${segmentId}/`), 
+                url, 
                 updatePayload
             )
             
@@ -1009,7 +1018,13 @@ export const useVideoStore = defineStore('video', () => {
 
     async function deleteSegment(segmentId: string | number): Promise<boolean> {
         try {
-            await axiosInstance.delete(r(`video-segments/${segmentId}/`))
+            // Modern media framework - use video-specific endpoint if video is known
+            const videoId = currentVideo.value?.id
+            const url = videoId
+                ? r(`media/videos/${videoId}/segments/${segmentId}/`)
+                : r(`media/videos/segments/${segmentId}/`) // Fallback to collection endpoint
+            
+            await axiosInstance.delete(url)
             
             for (const label in segmentsByLabel) {
                 const index = segmentsByLabel[label].findIndex(s => s.id === segmentId)
@@ -1113,8 +1128,15 @@ export const useVideoStore = defineStore('video', () => {
             
             console.log('[Draft] Committing Draft-Segment with payload:', payload)
             
+            // Modern media framework - video-specific endpoint
+            const videoId = currentVideo.value?.id
+            if (!videoId) {
+                console.error('[Draft] Cannot commit: no current video')
+                return null
+            }
+            
             const response: AxiosResponse<CreateSegmentResponse> = await axiosInstance.post(
-                r('video-segments/'), 
+                r(`media/videos/${videoId}/segments/`), 
                 payload
             )
             console.log('[Draft] API response:', response.data)

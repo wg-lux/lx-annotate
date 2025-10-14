@@ -56,40 +56,57 @@ export const usePdfStore = defineStore('pdf', () => {
    * URL pattern: /api/pdfstream/<pdf_id>/
    */
   function buildPdfStreamUrl(pdfId: number): string {
-    return `/api/pdfstream/${pdfId}/`;
+    return `/api/media/pdfs/${pdfId}/stream`;
   }
 
   /**
    * Fetch the next PDF for annotation from the queue
    * @param lastId - Optional last processed PDF ID to continue from
+   * 
+   * MIGRATED: Now uses /api/anonymization/items/overview/ endpoint
+   * instead of deprecated /api/pdf/next/
    */
   async function fetchNextPdf(lastId?: number): Promise<void> {
     loading.value = true;
     error.value = null;
 
     try {
-      const url = lastId 
-        ? `/api/pdf/next/?last_id=${lastId}`
-        : '/api/pdf/next/';
-      
-      const response = await fetch(url);
+      // Use Modern Framework anonymization overview endpoint
+      const response = await fetch('/api/anonymization/items/overview/');
       
       if (!response.ok) {
-        if (response.status === 404) {
-          // No more PDFs to process
-          currentPdf.value = null;
-          lastProcessedId.value = null;
-          return;
-        }
-        throw new Error(`Failed to fetch next PDF: ${response.status}`);
+        throw new Error(`Failed to fetch overview: ${response.status}`);
       }
 
-      const pdfData = await response.json();
-      currentPdf.value = pdfData;
-      lastProcessedId.value = pdfData.id;
+      const data = await response.json();
       
-      // Start PDF streaming if available
-      if (pdfData.pdfStreamUrl) {
+      // Filter pending PDFs (not_started or pending_validation)
+      const pendingPdfs = data.pdfs?.filter(
+        (p: any) => p.status === 'pending_validation' || p.status === 'not_started'
+      ) || [];
+      
+      if (pendingPdfs.length === 0) {
+        // No more PDFs to process
+        currentPdf.value = null;
+        lastProcessedId.value = null;
+        return;
+      }
+      
+      // Find next PDF
+      let nextPdf;
+      if (lastId) {
+        const lastIndex = pendingPdfs.findIndex((p: any) => p.id === lastId);
+        nextPdf = pendingPdfs[lastIndex + 1] || pendingPdfs[0];
+      } else {
+        nextPdf = pendingPdfs[0];
+      }
+      
+      currentPdf.value = nextPdf;
+      lastProcessedId.value = nextPdf.id;
+      
+      // Build stream URL and start streaming
+      if (nextPdf.id && currentPdf.value) {
+        currentPdf.value.pdfStreamUrl = buildPdfStreamUrl(nextPdf.id);
         streamingActive.value = true;
       }
     } catch (err) {
@@ -101,10 +118,14 @@ export const usePdfStore = defineStore('pdf', () => {
   }
 
   /**
-   * Update sensitive metadata using sensitive_meta_id (SensitiveMeta.id)
-   * URL pattern: /api/pdf/sensitivemeta/<sensitive_meta_id>/
+   * Update sensitive metadata using pdf_id (RawPdfFile.id)
+   * 
+   * MIGRATED: Now uses /api/media/pdfs/<pk>/sensitive-metadata/ endpoint
+   * instead of deprecated /api/pdf/sensitivemeta/<id>/
+   * 
+   * @param pdfId - PDF ID (RawPdfFile.id), not sensitiveMetaId
    */
-  async function updateSensitiveMeta(sensitiveMetaId: number, data: Partial<PdfMetadata['reportMeta']>): Promise<void> {
+  async function updateSensitiveMeta(pdfId: number, data: Partial<PdfMetadata['reportMeta']>): Promise<void> {
     if (!currentPdf.value) {
       throw new Error('No current PDF to update');
     }
@@ -113,7 +134,8 @@ export const usePdfStore = defineStore('pdf', () => {
     error.value = null;
 
     try {
-      const response = await fetch(`/api/pdf/sensitivemeta/${sensitiveMetaId}/`, {
+      // Use Modern Framework sensitive metadata endpoint
+      const response = await fetch(`/api/media/pdfs/${pdfId}/sensitive-metadata/`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -143,7 +165,9 @@ export const usePdfStore = defineStore('pdf', () => {
 
   /**
    * Update anonymized text using pdf_id (RawPdfFile.id)
-   * URL pattern: /api/pdf/<pdf_id>/anonymize/
+   * 
+   * MIGRATED: Now uses /api/media/pdfs/<pk>/sensitive-metadata/ endpoint
+   * instead of deprecated /api/pdf/<id>/anonymize/
    */
   async function updateAnonymizedText(pdfId: number, anonymizedText: string): Promise<void> {
     if (!currentPdf.value) {
@@ -154,8 +178,9 @@ export const usePdfStore = defineStore('pdf', () => {
     error.value = null;
 
     try {
-      const response = await fetch(`/api/pdf/${pdfId}/anonymize/`, {
-        method: 'POST',
+      // Use Modern Framework sensitive metadata endpoint for anonymized text
+      const response = await fetch(`/api/media/pdfs/${pdfId}/sensitive-metadata/`, {
+        method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
           'X-CSRFToken': getCsrfToken(),
@@ -181,6 +206,9 @@ export const usePdfStore = defineStore('pdf', () => {
 
   /**
    * Approve the current PDF and move to next
+   * 
+   * MIGRATED: Now uses /api/anonymization/<file_id>/validate/ endpoint
+   * instead of deprecated /api/pdf/<id>/approve/
    */
   async function approvePdf(): Promise<void> {
     if (!currentPdf.value) {
@@ -193,12 +221,16 @@ export const usePdfStore = defineStore('pdf', () => {
     error.value = null;
 
     try {
-      const response = await fetch(`/api/pdf/${pdfId}/approve/`, {
+      // Use Modern Framework anonymization validate endpoint
+      const response = await fetch(`/api/anonymization/${pdfId}/validate/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'X-CSRFToken': getCsrfToken(),
         },
+        body: JSON.stringify({
+          validation_status: 'approved'
+        }),
       });
 
       if (!response.ok) {
@@ -232,10 +264,14 @@ export const usePdfStore = defineStore('pdf', () => {
 
   /**
    * Check anonymization status
+   * 
+   * MIGRATED: Now uses /api/anonymization/<file_id>/status/ endpoint
+   * instead of deprecated /api/pdf/<id>/status/
    */
   async function checkAnonymizationStatus(pdfId: number): Promise<{ status: string; progress?: number }> {
     try {
-      const response = await fetch(`/api/pdf/${pdfId}/status/`);
+      // Use Modern Framework anonymization status endpoint
+      const response = await fetch(`/api/anonymization/${pdfId}/status/`);
       
       if (!response.ok) {
         throw new Error(`Failed to check status: ${response.status}`);

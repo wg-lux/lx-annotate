@@ -145,7 +145,7 @@ export const useAnnotationStatsStore = defineStore('annotationStats', {
                 const [generalResponse, examinationResponse, videoSegmentResponse, sensitiveMetaResponse] = await Promise.all([
                     axios.get('/api/stats/'),
                     axios.get('/api/examinations/stats/'),
-                    axios.get('/api/video-segments/stats/'),
+                    axios.get('/api/media/videos/segments/stats/'), // Modern media framework endpoint
                     axios.get('/api/video/sensitivemeta/stats/')
                 ]);
                 // Daten kombinieren und an die erwartete Struktur anpassen

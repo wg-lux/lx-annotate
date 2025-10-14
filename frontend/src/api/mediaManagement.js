@@ -82,10 +82,20 @@ export class MediaManagementAPI {
     }
     /**
      * Re-import a video file to regenerate metadata
+     * Uses the modern media framework endpoint aligned with PDF reimport
      * @param fileId - ID of the video file to re-import
      */
     static async reimportVideo(fileId) {
-        const response = await api.post(`/api/video/${fileId}/reimport/`);
+        const response = await api.post(`/api/media/videos/${fileId}/reimport/`);
+        return response.data;
+    }
+    /**
+     * Re-import a PDF file to regenerate metadata
+     * Uses the modern media framework endpoint aligned with video reimport
+     * @param fileId - ID of the PDF file to re-import
+     */
+    static async reimportPdf(fileId) {
+        const response = await api.post(`/api/media/pdfs/${fileId}/reimport/`);
         return response.data;
     }
     /**
@@ -146,6 +156,7 @@ export function useMediaManagement() {
         resetProcessingStatus: (fileId) => safeApiCall(() => MediaManagementAPI.resetProcessingStatus(fileId)),
         deleteMediaFile: (fileId) => safeApiCall(() => MediaManagementAPI.deleteMediaFile(fileId)),
         reimportVideo: (fileId) => safeApiCall(() => MediaManagementAPI.reimportVideo(fileId)),
+        reimportPdf: (fileId) => safeApiCall(() => MediaManagementAPI.reimportPdf(fileId)),
         // Safe anonymization operations
         getStatusSafe: (fileId, fileType) => safeApiCall(() => MediaManagementAPI.getAnonymizationStatusSafe(fileId, fileType)),
         startAnonymizationSafe: (fileId) => safeApiCall(() => MediaManagementAPI.startAnonymizationSafe(fileId)),

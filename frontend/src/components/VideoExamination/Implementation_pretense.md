@@ -56,7 +56,7 @@ const timelineSegmentsForSelectedVideo = computed(() => {
 - ✅ Complete CRUD operations: Create, Read, Update, Delete segments
 - ✅ Real-time segment annotation with draft workflow
 - ✅ Segment validation and error handling
-- ✅ API endpoints: `/api/video-segments/?video_id={id}`
+- ✅ API endpoints: `/api/media/videos/segments/?video_id={id}`
 
 ---
 

@@ -91,6 +91,14 @@ describe('VideoStore', () => {
   describe('Draft Commit Process', () => {
     it('should successfully commit a complete draft', async () => {
       // Arrange
+      // Set current video first (required for modern endpoints)
+      store.currentVideo = {
+        id: 123,
+        duration: 60,
+        fps: 30,
+        examination_id: 1
+      } as any;
+
       const mockResponse = {
         data: {
           id: 456,
@@ -108,7 +116,7 @@ describe('VideoStore', () => {
       const result = await store.commitDraft();
 
       // Assert
-      expect(vi.mocked(axiosInstance.post)).toHaveBeenCalledWith('/api/video-segments/', {
+      expect(vi.mocked(axiosInstance.post)).toHaveBeenCalledWith('/api/media/videos/123/segments/', {
         video_id: 123,
         start_time: 10.5,
         end_time: 15.0,
@@ -280,6 +288,13 @@ describe('VideoStore', () => {
   describe('Edge Cases and Validation', () => {
     it('should handle zero start time', async () => {
       // Arrange
+      store.currentVideo = {
+        id: 123,
+        duration: 60,
+        fps: 30,
+        examination_id: 1
+      } as any;
+
       const mockResponse = {
         data: { id: 456, start_time: 0, end_time: 5.0, label_name: 'polyp' }
       };
@@ -298,6 +313,13 @@ describe('VideoStore', () => {
 
     it('should handle very short segments', async () => {
       // Arrange
+      store.currentVideo = {
+        id: 123,
+        duration: 60,
+        fps: 30,
+        examination_id: 1
+      } as any;
+
       const mockResponse = {
         data: { id: 456, start_time: 10.0, end_time: 10.1, label_name: 'polyp' }
       };
@@ -315,6 +337,13 @@ describe('VideoStore', () => {
 
     it('should handle decimal precision correctly', async () => {
       // Arrange
+      store.currentVideo = {
+        id: 123,
+        duration: 60,
+        fps: 30,
+        examination_id: 1
+      } as any;
+
       const mockResponse = {
         data: { id: 456, start_time: 10.333, end_time: 15.666, label_name: 'polyp' }
       };
@@ -341,21 +370,13 @@ describe('Draft System Integration Scenarios', () => {
     store = useVideoStore();
     vi.resetAllMocks();
     
-    // ✅ FIX: Set current video using proper store method or property
-    // Remove the problematic _unsafe_setCurrentVideo call since it doesn't exist
-    // Instead, create a mock video directly on the store
-    Object.defineProperty(store, 'currentVideo', {
-      value: {
-        id: '123',
-        videoUrl: 'test-url',
-        status: 'available',
-        assignedUser: null,
-        isAnnotated: false,
-        errorMessage: '',
-        segments: []
-      },
-      writable: true
-    });
+    // Set current video for all integration tests
+    store.currentVideo = {
+      id: 123,
+      duration: 60,
+      fps: 30,
+      examination_id: 1
+    } as any;
   });
 
   describe('User Workflow Simulations', () => {
@@ -417,7 +438,7 @@ describe('Draft System Integration Scenarios', () => {
       store.startDraft('blood', 12.0);
 
       // Assert
-      expect(store.draftSegment).toEqual({
+      expect(store.draftSegment).toMatchObject({
         label: 'blood',
         start: 12.0,
         end: null
