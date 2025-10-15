@@ -7,6 +7,7 @@ import django
 from unittest.mock import Mock, patch
 from io import StringIO
 
+
 # Django Setup
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'lx_annotate.settings_dev')
 sys.path.append('/home/admin/dev/lx-annotate')
