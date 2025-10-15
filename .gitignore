@@ -1,5 +1,6 @@
 conf/db.yaml
-
+conf/db_pwd.example
+conf/db_pwd
 .devenv-vars.json
 .devenv/
 django-settings.json
