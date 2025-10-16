@@ -61,14 +61,16 @@ describe('VideoExaminationAnnotation Edge Cases & Stress Tests', () => {
       })
 
       expect(wrapper.vm.hasVideos).toBe(false)
-      expect(wrapper.vm.noVideosMessage).toBe('Keine Videos verfügbar. Bitte laden Sie zuerst Videos hoch.')
+      expect(wrapper.vm.noVideosMessage).toBe(
+        'Keine Videos verfügbar. Bitte laden Sie zuerst Videos hoch.'
+      )
       expect(wrapper.vm.annotatableVideos).toEqual([])
       expect(wrapper.vm.timelineSegmentsForSelectedVideo).toEqual([])
     })
 
     it('should handle corrupted segment data', async () => {
       videoStore.videoList = { videos: [{ id: 6, original_file_name: 'test.mp4' }] }
-      
+
       // Corrupted segments with missing/invalid fields
       videoStore.allSegments = [
         { id: null, label: '', startTime: NaN, endTime: undefined, videoID: 6 },
@@ -86,7 +88,7 @@ describe('VideoExaminationAnnotation Edge Cases & Stress Tests', () => {
       await nextTick()
 
       const timelineSegments = wrapper.vm.timelineSegmentsForSelectedVideo
-      
+
       // Should handle corrupted data without crashing
       expect(timelineSegments).toBeInstanceOf(Array)
       // Segments with invalid data should still be normalized
@@ -346,7 +348,7 @@ describe('VideoExaminationAnnotation Edge Cases & Stress Tests', () => {
       }
 
       vm.videoRef = limitedVideo
-      
+
       // Should handle missing features gracefully
       expect(() => vm.handleTimeUpdate()).not.toThrow()
       expect(() => vm.handlePlayPause()).not.toThrow()

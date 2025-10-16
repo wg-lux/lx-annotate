@@ -95,9 +95,9 @@ export const usePdfStore = defineStore('pdf', () => {
                 method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRFToken': getCsrfToken(),
+                    'X-CSRFToken': getCsrfToken()
                 },
-                body: JSON.stringify(data),
+                body: JSON.stringify(data)
             });
             if (!response.ok) {
                 throw new Error(`Failed to update sensitive metadata: ${response.status}`);
@@ -135,9 +135,9 @@ export const usePdfStore = defineStore('pdf', () => {
                 method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRFToken': getCsrfToken(),
+                    'X-CSRFToken': getCsrfToken()
                 },
-                body: JSON.stringify({ anonymized_text: anonymizedText }),
+                body: JSON.stringify({ anonymized_text: anonymizedText })
             });
             if (!response.ok) {
                 throw new Error(`Failed to update anonymized text: ${response.status}`);
@@ -174,11 +174,11 @@ export const usePdfStore = defineStore('pdf', () => {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRFToken': getCsrfToken(),
+                    'X-CSRFToken': getCsrfToken()
                 },
                 body: JSON.stringify({
                     validation_status: 'approved'
-                }),
+                })
             });
             if (!response.ok) {
                 throw new Error(`Failed to approve PDF: ${response.status}`);
@@ -276,6 +276,6 @@ export const usePdfStore = defineStore('pdf', () => {
         skipPdf,
         checkAnonymizationStatus,
         stopStreaming,
-        clearState,
+        clearState
     };
 });

@@ -9,6 +9,8 @@ export interface OverviewStats {
     total_findings: number;
     total_annotatable_items: number;
     completion_rate: number;
+    total_sensitive_metadata?: number;
+    verified_sensitive_metadata?: number;
     status_counts: {
         pending: number;
         in_progress: number;
@@ -143,6 +145,8 @@ export declare const useAnnotationStatsStore: import("pinia").StoreDefinition<"a
                 total_findings: number;
                 total_annotatable_items: number;
                 completion_rate: number;
+                total_sensitive_metadata?: number | undefined;
+                verified_sensitive_metadata?: number | undefined;
                 status_counts: {
                     pending: number;
                     in_progress: number;
@@ -290,6 +294,8 @@ export declare const useAnnotationStatsStore: import("pinia").StoreDefinition<"a
                 total_findings: number;
                 total_annotatable_items: number;
                 completion_rate: number;
+                total_sensitive_metadata?: number | undefined;
+                verified_sensitive_metadata?: number | undefined;
                 status_counts: {
                     pending: number;
                     in_progress: number;
@@ -437,6 +443,8 @@ export declare const useAnnotationStatsStore: import("pinia").StoreDefinition<"a
                 total_findings: number;
                 total_annotatable_items: number;
                 completion_rate: number;
+                total_sensitive_metadata?: number | undefined;
+                verified_sensitive_metadata?: number | undefined;
                 status_counts: {
                     pending: number;
                     in_progress: number;
@@ -584,6 +592,8 @@ export declare const useAnnotationStatsStore: import("pinia").StoreDefinition<"a
                 total_findings: number;
                 total_annotatable_items: number;
                 completion_rate: number;
+                total_sensitive_metadata?: number | undefined;
+                verified_sensitive_metadata?: number | undefined;
                 status_counts: {
                     pending: number;
                     in_progress: number;
@@ -731,6 +741,8 @@ export declare const useAnnotationStatsStore: import("pinia").StoreDefinition<"a
                 total_findings: number;
                 total_annotatable_items: number;
                 completion_rate: number;
+                total_sensitive_metadata?: number | undefined;
+                verified_sensitive_metadata?: number | undefined;
                 status_counts: {
                     pending: number;
                     in_progress: number;
@@ -886,6 +898,8 @@ export declare const useAnnotationStatsStore: import("pinia").StoreDefinition<"a
                 total_findings: number;
                 total_annotatable_items: number;
                 completion_rate: number;
+                total_sensitive_metadata?: number | undefined;
+                verified_sensitive_metadata?: number | undefined;
                 status_counts: {
                     pending: number;
                     in_progress: number;

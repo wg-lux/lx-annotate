@@ -44,14 +44,14 @@
             </div>
 
             <!-- No Video Selected State -->
-            <div v-if="!videoStreamSrc && hasVideos" class="text-center text-muted py-5">
+            <div v-if="!anonymizedVideoSrc && hasVideos" class="text-center text-muted py-5">
               <i class="material-icons" style="font-size: 48px;">movie</i>
               <p class="mt-2">Video auswählen, um mit der Betrachtung zu beginnen</p>
               <!-- Debug info for video stream -->
               <div v-if="selectedVideoId" class="alert alert-info mt-2">
                 <small>
                   <strong>Debug:</strong> Video ID {{ selectedVideoId }} ausgewählt<br>
-                  Stream-URL: {{ videoStreamSrc || 'Nicht verfügbar' }}<br>
+                  Stream-URL: {{ anonymizedVideoSrc || 'Nicht verfügbar' }}<br>
                   MediaStore URL: {{ selectedVideoId ? mediaStore.getVideoUrl(videos.find(v => v.id === selectedVideoId) as any) : 'N/A' }}
                 </small>
               </div>
@@ -65,11 +65,11 @@
             </div>
 
             <!-- Video Player -->
-            <div v-if="videoStreamSrc" class="video-container">
+            <div v-if="anonymizedVideoSrc" class="video-container">
               <video 
                 ref="videoRef"
                 data-cy="video-player"
-                :src="videoStreamSrc"
+                :src="anonymizedVideoSrc"
                 @timeupdate="handleTimeUpdate"
                 @loadedmetadata="onVideoLoaded"
                 @error="onVideoError"
@@ -81,6 +81,15 @@
               >
                 Ihr Browser unterstützt das Video-Element nicht.
               </video>
+            </div>
+            <div v-if="!anonymizedVideoSrc" class="">
+              <button 
+                class="btn btn-primary"
+                @click="videoStore.deleteVideo(selectedVideoId)"
+                :disabled="!hasVideos"
+              >
+                Video löschen?
+              </button>
             </div>
 
             <!-- Enhanced Timeline Component -->
@@ -421,7 +430,6 @@ const successMessage = ref<string>('')
 // Template refs
 const videoRef = ref<HTMLVideoElement | null>(null)
 const timelineRef = ref<HTMLElement | null>(null)
-
 // Video Dropdown Watcher
 
 async function loadSelectedVideo() {  
@@ -437,13 +445,13 @@ async function loadSelectedVideo() {
   clearSuccessMessage()
 
   try {
-    await videoStore.loadVideo(String(selectedVideoId.value))
+    await videoStore.loadVideo(selectedVideoId.value)
     await loadVideoDetail(selectedVideoId.value)
     await guarded(loadSavedExaminations())
     await guarded(loadVideoMetadata())
     
     // Load segments with error handling
-    await guarded(videoStore.fetchAllSegments(selectedVideoId.value.toString()))
+    await guarded(videoStore.fetchAllSegments(selectedVideoId.value))
     
     console.log('Video fully loaded:', selectedVideoId.value)
   } catch (err: any) {
@@ -476,24 +484,17 @@ const annotatableVideos = computed(() =>
 
 
 const showExaminationForm = computed(() => {
-  return selectedVideoId.value !== null && videoStreamSrc.value !== undefined
+  return selectedVideoId.value !== null && anonymizedVideoSrc.value !== undefined
 })
 
 // Video streaming URL using MediaStore logic like AnonymizationValidationComponent
-const videoStreamSrc = computed(() => {
-  if (!selectedVideoId.value) return undefined
-  
-  // ✅ PRIMARY: Use videoStore.videoStreamUrl which includes ?type=processed
-  if (videoStreamUrl.value) {
-    console.log('🎬 Using videoStore URL (processed):', videoStreamUrl.value)
+const anonymizedVideoSrc = computed(() => {
+  try{
     return videoStreamUrl.value
   }
-  
-  // ✅ FALLBACK: Build URL directly if store URL not available
-  const base = import.meta.env.VITE_API_BASE_URL || window.location.origin
-  const fallbackUrl = `${base}/api/media/videos/${selectedVideoId.value}/?type=processed`
-  console.log('🎬 Using fallback URL (processed):', fallbackUrl)
-  return fallbackUrl
+  catch {
+    return undefined
+  }
 })
 
 const hasVideos = computed(() => {
@@ -538,7 +539,7 @@ const groupedSegments = computed(() => {
 
 const canStartLabeling = computed(() => {
   return selectedVideoId.value && 
-         videoDetail.value?.video_url && 
+         (videoDetail.value?.video_url || anonymizedVideoSrc.value) && 
          selectedLabelType.value && 
          !isMarkingLabel.value &&
          duration.value > 0
@@ -557,6 +558,20 @@ async function guarded<T>(p: Promise<T>): Promise<T | undefined> {
     return undefined
   }
 }
+
+watch(videoStreamUrl, (newUrl) => {
+  console.log('Video stream URL updated:', newUrl)
+})
+
+watch(selectedVideoId, (newId) => {
+  console.log('Selected video ID changed, setting store to:', newId)
+  if (typeof newId === 'number') {
+    videoStore.setCurrentVideo(newId)
+  }
+  else {
+    errorMessage.value = 'Invalid video ID'
+  }
+})
 
 // Alert management methods
 const clearErrorMessage = (): void => {
@@ -613,7 +628,7 @@ const loadVideoDetail = async (videoId: number): Promise<void> => {
     
     console.log('Video detail loaded:', videoDetail.value)
     console.log('Video meta loaded:', videoMeta.value)
-    console.log('Stream source will be:', videoStreamSrc.value)
+    console.log('Stream source will be:', anonymizedVideoSrc.value)
   } catch (error) {
     console.error('Error loading video detail:', error)
     await guarded(Promise.reject(error))
@@ -672,7 +687,7 @@ const loadVideoSegments = async (): Promise<void> => {
   if (selectedVideoId.value === null) return
   
   try {
-    await videoStore.fetchAllSegments(selectedVideoId.value.toString())
+    await videoStore.fetchAllSegments(selectedVideoId.value)
     console.log('Video segments loaded for video:', selectedVideoId.value)
     console.log('Timeline segments count:', rawSegments.value.length)
   } catch (error) {
@@ -698,7 +713,7 @@ const onVideoLoaded = (): void => {
     })
     
     console.log('🎥 Video loaded - Frontend')
-    console.log(`- Video source URL: ${videoStreamSrc.value}`)
+    console.log(`- Video source URL: ${anonymizedVideoSrc.value}`)
     console.log(`- Legacy stream URL: ${videoStreamUrl.value}`)
     console.log(`- Video detail URL: ${videoDetail.value?.video_url}`)
     console.log(`- Video readyState: ${videoRef.value.readyState}`)
@@ -1067,7 +1082,7 @@ const onVideoError = (event: Event): void => {
 }
 
 const onVideoLoadStart = (): void => {
-  console.log('Video loading started for:', videoStreamSrc.value)
+  console.log('Video loading started for:', anonymizedVideoSrc.value)
 }
 
 const onVideoCanPlay = (): void => {

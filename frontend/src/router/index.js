@@ -103,7 +103,7 @@ const router = createRouter({
             path: '/anonymisierung/korrektur/:fileId(\\d+)',
             name: 'Anonymisierung Korrektur',
             component: () => import('@/components/Anonymizer/AnonymizationCorrectionComponent.vue'),
-            props: route => ({ fileId: Number(route.params.fileId) }) // pass as number prop
+            props: (route) => ({ fileId: Number(route.params.fileId) }) // pass as number prop
         },
         {
             path: '/validierung',

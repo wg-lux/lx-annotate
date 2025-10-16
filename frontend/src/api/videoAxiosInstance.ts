@@ -1,27 +1,26 @@
-import axios, { type AxiosRequestConfig } from 'axios';
+import axios, { type AxiosRequestConfig } from 'axios'
 // Set the base URL for your video API endpoint.
 // When you call `videoAxiosInstance.get(videoID)` it will append the videoID to this base URL.
-const baseURL = 'http://localhost:8000/api/media/videos';  // Fix: plural videos, not singular
+const baseURL = 'http://localhost:8000/api/media/videos' // Fix: plural videos, not singular
 
 const videoAxiosInstance = axios.create({
   baseURL,
   headers: {
     'Content-Type': 'application/json',
-    'Accept': 'application/json',
-  },
+    Accept: 'application/json'
+  }
   //withCredentials: true,
-});
+})
 
-import type { InternalAxiosRequestConfig } from 'axios';
-import Cookies from 'js-cookie';
+import type { InternalAxiosRequestConfig } from 'axios'
+import Cookies from 'js-cookie'
 
 videoAxiosInstance.interceptors.request.use((config: InternalAxiosRequestConfig) => {
-    const csrftoken = Cookies.get('csrftoken');
-    if (csrftoken && config.headers) {
-      config.headers['X-CSRFToken'] = csrftoken;
-    }
-    return config;
-  });
+  const csrftoken = Cookies.get('csrftoken')
+  if (csrftoken && config.headers) {
+    config.headers['X-CSRFToken'] = csrftoken
+  }
+  return config
+})
 
-
-export default videoAxiosInstance;
+export default videoAxiosInstance

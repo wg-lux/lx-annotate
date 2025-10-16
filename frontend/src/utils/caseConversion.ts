@@ -9,13 +9,22 @@
  * @returns The string in camelCase format
  */
 
-import type { BackendSegment, FrontendSegment, BackendFramePrediction, Segment } from '@/stores/videoStore'
+import type {
+  BackendSegment,
+  FrontendSegment,
+  BackendFramePrediction,
+  Segment
+} from '@/stores/videoStore'
 export function snakeToCamel(snakeStr: string): string {
   const components = snakeStr.split('_')
   // Capitalize the first letter of each component except the first
-  return components[0] + components.slice(1).map(x => 
-    x.charAt(0).toUpperCase() + x.slice(1).toLowerCase()
-  ).join('')
+  return (
+    components[0] +
+    components
+      .slice(1)
+      .map((x) => x.charAt(0).toUpperCase() + x.slice(1).toLowerCase())
+      .join('')
+  )
 }
 
 /**
@@ -24,7 +33,7 @@ export function snakeToCamel(snakeStr: string): string {
  * @returns The string in snake_case format
  */
 export function camelToSnake(camelStr: string): string {
-  return camelStr.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`)
+  return camelStr.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`)
 }
 
 /**
@@ -34,24 +43,24 @@ export function camelToSnake(camelStr: string): string {
  */
 export function objectSnakeToCamel<T = any>(obj: Record<string, any>): T {
   if (!obj || typeof obj !== 'object') return obj
-  
+
   const result: Record<string, any> = {}
-  
+
   for (const [key, value] of Object.entries(obj)) {
     const camelKey = snakeToCamel(key)
-    
+
     // Recursively convert nested objects
     if (value && typeof value === 'object' && !Array.isArray(value)) {
       result[camelKey] = objectSnakeToCamel(value)
     } else if (Array.isArray(value)) {
-      result[camelKey] = value.map(item => 
+      result[camelKey] = value.map((item) =>
         item && typeof item === 'object' ? objectSnakeToCamel(item) : item
       )
     } else {
       result[camelKey] = value
     }
   }
-  
+
   return result as T
 }
 
@@ -62,28 +71,26 @@ export function objectSnakeToCamel<T = any>(obj: Record<string, any>): T {
  */
 export function objectCamelToSnake<T = any>(obj: Record<string, any>): T {
   if (!obj || typeof obj !== 'object') return obj
-  
+
   const result: Record<string, any> = {}
-  
+
   for (const [key, value] of Object.entries(obj)) {
     const snakeKey = camelToSnake(key)
-    
+
     // Recursively convert nested objects
     if (value && typeof value === 'object' && !Array.isArray(value)) {
       result[snakeKey] = objectCamelToSnake(value)
     } else if (Array.isArray(value)) {
-      result[snakeKey] = value.map(item => 
+      result[snakeKey] = value.map((item) =>
         item && typeof item === 'object' ? objectCamelToSnake(item) : item
       )
     } else {
       result[snakeKey] = value
     }
   }
-  
+
   return result as T
 }
-
-
 
 /**
  * Converts a backend segment (snake_case) to frontend segment (camelCase)
@@ -91,16 +98,18 @@ export function objectCamelToSnake<T = any>(obj: Record<string, any>): T {
  */
 export function convertBackendSegmentToFrontend(backendSegment: BackendSegment): FrontendSegment {
   // Handle different label formats from backend
-  let labelValue = '';
-  
+  let labelValue = ''
+
   if (backendSegment.labelName) {
-    labelValue = backendSegment.labelName;
+    labelValue = backendSegment.labelName
   } else {
     // Fallback for mixed formats
-    console.warn('ISSUE WITH SNAKE CASE CAMEL CASE CONVERSION IN AXIOS INTERCEPTOR: Backend segment label is missing or in unexpected format:', backendSegment);
-    labelValue = backendSegment.labelName || '';
+    console.warn(
+      'ISSUE WITH SNAKE CASE CAMEL CASE CONVERSION IN AXIOS INTERCEPTOR: Backend segment label is missing or in unexpected format:',
+      backendSegment
+    )
+    labelValue = backendSegment.labelName || ''
   }
-    
 
   const converted: FrontendSegment = {
     id: backendSegment.id,
@@ -109,7 +118,7 @@ export function convertBackendSegmentToFrontend(backendSegment: BackendSegment):
     label: labelValue,
     startTime: backendSegment.startTime,
     endTime: backendSegment.endTime,
-    usingFPS: false,
+    usingFPS: false
   }
 
   if (backendSegment.startTime !== undefined) {
@@ -129,7 +138,7 @@ export function convertFrontendSegmentToBackend(frontendSegment: FrontendSegment
     labelName: frontendSegment.label,
     startTime: frontendSegment.startTime,
     endTime: frontendSegment.endTime,
-    videoName: frontendSegment.videoName || '', // Optional field for video name
+    videoName: frontendSegment.videoName || '' // Optional field for video name
   }
 
   return converted
@@ -138,14 +147,18 @@ export function convertFrontendSegmentToBackend(frontendSegment: FrontendSegment
 /**
  * Converts an array of backend segments to frontend segments
  */
-export function convertBackendSegmentsToFrontend(backendSegments: BackendSegment[]): FrontendSegment[] {
+export function convertBackendSegmentsToFrontend(
+  backendSegments: BackendSegment[]
+): FrontendSegment[] {
   return backendSegments.map(convertBackendSegmentToFrontend)
 }
 
 /**
  * Converts an array of frontend segments to backend segments
  */
-export function convertFrontendSegmentsToBackend(frontendSegments: FrontendSegment[]): BackendSegment[] {
+export function convertFrontendSegmentsToBackend(
+  frontendSegments: FrontendSegment[]
+): BackendSegment[] {
   return frontendSegments.map(convertFrontendSegmentToBackend)
 }
 
@@ -155,27 +168,28 @@ export function convertFrontendSegmentsToBackend(frontendSegments: FrontendSegme
  */
 export function normalizeSegmentToCamelCase(segment: any): FrontendSegment {
   // Handle different label formats
-  let labelValue = '';
-  
+  let labelValue = ''
+
   if (segment.label_name) {
-    labelValue = segment.label_name;
+    labelValue = segment.label_name
   } else if (segment.label && typeof segment.label === 'object' && segment.label.name) {
-    labelValue = segment.label.name;
+    labelValue = segment.label.name
   } else if (segment.label && typeof segment.label === 'string') {
-    labelValue = segment.label;
+    labelValue = segment.label
   } else {
-    labelValue = ''; // Default to empty string if no label is found
+    labelValue = '' // Default to empty string if no label is found
   }
 
   return {
     id: segment.id,
     label: labelValue,
-    startTime: segment.startTime ?? segment.start_time ?? segment.segmentStart ?? segment.segment_start ?? 0,
+    startTime:
+      segment.startTime ?? segment.start_time ?? segment.segmentStart ?? segment.segment_start ?? 0,
     endTime: segment.endTime ?? segment.end_time ?? segment.segmentEnd ?? segment.segment_end ?? 0,
     startFrameNumber: segment.startFrameNumber ?? segment.start_frame_number ?? 0,
     endFrameNumber: segment.endFrameNumber ?? segment.end_frame_number ?? 0,
     videoName: segment.videoName || segment.video_name || '',
-    usingFPS: segment.usingFPS ?? segment.using_fps ?? false,
+    usingFPS: segment.usingFPS ?? segment.using_fps ?? false
   }
 }
 
@@ -203,7 +217,11 @@ export function createSegmentUpdatePayload(
 /**
  * Debug helper to log segment conversion
  */
-export function debugSegmentConversion(original: any, converted: any, direction: 'toFrontend' | 'toBackend'): void {
+export function debugSegmentConversion(
+  original: any,
+  converted: any,
+  direction: 'toFrontend' | 'toBackend'
+): void {
   if (process.env.NODE_ENV === 'development') {
     console.group(`[SegmentConversion] ${direction}`)
     console.log('Original:', original)

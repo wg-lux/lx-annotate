@@ -11,7 +11,7 @@ export const uploadFiles = async (files) => {
     if (fileArray.length === 0) {
         throw new Error('No files provided for upload');
     }
-    console.log('Uploading files:', fileArray.map(f => f.name));
+    console.log('Uploading files:', fileArray.map((f) => f.name));
     fileArray.forEach((file, index) => {
         console.log(`Adding file ${index}: ${file.name} (${file.size} bytes)`);
         formData.append('file', file);

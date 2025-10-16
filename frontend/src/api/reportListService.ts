@@ -118,7 +118,7 @@ class ReportListService {
             }
           }
         )
-        
+
         if (response.data && response.data.results) {
           return response.data.results.map(this.normalizeLegacyReport)
         }
@@ -128,14 +128,14 @@ class ReportListService {
 
       // Fallback to legacy endpoints
       const endpoints = [
-        'pdf/sensitivemeta/',  // Legacy list endpoint
+        'pdf/sensitivemeta/', // Legacy list endpoint
         'pdfs/'
       ]
 
       for (const endpoint of endpoints) {
         try {
           const response = await axiosInstance.get(r(endpoint))
-          
+
           // Normalisiere die Antwort zu ReportListItem Format
           if (Array.isArray(response.data)) {
             return response.data.map(this.normalizeLegacyReport)
@@ -147,7 +147,7 @@ class ReportListService {
           continue
         }
       }
-      
+
       throw new Error('Keine Legacy-Endpunkte verfügbar')
     } catch (error) {
       console.error('Fehler beim Laden der Legacy-Reports:', error)

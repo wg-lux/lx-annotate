@@ -15,7 +15,6 @@
 
 ### **YES - Dies erklärt ALLE Streaming-Probleme!**
 
-**Es ist KEIN Scope-Bug** (den haben wir bereits gefixt).  
 **Es ist ein PATH RESOLUTION BUG** - Import Services vs. Streaming Views verwenden **inkompatible Pfad-Formate**.
 
 ---

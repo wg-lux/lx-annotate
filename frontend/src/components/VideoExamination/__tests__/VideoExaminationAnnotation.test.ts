@@ -23,12 +23,25 @@ vi.mock('@/components/VideoExamination/Timeline.vue', () => ({
     name: 'Timeline',
     template: '<div data-testid="timeline">Mock Timeline</div>',
     props: [
-      'video', 'segments', 'labels', 'current-time', 'is-playing',
-      'active-segment-id', 'show-waveform', 'selection-mode', 'fps'
+      'video',
+      'segments',
+      'labels',
+      'current-time',
+      'is-playing',
+      'active-segment-id',
+      'show-waveform',
+      'selection-mode',
+      'fps'
     ],
     emits: [
-      'seek', 'play-pause', 'segment-select', 'segment-resize',
-      'segment-move', 'segment-create', 'segment-delete', 'time-selection'
+      'seek',
+      'play-pause',
+      'segment-select',
+      'segment-resize',
+      'segment-move',
+      'segment-create',
+      'segment-delete',
+      'time-selection'
     ]
   }
 }))
@@ -60,7 +73,9 @@ vi.mock('vue-router', () => ({
 
 // Mock utils
 vi.mock('@/utils/videoUtils', () => ({
-  formatTime: vi.fn((seconds: number) => `${Math.floor(seconds / 60)}:${(seconds % 60).toFixed(0).padStart(2, '0')}`),
+  formatTime: vi.fn(
+    (seconds: number) => `${Math.floor(seconds / 60)}:${(seconds % 60).toFixed(0).padStart(2, '0')}`
+  ),
   getTranslationForLabel: vi.fn((label: string) => `Translated ${label}`),
   getColorForLabel: vi.fn((label: string) => '#ff0000')
 }))
@@ -247,7 +262,7 @@ describe('VideoExaminationAnnotation.vue', () => {
       })
 
       const vm = wrapper.vm as any
-      
+
       // Mock video element
       const mockVideo = {
         addEventListener: vi.fn(),
@@ -257,14 +272,12 @@ describe('VideoExaminationAnnotation.vue', () => {
         videoWidth: 640,
         videoHeight: 480
       }
-      
+
       vm.videoRef = mockVideo
       await vm.onVideoLoaded()
 
       // Simulate play event
-      const playCall = mockVideo.addEventListener.mock.calls.find(
-        call => call[0] === 'play'
-      )
+      const playCall = mockVideo.addEventListener.mock.calls.find((call) => call[0] === 'play')
       const playListener = playCall?.[1]
       playListener?.()
 
@@ -288,14 +301,12 @@ describe('VideoExaminationAnnotation.vue', () => {
         readyState: 4,
         networkState: 1
       }
-      
+
       vm.videoRef = mockVideo
       await vm.onVideoLoaded()
 
       // Simulate pause event
-      const pauseCall = mockVideo.addEventListener.mock.calls.find(
-        call => call[0] === 'pause'
-      )
+      const pauseCall = mockVideo.addEventListener.mock.calls.find((call) => call[0] === 'pause')
       const pauseListener = pauseCall?.[1]
       pauseListener()
 
@@ -311,7 +322,7 @@ describe('VideoExaminationAnnotation.vue', () => {
         }
       })
 
-      await wrapper.setData({ 
+      await wrapper.setData({
         selectedVideoId: 6,
         duration: 120,
         selectedLabelType: 'polyp'
@@ -321,7 +332,7 @@ describe('VideoExaminationAnnotation.vue', () => {
 
     it('should handle play/pause events correctly', async () => {
       const vm = wrapper.vm as any
-      
+
       // Mock video element
       const mockVideo = {
         paused: true,
@@ -342,19 +353,19 @@ describe('VideoExaminationAnnotation.vue', () => {
 
     it('should handle segment selection', async () => {
       const vm = wrapper.vm as any
-      
+
       vm.handleSegmentSelect(123)
       expect(vm.selectedSegmentId).toBe(123)
     })
 
     it('should handle time selection for segment creation', async () => {
       const vm = wrapper.vm as any
-      
+
       // Mock createSegment
       const createSpy = vi.spyOn(vm, 'handleCreateSegment').mockResolvedValue(undefined)
-      
+
       vm.handleTimeSelection({ start: 20, end: 30 })
-      
+
       expect(createSpy).toHaveBeenCalledWith({
         label: 'polyp',
         start: 20,
@@ -365,12 +376,14 @@ describe('VideoExaminationAnnotation.vue', () => {
     it('should show error when trying to create segment without label', async () => {
       const vm = wrapper.vm as any
       vm.selectedLabelType = ''
-      
+
       const errorSpy = vi.spyOn(vm, 'showErrorMessage')
-      
+
       vm.handleTimeSelection({ start: 20, end: 30 })
-      
-      expect(errorSpy).toHaveBeenCalledWith('Bitte wählen Sie ein Label aus, bevor Sie ein Segment erstellen.')
+
+      expect(errorSpy).toHaveBeenCalledWith(
+        'Bitte wählen Sie ein Label aus, bevor Sie ein Segment erstellen.'
+      )
     })
   })
 
@@ -382,7 +395,7 @@ describe('VideoExaminationAnnotation.vue', () => {
         }
       })
 
-      await wrapper.setData({ 
+      await wrapper.setData({
         selectedVideoId: 6,
         selectedLabelType: 'polyp'
       })
@@ -391,7 +404,7 @@ describe('VideoExaminationAnnotation.vue', () => {
 
     it('should create segment correctly', async () => {
       const vm = wrapper.vm as any
-      
+
       await vm.handleCreateSegment({
         label: 'polyp',
         start: 20,
@@ -403,10 +416,10 @@ describe('VideoExaminationAnnotation.vue', () => {
 
     it('should handle segment resize with preview and final save', async () => {
       const vm = wrapper.vm as any
-      
+
       // Test preview (final = false)
       vm.handleSegmentResize(1, 10, 20, 'resize', false)
-      
+
       expect(videoStore.patchSegmentLocally).toHaveBeenCalledWith(1, {
         startTime: 10,
         endTime: 20
@@ -415,7 +428,7 @@ describe('VideoExaminationAnnotation.vue', () => {
 
       // Test final save (final = true)
       vm.handleSegmentResize(1, 10, 20, 'resize', true)
-      
+
       expect(videoStore.updateSegment).toHaveBeenCalledWith(1, {
         startTime: 10,
         endTime: 20
@@ -424,17 +437,17 @@ describe('VideoExaminationAnnotation.vue', () => {
 
     it('should ignore operations on draft/temp segments', async () => {
       const vm = wrapper.vm as any
-      
+
       vm.handleSegmentResize('draft', 10, 20, 'resize', true)
       vm.handleSegmentResize('temp-123', 10, 20, 'resize', true)
-      
+
       expect(videoStore.patchSegmentLocally).not.toHaveBeenCalled()
       expect(videoStore.updateSegment).not.toHaveBeenCalled()
     })
 
     it('should delete segment correctly', async () => {
       const vm = wrapper.vm as any
-      
+
       const mockSegment = {
         id: 1,
         label: 'polyp',
@@ -450,7 +463,7 @@ describe('VideoExaminationAnnotation.vue', () => {
 
     it('should not delete draft segments', async () => {
       const vm = wrapper.vm as any
-      
+
       const mockDraftSegment = {
         id: 'draft',
         label: 'polyp',
@@ -473,7 +486,7 @@ describe('VideoExaminationAnnotation.vue', () => {
         }
       })
 
-      await wrapper.setData({ 
+      await wrapper.setData({
         selectedVideoId: 6,
         duration: 120,
         currentTime: 45,
@@ -503,7 +516,7 @@ describe('VideoExaminationAnnotation.vue', () => {
         }
       })
 
-      await wrapper.setData({ 
+      await wrapper.setData({
         selectedVideoId: 6,
         duration: 120
       })
@@ -528,7 +541,7 @@ describe('VideoExaminationAnnotation.vue', () => {
     it('should load video data correctly when video changes', async () => {
       const axiosInstance = await import('@/api/axiosInstance')
       const getMock = axiosInstance.default.get as any
-      
+
       getMock.mockResolvedValueOnce({
         data: {
           video_url: 'http://test.com/video.mp4',
@@ -576,7 +589,7 @@ describe('VideoExaminationAnnotation.vue', () => {
         }
       })
 
-      await wrapper.setData({ 
+      await wrapper.setData({
         selectedVideoId: 6,
         duration: 120,
         currentTime: 30,
@@ -587,7 +600,7 @@ describe('VideoExaminationAnnotation.vue', () => {
 
     it('should start draft segment correctly', async () => {
       const vm = wrapper.vm as any
-      
+
       vm.startLabelMarking()
 
       expect(vm.isMarkingLabel).toBe(true)
@@ -639,10 +652,12 @@ describe('VideoExaminationAnnotation.vue', () => {
       }
 
       const errorSpy = vi.spyOn(vm, 'showErrorMessage')
-      
+
       vm.onVideoError(mockVideoEvent)
 
-      expect(errorSpy).toHaveBeenCalledWith('Fehler beim Laden des Videos. Bitte versuchen Sie es erneut.')
+      expect(errorSpy).toHaveBeenCalledWith(
+        'Fehler beim Laden des Videos. Bitte versuchen Sie es erneut.'
+      )
     })
 
     it('should handle API errors in guarded function', async () => {
@@ -696,7 +711,7 @@ describe('VideoExaminationAnnotation.vue', () => {
         }
       })
 
-      await wrapper.setData({ 
+      await wrapper.setData({
         selectedVideoId: 6,
         videoDetail: { video_url: 'http://fallback.com/video.mp4' }
       })

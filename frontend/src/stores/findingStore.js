@@ -1,7 +1,7 @@
-import { defineStore } from "pinia";
-import axiosInstance from "@/api/axiosInstance";
-import { ref, readonly, computed } from "vue";
-import { useExaminationStore } from "@/stores/examinationStore";
+import { defineStore } from 'pinia';
+import axiosInstance from '@/api/axiosInstance';
+import { ref, readonly, computed } from 'vue';
+import { useExaminationStore } from '@/stores/examinationStore';
 export const useFindingStore = defineStore('finding', () => {
     const findings = ref([]);
     const loading = ref(false);
@@ -71,7 +71,9 @@ export const useFindingStore = defineStore('finding', () => {
             return findings.value;
         }
         catch (err) {
-            error.value = 'Fehler beim Laden der Befunde für die Patientenuntersuchung: ' + (err.response?.data?.detail || err.message);
+            error.value =
+                'Fehler beim Laden der Befunde für die Patientenuntersuchung: ' +
+                    (err.response?.data?.detail || err.message);
             console.error('Fetch findings by patient examination error:', err);
             return [];
         }
@@ -90,26 +92,26 @@ export const useFindingStore = defineStore('finding', () => {
         }
     };
     const getFindingById = (id) => {
-        return findings.value.find(finding => finding.id === id);
+        return findings.value.find((finding) => finding.id === id);
     };
     const setCurrentFinding = (finding) => {
         currentFinding.value = finding;
     };
     const setCurrentFindingClassification = (classifications) => {
-        return FindingClassification.value = classifications;
+        return (FindingClassification.value = classifications);
     };
     const areFindingsLoaded = computed(() => findings.value.length > 0);
     const getFindingsByExamination = (examinationId) => {
         // Verwende gecachte Findings falls verfügbar
         if (examinationFindings.value.has(examinationId)) {
-            console.log("Using cached findings for examination", examinationId);
+            console.log('Using cached findings for examination', examinationId);
             return examinationFindings.value.get(examinationId);
         }
-        console.log("No cached findings for examination", examinationId);
-        console.log("Using the following findings:");
+        console.log('No cached findings for examination', examinationId);
+        console.log('Using the following findings:');
         // Fallback: Filtere aus allen Findings (für den Fall, dass noch nicht geladen wurde)
         // Dies ist weniger effizient, aber funktioniert als Fallback
-        return findings.value.filter(finding => {
+        return findings.value.filter((finding) => {
             console.log(finding);
             return finding.examinations && finding.examinations.includes(examinationId.toString());
         });
@@ -161,6 +163,6 @@ export const useFindingStore = defineStore('finding', () => {
         isExaminationFindingsLoaded,
         isExaminationFindingsLoading,
         clearExaminationFindingsCache,
-        fetchFindingsByPatientExamination,
+        fetchFindingsByPatientExamination
     };
 });

@@ -1,5 +1,5 @@
-import type { Finding, FindingClassification, FindingClassificationChoice } from "@/stores/findingStore";
-import type { Patient } from "@/stores/patientStore";
+import type { Finding, FindingClassification, FindingClassificationChoice } from '@/stores/findingStore';
+import type { Patient } from '@/stores/patientStore';
 interface PatientFinding {
     id: number;
     examination: string;

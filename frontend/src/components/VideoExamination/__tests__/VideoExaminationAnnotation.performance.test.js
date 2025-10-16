@@ -20,12 +20,12 @@ class MockVideoElement {
     }
     removeEventListener(event, callback) {
         if (this.eventListeners[event]) {
-            this.eventListeners[event] = this.eventListeners[event].filter(cb => cb !== callback);
+            this.eventListeners[event] = this.eventListeners[event].filter((cb) => cb !== callback);
         }
     }
     dispatchEvent(event, data) {
         if (this.eventListeners[event]) {
-            this.eventListeners[event].forEach(callback => callback(data || {}));
+            this.eventListeners[event].forEach((callback) => callback(data || {}));
         }
     }
     play() {
@@ -58,8 +58,8 @@ describe('VideoExaminationAnnotation Performance Tests', () => {
             const startTime = performance.now();
             // Simulate the filtering logic from timelineSegmentsForSelectedVideo
             const filteredSegments = largeSegmentList
-                .filter(s => s.videoID === targetVideoId)
-                .map(s => ({
+                .filter((s) => s.videoID === targetVideoId)
+                .map((s) => ({
                 id: s.id,
                 label: s.label,
                 label_display: s.label,
@@ -75,7 +75,7 @@ describe('VideoExaminationAnnotation Performance Tests', () => {
             // Should complete filtering in less than 50ms even with 10k segments
             expect(executionTime).toBeLessThan(50);
             expect(filteredSegments.length).toBe(2000); // 10k segments / 5 videos = 2k per video
-            expect(filteredSegments.every(s => s.video_id === targetVideoId)).toBe(true);
+            expect(filteredSegments.every((s) => s.video_id === targetVideoId)).toBe(true);
         });
         it('should handle frequent filter updates efficiently', () => {
             const segments = Array.from({ length: 1000 }, (_, i) => ({
@@ -91,8 +91,8 @@ describe('VideoExaminationAnnotation Performance Tests', () => {
             // Simulate rapid video changes (like user scrolling through dropdown)
             for (let videoId = 1; videoId <= 10; videoId++) {
                 const filtered = segments
-                    .filter(s => s.videoID === videoId)
-                    .map(s => ({ ...s, video_id: s.videoID, label_id: s.labelID }));
+                    .filter((s) => s.videoID === videoId)
+                    .map((s) => ({ ...s, video_id: s.videoID, label_id: s.labelID }));
             }
             const endTime = performance.now();
             const executionTime = endTime - startTime;
@@ -108,7 +108,7 @@ describe('VideoExaminationAnnotation Performance Tests', () => {
         it('should handle rapid seek operations without lag', () => {
             const seekTimes = Array.from({ length: 100 }, (_, i) => i * 1.2);
             const startTime = performance.now();
-            seekTimes.forEach(time => {
+            seekTimes.forEach((time) => {
                 mockVideo.seek(time);
             });
             const endTime = performance.now();
@@ -141,7 +141,7 @@ describe('VideoExaminationAnnotation Performance Tests', () => {
         it('should format time efficiently for large numbers of calls', () => {
             const times = Array.from({ length: 10000 }, (_, i) => i * 0.1);
             const startTime = performance.now();
-            const formattedTimes = times.map(time => formatTime(time));
+            const formattedTimes = times.map((time) => formatTime(time));
             const endTime = performance.now();
             const executionTime = endTime - startTime;
             // Should format 10k times in less than 20ms
@@ -153,7 +153,7 @@ describe('VideoExaminationAnnotation Performance Tests', () => {
         it('should translate labels efficiently', () => {
             const labels = Array.from({ length: 1000 }, (_, i) => ['outside', 'polyp', 'blood', 'diverticule', 'appendix'][i % 5]);
             const startTime = performance.now();
-            const translatedLabels = labels.map(label => getTranslationForLabel(label));
+            const translatedLabels = labels.map((label) => getTranslationForLabel(label));
             const endTime = performance.now();
             const executionTime = endTime - startTime;
             // Should translate 1k labels in less than 10ms
@@ -177,8 +177,8 @@ describe('VideoExaminationAnnotation Performance Tests', () => {
             // Simulate multiple transformations like in the component
             for (let j = 0; j < 100; j++) {
                 const transformed = segments
-                    .filter(s => s.videoID === 1)
-                    .map(s => ({
+                    .filter((s) => s.videoID === 1)
+                    .map((s) => ({
                     id: s.id,
                     label: s.label,
                     label_display: s.label,
@@ -213,7 +213,7 @@ describe('VideoExaminationAnnotation Performance Tests', () => {
                 componentState.isPlaying = i % 2 === 0;
                 componentState.duration = 120 + (i % 60);
                 // Simulate computed property recalculation
-                const filteredSegments = componentState.segments.filter(s => s.videoID === componentState.selectedVideoId);
+                const filteredSegments = componentState.segments.filter((s) => s.videoID === componentState.selectedVideoId);
             }
             const endTime = performance.now();
             const executionTime = endTime - startTime;
@@ -226,7 +226,7 @@ describe('VideoExaminationAnnotation Performance Tests', () => {
             const startTime = performance.now();
             // Simulate multiple concurrent API calls
             const promises = Array.from({ length: 50 }, async (_, i) => {
-                await new Promise(resolve => setTimeout(resolve, Math.random() * 10));
+                await new Promise((resolve) => setTimeout(resolve, Math.random() * 10));
                 return `operation_${i}_completed`;
             });
             const results = await Promise.all(promises);
@@ -234,7 +234,7 @@ describe('VideoExaminationAnnotation Performance Tests', () => {
             const executionTime = endTime - startTime;
             // Should complete all operations efficiently
             expect(results).toHaveLength(50);
-            expect(results.every(r => r.includes('completed'))).toBe(true);
+            expect(results.every((r) => r.includes('completed'))).toBe(true);
             // Note: This test timing depends on setTimeout, so we use a reasonable upper bound
             expect(executionTime).toBeLessThan(100);
         });
@@ -245,15 +245,15 @@ describe('VideoExaminationAnnotation Performance Tests', () => {
             for (let i = 0; i < 100; i++) {
                 const operation = {
                     segmentId: 1,
-                    newStart: 10 + (i * 0.1),
-                    newEnd: 20 + (i * 0.1),
+                    newStart: 10 + i * 0.1,
+                    newEnd: 20 + i * 0.1,
                     mode: 'resize',
                     final: i === 99
                 };
                 operations.push(operation);
             }
             // Process all operations
-            const results = operations.map(op => ({
+            const results = operations.map((op) => ({
                 id: op.segmentId,
                 startTime: op.newStart,
                 endTime: op.newEnd,

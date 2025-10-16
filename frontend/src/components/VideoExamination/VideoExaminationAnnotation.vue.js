@@ -72,12 +72,12 @@ async function loadSelectedVideo() {
     clearErrorMessage();
     clearSuccessMessage();
     try {
-        await videoStore.loadVideo(String(selectedVideoId.value));
+        await videoStore.loadVideo(selectedVideoId.value);
         await loadVideoDetail(selectedVideoId.value);
         await guarded(loadSavedExaminations());
         await guarded(loadVideoMetadata());
         // Load segments with error handling
-        await guarded(videoStore.fetchAllSegments(selectedVideoId.value.toString()));
+        await guarded(videoStore.fetchAllSegments(selectedVideoId.value));
         console.log('Video fully loaded:', selectedVideoId.value);
     }
     catch (err) {
@@ -100,22 +100,16 @@ watch(() => route.query.video, v => {
 // List of only videos that are both present in the list **and** in state `done` inside anonymizationStore
 const annotatableVideos = computed(() => videoList.value.videos.filter(v => isAnonymized(v.id)));
 const showExaminationForm = computed(() => {
-    return selectedVideoId.value !== null && videoStreamSrc.value !== undefined;
+    return selectedVideoId.value !== null && anonymizedVideoSrc.value !== undefined;
 });
 // Video streaming URL using MediaStore logic like AnonymizationValidationComponent
-const videoStreamSrc = computed(() => {
-    if (!selectedVideoId.value)
-        return undefined;
-    // ✅ PRIMARY: Use videoStore.videoStreamUrl which includes ?type=processed
-    if (videoStreamUrl.value) {
-        console.log('🎬 Using videoStore URL (processed):', videoStreamUrl.value);
+const anonymizedVideoSrc = computed(() => {
+    try {
         return videoStreamUrl.value;
     }
-    // ✅ FALLBACK: Build URL directly if store URL not available
-    const base = import.meta.env.VITE_API_BASE_URL || window.location.origin;
-    const fallbackUrl = `${base}/api/media/videos/${selectedVideoId.value}/?type=processed`;
-    console.log('🎬 Using fallback URL (processed):', fallbackUrl);
-    return fallbackUrl;
+    catch {
+        return undefined;
+    }
 });
 const hasVideos = computed(() => {
     return videos.value && videos.value.length > 0;
@@ -154,7 +148,7 @@ const groupedSegments = computed(() => {
 });
 const canStartLabeling = computed(() => {
     return selectedVideoId.value &&
-        videoDetail.value?.video_url &&
+        (videoDetail.value?.video_url || anonymizedVideoSrc.value) &&
         selectedLabelType.value &&
         !isMarkingLabel.value &&
         duration.value > 0;
@@ -171,6 +165,18 @@ async function guarded(p) {
         return undefined;
     }
 }
+watch(videoStreamUrl, (newUrl) => {
+    console.log('Video stream URL updated:', newUrl);
+});
+watch(selectedVideoId, (newId) => {
+    console.log('Selected video ID changed, setting store to:', newId);
+    if (typeof newId === 'number') {
+        videoStore.setCurrentVideo(newId);
+    }
+    else {
+        errorMessage.value = 'Invalid video ID';
+    }
+});
 // Alert management methods
 const clearErrorMessage = () => {
     errorMessage.value = '';
@@ -218,7 +224,7 @@ const loadVideoDetail = async (videoId) => {
         }
         console.log('Video detail loaded:', videoDetail.value);
         console.log('Video meta loaded:', videoMeta.value);
-        console.log('Stream source will be:', videoStreamSrc.value);
+        console.log('Stream source will be:', anonymizedVideoSrc.value);
     }
     catch (error) {
         console.error('Error loading video detail:', error);
@@ -275,7 +281,7 @@ const loadVideoSegments = async () => {
     if (selectedVideoId.value === null)
         return;
     try {
-        await videoStore.fetchAllSegments(selectedVideoId.value.toString());
+        await videoStore.fetchAllSegments(selectedVideoId.value);
         console.log('Video segments loaded for video:', selectedVideoId.value);
         console.log('Timeline segments count:', rawSegments.value.length);
     }
@@ -297,7 +303,7 @@ const onVideoLoaded = () => {
             isPlaying.value = false;
         });
         console.log('🎥 Video loaded - Frontend');
-        console.log(`- Video source URL: ${videoStreamSrc.value}`);
+        console.log(`- Video source URL: ${anonymizedVideoSrc.value}`);
         console.log(`- Legacy stream URL: ${videoStreamUrl.value}`);
         console.log(`- Video detail URL: ${videoDetail.value?.video_url}`);
         console.log(`- Video readyState: ${videoRef.value.readyState}`);
@@ -600,7 +606,7 @@ const onVideoError = (event) => {
     showErrorMessage('Fehler beim Laden des Videos. Bitte versuchen Sie es erneut.');
 };
 const onVideoLoadStart = () => {
-    console.log('Video loading started for:', videoStreamSrc.value);
+    console.log('Video loading started for:', anonymizedVideoSrc.value);
 };
 const onVideoCanPlay = () => {
     console.log('Video can play, loaded successfully');
@@ -720,7 +726,7 @@ if (!__VLS_ctx.hasVideos) {
     });
     (__VLS_ctx.noVideosMessage);
 }
-if (!__VLS_ctx.videoStreamSrc && __VLS_ctx.hasVideos) {
+if (!__VLS_ctx.anonymizedVideoSrc && __VLS_ctx.hasVideos) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "text-center text-muted py-5" },
     });
@@ -739,7 +745,7 @@ if (!__VLS_ctx.videoStreamSrc && __VLS_ctx.hasVideos) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
         (__VLS_ctx.selectedVideoId);
         __VLS_asFunctionalElement(__VLS_intrinsicElements.br, __VLS_intrinsicElements.br)({});
-        (__VLS_ctx.videoStreamSrc || 'Nicht verfügbar');
+        (__VLS_ctx.anonymizedVideoSrc || 'Nicht verfügbar');
         __VLS_asFunctionalElement(__VLS_intrinsicElements.br, __VLS_intrinsicElements.br)({});
         (__VLS_ctx.selectedVideoId ? __VLS_ctx.mediaStore.getVideoUrl(__VLS_ctx.videos.find(v => v.id === __VLS_ctx.selectedVideoId)) : 'N/A');
     }
@@ -758,7 +764,7 @@ if (!__VLS_ctx.hasVideos) {
     (__VLS_ctx.noVideosMessage);
     __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({});
 }
-if (__VLS_ctx.videoStreamSrc) {
+if (__VLS_ctx.anonymizedVideoSrc) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "video-container" },
     });
@@ -770,12 +776,26 @@ if (__VLS_ctx.videoStreamSrc) {
         ...{ onCanplay: (__VLS_ctx.onVideoCanPlay) },
         ref: "videoRef",
         'data-cy': "video-player",
-        src: (__VLS_ctx.videoStreamSrc),
+        src: (__VLS_ctx.anonymizedVideoSrc),
         controls: true,
         ...{ class: "w-100" },
         ...{ style: {} },
     });
     /** @type {typeof __VLS_ctx.videoRef} */ ;
+}
+if (!__VLS_ctx.anonymizedVideoSrc) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+        ...{ onClick: (...[$event]) => {
+                if (!(!__VLS_ctx.anonymizedVideoSrc))
+                    return;
+                __VLS_ctx.videoStore.deleteVideo(__VLS_ctx.selectedVideoId);
+            } },
+        ...{ class: "btn btn-primary" },
+        disabled: (!__VLS_ctx.hasVideos),
+    });
 }
 if (__VLS_ctx.duration > 0) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -1143,6 +1163,7 @@ if (__VLS_ctx.savedExaminations.length > 0) {
         });
     }
 }
+/** @type {__VLS_StyleScopedClasses['']} */ ;
 /** @type {__VLS_StyleScopedClasses['container-fluid']} */ ;
 /** @type {__VLS_StyleScopedClasses['py-4']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert']} */ ;
@@ -1189,6 +1210,8 @@ if (__VLS_ctx.savedExaminations.length > 0) {
 /** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['video-container']} */ ;
 /** @type {__VLS_StyleScopedClasses['w-100']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-primary']} */ ;
 /** @type {__VLS_StyleScopedClasses['timeline-wrapper']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['simple-timeline-track']} */ ;
@@ -1336,7 +1359,7 @@ const __VLS_self = (await import('vue')).defineComponent({
             timelineRef: timelineRef,
             onVideoChange: onVideoChange,
             showExaminationForm: showExaminationForm,
-            videoStreamSrc: videoStreamSrc,
+            anonymizedVideoSrc: anonymizedVideoSrc,
             hasVideos: hasVideos,
             noVideosMessage: noVideosMessage,
             timelineSegmentsForSelectedVideo: timelineSegmentsForSelectedVideo,

@@ -15,14 +15,18 @@ vi.mock('@/api/axiosInstance', () => ({
 function setStoreCurrentVideo(store, video) {
     // Access the internal ref directly through the store's state
     const internalState = store.$state;
-    if (internalState.currentVideo && typeof internalState.currentVideo === 'object' && 'value' in internalState.currentVideo) {
+    if (internalState.currentVideo &&
+        typeof internalState.currentVideo === 'object' &&
+        'value' in internalState.currentVideo) {
         internalState.currentVideo.value = video;
     }
 }
 // ✅ Helper function to set videoList labels
 function setStoreLabels(store, labels) {
     const internalState = store.$state;
-    if (internalState.videoList && typeof internalState.videoList === 'object' && 'value' in internalState.videoList) {
+    if (internalState.videoList &&
+        typeof internalState.videoList === 'object' &&
+        'value' in internalState.videoList) {
         internalState.videoList.value.labels = labels;
     }
     else if (internalState.videoList) {
@@ -32,7 +36,9 @@ function setStoreLabels(store, labels) {
 // ✅ Helper function to set videoMeta
 function setStoreVideoMeta(store, meta) {
     const internalState = store.$state;
-    if (internalState.videoMeta && typeof internalState.videoMeta === 'object' && 'value' in internalState.videoMeta) {
+    if (internalState.videoMeta &&
+        typeof internalState.videoMeta === 'object' &&
+        'value' in internalState.videoMeta) {
         internalState.videoMeta.value = meta;
     }
 }
@@ -201,7 +207,7 @@ describe('VideoStore', () => {
                 end: 15.0
             });
         });
-        it('should create new label group if it doesn\'t exist', async () => {
+        it("should create new label group if it doesn't exist", async () => {
             // Arrange
             const mockResponse = {
                 data: {

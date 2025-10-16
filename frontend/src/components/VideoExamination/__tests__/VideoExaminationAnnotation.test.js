@@ -21,12 +21,25 @@ vi.mock('@/components/VideoExamination/Timeline.vue', () => ({
         name: 'Timeline',
         template: '<div data-testid="timeline">Mock Timeline</div>',
         props: [
-            'video', 'segments', 'labels', 'current-time', 'is-playing',
-            'active-segment-id', 'show-waveform', 'selection-mode', 'fps'
+            'video',
+            'segments',
+            'labels',
+            'current-time',
+            'is-playing',
+            'active-segment-id',
+            'show-waveform',
+            'selection-mode',
+            'fps'
         ],
         emits: [
-            'seek', 'play-pause', 'segment-select', 'segment-resize',
-            'segment-move', 'segment-create', 'segment-delete', 'time-selection'
+            'seek',
+            'play-pause',
+            'segment-select',
+            'segment-resize',
+            'segment-move',
+            'segment-create',
+            'segment-delete',
+            'time-selection'
         ]
     }
 }));
@@ -227,7 +240,7 @@ describe('VideoExaminationAnnotation.vue', () => {
             vm.videoRef = mockVideo;
             await vm.onVideoLoaded();
             // Simulate play event
-            const playCall = mockVideo.addEventListener.mock.calls.find(call => call[0] === 'play');
+            const playCall = mockVideo.addEventListener.mock.calls.find((call) => call[0] === 'play');
             const playListener = playCall?.[1];
             playListener?.();
             expect(vm.isPlaying).toBe(true);
@@ -250,7 +263,7 @@ describe('VideoExaminationAnnotation.vue', () => {
             vm.videoRef = mockVideo;
             await vm.onVideoLoaded();
             // Simulate pause event
-            const pauseCall = mockVideo.addEventListener.mock.calls.find(call => call[0] === 'pause');
+            const pauseCall = mockVideo.addEventListener.mock.calls.find((call) => call[0] === 'pause');
             const pauseListener = pauseCall?.[1];
             pauseListener();
             expect(vm.isPlaying).toBe(false);

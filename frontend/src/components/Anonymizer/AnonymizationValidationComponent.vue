@@ -856,7 +856,7 @@ const validateVideoForSegmentAnnotation = async () => {
     
     // Fallback validation using video store if API endpoint doesn't exist
     try {
-      await videoStore.fetchAllSegments(currentItem.value.id.toString());
+      await videoStore.fetchAllSegments(currentItem.value.id);
       const outsideSegments = videoStore.allSegments.filter(s => s.label === 'outside');
       
       totalOutsideSegments.value = outsideSegments.length;

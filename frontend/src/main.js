@@ -16,7 +16,7 @@ import 'vue-virtual-scroller/dist/vue-virtual-scroller.css';
 const app = createApp(App);
 app.component('AuthCheck', AuthCheck);
 app.config.errorHandler = (err, vm, info) => {
-    console.error("Global error handler:", err, info);
+    console.error('Global error handler:', err, info);
     // Optionally, send the error details to an external logging service (e.g., Sentry)
 };
 app.use(createPinia());

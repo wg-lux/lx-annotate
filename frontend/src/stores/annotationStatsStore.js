@@ -27,7 +27,7 @@ export const useAnnotationStatsStore = defineStore('annotationStats', {
         // Auto-refresh settings
         autoRefreshEnabled: false,
         autoRefreshInterval: null,
-        refreshIntervalMs: 30000, // 30 seconds
+        refreshIntervalMs: 30000 // 30 seconds
     }),
     getters: {
         /**
@@ -72,7 +72,7 @@ export const useAnnotationStatsStore = defineStore('annotationStats', {
         topActiveUsers: (state) => {
             return state.userStats
                 .slice()
-                .sort((a, b) => (b.video_count + b.examination_count) - (a.video_count + a.examination_count))
+                .sort((a, b) => b.video_count + b.examination_count - (a.video_count + a.examination_count))
                 .slice(0, 5);
         },
         /**
@@ -82,25 +82,25 @@ export const useAnnotationStatsStore = defineStore('annotationStats', {
             if (!state.stats?.timeline_data)
                 return null;
             return {
-                labels: state.stats.timeline_data.video_annotations.map(point => new Date(point.period).toLocaleDateString('de-DE')),
+                labels: state.stats.timeline_data.video_annotations.map((point) => new Date(point.period).toLocaleDateString('de-DE')),
                 datasets: [
                     {
                         label: 'Video-Annotationen',
-                        data: state.stats.timeline_data.video_annotations.map(point => point.count),
+                        data: state.stats.timeline_data.video_annotations.map((point) => point.count),
                         backgroundColor: 'rgba(54, 162, 235, 0.2)',
-                        borderColor: 'rgba(54, 162, 235, 1)',
+                        borderColor: 'rgba(54, 162, 235, 1)'
                     },
                     {
                         label: 'Abgeschlossene Videos',
-                        data: state.stats.timeline_data.video_annotations.map(point => point.completed || 0),
+                        data: state.stats.timeline_data.video_annotations.map((point) => point.completed || 0),
                         backgroundColor: 'rgba(75, 192, 192, 0.2)',
-                        borderColor: 'rgba(75, 192, 192, 1)',
+                        borderColor: 'rgba(75, 192, 192, 1)'
                     },
                     {
                         label: 'Untersuchungen',
-                        data: state.stats.timeline_data.examinations.map(point => point.count),
+                        data: state.stats.timeline_data.examinations.map((point) => point.count),
                         backgroundColor: 'rgba(255, 99, 132, 0.2)',
-                        borderColor: 'rgba(255, 99, 132, 1)',
+                        borderColor: 'rgba(255, 99, 132, 1)'
                     }
                 ]
             };
@@ -113,8 +113,15 @@ export const useAnnotationStatsStore = defineStore('annotationStats', {
                 return null;
             const distribution = state.stats.video_stats.status_distribution;
             return {
-                labels: ['Ausstehend', 'In Bearbeitung', 'Abgeschlossen', 'Validiert', 'Überprüfung erforderlich'],
-                datasets: [{
+                labels: [
+                    'Ausstehend',
+                    'In Bearbeitung',
+                    'Abgeschlossen',
+                    'Validiert',
+                    'Überprüfung erforderlich'
+                ],
+                datasets: [
+                    {
                         data: [
                             distribution.pending,
                             distribution.in_progress,
@@ -129,7 +136,8 @@ export const useAnnotationStatsStore = defineStore('annotationStats', {
                             '#007bff', // Blau für validiert
                             '#dc3545' // Rot für Überprüfung erforderlich
                         ]
-                    }]
+                    }
+                ]
             };
         }
     },
@@ -145,9 +153,13 @@ export const useAnnotationStatsStore = defineStore('annotationStats', {
                 const [generalResponse, examinationResponse, videoSegmentResponse, sensitiveMetaResponse] = await Promise.all([
                     axios.get('/api/stats/'),
                     axios.get('/api/examinations/stats/'),
-                    axios.get('/api/media/videos/segments/stats/'), // Modern media framework endpoint
-                    axios.get('/api/video/sensitivemeta/stats/')
+                    axios.get('/api/media/videos/segments/stats/'), // ✅ Modern media framework endpoint
+                    axios.get('/api/media/sensitive-metadata/') // ✅ Modern media framework endpoint (list, no stats endpoint)
                 ]);
+                // ✅ Calculate sensitive metadata stats from list response
+                const sensitiveMetaList = sensitiveMetaResponse.data.results || sensitiveMetaResponse.data || [];
+                const totalSensitiveMeta = sensitiveMetaList.length;
+                const verifiedSensitiveMeta = sensitiveMetaList.filter((m) => m.dob_verified && m.names_verified).length;
                 // Daten kombinieren und an die erwartete Struktur anpassen
                 this.stats = {
                     overview: {
@@ -159,6 +171,8 @@ export const useAnnotationStatsStore = defineStore('annotationStats', {
                         total_findings: 0, // TODO: Noch nicht implementiert
                         total_annotatable_items: generalResponse.data.overview.total_segments,
                         completion_rate: generalResponse.data.system_status.processing_completion_percent,
+                        total_sensitive_metadata: totalSensitiveMeta, // ✅ NEW
+                        verified_sensitive_metadata: verifiedSensitiveMeta, // ✅ NEW
                         status_counts: {
                             pending: 0, // TODO: Berechnen basierend auf verfügbaren Daten
                             in_progress: 0,
@@ -173,7 +187,8 @@ export const useAnnotationStatsStore = defineStore('annotationStats', {
                             total_count: generalResponse.data.overview.total_videos
                         },
                         status_distribution: {
-                            pending: generalResponse.data.overview.total_videos - videoSegmentResponse.data.videos_with_segments,
+                            pending: generalResponse.data.overview.total_videos -
+                                videoSegmentResponse.data.videos_with_segments,
                             in_progress: 0,
                             completed: videoSegmentResponse.data.videos_with_segments,
                             validated: 0,
@@ -182,7 +197,9 @@ export const useAnnotationStatsStore = defineStore('annotationStats', {
                         segment_stats: {
                             total_segments: videoSegmentResponse.data.total_segments,
                             avg_segments_per_video: videoSegmentResponse.data.total_videos > 0
-                                ? Math.round(videoSegmentResponse.data.total_segments / videoSegmentResponse.data.total_videos * 100) / 100
+                                ? Math.round((videoSegmentResponse.data.total_segments /
+                                    videoSegmentResponse.data.total_videos) *
+                                    100) / 100
                                 : 0
                         },
                         videos_with_segments: videoSegmentResponse.data.videos_with_segments
@@ -221,7 +238,8 @@ export const useAnnotationStatsStore = defineStore('annotationStats', {
             }
             catch (error) {
                 console.error('Fehler beim Laden der Statistiken:', error);
-                this.error = error.response?.data?.error || error.message || 'Fehler beim Laden der Statistiken';
+                this.error =
+                    error.response?.data?.error || error.message || 'Fehler beim Laden der Statistiken';
             }
             finally {
                 this.loading = false;
@@ -240,7 +258,10 @@ export const useAnnotationStatsStore = defineStore('annotationStats', {
             }
             catch (error) {
                 console.error('Fehler beim Laden der Benutzer-Statistiken:', error);
-                this.userStatsError = error.response?.data?.error || error.message || 'Fehler beim Laden der Benutzer-Statistiken';
+                this.userStatsError =
+                    error.response?.data?.error ||
+                        error.message ||
+                        'Fehler beim Laden der Benutzer-Statistiken';
             }
             finally {
                 this.userStatsLoading = false;
@@ -273,7 +294,10 @@ export const useAnnotationStatsStore = defineStore('annotationStats', {
             }
             catch (error) {
                 console.error('Fehler beim Laden der Echtzeit-Statistiken:', error);
-                this.realtimeError = error.response?.data?.error || error.message || 'Fehler beim Laden der Echtzeit-Statistiken';
+                this.realtimeError =
+                    error.response?.data?.error ||
+                        error.message ||
+                        'Fehler beim Laden der Echtzeit-Statistiken';
             }
             finally {
                 this.realtimeLoading = false;
@@ -283,11 +307,7 @@ export const useAnnotationStatsStore = defineStore('annotationStats', {
          * Lädt alle Statistiken neu
          */
         async refreshAllStats() {
-            await Promise.all([
-                this.fetchStats(),
-                this.fetchUserStats(),
-                this.fetchRealtimeStats()
-            ]);
+            await Promise.all([this.fetchStats(), this.fetchUserStats(), this.fetchRealtimeStats()]);
         },
         /**
          * Startet automatische Aktualisierung

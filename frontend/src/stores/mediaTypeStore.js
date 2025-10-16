@@ -98,11 +98,11 @@ export const useMediaTypeStore = defineStore('mediaType', () => {
             const extension = item.filename.toLowerCase().split('.').pop();
             if (extension) {
                 // Check video extensions first
-                if (mediaTypeConfigs.video.supportedExtensions.some(ext => ext.includes(extension))) {
+                if (mediaTypeConfigs.video.supportedExtensions.some((ext) => ext.includes(extension))) {
                     return 'video';
                 }
                 // Then check PDF extensions
-                if (mediaTypeConfigs.pdf.supportedExtensions.some(ext => ext.includes(extension))) {
+                if (mediaTypeConfigs.pdf.supportedExtensions.some((ext) => ext.includes(extension))) {
                     return 'pdf';
                 }
             }
@@ -152,7 +152,7 @@ export const useMediaTypeStore = defineStore('mediaType', () => {
      */
     function isSupportedExtension(filename) {
         const extension = `.${filename.toLowerCase().split('.').pop()}`;
-        return Object.values(mediaTypeConfigs).some(config => config.supportedExtensions.includes(extension));
+        return Object.values(mediaTypeConfigs).some((config) => config.supportedExtensions.includes(extension));
     }
     // Legacy functions for compatibility (these should be removed in future)
     function getMediaTypeIcon(mediaType) {

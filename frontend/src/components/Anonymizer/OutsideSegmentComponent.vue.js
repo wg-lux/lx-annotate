@@ -33,7 +33,7 @@ async function loadVideoDetail(videoId) {
  * Keep store segments updated
  */
 async function loadSegments(videoId) {
-    await videoStore.fetchAllSegments(String(videoId));
+    await videoStore.fetchAllSegments(videoId);
 }
 /**
  * Filter to ONLY 'outside' segments (case-insensitive), clone to avoid readonly issues

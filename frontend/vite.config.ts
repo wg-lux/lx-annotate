@@ -3,11 +3,11 @@ import vue from '@vitejs/plugin-vue'
 import vueJsx from '@vitejs/plugin-vue-jsx'
 import vueDevTools from 'vite-plugin-vue-devtools'
 import { fileURLToPath } from 'node:url'
-import { dirname, resolve } from 'node:path'   // ← add dirname
+import { dirname, resolve } from 'node:path' // ← add dirname
 
 // ---- make the CommonJS-style globals -------------------
 const __filename = fileURLToPath(import.meta.url)
-const __dirname  = dirname(__filename)
+const __dirname = dirname(__filename)
 // --------------------------------------------------------
 
 export default defineConfig(({ mode }) => {
@@ -23,19 +23,20 @@ export default defineConfig(({ mode }) => {
       target: 'esnext', // Ermöglicht Top-level await
       rollupOptions: {
         input: {
-          main: resolve(__dirname, 'src/main.ts'),
+          main: resolve(__dirname, 'src/main.ts')
         },
         output: {
           entryFileNames: '[name].js',
           chunkFileNames: '[name].js',
           assetFileNames: '[name].[ext]',
-          format: 'es', // ES-Module Format für moderne Features
+          format: 'es' // ES-Module Format für moderne Features
         },
-      },
+        external: ['fsevents'] // 👈 tell Rollup to skip this optional macOS dependency
+      }
     },
 
     esbuild: {
-      target: 'esnext', // Unterstützt moderne JS-Features inklusive Top-level await
+      target: 'esnext' // Unterstützt moderne JS-Features inklusive Top-level await
     },
 
     server: {
@@ -47,35 +48,34 @@ export default defineConfig(({ mode }) => {
         '/api': {
           target: 'http://127.0.0.1:8000',
           changeOrigin: true,
-          secure: false,
+          secure: false
         },
         // Zusätzliche Endpunkte falls nötig
         '/admin': {
           target: 'http://127.0.0.1:8000',
           changeOrigin: true,
-          secure: false,
+          secure: false
         },
         '/static': {
           target: 'http://127.0.0.1:8000',
           changeOrigin: true,
-          secure: false,
-        },
-      },
+          secure: false
+        }
+      }
     },
 
     resolve: {
       alias: {
-        '@': resolve(__dirname, 'src'),   // one alias is enough
-      },
+        '@': resolve(__dirname, 'src') // one alias is enough
+      }
     },
 
     css: {
       preprocessorOptions: {
         scss: {
-          additionalData:
-            `@import "@/public/assets/scss/material-dashboard/_variables.scss";`,
-        },
-      },
-    },
+          additionalData: `@import "@/public/assets/scss/material-dashboard/_variables.scss";`
+        }
+      }
+    }
   }
 })

@@ -1,6 +1,5 @@
-import { createRouter, createWebHistory } from 'vue-router';
-import { useAnonymizationStore } from '@/stores/anonymizationStore';
-
+import { createRouter, createWebHistory } from 'vue-router'
+import { useAnonymizationStore } from '@/stores/anonymizationStore'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL || '/'),
@@ -105,7 +104,7 @@ const router = createRouter({
       path: '/anonymisierung/korrektur/:fileId(\\d+)',
       name: 'Anonymisierung Korrektur',
       component: () => import('@/components/Anonymizer/AnonymizationCorrectionComponent.vue'),
-      props: route => ({ fileId: Number(route.params.fileId) }) // pass as number prop
+      props: (route) => ({ fileId: Number(route.params.fileId) }) // pass as number prop
     },
     {
       path: '/validierung',
@@ -129,12 +128,12 @@ const router = createRouter({
       redirect: '/'
     }
   ]
-});
+})
 
 router.beforeEach((_to, _from, next) => {
-    const store = useAnonymizationStore();
-    store.stopAllPolling();
-    next();
-  });
+  const store = useAnonymizationStore()
+  store.stopAllPolling()
+  next()
+})
 
-export default router;
+export default router

@@ -20,12 +20,25 @@ const TimelineMock = {
     </div>
   `,
   props: [
-    'video', 'segments', 'labels', 'current-time', 'is-playing',
-    'active-segment-id', 'show-waveform', 'selection-mode', 'fps'
+    'video',
+    'segments',
+    'labels',
+    'current-time',
+    'is-playing',
+    'active-segment-id',
+    'show-waveform',
+    'selection-mode',
+    'fps'
   ],
   emits: [
-    'seek', 'play-pause', 'segment-select', 'segment-resize',
-    'segment-move', 'segment-create', 'segment-delete', 'time-selection'
+    'seek',
+    'play-pause',
+    'segment-select',
+    'segment-resize',
+    'segment-move',
+    'segment-create',
+    'segment-delete',
+    'time-selection'
   ]
 }
 

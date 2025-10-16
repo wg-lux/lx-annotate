@@ -53,7 +53,7 @@ async function loadVideoDetail(videoId: number) {
  * Keep store segments updated
  */
 async function loadSegments(videoId: number) {
-  await videoStore.fetchAllSegments(String(videoId))
+  await videoStore.fetchAllSegments(videoId)
 }
 
 /**

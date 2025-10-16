@@ -20,12 +20,16 @@ export const useAnonymizationStore = defineStore('anonymization', {
         hasAvailableFiles: false,
         availableFiles: availableFiles.value, // Use the value of the ref to get the actual array
         // NEW
-        needsValidationIds: [],
+        needsValidationIds: []
     }),
     getters: {
         getCurrentItem: (state) => state.current,
-        isAnyFileProcessing: (state) => state.overview.some(f => f.anonymizationStatus === 'processing_anonymization' || f.anonymizationStatus === 'extracting_frames' || f.anonymizationStatus === 'predicting_segments'),
-        processingFiles: (state) => state.overview.filter(f => f.anonymizationStatus === 'processing_anonymization' || f.anonymizationStatus === 'extracting_frames' || f.anonymizationStatus === 'predicting_segments'),
+        isAnyFileProcessing: (state) => state.overview.some((f) => f.anonymizationStatus === 'processing_anonymization' ||
+            f.anonymizationStatus === 'extracting_frames' ||
+            f.anonymizationStatus === 'predicting_segments'),
+        processingFiles: (state) => state.overview.filter((f) => f.anonymizationStatus === 'processing_anonymization' ||
+            f.anonymizationStatus === 'extracting_frames' ||
+            f.anonymizationStatus === 'predicting_segments'),
         getState: (state) => state
     },
     actions: {
@@ -36,7 +40,7 @@ export const useAnonymizationStore = defineStore('anonymization', {
             try {
                 // Check if we have a specific file selected from overview
                 if (lastId) {
-                    const item = this.overview.find(f => f.id === lastId);
+                    const item = this.overview.find((f) => f.id === lastId);
                     if (item?.mediaType === 'video') {
                         // **Use the sensitive_meta_id (!) for video details endpoint**
                         console.log(`Fetching video detail for sensitiveMetaId: ${item.id}`);
@@ -63,9 +67,7 @@ export const useAnonymizationStore = defineStore('anonymization', {
                     }
                     else {
                         /* 1) PDF-Datensatz von anony_text endpoint -------------------- */
-                        const pdfUrl = lastId
-                            ? a(`anony_text/?last_id=${lastId}`)
-                            : a('anony_text/');
+                        const pdfUrl = lastId ? a(`anony_text/?last_id=${lastId}`) : a('anony_text/');
                         console.log(`Fetching PDF data from: ${pdfUrl}`);
                         const { data: pdf } = await axiosInstance.get(pdfUrl);
                         console.log('Received PDF data:', pdf);
@@ -184,13 +186,13 @@ export const useAnonymizationStore = defineStore('anonymization', {
                 availableFiles.value = [...data];
                 // NEW: Ermittele IDs, die validiert werden müssen (Anonymisierung abgeschlossen, Annotation noch nicht erledigt)
                 const needsValidation = data
-                    .filter(f => f.anonymizationStatus === 'done' && f.annotationStatus !== 'done')
-                    .map(f => f.id);
+                    .filter((f) => f.anonymizationStatus === 'done' && f.annotationStatus !== 'done')
+                    .map((f) => f.id);
                 this.needsValidationIds = needsValidation;
                 // NEW: Polling sofort stoppen für
                 // 1) Dateien, die nicht mehr existieren
                 const currentPollingIds = Object.keys(this.pollingHandles).map((k) => Number(k));
-                const existingIds = new Set(data.map(f => f.id));
+                const existingIds = new Set(data.map((f) => f.id));
                 for (const pid of currentPollingIds) {
                     if (!existingIds.has(pid)) {
                         this.stopPolling(pid);
@@ -224,7 +226,7 @@ export const useAnonymizationStore = defineStore('anonymization', {
          * Start anonymization for a specific file
          */
         async startAnonymization(id) {
-            const file = this.overview.find(f => f.id === id);
+            const file = this.overview.find((f) => f.id === id);
             if (!file) {
                 this.error = `Datei mit ID ${id} nicht gefunden.`;
                 return false;
@@ -263,7 +265,7 @@ export const useAnonymizationStore = defineStore('anonymization', {
             }
             if (id in this.needsValidationIds) {
                 console.log(`File ${id} is in needsValidationIds, skipping polling`);
-                const file = this.overview.find(f => f.id === id);
+                const file = this.overview.find((f) => f.id === id);
                 if (file) {
                     file.anonymizationStatus = 'validated'; // Set status to validated
                 }
@@ -274,7 +276,7 @@ export const useAnonymizationStore = defineStore('anonymization', {
             const timer = setInterval(async () => {
                 try {
                     const { data } = await axiosInstance.get(r(`anonymization/${id}/status/`));
-                    const file = this.overview.find(f => f.id === id);
+                    const file = this.overview.find((f) => f.id === id);
                     if (file && data.anonymizationStatus) {
                         // ✅ FIX: Remove redundant normalization
                         const statusFromBackend = data.anonymizationStatus;
@@ -311,7 +313,7 @@ export const useAnonymizationStore = defineStore('anonymization', {
          * Stop all polling
          */
         stopAllPolling() {
-            Object.keys(this.pollingHandles).forEach(id => {
+            Object.keys(this.pollingHandles).forEach((id) => {
                 this.stopPolling(parseInt(id));
             });
             this.isPolling = false;
@@ -324,7 +326,7 @@ export const useAnonymizationStore = defineStore('anonymization', {
             try {
                 console.log(`Setting current item for validation: ${id}`);
                 // Find the item in overview to get mediaType and sensitiveMetaId
-                const item = this.overview.find(f => f.id === id);
+                const item = this.overview.find((f) => f.id === id);
                 if (!item) {
                     throw new Error(`Item with ID ${id} not found in overview`);
                 }
@@ -383,7 +385,7 @@ export const useAnonymizationStore = defineStore('anonymization', {
          * Re-import a video file to regenerate metadata
          */
         async reimportVideo(fileId) {
-            const file = this.overview.find(f => f.id === fileId);
+            const file = this.overview.find((f) => f.id === fileId);
             if (!file) {
                 this.error = `Video mit ID ${fileId} nicht gefunden.`;
                 return false;
@@ -398,7 +400,7 @@ export const useAnonymizationStore = defineStore('anonymization', {
                 file.anonymizationStatus = 'processing_anonymization';
                 file.metadataImported = false;
                 // Trigger re-import via backend
-                const response = await axiosInstance.post(r(`media/video/${fileId}/reimport/`));
+                const response = await axiosInstance.post(r(`media/videos/${fileId}/reimport/`));
                 console.log(`Video re-import response:`, response.data);
                 console.log(`Starting polling for re-imported video ${fileId}`);
                 this.startPolling(fileId);
@@ -431,7 +433,7 @@ export const useAnonymizationStore = defineStore('anonymization', {
          * Follows the same pattern as reimportVideo for consistency
          */
         async reimportPdf(fileId) {
-            const file = this.overview.find(f => f.id === fileId);
+            const file = this.overview.find((f) => f.id === fileId);
             if (!file) {
                 this.error = `PDF mit ID ${fileId} nicht gefunden.`;
                 return false;

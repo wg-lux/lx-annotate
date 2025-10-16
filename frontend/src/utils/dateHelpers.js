@@ -254,9 +254,7 @@ export class DateConverter {
             return false;
         // Use Date object to validate (catches Feb 30, etc.)
         const date = new Date(year, month - 1, day);
-        return (date.getFullYear() === year &&
-            date.getMonth() === month - 1 &&
-            date.getDate() === day);
+        return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day;
     }
 }
 /**
@@ -355,7 +353,7 @@ export class DateValidator {
         if (this.errors.size === 0)
             return '';
         const items = this.getErrors()
-            .map(err => `<li>${err}</li>`)
+            .map((err) => `<li>${err}</li>`)
             .join('');
         return `<ul class="date-validation-errors">${items}</ul>`;
     }

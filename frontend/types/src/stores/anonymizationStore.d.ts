@@ -1,9 +1,9 @@
 export interface FileItem {
     id: number;
     filename: string;
-    mediaType: "pdf" | "video";
-    anonymizationStatus: "not_started" | "processing_anonymization" | "done" | "failed" | "validated" | "predicting_segments" | "extracting_frames";
-    annotationStatus: "not_started" | "done";
+    mediaType: 'pdf' | 'video';
+    anonymizationStatus: 'not_started' | 'processing_anonymization' | 'done' | 'failed' | 'validated' | 'predicting_segments' | 'extracting_frames';
+    annotationStatus: 'not_started' | 'done';
     createdAt: string;
     sensitiveMetaId?: number;
     metadataImported: boolean;
@@ -76,9 +76,9 @@ export interface PatientData {
 export declare const availableFiles: import("vue").Ref<{
     id: number;
     filename: string;
-    mediaType: "pdf" | "video";
-    anonymizationStatus: "not_started" | "processing_anonymization" | "done" | "failed" | "validated" | "predicting_segments" | "extracting_frames";
-    annotationStatus: "not_started" | "done";
+    mediaType: 'pdf' | 'video';
+    anonymizationStatus: 'not_started' | 'processing_anonymization' | 'done' | 'failed' | 'validated' | 'predicting_segments' | 'extracting_frames';
+    annotationStatus: 'not_started' | 'done';
     createdAt: string;
     sensitiveMetaId?: number | undefined;
     metadataImported: boolean;
@@ -87,9 +87,9 @@ export declare const availableFiles: import("vue").Ref<{
 }[], FileItem[] | {
     id: number;
     filename: string;
-    mediaType: "pdf" | "video";
-    anonymizationStatus: "not_started" | "processing_anonymization" | "done" | "failed" | "validated" | "predicting_segments" | "extracting_frames";
-    annotationStatus: "not_started" | "done";
+    mediaType: 'pdf' | 'video';
+    anonymizationStatus: 'not_started' | 'processing_anonymization' | 'done' | 'failed' | 'validated' | 'predicting_segments' | 'extracting_frames';
+    annotationStatus: 'not_started' | 'done';
     createdAt: string;
     sensitiveMetaId?: number | undefined;
     metadataImported: boolean;
@@ -136,9 +136,9 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
         overview: {
             id: number;
             filename: string;
-            mediaType: "pdf" | "video";
-            anonymizationStatus: "not_started" | "processing_anonymization" | "done" | "failed" | "validated" | "predicting_segments" | "extracting_frames";
-            annotationStatus: "not_started" | "done";
+            mediaType: 'pdf' | 'video';
+            anonymizationStatus: 'not_started' | 'processing_anonymization' | 'done' | 'failed' | 'validated' | 'predicting_segments' | 'extracting_frames';
+            annotationStatus: 'not_started' | 'done';
             createdAt: string;
             sensitiveMetaId?: number | undefined;
             metadataImported: boolean;
@@ -151,9 +151,9 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
         availableFiles: {
             id: number;
             filename: string;
-            mediaType: "pdf" | "video";
-            anonymizationStatus: "not_started" | "processing_anonymization" | "done" | "failed" | "validated" | "predicting_segments" | "extracting_frames";
-            annotationStatus: "not_started" | "done";
+            mediaType: 'pdf' | 'video';
+            anonymizationStatus: 'not_started' | 'processing_anonymization' | 'done' | 'failed' | 'validated' | 'predicting_segments' | 'extracting_frames';
+            annotationStatus: 'not_started' | 'done';
             createdAt: string;
             sensitiveMetaId?: number | undefined;
             metadataImported: boolean;
@@ -260,9 +260,9 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
         overview: {
             id: number;
             filename: string;
-            mediaType: "pdf" | "video";
-            anonymizationStatus: "not_started" | "processing_anonymization" | "done" | "failed" | "validated" | "predicting_segments" | "extracting_frames";
-            annotationStatus: "not_started" | "done";
+            mediaType: 'pdf' | 'video';
+            anonymizationStatus: 'not_started' | 'processing_anonymization' | 'done' | 'failed' | 'validated' | 'predicting_segments' | 'extracting_frames';
+            annotationStatus: 'not_started' | 'done';
             createdAt: string;
             sensitiveMetaId?: number | undefined;
             metadataImported: boolean;
@@ -275,9 +275,9 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
         availableFiles: {
             id: number;
             filename: string;
-            mediaType: "pdf" | "video";
-            anonymizationStatus: "not_started" | "processing_anonymization" | "done" | "failed" | "validated" | "predicting_segments" | "extracting_frames";
-            annotationStatus: "not_started" | "done";
+            mediaType: 'pdf' | 'video';
+            anonymizationStatus: 'not_started' | 'processing_anonymization' | 'done' | 'failed' | 'validated' | 'predicting_segments' | 'extracting_frames';
+            annotationStatus: 'not_started' | 'done';
             createdAt: string;
             sensitiveMetaId?: number | undefined;
             metadataImported: boolean;
@@ -355,9 +355,9 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
         overview: {
             id: number;
             filename: string;
-            mediaType: "pdf" | "video";
-            anonymizationStatus: "not_started" | "processing_anonymization" | "done" | "failed" | "validated" | "predicting_segments" | "extracting_frames";
-            annotationStatus: "not_started" | "done";
+            mediaType: 'pdf' | 'video';
+            anonymizationStatus: 'not_started' | 'processing_anonymization' | 'done' | 'failed' | 'validated' | 'predicting_segments' | 'extracting_frames';
+            annotationStatus: 'not_started' | 'done';
             createdAt: string;
             sensitiveMetaId?: number | undefined;
             metadataImported: boolean;
@@ -370,9 +370,9 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
         availableFiles: {
             id: number;
             filename: string;
-            mediaType: "pdf" | "video";
-            anonymizationStatus: "not_started" | "processing_anonymization" | "done" | "failed" | "validated" | "predicting_segments" | "extracting_frames";
-            annotationStatus: "not_started" | "done";
+            mediaType: 'pdf' | 'video';
+            anonymizationStatus: 'not_started' | 'processing_anonymization' | 'done' | 'failed' | 'validated' | 'predicting_segments' | 'extracting_frames';
+            annotationStatus: 'not_started' | 'done';
             createdAt: string;
             sensitiveMetaId?: number | undefined;
             metadataImported: boolean;
@@ -415,9 +415,9 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
     }>) => {
         id: number;
         filename: string;
-        mediaType: "pdf" | "video";
-        anonymizationStatus: "not_started" | "processing_anonymization" | "done" | "failed" | "validated" | "predicting_segments" | "extracting_frames";
-        annotationStatus: "not_started" | "done";
+        mediaType: 'pdf' | 'video';
+        anonymizationStatus: 'not_started' | 'processing_anonymization' | 'done' | 'failed' | 'validated' | 'predicting_segments' | 'extracting_frames';
+        annotationStatus: 'not_started' | 'done';
         createdAt: string;
         sensitiveMetaId?: number | undefined;
         metadataImported: boolean;
@@ -461,9 +461,9 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
         overview: {
             id: number;
             filename: string;
-            mediaType: "pdf" | "video";
-            anonymizationStatus: "not_started" | "processing_anonymization" | "done" | "failed" | "validated" | "predicting_segments" | "extracting_frames";
-            annotationStatus: "not_started" | "done";
+            mediaType: 'pdf' | 'video';
+            anonymizationStatus: 'not_started' | 'processing_anonymization' | 'done' | 'failed' | 'validated' | 'predicting_segments' | 'extracting_frames';
+            annotationStatus: 'not_started' | 'done';
             createdAt: string;
             sensitiveMetaId?: number | undefined;
             metadataImported: boolean;
@@ -476,9 +476,9 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
         availableFiles: {
             id: number;
             filename: string;
-            mediaType: "pdf" | "video";
-            anonymizationStatus: "not_started" | "processing_anonymization" | "done" | "failed" | "validated" | "predicting_segments" | "extracting_frames";
-            annotationStatus: "not_started" | "done";
+            mediaType: 'pdf' | 'video';
+            anonymizationStatus: 'not_started' | 'processing_anonymization' | 'done' | 'failed' | 'validated' | 'predicting_segments' | 'extracting_frames';
+            annotationStatus: 'not_started' | 'done';
             createdAt: string;
             sensitiveMetaId?: number | undefined;
             metadataImported: boolean;
@@ -555,9 +555,9 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
         overview: {
             id: number;
             filename: string;
-            mediaType: "pdf" | "video";
-            anonymizationStatus: "not_started" | "processing_anonymization" | "done" | "failed" | "validated" | "predicting_segments" | "extracting_frames";
-            annotationStatus: "not_started" | "done";
+            mediaType: 'pdf' | 'video';
+            anonymizationStatus: 'not_started' | 'processing_anonymization' | 'done' | 'failed' | 'validated' | 'predicting_segments' | 'extracting_frames';
+            annotationStatus: 'not_started' | 'done';
             createdAt: string;
             sensitiveMetaId?: number | undefined;
             metadataImported: boolean;
@@ -570,9 +570,9 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
         availableFiles: {
             id: number;
             filename: string;
-            mediaType: "pdf" | "video";
-            anonymizationStatus: "not_started" | "processing_anonymization" | "done" | "failed" | "validated" | "predicting_segments" | "extracting_frames";
-            annotationStatus: "not_started" | "done";
+            mediaType: 'pdf' | 'video';
+            anonymizationStatus: 'not_started' | 'processing_anonymization' | 'done' | 'failed' | 'validated' | 'predicting_segments' | 'extracting_frames';
+            annotationStatus: 'not_started' | 'done';
             createdAt: string;
             sensitiveMetaId?: number | undefined;
             metadataImported: boolean;

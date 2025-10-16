@@ -146,7 +146,9 @@ export function useMediaManagement() {
     return {
         isLoading: readonly(isLoading),
         error: readonly(error),
-        clearError: () => { error.value = null; },
+        clearError: () => {
+            error.value = null;
+        },
         // Status operations
         getStatusOverview: () => safeApiCall(() => MediaManagementAPI.getStatusOverview()),
         // Cleanup operations
@@ -163,6 +165,6 @@ export function useMediaManagement() {
         validateAnonymizationSafe: (fileId) => safeApiCall(() => MediaManagementAPI.validateAnonymizationSafe(fileId)),
         // Coordinator operations
         getPollingInfo: () => safeApiCall(() => MediaManagementAPI.getPollingCoordinatorInfo()),
-        clearAllLocks: (fileType) => safeApiCall(() => MediaManagementAPI.clearProcessingLocks(fileType)),
+        clearAllLocks: (fileType) => safeApiCall(() => MediaManagementAPI.clearProcessingLocks(fileType))
     };
 }

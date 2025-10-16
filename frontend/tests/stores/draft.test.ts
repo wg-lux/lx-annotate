@@ -8,7 +8,7 @@ describe('Draft Store', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     vi.clearAllMocks()
-    
+
     // Clear localStorage before each test
     vi.spyOn(Storage.prototype, 'getItem').mockReturnValue(null)
     vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {})
@@ -38,8 +38,8 @@ describe('Draft Store', () => {
 
     expect(store.draftAnnotations[videoId]).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ 
-          id: annotation.id, 
+        expect.objectContaining({
+          id: annotation.id,
           note: annotation.note,
           start: annotation.start,
           end: annotation.end,
@@ -75,11 +75,19 @@ describe('Draft Store', () => {
 
     const drafts = store.getDraftsForVideo(videoId)
     expect(drafts).toHaveLength(2)
-    
+
     expect(drafts).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ id: annotation1.id, note: annotation1.note, label: annotation1.label }),
-        expect.objectContaining({ id: annotation2.id, note: annotation2.note, label: annotation2.label })
+        expect.objectContaining({
+          id: annotation1.id,
+          note: annotation1.note,
+          label: annotation1.label
+        }),
+        expect.objectContaining({
+          id: annotation2.id,
+          note: annotation2.note,
+          label: annotation2.label
+        })
       ])
     )
   })
@@ -105,7 +113,7 @@ describe('Draft Store', () => {
   it('should clear all drafts for video', () => {
     const store = useDraftStore()
     const videoId = 'video-1'
-    
+
     // Add multiple drafts
     for (let i = 1; i <= 3; i++) {
       const annotation: Omit<AnnotationDraft, 'isDraft' | 'createdAt' | 'updatedAt'> = {
@@ -119,14 +127,14 @@ describe('Draft Store', () => {
     }
 
     expect(store.getDraftsForVideo(videoId)).toHaveLength(3)
-    
+
     store.clearDraftsForVideo(videoId)
     expect(store.getDraftsForVideo(videoId)).toHaveLength(0)
   })
 
   it('should clear all drafts', () => {
     const store = useDraftStore()
-    
+
     // Add drafts for multiple videos
     for (let videoIndex = 1; videoIndex <= 2; videoIndex++) {
       const videoId = `video-${videoIndex}`
@@ -143,7 +151,7 @@ describe('Draft Store', () => {
     }
 
     expect(Object.keys(store.draftAnnotations)).toHaveLength(2)
-    
+
     store.clearAllDrafts()
     expect(store.draftAnnotations).toEqual({})
     expect(store.hasUnsavedChanges).toBe(false)
@@ -162,9 +170,9 @@ describe('Draft Store', () => {
 
     // Mock localStorage
     const mockSetItem = vi.spyOn(Storage.prototype, 'setItem')
-    
+
     store.saveDraft(videoId, annotation)
-    
+
     expect(mockSetItem).toHaveBeenCalledWith(
       'lx-annotate-drafts',
       expect.stringContaining(annotation.id as string)
@@ -190,10 +198,10 @@ describe('Draft Store', () => {
 
     // Mock localStorage
     vi.spyOn(Storage.prototype, 'getItem').mockReturnValue(JSON.stringify(mockData))
-    
+
     const store = useDraftStore()
     store.loadFromStorage()
-    
+
     expect(store.getDraftsForVideo(videoId)).toHaveLength(1)
     expect(store.getDraftsForVideo(videoId)[0].id).toBe(annotation.id)
   })
@@ -219,7 +227,7 @@ describe('Draft Store', () => {
     }
 
     store.saveDraft(videoId, updatedAnnotation)
-    
+
     const drafts = store.getDraftsForVideo(videoId)
     expect(drafts).toHaveLength(1) // Should not duplicate
     expect(drafts[0].note).toBe('Updated text')
@@ -227,20 +235,20 @@ describe('Draft Store', () => {
 
   it('should handle empty localStorage gracefully', () => {
     vi.spyOn(Storage.prototype, 'getItem').mockReturnValue(null)
-    
+
     const store = useDraftStore()
     store.loadFromStorage()
-    
+
     expect(store.draftAnnotations).toEqual({})
   })
 
   it('should handle corrupted localStorage data', () => {
     vi.spyOn(Storage.prototype, 'getItem').mockReturnValue('invalid json')
     vi.spyOn(console, 'error').mockImplementation(() => {})
-    
+
     const store = useDraftStore()
     store.loadFromStorage()
-    
+
     expect(store.draftAnnotations).toEqual({})
   })
 
@@ -248,9 +256,9 @@ describe('Draft Store', () => {
   describe('Draft Segment Management', () => {
     it('should start a draft segment', () => {
       const store = useDraftStore()
-      
+
       store.startDraft('polyp', 10)
-      
+
       expect(store.draft).toEqual({
         label: 'polyp',
         start: 10,
@@ -262,10 +270,10 @@ describe('Draft Store', () => {
 
     it('should update draft end time', () => {
       const store = useDraftStore()
-      
+
       store.startDraft('polyp', 10)
       store.updateDraftEnd(20)
-      
+
       expect(store.draft).toEqual({
         label: 'polyp',
         start: 10,
@@ -277,10 +285,10 @@ describe('Draft Store', () => {
 
     it('should cancel draft', () => {
       const store = useDraftStore()
-      
+
       store.startDraft('polyp', 10)
       store.cancelDraft()
-      
+
       expect(store.draft).toBeNull()
       expect(store.isDraftActive).toBe(false)
       expect(store.isDraftComplete).toBe(false)

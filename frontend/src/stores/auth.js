@@ -66,5 +66,5 @@ export const useAuthStore = defineStore('auth', {
         userGroups: (state) => state.user?.groups || [],
         isLoading: (state) => state.loading,
         hasError: (state) => state.error !== null
-    },
+    }
 });

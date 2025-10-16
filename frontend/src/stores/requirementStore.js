@@ -28,7 +28,7 @@ export const useRequirementStore = defineStore('requirement', () => {
         }
     };
     const deleteRequirementSetById = (id) => {
-        requirementSets.value = requirementSets.value.filter(set => set.id !== id);
+        requirementSets.value = requirementSets.value.filter((set) => set.id !== id);
         if (currentRequirementSet.value?.id === id) {
             currentRequirementSet.value = null;
             currentRequirementSetIds.value = [];
@@ -37,14 +37,14 @@ export const useRequirementStore = defineStore('requirement', () => {
     };
     // Computed
     const isRequirementValidated = computed(() => {
-        return requirementSets.value.every(set => set.met);
+        return requirementSets.value.every((set) => set.met);
     });
     const isRequirementSetValidated = computed(() => {
         return currentRequirementSet.value ? currentRequirementSet.value.met : false;
     });
     const metRequirementsCount = computed(() => {
         return requirementSets.value.reduce((count, set) => {
-            return count + set.requirements.filter(req => req.met).length;
+            return count + set.requirements.filter((req) => req.met).length;
         }, 0);
     });
     const totalRequirementsCount = computed(() => {
@@ -60,7 +60,8 @@ export const useRequirementStore = defineStore('requirement', () => {
             requirementSets.value = response.data.results || response.data;
         }
         catch (err) {
-            error.value = 'Fehler beim Laden der Anforderungssätze: ' + (err.response?.data?.detail || err.message);
+            error.value =
+                'Fehler beim Laden der Anforderungssätze: ' + (err.response?.data?.detail || err.message);
             console.error('Fetch requirement sets error:', err);
         }
         finally {
@@ -90,7 +91,7 @@ export const useRequirementStore = defineStore('requirement', () => {
             }
             if (!requirementSetIds) {
                 // If no specific sets are provided, evaluate all sets
-                payload.requirementSetIds = requirementSets.value.map(set => set.id);
+                payload.requirementSetIds = requirementSets.value.map((set) => set.id);
             }
             else {
                 payload.requirementSetIds = requirementSetIds;
@@ -116,14 +117,16 @@ export const useRequirementStore = defineStore('requirement', () => {
             }
             // Update evaluation results
             if (requirementSetIds) {
-                requirementSetIds.forEach(setId => {
-                    evaluationResults.value[setId] = results.filter((r) => requirementSets.value.find(set => set.id === setId)?.requirements.some(req => req.name === r.requirement_name));
+                requirementSetIds.forEach((setId) => {
+                    evaluationResults.value[setId] = results.filter((r) => requirementSets.value
+                        .find((set) => set.id === setId)
+                        ?.requirements.some((req) => req.name === r.requirement_name));
                 });
             }
             else {
                 // Store results for all sets
                 results.forEach((result) => {
-                    const setId = requirementSets.value.find(set => set.requirements.some(req => req.name === result.requirement_name))?.id;
+                    const setId = requirementSets.value.find((set) => set.requirements.some((req) => req.name === result.requirement_name))?.id;
                     if (setId) {
                         if (!evaluationResults.value[setId]) {
                             evaluationResults.value[setId] = [];
@@ -137,7 +140,9 @@ export const useRequirementStore = defineStore('requirement', () => {
             return results;
         }
         catch (err) {
-            error.value = 'Fehler bei der Evaluierung der Anforderungen: ' + (err.response?.data?.detail || err.message);
+            error.value =
+                'Fehler bei der Evaluierung der Anforderungen: ' +
+                    (err.response?.data?.detail || err.message);
             console.error('Evaluate requirements error:', err);
             // Show error in toast
             const toast = useToastStore();
@@ -155,7 +160,9 @@ export const useRequirementStore = defineStore('requirement', () => {
         try {
             loading.value = true;
             error.value = null;
-            const requirementSetIds = currentRequirementSetIds.value.length > 0 ? currentRequirementSetIds.value : [requirementSetId];
+            const requirementSetIds = currentRequirementSetIds.value.length > 0
+                ? currentRequirementSetIds.value
+                : [requirementSetId];
             if (requirementSetId.valueOf.length > 0) {
                 requirementSetIds.push(requirementSetId);
             }
@@ -175,7 +182,9 @@ export const useRequirementStore = defineStore('requirement', () => {
             return results;
         }
         catch (err) {
-            error.value = 'Fehler bei der Evaluierung des Anforderungssatzes: ' + (err.response?.data?.detail || err.message);
+            error.value =
+                'Fehler bei der Evaluierung des Anforderungssatzes: ' +
+                    (err.response?.data?.detail || err.message);
             console.error('Evaluate requirement set error:', err);
             throw err;
         }
@@ -184,28 +193,28 @@ export const useRequirementStore = defineStore('requirement', () => {
         }
     };
     const updateRequirementsStatus = (results) => {
-        requirementSets.value.forEach(set => {
-            set.requirements.forEach(requirement => {
-                const result = results.find(r => r.requirement_name === requirement.name);
+        requirementSets.value.forEach((set) => {
+            set.requirements.forEach((requirement) => {
+                const result = results.find((r) => r.requirement_name === requirement.name);
                 if (result) {
                     requirement.met = result.met;
                     requirement.details = result.details;
                 }
             });
             // Update set met status
-            set.met = set.requirements.every(req => req.met);
+            set.met = set.requirements.every((req) => req.met);
         });
         // Update current requirement set if it exists
         if (currentRequirementSet.value) {
-            const currentSetResults = results.filter(r => currentRequirementSet.value.requirements.some(req => req.name === r.requirement_name));
-            currentRequirementSet.value.requirements.forEach(requirement => {
-                const result = currentSetResults.find(r => r.requirement_name === requirement.name);
+            const currentSetResults = results.filter((r) => currentRequirementSet.value.requirements.some((req) => req.name === r.requirement_name));
+            currentRequirementSet.value.requirements.forEach((requirement) => {
+                const result = currentSetResults.find((r) => r.requirement_name === requirement.name);
                 if (result) {
                     requirement.met = result.met;
                     requirement.details = result.details;
                 }
             });
-            currentRequirementSet.value.met = currentRequirementSet.value.requirements.every(req => req.met);
+            currentRequirementSet.value.met = currentRequirementSet.value.requirements.every((req) => req.met);
         }
     };
     const createRequirementLinksFromLookup = (lookupData) => {
@@ -238,11 +247,11 @@ export const useRequirementStore = defineStore('requirement', () => {
         return await evaluateRequirementSet(currentRequirementSet.value.id, patientExaminationId);
     };
     const getRequirementSetById = (id) => {
-        return requirementSets.value.find(set => set.id === id);
+        return requirementSets.value.find((set) => set.id === id);
     };
     const getRequirementById = (setId, requirementId) => {
         const set = getRequirementSetById(setId);
-        return set?.requirements.find(req => req.id === requirementId);
+        return set?.requirements.find((req) => req.id === requirementId);
     };
     const clearError = () => {
         error.value = null;
@@ -257,7 +266,7 @@ export const useRequirementStore = defineStore('requirement', () => {
         const set = getRequirementSetById(requirementSetId);
         if (!set)
             return null;
-        const metCount = set.requirements.filter(req => req.met).length;
+        const metCount = set.requirements.filter((req) => req.met).length;
         const totalCount = set.requirements.length;
         return {
             met: set.met,
@@ -268,7 +277,7 @@ export const useRequirementStore = defineStore('requirement', () => {
     };
     const getRequirementEvaluationStatus = (requirementId) => {
         for (const set of requirementSets.value) {
-            const requirement = set.requirements.find(req => req.id === requirementId);
+            const requirement = set.requirements.find((req) => req.id === requirementId);
             if (requirement) {
                 return {
                     met: requirement.met,

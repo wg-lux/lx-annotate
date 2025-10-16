@@ -56,7 +56,7 @@ export function useReportService() {
             // Annahme: API liefert { id: number, name: string, classification_id: number }
             const { data } = await axiosInstance.get(r('location-classification-choices/'));
             // Manuelles Mapping von snake_case zu camelCase
-            locationClassificationChoices.value = data.map(item => ({
+            locationClassificationChoices.value = data.map((item) => ({
                 id: item.id,
                 name: item.name,
                 classificationId: item.classification_id // Mapping hier
@@ -80,7 +80,7 @@ export function useReportService() {
             // Annahme: API liefert { id: number, name: string, classification_id: number }
             const { data } = await axiosInstance.get(r('morphology-classification-choices/'));
             // Manuelles Mapping von snake_case zu camelCase
-            morphologyClassificationChoices.value = data.map(item => ({
+            morphologyClassificationChoices.value = data.map((item) => ({
                 id: item.id,
                 name: item.name,
                 classificationId: item.classification_id // Mapping hier
@@ -117,6 +117,6 @@ export function useReportService() {
         getLocationClassificationChoices,
         getMorphologyClassifications,
         getMorphologyClassificationChoices,
-        getInterventions,
+        getInterventions
     };
 }

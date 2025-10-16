@@ -32,14 +32,14 @@ export interface Intervention {
 // --- The composable ---
 export function useReportService() {
   // reactive state
-  const centers                    = ref<Center[]>([])
-  const examinations               = ref<Examination[]>([])
-  const findings                   = ref<Finding[]>([])
-  const locationClassifications    = ref<Classification[]>([])
+  const centers = ref<Center[]>([])
+  const examinations = ref<Examination[]>([])
+  const findings = ref<Finding[]>([])
+  const locationClassifications = ref<Classification[]>([])
   const locationClassificationChoices = ref<ClassificationChoice[]>([])
-  const morphologyClassifications  = ref<Classification[]>([])
+  const morphologyClassifications = ref<Classification[]>([])
   const morphologyClassificationChoices = ref<ClassificationChoice[]>([])
-  const interventions              = ref<Intervention[]>([])
+  const interventions = ref<Intervention[]>([])
 
   // fetch helpers
   async function getCenters() {
@@ -83,15 +83,15 @@ export function useReportService() {
   async function getLocationClassificationChoices() {
     try {
       // Annahme: API liefert { id: number, name: string, classification_id: number }
-      const { data } = await axiosInstance.get<any[]>(r('location-classification-choices/'));
+      const { data } = await axiosInstance.get<any[]>(r('location-classification-choices/'))
       // Manuelles Mapping von snake_case zu camelCase
-      locationClassificationChoices.value = data.map(item => ({
+      locationClassificationChoices.value = data.map((item) => ({
         id: item.id,
         name: item.name,
         classificationId: item.classification_id // Mapping hier
-      }));
+      }))
     } catch (e) {
-      console.error('Error fetching location classification choices:', e);
+      console.error('Error fetching location classification choices:', e)
     }
   }
 
@@ -107,15 +107,15 @@ export function useReportService() {
   async function getMorphologyClassificationChoices() {
     try {
       // Annahme: API liefert { id: number, name: string, classification_id: number }
-      const { data } = await axiosInstance.get<any[]>(r('morphology-classification-choices/'));
+      const { data } = await axiosInstance.get<any[]>(r('morphology-classification-choices/'))
       // Manuelles Mapping von snake_case zu camelCase
-      morphologyClassificationChoices.value = data.map(item => ({
+      morphologyClassificationChoices.value = data.map((item) => ({
         id: item.id,
         name: item.name,
         classificationId: item.classification_id // Mapping hier
-      }));
+      }))
     } catch (e) {
-      console.error('Error fetching morphology classification choices:', e);
+      console.error('Error fetching morphology classification choices:', e)
     }
   }
 
@@ -146,6 +146,6 @@ export function useReportService() {
     getLocationClassificationChoices,
     getMorphologyClassifications,
     getMorphologyClassificationChoices,
-    getInterventions,
+    getInterventions
   }
 }

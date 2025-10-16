@@ -16,7 +16,7 @@ export const useDraftStore = defineStore('draft', () => {
      * computed helpers
      * ───────────────────────────── */
     const hasUnsavedChanges = computed(() => {
-        return Object.values(draftAnnotations.value).some(list => list.length > 0);
+        return Object.values(draftAnnotations.value).some((list) => list.length > 0);
     });
     /* ────────────────────────────────
      * in‑progress segment helpers
@@ -44,10 +44,10 @@ export const useDraftStore = defineStore('draft', () => {
             ...annotation,
             isDraft: true,
             createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
         };
-        const list = bucket[videoId] ||= [];
-        const idx = list.findIndex(a => a.id === entry.id);
+        const list = (bucket[videoId] ||= []);
+        const idx = list.findIndex((a) => a.id === entry.id);
         if (idx === -1) {
             list.push(entry);
         }
@@ -59,7 +59,7 @@ export const useDraftStore = defineStore('draft', () => {
     }
     /** return **clones** so callers can mutate safely without affecting store */
     function getDraftsForVideo(videoId) {
-        return (draftAnnotations.value[videoId] || []).map(d => ({ ...d }));
+        return (draftAnnotations.value[videoId] || []).map((d) => ({ ...d }));
     }
     function removeDraft(videoId, annotationId) {
         const list = draftAnnotations.value[videoId];
@@ -67,7 +67,7 @@ export const useDraftStore = defineStore('draft', () => {
             return;
         // ✅ FIX: Handle both string and number IDs and filter correctly
         const initialLength = list.length;
-        const newList = list.filter(a => a.id !== annotationId);
+        const newList = list.filter((a) => a.id !== annotationId);
         if (newList.length === 0) {
             delete draftAnnotations.value[videoId];
         }
@@ -99,7 +99,6 @@ export const useDraftStore = defineStore('draft', () => {
             window.localStorage.setItem(STORAGE_KEY, raw);
         }
         catch (err) {
-            // eslint-disable-next-line no-console
             console.error('[DraftStore] Failed to save drafts to localStorage', err);
         }
     }
@@ -111,7 +110,6 @@ export const useDraftStore = defineStore('draft', () => {
             }
         }
         catch (err) {
-            // eslint-disable-next-line no-console
             console.error('[DraftStore] Failed to parse drafts from localStorage', err);
             draftAnnotations.value = {};
         }
@@ -142,6 +140,6 @@ export const useDraftStore = defineStore('draft', () => {
         clearAllDrafts,
         // persistence helpers (exposed mainly for e2e tests)
         loadFromStorage,
-        saveToStorage,
+        saveToStorage
     };
 });
