@@ -24,7 +24,7 @@ if env_file.exists():
 
 # SECURITY WARNING: This is a fallback only! 
 # Production MUST override this with a real secret from environment
-# Use same approach as endo-api for better reliability
+# Use same approach as lx-annotate for better reliability
 SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "***UNSAFE-DEV-KEY-CHANGE-IN-PROD***")
 
 # Application definition

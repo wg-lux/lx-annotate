@@ -2,25 +2,27 @@ from endoreg_db.utils import DbConfig
 from icecream import ic
 import os
 from pathlib import Path
+from urllib.parse import urlparse, unquote
 
-db_config_file = os.environ.get("DB_CONFIG_FILE")
-if not db_config_file:
-    raise ValueError("DB_CONFIG_FILE environment variable is not set")
+# DB_CONFIG_FILE support removed. Use DATABASE_URL or DB_* env vars.
+db_name = os.environ.get("DB_NAME")
+db_user = os.environ.get("DB_USER")
+db_password = os.environ.get("DB_PASSWORD")
+db_host = os.environ.get("DB_HOST", "localhost")
+db_port = os.environ.get("DB_PORT", "5432")
 
-assert isinstance(db_config_file, str), "DB_CONFIG_FILE must be a string path"
+if not (db_name and db_user):
+    db_url = os.environ.get("DATABASE_URL")
+    if db_url:
+        parsed = urlparse(db_url)
+        db_name = parsed.path.lstrip("/") or db_name
+        db_user = unquote(parsed.username) if parsed.username else db_user
+        db_password = unquote(parsed.password) if parsed.password else db_password
+        db_host = parsed.hostname or db_host
+        db_port = str(parsed.port) if parsed.port else db_port
 
-
-db_config_file = Path(db_config_file).resolve()
-
-assert db_config_file.exists(), f"Database config file {db_config_file} does not exist"
-
-db_cfg = DbConfig.from_file(db_config_file)
-
-db_user = db_cfg.user
-db_password = db_cfg.password
-db_host = db_cfg.host
-db_port = db_cfg.port
-db_name = db_cfg.name
+if not (db_name and db_user):
+    raise ValueError("No database configuration found: provide DATABASE_URL or DB_* environment variables")
 
 
 def run_psql_command(sql):
@@ -76,7 +78,7 @@ def test_connection():
             password=db_password,
             host=db_host,
             port=db_port,
-        ) as conn:
+        ) as _conn:
             ic(f"Connection successful: {db_user}@{db_host}:{db_port}/{db_name}")
     except Exception as e:
         ic("Connection failed:", str(e))

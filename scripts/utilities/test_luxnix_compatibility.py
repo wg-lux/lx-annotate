@@ -17,8 +17,7 @@ def test_luxnix_detection():
     # Check for luxnix environment variables
     luxnix_vars = [
         "CENTRAL_NODE",
-        "DJANGO_SETTINGS_MODULE_CENTRAL", 
-        "DB_CONFIG_FILE"
+        "DJANGO_SETTINGS_MODULE_CENTRAL",
     ]
     
     for var in luxnix_vars:

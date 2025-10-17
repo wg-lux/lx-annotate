@@ -1,0 +1,47 @@
+# Development Dockerfile (no DevEnv) for Lx Annotate
+FROM python:3.12-slim AS base
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=on \
+    UV_LINK_MODE=copy
+
+# System dependencies useful for dev (ffmpeg, git)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates curl git \
+    ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install uv
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh && \
+    echo 'export PATH="/root/.local/bin:$PATH"' >> /etc/profile
+ENV PATH="/root/.local/bin:$PATH"
+
+WORKDIR /app
+
+# Make local path sources available for uv ([tool.uv.sources])
+COPY libs/ /app/libs/
+
+# Copy metadata and install with dev extras if any (Requires README.md)
+COPY pyproject.toml uv.lock* README.md ./
+RUN uv sync --dev --frozen && \
+    . .venv/bin/activate && python --version
+
+# Copy source
+COPY . /app
+
+ENV PATH="/app/.venv/bin:$PATH" \
+    DJANGO_SETTINGS_MODULE=config.settings.dev \
+    DJANGO_HOST=0.0.0.0 \
+    DJANGO_PORT=8118 \
+    DJANGO_ENV=development \
+    DJANGO_MODULE=lx_annotate \
+    STORAGE_DIR=/app/data \
+    DATA_DIR=/app/data
+
+EXPOSE 8118
+
+COPY container/docker-entrypoint.sh /app/
+RUN chmod +x /app/docker-entrypoint.sh
+
+CMD ["/app/docker-entrypoint.sh"]
