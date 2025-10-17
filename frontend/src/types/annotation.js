@@ -1,10 +1,11 @@
 // Type guards
 export function isAnnotationDraft(obj) {
-    return obj && typeof obj === 'object' &&
+    return (obj &&
+        typeof obj === 'object' &&
         obj.isDraft === true &&
         typeof obj.label === 'string' &&
         typeof obj.start === 'number' &&
-        typeof obj.end === 'number';
+        typeof obj.end === 'number');
 }
 // Helper functions for migration
 export function annotationDraftToLegacy(draft) {

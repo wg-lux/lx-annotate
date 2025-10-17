@@ -1,25 +1,19 @@
 import { ref, computed, onMounted, watch } from 'vue';
 import { useFindingStore } from '../../stores/findingStore';
 import { useExaminationStore } from '@/stores/examinationStore';
-import { usePatientExaminationStore } from '@/stores/patientExaminationStore';
 import axiosInstance from '@/api/axiosInstance';
 import { useFindingClassificationStore } from '@/stores/findingClassificationStore';
-import { filterNecessaryFindings } from '@/utils/findingFilters';
 const findingStore = useFindingStore();
 const examinationStore = useExaminationStore();
-const patientExaminationStore = usePatientExaminationStore();
 const findingClassificationStore = useFindingClassificationStore();
 const examinationId = computed(() => examinationStore.selectedExaminationId || undefined);
 const props = withDefaults(defineProps(), {
     isAddedToExamination: false,
-    patientExaminationId: undefined,
-    availableFindings: undefined,
+    patientExaminationId: undefined
 });
 const emit = defineEmits();
 const loading = ref(false);
 const classifications = ref([]);
-// NEW: derive necessary findings from availableFindings prop when provided
-const necessaryFindings = computed(() => filterNecessaryFindings(props.availableFindings));
 // Computed
 const finding = computed(() => {
     // First try findingClassificationStore (where AddableFindingsDetail stores data)
@@ -44,10 +38,7 @@ const debugInfo = computed(() => {
         totalClassifications: classifications.value.length,
         requiredClassifications: requiredClassifications.value.length,
         classificationsLoaded: classifications.value.length > 0,
-        dataSource,
-        // NEW:
-        availableCount: props.availableFindings?.length ?? 0,
-        necessaryCount: necessaryFindings.value.length,
+        dataSource: dataSource
     };
 });
 const findingsInfo = computed(() => {
@@ -61,10 +52,7 @@ const findingsInfo = computed(() => {
         totalClassifications: classifications.value.length,
         requiredClassifications: requiredClassifications.value.length,
         classificationsLoaded: classifications.value.length > 0,
-        dataSource,
-        // NEW:
-        availableCount: props.availableFindings?.length ?? 0,
-        necessaryCount: necessaryFindings.value.length,
+        dataSource: dataSource
     };
 });
 const loadFindingsAndClassifications = async (examinationId) => {
@@ -180,18 +168,10 @@ watch(() => findingStore.findings, (newVal, oldVal) => {
         safeLoadFindingsAndClassifications();
     }
 }, { immediate: true });
-// Watch for patient examination ID changes - similar to AddableFindingsDetail
-watch(() => patientExaminationStore.getCurrentPatientExaminationId(), (newId) => {
-    if (newId && !props.patientExaminationId) {
-        console.warn('[FindingsDetail] Syncing patientExaminationId, reloading data...');
-        safeLoadFindingsAndClassifications();
-    }
-}, { immediate: true });
 debugger; /* PartiallyEnd: #3632/scriptSetup.vue */
 const __VLS_withDefaultsArg = (function (t) { return t; })({
     isAddedToExamination: false,
-    patientExaminationId: undefined,
-    availableFindings: undefined,
+    patientExaminationId: undefined
 });
 const __VLS_ctx = {};
 let __VLS_components;
@@ -410,14 +390,6 @@ if (__VLS_ctx.debugInfo.findingId) {
     (__VLS_ctx.debugInfo.classificationsLoaded);
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
     (__VLS_ctx.debugInfo.dataSource);
-    if (__VLS_ctx.debugInfo.availableCount > 0) {
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
-        (__VLS_ctx.debugInfo.availableCount);
-    }
-    if (__VLS_ctx.debugInfo.necessaryCount > 0) {
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
-        (__VLS_ctx.debugInfo.necessaryCount);
-    }
 }
 /** @type {__VLS_StyleScopedClasses['finding-card']} */ ;
 /** @type {__VLS_StyleScopedClasses['card']} */ ;

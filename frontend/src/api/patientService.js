@@ -71,7 +71,9 @@ export const patientService = {
     async getGenders() {
         try {
             // Verwende den korrekten Gender-Endpunkt
-            const response = await axiosInstance.get(r('genders/')).catch(async () => {
+            const response = await axiosInstance
+                .get(r('genders/'))
+                .catch(async () => {
                 // Fallback: Standard Gender-Optionen
                 return {
                     data: [
@@ -100,12 +102,12 @@ export const patientService = {
     async getCenters() {
         try {
             // Versuche Centers über verschiedene mögliche Endpunkte zu laden
-            const response = await axiosInstance.get(r('centers/')).catch(async () => {
+            const response = await axiosInstance
+                .get(r('centers/'))
+                .catch(async () => {
                 // Fallback über andere verfügbare Endpunkte
                 return {
-                    data: [
-                        { id: 1, name: 'Hauptzentrum', nameDe: 'Hauptzentrum' }
-                    ],
+                    data: [{ id: 1, name: 'Hauptzentrum', nameDe: 'Hauptzentrum' }],
                     status: 200,
                     statusText: 'OK',
                     headers: {},
@@ -117,9 +119,7 @@ export const patientService = {
         catch (error) {
             console.error('Error getting centers:', error);
             // Fallback Center-Optionen
-            return [
-                { id: 1, name: 'Hauptzentrum', nameDe: 'Hauptzentrum' }
-            ];
+            return [{ id: 1, name: 'Hauptzentrum', nameDe: 'Hauptzentrum' }];
         }
     },
     // Hilfsmethoden
@@ -136,7 +136,7 @@ export const patientService = {
             isRealPerson: patientForm.isRealPerson ?? true
         };
         // Entferne leere Strings
-        Object.keys(formattedData).forEach(key => {
+        Object.keys(formattedData).forEach((key) => {
             const value = formattedData[key];
             if (value === '') {
                 delete formattedData[key];
@@ -189,5 +189,5 @@ export const patientService = {
             isValid: errors.length === 0,
             errors
         };
-    },
+    }
 };

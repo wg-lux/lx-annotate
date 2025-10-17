@@ -106,17 +106,36 @@ class ReportListService {
    */
   async getLegacyReports(): Promise<ReportListItem[]> {
     try {
-      // Versuche verschiedene Legacy-Endpunkte
+      // Use Modern Media Framework list endpoint first
+      try {
+        const response = await axiosInstance.get<ReportListResponse>(
+          r('media/pdfs/sensitive-metadata/'),
+          {
+            params: {
+              page: 1,
+              page_size: 100,
+              ordering: '-id'
+            }
+          }
+        )
+
+        if (response.data && response.data.results) {
+          return response.data.results.map(this.normalizeLegacyReport)
+        }
+      } catch (modernError) {
+        console.warn('Modern Framework endpoint nicht verfügbar, versuche Legacy:', modernError)
+      }
+
+      // Fallback to legacy endpoints
       const endpoints = [
-        'pdf/anony_text/',
-        'pdf/sensitivemeta/',
+        'pdf/sensitivemeta/', // Legacy list endpoint
         'pdfs/'
       ]
 
       for (const endpoint of endpoints) {
         try {
           const response = await axiosInstance.get(r(endpoint))
-          
+
           // Normalisiere die Antwort zu ReportListItem Format
           if (Array.isArray(response.data)) {
             return response.data.map(this.normalizeLegacyReport)
@@ -128,7 +147,7 @@ class ReportListService {
           continue
         }
       }
-      
+
       throw new Error('Keine Legacy-Endpunkte verfügbar')
     } catch (error) {
       console.error('Fehler beim Laden der Legacy-Reports:', error)

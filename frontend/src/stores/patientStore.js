@@ -13,13 +13,13 @@ export const usePatientStore = defineStore('patient', () => {
     // Computed
     const patientCount = computed(() => patients.value.length);
     const patientsWithAge = computed(() => {
-        return patients.value.map(patient => ({
+        return patients.value.map((patient) => ({
             ...patient,
             age: patient.dob ? calculatePatientAge(patient.dob) : null
         }));
     });
     const patientsWithDisplayName = computed(() => {
-        return patients.value.map(patient => ({
+        return patients.value.map((patient) => ({
             ...patient,
             displayName: `${patient.firstName || ''} ${patient.lastName || ''} (ID: ${patient.id})`.trim()
         }));
@@ -33,7 +33,8 @@ export const usePatientStore = defineStore('patient', () => {
             patients.value = response.data.results || response.data;
         }
         catch (err) {
-            error.value = 'Fehler beim Laden der Patienten: ' + (err.response?.data?.detail || err.message);
+            error.value =
+                'Fehler beim Laden der Patienten: ' + (err.response?.data?.detail || err.message);
             console.error('Fetch patients error:', err);
         }
         finally {
@@ -61,10 +62,7 @@ export const usePatientStore = defineStore('patient', () => {
         }
     };
     const initializeLookupData = async () => {
-        await Promise.all([
-            fetchGenders(),
-            fetchCenters()
-        ]);
+        await Promise.all([fetchGenders(), fetchCenters()]);
     };
     const createPatient = async (patientData) => {
         try {
@@ -89,7 +87,7 @@ export const usePatientStore = defineStore('patient', () => {
             error.value = null;
             const response = await axiosInstance.put(`/api/patients/${id}/`, patientData);
             const updatedPatient = response.data;
-            const index = patients.value.findIndex(p => p.id === id);
+            const index = patients.value.findIndex((p) => p.id === id);
             if (index !== -1) {
                 patients.value[index] = updatedPatient;
             }
@@ -108,7 +106,7 @@ export const usePatientStore = defineStore('patient', () => {
             loading.value = true;
             error.value = null;
             await axiosInstance.delete(`/api/patients/${id}/`);
-            patients.value = patients.value.filter(p => p.id !== id);
+            patients.value = patients.value.filter((p) => p.id !== id);
         }
         catch (err) {
             error.value = err.response?.data?.detail || 'Fehler beim Löschen des Patienten';
@@ -119,7 +117,7 @@ export const usePatientStore = defineStore('patient', () => {
         }
     };
     const getPatientById = (id) => {
-        return patients.value.find(patient => patient.id === id);
+        return patients.value.find((patient) => patient.id === id);
     };
     const clearError = () => {
         error.value = null;
@@ -145,13 +143,13 @@ export const usePatientStore = defineStore('patient', () => {
     const getGenderDisplayName = (genderName) => {
         if (!genderName)
             return 'Unbekannt';
-        const gender = genders.value.find(g => g.name === genderName);
+        const gender = genders.value.find((g) => g.name === genderName);
         return gender?.nameDe || gender?.name || genderName;
     };
     const getCenterDisplayName = (centerName) => {
         if (!centerName)
             return 'Kein Zentrum';
-        const center = centers.value.find(c => c.name === centerName);
+        const center = centers.value.find((c) => c.name === centerName);
         return center?.nameDe || center?.name || centerName;
     };
     const validatePatientForm = (formData) => {
@@ -258,6 +256,6 @@ export const usePatientStore = defineStore('patient', () => {
         getSelectedPatientId,
         clearSelectedPatientId,
         setCurrentPatient,
-        resolveCurrentPatientId,
+        resolveCurrentPatientId
     };
 });

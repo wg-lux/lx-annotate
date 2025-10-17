@@ -6,16 +6,20 @@
   baseBuildInputs, 
   ... }:
 let
+  appConfig = import ./app_config.nix;
+
   appName = "lx_annotate";
   DEPLOYMENT_MODE = "dev";
 
-  dataDir = let env = builtins.getEnv "DATA_DIR"; in if env != "" then env else (let env2 = builtins.getEnv "STORAGE_DIR"; in if env2 != "" then env2 else "./data");
-  confDir = let env = builtins.getEnv "CONF_DIR"; in if env != "" then env else "./conf";
-  confTemplateDir = let env = builtins.getEnv "CONF_TEMPLATE_DIR"; in if env != "" then env else "./conf_template";
-  djangoModuleName = let env = builtins.getEnv "DJANGO_MODULE"; in if env != "" then env else "lx_annotate";
-  http_protocol = let env = builtins.getEnv "HTTP_PROTOCOL"; in if env != "" then env else "http";
-  host = let env = builtins.getEnv "DJANGO_HOST"; in if env != "" then env else "localhost";
-  port = let env = builtins.getEnv "DJANGO_PORT"; in if env != "" then env else "8119";
+  dataDir = let env = builtins.getEnv "DATA_DIR"; in if env != "" then env else appConfig.paths.data;
+  confDir = let env = builtins.getEnv "CONF_DIR"; in if env != "" then env else appConfig.paths.conf;
+  confTemplateDir = let env = builtins.getEnv "CONF_TEMPLATE_DIR"; in if env != "" then env else appConfig.paths.confTemplate;
+  
+  homeDir = let env = builtins.getEnv "HOME_DIR"; in if env != "" then env else builtins.getEnv "HOME";
+  djangoModuleName = let env = builtins.getEnv "DJANGO_MODULE"; in if env != "" then env else appConfig.app.djangoModule;
+  http_protocol = let env = builtins.getEnv "HTTP_PROTOCOL"; in if env != "" then env else appConfig.server.protocol;
+  host = let env = builtins.getEnv "DJANGO_HOST"; in if env != "" then env else appConfig.server.host;
+  port = let env = builtins.getEnv "DJANGO_PORT"; in if env != "" then env else appConfig.server.port;
   base_url = let env = builtins.getEnv "BASE_URL"; in if env != "" then env else "${http_protocol}://${host}:${port}";
 
   python = pkgs.python312;
@@ -23,6 +27,8 @@ let
 
   devenv_utils = import ./devenv/default.nix {
     pkgs = pkgs;
+    lib = lib;
+    appConfig = appConfig;
     djangoModuleName = djangoModuleName;
     host = host;
     port = port;
@@ -30,28 +36,26 @@ let
     dataDir = dataDir;
     confDir = confDir;
     confTemplateDir = confTemplateDir;
+    homeDir = homeDir;
     uvPackage = uvPackage;
+    isDev = true;
   };
 
-  buildInputs = devenv_utils.buildInputs ++ [ pkgs.zlib ];
+  devTasks = import ./devenv/devTasks/default.nix;
+
+  buildInputs = devenv_utils.buildInputs;
   runtimePackages = devenv_utils.runtimePackages;
   lxVars = devenv_utils.lx_vars;
+  exportLxVars = pkgs.writeText "export-lx-vars.json" (builtins.toJSON lxVars);
 
   languages.javascript.enable = true;
   languages.javascript.package = pkgs.nodejs_22; # Specify the Node.js version
   languages.python.enable = true;
   languages.python.uv.enable = true;
 
-  # Define the shellHook for convenience
+  # Define the shellHook to enable npm in root for convenience
   commonShellHook = ''
     export PATH="$PATH:$(yarn global bin)"
-  '';
-
-  enterShell = ''
-    if [ -x scripts/dev-sync-submodules.sh ]; then
-      echo "Syncing submodules to branch tips…"
-      scripts/dev-sync-submodules.sh || true
-    fi
   '';
 
   # --- Directory Structure ---
@@ -88,8 +92,6 @@ in
   dotenv.enable = true;
   dotenv.disableHint = true;
 
-
-
   packages = with pkgs; [
     stdenv.cc.cc
     nodejs_22
@@ -99,6 +101,7 @@ in
     python312Packages.inotify-simple
     python312Packages.watchdog
     ffmpeg_6-headless
+    cudaPackages.cuda_nvcc
   ] ++ runtimePackages;
 
   env = {
@@ -106,9 +109,57 @@ in
       with pkgs;
       lib.makeLibraryPath buildInputs
     }:/run/opengl-driver/lib:/run/opengl-driver-32/lib";
-  } // lxVars;
+  } // devenv_utils.environment;
 
-  languages.python = {
+
+  
+  enterTest = ''
+    TEST_SUITE_VAR="''${TEST_SUITE:-quick}"
+    echo "🧪 Running DevEnv Test Suite: $TEST_SUITE_VAR"
+    echo "========================================="
+    test_result=0
+    case "$TEST_SUITE_VAR" in
+      "quick"|"q")
+        echo "🚀 Running quick validation tests..."
+        bash scripts/core/system-validation.sh --skip-containers || test_result=1
+        ;;
+      "workflows"|"w") 
+        echo "🔄 Running workflow validation tests..."
+        bash scripts/core/system-validation.sh --skip-containers || test_result=1
+        echo "🔧 Testing environment setup..."
+        python3 scripts/core/setup.py --status-only || test_result=1
+        ;;
+      "containers"|"c")
+        echo "🐳 Running container validation tests..."
+        bash scripts/core/system-validation.sh || test_result=1
+        ;;
+      "e2e"|"end-to-end")
+        echo "🎯 Running end-to-end validation tests..."
+        bash scripts/core/system-validation.sh || test_result=1
+        ;;
+      "full"|"all"|"f")
+        echo "🌟 Running complete system validation..."
+        bash scripts/core/system-validation.sh --verbose || test_result=1
+        ;;
+      "ci")
+        echo "🤖 Running CI-optimized validation..."
+        bash scripts/core/system-validation.sh --skip-containers || test_result=1
+        ;;
+      *)
+        echo "Unknown test suite: $TEST_SUITE_VAR"
+        echo "Available: quick, workflows, containers, e2e, full, ci"
+        exit 1
+        ;;
+    esac
+    if [ $test_result -eq 0 ]; then
+        echo "✅ All tests in suite '$TEST_SUITE_VAR' passed!"
+        exit 0
+    else
+        echo "❌ Some tests in suite '$TEST_SUITE_VAR' failed!"
+        exit 1
+    fi
+  '';
+    languages.python = {
     enable = true;
     package = pkgs.python312;
     uv = {
@@ -116,109 +167,12 @@ in
       sync.enable = true;
     };
   };
-
   
-  scripts = {
-    
+  scripts = devenv_utils.scripts;
+tasks = devenv_utils.tasks // (if devenv_utils ? isDev && devenv_utils.isDev then devTasks else {});  processes = devenv_utils.processes;
+  containers = devenv_utils.containers;
+  services = devenv_utils.services;
 
-    set-prod-settings.exec = "${pkgs.uv}/bin/uv run python scripts/set_production_settings.py";
-    set-dev-settings.exec = "${pkgs.uv}/bin/uv run python scripts/set_development_settings.py";
-    set-central-settings.exec = "${pkgs.uv}/bin/uv run python scripts/set_central_settings.py";
-    
-    test-luxnix-compatibility.exec = "${pkgs.uv}/bin/uv run python scripts/test_luxnix_compatibility.py";
-
-    run-dev-server.exec = ''
-
-      env-pipe
-      set-dev-settings
-      echo "Running dev server"
-      echo "Host: ${host}"
-      echo "Port: ${port}"
-      deploy-pipe
-      ${pkgs.uv}/bin/uv run python manage.py runserver ${host}:${port}
-    '';
-
-    env-pipe.exec = ''
-      # Skip local config generation if local_settings.py exists (luxnix managed)
-      if [ ! -f "local_settings.py" ]; then
-        env-init-conf
-        env-build
-      else
-        echo "Detected luxnix managed environment (local_settings.py exists)"
-        echo "Skipping local configuration generation"
-      fi
-      env-export
-    '';
-
-    deploy-pipe.exec = ''
-      deploy-migrate
-      deploy-load-base-db-data
-      deploy-collectstatic
-    '';
-
-    run-prod-server.exec = ''
-
-      set -e
-
-      echo "[prod] Syncing submodule URLs from .gitmodules..."
-      git submodule sync --recursive
-
-      echo "[prod] Fetching latest commits for submodules and checking out remote-tracking branches..."
-      git submodule update --init --remote --recursive
-
-      echo "[prod] Submodule status after update:"
-      git submodule status --recursive || true
-
-      echo "[prod] Submodule branches and heads:"
-      git submodule foreach --recursive '
-        b=$(git rev-parse --abbrev-ref --symbolic-full-name @{u} 2>/dev/null || true)
-        h=$(git rev-parse --short HEAD 2>/dev/null || true)
-        [ -n "$b" ] || b="<no-upstream>"
-        [ -n "$h" ] || h="<no-head>"
-        echo "  $name -> upstream=$b @ $h"
-      '
-
-      env-pipe
-      # Detect if running in luxnix environment and use appropriate settings
-      if [ "$CENTRAL_NODE" = "true" ]; then
-        echo "Running as central node"
-        set-central-settings
-      else
-        set-prod-settings
-      fi
-      echo "Running production server"
-      echo "Port: ${port}"
-
-
-      # print settings module and other important variables for transparency
-      echo "DJANGO_SETTINGS_MODULE: $DJANGO_SETTINGS_MODULE"
-      echo "BASE_URL: $BASE_URL"
-
-      deploy-pipe
-      ${pkgs.uv}/bin/uv run daphne ${djangoModuleName}.asgi:application -p ${port}
-    '';
-
-    gpu-check.exec = "${pkgs.uv}/bin/uv run python scripts/gpu-check.py";
-
-    ensure-psql.exec = "${pkgs.uv}/bin/uv run python scripts/ensure_psql.py";
-    env-fetch-db-pwd-file.exec = "${pkgs.uv}/bin/uv run python scripts/fetch_db_pwd_file.py";
-    env-init-conf.exec = "${pkgs.uv}/bin/uv run python scripts/make_conf.py";
-    env-build.exec = "${pkgs.uv}/bin/uv run env_setup.py";
-    env-export.exec = ''
-      set -a
-      source .env
-      set +a
-      echo ".env file loaded successfully."
-      echo "DJANGO_SETTINGS_MODULE=$DJANGO_SETTINGS_MODULE"
-    '';
-    deploy-migrate.exec = "${pkgs.uv}/bin/uv run python manage.py migrate";
-    deploy-load-base-db-data.exec = "${pkgs.uv}/bin/uv run python manage.py load_base_db_data";
-    deploy-collectstatic.exec = "${pkgs.uv}/bin/uv run python manage.py collectstatic --noinput";
-  };
-  
-  tasks = customTasks;
-
-  processes = customProcesses;
   cachix.enable = true;
 
 
@@ -257,15 +211,11 @@ in
       source .env
       set +a
       echo ".env file loaded successfully."
-    elif [ -f "local_settings.py" ]; then
-      echo "Detected luxnix managed environment - using system environment variables"
-      echo "No .env file needed"
     else
-      echo "Warning: .env file not found. Please run 'devenv tasks run env:build' to create it."
+      echo "Note: .env not found. Defaults apply."
     fi
 
     gpu-check
-    
 
   '';
 

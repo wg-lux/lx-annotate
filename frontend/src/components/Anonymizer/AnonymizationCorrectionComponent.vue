@@ -611,9 +611,9 @@ const loadVideoDetails = async (videoId: number) => {
   try {
     // Load video metadata and processing history
     const [videoResponse, metadataResponse, historyResponse] = await Promise.all([
-      axiosInstance.get(r(`video-correction/${videoId}/`)),
-      axiosInstance.get(r(`video-metadata/${videoId}/`)),
-      axiosInstance.get(r(`video-processing-history/${videoId}/`))
+      axiosInstance.get(r(`media/videos/video-correction/${videoId}/`)),
+      axiosInstance.get(r(`media/videos/${videoId}/metadata/`)),
+      axiosInstance.get(r(`media/videos/${videoId}/processing-history/`))
     ]);
     
     currentVideo.value = videoResponse.data;
@@ -642,7 +642,7 @@ const analyzeVideo = async () => {
   processingStatus.value = 'Video wird analysiert...';
   
   try {
-    const response = await axiosInstance.post(r(`video-analyze/${currentVideo.value.id}/`), {
+    const response = await axiosInstance.post(r(`media/videos/${currentVideo.value.id}/analyze/`), {
       use_minicpm: frameConfig.value.detectionEngine !== 'traditional',
       detailed_analysis: true
     });
@@ -693,7 +693,7 @@ const applyMasking = async () => {
     
     // Start masking operation
     const response = await axiosInstance.post(
-      r(`video-apply-mask/${currentVideo.value.id}/`), 
+      r(`media/videos/${currentVideo.value.id}/apply-mask/`), 
       payload
     );
     
@@ -729,7 +729,7 @@ const removeFrames = async () => {
     
     // Start frame removal operation
     const response = await axiosInstance.post(
-      r(`video-remove-frames/${currentVideo.value.id}/`), 
+      r(`media/videos/${currentVideo.value.id}/remove-frames/`), 
       payload
     );
     
@@ -782,7 +782,7 @@ const pollTaskProgress = async (taskId: string, operation: string) => {
     }
     
     try {
-      const response = await axiosInstance.get(r(`task-status/${taskId}/`));
+      const response = await axiosInstance.get(r(`media/videos/task-status/${taskId}/`));
       const { status, progress, message, result } = response.data;
       
       processingProgress.value = progress || 0;
@@ -839,7 +839,7 @@ const reprocessVideo = async () => {
   if (!currentVideo.value) return;
   
   try {
-    await axiosInstance.post(r(`video-reprocess/${currentVideo.value.id}/`));
+    await axiosInstance.post(r(`media/videos/${currentVideo.value.id}/reprocess/`));
     await refreshCurrentVideo();
   } catch (err: any) {
     error.value = err.response?.data?.error || 'Fehler bei der Neuverarbeitung';
@@ -859,7 +859,7 @@ const getVideoUrl = () => {
       .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0];
     
     if (latestProcessed) {
-      return `${base}/api/media/processed-videos/${currentVideo.value.id}/${latestProcessed.id}/`;
+      return `${base}/api/media/videos/processed-videos/${currentVideo.value.id}/${latestProcessed.id}/`;
     }
   }
   

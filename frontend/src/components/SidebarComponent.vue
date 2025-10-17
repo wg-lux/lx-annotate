@@ -13,8 +13,10 @@
       />
     </header>
 
+    <!-- Mobile backdrop -->
+    <div v-if="isSidebarOpen" class="sidebar-backdrop" @click="closeSidebar"></div>
 
-    <div class="sidenav">
+    <div class="sidenav" :class="{ show: isSidebarOpen }">
       <div class="sidenav-header">
 
         <a class="navbar-brand m-0" href="/">
@@ -163,7 +165,36 @@ export default {
   methods: {
     toggleSidebar() {
       this.isSidebarOpen = !this.isSidebarOpen;
+    },
+    closeSidebar() {
+      this.isSidebarOpen = false;
+    },
+    openSidebar() {
+      this.isSidebarOpen = true;
     }
+  },
+  mounted() {
+    // Listen for custom events from navbar
+    const handleToggle = () => {
+      this.toggleSidebar();
+    };
+    
+    document.addEventListener('toggleSidebar', handleToggle);
+    
+    // Handle window resize to close sidebar on larger screens
+    const handleResize = () => {
+      if (window.innerWidth >= 1200) {
+        this.isSidebarOpen = false;
+      }
+    };
+    
+    window.addEventListener('resize', handleResize);
+    
+    // Cleanup event listeners
+    this.$once('hook:beforeDestroy', () => {
+      document.removeEventListener('toggleSidebar', handleToggle);
+      window.removeEventListener('resize', handleResize);
+    });
   }
 }
 </script>
@@ -202,6 +233,30 @@ export default {
   border-radius: 0.375rem;
 }
 
+/* Mobile Responsiveness Improvements */
+@media (max-width: 1199.98px) {
+  .sidenav {
+    position: fixed !important;
+    top: 0;
+    left: 0;
+    width: 250px !important;
+    height: 100vh;
+    transform: translateX(-100%) !important;
+    z-index: 9999;
+    background: linear-gradient(195deg, #42424a, #191919) !important;
+    transition: transform 0.3s ease-in-out !important;
+  }
+  
+  .sidenav.show {
+    transform: translateX(0) !important;
+  }
+  
+  /* Ensure content doesn't get blocked when sidebar is closed */
+  .sidenav:not(.show) + .main-content {
+    margin-left: 0 !important;
+  }
+}
+
 .nav-link.active {
   background-color: rgba(255, 255, 255, 0.1);
   border-radius: 0.375rem;
@@ -235,6 +290,37 @@ hr.horizontal.light {
 
 .img {
   object-fit: contain;
+}
+
+/* Mobile sidebar backdrop */
+.sidebar-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 9998;
+  opacity: 0;
+  animation: fadeIn 0.3s ease-in-out forwards;
+}
+
+@keyframes fadeIn {
+  to {
+    opacity: 1;
+  }
+}
+
+/* Responsive improvements for larger screens */
+@media (min-width: 1200px) {
+  .sidebar-backdrop {
+    display: none;
+  }
+  
+  .sidenav {
+    transform: none !important;
+    position: relative !important;
+  }
 }
 
 

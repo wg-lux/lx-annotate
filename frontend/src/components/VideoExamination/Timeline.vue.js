@@ -104,7 +104,6 @@ const toCanonical = (s) => {
 const selectedLabel = ref(null);
 const selectSegment = (segment) => {
     selectedLabel.value = segment.label; // ✅ FIX: Use segment.label instead of segment.label_name
-    // ✅ FIXED: Cast to TimelineSegment for type safety
     emit('segment-select', segment);
 };
 // ✅ FIX: Add getTranslationForLabel function from videoStore
@@ -312,7 +311,6 @@ const initializeDragResize = () => {
                             localSegment.startTime = startS;
                             localSegment.endTime = endS;
                         }
-                        // ✅ FIXED: Ensure mode is typed correctly
                         emit('segment-resize', segment.id, startS, endS, edge);
                     },
                     onDone: () => {
@@ -321,14 +319,12 @@ const initializeDragResize = () => {
                             // Handle draft segments differently
                             if (typeof segment.id === 'string' &&
                                 (segment.id === 'draft' || segment.id.startsWith('temp-'))) {
-                                // ✅ FIXED: Use correct emit parameters for final resize
-                                emit('segment-move', segment.id, localSegment.start, localSegment.end, true);
+                                emit('segment-resize', segment.id, localSegment.start, localSegment.end, 'end', true);
                             }
                             else {
                                 const numericId = getNumericSegmentId(segment.id);
                                 if (numericId !== null) {
-                                    // ✅ FIXED: Use correct emit parameters for final move
-                                    emit('segment-move', numericId, localSegment.start, localSegment.end, true);
+                                    emit('segment-resize', numericId, localSegment.start, localSegment.end, 'end', true);
                                 }
                             }
                         }
@@ -358,14 +354,12 @@ const editSegment = (segment) => {
     if (!segment)
         return;
     hideContextMenu();
-    // ✅ FIXED: Cast to TimelineSegment for type safety
     emit('segment-edit', segment);
 };
 const deleteSegment = (segment) => {
     if (!segment)
         return;
     hideContextMenu();
-    // ✅ FIXED: Cast to TimelineSegment for type safety
     emit('segment-delete', segment);
 };
 const playSegment = (segment) => {
@@ -424,9 +418,7 @@ const onSelectionMouseUp = (event) => {
     const endTime = (endPercent / 100) * duration.value;
     // Only create segment if selection is meaningful (> 0.1 seconds)
     if (endTime - startTime > 0.1) {
-        // ✅ FIXED: Use properly typed payload
-        const timeSelectionData = { start: startTime, end: endTime };
-        emit('time-selection', timeSelectionData);
+        emit('time-selection', { start: startTime, end: endTime });
     }
     // Cleanup
     isSelecting.value = false;
