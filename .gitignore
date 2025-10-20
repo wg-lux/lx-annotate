@@ -11,6 +11,7 @@ __pycache__/
 *$py.class
 *.kate-swp
 db.sqlite3
+conf/
 .direnv/
 logs/
 .env

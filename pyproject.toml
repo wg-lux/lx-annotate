@@ -27,7 +27,7 @@ dependencies = [
     "django-cors-headers>=4.0.0",
     "django-webpack-loader>=0.7.0",
     "requests>=2.32.3",
-    "endoreg-db>=0.8.2.1",
+    "endoreg-db>=0.8.2.2",
     "lx-anonymizer",
     "django-vite>=3.0.6",
     "whitenoise>=6.8.2",
