@@ -30,7 +30,6 @@ devenv.lock
 .env
 flake.json
 storage/
-static/
 .staticfiles/
 staticfiles
 ./frontend/public/video.mp4
@@ -124,13 +123,13 @@ result
 # (Usually these are created outside the project, but if you accidentally include one, ignore it)
 venv/
 .env/
-.env.*
 
 # -------------------------------
 # Node / NPM related (for the root and frontend)
 # -------------------------------
 node_modules/
 frontend/node_modules/
+static/img/frames_demo/*
 
 # -------------------------------
 # Frontend build and Vite-related files
