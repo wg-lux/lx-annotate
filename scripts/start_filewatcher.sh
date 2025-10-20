@@ -147,10 +147,9 @@ start_dev() {
 
     # Start internal watcher (processes files in raw folders)
     print_status "Starting internal file watcher..."
-    python scripts/file_watcher.py
-
-    # Cleanup when script exits
     trap "print_status 'Stopping external watcher...'; kill $EXTERNAL_WATCHER_PID" EXIT
+
+    python scripts/file_watcher.py
 }
 
 
