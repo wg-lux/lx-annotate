@@ -37,11 +37,15 @@ except (ImportError, ModuleNotFoundError, KeyError):
 
 PROJECT_ROOT = project_root
 
+# Ensure core directories exist before configuring logging or imports
+LOG_DIR = PROJECT_ROOT / 'logs'
+LOG_DIR.mkdir(parents=True, exist_ok=True)
+
 # Add project root to Python path
 sys.path.insert(0, str(PROJECT_ROOT))
 
 # Set Django settings before importing Django
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'lx_annotate.settings.dev')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'lx_annotate.settings_dev')
 
 # Configure Django
 import django
@@ -93,7 +97,7 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
         logging.StreamHandler(),
-        logging.FileHandler(PROJECT_ROOT / 'logs' / 'file_watcher.log')
+        logging.FileHandler(LOG_DIR / 'file_watcher.log')
     ]
 )
 

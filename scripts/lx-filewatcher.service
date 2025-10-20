@@ -7,11 +7,11 @@ Wants=network.target
 Type=simple
 User=admin
 Group=admin
-WorkingDirectory=/home/admin/test/lx-annotate
-Environment=DJANGO_SETTINGS_MODULE=lx_annotate.settings.dev
+WorkingDirectory=/home/admin/lx-annotate
+Environment=DJANGO_SETTINGS_MODULE=lx_annotate.settings_dev
 Environment=WATCHER_LOG_LEVEL=INFO
-Environment=PYTHONPATH=/home/admin/test/lx-annotate
-ExecStart=/home/admin/test/lx-annotate/.devenv/state/venv/bin/python /home/admin/test/lx-annotate/scripts/file_watcher.py
+Environment=PYTHONPATH=/home/admin/lx-annotate
+ExecStart=/home/admin/lx-annotate/.devenv/state/venv/bin/python /home/admin/lx-annotate/scripts/file_watcher.py
 Restart=always
 RestartSec=10
 StandardOutput=journal
@@ -25,9 +25,9 @@ MemoryMax=2G
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
-ReadWritePaths=/home/admin/test/lx-annotate/data
-ReadWritePaths=/home/admin/test/lx-annotate/logs
-ReadWritePaths=/home/admin/test/lx-annotate/storage
+ReadWritePaths=/home/admin/lx-annotate/data
+ReadWritePaths=/home/admin/lx-annotate/logs
+ReadWritePaths=/home/admin/lx-annotate/storage
 
 [Install]
 WantedBy=multi-user.target

@@ -79,7 +79,7 @@ test_watcher() {
     cd "$PROJECT_ROOT"
     
     # Set environment variables
-    export DJANGO_SETTINGS_MODULE=lx_annotate.settings.dev
+    export DJANGO_SETTINGS_MODULE=lx_annotate.settings_dev
     export PYTHONPATH="$PROJECT_ROOT"
     
     # Test import by running the file watcher with test mode
@@ -137,7 +137,10 @@ start_dev() {
     print_status "Starting file watchers in development mode..."
     cd "$PROJECT_ROOT"
 
-    export DJANGO_SETTINGS_MODULE=lx_annotate.settings.dev
+    # Ensure expected directory layout exists before starting services
+    create_directories
+
+    export DJANGO_SETTINGS_MODULE=lx_annotate.settings_dev
     export WATCHER_LOG_LEVEL=DEBUG
     export PYTHONPATH="$PROJECT_ROOT"
 
