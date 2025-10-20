@@ -14,6 +14,8 @@ Usage:
     python scripts/core/setup.py --force  # Force regeneration
 """
 
+
+
 import os
 import sys
 import json
@@ -21,6 +23,19 @@ import shutil
 import argparse
 from pathlib import Path
 from typing import Dict, Set
+
+# --- Universal local import override ---
+# Always import local `endoreg_db` before any installed copy
+project_root = Path(__file__).resolve().parents[2]
+local_lib = project_root / "libs" / "endoreg-db"
+if local_lib.exists():
+    sys.path.insert(0, str(local_lib))
+else:
+    # Fallback: if libs layout differs (e.g., monorepo flattening)
+    alt_lib = project_root / "endoreg-db"
+    if alt_lib.exists():
+        sys.path.insert(0, str(alt_lib))
+
 from django.core.management.utils import get_random_secret_key
 from endoreg_db.utils.paths import IMPORT_DIR, STORAGE_DIR
 
@@ -468,15 +483,19 @@ class EnvironmentSetup:
         status_icons = {True: "✅", False: "❌"}
         status_messages = {
             "config_dir": "Configuration directory",
-            "db_pwd_file": "Database password file", 
+            "db_pwd_file": "Database password file",
             "env_file": ".env file",
-            "secrets_generated": "Secret keys generated"
+            "secrets_generated": "Secret keys generated",
+            "data_dir": "Data directory",
+            "import_dir": "Import directory",
+            "storage_dir": "External storage directory",
         }
-        
+
         for key, value in self.status.items():
             icon = status_icons[value]
-            message = status_messages[key]
+            message = status_messages.get(key, key)  # Fallback for future keys
             print(f"  {icon} {message}")
+
 
 
 def main():
