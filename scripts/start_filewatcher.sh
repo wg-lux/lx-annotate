@@ -132,17 +132,27 @@ install_service() {
 
 # Start service manually (development mode)
 start_dev() {
-    print_status "Starting file watcher in development mode..."
+    print_status "Starting file watchers in development mode..."
     cd "$PROJECT_ROOT"
-    
-    # Set environment variables
+
     export DJANGO_SETTINGS_MODULE=lx_annotate.settings.dev
     export WATCHER_LOG_LEVEL=DEBUG
     export PYTHONPATH="$PROJECT_ROOT"
-    
-    # Start watcher
+
+    # Start external watcher (moves files into raw folders)
+    print_status "Starting external file watcher..."
+    python scripts/external_file_watcher.py &
+    EXTERNAL_WATCHER_PID=$!
+    print_status "External watcher started (PID: $EXTERNAL_WATCHER_PID)"
+
+    # Start internal watcher (processes files in raw folders)
+    print_status "Starting internal file watcher..."
     python scripts/file_watcher.py
+
+    # Cleanup when script exits
+    trap "print_status 'Stopping external watcher...'; kill $EXTERNAL_WATCHER_PID" EXIT
 }
+
 
 # Show service status
 show_status() {

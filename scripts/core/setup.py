@@ -22,6 +22,7 @@ import argparse
 from pathlib import Path
 from typing import Dict, Set
 from django.core.management.utils import get_random_secret_key
+from endoreg_db.utils.paths import IMPORT_DIR, STORAGE_DIR
 
 
 class EnvironmentSetup:
@@ -161,7 +162,74 @@ class EnvironmentSetup:
             print("Configuration directory already exists.")
             self.status["config_dir"] = True
             return False
+        
+    def setup_data_directory(self) -> bool:
+        """Ensure data directory exists"""
+        if self.status_only or not self.nix_paths:
+            return False
+            
+        data_dir = self.nix_paths["DATA_DIR"]
+        
+        print(f"📁 Checking data directory: {data_dir}")
+        if not data_dir.exists():
+            print(f"Creating data directory: {data_dir}")
+            data_dir.mkdir(parents=True, exist_ok=True)
+            self.status["data_dir"] = True
+        
+            data_dir_subfolders = [
+                "anonym_videos",
+                "export",
+                "frames",
+                "import",
+                "logs",
+                "model_weights",
+                "pdf",
+                "videos",
+                "raw_videos",
+                "model",
+                "storage",
+            ]
+            for subfolder in data_dir_subfolders:
+                subfolder_path = data_dir / subfolder
+                if not subfolder_path.exists():
+                    print(f"Creating data subfolder: {subfolder_path}")
+                    subfolder_path.mkdir(parents=True, exist_ok=True)
+                    
+            return True
+        else:
+            print("Data directory already exists.")
+            self.status["data_dir"] = True
+            return False
     
+    def setup_external_storage_directory(self) -> bool:
+        print("📁 Checking external storage directory...")
+        if not STORAGE_DIR.exists():
+            print(f"Creating external storage directory: {STORAGE_DIR}")
+            STORAGE_DIR.mkdir(parents=True, exist_ok=True)
+            self.status["storage_dir"] = True
+            return True
+        else:
+            print("External storage directory already exists.")
+            self.status["storage_dir"] = True
+            return False
+        
+    def setup_import_directory(self) -> bool:
+        print("📁 Checking import directory...")
+        if not IMPORT_DIR.exists():
+            print(f"Creating import directory: {IMPORT_DIR}")
+            IMPORT_DIR.mkdir(parents=True, exist_ok=True)
+            self.status["import_dir"] = True
+            if not (IMPORT_DIR / "videos").exists():
+                (IMPORT_DIR / "videos").mkdir(parents=True, exist_ok=True)
+            if not (IMPORT_DIR / "pdfs").exists():
+                (IMPORT_DIR / "pdfs").mkdir(parents=True, exist_ok=True)
+            return True
+        else:
+            print("Import directory already exists.")
+            self.status["import_dir"] = True
+            return False
+        
+
     def setup_database_password_file(self) -> bool:
         """Create database password file if missing"""
         if self.status_only or not self.nix_paths:
@@ -317,6 +385,7 @@ class EnvironmentSetup:
         
         try:
             self.setup_configuration_directory()
+            self.setup_data_directory()
             self.setup_database_password_file()
             self.setup_env_file()
             
