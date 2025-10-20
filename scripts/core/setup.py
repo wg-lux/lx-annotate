@@ -40,7 +40,10 @@ class EnvironmentSetup:
             "config_dir": False,
             "db_pwd_file": False,
             "env_file": False,
-            "secrets_generated": False
+            "secrets_generated": False,
+            "data_dir": False,
+            "import_dir": False,
+            "storage_dir": False,
         }
         
         # Load environment variables only if not status-only mode
@@ -225,6 +228,9 @@ class EnvironmentSetup:
         Returns:
             True if the directory was created, False otherwise.
         """
+        if self.status_only:
+            return False
+            
         print("📁 Checking external storage directory...")
         if not STORAGE_DIR.exists():
             print(f"Creating external storage directory: {STORAGE_DIR}")
