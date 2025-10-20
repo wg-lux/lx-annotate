@@ -30,7 +30,6 @@ devenv.lock
 .env
 flake.json
 storage/
-static/
 .staticfiles/
 staticfiles
 ./frontend/public/video.mp4
@@ -130,6 +129,7 @@ venv/
 # -------------------------------
 node_modules/
 frontend/node_modules/
+static/img/frames_demo/*
 
 # -------------------------------
 # Frontend build and Vite-related files

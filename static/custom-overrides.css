@@ -1,0 +1,271 @@
+
+
+.comfortaa-custom {
+  font-family: "Comfortaa", sans-serif;
+  font-optical-sizing: auto;
+  font-weight: 400;
+  font-style: normal;
+}
+
+/* Global Colors and Fonts */
+body {
+  font-family: 'Comfortaa', sans-serif;
+  color: #000000;
+  background-color: #FFFFFF;
+}
+
+.card .card-body,
+.card[data-header-animation="true"] .card-body,
+.card[data-header-animation="true"]:hover .card-body {     /* falls Hover-Animation */
+  transform: none !important;      /* Skaliert nicht mehr               */
+  transition: none !important;     /* Kein weiches Zoomen mehr           */
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Comfortaa', sans-serif;
+  color: #000000;
+}
+
+a {
+  color: #596CFF;
+}
+a:hover {
+  color: #263FFF;
+}
+
+.nav {
+  font-family: 'Comfortaa', sans-serif;
+  background-color: #2D3047;
+}
+
+/* Button Overrides */
+.btn,
+.btn-primary,
+.btn.bg-gradient-primary {
+  font-family: 'Comfortaa', sans-serif;
+  border-radius: 4px;
+  box-shadow: 0 3px 3px 0 rgba(89,108,255, 1),
+              0 3px 1px -2px rgba(89,108,255, 0.2),
+              0 1px 5px 0 rgba(89,108,255, 1);
+}
+
+.btn-primary,
+.btn.bg-gradient-primary {
+  background-color: #596CFF;
+  border-color: #596CFF;
+  color: #FFFFFF;
+}
+.btn-primary:hover,
+.btn-primary:focus,
+.btn.bg-gradient-primary:hover,
+.btn.bg-gradient-primary:focus {
+  background-color: #4055FF;
+  border-color: #4055FF;
+}
+
+/* Alert Components */
+.alert {
+  font-family: 'Comfortaa', sans-serif;
+  border-radius: 4px;
+}
+
+.alert-danger {
+  background-color: #E87B86;
+  border-color: #D72638;
+  color: #000000;
+}
+
+.alert-success {
+  background-color: #00A3B9;
+  border-color: #004953;
+  color: #000000;
+}
+
+.alert-info {
+  background-color: #d1e7ff !important;
+  background-image: none !important;
+  border-color: #b8daff;
+  color: #0c5460 !important;
+}
+
+/* Spezifische Stile für bessere Kontraste */
+.alert-info strong {
+  color: #0a4049 !important;
+}
+
+.alert-info .fas,
+.alert-info .fa {
+  color: #0c5460 !important;
+}
+
+/* Navbar Styles */
+.navbar {
+  font-family: 'Comfortaa', sans-serif;
+}
+
+.navbar a.nav-link {
+  color: #FFFFFF;
+}
+
+.navbar a.nav-link:hover,
+.navbar a.nav-link:focus {
+  color: #FFFFFF; /* lightening white doesn’t change it */
+}
+
+/* Sidebar Overrides */
+.sidebar {
+  background-color: #2D3047;
+  font-family: 'Comfortaa', sans-serif;
+}
+
+.sidebar .nav-item a {
+  color: #FFFFFF;
+}
+
+.sidebar .nav-item a:hover {
+  background-color: #8B90B5;
+}
+
+/* Card Components */
+.card {
+  border: 1px solid #232B3E; /* darken($secondary, 10%) computed approximately as #232B3E */
+  font-family: 'Comfortaa', sans-serif;
+  transition: background-color 0.3s ease;
+
+}
+
+.card:hover {
+  background-color: #f0f0f0; /* Replace with your desired color */
+}
+
+.card .card-header {
+  background-color: #596CFF;
+  color: #FFFFFF;
+}
+
+.card .card-body {
+  color: #2D3047 !important;
+}
+
+/* Footer Overrides */
+.footer {
+  background-color: #2D3047;
+  font-family: 'Comfortaa', sans-serif;
+  color: #FFFFFF;
+}
+
+/* Form Elements */
+.form-control {
+  font-family: 'Comfortaa', sans-serif;
+  border: 1px solid #2D3047 ; /* darken($secondary, 15%) computed approximately as #20263A */
+}
+
+.form-control:focus {
+  border-color: #596CFF;
+  box-shadow: 0 0 0 0.2rem rgba(89,108,255, 0.25);
+}
+
+/* Table Styling */
+.table {
+  font-family: 'Comfortaa', sans-serif;
+}
+
+.table thead {
+  background-color: #596CFF;
+  color: #FFFFFF;
+}
+
+.table tbody tr:nth-child(even) {
+  background-color: #8B90B5;
+}
+
+/* Custom Highlight Elements */
+.highlight {
+  background-color: #CBEDCA;
+  color: #000000;
+}
+
+.btn-highlight {
+  background-color: #CBEDCA;
+  border-color: #CBEDCA;
+  color: #000000;
+}
+
+.btn-highlight:hover {
+  background-color: #B5D4BC; /* darken/lighten adjustment approximated for darken($color-highlight, 5%) */
+  border-color: #B5D4BC;
+}
+
+/* Secondary Highlight Buttons */
+.btn-success {
+  background-color: #004953;
+  border-color: #004953;
+  color: #FFFFFF;
+}
+
+.btn-success:hover {
+  background-color: #00333A;
+  border-color: #00333A;
+}
+
+/* Danger Button Styling */
+.btn-danger {
+  background-color: #D72638;
+  border-color: #D72638;
+  color: #FFFFFF;
+}
+
+.btn-danger:hover {
+  background-color: #C12232;
+  border-color: #C12232;
+}
+
+.bg-gradient-primary {
+  background-color: #596CFF;
+  border-color: #596CFF;
+  color: #FFFFFF;
+}
+
+.bg-gradient-primary:hover {
+  background-color: #4055FF;
+  border-color: #4055FF;
+}
+
+.btn-primary {
+  background-color: #596CFF;
+  border-color: #596CFF;
+  color: #FFFFFF;
+}
+
+.btn-primary:hover {
+  background-color: #4055FF;
+  border-color: #4055FF;
+}
+
+.btn-secondary {
+  background-color: #2D3047;
+  border-color: #2D3047;
+  color: #FFFFFF;
+}
+
+.btn-secondary:hover {
+  background-color: #1A1D2B;
+  border-color: #1A1D2B;
+}
+
+.btn-tertiary {
+  background-color: #8B90B5;
+  border-color: #8B90B5;
+  color: #FFFFFF;
+}
+
+.btn-tertiary:hover {
+  background-color: #6F7499;
+  border-color: #6F7499;
+}
+
+.bg-gradient-primary-dark {
+  background-color: #4055FF;
+  border-color: #4055FF;
+  color: #FFFFFF;
+}

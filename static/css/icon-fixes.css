@@ -1,0 +1,53 @@
+/* Icon Fixes - Stelle sicher, dass Font Awesome Icons korrekt angezeigt werden */
+.fas, .fa-solid {
+  font-family: "Font Awesome 6 Free" !important;
+  font-weight: 900 !important;
+  font-style: normal !important;
+  font-variant: normal !important;
+  text-transform: none !important;
+  line-height: 1 !important;
+  -webkit-font-smoothing: antialiased !important;
+  -moz-osx-font-smoothing: grayscale !important;
+}
+
+.far, .fa-regular {
+  font-family: "Font Awesome 6 Free" !important;
+  font-weight: 400 !important;
+}
+
+.fab, .fa-brands {
+  font-family: "Font Awesome 6 Brands" !important;
+  font-weight: 400 !important;
+}
+
+/* Spezifische Icon-Fixes für häufig verwendete Icons */
+.fa-users::before { content: "\f0c0" !important; }
+.fa-user::before { content: "\f007" !important; }
+.fa-user-plus::before { content: "\f234" !important; }
+.fa-edit::before { content: "\f044" !important; }
+.fa-trash::before { content: "\f1f8" !important; }
+.fa-plus::before { content: "\f067" !important; }
+.fa-times::before { content: "\f00d" !important; }
+.fa-save::before { content: "\f0c7" !important; }
+.fa-check-circle::before { content: "\f058" !important; }
+.fa-exclamation-triangle::before { content: "\f071" !important; }
+.fa-info-circle::before { content: "\f05a" !important; }
+.fa-birthday-cake::before { content: "\f1fd" !important; }
+.fa-venus-mars::before { content: "\f228" !important; }
+.fa-hospital::before { content: "\f0f8" !important; }
+.fa-envelope::before { content: "\f0e0" !important; }
+.fa-address-book::before { content: "\f2b9" !important; }
+.fa-cog::before { content: "\f013" !important; }
+.fa-shield-alt::before { content: "\f3ed" !important; }
+.fa-user-secret::before { content: "\f21b" !important; }
+.fa-stethoscope::before { content: "\f0f1" !important; }
+.fa-search::before { content: "\f002" !important; }
+.fa-video::before { content: "\f03d" !important; }
+.fa-file-pdf::before { content: "\f1c1" !important; }
+.fa-list::before { content: "\f03a" !important; }
+
+/* Verhindere, dass andere CSS-Frameworks die Icons überschreiben */
+i[class*="fa-"]::before {
+  font-family: "Font Awesome 6 Free" !important;
+  font-weight: 900 !important;
+}
