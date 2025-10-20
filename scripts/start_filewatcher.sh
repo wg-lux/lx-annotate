@@ -130,7 +130,9 @@ install_service() {
     fi
 }
 
-# Start service manually (development mode)
+# start_dev starts the file watchers in development mode and runs the internal watcher in the foreground.
+# It exports required environment variables, launches the external watcher in the background (saving its PID),
+# runs the internal watcher in the foreground, and installs an EXIT trap to stop the external watcher on script exit.
 start_dev() {
     print_status "Starting file watchers in development mode..."
     cd "$PROJECT_ROOT"
@@ -153,7 +155,7 @@ start_dev() {
 }
 
 
-# Show service status
+# show_status prints the current systemd status for the service and, if the service is not running, reports whether it is enabled and provides commands to start or install it.
 show_status() {
     if systemctl is-active --quiet "$SERVICE_NAME"; then
         print_status "Service is running"
