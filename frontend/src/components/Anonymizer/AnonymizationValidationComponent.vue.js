@@ -707,7 +707,7 @@ const navigateToCorrection = async () => {
                 return;
             }
             try {
-                await approveItem();
+                router.push({ name: 'Anonymisierung Korrektur', params: { fileId: currentItem.value.id.toString() } });
                 // approveItem will navigate to next item, so we need to return
                 toast.info({ text: 'Änderungen gespeichert. Bitte wählen Sie das Element erneut für die Korrektur aus.' });
                 return;
@@ -814,6 +814,15 @@ else if (__VLS_ctx.anonymizationStore.error) {
 }
 else if (!__VLS_ctx.currentItem) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ onLoadstart: (...[$event]) => {
+                if (!!(__VLS_ctx.anonymizationStore.loading))
+                    return;
+                if (!!(__VLS_ctx.anonymizationStore.error))
+                    return;
+                if (!(!__VLS_ctx.currentItem))
+                    return;
+                __VLS_ctx.anonymizationStore.fetchNext();
+            } },
         ...{ class: "alert alert-info" },
         role: "alert",
     });
