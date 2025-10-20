@@ -215,6 +215,7 @@ tasks = devenv_utils.tasks // (if devenv_utils ? isDev && devenv_utils.isDev the
       echo "Note: .env not found. Defaults apply."
     fi
 
+    python scripts/core/setup.py --status-only || echo "Warning: Environment setup check failed."
     gpu-check
 
   '';

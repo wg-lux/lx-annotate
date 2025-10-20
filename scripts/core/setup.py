@@ -23,6 +23,8 @@ from pathlib import Path
 from typing import Dict, Set
 from django.core.management.utils import get_random_secret_key
 from endoreg_db.utils.paths import IMPORT_DIR, STORAGE_DIR
+from torch import P
+from transformers.models.conditional_detr.convert_conditional_detr_original_pytorch_checkpoint_to_pytorch import i
 
 
 class EnvironmentSetup:
@@ -40,7 +42,10 @@ class EnvironmentSetup:
             "config_dir": False,
             "db_pwd_file": False,
             "env_file": False,
-            "secrets_generated": False
+            "secrets_generated": False,
+            "data_dir": False,
+            "import_dir": False,
+            "storage_dir": False,
         }
         
         # Load environment variables only if not status-only mode
@@ -72,7 +77,18 @@ class EnvironmentSetup:
             if db_pwd_path.exists():
                 self.status["db_pwd_file"] = True
                 break
-                
+        
+        if Path("data").exists():
+            self.status["data_dir"] = True
+        try:
+            from endoreg_db.utils.paths import IMPORT_DIR, STORAGE_DIR
+            if Path(IMPORT_DIR).exists():
+                self.status["import_dir"] = True
+            if Path(STORAGE_DIR).exists():
+                self.status["storage_dir"] = True
+        except ImportError:
+            pass
+
         # Check if .env has secrets (basic check)
         if Path(".env").exists():
             try:
@@ -225,6 +241,9 @@ class EnvironmentSetup:
         Returns:
             True if the directory was created, False otherwise.
         """
+        if self.status_only:
+            return False
+            
         print("📁 Checking external storage directory...")
         if not STORAGE_DIR.exists():
             print(f"Creating external storage directory: {STORAGE_DIR}")
