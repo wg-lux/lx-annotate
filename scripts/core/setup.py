@@ -14,6 +14,8 @@ Usage:
     python scripts/core/setup.py --force  # Force regeneration
 """
 
+
+
 import os
 import sys
 import json
@@ -24,6 +26,7 @@ from typing import Dict, Set
 from django.core.management.utils import get_random_secret_key
 from endoreg_db.utils.paths import IMPORT_DIR, STORAGE_DIR
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "libs" / "endoreg-db"))
 
 class EnvironmentSetup:
     """Handles environment initialization and setup"""
@@ -468,15 +471,19 @@ class EnvironmentSetup:
         status_icons = {True: "✅", False: "❌"}
         status_messages = {
             "config_dir": "Configuration directory",
-            "db_pwd_file": "Database password file", 
+            "db_pwd_file": "Database password file",
             "env_file": ".env file",
-            "secrets_generated": "Secret keys generated"
+            "secrets_generated": "Secret keys generated",
+            "data_dir": "Data directory",
+            "import_dir": "Import directory",
+            "storage_dir": "External storage directory",
         }
-        
+
         for key, value in self.status.items():
             icon = status_icons[value]
-            message = status_messages[key]
+            message = status_messages.get(key, key)  # Fallback for future keys
             print(f"  {icon} {message}")
+
 
 
 def main():
