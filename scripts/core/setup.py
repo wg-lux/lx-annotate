@@ -22,6 +22,7 @@ import argparse
 from pathlib import Path
 from typing import Dict, Set
 from django.core.management.utils import get_random_secret_key
+from endoreg_db.utils.paths import IMPORT_DIR, STORAGE_DIR
 
 
 class EnvironmentSetup:
@@ -145,7 +146,15 @@ class EnvironmentSetup:
         return paths
     
     def setup_configuration_directory(self) -> bool:
-        """Ensure configuration directory exists"""
+        """
+        Ensure the configured CONF_DIR exists and update the instance status.
+        
+        If status_only is True or nix paths were not loaded, no action is taken and the method returns False.
+        Sets self.status["config_dir"] to True when the configuration directory exists or is created.
+        
+        Returns:
+            True if a new configuration directory was created, False otherwise.
+        """
         if self.status_only or not self.nix_paths:
             return False
             
@@ -161,9 +170,106 @@ class EnvironmentSetup:
             print("Configuration directory already exists.")
             self.status["config_dir"] = True
             return False
+        
+    def setup_data_directory(self) -> bool:
+        """
+        Create the project's data directory and a set of standard subfolders if they do not already exist.
+        
+        If setup is running in status-only mode or required nix-derived paths are unavailable, the function does nothing and returns False.
+        
+        Returns:
+            bool: True if the data directory (and its subfolders) were created by this call, False if the directory already existed or the operation was skipped.
+        """
+        if self.status_only or not self.nix_paths:
+            return False
+            
+        data_dir = self.nix_paths["DATA_DIR"]
+        
+        print(f"📁 Checking data directory: {data_dir}")
+        if not data_dir.exists():
+            print(f"Creating data directory: {data_dir}")
+            data_dir.mkdir(parents=True, exist_ok=True)
+            self.status["data_dir"] = True
+        
+            data_dir_subfolders = [
+                "anonym_videos",
+                "export",
+                "frames",
+                "import",
+                "logs",
+                "model_weights",
+                "pdf",
+                "videos",
+                "raw_videos",
+                "model",
+                "storage",
+            ]
+            for subfolder in data_dir_subfolders:
+                subfolder_path = data_dir / subfolder
+                if not subfolder_path.exists():
+                    print(f"Creating data subfolder: {subfolder_path}")
+                    subfolder_path.mkdir(parents=True, exist_ok=True)
+                    
+            return True
+        else:
+            print("Data directory already exists.")
+            self.status["data_dir"] = True
+            return False
     
+    def setup_external_storage_directory(self) -> bool:
+        """
+        Ensure the configured external storage directory exists, creating it if missing and recording the result in the instance status.
+        
+        If the directory does not exist, it is created (including parent directories) and self.status["storage_dir"] is set to True. If the directory already exists, self.status["storage_dir"] is set to True without creating it.
+        
+        Returns:
+            True if the directory was created, False otherwise.
+        """
+        print("📁 Checking external storage directory...")
+        if not STORAGE_DIR.exists():
+            print(f"Creating external storage directory: {STORAGE_DIR}")
+            STORAGE_DIR.mkdir(parents=True, exist_ok=True)
+            self.status["storage_dir"] = True
+            return True
+        else:
+            print("External storage directory already exists.")
+            self.status["storage_dir"] = True
+            return False
+        
+    def setup_import_directory(self) -> bool:
+        """
+        Ensure the import directory and its standard subfolders exist.
+        
+        Creates IMPORT_DIR and, if created, ensures the `videos` and `pdfs` subdirectories are present and updates self.status["import_dir"].
+        
+        Returns:
+            bool: `True` if the import directory was created during this call, `False` if it already existed.
+        """
+        print("📁 Checking import directory...")
+        if not IMPORT_DIR.exists():
+            print(f"Creating import directory: {IMPORT_DIR}")
+            IMPORT_DIR.mkdir(parents=True, exist_ok=True)
+            self.status["import_dir"] = True
+            if not (IMPORT_DIR / "videos").exists():
+                (IMPORT_DIR / "videos").mkdir(parents=True, exist_ok=True)
+            if not (IMPORT_DIR / "pdfs").exists():
+                (IMPORT_DIR / "pdfs").mkdir(parents=True, exist_ok=True)
+            return True
+        else:
+            print("Import directory already exists.")
+            self.status["import_dir"] = True
+            return False
+        
+
     def setup_database_password_file(self) -> bool:
-        """Create database password file if missing"""
+        """
+        Ensure the database password file exists; create it with restrictive permissions and the default password when missing or when forced.
+        
+        If run in status-only mode or if Nix-derived paths are unavailable, no action is taken and the method returns False. When creating the file, it is written with mode 0o600 and contains self.default_db_password. The method updates self.status["db_pwd_file"] to True when the file exists or is successfully created. On IO errors the method reports the failure and returns False.
+        
+        Returns:
+            bool: `True` if a new database password file was created, `False` otherwise.
+        """
         if self.status_only or not self.nix_paths:
             return False
             
@@ -307,7 +413,14 @@ class EnvironmentSetup:
             print(f"Error adding variables to .env file: {e}")
     
     def run_setup(self) -> Dict[str, bool]:
-        """Run complete environment setup"""
+        """
+        Perform the full environment setup for Lx Annotate.
+        
+        Ensures configuration and data directories, the database password file, and the .env file are created or updated as needed, prints progress and results, and updates the instance status dictionary. If the instance was created with status-only mode enabled, no changes are made.
+        
+        Returns:
+            status (Dict[str, bool]): Mapping of component names to `True` if the component was configured or already present, `False` otherwise.
+        """
         if self.status_only:
             print("🔍 Status-only mode: skipping setup operations")
             return self.status
@@ -317,6 +430,7 @@ class EnvironmentSetup:
         
         try:
             self.setup_configuration_directory()
+            self.setup_data_directory()
             self.setup_database_password_file()
             self.setup_env_file()
             

@@ -130,21 +130,32 @@ install_service() {
     fi
 }
 
-# Start service manually (development mode)
+# start_dev starts the file watchers in development mode and runs the internal watcher in the foreground.
+# It exports required environment variables, launches the external watcher in the background (saving its PID),
+# runs the internal watcher in the foreground, and installs an EXIT trap to stop the external watcher on script exit.
 start_dev() {
-    print_status "Starting file watcher in development mode..."
+    print_status "Starting file watchers in development mode..."
     cd "$PROJECT_ROOT"
-    
-    # Set environment variables
+
     export DJANGO_SETTINGS_MODULE=lx_annotate.settings.dev
     export WATCHER_LOG_LEVEL=DEBUG
     export PYTHONPATH="$PROJECT_ROOT"
-    
-    # Start watcher
+
+    # Start external watcher (moves files into raw folders)
+    print_status "Starting external file watcher..."
+    python scripts/external_file_watcher.py &
+    EXTERNAL_WATCHER_PID=$!
+    print_status "External watcher started (PID: $EXTERNAL_WATCHER_PID)"
+
+    # Start internal watcher (processes files in raw folders)
+    print_status "Starting internal file watcher..."
+    trap "print_status 'Stopping external watcher...'; kill $EXTERNAL_WATCHER_PID" EXIT
+
     python scripts/file_watcher.py
 }
 
-# Show service status
+
+# show_status prints the current systemd status for the service and, if the service is not running, reports whether it is enabled and provides commands to start or install it.
 show_status() {
     if systemctl is-active --quiet "$SERVICE_NAME"; then
         print_status "Service is running"

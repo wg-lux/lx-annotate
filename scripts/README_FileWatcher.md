@@ -9,6 +9,8 @@ The File Watcher Service automatically monitors the following directories:
 - `./data/raw_videos/` - For video files (.mp4, .avi, .mov, .mkv, .webm, .m4v)
 - `./data/raw_pdfs/` - For PDF files (.pdf)
 
+The External File Watcher Service can monitor external folders or the import folder and will then feed the file watcher after processing has finished.
+
 When new files are detected, the following processes are automatically triggered:
 - **Videos**: Import, anonymization, and segmentation
 - **PDFs**: Import and anonymization
