@@ -1,10 +1,10 @@
 /**
  * 🎯 SURGICAL FIXES COMPLETED - Patient Pseudonym Flow
- *
+ * 
  * Fixed Issues:
  * ❌ 404s from literal string URLs (`'...${props.patient.id}...'`) and double slashes
  * ❌ UI crash: `can't access property "substring", t.patient_hash is undefined`
- *
+ * 
  * Applied minimal surgical edits to exactly 3 frontend files:
  */
 
@@ -112,8 +112,7 @@ This ensures:
 // ===== VERIFICATION CHECKLIST =====
 export const FIXES_APPLIED = {
   '✅ No more 404s': 'All URLs use template literals with backticks, proper patient ID resolution',
-  '✅ No UI crashes':
-    'Template never calls .substring on undefined, guards all patient_hash access',
+  '✅ No UI crashes': 'Template never calls .substring on undefined, guards all patient_hash access',
   '✅ Consistent camelCase': 'All frontend uses patientHash, backend snake_case mapped properly',
   '✅ Zero new files': 'Only modified the 3 specified files',
   '✅ TypeScript clean': 'No errors, proper typing throughout',

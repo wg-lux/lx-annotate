@@ -479,7 +479,6 @@ import axiosInstance, { r } from '@/api/axiosInstance';
 
 // Composables
 const router = useRouter();
-const route = useRoute();
 const anonymizationStore = useAnonymizationStore();
 const mediaStore = useMediaTypeStore();
 
@@ -997,18 +996,17 @@ const getOperationBadgeClass = (operation: string) => {
 
 // Lifecycle hooks
 onMounted(async () => {
-  const videoId = route.params.id as string;
-  if (videoId && !isNaN(parseInt(videoId))) {
-    await loadVideoDetails(parseInt(videoId));
+  if (!isNaN(props.fileId)) {
+    await loadVideoDetails(props.fileId);
   } else {
-    error.value = 'Ungültige Video-ID';
+    error.value = 'Ungültige Datei-ID';
   }
 });
 
 // Watchers
-watch(() => route.params.id, async (newId) => {
-  if (newId && !isNaN(parseInt(newId as string))) {
-    await loadVideoDetails(parseInt(newId as string));
+watch(() => props.fileId, async (newId) => {
+  if (newId && !isNaN(newId)) {
+    await loadVideoDetails(newId);
   }
 });
 </script>

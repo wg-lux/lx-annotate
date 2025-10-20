@@ -5,7 +5,6 @@ import { useMediaTypeStore } from '@/stores/mediaTypeStore';
 import axiosInstance, { r } from '@/api/axiosInstance';
 // Composables
 const router = useRouter();
-const route = useRoute();
 const anonymizationStore = useAnonymizationStore();
 const mediaStore = useMediaTypeStore();
 // Reactive state
@@ -445,18 +444,17 @@ const getOperationBadgeClass = (operation) => {
 };
 // Lifecycle hooks
 onMounted(async () => {
-    const videoId = route.params.id;
-    if (videoId && !isNaN(parseInt(videoId))) {
-        await loadVideoDetails(parseInt(videoId));
+    if (!isNaN(props.fileId)) {
+        await loadVideoDetails(props.fileId);
     }
     else {
-        error.value = 'Ungültige Video-ID';
+        error.value = 'Ungültige Datei-ID';
     }
 });
 // Watchers
-watch(() => route.params.id, async (newId) => {
-    if (newId && !isNaN(parseInt(newId))) {
-        await loadVideoDetails(parseInt(newId));
+watch(() => props.fileId, async (newId) => {
+    if (newId && !isNaN(newId)) {
+        await loadVideoDetails(newId);
     }
 });
 debugger; /* PartiallyEnd: #3632/scriptSetup.vue */

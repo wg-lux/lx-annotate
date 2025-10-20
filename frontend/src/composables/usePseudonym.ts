@@ -34,31 +34,34 @@ async function generatePseudonym(patientId: number): Promise<string | null> {
   pseudonymSuccess.value = null
 
   try {
-    const response = await axios.post<PseudonymResponse>(`/api/patients/${patientId}/pseudonym/`)
+    const response = await axios.post<PseudonymResponse>(
+      `/api/patients/${patientId}/pseudonym/`
+    )
 
     const { patient_hash, persisted, message } = response.data
-
+    
     pseudonymSuccess.value = `${message} - Hash: ${patient_hash.substring(0, 8)}...`
-
+    
     // If you want to update the patient object in your store:
     // const patientStore = usePatientStore()
     // patientStore.updatePatientHash(patientId, patient_hash)
-
+    
     return patient_hash
+    
   } catch (error: any) {
     let errorMessage = 'Fehler beim Generieren der Pseudonamen'
-
+    
     if (error.response?.data) {
       const errorData: PseudonymError = error.response.data
       errorMessage = errorData.error
-
+      
       if (errorData.missing_fields?.length) {
         errorMessage += `: Fehlende Felder: ${errorData.missing_fields.join(', ')}`
       } else if (errorData.detail) {
         errorMessage += `: ${errorData.detail}`
       }
     }
-
+    
     pseudonymError.value = errorMessage
     console.error('Pseudonym generation error:', error)
     return null
@@ -96,4 +99,9 @@ async function generatePseudonym(patientId: number): Promise<string | null> {
 </template>
 */
 
-export { generatePseudonym, isGeneratingPseudonym, pseudonymError, pseudonymSuccess }
+export {
+  generatePseudonym,
+  isGeneratingPseudonym,
+  pseudonymError,
+  pseudonymSuccess
+}

@@ -27,7 +27,7 @@ dependencies = [
     "django-cors-headers>=4.0.0",
     "django-webpack-loader>=0.7.0",
     "requests>=2.32.3",
-    "endoreg-db",
+    "endoreg-db>=0.8.2.1",
     "lx-anonymizer",
     "django-vite>=3.0.6",
     "whitenoise>=6.8.2",
@@ -50,8 +50,8 @@ dependencies = [
 ]
 
 
-[tool.setuptools]
-packages = ["endoreg-db"]
+# [tool.setuptools]
+# packages = ["endoreg-db"]
 
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "lx_annotate.settings"
@@ -62,12 +62,12 @@ addopts = [
 ]
 
 
-[tool.uv.sources]
-endoreg-db = { workspace = true }
-lx-anonymizer = { workspace = true }
+# [tool.uv.sources]
+# endoreg-db = { workspace = true }
+# lx-anonymizer = { workspace = true }
 
-[tool.uv.workspace]
-members = [
-    "libs/endoreg-db",
-    "libs/lx-anonymizer",
-]
+# [tool.uv.workspace]
+# members = [
+#    "libs/endoreg-db",
+#    "libs/lx-anonymizer",
+# ]

@@ -56,7 +56,7 @@ const correctVideo = async (fileId) => {
         mediaStore.setCurrentItem(file);
     }
     // Navigate directly to the correction component with the video ID
-    router.push({ name: 'AnonymisierungKorrektur', params: { fileId } });
+    router.push({ name: 'Anonymisierung Korrektur', params: { fileId } });
 };
 const isReadyForValidation = (fileId) => {
     // Check if the file is ready for validation

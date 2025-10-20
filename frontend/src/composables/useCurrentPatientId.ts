@@ -4,7 +4,7 @@ import { usePatientStore } from '@/stores/patientStore'
 
 /**
  * Composable for robust patient ID resolution across different contexts
- *
+ * 
  * Provides a single source of truth for current patient ID with precedence:
  * 1. Prop ID (if provided)
  * 2. Store current patient ID
@@ -53,9 +53,7 @@ export function useCurrentPatientId(propPatientId?: number | string | null) {
     const id = currentPatientId.value
 
     if (strict && !id) {
-      throw new Error(
-        'Keine gültige Patienten-ID gefunden. Stellen Sie sicher, dass ein Patient ausgewählt ist oder über Props/Route übergeben wird.'
-      )
+      throw new Error('Keine gültige Patienten-ID gefunden. Stellen Sie sicher, dass ein Patient ausgewählt ist oder über Props/Route übergeben wird.')
     }
 
     return id

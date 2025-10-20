@@ -17,7 +17,7 @@
           <strong>Fehler:</strong> {{ anonymizationStore.error }}
         </div>
 
-        <div v-else-if="!currentItem" class="alert alert-info" role="alert">
+        <div v-else-if="!currentItem" class="alert alert-info" role="alert" @loadstart="anonymizationStore.fetchNext()">
           Alle Anonymisierungen wurden bearbeitet.
         </div>
           
@@ -1296,7 +1296,8 @@ const navigateToCorrection = async () => {
       }
       
       try {
-        await approveItem();
+
+        router.push({ name: 'Anonymisierung Korrektur', params: { fileId: currentItem.value.id.toString() } });
         // approveItem will navigate to next item, so we need to return
         toast.info({ text: 'Änderungen gespeichert. Bitte wählen Sie das Element erneut für die Korrektur aus.' });
         return;
