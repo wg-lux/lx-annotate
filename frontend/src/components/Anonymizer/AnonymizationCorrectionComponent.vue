@@ -610,7 +610,7 @@ const loadVideoDetails = async (videoId: number) => {
   try {
     // Load video metadata and processing history
     const [videoResponse, metadataResponse, historyResponse] = await Promise.all([
-      axiosInstance.get(r(`media/videos/video-correction/${videoId}/`)),
+      axiosInstance.get(r(`media/videos/video-correction/${videoId}`)),
       axiosInstance.get(r(`media/videos/${videoId}/metadata/`)),
       axiosInstance.get(r(`media/videos/${videoId}/processing-history/`))
     ]);

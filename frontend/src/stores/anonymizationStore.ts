@@ -33,6 +33,7 @@ export interface AnonymizationState {
   anonymizationStatus: string
   loading: boolean
   error: string | null
+
   current: PatientData | null
   // New state for overview functionality
   overview: FileItem[]
@@ -46,6 +47,7 @@ export interface AnonymizationState {
 
 // Interface matching the actual API response for sensitivemeta
 export interface SensitiveMeta {
+  // pk
   id: number
   patientFirstName: string | null
   patientLastName: string | null
