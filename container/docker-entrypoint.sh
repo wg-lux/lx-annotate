@@ -18,7 +18,7 @@ if [ "$DJANGO_ENV" = "production" ]; then
 elif [ "$DJANGO_ENV" = "central" ]; then
   export DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS_MODULE:-config.settings.central}"
 else
-  export DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS_MODULE:-config.settings.dev}"
+  export DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS_MODULE:-config.settings_dev}"
 fi
 export DJANGO_MODULE="${DJANGO_MODULE:-lx_annotate}"
 

@@ -93,7 +93,7 @@ test_watcher() {
         python -c "
 import os, sys
 sys.path.insert(0, '.')
-os.environ['DJANGO_SETTINGS_MODULE'] = 'lx_annotate.settings.dev'
+os.environ['DJANGO_SETTINGS_MODULE'] = 'lx_annotate.settings_dev'
 import django
 django.setup()
 print('Django setup successful')

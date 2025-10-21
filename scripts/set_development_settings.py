@@ -3,7 +3,7 @@ import os
 from pathlib import Path
 
 
-DEFAULT_DEV_SETTINGS = "config.settings.dev"
+DEFAULT_DEV_SETTINGS = "config.settings_dev"
 
 
 settings_module = os.environ.get("DJANGO_SETTINGS_MODULE_DEVELOPMENT", DEFAULT_DEV_SETTINGS)

@@ -60,7 +60,7 @@ npm run build
 3. **Django Backend starten**
 ```bash
 # Aus dem Hauptverzeichnis
-export DJANGO_SETTINGS_MODULE=lx_annotate.settings.dev
+export DJANGO_SETTINGS_MODULE=lx_annotate.settings_dev
 python manage.py runserver
 ```
 
@@ -102,7 +102,7 @@ cd frontend
 npm run build
 
 # 2. Django im Development Mode
-export DJANGO_SETTINGS_MODULE=lx_annotate.settings.dev
+export DJANGO_SETTINGS_MODULE=lx_annotate.settings_dev
 python manage.py runserver
 
 # 3. Nach Frontend-Änderungen: Neu builden
@@ -116,7 +116,7 @@ cd frontend
 npm run dev
 
 # Terminal 2: Django mit Dev-Mode
-export DJANGO_SETTINGS_MODULE=lx_annotate.settings.dev
+export DJANGO_SETTINGS_MODULE=lx_annotate.settings_dev
 # In settings/dev.py: DJANGO_VITE["default"]["dev_mode"] = True
 python manage.py runserver
 ```
@@ -315,7 +315,7 @@ rm -rf node_modules/.vite
 ### Environment Variables
 ```bash
 # Development
-export DJANGO_SETTINGS_MODULE=lx_annotate.settings.dev
+export DJANGO_SETTINGS_MODULE=lx_annotate.settings_dev
 
 # Production
 export DJANGO_SETTINGS_MODULE=lx_annotate.settings.prod

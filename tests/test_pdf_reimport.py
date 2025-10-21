@@ -8,7 +8,7 @@ import django
 from pathlib import Path
 
 # Setup Django
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'lx_annotate.settings.dev')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'lx_annotate.settings_dev')
 django.setup()
 
 from endoreg_db.services.pdf_import import PdfImportService

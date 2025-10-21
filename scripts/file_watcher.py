@@ -10,7 +10,7 @@ Usage:
     python scripts/file_watcher.py
 
 Environment Variables:
-    DJANGO_SETTINGS_MODULE: Django settings module (default: lx_annotate.settings.dev)
+    DJANGO_SETTINGS_MODULE: Django settings module (default: lx_annotate.settings_dev)
     WATCHER_LOG_LEVEL: Logging level (default: INFO)
 """
 
