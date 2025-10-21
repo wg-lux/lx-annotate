@@ -109,8 +109,9 @@ in
       with pkgs;
       lib.makeLibraryPath buildInputs
     }:/run/opengl-driver/lib:/run/opengl-driver-32/lib";
+    STORAGE_DIR = lib.mkForce dataDir;
+    BASE_DIR = lib.mkForce dataDir;
   } // devenv_utils.environment;
-
 
   
   enterTest = ''
@@ -169,7 +170,7 @@ in
   };
   
   scripts = devenv_utils.scripts;
-tasks = devenv_utils.tasks // (if devenv_utils ? isDev && devenv_utils.isDev then devTasks else {});  processes = devenv_utils.processes;
+  tasks = devenv_utils.tasks // (if devenv_utils ? isDev && devenv_utils.isDev then devTasks else {});  processes = devenv_utils.processes;
   containers = devenv_utils.containers;
   services = devenv_utils.services;
 
