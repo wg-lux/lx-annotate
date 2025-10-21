@@ -1274,68 +1274,16 @@ const navigateToCorrection = async () => {
   }
 
   // Check for unsaved changes
-  if (dirty.value) {
-    const saveFirst = confirm(
-      'Sie haben ungespeicherte Änderungen!\n\n' +
-      'Möchten Sie diese zuerst speichern, bevor Sie zur Korrektur wechseln?\n\n' +
-      '• Ja = Änderungen speichern und zur Korrektur\n' +
-      '• Nein = Änderungen verwerfen und zur Korrektur\n' +
-      '• Abbrechen = Hier bleiben'
-    );
-    
-    if (saveFirst === null) {
-      // User cancelled
+    try {
+
+      router.push({ name: 'Anonymisierung Korrektur', params: { fileId: currentItem.value.id.toString() } });
+      // approveItem will navigate to next item, so we need to return
+      toast.info({ text: 'Änderungen gespeichert. Bitte wählen Sie das Element erneut für die Korrektur aus.' });
+      return;
+    } catch (error) {
+      toast.error({ text: 'Fehler beim Speichern. Korrektur-Navigation abgebrochen.' });
       return;
     }
-    
-    if (saveFirst) {
-      // User wants to save first
-      if (!canSave.value) {
-        toast.error({ text: 'Bitte korrigieren Sie die Validierungsfehler vor dem Speichern.' });
-        return;
-      }
-      
-      try {
-
-        router.push({ name: 'Anonymisierung Korrektur', params: { fileId: currentItem.value.id.toString() } });
-        // approveItem will navigate to next item, so we need to return
-        toast.info({ text: 'Änderungen gespeichert. Bitte wählen Sie das Element erneut für die Korrektur aus.' });
-        return;
-      } catch (error) {
-        toast.error({ text: 'Fehler beim Speichern. Korrektur-Navigation abgebrochen.' });
-        return;
-      }
-    }
-    // If saveFirst is false, continue with navigation (discard changes)
-  }
-
-
-  // Ensure MediaStore has the current item for consistent navigation
-  mediaStore.setCurrentItem(currentItem.value as any);
-  
-  // Different confirmation messages based on media type
-  const mediaType = isVideo.value ? 'Video' : isPdf.value ? 'PDF' : 'Dokument';
-  const correctionOptions = isVideo.value 
-    ? 'Verfügbare Optionen: Maskierung, Frame-Entfernung, Neuverarbeitung'
-    : 'Verfügbare Optionen: Text-Annotation anpassen, Metadaten korrigieren';
-  
-  // Log navigation for debugging
-  console.log(`🔧 Navigating to correction for ${mediaType}:`, {
-    id: currentItem.value.id,
-    mediaType,
-    detectedType: mediaStore.detectMediaType(currentItem.value as any),
-    mediaUrl: mediaStore.currentMediaUrl
-  });
-  
-  // Navigate to correction component with the current item's ID
-  router.push({ 
-    name: 'AnonymisierungKorrektur', 
-    params: { fileId: currentItem.value.id.toString() } 
-  });
-  
-  toast.info({ 
-    text: `${mediaType}-Korrektur geöffnet. ${correctionOptions}` 
-  });
 };
 
 

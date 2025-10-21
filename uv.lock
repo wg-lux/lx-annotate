@@ -815,7 +815,7 @@ sdist = { url = "https://files.pythonhosted.org/packages/62/59/e47bbd0542d0e6f4c
 
 [[package]]
 name = "endoreg-db"
-version = "0.8.2.1"
+version = "0.8.2.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "agl-report-reader" },
@@ -878,9 +878,9 @@ dependencies = [
     { name = "vocos" },
     { name = "whitenoise" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/c7/ed/bbfbc13ae62914f65933e88a3d91ef0b4307f9b8f80c3a00f417bf996b05/endoreg_db-0.8.2.1.tar.gz", hash = "sha256:fccb6d49104ba757d1484b5e5eb412a79b7893c722821952177235701b4a3648", size = 2605777, upload-time = "2025-10-20T08:19:53.169Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/94/d4/1595c304de97993de836d737d6653995950b2944aecc73ceb0acc4ec7dbb/endoreg_db-0.8.2.3.tar.gz", hash = "sha256:64206526ee41b8d4d9e8a9db3320fa38b0044e553499e9c85fd07fb1d20c5654", size = 2605780, upload-time = "2025-10-21T08:59:13.966Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/b7/d1/10240a00d338d52e6f372bfc1191dbced66b0d23851851b11204aea9cb01/endoreg_db-0.8.2.1-py3-none-any.whl", hash = "sha256:91492c205e47a17309e8301ce04ed0bc685834eb4c36be8f06271832a871b5fc", size = 865864, upload-time = "2025-10-20T08:19:50.974Z" },
+    { url = "https://files.pythonhosted.org/packages/c7/51/9841b89aec84ab1dd0dfccdebb74456ee6eedb133d7eda4629a0b47f8857/endoreg_db-0.8.2.3-py3-none-any.whl", hash = "sha256:75a4b3a0e22c3ce6eeb3fffb9068c218cbafffdaf30f24519823bc54b129ba79", size = 865851, upload-time = "2025-10-21T08:58:43.419Z" },
 ]
 
 [[package]]
@@ -1587,7 +1587,7 @@ requires-dist = [
     { name = "django-webpack-loader", specifier = ">=0.7.0" },
     { name = "djangorestframework", specifier = ">=3.12.4" },
     { name = "drf-spectacular", specifier = ">=0.28.0" },
-    { name = "endoreg-db", specifier = ">=0.8.2.1" },
+    { name = "endoreg-db", specifier = ">=0.8.2.3" },
     { name = "gunicorn", specifier = ">=23.0.0" },
     { name = "lx-anonymizer" },
     { name = "numpy", specifier = ">=1.21.0" },
