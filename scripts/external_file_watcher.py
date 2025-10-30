@@ -8,7 +8,6 @@ from watchdog.events import FileSystemEventHandler
 from endoreg_db.utils.paths import (
     IMPORT_DIR,
     RAW_VIDEO_DIR,
-    VIDEO_DIR,
     RAW_PDF_DIR,
     ANONYM_VIDEO_DIR,
     PDF_DIR,
@@ -18,7 +17,13 @@ CHECK_INTERVAL = 2  # seconds between done checks
 
 
 class WatchHandler(FileSystemEventHandler):
-    def __init__(self, source_dir, processing_dir, done_dir, label):
+    def __init__(
+        self,
+        source_dir: str,
+        processing_dir: str,
+        done_dir: str,
+        label: str
+    ):
         """
         Initialize a WatchHandler to coordinate moving files from a source directory into processing and to detect when processing is completed.
         
@@ -89,7 +94,7 @@ class WatchHandler(FileSystemEventHandler):
             self._try_start_next()
 
 
-def run_watcher(source_dir, processing_dir, done_dir, label):
+def run_watcher(source_dir: str, processing_dir: str, done_dir: str, label: str):
     """
     Start a filesystem watcher that processes files from a source directory one at a time.
     
@@ -134,7 +139,7 @@ def main():
     # PDF watcher
     pdf_source = os.path.join(IMPORT_DIR, "pdfs")
     pdf_processing = RAW_PDF_DIR
-    # TODO: CHANGE TO ANONYMIZED PDF DIRECTORY WHEN AVAILABLE
+    #TODO: CHANGE TO ANONYMIZED PDF DIRECTORY WHEN AVAILABLE
     pdf_done = PDF_DIR
 
     # Run both watchers concurrently

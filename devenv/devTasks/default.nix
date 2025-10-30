@@ -13,9 +13,6 @@ let
   subrepoTasks = (
     import ./subrepos.nix { inherit config pkgs lib; }
   );
-  purgeTasks = (
-    import ./purge.nix { inherit config pkgs lib; }
-  );
   uvTasks = (
     import ./uv.nix { inherit config pkgs lib; }
   );
@@ -28,6 +25,6 @@ let
 
   customTasks = {
     
-  } //envTasks //deployTasks //purgeTasks //vueTasks //uvTasks //dbTasks;
+  } //envTasks //deployTasks //vueTasks //uvTasks //dbTasks;
 
 in customTasks 
