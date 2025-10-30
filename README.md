@@ -1,22 +1,31 @@
-## lx-annotate - API
+## LX-annotate - API
 
-LX-Annotate is a Vue-based Frontend living in a Django app. It utilizes an API to interact with the Endoreg-DB backend. This API is designed to facilitate the seamless integration of the annotation and review functionalities needed in day to day clinical work as well as for the basis of AI training.
+LX stands for Levelled eXtraction, the process of extracting data from reports and videos into structured categories of data. Our goal is to provide a programmable input output interface to the bits and pieces making up medical procedures. The reason for this is: You should be empowered to skip the tedious tasks associated with medical documentation and be able to skip straight to the chase: providing patients with the care they deserve. 
+
+LX-Annotate is part of the open source LX ecosystem. It is a Vue-based Frontend living in a Django app. It utilizes a Axios REST API to interact with the Endoreg-DB backend. This API is designed to facilitate the seamless integration of the annotation and review functionalities needed in day to day clinical work as well as for the basis of AI training.
  
 
-## Features of the ecosystem - made available in a frontend
+## What We Are Working On: Features Of The Ecosystem - Made Available In Our Web App
 
-- **Video Annotation Interface**
+- **Video And Report Annotation Interface**
 - **Frame By Frame Annotation**
-- **Case Generation**
+- **Case Generation For Assisted Medical Reporting**
+
+## Features Provided By Other LX Repositories
+
+- **Video And Report Import And Export Using LX Anonymizer Anonymization Assistance**
+- **Application Of Medical Ai Models During Import (Currently Using Lux Et. Al.'s Segmentation Model)**
 
 ## Functionality
 
-When this project is started, a Django REST API is set up. For this, the backend in endoreg-db needs to be up and running. 
+When this project is started, a Django REST API is set up to communicate with our vide frontend. For this, the backend in endoreg-db needs to be up and running. 
 
-lx-annotate handles its setup mostly automatically using devenv.nix.
+Setting up the Project can be done using various methods:
 
-- Installation of django dependencies and npm dependencies
-- Compilation of Vue-JS app using npm to static folder
+## Nix Setup (Preferred By Us)
+
+If you already have a laptop running LuxNix NixOS, you can skip to the chapter installation.
+
 
 ## Installation
 
@@ -34,11 +43,12 @@ Lx-annotate is set up by a devenv.nix and pyproject.toml automatically. These de
 
    Disclaimer: you might need to set up direnv first.
 
+
    ```bash
    direnv allow
    ```
 
-   You will probably need to run manually:
+   You will run manually:
 
    ```bash
    uv sync
@@ -79,18 +89,39 @@ python manage.py load_base_db_data
 python manage.py create_multilabel_model_meta --model_path "./libs/endoreg-db/tests/assets/colo_segmentation_RegNetX800MF_6.ckpt"
 ```
 
+For convenience, versions starting from endoreg_db=0.8.4.2 include a setup script.
+
+```bash
+python manage.py setup_endoreg_db
+```
+
+It handles data import as well as setting up the model 
 
 ## File Import
 
-File import works by placing files into raw_frames and raw_videos.
+File import works by placing files into raw_frames and raw_videos. LX Annotate treats it as a blackbox and mostly just handles the process initialization. The file watcher is always watching the folders data/raw_videos and data/raw_pdfs. 
+
+# Development Mode
+
+lx-annotate in dev mode handles its setup mostly automatically using devenv.nix.
+
+- Installation of django dependencies and npm dependencies
+- Compilation of Vue-JS app using npm to static folder
+
+## Interaction of
 
 ## API Setup
 
-The API is set up to relay requests to the backend module endoreg_db_api. Django acts like a proxy API.
-
+The backend API is set up to relay requests to the backend module endoreg_db. Django acts like a proxy API.
 All requests to {base_url}/api/{route} get rerouted to the backend. In testing, this is set up to be rerouted to http://127.0.0.1:8000/endoreg_db/api/
-
 In production the URL should be automatically updated by the django app. You need to export the django production settings for this to work.
+
+The routing for the frontend is set to the base url, so all views are displayed on a url that looks like http://your-base-url/uebersicht 
+
+AxiosInstance is the central Axios wrapper that will handle api calls from the frontend to the backend. It gives the possibility to append tokens or other payload to the interaction.
+
+This is why the axiosInstance, as well as other api calls need to add the /api/ postfix to their base url or domain.
+
 
 ## Implementing new components
 
