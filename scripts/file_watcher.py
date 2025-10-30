@@ -10,7 +10,7 @@ Usage:
     python scripts/file_watcher.py
 
 Environment Variables:
-    DJANGO_SETTINGS_MODULE: Django settings module (default: lx_annotate.settings.dev)
+    DJANGO_SETTINGS_MODULE: Django settings module (default: lx_annotate.settings_dev)
     WATCHER_LOG_LEVEL: Logging level (default: INFO)
 """
 
@@ -24,15 +24,28 @@ from pathlib import Path
 from typing import Set, Optional
 from concurrent.futures import ThreadPoolExecutor
 
+from torch.utils import data
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler, FileCreatedEvent, FileMovedEvent
 
+try:
+    from endoreg_db.utils import data_paths
+    project_root = data_paths["project_root"]
+except (ImportError, ModuleNotFoundError, KeyError):
+    # Fallback to determining project root from file location
+    project_root = Path(__file__).parent.parent
+
+PROJECT_ROOT = project_root
+
+# Ensure core directories exist before configuring logging or imports
+LOG_DIR = PROJECT_ROOT / 'logs'
+LOG_DIR.mkdir(parents=True, exist_ok=True)
+
 # Add project root to Python path
-PROJECT_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 # Set Django settings before importing Django
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'lx_annotate.settings.dev')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'lx_annotate.settings_dev')
 
 # Configure Django
 import django
@@ -84,7 +97,7 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
         logging.StreamHandler(),
-        logging.FileHandler(PROJECT_ROOT / 'logs' / 'file_watcher.log')
+        logging.FileHandler(LOG_DIR / 'file_watcher.log')
     ]
 )
 
@@ -302,8 +315,11 @@ class AutoProcessingHandler(FileSystemEventHandler):
                     center_name=self.default_center,
                     processor_name=self.default_processor,
                     save_video=True,
-                    delete_source=True 
+                    delete_source=False,
                 )
+                
+                if not video_file.sensitive_meta:
+                    logger.warning(f"Video imported but no SensitiveMeta created: {video_file.uuid}")
                 
 
                 logger.info(f"Video imported successfully: {video_file.uuid}")
@@ -327,6 +343,10 @@ class AutoProcessingHandler(FileSystemEventHandler):
             # Run segmentation if video was imported successfully
             if video_file and video_file.pk:
                 try:
+                    if not Path("./data/model_weights").exists():
+                        Path("./data/model_weights").mkdir(parents=True, exist_ok=True)
+                    if not Path("./data/model_weights/colo_segmentation_RegNetX800MF_6.ckpt").exists():
+                        subprocess.run(['cp', './libs/endoreg-db/tests/assets/colo_segmentation_RegNetX800MF_6.ckpt', './data/model_weights/'])
 
                     success = video_file.pipe_1(
                         model_name=self.default_model,

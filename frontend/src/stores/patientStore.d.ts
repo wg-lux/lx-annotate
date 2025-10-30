@@ -1,9 +1,9 @@
 export interface Patient {
-    id: string;
-    name: string;
-    dob: string;
+  id: string
+  name: string
+  dob: string
 }
 export interface Examiner {
-    id: string;
-    name: string;
+  id: string
+  name: string
 }

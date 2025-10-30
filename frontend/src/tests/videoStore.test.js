@@ -71,7 +71,7 @@ describe('VideoStore - Frame to Time Conversion', () => {
                     label_id: 1,
                     label_name: 'polyp',
                     start_frame_number: 30, // Frame 30
-                    end_frame_number: 90, // Frame 90
+                    end_frame_number: 90 // Frame 90
                     // No start_time/end_time - should be calculated from frames
                 },
                 {
@@ -81,11 +81,11 @@ describe('VideoStore - Frame to Time Conversion', () => {
                     start_time: 2, // Already in seconds
                     end_time: 4, // Already in seconds
                     start_frame_number: 60,
-                    end_frame_number: 120,
+                    end_frame_number: 120
                 }
             ];
             // Process segments (this would normally be called by fetchVideoSegments)
-            const processedSegments = mockSegmentData.map(segment => {
+            const processedSegments = mockSegmentData.map((segment) => {
                 const fps = 30;
                 const startTime = safeTimeConversion(segment.start_time ?? segment.start_frame_number, segment.start_time === undefined, fps);
                 const endTime = safeTimeConversion(segment.end_time ?? segment.end_frame_number, segment.end_time === undefined, fps);
@@ -151,7 +151,7 @@ describe('VideoStore - Frame to Time Conversion', () => {
             const twoSecondSegment = { startTime: 1, endTime: 3 };
             const width = ((twoSecondSegment.endTime - twoSecondSegment.startTime) / videoDuration) * 100;
             expect(width).toBe(20);
-            // 5-second segment should be 50% width  
+            // 5-second segment should be 50% width
             const fiveSecondSegment = { startTime: 2, endTime: 7 };
             const width2 = ((fiveSecondSegment.endTime - fiveSecondSegment.startTime) / videoDuration) * 100;
             expect(width2).toBe(50);

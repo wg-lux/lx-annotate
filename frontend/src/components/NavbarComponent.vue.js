@@ -23,6 +23,11 @@ const handleLogin = () => {
 const handleLogout = () => {
     authStore.logout();
 };
+const toggleSidebar = () => {
+    // Dispatch custom event to toggle sidebar
+    const event = new CustomEvent('toggleSidebar');
+    document.dispatchEvent(event);
+};
 // Load annotation stats on mount and refresh periodically
 onMounted(async () => {
     await annotationStatsStore.fetchAnnotationStats();
@@ -41,6 +46,10 @@ let __VLS_directives;
 /** @type {__VLS_StyleScopedClasses['breadcrumb-item']} */ ;
 /** @type {__VLS_StyleScopedClasses['nav-link']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['navbar-toggler']} */ ;
+/** @type {__VLS_StyleScopedClasses['navbar-toggler']} */ ;
+/** @type {__VLS_StyleScopedClasses['navbar-toggler-bar']} */ ;
+/** @type {__VLS_StyleScopedClasses['navbar-toggler']} */ ;
 // CSS variable injection 
 // CSS variable injection end 
 __VLS_asFunctionalElement(__VLS_intrinsicElements.nav, __VLS_intrinsicElements.nav)({
@@ -50,6 +59,26 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.nav, __VLS_intrinsicElements.n
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "container-fluid py-1 px-3" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+    ...{ onClick: (__VLS_ctx.toggleSidebar) },
+    ...{ class: "navbar-toggler d-lg-none" },
+    type: "button",
+    'aria-controls': "sidebar",
+    'aria-expanded': "false",
+    'aria-label': "Toggle navigation",
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+    ...{ class: "navbar-toggler-icon" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+    ...{ class: "navbar-toggler-bar" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+    ...{ class: "navbar-toggler-bar" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+    ...{ class: "navbar-toggler-bar" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "collapse navbar-collapse mt-sm-0 mt-2 me-md-0 me-sm-4" },
@@ -175,6 +204,12 @@ if (__VLS_ctx.isAuthenticated) {
 /** @type {__VLS_StyleScopedClasses['container-fluid']} */ ;
 /** @type {__VLS_StyleScopedClasses['py-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['px-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['navbar-toggler']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-lg-none']} */ ;
+/** @type {__VLS_StyleScopedClasses['navbar-toggler-icon']} */ ;
+/** @type {__VLS_StyleScopedClasses['navbar-toggler-bar']} */ ;
+/** @type {__VLS_StyleScopedClasses['navbar-toggler-bar']} */ ;
+/** @type {__VLS_StyleScopedClasses['navbar-toggler-bar']} */ ;
 /** @type {__VLS_StyleScopedClasses['collapse']} */ ;
 /** @type {__VLS_StyleScopedClasses['navbar-collapse']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-sm-0']} */ ;
@@ -271,6 +306,7 @@ const __VLS_self = (await import('vue')).defineComponent({
             totalPendingAnnotations: totalPendingAnnotations,
             handleLogin: handleLogin,
             handleLogout: handleLogout,
+            toggleSidebar: toggleSidebar,
         };
     },
 });

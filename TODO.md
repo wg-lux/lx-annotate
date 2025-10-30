@@ -46,7 +46,7 @@ In .env
 Lx-Annotate has a formidable settings module that will load production or development settings to run the app. The respective files to set up the settings can be found in lx_annotate/settings/ and are named respectively prod and dev. To change the django settings from development mode to production mode just run
 
 export DJANGO_SETTINGS_MODULE=lx_annotate.settings.prod 
-export DJANGO_SETTINGS_MODULE=lx_annotate.settings.dev
+export DJANGO_SETTINGS_MODULE=lx_annotate.settings_dev
 
 or if you are feeling like starting brand new
 
@@ -96,7 +96,7 @@ cd frontend
 npm run dev  # Starts Vite dev server on http://localhost:5173
 
 # Django settings for dev mode
-export DJANGO_SETTINGS_MODULE=lx_annotate.settings.dev
+export DJANGO_SETTINGS_MODULE=lx_annotate.settings_dev
 # In dev.py: DJANGO_VITE["default"]["dev_mode"] = True
 ```
 
@@ -276,7 +276,7 @@ npm run build  # Compiles Vue to static/dist/
 
 3. **Configure Django Settings**
 ```bash
-export DJANGO_SETTINGS_MODULE=lx_annotate.settings.dev
+export DJANGO_SETTINGS_MODULE=lx_annotate.settings_dev
 # Ensure dev_mode = False to use built assets
 ```
 

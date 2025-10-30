@@ -3,6 +3,10 @@
 import os
 import sys
 import subprocess
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent
+os.environ.setdefault("STORAGE_DIR", str(Path(BASE_DIR) / "data"))
 
 
 def main():

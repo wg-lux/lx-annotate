@@ -20,36 +20,40 @@ const USE_CASES: Record<UseCaseKey, UseCaseConfig> = {
     key: 'research',
     label: 'Research',
     apiBaseUrl: 'https://api.example.com/research',
-    features: { showAdvancedPanels: true, enableAnnotations: true, enableAuditTrail: false },
+    features: { showAdvancedPanels: true, enableAnnotations: true, enableAuditTrail: false }
   },
   clinical: {
     key: 'clinical',
     label: 'Clinical',
     apiBaseUrl: 'https://api.example.com/clinical',
-    features: { showAdvancedPanels: false, enableAnnotations: true, enableAuditTrail: true },
+    features: { showAdvancedPanels: false, enableAnnotations: true, enableAuditTrail: true }
   },
   demo: {
     key: 'demo',
     label: 'Demo',
     apiBaseUrl: 'https://api.example.com/demo',
-    features: { showAdvancedPanels: false, enableAnnotations: false, enableAuditTrail: false },
-  },
+    features: { showAdvancedPanels: false, enableAnnotations: false, enableAuditTrail: false }
+  }
 }
 
 export const useSettingsStore = defineStore('settings', {
   state: () => ({
     useCase: 'research' as UseCaseKey,
-    theme: 'light' as ThemeKey,
+    theme: 'light' as ThemeKey
   }),
   getters: {
     useCaseConfig: (s) => USE_CASES[s.useCase],
     features: (s) => USE_CASES[s.useCase].features,
-    apiBaseUrl: (s) => USE_CASES[s.useCase].apiBaseUrl,
+    apiBaseUrl: (s) => USE_CASES[s.useCase].apiBaseUrl
   },
   actions: {
-    setUseCase(key: UseCaseKey) { this.useCase = key },
-    setTheme(theme: ThemeKey) { this.theme = theme },
-  },
+    setUseCase(key: UseCaseKey) {
+      this.useCase = key
+    },
+    setTheme(theme: ThemeKey) {
+      this.theme = theme
+    }
+  }
 })
 
 // Simple persistence (no plugin needed)

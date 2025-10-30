@@ -56,7 +56,7 @@ const correctVideo = async (fileId) => {
         mediaStore.setCurrentItem(file);
     }
     // Navigate directly to the correction component with the video ID
-    router.push({ name: 'AnonymisierungKorrektur', params: { fileId } });
+    router.push({ name: 'Anonymisierung Korrektur', params: { fileId } });
 };
 const isReadyForValidation = (fileId) => {
     // Check if the file is ready for validation
@@ -125,13 +125,12 @@ const reimportVideo = async (fileId) => {
 const reimportPdf = async (fileId) => {
     processingFiles.value.add(fileId);
     try {
-        // For PDFs, use reset status for now as there's no specific PDF reimport endpoint
-        // This will reset the PDF to allow re-processing
-        const result = await mediaManagement.resetProcessingStatus(fileId);
-        if (result) {
+        // Use the dedicated PDF reimport endpoint from the anonymization store
+        const success = await anonymizationStore.reimportPdf(fileId);
+        if (success) {
             // Refresh overview to get updated status
             await refreshOverview();
-            console.log('PDF re-import initiated successfully:', fileId);
+            console.log('PDF re-imported successfully:', fileId);
         }
         else {
             console.warn('PDF re-import failed - staying on current page');
@@ -274,7 +273,7 @@ const hasOriginalFile = (file) => {
     // Check if the file has the necessary properties to indicate original file exists
     if (file.mediaType === 'video') {
         // For videos, check if rawFile exists and has a valid path
-        return !!(file.rawFile && file.rawFile.trim() !== '');
+        return videoStore.hasRawVideoFile?.valueOf() ?? false;
     }
     else if (file.mediaType === 'pdf') {
         // For PDFs, check if original_file exists and has a valid path
@@ -423,6 +422,7 @@ else {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
     __VLS_asFunctionalElement(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
     __VLS_asFunctionalElement(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
     __VLS_asFunctionalElement(__VLS_intrinsicElements.tbody, __VLS_intrinsicElements.tbody)({});
     for (const [file] of __VLS_getVForSourceType((__VLS_ctx.availableFiles))) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.tr, __VLS_intrinsicElements.tr)({
@@ -463,6 +463,23 @@ else {
             ...{ class: "badge" },
         });
         (__VLS_ctx.getStatusText(file.annotationStatus));
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
+        if (__VLS_ctx.hasOriginalFile(file)) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                ...{ class: "text-success" },
+            });
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                ...{ class: "fas fa-check-circle me-1" },
+            });
+        }
+        else {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                ...{ class: "text-danger" },
+            });
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                ...{ class: "fas fa-times-circle me-1" },
+            });
+        }
         __VLS_asFunctionalElement(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
         __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
             ...{ class: "text-muted" },
@@ -776,6 +793,14 @@ if (__VLS_ctx.filteredOutCount > 0) {
 /** @type {__VLS_StyleScopedClasses['fa-spin']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-success']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-check-circle']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-danger']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-times-circle']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-group']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-group-sm']} */ ;
@@ -889,6 +914,7 @@ const __VLS_self = (await import('vue')).defineComponent({
             getStatusText: getStatusText,
             formatDate: formatDate,
             getTotalByStatus: getTotalByStatus,
+            hasOriginalFile: hasOriginalFile,
         };
     },
 });

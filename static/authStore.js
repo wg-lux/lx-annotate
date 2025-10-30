@@ -1,0 +1,1 @@
+import{M as s,h as a,e as i}from"./main.js";const c=s("auth",()=>{const e=a(null),t=i(()=>e.value!==null);function o(r){e.value=r}function u(){e.value=null}function n(){e.value||(e.value={id:"user-1",username:"doctor",email:"doctor@hospital.com",firstName:"Dr.",lastName:"Smith"})}return{user:e,isAuthenticated:t,setUser:o,logout:u,initMockUser:n}});export{c as useAuthStore};

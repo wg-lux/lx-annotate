@@ -1,13 +1,14 @@
 <template>
     <div class="anonymization-overview-page">
-      <AnonymizationCorrectionComponent />
+      <AnonymizationCorrectionComponent :fileId=1 />
     </div>
   </template>
   
   <script setup lang="ts">
-  import AnonymizationOverviewComponent from '@/components/Anonymizer/AnonymizationCorrectionComponent.vue';
+  import AnonymizationCorrectionComponent from '@/components/Anonymizer/AnonymizationCorrectionComponent.vue';
+  import { ref } from 'vue';
+
   </script>
-  
   <style scoped>
   .anonymization-overview-page {
     min-height: 100vh;
