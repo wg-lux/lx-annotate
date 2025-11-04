@@ -429,6 +429,7 @@ class AutoProcessingHandler(FileSystemEventHandler):
                 
                 if raw_pdf:
                     logger.info(f"PDF imported successfully: {raw_pdf.pdf_hash}")
+                    subprocess.run(['rm', str(pdf_path)], check=True)
                 else:
                     logger.info(f"PDF import skipped (already being processed): {pdf_path}")
                     # Remove from our local processed set since it was handled elsewhere
