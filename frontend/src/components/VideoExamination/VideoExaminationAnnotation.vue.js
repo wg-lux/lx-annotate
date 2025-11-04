@@ -68,6 +68,12 @@ async function loadSelectedVideo() {
         videoMeta.value = null;
         return;
     }
+    // ✅ NEW: Validate that selected video is anonymized
+    if (!isAnonymized(selectedVideoId.value)) {
+        showErrorMessage(`Video ${selectedVideoId.value} kann nicht annotiert werden, da es noch nicht anonymisiert wurde.`);
+        selectedVideoId.value = null;
+        return;
+    }
     // Clear previous error messages when changing videos
     clearErrorMessage();
     clearSuccessMessage();
@@ -104,20 +110,23 @@ const showExaminationForm = computed(() => {
 });
 // Video streaming URL using MediaStore logic like AnonymizationValidationComponent
 const anonymizedVideoSrc = computed(() => {
-    try {
-        return videoStreamUrl.value;
-    }
-    catch {
+    if (!selectedVideoId.value)
         return undefined;
-    }
+    // Build anonymized video URL with explicit processed parameter like AnonymizationValidationComponent
+    const base = import.meta.env.VITE_API_BASE_URL || window.location.origin;
+    return `${base}/api/media/videos/${selectedVideoId.value}/?type=processed`;
 });
 const hasVideos = computed(() => {
-    return videos.value && videos.value.length > 0;
+    return annotatableVideos.value && annotatableVideos.value.length > 0;
 });
 const noVideosMessage = computed(() => {
-    return videos.value.length === 0 ?
-        'Keine Videos verfügbar. Bitte laden Sie zuerst Videos hoch.' :
-        '';
+    if (videos.value.length === 0) {
+        return 'Keine Videos verfügbar. Bitte laden Sie zuerst Videos hoch.';
+    }
+    else if (annotatableVideos.value.length === 0) {
+        return 'Keine anonymisierten Videos verfügbar. Videos müssen erst anonymisiert werden.';
+    }
+    return '';
 });
 // ✅ NEW: Normalized, video-scoped segments for Timeline
 const timelineSegmentsForSelectedVideo = computed(() => {
@@ -212,7 +221,7 @@ const loadVideoDetail = async (videoId) => {
             fps: Number(response.data.fps ?? 25)
         };
         // Update MediaStore with the current video for consistent URL handling
-        const currentVideo = videos.value.find(v => v.id === videoId);
+        const currentVideo = annotatableVideos.value.find(v => v.id === videoId);
         if (currentVideo) {
             mediaStore.setCurrentItem(currentVideo);
             console.log('MediaStore updated with video:', videoId);
@@ -711,14 +720,14 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElement
     value: (null),
 });
 (__VLS_ctx.hasVideos ? 'Bitte Video auswählen...' : 'Keine Videos verfügbar');
-for (const [annotatableVideos] of __VLS_getVForSourceType((__VLS_ctx.videos))) {
+for (const [video] of __VLS_getVForSourceType((__VLS_ctx.annotatableVideos))) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-        key: (annotatableVideos.id),
-        value: (annotatableVideos.id),
+        key: (video.id),
+        value: (video.id),
     });
-    (annotatableVideos.original_file_name || 'Video Nr. ' + annotatableVideos.id);
-    ('Center:' + annotatableVideos.centerName || 'Unbekanntes Zentrum');
-    ('Processor:' + annotatableVideos.processorName || 'Unbekannter Prozessor');
+    (video.original_file_name || 'Video Nr. ' + video.id);
+    ('Center:' + video.centerName || 'Unbekanntes Zentrum');
+    ('Processor:' + video.processorName || 'Unbekannter Prozessor');
 }
 if (!__VLS_ctx.hasVideos) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
@@ -747,7 +756,7 @@ if (!__VLS_ctx.anonymizedVideoSrc && __VLS_ctx.hasVideos) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.br, __VLS_intrinsicElements.br)({});
         (__VLS_ctx.anonymizedVideoSrc || 'Nicht verfügbar');
         __VLS_asFunctionalElement(__VLS_intrinsicElements.br, __VLS_intrinsicElements.br)({});
-        (__VLS_ctx.selectedVideoId ? __VLS_ctx.mediaStore.getVideoUrl(__VLS_ctx.videos.find(v => v.id === __VLS_ctx.selectedVideoId)) : 'N/A');
+        (__VLS_ctx.selectedVideoId ? __VLS_ctx.mediaStore.getVideoUrl(__VLS_ctx.annotatableVideos.find(v => v.id === __VLS_ctx.selectedVideoId)) : 'N/A');
     }
 }
 if (!__VLS_ctx.hasVideos) {
@@ -1339,7 +1348,6 @@ const __VLS_self = (await import('vue')).defineComponent({
             getTranslationForLabel: getTranslationForLabel,
             videoStore: videoStore,
             mediaStore: mediaStore,
-            videos: videos,
             rawSegments: rawSegments,
             timelineLabels: timelineLabels,
             selectedVideoId: selectedVideoId,
@@ -1358,6 +1366,7 @@ const __VLS_self = (await import('vue')).defineComponent({
             videoRef: videoRef,
             timelineRef: timelineRef,
             onVideoChange: onVideoChange,
+            annotatableVideos: annotatableVideos,
             showExaminationForm: showExaminationForm,
             anonymizedVideoSrc: anonymizedVideoSrc,
             hasVideos: hasVideos,

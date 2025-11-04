@@ -34,26 +34,53 @@
               <label class="form-label">Video auswählen:</label>
               <select v-model.number="selectedVideoId" @change="onVideoChange" class="form-select" :disabled="!hasVideos">
                 <option :value="null">{{ hasVideos ? 'Bitte Video auswählen...' : 'Keine Videos verfügbar' }}</option>
-                <option v-for="annotatableVideos in videos" :key="annotatableVideos.id" :value="annotatableVideos.id">
-                  {{annotatableVideos.original_file_name || 'Video Nr. '+ annotatableVideos.id }} {{ 'Center:' + annotatableVideos.centerName || 'Unbekanntes Zentrum' }} {{ 'Processor:' + annotatableVideos.processorName || 'Unbekannter Prozessor' }}
+                <option v-for="video in annotatableVideos" :key="video.id" :value="video.id">
+                  📹 {{video.original_file_name || 'Video Nr. '+ video.id }} 
+                  {{ getVideoStatusIndicator(video.id) }}
+                  | Center: {{ video.centerName || 'Unbekannt' }} 
+                  | Processor: {{ video.processorName || 'Unbekannt' }}
                 </option>
               </select>
               <small v-if="!hasVideos" class="text-muted">
                 {{ noVideosMessage }}
               </small>
+              
+              <!-- ✅ NEW: Video Status Summary -->
+              <div v-if="videos.length > 0" class="mt-2">
+                <div class="d-flex flex-wrap gap-2 align-items-center">
+                  <small class="text-muted">Status-Übersicht:</small>
+                  <span class="badge bg-success">
+                    <i class="fas fa-check me-1"></i>
+                    {{ getVideoCountByStatus('done') }} Anonymisiert
+                  </span>
+                  <span class="badge bg-primary">
+                    <i class="fas fa-check-double me-1"></i>
+                    {{ getVideoCountByStatus('validated') }} Validiert
+                  </span>
+                  <span class="badge bg-secondary">
+                    <i class="fas fa-clock me-1"></i>
+                    {{ videos.length - annotatableVideos.length }} Ausstehend
+                  </span>
+                </div>
+              </div>
             </div>
 
             <!-- No Video Selected State -->
             <div v-if="!anonymizedVideoSrc && hasVideos" class="text-center text-muted py-5">
               <i class="material-icons" style="font-size: 48px;">movie</i>
               <p class="mt-2">Video auswählen, um mit der Betrachtung zu beginnen</p>
-              <!-- Debug info for video stream -->
+              
+              <!-- ✅ NEW: Enhanced video status info when selected but not loaded -->
               <div v-if="selectedVideoId" class="alert alert-info mt-2">
-                <small>
-                  <strong>Debug:</strong> Video ID {{ selectedVideoId }} ausgewählt<br>
-                  Stream-URL: {{ anonymizedVideoSrc || 'Nicht verfügbar' }}<br>
-                  MediaStore URL: {{ selectedVideoId ? mediaStore.getVideoUrl(videos.find(v => v.id === selectedVideoId) as any) : 'N/A' }}
-                </small>
+                <div class="d-flex align-items-center justify-content-center">
+                  <i class="fas fa-info-circle me-2"></i>
+                  <div class="text-start">
+                    <strong>Video {{ selectedVideoId }}:</strong> {{ getVideoStatusIndicator(selectedVideoId) }}<br>
+                    <small class="text-muted">
+                      Stream-URL: {{ anonymizedVideoSrc || 'Wird geladen...' }}
+                    </small>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -81,6 +108,40 @@
               >
                 Ihr Browser unterstützt das Video-Element nicht.
               </video>
+              
+              <!-- ✅ NEW: Video Status and Information Card -->
+              <div v-if="selectedVideoId" class="mt-3 p-3 rounded border video-status-card">
+                <div class="row align-items-center">
+                  <div class="col-md-8">
+                    <h6 class="mb-1">
+                      <i class="fas fa-video me-2 text-primary"></i>
+                      {{ annotatableVideos.find(v => v.id === selectedVideoId)?.original_file_name || `Video ${selectedVideoId}` }}
+                    </h6>
+                    <div class="status-badge-container mb-2">
+                      <span 
+                        :class="getStatusBadgeClass(overview.find(o => o.id === selectedVideoId && o.mediaType === 'video')?.anonymizationStatus || 'not_started')"
+                        class="badge"
+                      >
+                        <i class="fas fa-shield-alt me-1"></i>
+                        {{ getStatusText(overview.find(o => o.id === selectedVideoId && o.mediaType === 'video')?.anonymizationStatus || 'not_started') }}
+                      </span>
+                      <span v-if="timelineSegmentsForSelectedVideo.length > 0" class="badge bg-info">
+                        <i class="fas fa-cut me-1"></i>
+                        {{ timelineSegmentsForSelectedVideo.length }} Segmente
+                      </span>
+                      <span v-if="savedExaminations.length > 0" class="badge bg-warning">
+                        <i class="fas fa-stethoscope me-1"></i>
+                        {{ savedExaminations.length }} Untersuchungen
+                      </span>
+                    </div>
+                  </div>
+                  <div class="col-md-4 text-md-end">
+                    <small class="text-muted d-block">Center: {{ annotatableVideos.find(v => v.id === selectedVideoId)?.centerName || 'Unbekannt' }}</small>
+                    <small class="text-muted d-block">Processor: {{ annotatableVideos.find(v => v.id === selectedVideoId)?.processorName || 'Unbekannt' }}</small>
+                    <small class="text-muted d-block">Dauer: {{ formatTime(duration) }}</small>
+                  </div>
+                </div>
+              </div>
             </div>
             <div v-if="!anonymizedVideoSrc" class="">
               <button 
@@ -222,9 +283,25 @@
           </div>
         </div>
         
-        <!-- ✅ Validation Button - Prominent placement after video card -->
+        <!-- ✅ Enhanced Validation Button with Status -->
         <div v-if="selectedVideoId && timelineSegmentsForSelectedVideo.length > 0" class="mt-3">
+          <!-- Show different button based on validation status -->
+          <div v-if="overview.find(o => o.id === selectedVideoId && o.mediaType === 'video')?.anonymizationStatus === 'validated'" 
+               class="alert alert-success d-flex align-items-center validation-status-alert">
+            <i class="fas fa-check-circle fa-2x me-3 text-success"></i>
+            <div>
+              <h6 class="mb-1">
+                <i class="fas fa-medal me-1"></i>
+                Video bereits validiert
+              </h6>
+              <small class="text-muted">
+                Alle {{ timelineSegmentsForSelectedVideo.length }} Segmente wurden überprüft und als validiert markiert.
+              </small>
+            </div>
+          </div>
+          
           <button 
+            v-else
             class="btn btn-success btn-lg w-100 d-flex align-items-center justify-content-center gap-2"
             @click="submitVideoSegments"
             style="font-size: 1.1rem; padding: 15px;"
@@ -232,9 +309,11 @@
             <i class="material-icons">check_circle</i>
             <span>Alle Segmente validieren ({{ timelineSegmentsForSelectedVideo.length }})</span>
           </button>
-          <p class="text-muted text-center mt-2 mb-0" style="font-size: 0.9rem;">
+          
+          <p v-if="overview.find(o => o.id === selectedVideoId && o.mediaType === 'video')?.anonymizationStatus !== 'validated'" 
+             class="text-muted text-center mt-2 mb-0" style="font-size: 0.9rem;">
             <i class="material-icons" style="font-size: 16px; vertical-align: middle;">info</i>
-            Markiert alle Segmente als überprüft und abgeschlossen
+            Markiert alle Segmente als überprüft und setzt Video-Status auf "Validiert"
           </p>
         </div>
       </div>
@@ -440,6 +519,13 @@ async function loadSelectedVideo() {
     return
   }
 
+  // ✅ NEW: Validate that selected video is anonymized
+  if (!isAnonymized(selectedVideoId.value)) {
+    showErrorMessage(`Video ${selectedVideoId.value} kann nicht annotiert werden, da es noch nicht anonymisiert wurde.`)
+    selectedVideoId.value = null
+    return
+  }
+
   // Clear previous error messages when changing videos
   clearErrorMessage()
   clearSuccessMessage()
@@ -489,22 +575,24 @@ const showExaminationForm = computed(() => {
 
 // Video streaming URL using MediaStore logic like AnonymizationValidationComponent
 const anonymizedVideoSrc = computed(() => {
-  try{
-    return videoStreamUrl.value
-  }
-  catch {
-    return undefined
-  }
+  if (!selectedVideoId.value) return undefined;
+  
+  // Build anonymized video URL with explicit processed parameter like AnonymizationValidationComponent
+  const base = import.meta.env.VITE_API_BASE_URL || window.location.origin;
+  return `${base}/api/media/videos/${selectedVideoId.value}/?type=processed`;
 })
 
 const hasVideos = computed(() => {
-  return videos.value && videos.value.length > 0
+  return annotatableVideos.value && annotatableVideos.value.length > 0
 })
 
 const noVideosMessage = computed(() => {
-  return videos.value.length === 0 ? 
-    'Keine Videos verfügbar. Bitte laden Sie zuerst Videos hoch.' : 
-    ''
+  if (videos.value.length === 0) {
+    return 'Keine Videos verfügbar. Bitte laden Sie zuerst Videos hoch.'
+  } else if (annotatableVideos.value.length === 0) {
+    return 'Keine anonymisierten Videos verfügbar. Videos müssen erst anonymisiert werden.'
+  }
+  return ''
 })
 
 // ✅ NEW: Normalized, video-scoped segments for Timeline
@@ -614,7 +702,7 @@ const loadVideoDetail = async (videoId: number): Promise<void> => {
     }
     
     // Update MediaStore with the current video for consistent URL handling
-    const currentVideo = videos.value.find(v => v.id === videoId)
+    const currentVideo = annotatableVideos.value.find(v => v.id === videoId)
     if (currentVideo) {
       mediaStore.setCurrentItem(currentVideo as any)
       console.log('MediaStore updated with video:', videoId)
@@ -1090,6 +1178,62 @@ const onVideoCanPlay = (): void => {
   showSuccessMessage('Video erfolgreich geladen')
 }
 
+// ✅ NEW: Helper functions for video status display
+const getVideoStatusIndicator = (videoId: number): string => {
+  const item = overview.value.find(o => o.id === videoId && o.mediaType === 'video')
+  if (!item) return ''
+  
+  const statusIndicators: { [key: string]: string } = {
+    'not_started': '⏳ Wartend',
+    'processing_anonymization': '🔄 Verarbeitung',
+    'extracting_frames': '🎬 Frames',
+    'predicting_segments': '🤖 Segmente',
+    'done': '✅ Anonymisiert',
+    'validated': '🛡️ Validiert',
+    'failed': '❌ Fehler'
+  }
+  
+  return statusIndicators[item.anonymizationStatus] || item.anonymizationStatus
+}
+
+const getVideoCountByStatus = (status: string): number => {
+  return overview.value.filter(o => 
+    o.mediaType === 'video' && o.anonymizationStatus === status
+  ).length
+}
+
+const getStatusBadgeClass = (status: string): string => {
+  const classes: { [key: string]: string } = {
+    'not_started': 'bg-secondary',
+    'processing_anonymization': 'bg-warning',
+    'extracting_frames': 'bg-info',
+    'predicting_segments': 'bg-info',
+    'done': 'bg-success',
+    'validated': 'bg-primary',
+    'failed': 'bg-danger'
+  }
+  return classes[status] || 'bg-secondary'
+}
+
+const getStatusText = (status: string): string => {
+  const texts: { [key: string]: string } = {
+    'not_started': 'Nicht gestartet',
+    'processing_anonymization': 'Anonymisierung läuft',
+    'extracting_frames': 'Frames extrahieren',
+    'predicting_segments': 'Segmente vorhersagen',
+    'done': 'Fertig',
+    'validated': 'Validiert',
+    'failed': 'Fehlgeschlagen'
+  }
+  return texts[status] || status
+}
+
+// ✅ NEW: Enhanced validation status tracking
+const isVideoValidated = (videoId: number): boolean => {
+  const item = overview.value.find(o => o.id === videoId && o.mediaType === 'video')
+  return item?.anonymizationStatus === 'validated'
+}
+
 </script>
 
 <style scoped>
@@ -1223,5 +1367,36 @@ const onVideoCanPlay = (): void => {
 .requirement-generator-embedded .col-md-6,
 .requirement-generator-embedded .col-xl-6 {
   padding: 0 0.5rem !important;
+}
+
+/* ✅ NEW: Status display enhancements */
+.video-status-card {
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border-left: 4px solid #007bff;
+}
+
+.status-badge-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.status-badge-container .badge {
+  font-size: 0.75rem;
+  padding: 0.375rem 0.75rem;
+  border-radius: 0.375rem;
+}
+
+.video-dropdown-option {
+  font-family: 'Segoe UI', system-ui, sans-serif;
+}
+
+.validation-status-alert {
+  border-left: 4px solid #28a745;
+  background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+}
+
+.validation-status-alert .fas {
+  opacity: 0.8;
 }
 </style>

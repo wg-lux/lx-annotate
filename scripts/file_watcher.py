@@ -24,7 +24,7 @@ from pathlib import Path
 from typing import Set, Optional
 from concurrent.futures import ThreadPoolExecutor
 
-from torch.utils import data
+from endoreg_db.services import video_import
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler, FileCreatedEvent, FileMovedEvent
 
@@ -318,6 +318,11 @@ class AutoProcessingHandler(FileSystemEventHandler):
                     delete_source=False,
                 )
                 
+                # Handle case where import_and_anonymize returns None (file already being processed)
+                if video_file is None:
+                    logger.info(f"Video import skipped (already being processed): {video_path}")
+                    return
+                
                 if not video_file.sensitive_meta:
                     logger.warning(f"Video imported but no SensitiveMeta created: {video_file.uuid}")
                 
@@ -341,7 +346,7 @@ class AutoProcessingHandler(FileSystemEventHandler):
                     return
             
             # Run segmentation if video was imported successfully
-            if video_file and video_file.pk:
+            if video_file and hasattr(video_file, 'pk') and video_file.pk:
                 try:
                     if not Path("./data/model_weights").exists():
                         Path("./data/model_weights").mkdir(parents=True, exist_ok=True)
@@ -363,6 +368,9 @@ class AutoProcessingHandler(FileSystemEventHandler):
                     logger.error(f"Error during video segmentation: {str(e)}", exc_info=True)
             
             logger.info(f"Video processing completed: {video_path}")
+            if video_path.exists():
+                logger.info(f"Source video still exists: {video_path}")
+                subprocess.run(['rm', str(video_path)], check=True)
             
         except Exception as e:
             error_msg = str(e)
@@ -379,6 +387,8 @@ class AutoProcessingHandler(FileSystemEventHandler):
                 # For other errors, remove from processed set to allow retry
                 logger.warning(f"Removing {video_path} from processed set due to error")
                 self.processed_files.discard(str(video_path))
+                video_import_service._cleanup_on_error()
+                return
     
     def _process_pdf(self, pdf_path: Path):
         """
