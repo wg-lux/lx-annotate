@@ -53,7 +53,7 @@ export const usePdfStore = defineStore('pdf', () => {
 
   /**
    * Build PDF streaming URL using pdf_id (RawPdfFile.id)
-   * URL pattern: /api/pdfstream/<pdf_id>/
+   * URL pattern: /api/media/pdfs/<pdf_id>/stream
    */
   function buildPdfStreamUrl(pdfId: number): string {
     return `/api/media/pdfs/${pdfId}/stream`

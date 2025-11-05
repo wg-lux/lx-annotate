@@ -237,17 +237,76 @@
                   </div>
                 </div>
                 <div class="card-body media-viewer-container">
-                  <!-- PDF Viewer - only for actual PDFs -->
-                  <iframe
-                    v-if="isPdf"
-                    :src="pdfSrc"
-                    width="100%"
-                    height="800px"
-                    frameborder="0"
-                    title="PDF Vorschau"
-                  >
-                    Ihr Browser unterstützt keine eingebetteten PDFs. Sie können die Datei <a :href="pdfSrc">hier herunterladen</a>.
-                  </iframe>
+                  <!-- ✅ ENHANCED: Dual PDF Viewer for Raw vs Anonymized Comparison -->
+                  <div v-if="isPdf" class="dual-pdf-container">
+                    <div class="row">
+                      <!-- Raw PDF (Original) -->
+                      <div class="col-md-6">
+                        <div class="pdf-section raw-pdf">
+                          <h6 class="text-center mb-3 text-danger">
+                            <i class="fas fa-file-pdf me-1"></i>
+                            Original PDF (Raw)
+                          </h6>
+                          <iframe
+                            :src="rawPdfSrc"
+                            width="100%"
+                            height="700px"
+                            frameborder="0"
+                            title="Original PDF Vorschau"
+                          >
+                            Ihr Browser unterstützt keine eingebetteten PDFs. Sie können die Datei <a :href="rawPdfSrc">hier herunterladen</a>.
+                          </iframe>
+                          <div class="mt-2 text-center">
+                            <small class="text-muted">
+                              URL: {{ rawPdfSrc || 'Nicht verfügbar' }}
+                            </small>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <!-- Anonymized PDF (Processed) -->
+                      <div class="col-md-6">
+                        <div class="pdf-section anonymized-pdf">
+                          <h6 class="text-center mb-3 text-success">
+                            <i class="fas fa-shield-alt me-1"></i>
+                            Anonymisiertes PDF (Processed)
+                          </h6>
+                          <iframe
+                            :src="anonymizedPdfSrc"
+                            width="100%"
+                            height="700px"
+                            frameborder="0"
+                            title="Anonymisiertes PDF Vorschau"
+                          >
+                            Ihr Browser unterstützt keine eingebetteten PDFs. Sie können die Datei <a :href="anonymizedPdfSrc">hier herunterladen</a>.
+                          </iframe>
+                          <div class="mt-2 text-center">
+                            <small class="text-muted">
+                              URL: {{ anonymizedPdfSrc || 'Nicht verfügbar' }}
+                            </small>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <!-- PDF Controls -->
+                    <div class="pdf-controls mt-3 text-center">
+                      <button 
+                        class="btn btn-outline-primary btn-sm me-2"
+                        @click="downloadRawPdf"
+                      >
+                        <i class="fas fa-download me-1"></i>
+                        Original herunterladen
+                      </button>
+                      <button 
+                        class="btn btn-outline-success btn-sm"
+                        @click="downloadAnonymizedPdf"
+                      >
+                        <i class="fas fa-download me-1"></i>
+                        Anonymisiert herunterladen
+                      </button>
+                    </div>
+                  </div>
                   
                                     <!-- ✅ ENHANCED: Dual Video Viewer for Raw vs Anonymized Comparison -->
                   <div v-else-if="isVideo" class="dual-video-container">
@@ -729,6 +788,24 @@ const anonymizedVideoSrc = computed(() => {
   return `${base}/api/media/videos/${currentItem.value.id}/?type=processed`;
 });
 
+// ✅ NEW: Raw PDF URL (original unprocessed PDF)
+const rawPdfSrc = computed(() => {
+  if (!isPdf.value || !currentItem.value) return undefined;
+  
+  // Build raw PDF URL with explicit raw parameter
+  const base = import.meta.env.VITE_API_BASE_URL || window.location.origin;
+  return `${base}/api/media/pdfs/${currentItem.value.id}/stream/?type=raw`;
+});
+
+// ✅ NEW: Anonymized PDF URL (processed/anonymized PDF)
+const anonymizedPdfSrc = computed(() => {
+  if (!isPdf.value || !currentItem.value) return undefined;
+  
+  // Build anonymized PDF URL with explicit processed parameter
+  const base = import.meta.env.VITE_API_BASE_URL || window.location.origin;
+  return `${base}/api/media/pdfs/${currentItem.value.id}/stream/?type=processed`;
+});
+
 
 // ✅ NEW: Refs for dual video elements
 const rawVideoElement = ref<HTMLVideoElement | null>(null);
@@ -791,6 +868,29 @@ const pauseAllVideos = () => {
   if (rawVideoElement.value) rawVideoElement.value.pause();
   if (anonymizedVideoElement.value) anonymizedVideoElement.value.pause();
   console.log('All videos paused');
+};
+
+// ✅ NEW: PDF download functions
+const downloadRawPdf = () => {
+  if (!rawPdfSrc.value) {
+    toast.warning({ text: 'Original-PDF nicht verfügbar.' });
+    return;
+  }
+  
+  // Open PDF in new tab for download
+  window.open(rawPdfSrc.value, '_blank');
+  console.log('Downloading raw PDF:', rawPdfSrc.value);
+};
+
+const downloadAnonymizedPdf = () => {
+  if (!anonymizedPdfSrc.value) {
+    toast.warning({ text: 'Anonymisiertes PDF nicht verfügbar.' });
+    return;
+  }
+  
+  // Open PDF in new tab for download
+  window.open(anonymizedPdfSrc.value, '_blank');
+  console.log('Downloading anonymized PDF:', anonymizedPdfSrc.value);
 };
 
 // ✅ NEW: Video validation functions for segment annotation
@@ -1341,22 +1441,40 @@ pre {
   border-radius: 0.25rem;
 }
 
-/* Outside Timeline Styles */
-.dual-video-container .video-section {
+/* Dual Video/PDF Container Styles */
+.dual-video-container .video-section,
+.dual-pdf-container .pdf-section {
   border: 1px solid #e9ecef;
   border-radius: 0.375rem;
   padding: 1rem;
   background-color: #f8f9fa;
 }
 
-.dual-video-container .video-section.raw-video {
+.dual-video-container .video-section.raw-video,
+.dual-pdf-container .pdf-section.raw-pdf {
   border-color: #dc3545;
   background-color: #fff5f5;
 }
 
-.dual-video-container .video-section.anonymized-video {
+.dual-video-container .video-section.anonymized-video,
+.dual-pdf-container .pdf-section.anonymized-pdf {
   border-color: #198754;
   background-color: #f0fff4;
+}
+
+/* PDF-specific styling */
+.dual-pdf-container .pdf-section iframe {
+  border: 2px solid #dee2e6;
+  border-radius: 0.25rem;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.dual-pdf-container .pdf-section.raw-pdf iframe {
+  border-color: #dc3545;
+}
+
+.dual-pdf-container .pdf-section.anonymized-pdf iframe {
+  border-color: #198754;
 }
 
 /* ✅ NEW: Outside Timeline Container Styles */

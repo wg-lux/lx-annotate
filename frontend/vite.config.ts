@@ -41,23 +41,23 @@ export default defineConfig(({ mode }) => {
 
     server: {
       cors: true,
-      port: 5173, // Ändere den Port, um Konflikte mit Django zu vermeiden
+      host: 'localhost', // ✅ Use 'localhost' instead of '127.0.0.1' to avoid Firefox cross-origin blocks
+      port: 5173,
       hmr: { host: 'localhost' },
       proxy: {
-        // Leite alle API-Requests an Django weiter
+        // ✅ Proxy API requests to Django (use localhost to match server.host)
         '/api': {
-          target: 'http://127.0.0.1:8000',
+          target: 'http://localhost:8000',
           changeOrigin: true,
           secure: false
         },
-        // Zusätzliche Endpunkte falls nötig
         '/admin': {
-          target: 'http://127.0.0.1:8000',
+          target: 'http://localhost:8000',
           changeOrigin: true,
           secure: false
         },
         '/static': {
-          target: 'http://127.0.0.1:8000',
+          target: 'http://localhost:8000',
           changeOrigin: true,
           secure: false
         }

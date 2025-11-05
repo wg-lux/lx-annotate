@@ -636,6 +636,7 @@ export const useVideoStore = defineStore('video', () => {
 
   async function fetchVideoMeta(lastId?: string): Promise<any> {
     try {
+      // TODO: Migrate to new media framework URL when backend supports it
       const url = lastId ? r(`video/media/${lastId}`) : r('video/sensitivemeta/')
       const response: AxiosResponse = await axiosInstance.get(url)
       videoMeta.value = response.data
@@ -740,9 +741,41 @@ export const useVideoStore = defineStore('video', () => {
     return r(path)
   }
 
+  /**
+   * ✅ NEW: Fetch labels independently and with high priority
+   * This ensures labels are always available before videos are loaded
+   */
+  async function fetchLabels(): Promise<LabelMeta[]> {
+    console.log('🏷️ [VideoStore] Fetching labels with high priority...')
+    try {
+      const response: AxiosResponse<{ labels: any[] }> = await axiosInstance.get(r('videos/'))
+      
+      const processedLabels: LabelMeta[] = response.data.labels.map((label: any) => ({
+        id: parseInt(label.id),
+        name: label.name,
+        color: label.color || getColorForLabel(label.name)
+      }))
+      
+      // ✅ Update labels immediately in store
+      videoList.value.labels = processedLabels
+      
+      console.log(`✅ [VideoStore] Loaded ${processedLabels.length} labels:`, 
+        processedLabels.map(l => l.name).join(', '))
+      
+      return processedLabels
+    } catch (error) {
+      console.error('❌ Error loading labels:', error)
+      videoList.value.labels = []
+      throw error
+    }
+  }
+
   async function fetchAllVideos(): Promise<VideoList> {
     console.log('Fetching all videos...')
     try {
+      // ✅ PRIORITY: Fetch labels first before processing videos
+      await fetchLabels()
+      
       const response: AxiosResponse<VideoList> = await axiosInstance.get(r('videos/'))
       console.log('API Response:', response.data)
 
@@ -757,12 +790,8 @@ export const useVideoStore = defineStore('video', () => {
         processorName: video.processor_name || 'Unbekannt'
       }))
 
-      // Process labels
-      const processedLabels: LabelMeta[] = response.data.labels.map((label: any) => ({
-        id: parseInt(label.id),
-        name: label.name,
-        color: label.color || getColorForLabel(label.name)
-      }))
+      // Labels already fetched and stored above
+      const processedLabels: LabelMeta[] = videoList.value.labels
 
       // Fetch segments for each video in parallel
       console.log('Fetching segments for', processedVideos.length, 'videos...')
@@ -852,7 +881,8 @@ export const useVideoStore = defineStore('video', () => {
         return
       }
 
-      const response: AxiosResponse = await axiosInstance.get(r(`video/${id}/`), {
+      // ✅ MIGRATED: Use new media framework URL
+      const response: AxiosResponse = await axiosInstance.get(r(`media/videos/${id}/`), {
         headers: { Accept: 'application/json' }
       })
 
@@ -896,11 +926,12 @@ export const useVideoStore = defineStore('video', () => {
 
   async function fetchSegmentsByLabel(id: string, label = 'outside'): Promise<void> {
     try {
+      // ✅ MIGRATED: Use new media framework URL for label-specific segments
       const response: AxiosResponse<{
         label: string
         time_segments: BackendTimeSegment[]
         frame_predictions: Record<string, BackendFramePrediction>
-      }> = await axiosInstance.get(r(`video/${id}/label/${label}/`), {
+      }> = await axiosInstance.get(r(`videos/${id}/labels/${label}/`), {
         headers: { Accept: 'application/json' }
       })
 
@@ -1466,6 +1497,7 @@ export const useVideoStore = defineStore('video', () => {
     fetchVideoUrl,
     fetchAllSegments,
     fetchAllVideos,
+    fetchLabels, // ✅ NEW: Priority label fetching
     fetchVideoMeta,
     fetchVideoSegments,
     fetchSegmentsByLabel, // Added missing export

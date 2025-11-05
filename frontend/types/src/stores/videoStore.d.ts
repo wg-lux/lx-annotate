@@ -365,6 +365,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
     fetchVideoUrl: (videoId?: string | number) => Promise<void>;
     fetchAllSegments: (id: number) => Promise<void>;
     fetchAllVideos: () => Promise<VideoList>;
+    fetchLabels: () => Promise<LabelMeta[]>;
     fetchVideoMeta: (lastId?: string) => Promise<any>;
     fetchVideoSegments: (videoId: number) => Promise<void>;
     fetchSegmentsByLabel: (id: string, label?: string) => Promise<void>;
@@ -593,6 +594,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
     fetchVideoUrl: (videoId?: string | number) => Promise<void>;
     fetchAllSegments: (id: number) => Promise<void>;
     fetchAllVideos: () => Promise<VideoList>;
+    fetchLabels: () => Promise<LabelMeta[]>;
     fetchVideoMeta: (lastId?: string) => Promise<any>;
     fetchVideoSegments: (videoId: number) => Promise<void>;
     fetchSegmentsByLabel: (id: string, label?: string) => Promise<void>;
@@ -821,6 +823,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
     fetchVideoUrl: (videoId?: string | number) => Promise<void>;
     fetchAllSegments: (id: number) => Promise<void>;
     fetchAllVideos: () => Promise<VideoList>;
+    fetchLabels: () => Promise<LabelMeta[]>;
     fetchVideoMeta: (lastId?: string) => Promise<any>;
     fetchVideoSegments: (videoId: number) => Promise<void>;
     fetchSegmentsByLabel: (id: string, label?: string) => Promise<void>;
@@ -850,5 +853,5 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
     formatTime: (seconds: number) => string;
     getSegmentOptions: () => SegmentOption[];
     clearSegments: () => void;
-}, "buildVideoStreamUrl" | "setCurrentVideo" | "clearVideo" | "deleteVideo" | "setVideo" | "loadVideo" | "fetchVideoUrl" | "fetchAllSegments" | "fetchAllVideos" | "fetchVideoMeta" | "fetchVideoSegments" | "fetchSegmentsByLabel" | "createSegment" | "patchSegmentLocally" | "updateSegment" | "deleteSegment" | "removeSegment" | "saveAnnotations" | "uploadRevert" | "uploadProcess" | "getSegmentStyle" | "getColorForLabel" | "getTranslationForLabel" | "jumpToSegment" | "setActiveSegment" | "updateVideoStatus" | "assignUserToVideo" | "updateSensitiveMeta" | "clearVideoMeta" | "hasRawVideoFileFn" | "startDraft" | "updateDraftEnd" | "commitDraft" | "cancelDraft" | "createFiveSecondSegment" | "formatTime" | "getSegmentOptions" | "clearSegments">>;
+}, "buildVideoStreamUrl" | "setCurrentVideo" | "clearVideo" | "deleteVideo" | "setVideo" | "loadVideo" | "fetchVideoUrl" | "fetchAllSegments" | "fetchAllVideos" | "fetchLabels" | "fetchVideoMeta" | "fetchVideoSegments" | "fetchSegmentsByLabel" | "createSegment" | "patchSegmentLocally" | "updateSegment" | "deleteSegment" | "removeSegment" | "saveAnnotations" | "uploadRevert" | "uploadProcess" | "getSegmentStyle" | "getColorForLabel" | "getTranslationForLabel" | "jumpToSegment" | "setActiveSegment" | "updateVideoStatus" | "assignUserToVideo" | "updateSensitiveMeta" | "clearVideoMeta" | "hasRawVideoFileFn" | "startDraft" | "updateDraftEnd" | "commitDraft" | "cancelDraft" | "createFiveSecondSegment" | "formatTime" | "getSegmentOptions" | "clearSegments">>;
 export type { Video, Segment, VideoAnnotation, VideoMeta, LabelMeta, VideoList, DraftSegment, SegmentOption, SegmentStyle, VideoStatus, LabelKey, BackendFramePrediction };

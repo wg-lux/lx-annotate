@@ -625,9 +625,17 @@ onMounted(async () => {
   // Fetch overview data
   await anonymizationStore.fetchOverview();
   
-  // Start polling for all files
+  // ✅ FIX: Only start polling for files that are actively processing
+  // Don't poll files with final states: 'done', 'validated', 'failed', 'not_started'
+  const processingStatuses = ['processing_anonymization', 'extracting_frames', 'predicting_segments'];
+  
   anonymizationStore.overview.forEach((file: FileItem) => {
-    anonymizationStore.startPolling(file.id);
+    if (processingStatuses.includes(file.anonymizationStatus)) {
+      console.log(`Starting polling for processing file ${file.id} (status: ${file.anonymizationStatus})`);
+      anonymizationStore.startPolling(file.id);
+    } else {
+      console.log(`Skipping polling for file ${file.id} (status: ${file.anonymizationStatus})`);
+    }
   });
 });
 

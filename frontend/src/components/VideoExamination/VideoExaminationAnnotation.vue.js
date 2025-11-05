@@ -162,7 +162,26 @@ const canStartLabeling = computed(() => {
         !isMarkingLabel.value &&
         duration.value > 0;
 });
-onMounted(videoStore.fetchAllVideos);
+// ✅ PRIORITY: Load labels first, then videos, then anonymization status
+onMounted(async () => {
+    console.log('🚀 [VideoExamination] Component mounted - loading data in priority order...');
+    try {
+        // Step 1: Load labels with high priority
+        await videoStore.fetchLabels();
+        console.log(`✅ [VideoExamination] Labels loaded: ${videoStore.labels.length}`);
+        // Step 2: Load anonymization overview BEFORE videos (needed for filtering)
+        await anonymizationStore.fetchOverview();
+        console.log(`✅ [VideoExamination] Anonymization status loaded: ${overview.value.length} items`);
+        // Step 3: Load videos after labels and anonymization status are available
+        await videoStore.fetchAllVideos();
+        console.log(`✅ [VideoExamination] Videos loaded: ${videoStore.videoList.videos.length}`);
+        console.log(`✅ [VideoExamination] Annotatable videos: ${annotatableVideos.value.length}`);
+    }
+    catch (error) {
+        console.error('❌ [VideoExamination] Error during initial load:', error);
+        showErrorMessage('Fehler beim Laden der Daten. Bitte Seite neu laden.');
+    }
+});
 // Guarded function for error handling like VideoClassificationComponent
 async function guarded(p) {
     try {
@@ -244,6 +263,8 @@ const loadSavedExaminations = async () => {
     if (selectedVideoId.value === null)
         return;
     try {
+        // TODO: Migrate to new media framework URL when backend supports /api/media/videos/{id}/examinations/
+        // Currently using old URL as part of partial migration strategy
         const response = await axiosInstance.get(r(`video/${selectedVideoId.value}/examinations/`));
         savedExaminations.value = response.data;
         // Create markers for saved examinations
@@ -621,6 +642,54 @@ const onVideoCanPlay = () => {
     console.log('Video can play, loaded successfully');
     showSuccessMessage('Video erfolgreich geladen');
 };
+// ✅ NEW: Helper functions for video status display
+const getVideoStatusIndicator = (videoId) => {
+    const item = overview.value.find(o => o.id === videoId && o.mediaType === 'video');
+    if (!item)
+        return '';
+    const statusIndicators = {
+        'not_started': '⏳ Wartend',
+        'processing_anonymization': '🔄 Verarbeitung',
+        'extracting_frames': '🎬 Frames',
+        'predicting_segments': '🤖 Segmente',
+        'done': '✅ Anonymisiert',
+        'validated': '🛡️ Validiert',
+        'failed': '❌ Fehler'
+    };
+    return statusIndicators[item.anonymizationStatus] || item.anonymizationStatus;
+};
+const getVideoCountByStatus = (status) => {
+    return overview.value.filter(o => o.mediaType === 'video' && o.anonymizationStatus === status).length;
+};
+const getStatusBadgeClass = (status) => {
+    const classes = {
+        'not_started': 'bg-secondary',
+        'processing_anonymization': 'bg-warning',
+        'extracting_frames': 'bg-info',
+        'predicting_segments': 'bg-info',
+        'done': 'bg-success',
+        'validated': 'bg-primary',
+        'failed': 'bg-danger'
+    };
+    return classes[status] || 'bg-secondary';
+};
+const getStatusText = (status) => {
+    const texts = {
+        'not_started': 'Nicht gestartet',
+        'processing_anonymization': 'Anonymisierung läuft',
+        'extracting_frames': 'Frames extrahieren',
+        'predicting_segments': 'Segmente vorhersagen',
+        'done': 'Fertig',
+        'validated': 'Validiert',
+        'failed': 'Fehlgeschlagen'
+    };
+    return texts[status] || status;
+};
+// ✅ NEW: Enhanced validation status tracking
+const isVideoValidated = (videoId) => {
+    const item = overview.value.find(o => o.id === videoId && o.mediaType === 'video');
+    return item?.anonymizationStatus === 'validated';
+};
 debugger; /* PartiallyEnd: #3632/scriptSetup.vue */
 const __VLS_ctx = {};
 let __VLS_components;
@@ -639,6 +708,8 @@ let __VLS_directives;
 /** @type {__VLS_StyleScopedClasses['requirement-generator-embedded']} */ ;
 /** @type {__VLS_StyleScopedClasses['requirement-generator-embedded']} */ ;
 /** @type {__VLS_StyleScopedClasses['requirement-generator-embedded']} */ ;
+/** @type {__VLS_StyleScopedClasses['status-badge-container']} */ ;
+/** @type {__VLS_StyleScopedClasses['validation-status-alert']} */ ;
 // CSS variable injection 
 // CSS variable injection end 
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -726,14 +797,47 @@ for (const [video] of __VLS_getVForSourceType((__VLS_ctx.annotatableVideos))) {
         value: (video.id),
     });
     (video.original_file_name || 'Video Nr. ' + video.id);
-    ('Center:' + video.centerName || 'Unbekanntes Zentrum');
-    ('Processor:' + video.processorName || 'Unbekannter Prozessor');
+    (__VLS_ctx.getVideoStatusIndicator(video.id));
+    (video.centerName || 'Unbekannt');
+    (video.processorName || 'Unbekannt');
 }
 if (!__VLS_ctx.hasVideos) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
         ...{ class: "text-muted" },
     });
     (__VLS_ctx.noVideosMessage);
+}
+if (__VLS_ctx.videos.length > 0) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "mt-2" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "d-flex flex-wrap gap-2 align-items-center" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+        ...{ class: "text-muted" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+        ...{ class: "badge bg-success" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+        ...{ class: "fas fa-check me-1" },
+    });
+    (__VLS_ctx.getVideoCountByStatus('done'));
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+        ...{ class: "badge bg-primary" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+        ...{ class: "fas fa-check-double me-1" },
+    });
+    (__VLS_ctx.getVideoCountByStatus('validated'));
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+        ...{ class: "badge bg-secondary" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+        ...{ class: "fas fa-clock me-1" },
+    });
+    (__VLS_ctx.videos.length - __VLS_ctx.annotatableVideos.length);
 }
 if (!__VLS_ctx.anonymizedVideoSrc && __VLS_ctx.hasVideos) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -750,13 +854,23 @@ if (!__VLS_ctx.anonymizedVideoSrc && __VLS_ctx.hasVideos) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: "alert alert-info mt-2" },
         });
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "d-flex align-items-center justify-content-center" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: "fas fa-info-circle me-2" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "text-start" },
+        });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
         (__VLS_ctx.selectedVideoId);
+        (__VLS_ctx.getVideoStatusIndicator(__VLS_ctx.selectedVideoId));
         __VLS_asFunctionalElement(__VLS_intrinsicElements.br, __VLS_intrinsicElements.br)({});
-        (__VLS_ctx.anonymizedVideoSrc || 'Nicht verfügbar');
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.br, __VLS_intrinsicElements.br)({});
-        (__VLS_ctx.selectedVideoId ? __VLS_ctx.mediaStore.getVideoUrl(__VLS_ctx.annotatableVideos.find(v => v.id === __VLS_ctx.selectedVideoId)) : 'N/A');
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+            ...{ class: "text-muted" },
+        });
+        (__VLS_ctx.anonymizedVideoSrc || 'Wird geladen...');
     }
 }
 if (!__VLS_ctx.hasVideos) {
@@ -791,6 +905,68 @@ if (__VLS_ctx.anonymizedVideoSrc) {
         ...{ style: {} },
     });
     /** @type {typeof __VLS_ctx.videoRef} */ ;
+    if (__VLS_ctx.selectedVideoId) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "mt-3 p-3 rounded border video-status-card" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "row align-items-center" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "col-md-8" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({
+            ...{ class: "mb-1" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: "fas fa-video me-2 text-primary" },
+        });
+        (__VLS_ctx.annotatableVideos.find(v => v.id === __VLS_ctx.selectedVideoId)?.original_file_name || `Video ${__VLS_ctx.selectedVideoId}`);
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "status-badge-container mb-2" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+            ...{ class: (__VLS_ctx.getStatusBadgeClass(__VLS_ctx.overview.find(o => o.id === __VLS_ctx.selectedVideoId && o.mediaType === 'video')?.anonymizationStatus || 'not_started')) },
+            ...{ class: "badge" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: "fas fa-shield-alt me-1" },
+        });
+        (__VLS_ctx.getStatusText(__VLS_ctx.overview.find(o => o.id === __VLS_ctx.selectedVideoId && o.mediaType === 'video')?.anonymizationStatus || 'not_started'));
+        if (__VLS_ctx.timelineSegmentsForSelectedVideo.length > 0) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                ...{ class: "badge bg-info" },
+            });
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                ...{ class: "fas fa-cut me-1" },
+            });
+            (__VLS_ctx.timelineSegmentsForSelectedVideo.length);
+        }
+        if (__VLS_ctx.savedExaminations.length > 0) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                ...{ class: "badge bg-warning" },
+            });
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                ...{ class: "fas fa-stethoscope me-1" },
+            });
+            (__VLS_ctx.savedExaminations.length);
+        }
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "col-md-4 text-md-end" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+            ...{ class: "text-muted d-block" },
+        });
+        (__VLS_ctx.annotatableVideos.find(v => v.id === __VLS_ctx.selectedVideoId)?.centerName || 'Unbekannt');
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+            ...{ class: "text-muted d-block" },
+        });
+        (__VLS_ctx.annotatableVideos.find(v => v.id === __VLS_ctx.selectedVideoId)?.processorName || 'Unbekannt');
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+            ...{ class: "text-muted d-block" },
+        });
+        (__VLS_ctx.formatTime(__VLS_ctx.duration));
+    }
 }
 if (!__VLS_ctx.anonymizedVideoSrc) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -932,48 +1108,13 @@ if (__VLS_ctx.selectedVideoId) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
         value: "",
     });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-        value: "appendix",
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-        value: "blood",
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-        value: "diverticule",
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-        value: "grasper",
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-        value: "ileocaecalvalve",
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-        value: "ileum",
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-        value: "low_quality",
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-        value: "nbi",
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-        value: "needle",
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-        value: "outside",
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-        value: "polyp",
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-        value: "snare",
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-        value: "water_jet",
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-        value: "wound",
-    });
+    for (const [label] of __VLS_getVForSourceType((__VLS_ctx.timelineLabels))) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+            key: (label.id),
+            value: (label.name),
+        });
+        (__VLS_ctx.getTranslationForLabel(label.name));
+    }
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "d-flex align-items-center gap-2" },
     });
@@ -1034,24 +1175,47 @@ if (__VLS_ctx.selectedVideoId && __VLS_ctx.timelineSegmentsForSelectedVideo.leng
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "mt-3" },
     });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-        ...{ onClick: (__VLS_ctx.submitVideoSegments) },
-        ...{ class: "btn btn-success btn-lg w-100 d-flex align-items-center justify-content-center gap-2" },
-        ...{ style: {} },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "material-icons" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
-    (__VLS_ctx.timelineSegmentsForSelectedVideo.length);
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
-        ...{ class: "text-muted text-center mt-2 mb-0" },
-        ...{ style: {} },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "material-icons" },
-        ...{ style: {} },
-    });
+    if (__VLS_ctx.overview.find(o => o.id === __VLS_ctx.selectedVideoId && o.mediaType === 'video')?.anonymizationStatus === 'validated') {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "alert alert-success d-flex align-items-center validation-status-alert" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: "fas fa-check-circle fa-2x me-3 text-success" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({
+            ...{ class: "mb-1" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: "fas fa-medal me-1" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+            ...{ class: "text-muted" },
+        });
+        (__VLS_ctx.timelineSegmentsForSelectedVideo.length);
+    }
+    else {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+            ...{ onClick: (__VLS_ctx.submitVideoSegments) },
+            ...{ class: "btn btn-success btn-lg w-100 d-flex align-items-center justify-content-center gap-2" },
+            ...{ style: {} },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: "material-icons" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+        (__VLS_ctx.timelineSegmentsForSelectedVideo.length);
+    }
+    if (__VLS_ctx.overview.find(o => o.id === __VLS_ctx.selectedVideoId && o.mediaType === 'video')?.anonymizationStatus !== 'validated') {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
+            ...{ class: "text-muted text-center mt-2 mb-0" },
+            ...{ style: {} },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: "material-icons" },
+            ...{ style: {} },
+        });
+    }
 }
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "col-lg-12" },
@@ -1204,6 +1368,27 @@ if (__VLS_ctx.savedExaminations.length > 0) {
 /** @type {__VLS_StyleScopedClasses['form-label']} */ ;
 /** @type {__VLS_StyleScopedClasses['form-select']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['flex-wrap']} */ ;
+/** @type {__VLS_StyleScopedClasses['gap-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['bg-success']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-check']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['bg-primary']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-check-double']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['bg-secondary']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-clock']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['py-5']} */ ;
@@ -1212,6 +1397,14 @@ if (__VLS_ctx.savedExaminations.length > 0) {
 /** @type {__VLS_StyleScopedClasses['alert']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert-info']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['justify-content-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-info-circle']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-start']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['py-5']} */ ;
@@ -1219,6 +1412,43 @@ if (__VLS_ctx.savedExaminations.length > 0) {
 /** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['video-container']} */ ;
 /** @type {__VLS_StyleScopedClasses['w-100']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['p-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['rounded']} */ ;
+/** @type {__VLS_StyleScopedClasses['border']} */ ;
+/** @type {__VLS_StyleScopedClasses['video-status-card']} */ ;
+/** @type {__VLS_StyleScopedClasses['row']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-md-8']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-video']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-primary']} */ ;
+/** @type {__VLS_StyleScopedClasses['status-badge-container']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-shield-alt']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['bg-info']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-cut']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['bg-warning']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-stethoscope']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-md-4']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-md-end']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-block']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-block']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-block']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-primary']} */ ;
 /** @type {__VLS_StyleScopedClasses['timeline-wrapper']} */ ;
@@ -1270,6 +1500,21 @@ if (__VLS_ctx.savedExaminations.length > 0) {
 /** @type {__VLS_StyleScopedClasses['align-middle']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert-success']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['validation-status-alert']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-check-circle']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-2x']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-success']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-medal']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-success']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-lg']} */ ;
@@ -1347,8 +1592,9 @@ const __VLS_self = (await import('vue')).defineComponent({
             formatTime: formatTime,
             getTranslationForLabel: getTranslationForLabel,
             videoStore: videoStore,
-            mediaStore: mediaStore,
+            videos: videos,
             rawSegments: rawSegments,
+            overview: overview,
             timelineLabels: timelineLabels,
             selectedVideoId: selectedVideoId,
             currentTime: currentTime,
@@ -1397,6 +1643,10 @@ const __VLS_self = (await import('vue')).defineComponent({
             onVideoError: onVideoError,
             onVideoLoadStart: onVideoLoadStart,
             onVideoCanPlay: onVideoCanPlay,
+            getVideoStatusIndicator: getVideoStatusIndicator,
+            getVideoCountByStatus: getVideoCountByStatus,
+            getStatusBadgeClass: getStatusBadgeClass,
+            getStatusText: getStatusText,
         };
     },
 });

@@ -233,6 +233,7 @@ export const useVideoStore = defineStore('video', () => {
     // ===================================================================
     async function fetchVideoMeta(lastId) {
         try {
+            // TODO: Migrate to new media framework URL when backend supports it
             const url = lastId ? r(`video/media/${lastId}`) : r('video/sensitivemeta/');
             const response = await axiosInstance.get(url);
             videoMeta.value = response.data;
@@ -311,9 +312,35 @@ export const useVideoStore = defineStore('video', () => {
     function urlFor(path) {
         return r(path);
     }
+    /**
+     * ✅ NEW: Fetch labels independently and with high priority
+     * This ensures labels are always available before videos are loaded
+     */
+    async function fetchLabels() {
+        console.log('🏷️ [VideoStore] Fetching labels with high priority...');
+        try {
+            const response = await axiosInstance.get(r('videos/'));
+            const processedLabels = response.data.labels.map((label) => ({
+                id: parseInt(label.id),
+                name: label.name,
+                color: label.color || getColorForLabel(label.name)
+            }));
+            // ✅ Update labels immediately in store
+            videoList.value.labels = processedLabels;
+            console.log(`✅ [VideoStore] Loaded ${processedLabels.length} labels:`, processedLabels.map(l => l.name).join(', '));
+            return processedLabels;
+        }
+        catch (error) {
+            console.error('❌ Error loading labels:', error);
+            videoList.value.labels = [];
+            throw error;
+        }
+    }
     async function fetchAllVideos() {
         console.log('Fetching all videos...');
         try {
+            // ✅ PRIORITY: Fetch labels first before processing videos
+            await fetchLabels();
             const response = await axiosInstance.get(r('videos/'));
             console.log('API Response:', response.data);
             // Process videos with enhanced metadata
@@ -326,12 +353,8 @@ export const useVideoStore = defineStore('video', () => {
                 centerName: video.center_name || 'Unbekannt',
                 processorName: video.processor_name || 'Unbekannt'
             }));
-            // Process labels
-            const processedLabels = response.data.labels.map((label) => ({
-                id: parseInt(label.id),
-                name: label.name,
-                color: label.color || getColorForLabel(label.name)
-            }));
+            // Labels already fetched and stored above
+            const processedLabels = videoList.value.labels;
             // Fetch segments for each video in parallel
             console.log('Fetching segments for', processedVideos.length, 'videos...');
             const videosWithSegments = await Promise.all(processedVideos.map(async (video) => {
@@ -405,7 +428,8 @@ export const useVideoStore = defineStore('video', () => {
                 errorMessage.value = 'No video selected.';
                 return;
             }
-            const response = await axiosInstance.get(r(`video/${id}/`), {
+            // ✅ MIGRATED: Use new media framework URL
+            const response = await axiosInstance.get(r(`media/videos/${id}/`), {
                 headers: { Accept: 'application/json' }
             });
             if (response.data.video_url) {
@@ -444,7 +468,8 @@ export const useVideoStore = defineStore('video', () => {
     }
     async function fetchSegmentsByLabel(id, label = 'outside') {
         try {
-            const response = await axiosInstance.get(r(`video/${id}/label/${label}/`), {
+            // ✅ MIGRATED: Use new media framework URL for label-specific segments
+            const response = await axiosInstance.get(r(`videos/${id}/labels/${label}/`), {
                 headers: { Accept: 'application/json' }
             });
             console.log(`[video ${id}] API response for label ${label}:`, response.data);
@@ -863,6 +888,7 @@ export const useVideoStore = defineStore('video', () => {
         fetchVideoUrl,
         fetchAllSegments,
         fetchAllVideos,
+        fetchLabels, // ✅ NEW: Priority label fetching
         fetchVideoMeta,
         fetchVideoSegments,
         fetchSegmentsByLabel, // Added missing export

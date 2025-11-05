@@ -348,8 +348,22 @@ const timeMarkers = computed((): TimeMarker[] => {
 const currentFps = computed((): number => props.fps || 50)
 
 const toCanonical = (s: Segment): CanonicalSegment => {
+  // ✅ FIX: Enhanced normalization to handle both backend (snake_case) and frontend (camelCase) property names
   const n = normalizeSegmentToCamelCase(s)
-  const color = getColorForLabel(s.label)
+  
+  // ✅ Extract label with comprehensive fallbacks (backend sends label_name)
+  const segmentLabel = (s as any).label_name ?? (s as any).label ?? n.label ?? ''
+  
+  const color = getColorForLabel(segmentLabel)
+  
+  // ✅ Debug logging for property name mismatches
+  if (!(s as any).startTime && (s as any).start_time) {
+    console.debug('[Timeline] Converted snake_case to camelCase:', {
+      from: { start_time: (s as any).start_time, end_time: (s as any).end_time, label_name: (s as any).label_name },
+      to: { startTime: n.startTime, endTime: n.endTime, label: segmentLabel }
+    })
+  }
+  
   return {
     ...n,
     start: n.startTime,
@@ -357,14 +371,16 @@ const toCanonical = (s: Segment): CanonicalSegment => {
     isDraft: typeof s.id === 'string' && (s.id === 'draft' || s.id.startsWith('temp-')),
     color: color || getRandomColor() || undefined,
     avgConfidence: s.avgConfidence ?? 0,
-    label: (s as any).label ?? (s as any).label_name// ✅ FIX: Use label or label_name
+    label: segmentLabel  // ✅ Use extracted label with backend compatibility
   }
 }
 
 const selectedLabel = ref<string | null>(null)
 
 const selectSegment = (segment: Segment): void => {
-  selectedLabel.value = segment.label // ✅ FIX: Use segment.label instead of segment.label_name
+  // ✅ FIX: Extract label from both backend (label_name) and frontend (label) properties
+  const label = (segment as any).label_name ?? segment.label
+  selectedLabel.value = label
   emit('segment-select', segment)
 }
 
@@ -384,7 +400,32 @@ watch(
   () => props.segments,
   (segments) => {
     if (segments) {
-      displayedSegments.value = segments?.map(toCanonical)
+      console.debug('[Timeline] Processing segments:', {
+        count: segments.length,
+        sample: segments.slice(0, 2).map(s => ({
+          id: s.id,
+          label: (s as any).label,
+          label_name: (s as any).label_name,
+          start_time: (s as any).start_time,
+          startTime: (s as any).startTime,
+          end_time: (s as any).end_time,
+          endTime: (s as any).endTime
+        }))
+      })
+      
+      displayedSegments.value = segments.map(toCanonical)
+      
+      console.debug('[Timeline] Canonical segments created:', {
+        count: displayedSegments.value.length,
+        sample: displayedSegments.value.slice(0, 2).map(s => ({
+          id: s.id,
+          label: s.label,
+          start: s.start,
+          end: s.end,
+          startTime: s.startTime,
+          endTime: s.endTime
+        }))
+      })
     } else {
       displayedSegments.value = []
     }
@@ -401,10 +442,31 @@ watch(
  */
 const segmentRows = computed((): SegmentRow[] => {
   const buckets: Record<string, CanonicalSegment[]> = {}
+  
+  // ✅ Debug: Log all segments being processed
+  console.debug('[Timeline] segmentRows - processing segments:', {
+    count: displayedSegments.value.length,
+    segments: displayedSegments.value.map(s => ({
+      id: s.id,
+      label: s.label,
+      start: s.start,
+      end: s.end
+    }))
+  })
+  
   // build from the *mutable* working copy so previews are visible
-  for (const s of displayedSegments.value) { //THIS IS THE LINE FROM THE PROMPT
+  for (const s of displayedSegments.value) {
+    if (!s.label) {
+      console.error('[Timeline] Segment missing label property:', s)
+      continue
+    }
     (buckets[s.label] ||= []).push(s)
   }
+  
+  console.debug('[Timeline] Label buckets created:', {
+    labels: Object.keys(buckets),
+    counts: Object.entries(buckets).map(([label, segs]) => `${label}:${segs.length}`)
+  })
 
   // ►  fixed order: first the user-selected label (if any), then our persisted order
   const orderedLabels = selectedLabel.value
@@ -442,6 +504,16 @@ const segmentRows = computed((): SegmentRow[] => {
     }
     rows.push(currentRow)
   })
+  
+  console.debug('[Timeline] Rows created:', {
+    count: rows.length,
+    rows: rows.map(r => ({
+      key: r.key,
+      label: r.label,
+      segmentCount: r.segments.length
+    }))
+  })
+  
   return rows
 })
 
@@ -466,11 +538,36 @@ const formatDuration = (startTime: number, endTime: number): string => {
 }
 
 const getSegmentPosition = (startTime: number): number => {
-  return calculateSegmentPosition(startTime, duration.value)
+  const position = calculateSegmentPosition(startTime, duration.value)
+  
+  // ✅ Debug validation for position calculation
+  if (!Number.isFinite(position) || position < 0) {
+    console.error('[Timeline] Invalid segment position calculated:', {
+      startTime,
+      duration: duration.value,
+      position
+    })
+    return 0
+  }
+  
+  return position
 }
 
 const getSegmentWidth = (startTime: number, endTime: number): number => {
-  return calculateSegmentWidth(startTime, endTime, duration.value)
+  const width = calculateSegmentWidth(startTime, endTime, duration.value)
+  
+  // ✅ Debug validation for width calculation
+  if (!Number.isFinite(width) || width <= 0) {
+    console.error('[Timeline] Invalid segment width calculated:', {
+      startTime,
+      endTime,
+      duration: duration.value,
+      width
+    })
+    return 0
+  }
+  
+  return width
 }
 
 

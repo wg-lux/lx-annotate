@@ -209,6 +209,22 @@ const anonymizedVideoSrc = computed(() => {
     const base = import.meta.env.VITE_API_BASE_URL || window.location.origin;
     return `${base}/api/media/videos/${currentItem.value.id}/?type=processed`;
 });
+// ✅ NEW: Raw PDF URL (original unprocessed PDF)
+const rawPdfSrc = computed(() => {
+    if (!isPdf.value || !currentItem.value)
+        return undefined;
+    // Build raw PDF URL with explicit raw parameter
+    const base = import.meta.env.VITE_API_BASE_URL || window.location.origin;
+    return `${base}/api/media/pdfs/${currentItem.value.id}/stream/?type=raw`;
+});
+// ✅ NEW: Anonymized PDF URL (processed/anonymized PDF)
+const anonymizedPdfSrc = computed(() => {
+    if (!isPdf.value || !currentItem.value)
+        return undefined;
+    // Build anonymized PDF URL with explicit processed parameter
+    const base = import.meta.env.VITE_API_BASE_URL || window.location.origin;
+    return `${base}/api/media/pdfs/${currentItem.value.id}/stream/?type=processed`;
+});
 // ✅ NEW: Refs for dual video elements
 const rawVideoElement = ref(null);
 const anonymizedVideoElement = ref(null);
@@ -261,6 +277,25 @@ const pauseAllVideos = () => {
     if (anonymizedVideoElement.value)
         anonymizedVideoElement.value.pause();
     console.log('All videos paused');
+};
+// ✅ NEW: PDF download functions
+const downloadRawPdf = () => {
+    if (!rawPdfSrc.value) {
+        toast.warning({ text: 'Original-PDF nicht verfügbar.' });
+        return;
+    }
+    // Open PDF in new tab for download
+    window.open(rawPdfSrc.value, '_blank');
+    console.log('Downloading raw PDF:', rawPdfSrc.value);
+};
+const downloadAnonymizedPdf = () => {
+    if (!anonymizedPdfSrc.value) {
+        toast.warning({ text: 'Anonymisiertes PDF nicht verfügbar.' });
+        return;
+    }
+    // Open PDF in new tab for download
+    window.open(anonymizedPdfSrc.value, '_blank');
+    console.log('Downloading anonymized PDF:', anonymizedPdfSrc.value);
 };
 // ✅ NEW: Video validation functions for segment annotation
 const validateVideoForSegmentAnnotation = async () => {
@@ -722,8 +757,20 @@ let __VLS_directives;
 /** @type {__VLS_StyleScopedClasses['media-viewer-container']} */ ;
 /** @type {__VLS_StyleScopedClasses['dual-video-container']} */ ;
 /** @type {__VLS_StyleScopedClasses['video-section']} */ ;
+/** @type {__VLS_StyleScopedClasses['dual-pdf-container']} */ ;
+/** @type {__VLS_StyleScopedClasses['pdf-section']} */ ;
 /** @type {__VLS_StyleScopedClasses['dual-video-container']} */ ;
 /** @type {__VLS_StyleScopedClasses['video-section']} */ ;
+/** @type {__VLS_StyleScopedClasses['dual-pdf-container']} */ ;
+/** @type {__VLS_StyleScopedClasses['pdf-section']} */ ;
+/** @type {__VLS_StyleScopedClasses['dual-pdf-container']} */ ;
+/** @type {__VLS_StyleScopedClasses['pdf-section']} */ ;
+/** @type {__VLS_StyleScopedClasses['dual-pdf-container']} */ ;
+/** @type {__VLS_StyleScopedClasses['pdf-section']} */ ;
+/** @type {__VLS_StyleScopedClasses['raw-pdf']} */ ;
+/** @type {__VLS_StyleScopedClasses['dual-pdf-container']} */ ;
+/** @type {__VLS_StyleScopedClasses['pdf-section']} */ ;
+/** @type {__VLS_StyleScopedClasses['anonymized-pdf']} */ ;
 /** @type {__VLS_StyleScopedClasses['outside-timeline-container']} */ ;
 /** @type {__VLS_StyleScopedClasses['outside-timeline-container']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert']} */ ;
@@ -1128,15 +1175,86 @@ if (__VLS_ctx.currentItem) {
         ...{ class: "card-body media-viewer-container" },
     });
     if (__VLS_ctx.isPdf) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "dual-pdf-container" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "row" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "col-md-6" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "pdf-section raw-pdf" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({
+            ...{ class: "text-center mb-3 text-danger" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: "fas fa-file-pdf me-1" },
+        });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.iframe, __VLS_intrinsicElements.iframe)({
-            src: (__VLS_ctx.pdfSrc),
+            src: (__VLS_ctx.rawPdfSrc),
             width: "100%",
-            height: "800px",
+            height: "700px",
             frameborder: "0",
-            title: "PDF Vorschau",
+            title: "Original PDF Vorschau",
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.a, __VLS_intrinsicElements.a)({
-            href: (__VLS_ctx.pdfSrc),
+            href: (__VLS_ctx.rawPdfSrc),
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "mt-2 text-center" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+            ...{ class: "text-muted" },
+        });
+        (__VLS_ctx.rawPdfSrc || 'Nicht verfügbar');
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "col-md-6" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "pdf-section anonymized-pdf" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({
+            ...{ class: "text-center mb-3 text-success" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: "fas fa-shield-alt me-1" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.iframe, __VLS_intrinsicElements.iframe)({
+            src: (__VLS_ctx.anonymizedPdfSrc),
+            width: "100%",
+            height: "700px",
+            frameborder: "0",
+            title: "Anonymisiertes PDF Vorschau",
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.a, __VLS_intrinsicElements.a)({
+            href: (__VLS_ctx.anonymizedPdfSrc),
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "mt-2 text-center" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+            ...{ class: "text-muted" },
+        });
+        (__VLS_ctx.anonymizedPdfSrc || 'Nicht verfügbar');
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "pdf-controls mt-3 text-center" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+            ...{ onClick: (__VLS_ctx.downloadRawPdf) },
+            ...{ class: "btn btn-outline-primary btn-sm me-2" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: "fas fa-download me-1" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+            ...{ onClick: (__VLS_ctx.downloadAnonymizedPdf) },
+            ...{ class: "btn btn-outline-success btn-sm" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: "fas fa-download me-1" },
         });
     }
     else if (__VLS_ctx.isVideo) {
@@ -1582,6 +1700,48 @@ if (__VLS_ctx.currentItem) {
 /** @type {__VLS_StyleScopedClasses['me-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-body']} */ ;
 /** @type {__VLS_StyleScopedClasses['media-viewer-container']} */ ;
+/** @type {__VLS_StyleScopedClasses['dual-pdf-container']} */ ;
+/** @type {__VLS_StyleScopedClasses['row']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-md-6']} */ ;
+/** @type {__VLS_StyleScopedClasses['pdf-section']} */ ;
+/** @type {__VLS_StyleScopedClasses['raw-pdf']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-danger']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-file-pdf']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-md-6']} */ ;
+/** @type {__VLS_StyleScopedClasses['pdf-section']} */ ;
+/** @type {__VLS_StyleScopedClasses['anonymized-pdf']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-success']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-shield-alt']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['pdf-controls']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-primary']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-download']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-success']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-download']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['dual-video-container']} */ ;
 /** @type {__VLS_StyleScopedClasses['row']} */ ;
 /** @type {__VLS_StyleScopedClasses['col-md-6']} */ ;
@@ -1739,9 +1899,10 @@ const __VLS_self = (await import('vue')).defineComponent({
             currentItem: currentItem,
             isPdf: isPdf,
             isVideo: isVideo,
-            pdfSrc: pdfSrc,
             rawVideoSrc: rawVideoSrc,
             anonymizedVideoSrc: anonymizedVideoSrc,
+            rawPdfSrc: rawPdfSrc,
+            anonymizedPdfSrc: anonymizedPdfSrc,
             rawVideoElement: rawVideoElement,
             anonymizedVideoElement: anonymizedVideoElement,
             onRawVideoError: onRawVideoError,
@@ -1753,6 +1914,8 @@ const __VLS_self = (await import('vue')).defineComponent({
             syncVideoTime: syncVideoTime,
             syncVideos: syncVideos,
             pauseAllVideos: pauseAllVideos,
+            downloadRawPdf: downloadRawPdf,
+            downloadAnonymizedPdf: downloadAnonymizedPdf,
             validateVideoForSegmentAnnotation: validateVideoForSegmentAnnotation,
             onSegmentValidated: onSegmentValidated,
             onOutsideValidationComplete: onOutsideValidationComplete,

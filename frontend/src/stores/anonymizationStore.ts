@@ -183,41 +183,41 @@ export const useAnonymizationStore = defineStore('anonymization', {
             }
             return this.current
           } else {
-            /* 1) PDF-Datensatz von anony_text endpoint -------------------- */
-            const pdfUrl = lastId ? a(`anony_text/?last_id=${lastId}`) : a('anony_text/')
-
-            console.log(`Fetching PDF data from: ${pdfUrl}`)
-            const { data: pdf } = await axiosInstance.get<PdfDataResponse>(pdfUrl)
-            console.log('Received PDF data:', pdf)
-
-            if (!pdf?.id) {
-              this.$patch({ current: null })
-              throw new Error('Backend lieferte keinen gültigen PDF-Datensatz.')
-            }
-            if (pdf.error) {
-              this.$patch({ current: null })
-              throw new Error('Backend meldet Fehler-Flag im PDF-Datensatz.')
+            /* PDF-Daten via Modern Media Framework laden ----------------- */
+            if (!lastId) {
+              throw new Error('PDF ID is required to fetch PDF data')
             }
 
-            /* 2) Sensitive-Meta nachladen ---------------------------------- */
-            const metaUrl = r(`media/pdfs/${pdf.id}/sensitive-metadata/`)
-            console.log(`Fetching sensitive meta from: ${metaUrl}`)
-            const { data: metaResponse } = await axiosInstance.get<SensitiveMeta>(metaUrl)
-            console.log('Received sensitive meta response data:', metaResponse)
+            // 1) PDF Details (inkl. text/anonymizedText) laden
+            console.log(`Fetching PDF details for ID: ${lastId}`)
+            const { data: pdfDetails } = await axiosInstance.get(
+              r(`media/pdfs/${lastId}/`)
+            )
+            console.log('Received PDF details:', pdfDetails)
 
-            if (typeof metaResponse?.id !== 'number') {
-              console.error('Received invalid sensitive meta data structure:', metaResponse)
+            // 2) Sensitive Metadata laden
+            console.log(`Fetching PDF sensitive metadata for ID: ${lastId}`)
+            const { data: sensitiveMeta } = await axiosInstance.get<SensitiveMeta>(
+              r(`media/pdfs/${lastId}/sensitive-metadata/`)
+            )
+            console.log('Received PDF sensitive metadata:', sensitiveMeta)
+
+            if (typeof sensitiveMeta?.id !== 'number') {
+              console.error('Received invalid sensitive meta data structure:', sensitiveMeta)
               this.$patch({ current: null })
               throw new Error(
                 'Ungültige Metadaten vom Backend empfangen (keine gültige ID gefunden).'
               )
             }
 
-            /* 3) Merge & State-Update -------------------------------------- */
+            /* Merge & State-Update -------------------------------------- */
             const merged: PatientData = {
-              ...pdf,
-              sensitiveMetaId: metaResponse.id, // Add sensitiveMetaId for compatibility
-              reportMeta: metaResponse
+              id: lastId,
+              sensitiveMetaId: sensitiveMeta.id,
+              text: pdfDetails.text || '', // Text from PDF details
+              anonymizedText: pdfDetails.anonymizedText || '', // AnonymizedText from PDF details (camelCase!)
+              pdfStreamUrl: pdfDetails.streamUrl || pdfDetails.stream_url, // Stream URL for PDF viewing
+              reportMeta: sensitiveMeta
             }
             console.log('Merged data:', merged)
 
@@ -405,7 +405,9 @@ export const useAnonymizationStore = defineStore('anonymization', {
         console.log(`Polling for file ${id} is already running`)
         return
       }
-      if (id in this.needsValidationIds) {
+      
+      // ✅ FIX: Correct array check using .includes() instead of 'in' operator
+      if (this.needsValidationIds.includes(id)) {
         console.log(`File ${id} is in needsValidationIds, skipping polling`)
         const file = this.overview.find((f) => f.id === id)
         if (file) {
@@ -513,13 +515,40 @@ export const useAnonymizationStore = defineStore('anonymization', {
           }
           return this.current
         } else {
-          // For PDFs, use the original endpoint
-          console.log(`Setting current item for validation: ${id}`)
-          const { data } = await axiosInstance.put<PatientData>(r(`anonymization/${id}/current/`))
-          console.log('Received validation data:', data)
+          // For PDFs, load both details and sensitive metadata
+          console.log(`Setting current PDF item for validation: ${id}`)
+          
+          // 1) PDF Details (inkl. text/anonymizedText) laden
+          console.log(`Fetching PDF details for ID: ${id}`)
+          const { data: pdfDetails } = await axiosInstance.get(
+            r(`media/pdfs/${id}/`)
+          )
+          console.log('Received PDF details:', pdfDetails)
+          
+          // 2) Sensitive-Meta laden
+          const metaUrl = r(`media/pdfs/${id}/sensitive-metadata/`)
+          console.log(`Fetching sensitive meta from: ${metaUrl}`)
+          const { data: sensitiveMeta } = await axiosInstance.get<SensitiveMeta>(metaUrl)
+          console.log('Received sensitive meta response data:', sensitiveMeta)
 
-          this.current = data
-          return data
+          if (typeof sensitiveMeta?.id !== 'number') {
+            console.error('Received invalid sensitive meta data structure:', sensitiveMeta)
+            throw new Error('Ungültige Metadaten vom Backend empfangen.')
+          }
+
+          /* Merge & State-Update -------------------------------------- */
+          const merged: PatientData = {
+            id: id,
+            sensitiveMetaId: sensitiveMeta.id,
+            text: pdfDetails.text || '', // Text from PDF details
+            anonymizedText: pdfDetails.anonymizedText || '', // AnonymizedText from PDF details (camelCase!)
+            pdfStreamUrl: pdfDetails.streamUrl || pdfDetails.stream_url, // Stream URL for PDF viewing
+            reportMeta: sensitiveMeta
+          }
+          console.log('Merged validation data:', merged)
+
+          this.current = merged
+          return merged
         }
       } catch (err: any) {
         console.error(`Error setting current for validation (ID: ${id}):`, err)

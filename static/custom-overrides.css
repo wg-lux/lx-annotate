@@ -269,3 +269,80 @@ a:hover {
   border-color: #4055FF;
   color: #FFFFFF;
 }
+/* ===================================================================
+   SIDEBAR LAYOUT FIXES
+   =================================================================== */
+
+/* ✅ FIXED: Hide sidebar content but keep burger menu visible */
+.g-sidenav-hidden {
+  /* Don't hide the aside completely - it contains the burger menu! */
+  width: auto !important;
+  min-width: auto !important;
+}
+
+.g-sidenav-hidden .sidenav-header,
+.g-sidenav-hidden .navbar-nav,
+.g-sidenav-hidden .sidenav-header-inner {
+  display: none !important; /* Hide the navigation content */
+}
+
+/* Ensure the burger menu button stays visible */
+.g-sidenav-hidden .sidenav {
+  width: auto !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0.5rem !important;
+}
+
+/* Remove the harsh display:none on the entire aside */
+aside:has(.g-sidenav-hidden) {
+  display: block !important; /* Keep aside visible for burger menu */
+  width: auto !important;
+  min-width: auto !important;
+}
+
+/* ✅ CRITICAL FIX: Proper layout when sidebar is visible */
+.g-sidenav-show {
+  display: flex !important;
+  min-height: 100vh;
+}
+
+.g-sidenav-show aside.sidenav {
+  position: fixed !important;
+  top: 0;
+  left: 0;
+  height: 100vh;
+  width: 250px; /* Standard sidebar width */
+  z-index: 1000;
+  overflow-y: auto;
+}
+
+.g-sidenav-show .main-content {
+  margin-left: 250px !important; /* Same as sidebar width */
+  width: calc(100% - 250px) !important;
+  transition: margin-left 0.3s ease, width 0.3s ease;
+}
+
+/* When sidebar is hidden, reset main content */
+.g-sidenav-hidden + .g-sidenav-show .main-content,
+body:has(.g-sidenav-hidden) .main-content {
+  margin-left: 0 !important;
+  width: 100% !important;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 1199.98px) {
+  .g-sidenav-show aside.sidenav {
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+  }
+  
+  .g-sidenav-show aside.sidenav.show {
+    transform: translateX(0);
+  }
+  
+  .g-sidenav-show .main-content {
+    margin-left: 0 !important;
+    width: 100% !important;
+  }
+}

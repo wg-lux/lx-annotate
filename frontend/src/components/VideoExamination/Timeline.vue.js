@@ -89,8 +89,18 @@ const timeMarkers = computed(() => {
 });
 const currentFps = computed(() => props.fps || 50);
 const toCanonical = (s) => {
+    // ✅ FIX: Enhanced normalization to handle both backend (snake_case) and frontend (camelCase) property names
     const n = normalizeSegmentToCamelCase(s);
-    const color = getColorForLabel(s.label);
+    // ✅ Extract label with comprehensive fallbacks (backend sends label_name)
+    const segmentLabel = s.label_name ?? s.label ?? n.label ?? '';
+    const color = getColorForLabel(segmentLabel);
+    // ✅ Debug logging for property name mismatches
+    if (!s.startTime && s.start_time) {
+        console.debug('[Timeline] Converted snake_case to camelCase:', {
+            from: { start_time: s.start_time, end_time: s.end_time, label_name: s.label_name },
+            to: { startTime: n.startTime, endTime: n.endTime, label: segmentLabel }
+        });
+    }
     return {
         ...n,
         start: n.startTime,
@@ -98,12 +108,14 @@ const toCanonical = (s) => {
         isDraft: typeof s.id === 'string' && (s.id === 'draft' || s.id.startsWith('temp-')),
         color: color || getRandomColor() || undefined,
         avgConfidence: s.avgConfidence ?? 0,
-        label: s.label ?? s.label_name // ✅ FIX: Use label or label_name
+        label: segmentLabel // ✅ Use extracted label with backend compatibility
     };
 };
 const selectedLabel = ref(null);
 const selectSegment = (segment) => {
-    selectedLabel.value = segment.label; // ✅ FIX: Use segment.label instead of segment.label_name
+    // ✅ FIX: Extract label from both backend (label_name) and frontend (label) properties
+    const label = segment.label_name ?? segment.label;
+    selectedLabel.value = label;
     emit('segment-select', segment);
 };
 // ✅ FIX: Add getTranslationForLabel function from videoStore
@@ -117,7 +129,30 @@ const getColorForLabel = (label) => {
 const displayedSegments = ref([]);
 watch(() => props.segments, (segments) => {
     if (segments) {
-        displayedSegments.value = segments?.map(toCanonical);
+        console.debug('[Timeline] Processing segments:', {
+            count: segments.length,
+            sample: segments.slice(0, 2).map(s => ({
+                id: s.id,
+                label: s.label,
+                label_name: s.label_name,
+                start_time: s.start_time,
+                startTime: s.startTime,
+                end_time: s.end_time,
+                endTime: s.endTime
+            }))
+        });
+        displayedSegments.value = segments.map(toCanonical);
+        console.debug('[Timeline] Canonical segments created:', {
+            count: displayedSegments.value.length,
+            sample: displayedSegments.value.slice(0, 2).map(s => ({
+                id: s.id,
+                label: s.label,
+                start: s.start,
+                end: s.end,
+                startTime: s.startTime,
+                endTime: s.endTime
+            }))
+        });
     }
     else {
         displayedSegments.value = [];
@@ -132,10 +167,28 @@ watch(() => props.segments, (segments) => {
  */
 const segmentRows = computed(() => {
     const buckets = {};
+    // ✅ Debug: Log all segments being processed
+    console.debug('[Timeline] segmentRows - processing segments:', {
+        count: displayedSegments.value.length,
+        segments: displayedSegments.value.map(s => ({
+            id: s.id,
+            label: s.label,
+            start: s.start,
+            end: s.end
+        }))
+    });
     // build from the *mutable* working copy so previews are visible
-    for (const s of displayedSegments.value) { //THIS IS THE LINE FROM THE PROMPT
+    for (const s of displayedSegments.value) {
+        if (!s.label) {
+            console.error('[Timeline] Segment missing label property:', s);
+            continue;
+        }
         (buckets[s.label] ||= []).push(s);
     }
+    console.debug('[Timeline] Label buckets created:', {
+        labels: Object.keys(buckets),
+        counts: Object.entries(buckets).map(([label, segs]) => `${label}:${segs.length}`)
+    });
     // ►  fixed order: first the user-selected label (if any), then our persisted order
     const orderedLabels = selectedLabel.value
         ? [selectedLabel.value, ...labelOrder.value.filter(l => l !== selectedLabel.value)]
@@ -170,6 +223,14 @@ const segmentRows = computed(() => {
         }
         rows.push(currentRow);
     });
+    console.debug('[Timeline] Rows created:', {
+        count: rows.length,
+        rows: rows.map(r => ({
+            key: r.key,
+            label: r.label,
+            segmentCount: r.segments.length
+        }))
+    });
     return rows;
 });
 // ✅ NEW: Calculate total timeline height based on number of rows
@@ -190,10 +251,31 @@ const formatDuration = (startTime, endTime) => {
     return formatTimeHelper(duration);
 };
 const getSegmentPosition = (startTime) => {
-    return calculateSegmentPosition(startTime, duration.value);
+    const position = calculateSegmentPosition(startTime, duration.value);
+    // ✅ Debug validation for position calculation
+    if (!Number.isFinite(position) || position < 0) {
+        console.error('[Timeline] Invalid segment position calculated:', {
+            startTime,
+            duration: duration.value,
+            position
+        });
+        return 0;
+    }
+    return position;
 };
 const getSegmentWidth = (startTime, endTime) => {
-    return calculateSegmentWidth(startTime, endTime, duration.value);
+    const width = calculateSegmentWidth(startTime, endTime, duration.value);
+    // ✅ Debug validation for width calculation
+    if (!Number.isFinite(width) || width <= 0) {
+        console.error('[Timeline] Invalid segment width calculated:', {
+            startTime,
+            endTime,
+            duration: duration.value,
+            width
+        });
+        return 0;
+    }
+    return width;
 };
 function useDragResize(el, opt) {
     let mode = null;

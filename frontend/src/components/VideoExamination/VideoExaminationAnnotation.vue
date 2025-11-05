@@ -213,20 +213,13 @@
                     data-cy="label-select"
                   >
                     <option value="">Label auswählen...</option>
-                    <option value="appendix">Appendix</option>
-                    <option value="blood">Blut</option>
-                    <option value="diverticule">Divertikel</option>
-                    <option value="grasper">Greifer</option>
-                    <option value="ileocaecalvalve">Ileozäkalklappe</option>
-                    <option value="ileum">Ileum</option>
-                    <option value="low_quality">Niedrige Bildqualität</option>
-                    <option value="nbi">Narrow Band Imaging</option>
-                    <option value="needle">Nadel</option>
-                    <option value="outside">Außerhalb</option>
-                    <option value="polyp">Polyp</option>
-                    <option value="snare">Snare</option>
-                    <option value="water_jet">Wasserstrahl</option>
-                    <option value="wound">Wunde</option>
+                    <option 
+                      v-for="label in timelineLabels" 
+                      :key="label.id" 
+                      :value="label.name"
+                    >
+                      {{ getTranslationForLabel(label.name) }}
+                    </option>
                   </select>
                 </div>
                 
@@ -634,7 +627,27 @@ const canStartLabeling = computed(() => {
 })
 
 
-onMounted(videoStore.fetchAllVideos)
+// ✅ PRIORITY: Load labels first, then videos, then anonymization status
+onMounted(async () => {
+  console.log('🚀 [VideoExamination] Component mounted - loading data in priority order...')
+  try {
+    // Step 1: Load labels with high priority
+    await videoStore.fetchLabels()
+    console.log(`✅ [VideoExamination] Labels loaded: ${videoStore.labels.length}`)
+    
+    // Step 2: Load anonymization overview BEFORE videos (needed for filtering)
+    await anonymizationStore.fetchOverview()
+    console.log(`✅ [VideoExamination] Anonymization status loaded: ${overview.value.length} items`)
+    
+    // Step 3: Load videos after labels and anonymization status are available
+    await videoStore.fetchAllVideos()
+    console.log(`✅ [VideoExamination] Videos loaded: ${videoStore.videoList.videos.length}`)
+    console.log(`✅ [VideoExamination] Annotatable videos: ${annotatableVideos.value.length}`)
+  } catch (error) {
+    console.error('❌ [VideoExamination] Error during initial load:', error)
+    showErrorMessage('Fehler beim Laden der Daten. Bitte Seite neu laden.')
+  }
+})
 
 // Guarded function for error handling like VideoClassificationComponent
 async function guarded<T>(p: Promise<T>): Promise<T | undefined> {
@@ -727,6 +740,8 @@ const loadSavedExaminations = async (): Promise<void> => {
   if (selectedVideoId.value === null) return
   
   try {
+    // TODO: Migrate to new media framework URL when backend supports /api/media/videos/{id}/examinations/
+    // Currently using old URL as part of partial migration strategy
     const response = await axiosInstance.get(r(`video/${selectedVideoId.value}/examinations/`))
     savedExaminations.value = response.data
     
