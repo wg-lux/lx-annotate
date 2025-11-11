@@ -65,7 +65,8 @@ const router = createRouter({
       name: 'Patienten',
       component: () => import('@/views/PatientOverview.vue'),
       meta: {
-        description: 'Hier können Sie alle Patienten einsehen und verwalten.'
+        description: 'Hier können Sie alle Patienten einsehen und verwalten.',
+        cap: 'page.patients.view'                      // <-- add: capability tag for UI checks
       }
     },
     {

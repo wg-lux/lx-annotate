@@ -24,61 +24,60 @@
   <meta http-equiv="X-UA-Compatible" content="IE=edge" />
 
   <AuthCheck>
-    <template #unauthenticated-content>
-      <template v-if="!isMenuOpen">
-        <aside
-          class="sidenav navbar navbar-vertical navbar-expand-xs ms-3"
-          id="sidenav-main">
-        
+    
+   <!-- ✅ Show the full app shell ONLY when the user is authenticated -->
+   <template #authenticated-content>
+    <template v-if="!isMenuOpen">
+      <aside
+        class="sidenav navbar navbar-vertical navbar-expand-xs ms-3"
+        id="sidenav-main">
         <div class="g-sidenav-hidden">
-        <div class="sidenav m-1">
-          <button @click="toggleMenu" class="material-icons btn btn-outline-primary border-0 my-3 btn-sm mb-0 me-3">menu</button>
+          <div class="sidenav m-1">
+            <button
+              @click="toggleMenu"
+              class="material-icons btn btn-outline-primary border-0 my-3 btn-sm mb-0 me-3"
+            >menu</button>
+          </div>
         </div>
-        </div>
-        </aside>
-      </template>
+      </aside>
+    </template>
 
-      <div class="g-sidenav-show">
-
+    <div class="g-sidenav-show">
       <template v-if="isMenuOpen">
         <aside
           class="sidenav navbar navbar-vertical navbar-expand-xs border-0 border-radius-xl my-3 fixed-start ms-3 bg-gradient-dark"
           id="sidenav-main">
-          <button @click="toggleMenu" class="material-icons btn btn-outline-info btn-sm mb-0 me-3 bg-gradient-dark">close</button>
-          <SidebarComponent/>
+          <button
+            @click="toggleMenu"
+            class="material-icons btn btn-outline-info btn-sm mb-0 me-3 bg-gradient-dark"
+          >close</button>
+          <SidebarComponent />
         </aside>
       </template>
 
-
-        <main class="main-content position-relative max-height-vh-95 h-100 border-radius-lg">
-          
-          <NavbarComponent />
-          <div class="container-fluid h-100 w-100 py-1 px-4">
-            <div class="row">
-              <div class="col-12">
-                <router-view />
-                <ToastMessageContainer />
-              </div>
+      <main class="main-content position-relative max-height-vh-95 h-100 border-radius-lg">
+        <NavbarComponent />
+        <div class="container-fluid h-100 w-100 py-1 px-4">
+          <div class="row">
+            <div class="col-12">
+              <router-view />
+              <ToastMessageContainer />
             </div>
           </div>
-        </main>
-      </div>
-    </template>
-
-    <template #authenticated-content>
-      <div class="g-sidenav-hidden">
-        
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-
-        <div class="container-fluid h-100 w-100 py-1 px-4">
-          <main class="main-content center position-relative max-width max-height-vh-95 h-100 border-radius-lg">
-
-            <LoginComponent />
-          </main>
         </div>
-      </div>
-    </template>
-  </AuthCheck>
+      </main>
+    </div>
+  </template>
+
+  <!-- ❌ Show the login page when NOT authenticated -->
+  <template #unauthenticated-content>
+    <div class="container-fluid h-100 w-100 py-1 px-4">
+      <main class="main-content center position-relative max-width max-height-vh-95 h-100 border-radius-lg">
+        <LoginComponent />
+      </main>
+    </div>
+  </template>
+</AuthCheck>
 </template>
 
 <script>
