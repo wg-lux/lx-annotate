@@ -14,7 +14,9 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
 
   return {
-    base: mode === 'development' ? 'http://localhost:3000/' : './',
+    //base: mode === 'development' ? 'http://localhost:3000/' : './',
+    base: mode === 'development' ? '/' : './',
+
     plugins: [vue(), vueJsx(), vueDevTools()],
 
     build: {

@@ -86,6 +86,7 @@ import SidebarComponent from './components/SidebarComponent.vue';
 import DashboardComponent from './components/DashboardComponent.vue';
 import LoginComponent from './components/LoginComponent.vue';
 import ToastMessageContainer from './components/Utils/ToastMessageContainer.vue';
+import AuthCheck from './components/AuthCheck.vue'; // ✅ add
 import '@/assets/custom-overrides.css';
 
 import axios from 'axios';
@@ -114,6 +115,7 @@ export default {
     DashboardComponent,
     LoginComponent,
     ToastMessageContainer,
+    AuthCheck, // ✅ add
   },
 };
 

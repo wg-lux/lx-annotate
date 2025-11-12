@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import { useAnonymizationStore } from '@/stores/anonymizationStore';
+import { useAuthKcStore } from '@/stores/auth_kc';
 const router = createRouter({
     history: createWebHistory(import.meta.env.BASE_URL || '/'),
     routes: [
@@ -64,7 +65,8 @@ const router = createRouter({
             name: 'Patienten',
             component: () => import('@/views/PatientOverview.vue'),
             meta: {
-                description: 'Hier können Sie alle Patienten einsehen und verwalten.'
+                description: 'Hier können Sie alle Patienten einsehen und verwalten.',
+                cap: 'page.patients.view' // <-- add: capability tag for UI checks
             }
         },
         {
@@ -132,5 +134,19 @@ router.beforeEach((_to, _from, next) => {
     const store = useAnonymizationStore();
     store.stopAllPolling();
     next();
+});
+// OPTIONAL: gate by capability key if present (friendly UX)
+router.beforeEach((to, _from, next) => {
+    const cap = to.meta?.cap;
+    if (!cap)
+        return next();
+    const auth = useAuthKcStore();
+    // If bootstrap not yet loaded, let AuthCheck handle blocking UI; allow navigation.
+    if (!auth.loaded)
+        return next();
+    if (auth.can(cap, 'GET'))
+        return next();
+    // No capability → go to a local 403 page or back to dashboard
+    return next({ path: '/', query: { denied: '1' } });
 });
 export default router;
