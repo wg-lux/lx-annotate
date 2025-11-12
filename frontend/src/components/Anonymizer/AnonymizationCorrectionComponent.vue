@@ -578,6 +578,7 @@ const hasProcessedVersion = computed(() => {
 // Props interface for route params
 interface Props {
   fileId: number;
+  mediaType: string;
 }
 
 const props = defineProps<Props>();

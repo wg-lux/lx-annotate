@@ -6,6 +6,7 @@ import { useAnnotationStore } from '@/stores/annotationStore';
 import { useMediaTypeStore } from '@/stores/mediaTypeStore';
 import { usePollingProtection } from '@/composables/usePollingProtection';
 import { useMediaManagement } from '@/api/mediaManagement';
+import {} from '../../stores/mediaTypeStore';
 // Composables
 const router = useRouter();
 const anonymizationStore = useAnonymizationStore();
@@ -25,6 +26,7 @@ const refreshOverview = async () => {
     isRefreshing.value = true;
     try {
         await anonymizationStore.fetchOverview();
+        mediaStore.seedTypesFromOverview(anonymizationStore.overview);
     }
     finally {
         isRefreshing.value = false;
@@ -55,8 +57,12 @@ const correctVideo = async (fileId) => {
     if (file) {
         mediaStore.setCurrentItem(file);
     }
+    else {
+        console.warn('File not found for correction:', fileId);
+        return;
+    }
     // Navigate directly to the correction component with the video ID
-    router.push({ name: 'Anonymisierung Korrektur', params: { fileId } });
+    router.push({ name: 'Anonymisierung Korrektur', params: { fileId, mediaType: file.mediaType } });
 };
 const isReadyForValidation = (fileId) => {
     // Check if the file is ready for validation
@@ -92,10 +98,26 @@ const validateFile = async (fileId) => {
             }
             else {
                 mediaStore.setCurrentItem(file);
+                const kind = file.mediaType;
+                // file id mapping
+                try {
+                    mediaStore.rememberType(fileId, kind, kind);
+                }
+                catch (e) {
+                    console.error('Error remembering media type for file:', fileId, e);
+                }
+                // meta id mapping
+                if (file.sensitiveMetaId) {
+                    mediaStore.rememberType(file.sensitiveMetaId, kind, 'meta');
+                }
+                // persist for navigation fallback
+                sessionStorage.setItem('last:fileId', String(fileId));
+                sessionStorage.setItem('last:scope', kind);
             }
+            console.log('File set for validation:', fileId, 'file media type:', file.mediaType);
             // Simply navigate to validation page without changing status
             // The status should only change when user actually completes validation
-            router.push('/anonymisierung/validierung');
+            router.push({ name: 'AnonymisierungValidierung', params: { fileId, mediaType: file.mediaType } });
         }
     }
     catch (error) {
@@ -286,6 +308,12 @@ const hasOriginalFile = (file) => {
 onMounted(async () => {
     // Fetch overview data
     await anonymizationStore.fetchOverview();
+    mediaStore.seedTypesFromOverview(anonymizationStore.overview);
+    console.table(anonymizationStore.overview.map(f => ({
+        id: f.id,
+        fromOverview: f.mediaType,
+        remembered: mediaStore.getType(f.id) // scans both pdf/video scopes
+    })));
     // ✅ FIX: Only start polling for files that are actively processing
     // Don't poll files with final states: 'done', 'validated', 'failed', 'not_started'
     const processingStatuses = ['processing_anonymization', 'extracting_frames', 'predicting_segments'];

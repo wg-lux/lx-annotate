@@ -244,7 +244,6 @@ const loadVideoDetail = async (videoId) => {
         if (currentVideo) {
             mediaStore.setCurrentItem(currentVideo);
             console.log('MediaStore updated with video:', videoId);
-            console.log('MediaStore video URL:', mediaStore.getVideoUrl(currentVideo));
         }
         // Update local duration if available
         if (videoMeta.value.duration > 0) {

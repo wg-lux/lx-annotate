@@ -8,6 +8,7 @@ import { usePdfStore } from '@/stores/pdfStore';
 import { useMediaTypeStore } from '@/stores/mediaTypeStore';
 import OutsideTimelineComponent from '@/components/Anonymizer/OutsideSegmentComponent.vue';
 import { DateConverter, DateValidator } from '@/utils/dateHelpers';
+import { useRoute } from 'vue-router';
 // @ts-ignore
 import axiosInstance, { r } from '@/api/axiosInstance';
 import { usePollingProtection } from '@/composables/usePollingProtection';
@@ -17,9 +18,34 @@ const router = useRouter();
 // Store references
 const anonymizationStore = useAnonymizationStore();
 const videoStore = useVideoStore();
-const patientStore = usePatientStore();
-const pdfStore = usePdfStore();
+// const patientStore = usePatientStore();
+// const pdfStore = usePdfStore();
 const mediaStore = useMediaTypeStore();
+const route = useRoute();
+function restoreLast() {
+    const fid = Number(sessionStorage.getItem('last:fileId') || '');
+    const sc = sessionStorage.getItem('last:scope');
+    return { fileId: Number.isFinite(fid) ? fid : undefined, scope: sc || undefined };
+}
+let fileId = Number(route.params.fileId ?? route.query.fileId);
+let scope = route.params.mediaType;
+if (!scope)
+    scope = route.query.mediaType;
+if (!Number.isFinite(fileId) || !scope) {
+    const restored = restoreLast();
+    if (!Number.isFinite(fileId))
+        fileId = restored.fileId;
+    if (!scope)
+        scope = restored.scope;
+}
+if (!Number.isFinite(fileId) || !scope) {
+    console.error('Validation view: cannot determine fileId/scope; aborting mediaStore init.');
+}
+else {
+    mediaStore.setCurrentByKey(scope, fileId);
+}
+const isPdf = computed(() => mediaStore.isPdf); // boolean ref from store
+const isVideo = computed(() => mediaStore.isVideo);
 // Local state
 const editedAnonymizedText = ref('');
 const examinationDate = ref('');
@@ -27,9 +53,15 @@ const noMoreNames = ref(false);
 const editedPatient = ref({
     patientFirstName: '',
     patientLastName: '',
-    patientGender: '',
+    patientGenderName: '',
     patientDob: '',
-    casenumber: ''
+    casenumber: '',
+    externalId: '',
+    externalIdOrigin: '',
+    centerName: '',
+    text: '',
+    anonymizedText: '',
+    examinersDisplay: '',
 });
 // ✨ Phase 2.2: Validation error tracking
 const validationErrors = ref([]);
@@ -54,7 +86,7 @@ const original = ref({
     patient: {
         patientFirstName: '',
         patientLastName: '',
-        patientGender: '',
+        patientGenderName: '',
         patientDob: '',
         casenumber: '',
     },
@@ -62,7 +94,7 @@ const original = ref({
 function shallowEqual(a, b) {
     return a.patientFirstName === b.patientFirstName &&
         a.patientLastName === b.patientLastName &&
-        a.patientGender === b.patientGender &&
+        a.patientGenderName === b.patientGenderName &&
         a.patientDob === b.patientDob &&
         a.casenumber === b.casenumber;
 }
@@ -76,7 +108,7 @@ function buildSensitiveMetaSnake(dobGerman) {
     return {
         patient_first_name: editedPatient.value.patientFirstName || '',
         patient_last_name: editedPatient.value.patientLastName || '',
-        patient_gender: editedPatient.value.patientGender || '',
+        patient_gender: editedPatient.value.patientGenderName || '',
         patient_dob: dobGerman, // 🎯 Jetzt deutsches Format
         casenumber: editedPatient.value.casenumber || '',
     };
@@ -168,46 +200,20 @@ const validationProgressPercent = computed(() => {
 // ============================================================================
 // Computed
 const currentItem = computed(() => anonymizationStore.current);
-// Use MediaStore for consistent media type detection
-const isPdf = computed(() => {
-    if (!currentItem.value)
-        return false;
-    return mediaStore.detectMediaType(currentItem.value) === 'pdf';
-});
-const isVideo = computed(() => {
-    if (!currentItem.value)
-        return false;
-    return mediaStore.detectMediaType(currentItem.value) === 'video';
-});
-// Media URLs with MediaStore logic
-const pdfSrc = computed(() => {
-    if (!isPdf.value || !currentItem.value)
-        return undefined;
-    // Use MediaStore's URL resolution logic
-    return mediaStore.getPdfUrl(currentItem.value) ||
-        pdfStore.pdfStreamUrl ||
-        pdfStore.buildPdfStreamUrl(currentItem.value.id);
-});
-// ✅ ENHANCED: Dual video streaming for raw vs anonymized comparison
-const videoSrc = computed(() => {
-    if (!isVideo.value || !currentItem.value)
-        return undefined;
-    return mediaStore.getVideoUrl(currentItem.value);
-});
 // ✅ NEW: Raw video URL (original unprocessed video)
 const rawVideoSrc = computed(() => {
     if (!isVideo.value || !currentItem.value)
         return undefined;
     // Build raw video URL with explicit raw parameter
     const base = import.meta.env.VITE_API_BASE_URL || window.location.origin;
-    return `${base}/api/media/videos/${currentItem.value.id}/?type=raw`;
+    return `${base}/api/media/videos/${fileId}/?type=raw`;
 });
 // ✅ NEW: Anonymized video URL (processed/anonymized video)
 const anonymizedVideoSrc = computed(() => {
     if (!isVideo.value || !currentItem.value)
         return undefined;
     const base = import.meta.env.VITE_API_BASE_URL || window.location.origin;
-    return `${base}/api/media/videos/${currentItem.value.id}/?type=processed`;
+    return `${base}/api/media/videos/${fileId}/?type=processed`;
 });
 // ✅ NEW: Raw PDF URL (original unprocessed PDF)
 const rawPdfSrc = computed(() => {
@@ -215,7 +221,7 @@ const rawPdfSrc = computed(() => {
         return undefined;
     // Build raw PDF URL with explicit raw parameter
     const base = import.meta.env.VITE_API_BASE_URL || window.location.origin;
-    return `${base}/api/media/pdfs/${currentItem.value.id}/stream/?type=raw`;
+    return `${base}/api/media/pdfs/${fileId}/stream/?type=raw`;
 });
 // ✅ NEW: Anonymized PDF URL (processed/anonymized PDF)
 const anonymizedPdfSrc = computed(() => {
@@ -223,7 +229,7 @@ const anonymizedPdfSrc = computed(() => {
         return undefined;
     // Build anonymized PDF URL with explicit processed parameter
     const base = import.meta.env.VITE_API_BASE_URL || window.location.origin;
-    return `${base}/api/media/pdfs/${currentItem.value.id}/stream/?type=processed`;
+    return `${base}/api/media/pdfs/${fileId}/stream/?type=processed`;
 });
 // ✅ NEW: Refs for dual video elements
 const rawVideoElement = ref(null);
@@ -278,7 +284,6 @@ const pauseAllVideos = () => {
         anonymizedVideoElement.value.pause();
     console.log('All videos paused');
 };
-// ✅ NEW: PDF download functions
 const downloadRawPdf = () => {
     if (!rawPdfSrc.value) {
         toast.warning({ text: 'Original-PDF nicht verfügbar.' });
@@ -293,11 +298,9 @@ const downloadAnonymizedPdf = () => {
         toast.warning({ text: 'Anonymisiertes PDF nicht verfügbar.' });
         return;
     }
-    // Open PDF in new tab for download
     window.open(anonymizedPdfSrc.value, '_blank');
     console.log('Downloading anonymized PDF:', anonymizedPdfSrc.value);
 };
-// ✅ NEW: Video validation functions for segment annotation
 const validateVideoForSegmentAnnotation = async () => {
     if (!currentItem.value || !isVideo.value) {
         toast.warning({ text: 'Kein Video zur Validierung ausgewählt.' });
@@ -421,19 +424,31 @@ const loadCurrentItemData = (item) => {
     outsideSegmentsValidated.value = 0;
     totalOutsideSegments.value = 0;
     isValidatingVideo.value = false;
-    editedAnonymizedText.value = item.anonymizedText || '';
-    const rawExam = item.reportMeta?.examinationDate || '';
-    const rawDob = item.reportMeta?.patientDob || '';
+    const rawExam = item.examinationDate || '';
+    const rawDob = item.patientDob || '';
     // ✨ Phase 2.1: Using DateConverter for consistent format handling
     examinationDate.value = DateConverter.toISO(rawExam) || '';
     const p = {
-        patientFirstName: item.reportMeta?.patientFirstName || '',
-        patientLastName: item.reportMeta?.patientLastName || '',
-        patientGender: item.reportMeta?.patientGender || '',
+        patientFirstName: item.patientFirstName || '',
+        patientLastName: item.patientLastName || '',
+        patientGenderName: item.patientGenderName || '',
         patientDob: DateConverter.toISO(rawDob) || '',
-        casenumber: item.reportMeta?.casenumber || '',
+        casenumber: item.casenumber || '',
+        externalId: item.externalId ?? '',
+        externalIdOrigin: item.externalIdOrigin ?? '',
+        centerName: item.centerName ?? '',
+        text: item.text ?? '',
+        anonymizedText: item.anonymizedText ?? '',
     };
-    editedPatient.value = { ...p };
+    editedPatient.value = {
+        ...p,
+        externalId: p.externalId ?? '',
+        externalIdOrigin: p.externalIdOrigin ?? '',
+        centerName: p.centerName ?? '',
+        text: p.text ?? '',
+        anonymizedText: p.anonymizedText ?? '',
+        examinersDisplay: p.examinersDisplay ?? '',
+    };
     original.value = {
         anonymizedText: editedAnonymizedText.value,
         examinationDate: examinationDate.value,
@@ -442,11 +457,8 @@ const loadCurrentItemData = (item) => {
 };
 // Watch
 watch(currentItem, (newItem) => {
-    if (newItem) {
-        // Update MediaStore with current item for consistent type detection
-        mediaStore.setCurrentItem(newItem);
+    if (newItem)
         loadCurrentItemData(newItem);
-    }
 }, { immediate: true });
 const fetchNextItem = async () => {
     try {
@@ -630,7 +642,7 @@ const approveItem = async () => {
             await axiosInstance.post(r(`anonymization/${currentItem.value.id}/validate/`), {
                 patient_first_name: editedPatient.value.patientFirstName,
                 patient_last_name: editedPatient.value.patientLastName,
-                patient_gender: editedPatient.value.patientGender,
+                patient_gender: editedPatient.value.patientGenderName,
                 patient_dob: DateConverter.toGerman(dobISO.value || '') || '', // 🎯 Phase 2.1: SENDE DEUTSCHES FORMAT
                 examination_date: DateConverter.toGerman(examISO.value || '') || '', // 🎯 Phase 2.1: SENDE DEUTSCHES FORMAT
                 casenumber: editedPatient.value.casenumber || "",
@@ -738,6 +750,9 @@ const navigateToCorrection = async () => {
 };
 // Lifecycle
 onMounted(async () => {
+    const id = Number(fileId);
+    const scope = mediaStore.currentMediaType ?? 'unknown';
+    mediaStore.setCurrentByKey(scope, id);
     if (!anonymizationStore.current) { // nur wenn wirklich leer
         await fetchNextItem();
     }
@@ -880,7 +895,7 @@ if (__VLS_ctx.currentItem) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
     __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
     (__VLS_ctx.isPdf ? 'PDF-Dokument' : __VLS_ctx.isVideo ? 'Video-Datei' : 'Unbekanntes Format');
-    (__VLS_ctx.currentItem?.reportMeta?.centerName ? `- ${__VLS_ctx.currentItem.reportMeta.centerName}` : '');
+    (__VLS_ctx.currentItem?.centerName ? `- ${__VLS_ctx.currentItem.centerName}` : '');
     if (__VLS_ctx.currentItem && (__VLS_ctx.isVideo || __VLS_ctx.isPdf)) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: "text-end" },
@@ -1004,7 +1019,7 @@ if (__VLS_ctx.currentItem) {
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
         ...{ class: "form-select" },
-        value: (__VLS_ctx.editedPatient.patientGender),
+        value: (__VLS_ctx.editedPatient.patientGenderName),
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
         value: "male",
@@ -1100,6 +1115,46 @@ if (__VLS_ctx.currentItem) {
         value: (__VLS_ctx.editedAnonymizedText),
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "mb-3" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+        ...{ class: "form-label" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.textarea, __VLS_intrinsicElements.textarea)({
+        ...{ class: "form-control" },
+        value: (__VLS_ctx.editedPatient.externalId),
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "mb-3" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+        ...{ class: "form-label" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.textarea, __VLS_intrinsicElements.textarea)({
+        ...{ class: "form-control" },
+        value: (__VLS_ctx.editedPatient.examinersDisplay),
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "mb-3" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+        ...{ class: "form-label" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.textarea, __VLS_intrinsicElements.textarea)({
+        ...{ class: "form-control" },
+        value: (__VLS_ctx.editedPatient.externalIdOrigin),
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "mb-3" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+        ...{ class: "form-label" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.textarea, __VLS_intrinsicElements.textarea)({
+        ...{ class: "form-control" },
+        value: (__VLS_ctx.editedPatient.centerName),
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "card bg-light" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -1160,7 +1215,7 @@ if (__VLS_ctx.currentItem) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
     if (__VLS_ctx.isPdf) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
-        (Math.round((__VLS_ctx.currentItem?.reportMeta?.file?.length || 0) / 1024) || 'Unbekannt');
+        (Math.round((__VLS_ctx.anonymizedPdfSrc?.length || 0) / 1024) || 'Nicht Verfügbar');
     }
     else if (__VLS_ctx.isVideo) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
@@ -1467,9 +1522,6 @@ if (__VLS_ctx.currentItem) {
         (__VLS_ctx.currentItem?.id || 'Nicht verfügbar');
         __VLS_asFunctionalElement(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({});
         __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
-        (__VLS_ctx.currentItem?.sensitiveMetaId || 'Nicht verfügbar');
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({});
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
         (__VLS_ctx.isPdf);
         __VLS_asFunctionalElement(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({});
         __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
@@ -1477,18 +1529,6 @@ if (__VLS_ctx.currentItem) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({});
         __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
         (__VLS_ctx.currentItem ? __VLS_ctx.mediaStore.detectMediaType(__VLS_ctx.currentItem) : 'N/A');
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({});
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
-        (__VLS_ctx.currentItem ? __VLS_ctx.mediaStore.currentMediaUrl : 'N/A');
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({});
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
-        (__VLS_ctx.currentItem?.reportMeta?.pdfUrl || 'Nicht verfügbar');
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({});
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
-        (__VLS_ctx.currentItem?.videoUrl || 'Nicht verfügbar');
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({});
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
-        (__VLS_ctx.currentItem?.pdfStreamUrl || 'Nicht verfügbar');
     }
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "row" },
@@ -1667,6 +1707,18 @@ if (__VLS_ctx.currentItem) {
 /** @type {__VLS_StyleScopedClasses['badge']} */ ;
 /** @type {__VLS_StyleScopedClasses['bg-secondary']} */ ;
 /** @type {__VLS_StyleScopedClasses['invalid-feedback']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-control']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-control']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-control']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-control']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['form-label']} */ ;
 /** @type {__VLS_StyleScopedClasses['form-control']} */ ;
@@ -1871,6 +1923,8 @@ const __VLS_self = (await import('vue')).defineComponent({
             OutsideTimelineComponent: OutsideTimelineComponent,
             anonymizationStore: anonymizationStore,
             mediaStore: mediaStore,
+            isPdf: isPdf,
+            isVideo: isVideo,
             editedAnonymizedText: editedAnonymizedText,
             examinationDate: examinationDate,
             noMoreNames: noMoreNames,
@@ -1897,8 +1951,6 @@ const __VLS_self = (await import('vue')).defineComponent({
             approvalBlockReason: approvalBlockReason,
             validationProgressPercent: validationProgressPercent,
             currentItem: currentItem,
-            isPdf: isPdf,
-            isVideo: isVideo,
             rawVideoSrc: rawVideoSrc,
             anonymizedVideoSrc: anonymizedVideoSrc,
             rawPdfSrc: rawPdfSrc,

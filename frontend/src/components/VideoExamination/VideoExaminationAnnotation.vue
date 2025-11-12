@@ -719,7 +719,6 @@ const loadVideoDetail = async (videoId: number): Promise<void> => {
     if (currentVideo) {
       mediaStore.setCurrentItem(currentVideo as any)
       console.log('MediaStore updated with video:', videoId)
-      console.log('MediaStore video URL:', mediaStore.getVideoUrl(currentVideo as any))
     }
     
     // Update local duration if available

@@ -2,7 +2,7 @@
 import { defineStore } from 'pinia'
 import axiosInstance, { a, r } from '@/api/axiosInstance'
 import axios from 'axios'
-import { ref } from 'vue'
+import { ref, computed } from 'vue';
 
 /* ------------------------------------------------------------------ */
 /* Typen                                                               */
@@ -21,7 +21,7 @@ export interface FileItem {
     | 'validated'
     | 'predicting_segments'
     | 'extracting_frames'
-  annotationStatus: 'not_started' | 'done'
+  annotationStatus: 'not_started' | 'done' | ''
   createdAt: string // ISO
   sensitiveMetaId?: number // Add this for video file lookup
   metadataImported: boolean // New field to track if metadata was properly imported
@@ -33,8 +33,8 @@ export interface AnonymizationState {
   anonymizationStatus: string
   loading: boolean
   error: string | null
-
-  current: PatientData | null
+  pending: [boolean]
+  current: SensitiveMeta | null
   // New state for overview functionality
   overview: FileItem[]
   pollingHandles: Record<number, ReturnType<typeof setInterval>>
@@ -46,64 +46,31 @@ export interface AnonymizationState {
 }
 
 // Interface matching the actual API response for sensitivemeta
+// THIS IS THE SINGLE SOURCE OF TRUTH FOR SENSITIVEMETA IN THE ANONYMIZATION VALIDATION CONTEXT
 export interface SensitiveMeta {
-  // pk
-  id: number
-  patientFirstName: string | null
-  patientLastName: string | null
-  patientDob: string | null
+  id: number   // pk of db Object!!
+  casenumber?: string | null
+  patientFirstName?: string | null
+  patientLastName?: string | null
+  patientDob?: string | null
+  patientDobDisplay?: string | null
   patientGender: string
   examinationDate: string | null
-  casenumber?: string | null
   centerName?: string
   patientGenderName?: string
+  examinersDisplay: string | null
   endoscopeType?: string
   endoscopeSn?: string
   isVerified?: boolean
   dobVerified?: boolean
   namesVerified?: boolean
-  // PDF specific fields
-  file?: string
-  pdfUrl?: string
-  fullPdfPath?: string
+  anonymizedText?:string
+  text?: string
+  externalId?:string
+  externalIdOrigin?:string
 }
 
-// NEW – matches your VideoDetailSer
-export interface VideoDetailApiResponse {
-  id: number
-  sensitiveMetaId: number // ✔︎ camelCase
-  videoUrl: string | null
-  thumbnail: string | null
-  patientFirstName: string | null
-  patientLastName: string | null
-  patientDob: string | null
-  examinationDate: string | null
-  casenumber?: string | null
-  file: string | null
-}
 
-// Updated interface for PDF data from anony_text endpoint
-export interface PdfDataResponse {
-  id: number
-  sensitiveMetaId: number
-  text: string
-  anonymizedText: string
-  status?: string
-  error?: boolean
-}
-
-export interface PatientData {
-  id: number
-  sensitiveMetaId: number
-  videoUrl?: string | null
-  thumbnail?: string | null
-  text: string
-  anonymizedText: string
-  reportMeta?: SensitiveMeta
-  status?: string
-  error?: boolean
-  pdfStreamUrl?: string // Add this field from VoPPatientDataSerializer
-}
 
 /* ------------------------------------------------------------------ */
 /* Store                                                               */
@@ -111,19 +78,18 @@ export interface PatientData {
 
 export const availableFiles = ref<FileItem[]>([])
 export const useAnonymizationStore = defineStore('anonymization', {
-  state: (): AnonymizationState & { pending: PatientData[] } => ({
+  state: (): AnonymizationState => ({
     anonymizationStatus: 'idle',
     loading: false,
     error: null,
-    pending: [],
     current: null,
     overview: [],
     pollingHandles: {},
     isPolling: false,
     hasAvailableFiles: false,
-    availableFiles: availableFiles.value, // Use the value of the ref to get the actual array
-    // NEW
-    needsValidationIds: []
+    availableFiles: availableFiles.value,
+    needsValidationIds: [],
+    pending: [false] // TODO: Implement reactive getter here
   }),
 
   getters: {
@@ -155,78 +121,8 @@ export const useAnonymizationStore = defineStore('anonymization', {
         // Check if we have a specific file selected from overview
         if (lastId) {
           const item = this.overview.find((f) => f.id === lastId)
-
-          if (item?.mediaType === 'video') {
-            // **Use the sensitive_meta_id (!) for video details endpoint**
-            console.log(`Fetching video detail for sensitiveMetaId: ${item.id}`)
-            const { data: video } = await axiosInstance.get<VideoDetailApiResponse>(
-              r(`media/videos/${item.id}/details/`)
-            )
-            console.log('Received video detail:', video)
-
-            this.current = {
-              id: video.id,
-              sensitiveMetaId: video.sensitiveMetaId,
-              videoUrl: video.videoUrl,
-              thumbnail: video.thumbnail,
-              text: '', // Videos haben keinen Text
-              anonymizedText: '',
-              reportMeta: {
-                id: video.sensitiveMetaId,
-                patientFirstName: video.patientFirstName,
-                patientLastName: video.patientLastName,
-                patientDob: video.patientDob,
-                patientGender: '',
-                examinationDate: video.examinationDate,
-                casenumber: video.casenumber
-              }
-            }
-            return this.current
-          } else {
-            /* PDF-Daten via Modern Media Framework laden ----------------- */
-            if (!lastId) {
-              throw new Error('PDF ID is required to fetch PDF data')
-            }
-
-            // 1) PDF Details (inkl. text/anonymizedText) laden
-            console.log(`Fetching PDF details for ID: ${lastId}`)
-            const { data: pdfDetails } = await axiosInstance.get(
-              r(`media/pdfs/${lastId}/`)
-            )
-            console.log('Received PDF details:', pdfDetails)
-
-            // 2) Sensitive Metadata laden
-            console.log(`Fetching PDF sensitive metadata for ID: ${lastId}`)
-            const { data: sensitiveMeta } = await axiosInstance.get<SensitiveMeta>(
-              r(`media/pdfs/${lastId}/sensitive-metadata/`)
-            )
-            console.log('Received PDF sensitive metadata:', sensitiveMeta)
-
-            if (typeof sensitiveMeta?.id !== 'number') {
-              console.error('Received invalid sensitive meta data structure:', sensitiveMeta)
-              this.$patch({ current: null })
-              throw new Error(
-                'Ungültige Metadaten vom Backend empfangen (keine gültige ID gefunden).'
-              )
-            }
-
-            /* Merge & State-Update -------------------------------------- */
-            const merged: PatientData = {
-              id: lastId,
-              sensitiveMetaId: sensitiveMeta.id,
-              text: pdfDetails.text || '', // Text from PDF details
-              anonymizedText: pdfDetails.anonymizedText || '', // AnonymizedText from PDF details (camelCase!)
-              pdfStreamUrl: pdfDetails.streamUrl || pdfDetails.stream_url, // Stream URL for PDF viewing
-              reportMeta: sensitiveMeta
-            }
-            console.log('Merged data:', merged)
-
-            this.$patch({
-              current: merged
-            })
-
-            return merged
-          }
+          await this.setCurrentForValidation(item!.id)
+          return this.current
         } else {
           if (this.current) {
             return
@@ -293,12 +189,6 @@ export const useAnonymizationStore = defineStore('anonymization', {
     },
 
     /**
-     * Upload files and fetch the resulting anonymization data
-     * @param files - FileList or File array containing files to upload
-     * @returns Promise that resolves when upload and fetch are complete
-     */
-
-    /**
      * Fetch overview of all uploaded files with their statuses
      */
     async fetchOverview() {
@@ -317,14 +207,13 @@ export const useAnonymizationStore = defineStore('anonymization', {
         this.availableFiles.length = 0 // Clear the array
         this.availableFiles.push(...data) // Add all files from the fresh data
 
-        // Update the reactive ref as well
         availableFiles.value = [...data]
 
-        // NEW: Ermittele IDs, die validiert werden müssen (Anonymisierung abgeschlossen, Annotation noch nicht erledigt)
         const needsValidation = data
           .filter((f) => f.anonymizationStatus === 'done' && f.annotationStatus !== 'done')
           .map((f) => f.id)
         this.needsValidationIds = needsValidation
+
 
         // NEW: Polling sofort stoppen für
         // 1) Dateien, die nicht mehr existieren
@@ -484,6 +373,7 @@ export const useAnonymizationStore = defineStore('anonymization', {
         if (!item) {
           throw new Error(`Item with ID ${id} not found in overview`)
         }
+        
 
         console.log('Found item for validation:', item)
 
@@ -491,28 +381,12 @@ export const useAnonymizationStore = defineStore('anonymization', {
           // For videos, use the ID to load the video data
 
           console.log(`Loading video data for sensitiveMetaId: ${item.id}`)
-          const { data: video } = await axiosInstance.get<VideoDetailApiResponse>(
-            r(`media/videos/${item.id}/details/`)
+          const { data: sensitiveMeta } = await axiosInstance.get<SensitiveMeta>(
+            r(`media/videos/${item.id}/sensitive-metadata/`)
           )
-          console.log('Received video detail:', video)
+          console.log('Received video detail:', sensitiveMeta)
 
-          this.current = {
-            id: video.id,
-            sensitiveMetaId: video.sensitiveMetaId,
-            videoUrl: video.videoUrl,
-            thumbnail: video.thumbnail,
-            text: 'd', // Videos don't have text
-            anonymizedText: '', // Videos don't have anonymized text
-            reportMeta: {
-              id: video.sensitiveMetaId,
-              patientFirstName: video.patientFirstName,
-              patientLastName: video.patientLastName,
-              patientDob: video.patientDob,
-              patientGender: '', // Will be filled from backend if available
-              examinationDate: video.examinationDate,
-              casenumber: video.casenumber
-            }
-          }
+          this.current = sensitiveMeta
           return this.current
         } else {
           // For PDFs, load both details and sensitive metadata
@@ -536,19 +410,11 @@ export const useAnonymizationStore = defineStore('anonymization', {
             throw new Error('Ungültige Metadaten vom Backend empfangen.')
           }
 
-          /* Merge & State-Update -------------------------------------- */
-          const merged: PatientData = {
-            id: id,
-            sensitiveMetaId: sensitiveMeta.id,
-            text: pdfDetails.text || '', // Text from PDF details
-            anonymizedText: pdfDetails.anonymizedText || '', // AnonymizedText from PDF details (camelCase!)
-            pdfStreamUrl: pdfDetails.streamUrl || pdfDetails.stream_url, // Stream URL for PDF viewing
-            reportMeta: sensitiveMeta
-          }
-          console.log('Merged validation data:', merged)
 
-          this.current = merged
-          return merged
+          console.log('Merged validation data:', sensitiveMeta)
+
+          this.current = sensitiveMeta
+          return sensitiveMeta
         }
       } catch (err: any) {
         console.error(`Error setting current for validation (ID: ${id}):`, err)

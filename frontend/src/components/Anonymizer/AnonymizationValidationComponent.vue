@@ -45,7 +45,7 @@
                   <span>
                     <strong>Validierung:</strong> 
                     {{ isPdf ? 'PDF-Dokument' : isVideo ? 'Video-Datei' : 'Unbekanntes Format' }}
-                    {{ currentItem?.reportMeta?.centerName ? `- ${currentItem.reportMeta.centerName}` : '' }}
+                    {{ currentItem?.centerName ? `- ${currentItem.centerName}` : '' }}
                   </span>
                 </div>
                 <div v-if="currentItem && (isVideo || isPdf)" class="text-end">
@@ -126,7 +126,7 @@
                   </div>
                   <div class="mb-3">
                     <label class="form-label">Geschlecht:</label>
-                    <select class="form-select" v-model="editedPatient.patientGender">
+                    <select class="form-select" v-model="editedPatient.patientGenderName">
                       <option value="male">Männlich</option>
                       <option value="female">Weiblich</option>
                       <option value="other">Divers</option>
@@ -143,7 +143,6 @@
                     >
                     <small class="form-text text-muted">
                       <i class="fas fa-info-circle me-1"></i>
-                      Format: DD.MM.YYYY oder YYYY-MM-DD
                       <span v-if="dobDisplayFormat" class="ms-2 badge bg-secondary">
                         {{ dobDisplayFormat }}
                       </span>
@@ -171,7 +170,6 @@
                     >
                     <small class="form-text text-muted">
                       <i class="fas fa-info-circle me-1"></i>
-                      Format: DD.MM.YYYY oder YYYY-MM-DD
                       <span v-if="examDateDisplayFormat" class="ms-2 badge bg-secondary">
                         {{ examDateDisplayFormat }}
                       </span>
@@ -186,6 +184,36 @@
                       rows="6"
                       v-model="editedAnonymizedText"></textarea>
                   </div>
+                  <div class="mb-3">
+                    <label class="form-label">Externe ID:</label>
+                      <textarea 
+                        class="form-control"
+                        v-model="editedPatient.externalId"
+                      ></textarea>
+                  </div>
+                  
+                  <div class="mb-3">
+                    <label class="form-label">Untersucher:</label>
+                      <textarea 
+                        class="form-control"
+                        v-model="editedPatient.examinersDisplay"
+                      ></textarea>
+                  </div>
+                  <div class="mb-3">
+                    <label class="form-label">Quelle der Daten:</label>
+                      <textarea
+                      class="form-control"
+                      v-model="editedPatient.externalIdOrigin"
+                    >
+                    </textarea>
+                  </div>
+                  <div class="mb-3">
+                    <label class="form-label">Zentrum:</label>
+                      <textarea
+                      class="form-control"
+                      v-model="editedPatient.centerName"
+                    >
+                    </textarea>
                 </div>
               </div>
 
@@ -213,7 +241,7 @@
                 </div>
               </div>
             </div>
-
+            </div>
             <!-- Media Viewer Section (PDF or Video) -->
             <div class="col-md-7">
               <div class="card">
@@ -226,7 +254,7 @@
                     <i class="fas fa-info-circle me-2"></i>
                     <strong>Datenformat:</strong> 
                     <span v-if="isPdf">
-                      PDF-Dokument ({{ Math.round((currentItem?.reportMeta?.file?.length || 0) / 1024) || 'Unbekannt' }} KB)
+                      PDF-Dokument ({{ Math.round((anonymizedPdfSrc?.length || 0) / 1024) || 'Nicht Verfügbar' }} KB)
                     </span>
                     <span v-else-if="isVideo">
                       Video-Datei (Raw: {{ rawVideoSrc || 'N/A' }} | Anonymized: {{ anonymizedVideoSrc || 'N/A' }})
@@ -454,14 +482,9 @@
                     <h6>Debug-Informationen:</h6>
                     <ul class="mb-0">
                       <li><strong>Current Item ID:</strong> {{ currentItem?.id || 'Nicht verfügbar' }}</li>
-                      <li><strong>SensitiveMeta ID:</strong> {{ currentItem?.sensitiveMetaId || 'Nicht verfügbar' }}</li>
                       <li><strong>Is PDF:</strong> {{ isPdf }}</li>
                       <li><strong>Is Video:</strong> {{ isVideo }}</li>
                       <li><strong>Detected Media Type:</strong> {{ currentItem ? mediaStore.detectMediaType(currentItem as any) : 'N/A' }}</li>
-                      <li><strong>Media URL:</strong> {{ currentItem ? mediaStore.currentMediaUrl : 'N/A' }}</li>
-                      <li><strong>PDF URL:</strong> {{ currentItem?.reportMeta?.pdfUrl || 'Nicht verfügbar' }}</li>
-                      <li><strong>Video URL:</strong> {{ currentItem?.videoUrl || 'Nicht verfügbar' }}</li>
-                      <li><strong>PDF Stream URL:</strong> {{ currentItem?.pdfStreamUrl || 'Nicht verfügbar' }}</li>
                     </ul>
                   </div>
                 </div>
@@ -528,18 +551,19 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { useAnonymizationStore, type PatientData } from '@/stores/anonymizationStore';
+import { useAnonymizationStore, type SensitiveMeta } from '@/stores/anonymizationStore';
 import {useVideoStore, type Video} from '@/stores/videoStore';
 import { usePatientStore } from '@/stores/patientStore';
 import { useToastStore } from '@/stores/toastStore';
 import { usePdfStore } from '@/stores/pdfStore';
-import { useMediaTypeStore } from '@/stores/mediaTypeStore';
+import { useMediaTypeStore, type MediaScope } from '@/stores/mediaTypeStore';
 import OutsideTimelineComponent from '@/components/Anonymizer/OutsideSegmentComponent.vue';
 import { DateConverter, DateValidator } from '@/utils/dateHelpers';
+import {useRoute} from 'vue-router';
+
 // @ts-ignore
 import axiosInstance, { r } from '@/api/axiosInstance';
 import { usePollingProtection } from '@/composables/usePollingProtection';
-
 
 const pollingProtection = usePollingProtection();
 
@@ -550,9 +574,38 @@ const router = useRouter();
 // Store references
 const anonymizationStore = useAnonymizationStore();
 const videoStore = useVideoStore();
-const patientStore = usePatientStore();
-const pdfStore = usePdfStore();
+// const patientStore = usePatientStore();
+// const pdfStore = usePdfStore();
 const mediaStore = useMediaTypeStore();
+
+const route = useRoute();
+
+function restoreLast(): { fileId?: number; scope?: MediaScope } {
+  const fid = Number(sessionStorage.getItem('last:fileId') || '')
+  const sc  = sessionStorage.getItem('last:scope') as MediaScope | null
+  return { fileId: Number.isFinite(fid) ? fid : undefined, scope: sc || undefined }
+}
+
+let fileId = Number(route.params.fileId ?? route.query.fileId)
+let scope  = route.params.mediaType as MediaScope | undefined
+if (!scope) scope = route.query.mediaType as MediaScope | undefined
+
+if (!Number.isFinite(fileId) || !scope) {
+  const restored = restoreLast()
+  if (!Number.isFinite(fileId)) fileId = restored.fileId!
+  if (!scope) scope = restored.scope
+}
+
+if (!Number.isFinite(fileId) || !scope) {
+  console.error('Validation view: cannot determine fileId/scope; aborting mediaStore init.')
+} else {
+  mediaStore.setCurrentByKey(scope, fileId)
+}
+
+const isPdf   = computed(() => mediaStore.isPdf)   // boolean ref from store
+const isVideo = computed(() => mediaStore.isVideo)
+
+
 
 // Local state
 const editedAnonymizedText = ref('');
@@ -561,9 +614,15 @@ const noMoreNames = ref(false);
 const editedPatient = ref({
   patientFirstName: '',
   patientLastName: '',
-  patientGender: '',
+  patientGenderName: '',
   patientDob: '',
-  casenumber: ''
+  casenumber: '',
+  externalId: '',
+  externalIdOrigin: '',
+  centerName: '',
+  text: '',
+  anonymizedText: '',
+  examinersDisplay: '',
 });
 
 // ✨ Phase 2.2: Validation error tracking
@@ -599,9 +658,16 @@ const hasSuccessfulUpload = ref(false);
 type Editable = {
   patientFirstName: string;
   patientLastName: string;
-  patientGender: string;
+  patientGenderName: string;
   patientDob: string; 
   casenumber: string;
+  externalId?: string;
+  externalIdOrigin?: string;
+  centerName?: string;
+  text?: string;
+  anonymizedText?: string;
+  examinationDate?: string;
+  examinersDisplay?: string;
 };
 
 const original = ref<{
@@ -614,7 +680,7 @@ const original = ref<{
   patient: {
     patientFirstName: '',
     patientLastName: '',
-    patientGender: '',
+    patientGenderName: '',
     patientDob: '',
     casenumber: '',
   },
@@ -624,7 +690,7 @@ const original = ref<{
 function shallowEqual(a: Editable, b: Editable): boolean {
   return a.patientFirstName === b.patientFirstName &&
          a.patientLastName === b.patientLastName &&
-         a.patientGender === b.patientGender &&
+         a.patientGenderName === b.patientGenderName &&
          a.patientDob === b.patientDob &&
          a.casenumber === b.casenumber;
 }
@@ -641,7 +707,7 @@ function buildSensitiveMetaSnake(dobGerman: string) {
   return {
     patient_first_name: editedPatient.value.patientFirstName || '',
     patient_last_name:  editedPatient.value.patientLastName  || '',
-    patient_gender:     editedPatient.value.patientGender    || '',
+    patient_gender:     editedPatient.value.patientGenderName    || '',
     patient_dob:        dobGerman,  // 🎯 Jetzt deutsches Format
     casenumber:         editedPatient.value.casenumber       || '',
   };
@@ -745,32 +811,7 @@ const validationProgressPercent = computed(() => {
 // Computed
 const currentItem = computed(() => anonymizationStore.current);
 
-// Use MediaStore for consistent media type detection
-const isPdf = computed(() => {
-  if (!currentItem.value) return false;
-  return mediaStore.detectMediaType(currentItem.value as any) === 'pdf';
-});
 
-const isVideo = computed(() => {
-  if (!currentItem.value) return false;
-  return mediaStore.detectMediaType(currentItem.value as any) === 'video';
-});
-
-// Media URLs with MediaStore logic
-const pdfSrc = computed(() => {
-  if (!isPdf.value || !currentItem.value) return undefined;
-  
-  // Use MediaStore's URL resolution logic
-  return mediaStore.getPdfUrl(currentItem.value as any) ||
-         pdfStore.pdfStreamUrl ||
-         pdfStore.buildPdfStreamUrl(currentItem.value.id);
-});
-
-// ✅ ENHANCED: Dual video streaming for raw vs anonymized comparison
-const videoSrc = computed(() => {
-  if (!isVideo.value || !currentItem.value) return undefined;
-  return mediaStore.getVideoUrl(currentItem.value as any);
-});
 
 // ✅ NEW: Raw video URL (original unprocessed video)
 const rawVideoSrc = computed(() => {
@@ -778,14 +819,14 @@ const rawVideoSrc = computed(() => {
   
   // Build raw video URL with explicit raw parameter
   const base = import.meta.env.VITE_API_BASE_URL || window.location.origin;
-  return `${base}/api/media/videos/${currentItem.value.id}/?type=raw`;
+  return `${base}/api/media/videos/${fileId}/?type=raw`;
 });
 
 // ✅ NEW: Anonymized video URL (processed/anonymized video)
 const anonymizedVideoSrc = computed(() => {
   if (!isVideo.value || !currentItem.value) return undefined;
   const base = import.meta.env.VITE_API_BASE_URL || window.location.origin;
-  return `${base}/api/media/videos/${currentItem.value.id}/?type=processed`;
+  return `${base}/api/media/videos/${fileId}/?type=processed`;
 });
 
 // ✅ NEW: Raw PDF URL (original unprocessed PDF)
@@ -794,7 +835,7 @@ const rawPdfSrc = computed(() => {
   
   // Build raw PDF URL with explicit raw parameter
   const base = import.meta.env.VITE_API_BASE_URL || window.location.origin;
-  return `${base}/api/media/pdfs/${currentItem.value.id}/stream/?type=raw`;
+  return `${base}/api/media/pdfs/${fileId}/stream/?type=raw`;
 });
 
 // ✅ NEW: Anonymized PDF URL (processed/anonymized PDF)
@@ -803,7 +844,7 @@ const anonymizedPdfSrc = computed(() => {
   
   // Build anonymized PDF URL with explicit processed parameter
   const base = import.meta.env.VITE_API_BASE_URL || window.location.origin;
-  return `${base}/api/media/pdfs/${currentItem.value.id}/stream/?type=processed`;
+  return `${base}/api/media/pdfs/${fileId}/stream/?type=processed`;
 });
 
 
@@ -870,7 +911,6 @@ const pauseAllVideos = () => {
   console.log('All videos paused');
 };
 
-// ✅ NEW: PDF download functions
 const downloadRawPdf = () => {
   if (!rawPdfSrc.value) {
     toast.warning({ text: 'Original-PDF nicht verfügbar.' });
@@ -888,12 +928,10 @@ const downloadAnonymizedPdf = () => {
     return;
   }
   
-  // Open PDF in new tab for download
   window.open(anonymizedPdfSrc.value, '_blank');
   console.log('Downloading anonymized PDF:', anonymizedPdfSrc.value);
 };
 
-// ✅ NEW: Video validation functions for segment annotation
 const validateVideoForSegmentAnnotation = async () => {
   if (!currentItem.value || !isVideo.value) {
     toast.warning({ text: 'Kein Video zur Validierung ausgewählt.' });
@@ -1020,7 +1058,7 @@ const onOutsideValidationComplete = () => {
   toast.success({ text: 'Outside-Segment Validierung abgeschlossen!' });
 };
 
-const loadCurrentItemData = (item: PatientData) => {
+const loadCurrentItemData = (item: SensitiveMeta) => {
   if (!item) return;
 
   // ✅ NEW: Reset video validation state when loading new item
@@ -1030,22 +1068,34 @@ const loadCurrentItemData = (item: PatientData) => {
   totalOutsideSegments.value = 0;
   isValidatingVideo.value = false;
 
-  editedAnonymizedText.value = item.anonymizedText || '';
-
-  const rawExam = item.reportMeta?.examinationDate || '';
-  const rawDob  = item.reportMeta?.patientDob || '';  
+  const rawExam = item.examinationDate || '';
+  const rawDob  = item.patientDob || '';  
 
   // ✨ Phase 2.1: Using DateConverter for consistent format handling
   examinationDate.value = DateConverter.toISO(rawExam) || '';
 
   const p: Editable = {
-    patientFirstName: item.reportMeta?.patientFirstName || '',
-    patientLastName:  item.reportMeta?.patientLastName  || '',
-    patientGender:    item.reportMeta?.patientGender    || '',
+    patientFirstName: item.patientFirstName || '',
+    patientLastName:  item.patientLastName  || '',
+    patientGenderName:    item.patientGenderName    || '',
     patientDob:       DateConverter.toISO(rawDob) || '',
-    casenumber:       item.reportMeta?.casenumber       || '',
+    casenumber:       item.casenumber       || '',
+    externalId: item.externalId ?? '',
+    externalIdOrigin: item.externalIdOrigin ?? '',
+    centerName: item.centerName ?? '',
+    text: item.text ?? '',
+    anonymizedText: item.anonymizedText ?? '',
   };
-  editedPatient.value = { ...p };
+
+  editedPatient.value = {
+    ...p,
+    externalId: p.externalId ?? '',
+    externalIdOrigin: p.externalIdOrigin ?? '',
+    centerName: p.centerName ?? '',
+    text: p.text ?? '',
+    anonymizedText: p.anonymizedText ?? '',
+    examinersDisplay: p.examinersDisplay ?? '',
+  };
 
   original.value = {
     anonymizedText: editedAnonymizedText.value,
@@ -1055,13 +1105,10 @@ const loadCurrentItemData = (item: PatientData) => {
 };
 
 // Watch
-watch(currentItem, (newItem: PatientData | null) => {
-  if (newItem) {
-    // Update MediaStore with current item for consistent type detection
-    mediaStore.setCurrentItem(newItem as any);
-    loadCurrentItemData(newItem);
-  }
+watch(currentItem, (newItem) => {
+  if (newItem) loadCurrentItemData(newItem);
 }, { immediate: true });
+
 
 
 
@@ -1279,7 +1326,7 @@ const approveItem = async () => {
       await axiosInstance.post(r(`anonymization/${currentItem.value.id}/validate/`), {
           patient_first_name: editedPatient.value.patientFirstName,
           patient_last_name:  editedPatient.value.patientLastName,
-          patient_gender:     editedPatient.value.patientGender,
+          patient_gender:     editedPatient.value.patientGenderName,
           patient_dob:        DateConverter.toGerman(dobISO.value || '') || '',          // 🎯 Phase 2.1: SENDE DEUTSCHES FORMAT
           examination_date:   DateConverter.toGerman(examISO.value || '') || '',         // 🎯 Phase 2.1: SENDE DEUTSCHES FORMAT
           casenumber:         editedPatient.value.casenumber || "",
@@ -1389,6 +1436,9 @@ const navigateToCorrection = async () => {
 
 // Lifecycle
 onMounted(async () => {
+  const id = Number(fileId)
+  const scope = (mediaStore.currentMediaType as MediaScope) ?? 'unknown'
+  mediaStore.setCurrentByKey(scope, id)
   if (!anonymizationStore.current) {         // nur wenn wirklich leer
     await fetchNextItem();
   }

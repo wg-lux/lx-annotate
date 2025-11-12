@@ -874,7 +874,7 @@ sdist = { url = "https://files.pythonhosted.org/packages/62/59/e47bbd0542d0e6f4c
 
 [[package]]
 name = "endoreg-db"
-version = "0.8.6.6"
+version = "0.8.6.8"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "agl-report-reader" },
@@ -892,6 +892,7 @@ dependencies = [
     { name = "dotenv" },
     { name = "faker" },
     { name = "flake8" },
+    { name = "googlemaps" },
     { name = "gunicorn" },
     { name = "icecream" },
     { name = "librosa" },
@@ -920,6 +921,7 @@ dependencies = [
     { name = "regex" },
     { name = "requests" },
     { name = "ruff" },
+    { name = "safetensors" },
     { name = "scikit-learn" },
     { name = "scipy" },
     { name = "soundfile" },
@@ -937,9 +939,9 @@ dependencies = [
     { name = "vocos" },
     { name = "whitenoise" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/bf/ff/ce5f9e84ce2fb908d451e1b7a8c8d322f117b06a10cd962204117a70adb5/endoreg_db-0.8.6.6.tar.gz", hash = "sha256:4dbdd71a1b56b9b3740d41f89dfa97ebf2cc7c2475888611888fa4c4316129d3", size = 2611018, upload-time = "2025-11-05T14:04:42.71Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/fc/9b/7e7dae41b75567770430fabaf2adcd613573a6ffe5ee7150b0a0b14df9f6/endoreg_db-0.8.6.8.tar.gz", hash = "sha256:db5a903de94d357ad393b759a079193459d4daedf38a848d23ff58ff2ef9801c", size = 2700799, upload-time = "2025-11-12T08:54:01.245Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/96/44/a94d1af08ddc8c09460ddc703db6e273c0a3a2e5862fa0c33a17bbad9a37/endoreg_db-0.8.6.6-py3-none-any.whl", hash = "sha256:bdde93558d6dfc85eeb68c32c882ebae9eda61b803ac5cbdfc50162f7f43dc55", size = 865446, upload-time = "2025-11-05T14:04:38.141Z" },
+    { url = "https://files.pythonhosted.org/packages/2f/1a/b434bd19efbccc37844101ae99635b60bd199f04a4b83ab547f6835b1a41/endoreg_db-0.8.6.8-py3-none-any.whl", hash = "sha256:52021092c846a0bd59e32d2e3fe4243501eade1a7c32212454ff3ff9d2823dfd", size = 959262, upload-time = "2025-11-12T08:53:56.141Z" },
 ]
 
 [[package]]
@@ -1132,6 +1134,15 @@ sdist = { url = "https://files.pythonhosted.org/packages/a8/dc/69939b7af56b7adf3
 wheels = [
     { url = "https://files.pythonhosted.org/packages/13/fb/3f2aac40cd2421e164cab1668e0ca10685fcf896bd6b3671088f8aab356e/gender_guesser-0.4.0-py2.py3-none-any.whl", hash = "sha256:7cb01ce5d8d43b94573498bc02c959b622872abd399622ca67d1b73ba6e7e222", size = 379297, upload-time = "2016-12-05T11:41:47.759Z" },
 ]
+
+[[package]]
+name = "googlemaps"
+version = "4.10.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "requests" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/fe/26/bca4d737a9acea25e94c19940a780bbf0be64a691f7caf3a68467d3a5838/googlemaps-4.10.0.tar.gz", hash = "sha256:3055fcbb1aa262a9159b589b5e6af762b10e80634ae11c59495bd44867e47d88", size = 33056, upload-time = "2023-01-26T16:45:02.501Z" }
 
 [[package]]
 name = "gunicorn"
@@ -1669,9 +1680,9 @@ requires-dist = [
     { name = "django-webpack-loader", specifier = ">=0.7.0" },
     { name = "djangorestframework", specifier = ">=3.12.4" },
     { name = "drf-spectacular", specifier = ">=0.28.0" },
-    { name = "endoreg-db", specifier = "==0.8.6.6" },
+    { name = "endoreg-db", specifier = "==0.8.6.8" },
     { name = "gunicorn", specifier = ">=23.0.0" },
-    { name = "lx-anonymizer", specifier = "==0.8.8.9" },
+    { name = "lx-anonymizer", specifier = "==0.8.9.1" },
     { name = "numpy", specifier = ">=1.21.0" },
     { name = "pillow", specifier = ">=9.0.0" },
     { name = "pytest", specifier = ">=8.3.5" },
@@ -1688,7 +1699,7 @@ requires-dist = [
 
 [[package]]
 name = "lx-anonymizer"
-version = "0.8.8.9"
+version = "0.8.9.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "certifi" },
@@ -1700,6 +1711,7 @@ dependencies = [
     { name = "imutils" },
     { name = "numpy" },
     { name = "opencv-python" },
+    { name = "pandas" },
     { name = "pdfplumber" },
     { name = "pillow" },
     { name = "pip" },
@@ -1716,9 +1728,9 @@ dependencies = [
     { name = "torchaudio" },
     { name = "torchvision" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/76/30/eeb7204d8f4c4d15c7b9865fae5d1dfed56882b17949f7e1e7b4e58dbcaa/lx_anonymizer-0.8.8.9.tar.gz", hash = "sha256:7e184beaf4d277d97a7480b80e0bbf21744b04b9f81e20838024b9a6d3d78f80", size = 560891, upload-time = "2025-11-04T11:04:48.627Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/17/8d/c9c6d10a46e419074cbd13f91e8278395ba4d0fe16341b5be1d546c56c87/lx_anonymizer-0.8.9.1.tar.gz", hash = "sha256:f8bc4a9207ccd0dd95c83b08186f7e4e8a7fa4242e8e9a3b59aa5c4a2915bc62", size = 564067, upload-time = "2025-11-11T15:24:50.381Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/44/f2/e420c5b30023ea3a82a0b1201029794aa05217f40c6af1ac840ddd00ac1b/lx_anonymizer-0.8.8.9-py3-none-any.whl", hash = "sha256:e174da4378faf882a9a81b6b611be9424766b5e4762be34c14f97560f9d0055c", size = 722188, upload-time = "2025-11-04T11:04:44.878Z" },
+    { url = "https://files.pythonhosted.org/packages/a8/90/7434b2a12822954a13ee20f5c12aaa50db761ed540ce5ebf01ae26c26525/lx_anonymizer-0.8.9.1-py3-none-any.whl", hash = "sha256:4ba8d5a0d5c9ec5031969681db8747eca12f256469a32b2bc9e170ee57dfaf14", size = 728084, upload-time = "2025-11-11T15:24:46.641Z" },
 ]
 
 [package.optional-dependencies]
