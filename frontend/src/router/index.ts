@@ -66,8 +66,9 @@ const router = createRouter({
       component: () => import('@/views/PatientOverview.vue'),
       meta: {
         description: 'Hier können Sie alle Patienten einsehen und verwalten.',
-        cap: 'page.patients.view'                      // <-- add: capability tag for UI checks
-      }
+        cap: 'page.patients.view',                      // <-- add: capability tag for UI checks
+        //hardProtect: true       // only add on routes you want to STRONGLY block
+              }
     },
     {
       path: '/profil',
@@ -137,21 +138,35 @@ router.beforeEach((_to, _from, next) => {
   next()
 })
 
-
-// OPTIONAL: gate by capability key if present (friendly UX)
+// 2) capability-aware guard (ONLY hard-block when meta.hardProtect === true)
 router.beforeEach((to, _from, next) => {
-  const cap = (to.meta as any)?.cap as string | undefined
+  const meta: any = to.meta || {}
+  const cap = meta.cap as string | undefined
+  const hardProtect = !!meta.hardProtect   // default false
+
+  // No cap → no guard behaviour
   if (!cap) return next()
 
   const auth = useAuthKcStore()
-  // If bootstrap not yet loaded, let AuthCheck handle blocking UI; allow navigation.
+
+  // If bootstrap not loaded yet, don't block navigation.
+  // AuthCheck component will decide if user sees app or login.
   if (!auth.loaded) return next()
 
-  if (auth.can(cap, 'GET')) return next()
-  // No capability → go to a local 403 page or back to dashboard
-  return next({ path: '/', query: { denied: '1' } })
+  // If route is NOT hard-protected → ALWAYS allow navigation
+  // You can still use `v-can` inside the components to hide buttons, etc.
+  if (!hardProtect) {
+    return next()
+  }
+
+  // Only for hard-protected routes:
+  if (auth.can(cap, 'GET')) {
+    return next()
+  }
+
+  // User is logged in but missing capability → redirect away
+  return next({ path: '/', query: { denied: '1', from: to.path } })
 })
 
 export default router
-
 
