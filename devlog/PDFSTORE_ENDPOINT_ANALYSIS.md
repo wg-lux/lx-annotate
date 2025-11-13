@@ -217,7 +217,7 @@ async function updateAnonymizedText(pdfId: number, anonymizedText: string) {
   
   if (!response.ok) throw new Error(`Failed to update: ${response.status}`);
   currentPdf.value.anonymizedText = anonymizedText;
-  currentPdf.value.status = 'done';
+  currentPdf.value.status = 'done_processing_anonymization';
 }
 ```
 
@@ -393,7 +393,7 @@ async function updateAnonymizedText(pdfId: number, anonymizedText: string) {
   if (!response.ok) throw new Error(`Failed to update text: ${response.status}`);
   
   currentPdf.value.anonymizedText = anonymizedText;
-  currentPdf.value.status = 'done';
+  currentPdf.value.status = 'done_processing_anonymization';
 }
 ```
 

@@ -15,7 +15,7 @@ export interface PdfMetadata {
         endoscopeSn: string;
         isVerified: boolean;
     };
-    status: 'not_started' | 'processing' | 'done';
+    status: 'not_started' | 'processing' | 'done_processing_anonymization';
     error: boolean;
     pdfStreamUrl?: string;
 }
@@ -44,7 +44,7 @@ export declare const usePdfStore: import("pinia").StoreDefinition<"pdf", Pick<{
             endoscopeSn: string;
             isVerified: boolean;
         } | undefined;
-        status: 'not_started' | 'processing' | 'done';
+        status: 'not_started' | 'processing' | 'done_processing_anonymization';
         error: boolean;
         pdfStreamUrl?: string | undefined;
     } | null, PdfMetadata | {
@@ -64,7 +64,7 @@ export declare const usePdfStore: import("pinia").StoreDefinition<"pdf", Pick<{
             endoscopeSn: string;
             isVerified: boolean;
         } | undefined;
-        status: 'not_started' | 'processing' | 'done';
+        status: 'not_started' | 'processing' | 'done_processing_anonymization';
         error: boolean;
         pdfStreamUrl?: string | undefined;
     } | null>;
@@ -107,7 +107,7 @@ export declare const usePdfStore: import("pinia").StoreDefinition<"pdf", Pick<{
             endoscopeSn: string;
             isVerified: boolean;
         } | undefined;
-        status: 'not_started' | 'processing' | 'done';
+        status: 'not_started' | 'processing' | 'done_processing_anonymization';
         error: boolean;
         pdfStreamUrl?: string | undefined;
     } | null, PdfMetadata | {
@@ -127,7 +127,7 @@ export declare const usePdfStore: import("pinia").StoreDefinition<"pdf", Pick<{
             endoscopeSn: string;
             isVerified: boolean;
         } | undefined;
-        status: 'not_started' | 'processing' | 'done';
+        status: 'not_started' | 'processing' | 'done_processing_anonymization';
         error: boolean;
         pdfStreamUrl?: string | undefined;
     } | null>;
@@ -170,7 +170,7 @@ export declare const usePdfStore: import("pinia").StoreDefinition<"pdf", Pick<{
             endoscopeSn: string;
             isVerified: boolean;
         } | undefined;
-        status: 'not_started' | 'processing' | 'done';
+        status: 'not_started' | 'processing' | 'done_processing_anonymization';
         error: boolean;
         pdfStreamUrl?: string | undefined;
     } | null, PdfMetadata | {
@@ -190,7 +190,7 @@ export declare const usePdfStore: import("pinia").StoreDefinition<"pdf", Pick<{
             endoscopeSn: string;
             isVerified: boolean;
         } | undefined;
-        status: 'not_started' | 'processing' | 'done';
+        status: 'not_started' | 'processing' | 'done_processing_anonymization';
         error: boolean;
         pdfStreamUrl?: string | undefined;
     } | null>;

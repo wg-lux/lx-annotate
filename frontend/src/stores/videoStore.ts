@@ -1372,7 +1372,7 @@ export const useVideoStore = defineStore('video', () => {
     const anonStore = useAnonymizationStore()
     const ok = anonStore.overview.some(
       (f: FileItem) =>
-        f.id === Number(videoId) && f.mediaType === 'video' && f.anonymizationStatus === 'done'
+        f.id === Number(videoId) && f.mediaType === 'video' && f.anonymizationStatus === 'done_processing_anonymization'
     )
     if (!ok) {
       throw new Error(

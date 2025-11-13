@@ -9,7 +9,7 @@
 // ✅ IMPLEMENTED: Anonymization status validation
 function isAnonymized(videoId: number): boolean {
   const item = overview.value.find(o => o.id === videoId && o.mediaType === 'video')
-  return item?.anonymizationStatus === 'done'
+  return item?.anonymizationStatus === 'done_processing_anonymization'
 }
 
 // ✅ IMPLEMENTED: Filtered annotatable videos
@@ -20,7 +20,7 @@ const annotatableVideos = computed(() =>
 
 **Implementation Details:**
 - ✅ Integration with `anonymizationStore.overview`
-- ✅ Only videos with `anonymizationStatus === 'done'` appear in dropdown
+- ✅ Only videos with `anonymizationStatus === 'done_processing_anonymization'` appear in dropdown
 - ✅ Real-time filtering based on anonymization status
 - ✅ Fallback handling for videos without anonymization data
 

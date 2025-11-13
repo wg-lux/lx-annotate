@@ -120,7 +120,7 @@ export const useAnonymizationStore = defineStore('anonymization', {
                 this.availableFiles.push(...data); // Add all files from the fresh data
                 availableFiles.value = [...data];
                 const needsValidation = data
-                    .filter((f) => f.anonymizationStatus === 'done' && f.annotationStatus !== 'done')
+                    .filter((f) => f.anonymizationStatus === 'done_processing_anonymization' && f.annotationStatus !== 'done_processing_anonymization')
                     .map((f) => f.id);
                 this.needsValidationIds = needsValidation;
                 // NEW: Polling sofort stoppen für
@@ -133,7 +133,7 @@ export const useAnonymizationStore = defineStore('anonymization', {
                     }
                 }
                 // 2) Dateien mit finalem Status oder die nicht gepollt werden sollen
-                const stopStatuses = new Set(['done', 'validated', 'failed', 'not_started']);
+                const stopStatuses = new Set(['done_processing_anonymization', 'validated', 'failed', 'not_started']);
                 for (const f of data) {
                     if (stopStatuses.has(f.anonymizationStatus) && this.pollingHandles[f.id]) {
                         this.stopPolling(f.id);
@@ -218,7 +218,7 @@ export const useAnonymizationStore = defineStore('anonymization', {
                         console.log(`Status update for file ${id}: ${statusFromBackend}`);
                         file.anonymizationStatus = statusFromBackend;
                         // ✅ FIX: Include 'validated' as a stopping condition
-                        if (['done', 'validated', 'failed'].includes(statusFromBackend)) {
+                        if (['done_processing_anonymization', 'validated', 'failed'].includes(statusFromBackend)) {
                             console.log(`Stopping polling for file ${id} - final status: ${statusFromBackend}`);
                             this.stopPolling(id);
                         }

@@ -399,7 +399,7 @@ const getStatusBadgeClass = (status) => {
     const classes = {
         'not_started': 'bg-secondary',
         'processing': 'bg-warning',
-        'done': 'bg-success',
+        'done_processing_anonymization': 'bg-success',
         'failed': 'bg-danger',
         'success': 'bg-success'
     };
@@ -409,7 +409,7 @@ const getStatusText = (status) => {
     const texts = {
         'not_started': 'Nicht gestartet',
         'processing': 'In Bearbeitung',
-        'done': 'Fertig',
+        'done_processing_anonymization': 'Fertig',
         'failed': 'Fehlgeschlagen',
         'success': 'Erfolgreich'
     };

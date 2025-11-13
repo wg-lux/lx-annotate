@@ -1682,7 +1682,7 @@ requires-dist = [
     { name = "drf-spectacular", specifier = ">=0.28.0" },
     { name = "endoreg-db", specifier = "==0.8.6.8" },
     { name = "gunicorn", specifier = ">=23.0.0" },
-    { name = "lx-anonymizer", specifier = "==0.8.9.1" },
+    { name = "lx-anonymizer", specifier = "==0.8.9.3" },
     { name = "numpy", specifier = ">=1.21.0" },
     { name = "pillow", specifier = ">=9.0.0" },
     { name = "pytest", specifier = ">=8.3.5" },
@@ -1699,7 +1699,7 @@ requires-dist = [
 
 [[package]]
 name = "lx-anonymizer"
-version = "0.8.9.1"
+version = "0.8.9.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "certifi" },
@@ -1728,9 +1728,9 @@ dependencies = [
     { name = "torchaudio" },
     { name = "torchvision" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/17/8d/c9c6d10a46e419074cbd13f91e8278395ba4d0fe16341b5be1d546c56c87/lx_anonymizer-0.8.9.1.tar.gz", hash = "sha256:f8bc4a9207ccd0dd95c83b08186f7e4e8a7fa4242e8e9a3b59aa5c4a2915bc62", size = 564067, upload-time = "2025-11-11T15:24:50.381Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/f8/eb/ad38110c38b4f346f5bc4f4a14c9f521c1ffaf4317ba0a9980755580d9a1/lx_anonymizer-0.8.9.3.tar.gz", hash = "sha256:d882c4a7b344967adc4dd070e448fadea0c3d01a1d5837a9029924df926ccdea", size = 554145, upload-time = "2025-11-12T21:02:20.51Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/a8/90/7434b2a12822954a13ee20f5c12aaa50db761ed540ce5ebf01ae26c26525/lx_anonymizer-0.8.9.1-py3-none-any.whl", hash = "sha256:4ba8d5a0d5c9ec5031969681db8747eca12f256469a32b2bc9e170ee57dfaf14", size = 728084, upload-time = "2025-11-11T15:24:46.641Z" },
+    { url = "https://files.pythonhosted.org/packages/e8/7b/5679da1e140b652cb042706f73af23929372b6c3170e6379cb6e23ceba21/lx_anonymizer-0.8.9.3-py3-none-any.whl", hash = "sha256:3591a93cf69209a1a7e46779376b895225ba53822c530ccd47f730e30c4b13a1", size = 713444, upload-time = "2025-11-12T21:02:17.488Z" },
 ]
 
 [package.optional-dependencies]

@@ -70,7 +70,7 @@ const isReadyForValidation = (fileId) => {
     if (!file)
         return false;
     // Only allow validation if anonymization is done
-    return file.anonymizationStatus === 'done' || file.anonymizationStatus === 'validated';
+    return file.anonymizationStatus === 'done_processing_anonymization' || file.anonymizationStatus === 'validated';
 };
 const isValidated = (fileId) => {
     // Check if the file is validated
@@ -234,7 +234,7 @@ const getStatusBadgeClass = (status) => {
         'processing_anonymization': 'bg-warning',
         'extracting_frames': 'bg-info',
         'predicting_segments': 'bg-info',
-        'done': 'bg-success',
+        'done_processing_anonymization': 'bg-success',
         'validated': 'bg-success',
         'failed': 'bg-danger'
     };
@@ -246,7 +246,7 @@ const getStatusText = (status) => {
         'processing_anonymization': 'Anonymisierung läuft',
         'extracting_frames': 'Frames extrahieren',
         'predicting_segments': 'Segmente vorhersagen',
-        'done': 'Fertig',
+        'done_processing_anonymization': 'Fertig',
         'validated': 'Validiert',
         'failed': 'Fehlgeschlagen'
     };
@@ -268,7 +268,7 @@ const getTotalByStatus = (status) => {
     const statusMap = {
         'not_started': ['not_started'],
         'processing': ['processing_anonymization', 'extracting_frames', 'predicting_segments'],
-        'done': ['done', 'validated'],
+        'done_processing_anonymization': ['done_processing_anonymization', 'validated'],
         'failed': ['failed']
     };
     const relevantStatuses = statusMap[status] || [status];
@@ -315,7 +315,7 @@ onMounted(async () => {
         remembered: mediaStore.getType(f.id) // scans both pdf/video scopes
     })));
     // ✅ FIX: Only start polling for files that are actively processing
-    // Don't poll files with final states: 'done', 'validated', 'failed', 'not_started'
+    // Don't poll files with final states: 'done_processing_anonymization', 'validated', 'failed', 'not_started'
     const processingStatuses = ['processing_anonymization', 'extracting_frames', 'predicting_segments'];
     anonymizationStore.overview.forEach((file) => {
         if (processingStatuses.includes(file.anonymizationStatus)) {
@@ -600,14 +600,14 @@ else {
                 ...{ class: "fas fa-redo" },
             });
         }
-        if (file.anonymizationStatus === 'done') {
+        if (file.anonymizationStatus === 'done_processing_anonymization') {
             __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
                 ...{ onClick: (...[$event]) => {
                         if (!!(__VLS_ctx.anonymizationStore.loading && !__VLS_ctx.availableFiles.length))
                             return;
                         if (!!(!__VLS_ctx.availableFiles.length))
                             return;
-                        if (!(file.anonymizationStatus === 'done'))
+                        if (!(file.anonymizationStatus === 'done_processing_anonymization'))
                             return;
                         __VLS_ctx.validateFile(file.id);
                     } },
@@ -618,14 +618,14 @@ else {
                 ...{ class: "fas fa-eye" },
             });
         }
-        if (file.mediaType === 'video' && (file.anonymizationStatus === 'done' || file.anonymizationStatus === 'validated')) {
+        if (file.mediaType === 'video' && (file.anonymizationStatus === 'done_processing_anonymization' || file.anonymizationStatus === 'validated')) {
             __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
                 ...{ onClick: (...[$event]) => {
                         if (!!(__VLS_ctx.anonymizationStore.loading && !__VLS_ctx.availableFiles.length))
                             return;
                         if (!!(!__VLS_ctx.availableFiles.length))
                             return;
-                        if (!(file.mediaType === 'video' && (file.anonymizationStatus === 'done' || file.anonymizationStatus === 'validated')))
+                        if (!(file.mediaType === 'video' && (file.anonymizationStatus === 'done_processing_anonymization' || file.anonymizationStatus === 'validated')))
                             return;
                         __VLS_ctx.correctVideo(file.id);
                     } },
@@ -738,7 +738,7 @@ if (__VLS_ctx.availableFiles.length) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
         ...{ class: "badge bg-success fs-6" },
     });
-    (__VLS_ctx.getTotalByStatus('done'));
+    (__VLS_ctx.getTotalByStatus('done_processing_anonymization'));
     __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
         ...{ class: "text-muted" },
     });

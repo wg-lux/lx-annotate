@@ -51,7 +51,7 @@
                   <small class="text-muted">Status-Übersicht:</small>
                   <span class="badge bg-success">
                     <i class="fas fa-check me-1"></i>
-                    {{ getVideoCountByStatus('done') }} Anonymisiert
+                    {{ getVideoCountByStatus('done_processing_anonymization') }} Anonymisiert
                   </span>
                   <span class="badge bg-primary">
                     <i class="fas fa-check-double me-1"></i>
@@ -470,11 +470,11 @@ const timelineLabels = computed(() => {
 })
 
 /**
- * helper: returns true when a video's anonymization status is 'done'
+ * helper: returns true when a video's anonymization status is 'done_processing_anonymization'
  */
  function isAnonymized(videoId: number): boolean {
   const item = overview.value.find(o => o.id === videoId && o.mediaType === 'video')
-  return item?.anonymizationStatus === 'done'
+  return item?.anonymizationStatus === 'done_processing_anonymization'
 }
 
 // Reactive data
@@ -1139,7 +1139,7 @@ const submitVideoSegments = async (): Promise<void> => {
   }
 
   // Confirm with user before validation
-  if (!confirm(`Möchten Sie alle ${segmentCount} Segmente von Video ${selectedVideoId.value} als validiert markieren?`)) {
+  if (!confirm(`Möchten Sie alle ${segmentCount} Segmente von Video ${selectedVideoId.value} als validiert markieren? Außerhalb-Segmente werden danach gelöscht.`)) {
     return
   }
 
@@ -1202,7 +1202,7 @@ const getVideoStatusIndicator = (videoId: number): string => {
     'processing_anonymization': '🔄 Verarbeitung',
     'extracting_frames': '🎬 Frames',
     'predicting_segments': '🤖 Segmente',
-    'done': '✅ Anonymisiert',
+    'done_processing_anonymization': '✅ Anonymisiert',
     'validated': '🛡️ Validiert',
     'failed': '❌ Fehler'
   }
@@ -1222,7 +1222,7 @@ const getStatusBadgeClass = (status: string): string => {
     'processing_anonymization': 'bg-warning',
     'extracting_frames': 'bg-info',
     'predicting_segments': 'bg-info',
-    'done': 'bg-success',
+    'done_processing_anonymization': 'bg-success',
     'validated': 'bg-primary',
     'failed': 'bg-danger'
   }
@@ -1235,7 +1235,7 @@ const getStatusText = (status: string): string => {
     'processing_anonymization': 'Anonymisierung läuft',
     'extracting_frames': 'Frames extrahieren',
     'predicting_segments': 'Segmente vorhersagen',
-    'done': 'Fertig',
+    'done_processing_anonymization': 'Fertig',
     'validated': 'Validiert',
     'failed': 'Fehlgeschlagen'
   }

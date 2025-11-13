@@ -786,7 +786,7 @@ export const useVideoStore = defineStore('video', () => {
     async function loadVideo(videoId) {
         console.log(`[VideoStore] loadVideo called with ID: ${videoId}`);
         const anonStore = useAnonymizationStore();
-        const ok = anonStore.overview.some((f) => f.id === Number(videoId) && f.mediaType === 'video' && f.anonymizationStatus === 'done');
+        const ok = anonStore.overview.some((f) => f.id === Number(videoId) && f.mediaType === 'video' && f.anonymizationStatus === 'done_processing_anonymization');
         if (!ok) {
             throw new Error(`Video ${videoId} darf nicht annotiert werden, ` +
                 `solange die Anonymisierung nicht abgeschlossen ist.`);

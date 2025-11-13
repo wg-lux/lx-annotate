@@ -32,11 +32,11 @@ const timelineLabels = computed(() => {
     return [...storeLabels]; // Convert readonly array to mutable array
 });
 /**
- * helper: returns true when a video's anonymization status is 'done'
+ * helper: returns true when a video's anonymization status is 'done_processing_anonymization'
  */
 function isAnonymized(videoId) {
     const item = overview.value.find(o => o.id === videoId && o.mediaType === 'video');
-    return item?.anonymizationStatus === 'done';
+    return item?.anonymizationStatus === 'done_processing_anonymization';
 }
 // Reactive data
 const selectedVideoId = ref(initialVideoId);
@@ -651,7 +651,7 @@ const getVideoStatusIndicator = (videoId) => {
         'processing_anonymization': '🔄 Verarbeitung',
         'extracting_frames': '🎬 Frames',
         'predicting_segments': '🤖 Segmente',
-        'done': '✅ Anonymisiert',
+        'done_processing_anonymization': '✅ Anonymisiert',
         'validated': '🛡️ Validiert',
         'failed': '❌ Fehler'
     };
@@ -666,7 +666,7 @@ const getStatusBadgeClass = (status) => {
         'processing_anonymization': 'bg-warning',
         'extracting_frames': 'bg-info',
         'predicting_segments': 'bg-info',
-        'done': 'bg-success',
+        'done_processing_anonymization': 'bg-success',
         'validated': 'bg-primary',
         'failed': 'bg-danger'
     };
@@ -678,7 +678,7 @@ const getStatusText = (status) => {
         'processing_anonymization': 'Anonymisierung läuft',
         'extracting_frames': 'Frames extrahieren',
         'predicting_segments': 'Segmente vorhersagen',
-        'done': 'Fertig',
+        'done_processing_anonymization': 'Fertig',
         'validated': 'Validiert',
         'failed': 'Fehlgeschlagen'
     };
@@ -822,7 +822,7 @@ if (__VLS_ctx.videos.length > 0) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
         ...{ class: "fas fa-check me-1" },
     });
-    (__VLS_ctx.getVideoCountByStatus('done'));
+    (__VLS_ctx.getVideoCountByStatus('done_processing_anonymization'));
     __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
         ...{ class: "badge bg-primary" },
     });

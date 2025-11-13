@@ -1632,7 +1632,7 @@ class VideoFile(models.Model):
 class VideoState(models.Model):
     anonymization_status = models.CharField(max_length=50)
     # Choices: 'not_started', 'processing_anonymization', 'extracting_frames', 
-    #          'predicting_segments', 'done', 'validated', 'failed'
+    #          'predicting_segments', 'done_processing_anonymization', 'validated', 'failed'
 ```
 
 ### VideoProcessingHistory (NEW)

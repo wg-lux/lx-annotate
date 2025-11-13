@@ -355,7 +355,7 @@ def test_pdf_reimport_endpoint():
     # 2. POST to /api/media/pdfs/{id}/reimport/
     # 3. Verify response structure
     # 4. Check SensitiveMeta regeneration
-    # 5. Verify status = 'done'
+    # 5. Verify status = 'done_processing_anonymization'
 ```
 
 **Test Coverage Goals:**

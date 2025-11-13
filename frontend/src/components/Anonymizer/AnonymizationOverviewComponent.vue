@@ -182,7 +182,7 @@
 
                     <!-- View/Validate - only show when anonymization is done -->
                     <button
-                      v-if="file.anonymizationStatus === 'done'"
+                      v-if="file.anonymizationStatus === 'done_processing_anonymization'"
                       @click="validateFile(file.id)"
                       class="btn btn-outline-success bg-success"
                       :disabled="!isReadyForValidation(file.id)"
@@ -193,7 +193,7 @@
 
                     <!-- Video Correction -->
                     <button
-                      v-if="file.mediaType === 'video' && (file.anonymizationStatus === 'done' || file.anonymizationStatus === 'validated')"
+                      v-if="file.mediaType === 'video' && (file.anonymizationStatus === 'done_processing_anonymization' || file.anonymizationStatus === 'validated')"
                       @click="correctVideo(file.id)"
                       class="btn btn-outline-warning"
                       :disabled="isProcessing(file.id)"
@@ -273,7 +273,7 @@
                   <div class="col-md-3">
                     <div class="mb-2">
                       <span class="badge bg-success fs-6">
-                        {{ getTotalByStatus('done') }}
+                        {{ getTotalByStatus('done_processing_anonymization') }}
                       </span>
                     </div>
                     <small class="text-muted">Fertig</small>
@@ -391,7 +391,7 @@ const isReadyForValidation = (fileId: number) => {
   if (!file) return false;
 
   // Only allow validation if anonymization is done
-  return file.anonymizationStatus === 'done' || file.anonymizationStatus === 'validated';
+  return file.anonymizationStatus === 'done_processing_anonymization' || file.anonymizationStatus === 'validated';
 };
 
 const isValidated = (fileId: number) => {
@@ -572,9 +572,10 @@ const getStatusBadgeClass = (status: string) => {
     'processing_anonymization': 'bg-warning',
     'extracting_frames': 'bg-info',
     'predicting_segments': 'bg-info',
-    'done': 'bg-success',
+    'done_processing_anonymization': 'bg-success',
     'validated': 'bg-success',
     'failed': 'bg-danger'
+
   };
   return classes[status] || 'bg-secondary';
 };
@@ -585,7 +586,7 @@ const getStatusText = (status: string) => {
     'processing_anonymization': 'Anonymisierung läuft',
     'extracting_frames': 'Frames extrahieren',
     'predicting_segments': 'Segmente vorhersagen',
-    'done': 'Fertig',
+    'done_processing_anonymization': 'Fertig',
     'validated': 'Validiert',
     'failed': 'Fehlgeschlagen'
   };
@@ -609,7 +610,7 @@ const getTotalByStatus = (status: string) => {
   const statusMap: { [key: string]: string[] } = {
     'not_started': ['not_started'],
     'processing': ['processing_anonymization', 'extracting_frames', 'predicting_segments'],
-    'done': ['done', 'validated'],
+    'done_processing_anonymization': ['done_processing_anonymization', 'validated'],
     'failed': ['failed']
   };
   
@@ -664,7 +665,7 @@ onMounted(async () => {
     )
 
   // ✅ FIX: Only start polling for files that are actively processing
-  // Don't poll files with final states: 'done', 'validated', 'failed', 'not_started'
+  // Don't poll files with final states: 'done_processing_anonymization', 'validated', 'failed', 'not_started'
   const processingStatuses = ['processing_anonymization', 'extracting_frames', 'predicting_segments'];
   
   anonymizationStore.overview.forEach((file: FileItem) => {

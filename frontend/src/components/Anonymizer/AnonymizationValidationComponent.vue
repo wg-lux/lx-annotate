@@ -186,7 +186,7 @@
                   </div>
                   <div class="mb-3">
                     <label class="form-label">Externe ID:</label>
-                      <textarea 
+                      <textarea
                         class="form-control"
                         v-model="editedPatient.externalId"
                       ></textarea>
@@ -230,7 +230,7 @@
                     </button>
                   </div>
                   <div class="mt-3">
-                    <button 
+                    <button
                       class="btn btn-primary"
                       @click="saveAnnotation"
                     >
@@ -1333,6 +1333,9 @@ const approveItem = async () => {
           anonymized_text:    isPdf.value ? editedAnonymizedText.value : undefined,
           is_verified:        true,
           file_type:         isPdf.value ? 'pdf' : isVideo.value ? 'video' : 'unknown',
+          center_name:       editedPatient.value.centerName || '',
+          external_id:       editedPatient.value.externalId || '',
+          external_id_origin:editedPatient.value.externalIdOrigin || '',
         });
       console.log(`Anonymization validated successfully for file ${currentItem.value.id}`);
       toast.success({ text: 'Dokument bestätigt und Anonymisierung validiert' });
