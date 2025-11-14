@@ -64,7 +64,7 @@
           <li class="nav-item d-flex align-items-center" v-else>
             <a class="nav-link text-body font-weight-bold px-0" href="javascript:;" @click="handleLogin">
               <i class="fa fa-user me-sm-1"></i>
-              <span class="d-sm-inline d-none">Login</span>
+              <span class="d-sm-inline d-none">Loginn</span>
             </a>
           </li>
           <li class="nav-item d-flex align-items-center ms-3" v-if="isAuthenticated">
@@ -80,57 +80,69 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
-import { useAuthStore } from '../stores/auth';
-import { useAnnotationStatsStore } from '@/stores/annotationStats';
+import { computed, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
+import { useAuthKcStore } from '@/stores/auth_kc'             //  NEW store
+import { useAnnotationStatsStore } from '@/stores/annotationStats'
 
-const route = useRoute();
-const router = useRouter();
-const authStore = useAuthStore();
-const annotationStatsStore = useAnnotationStatsStore();
+const route = useRoute()
+const authStore = useAuthKcStore()                            //  use Keycloak store
+const annotationStatsStore = useAnnotationStatsStore()
 
 // Computed properties
-const isAuthenticated = computed(() => authStore.isAuthenticated);
+const isAuthenticated = computed(() => authStore.isAuthenticated)
 
-const username = computed(() => authStore.user?.username || 'Unknown');
+const username = computed(() => {
+  const u = authStore.user
+  // If you later include first_name/last_name in backend, you can prefer that:
+  // return u ? `${u.first_name} ${u.last_name}`.trim() || u.username : 'Unknown'
+  return u?.username || 'Unknown'
+})
 
 const currentRouteName = computed(() => {
-  const name = route.name as string;
-  return !name ? 'Dashboard' : name.charAt(0).toUpperCase() + name.slice(1);
-});
+  const name = route.name as string
+  return !name ? 'Dashboard' : name.charAt(0).toUpperCase() + name.slice(1)
+})
 
 const totalPendingAnnotations = computed(() => {
-  return annotationStatsStore.stats.totalPending;
-});
+  return annotationStatsStore.stats.totalPending
+})
 
 // Methods
 const handleLogin = () => {
-  authStore.login();
-};
+  authStore.login()
+}
 
 const handleLogout = () => {
-  authStore.logout();
-};
+  const form = document.getElementById('oidc-logout-form') as HTMLFormElement | null
+  if (form) {
+    form.submit()              //  real POST with CSRF, browser follows redirects
+  } else {
+    // Fallback (should not happen if base.html is correct)
+    window.location.href = '/oidc/logout/'
+  }
+}
+
 
 const toggleSidebar = () => {
   // Dispatch custom event to toggle sidebar
-  const event = new CustomEvent('toggleSidebar');
-  document.dispatchEvent(event);
-};
+  const event = new CustomEvent('toggleSidebar')
+  document.dispatchEvent(event)
+}
 
 // Load annotation stats on mount and refresh periodically
 onMounted(async () => {
-  await annotationStatsStore.fetchAnnotationStats();
-  
+  await annotationStatsStore.fetchAnnotationStats()
+
   // Auto-refresh every 5 minutes
   setInterval(async () => {
     if (annotationStatsStore.needsRefresh) {
-      await annotationStatsStore.refreshIfNeeded();
+      await annotationStatsStore.refreshIfNeeded()
     }
-  }, 5 * 60 * 1000);
-});
+  }, 5 * 60 * 1000)
+})
 </script>
+
 
 <style scoped>
 .breadcrumb-item + .breadcrumb-item::before {
