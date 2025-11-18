@@ -56,6 +56,11 @@ rec {
     staticFiles = "./staticfiles";
     logs = "./data/logs";
     # home directory is handled dynamically in devenv.nix using builtins.getEnv "HOME"
+
+    # Fallback values for external file watcher
+
+    videoImportDir = "./data/videos";
+    reportImportDir = "./data/pdfs";
     
     # Import/Export paths
     import = "./data/import";
