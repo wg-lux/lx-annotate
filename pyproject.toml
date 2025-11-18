@@ -27,7 +27,7 @@ dependencies = [
     "django-cors-headers>=4.0.0",
     "django-webpack-loader>=0.7.0",
     "requests>=2.32.3",
-    "endoreg-db==0.8.7.2",
+    "endoreg-db==0.8.7.3",
     "lx-anonymizer==0.8.9.4",
     "django-vite>=3.0.6",
     "whitenoise>=6.8.2",
@@ -48,6 +48,7 @@ dependencies = [
     "drf-spectacular>=0.28.0",
     "django-modeltranslation>=0.19.16",
     "daphne>=4.2.1",
+    "psycopg[binary,pool]>=3.2.12",
 ]
 
 
