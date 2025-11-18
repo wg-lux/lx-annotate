@@ -43,12 +43,8 @@
           </div>
           <h5 class="text-muted">Keine Dateien vorhanden</h5>
           <p class="text-muted mb-4">
-            Laden Sie Videos oder PDFs hoch, um mit der Anonymisierung zu beginnen.
+            Laden Sie Videos oder PDFs in den data Ordner oder den import ordner, um mit der Anonymisierung zu beginnen.
           </p>
-          <router-link to="/upload" class="btn btn-primary">
-            <i class="fas fa-upload me-2"></i>
-            Dateien hochladen
-          </router-link>
         </div>
 
         <!-- Files Table -->
@@ -552,7 +548,7 @@ const needsReimport = (file: FileItem) => {
   
   // PDF files might need re-import if anonymization failed or no text extracted
   if (file.mediaType === 'pdf') {
-    return file.anonymizationStatus === 'failed' || file.anonymizationStatus === 'not_started';
+    return !file.metadataImported || file.anonymizationStatus === 'failed' || file.anonymizationStatus === 'not_started';
   }
   
   return false;
