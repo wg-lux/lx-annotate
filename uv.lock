@@ -874,7 +874,7 @@ sdist = { url = "https://files.pythonhosted.org/packages/62/59/e47bbd0542d0e6f4c
 
 [[package]]
 name = "endoreg-db"
-version = "0.8.7.3"
+version = "0.8.7.7"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "agl-report-reader" },
@@ -939,9 +939,9 @@ dependencies = [
     { name = "vocos" },
     { name = "whitenoise" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/b8/8d/8b02117e2a98ec153be3293a819a80b3e06942b67d23e7aa76dfbb4f2ce9/endoreg_db-0.8.7.3.tar.gz", hash = "sha256:066c3307a8cf1f57296643f8b7c2a787bd6b627035ab667d04152d9769d73de1", size = 2715994, upload-time = "2025-11-18T11:57:11.718Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/24/97/d27c5f2fd4ee2f37863f591bd31854250421fe0f163610681dadc3dd7ce8/endoreg_db-0.8.7.7.tar.gz", hash = "sha256:5aede1223e15005ab40452ed70c8f48fc439d70e10283420f5eb3c29caec3411", size = 2716010, upload-time = "2025-11-19T15:48:13.984Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/1a/d9/2c5fcc3496286bde4f8405c27ce31551826cb8d74e56bd423d501905c3ee/endoreg_db-0.8.7.3-py3-none-any.whl", hash = "sha256:67c5c21a12e297f92c0e40f6f698772a045f1bee52c3b43df3b263825430421e", size = 974337, upload-time = "2025-11-18T11:57:05.184Z" },
+    { url = "https://files.pythonhosted.org/packages/fb/d9/8f07a7c6a38fbd980542c9fd2ef0669ed8165516176a574abcbe8727a20b/endoreg_db-0.8.7.7-py3-none-any.whl", hash = "sha256:e271742c72ad060044f2e1e1f5c7e2dc902dcc8d3c8c3b8728fa8727e2507c63", size = 972194, upload-time = "2025-11-19T15:48:07.745Z" },
 ]
 
 [[package]]
@@ -1681,7 +1681,7 @@ requires-dist = [
     { name = "django-webpack-loader", specifier = ">=0.7.0" },
     { name = "djangorestframework", specifier = ">=3.12.4" },
     { name = "drf-spectacular", specifier = ">=0.28.0" },
-    { name = "endoreg-db", specifier = "==0.8.7.3" },
+    { name = "endoreg-db", specifier = ">=0.8.7.7" },
     { name = "gunicorn", specifier = ">=23.0.0" },
     { name = "lx-anonymizer", specifier = "==0.8.9.4" },
     { name = "numpy", specifier = ">=1.21.0" },

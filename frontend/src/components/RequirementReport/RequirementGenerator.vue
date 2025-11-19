@@ -1,10 +1,6 @@
 <template>
   <div class="requirement-generator container-fluid py-4">
-    <div v-if="patientStore.error || error || examinationStore.error" class="alert alert-danger">
-      <p v-if="patientStore.error">Patienten-Store Fehler: {{ patientStore.error }}</p>
-      <p v-if="examinationStore.error">Untersuchungs-Store Fehler: {{ examinationStore.error }}</p>
-      <p v-if="error">Lookup Fehler: {{ error }}</p>
-    </div>
+
 
     <!-- Patient and Examination Selection -->
     <div class="card mb-3">
@@ -18,19 +14,6 @@
             <div class="form-group">
               <div class="d-flex justify-content-between align-items-center mb-2">
                 <label for="patient-select">Patient auswählen</label>
-                <div v-if="selectedPatientId" class="d-flex align-items-center gap-2">
-                  <span class="badge bg-info">
-                    <i class="fas fa-user"></i> Aktiv
-                  </span>
-                  <button
-                    type="button"
-                    class="btn btn-sm btn-outline-secondary"
-                    @click="patientStore.clearCurrentPatient()"
-                    title="Patientenauswahl zurücksetzen"
-                  >
-                    <i class="fas fa-times"></i>
-                  </button>
-                </div>
               </div>
               <select
                 id="patient-select"
@@ -88,9 +71,10 @@
         </div>
       </div>
     </div>
+    <!-- under "Available Findings" card or wherever it fits best -->
 
     <!-- Lookup Data Display -->
-    <div v-if="lookup" class="row g-3">
+    <div v-if="lookup && debug" class="row g-3">
       <!-- Debug Info -->
       <div class="col-12">
         <div class="card">
@@ -233,6 +217,12 @@
                 </button>
               </div>
             </div>
+          <RequirementIssues
+            v-if="lookup"
+            :patient-examination-id="lookup.patientExaminationId || null"
+            :requirement-set-ids="selectedRequirementSetIds"
+            :show-only-unmet="true"
+          />
 
           <div class="card-body">
             <!-- Debug output -->
@@ -318,12 +308,25 @@
         </div>
       </div>
     </div>
+                    <div v-if="selectedPatientId" class="d-flex align-items-center gap-2">
+                  <span class="badge bg-info">
+                    <i class="fas fa-user"></i> Aktiv
+                  </span>
+                  <strong>Zurücksetzen:</strong>
+                  <button
+                    type="button"
+                    class="btn btn-sm btn-outline-secondary"
+                    @click="patientStore.clearCurrentPatient()"
+                    title="Patientenauswahl zurücksetzen"
+                  >
+                    <i class="fas fa-times"></i>
+                  </button>
+                </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
-import type { Ref } from 'vue';
 import axiosInstance from '@/api/axiosInstance';
 import { usePatientStore } from '@/stores/patientStore';
 import type { Patient } from '@/stores/patientStore';
@@ -335,6 +338,7 @@ import type { PatientExamination } from '@/stores/patientExaminationStore';
 import PatientAdder from '@/components/CaseGenerator/PatientAdder.vue';
 import FindingsDetail from './FindingsDetail.vue';
 import AddableFindingsDetail from './AddableFindingsDetail.vue';
+import RequirementIssues from './RequirementIssues.vue'
 
 // --- Types ---
 type RequirementSetLite = { id: number; name: string; type: string };
@@ -363,6 +367,7 @@ const patientExaminationStore = usePatientExaminationStore();
 
 // --- API ---
 const LOOKUP_BASE = '/api/lookup';
+const debug = ref<boolean>(false);
 
 // --- Component State ---
 const selectedPatientId = ref<number | null>(null);
@@ -376,6 +381,13 @@ const showCreatePatientModal = ref(false);
 const successMessage = ref<string | null>(null);
 const isRestarting = ref(false); // Prevent infinite restart loops
 
+if (error!==null) {
+  debug.value = true;
+}
+else
+{
+  debug.value = false;
+}
 
 // --- Computed from Store ---
 

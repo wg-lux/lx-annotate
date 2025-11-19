@@ -91,7 +91,6 @@ in
 
   packages = with pkgs; [
     stdenv.cc.cc
-    nodejs_22
     yarn
     libglvnd
     inotify-tools 

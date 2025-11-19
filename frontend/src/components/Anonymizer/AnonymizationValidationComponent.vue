@@ -129,7 +129,7 @@
                     <select class="form-select" v-model="editedPatient.patientGenderName">
                       <option value="male">Männlich</option>
                       <option value="female">Weiblich</option>
-                      <option value="other">Divers</option>
+                      <option value="unknown">Divers</option>
                     </select>
                   </div>
                   <div class="mb-3">
@@ -534,7 +534,17 @@
                   <span v-if="isApproving" class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
                   {{ isApproving ? 'Wird bestätigt...' : 'Bestätigen' }}
                 </button>
-                
+                <div class="alert alert-warning mt-2 mb-0" v-if="mediaUnknown">
+                <strong>
+                    Bitte hier den Medientyp eingeben - Der mediaStore hat einen Fehler
+                </strong>
+                <select v-model="mediaInferral">
+                  <option v-for="mediaOption in mediaOptions" :value="mediaOption.value">
+                    {{ mediaOption.text }}
+                  </option>
+                </select>
+                </div>
+
                 <!-- Phase 3.1: Show warning if approval blocked due to unvalidated segments -->
                 <div v-if="!canApprove && approvalBlockReason" class="alert alert-warning mt-2 mb-0">
                   <i class="fas fa-exclamation-triangle me-2"></i>
@@ -547,6 +557,7 @@
       </div>
     </div>
 </template>
+
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
@@ -565,6 +576,8 @@ import {useRoute} from 'vue-router';
 import axiosInstance, { r } from '@/api/axiosInstance';
 import { usePollingProtection } from '@/composables/usePollingProtection';
 
+
+
 const pollingProtection = usePollingProtection();
 
 
@@ -579,31 +592,58 @@ const videoStore = useVideoStore();
 const mediaStore = useMediaTypeStore();
 
 const route = useRoute();
+const isPdf   = computed(() => mediaStore.isPdf);
+const isVideo = computed(() => mediaStore.isVideo);
 
 function restoreLast(): { fileId?: number; scope?: MediaScope } {
-  const fid = Number(sessionStorage.getItem('last:fileId') || '')
-  const sc  = sessionStorage.getItem('last:scope') as MediaScope | null
-  return { fileId: Number.isFinite(fid) ? fid : undefined, scope: sc || undefined }
+  const fid = Number(sessionStorage.getItem('last:fileId') || '');
+  const sc  = sessionStorage.getItem('last:scope') as MediaScope | null;
+
+  return {
+    fileId: Number.isFinite(fid) ? fid : undefined,
+    scope: sc || undefined,
+  };
+}
+const props = defineProps<{
+  fileId: number
+  mediaType: string
+}>();
+
+let fileId = Number(props.fileId || route.query.fileId);
+let scope  = (props.mediaType || route.query.mediaType) as MediaScope | undefined;
+
+
+console.log("fileid and scope", fileId, scope)
+if (!Number.isFinite(fileId) || !scope) {
+  const restored = restoreLast();
+  if (restored.fileId !== undefined) fileId = restored.fileId;
+  if (restored.scope) scope = restored.scope;
 }
 
-let fileId = Number(route.params.fileId ?? route.query.fileId)
-let scope  = route.params.mediaType as MediaScope | undefined
-if (!scope) scope = route.query.mediaType as MediaScope | undefined
-
 if (!Number.isFinite(fileId) || !scope) {
-  const restored = restoreLast()
-  if (!Number.isFinite(fileId)) fileId = restored.fileId!
-  if (!scope) scope = restored.scope
-}
-
-if (!Number.isFinite(fileId) || !scope) {
-  console.error('Validation view: cannot determine fileId/scope; aborting mediaStore init.')
+  console.error('Validation view: cannot determine fileId/scope; aborting mediaStore init.', { fileId, scope });
 } else {
-  mediaStore.setCurrentByKey(scope, fileId)
+  mediaStore.setCurrentByKey(scope, fileId);
 }
 
-const isPdf   = computed(() => mediaStore.isPdf)   // boolean ref from store
-const isVideo = computed(() => mediaStore.isVideo)
+const mediaOptions = [
+  { text: 'Video', value: 'video' },
+  { text: 'PDF',   value: 'pdf' },
+] as const;
+
+const mediaInferral = ref<'video' | 'pdf' | ''>('');
+
+const mediaUnknown = computed(
+  () => !isPdf.value && !isVideo.value
+);
+
+watch(mediaInferral, (val) => {
+  if (!val || !currentItem.value) return;
+
+  // Remember this type for the current file, both as type and scope
+  mediaStore.rememberType(currentItem.value.id, val, val);
+  mediaStore.setCurrentByKey(val, currentItem.value.id);
+});
 
 
 
@@ -611,7 +651,7 @@ const isVideo = computed(() => mediaStore.isVideo)
 const editedAnonymizedText = ref('');
 const examinationDate = ref('');
 const noMoreNames = ref(false);
-const editedPatient = ref({
+const editedPatient = ref<Editable>({
   patientFirstName: '',
   patientLastName: '',
   patientGenderName: '',
@@ -623,6 +663,7 @@ const editedPatient = ref({
   text: '',
   anonymizedText: '',
   examinersDisplay: '',
+  examinationDate: '',
 });
 
 // ✨ Phase 2.2: Validation error tracking
@@ -666,8 +707,8 @@ type Editable = {
   centerName?: string;
   text?: string;
   anonymizedText?: string;
-  examinationDate?: string;
   examinersDisplay?: string;
+  examinationDate?: string;
 };
 
 const original = ref<{
@@ -1058,51 +1099,64 @@ const onOutsideValidationComplete = () => {
   toast.success({ text: 'Outside-Segment Validierung abgeschlossen!' });
 };
 
-const loadCurrentItemData = (item: SensitiveMeta) => {
+function convertGender(gender: string | undefined) {
+  if (gender == undefined) {
+    return 'unknown'
+  }
+  if (['male', 'männlich', 'm'].includes(gender)) {
+    return "male";
+  } else if (['female', 'weiblich', 'f', 'w'].includes(gender)) {
+    return "female";
+  } else if (['other', 'divers', 'd'].includes(gender)) {
+    return "unknown"; // #TODO Change to diverse gender once supportec
+  }
+  return gender;
+}
+
+function loadCurrentItemData(item: SensitiveMeta) {
   if (!item) return;
 
-  // ✅ NEW: Reset video validation state when loading new item
+  // reset video validation state
   shouldShowOutsideTimeline.value = false;
   videoValidationStatus.value = null;
   outsideSegmentsValidated.value = 0;
   totalOutsideSegments.value = 0;
   isValidatingVideo.value = false;
 
+  // dates
   const rawExam = item.examinationDate || '';
-  const rawDob  = item.patientDob || '';  
+  const rawDob  = item.patientDobDisplay || item.patientDob;
 
-  // ✨ Phase 2.1: Using DateConverter for consistent format handling
   examinationDate.value = DateConverter.toISO(rawExam) || '';
-
-  const p: Editable = {
+  const convertedGender = convertGender(item.patientGenderName)
+  editedPatient.value = {
     patientFirstName: item.patientFirstName || '',
     patientLastName:  item.patientLastName  || '',
-    patientGenderName:    item.patientGenderName    || '',
+    patientGenderName: convertedGender || '',
     patientDob:       DateConverter.toISO(rawDob) || '',
-    casenumber:       item.casenumber       || '',
-    externalId: item.externalId ?? '',
+    casenumber:       item.casenumber || '',
+    externalId:       item.externalId ?? '',
     externalIdOrigin: item.externalIdOrigin ?? '',
-    centerName: item.centerName ?? '',
-    text: item.text ?? '',
-    anonymizedText: item.anonymizedText ?? '',
+    centerName:       item.centerName ?? '',
+    text:             item.text ?? '',
+    anonymizedText:   item.anonymizedText ?? '',
+    examinersDisplay: item.examinersDisplay ?? '',
+    examinationDate:  examinationDate.value,
   };
 
-  editedPatient.value = {
-    ...p,
-    externalId: p.externalId ?? '',
-    externalIdOrigin: p.externalIdOrigin ?? '',
-    centerName: p.centerName ?? '',
-    text: p.text ?? '',
-    anonymizedText: p.anonymizedText ?? '',
-    examinersDisplay: p.examinersDisplay ?? '',
-  };
+  // if using a separate ref for anonymized text:
+  // editedAnonymizedText.value = item.anonymizedText ?? '';
 
   original.value = {
-    anonymizedText: editedAnonymizedText.value,
+    anonymizedText: editedPatient.value.anonymizedText ?? '',
     examinationDate: examinationDate.value,
-    patient: { ...p },
+    patient: { ...editedPatient.value },
   };
-};
+
+  // optional: remember last file in sessionStorage
+  sessionStorage.setItem('last:fileId', String(item.id));
+}
+
 
 // Watch
 watch(currentItem, (newItem) => {
@@ -1330,8 +1384,9 @@ const approveItem = async () => {
           patient_dob:        DateConverter.toGerman(dobISO.value || '') || '',          // 🎯 Phase 2.1: SENDE DEUTSCHES FORMAT
           examination_date:   DateConverter.toGerman(examISO.value || '') || '',         // 🎯 Phase 2.1: SENDE DEUTSCHES FORMAT
           casenumber:         editedPatient.value.casenumber || "",
-          anonymized_text:    isPdf.value ? editedAnonymizedText.value : undefined,
-          is_verified:        true,
+          anonymized_text:    editedPatient.value.anonymizedText || undefined,
+          text:               editedPatient.value.text || undefined,
+          is_verified:        'true',
           file_type:         isPdf.value ? 'pdf' : isVideo.value ? 'video' : 'unknown',
           center_name:       editedPatient.value.centerName || '',
           external_id:       editedPatient.value.externalId || '',
@@ -1343,7 +1398,20 @@ const approveItem = async () => {
       console.error('Error validating anonymization:', validationError);
       toast.warning({ text: 'Dokument bestätigt, aber Validierung fehlgeschlagen' });
     }
-    pollingProtection.validateAnonymizationSafeWithProtection(currentItem.value.id, 'pdf');
+    const mediaKind: 'pdf' | 'video' | 'unknown' =
+      isPdf.value ? 'pdf'
+      : isVideo.value ? 'video'
+      : 'unknown';
+
+    if (mediaKind === 'unknown') {
+      toast.error({ text: 'Bitte Medientyp auswählen, bevor bestätigt wird.' });
+      return;
+    }
+    pollingProtection.validateAnonymizationSafeWithProtection(
+      currentItem.value.id,
+      mediaKind
+    );
+
     await navigateToSegmentation();
 
   } catch (error) {
@@ -1437,18 +1505,18 @@ const navigateToCorrection = async () => {
 };
 
 
-// Lifecycle
 onMounted(async () => {
-  const id = Number(fileId)
-  const scope = (mediaStore.currentMediaType as MediaScope) ?? 'unknown'
-  mediaStore.setCurrentByKey(scope, id)
-  if (!anonymizationStore.current) {         // nur wenn wirklich leer
-    await fetchNextItem();
+  if (Number.isFinite(fileId) && scope) {
+    mediaStore.setCurrentByKey(scope, fileId);
   }
-  else {
+
+  if (!anonymizationStore.current) {
+    await fetchNextItem();
+  } else {
     loadCurrentItemData(anonymizationStore.current);
   }
 });
+
 
 onUnmounted(() => {
   fetchNextItem();

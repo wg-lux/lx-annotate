@@ -637,7 +637,7 @@ export const useVideoStore = defineStore('video', () => {
   async function fetchVideoMeta(lastId?: string): Promise<any> {
     try {
       // TODO: Migrate to new media framework URL when backend supports it
-      const url = lastId ? r(`video/media/${lastId}`) : r('video/sensitivemeta/')
+      const url = lastId ? r(`video/media/${lastId}`) : r('video/sensitive-metadata/')
       const response: AxiosResponse = await axiosInstance.get(url)
       videoMeta.value = response.data
       return response.data
@@ -649,7 +649,7 @@ export const useVideoStore = defineStore('video', () => {
 
   async function updateSensitiveMeta(payload: any): Promise<boolean> {
     try {
-      await axiosInstance.patch(r('media/videos/${payload.id}/'), payload)
+      await axiosInstance.patch(r('media/videos/${payload.id}/sensitive-metadata'), payload)
       return true
     } catch (error) {
       console.error('Error updating sensitive meta:', error)

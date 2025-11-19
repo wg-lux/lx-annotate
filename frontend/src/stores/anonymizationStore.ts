@@ -22,10 +22,10 @@ export interface FileItem {
     | 'predicting_segments'
     | 'extracting_frames'
     
-  annotationStatus: 'not_started' | 'done_processing_annotation' | ''
+  annotationStatus: 'not_started' | 'validated' | ''
   createdAt: string // ISO
   sensitiveMetaId?: number // Add this for video file lookup
-  metadataImported: boolean // New field to track if metadata was properly imported
+  metadataImported?: boolean // New field to track if metadata was properly imported
   fileSize?: number | undefined // Optional field for file size
   rawFile?: string // New field for raw file path (for videos)
 }
@@ -122,7 +122,7 @@ export const useAnonymizationStore = defineStore('anonymization', {
         // Check if we have a specific file selected from overview
         if (lastId) {
           const item = this.overview.find((f) => f.id === lastId)
-          await this.setCurrentForValidation(item!.id)
+          await this.setCurrentForValidation(item!.id, item!.mediaType)
           return this.current
         } else {
           if (this.current) {
@@ -211,7 +211,7 @@ export const useAnonymizationStore = defineStore('anonymization', {
         availableFiles.value = [...data]
 
         const needsValidation = data
-          .filter((f) => f.anonymizationStatus === 'done_processing_anonymization' && f.annotationStatus !== 'done_processing_anonymization')
+          .filter((f) => f.anonymizationStatus === 'done_processing_anonymization' && f.annotationStatus !== 'validated')
           .map((f) => f.id)
         this.needsValidationIds = needsValidation
 
@@ -295,16 +295,6 @@ export const useAnonymizationStore = defineStore('anonymization', {
         console.log(`Polling for file ${id} is already running`)
         return
       }
-      
-      // ✅ FIX: Correct array check using .includes() instead of 'in' operator
-      if (this.needsValidationIds.includes(id)) {
-        console.log(`File ${id} is in needsValidationIds, skipping polling`)
-        const file = this.overview.find((f) => f.id === id)
-        if (file) {
-          file.anonymizationStatus = 'validated' // Set status to validated
-        }
-        return
-      }
 
       console.log(`Starting status polling for file ${id}`)
       this.isPolling = true
@@ -365,11 +355,11 @@ export const useAnonymizationStore = defineStore('anonymization', {
     /**
      * Set current item for validation (called when clicking "Validate")
      */
-    async setCurrentForValidation(id: number) {
+    async setCurrentForValidation(id: number, mediaType: string) {
       try {
         console.log(`Setting current item for validation: ${id}`)
 
-        // Find the item in overview to get mediaType and sensitiveMetaId
+        // Find the item in overview to know if wrong parameters were passed.
         const item = this.overview.find((f) => f.id === id)
         if (!item) {
           throw new Error(`Item with ID ${id} not found in overview`)
@@ -378,30 +368,29 @@ export const useAnonymizationStore = defineStore('anonymization', {
 
         console.log('Found item for validation:', item)
 
-        if (item.mediaType === 'video') {
+        const url = r(`media/sensitive-media-id/${id}/${mediaType}/`)
+        const smIdObj = await axiosInstance.get(url)
+        const smId: number = smIdObj.data.sm
+
+        if (mediaType === 'video') {
           // For videos, use the ID to load the video data
 
           console.log(`Loading video data for sensitiveMetaId: ${item.id}`)
           const { data: sensitiveMeta } = await axiosInstance.get<SensitiveMeta>(
-            r(`media/videos/${item.id}/sensitive-metadata/`)
+            r(`media/videos/${smId}/sensitive-metadata/`)
           )
           console.log('Received video detail:', sensitiveMeta)
 
           this.current = sensitiveMeta
           return this.current
-        } else {
+        } else if (mediaType === 'pdf') {
           // For PDFs, load both details and sensitive metadata
           console.log(`Setting current PDF item for validation: ${id}`)
           
-          // 1) PDF Details (inkl. text/anonymizedText) laden
-          console.log(`Fetching PDF details for ID: ${id}`)
-          const { data: pdfDetails } = await axiosInstance.get(
-            r(`media/pdfs/${id}/`)
-          )
-          console.log('Received PDF details:', pdfDetails)
+          console.log(`Fetching PDF details for sm ID: ${smId}`)
           
           // 2) Sensitive-Meta laden
-          const metaUrl = r(`media/pdfs/${id}/sensitive-metadata/`)
+          const metaUrl = r(`media/pdfs/${smId}/sensitive-metadata/`)
           console.log(`Fetching sensitive meta from: ${metaUrl}`)
           const { data: sensitiveMeta } = await axiosInstance.get<SensitiveMeta>(metaUrl)
           console.log('Received sensitive meta response data:', sensitiveMeta)

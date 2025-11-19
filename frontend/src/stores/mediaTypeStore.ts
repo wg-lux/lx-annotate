@@ -82,6 +82,7 @@ export const useMediaTypeStore = defineStore('mediaType', () => {
       if (m) return m
       try {
         const fromSession = sessionStorage.getItem(`mediaType:${key}`) as MediaType | null
+        console.log('from session storage:', fromSession)
         if (fromSession) {
           typeByKey.value.set(key, fromSession)
           return fromSession
@@ -89,13 +90,9 @@ export const useMediaTypeStore = defineStore('mediaType', () => {
       } catch {}
       return 'unknown'
     }
-    // Ambiguous lookup: scan known scopes
-    for (const s of ['video', 'pdf', 'meta'] as MediaScope[]) {
-      const key = makeKey(s, id)
-      const m = typeByKey.value.get(key)
-      if (m && m !== 'unknown') return m
+    else {
+      return 'unknown'
     }
-    return 'unknown'
   }
 
   function setCurrentByKey(scope: MediaScope, id: number) {
@@ -170,25 +167,27 @@ export const useMediaTypeStore = defineStore('mediaType', () => {
 
   // Keep this pure; no fetching or IO here.
   function detectMediaType(item: MediaItem): MediaType {
+    if (item.mediaType && item.mediaType !== 'unknown') return item.mediaType
     // 1) If scope is known, prefer the registry `(scope,id)`
     if (item.scope && item.scope !== 'unknown') {
       const byScoped = getType(item.id, item.scope)
+      console.log('Registry Value:', byScoped)
       if (byScoped !== 'unknown') return byScoped
     }
 
     // 2) Try explicit field
-    if (item.mediaType && item.mediaType !== 'unknown') return item.mediaType
 
-    // 3) Ambiguous registry lookup by id
-    const remembered = getType(item.id)
-    if (remembered !== 'unknown') return remembered
-
-    // 4) Filename extension heuristic
+    // 3) try by filename
     if (item.filename) {
       const ext = `.${item.filename.toLowerCase().split('.').pop() || ''}`
       if (mediaTypeConfigs.video.supportedExtensions.includes(ext)) return 'video'
       if (mediaTypeConfigs.pdf.supportedExtensions.includes(ext)) return 'pdf'
     }
+    // 3) Ambiguous registry lookup by id
+    const remembered = getType(item.id)
+    if (remembered !== 'unknown') return remembered
+
+
 
     return 'unknown'
   }

@@ -12,15 +12,8 @@
             <i class="fas fa-sync-alt" :class="{ 'fa-spin': isRefreshing }"></i>
             Aktualisieren
           </button>
-          <!-- use the same route the Validate-button jumps to -->
-          <router-link 
-            to="/anonymisierung/validierung" 
-            class="btn btn-primary btn-sm"
-          >
-            <i class="fas fa-play me-1"></i>
-            Validierung starten
-          </router-link>
         </div>
+
       </div>
 
       <div class="card-body">
@@ -62,8 +55,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="file in availableFiles" :key="file.id">
-                <!-- Filename -->
+              <tr v-for="file in availableFiles" :key="`${file.mediaType}-${file.id}`">                <!-- Filename -->
                 <td>
                   <div class="d-flex align-items-center">
                     <i 
@@ -179,7 +171,7 @@
                     <!-- View/Validate - only show when anonymization is done -->
                     <button
                       v-if="file.anonymizationStatus === 'done_processing_anonymization'"
-                      @click="validateFile(file.id)"
+                      @click="validateFile(file.id, file.mediaType)"
                       class="btn btn-outline-success bg-success"
                       :disabled="!isReadyForValidation(file.id)"
                     >
@@ -378,7 +370,10 @@ const correctVideo = async (fileId: number) => {
 
 
   // Navigate directly to the correction component with the video ID
-  router.push({ name: 'Anonymisierung Korrektur', params: { fileId, mediaType: file.mediaType } });
+  router.push({ name: 'Anonymisierung Korrektur',       query: {
+        fileId: String(fileId),       
+        mediaType: file.mediaType      // 'video' | 'pdf'
+     } });
 };
 
 const isReadyForValidation = (fileId: number) => {
@@ -387,20 +382,10 @@ const isReadyForValidation = (fileId: number) => {
   if (!file) return false;
 
   // Only allow validation if anonymization is done
-  return file.anonymizationStatus === 'done_processing_anonymization' || file.anonymizationStatus === 'validated';
+  return file.anonymizationStatus === 'done_processing_anonymization' || file.anonymizationStatus === 'not_started';
 };
 
-const isValidated = (fileId: number) => {
-  // Check if the file is validated
-  const file = availableFiles.value.find(f => f.id === fileId);
-  if (!file) return false;
-
-  // Only allow validation if anonymization is done
-  return file.anonymizationStatus === 'validated';
-};
-
-const validateFile = async (fileId: number) => {
-  // Find the file to determine media type
+const validateFile = async (fileId: number, mediaType: string) => {
   processingFiles.value.add(fileId);
   if (!fileId) {
     console.warn('File not found for validation:', fileId);
@@ -408,49 +393,47 @@ const validateFile = async (fileId: number) => {
   }
 
   try {
-    // Set the file in MediaStore for consistency
-    const result = await anonymizationStore.setCurrentForValidation(fileId);
-    
+    const result = await anonymizationStore.setCurrentForValidation(fileId, mediaType);
+
     if (result) {
-        const file = availableFiles.value.find(f => f.id === fileId);
-        if (!file) 
-        {
-          console.warn('File not found for validation:', fileId);
-          return;
+      // 🔧 use BOTH id and mediaType here to avoid choosing the wrong file when ids are the same (different media types)
+      const file = availableFiles.value.find(
+        f => f.id === fileId && f.mediaType === mediaType
+      );
+      if (!file) {
+        console.warn('File not found for validation with given mediaType:', { fileId, mediaType });
+        return;
+      }
+
+      mediaStore.setCurrentItem(file as any);
+      const kind = file.mediaType as MediaType;
+
+      try {
+        mediaStore.rememberType(fileId, kind, kind);
+      } catch (e) {
+        console.error('Error remembering media type for file:', fileId, e);
+      }
+
+      if (file.sensitiveMetaId) {
+        mediaStore.rememberType(file.sensitiveMetaId, kind, 'meta');
+      }
+
+      sessionStorage.setItem('last:fileId', String(fileId));
+      sessionStorage.setItem('last:scope', kind);
+
+      console.log('File set for validation:', fileId, 'file media type:', file.mediaType);
+
+      router.push({
+        name: 'AnonymisierungValidierung',
+        query: {
+          fileId: String(fileId),
+          mediaType: file.mediaType   // now correctly 'pdf' when you clicked a pdf
         }
-        else {
-          mediaStore.setCurrentItem(file as any);
-          const kind = file.mediaType as MediaType;
-
-          // file id mapping
-          try {
-            mediaStore.rememberType(fileId, kind, kind)
-          } catch (e) {
-            console.error('Error remembering media type for file:', fileId, e);
-          }
-
-          // meta id mapping
-          if (file.sensitiveMetaId) {
-            mediaStore.rememberType(file.sensitiveMetaId, kind, 'meta')
-          }
-
-          // persist for navigation fallback
-          sessionStorage.setItem('last:fileId', String(fileId))
-          sessionStorage.setItem('last:scope', kind)
+      });
     }
-
-    console.log('File set for validation:', fileId, 'file media type:', file.mediaType);
-
-    // Simply navigate to validation page without changing status
-    // The status should only change when user actually completes validation
-    router.push({name: 'AnonymisierungValidierung', params: { fileId, mediaType: file.mediaType }});
-    
-  }
-  }
-  catch (error) {
+  } catch (error) {
     console.error('Navigation to validation failed:', error);
-  }
-  finally {
+  } finally {
     processingFiles.value.delete(fileId);
   }
 };

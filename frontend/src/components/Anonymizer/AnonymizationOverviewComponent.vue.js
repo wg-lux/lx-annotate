@@ -62,7 +62,10 @@ const correctVideo = async (fileId) => {
         return;
     }
     // Navigate directly to the correction component with the video ID
-    router.push({ name: 'Anonymisierung Korrektur', params: { fileId, mediaType: file.mediaType } });
+    router.push({ name: 'Anonymisierung Korrektur', query: {
+            fileId: String(fileId),
+            mediaType: file.mediaType // 'video' | 'pdf'
+        } });
 };
 const isReadyForValidation = (fileId) => {
     // Check if the file is ready for validation
@@ -70,54 +73,44 @@ const isReadyForValidation = (fileId) => {
     if (!file)
         return false;
     // Only allow validation if anonymization is done
-    return file.anonymizationStatus === 'done_processing_anonymization' || file.anonymizationStatus === 'validated';
+    return file.anonymizationStatus === 'done_processing_anonymization' || file.anonymizationStatus === 'not_started';
 };
-const isValidated = (fileId) => {
-    // Check if the file is validated
-    const file = availableFiles.value.find(f => f.id === fileId);
-    if (!file)
-        return false;
-    // Only allow validation if anonymization is done
-    return file.anonymizationStatus === 'validated';
-};
-const validateFile = async (fileId) => {
-    // Find the file to determine media type
+const validateFile = async (fileId, mediaType) => {
     processingFiles.value.add(fileId);
     if (!fileId) {
         console.warn('File not found for validation:', fileId);
         return;
     }
     try {
-        // Set the file in MediaStore for consistency
-        const result = await anonymizationStore.setCurrentForValidation(fileId);
+        const result = await anonymizationStore.setCurrentForValidation(fileId, mediaType);
         if (result) {
-            const file = availableFiles.value.find(f => f.id === fileId);
+            // 🔧 use BOTH id and mediaType here to avoid choosing the wrong file when ids are the same (different media types)
+            const file = availableFiles.value.find(f => f.id === fileId && f.mediaType === mediaType);
             if (!file) {
-                console.warn('File not found for validation:', fileId);
+                console.warn('File not found for validation with given mediaType:', { fileId, mediaType });
                 return;
             }
-            else {
-                mediaStore.setCurrentItem(file);
-                const kind = file.mediaType;
-                // file id mapping
-                try {
-                    mediaStore.rememberType(fileId, kind, kind);
-                }
-                catch (e) {
-                    console.error('Error remembering media type for file:', fileId, e);
-                }
-                // meta id mapping
-                if (file.sensitiveMetaId) {
-                    mediaStore.rememberType(file.sensitiveMetaId, kind, 'meta');
-                }
-                // persist for navigation fallback
-                sessionStorage.setItem('last:fileId', String(fileId));
-                sessionStorage.setItem('last:scope', kind);
+            mediaStore.setCurrentItem(file);
+            const kind = file.mediaType;
+            try {
+                mediaStore.rememberType(fileId, kind, kind);
             }
+            catch (e) {
+                console.error('Error remembering media type for file:', fileId, e);
+            }
+            if (file.sensitiveMetaId) {
+                mediaStore.rememberType(file.sensitiveMetaId, kind, 'meta');
+            }
+            sessionStorage.setItem('last:fileId', String(fileId));
+            sessionStorage.setItem('last:scope', kind);
             console.log('File set for validation:', fileId, 'file media type:', file.mediaType);
-            // Simply navigate to validation page without changing status
-            // The status should only change when user actually completes validation
-            router.push({ name: 'AnonymisierungValidierung', params: { fileId, mediaType: file.mediaType } });
+            router.push({
+                name: 'AnonymisierungValidierung',
+                query: {
+                    fileId: String(fileId),
+                    mediaType: file.mediaType // now correctly 'pdf' when you clicked a pdf
+                }
+            });
         }
     }
     catch (error) {
@@ -218,7 +211,7 @@ const needsReimport = (file) => {
     }
     // PDF files might need re-import if anonymization failed or no text extracted
     if (file.mediaType === 'pdf') {
-        return file.anonymizationStatus === 'failed' || file.anonymizationStatus === 'not_started';
+        return !file.metadataImported || file.anonymizationStatus === 'failed' || file.anonymizationStatus === 'not_started';
     }
     return false;
 };
@@ -366,22 +359,6 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)(
     ...{ class: "fas fa-sync-alt" },
     ...{ class: ({ 'fa-spin': __VLS_ctx.isRefreshing }) },
 });
-const __VLS_0 = {}.RouterLink;
-/** @type {[typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, ]} */ ;
-// @ts-ignore
-const __VLS_1 = __VLS_asFunctionalComponent(__VLS_0, new __VLS_0({
-    to: "/anonymisierung/validierung",
-    ...{ class: "btn btn-primary btn-sm" },
-}));
-const __VLS_2 = __VLS_1({
-    to: "/anonymisierung/validierung",
-    ...{ class: "btn btn-primary btn-sm" },
-}, ...__VLS_functionalComponentArgsRest(__VLS_1));
-__VLS_3.slots.default;
-__VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-    ...{ class: "fas fa-play me-1" },
-});
-var __VLS_3;
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "card-body" },
 });
@@ -424,22 +401,6 @@ else if (!__VLS_ctx.availableFiles.length) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
         ...{ class: "text-muted mb-4" },
     });
-    const __VLS_4 = {}.RouterLink;
-    /** @type {[typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, ]} */ ;
-    // @ts-ignore
-    const __VLS_5 = __VLS_asFunctionalComponent(__VLS_4, new __VLS_4({
-        to: "/upload",
-        ...{ class: "btn btn-primary" },
-    }));
-    const __VLS_6 = __VLS_5({
-        to: "/upload",
-        ...{ class: "btn btn-primary" },
-    }, ...__VLS_functionalComponentArgsRest(__VLS_5));
-    __VLS_7.slots.default;
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-upload me-2" },
-    });
-    var __VLS_7;
 }
 else {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -462,7 +423,7 @@ else {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.tbody, __VLS_intrinsicElements.tbody)({});
     for (const [file] of __VLS_getVForSourceType((__VLS_ctx.availableFiles))) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.tr, __VLS_intrinsicElements.tr)({
-            key: (file.id),
+            key: (`${file.mediaType}-${file.id}`),
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -609,7 +570,7 @@ else {
                             return;
                         if (!(file.anonymizationStatus === 'done_processing_anonymization'))
                             return;
-                        __VLS_ctx.validateFile(file.id);
+                        __VLS_ctx.validateFile(file.id, file.mediaType);
                     } },
                 ...{ class: "btn btn-outline-success bg-success" },
                 disabled: (!__VLS_ctx.isReadyForValidation(file.id)),
@@ -784,12 +745,6 @@ if (__VLS_ctx.filteredOutCount > 0) {
 /** @type {__VLS_StyleScopedClasses['fas']} */ ;
 /** @type {__VLS_StyleScopedClasses['fa-sync-alt']} */ ;
 /** @type {__VLS_StyleScopedClasses['fa-spin']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn-primary']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-play']} */ ;
-/** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-body']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert-danger']} */ ;
@@ -809,11 +764,6 @@ if (__VLS_ctx.filteredOutCount > 0) {
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-4']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn-primary']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-upload']} */ ;
-/** @type {__VLS_StyleScopedClasses['me-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['table-responsive']} */ ;
 /** @type {__VLS_StyleScopedClasses['table']} */ ;
 /** @type {__VLS_StyleScopedClasses['table-hover']} */ ;

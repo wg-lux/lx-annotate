@@ -602,7 +602,7 @@ const submitVideoSegments = async () => {
         return;
     }
     // Confirm with user before validation
-    if (!confirm(`Möchten Sie alle ${segmentCount} Segmente von Video ${selectedVideoId.value} als validiert markieren?`)) {
+    if (!confirm(`Möchten Sie alle ${segmentCount} Segmente von Video ${selectedVideoId.value} als validiert markieren? Außerhalb-Segmente werden danach gelöscht.`)) {
         return;
     }
     try {

@@ -22,30 +22,46 @@ const videoStore = useVideoStore();
 // const pdfStore = usePdfStore();
 const mediaStore = useMediaTypeStore();
 const route = useRoute();
+const isPdf = computed(() => mediaStore.isPdf);
+const isVideo = computed(() => mediaStore.isVideo);
 function restoreLast() {
     const fid = Number(sessionStorage.getItem('last:fileId') || '');
     const sc = sessionStorage.getItem('last:scope');
-    return { fileId: Number.isFinite(fid) ? fid : undefined, scope: sc || undefined };
+    return {
+        fileId: Number.isFinite(fid) ? fid : undefined,
+        scope: sc || undefined,
+    };
 }
-let fileId = Number(route.params.fileId ?? route.query.fileId);
-let scope = route.params.mediaType;
-if (!scope)
-    scope = route.query.mediaType;
+const props = defineProps();
+let fileId = Number(props.fileId || route.query.fileId);
+let scope = (props.mediaType || route.query.mediaType);
+console.log("fileid and scope", fileId, scope);
 if (!Number.isFinite(fileId) || !scope) {
     const restored = restoreLast();
-    if (!Number.isFinite(fileId))
+    if (restored.fileId !== undefined)
         fileId = restored.fileId;
-    if (!scope)
+    if (restored.scope)
         scope = restored.scope;
 }
 if (!Number.isFinite(fileId) || !scope) {
-    console.error('Validation view: cannot determine fileId/scope; aborting mediaStore init.');
+    console.error('Validation view: cannot determine fileId/scope; aborting mediaStore init.', { fileId, scope });
 }
 else {
     mediaStore.setCurrentByKey(scope, fileId);
 }
-const isPdf = computed(() => mediaStore.isPdf); // boolean ref from store
-const isVideo = computed(() => mediaStore.isVideo);
+const mediaOptions = [
+    { text: 'Video', value: 'video' },
+    { text: 'PDF', value: 'pdf' },
+];
+const mediaInferral = ref('');
+const mediaUnknown = computed(() => !isPdf.value && !isVideo.value);
+watch(mediaInferral, (val) => {
+    if (!val || !currentItem.value)
+        return;
+    // Remember this type for the current file, both as type and scope
+    mediaStore.rememberType(currentItem.value.id, val, val);
+    mediaStore.setCurrentByKey(val, currentItem.value.id);
+});
 // Local state
 const editedAnonymizedText = ref('');
 const examinationDate = ref('');
@@ -62,6 +78,7 @@ const editedPatient = ref({
     text: '',
     anonymizedText: '',
     examinersDisplay: '',
+    examinationDate: '',
 });
 // ✨ Phase 2.2: Validation error tracking
 const validationErrors = ref([]);
@@ -415,23 +432,39 @@ const onOutsideValidationComplete = () => {
     };
     toast.success({ text: 'Outside-Segment Validierung abgeschlossen!' });
 };
-const loadCurrentItemData = (item) => {
+function convertGender(gender) {
+    if (gender == undefined) {
+        return 'unknown';
+    }
+    if (['male', 'männlich', 'm'].includes(gender)) {
+        return "male";
+    }
+    else if (['female', 'weiblich', 'f', 'w'].includes(gender)) {
+        return "female";
+    }
+    else if (['other', 'divers', 'd'].includes(gender)) {
+        return "unknown"; // #TODO Change to diverse gender once supportec
+    }
+    return gender;
+}
+function loadCurrentItemData(item) {
     if (!item)
         return;
-    // ✅ NEW: Reset video validation state when loading new item
+    // reset video validation state
     shouldShowOutsideTimeline.value = false;
     videoValidationStatus.value = null;
     outsideSegmentsValidated.value = 0;
     totalOutsideSegments.value = 0;
     isValidatingVideo.value = false;
+    // dates
     const rawExam = item.examinationDate || '';
-    const rawDob = item.patientDob || '';
-    // ✨ Phase 2.1: Using DateConverter for consistent format handling
+    const rawDob = item.patientDobDisplay || item.patientDob;
     examinationDate.value = DateConverter.toISO(rawExam) || '';
-    const p = {
+    const convertedGender = convertGender(item.patientGenderName);
+    editedPatient.value = {
         patientFirstName: item.patientFirstName || '',
         patientLastName: item.patientLastName || '',
-        patientGenderName: item.patientGenderName || '',
+        patientGenderName: convertedGender || '',
         patientDob: DateConverter.toISO(rawDob) || '',
         casenumber: item.casenumber || '',
         externalId: item.externalId ?? '',
@@ -439,22 +472,19 @@ const loadCurrentItemData = (item) => {
         centerName: item.centerName ?? '',
         text: item.text ?? '',
         anonymizedText: item.anonymizedText ?? '',
-    };
-    editedPatient.value = {
-        ...p,
-        externalId: p.externalId ?? '',
-        externalIdOrigin: p.externalIdOrigin ?? '',
-        centerName: p.centerName ?? '',
-        text: p.text ?? '',
-        anonymizedText: p.anonymizedText ?? '',
-        examinersDisplay: p.examinersDisplay ?? '',
-    };
-    original.value = {
-        anonymizedText: editedAnonymizedText.value,
+        examinersDisplay: item.examinersDisplay ?? '',
         examinationDate: examinationDate.value,
-        patient: { ...p },
     };
-};
+    // if using a separate ref for anonymized text:
+    // editedAnonymizedText.value = item.anonymizedText ?? '';
+    original.value = {
+        anonymizedText: editedPatient.value.anonymizedText ?? '',
+        examinationDate: examinationDate.value,
+        patient: { ...editedPatient.value },
+    };
+    // optional: remember last file in sessionStorage
+    sessionStorage.setItem('last:fileId', String(item.id));
+}
 // Watch
 watch(currentItem, (newItem) => {
     if (newItem)
@@ -646,9 +676,13 @@ const approveItem = async () => {
                 patient_dob: DateConverter.toGerman(dobISO.value || '') || '', // 🎯 Phase 2.1: SENDE DEUTSCHES FORMAT
                 examination_date: DateConverter.toGerman(examISO.value || '') || '', // 🎯 Phase 2.1: SENDE DEUTSCHES FORMAT
                 casenumber: editedPatient.value.casenumber || "",
-                anonymized_text: isPdf.value ? editedAnonymizedText.value : undefined,
-                is_verified: true,
+                anonymized_text: editedPatient.value.anonymizedText || undefined,
+                text: editedPatient.value.text || undefined,
+                is_verified: 'true',
                 file_type: isPdf.value ? 'pdf' : isVideo.value ? 'video' : 'unknown',
+                center_name: editedPatient.value.centerName || '',
+                external_id: editedPatient.value.externalId || '',
+                external_id_origin: editedPatient.value.externalIdOrigin || '',
             });
             console.log(`Anonymization validated successfully for file ${currentItem.value.id}`);
             toast.success({ text: 'Dokument bestätigt und Anonymisierung validiert' });
@@ -657,7 +691,14 @@ const approveItem = async () => {
             console.error('Error validating anonymization:', validationError);
             toast.warning({ text: 'Dokument bestätigt, aber Validierung fehlgeschlagen' });
         }
-        pollingProtection.validateAnonymizationSafeWithProtection(currentItem.value.id, 'pdf');
+        const mediaKind = isPdf.value ? 'pdf'
+            : isVideo.value ? 'video'
+                : 'unknown';
+        if (mediaKind === 'unknown') {
+            toast.error({ text: 'Bitte Medientyp auswählen, bevor bestätigt wird.' });
+            return;
+        }
+        pollingProtection.validateAnonymizationSafeWithProtection(currentItem.value.id, mediaKind);
         await navigateToSegmentation();
     }
     catch (error) {
@@ -748,12 +789,11 @@ const navigateToCorrection = async () => {
         return;
     }
 };
-// Lifecycle
 onMounted(async () => {
-    const id = Number(fileId);
-    const scope = mediaStore.currentMediaType ?? 'unknown';
-    mediaStore.setCurrentByKey(scope, id);
-    if (!anonymizationStore.current) { // nur wenn wirklich leer
+    if (Number.isFinite(fileId) && scope) {
+        mediaStore.setCurrentByKey(scope, fileId);
+    }
+    if (!anonymizationStore.current) {
         await fetchNextItem();
     }
     else {
@@ -1028,7 +1068,7 @@ if (__VLS_ctx.currentItem) {
         value: "female",
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-        value: "other",
+        value: "unknown",
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "mb-3" },
@@ -1580,6 +1620,21 @@ if (__VLS_ctx.currentItem) {
         });
     }
     (__VLS_ctx.isApproving ? 'Wird bestätigt...' : 'Bestätigen');
+    if (__VLS_ctx.mediaUnknown) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "alert alert-warning mt-2 mb-0" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
+            value: (__VLS_ctx.mediaInferral),
+        });
+        for (const [mediaOption] of __VLS_getVForSourceType((__VLS_ctx.mediaOptions))) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+                value: (mediaOption.value),
+            });
+            (mediaOption.text);
+        }
+    }
     if (!__VLS_ctx.canApprove && __VLS_ctx.approvalBlockReason) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: "alert alert-warning mt-2 mb-0" },
@@ -1913,6 +1968,10 @@ if (__VLS_ctx.currentItem) {
 /** @type {__VLS_StyleScopedClasses['alert-warning']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert-warning']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
 /** @type {__VLS_StyleScopedClasses['fas']} */ ;
 /** @type {__VLS_StyleScopedClasses['fa-exclamation-triangle']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-2']} */ ;
@@ -1925,6 +1984,9 @@ const __VLS_self = (await import('vue')).defineComponent({
             mediaStore: mediaStore,
             isPdf: isPdf,
             isVideo: isVideo,
+            mediaOptions: mediaOptions,
+            mediaInferral: mediaInferral,
+            mediaUnknown: mediaUnknown,
             editedAnonymizedText: editedAnonymizedText,
             examinationDate: examinationDate,
             noMoreNames: noMoreNames,
@@ -1985,10 +2047,12 @@ const __VLS_self = (await import('vue')).defineComponent({
             navigateToCorrection: navigateToCorrection,
         };
     },
+    __typeProps: {},
 });
 export default (await import('vue')).defineComponent({
     setup() {
         return {};
     },
+    __typeProps: {},
 });
 ; /* PartiallyEnd: #4569/main.vue */

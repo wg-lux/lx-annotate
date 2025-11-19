@@ -3,10 +3,10 @@ export interface FileItem {
     filename: string;
     mediaType: 'pdf' | 'video';
     anonymizationStatus: 'not_started' | 'processing_anonymization' | 'done_processing_anonymization' | 'failed' | 'validated' | 'predicting_segments' | 'extracting_frames';
-    annotationStatus: 'not_started' | 'done_processing_anonymization' | '';
+    annotationStatus: 'not_started' | 'validated' | '';
     createdAt: string;
     sensitiveMetaId?: number;
-    metadataImported: boolean;
+    metadataImported?: boolean;
     fileSize?: number | undefined;
     rawFile?: string;
 }
@@ -50,10 +50,10 @@ export declare const availableFiles: import("vue").Ref<{
     filename: string;
     mediaType: 'pdf' | 'video';
     anonymizationStatus: 'not_started' | 'processing_anonymization' | 'done_processing_anonymization' | 'failed' | 'validated' | 'predicting_segments' | 'extracting_frames';
-    annotationStatus: 'not_started' | 'done_processing_anonymization' | '';
+    annotationStatus: 'not_started' | 'validated' | '';
     createdAt: string;
     sensitiveMetaId?: number | undefined;
-    metadataImported: boolean;
+    metadataImported?: boolean | undefined;
     fileSize?: number | undefined;
     rawFile?: string | undefined;
 }[], FileItem[] | {
@@ -61,10 +61,10 @@ export declare const availableFiles: import("vue").Ref<{
     filename: string;
     mediaType: 'pdf' | 'video';
     anonymizationStatus: 'not_started' | 'processing_anonymization' | 'done_processing_anonymization' | 'failed' | 'validated' | 'predicting_segments' | 'extracting_frames';
-    annotationStatus: 'not_started' | 'done_processing_anonymization' | '';
+    annotationStatus: 'not_started' | 'validated' | '';
     createdAt: string;
     sensitiveMetaId?: number | undefined;
-    metadataImported: boolean;
+    metadataImported?: boolean | undefined;
     fileSize?: number | undefined;
     rawFile?: string | undefined;
 }[]>;
@@ -101,10 +101,10 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
             filename: string;
             mediaType: 'pdf' | 'video';
             anonymizationStatus: 'not_started' | 'processing_anonymization' | 'done_processing_anonymization' | 'failed' | 'validated' | 'predicting_segments' | 'extracting_frames';
-            annotationStatus: 'not_started' | 'done_processing_anonymization' | '';
+            annotationStatus: 'not_started' | 'validated' | '';
             createdAt: string;
             sensitiveMetaId?: number | undefined;
-            metadataImported: boolean;
+            metadataImported?: boolean | undefined;
             fileSize?: number | undefined;
             rawFile?: string | undefined;
         }[];
@@ -116,10 +116,10 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
             filename: string;
             mediaType: 'pdf' | 'video';
             anonymizationStatus: 'not_started' | 'processing_anonymization' | 'done_processing_anonymization' | 'failed' | 'validated' | 'predicting_segments' | 'extracting_frames';
-            annotationStatus: 'not_started' | 'done_processing_anonymization' | '';
+            annotationStatus: 'not_started' | 'validated' | '';
             createdAt: string;
             sensitiveMetaId?: number | undefined;
-            metadataImported: boolean;
+            metadataImported?: boolean | undefined;
             fileSize?: number | undefined;
             rawFile?: string | undefined;
         }[];
@@ -178,10 +178,10 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
             filename: string;
             mediaType: 'pdf' | 'video';
             anonymizationStatus: 'not_started' | 'processing_anonymization' | 'done_processing_anonymization' | 'failed' | 'validated' | 'predicting_segments' | 'extracting_frames';
-            annotationStatus: 'not_started' | 'done_processing_anonymization' | '';
+            annotationStatus: 'not_started' | 'validated' | '';
             createdAt: string;
             sensitiveMetaId?: number | undefined;
-            metadataImported: boolean;
+            metadataImported?: boolean | undefined;
             fileSize?: number | undefined;
             rawFile?: string | undefined;
         }[];
@@ -193,10 +193,10 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
             filename: string;
             mediaType: 'pdf' | 'video';
             anonymizationStatus: 'not_started' | 'processing_anonymization' | 'done_processing_anonymization' | 'failed' | 'validated' | 'predicting_segments' | 'extracting_frames';
-            annotationStatus: 'not_started' | 'done_processing_anonymization' | '';
+            annotationStatus: 'not_started' | 'validated' | '';
             createdAt: string;
             sensitiveMetaId?: number | undefined;
-            metadataImported: boolean;
+            metadataImported?: boolean | undefined;
             fileSize?: number | undefined;
             rawFile?: string | undefined;
         }[];
@@ -234,10 +234,10 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
             filename: string;
             mediaType: 'pdf' | 'video';
             anonymizationStatus: 'not_started' | 'processing_anonymization' | 'done_processing_anonymization' | 'failed' | 'validated' | 'predicting_segments' | 'extracting_frames';
-            annotationStatus: 'not_started' | 'done_processing_anonymization' | '';
+            annotationStatus: 'not_started' | 'validated' | '';
             createdAt: string;
             sensitiveMetaId?: number | undefined;
-            metadataImported: boolean;
+            metadataImported?: boolean | undefined;
             fileSize?: number | undefined;
             rawFile?: string | undefined;
         }[];
@@ -249,10 +249,10 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
             filename: string;
             mediaType: 'pdf' | 'video';
             anonymizationStatus: 'not_started' | 'processing_anonymization' | 'done_processing_anonymization' | 'failed' | 'validated' | 'predicting_segments' | 'extracting_frames';
-            annotationStatus: 'not_started' | 'done_processing_anonymization' | '';
+            annotationStatus: 'not_started' | 'validated' | '';
             createdAt: string;
             sensitiveMetaId?: number | undefined;
-            metadataImported: boolean;
+            metadataImported?: boolean | undefined;
             fileSize?: number | undefined;
             rawFile?: string | undefined;
         }[];
@@ -262,10 +262,10 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
         filename: string;
         mediaType: 'pdf' | 'video';
         anonymizationStatus: 'not_started' | 'processing_anonymization' | 'done_processing_anonymization' | 'failed' | 'validated' | 'predicting_segments' | 'extracting_frames';
-        annotationStatus: 'not_started' | 'done_processing_anonymization' | '';
+        annotationStatus: 'not_started' | 'validated' | '';
         createdAt: string;
         sensitiveMetaId?: number | undefined;
-        metadataImported: boolean;
+        metadataImported?: boolean | undefined;
         fileSize?: number | undefined;
         rawFile?: string | undefined;
     }[];
@@ -301,10 +301,10 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
             filename: string;
             mediaType: 'pdf' | 'video';
             anonymizationStatus: 'not_started' | 'processing_anonymization' | 'done_processing_anonymization' | 'failed' | 'validated' | 'predicting_segments' | 'extracting_frames';
-            annotationStatus: 'not_started' | 'done_processing_anonymization' | '';
+            annotationStatus: 'not_started' | 'validated' | '';
             createdAt: string;
             sensitiveMetaId?: number | undefined;
-            metadataImported: boolean;
+            metadataImported?: boolean | undefined;
             fileSize?: number | undefined;
             rawFile?: string | undefined;
         }[];
@@ -316,10 +316,10 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
             filename: string;
             mediaType: 'pdf' | 'video';
             anonymizationStatus: 'not_started' | 'processing_anonymization' | 'done_processing_anonymization' | 'failed' | 'validated' | 'predicting_segments' | 'extracting_frames';
-            annotationStatus: 'not_started' | 'done_processing_anonymization' | '';
+            annotationStatus: 'not_started' | 'validated' | '';
             createdAt: string;
             sensitiveMetaId?: number | undefined;
-            metadataImported: boolean;
+            metadataImported?: boolean | undefined;
             fileSize?: number | undefined;
             rawFile?: string | undefined;
         }[];
@@ -356,10 +356,10 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
             filename: string;
             mediaType: 'pdf' | 'video';
             anonymizationStatus: 'not_started' | 'processing_anonymization' | 'done_processing_anonymization' | 'failed' | 'validated' | 'predicting_segments' | 'extracting_frames';
-            annotationStatus: 'not_started' | 'done_processing_anonymization' | '';
+            annotationStatus: 'not_started' | 'validated' | '';
             createdAt: string;
             sensitiveMetaId?: number | undefined;
-            metadataImported: boolean;
+            metadataImported?: boolean | undefined;
             fileSize?: number | undefined;
             rawFile?: string | undefined;
         }[];
@@ -371,10 +371,10 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
             filename: string;
             mediaType: 'pdf' | 'video';
             anonymizationStatus: 'not_started' | 'processing_anonymization' | 'done_processing_anonymization' | 'failed' | 'validated' | 'predicting_segments' | 'extracting_frames';
-            annotationStatus: 'not_started' | 'done_processing_anonymization' | '';
+            annotationStatus: 'not_started' | 'validated' | '';
             createdAt: string;
             sensitiveMetaId?: number | undefined;
-            metadataImported: boolean;
+            metadataImported?: boolean | undefined;
             fileSize?: number | undefined;
             rawFile?: string | undefined;
         }[];
@@ -415,7 +415,7 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
     /**
      * Set current item for validation (called when clicking "Validate")
      */
-    setCurrentForValidation(id: number): Promise<SensitiveMeta | null>;
+    setCurrentForValidation(id: number, mediaType: string): Promise<SensitiveMeta | null | undefined>;
     /**
      * Refresh overview data
      */
