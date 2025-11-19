@@ -4,9 +4,6 @@ export default (await import('vue')).defineComponent({
     components: {
         ExaminationGenerator
     },
-    mounted() {
-        console.log("----------------------------Report.vue has been loaded!---------------------");
-    }
 });
 const __VLS_ctx = {};
 const __VLS_componentsOption = {

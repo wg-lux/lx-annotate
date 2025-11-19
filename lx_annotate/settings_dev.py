@@ -28,12 +28,16 @@ REST_FRAMEWORK["DEFAULT_PERMISSION_CLASSES"] = [
 ]
 
 #TODO implement cache for kubernetes deployment version (e.g. redis)
-# Use database-backed cache for development since it's easy to set up
+# ✅ FIX: Use LocMemCache instead of DatabaseCache to avoid SQLite lock contention
+# during heavy write operations (e.g., video re-import with AI processing)
 CACHES = {
     "default": {
-        "BACKEND": "django.core.cache.backends.db.DatabaseCache",
-        "LOCATION": "django_cache_table",
-        "TIMEOUT": 60 * 30,  # oder None für nie
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "unique-snowflake",
+        "TIMEOUT": 60 * 30,  # 30 minutes
+        "OPTIONS": {
+            "MAX_ENTRIES": 1000  # Limit cache size
+        }
     }
 }
 
@@ -63,7 +67,8 @@ if storage_dir := os.getenv("STORAGE_DIR"):
 # base.py already sets this up
 
 # Frontend development URL
-FRONTEND_URL = "http://127.0.0.1:8000"
+# ✅ Use 'localhost' instead of '127.0.0.1' to avoid Firefox cross-origin blocks
+FRONTEND_URL = "http://localhost:8000"
 
 print("🚀 DEVELOPMENT MODE: API authentication disabled, CORS wide open")
 print("⚠️  DO NOT use these settings in production!")

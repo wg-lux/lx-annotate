@@ -239,70 +239,16 @@ const props = defineProps<{
   fps?: number
 }>()
 
-// ✅ FIXED: Strongly typed emits to resolve TS2322 in parent listeners
-type TimelineSegment = {
-  id: string | number
-  label: string
-  label_display?: string
-  name?: string
-  startTime: number
-  endTime: number
-  avgConfidence: number
-  video_id?: number
-  label_id?: number
-}
-
-type CreateSegmentPayload = {
-  label: string
-  start: number
-  end: number
-}
-
-type TimeSelectionPayload = {
-  start: number
-  end: number
-}
-
 const emit = defineEmits<{
-  /** Seek the external video element to absolute time (seconds) */
   (e: 'seek', time: number): void
-
-  /** Toggle playback externally (leave control to parent) */
   (e: 'play-pause'): void
-
-  /** User highlighted/selected a segment in the timeline UI */
-  (e: 'segment-select', segment: TimelineSegment): void
-
-  /** User requested to edit a segment via context menu */
-  (e: 'segment-edit', segment: TimelineSegment): void
-
-  /** User requested to delete a segment via UI control (X button) */
-  (e: 'segment-delete', segment: TimelineSegment): void
-
-  /** User finished drawing a new segment (via selection overlay) */
-  (e: 'segment-create', data: CreateSegmentPayload): void
-
-  /** Segment resized (live preview + final on mouseup) */
-  (
-    e: 'segment-resize',
-    segmentId: string | number,
-    newStart: number,
-    newEnd: number,
-    mode: 'start' | 'end',
-    final?: boolean
-  ): void
-
-  /** Segment moved (live preview + final on mouseup) */
-  (
-    e: 'segment-move',
-    segmentId: string | number,
-    newStart: number,
-    newEnd: number,
-    final?: boolean
-  ): void
-
-  /** Selection overlay produced an interval (used by parent to create a segment) */
-  (e: 'time-selection', data: TimeSelectionPayload): void
+  (e: 'segment-select', segment: Segment): void
+  (e: 'segment-edit', segment: Segment): void
+  (e: 'segment-delete', segment: Segment): void
+  (e: 'segment-create', data: { label: string; start: number; end: number }): void
+  (e: 'segment-resize', segmentId: string | number, newStart: number, newEnd: number, mode: string, final?: boolean): void
+  (e: 'segment-move', segmentId: string | number, newStart: number, newEnd: number, final?: boolean): void
+  (e: 'time-selection', data: { start: number; end: number }): void
 }>()
 
 // Refs with proper types
@@ -402,8 +348,22 @@ const timeMarkers = computed((): TimeMarker[] => {
 const currentFps = computed((): number => props.fps || 50)
 
 const toCanonical = (s: Segment): CanonicalSegment => {
+  // ✅ FIX: Enhanced normalization to handle both backend (snake_case) and frontend (camelCase) property names
   const n = normalizeSegmentToCamelCase(s)
-  const color = getColorForLabel(s.label)
+  
+  // ✅ Extract label with comprehensive fallbacks (backend sends label_name)
+  const segmentLabel = (s as any).label_name ?? (s as any).label ?? n.label ?? ''
+  
+  const color = getColorForLabel(segmentLabel)
+  
+  // ✅ Debug logging for property name mismatches
+  if (!(s as any).startTime && (s as any).start_time) {
+    console.debug('[Timeline] Converted snake_case to camelCase:', {
+      from: { start_time: (s as any).start_time, end_time: (s as any).end_time, label_name: (s as any).label_name },
+      to: { startTime: n.startTime, endTime: n.endTime, label: segmentLabel }
+    })
+  }
+  
   return {
     ...n,
     start: n.startTime,
@@ -411,16 +371,17 @@ const toCanonical = (s: Segment): CanonicalSegment => {
     isDraft: typeof s.id === 'string' && (s.id === 'draft' || s.id.startsWith('temp-')),
     color: color || getRandomColor() || undefined,
     avgConfidence: s.avgConfidence ?? 0,
-    label: (s as any).label ?? (s as any).label_name// ✅ FIX: Use label or label_name
+    label: segmentLabel  // ✅ Use extracted label with backend compatibility
   }
 }
 
 const selectedLabel = ref<string | null>(null)
 
 const selectSegment = (segment: Segment): void => {
-  selectedLabel.value = segment.label // ✅ FIX: Use segment.label instead of segment.label_name
-  // ✅ FIXED: Cast to TimelineSegment for type safety
-  emit('segment-select', segment as TimelineSegment)
+  // ✅ FIX: Extract label from both backend (label_name) and frontend (label) properties
+  const label = (segment as any).label_name ?? segment.label
+  selectedLabel.value = label
+  emit('segment-select', segment)
 }
 
 // ✅ FIX: Add getTranslationForLabel function from videoStore
@@ -439,7 +400,32 @@ watch(
   () => props.segments,
   (segments) => {
     if (segments) {
-      displayedSegments.value = segments?.map(toCanonical)
+      console.debug('[Timeline] Processing segments:', {
+        count: segments.length,
+        sample: segments.slice(0, 2).map(s => ({
+          id: s.id,
+          label: (s as any).label,
+          label_name: (s as any).label_name,
+          start_time: (s as any).start_time,
+          startTime: (s as any).startTime,
+          end_time: (s as any).end_time,
+          endTime: (s as any).endTime
+        }))
+      })
+      
+      displayedSegments.value = segments.map(toCanonical)
+      
+      console.debug('[Timeline] Canonical segments created:', {
+        count: displayedSegments.value.length,
+        sample: displayedSegments.value.slice(0, 2).map(s => ({
+          id: s.id,
+          label: s.label,
+          start: s.start,
+          end: s.end,
+          startTime: s.startTime,
+          endTime: s.endTime
+        }))
+      })
     } else {
       displayedSegments.value = []
     }
@@ -456,10 +442,31 @@ watch(
  */
 const segmentRows = computed((): SegmentRow[] => {
   const buckets: Record<string, CanonicalSegment[]> = {}
+  
+  // ✅ Debug: Log all segments being processed
+  console.debug('[Timeline] segmentRows - processing segments:', {
+    count: displayedSegments.value.length,
+    segments: displayedSegments.value.map(s => ({
+      id: s.id,
+      label: s.label,
+      start: s.start,
+      end: s.end
+    }))
+  })
+  
   // build from the *mutable* working copy so previews are visible
-  for (const s of displayedSegments.value) { //THIS IS THE LINE FROM THE PROMPT
+  for (const s of displayedSegments.value) {
+    if (!s.label) {
+      console.error('[Timeline] Segment missing label property:', s)
+      continue
+    }
     (buckets[s.label] ||= []).push(s)
   }
+  
+  console.debug('[Timeline] Label buckets created:', {
+    labels: Object.keys(buckets),
+    counts: Object.entries(buckets).map(([label, segs]) => `${label}:${segs.length}`)
+  })
 
   // ►  fixed order: first the user-selected label (if any), then our persisted order
   const orderedLabels = selectedLabel.value
@@ -497,6 +504,16 @@ const segmentRows = computed((): SegmentRow[] => {
     }
     rows.push(currentRow)
   })
+  
+  console.debug('[Timeline] Rows created:', {
+    count: rows.length,
+    rows: rows.map(r => ({
+      key: r.key,
+      label: r.label,
+      segmentCount: r.segments.length
+    }))
+  })
+  
   return rows
 })
 
@@ -521,11 +538,36 @@ const formatDuration = (startTime: number, endTime: number): string => {
 }
 
 const getSegmentPosition = (startTime: number): number => {
-  return calculateSegmentPosition(startTime, duration.value)
+  const position = calculateSegmentPosition(startTime, duration.value)
+  
+  // ✅ Debug validation for position calculation
+  if (!Number.isFinite(position) || position < 0) {
+    console.error('[Timeline] Invalid segment position calculated:', {
+      startTime,
+      duration: duration.value,
+      position
+    })
+    return 0
+  }
+  
+  return position
 }
 
 const getSegmentWidth = (startTime: number, endTime: number): number => {
-  return calculateSegmentWidth(startTime, endTime, duration.value)
+  const width = calculateSegmentWidth(startTime, endTime, duration.value)
+  
+  // ✅ Debug validation for width calculation
+  if (!Number.isFinite(width) || width <= 0) {
+    console.error('[Timeline] Invalid segment width calculated:', {
+      startTime,
+      endTime,
+      duration: duration.value,
+      width
+    })
+    return 0
+  }
+  
+  return width
 }
 
 
@@ -669,24 +711,21 @@ const initializeDragResize = () => {
               localSegment.startTime = startS
               localSegment.endTime = endS
             }
-            // ✅ FIXED: Ensure mode is typed correctly
             emit('segment-resize', segment.id, startS, endS, edge)
           },
           onDone: () => {
             const localSegment = displayedSegments.value.find(s => s.id === segment.id)
             if (localSegment) {
-                          // Handle draft segments differently
-            if (typeof segment.id === 'string' && 
-                (segment.id === 'draft' || segment.id.startsWith('temp-'))) {
-              // ✅ FIXED: Use correct emit parameters for final resize
-              emit('segment-move', segment.id, localSegment.start, localSegment.end, true)
-            } else {
-              const numericId = getNumericSegmentId(segment.id)
-              if (numericId !== null) {
-                // ✅ FIXED: Use correct emit parameters for final move
-                emit('segment-move', numericId, localSegment.start, localSegment.end, true)
+              // Handle draft segments differently
+              if (typeof segment.id === 'string' && 
+                  (segment.id === 'draft' || segment.id.startsWith('temp-'))) {
+                emit('segment-resize', segment.id, localSegment.start, localSegment.end, 'end', true)
+              } else {
+                const numericId = getNumericSegmentId(segment.id)
+                if (numericId !== null) {
+                  emit('segment-resize', numericId, localSegment.start, localSegment.end, 'end', true)
+                }
               }
-            }
             }
           }
         })
@@ -718,15 +757,13 @@ const playPause = (): void => {
 const editSegment = (segment: Segment | null): void => {
   if (!segment) return
   hideContextMenu()
-  // ✅ FIXED: Cast to TimelineSegment for type safety
-  emit('segment-edit', segment as TimelineSegment)
+  emit('segment-edit', segment)
 }
 
 const deleteSegment = (segment: Segment | null): void => {
   if (!segment) return
   hideContextMenu()
-  // ✅ FIXED: Cast to TimelineSegment for type safety
-  emit('segment-delete', segment as TimelineSegment)
+  emit('segment-delete', segment)
 }
 
 const playSegment = (segment: Segment | null): void => {
@@ -792,9 +829,7 @@ const onSelectionMouseUp = (event: MouseEvent): void => {
   
   // Only create segment if selection is meaningful (> 0.1 seconds)
   if (endTime - startTime > 0.1) {
-    // ✅ FIXED: Use properly typed payload
-    const timeSelectionData: TimeSelectionPayload = { start: startTime, end: endTime }
-    emit('time-selection', timeSelectionData)
+    emit('time-selection', { start: startTime, end: endTime })
   }
   
   // Cleanup

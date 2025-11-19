@@ -5,7 +5,11 @@
 export function snakeToCamel(snakeStr) {
     const components = snakeStr.split('_');
     // Capitalize the first letter of each component except the first
-    return components[0] + components.slice(1).map(x => x.charAt(0).toUpperCase() + x.slice(1).toLowerCase()).join('');
+    return (components[0] +
+        components
+            .slice(1)
+            .map((x) => x.charAt(0).toUpperCase() + x.slice(1).toLowerCase())
+            .join(''));
 }
 /**
  * Converts a camelCase string to snake_case
@@ -13,7 +17,7 @@ export function snakeToCamel(snakeStr) {
  * @returns The string in snake_case format
  */
 export function camelToSnake(camelStr) {
-    return camelStr.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+    return camelStr.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
 }
 /**
  * Converts an object with snake_case keys to camelCase keys
@@ -31,7 +35,7 @@ export function objectSnakeToCamel(obj) {
             result[camelKey] = objectSnakeToCamel(value);
         }
         else if (Array.isArray(value)) {
-            result[camelKey] = value.map(item => item && typeof item === 'object' ? objectSnakeToCamel(item) : item);
+            result[camelKey] = value.map((item) => item && typeof item === 'object' ? objectSnakeToCamel(item) : item);
         }
         else {
             result[camelKey] = value;
@@ -55,7 +59,7 @@ export function objectCamelToSnake(obj) {
             result[snakeKey] = objectCamelToSnake(value);
         }
         else if (Array.isArray(value)) {
-            result[snakeKey] = value.map(item => item && typeof item === 'object' ? objectCamelToSnake(item) : item);
+            result[snakeKey] = value.map((item) => item && typeof item === 'object' ? objectCamelToSnake(item) : item);
         }
         else {
             result[snakeKey] = value;
@@ -85,7 +89,7 @@ export function convertBackendSegmentToFrontend(backendSegment) {
         label: labelValue,
         startTime: backendSegment.startTime,
         endTime: backendSegment.endTime,
-        usingFPS: false,
+        usingFPS: false
     };
     if (backendSegment.startTime !== undefined) {
         converted.usingFPS = true; // Indicates need for FPS conversion
@@ -102,7 +106,7 @@ export function convertFrontendSegmentToBackend(frontendSegment) {
         labelName: frontendSegment.label,
         startTime: frontendSegment.startTime,
         endTime: frontendSegment.endTime,
-        videoName: frontendSegment.videoName || '', // Optional field for video name
+        videoName: frontendSegment.videoName || '' // Optional field for video name
     };
     return converted;
 }
@@ -145,7 +149,7 @@ export function normalizeSegmentToCamelCase(segment) {
         startFrameNumber: segment.startFrameNumber ?? segment.start_frame_number ?? 0,
         endFrameNumber: segment.endFrameNumber ?? segment.end_frame_number ?? 0,
         videoName: segment.videoName || segment.video_name || '',
-        usingFPS: segment.usingFPS ?? segment.using_fps ?? false,
+        usingFPS: segment.usingFPS ?? segment.using_fps ?? false
     };
 }
 /**

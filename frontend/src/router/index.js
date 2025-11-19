@@ -44,14 +44,6 @@ const router = createRouter({
             }
         },
         {
-            path: '/fallgenerator',
-            name: 'Fallgenerator',
-            component: () => import('@/views/Fallgenerator.vue'),
-            meta: {
-                description: 'Hier können Sie Fälle generieren.'
-            }
-        },
-        {
             path: '/untersuchung',
             name: 'Untersuchung',
             component: () => import('@/views/Examination.vue'),
@@ -101,8 +93,12 @@ const router = createRouter({
         },
         {
             path: '/anonymisierung/validierung',
-            name: 'Anonymisierung Validierung',
+            name: 'AnonymisierungValidierung',
             component: () => import('@/components/Anonymizer/AnonymizationValidationComponent.vue'),
+            props: (route) => ({
+                fileId: Number(route.query.fileId),
+                mediaType: route.query.mediaType
+            }),
             meta: {
                 description: 'Validierung anonymisierter Dateien.'
             }
@@ -111,7 +107,7 @@ const router = createRouter({
             path: '/anonymisierung/korrektur/:fileId(\\d+)',
             name: 'Anonymisierung Korrektur',
             component: () => import('@/components/Anonymizer/AnonymizationCorrectionComponent.vue'),
-            props: route => ({ fileId: Number(route.params.fileId) }) // pass as number prop
+            props: (route) => ({ fileId: Number(route.params.fileId), mediaType: route.params.mediaType })
         },
         {
             path: '/validierung',

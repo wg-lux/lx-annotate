@@ -1,6 +1,5 @@
-import { createRouter, createWebHistory } from 'vue-router';
-import { useAnonymizationStore } from '@/stores/anonymizationStore';
-
+import { createRouter, createWebHistory } from 'vue-router'
+import { useAnonymizationStore } from '@/stores/anonymizationStore'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL || '/'),
@@ -43,14 +42,6 @@ const router = createRouter({
       component: () => import('@/views/PageOverview.vue'),
       meta: {
         description: 'Hier finden Sie eine Übersicht über Ihre Annotationen und deren Status.'
-      }
-    },
-    {
-      path: '/fallgenerator',
-      name: 'Fallgenerator',
-      component: () => import('@/views/Fallgenerator.vue'),
-      meta: {
-        description: 'Hier können Sie Fälle generieren.'
       }
     },
     {
@@ -103,8 +94,12 @@ const router = createRouter({
     },
     {
       path: '/anonymisierung/validierung',
-      name: 'Anonymisierung Validierung',
+      name: 'AnonymisierungValidierung',
       component: () => import('@/components/Anonymizer/AnonymizationValidationComponent.vue'),
+      props: (route) => ({
+        fileId: Number(route.query.fileId),
+        mediaType: route.query.mediaType as string
+      }),
       meta: {
         description: 'Validierung anonymisierter Dateien.'
       }
@@ -113,7 +108,7 @@ const router = createRouter({
       path: '/anonymisierung/korrektur/:fileId(\\d+)',
       name: 'Anonymisierung Korrektur',
       component: () => import('@/components/Anonymizer/AnonymizationCorrectionComponent.vue'),
-      props: route => ({ fileId: Number(route.params.fileId) }) // pass as number prop
+      props: (route) => ({ fileId: Number(route.params.fileId), mediaType: route.params.mediaType as string })
     },
     {
       path: '/validierung',
@@ -137,12 +132,12 @@ const router = createRouter({
       redirect: '/'
     }
   ]
-});
+})
 
 router.beforeEach((_to, _from, next) => {
-    const store = useAnonymizationStore();
-    store.stopAllPolling();
-    next();
-  });
+  const store = useAnonymizationStore()
+  store.stopAllPolling()
+  next()
+})
 
-export default router;
+export default router

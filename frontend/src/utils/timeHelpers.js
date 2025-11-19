@@ -34,14 +34,9 @@ export function secondsToFrames(seconds, fps) {
  */
 export function safeTimeConversion(timeValue, isFrames, fps) {
     // ✅ FIX: Coerce invalid → 0, clamp negative → 0
-    if (timeValue == null ||
-        Number.isNaN(timeValue) ||
-        !Number.isFinite(timeValue) ||
-        timeValue < 0)
+    if (timeValue == null || Number.isNaN(timeValue) || !Number.isFinite(timeValue) || timeValue < 0)
         return 0;
-    const seconds = isFrames
-        ? framesToSeconds(timeValue, fps)
-        : timeValue;
+    const seconds = isFrames ? framesToSeconds(timeValue, fps) : timeValue;
     return Math.max(0, seconds); // never negative
 }
 /**
