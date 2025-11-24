@@ -13,9 +13,11 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.d
 // @ts-ignore
 const __VLS_0 = __VLS_asFunctionalComponent(AnonymizationCorrectionComponent, new AnonymizationCorrectionComponent({
     fileId: (1),
+    mediaType: "image",
 }));
 const __VLS_1 = __VLS_0({
     fileId: (1),
+    mediaType: "image",
 }, ...__VLS_functionalComponentArgsRest(__VLS_0));
 /** @type {__VLS_StyleScopedClasses['anonymization-overview-page']} */ ;
 var __VLS_dollars;

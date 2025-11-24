@@ -132,7 +132,6 @@
     "imports": [
       "src/main.ts",
       "_videoStore.js",
-      "_patientStore.js",
       "_mediaTypeStore.js",
       "_Timeline.js",
       "_usePollingProtection.js"
@@ -212,7 +211,6 @@
       "src/components/Anonymizer/AnonymizationValidationComponent.vue",
       "src/main.ts",
       "_videoStore.js",
-      "_patientStore.js",
       "_mediaTypeStore.js",
       "_Timeline.js",
       "_usePollingProtection.js"
@@ -328,7 +326,6 @@
       "src/components/Anonymizer/AnonymizationValidationComponent.vue",
       "src/main.ts",
       "_videoStore.js",
-      "_patientStore.js",
       "_mediaTypeStore.js",
       "_Timeline.js",
       "_usePollingProtection.js"

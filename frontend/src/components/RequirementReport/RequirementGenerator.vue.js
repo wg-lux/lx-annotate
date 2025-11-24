@@ -8,6 +8,7 @@ import { usePatientExaminationStore } from '@/stores/patientExaminationStore';
 import PatientAdder from '@/components/CaseGenerator/PatientAdder.vue';
 import FindingsDetail from './FindingsDetail.vue';
 import AddableFindingsDetail from './AddableFindingsDetail.vue';
+import RequirementIssues from './RequirementIssues.vue';
 // --- Store ---
 const patientStore = usePatientStore();
 const examinationStore = useExaminationStore();
@@ -16,6 +17,7 @@ const requirementStore = useRequirementStore();
 const patientExaminationStore = usePatientExaminationStore();
 // --- API ---
 const LOOKUP_BASE = '/api/lookup';
+const debug = ref(false);
 // --- Component State ---
 const selectedPatientId = ref(null);
 const selectedExaminationId = ref(null);
@@ -27,6 +29,12 @@ const loading = ref(false);
 const showCreatePatientModal = ref(false);
 const successMessage = ref(null);
 const isRestarting = ref(false); // Prevent infinite restart loops
+if (error !== null) {
+    debug.value = true;
+}
+else {
+    debug.value = false;
+}
 // --- Computed from Store ---
 const patients = computed(() => {
     const result = patientStore.patientsWithDisplayName;
@@ -792,23 +800,6 @@ let __VLS_directives;
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "requirement-generator container-fluid py-4" },
 });
-if (__VLS_ctx.patientStore.error || __VLS_ctx.error || __VLS_ctx.examinationStore.error) {
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "alert alert-danger" },
-    });
-    if (__VLS_ctx.patientStore.error) {
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
-        (__VLS_ctx.patientStore.error);
-    }
-    if (__VLS_ctx.examinationStore.error) {
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
-        (__VLS_ctx.examinationStore.error);
-    }
-    if (__VLS_ctx.error) {
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
-        (__VLS_ctx.error);
-    }
-}
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "card mb-3" },
 });
@@ -836,30 +827,6 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.d
 __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
     for: "patient-select",
 });
-if (__VLS_ctx.selectedPatientId) {
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "d-flex align-items-center gap-2" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-        ...{ class: "badge bg-info" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-user" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-        ...{ onClick: (...[$event]) => {
-                if (!(__VLS_ctx.selectedPatientId))
-                    return;
-                __VLS_ctx.patientStore.clearCurrentPatient();
-            } },
-        type: "button",
-        ...{ class: "btn btn-sm btn-outline-secondary" },
-        title: "Patientenauswahl zurücksetzen",
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-times" },
-    });
-}
 __VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
     id: "patient-select",
     value: (__VLS_ctx.selectedPatientId),
@@ -940,7 +907,7 @@ if (!__VLS_ctx.lookupToken) {
 else {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
 }
-if (__VLS_ctx.lookup) {
+if (__VLS_ctx.lookup && __VLS_ctx.debug) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "row g-3" },
     });
@@ -1109,7 +1076,7 @@ if (__VLS_ctx.lookup) {
         }
         __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
             ...{ onClick: (...[$event]) => {
-                    if (!(__VLS_ctx.lookup))
+                    if (!(__VLS_ctx.lookup && __VLS_ctx.debug))
                         return;
                     __VLS_ctx.evaluateRequirementSet(rs.id);
                 } },
@@ -1139,7 +1106,7 @@ if (__VLS_ctx.lookup) {
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
             ...{ onChange: (...[$event]) => {
-                    if (!(__VLS_ctx.lookup))
+                    if (!(__VLS_ctx.lookup && __VLS_ctx.debug))
                         return;
                     __VLS_ctx.toggleRequirementSet(rs.id, $event.target.checked);
                 } },
@@ -1187,6 +1154,20 @@ if (__VLS_ctx.lookup) {
             ...{ class: "fas fa-sync" },
         });
     }
+    if (__VLS_ctx.lookup) {
+        /** @type {[typeof RequirementIssues, ]} */ ;
+        // @ts-ignore
+        const __VLS_8 = __VLS_asFunctionalComponent(RequirementIssues, new RequirementIssues({
+            patientExaminationId: (__VLS_ctx.lookup.patientExaminationId || null),
+            requirementSetIds: (__VLS_ctx.selectedRequirementSetIds),
+            showOnlyUnmet: (true),
+        }));
+        const __VLS_9 = __VLS_8({
+            patientExaminationId: (__VLS_ctx.lookup.patientExaminationId || null),
+            requirementSetIds: (__VLS_ctx.selectedRequirementSetIds),
+            showOnlyUnmet: (true),
+        }, ...__VLS_functionalComponentArgsRest(__VLS_8));
+    }
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "card-body" },
     });
@@ -1228,7 +1209,7 @@ if (__VLS_ctx.lookup) {
         (__VLS_ctx.availableFindings.length);
         __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
             ...{ onClick: (...[$event]) => {
-                    if (!(__VLS_ctx.lookup))
+                    if (!(__VLS_ctx.lookup && __VLS_ctx.debug))
                         return;
                     if (!(__VLS_ctx.availableFindings.length > 0))
                         return;
@@ -1268,7 +1249,7 @@ if (__VLS_ctx.lookup) {
         for (const [findingId] of __VLS_getVForSourceType((__VLS_ctx.availableFindings))) {
             /** @type {[typeof FindingsDetail, ]} */ ;
             // @ts-ignore
-            const __VLS_8 = __VLS_asFunctionalComponent(FindingsDetail, new FindingsDetail({
+            const __VLS_11 = __VLS_asFunctionalComponent(FindingsDetail, new FindingsDetail({
                 ...{ 'onAddedToExamination': {} },
                 ...{ 'onClassificationUpdated': {} },
                 key: (findingId),
@@ -1276,24 +1257,24 @@ if (__VLS_ctx.lookup) {
                 isAddedToExamination: (__VLS_ctx.isFindingAddedToExamination(findingId)),
                 patientExaminationId: (__VLS_ctx.lookup?.patientExaminationId || undefined),
             }));
-            const __VLS_9 = __VLS_8({
+            const __VLS_12 = __VLS_11({
                 ...{ 'onAddedToExamination': {} },
                 ...{ 'onClassificationUpdated': {} },
                 key: (findingId),
                 findingId: (findingId),
                 isAddedToExamination: (__VLS_ctx.isFindingAddedToExamination(findingId)),
                 patientExaminationId: (__VLS_ctx.lookup?.patientExaminationId || undefined),
-            }, ...__VLS_functionalComponentArgsRest(__VLS_8));
-            let __VLS_11;
-            let __VLS_12;
-            let __VLS_13;
-            const __VLS_14 = {
+            }, ...__VLS_functionalComponentArgsRest(__VLS_11));
+            let __VLS_14;
+            let __VLS_15;
+            let __VLS_16;
+            const __VLS_17 = {
                 onAddedToExamination: (__VLS_ctx.onFindingAddedToExamination)
             };
-            const __VLS_15 = {
+            const __VLS_18 = {
                 onClassificationUpdated: (__VLS_ctx.onClassificationUpdated)
             };
-            var __VLS_10;
+            var __VLS_13;
         }
     }
     else {
@@ -1355,30 +1336,53 @@ if (__VLS_ctx.showCreatePatientModal) {
     });
     /** @type {[typeof PatientAdder, ]} */ ;
     // @ts-ignore
-    const __VLS_16 = __VLS_asFunctionalComponent(PatientAdder, new PatientAdder({
+    const __VLS_19 = __VLS_asFunctionalComponent(PatientAdder, new PatientAdder({
         ...{ 'onPatientCreated': {} },
         ...{ 'onCancel': {} },
     }));
-    const __VLS_17 = __VLS_16({
+    const __VLS_20 = __VLS_19({
         ...{ 'onPatientCreated': {} },
         ...{ 'onCancel': {} },
-    }, ...__VLS_functionalComponentArgsRest(__VLS_16));
-    let __VLS_19;
-    let __VLS_20;
-    let __VLS_21;
-    const __VLS_22 = {
+    }, ...__VLS_functionalComponentArgsRest(__VLS_19));
+    let __VLS_22;
+    let __VLS_23;
+    let __VLS_24;
+    const __VLS_25 = {
         onPatientCreated: (__VLS_ctx.onPatientCreated)
     };
-    const __VLS_23 = {
+    const __VLS_26 = {
         onCancel: (__VLS_ctx.closeCreatePatientModal)
     };
-    var __VLS_18;
+    var __VLS_21;
+}
+if (__VLS_ctx.selectedPatientId) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "d-flex align-items-center gap-2" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+        ...{ class: "badge bg-info" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+        ...{ class: "fas fa-user" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+        ...{ onClick: (...[$event]) => {
+                if (!(__VLS_ctx.selectedPatientId))
+                    return;
+                __VLS_ctx.patientStore.clearCurrentPatient();
+            } },
+        type: "button",
+        ...{ class: "btn btn-sm btn-outline-secondary" },
+        title: "Patientenauswahl zurücksetzen",
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+        ...{ class: "fas fa-times" },
+    });
 }
 /** @type {__VLS_StyleScopedClasses['requirement-generator']} */ ;
 /** @type {__VLS_StyleScopedClasses['container-fluid']} */ ;
 /** @type {__VLS_StyleScopedClasses['py-4']} */ ;
-/** @type {__VLS_StyleScopedClasses['alert']} */ ;
-/** @type {__VLS_StyleScopedClasses['alert-danger']} */ ;
 /** @type {__VLS_StyleScopedClasses['card']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-header']} */ ;
@@ -1393,18 +1397,6 @@ if (__VLS_ctx.showCreatePatientModal) {
 /** @type {__VLS_StyleScopedClasses['justify-content-between']} */ ;
 /** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-2']} */ ;
-/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
-/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
-/** @type {__VLS_StyleScopedClasses['gap-2']} */ ;
-/** @type {__VLS_StyleScopedClasses['badge']} */ ;
-/** @type {__VLS_StyleScopedClasses['bg-info']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-user']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn-outline-secondary']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-times']} */ ;
 /** @type {__VLS_StyleScopedClasses['form-control']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
@@ -1570,6 +1562,18 @@ if (__VLS_ctx.showCreatePatientModal) {
 /** @type {__VLS_StyleScopedClasses['modal-title']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-close']} */ ;
 /** @type {__VLS_StyleScopedClasses['modal-body']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['gap-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['bg-info']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-user']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-secondary']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-times']} */ ;
 var __VLS_dollars;
 const __VLS_self = (await import('vue')).defineComponent({
     setup() {
@@ -1577,9 +1581,10 @@ const __VLS_self = (await import('vue')).defineComponent({
             PatientAdder: PatientAdder,
             FindingsDetail: FindingsDetail,
             AddableFindingsDetail: AddableFindingsDetail,
+            RequirementIssues: RequirementIssues,
             patientStore: patientStore,
-            examinationStore: examinationStore,
             findingStore: findingStore,
+            debug: debug,
             selectedPatientId: selectedPatientId,
             selectedExaminationId: selectedExaminationId,
             currentPatientExaminationId: currentPatientExaminationId,

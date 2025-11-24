@@ -152,8 +152,8 @@ describe('VideoExaminationAnnotation.vue', () => {
     ]
 
     anonymizationStore.overview = [
-      { id: 6, mediaType: 'video', anonymizationStatus: 'done' },
-      { id: 8, mediaType: 'video', anonymizationStatus: 'done' }
+      { id: 6, mediaType: 'video', anonymizationStatus: 'done_processing_anonymization' },
+      { id: 8, mediaType: 'video', anonymizationStatus: 'done_processing_anonymization' }
     ]
 
     // Mock store methods

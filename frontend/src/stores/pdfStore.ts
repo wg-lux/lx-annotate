@@ -18,7 +18,7 @@ export interface PdfMetadata {
     endoscopeSn: string
     isVerified: boolean
   }
-  status: 'not_started' | 'processing' | 'done'
+  status: 'not_started' | 'processing' | 'done_processing_anonymization'
   error: boolean
   pdfStreamUrl?: string
 }
@@ -42,7 +42,7 @@ export const usePdfStore = defineStore('pdf', () => {
   // Getters
   const hasCurrentPdf = computed(() => currentPdf.value !== null)
   const isProcessing = computed(() => currentPdf.value?.status === 'processing')
-  const isDone = computed(() => currentPdf.value?.status === 'done')
+  const isDone = computed(() => currentPdf.value?.status === 'done_processing_anonymization')
   const hasError = computed(() => error.value !== null || currentPdf.value?.error === true)
   const pdfStreamUrl = computed(() => {
     if (!currentPdf.value?.pdfStreamUrl) return null
@@ -198,7 +198,7 @@ export const usePdfStore = defineStore('pdf', () => {
 
       // Update current PDF with new anonymized text
       currentPdf.value.anonymizedText = anonymizedText
-      currentPdf.value.status = 'done'
+      currentPdf.value.status = 'done_processing_anonymization'
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Unknown error occurred'
       console.error('Error updating anonymized text:', err)

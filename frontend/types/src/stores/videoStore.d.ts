@@ -395,7 +395,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
     formatTime: (seconds: number) => string;
     getSegmentOptions: () => SegmentOption[];
     clearSegments: () => void;
-}, "videoUrl" | "errorMessage" | "videos" | "currentVideo" | "segmentsByLabel" | "videoList" | "videoMeta" | "draftSegment" | "hasRawVideoFile">, Pick<{
+}, "errorMessage" | "videoUrl" | "videos" | "currentVideo" | "segmentsByLabel" | "videoList" | "videoMeta" | "draftSegment" | "hasRawVideoFile">, Pick<{
     currentVideo: Readonly<Ref<{
         readonly id: number;
         readonly isAnnotated: boolean;

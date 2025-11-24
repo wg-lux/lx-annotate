@@ -134,10 +134,9 @@ in
     
 
     "run-server".exec = ''
-    export DJANGO_SETTINGS_MODULE="''${DJANGO_SETTINGS_MODULE:-lx_annotate.settings_prod}"
-    export DJANGO_HOST="''${DJANGO_HOST:-${appConfig.server.host}}"
-    export DJANGO_PORT="''${DJANGO_PORT:-${appConfig.server.port}}"
-
+      # export all env variables from .env if it exists
+      ##### TODO
+    export $(grep -v '^#' .env | xargs)
     echo "🌀 Starting Daphne on ${appConfig.server.host}:${appConfig.server.port}..."
     exec daphne -b "''${DJANGO_HOST}" -p "''${DJANGO_PORT}" lx_annotate.asgi:application
     '';

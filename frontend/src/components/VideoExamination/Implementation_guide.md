@@ -348,7 +348,7 @@ A video is **eligible** if:
 // ✅ IMPLEMENTED: Anonymization status validation
 function isAnonymized(videoId: number): boolean {
   const item = overview.value.find(o => o.id === videoId && o.mediaType === 'video')
-  return item?.anonymizationStatus === 'done'
+  return item?.anonymizationStatus === 'done_processing_anonymization'
 }
 
 // ✅ IMPLEMENTED: Filtered annotatable videos

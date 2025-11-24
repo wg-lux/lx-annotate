@@ -14,7 +14,11 @@ let
   dataDir = let env = builtins.getEnv "DATA_DIR"; in if env != "" then env else appConfig.paths.data;
   confDir = let env = builtins.getEnv "CONF_DIR"; in if env != "" then env else appConfig.paths.conf;
   confTemplateDir = let env = builtins.getEnv "CONF_TEMPLATE_DIR"; in if env != "" then env else appConfig.paths.confTemplate;
-  
+
+  importDir = let env = builtins.getEnv "IMPORT_DIR"; in if env != "" then env else appConfig.paths.importDir;
+  importVideoDir = let env = builtins.getEnv "VIDEO_IMPORT_DIR"; in if env != "" then env else appConfig.paths.videoImportDir;
+  importReportDir = let env = builtins.getEnv "REPORT_IMPORT_DIR"; in if env != "" then env else appConfig.paths.reportImportDir;
+
   homeDir = let env = builtins.getEnv "HOME_DIR"; in if env != "" then env else builtins.getEnv "HOME";
   djangoModuleName = let env = builtins.getEnv "DJANGO_MODULE"; in if env != "" then env else appConfig.app.djangoModule;
   http_protocol = let env = builtins.getEnv "HTTP_PROTOCOL"; in if env != "" then env else appConfig.server.protocol;
@@ -59,14 +63,7 @@ let
   '';
 
   # --- Directory Structure ---
-  importDir = "endoreg_db/${dataDir}/import";
-  importVideoDir = "endoreg_db/${importDir}/video";
-  importReportDir = "endoreg_db/${importDir}/report";
-  importLegacyAnnotationDir = "endoreg_db/${importDir}/legacy_annotations";
-  exportDir = "endoreg_db/${dataDir}/export";
-  exportFramesRootDir = "endoreg_db/${exportDir}/frames";
-  exportFramesSampleExportDir = "endoreg_db/${exportFramesRootDir}/test_outputs";
-  modelDir = "endoreg_db/${dataDir}/models";
+
 
 
   customTasks = ( 
@@ -94,7 +91,6 @@ in
 
   packages = with pkgs; [
     stdenv.cc.cc
-    nodejs_22
     yarn
     libglvnd
     inotify-tools 

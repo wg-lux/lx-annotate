@@ -2,7 +2,7 @@
 import { defineStore } from 'pinia';
 import axiosInstance, { a, r } from '@/api/axiosInstance';
 import axios from 'axios';
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 /* ------------------------------------------------------------------ */
 /* Store                                                               */
 /* ------------------------------------------------------------------ */
@@ -12,15 +12,14 @@ export const useAnonymizationStore = defineStore('anonymization', {
         anonymizationStatus: 'idle',
         loading: false,
         error: null,
-        pending: [],
         current: null,
         overview: [],
         pollingHandles: {},
         isPolling: false,
         hasAvailableFiles: false,
-        availableFiles: availableFiles.value, // Use the value of the ref to get the actual array
-        // NEW
-        needsValidationIds: []
+        availableFiles: availableFiles.value,
+        needsValidationIds: [],
+        pending: [false] // TODO: Implement reactive getter here
     }),
     getters: {
         getCurrentItem: (state) => state.current,
@@ -41,63 +40,8 @@ export const useAnonymizationStore = defineStore('anonymization', {
                 // Check if we have a specific file selected from overview
                 if (lastId) {
                     const item = this.overview.find((f) => f.id === lastId);
-                    if (item?.mediaType === 'video') {
-                        // **Use the sensitive_meta_id (!) for video details endpoint**
-                        console.log(`Fetching video detail for sensitiveMetaId: ${item.id}`);
-                        const { data: video } = await axiosInstance.get(r(`media/videos/${item.id}/details/`));
-                        console.log('Received video detail:', video);
-                        this.current = {
-                            id: video.id,
-                            sensitiveMetaId: video.sensitiveMetaId,
-                            videoUrl: video.videoUrl,
-                            thumbnail: video.thumbnail,
-                            text: '', // Videos haben keinen Text
-                            anonymizedText: '',
-                            reportMeta: {
-                                id: video.sensitiveMetaId,
-                                patientFirstName: video.patientFirstName,
-                                patientLastName: video.patientLastName,
-                                patientDob: video.patientDob,
-                                patientGender: '',
-                                examinationDate: video.examinationDate,
-                                casenumber: video.casenumber
-                            }
-                        };
-                        return this.current;
-                    }
-                    else {
-                        /* PDF-Daten via Modern Media Framework laden ----------------- */
-                        if (!lastId) {
-                            throw new Error('PDF ID is required to fetch PDF data');
-                        }
-                        // 1) PDF Details (inkl. text/anonymizedText) laden
-                        console.log(`Fetching PDF details for ID: ${lastId}`);
-                        const { data: pdfDetails } = await axiosInstance.get(r(`media/pdfs/${lastId}/`));
-                        console.log('Received PDF details:', pdfDetails);
-                        // 2) Sensitive Metadata laden
-                        console.log(`Fetching PDF sensitive metadata for ID: ${lastId}`);
-                        const { data: sensitiveMeta } = await axiosInstance.get(r(`media/pdfs/${lastId}/sensitive-metadata/`));
-                        console.log('Received PDF sensitive metadata:', sensitiveMeta);
-                        if (typeof sensitiveMeta?.id !== 'number') {
-                            console.error('Received invalid sensitive meta data structure:', sensitiveMeta);
-                            this.$patch({ current: null });
-                            throw new Error('Ungültige Metadaten vom Backend empfangen (keine gültige ID gefunden).');
-                        }
-                        /* Merge & State-Update -------------------------------------- */
-                        const merged = {
-                            id: lastId,
-                            sensitiveMetaId: sensitiveMeta.id,
-                            text: pdfDetails.text || '', // Text from PDF details
-                            anonymizedText: pdfDetails.anonymizedText || '', // AnonymizedText from PDF details (camelCase!)
-                            pdfStreamUrl: pdfDetails.streamUrl || pdfDetails.stream_url, // Stream URL for PDF viewing
-                            reportMeta: sensitiveMeta
-                        };
-                        console.log('Merged data:', merged);
-                        this.$patch({
-                            current: merged
-                        });
-                        return merged;
-                    }
+                    await this.setCurrentForValidation(item.id, item.mediaType);
+                    return this.current;
                 }
                 else {
                     if (this.current) {
@@ -160,11 +104,6 @@ export const useAnonymizationStore = defineStore('anonymization', {
             return this.pending;
         },
         /**
-         * Upload files and fetch the resulting anonymization data
-         * @param files - FileList or File array containing files to upload
-         * @returns Promise that resolves when upload and fetch are complete
-         */
-        /**
          * Fetch overview of all uploaded files with their statuses
          */
         async fetchOverview() {
@@ -179,11 +118,9 @@ export const useAnonymizationStore = defineStore('anonymization', {
                 // Clear and update availableFiles to prevent duplicates
                 this.availableFiles.length = 0; // Clear the array
                 this.availableFiles.push(...data); // Add all files from the fresh data
-                // Update the reactive ref as well
                 availableFiles.value = [...data];
-                // NEW: Ermittele IDs, die validiert werden müssen (Anonymisierung abgeschlossen, Annotation noch nicht erledigt)
                 const needsValidation = data
-                    .filter((f) => f.anonymizationStatus === 'done' && f.annotationStatus !== 'done')
+                    .filter((f) => f.anonymizationStatus === 'done_processing_anonymization' && f.annotationStatus !== 'validated')
                     .map((f) => f.id);
                 this.needsValidationIds = needsValidation;
                 // NEW: Polling sofort stoppen für
@@ -196,7 +133,7 @@ export const useAnonymizationStore = defineStore('anonymization', {
                     }
                 }
                 // 2) Dateien mit finalem Status oder die nicht gepollt werden sollen
-                const stopStatuses = new Set(['done', 'validated', 'failed', 'not_started']);
+                const stopStatuses = new Set(['done_processing_anonymization', 'validated', 'failed', 'not_started']);
                 for (const f of data) {
                     if (stopStatuses.has(f.anonymizationStatus) && this.pollingHandles[f.id]) {
                         this.stopPolling(f.id);
@@ -260,15 +197,6 @@ export const useAnonymizationStore = defineStore('anonymization', {
                 console.log(`Polling for file ${id} is already running`);
                 return;
             }
-            // ✅ FIX: Correct array check using .includes() instead of 'in' operator
-            if (this.needsValidationIds.includes(id)) {
-                console.log(`File ${id} is in needsValidationIds, skipping polling`);
-                const file = this.overview.find((f) => f.id === id);
-                if (file) {
-                    file.anonymizationStatus = 'validated'; // Set status to validated
-                }
-                return;
-            }
             console.log(`Starting status polling for file ${id}`);
             this.isPolling = true;
             const timer = setInterval(async () => {
@@ -281,7 +209,7 @@ export const useAnonymizationStore = defineStore('anonymization', {
                         console.log(`Status update for file ${id}: ${statusFromBackend}`);
                         file.anonymizationStatus = statusFromBackend;
                         // ✅ FIX: Include 'validated' as a stopping condition
-                        if (['done', 'validated', 'failed'].includes(statusFromBackend)) {
+                        if (['done_processing_anonymization', 'validated', 'failed'].includes(statusFromBackend)) {
                             console.log(`Stopping polling for file ${id} - final status: ${statusFromBackend}`);
                             this.stopPolling(id);
                         }
@@ -320,48 +248,32 @@ export const useAnonymizationStore = defineStore('anonymization', {
         /**
          * Set current item for validation (called when clicking "Validate")
          */
-        async setCurrentForValidation(id) {
+        async setCurrentForValidation(id, mediaType) {
             try {
                 console.log(`Setting current item for validation: ${id}`);
-                // Find the item in overview to get mediaType and sensitiveMetaId
+                // Find the item in overview to know if wrong parameters were passed.
                 const item = this.overview.find((f) => f.id === id);
                 if (!item) {
                     throw new Error(`Item with ID ${id} not found in overview`);
                 }
                 console.log('Found item for validation:', item);
-                if (item.mediaType === 'video') {
+                const url = r(`media/sensitive-media-id/${id}/${mediaType}/`);
+                const smIdObj = await axiosInstance.get(url);
+                const smId = smIdObj.data.sm;
+                if (mediaType === 'video') {
                     // For videos, use the ID to load the video data
                     console.log(`Loading video data for sensitiveMetaId: ${item.id}`);
-                    const { data: video } = await axiosInstance.get(r(`media/videos/${item.id}/details/`));
-                    console.log('Received video detail:', video);
-                    this.current = {
-                        id: video.id,
-                        sensitiveMetaId: video.sensitiveMetaId,
-                        videoUrl: video.videoUrl,
-                        thumbnail: video.thumbnail,
-                        text: 'd', // Videos don't have text
-                        anonymizedText: '', // Videos don't have anonymized text
-                        reportMeta: {
-                            id: video.sensitiveMetaId,
-                            patientFirstName: video.patientFirstName,
-                            patientLastName: video.patientLastName,
-                            patientDob: video.patientDob,
-                            patientGender: '', // Will be filled from backend if available
-                            examinationDate: video.examinationDate,
-                            casenumber: video.casenumber
-                        }
-                    };
+                    const { data: sensitiveMeta } = await axiosInstance.get(r(`media/videos/${smId}/sensitive-metadata/`));
+                    console.log('Received video detail:', sensitiveMeta);
+                    this.current = sensitiveMeta;
                     return this.current;
                 }
-                else {
+                else if (mediaType === 'pdf') {
                     // For PDFs, load both details and sensitive metadata
                     console.log(`Setting current PDF item for validation: ${id}`);
-                    // 1) PDF Details (inkl. text/anonymizedText) laden
-                    console.log(`Fetching PDF details for ID: ${id}`);
-                    const { data: pdfDetails } = await axiosInstance.get(r(`media/pdfs/${id}/`));
-                    console.log('Received PDF details:', pdfDetails);
+                    console.log(`Fetching PDF details for sm ID: ${smId}`);
                     // 2) Sensitive-Meta laden
-                    const metaUrl = r(`media/pdfs/${id}/sensitive-metadata/`);
+                    const metaUrl = r(`media/pdfs/${smId}/sensitive-metadata/`);
                     console.log(`Fetching sensitive meta from: ${metaUrl}`);
                     const { data: sensitiveMeta } = await axiosInstance.get(metaUrl);
                     console.log('Received sensitive meta response data:', sensitiveMeta);
@@ -369,18 +281,9 @@ export const useAnonymizationStore = defineStore('anonymization', {
                         console.error('Received invalid sensitive meta data structure:', sensitiveMeta);
                         throw new Error('Ungültige Metadaten vom Backend empfangen.');
                     }
-                    /* Merge & State-Update -------------------------------------- */
-                    const merged = {
-                        id: id,
-                        sensitiveMetaId: sensitiveMeta.id,
-                        text: pdfDetails.text || '', // Text from PDF details
-                        anonymizedText: pdfDetails.anonymizedText || '', // AnonymizedText from PDF details (camelCase!)
-                        pdfStreamUrl: pdfDetails.streamUrl || pdfDetails.stream_url, // Stream URL for PDF viewing
-                        reportMeta: sensitiveMeta
-                    };
-                    console.log('Merged validation data:', merged);
-                    this.current = merged;
-                    return merged;
+                    console.log('Merged validation data:', sensitiveMeta);
+                    this.current = sensitiveMeta;
+                    return sensitiveMeta;
                 }
             }
             catch (err) {
