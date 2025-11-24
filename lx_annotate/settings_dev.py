@@ -81,7 +81,19 @@ print("⚠️  DO NOT use these settings in production!")
 ENFORCE_AUTH = os.getenv("ENFORCE_AUTH", "0") == "1"  # default OFF
 
 if ENFORCE_AUTH:
-    # ✅ Secure dev mode: Keycloak session + RBAC
+    # ✅ Make sure libs/endoreg-db is on sys.path so `config.settings` is importable
+    import sys
+    from pathlib import Path
+
+    # BASE_DIR comes from settings_base.py which you imported above
+    KEYCLOAK_CONFIG_ROOT = BASE_DIR / "libs" / "endoreg-db"
+    if KEYCLOAK_CONFIG_ROOT.exists() and str(KEYCLOAK_CONFIG_ROOT) not in sys.path:
+        sys.path.insert(0, str(KEYCLOAK_CONFIG_ROOT))
+        print(f"🔧 Added to sys.path for Keycloak: {KEYCLOAK_CONFIG_ROOT}")
+    else:
+        print(f"⚠️ Keycloak config dir not found or already in sys.path: {KEYCLOAK_CONFIG_ROOT}")
+
+    # now this import will succeed
     from config.settings import keycloak as KEYCLOAK
     DEBUG = False  # force prod behavior so PolicyPermission doesn't bypass
 
