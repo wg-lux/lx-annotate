@@ -11,6 +11,8 @@ You can now:
   * Protecting buttons with `v-can`.
 * On the backend, extend role→capability mappings to refine who can do what.
 
+
+```mermaid
 sequenceDiagram
     participant User
     participant Browser as Frontend<br/>(Vue)
@@ -46,6 +48,7 @@ sequenceDiagram
         Keycloak->>User: OIDC flow...
     end
 
+```
 
 ## 1. High-level architecture
 
