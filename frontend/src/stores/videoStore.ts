@@ -630,36 +630,6 @@ export const useVideoStore = defineStore('video', () => {
     })
   }
 
-  // ===================================================================
-  // VIDEO META FUNCTIONS
-  // ===================================================================
-
-  async function fetchVideoMeta(lastId?: string): Promise<any> {
-    try {
-      // TODO: Migrate to new media framework URL when backend supports it
-      const url = lastId ? r(`video/media/${lastId}`) : r('video/sensitive-metadata/')
-      const response: AxiosResponse = await axiosInstance.get(url)
-      videoMeta.value = response.data
-      return response.data
-    } catch (error) {
-      console.error('Error fetching video meta:', error)
-      return null
-    }
-  }
-
-  async function updateSensitiveMeta(payload: any): Promise<boolean> {
-    try {
-      await axiosInstance.patch(r('media/videos/${payload.id}/sensitive-metadata'), payload)
-      return true
-    } catch (error) {
-      console.error('Error updating sensitive meta:', error)
-      return false
-    }
-  }
-
-  function clearVideoMeta(): void {
-    videoMeta.value = null
-  }
 
   // ===================================================================
   // UPLOAD FUNCTIONS
@@ -737,31 +707,29 @@ export const useVideoStore = defineStore('video', () => {
     }
   }
 
-  function urlFor(path: string): string {
-    return r(path)
-  }
 
   /**
    * ✅ NEW: Fetch labels independently and with high priority
    * This ensures labels are always available before videos are loaded
    */
+  // assuming: interface LabelMeta { id: number; name: string; color: string }
+
   async function fetchLabels(): Promise<LabelMeta[]> {
     console.log('🏷️ [VideoStore] Fetching labels with high priority...')
     try {
-      const response: AxiosResponse<{ labels: any[] }> = await axiosInstance.get(r('videos/'))
-      
-      const processedLabels: LabelMeta[] = response.data.labels.map((label: any) => ({
-        id: parseInt(label.id),
-        name: label.name,
-        color: label.color || getColorForLabel(label.name)
+      // 🔹 NEW: use media/labels/ instead of deprecated videos/
+      const response: AxiosResponse<any[]> = await axiosInstance.get(
+        r('lvs/labels/')
+      )
+
+      const processedLabels: LabelMeta[] = response.data.map((label: any) => ({
+        id: Number(label.id),
+        name: String(label.name),
+        color: label.color || getColorForLabel(label.name),
       }))
-      
-      // ✅ Update labels immediately in store
+
       videoList.value.labels = processedLabels
-      
-      console.log(`✅ [VideoStore] Loaded ${processedLabels.length} labels:`, 
-        processedLabels.map(l => l.name).join(', '))
-      
+      console.log(`✅ [VideoStore] Loaded ${processedLabels.length} labels`)
       return processedLabels
     } catch (error) {
       console.error('❌ Error loading labels:', error)
@@ -770,14 +738,15 @@ export const useVideoStore = defineStore('video', () => {
     }
   }
 
+
   async function fetchAllVideos(): Promise<VideoList> {
     console.log('Fetching all videos...')
     try {
       // ✅ PRIORITY: Fetch labels first before processing videos
       await fetchLabels()
       
-      const response: AxiosResponse<VideoList> = await axiosInstance.get(r('videos/'))
-      console.log('API Response:', response.data)
+      const response: AxiosResponse<VideoList> = await axiosInstance.get(r('media/videos/'))
+      console.log('API Response:', response.data) //#TODO Add newly created assigned user from keycloak
 
       // Process videos with enhanced metadata
       const processedVideos: VideoMeta[] = response.data.videos.map((video: any) => ({
@@ -1498,7 +1467,6 @@ export const useVideoStore = defineStore('video', () => {
     fetchAllSegments,
     fetchAllVideos,
     fetchLabels, // ✅ NEW: Priority label fetching
-    fetchVideoMeta,
     fetchVideoSegments,
     fetchSegmentsByLabel, // Added missing export
     createSegment,
@@ -1516,8 +1484,6 @@ export const useVideoStore = defineStore('video', () => {
     setActiveSegment,
     updateVideoStatus,
     assignUserToVideo,
-    updateSensitiveMeta,
-    clearVideoMeta,
     hasRawVideoFileFn,
 
     // Draft actions

@@ -257,7 +257,6 @@ Key API endpoints:
 - `/api/patients/` - Patient management
 - `/api/videos/` - Video metadata and streaming
 - `/api/examinations/` - Medical examination data
-- `/api/video-segments/` - Video annotation segments
 
 ### Development Workflow
 
