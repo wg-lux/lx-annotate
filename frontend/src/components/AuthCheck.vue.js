@@ -1,24 +1,52 @@
-import { defineComponent } from 'vue';
-import { useAuthStore } from '@/stores/auth';
-export default defineComponent({
-    name: 'AuthCheck',
-    setup() {
-        const authStore = useAuthStore();
-        return { authStore };
+import { storeToRefs } from 'pinia';
+import { onMounted, ref } from 'vue';
+import { useAuthKcStore } from '@/stores/auth_kc';
+const store = useAuthKcStore();
+const { isAuthenticated } = storeToRefs(store);
+const ready = ref(false);
+onMounted(async () => {
+    try {
+        // If middleware redirected you to OIDC already, this won’t run until after login
+        await store.loadBootstrap();
+    }
+    finally {
+        ready.value = true;
     }
 });
-debugger; /* PartiallyEnd: #3632/script.vue */
+const isAuth = isAuthenticated;
+debugger; /* PartiallyEnd: #3632/scriptSetup.vue */
 const __VLS_ctx = {};
 let __VLS_components;
 let __VLS_directives;
-__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
-if (__VLS_ctx.authStore.isAuthenticated) {
+if (__VLS_ctx.ready && __VLS_ctx.isAuth) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
     var __VLS_0 = {};
 }
-else {
+else if (__VLS_ctx.ready && !__VLS_ctx.isAuth) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
     var __VLS_2 = {};
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
+}
+else {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
+    var __VLS_4 = {};
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
 }
 // @ts-ignore
-var __VLS_1 = __VLS_0, __VLS_3 = __VLS_2;
+var __VLS_1 = __VLS_0, __VLS_3 = __VLS_2, __VLS_5 = __VLS_4;
 var __VLS_dollars;
-let __VLS_self;
+const __VLS_self = (await import('vue')).defineComponent({
+    setup() {
+        return {
+            ready: ready,
+            isAuth: isAuth,
+        };
+    },
+});
+const __VLS_component = (await import('vue')).defineComponent({
+    setup() {
+        return {};
+    },
+});
+export default {};
+; /* PartiallyEnd: #4569/main.vue */

@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import { useAnonymizationStore } from '@/stores/anonymizationStore';
+import { useAuthKcStore } from '@/stores/auth_kc';
 const router = createRouter({
     history: createWebHistory(import.meta.env.BASE_URL || '/'),
     routes: [
@@ -64,7 +65,9 @@ const router = createRouter({
             name: 'Patienten',
             component: () => import('@/views/PatientOverview.vue'),
             meta: {
-                description: 'Hier können Sie alle Patienten einsehen und verwalten.'
+                description: 'Hier können Sie alle Patienten einsehen und verwalten.',
+                cap: 'page.patients.view', // <-- add: capability tag for UI checks
+                //hardProtect: true       // only add on routes you want to STRONGLY block
             }
         },
         {
@@ -136,5 +139,30 @@ router.beforeEach((_to, _from, next) => {
     const store = useAnonymizationStore();
     store.stopAllPolling();
     next();
+});
+// 2) capability-aware guard (ONLY hard-block when meta.hardProtect === true)
+router.beforeEach((to, _from, next) => {
+    const meta = to.meta || {};
+    const cap = meta.cap;
+    const hardProtect = !!meta.hardProtect; // default false
+    // No cap → no guard behaviour
+    if (!cap)
+        return next();
+    const auth = useAuthKcStore();
+    // If bootstrap not loaded yet, don't block navigation.
+    // AuthCheck component will decide if user sees app or login.
+    if (!auth.loaded)
+        return next();
+    // If route is NOT hard-protected → ALWAYS allow navigation
+    // You can still use `v-can` inside the components to hide buttons, etc.
+    if (!hardProtect) {
+        return next();
+    }
+    // Only for hard-protected routes:
+    if (auth.can(cap, 'GET')) {
+        return next();
+    }
+    // User is logged in but missing capability → redirect away
+    return next({ path: '/', query: { denied: '1', from: to.path } });
 });
 export default router;

@@ -49,6 +49,7 @@ dependencies = [
     "django-modeltranslation>=0.19.16",
     "daphne>=4.2.1",
     "psycopg[binary,pool]>=3.2.12",
+    "mozilla-django-oidc>=4.0.1",
 ]
 
 
