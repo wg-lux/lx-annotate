@@ -128,29 +128,11 @@ const noVideosMessage = computed(() => {
     }
     return '';
 });
-// ✅ NEW: Normalized, video-scoped segments for Timeline
 const timelineSegmentsForSelectedVideo = computed(() => {
     if (!selectedVideoId.value)
         return [];
     return rawSegments.value
-        .filter(s => s.videoID === selectedVideoId.value)
-        .map(s => ({
-        id: s.id,
-        label: s.label,
-        label_display: s.label,
-        name: s.label,
-        startTime: s.startTime,
-        endTime: s.endTime,
-        avgConfidence: s.avgConfidence || 0,
-        video_id: s.videoID,
-        label_id: s.labelID
-    }));
-});
-// Segments from store with readonly→mutable fix
-const segments = computed(() => {
-    return rawSegments.value.map(s => ({
-        ...s
-    }));
+        .filter(s => s.videoID === selectedVideoId.value);
 });
 const groupedSegments = computed(() => {
     return videoStore.segmentsByLabel;
@@ -367,7 +349,7 @@ const handleTimelineSeek = (...args) => {
     const [time] = args;
     seekToTime(time);
 };
-// ✅ NEW: Play/pause handler for Timeline
+// Play/pause handler for Timeline
 const handlePlayPause = (...args) => {
     if (!videoRef.value)
         return;
@@ -381,61 +363,51 @@ const handlePlayPause = (...args) => {
         videoRef.value.pause();
     }
 };
-// ✅ NEW: Segment selection handler
+// Segment selection handler - detects click on segment and sets it for the timeline
 const handleSegmentSelect = (...args) => {
     const [segmentId] = args;
     selectedSegmentId.value = segmentId;
     console.log('Segment selected:', segmentId);
 };
 const handleSegmentResize = (...args) => {
-    const [segmentId, newStart, newEnd, mode, final] = args;
-    // Verbesserte Guard für Draft/Temp-Segmente (camelCase in finalen PATCH-Aufrufen)
-    if (typeof segmentId === 'string') {
-        if (segmentId === 'draft' || /^temp-/.test(segmentId)) {
-            console.warn('[VideoExamination] Ignoring resize for draft/temp segment:', segmentId);
-            return;
-        }
-    }
-    const numericId = typeof segmentId === 'string' ? parseInt(segmentId, 10) : segmentId;
-    if (isNaN(numericId)) {
+    const [segmentId, newStart, newEnd, _mode, _final] = args;
+    if (!Number.isFinite(segmentId)) {
         console.warn('[VideoExamination] Invalid segment ID for resize:', segmentId);
         return;
     }
-    if (final) {
-        // Sofortige Previews + Speichern bei Mouse-Up
-        videoStore.patchSegmentLocally(numericId, { startTime: newStart, endTime: newEnd });
-        videoStore.updateSegmentInMemory(numericId, { startTime: newStart, endTime: newEnd });
-        console.log(`✅ Segment ${numericId} resized and saved: ${formatTime(newStart)} - ${formatTime(newEnd)}`);
+    if (segmentId < 0) {
+        // Draft segment: keep it purely frontend
+        videoStore.patchDraftSegment(segmentId, {
+            startTime: newStart,
+            endTime: newEnd
+        });
     }
     else {
-        // Real-time preview während Drag ohne Backend-Aufruf
-        videoStore.patchSegmentLocally(numericId, { startTime: newStart, endTime: newEnd });
-        console.log(`Preview resize segment ${numericId} ${mode}: ${formatTime(newStart)} - ${formatTime(newEnd)}`);
+        // Existing segment: patch locally and mark isDirty
+        videoStore.patchSegmentLocally(segmentId, {
+            startTime: newStart,
+            endTime: newEnd
+        });
     }
+    // ❌ Absolutely no backend call here, this should use the drafts because of the load on the backend.
 };
 const handleSegmentMove = (...args) => {
-    const [segmentId, newStart, newEnd, final] = args;
-    // Verbesserte Guard für Draft/Temp-Segmente (camelCase in finalen PATCH-Aufrufen)
-    if (typeof segmentId === 'string') {
-        if (segmentId === 'draft' || /^temp-/.test(segmentId)) {
-            console.warn('[VideoExamination] Ignoring move for draft/temp segment:', segmentId);
-            return;
-        }
-    }
-    const numericId = typeof segmentId === 'string' ? parseInt(segmentId, 10) : segmentId;
-    if (isNaN(numericId)) {
+    const [segmentId, newStart, newEnd, _final] = args;
+    if (!Number.isFinite(segmentId)) {
         console.warn('[VideoExamination] Invalid segment ID for move:', segmentId);
         return;
     }
-    if (final) {
-        videoStore.patchSegmentLocally(numericId, { startTime: newStart, endTime: newEnd });
-        videoStore.updateSegmentInMemory(numericId, { startTime: newStart, endTime: newEnd });
-        console.log(`✅ Segment ${numericId} moved and saved: ${formatTime(newStart)} - ${formatTime(newEnd)}`);
+    if (segmentId < 0) {
+        videoStore.patchDraftSegment(segmentId, {
+            startTime: newStart,
+            endTime: newEnd
+        });
     }
     else {
-        // Real-time preview während Drag ohne Backend-Aufruf
-        videoStore.patchSegmentLocally(numericId, { startTime: newStart, endTime: newEnd });
-        console.log(`Preview move segment ${numericId}: ${formatTime(newStart)} - ${formatTime(newEnd)}`);
+        videoStore.patchSegmentLocally(segmentId, {
+            startTime: newStart,
+            endTime: newEnd
+        });
     }
 };
 const handleTimeSelection = (...args) => {
@@ -459,7 +431,7 @@ const handleCreateSegment = (...args) => {
     return new Promise(async (resolve, reject) => {
         try {
             if (selectedVideoId.value) {
-                await videoStore.createSegment?.(selectedVideoId.value.toString(), event.label, event.start, event.end);
+                await videoStore.createSegment?.(selectedVideoId.value, event.label, event.start, event.end);
                 showSuccessMessage(`Segment erstellt: ${getTranslationForLabel(event.label)}`);
             }
             resolve();
@@ -590,7 +562,7 @@ const deleteExamination = async (examinationId) => {
         await guarded(Promise.reject(error));
     }
 };
-// ✅ NEW: Validate all video segments (complete video review)
+// Validate all video segments (complete video review)
 const submitVideoSegments = async () => {
     if (!selectedVideoId.value) {
         showErrorMessage('Kein Video ausgewählt');
@@ -605,15 +577,28 @@ const submitVideoSegments = async () => {
     if (!confirm(`Möchten Sie alle ${segmentCount} Segmente von Video ${selectedVideoId.value} als validiert markieren? Außerhalb-Segmente werden danach gelöscht.`)) {
         return;
     }
+    // Build payload including updated start/end times (in seconds)
+    const segmentPayload = timelineSegmentsForSelectedVideo.value
+        .filter(s => typeof s.id === 'number')
+        .map(s => ({
+        id: s.id,
+        // assuming Segment has startTime/endTime in seconds
+        start_time: s.startTime,
+        end_time: s.endTime,
+    }));
+    console.log('🔄 Sending segments to backend:', segmentPayload);
     try {
         console.log(`🔍 Validating all segments for video ${selectedVideoId.value}...`);
-        // ✅ MODERN FRAMEWORK: Use /api/media/videos/<pk>/segments/validation-status/ (POST)
-        const response = await axiosInstance.post(r(`media/videos/${selectedVideoId.value}/segments/validation-status/`), {
-            notes: `Vollständige Video-Review abgeschlossen am ${new Date().toLocaleString('de-DE')}`
+        const response = await axiosInstance.post(r(`media/videos/${selectedVideoId.value}/segments/validate-bulk/`), {
+            segmentIds: segmentPayload.map(s => s.id),
+            segments: segmentPayload,
+            isValidated: true,
+            notes: `Vollständige Video-Review abgeschlossen am ${new Date().toLocaleString('de-DE')}`,
+            informationSourceName: 'manual_annotation', // or 'manual_validation', see backend
         });
         console.log('✅ Validation response:', response.data);
-        showSuccessMessage(`Erfolgreich! ${response.data.updated_count} von ${response.data.total_segments} Segmenten validiert.`);
-        // Reload segments to reflect validation status
+        showSuccessMessage(`Erfolgreich! ${response.data.updatedCount} von ${response.data.totalSegments ?? response.data.requestedCount} Segmenten validiert.`);
+        // Reload segments to reflect validation status + updated times
         await loadVideoSegments();
     }
     catch (error) {
@@ -621,6 +606,23 @@ const submitVideoSegments = async () => {
         const errorMsg = error?.response?.data?.error || error?.message || 'Unbekannter Fehler';
         showErrorMessage(`Validierung fehlgeschlagen: ${errorMsg}`);
     }
+};
+const saveSegmentChanges = async () => {
+    try {
+        await videoStore.persistDirtySegments();
+        showSuccessMessage('Segment-Änderungen gespeichert');
+    }
+    catch (error) {
+        console.error('Fehler beim Speichern der Segment-Änderungen:', error);
+        await guarded(Promise.reject(error));
+    }
+};
+const discardSegmentChanges = () => {
+    // simplest version: reload from backend
+    if (!selectedVideoId.value)
+        return;
+    videoStore.fetchVideoSegments(selectedVideoId.value);
+    showSuccessMessage('Lokale Änderungen verworfen');
 };
 // Video event handlers from AnonymizationValidationComponent
 const onVideoError = (event) => {
@@ -648,11 +650,10 @@ const getVideoStatusIndicator = (videoId) => {
         return '';
     const statusIndicators = {
         'not_started': '⏳ Wartend',
-        'processing_anonymization': '🔄 Verarbeitung',
+        'processing_anonymization': '🔄 In Verarbeitung',
         'extracting_frames': '🎬 Frames',
-        'predicting_segments': '🤖 Segmente',
-        'done_processing_anonymization': '✅ Anonymisiert',
-        'validated': '🛡️ Validiert',
+        'done_processing_anonymization': '✅ Anonymisiert - Validierung steht aus',
+        'validated': '🛡️ Validiert & Anonymisiert',
         'failed': '❌ Fehler'
     };
     return statusIndicators[item.anonymizationStatus] || item.anonymizationStatus;
@@ -684,7 +685,7 @@ const getStatusText = (status) => {
     };
     return texts[status] || status;
 };
-// ✅ NEW: Enhanced validation status tracking
+// Enhanced validation status tracking
 const isVideoValidated = (videoId) => {
     const item = overview.value.find(o => o.id === videoId && o.mediaType === 'video');
     return item?.anonymizationStatus === 'validated';
@@ -1053,6 +1054,19 @@ if (__VLS_ctx.duration > 0) {
         onTimeSelection: (__VLS_ctx.handleTimeSelection)
     };
     var __VLS_2;
+    if (__VLS_ctx.selectedVideoId && __VLS_ctx.timelineSegmentsForSelectedVideo.length > 0) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "mt-3 d-flex gap-2" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+            ...{ onClick: (__VLS_ctx.discardSegmentChanges) },
+            ...{ class: "btn btn-outline-secondary" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+            ...{ onClick: (__VLS_ctx.saveSegmentChanges) },
+            ...{ class: "btn btn-primary" },
+        });
+    }
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ onClick: (__VLS_ctx.handleTimelineClick) },
         ...{ class: "simple-timeline-track mt-2" },
@@ -1159,14 +1173,14 @@ if (__VLS_ctx.selectedVideoId) {
             ...{ style: {} },
         });
         (__VLS_ctx.getTranslationForLabel(__VLS_ctx.videoStore.draftSegment.label));
-        if (__VLS_ctx.videoStore.draftSegment.end) {
+        if (__VLS_ctx.videoStore.draftSegment.endTime) {
             __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
-            (__VLS_ctx.formatTime(__VLS_ctx.videoStore.draftSegment.start));
-            (__VLS_ctx.formatTime(__VLS_ctx.videoStore.draftSegment.end));
+            (__VLS_ctx.formatTime(__VLS_ctx.videoStore.draftSegment.startTime));
+            (__VLS_ctx.formatTime(__VLS_ctx.videoStore.draftSegment.endTime));
         }
         else {
             __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
-            (__VLS_ctx.formatTime(__VLS_ctx.videoStore.draftSegment.start));
+            (__VLS_ctx.formatTime(__VLS_ctx.videoStore.draftSegment.startTime));
         }
     }
 }
@@ -1452,6 +1466,13 @@ if (__VLS_ctx.savedExaminations.length > 0) {
 /** @type {__VLS_StyleScopedClasses['btn-primary']} */ ;
 /** @type {__VLS_StyleScopedClasses['timeline-wrapper']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['gap-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-secondary']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-primary']} */ ;
 /** @type {__VLS_StyleScopedClasses['simple-timeline-track']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['progress-bar']} */ ;
@@ -1639,6 +1660,8 @@ const __VLS_self = (await import('vue')).defineComponent({
             jumpToExamination: jumpToExamination,
             deleteExamination: deleteExamination,
             submitVideoSegments: submitVideoSegments,
+            saveSegmentChanges: saveSegmentChanges,
+            discardSegmentChanges: discardSegmentChanges,
             onVideoError: onVideoError,
             onVideoLoadStart: onVideoLoadStart,
             onVideoCanPlay: onVideoCanPlay,

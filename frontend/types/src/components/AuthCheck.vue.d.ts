@@ -1,45 +1,15 @@
-declare const _default: import("vue").DefineComponent<{}, {
-    authStore: import("pinia").Store<"auth", import("@/stores/auth").AuthState, {
-        username: (state: {
-            isAuthenticated: boolean;
-            user: {
-                username: string;
-                groups: string[];
-            } | null;
-            loading: boolean;
-            error: string | null;
-        } & import("pinia").PiniaCustomStateProperties<import("@/stores/auth").AuthState>) => string;
-        userGroups: (state: {
-            isAuthenticated: boolean;
-            user: {
-                username: string;
-                groups: string[];
-            } | null;
-            loading: boolean;
-            error: string | null;
-        } & import("pinia").PiniaCustomStateProperties<import("@/stores/auth").AuthState>) => string[];
-        isLoading: (state: {
-            isAuthenticated: boolean;
-            user: {
-                username: string;
-                groups: string[];
-            } | null;
-            loading: boolean;
-            error: string | null;
-        } & import("pinia").PiniaCustomStateProperties<import("@/stores/auth").AuthState>) => boolean;
-        hasError: (state: {
-            isAuthenticated: boolean;
-            user: {
-                username: string;
-                groups: string[];
-            } | null;
-            loading: boolean;
-            error: string | null;
-        } & import("pinia").PiniaCustomStateProperties<import("@/stores/auth").AuthState>) => boolean;
-    }, {
-        checkAuth(): Promise<void>;
-        login(): void;
-        logout(): Promise<void>;
-    }>;
-}, {}, {}, {}, import("vue").ComponentOptionsMixin, import("vue").ComponentOptionsMixin, {}, string, import("vue").PublicProps, Readonly<{}> & Readonly<{}>, {}, {}, {}, {}, string, import("vue").ComponentProvideOptions, true, {}, any>;
+declare var __VLS_1: {}, __VLS_3: {}, __VLS_5: {};
+type __VLS_Slots = {} & {
+    'authenticated-content'?: (props: typeof __VLS_1) => any;
+} & {
+    'unauthenticated-content'?: (props: typeof __VLS_3) => any;
+} & {
+    loading?: (props: typeof __VLS_5) => any;
+};
+declare const _default: __VLS_WithSlots<import("vue").DefineComponent<{}, {}, {}, {}, {}, import("vue").ComponentOptionsMixin, import("vue").ComponentOptionsMixin, {}, string, import("vue").PublicProps, Readonly<{}> & Readonly<{}>, {}, {}, {}, {}, string, import("vue").ComponentProvideOptions, true, {}, any>, __VLS_Slots>;
 export default _default;
+type __VLS_WithSlots<T, S> = T & {
+    new (): {
+        $slots: S;
+    };
+};

@@ -1,14 +1,18 @@
 import { computed, onMounted } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
-import { useAuthStore } from '../stores/auth';
+import { useRoute } from 'vue-router';
+import { useAuthKcStore } from '@/stores/auth_kc'; //  NEW store
 import { useAnnotationStatsStore } from '@/stores/annotationStats';
 const route = useRoute();
-const router = useRouter();
-const authStore = useAuthStore();
+const authStore = useAuthKcStore(); //  use Keycloak store
 const annotationStatsStore = useAnnotationStatsStore();
 // Computed properties
 const isAuthenticated = computed(() => authStore.isAuthenticated);
-const username = computed(() => authStore.user?.username || 'Unknown');
+const username = computed(() => {
+    const u = authStore.user;
+    // If you later include first_name/last_name in backend, you can prefer that:
+    // return u ? `${u.first_name} ${u.last_name}`.trim() || u.username : 'Unknown'
+    return u?.username || 'Unknown';
+});
 const currentRouteName = computed(() => {
     const name = route.name;
     return !name ? 'Dashboard' : name.charAt(0).toUpperCase() + name.slice(1);
@@ -21,7 +25,14 @@ const handleLogin = () => {
     authStore.login();
 };
 const handleLogout = () => {
-    authStore.logout();
+    const form = document.getElementById('oidc-logout-form');
+    if (form) {
+        form.submit(); //  real POST with CSRF, browser follows redirects
+    }
+    else {
+        // Fallback (should not happen if base.html is correct)
+        window.location.href = '/oidc/logout/';
+    }
 };
 const toggleSidebar = () => {
     // Dispatch custom event to toggle sidebar

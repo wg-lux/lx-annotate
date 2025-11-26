@@ -89,7 +89,7 @@ export declare const usePdfStore: import("pinia").StoreDefinition<"pdf", Pick<{
     }>;
     stopStreaming: () => void;
     clearState: () => void;
-}, "error" | "loading" | "currentPdf" | "streamingActive" | "lastProcessedId">, Pick<{
+}, "loading" | "error" | "currentPdf" | "streamingActive" | "lastProcessedId">, Pick<{
     currentPdf: import("vue").Ref<{
         id: number;
         sensitiveMetaId: number | null;
@@ -152,7 +152,7 @@ export declare const usePdfStore: import("pinia").StoreDefinition<"pdf", Pick<{
     }>;
     stopStreaming: () => void;
     clearState: () => void;
-}, "hasError" | "pdfStreamUrl" | "hasCurrentPdf" | "isProcessing" | "isDone">, Pick<{
+}, "hasError" | "isProcessing" | "pdfStreamUrl" | "hasCurrentPdf" | "isDone">, Pick<{
     currentPdf: import("vue").Ref<{
         id: number;
         sensitiveMetaId: number | null;

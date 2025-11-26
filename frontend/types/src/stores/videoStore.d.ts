@@ -184,7 +184,7 @@ export interface SegmentUpdatePayload {
 }
 export interface CreateSegmentResponse extends BackendSegment {
 }
-declare function backendSegmentToSegment(backend: BackendSegment): Segment;
+export declare function backendSegmentToSegment(backend: BackendSegment): Segment;
 /**
  * Upload callback types
  */
@@ -887,4 +887,3 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
     getSegmentOptions: () => SegmentOption[];
     clearSegments: () => void;
 }, "buildVideoStreamUrl" | "setCurrentVideo" | "clearVideo" | "deleteVideo" | "setVideo" | "loadVideo" | "fetchVideoUrl" | "fetchAllSegments" | "fetchAllVideos" | "fetchLabels" | "fetchVideoSegments" | "fetchSegmentsByLabel" | "createSegment" | "updateSegmentAPI" | "deleteSegment" | "removeSegment" | "saveAnnotations" | "getSegmentStyle" | "getColorForLabel" | "getTranslationForLabel" | "jumpToSegment" | "setActiveSegment" | "updateVideoStatus" | "assignUserToVideo" | "hasRawVideoFileFn" | "persistDirtySegments" | "updateSegmentInMemory" | "startDraft" | "updateDraftEnd" | "commitDraft" | "cancelDraft" | "createFiveSecondSegment" | "patchDraftSegment" | "patchSegmentLocally" | "backendSegmentToSegment" | "formatTime" | "getSegmentOptions" | "clearSegments">>;
-export {};

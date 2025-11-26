@@ -121,7 +121,7 @@ export declare const useRequirementStore: import("pinia").StoreDefinition<"requi
     setCurrentRequirementSetIds: (ids: number[]) => void;
     deleteRequirementSetById: (id: number) => void;
     reset: () => void;
-}, "error" | "loading" | "requirementSets" | "currentRequirementSet" | "evaluationResults">, Pick<{
+}, "loading" | "error" | "requirementSets" | "currentRequirementSet" | "evaluationResults">, Pick<{
     requirementSets: import("vue").Ref<{
         id: number;
         name: string;

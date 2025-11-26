@@ -4,7 +4,7 @@ import axiosInstance, { a, r } from '../api/axiosInstance';
 import { AxiosError } from 'axios';
 import { formatTime, getTranslationForLabel, getColorForLabel } from '@/utils/videoUtils';
 import { useAnonymizationStore } from './anonymizationStore';
-function backendSegmentToSegment(backend) {
+export function backendSegmentToSegment(backend) {
     const labelName = backend.labelName ?? backend.labelDisplay ?? 'unknown';
     // Optional: flatten timeSegments → frames map
     let framesMap;
@@ -806,9 +806,9 @@ export const useVideoStore = defineStore('video', () => {
         fetchVideoUrl,
         fetchAllSegments,
         fetchAllVideos,
-        fetchLabels, // ✅ NEW: Priority label fetching
+        fetchLabels, // Priority label fetching
         fetchVideoSegments,
-        fetchSegmentsByLabel, // Added missing export
+        fetchSegmentsByLabel,
         createSegment,
         updateSegmentAPI,
         deleteSegment,

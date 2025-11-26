@@ -148,6 +148,7 @@ var __VLS_7;
 __VLS_asFunctionalElement(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({
     ...{ class: "nav-item" },
 });
+__VLS_asFunctionalDirective(__VLS_directives.vCan)(null, { ...__VLS_directiveBindingRestFields, value: ('page.patients.view:GET') }, null, null);
 const __VLS_8 = {}.RouterLink;
 /** @type {[typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, ]} */ ;
 // @ts-ignore

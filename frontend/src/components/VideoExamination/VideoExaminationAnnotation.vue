@@ -1029,48 +1029,6 @@ const cancelLabelMarking = (): void => {
   console.log('Label-Markierung abgebrochen')
 }
 
-const onExaminationSaved = async (examination: SavedExamination): Promise<void> => {
-  // Add new examination to list
-  savedExaminations.value.push(examination)
-  
-  // Create new marker
-  const marker: ExaminationMarker = {
-    id: `exam-${examination.id}`,
-    timestamp: examination.timestamp,
-    examination_data: examination.data
-  }
-  examinationMarkers.value.push(marker)
-  
-  // Show success message like VideoClassificationComponent
-  showSuccessMessage(`Untersuchung gespeichert: ${examination.examination_type || 'Untersuchung'}`)
-  
-  // Create corresponding annotation for examination
-  try {
-    const annotationStore = useAnnotationStore()
-    const authStore = useAuthStore()
-    
-    // Ensure mock user is initialized
-    authStore.initMockUser()
-    
-    if (authStore.user?.id && selectedVideoId.value) {
-      await annotationStore.createExaminationAnnotation(
-        selectedVideoId.value.toString(),
-        examination.timestamp,
-        examination.examination_type || 'examination',
-        examination.id,
-        authStore.user.id
-      )
-      console.log(`✅ Created annotation for examination ${examination.id}`)
-    } else {
-      console.warn('No authenticated user or video ID found for examination annotation creation')
-    }
-  } catch (annotationError: any) {
-    console.error('Failed to create examination annotation:', annotationError)
-    // Don't fail the examination save if annotation fails
-  }
-  
-  console.log('Examination saved:', examination)
-}
 
 const jumpToExamination = (examination: SavedExamination): void => {
   seekToTime(examination.timestamp)
@@ -1106,45 +1064,62 @@ const submitVideoSegments = async (): Promise<void> => {
   }
 
   const segmentCount = timelineSegmentsForSelectedVideo.value.length
-  
+
   if (segmentCount === 0) {
     showErrorMessage('Keine Segmente zum Validieren vorhanden')
     return
   }
 
   // Confirm with user before validation
-  if (!confirm(`Möchten Sie alle ${segmentCount} Segmente von Video ${selectedVideoId.value} als validiert markieren? Außerhalb-Segmente werden danach gelöscht.`)) {
+  if (
+    !confirm(
+      `Möchten Sie alle ${segmentCount} Segmente von Video ${selectedVideoId.value} als validiert markieren? Außerhalb-Segmente werden danach gelöscht.`
+    )
+  ) {
     return
   }
 
+  // Build payload including updated start/end times (in seconds)
+  const segmentPayload = timelineSegmentsForSelectedVideo.value
+    .filter(s => typeof s.id === 'number')
+    .map(s => ({
+      id: s.id as number,
+      // assuming Segment has startTime/endTime in seconds
+      start_time: s.startTime,
+      end_time: s.endTime,
+    }))
+
+  console.log('🔄 Sending segments to backend:', segmentPayload)
+
   try {
     console.log(`🔍 Validating all segments for video ${selectedVideoId.value}...`)
-    
+
     const response = await axiosInstance.post(
       r(`media/videos/${selectedVideoId.value}/segments/validate-bulk/`),
       {
-        segment_ids: timelineSegmentsForSelectedVideo.value.map(s => s.id),
-        is_validated: true,
-        notes: `Vollständige Video-Review abgeschlossen am ${new Date().toLocaleString('de-DE')}`
+        segmentIds: segmentPayload.map(s => s.id),
+        segments: segmentPayload,
+        isValidated: true,
+        notes: `Vollständige Video-Review abgeschlossen am ${new Date().toLocaleString('de-DE')}`,
+        informationSourceName: 'manual_annotation', // or 'manual_validation', see backend
       }
     )
 
-    
     console.log('✅ Validation response:', response.data)
-    
+
     showSuccessMessage(
-      `Erfolgreich! ${response.data.updated_count} von ${response.data.total_segments} Segmenten validiert.`
+      `Erfolgreich! ${response.data.updatedCount} von ${response.data.totalSegments ?? response.data.requestedCount} Segmenten validiert.`
     )
-    
-    // Reload segments to reflect validation status
+
+    // Reload segments to reflect validation status + updated times
     await loadVideoSegments()
-    
   } catch (error: any) {
     console.error('❌ Error validating video segments:', error)
     const errorMsg = error?.response?.data?.error || error?.message || 'Unbekannter Fehler'
     showErrorMessage(`Validierung fehlgeschlagen: ${errorMsg}`)
   }
 }
+
 
 const saveSegmentChanges = async (): Promise<void> => {
   try {
