@@ -162,7 +162,7 @@ describe('VideoExaminationAnnotation.vue', () => {
     videoStore.fetchAllSegments = vi.fn()
     videoStore.clearVideo = vi.fn()
     videoStore.createSegment = vi.fn()
-    videoStore.updateSegment = vi.fn()
+    videoStore.updateSegmentInMemory = vi.fn()
     videoStore.deleteSegment = vi.fn()
     videoStore.removeSegment = vi.fn()
     videoStore.patchSegmentLocally = vi.fn()
@@ -424,12 +424,12 @@ describe('VideoExaminationAnnotation.vue', () => {
         startTime: 10,
         endTime: 20
       })
-      expect(videoStore.updateSegment).not.toHaveBeenCalled()
+      expect(videoStore.updateSegmentInMemory).not.toHaveBeenCalled()
 
       // Test final save (final = true)
       vm.handleSegmentResize(1, 10, 20, 'resize', true)
 
-      expect(videoStore.updateSegment).toHaveBeenCalledWith(1, {
+      expect(videoStore.updateSegmentInMemory).toHaveBeenCalledWith(1, {
         startTime: 10,
         endTime: 20
       })
@@ -442,7 +442,7 @@ describe('VideoExaminationAnnotation.vue', () => {
       vm.handleSegmentResize('temp-123', 10, 20, 'resize', true)
 
       expect(videoStore.patchSegmentLocally).not.toHaveBeenCalled()
-      expect(videoStore.updateSegment).not.toHaveBeenCalled()
+      expect(videoStore.updateSegmentInMemory).not.toHaveBeenCalled()
     })
 
     it('should delete segment correctly', async () => {

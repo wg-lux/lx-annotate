@@ -298,7 +298,7 @@ const handleSegmentResize = (...args: unknown[]): void => {
   if (final) {
     // ✅ IMPLEMENTED: Real-time preview + save on Mouse-Up
     videoStore.patchSegmentLocally(numericId, { startTime: newStart, endTime: newEnd })
-    videoStore.updateSegment(numericId, { startTime: newStart, endTime: newEnd })
+    videoStore.updateSegmentInMemory(numericId, { startTime: newStart, endTime: newEnd })
     console.log(`✅ Segment ${numericId} resized and saved: ${formatTime(newStart)} - ${formatTime(newEnd)}`)
   } else {
     // ✅ IMPLEMENTED: Real-time preview during drag without backend call
@@ -652,7 +652,7 @@ const handlePlayPause = (...args: unknown[]): void => {
 if (final) {
   // ✅ Real-time preview + save on Mouse-Up
   videoStore.patchSegmentLocally(numericId, { startTime: newStart, endTime: newEnd })
-  videoStore.updateSegment(numericId, { startTime: newStart, endTime: newEnd })
+  videoStore.updateSegmentInMemory(numericId, { startTime: newStart, endTime: newEnd })
   console.log(`✅ Segment ${numericId} resized and saved: ${formatTime(newStart)} - ${formatTime(newEnd)}`)
 } else {
   // ✅ Real-time preview during drag without backend call

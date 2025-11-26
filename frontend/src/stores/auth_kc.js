@@ -88,5 +88,20 @@ export const useAuthKcStore = defineStore('auth_kc', {
                 return !!this.caps[key];
             return false;
         },
+        login() {
+            // Explicit login button (usually not needed because backend redirects,
+            // but nice to have)
+            const next = encodeURIComponent(window.location.pathname + window.location.search + window.location.hash);
+            window.location.href = `/oidc/authenticate/?next=${next}`;
+        },
+        logout() {
+            // Clear local state (not strictly needed because we reload the page, but harmless)
+            this.user = null;
+            this.roles = [];
+            this.caps = {};
+            this.loaded = false;
+            // Let Django + mozilla_django_oidc handle full logout + Keycloak side
+            window.location.href = '/oidc/logout/';
+        },
     },
 });

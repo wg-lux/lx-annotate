@@ -172,7 +172,7 @@ export declare const usePatientStore: import("pinia").StoreDefinition<"patient",
     clearSelectedPatientId: () => void;
     setCurrentPatient: (p: Patient | null) => void;
     resolveCurrentPatientId: (propId?: number, strict?: boolean) => number | null;
-}, "loading" | "error" | "patients" | "currentPatient" | "selectedPatientId" | "genders" | "centers">, Pick<{
+}, "error" | "loading" | "patients" | "currentPatient" | "selectedPatientId" | "genders" | "centers">, Pick<{
     patients: import("vue").Ref<{
         id?: number | undefined;
         firstName: string;

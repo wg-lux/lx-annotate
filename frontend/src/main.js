@@ -20,6 +20,7 @@ import canKc from '@/directives/can_kc';
 // 🔑 Initialize axios (cookies + CSRF + 401→/oidc/authenticate) BEFORE app creation
 initHttpKC();
 const app = createApp(App);
+app.directive('can', canKc);
 // Optional: you already register AuthCheck locally in App.vue —
 // pick ONE style (global here or local in App.vue). Global is fine:
 app.component('AuthCheck', AuthCheck);

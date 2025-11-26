@@ -404,7 +404,7 @@ const handleSegmentResize = (...args) => {
     if (final) {
         // Sofortige Previews + Speichern bei Mouse-Up
         videoStore.patchSegmentLocally(numericId, { startTime: newStart, endTime: newEnd });
-        videoStore.updateSegment(numericId, { startTime: newStart, endTime: newEnd });
+        videoStore.updateSegmentInMemory(numericId, { startTime: newStart, endTime: newEnd });
         console.log(`✅ Segment ${numericId} resized and saved: ${formatTime(newStart)} - ${formatTime(newEnd)}`);
     }
     else {
@@ -429,7 +429,7 @@ const handleSegmentMove = (...args) => {
     }
     if (final) {
         videoStore.patchSegmentLocally(numericId, { startTime: newStart, endTime: newEnd });
-        videoStore.updateSegment(numericId, { startTime: newStart, endTime: newEnd });
+        videoStore.updateSegmentInMemory(numericId, { startTime: newStart, endTime: newEnd });
         console.log(`✅ Segment ${numericId} moved and saved: ${formatTime(newStart)} - ${formatTime(newEnd)}`);
     }
     else {

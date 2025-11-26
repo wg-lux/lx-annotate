@@ -45,5 +45,7 @@ export declare const useAuthKcStore: import("pinia").StoreDefinition<"auth_kc", 
      * - Missing keys default to false (secure default).
      */
     can(key: string, method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'HEAD' | 'OPTIONS'): boolean;
+    login(): void;
+    logout(): void;
 }>;
 export {};

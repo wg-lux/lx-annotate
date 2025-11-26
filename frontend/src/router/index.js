@@ -1,3 +1,4 @@
+import { useToastStore } from '@/stores/toastStore';
 import { createRouter, createWebHistory } from 'vue-router';
 import { useAnonymizationStore } from '@/stores/anonymizationStore';
 import { useAuthKcStore } from '@/stores/auth_kc';
@@ -91,7 +92,9 @@ const router = createRouter({
             name: 'Anonymisierung Übersicht',
             component: () => import('@/views/AnonymizationOverview.vue'),
             meta: {
-                description: 'Übersicht aller hochgeladenen Dateien und deren Anonymisierungsstatus.'
+                description: 'Übersicht aller hochgeladenen Dateien und deren Anonymisierungsstatus.',
+                cap: 'page.anonymization.overview',
+                //hardProtect: true, //  optional: block route if user lacks permission
             }
         },
         {
@@ -134,6 +137,42 @@ const router = createRouter({
             redirect: '/'
         }
     ]
+});
+// 🔐 Global auth guard: require Keycloak login + endoregdb_user for ALL routes
+router.beforeEach(async (to, _from, next) => {
+    const auth = useAuthKcStore();
+    // If auth not bootstrapped yet, let the app decide (e.g. AuthCheck component),
+    // just don't block navigation here.
+    if (!auth.loaded) {
+        return next();
+    }
+    // Not logged in → go to Keycloak login, not /login
+    if (!auth.isAuthenticated) {
+        // optional: remember target path
+        auth.login();
+        return;
+    }
+    // Logged in but missing global role → you can later refine this
+    // Logged in but missing global role → block navigation cleanly
+    //if (!auth.roles.includes('endoregdb_user')) {
+    // OPTIONAL: show a toast (if you like)
+    // const toast = useToastStore()
+    // toast.error({ text: 'Sie haben keinen Zugriff auf diese Anwendung. Bitte wenden Sie sich an den Administrator.' })
+    // Cancel navigation, stay on current page (no infinite redirect)
+    //return next(false)
+    // }
+    if (!auth.roles.includes('endoregdb_user')) {
+        const toast = useToastStore();
+        toast.error({
+            text: 'You are not authorized to access this system.'
+        });
+        // Force logout and redirect to Keycloak login
+        await auth.logout(); // <-- ENSURE this calls keycloak.logout()
+        auth.login(); // <-- send to Keycloak login, not internal route
+        return next(false);
+    }
+    // OK → continue to route
+    next();
 });
 router.beforeEach((_to, _from, next) => {
     const store = useAnonymizationStore();

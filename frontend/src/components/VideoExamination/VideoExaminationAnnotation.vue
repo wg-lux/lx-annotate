@@ -159,11 +159,11 @@
                 :video="{ duration }"
                 :segments="timelineSegmentsForSelectedVideo"
                 :labels="timelineLabels"
-                :current-time="currentTime"
-                :is-playing="isPlaying"
-                :active-segment-id="selectedSegmentId"
-                :show-waveform="false"
-                :selection-mode="true"
+                :currentTime="currentTime"
+                :isPlaying="isPlaying"
+                :activeSegmentId="selectedSegmentId"
+                :showWaveform="false"
+                :selectionMode="true"
                 :fps="fps"
                 @seek="handleTimelineSeek"
                 @play-pause="handlePlayPause"
@@ -174,6 +174,22 @@
                 @segment-delete="handleSegmentDelete"
                 @time-selection="handleTimeSelection"
               />
+              <div v-if="selectedVideoId && timelineSegmentsForSelectedVideo.length > 0" class="mt-3 d-flex gap-2">
+                <button
+                  class="btn btn-outline-secondary"
+                  @click="discardSegmentChanges"
+                >
+                  Änderungen verwerfen
+                </button>
+
+                <button
+                  class="btn btn-primary"
+                  @click="saveSegmentChanges"
+                >
+                  Segment-Änderungen speichern
+                </button>
+              </div>
+
               
               <!-- Simple progress bar as fallback -->
               <div class="simple-timeline-track mt-2" @click="handleTimelineClick" ref="timelineRef">
@@ -264,11 +280,11 @@
                 <small>
                   <i class="material-icons align-middle me-1" style="font-size: 16px;">info</i>
                   Label "{{ getTranslationForLabel(videoStore.draftSegment.label) }}" 
-                  <span v-if="videoStore.draftSegment.end">
-                    von {{ formatTime(videoStore.draftSegment.start) }} bis {{ formatTime(videoStore.draftSegment.end) }}
+                  <span v-if="videoStore.draftSegment.endTime">
+                    von {{ formatTime(videoStore.draftSegment.startTime) }} bis {{ formatTime(videoStore.draftSegment.endTime) }}
                   </span>
                   <span v-else>
-                    startet bei {{ formatTime(videoStore.draftSegment.start) }} - Ende beim nächsten Klick
+                    startet bei {{ formatTime(videoStore.draftSegment.startTime) }} - Ende beim nächsten Klick
                   </span>
                 </small>
               </div>
@@ -389,7 +405,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
-import { useVideoStore, type Video } from '@/stores/videoStore'
+import { useVideoStore, type Segment, type Video } from '@/stores/videoStore'
 import { useAnonymizationStore } from '@/stores/anonymizationStore'
 import { useAnnotationStore } from '@/stores/annotationStore'
 import { useAuthStore } from '@/stores/authStore'
@@ -423,7 +439,7 @@ interface SavedExamination {
 }
 
 interface SegmentResizeEvent {
-  segmentId: string
+  segmentId: number
   newStart: number
   newEnd: number
 }
@@ -432,19 +448,6 @@ interface CreateSegmentEvent {
   label: string
   start: number
   end: number
-}
-
-// Add interface for Timeline-compatible Segment
-interface Segment {
-  id: string | number;
-  label: string;
-  label_display: string;
-  name: string; // <‑‑ NEW ➜ shown inside pill
-  startTime: number;     // ✅ Timeline expects this field name
-  endTime: number;       // ✅ Timeline expects this field name
-  avgConfidence: number;
-  video_id?: number;
-  label_id?: number;
 }
 
 // Store setup
@@ -489,7 +492,7 @@ const currentMarker = ref<ExaminationMarker | null>(null)
 const selectedLabelType = ref<string>('')
 const isMarkingLabel = ref<boolean>(false)
 const labelMarkingStart = ref<number>(0)
-const selectedSegmentId = ref<string | number | null>(null)
+const selectedSegmentId = ref<number | null>(null)
 
 // Video detail and metadata like VideoClassificationComponent
 const videoDetail = ref<{ video_url: string } | null>(null)
@@ -588,31 +591,13 @@ const noVideosMessage = computed(() => {
   return ''
 })
 
-// ✅ NEW: Normalized, video-scoped segments for Timeline
-const timelineSegmentsForSelectedVideo = computed(() => {
+const timelineSegmentsForSelectedVideo = computed<Segment[]>(() => {
   if (!selectedVideoId.value) return []
-  
+
   return rawSegments.value
     .filter(s => s.videoID === selectedVideoId.value)
-    .map(s => ({
-      id: s.id,
-      label: s.label,
-      label_display: s.label,
-      name: s.label,
-      startTime: s.startTime,
-      endTime: s.endTime,
-      avgConfidence: s.avgConfidence || 0,
-      video_id: s.videoID,
-      label_id: s.labelID
-    }))
 })
 
-// Segments from store with readonly→mutable fix
-const segments = computed(() => {
-  return rawSegments.value.map(s => ({ 
-    ...s
-  }))
-})
 
 const groupedSegments = computed(() => {
   return videoStore.segmentsByLabel
@@ -856,7 +841,7 @@ const handleTimelineSeek = (...args: unknown[]): void => {
   seekToTime(time)
 }
 
-// ✅ NEW: Play/pause handler for Timeline
+// Play/pause handler for Timeline
 const handlePlayPause = (...args: unknown[]): void => {
   if (!videoRef.value) return
   
@@ -870,69 +855,58 @@ const handlePlayPause = (...args: unknown[]): void => {
   }
 }
 
-// ✅ NEW: Segment selection handler
+// Segment selection handler - detects click on segment and sets it for the timeline
 const handleSegmentSelect = (...args: unknown[]): void => {
-  const [segmentId] = args as [string | number];
+  const [segmentId] = args as [number];
   selectedSegmentId.value = segmentId
   console.log('Segment selected:', segmentId)
 }
 
 const handleSegmentResize = (...args: unknown[]): void => {
-  const [segmentId, newStart, newEnd, mode, final] = args as [string | number, number, number, string, boolean?];
-  
-  // Verbesserte Guard für Draft/Temp-Segmente (camelCase in finalen PATCH-Aufrufen)
-  if (typeof segmentId === 'string') {
-    if (segmentId === 'draft' || /^temp-/.test(segmentId)) {
-      console.warn('[VideoExamination] Ignoring resize for draft/temp segment:', segmentId)
-      return
-    }
-  }
-  
-  const numericId = typeof segmentId === 'string' ? parseInt(segmentId, 10) : segmentId
-  
-  if (isNaN(numericId)) {
+  const [segmentId, newStart, newEnd, _mode, _final] =
+    args as [number, number, number, string, boolean?]
+
+  if (!Number.isFinite(segmentId)) {
     console.warn('[VideoExamination] Invalid segment ID for resize:', segmentId)
     return
   }
-  
-  if (final) {
-    // Sofortige Previews + Speichern bei Mouse-Up
-    videoStore.patchSegmentLocally(numericId, { startTime: newStart, endTime: newEnd })
-    videoStore.updateSegment(numericId, { startTime: newStart, endTime: newEnd })
-    console.log(`✅ Segment ${numericId} resized and saved: ${formatTime(newStart)} - ${formatTime(newEnd)}`)
+
+  if (segmentId < 0) {
+    // Draft segment: keep it purely frontend
+    videoStore.patchDraftSegment(segmentId, {
+      startTime: newStart,
+      endTime: newEnd
+    })
   } else {
-    // Real-time preview während Drag ohne Backend-Aufruf
-    videoStore.patchSegmentLocally(numericId, { startTime: newStart, endTime: newEnd })
-    console.log(`Preview resize segment ${numericId} ${mode}: ${formatTime(newStart)} - ${formatTime(newEnd)}`)
+    // Existing segment: patch locally and mark isDirty
+    videoStore.patchSegmentLocally(segmentId, {
+      startTime: newStart,
+      endTime: newEnd
+    })
   }
+
+  // ❌ Absolutely no backend call here, this should use the drafts because of the load on the backend.
 }
 
 const handleSegmentMove = (...args: unknown[]): void => {
-  const [segmentId, newStart, newEnd, final] = args as [string | number, number, number, boolean?];
-  
-  // Verbesserte Guard für Draft/Temp-Segmente (camelCase in finalen PATCH-Aufrufen)
-  if (typeof segmentId === 'string') {
-    if (segmentId === 'draft' || /^temp-/.test(segmentId)) {
-      console.warn('[VideoExamination] Ignoring move for draft/temp segment:', segmentId)
-      return
-    }
-  }
-  
-  const numericId = typeof segmentId === 'string' ? parseInt(segmentId, 10) : segmentId
-  
-  if (isNaN(numericId)) {
+  const [segmentId, newStart, newEnd, _final] =
+    args as [number, number, number, boolean?]
+
+  if (!Number.isFinite(segmentId)) {
     console.warn('[VideoExamination] Invalid segment ID for move:', segmentId)
     return
   }
-  
-  if (final) {
-    videoStore.patchSegmentLocally(numericId, { startTime: newStart, endTime: newEnd })
-    videoStore.updateSegment(numericId, { startTime: newStart, endTime: newEnd })
-    console.log(`✅ Segment ${numericId} moved and saved: ${formatTime(newStart)} - ${formatTime(newEnd)}`)
+
+  if (segmentId < 0) {
+    videoStore.patchDraftSegment(segmentId, {
+      startTime: newStart,
+      endTime: newEnd
+    })
   } else {
-    // Real-time preview während Drag ohne Backend-Aufruf
-    videoStore.patchSegmentLocally(numericId, { startTime: newStart, endTime: newEnd })
-    console.log(`Preview move segment ${numericId}: ${formatTime(newStart)} - ${formatTime(newEnd)}`)
+    videoStore.patchSegmentLocally(segmentId, {
+      startTime: newStart,
+      endTime: newEnd
+    })
   }
 }
 
@@ -960,7 +934,7 @@ const handleCreateSegment = (...args: unknown[]): Promise<void> => {
     try {
       if (selectedVideoId.value) {
         await videoStore.createSegment?.(
-          selectedVideoId.value.toString(), 
+          selectedVideoId.value, 
           event.label, 
           event.start, 
           event.end
@@ -1124,7 +1098,7 @@ const deleteExamination = async (examinationId: number): Promise<void> => {
   }
 }
 
-// ✅ NEW: Validate all video segments (complete video review)
+// Validate all video segments (complete video review)
 const submitVideoSegments = async (): Promise<void> => {
   if (!selectedVideoId.value) {
     showErrorMessage('Kein Video ausgewählt')
@@ -1146,13 +1120,15 @@ const submitVideoSegments = async (): Promise<void> => {
   try {
     console.log(`🔍 Validating all segments for video ${selectedVideoId.value}...`)
     
-    // ✅ MODERN FRAMEWORK: Use /api/media/videos/<pk>/segments/validation-status/ (POST)
     const response = await axiosInstance.post(
-      r(`media/videos/${selectedVideoId.value}/segments/validation-status/`),
+      r(`media/videos/${selectedVideoId.value}/segments/validate-bulk/`),
       {
+        segment_ids: timelineSegmentsForSelectedVideo.value.map(s => s.id),
+        is_validated: true,
         notes: `Vollständige Video-Review abgeschlossen am ${new Date().toLocaleString('de-DE')}`
       }
     )
+
     
     console.log('✅ Validation response:', response.data)
     
@@ -1169,6 +1145,24 @@ const submitVideoSegments = async (): Promise<void> => {
     showErrorMessage(`Validierung fehlgeschlagen: ${errorMsg}`)
   }
 }
+
+const saveSegmentChanges = async (): Promise<void> => {
+  try {
+    await videoStore.persistDirtySegments()
+    showSuccessMessage('Segment-Änderungen gespeichert')
+  } catch (error:any) {
+    console.error('Fehler beim Speichern der Segment-Änderungen:', error)
+    await guarded(Promise.reject(error))
+  }
+}
+
+const discardSegmentChanges = (): void => {
+  // simplest version: reload from backend
+  if (!selectedVideoId.value) return
+  videoStore.fetchVideoSegments(selectedVideoId.value)
+  showSuccessMessage('Lokale Änderungen verworfen')
+}
+
 
 // Video event handlers from AnonymizationValidationComponent
 const onVideoError = (event: Event): void => {
@@ -1199,11 +1193,10 @@ const getVideoStatusIndicator = (videoId: number): string => {
   
   const statusIndicators: { [key: string]: string } = {
     'not_started': '⏳ Wartend',
-    'processing_anonymization': '🔄 Verarbeitung',
+    'processing_anonymization': '🔄 In Verarbeitung',
     'extracting_frames': '🎬 Frames',
-    'predicting_segments': '🤖 Segmente',
-    'done_processing_anonymization': '✅ Anonymisiert',
-    'validated': '🛡️ Validiert',
+    'done_processing_anonymization': '✅ Anonymisiert - Validierung steht aus',
+    'validated': '🛡️ Validiert & Anonymisiert',
     'failed': '❌ Fehler'
   }
   
@@ -1242,7 +1235,7 @@ const getStatusText = (status: string): string => {
   return texts[status] || status
 }
 
-// ✅ NEW: Enhanced validation status tracking
+// Enhanced validation status tracking
 const isVideoValidated = (videoId: number): boolean => {
   const item = overview.value.find(o => o.id === videoId && o.mediaType === 'video')
   return item?.anonymizationStatus === 'validated'
