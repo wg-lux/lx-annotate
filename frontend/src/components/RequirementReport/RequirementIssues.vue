@@ -1,99 +1,149 @@
 <template>
-  <div class="card mt-3 border-danger-subtle">
-    <div class="card-header d-flex justify-content-between align-items-center">
-      <h6 class="mb-0">
-        <i class="fas fa-exclamation-triangle text-danger me-2"></i>
-        Nicht erfüllte Anforderungen
-      </h6>
-      <span v-if="totalUnmet > 0" class="badge bg-danger">{{ totalUnmet }}</span>
+  <div class="container-fluid" v-if="visible">
+    <div v-if="loading" class="alert alert-info">
+      <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+      Anforderungen werden geprüft...
     </div>
 
-    <div class="card-body">
-      <!-- Top-level backend errors -->
-      <div v-if="payload?.errors?.length" class="alert alert-warning">
-        <strong>Hinweise aus der Auswertung:</strong>
-        <ul class="mb-0">
-          <li v-for="(e, i) in payload!.errors" :key="i">{{ e }}</li>
+
+    <div v-else-if="hasIssues" class="alert alert-warning">
+      <strong>Um den Report abzuschließen, müssen die folgenden Voraussetzungen erfüllt sein:</strong>
+
+      <!-- Gruppiert nach Requirement-Set -->
+      <div v-for="(group, setName) in groupedIssues" :key="setName" class="mt-3">
+        <h6 class="mb-1">
+          <i class="fas fa-folder-open me-1"></i>
+          {{ setName }}
+        </h6>
+        <ul class="mb-0 ps-3">
+          <li v-for="issue in group" :key="issue.requirement_name">
+            <span class="fw-semibold">{{ issue.requirement_name }}</span>
+            <span class="text-muted"> – {{ issue.details }}</span>
+            <span v-if="issue.error" class="text-danger">
+              (Fehler: {{ issue.error }})
+            </span>
+          </li>
         </ul>
       </div>
+    </div>
 
-      <div v-if="totalUnmet === 0" class="text-muted">
-        <i class="fas fa-check-circle me-1 text-success"></i>
-        Alle Anforderungen sind erfüllt.
-      </div>
-
-      <div v-else class="d-flex flex-column gap-3">
-        <div
-          v-for="(group, key) in unmetBySet"
-          :key="key"
-          class="border rounded p-3"
-        >
-          <div class="d-flex justify-content-between align-items-center mb-2">
-            <strong>
-              <i class="fas fa-layer-group me-2 text-secondary"></i>
-              {{ group.setName }}
-            </strong>
-            <span class="badge bg-danger">{{ group.items.length }}</span>
-          </div>
-          <ul class="list-unstyled mb-0">
-            <li v-for="(item, idx) in group.items" :key="idx" class="mb-2">
-              <div class="d-flex align-items-start gap-2">
-                <i class="fas fa-times-circle text-danger mt-1"></i>
-                <div>
-                  <div class="fw-semibold">{{ item.requirement_name }}</div>
-                  <div class="small text-muted">
-                    {{ item.details || 'Nicht erfüllt' }}
-                  </div>
-                  <div v-if="item.error" class="small text-danger mt-1">
-                    <i class="fas fa-bug me-1"></i>{{ item.error }}
-                  </div>
-                </div>
-              </div>
-            </li>
-          </ul>
-        </div>
-
-        <!-- Meta footer -->
-        <div class="text-muted small">
-          <i class="fas fa-info-circle me-1"></i>
-          {{ payload?.meta?.requirementsEvaluated ?? 0 }} Anforderungen geprüft,
-          {{ totalUnmet }} nicht erfüllt
-          <span v-if="payload?.meta?.setsEvaluated">({{ payload.meta.setsEvaluated }} Sets)</span>
-          · Status: 
-          <span class="badge" :class="{
-            'bg-success': payload?.meta?.status === 'ok',
-            'bg-warning': payload?.meta?.status === 'partial', 
-            'bg-danger': payload?.meta?.status === 'failed'
-          }">
-            {{ payload?.meta?.status || 'unknown' }}
-          </span>
-        </div>
-      </div>
+    <div v-else class="alert alert-success">
+      <strong>Alle ausgewählten Anforderungen sind erfüllt.</strong>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
-import type { EvaluateRequirementsResponse } from '@/types/api/evaluateRequirements';
+import { ref, computed, watch } from 'vue'
+import axiosInstance, { r } from '@/api/axiosInstance'
+const url = r('evaluate-requirements/')
+interface RequirementResult {
+  requirement_set_id: number | null
+  requirement_set_name: string
+  requirement_name: string
+  met: boolean
+  details: string
+  error: string | null
+}
+
+interface EvaluateResponse {
+  ok: boolean
+  errors: string[]
+  meta: {
+    patientExaminationId: number | null
+    setsEvaluated: number
+    requirementsEvaluated: number
+    status: 'ok' | 'partial' | 'failed'
+  }
+  results: RequirementResult[]
+}
 
 const props = defineProps<{
-  payload: EvaluateRequirementsResponse | null
-  unmetBySet: Record<string, {
-    setId: number | null;
-    setName: string;
-    items: EvaluateRequirementsResponse['results'];
-  }>
-}>();
+  patientExaminationId: number | null | undefined
+  requirementSetIds?: number[] | null
+  /** show only unmet or errored requirements (default = true) */
+  showOnlyUnmet?: boolean
+}>()
 
-const totalUnmet = computed(() => {
-  if (!props.unmetBySet) return 0;
-  return Object.values(props.unmetBySet).reduce((acc, g) => acc + g.items.length, 0);
-});
+const loading = ref(false)
+const error = ref<string | null>(null)
+const results = ref<RequirementResult[]>([])
 
-const payload = computed(() => props.payload);
+// fetcher
+async function fetchRequirements() {
+  if (!props.patientExaminationId) {
+    results.value = []
+    return
+  }
+
+  loading.value = true
+  error.value = null
+  try {
+    const payload: Record<string, any> = {
+      patient_examination_id: props.patientExaminationId,
+    }
+    if (props.requirementSetIds && props.requirementSetIds.length > 0) {
+      payload.requirement_set_ids = props.requirementSetIds
+    }
+
+    const { data } = await axiosInstance.post<EvaluateResponse>(
+      url,
+      payload,
+    )
+
+    // Store all results; we filter later
+    results.value = data.results ?? []
+
+    // High-level backend errors can be shown as banner
+    if (!data.ok && data.errors?.length) {
+      error.value = data.errors.join(' | ')
+    }
+  } catch (e: any) {
+    error.value =
+      e?.response?.data?.detail ||
+      e?.message ||
+      'Unbekannter Fehler bei der Anforderungsprüfung'
+  } finally {
+    loading.value = false
+  }
+}
+
+// visible at all only if we have a PE id
+const visible = computed(() => !!props.patientExaminationId)
+
+// filter for issues (unmet or errored)
+const issueList = computed(() =>
+  (props.showOnlyUnmet ?? true)
+    ? results.value.filter((r) => !r.met || r.error)
+    : results.value,
+)
+
+const hasIssues = computed(() => issueList.value.length > 0)
+
+// group by requirement_set_name
+const groupedIssues = computed<Record<string, RequirementResult[]>>(() => {
+  const groups: Record<string, RequirementResult[]> = {}
+  for (const res of issueList.value) {
+    const key = res.requirement_set_name || 'Allgemein'
+    if (!groups[key]) groups[key] = []
+    groups[key].push(res)
+  }
+  return groups
+})
+
+// reload when PE or selected sets change
+watch(
+  () => [props.patientExaminationId, props.requirementSetIds],
+  () => {
+    if (visible.value) {
+      fetchRequirements()
+    } else {
+      results.value = []
+    }
+  },
+  { deep: true, immediate: true },
+)
+
+// allow parent to trigger reload manually
+defineExpose({ reload: fetchRequirements })
 </script>
-
-<style scoped>
-.border-danger-subtle { border-color: rgba(220,53,69,.25) !important; }
-</style>

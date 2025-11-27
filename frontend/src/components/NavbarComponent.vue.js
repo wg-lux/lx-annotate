@@ -1,14 +1,18 @@
 import { computed, onMounted } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
-import { useAuthStore } from '../stores/auth';
+import { useRoute } from 'vue-router';
+import { useAuthKcStore } from '@/stores/auth_kc'; //  NEW store
 import { useAnnotationStatsStore } from '@/stores/annotationStats';
 const route = useRoute();
-const router = useRouter();
-const authStore = useAuthStore();
+const authStore = useAuthKcStore(); //  use Keycloak store
 const annotationStatsStore = useAnnotationStatsStore();
 // Computed properties
 const isAuthenticated = computed(() => authStore.isAuthenticated);
-const username = computed(() => authStore.user?.username || 'Unknown');
+const username = computed(() => {
+    const u = authStore.user;
+    // If you later include first_name/last_name in backend, you can prefer that:
+    // return u ? `${u.first_name} ${u.last_name}`.trim() || u.username : 'Unknown'
+    return u?.username || 'Unknown';
+});
 const currentRouteName = computed(() => {
     const name = route.name;
     return !name ? 'Dashboard' : name.charAt(0).toUpperCase() + name.slice(1);
@@ -21,7 +25,19 @@ const handleLogin = () => {
     authStore.login();
 };
 const handleLogout = () => {
-    authStore.logout();
+    const form = document.getElementById('oidc-logout-form');
+    if (form) {
+        form.submit(); //  real POST with CSRF, browser follows redirects
+    }
+    else {
+        // Fallback (should not happen if base.html is correct)
+        window.location.href = '/oidc/logout/';
+    }
+};
+const toggleSidebar = () => {
+    // Dispatch custom event to toggle sidebar
+    const event = new CustomEvent('toggleSidebar');
+    document.dispatchEvent(event);
 };
 // Load annotation stats on mount and refresh periodically
 onMounted(async () => {
@@ -41,6 +57,10 @@ let __VLS_directives;
 /** @type {__VLS_StyleScopedClasses['breadcrumb-item']} */ ;
 /** @type {__VLS_StyleScopedClasses['nav-link']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['navbar-toggler']} */ ;
+/** @type {__VLS_StyleScopedClasses['navbar-toggler']} */ ;
+/** @type {__VLS_StyleScopedClasses['navbar-toggler-bar']} */ ;
+/** @type {__VLS_StyleScopedClasses['navbar-toggler']} */ ;
 // CSS variable injection 
 // CSS variable injection end 
 __VLS_asFunctionalElement(__VLS_intrinsicElements.nav, __VLS_intrinsicElements.nav)({
@@ -50,6 +70,26 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.nav, __VLS_intrinsicElements.n
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "container-fluid py-1 px-3" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+    ...{ onClick: (__VLS_ctx.toggleSidebar) },
+    ...{ class: "navbar-toggler d-lg-none" },
+    type: "button",
+    'aria-controls': "sidebar",
+    'aria-expanded': "false",
+    'aria-label': "Toggle navigation",
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+    ...{ class: "navbar-toggler-icon" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+    ...{ class: "navbar-toggler-bar" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+    ...{ class: "navbar-toggler-bar" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+    ...{ class: "navbar-toggler-bar" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "collapse navbar-collapse mt-sm-0 mt-2 me-md-0 me-sm-4" },
@@ -175,6 +215,12 @@ if (__VLS_ctx.isAuthenticated) {
 /** @type {__VLS_StyleScopedClasses['container-fluid']} */ ;
 /** @type {__VLS_StyleScopedClasses['py-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['px-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['navbar-toggler']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-lg-none']} */ ;
+/** @type {__VLS_StyleScopedClasses['navbar-toggler-icon']} */ ;
+/** @type {__VLS_StyleScopedClasses['navbar-toggler-bar']} */ ;
+/** @type {__VLS_StyleScopedClasses['navbar-toggler-bar']} */ ;
+/** @type {__VLS_StyleScopedClasses['navbar-toggler-bar']} */ ;
 /** @type {__VLS_StyleScopedClasses['collapse']} */ ;
 /** @type {__VLS_StyleScopedClasses['navbar-collapse']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-sm-0']} */ ;
@@ -271,6 +317,7 @@ const __VLS_self = (await import('vue')).defineComponent({
             totalPendingAnnotations: totalPendingAnnotations,
             handleLogin: handleLogin,
             handleLogout: handleLogout,
+            toggleSidebar: toggleSidebar,
         };
     },
 });

@@ -18,9 +18,6 @@
       components: {
           ExaminationGenerator
       },
-      mounted() {
-        console.log("----------------------------Report.vue has been loaded!---------------------");
-      }
     };
     </script>
     

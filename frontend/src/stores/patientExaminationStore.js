@@ -6,16 +6,16 @@ export const usePatientExaminationStore = defineStore('patientExamination', {
         loading: false,
         error: null,
         patientExaminations: [],
-        selectedPatientExaminationId: null,
+        selectedPatientExaminationId: null
     }),
     getters: {
         getPatientExaminationById: (state) => {
-            return (id) => state.patientExaminations.find(pe => pe.id === id) || null;
+            return (id) => state.patientExaminations.find((pe) => pe.id === id) || null;
         },
         isLoading: (state) => state.loading,
         getError: (state) => state.error,
         getAllPatientExaminations: (state) => state.patientExaminations,
-        getSelectedPatientExaminationId: (state) => state.selectedPatientExaminationId,
+        getSelectedPatientExaminationId: (state) => state.selectedPatientExaminationId
     },
     actions: {
         async doesPatientExaminationExist(id) {
@@ -29,7 +29,9 @@ export const usePatientExaminationStore = defineStore('patientExamination', {
                 return true;
             }
             catch (err) {
-                this.error = 'Fehler beim Überprüfen der Patientenuntersuchung: ' + (err.response?.data?.detail || err.message);
+                this.error =
+                    'Fehler beim Überprüfen der Patientenuntersuchung: ' +
+                        (err.response?.data?.detail || err.message);
                 console.error('Check patient examination existence error:', err);
                 return false;
             }
@@ -41,7 +43,7 @@ export const usePatientExaminationStore = defineStore('patientExamination', {
             try {
                 this.loading = true;
                 this.error = null;
-                if (await this.doesPatientExaminationExist(patientId) === false) {
+                if ((await this.doesPatientExaminationExist(patientId)) === false) {
                     this.patientExaminations = [];
                     return;
                 }
@@ -49,7 +51,9 @@ export const usePatientExaminationStore = defineStore('patientExamination', {
                 this.patientExaminations = response.data.results || response.data;
             }
             catch (err) {
-                this.error = 'Fehler beim Laden der Patientenuntersuchungen: ' + (err.response?.data?.detail || err.message);
+                this.error =
+                    'Fehler beim Laden der Patientenuntersuchungen: ' +
+                        (err.response?.data?.detail || err.message);
                 console.error('Fetch patient examinations error:', err);
             }
             finally {
@@ -63,7 +67,7 @@ export const usePatientExaminationStore = defineStore('patientExamination', {
                 const response = await axiosInstance.get(`/api/get_patient_examination/${id}/`);
                 const pe = response.data;
                 if (pe) {
-                    const index = this.patientExaminations.findIndex(existingPe => existingPe.id === pe.id);
+                    const index = this.patientExaminations.findIndex((existingPe) => existingPe.id === pe.id);
                     if (index !== -1) {
                         this.patientExaminations[index] = pe;
                     }
@@ -73,7 +77,9 @@ export const usePatientExaminationStore = defineStore('patientExamination', {
                 }
             }
             catch (err) {
-                this.error = 'Fehler beim Laden der Patientenuntersuchung: ' + (err.response?.data?.detail || err.message);
+                this.error =
+                    'Fehler beim Laden der Patientenuntersuchung: ' +
+                        (err.response?.data?.detail || err.message);
                 console.error('Fetch patient examination by ID error:', err);
             }
             finally {
@@ -84,7 +90,7 @@ export const usePatientExaminationStore = defineStore('patientExamination', {
             this.patientExaminations.push(pe);
         },
         removePatientExamination(id) {
-            this.patientExaminations = this.patientExaminations.filter(pe => pe.id !== id);
+            this.patientExaminations = this.patientExaminations.filter((pe) => pe.id !== id);
             if (this.selectedPatientExaminationId === id) {
                 this.selectedPatientExaminationId = null;
             }
@@ -96,8 +102,8 @@ export const usePatientExaminationStore = defineStore('patientExamination', {
             return this.selectedPatientExaminationId;
         },
         getCurrentPatientExaminationExaminationId() {
-            const pe = this.patientExaminations.find(pe => pe.id === this.selectedPatientExaminationId);
+            const pe = this.patientExaminations.find((pe) => pe.id === this.selectedPatientExaminationId);
             return pe ? pe.examination.id : null;
         }
-    },
+    }
 });

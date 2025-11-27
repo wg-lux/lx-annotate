@@ -1,14 +1,14 @@
-import { defineStore } from 'pinia';
-import axios from 'axios';
+import { defineStore } from 'pinia'
+import axios from 'axios'
 
 export interface AuthState {
-  isAuthenticated: boolean;
+  isAuthenticated: boolean
   user: {
-    username: string;
-    groups: string[];
-  } | null;
-  loading: boolean;
-  error: string | null;
+    username: string
+    groups: string[]
+  } | null
+  loading: boolean
+  error: string | null
 }
 
 export const useAuthStore = defineStore('auth', {
@@ -22,53 +22,53 @@ export const useAuthStore = defineStore('auth', {
   actions: {
     async checkAuth() {
       if (import.meta.env.NODE_ENV === 'development') {
-        this.isAuthenticated = true;
+        this.isAuthenticated = true
         this.user = {
           username: 'DevUser',
           groups: ['admin', 'user-intern']
-        };
-        this.loading = false;
-        return;
+        }
+        this.loading = false
+        return
       }
       try {
-        this.loading = true;
-        this.error = null;
-        const response = await axios.get('/user-status/');
-        this.isAuthenticated = response.data.is_authenticated;
+        this.loading = true
+        this.error = null
+        const response = await axios.get('/user-status/')
+        this.isAuthenticated = response.data.is_authenticated
         if (this.isAuthenticated) {
           this.user = {
             username: response.data.username,
             groups: response.data.groups || []
-          };
+          }
         }
       } catch (error) {
-        this.error = 'Failed to check authentication status';
-        console.error('Auth check error:', error);
+        this.error = 'Failed to check authentication status'
+        console.error('Auth check error:', error)
       } finally {
-        this.loading = false;
+        this.loading = false
       }
     },
 
     login() {
       if (import.meta.env.NODE_ENV === 'development') {
-        this.checkAuth();
-        return;
+        this.checkAuth()
+        return
       }
       //window.location.href = '/';
     },
 
     async logout() {
       if (import.meta.env.NODE_ENV === 'development') {
-        this.isAuthenticated = true;
-        this.user = null;
-        return;
+        this.isAuthenticated = true
+        this.user = null
+        return
       }
       try {
-        await axios.post('/accounts/logout/');
+        await axios.post('/accounts/logout/')
         //window.location.href = '/redirect-after-logout/';
       } catch (error) {
-        this.error = 'Failed to logout';
-        console.error('Logout error:', error);
+        this.error = 'Failed to logout'
+        console.error('Logout error:', error)
       }
     }
   },
@@ -78,5 +78,5 @@ export const useAuthStore = defineStore('auth', {
     userGroups: (state) => state.user?.groups || [],
     isLoading: (state) => state.loading,
     hasError: (state) => state.error !== null
-  },
-});
+  }
+})

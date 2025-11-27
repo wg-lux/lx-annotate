@@ -1,0 +1,1 @@
+import{R as o}from"./RequirementGenerator.js";import{d as t,c as s,a as e,b as r,o as a}from"./main.js";import"./patientStore.js";import"./PatientAdder2.js";const c={class:"container-fluid py-4"},n={class:"row"},i={class:"col-12"},h=t({__name:"ReportGenerator",setup(_){return(d,p)=>(a(),s("div",c,[e("div",n,[e("div",i,[r(o)])])]))}});export{h as default};

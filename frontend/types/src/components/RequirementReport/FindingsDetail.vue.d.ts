@@ -1,10 +1,7 @@
-import { type Finding } from '../../stores/findingStore';
 interface Props {
     findingId: number;
     isAddedToExamination?: boolean;
     patientExaminationId?: number;
-    /** Optional: full list of addable findings (from AddableFindingsDetail). */
-    availableFindings?: Finding[];
 }
 declare const _default: import("vue").DefineComponent<Props, {}, {}, {}, {}, import("vue").ComponentOptionsMixin, import("vue").ComponentOptionsMixin, {
     "added-to-examination": (data: {
@@ -33,7 +30,6 @@ declare const _default: import("vue").DefineComponent<Props, {}, {}, {}, {}, imp
         selectedClassifications: number;
     }) => any) | undefined;
 }>, {
-    availableFindings: Finding[];
     isAddedToExamination: boolean;
     patientExaminationId: number;
 }, {}, {}, {}, string, import("vue").ComponentProvideOptions, false, {}, any>;

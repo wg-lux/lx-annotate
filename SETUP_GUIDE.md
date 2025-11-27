@@ -13,6 +13,13 @@
 1. direnv allow
 2. uv sync
 
+## Updating the frontend
+
+1. cd frontend
+2. direnv allow
+3. npm run build
+
+This installs the env dependencies of the frontend, installs the dependencies and runs the typescript compiler.
 
 ## Running the server
 
@@ -24,6 +31,10 @@ python manage.py runserver
 ```
 
 to start the django server.
+
+In production this changes to
+
+
 
 Videos need to be placed in
 

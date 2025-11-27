@@ -6,8 +6,8 @@ const videoAxiosInstance = axios.create({
     baseURL,
     headers: {
         'Content-Type': 'application/json',
-        'Accept': 'application/json',
-    },
+        Accept: 'application/json'
+    }
     //withCredentials: true,
 });
 import Cookies from 'js-cookie';

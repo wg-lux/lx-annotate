@@ -9,28 +9,28 @@ export const useExaminationStore = defineStore('examination', {
         selectedExaminationId: null,
         // cache (optional)
         findingsByExam: new Map(),
-        classificationsByFinding: new Map(),
+        classificationsByFinding: new Map()
     }),
     getters: {
         examinations(state) {
             return state.exams;
         },
         examinationsDropdown(state) {
-            return state.exams.map(e => ({
+            return state.exams.map((e) => ({
                 id: e.id,
                 name: e.name,
-                displayName: e.displayName ?? e.name_de ?? e.name,
+                displayName: e.displayName ?? e.name_de ?? e.name
             }));
         },
         selectedExamination(state) {
-            return state.exams.find(e => e.id === state.selectedExaminationId) ?? null;
+            return state.exams.find((e) => e.id === state.selectedExaminationId) ?? null;
         },
         availableFindings(state) {
             const id = state.selectedExaminationId;
             if (!id)
                 return [];
             return state.findingsByExam.get(id) ?? [];
-        },
+        }
     },
     actions: {
         setSelectedExamination(id) {
@@ -55,7 +55,7 @@ export const useExaminationStore = defineStore('examination', {
                     name: e.name,
                     name_de: e.name_de,
                     name_en: e.name_en,
-                    displayName: e.displayName ?? e.name_de ?? e.name_en ?? e.name,
+                    displayName: e.displayName ?? e.name_de ?? e.name_en ?? e.name
                 }));
             }
             catch (e) {
@@ -115,6 +115,6 @@ export const useExaminationStore = defineStore('examination', {
             finally {
                 this.loading = false;
             }
-        },
-    },
+        }
+    }
 });

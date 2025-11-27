@@ -17,13 +17,21 @@ export const useToastStore = defineStore('toast', {
             this.toasts.push(toast);
             // auto-dismiss
             setTimeout(() => {
-                this.toasts = this.toasts.filter(t => t.id !== toast.id);
+                this.toasts = this.toasts.filter((t) => t.id !== toast.id);
             }, toast.timeout);
         },
         /* ------------- public API ------------- */
-        success(payload) { this._push(payload, 'success'); },
-        warning(payload) { this._push(payload, 'warning'); },
-        error(payload) { this._push(payload, 'error'); },
-        info(payload) { this._push(payload, 'info'); }
+        success(payload) {
+            this._push(payload, 'success');
+        },
+        warning(payload) {
+            this._push(payload, 'warning');
+        },
+        error(payload) {
+            this._push(payload, 'error');
+        },
+        info(payload) {
+            this._push(payload, 'info');
+        }
     }
 });

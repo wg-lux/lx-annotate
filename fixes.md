@@ -1,0 +1,3 @@
+- create dirs:
+    - e.g., ./logs ; data/video
+    - *FIX*: run 'python scripts/assert_dirs.py'
