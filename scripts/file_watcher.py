@@ -348,11 +348,7 @@ class AutoProcessingHandler(FileSystemEventHandler):
             # Run segmentation if video was imported successfully
             if video_file and hasattr(video_file, 'pk') and video_file.pk:
                 try:
-                    if not Path("./data/model_weights").exists():
-                        Path("./data/model_weights").mkdir(parents=True, exist_ok=True)
-                    if not Path("./data/model_weights/colo_segmentation_RegNetX800MF_6.ckpt").exists():
-                        subprocess.run(['cp', './libs/endoreg-db/tests/assets/colo_segmentation_RegNetX800MF_6.ckpt', './data/model_weights/'])
-
+                    
                     success = video_file.pipe_1(
                         model_name=self.default_model,
                         delete_frames_after=True
