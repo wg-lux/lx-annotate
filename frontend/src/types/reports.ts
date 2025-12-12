@@ -16,79 +16,79 @@ export type ViewerType = 'pdf' | 'image' | 'spreadsheet' | 'text' | 'unknown'
 
 // Report Types based on API response structure
 export interface ReportMeta {
-  patientFirstName: string;
-  patientLastName: string;
-  patientGender: number;
-  patientDob: string;
-  examinationDate: string;
+  patientFirstName: string
+  patientLastName: string
+  patientGender: number
+  patientDob: string
+  examinationDate: string
 }
 
 export interface SecureFileUrl {
-  url: string;
-  expiresAt: string;
-  fileType: string;
-  originalFilename: string;
-  fileSize: number;
+  url: string
+  expiresAt: string
+  fileType: string
+  originalFilename: string
+  fileSize: number
 }
 
 export interface Report {
-  id: number;
-  anonymizedText: string;
-  status: 'pending' | 'completed' | 'failed';
-  reportMeta: ReportMeta;
-  fileType: string;
-  secureFileUrl: SecureFileUrl;
+  id: number
+  anonymizedText: string
+  status: 'pending' | 'completed' | 'failed'
+  reportMeta: ReportMeta
+  fileType: string
+  secureFileUrl: SecureFileUrl
 }
 
 // Legacy interface for backward compatibility (snake_case)
 export interface LegacyReport {
-  id: number;
-  anonymized_text: string;
-  status: string;
+  id: number
+  anonymized_text: string
+  status: string
   report_meta: {
-    patient_first_name: string;
-    patient_last_name: string;
-    patient_gender: number;
-    patient_dob: string;
-    examination_date: string;
-  };
-  file_type: string;
+    patient_first_name: string
+    patient_last_name: string
+    patient_gender: number
+    patient_dob: string
+    examination_date: string
+  }
+  file_type: string
   secure_file_url: {
-    url: string;
-    expires_at: string;
-    file_type: string;
-    original_filename: string;
-    file_size: number;
-  };
+    url: string
+    expires_at: string
+    file_type: string
+    original_filename: string
+    file_size: number
+  }
 }
 
 // Annotation Types (for future implementation)
 export interface Annotation {
-  id: number;
-  reportId: number;
-  type: 'highlight' | 'note' | 'tag';
-  content: string;
+  id: number
+  reportId: number
+  type: 'highlight' | 'note' | 'tag'
+  content: string
   position: {
-    page?: number;
-    x: number;
-    y: number;
-    width?: number;
-    height?: number;
-  };
-  createdAt: string;
-  updatedAt: string;
-  userId: number;
+    page?: number
+    x: number
+    y: number
+    width?: number
+    height?: number
+  }
+  createdAt: string
+  updatedAt: string
+  userId: number
 }
 
 export interface CreateAnnotationRequest {
-  reportId: number;
-  type: 'highlight' | 'note' | 'tag';
-  content: string;
+  reportId: number
+  type: 'highlight' | 'note' | 'tag'
+  content: string
   position: {
-    page?: number;
-    x: number;
-    y: number;
-    width?: number;
-    height?: number;
-  };
+    page?: number
+    x: number
+    y: number
+    width?: number
+    height?: number
+  }
 }

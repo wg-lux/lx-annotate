@@ -32,6 +32,3 @@ node_modules/*
 
 *.tsbuildinfo
 frontend/vite.config.js.timestamp-*.mjs
-
-# Agent-review build artifacts (temporary analysis files)
-build/

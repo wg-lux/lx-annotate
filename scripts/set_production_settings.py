@@ -2,9 +2,11 @@ from icecream import ic
 import os
 from pathlib import Path
 
-settings_module = os.environ.get("DJANGO_SETTINGS_MODULE_PRODUCTION")
-if not settings_module:
-    raise ValueError("DJANGO_SETTINGS_MODULE_PRODUCTION environment variable is not set")
+
+DEFAULT_PROD_SETTINGS = "config.settings.prod"
+
+
+settings_module = os.environ.get("DJANGO_SETTINGS_MODULE_PRODUCTION", DEFAULT_PROD_SETTINGS)
 
 env_path = Path(".env")
 

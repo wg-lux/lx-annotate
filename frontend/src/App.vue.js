@@ -3,6 +3,7 @@ import SidebarComponent from './components/SidebarComponent.vue';
 import DashboardComponent from './components/DashboardComponent.vue';
 import LoginComponent from './components/LoginComponent.vue';
 import ToastMessageContainer from './components/Utils/ToastMessageContainer.vue';
+import AuthCheck from './components/AuthCheck.vue'; // ✅ add
 import '@/assets/custom-overrides.css';
 import axios from 'axios';
 axios.defaults.baseURL = '/';
@@ -25,6 +26,7 @@ export default (await import('vue')).defineComponent({
         DashboardComponent,
         LoginComponent,
         ToastMessageContainer,
+        AuthCheck, // ✅ add
     },
 });
 const __VLS_ctx = {};
@@ -34,6 +36,7 @@ const __VLS_componentsOption = {
     DashboardComponent,
     LoginComponent,
     ToastMessageContainer,
+    AuthCheck, // ✅ add
 };
 let __VLS_components;
 let __VLS_directives;
@@ -88,7 +91,7 @@ const __VLS_1 = __VLS_asFunctionalComponent(__VLS_0, new __VLS_0({}));
 const __VLS_2 = __VLS_1({}, ...__VLS_functionalComponentArgsRest(__VLS_1));
 __VLS_3.slots.default;
 {
-    const { 'unauthenticated-content': __VLS_thisSlot } = __VLS_3.slots;
+    const { 'authenticated-content': __VLS_thisSlot } = __VLS_3.slots;
     if (!__VLS_ctx.isMenuOpen) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.aside, __VLS_intrinsicElements.aside)({
             ...{ class: "sidenav navbar navbar-vertical navbar-expand-xs ms-3" },
@@ -152,14 +155,7 @@ __VLS_3.slots.default;
     const __VLS_18 = __VLS_17({}, ...__VLS_functionalComponentArgsRest(__VLS_17));
 }
 {
-    const { 'authenticated-content': __VLS_thisSlot } = __VLS_3.slots;
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "g-sidenav-hidden" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.meta, __VLS_intrinsicElements.meta)({
-        name: "viewport",
-        content: "width=device-width, initial-scale=1",
-    });
+    const { 'unauthenticated-content': __VLS_thisSlot } = __VLS_3.slots;
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "container-fluid h-100 w-100 py-1 px-4" },
     });
@@ -219,7 +215,6 @@ var __VLS_3;
 /** @type {__VLS_StyleScopedClasses['px-4']} */ ;
 /** @type {__VLS_StyleScopedClasses['row']} */ ;
 /** @type {__VLS_StyleScopedClasses['col-12']} */ ;
-/** @type {__VLS_StyleScopedClasses['g-sidenav-hidden']} */ ;
 /** @type {__VLS_StyleScopedClasses['container-fluid']} */ ;
 /** @type {__VLS_StyleScopedClasses['h-100']} */ ;
 /** @type {__VLS_StyleScopedClasses['w-100']} */ ;

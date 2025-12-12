@@ -54,7 +54,6 @@
             <div 
               v-for="segment in row.segments"
               :key="segment.id"
-              ref="segmentElements"
               class="segment"
               :class="{ 
                 'active': segment.id === activeSegmentId,
@@ -165,7 +164,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch, nextTick, ref as vueRef } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { 
   formatTime as formatTimeHelper,
   calculateSegmentWidth,
@@ -176,15 +175,12 @@ import {
   type Segment,
   type LabelMeta 
 } from '@/stores/videoStore'
-import {
-  normalizeSegmentToCamelCase,
-} from '@/utils/caseConversion'
+
 import { useToastStore } from '@/stores/toastStore'
 import { getRandomColor } from '@/utils/colorHelpers'
 
 const toast = useToastStore()
 const videoStore = useVideoStore()
-const segmentsByLabel = videoStore.segmentsByLabel
 
 // Type definitions
 interface TimeMarker {
@@ -206,129 +202,64 @@ interface TooltipState {
   text: string
 }
 
-interface OriginalSegmentData {
-  start_time: number
-  end_time: number
-}
-
 interface CanonicalSegment extends Segment {
   start: number
   end: number
-  isDraft?: boolean
   color?: string
-  avgConfidence: number;
+  avgConfidence: number
 }
 
 interface SegmentRow {
-  key: string              // ← unique & stable (label + physical index)
-  label: string            // logical label name (for colouring etc.)
-  rowNumber: number        // physical row index used in <template>
+  key: string
+  label: string
+  rowNumber: number
   segments: CanonicalSegment[]
   maxEndTime: number
 }
 
 const props = defineProps<{
-  video?: { duration?: number } | null  // ✅ FIX: Use inline type instead of private VideoData interface
+  video?: { duration?: number } | null
   segments?: Segment[]
   labels?: LabelMeta[]
   currentTime?: number
   isPlaying?: boolean
-  activeSegmentId?: string | number | null
+  activeSegmentId?: number | null
   showWaveform?: boolean
   selectionMode?: boolean
   fps?: number
 }>()
 
-// ✅ FIXED: Strongly typed emits to resolve TS2322 in parent listeners
-type TimelineSegment = {
-  id: string | number
-  label: string
-  label_display?: string
-  name?: string
-  startTime: number
-  endTime: number
-  avgConfidence: number
-  video_id?: number
-  label_id?: number
-}
-
-type CreateSegmentPayload = {
-  label: string
-  start: number
-  end: number
-}
-
-type TimeSelectionPayload = {
-  start: number
-  end: number
-}
-
 const emit = defineEmits<{
-  /** Seek the external video element to absolute time (seconds) */
   (e: 'seek', time: number): void
-
-  /** Toggle playback externally (leave control to parent) */
   (e: 'play-pause'): void
-
-  /** User highlighted/selected a segment in the timeline UI */
-  (e: 'segment-select', segment: TimelineSegment): void
-
-  /** User requested to edit a segment via context menu */
-  (e: 'segment-edit', segment: TimelineSegment): void
-
-  /** User requested to delete a segment via UI control (X button) */
-  (e: 'segment-delete', segment: TimelineSegment): void
-
-  /** User finished drawing a new segment (via selection overlay) */
-  (e: 'segment-create', data: CreateSegmentPayload): void
-
-  /** Segment resized (live preview + final on mouseup) */
-  (
-    e: 'segment-resize',
-    segmentId: string | number,
-    newStart: number,
-    newEnd: number,
-    mode: 'start' | 'end',
-    final?: boolean
-  ): void
-
-  /** Segment moved (live preview + final on mouseup) */
-  (
-    e: 'segment-move',
-    segmentId: string | number,
-    newStart: number,
-    newEnd: number,
-    final?: boolean
-  ): void
-
-  /** Selection overlay produced an interval (used by parent to create a segment) */
-  (e: 'time-selection', data: TimeSelectionPayload): void
+  (e: 'segment-select', segmentId: number): void
+  (e: 'segment-edit', segment: Segment): void
+  (e: 'segment-delete', segment: Segment): void
+  (e: 'segment-create', data: { label: string; start: number; end: number }): void
+  (e: 'segment-resize', segmentId: number, newStart: number, newEnd: number, mode: string, final?: boolean): void
+  (e: 'segment-move', segmentId: number, newStart: number, newEnd: number, final?: boolean): void
+  (e: 'time-selection', data: { start: number; end: number }): void
 }>()
 
 // Refs with proper types
 const timeline = ref<HTMLElement | null>(null)
 const waveformCanvas = ref<HTMLCanvasElement | null>(null)
-const segmentElements = vueRef<HTMLElement[]>([])
-const cleanupFunctions = vueRef<Array<() => void>>([])
+const cleanupFunctions = ref<Array<() => void>>([])
 const zoomLevel = ref<number>(1)
 const isSelecting = ref<boolean>(false)
 const selectionStart = ref<number>(0)
 const selectionEnd = ref<number>(0)
 const labelOrder = ref<string[]>([])
+
 watch(
   () => props.segments,
   segs => {
-    ;(segs || []).forEach(s => {
+    (segs || []).forEach(s => {
       if (!labelOrder.value.includes(s.label)) labelOrder.value.push(s.label)
     })
   },
   { immediate: true },
 )
-
-// Dragging and resizing state
-const draggingSegmentId = ref<string | number | null>(null)
-const resizingSegmentId = ref<string | number | null>(null)
-
 
 // Context menu
 const contextMenu = ref<ContextMenuState>({
@@ -349,40 +280,26 @@ const tooltip = ref<TooltipState>({
 // Computed properties
 const duration = computed((): number => props.video?.duration || 0)
 
-// ✅ FIX: Protected playhead calculation to prevent NaN
+// Protected playhead calculation
 const playheadPosition = computed((): number => {
   const videoDuration = duration.value
-  const currentVideoTime = props.currentTime || 0
-  
-  // ✅ Guard against division by zero and invalid values
-  if (!videoDuration || videoDuration === 0 || !Number.isFinite(videoDuration)) {
-    console.warn('[Timeline] Duration is 0 or invalid:', videoDuration)
-    return 0
-  }
-  
-  if (!Number.isFinite(currentVideoTime) || currentVideoTime < 0) {
-    console.warn('[Timeline] CurrentTime is invalid:', currentVideoTime)
-    return 0
-  }
-  
+  const currentVideoTime = props.currentTime ?? 0
+
+  if (!videoDuration || !Number.isFinite(videoDuration)) return 0
+  if (!Number.isFinite(currentVideoTime) || currentVideoTime < 0) return 0
+
   const percentage = (currentVideoTime / videoDuration) * 100
-  
-  // ✅ Additional safety check for percentage
-  if (!Number.isFinite(percentage)) {
-    console.warn('[Timeline] Calculated percentage is NaN:', { currentVideoTime, videoDuration })
-    return 0
-  }
-  
-  return Math.max(0, Math.min(100, percentage)) // Clamp between 0-100%
+  if (!Number.isFinite(percentage)) return 0
+
+  return Math.max(0, Math.min(100, percentage))
 })
 
 const timeMarkers = computed((): TimeMarker[] => {
   const markers: TimeMarker[] = []
   const totalTime = duration.value
-  if (totalTime === 0) return markers
+  if (!totalTime) return markers
 
-  // Calculate marker interval based on zoom level
-  const baseInterval = 10 // seconds
+  const baseInterval = 10
   const interval = baseInterval / zoomLevel.value
   const markerCount = Math.floor(totalTime / interval)
 
@@ -399,38 +316,32 @@ const timeMarkers = computed((): TimeMarker[] => {
   return markers
 })
 
-const currentFps = computed((): number => props.fps || 50)
+// Canonicalization: assume Segment is already camelCase
+const getColorForLabel = (label: string): string => {
+  return videoStore.getColorForLabel(label)
+}
+
+const getTranslationForLabel = (label: string): string => {
+  return videoStore.getTranslationForLabel(label)
+}
 
 const toCanonical = (s: Segment): CanonicalSegment => {
-  const n = normalizeSegmentToCamelCase(s)
-  const color = getColorForLabel(s.label)
+  const color = s.color ?? getColorForLabel(s.label) ?? getRandomColor()
+
   return {
-    ...n,
-    start: n.startTime,
-    end: n.endTime,
-    isDraft: typeof s.id === 'string' && (s.id === 'draft' || s.id.startsWith('temp-')),
-    color: color || getRandomColor() || undefined,
+    ...s,
+    start: s.startTime,
+    end: s.endTime,
+    color,
     avgConfidence: s.avgConfidence ?? 0,
-    label: (s as any).label ?? (s as any).label_name// ✅ FIX: Use label or label_name
   }
 }
 
 const selectedLabel = ref<string | null>(null)
 
-const selectSegment = (segment: Segment): void => {
-  selectedLabel.value = segment.label // ✅ FIX: Use segment.label instead of segment.label_name
-  // ✅ FIXED: Cast to TimelineSegment for type safety
-  emit('segment-select', segment as TimelineSegment)
-}
-
-// ✅ FIX: Add getTranslationForLabel function from videoStore
-const getTranslationForLabel = (label: string): string => {
-  return videoStore.getTranslationForLabel(label)
-}
-
-// ✅ FIX: Add getColorForLabel function from videoStore  
-const getColorForLabel = (label: string): string => {
-  return videoStore.getColorForLabel(label)
+const selectSegment = (segment: CanonicalSegment): void => {
+  selectedLabel.value = segment.label
+  emit('segment-select', Number(segment.id))
 }
 
 const displayedSegments = ref<CanonicalSegment[]>([])
@@ -438,37 +349,71 @@ const displayedSegments = ref<CanonicalSegment[]>([])
 watch(
   () => props.segments,
   (segments) => {
-    if (segments) {
-      displayedSegments.value = segments?.map(toCanonical)
+    if (segments && segments.length > 0) {
+      console.debug('[Timeline] Processing segments:', {
+        count: segments.length,
+        sample: segments.slice(0, 2).map(s => ({
+          id: s.id,
+          label: s.label,
+          startTime: s.startTime,
+          endTime: s.endTime,
+        }))
+      })
+
+      displayedSegments.value = segments.map(toCanonical)
+
+      console.debug('[Timeline] Canonical segments created:', {
+        count: displayedSegments.value.length,
+        sample: displayedSegments.value.slice(0, 2).map(s => ({
+          id: s.id,
+          label: s.label,
+          start: s.start,
+          end: s.end,
+          startTime: s.startTime,
+          endTime: s.endTime
+        }))
+      })
     } else {
       displayedSegments.value = []
     }
   },
-  {immediate: true}
+  { immediate: true }
 )
 
-// ✅ NEW: Calculate optimal row layout to prevent overlapping segments
-/**
- * Row layout that:
- *  • puts the currently-selected label in the first row (target row)
- *  • creates one row per label that actually has segments
- *  • guarantees segments in a row never overlap in time
- */
+// Row layout
 const segmentRows = computed((): SegmentRow[] => {
   const buckets: Record<string, CanonicalSegment[]> = {}
-  // build from the *mutable* working copy so previews are visible
-  for (const s of displayedSegments.value) { //THIS IS THE LINE FROM THE PROMPT
+
+  console.debug('[Timeline] segmentRows - processing segments:', {
+    count: displayedSegments.value.length,
+    segments: displayedSegments.value.map(s => ({
+      id: s.id,
+      label: s.label,
+      start: s.start,
+      end: s.end
+    }))
+  })
+
+  for (const s of displayedSegments.value) {
+    if (!s.label) {
+      console.error('[Timeline] Segment missing label property:', s)
+      continue
+    }
     (buckets[s.label] ||= []).push(s)
   }
 
-  // ►  fixed order: first the user-selected label (if any), then our persisted order
+  console.debug('[Timeline] Label buckets created:', {
+    labels: Object.keys(buckets),
+    counts: Object.entries(buckets).map(([label, segs]) => `${label}:${segs.length}`)
+  })
+
   const orderedLabels = selectedLabel.value
     ? [selectedLabel.value, ...labelOrder.value.filter(l => l !== selectedLabel.value)]
     : [...labelOrder.value]
 
   const rows: SegmentRow[] = []
   orderedLabels.forEach(label => {
-    if (!buckets[label]) return                // label exists but has no segments yet
+    if (!buckets[label]) return
 
     const segs = buckets[label].sort((a, b) => a.start - b.start)
     let physicalIdx = 0
@@ -497,39 +442,66 @@ const segmentRows = computed((): SegmentRow[] => {
     }
     rows.push(currentRow)
   })
+
+  console.debug('[Timeline] Rows created:', {
+    count: rows.length,
+    rows: rows.map(r => ({
+      key: r.key,
+      label: r.label,
+      segmentCount: r.segments.length
+    }))
+  })
+
   return rows
 })
 
-
-// ✅ NEW: Calculate total timeline height based on number of rows
+// Timeline height
 const timelineHeight = computed((): number => {
-  const baseHeight = 60 // Header space for time markers
-  const rowHeight = 45  // Height per segment row
-  const padding = 10    // Bottom padding
+  const baseHeight = 60
+  const rowHeight = 45
+  const padding = 10
   return baseHeight + (segmentRows.value.length * rowHeight) + padding
 })
 
-// Methods - update to use helper functions
+// Helpers
 const formatTime = (seconds: number | undefined): string => {
   if (typeof seconds !== 'number' || isNaN(seconds)) return '00:00'
   return formatTimeHelper(seconds)
 }
 
 const formatDuration = (startTime: number, endTime: number): string => {
-  const duration = endTime - startTime
-  return formatTimeHelper(duration)
+  const d = endTime - startTime
+  return formatTimeHelper(d)
 }
 
 const getSegmentPosition = (startTime: number): number => {
-  return calculateSegmentPosition(startTime, duration.value)
+  const position = calculateSegmentPosition(startTime, duration.value)
+  if (!Number.isFinite(position) || position < 0) {
+    console.error('[Timeline] Invalid segment position calculated:', {
+      startTime,
+      duration: duration.value,
+      position
+    })
+    return 0
+  }
+  return position
 }
 
 const getSegmentWidth = (startTime: number, endTime: number): number => {
-  return calculateSegmentWidth(startTime, endTime, duration.value)
+  const width = calculateSegmentWidth(startTime, endTime, duration.value)
+  if (!Number.isFinite(width) || width <= 0) {
+    console.error('[Timeline] Invalid segment width calculated:', {
+      startTime,
+      endTime,
+      duration: duration.value,
+      width
+    })
+    return 0
+  }
+  return width
 }
 
-
-// Composable for Pointer Events drag+resize
+// Pointer-based drag/resize
 interface DragResizeOptions {
   trackPx: () => number
   duration: () => number
@@ -544,17 +516,22 @@ function useDragResize(el: HTMLElement, opt: DragResizeOptions) {
   let startLeft = 0
   let startWidth = 0
 
-  let draftStart: number = 0
-  let draftEnd:number = 0
+  let draftStart = 0
+  let draftEnd = 0
 
   const pxToTime = (px: number) => (px / opt.trackPx()) * opt.duration()
 
   function down(ev: PointerEvent) {
+    const target = ev.target as HTMLElement
+
+    if (target.closest('.segment-delete-btn')) {
+      return
+    }
+
     ev.stopPropagation()
 
-    const handle = (ev.target as HTMLElement).closest('.resize-handle');
-    
-    // Decide what we're doing based on the handle clicked
+    const handle = target.closest('.resize-handle')
+
     if (handle?.classList.contains('start-handle')) mode = 'start'
     else if (handle?.classList.contains('end-handle')) mode = 'end'
     else mode = 'drag'
@@ -563,7 +540,6 @@ function useDragResize(el: HTMLElement, opt: DragResizeOptions) {
     startLeft = el.offsetLeft
     startWidth = el.offsetWidth
 
-    // Avoid iOS scrolling etc.
     el.setPointerCapture(ev.pointerId)
     ev.preventDefault()
   }
@@ -584,11 +560,11 @@ function useDragResize(el: HTMLElement, opt: DragResizeOptions) {
 
     if (mode === 'start') {
       let left = Math.min(startLeft + dx, startLeft + startWidth - 10)
-      let width = startWidth + (startLeft - left);
+      let width = startWidth + (startLeft - left)
       el.style.left = left + 'px'
       el.style.width = width + 'px'
       draftStart = left
-      draftEnd = left + width;
+      draftEnd = left + width
     }
 
     if (mode === 'end') {
@@ -596,35 +572,31 @@ function useDragResize(el: HTMLElement, opt: DragResizeOptions) {
       el.style.width = width + 'px'
       el.style.left = startLeft + 'px'
       draftStart = startLeft
-      draftEnd = startLeft + width;
+      draftEnd = startLeft + width
     }
   }
 
   function up(ev: PointerEvent) {
     if (!mode) return
     move(ev)
-    let s = draftStart
-    let e = draftEnd
-    
+    const s = draftStart
+    const e = draftEnd
+
     if (mode === 'drag') {
       opt.onMove(pxToTime(s), pxToTime(e))
-    }
-    else {
-      // Emit final position for drag
-      opt.onResize(pxToTime(s), pxToTime(e), mode! as 'start' | 'end')
+    } else {
+      opt.onResize(pxToTime(s), pxToTime(e), mode as 'start' | 'end')
     }
     mode = null
     el.releasePointerCapture(ev.pointerId)
     opt.onDone()
   }
 
-  // Event listeners
   el.addEventListener('pointerdown', down)
   el.addEventListener('pointermove', move)
   el.addEventListener('pointerup', up)
   el.addEventListener('pointercancel', up)
 
-  // Cleanup function
   return () => {
     el.removeEventListener('pointerdown', down)
     el.removeEventListener('pointermove', move)
@@ -634,7 +606,6 @@ function useDragResize(el: HTMLElement, opt: DragResizeOptions) {
 }
 
 const initializeDragResize = () => {
-  // Cleanup previous listeners
   cleanupFunctions.value.forEach(cleanup => cleanup())
   cleanupFunctions.value = []
 
@@ -643,14 +614,13 @@ const initializeDragResize = () => {
   nextTick(() => {
     segmentRows.value.forEach(row => {
       row.segments.forEach(segment => {
-        const el = document.querySelector(`[data-id="${segment.id}"]`) as HTMLElement
+        const el = document.querySelector(`[data-id="${segment.id}"]`) as HTMLElement | null
         if (!el) return
 
         const cleanup = useDragResize(el, {
           trackPx: () => timeline.value!.offsetWidth,
           duration: () => duration.value,
           onMove: (startS: number, endS: number) => {
-            // Update local state for real-time feedback
             const localSegment = displayedSegments.value.find(s => s.id === segment.id)
             if (localSegment) {
               localSegment.start = startS
@@ -658,10 +628,9 @@ const initializeDragResize = () => {
               localSegment.startTime = startS
               localSegment.endTime = endS
             }
-            emit('segment-move', segment.id, startS, endS)
+            emit('segment-move', Number(segment.id), startS, endS)
           },
           onResize: (startS: number, endS: number, edge: 'start' | 'end') => {
-            // Update local state for real-time feedback
             const localSegment = displayedSegments.value.find(s => s.id === segment.id)
             if (localSegment) {
               localSegment.start = startS
@@ -669,35 +638,32 @@ const initializeDragResize = () => {
               localSegment.startTime = startS
               localSegment.endTime = endS
             }
-            // ✅ FIXED: Ensure mode is typed correctly
-            emit('segment-resize', segment.id, startS, endS, edge)
+            emit('segment-resize', Number(segment.id), startS, endS, edge)
           },
           onDone: () => {
             const localSegment = displayedSegments.value.find(s => s.id === segment.id)
-            if (localSegment) {
-                          // Handle draft segments differently
-            if (typeof segment.id === 'string' && 
-                (segment.id === 'draft' || segment.id.startsWith('temp-'))) {
-              // ✅ FIXED: Use correct emit parameters for final resize
-              emit('segment-move', segment.id, localSegment.start, localSegment.end, true)
-            } else {
-              const numericId = getNumericSegmentId(segment.id)
-              if (numericId !== null) {
-                // ✅ FIXED: Use correct emit parameters for final move
-                emit('segment-move', numericId, localSegment.start, localSegment.end, true)
-              }
-            }
-            }
+            if (!localSegment) return
+
+            const numericId = getNumericSegmentId(segment.id)
+            if (numericId === null) return
+
+            emit(
+              'segment-resize',
+              numericId,
+              localSegment.start,
+              localSegment.end,
+              'end',
+              true
+            )
           }
         })
-
         cleanupFunctions.value.push(cleanup)
       })
     })
   })
 }
 
-// Zoom controls
+// Zoom
 const zoomIn = (): void => {
   if (zoomLevel.value < 5) {
     zoomLevel.value = Math.min(5, zoomLevel.value + 0.5)
@@ -710,29 +676,28 @@ const zoomOut = (): void => {
   }
 }
 
-// Playback controls
+// Playback
 const playPause = (): void => {
   emit('play-pause')
 }
 
+// Context actions
 const editSegment = (segment: Segment | null): void => {
   if (!segment) return
   hideContextMenu()
-  // ✅ FIXED: Cast to TimelineSegment for type safety
-  emit('segment-edit', segment as TimelineSegment)
+  emit('segment-edit', segment)
 }
 
 const deleteSegment = (segment: Segment | null): void => {
   if (!segment) return
   hideContextMenu()
-  // ✅ FIXED: Cast to TimelineSegment for type safety
-  emit('segment-delete', segment as TimelineSegment)
+  emit('segment-delete', segment)
 }
 
 const playSegment = (segment: Segment | null): void => {
   if (!segment) return
   hideContextMenu()
-  emit('seek', segment.startTime || 0) // ✅ FIX: Use camelCase property
+  emit('seek', segment.startTime || 0)
   emit('play-pause')
 }
 
@@ -752,61 +717,91 @@ const hideContextMenu = (): void => {
 
 // Timeline interaction
 const onTimelineMouseDown = (event: MouseEvent): void => {
-  if (resizingSegmentId.value || draggingSegmentId.value) return
-  
-  const rect = timeline.value!.getBoundingClientRect()
+  if (!timeline.value) return
+
+  const rect = timeline.value.getBoundingClientRect()
   const clickX = event.clientX - rect.left
   const clickTime = (clickX / rect.width) * duration.value
-  
+
   if (props.selectionMode) {
-    // Start selection for new segment
     isSelecting.value = true
     selectionStart.value = (clickX / rect.width) * 100
     selectionEnd.value = selectionStart.value
-    
+
     document.addEventListener('mousemove', onSelectionMouseMove)
     document.addEventListener('mouseup', onSelectionMouseUp)
   } else {
-    // Seek to position
     emit('seek', clickTime)
   }
 }
 
 const onSelectionMouseMove = (event: MouseEvent): void => {
   if (!isSelecting.value || !timeline.value) return
-  
+
   const rect = timeline.value.getBoundingClientRect()
   const currentX = event.clientX - rect.left
   selectionEnd.value = Math.max(0, Math.min(100, (currentX / rect.width) * 100))
 }
 
 const onSelectionMouseUp = (event: MouseEvent): void => {
-  if (!isSelecting.value) return
-  
-  const rect = timeline.value!.getBoundingClientRect()
+  if (!isSelecting.value || !timeline.value) return
+
   const startPercent = Math.min(selectionStart.value, selectionEnd.value)
   const endPercent = Math.max(selectionStart.value, selectionEnd.value)
-  
+
   const startTime = (startPercent / 100) * duration.value
   const endTime = (endPercent / 100) * duration.value
-  
-  // Only create segment if selection is meaningful (> 0.1 seconds)
+
   if (endTime - startTime > 0.1) {
-    // ✅ FIXED: Use properly typed payload
-    const timeSelectionData: TimeSelectionPayload = { start: startTime, end: endTime }
-    emit('time-selection', timeSelectionData)
+    emit('time-selection', { start: startTime, end: endTime })
   }
-  
-  // Cleanup
+
   isSelecting.value = false
   selectionStart.value = 0
   selectionEnd.value = 0
-  
+
   document.removeEventListener('mousemove', onSelectionMouseMove)
   document.removeEventListener('mouseup', onSelectionMouseUp)
 }
 
-// Watch for video changes to update waveform
+// Waveform
+const initializeWaveform = (): void => {
+  if (!waveformCanvas.value || !props.video) return
+
+  const canvas = waveformCanvas.value
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return
+
+  canvas.width = canvas.offsetWidth
+  canvas.height = canvas.offsetHeight
+
+  ctx.fillStyle = '#e0e0e0'
+  ctx.fillRect(0, 0, canvas.width, canvas.height)
+
+  ctx.strokeStyle = '#2196F3'
+  ctx.lineWidth = 1
+  ctx.beginPath()
+
+  for (let x = 0; x < canvas.width; x += 2) {
+    const amplitude = Math.random() * canvas.height * 0.8 + canvas.height * 0.1
+    if (x === 0) {
+      ctx.moveTo(x, amplitude)
+    } else {
+      ctx.lineTo(x, amplitude)
+    }
+  }
+
+  ctx.stroke()
+}
+
+// Click outside
+const handleClickOutside = (event: Event): void => {
+  if (contextMenu.value.visible && !(event.target as Element)?.closest('.context-menu')) {
+    hideContextMenu()
+  }
+}
+
+// Lifecycle
 watch(() => props.video, () => {
   if (props.showWaveform) {
     nextTick(() => {
@@ -814,15 +809,13 @@ watch(() => props.video, () => {
     })
   }
 })
-// Watch for segments to initialize drag+resize
+
 watch(
   segmentRows,
-  () => nextTick(initializeDragResize),   // re-run after every layout change
+  () => nextTick(initializeDragResize),
   { immediate: true }
 )
 
-
-// Debug watch for segments with 0% width
 watch(segmentRows, (rows: SegmentRow[]) => {
   rows.forEach(row => {
     row.segments.forEach(s => {
@@ -833,101 +826,37 @@ watch(segmentRows, (rows: SegmentRow[]) => {
   })
 }, { immediate: true })
 
-// Waveform initialization
-const initializeWaveform = (): void => {
-  if (!waveformCanvas.value || !props.video) return
-  
-  const canvas = waveformCanvas.value
-  const ctx = canvas.getContext('2d')
-  if (!ctx) return
-  
-  // Set canvas size
-  canvas.width = canvas.offsetWidth
-  canvas.height = canvas.offsetHeight
-  
-  // Simple waveform visualization
-  ctx.fillStyle = '#e0e0e0'
-  ctx.fillRect(0, 0, canvas.width, canvas.height)
-  
-  // Draw sample waveform pattern
-  ctx.strokeStyle = '#2196F3'
-  ctx.lineWidth = 1
-  ctx.beginPath()
-  
-  for (let x = 0; x < canvas.width; x += 2) {
-    const amplitude = Math.random() * canvas.height * 0.8 + canvas.height * 0.1
-    if (x === 0) {
-      ctx.moveTo(x, amplitude)
-    } else {
-      ctx.lineTo(x, amplitude)
-    }
-  }
-  
-  ctx.stroke()
-}
-
-// Click outside to hide context menu
-const handleClickOutside = (event: Event): void => {
-  if (contextMenu.value.visible && !(event.target as Element)?.closest('.context-menu')) {
-    hideContextMenu()
-  }
-}
-
-// Lifecycle hooks
 onMounted(() => {
   document.addEventListener('click', handleClickOutside)
 
-  
-  // Initialize drag+resize after mount
   nextTick(() => {
     initializeDragResize()
   })
-  
+
   if (props.showWaveform) {
     nextTick(() => {
       initializeWaveform()
     })
   }
   toast.success({ text: '[Timeline] Component mounted and ready' })
-
 })
 
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
-  
-  // Cleanup all drag+resize listeners
   cleanupFunctions.value.forEach(cleanup => cleanup())
   cleanupFunctions.value = []
-  
-  // Remove old event listeners that are no longer used
   document.removeEventListener('mousemove', onSelectionMouseMove)
   document.removeEventListener('mouseup', onSelectionMouseUp)
 })
 
-//  Helper to convert segmentId to numeric ID for API calls
-const getNumericSegmentId = (segmentId: string | number): number | null => {
-  if (typeof segmentId === 'number') return segmentId
-  
-  // Handle string IDs
-  if (typeof segmentId === 'string') {
-    // Skip draft segments (they don't have real IDs yet)
-    if (segmentId === 'draft' || segmentId.startsWith('temp-')) {
-      console.warn('[Timeline] Ignoring draft/temp segment:', segmentId)
-      return null
-    }
-    
-    const parsed = parseInt(segmentId, 10)
-    if (isNaN(parsed)) {
-      console.error('[Timeline] Invalid segment ID:', segmentId)
-      return null
-    }
-    return parsed
-  }
-  
-  console.error('[Timeline] Unexpected segment ID type:', typeof segmentId, segmentId)
+// Helper for numeric IDs
+const getNumericSegmentId = (segmentId: number): number | null => {
+  if (typeof segmentId === 'number' && Number.isFinite(segmentId)) return segmentId
+  console.error('[Timeline] Unexpected segment ID:', segmentId)
   return null
-};
+}
 </script>
+
 
 <style scoped>
 .segment-row.active-row::before {

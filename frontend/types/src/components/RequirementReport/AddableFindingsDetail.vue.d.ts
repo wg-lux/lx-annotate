@@ -1,10 +1,3 @@
-/**
- * Component Props
- *
- * @interface Props
- * @property {number} [patientExaminationId] - Optional patient examination ID override
- * @property {number} [examinationId] - Optional examination ID for context
- */
 interface Props {
     patientExaminationId?: number;
     examinationId?: number;

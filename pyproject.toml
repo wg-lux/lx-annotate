@@ -18,7 +18,7 @@ maintainers = [
 ]
 license = "MIT"
 readme = "README.md"
-requires-python = "==3.12.11"
+requires-python = ">=3.12.0,<3.13"
 
 dependencies = [
     "django>=5.1.1",
@@ -27,8 +27,8 @@ dependencies = [
     "django-cors-headers>=4.0.0",
     "django-webpack-loader>=0.7.0",
     "requests>=2.32.3",
-    "endoreg-db",
-    "lx-anonymizer",
+    "endoreg-db==0.8.9.6",
+    "lx-anonymizer[llm]==0.8.9.7",
     "django-vite>=3.0.6",
     "whitenoise>=6.8.2",
     "django-extensions>=3.2.3",
@@ -47,11 +47,14 @@ dependencies = [
     "celery>=5.5.3",
     "drf-spectacular>=0.28.0",
     "django-modeltranslation>=0.19.16",
+    "daphne>=4.2.1",
+    "psycopg[binary,pool]>=3.2.12",
+    "mozilla-django-oidc>=4.0.1",
 ]
 
 
-[tool.setuptools]
-packages = ["endoreg-db"]
+# [tool.setuptools]
+# packages = ["endoreg-db"]
 
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "lx_annotate.settings"
@@ -62,12 +65,12 @@ addopts = [
 ]
 
 
-[tool.uv.sources]
-endoreg-db = { workspace = true }
-lx-anonymizer = { workspace = true }
+# [tool.uv.sources]
+# endoreg-db = { workspace = true }
+# lx-anonymizer = { workspace = true }
 
-[tool.uv.workspace]
-members = [
-    "libs/endoreg-db",
-    "libs/lx-anonymizer",
-]
+# [tool.uv.workspace]
+# members = [
+#    "libs/endoreg-db",
+#    "libs/lx-anonymizer",
+# ]

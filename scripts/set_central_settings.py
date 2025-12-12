@@ -3,12 +3,21 @@ import os
 import sys
 from pathlib import Path
 
-# Use central settings if available, otherwise fall back to production
-settings_module = os.environ.get("DJANGO_SETTINGS_MODULE_CENTRAL")
-if not settings_module:
-    settings_module = os.environ.get("DJANGO_SETTINGS_MODULE_PRODUCTION")
-    if not settings_module:
-        raise ValueError("Neither DJANGO_SETTINGS_MODULE_CENTRAL nor DJANGO_SETTINGS_MODULE_PRODUCTION environment variable is set")
+
+DEFAULT_CENTRAL_SETTINGS = "config.settings.central"
+DEFAULT_PROD_SETTINGS = "config.settings.prod"
+
+
+# Use central settings if available, otherwise fall back to production defaults
+central_env = os.environ.get("DJANGO_SETTINGS_MODULE_CENTRAL")
+production_env = os.environ.get("DJANGO_SETTINGS_MODULE_PRODUCTION")
+
+if central_env:
+    settings_module = central_env
+elif production_env:
+    settings_module = production_env or DEFAULT_PROD_SETTINGS
+else:
+    settings_module = DEFAULT_CENTRAL_SETTINGS
 
 env_path = Path(".env")
 

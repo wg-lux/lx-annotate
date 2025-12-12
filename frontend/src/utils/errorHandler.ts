@@ -1,4 +1,4 @@
-import { logger } from './logger';
+import { logger } from './logger'
 
 export enum ErrorType {
   NETWORK = 'NETWORK',
@@ -8,17 +8,17 @@ export enum ErrorType {
   NOT_FOUND = 'NOT_FOUND',
   SERVER = 'SERVER',
   CLIENT = 'CLIENT',
-  UNKNOWN = 'UNKNOWN',
+  UNKNOWN = 'UNKNOWN'
 }
 
 export interface AppError {
-  type: ErrorType;
-  message: string;
-  code?: string | number;
-  details?: Record<string, any>;
-  originalError?: Error;
-  timestamp: Date;
-  userFriendlyMessage?: string;
+  type: ErrorType
+  message: string
+  code?: string | number
+  details?: Record<string, any>
+  originalError?: Error
+  timestamp: Date
+  userFriendlyMessage?: string
 }
 
 export class ErrorHandler {
@@ -36,31 +36,31 @@ export class ErrorHandler {
       details,
       originalError,
       timestamp: new Date(),
-      userFriendlyMessage: this.getUserFriendlyMessage(type, message),
-    };
+      userFriendlyMessage: this.getUserFriendlyMessage(type, message)
+    }
   }
 
   static getUserFriendlyMessage(type: ErrorType, originalMessage: string): string {
     switch (type) {
       case ErrorType.NETWORK:
-        return 'Netzwerkfehler. Bitte überprüfen Sie Ihre Internetverbindung.';
+        return 'Netzwerkfehler. Bitte überprüfen Sie Ihre Internetverbindung.'
       case ErrorType.AUTHENTICATION:
-        return 'Anmeldung erforderlich. Bitte melden Sie sich an.';
+        return 'Anmeldung erforderlich. Bitte melden Sie sich an.'
       case ErrorType.AUTHORIZATION:
-        return 'Keine Berechtigung für diese Aktion.';
+        return 'Keine Berechtigung für diese Aktion.'
       case ErrorType.NOT_FOUND:
-        return 'Die angeforderte Ressource wurde nicht gefunden.';
+        return 'Die angeforderte Ressource wurde nicht gefunden.'
       case ErrorType.VALIDATION:
-        return 'Eingabedaten sind ungültig. Bitte überprüfen Sie Ihre Eingaben.';
+        return 'Eingabedaten sind ungültig. Bitte überprüfen Sie Ihre Eingaben.'
       case ErrorType.SERVER:
-        return 'Serverfehler. Bitte versuchen Sie es später erneut.';
+        return 'Serverfehler. Bitte versuchen Sie es später erneut.'
       default:
-        return 'Ein unerwarteter Fehler ist aufgetreten.';
+        return 'Ein unerwarteter Fehler ist aufgetreten.'
     }
   }
 
   static handleApiError(error: any): AppError {
-    logger.error('API Error occurred', error);
+    logger.error('API Error occurred', error)
 
     if (!error.response) {
       // Network error
@@ -70,10 +70,10 @@ export class ErrorHandler {
         'NETWORK_ERROR',
         { originalMessage: error.message },
         error
-      );
+      )
     }
 
-    const { status, data } = error.response;
+    const { status, data } = error.response
 
     switch (status) {
       case 400:
@@ -83,7 +83,7 @@ export class ErrorHandler {
           status,
           data,
           error
-        );
+        )
       case 401:
         return this.createError(
           ErrorType.AUTHENTICATION,
@@ -91,50 +91,20 @@ export class ErrorHandler {
           status,
           data,
           error
-        );
+        )
       case 403:
-        return this.createError(
-          ErrorType.AUTHORIZATION,
-          'Access forbidden',
-          status,
-          data,
-          error
-        );
+        return this.createError(ErrorType.AUTHORIZATION, 'Access forbidden', status, data, error)
       case 404:
-        return this.createError(
-          ErrorType.NOT_FOUND,
-          'Resource not found',
-          status,
-          data,
-          error
-        );
+        return this.createError(ErrorType.NOT_FOUND, 'Resource not found', status, data, error)
       case 422:
-        return this.createError(
-          ErrorType.VALIDATION,
-          'Validation failed',
-          status,
-          data,
-          error
-        );
+        return this.createError(ErrorType.VALIDATION, 'Validation failed', status, data, error)
       case 500:
       case 502:
       case 503:
       case 504:
-        return this.createError(
-          ErrorType.SERVER,
-          'Server error occurred',
-          status,
-          data,
-          error
-        );
+        return this.createError(ErrorType.SERVER, 'Server error occurred', status, data, error)
       default:
-        return this.createError(
-          ErrorType.UNKNOWN,
-          `HTTP ${status} error`,
-          status,
-          data,
-          error
-        );
+        return this.createError(ErrorType.UNKNOWN, `HTTP ${status} error`, status, data, error)
     }
   }
 
@@ -143,25 +113,28 @@ export class ErrorHandler {
     context?: string
   ): Promise<{ data?: T; error?: AppError }> {
     return asyncFn()
-      .then(data => ({ data }))
-      .catch(error => {
-        const appError = this.handleApiError(error);
+      .then((data) => ({ data }))
+      .catch((error) => {
+        const appError = this.handleApiError(error)
         if (context) {
-          logger.error(`Error in ${context}`, error, { appError });
+          logger.error(`Error in ${context}`, error, { appError })
         }
-        return { error: appError };
-      });
+        return { error: appError }
+      })
   }
 
-  static showUserError(error: AppError, showToast?: (message: string, type: 'error' | 'warning') => void) {
-    const message = error.userFriendlyMessage || error.message;
-    
+  static showUserError(
+    error: AppError,
+    showToast?: (message: string, type: 'error' | 'warning') => void
+  ) {
+    const message = error.userFriendlyMessage || error.message
+
     if (showToast) {
-      const toastType = error.type === ErrorType.VALIDATION ? 'warning' : 'error';
-      showToast(message, toastType);
+      const toastType = error.type === ErrorType.VALIDATION ? 'warning' : 'error'
+      showToast(message, toastType)
     } else {
       // Fallback to console or alert
-      console.error('User Error:', message);
+      console.error('User Error:', message)
     }
   }
 }
@@ -176,14 +149,14 @@ export function createErrorBoundary() {
         undefined,
         { componentInfo: info },
         error
-      );
-      
-      logger.error('Vue component error', error, { 
+      )
+
+      logger.error('Vue component error', error, {
         component: instance?.$options.name || 'Unknown',
-        info 
-      });
-      
-      return false; // Propagate error to parent
+        info
+      })
+
+      return false // Propagate error to parent
     }
-  };
+  }
 }

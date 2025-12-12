@@ -3,6 +3,13 @@
 import os
 import sys
 import subprocess
+from pathlib import Path
+import sys
+sys.path.insert(0, "/home/admin/dev/lx-annotate/libs/endoreg-db")
+
+
+BASE_DIR = Path(__file__).resolve().parent
+os.environ.setdefault("STORAGE_DIR", str(Path(BASE_DIR) / "data"))
 
 
 def main():
@@ -12,11 +19,8 @@ def main():
     os.environ.setdefault('DJANGO_SETTINGS_MODULE', default_settings)
     
     try:
-        try:
-            from django.core.management import execute_from_command_line
-        except ImportError:
-            subprocess.run(["uv", "sync"], check=True)
-            from django.core.management import execute_from_command_line
+        from django.core.management import execute_from_command_line
+
     except ImportError as exc:
         
         raise ImportError(

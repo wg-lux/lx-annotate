@@ -28,38 +28,38 @@ export const useAnnotationStore = defineStore('annotation', () => {
     const filteredAnnotations = computed(() => {
         let filtered = state.annotations;
         if (state.filter.videoId) {
-            filtered = filtered.filter(a => a.videoId === state.filter.videoId);
+            filtered = filtered.filter((a) => a.videoId === state.filter.videoId);
         }
         if (state.filter.type) {
-            filtered = filtered.filter(a => a.type === state.filter.type);
+            filtered = filtered.filter((a) => a.type === state.filter.type);
         }
         if (state.filter.userId) {
-            filtered = filtered.filter(a => a.userId === state.filter.userId);
+            filtered = filtered.filter((a) => a.userId === state.filter.userId);
         }
         if (state.filter.tags && state.filter.tags.length > 0) {
-            filtered = filtered.filter(a => state.filter.tags.some(tag => a.tags.includes(tag)));
+            filtered = filtered.filter((a) => state.filter.tags.some((tag) => a.tags.includes(tag)));
         }
         if (state.filter.timeRange) {
             const { start, end } = state.filter.timeRange;
-            filtered = filtered.filter(a => a.startTime >= start && a.endTime <= end);
+            filtered = filtered.filter((a) => a.startTime >= start && a.endTime <= end);
         }
         if (state.filter.isPublic !== undefined) {
-            filtered = filtered.filter(a => a.isPublic === state.filter.isPublic);
+            filtered = filtered.filter((a) => a.isPublic === state.filter.isPublic);
         }
         return filtered.sort((a, b) => a.startTime - b.startTime);
     });
     const currentVideoAnnotations = computed(() => {
         if (!state.currentVideoId)
             return [];
-        return state.annotations.filter(a => a.videoId === state.currentVideoId);
+        return state.annotations.filter((a) => a.videoId === state.currentVideoId);
     });
     const annotationsAtCurrentTime = computed(() => {
         if (!state.currentVideoId)
             return [];
-        return currentVideoAnnotations.value.filter(a => state.playbackTime >= a.startTime && state.playbackTime <= a.endTime);
+        return currentVideoAnnotations.value.filter((a) => state.playbackTime >= a.startTime && state.playbackTime <= a.endTime);
     });
     const totalAnnotations = computed(() => state.annotations.length);
-    const selectedAnnotationObjects = computed(() => state.annotations.filter(a => state.selectedAnnotations.includes(a.id)));
+    const selectedAnnotationObjects = computed(() => state.annotations.filter((a) => state.selectedAnnotations.includes(a.id)));
     // Additional computed properties
     const hasSelection = computed(() => state.selectedAnnotations.length > 0);
     const canDelete = computed(() => hasSelection.value);
@@ -70,9 +70,7 @@ export const useAnnotationStore = defineStore('annotation', () => {
         state.isLoading = true;
         state.error = null;
         try {
-            const url = videoId
-                ? `/api/annotations/?video_id=${videoId}`
-                : '/api/annotations/';
+            const url = videoId ? `/api/annotations/?video_id=${videoId}` : '/api/annotations/';
             const response = await fetch(url);
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
@@ -99,7 +97,7 @@ export const useAnnotationStore = defineStore('annotation', () => {
             const response = await fetch('/api/annotations/', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify(annotationData)
             });
@@ -129,7 +127,7 @@ export const useAnnotationStore = defineStore('annotation', () => {
             const response = await fetch(`/api/annotations/${id}/`, {
                 method: 'PATCH',
                 headers: {
-                    'Content-Type': 'application/json',
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify(updates)
             });
@@ -138,7 +136,7 @@ export const useAnnotationStore = defineStore('annotation', () => {
             }
             const updatedAnnotation = await response.json();
             updatedAnnotation.updatedAt = new Date(updatedAnnotation.updatedAt);
-            const index = state.annotations.findIndex(a => a.id === id);
+            const index = state.annotations.findIndex((a) => a.id === id);
             if (index !== -1) {
                 state.annotations[index] = { ...state.annotations[index], ...updatedAnnotation };
             }
@@ -167,8 +165,8 @@ export const useAnnotationStore = defineStore('annotation', () => {
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
-            state.annotations = state.annotations.filter(a => a.id !== id);
-            state.selectedAnnotations = state.selectedAnnotations.filter(selectedId => selectedId !== id);
+            state.annotations = state.annotations.filter((a) => a.id !== id);
+            state.selectedAnnotations = state.selectedAnnotations.filter((selectedId) => selectedId !== id);
             if (state.currentAnnotation?.id === id) {
                 state.currentAnnotation = null;
             }
@@ -189,15 +187,15 @@ export const useAnnotationStore = defineStore('annotation', () => {
             const response = await fetch('/api/annotations/bulk-delete/', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({ ids })
             });
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
-            state.annotations = state.annotations.filter(a => !ids.includes(a.id));
-            state.selectedAnnotations = state.selectedAnnotations.filter(id => !ids.includes(id));
+            state.annotations = state.annotations.filter((a) => !ids.includes(a.id));
+            state.selectedAnnotations = state.selectedAnnotations.filter((id) => !ids.includes(id));
             if (state.currentAnnotation && ids.includes(state.currentAnnotation.id)) {
                 state.currentAnnotation = null;
             }
@@ -222,7 +220,7 @@ export const useAnnotationStore = defineStore('annotation', () => {
         }
     }
     function deselectAnnotation(id) {
-        state.selectedAnnotations = state.selectedAnnotations.filter(selectedId => selectedId !== id);
+        state.selectedAnnotations = state.selectedAnnotations.filter((selectedId) => selectedId !== id);
     }
     function toggleAnnotationSelection(id) {
         if (state.selectedAnnotations.includes(id)) {
@@ -233,7 +231,7 @@ export const useAnnotationStore = defineStore('annotation', () => {
         }
     }
     function selectAllAnnotations() {
-        state.selectedAnnotations = filteredAnnotations.value.map(a => a.id);
+        state.selectedAnnotations = filteredAnnotations.value.map((a) => a.id);
     }
     function clearSelection() {
         state.selectedAnnotations = [];
@@ -364,7 +362,8 @@ export const useAnnotationStore = defineStore('annotation', () => {
         }
         catch (error) {
             console.error('Failed to create examination annotation:', error);
-            state.error = error instanceof Error ? error.message : 'Failed to create examination annotation';
+            state.error =
+                error instanceof Error ? error.message : 'Failed to create examination annotation';
             return null;
         }
     }
@@ -377,7 +376,7 @@ export const useAnnotationStore = defineStore('annotation', () => {
             return null;
         }
         // Check if annotation already exists for this segment
-        const existingAnnotation = state.annotations.find(a => a.type === AnnotationType.SEGMENT &&
+        const existingAnnotation = state.annotations.find((a) => a.type === AnnotationType.SEGMENT &&
             a.metadata?.segmentId === segment.id &&
             a.videoId === state.currentVideoId);
         if (existingAnnotation) {
@@ -395,7 +394,7 @@ export const useAnnotationStore = defineStore('annotation', () => {
         const vStore = useVideoStore();
         const segments = vStore.segments; // <-- reactive
         /* strip previous SEGMENT annotations of that video --------------- */
-        state.annotations = state.annotations.filter(a => !(a.videoId === videoId && a.type === AnnotationType.SEGMENT));
+        state.annotations = state.annotations.filter((a) => !(a.videoId === videoId && a.type === AnnotationType.SEGMENT));
         /* push a fresh annotation for every segment ---------------------- */
         segments.value.forEach((seg) => {
             state.annotations.push({
@@ -531,7 +530,8 @@ export function validateAnnotation(annotation) {
     if (annotation.endTime === undefined || annotation.endTime < 0) {
         errors.push('End time must be a non-negative number');
     }
-    if (annotation.startTime !== undefined && annotation.endTime !== undefined &&
+    if (annotation.startTime !== undefined &&
+        annotation.endTime !== undefined &&
         annotation.startTime >= annotation.endTime) {
         errors.push('End time must be greater than start time');
     }

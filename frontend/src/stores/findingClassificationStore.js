@@ -36,7 +36,7 @@ export const useFindingClassificationStore = defineStore('findingsClassification
     };
     const setClassificationChoicesFromLookup = (lookupFindings) => {
         const findingsMap = {};
-        lookupFindings.forEach(finding => {
+        lookupFindings.forEach((finding) => {
             findingsMap[finding.id] = finding;
         });
         findings.value = findingsMap;
