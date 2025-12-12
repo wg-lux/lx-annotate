@@ -51,7 +51,7 @@ def test_fixes_directly():
         video_service = VideoImportService()
         
         mock_video = Mock(spec=VideoFile)
-        mock_video.uuid = test_uuid
+        mock_video.video_hash = test_uuid
         mock_video.raw_file = Mock()
         # Wrong path pointing to /data/videos (common issue we're fixing)
         mock_video.raw_file.path = str(Path("/home/admin/dev/lx-annotate/data/videos") / f"{test_uuid}.mp4")
@@ -137,7 +137,7 @@ def test_path_detection_logic():
             # Setup
             video_service = VideoImportService()
             mock_video = Mock(spec=VideoFile)
-            mock_video.uuid = scenario['uuid']
+            mock_video.video_hash = scenario['uuid']
             mock_video.raw_file = Mock()
             mock_video.raw_file.path = scenario['raw_path']
             mock_video.save = Mock()

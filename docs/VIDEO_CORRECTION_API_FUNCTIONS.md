@@ -620,7 +620,7 @@ def apply_device_mask_task(video_id, device_name):
     
     mask_config = frame_cleaner._load_mask(device_name)
     
-    output_path = Path(settings.MEDIA_ROOT) / 'anonym_videos' / f"{video.uuid}_masked.mp4"
+    output_path = Path(settings.MEDIA_ROOT) / 'anonym_videos' / f"{video.video_hash}_masked.mp4"
     
     success = frame_cleaner._mask_video(
         input_video=video.raw_file.path,
@@ -629,7 +629,7 @@ def apply_device_mask_task(video_id, device_name):
     )
     
     if success:
-        video.anonymized_file = f"anonym_videos/{video.uuid}_masked.mp4"
+        video.anonymized_file = f"anonym_videos/{video.video_hash}_masked.mp4"
         video.save()
         
         # Speichere in VideoProcessingHistory
@@ -676,7 +676,7 @@ def remove_frames_task(video_id, frames_to_remove):
     video = VideoFile.objects.get(pk=video_id)
     frame_cleaner = FrameCleaner()
     
-    output_path = Path(settings.MEDIA_ROOT) / 'anonym_videos' / f"{video.uuid}_cleaned.mp4"
+    output_path = Path(settings.MEDIA_ROOT) / 'anonym_videos' / f"{video.video_hash}_cleaned.mp4"
     
     success = frame_cleaner.remove_frames_from_video(
         original_video=video.raw_file.path,
@@ -686,7 +686,7 @@ def remove_frames_task(video_id, frames_to_remove):
     )
     
     if success:
-        video.anonymized_file = f"anonym_videos/{video.uuid}_cleaned.mp4"
+        video.anonymized_file = f"anonym_videos/{video.video_hash}_cleaned.mp4"
         
         # Update frame_dir falls gesetzt
         if video.frame_dir:

@@ -159,12 +159,15 @@ class AutoProcessingHandler(FileSystemEventHandler):
         # Skip opened/closed events that don't indicate actual file completion
         if hasattr(event, 'event_type') and event.event_type in {'opened', 'closed'}:
             return
+        
+        src_path = str(event.src_path)
+        dest_path = str(event.dest_path)
             
         # Skip temp files and FFmpeg intermediate files
         if hasattr(event, 'src_path'):
-            if should_ignore_file(event.src_path):
+            if should_ignore_file(src_path):
                 return
-            path = Path(event.src_path)
+            path = Path(src_path)
             if (path.name.startswith('.') or 
                 path.name.startswith('~') or
                 'tmp' in str(path) or
@@ -172,7 +175,7 @@ class AutoProcessingHandler(FileSystemEventHandler):
                 return
         # Also check destination path for move events
         if hasattr(event, 'dest_path'):
-            if should_ignore_file(event.dest_path):
+            if should_ignore_file(dest_path):
                 return
         
         # Continue with normal dispatch
@@ -182,13 +185,13 @@ class AutoProcessingHandler(FileSystemEventHandler):
         """Handle file creation events."""
         if isinstance(event, FileCreatedEvent) and not event.is_directory:
             # ⭐ FIX: Offload to thread pool instead of blocking inotify thread
-            self.executor.submit(self._process_file, event.src_path)
+            self.executor.submit(self._process_file, str(event.src_path))
 
     def on_moved(self, event) -> None:
         """Handle file move events (useful for files moved into watched directories)."""
         if isinstance(event, FileMovedEvent) and not event.is_directory:
             # ⭐ FIX: Offload to thread pool instead of blocking inotify thread
-            self.executor.submit(self._process_file, event.dest_path)
+            self.executor.submit(self._process_file, str(event.dest_path))
 
     def _process_file(self, file_path: str):
         """
@@ -302,7 +305,7 @@ class AutoProcessingHandler(FileSystemEventHandler):
                 from endoreg_db.exceptions import InsufficientStorageError
                 from endoreg_db.models.media.video.create_from_file import check_storage_capacity
                 storage_root = os.getenv('DJANGO_DATA_DIR', str(PROJECT_ROOT / 'data' / 'videos'))
-                check_storage_capacity(video_path, storage_root)
+                check_storage_capacity(video_path, Path(storage_root))
             except InsufficientStorageError as storage_error:
                 logger.error(f"Insufficient storage space for {video_path}: {storage_error}")
                 # Don't mark as processed - allow retry when space is available
@@ -328,10 +331,10 @@ class AutoProcessingHandler(FileSystemEventHandler):
                     return
                 
                 if not video_file.sensitive_meta:
-                    logger.warning(f"Video imported but no SensitiveMeta created: {video_file.uuid}")
+                    logger.warning(f"Video imported but no SensitiveMeta created: {video_file.video_hash}")
                 
 
-                logger.info(f"Video imported successfully: {video_file.uuid}")
+                logger.info(f"Video imported successfully: {video_file.video_hash}")
                 
             except Exception as import_error:
                 error_msg = str(import_error)
@@ -359,10 +362,10 @@ class AutoProcessingHandler(FileSystemEventHandler):
                     )
                     
                     if success:
-                        logger.info(f"Video segmentation completed: {video_file.uuid}")
+                        logger.info(f"Video segmentation completed: {video_file.video_hash}")
 
                     else:
-                        logger.error(f"Video segmentation failed: {video_file.uuid}")
+                        logger.error(f"Video segmentation failed: {video_file.video_hash}")
                         
                 except Exception as e:
                     logger.error(f"Error during video segmentation: {str(e)}", exc_info=True)
@@ -387,7 +390,6 @@ class AutoProcessingHandler(FileSystemEventHandler):
                 # For other errors, remove from processed set to allow retry
                 logger.warning(f"Removing {video_path} from processed set due to error")
                 self.processed_files.discard(str(video_path))
-                video_import_service._cleanup_on_error()
                 return
     
     def _process_report(self, report_path: Path):

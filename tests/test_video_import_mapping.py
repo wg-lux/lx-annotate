@@ -25,7 +25,7 @@ def test_update_sensitive_metadata_complete_mapping():
     mock_video = MagicMock()
     mock_sensitive_meta = MagicMock()
     mock_video.sensitive_meta = mock_sensitive_meta
-    mock_video.uuid = "test-video-123"
+    mock_video.video_hash = "test-video-123"
     service.current_video = mock_video
     service.logger = MagicMock()
     

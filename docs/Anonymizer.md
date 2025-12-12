@@ -791,7 +791,7 @@ def update_segments_after_frame_removal(video, removed_frames):
 **Integration with VideoRemoveFramesView:**
 ```python
 if success:
-    video.anonymized_file = f"anonym_videos/{video.uuid}_cleaned.mp4"
+    video.anonymized_file = f"anonym_videos/{video.video_hash}_cleaned.mp4"
     video.save()
     
     # Phase 1.4: Update segments after frame removal
