@@ -45,7 +45,7 @@ let
     isDev = true;
   };
 
-  devTasks = import ./devenv/devTasks/default.nix;
+  devTasks = import ./devenv/devTasks/default.nix { inherit config pkgs lib; };
 
   buildInputs = devenv_utils.buildInputs;
   runtimePackages = devenv_utils.runtimePackages;
@@ -57,14 +57,9 @@ let
   languages.python.enable = true;
   languages.python.uv.enable = true;
 
-  # Define the shellHook to enable npm in root for convenience
   commonShellHook = ''
     export PATH="$PATH:$(yarn global bin)"
   '';
-
-  # --- Directory Structure ---
-
-
 
   customTasks = ( 
     import ./devenv/tasks/default.nix ({
@@ -79,96 +74,76 @@ let
   );
 
   imports = [
-    ./libs/endoreg-db/devenv.nix
-    ./libs/lx-anonymizer/devenv.nix
     ./frontend/flake.nix
   ];
 
+  packages = runtimePackages ++ buildInputs;
+
+
+  _module.args.buildInputs = baseBuildInputs;
+
+  SYNC_CMD = "uv sync --extra dev --extra docs";
 in
 {
+
   dotenv.enable = true;
   dotenv.disableHint = true;
 
-  packages = with pkgs; [
-    stdenv.cc.cc
-    yarn
-    libglvnd
-    inotify-tools 
-    python312Packages.inotify-simple
-    python312Packages.watchdog
-    ffmpeg_6-headless
-    cudaPackages.cuda_nvcc
-  ] ++ runtimePackages;
 
   env = {
-    LD_LIBRARY_PATH = "${
-      with pkgs;
-      lib.makeLibraryPath buildInputs
-    }:/run/opengl-driver/lib:/run/opengl-driver-32/lib";
+    # include runtimePackages as well so runtime native libs (e.g. zlib) are on LD_LIBRARY_PATH
+    LD_LIBRARY_PATH =
+      lib.makeLibraryPath (buildInputs ++ runtimePackages)
+      + ":/run/opengl-driver/lib:/run/opengl-driver-32/lib";
     STORAGE_DIR = lib.mkForce dataDir;
     BASE_DIR = lib.mkForce dataDir;
   } // devenv_utils.environment;
 
-  
-  enterTest = ''
-    TEST_SUITE_VAR="''${TEST_SUITE:-quick}"
-    echo "🧪 Running DevEnv Test Suite: $TEST_SUITE_VAR"
-    echo "========================================="
-    test_result=0
-    case "$TEST_SUITE_VAR" in
-      "quick"|"q")
-        echo "🚀 Running quick validation tests..."
-        bash scripts/core/system-validation.sh --skip-containers || test_result=1
-        ;;
-      "workflows"|"w") 
-        echo "🔄 Running workflow validation tests..."
-        bash scripts/core/system-validation.sh --skip-containers || test_result=1
-        echo "🔧 Testing environment setup..."
-        python3 scripts/core/setup.py --status-only || test_result=1
-        ;;
-      "containers"|"c")
-        echo "🐳 Running container validation tests..."
-        bash scripts/core/system-validation.sh || test_result=1
-        ;;
-      "e2e"|"end-to-end")
-        echo "🎯 Running end-to-end validation tests..."
-        bash scripts/core/system-validation.sh || test_result=1
-        ;;
-      "full"|"all"|"f")
-        echo "🌟 Running complete system validation..."
-        bash scripts/core/system-validation.sh --verbose || test_result=1
-        ;;
-      "ci")
-        echo "🤖 Running CI-optimized validation..."
-        bash scripts/core/system-validation.sh --skip-containers || test_result=1
-        ;;
-      *)
-        echo "Unknown test suite: $TEST_SUITE_VAR"
-        echo "Available: quick, workflows, containers, e2e, full, ci"
-        exit 1
-        ;;
-    esac
-    if [ $test_result -eq 0 ]; then
-        echo "✅ All tests in suite '$TEST_SUITE_VAR' passed!"
-        exit 0
-    else
-        echo "❌ Some tests in suite '$TEST_SUITE_VAR' failed!"
-        exit 1
-    fi
-  '';
-    languages.python = {
+  languages.python = {
     enable = true;
     package = pkgs.python312;
     uv = {
       enable = true;
+      package = uvPackage;
       sync.enable = true;
     };
   };
+
+
   
-  scripts = devenv_utils.scripts;
-  tasks = devenv_utils.tasks // (if devenv_utils ? isDev && devenv_utils.isDev then devTasks else {});  processes = devenv_utils.processes;
+  tasks = devenv_utils.tasks // (if devenv_utils ? isDev && devenv_utils.isDev then devTasks else {});  
+  processes = devenv_utils.processes;
   containers = devenv_utils.containers;
   services = devenv_utils.services;
+
+  scripts = {
+    export-nix-vars.exec = ''
+      cat > .devenv-vars.json << EOF
+      {
+      }
+      EOF
+      echo "Exported Nix variables to .devenv-vars.json"
+    '';
+
+    env-setup.exec = ''
+      # Ensure runtimePackages are included in the library path here too
+      export LD_LIBRARY_PATH="${
+        with pkgs; lib.makeLibraryPath (buildInputs ++ runtimePackages)
+      }:/run/opengl-driver/lib:/run/opengl-driver-32/lib"
+    '';
+
+    hello.package = pkgs.zsh;
+    hello.exec = "uv run python hello.py";
+    pyshell.exec = "uv run python manage.py shell";
+
+    mkdocs.exec = ''
+      uv run make -C docs html
+      uv run make -C docs linkcheck
+    '';
+    uvsnc.exec = ''
+      ${SYNC_CMD}
+    '';
+  } // devenv_utils.scripts;
 
   cachix.enable = true;
 

@@ -1,0 +1,44 @@
+version: 2
+updates:
+  - package-ecosystem: "uv"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "05:00"
+      timezone: "Europe/Berlin"
+    target-branch: "main"
+    open-pull-requests-limit: 1
+    labels:
+      - "dependencies"
+      - "automation"
+    groups:
+      runtime-deps:
+        dependency-type: "production"
+      docs-stack:
+        patterns:
+          - "sphinx*"
+          - "myst-parser"
+          - "furo"
+          - "linkify-it-py"
+      qa-tooling:
+        patterns:
+          - "pytest*"
+          - "mypy*"
+          - "ruff"
+          - "flake8"
+          - "twine"
+          - "pre-commit"
+          - "build"
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "05:00"
+      timezone: "Europe/Berlin"
+    target-branch: "main"
+    open-pull-requests-limit: 1
+    labels:
+      - "dependencies"
+      - "automation"

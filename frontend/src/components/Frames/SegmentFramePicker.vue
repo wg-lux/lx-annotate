@@ -3,7 +3,7 @@
     <div class="frame-preview mb-2 text-center">
       <img
         v-if="currentFrame"
-        :src="currentFrame.frameUrl || currentFrame.frame_url"
+        :src="currentFrame.frameUrl"
         :alt="`Frame ${currentIndex + 1}`"
         class="img-fluid rounded border"
         style="max-height: 220px; object-fit: contain;"

@@ -508,38 +508,6 @@ const cancelLabelMarking = () => {
     selectedLabelType.value = '';
     console.log('Label-Markierung abgebrochen');
 };
-const onExaminationSaved = async (examination) => {
-    // Add new examination to list
-    savedExaminations.value.push(examination);
-    // Create new marker
-    const marker = {
-        id: `exam-${examination.id}`,
-        timestamp: examination.timestamp,
-        examination_data: examination.data
-    };
-    examinationMarkers.value.push(marker);
-    // Show success message like VideoClassificationComponent
-    showSuccessMessage(`Untersuchung gespeichert: ${examination.examination_type || 'Untersuchung'}`);
-    // Create corresponding annotation for examination
-    try {
-        const annotationStore = useAnnotationStore();
-        const authStore = useAuthStore();
-        // Ensure mock user is initialized
-        authStore.initMockUser();
-        if (authStore.user?.id && selectedVideoId.value) {
-            await annotationStore.createExaminationAnnotation(selectedVideoId.value.toString(), examination.timestamp, examination.examination_type || 'examination', examination.id, authStore.user.id);
-            console.log(`✅ Created annotation for examination ${examination.id}`);
-        }
-        else {
-            console.warn('No authenticated user or video ID found for examination annotation creation');
-        }
-    }
-    catch (annotationError) {
-        console.error('Failed to create examination annotation:', annotationError);
-        // Don't fail the examination save if annotation fails
-    }
-    console.log('Examination saved:', examination);
-};
 const jumpToExamination = (examination) => {
     seekToTime(examination.timestamp);
     currentMarker.value = examinationMarkers.value.find(m => m.id === `exam-${examination.id}`) || null;
