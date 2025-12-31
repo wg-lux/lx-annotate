@@ -123,7 +123,7 @@ python manage.py start_filewatcher --log-level DEBUG
 
 ### Environment Variables
 
-* `DJANGO_SETTINGS_MODULE`: Django settings (default: `lx_annotate.settings_dev`)
+* `DJANGO_SETTINGS_MODULE`: Django settings (default: `lx_annotate.settings.settings_dev`)
 * `WATCHER_LOG_LEVEL`: Log level (default: `INFO`)
 
 ### Default Settings

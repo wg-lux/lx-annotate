@@ -32,8 +32,6 @@ dependencies = [
     "django-cors-headers>=4.0.0",
     "django-webpack-loader>=0.7.0",
     "requests>=2.32.3",
-    "endoreg-db==0.8.9.6",
-    "lx-anonymizer[llm]==0.8.9.7",
     "django-vite>=3.0.6",
     "whitenoise>=6.8.2",
     "django-extensions>=3.2.3",
@@ -55,6 +53,15 @@ dependencies = [
     "daphne>=4.2.1",
     "psycopg[binary,pool]>=3.2.12",
     "mozilla-django-oidc>=4.0.1",
+    "pre-commit>=4.5.0",
+    "de-core-news-lg",
+    "django-stubs>=5.2.8",
+    "types-requests>=2.32.4.20250913",
+    "black>=25.12.0",
+    "mypy>=1.18.2",
+    "endoreg-db==0.8.9.16",
+    "pydantic-settings>=2.12.0",
+    "pydantic>=2.12.5",
 ]
 
 [tool.pytest.ini_options]
@@ -64,6 +71,9 @@ addopts = [
   "--import-mode=importlib",
   "-ra",
 ]
+
+[tool.uv.sources]
+de-core-news-lg = { url = "https://github.com/explosion/spacy-models/releases/download/de_core_news_lg-3.8.0/de_core_news_lg-3.8.0-py3-none-any.whl" }
 
 [project.optional-dependencies]
 dev = [
@@ -95,6 +105,25 @@ docs = [
   "sphinx>=8.2.3,<9.0",
   "furo>=2025.9.25",
 ]
+
+[tool.ruff]
+line-length = 88
+
+[tool.black]
+line-length = 88
+target-version = ["py312"]
+[tool.mypy]
+ignore_missing_imports = true
+exclude = ["venv", ".devenv"]
+
+[[tool.mypy.overrides]]
+module = [
+    "rest_framework.*",
+    "environ.*",
+    "whitenoise.*",
+    "mozilla_django_oidc.*"
+]
+ignore_missing_imports = true
 
 # [tool.uv.sources]
 # endoreg-db = { workspace = true }

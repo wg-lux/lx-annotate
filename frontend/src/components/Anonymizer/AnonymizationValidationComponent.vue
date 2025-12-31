@@ -230,13 +230,6 @@
                     </button>
                   </div>
                   <div class="mt-3">
-                    <button
-                      class="btn btn-primary"
-                      @click="saveAnnotation"
-                    >
-                      <span v-if="isSaving" class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                      {{ isSaving ? 'Speichern...' : 'Annotation zwischenspeichern' }}
-                    </button>
                   </div>
                 </div>
               </div>
@@ -524,7 +517,6 @@
                   Ablehnen
                 </button>
                 
-                <!-- Phase 3.1: Approval button with segment validation enforcement -->
                 <button 
                   class="btn btn-success" 
                   @click="approveItem"
@@ -1183,11 +1175,10 @@ const dirty = computed(() =>
 // ✅ NEW: Can save computed property
 const canSave = computed(() => {
   // Can save if we have a current item and data is not currently being processed
-  return currentItem.value && !isSaving.value && !isApproving.value;
+  return currentItem.value && !isApproving.value;
 });
 
 // Concurrency guards
-const isSaving = ref(false);
 const isApproving = ref(false);
 
 
@@ -1424,9 +1415,7 @@ const approveItem = async () => {
 
 
 const saveAnnotation = async () => {
-  if (isSaving.value) {
-    return; // Already saving
-  }
+
   
   if (!canSubmit.value) {
     // Provide more specific error messages
@@ -1445,7 +1434,6 @@ const saveAnnotation = async () => {
     return;
   }
   
-  isSaving.value = true;
   try {
     const annotationData = {
       processed_image_url: processedUrl.value,
@@ -1473,8 +1461,6 @@ const saveAnnotation = async () => {
   } catch (error) {
     console.error('Error saving annotation:', error);
     toast.error({ text: 'Fehler beim Speichern der Annotation' });
-  } finally {
-    isSaving.value = false;
   }
 };
 

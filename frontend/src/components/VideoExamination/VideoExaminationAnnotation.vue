@@ -183,12 +183,12 @@
                 </button>
 
                 <button
-                  class="btn btn-primary"
+                  class="btn"
+                  :class="hasUnsavedChanges ? 'btn-primary' : 'btn-outline-secondary'"
                   @click="saveSegmentChanges"
                 >
-                  Segment-Änderungen speichern
+                  Segmentänderungen speichern
                 </button>
-              </div>
 
               
               <!-- Simple progress bar as fallback -->
@@ -401,6 +401,7 @@
       </div>
     </div>
   </div>
+</div>
 </template>
 
 <script setup lang="ts">
@@ -506,6 +507,10 @@ const successMessage = ref<string>('')
 const videoRef = ref<HTMLVideoElement | null>(null)
 const timelineRef = ref<HTMLElement | null>(null)
 // Video Dropdown Watcher
+
+const hasUnsavedChanges = computed(() => 
+  rawSegments.value.some(s => s.isDirty)
+)
 
 async function loadSelectedVideo() {  
   if (selectedVideoId.value == null) {
@@ -653,7 +658,8 @@ watch(selectedVideoId, (newId) => {
   console.log('Selected video ID changed, setting store to:', newId)
   if (typeof newId === 'number') {
     videoStore.setCurrentVideo(newId)
-  }
+    videoStore.fetchVideoSegments(newId)
+  } 
   else {
     errorMessage.value = 'Invalid video ID'
   }

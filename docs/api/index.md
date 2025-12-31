@@ -4,7 +4,7 @@ This section documents the public Python modules exposed by `lx-annotate`. Exten
 these stubs as the package matures by adding more granular autosummary pages.
 
 ```{eval-rst}
-.. automodule:: lx_dtypes
+.. automodule:: lx_annotate
    :members:
    :undoc-members:
    :show-inheritance:

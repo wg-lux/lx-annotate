@@ -4,6 +4,7 @@ import axiosInstance, { a, r } from '../api/axiosInstance';
 import { AxiosError } from 'axios';
 import { formatTime, getTranslationForLabel, getColorForLabel } from '@/utils/videoUtils';
 import { useAnonymizationStore } from './anonymizationStore';
+import { useToastStore } from './toastStore';
 export function backendSegmentToSegment(backend) {
     const labelName = backend.labelName ?? backend.labelDisplay ?? 'unknown';
     // Optional: flatten timeSegments → frames map
@@ -31,6 +32,7 @@ export function backendSegmentToSegment(backend) {
 // CONSTANTS
 // ===================================================================
 const videos = ref([]);
+const toast = useToastStore();
 const translationMap = {
     appendix: 'Appendix',
     blood: 'Blut',
@@ -495,6 +497,7 @@ export const useVideoStore = defineStore('video', () => {
             const axiosError = error;
             console.error('Error updating segment:', axiosError.response?.data || axiosError.message);
             errorMessage.value = 'Error updating segment. Please try again.';
+            toast.success({ text: "Segment aktualisiert" });
             return false;
         }
     }
@@ -502,7 +505,7 @@ export const useVideoStore = defineStore('video', () => {
         try {
             const videoId = currentVideo.value?.id;
             if (!videoId) {
-                console.error('[VideoStore] Cannot delete segment without current video');
+                console.error('[VideoStore] Kann Segment nicht löschen: Kein Video ausgewählt');
                 return false;
             }
             const url = r(`media/videos/${videoId}/segments/${segmentId}/`);
@@ -674,27 +677,35 @@ export const useVideoStore = defineStore('video', () => {
         return await commitDraft();
     }
     async function persistDirtySegments() {
-        const dirtySegments = allSegments.value.filter((s) => s.isDirty && !s.isDraft);
-        if (!dirtySegments.length) {
-            console.log('[VideoStore] No dirty segments to persist');
+        if (!currentVideo.value?.id)
             return;
+        const videoId = currentVideo.value.id;
+        // Filter for segments that have been moved/resized locally
+        const dirtySegments = allSegments.value.filter(s => s.isDirty && !s.isDraft);
+        if (dirtySegments.length === 0)
+            return;
+        const payload = {
+            segment_ids: dirtySegments.map(s => s.id),
+            segments: dirtySegments.map(s => ({
+                id: s.id,
+                start_time: s.startTime,
+                end_time: s.endTime
+            })),
+            is_validated: false, // Keep existing validation status
+            information_source_name: 'manual_annotation'
+        };
+        try {
+            // Target the route for bulk validation:
+            // /api/media/videos/<int:pk>/segments/validate-bulk/
+            await axiosInstance.post(r(`media/videos/${videoId}/segments/validate-bulk/`), payload);
+            // Reset dirty flags
+            dirtySegments.forEach(s => s.isDirty = false);
+            toast.success({ text: 'Änderungen am Server gespeichert' });
         }
-        console.log(`[VideoStore] Persisting ${dirtySegments.length} dirty segments...`);
-        // Option A: sequential (safer if backend does heavy stuff)
-        for (const seg of dirtySegments) {
-            const ok = await updateSegmentAPI(seg.id, {
-                startTime: seg.startTime,
-                endTime: seg.endTime
-            });
-            if (ok) {
-                seg.isDirty = false;
-            }
+        catch (error) {
+            console.error('Save failed:', error);
+            toast.error({ text: 'Speichern der Änderungen fehlgeschlagen' });
         }
-        // Option B: parallel if backend can handle it
-        // await Promise.all(dirtySegments.map(seg =>
-        //   updateSegmentAPI(seg.id, { startTime: seg.startTime, endTime: seg.endTime })
-        // ))
-        // dirtySegments.forEach(seg => { seg.isDirty = false })
     }
     async function loadVideo(videoId) {
         console.log(`[VideoStore] loadVideo called with ID: ${videoId}`);

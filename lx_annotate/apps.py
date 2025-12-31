@@ -1,23 +1,20 @@
 from django.apps import AppConfig
 import os
 import sys
-import subprocess
 import threading
-import atexit
-from pathlib import Path
 
 
 class LxAnnotateConfig(AppConfig):
-    default_auto_field = 'django.db.models.BigAutoField'
-    name = 'lx_annotate'
+    default_auto_field = "django.db.models.BigAutoField"
+    name = "lx_annotate"
 
     def ready(self):
         # Only for runserver
-        if 'runserver' not in sys.argv:
+        if "runserver" not in sys.argv:
             return
 
         # Only in autoreload child, not in the parent
-        if os.environ.get('RUN_MAIN') != 'true':
+        if os.environ.get("RUN_MAIN") != "true":
             return
 
         self.start_file_watcher()
@@ -26,8 +23,9 @@ class LxAnnotateConfig(AppConfig):
         def run_watcher():
             try:
                 from django.core.management import call_command
+
                 print("📁 Starting file watcher service...")
-                call_command('start_filewatcher', log_level='INFO')
+                call_command("start_filewatcher", log_level="INFO")
             except Exception as e:
                 print(f"⚠️ Failed to start file watcher: {e}")
                 return False
@@ -38,6 +36,6 @@ class LxAnnotateConfig(AppConfig):
         return True
 
 
-#class lxAnonymizerConfig(AppConfig):
+# class lxAnonymizerConfig(AppConfig):
 #    default_auto_field = 'django.db.models.BigAutoField'
 #    name = 'lx-anonymizer'

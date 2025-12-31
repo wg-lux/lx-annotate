@@ -2,7 +2,7 @@ export default (await import('vue')).defineComponent({
     name: 'SidebarComponent',
     data() {
         return {
-            staticUrl: window.STATIC_URL || '/static/',
+            staticUrl: window.STATIC_URL,
             isSidebarOpen: false
         };
     },

@@ -10,23 +10,23 @@ Usage:
     python scripts/file_watcher.py
 
 Environment Variables:
-    DJANGO_SETTINGS_MODULE: Django settings module (default: lx_annotate.settings_dev)
+    DJANGO_SETTINGS_MODULE: Django settings module (default: lx_annotate.settings.settings_dev)
     WATCHER_LOG_LEVEL: Logging level (default: INFO)
 """
 
+import logging
 import os
+import shutil
+import subprocess
 import sys
 import time
-import logging
-import subprocess
-import shutil
-from pathlib import Path
-from typing import Set, Optional
 from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
+from typing import Optional, Set
 
 from endoreg_db.services import video_import
+from watchdog.events import FileCreatedEvent, FileMovedEvent, FileSystemEventHandler
 from watchdog.observers import Observer
-from watchdog.events import FileSystemEventHandler, FileCreatedEvent, FileMovedEvent
 
 try:
     from endoreg_db.utils import data_paths
@@ -45,17 +45,18 @@ LOG_DIR.mkdir(parents=True, exist_ok=True)
 sys.path.insert(0, str(PROJECT_ROOT))
 
 # Set Django settings before importing Django
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'lx_annotate.settings_dev')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'lx_annotate.settings.settings_dev')
 
 # Configure Django
 import django
+
 django.setup()
 
 # Import Django models and services after setup
 from django.core.management import call_command
-from endoreg_db.models import VideoFile, Center, EndoscopyProcessor
-from endoreg_db.services.video_import import VideoImportService
+from endoreg_db.models import Center, EndoscopyProcessor, VideoFile
 from endoreg_db.services.report_import import ReportImportService
+from endoreg_db.services.video_import import VideoImportService
 from endoreg_db.utils.paths import data_paths
 
 video_import_service = VideoImportService()
@@ -303,7 +304,9 @@ class AutoProcessingHandler(FileSystemEventHandler):
             # Early storage capacity check
             try:
                 from endoreg_db.exceptions import InsufficientStorageError
-                from endoreg_db.models.media.video.create_from_file import check_storage_capacity
+                from endoreg_db.models.media.video.create_from_file import (
+                    check_storage_capacity,
+                )
                 storage_root = os.getenv('DJANGO_DATA_DIR', str(PROJECT_ROOT / 'data' / 'videos'))
                 check_storage_capacity(video_path, Path(storage_root))
             except InsufficientStorageError as storage_error:

@@ -3,16 +3,16 @@ repos:
     rev: v0.14.7
     hooks:
       - id: ruff
-        args: ["--fix", "lx_dtypes", "tests"]
+        args: ["--fix", "lx_annotate", "tests"]
         pass_filenames: false
       - id: ruff-format
-        args: ["lx_dtypes", "tests"]
+        args: ["lx_annotate", "tests"]
         pass_filenames: false
   - repo: local
     hooks:
       - id: mypy
         name: mypy type check
-        entry: mypy lx_dtypes
+        entry: mypy lx_annotate
         language: system
         pass_filenames: false
       - id: pytest

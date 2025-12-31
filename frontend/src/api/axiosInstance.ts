@@ -67,7 +67,6 @@ export function a(path: string): string {
 }
 
 import type { InternalAxiosRequestConfig } from 'axios'
-import { promiseHooks } from 'v8'
 
 axiosInstance.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   const csrftoken = Cookies.get('csrftoken')

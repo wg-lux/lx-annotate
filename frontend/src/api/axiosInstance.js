@@ -49,7 +49,6 @@ export function r(path) {
 export function a(path) {
     return r(`pdf/${path}`);
 }
-import { promiseHooks } from 'v8';
 axiosInstance.interceptors.request.use((config) => {
     const csrftoken = Cookies.get('csrftoken');
     if (config.data instanceof FormData) {

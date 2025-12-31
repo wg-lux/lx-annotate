@@ -10,17 +10,19 @@ const __dirname = dirname(__filename);
 // --------------------------------------------------------
 export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, process.cwd(), '');
+    const isDev = mode === 'development';
     return {
         //base: mode === 'development' ? 'http://localhost:3000/' : './',
-        base: mode === 'development' ? '/' : './',
+        base: isDev ? '/static/' : '/',
         plugins: [vue(), vueJsx(), vueDevTools()],
         build: {
-            manifest: mode === 'production' ? 'manifest.json' : false,
+            manifest: true,
             outDir: resolve(__dirname, '../static/dist'),
+            emptyOutDir: true,
             target: 'esnext', // Ermöglicht Top-level await
             rollupOptions: {
                 input: {
-                    main: resolve(__dirname, 'src/main.ts')
+                    main: resolve(__dirname, 'src/main.ts'),
                 },
                 output: {
                     entryFileNames: '[name].js',
@@ -36,17 +38,11 @@ export default defineConfig(({ mode }) => {
         },
         server: {
             cors: true,
-            host: 'localhost', // ✅ Use 'localhost' instead of '127.0.0.1' to avoid Firefox cross-origin blocks
+            host: '127.0.0.1',
             port: 5173,
-            hmr: { host: 'localhost' },
+            hmr: { host: '127.0.0.1' },
             proxy: {
-                // ✅ Proxy API requests to Django (use localhost to match server.host)
                 '/api': {
-                    target: 'http://localhost:8000',
-                    changeOrigin: true,
-                    secure: false
-                },
-                '/admin': {
                     target: 'http://localhost:8000',
                     changeOrigin: true,
                     secure: false
@@ -55,12 +51,17 @@ export default defineConfig(({ mode }) => {
                     target: 'http://localhost:8000',
                     changeOrigin: true,
                     secure: false
+                },
+                '/admin': {
+                    target: 'http://localhost:8000',
+                    changeOrigin: true,
+                    secure: false
                 }
             }
         },
         resolve: {
             alias: {
-                '@': resolve(__dirname, 'src') // one alias is enough
+                '@': resolve(__dirname, 'src')
             }
         },
         css: {

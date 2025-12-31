@@ -504,10 +504,9 @@ const dirty = computed(() => editedAnonymizedText.value !== original.value.anony
 // ✅ NEW: Can save computed property
 const canSave = computed(() => {
     // Can save if we have a current item and data is not currently being processed
-    return currentItem.value && !isSaving.value && !isApproving.value;
+    return currentItem.value && !isApproving.value;
 });
 // Concurrency guards
-const isSaving = ref(false);
 const isApproving = ref(false);
 const toggleImage = () => {
     showOriginal.value = !showOriginal.value;
@@ -710,9 +709,6 @@ const approveItem = async () => {
     }
 };
 const saveAnnotation = async () => {
-    if (isSaving.value) {
-        return; // Already saving
-    }
     if (!canSubmit.value) {
         // Provide more specific error messages
         if (!processedUrl.value || !originalUrl.value) {
@@ -733,7 +729,6 @@ const saveAnnotation = async () => {
         }
         return;
     }
-    isSaving.value = true;
     try {
         const annotationData = {
             processed_image_url: processedUrl.value,
@@ -762,9 +757,6 @@ const saveAnnotation = async () => {
     catch (error) {
         console.error('Error saving annotation:', error);
         toast.error({ text: 'Fehler beim Speichern der Annotation' });
-    }
-    finally {
-        isSaving.value = false;
     }
 };
 const rejectItem = async () => {
@@ -1221,18 +1213,6 @@ if (__VLS_ctx.currentItem) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "mt-3" },
     });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-        ...{ onClick: (__VLS_ctx.saveAnnotation) },
-        ...{ class: "btn btn-primary" },
-    });
-    if (__VLS_ctx.isSaving) {
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-            ...{ class: "spinner-border spinner-border-sm me-2" },
-            role: "status",
-            'aria-hidden': "true",
-        });
-    }
-    (__VLS_ctx.isSaving ? 'Speichern...' : 'Annotation zwischenspeichern');
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "col-md-7" },
     });
@@ -1788,11 +1768,6 @@ if (__VLS_ctx.currentItem) {
 /** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn-primary']} */ ;
-/** @type {__VLS_StyleScopedClasses['spinner-border']} */ ;
-/** @type {__VLS_StyleScopedClasses['spinner-border-sm']} */ ;
-/** @type {__VLS_StyleScopedClasses['me-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['col-md-7']} */ ;
 /** @type {__VLS_StyleScopedClasses['card']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-header']} */ ;
@@ -2034,7 +2009,6 @@ const __VLS_self = (await import('vue')).defineComponent({
             onSegmentValidated: onSegmentValidated,
             onOutsideValidationComplete: onOutsideValidationComplete,
             dirty: dirty,
-            isSaving: isSaving,
             isApproving: isApproving,
             toggleImage: toggleImage,
             onDobBlur: onDobBlur,
@@ -2042,7 +2016,6 @@ const __VLS_self = (await import('vue')).defineComponent({
             clearValidationErrors: clearValidationErrors,
             skipItem: skipItem,
             approveItem: approveItem,
-            saveAnnotation: saveAnnotation,
             rejectItem: rejectItem,
             navigateToCorrection: navigateToCorrection,
         };

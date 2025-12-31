@@ -1,29 +1,24 @@
 {
-	"folders": [
-		{
-			"path": "."
-		}
-	],
-	"settings": {
-		"python.defaultInterpreterPath": ".devenv/state/venv/bin/python",
-		"python.analysis.extraPaths": [
-			""
-		],
-		"python.testing.unittestEnabled": false,
-		"python.analysis.typeCheckingMode": "strict",
-		"python.testing.pytestEnabled": true,
-		"python.testing.pytestArgs": [
-			"tests"
-		],
-		"python.formatting.provider": "black",
-		"python.formatting.blackArgs": [
-			"--config",
-			"${workspaceFolder}/pyproject.toml"
-		],
-		"ruff.lineLength": 88,
-		"editor.formatOnSave": true,
-		"editor.codeActionsOnSave": {
-			"source.organizeImports": "explicit"
-		},
-	}
+  "folders": [
+    {
+      "path": "."
+    }
+  ],
+  "settings": {
+    "python.interpreterPath": ".devenv/state/venv/bin/python",
+    "python.analysis.typeCheckingMode": "strict",
+    "python.testing.unittestEnabled": false,
+    "python.testing.pytestEnabled": true,
+    "python.testing.pytestArgs": [
+      "tests"
+    ],
+    "ruff.lineLength": 88,
+    "[python]": {
+      "editor.defaultFormatter": "mikoz.black-py",
+      "editor.formatOnSave": true,
+      "editor.codeActionsOnSave": {
+        "source.organizeImports": "explicit"
+      }
+    }
+  }
 }

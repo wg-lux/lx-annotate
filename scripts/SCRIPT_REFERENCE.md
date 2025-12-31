@@ -339,7 +339,7 @@ python scripts/file_watcher.py [options]
 
 **Environment Variables**:
 ```bash
-DJANGO_SETTINGS_MODULE    # Django configuration (default: lx_annotate.settings_dev)
+DJANGO_SETTINGS_MODULE    # Django configuration (default: lx_annotate.settings.settings_dev)
 WATCHER_LOG_LEVEL        # Logging level (default: INFO)
 FILE_WATCHER_DAEMON      # Daemon mode toggle
 ```

@@ -1,13 +1,16 @@
 import sys
 from gunicorn.app.wsgiapp import run
 
+
 def main():
     # Define default Gunicorn options
     default_args = [
-        "gunicorn",               # Gunicorn command
-        "lx-annotate.wsgi:application", # WSGI application
-        "--workers", "1",          # Default number of workers
-        "--bind", "0.0.0.0:8000"   # Default binding to 0.0.0.0:8000
+        "gunicorn",  # Gunicorn command
+        "lx-annotate.wsgi:application",  # WSGI application
+        "--workers",
+        "1",  # Default number of workers
+        "--bind",
+        "0.0.0.0:8000",  # Default binding to 0.0.0.0:8000
     ]
 
     # Append any command-line arguments provided during execution
@@ -20,6 +23,7 @@ def main():
 
     # Run Gunicorn
     run()
+
 
 if __name__ == "__main__":
     main()

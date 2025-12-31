@@ -61,6 +61,7 @@ const successMessage = ref('');
 const videoRef = ref(null);
 const timelineRef = ref(null);
 // Video Dropdown Watcher
+const hasUnsavedChanges = computed(() => rawSegments.value.some(s => s.isDirty));
 async function loadSelectedVideo() {
     if (selectedVideoId.value == null) {
         videoStore.clearVideo();
@@ -182,6 +183,7 @@ watch(selectedVideoId, (newId) => {
     console.log('Selected video ID changed, setting store to:', newId);
     if (typeof newId === 'number') {
         videoStore.setCurrentVideo(newId);
+        videoStore.fetchVideoSegments(newId);
     }
     else {
         errorMessage.value = 'Invalid video ID';
@@ -1032,123 +1034,124 @@ if (__VLS_ctx.duration > 0) {
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
             ...{ onClick: (__VLS_ctx.saveSegmentChanges) },
-            ...{ class: "btn btn-primary" },
+            ...{ class: "btn" },
+            ...{ class: (__VLS_ctx.hasUnsavedChanges ? 'btn-primary' : 'btn-outline-secondary') },
         });
-    }
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ onClick: (__VLS_ctx.handleTimelineClick) },
-        ...{ class: "simple-timeline-track mt-2" },
-        ref: "timelineRef",
-    });
-    /** @type {typeof __VLS_ctx.timelineRef} */ ;
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "progress-bar" },
-        ...{ style: ({ width: `${(__VLS_ctx.currentTime / __VLS_ctx.duration) * 100}%` }) },
-    });
-    for (const [marker] of __VLS_getVForSourceType((__VLS_ctx.examinationMarkers))) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            key: (marker.id),
-            ...{ class: "examination-marker" },
-            ...{ style: ({ left: `${(marker.timestamp / __VLS_ctx.duration) * 100}%` }) },
-            title: (`Untersuchung bei ${__VLS_ctx.formatTime(marker.timestamp)}`),
+            ...{ onClick: (__VLS_ctx.handleTimelineClick) },
+            ...{ class: "simple-timeline-track mt-2" },
+            ref: "timelineRef",
         });
-    }
-}
-if (__VLS_ctx.duration > 0) {
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "debug-info mt-2" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
-        ...{ class: "text-muted" },
-    });
-    (__VLS_ctx.timelineSegmentsForSelectedVideo.length);
-    (__VLS_ctx.rawSegments.length);
-    (__VLS_ctx.formatTime(__VLS_ctx.duration));
-    (__VLS_ctx.isPlaying);
-    (Object.keys(__VLS_ctx.groupedSegments).length);
-}
-if (__VLS_ctx.selectedVideoId) {
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "timeline-controls mt-4" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "d-flex align-items-center gap-3" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "d-flex align-items-center" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
-        ...{ class: "form-label mb-0 me-2" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
-        ...{ onChange: (__VLS_ctx.onLabelSelect) },
-        value: (__VLS_ctx.selectedLabelType),
-        ...{ class: "form-select form-select-sm control-select" },
-        'data-cy': "label-select",
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-        value: "",
-    });
-    for (const [label] of __VLS_getVForSourceType((__VLS_ctx.timelineLabels))) {
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-            key: (label.id),
-            value: (label.name),
-        });
-        (__VLS_ctx.getTranslationForLabel(label.name));
-    }
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "d-flex align-items-center gap-2" },
-    });
-    if (!__VLS_ctx.isMarkingLabel) {
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-            ...{ onClick: (__VLS_ctx.startLabelMarking) },
-            ...{ class: "btn btn-success btn-sm control-button" },
-            disabled: (!__VLS_ctx.canStartLabeling),
-            'data-cy': "start-label-button",
-        });
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "material-icons" },
-        });
-    }
-    if (__VLS_ctx.isMarkingLabel) {
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-            ...{ onClick: (__VLS_ctx.finishLabelMarking) },
-            ...{ class: "btn btn-warning btn-sm control-button" },
-            'data-cy': "finish-label-button",
-        });
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "material-icons" },
-        });
-    }
-    if (__VLS_ctx.isMarkingLabel) {
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-            ...{ onClick: (__VLS_ctx.cancelLabelMarking) },
-            ...{ class: "btn btn-outline-secondary btn-sm control-button" },
-        });
-    }
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-        ...{ class: "ms-3 text-muted" },
-    });
-    (__VLS_ctx.formatTime(__VLS_ctx.currentTime));
-    (__VLS_ctx.formatTime(__VLS_ctx.duration));
-    if (__VLS_ctx.videoStore.draftSegment) {
+        /** @type {typeof __VLS_ctx.timelineRef} */ ;
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: "alert alert-info mt-2 mb-0" },
+            ...{ class: "progress-bar" },
+            ...{ style: ({ width: `${(__VLS_ctx.currentTime / __VLS_ctx.duration) * 100}%` }) },
         });
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({});
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "material-icons align-middle me-1" },
-            ...{ style: {} },
-        });
-        (__VLS_ctx.getTranslationForLabel(__VLS_ctx.videoStore.draftSegment.label));
-        if (__VLS_ctx.videoStore.draftSegment.endTime) {
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
-            (__VLS_ctx.formatTime(__VLS_ctx.videoStore.draftSegment.startTime));
-            (__VLS_ctx.formatTime(__VLS_ctx.videoStore.draftSegment.endTime));
+        for (const [marker] of __VLS_getVForSourceType((__VLS_ctx.examinationMarkers))) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                key: (marker.id),
+                ...{ class: "examination-marker" },
+                ...{ style: ({ left: `${(marker.timestamp / __VLS_ctx.duration) * 100}%` }) },
+                title: (`Untersuchung bei ${__VLS_ctx.formatTime(marker.timestamp)}`),
+            });
         }
-        else {
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
-            (__VLS_ctx.formatTime(__VLS_ctx.videoStore.draftSegment.startTime));
+    }
+    if (__VLS_ctx.duration > 0) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "debug-info mt-2" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+            ...{ class: "text-muted" },
+        });
+        (__VLS_ctx.timelineSegmentsForSelectedVideo.length);
+        (__VLS_ctx.rawSegments.length);
+        (__VLS_ctx.formatTime(__VLS_ctx.duration));
+        (__VLS_ctx.isPlaying);
+        (Object.keys(__VLS_ctx.groupedSegments).length);
+    }
+    if (__VLS_ctx.selectedVideoId) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "timeline-controls mt-4" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "d-flex align-items-center gap-3" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "d-flex align-items-center" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+            ...{ class: "form-label mb-0 me-2" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
+            ...{ onChange: (__VLS_ctx.onLabelSelect) },
+            value: (__VLS_ctx.selectedLabelType),
+            ...{ class: "form-select form-select-sm control-select" },
+            'data-cy': "label-select",
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+            value: "",
+        });
+        for (const [label] of __VLS_getVForSourceType((__VLS_ctx.timelineLabels))) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+                key: (label.id),
+                value: (label.name),
+            });
+            (__VLS_ctx.getTranslationForLabel(label.name));
+        }
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "d-flex align-items-center gap-2" },
+        });
+        if (!__VLS_ctx.isMarkingLabel) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+                ...{ onClick: (__VLS_ctx.startLabelMarking) },
+                ...{ class: "btn btn-success btn-sm control-button" },
+                disabled: (!__VLS_ctx.canStartLabeling),
+                'data-cy': "start-label-button",
+            });
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                ...{ class: "material-icons" },
+            });
+        }
+        if (__VLS_ctx.isMarkingLabel) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+                ...{ onClick: (__VLS_ctx.finishLabelMarking) },
+                ...{ class: "btn btn-warning btn-sm control-button" },
+                'data-cy': "finish-label-button",
+            });
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                ...{ class: "material-icons" },
+            });
+        }
+        if (__VLS_ctx.isMarkingLabel) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+                ...{ onClick: (__VLS_ctx.cancelLabelMarking) },
+                ...{ class: "btn btn-outline-secondary btn-sm control-button" },
+            });
+        }
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+            ...{ class: "ms-3 text-muted" },
+        });
+        (__VLS_ctx.formatTime(__VLS_ctx.currentTime));
+        (__VLS_ctx.formatTime(__VLS_ctx.duration));
+        if (__VLS_ctx.videoStore.draftSegment) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: "alert alert-info mt-2 mb-0" },
+            });
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({});
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                ...{ class: "material-icons align-middle me-1" },
+                ...{ style: {} },
+            });
+            (__VLS_ctx.getTranslationForLabel(__VLS_ctx.videoStore.draftSegment.label));
+            if (__VLS_ctx.videoStore.draftSegment.endTime) {
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+                (__VLS_ctx.formatTime(__VLS_ctx.videoStore.draftSegment.startTime));
+                (__VLS_ctx.formatTime(__VLS_ctx.videoStore.draftSegment.endTime));
+            }
+            else {
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+                (__VLS_ctx.formatTime(__VLS_ctx.videoStore.draftSegment.startTime));
+            }
         }
     }
 }
@@ -1440,7 +1443,6 @@ if (__VLS_ctx.savedExaminations.length > 0) {
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-secondary']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn-primary']} */ ;
 /** @type {__VLS_StyleScopedClasses['simple-timeline-track']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['progress-bar']} */ ;
@@ -1599,6 +1601,7 @@ const __VLS_self = (await import('vue')).defineComponent({
             successMessage: successMessage,
             videoRef: videoRef,
             timelineRef: timelineRef,
+            hasUnsavedChanges: hasUnsavedChanges,
             onVideoChange: onVideoChange,
             annotatableVideos: annotatableVideos,
             showExaminationForm: showExaminationForm,

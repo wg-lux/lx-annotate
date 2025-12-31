@@ -1,0 +1,356 @@
+{
+  "_AnnotationDashboard-D35JYvrC.js": {
+    "file": "assets/AnnotationDashboard-D35JYvrC.js",
+    "name": "AnnotationDashboard",
+    "imports": [
+      "src/main.ts"
+    ],
+    "css": [
+      "assets/AnnotationDashboard-DMZZ8ZMX.css"
+    ]
+  },
+  "_AnnotationDashboard-DMZZ8ZMX.css": {
+    "file": "assets/AnnotationDashboard-DMZZ8ZMX.css",
+    "src": "_AnnotationDashboard-DMZZ8ZMX.css"
+  },
+  "_PatientAdder-BlwvntXl.js": {
+    "file": "assets/PatientAdder-BlwvntXl.js",
+    "name": "PatientAdder",
+    "imports": [
+      "src/main.ts",
+      "_patientStore-BazAFCNw.js"
+    ],
+    "css": [
+      "assets/PatientAdder-DOhN0oE-.css"
+    ]
+  },
+  "_PatientAdder-DOhN0oE-.css": {
+    "file": "assets/PatientAdder-DOhN0oE-.css",
+    "src": "_PatientAdder-DOhN0oE-.css"
+  },
+  "_RequirementGenerator-BC9a09T1.css": {
+    "file": "assets/RequirementGenerator-BC9a09T1.css",
+    "src": "_RequirementGenerator-BC9a09T1.css"
+  },
+  "_RequirementGenerator-CeDfg9J_.js": {
+    "file": "assets/RequirementGenerator-CeDfg9J_.js",
+    "name": "RequirementGenerator",
+    "imports": [
+      "src/main.ts",
+      "_patientStore-BazAFCNw.js",
+      "_PatientAdder-BlwvntXl.js"
+    ],
+    "css": [
+      "assets/RequirementGenerator-BC9a09T1.css"
+    ]
+  },
+  "_Timeline-CMheelus.js": {
+    "file": "assets/Timeline-CMheelus.js",
+    "name": "Timeline",
+    "imports": [
+      "src/main.ts",
+      "_videoStore-ClqdABXQ.js"
+    ],
+    "css": [
+      "assets/Timeline-DA5RpACe.css"
+    ]
+  },
+  "_Timeline-DA5RpACe.css": {
+    "file": "assets/Timeline-DA5RpACe.css",
+    "src": "_Timeline-DA5RpACe.css"
+  },
+  "_mediaTypeStore-D6KIykKn.js": {
+    "file": "assets/mediaTypeStore-D6KIykKn.js",
+    "name": "mediaTypeStore",
+    "imports": [
+      "src/main.ts"
+    ]
+  },
+  "_patientStore-BazAFCNw.js": {
+    "file": "assets/patientStore-BazAFCNw.js",
+    "name": "patientStore",
+    "imports": [
+      "src/main.ts"
+    ]
+  },
+  "_usePollingProtection-5vxQa-Ko.js": {
+    "file": "assets/usePollingProtection-5vxQa-Ko.js",
+    "name": "usePollingProtection",
+    "imports": [
+      "src/main.ts"
+    ]
+  },
+  "_videoStore-ClqdABXQ.js": {
+    "file": "assets/videoStore-ClqdABXQ.js",
+    "name": "videoStore",
+    "imports": [
+      "src/main.ts"
+    ],
+    "dynamicImports": [
+      "src/stores/annotationStore.js",
+      "src/stores/authStore.js"
+    ]
+  },
+  "src/assets/fonts/nucleo-icons.eot": {
+    "file": "assets/nucleo-icons-BgnVbBvX.eot",
+    "src": "src/assets/fonts/nucleo-icons.eot"
+  },
+  "src/assets/fonts/nucleo-icons.svg": {
+    "file": "assets/nucleo-icons-C6OFysxg.svg",
+    "src": "src/assets/fonts/nucleo-icons.svg"
+  },
+  "src/assets/fonts/nucleo-icons.ttf": {
+    "file": "assets/nucleo-icons-kNTzvw2K.ttf",
+    "src": "src/assets/fonts/nucleo-icons.ttf"
+  },
+  "src/assets/fonts/nucleo-icons.woff": {
+    "file": "assets/nucleo-icons-BuEzPWOc.woff",
+    "src": "src/assets/fonts/nucleo-icons.woff"
+  },
+  "src/assets/fonts/nucleo-icons.woff2": {
+    "file": "assets/nucleo-icons-CTnIBWcu.woff2",
+    "src": "src/assets/fonts/nucleo-icons.woff2"
+  },
+  "src/components/Anonymizer/AnonymizationCorrectionComponent.vue": {
+    "file": "assets/AnonymizationCorrectionComponent-CAO-Cg0B.js",
+    "name": "AnonymizationCorrectionComponent",
+    "src": "src/components/Anonymizer/AnonymizationCorrectionComponent.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "src/main.ts",
+      "_mediaTypeStore-D6KIykKn.js"
+    ],
+    "css": [
+      "assets/AnonymizationCorrectionComponent-BPyn1Euk.css"
+    ]
+  },
+  "src/components/Anonymizer/AnonymizationValidationComponent.vue": {
+    "file": "assets/AnonymizationValidationComponent-Bd7Ndg-z.js",
+    "name": "AnonymizationValidationComponent",
+    "src": "src/components/Anonymizer/AnonymizationValidationComponent.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "src/main.ts",
+      "_videoStore-ClqdABXQ.js",
+      "_mediaTypeStore-D6KIykKn.js",
+      "_Timeline-CMheelus.js",
+      "_usePollingProtection-5vxQa-Ko.js"
+    ],
+    "css": [
+      "assets/AnonymizationValidationComponent-BARZClvg.css"
+    ]
+  },
+  "src/main.ts": {
+    "file": "assets/main-DethiONo.js",
+    "name": "main",
+    "src": "src/main.ts",
+    "isEntry": true,
+    "dynamicImports": [
+      "src/views/AnnotationDashboard.vue",
+      "src/views/VideoExamination.vue",
+      "src/views/Dashboard.vue",
+      "src/views/UeberUns.vue",
+      "src/views/PageOverview.vue",
+      "src/views/Examination.vue",
+      "src/views/PatientAdder.vue",
+      "src/views/PatientOverview.vue",
+      "src/views/Profil.vue",
+      "src/views/Anonymization.vue",
+      "src/views/AnonymizationOverview.vue",
+      "src/components/Anonymizer/AnonymizationValidationComponent.vue",
+      "src/components/Anonymizer/AnonymizationCorrectionComponent.vue",
+      "src/views/Validierung.vue",
+      "src/views/ReportGenerator.vue"
+    ],
+    "css": [
+      "assets/main-DGGk9Vng.css"
+    ],
+    "assets": [
+      "assets/nucleo-icons-BgnVbBvX.eot",
+      "assets/nucleo-icons-CTnIBWcu.woff2",
+      "assets/nucleo-icons-BuEzPWOc.woff",
+      "assets/nucleo-icons-kNTzvw2K.ttf",
+      "assets/nucleo-icons-C6OFysxg.svg"
+    ]
+  },
+  "src/stores/annotationStore.js": {
+    "file": "assets/annotationStore-DEHKjdKh.js",
+    "name": "annotationStore",
+    "src": "src/stores/annotationStore.js",
+    "isDynamicEntry": true,
+    "imports": [
+      "src/main.ts",
+      "_videoStore-ClqdABXQ.js"
+    ]
+  },
+  "src/stores/authStore.js": {
+    "file": "assets/authStore-w8taChNC.js",
+    "name": "authStore",
+    "src": "src/stores/authStore.js",
+    "isDynamicEntry": true,
+    "imports": [
+      "src/main.ts"
+    ]
+  },
+  "src/views/AnnotationDashboard.vue": {
+    "file": "assets/AnnotationDashboard-OeFWLB-b.js",
+    "name": "AnnotationDashboard",
+    "src": "src/views/AnnotationDashboard.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "_AnnotationDashboard-D35JYvrC.js",
+      "src/main.ts"
+    ]
+  },
+  "src/views/Anonymization.vue": {
+    "file": "assets/Anonymization-Bd9LTm0-.js",
+    "name": "Anonymization",
+    "src": "src/views/Anonymization.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "src/components/Anonymizer/AnonymizationValidationComponent.vue",
+      "src/main.ts",
+      "_videoStore-ClqdABXQ.js",
+      "_mediaTypeStore-D6KIykKn.js",
+      "_Timeline-CMheelus.js",
+      "_usePollingProtection-5vxQa-Ko.js"
+    ]
+  },
+  "src/views/AnonymizationOverview.vue": {
+    "file": "assets/AnonymizationOverview-CGBsqOFg.js",
+    "name": "AnonymizationOverview",
+    "src": "src/views/AnonymizationOverview.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "src/main.ts",
+      "_videoStore-ClqdABXQ.js",
+      "src/stores/annotationStore.js",
+      "_mediaTypeStore-D6KIykKn.js",
+      "_usePollingProtection-5vxQa-Ko.js"
+    ],
+    "css": [
+      "assets/AnonymizationOverview-DUuDRweL.css"
+    ]
+  },
+  "src/views/Dashboard.vue": {
+    "file": "assets/Dashboard-DsKQzZNG.js",
+    "name": "Dashboard",
+    "src": "src/views/Dashboard.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "src/main.ts",
+      "_AnnotationDashboard-D35JYvrC.js"
+    ]
+  },
+  "src/views/Examination.vue": {
+    "file": "assets/Examination-CeCEv25w.js",
+    "name": "Examination",
+    "src": "src/views/Examination.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "_RequirementGenerator-CeDfg9J_.js",
+      "src/main.ts",
+      "_patientStore-BazAFCNw.js",
+      "_PatientAdder-BlwvntXl.js"
+    ]
+  },
+  "src/views/PageOverview.vue": {
+    "file": "assets/PageOverview-B8gUoFeQ.js",
+    "name": "PageOverview",
+    "src": "src/views/PageOverview.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "src/main.ts"
+    ]
+  },
+  "src/views/PatientAdder.vue": {
+    "file": "assets/PatientAdder-CFDJpfd1.js",
+    "name": "PatientAdder",
+    "src": "src/views/PatientAdder.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "_PatientAdder-BlwvntXl.js",
+      "src/main.ts",
+      "_patientStore-BazAFCNw.js"
+    ]
+  },
+  "src/views/PatientOverview.vue": {
+    "file": "assets/PatientOverview-C7XuyKPN.js",
+    "name": "PatientOverview",
+    "src": "src/views/PatientOverview.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "src/main.ts",
+      "_patientStore-BazAFCNw.js"
+    ],
+    "css": [
+      "assets/PatientOverview-oorWuJjf.css"
+    ]
+  },
+  "src/views/Profil.vue": {
+    "file": "assets/Profil-lke9QkYz.js",
+    "name": "Profil",
+    "src": "src/views/Profil.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "src/main.ts"
+    ]
+  },
+  "src/views/ReportGenerator.vue": {
+    "file": "assets/ReportGenerator-DJn6kaoO.js",
+    "name": "ReportGenerator",
+    "src": "src/views/ReportGenerator.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "_RequirementGenerator-CeDfg9J_.js",
+      "src/main.ts",
+      "_patientStore-BazAFCNw.js",
+      "_PatientAdder-BlwvntXl.js"
+    ]
+  },
+  "src/views/UeberUns.vue": {
+    "file": "assets/UeberUns-DnTs7q1V.js",
+    "name": "UeberUns",
+    "src": "src/views/UeberUns.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "src/main.ts"
+    ]
+  },
+  "src/views/Validierung.vue": {
+    "file": "assets/Validierung-Bobt4Qg1.js",
+    "name": "Validierung",
+    "src": "src/views/Validierung.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "src/components/Anonymizer/AnonymizationValidationComponent.vue",
+      "src/main.ts",
+      "_videoStore-ClqdABXQ.js",
+      "_mediaTypeStore-D6KIykKn.js",
+      "_Timeline-CMheelus.js",
+      "_usePollingProtection-5vxQa-Ko.js"
+    ],
+    "css": [
+      "assets/Validierung-u-u0EBv0.css"
+    ]
+  },
+  "src/views/VideoExamination.vue": {
+    "file": "assets/VideoExamination-B8b7SxA_.js",
+    "name": "VideoExamination",
+    "src": "src/views/VideoExamination.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "src/main.ts",
+      "_videoStore-ClqdABXQ.js",
+      "src/stores/annotationStore.js",
+      "_mediaTypeStore-D6KIykKn.js",
+      "_RequirementGenerator-CeDfg9J_.js",
+      "_Timeline-CMheelus.js",
+      "_patientStore-BazAFCNw.js",
+      "_PatientAdder-BlwvntXl.js"
+    ],
+    "css": [
+      "assets/VideoExamination-DdMsVSAF.css"
+    ]
+  }
+}

@@ -28,13 +28,7 @@ from typing import Dict, Set
 # Always import local `endoreg_db` before any installed copy
 project_root = Path(__file__).resolve().parents[2]
 local_lib = project_root / "libs" / "endoreg-db"
-if local_lib.exists():
-    sys.path.insert(0, str(local_lib))
-else:
-    # Fallback: if libs layout differs (e.g., monorepo flattening)
-    alt_lib = project_root / "endoreg-db"
-    if alt_lib.exists():
-        sys.path.insert(0, str(alt_lib))
+
 
 from django.core.management.utils import get_random_secret_key
 from endoreg_db.utils.paths import IMPORT_DIR, STORAGE_DIR

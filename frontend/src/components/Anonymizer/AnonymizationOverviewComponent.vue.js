@@ -73,7 +73,7 @@ const isReadyForValidation = (fileId) => {
     if (!file)
         return false;
     // Only allow validation if anonymization is done
-    return file.anonymizationStatus === 'done_processing_anonymization' || file.anonymizationStatus === 'not_started';
+    return file.anonymizationStatus === 'done_processing_anonymization';
 };
 const validateFile = async (fileId, mediaType) => {
     processingFiles.value.add(fileId);
@@ -307,7 +307,6 @@ onMounted(async () => {
         fromOverview: f.mediaType,
         remembered: mediaStore.getType(f.id) // scans both pdf/video scopes
     })));
-    // ✅ FIX: Only start polling for files that are actively processing
     // Don't poll files with final states: 'done_processing_anonymization', 'validated', 'failed', 'not_started'
     const processingStatuses = ['processing_anonymization', 'extracting_frames', 'predicting_segments'];
     anonymizationStore.overview.forEach((file) => {

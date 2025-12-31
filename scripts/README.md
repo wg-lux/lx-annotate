@@ -185,7 +185,7 @@ scripts/
   - Concurrent processing with thread safety
   - Comprehensive logging and error handling
 - **Environment Variables**:
-  - `DJANGO_SETTINGS_MODULE`: Django settings (default: lx_annotate.settings_dev)
+  - `DJANGO_SETTINGS_MODULE`: Django settings (default: lx_annotate.settings.settings_dev)
   - `WATCHER_LOG_LEVEL`: Logging level (default: INFO)
 - **Integration**: Core service for automated media processing pipeline
 

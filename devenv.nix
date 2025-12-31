@@ -16,7 +16,7 @@ let
   confTemplateDir = let env = builtins.getEnv "CONF_TEMPLATE_DIR"; in if env != "" then env else appConfig.paths.confTemplate;
 
   importDir = let env = builtins.getEnv "IMPORT_DIR"; in if env != "" then env else appConfig.paths.importDir;
-  importVideoDir = let env = builtins.getEnv "VIDEO_IMPORT_DIR"; in if env != "" then env else appConfig.paths.videoImportDir;
+  importVideoDir = let env = builtins.getEnv "IMPORT_VIDEO_DIR"; in if env != "" then env else appConfig.paths.videoImportDir;
   importReportDir = let env = builtins.getEnv "REPORT_IMPORT_DIR"; in if env != "" then env else appConfig.paths.reportImportDir;
 
   homeDir = let env = builtins.getEnv "HOME_DIR"; in if env != "" then env else builtins.getEnv "HOME";
@@ -77,12 +77,18 @@ let
     ./frontend/flake.nix
   ];
 
-  packages = runtimePackages ++ buildInputs;
-
+  packages = runtimePackages ++ buildInputs ++ [
+    # Add Tesseract with specific languages
+    (pkgs.tesseract.override {
+      enableLanguages = [ "eng" "deu" ];
+    })
+  ];
 
   _module.args.buildInputs = baseBuildInputs;
 
   SYNC_CMD = "uv sync --extra dev --extra docs";
+  nixpkgs.config.allowUnfree = true;
+
 in
 {
 
@@ -93,9 +99,13 @@ in
   env = {
     # include runtimePackages as well so runtime native libs (e.g. zlib) are on LD_LIBRARY_PATH
     LD_LIBRARY_PATH =
-      lib.makeLibraryPath (buildInputs ++ runtimePackages)
-      + ":/run/opengl-driver/lib:/run/opengl-driver-32/lib";
+          lib.makeLibraryPath (buildInputs ++ runtimePackages)
+          + ":/run/opengl-driver/lib:/run/opengl-driver-32/lib"  # NixOS
+          + ":/usr/lib/wsl/lib"                                  # WSL2
+          + ":/usr/lib/x86_64-linux-gnu"                         # Ubuntu/Debian/Mint
+          + ":/usr/lib";                                         # Generic Linux
     STORAGE_DIR = lib.mkForce dataDir;
+    TESSDATA_PREFIX = "${pkgs.tesseract.override { enableLanguages = [ "eng" "deu" ]; }}/share";
     BASE_DIR = lib.mkForce dataDir;
   } // devenv_utils.environment;
 
@@ -167,15 +177,7 @@ in
        $SYNC_CMD --quiet || echo "Warning: uv sync failed. Environment might be outdated."
     fi
 
-    # Activate Python virtual environment managed by uv
-    ACTIVATED=false
-    if [ -f ".devenv/state/venv/bin/activate" ]; then
-      source .devenv/state/venv/bin/activate
-      ACTIVATED=true
-      echo "Virtual environment activated."
-    else
-      echo "Warning: uv virtual environment activation script not found. Run 'devenv task run env:clean' and re-enter shell."
-    fi
+
 
     echo "Exporting environment variables from .env file..."
     if [ -f ".env" ]; then
@@ -186,9 +188,19 @@ in
     else
       echo "Note: .env not found. Defaults apply."
     fi
+    # Activate Python virtual environment managed by uv inside of devenv
+    ACTIVATED=false
+    if [ -f ".devenv/state/venv/bin/activate" ]; then
+      source .devenv/state/venv/bin/activate
+      ACTIVATED=true
+      echo "Virtual environment activated."
+    else
+      echo "Warning: uv virtual environment activation script not found. Run 'devenv task run env:clean' and re-enter shell."
+    fi
 
     python scripts/core/setup.py --status-only || echo "Warning: Environment setup check failed."
     gpu-check
+
 
   '';
 

@@ -382,7 +382,7 @@ const isReadyForValidation = (fileId: number) => {
   if (!file) return false;
 
   // Only allow validation if anonymization is done
-  return file.anonymizationStatus === 'done_processing_anonymization' || file.anonymizationStatus === 'not_started';
+  return file.anonymizationStatus === 'done_processing_anonymization';
 };
 
 const validateFile = async (fileId: number, mediaType: string) => {
@@ -643,7 +643,6 @@ onMounted(async () => {
       }))
     )
 
-  // ✅ FIX: Only start polling for files that are actively processing
   // Don't poll files with final states: 'done_processing_anonymization', 'validated', 'failed', 'not_started'
   const processingStatuses = ['processing_anonymization', 'extracting_frames', 'predicting_segments'];
   
