@@ -48,7 +48,6 @@ let
   devTasks = import ./devenv/devTasks/default.nix { inherit config pkgs lib; };
 
   buildInputs = devenv_utils.buildInputs;
-  runtimePackages = devenv_utils.runtimePackages;
   lxVars = devenv_utils.lx_vars;
   exportLxVars = pkgs.writeText "export-lx-vars.json" (builtins.toJSON lxVars);
 
@@ -76,13 +75,10 @@ let
   imports = [
     ./frontend/flake.nix
   ];
+  myTesseract = pkgs.tesseract.override {
+    enableLanguages = [ "eng" "deu" ];
+  };
 
-  packages = runtimePackages ++ buildInputs ++ [
-    # Add Tesseract with specific languages
-    (pkgs.tesseract.override {
-      enableLanguages = [ "eng" "deu" ];
-    })
-  ];
 
   _module.args.buildInputs = baseBuildInputs;
 
@@ -94,19 +90,24 @@ in
 
   dotenv.enable = true;
   dotenv.disableHint = true;
+  packages = devenv_utils.buildInputs ++ [ 
+    myTesseract
+    pkgs.ollama
+    pkgs.git
+     ];
 
 
   env = {
     # include runtimePackages as well so runtime native libs (e.g. zlib) are on LD_LIBRARY_PATH
     LD_LIBRARY_PATH =
-          lib.makeLibraryPath (buildInputs ++ runtimePackages)
-          + ":/run/opengl-driver/lib:/run/opengl-driver-32/lib"  # NixOS
-          + ":/usr/lib/wsl/lib"                                  # WSL2
-          + ":/usr/lib/x86_64-linux-gnu"                         # Ubuntu/Debian/Mint
-          + ":/usr/lib";                                         # Generic Linux
+          lib.makeLibraryPath (devenv_utils.buildInputs ++ [myTesseract])
+          + ":/run/opengl-driver/lib:/run/opengl-driver-32/lib"
+          + ":/usr/lib/wsl/lib"
+          + ":/usr/lib/x86_64-linux-gnu"
+          + ":/usr/lib"
+          ;
     STORAGE_DIR = lib.mkForce dataDir;
-    TESSDATA_PREFIX = "${pkgs.tesseract.override { enableLanguages = [ "eng" "deu" ]; }}/share";
-    BASE_DIR = lib.mkForce dataDir;
+    TESSDATA_PREFIX = "${myTesseract}/share/tessdata";
   } // devenv_utils.environment;
 
   languages.python = {
@@ -138,8 +139,9 @@ in
     env-setup.exec = ''
       # Ensure runtimePackages are included in the library path here too
       export LD_LIBRARY_PATH="${
-        with pkgs; lib.makeLibraryPath (buildInputs ++ runtimePackages)
+        with pkgs; lib.makeLibraryPath (buildInputs)
       }:/run/opengl-driver/lib:/run/opengl-driver-32/lib"
+      which tesseract
     '';
 
     hello.package = pkgs.zsh;
