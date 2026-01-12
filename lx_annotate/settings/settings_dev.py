@@ -49,12 +49,9 @@ DJANGO_VITE = {
     "default": {
         "dev_mode": False,
         "static_url_prefix": "dist",
-        "manifest_path": BASE_DIR
-        / "lx_annotate"
-        / "static"
-        / "dist"
-        / ".vite"
-        / "manifest.json",
+        "manifest_path": os.path.join(
+            BASE_DIR, "static", "dist", ".vite", "manifest.json"
+        ),
     }
 }
 

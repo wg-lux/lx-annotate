@@ -290,25 +290,42 @@ export const useAnonymizationStore = defineStore('anonymization', {
     /**
      * Start polling status for a specific file
      */
-    startPolling(id: number) {
+startPolling(id: number) {
       if (this.pollingHandles[id]) {
         console.log(`Polling for file ${id} is already running`)
         return
       }
 
-      console.log(`Starting status polling for file ${id}`)
+      // 1. Find the file to determine its type
+      const file = this.overview.find((f) => f.id === id)
+      if (!file) {
+        console.warn(`Cannot start polling: File ${id} not found in overview`)
+        return
+      }
+
+      console.log(`Starting status polling for file ${id} (${file.mediaType})`)
       this.isPolling = true
 
       const timer = setInterval(async () => {
         try {
-          const { data } = await axiosInstance.get(r(`anonymization/${id}/status/`))
-          const file = this.overview.find((f) => f.id === id)
+          // 2. Map frontend 'pdf' to backend 'report' if necessary, or pass as is
+          // usually backend expects 'report', but let's handle normalization in backend to be safe.
+          // We pass it as a query parameter.
+          const kindParam = file.mediaType === 'pdf' ? 'report' : 'video'
+          
+          const { data } = await axiosInstance.get(
+            r(`anonymization/${id}/status/`), 
+            { params: { kind: kindParam } } 
+          )
 
-          if (file && data.anonymizationStatus) {
+          // Refresh file reference in case overview changed
+          const currentFile = this.overview.find((f) => f.id === id)
+
+          if (currentFile && data.anonymizationStatus) {
             const statusFromBackend = data.anonymizationStatus
 
             console.log(`Status update for file ${id}: ${statusFromBackend}`)
-            file.anonymizationStatus = statusFromBackend as any
+            currentFile.anonymizationStatus = statusFromBackend as any
 
             if (['done_processing_anonymization', 'validated', 'failed'].includes(statusFromBackend)) {
               console.log(`Stopping polling for file ${id} - final status: ${statusFromBackend}`)
@@ -317,13 +334,11 @@ export const useAnonymizationStore = defineStore('anonymization', {
           }
         } catch (err) {
           console.error(`Error polling status for file ${id}:`, err)
-          // Continue polling even on error to be resilient
         }
-      }, 10000) // Reduced from 1500ms to 10000ms (10 seconds)
+      }, 10000)
 
       this.pollingHandles[id] = timer
     },
-
     /**
      * Stop polling for a specific file
      */

@@ -14,28 +14,28 @@ Environment Variables:
     WATCHER_LOG_LEVEL: Logging level (default: INFO)
 """
 
+import glob
 import logging
 import os
 import shutil
-import subprocess
 import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import Optional, Set
+from typing import Set
 
-from endoreg_db.services import video_import
+import requests
 from watchdog.events import FileCreatedEvent, FileMovedEvent, FileSystemEventHandler
 from watchdog.observers import Observer
 
 try:
-    from endoreg_db.utils import data_paths
-    project_root = data_paths["project_root"]
+    from endoreg_db.utils import data_paths as root_data_paths
+    project_root = root_data_paths["project_root"]
 except (ImportError, ModuleNotFoundError, KeyError):
     # Fallback to determining project root from file location
     project_root = Path(__file__).parent.parent
 
-PROJECT_ROOT = project_root
+PROJECT_ROOT = Path(project_root)
 
 # Ensure core directories exist before configuring logging or imports
 LOG_DIR = PROJECT_ROOT / 'logs'
@@ -53,15 +53,31 @@ import django
 django.setup()
 
 # Import Django models and services after setup
-from django.core.management import call_command
-from endoreg_db.models import Center, EndoscopyProcessor, VideoFile
+from endoreg_db.models import Center, EndoscopyProcessor
 from endoreg_db.services.report_import import ReportImportService
 from endoreg_db.services.video_import import VideoImportService
 from endoreg_db.utils.paths import data_paths
 
 video_import_service = VideoImportService()
 report_import_service = ReportImportService()
-# Ensure FFmpeg is available
+
+def unload_ollama_model(model_name="llama3.2:1b"):
+    """
+    Tells Ollama to immediately unload the model and free VRAM
+    by setting keep_alive to 0.
+    """
+    try:
+        url = "http://localhost:11434/api/chat"
+        # Sending an empty prompt with keep_alive=0 triggers the unload
+        payload = {
+            "model": model_name,
+            "keep_alive": 0
+        }
+        requests.post(url, json=payload, timeout=2)
+        logger.info(f"Requested immediate VRAM release for model: {model_name}")
+    except Exception as e:
+        logger.warning(f"Failed to unload Ollama model (VRAM might not be freed): {e}")
+        
 def _setup_ffmpeg():
     """Ensure FFmpeg binaries are available in PATH."""
     # Common FFmpeg binary names
@@ -77,7 +93,6 @@ def _setup_ffmpeg():
             ]
             
             for pattern in possible_paths:
-                import glob
                 matches = glob.glob(pattern)
                 if matches:
                     # Add the directory to PATH
@@ -90,7 +105,7 @@ def _setup_ffmpeg():
             else:
                 print(f"Warning: Could not find {binary} binary")
 
-# Setup FFmpeg before other imports
+# Ensure FFmpeg binaries are available before processing begins.
 _setup_ffmpeg()
 
 # Configure logging
@@ -103,7 +118,7 @@ logging.basicConfig(
     ]
 )
 
-# ⭐ FIX: Reduce watchdog logging to prevent CPU overload
+# Reduce watchdog logging to avoid CPU overhead.
 logging.getLogger("watchdog").setLevel(logging.WARNING)
 logging.getLogger("watchdog.observers").setLevel(logging.WARNING)
 logging.getLogger("watchdog.observers.inotify_buffer").setLevel(logging.WARNING)
@@ -114,7 +129,7 @@ def should_ignore_file(file_path: str | Path) -> bool:
     """
     Central ignore helper to skip internal/temporary files and quarantine paths
     Args:
-        file_path (str | Path): The file path to check.#
+        file_path (str | Path): The file path to check.
     """
 
     p = Path(file_path)
@@ -152,7 +167,7 @@ class AutoProcessingHandler(FileSystemEventHandler):
         logger.info(f"Monitoring report extensions: {self.report_extensions}")
 
     def dispatch(self, event):
-        """⭐ FIX: Filter out noisy events to reduce CPU load."""
+        """Filter out noisy events to reduce CPU load."""
         # Skip directory events
         if event.is_directory:
             return
@@ -162,7 +177,7 @@ class AutoProcessingHandler(FileSystemEventHandler):
             return
         
         src_path = str(event.src_path)
-        dest_path = str(event.dest_path)
+        dest_path = getattr(event, 'dest_path', None)
             
         # Skip temp files and FFmpeg intermediate files
         if hasattr(event, 'src_path'):
@@ -176,7 +191,7 @@ class AutoProcessingHandler(FileSystemEventHandler):
                 return
         # Also check destination path for move events
         if hasattr(event, 'dest_path'):
-            if should_ignore_file(dest_path):
+            if dest_path and should_ignore_file(dest_path):
                 return
         
         # Continue with normal dispatch
@@ -185,13 +200,13 @@ class AutoProcessingHandler(FileSystemEventHandler):
     def on_created(self, event):
         """Handle file creation events."""
         if isinstance(event, FileCreatedEvent) and not event.is_directory:
-            # ⭐ FIX: Offload to thread pool instead of blocking inotify thread
+            # Offload to thread pool instead of blocking the inotify thread.
             self.executor.submit(self._process_file, str(event.src_path))
 
     def on_moved(self, event) -> None:
         """Handle file move events (useful for files moved into watched directories)."""
         if isinstance(event, FileMovedEvent) and not event.is_directory:
-            # ⭐ FIX: Offload to thread pool instead of blocking inotify thread
+            # Offload to thread pool instead of blocking the inotify thread.
             self.executor.submit(self._process_file, str(event.dest_path))
 
     def _process_file(self, file_path: str):
@@ -215,10 +230,6 @@ class AutoProcessingHandler(FileSystemEventHandler):
                 return
             
             # Skip temporary or hidden files
-            if path.name.startswith('.') or path.name.startswith('~'):
-                logger.debug(f"Skipping temporary/hidden file: {path}")
-                return
-            
             # Wait for file to be completely written
             if not self._wait_for_file_stable(path):
                 logger.warning(f"File not stable after waiting: {path}")
@@ -297,6 +308,7 @@ class AutoProcessingHandler(FileSystemEventHandler):
         """
         try:
             logger.info(f"Starting video processing: {video_path}")
+            video_file = None
             
             # Mark as processed to avoid duplicate processing
             self.processed_files.add(str(video_path))
@@ -358,7 +370,7 @@ class AutoProcessingHandler(FileSystemEventHandler):
             # Run segmentation if video was imported successfully
             if video_file and hasattr(video_file, 'pk') and video_file.pk:
                 try:
-                    
+                    unload_ollama_model(model_name=self.default_model)
                     success = video_file.pipe_1(
                         model_name=self.default_model,
                         delete_frames_after=True
@@ -376,7 +388,7 @@ class AutoProcessingHandler(FileSystemEventHandler):
             logger.info(f"Video processing completed: {video_path}")
             if video_path.exists():
                 logger.info(f"Source video still exists: {video_path}")
-                subprocess.run(['rm', str(video_path)], check=True)
+                video_path.unlink()
             
         except Exception as e:
             error_msg = str(e)
@@ -419,7 +431,6 @@ class AutoProcessingHandler(FileSystemEventHandler):
                 if not storage_root.exists():
                     storage_root.mkdir(parents=True, exist_ok=True)
                 # Check if storage root exists and has enough space
-                MIN_REQUIRED_SPACE = 100 * 1024 * 1024  # 100 MB minimum
                 if not storage_root.exists():
                     raise InsufficientStorageError(f"Storage root does not exist: {storage_root}")
                 
@@ -436,7 +447,7 @@ class AutoProcessingHandler(FileSystemEventHandler):
                     logger.info(f"report imported successfully: {raw_report.pdf_hash}")
                     try:
                         if report_path.exists():
-                            subprocess.run(['rm', str(report_path)], check=True)
+                            report_path.unlink()
                     except Exception as e:
                         logger.error(f"Error removing report file {report_path}: {e}")
                 else:
@@ -537,7 +548,7 @@ class FileWatcherService:
             self.observer.join()
             logger.info("File watcher service stopped")
         
-        # ⭐ FIX: Shutdown thread pool
+        # Shutdown thread pool.
         self.handler.shutdown()
 
     def _validate_django_setup(self):

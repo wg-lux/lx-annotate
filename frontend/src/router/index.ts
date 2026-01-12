@@ -3,7 +3,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { useAnonymizationStore } from '@/stores/anonymizationStore'
 import { useAuthKcStore } from '@/stores/auth_kc'
 const router = createRouter({
-  history: createWebHistory(import.meta.env.BASE_URL || '/'),
+  history: createWebHistory('/'),
   routes: [
     {
       path: '/annotationen',
@@ -225,4 +225,3 @@ router.beforeEach((to, _from, next) => {
 })
 
 export default router
-

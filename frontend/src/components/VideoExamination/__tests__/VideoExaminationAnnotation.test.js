@@ -407,7 +407,7 @@ describe('VideoExaminationAnnotation.vue', () => {
                 currentTime: 45,
                 isPlaying: true,
                 selectedSegmentId: 1,
-                fps: 25
+                fps: 50
             });
             await nextTick();
             const timeline = wrapper.findComponent({ name: 'Timeline' });
@@ -419,7 +419,7 @@ describe('VideoExaminationAnnotation.vue', () => {
             expect(props['is-playing']).toBe(true);
             expect(props['active-segment-id']).toBe(1);
             expect(props['selection-mode']).toBe(true);
-            expect(props.fps).toBe(25);
+            expect(props.fps).toBe(50);
         });
         it('should emit correct events to Timeline component', async () => {
             wrapper = mount(VideoExaminationAnnotation, {
@@ -453,7 +453,7 @@ describe('VideoExaminationAnnotation.vue', () => {
                 data: {
                     video_url: 'http://test.com/video.mp4',
                     duration: 120,
-                    fps: 25
+                    fps: 50
                 }
             });
             wrapper = mount(VideoExaminationAnnotation, {
@@ -464,7 +464,7 @@ describe('VideoExaminationAnnotation.vue', () => {
             const vm = wrapper.vm;
             await vm.loadVideoDetail(6);
             expect(vm.videoDetail).toEqual({ video_url: 'http://test.com/video.mp4' });
-            expect(vm.videoMeta).toEqual({ duration: 120, fps: 25 });
+            expect(vm.videoMeta).toEqual({ duration: 120, fps: 50 });
             expect(vm.duration).toBe(120);
             expect(mediaStore.setCurrentItem).toHaveBeenCalled();
         });

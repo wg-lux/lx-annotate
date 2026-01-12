@@ -228,6 +228,18 @@ export interface SegmentUpdatePayload {
 
 export interface CreateSegmentResponse extends BackendSegment {}  // reuse same shape
 
+type SegmentListResponse = BackendSegment[] | { results: BackendSegment[] }
+
+function normalizeSegmentList(data: SegmentListResponse | null | undefined): BackendSegment[] {
+  if (Array.isArray(data)) {
+    return data
+  }
+  if (data && Array.isArray(data.results)) {
+    return data.results
+  }
+  return []
+}
+
 export function backendSegmentToSegment(backend: BackendSegment): Segment {
   const labelName = backend.labelName ?? backend.labelDisplay ?? 'unknown'
 
@@ -246,8 +258,8 @@ export function backendSegmentToSegment(backend: BackendSegment): Segment {
     startTime: backend.startTime,
     endTime: backend.endTime,
     avgConfidence: 1,
-    videoID: backend.videoId,
-    labelID: backend.labelId,
+    videoID: backend.videoId ?? backend.videoFile,
+    labelID: backend.labelId ?? (typeof backend.label === 'number' ? backend.label : null),
     startFrameNumber: backend.startFrameNumber,
     endFrameNumber: backend.endFrameNumber,
     frames: framesMap
@@ -328,11 +340,15 @@ export const useVideoStore = defineStore('video', () => {
   const hasVideo = computed<boolean>(() => !!currentVideo.value)
 
   const duration = computed<number>(() => {
-    if (videoMeta.value?.duration) {
-      return videoMeta.value.duration
-    }
+    if (videoMeta.value?.duration) return videoMeta.value.duration
+    if (currentVideo.value?.duration) return currentVideo.value.duration
     return 0
   })
+
+  const getEffectiveFps = (): number => {
+    const fps = videoMeta.value?.fps ?? currentVideo.value?.fps ?? 50
+    return Number.isFinite(fps) && fps > 0 ? fps : 50
+  }
 
   const segments = computed<Segment[]>(() => currentVideo.value?.segments || [])
 
@@ -557,18 +573,25 @@ export const useVideoStore = defineStore('video', () => {
       // ✅ PRIORITY: Fetch labels first before processing videos
       await fetchLabels()
       
-      const response: AxiosResponse<VideoList> = await axiosInstance.get(r('media/videos/'))
+      const response: AxiosResponse<any> = await axiosInstance.get(r('media/videos/'))
       console.log('API Response:', response.data) //#TODO Add newly created assigned user from keycloak
+      const rawVideos: any[] = Array.isArray(response.data?.results)
+        ? response.data.results
+        : Array.isArray(response.data?.videos)
+        ? response.data.videos
+        : Array.isArray(response.data)
+        ? response.data
+        : []
 
       // Process videos with enhanced metadata
-      const processedVideos: VideoMeta[] = response.data.videos.map((video: any) => ({
+      const processedVideos: VideoMeta[] = rawVideos.map((video: any) => ({
         id: parseInt(video.id),
         original_file_name: video.original_file_name,
         status: video.status || 'available',
         assignedUser: video.assignedUser || null,
         anonymized: video.anonymized || false,
-        centerName: video.center_name || 'Unbekannt',
-        processorName: video.processor_name || 'Unbekannt'
+        centerName: video.centerName || video.center_name || 'Unbekannt',
+        processorName: video.processorName || video.processor_name || 'Unbekannt'
       }))
 
       // Labels already fetched and stored above
@@ -583,15 +606,17 @@ export const useVideoStore = defineStore('video', () => {
             const segmentsResponse = await axiosInstance.get(
               r(`media/videos/${video.id}/segments/`)
             )
-            console.log(`Video ${video.id}: Found ${segmentsResponse.data.length} segments`)
-
-          const backendSegments: BackendSegment[] = segmentsResponse.data
-
-          const segments: Segment[] = backendSegments.map((backendSeg) =>
-            ensureLabelId(
-              backendSegmentToSegment(backendSeg)
+            const rawSegments: BackendSegment[] = Array.isArray(segmentsResponse.data?.results)
+              ? segmentsResponse.data.results
+              : Array.isArray(segmentsResponse.data)
+              ? segmentsResponse.data
+              : []
+            console.log(`Video ${video.id}: Found ${rawSegments.length} segments`)
+            const segments: Segment[] = rawSegments.map((backendSeg) =>
+              ensureLabelId(
+                backendSegmentToSegment(backendSeg)
+              )
             )
-          )
 
             return { ...video, segments }
           } catch (segmentError) {
@@ -621,6 +646,7 @@ export const useVideoStore = defineStore('video', () => {
 
   function clearVideo(): void {
     currentVideo.value = null
+    videoMeta.value = null
   }
 
   function setVideo(video: VideoAnnotation): void {
@@ -644,15 +670,61 @@ export const useVideoStore = defineStore('video', () => {
     }
     return currentVideo.value
   }
+  async function fetchVideoMetadata(videoId?: number): Promise<void> {
+    try {
+      const id = videoId || currentVideo.value?.id
+      if (!id) {
+        console.warn('No video ID available for fetching video metadata')
+        return
+      }
+
+      const response: AxiosResponse = await axiosInstance.get(r(`media/videos/${id}/metadata/`), {
+        headers: { Accept: 'application/json' }
+      })
+
+      const meta = response.data ?? {}
+      
+      // Map API response to VideoMeta interface
+      const normalizedMeta: VideoMeta = {
+        id: Number(meta.id ?? id),
+        original_file_name: String(meta.original_file_name ?? meta.originalFileName ?? ''),
+        status: String(meta.status ?? 'available'),
+        assignedUser: meta.assignedUser === "BLANK" ? null : meta.assignedUser,
+        anonymized: Boolean(meta.anonymized ?? false),
+        duration: meta.duration !== undefined ? Number(meta.duration) : undefined,
+        fps: meta.fps !== undefined ? Number(meta.fps) : 50,
+        hasROI: Boolean(meta.hasROI ?? meta.has_roi ?? false),
+        outsideFrameCount: Number(meta.outsideFrameCount ?? meta.outside_frame_count ?? 0),
+        centerName: String(meta.centerName ?? meta.center_name ?? 'Unbekannt'),
+        processorName: String(meta.processorName ?? meta.processor_name ?? 'Unbekannt')
+      }
+
+      videoMeta.value = normalizedMeta
+
+      // Update currentVideo immediately if it exists
+      if (currentVideo.value) {
+        if (normalizedMeta.duration !== undefined && normalizedMeta.duration > 0) {
+          currentVideo.value.duration = normalizedMeta.duration
+        }
+        if (normalizedMeta.fps !== undefined && normalizedMeta.fps > 0) {
+          currentVideo.value.fps = normalizedMeta.fps
+        }
+      }
+
+      console.log('[VideoStore] Video metadata loaded:', normalizedMeta)
+    } catch (error) {
+      const axiosError = error as AxiosError
+      console.error(
+        'Error loading video metadata:',
+        axiosError.response?.data || axiosError.message
+      )
+    }
+  }
 
   async function fetchVideoUrl(videoId?: number): Promise<void> {
     try {
       const id = videoId || currentVideo.value?.id
-      if (!id) {
-        console.warn('No video ID available for fetching video URL')
-        errorMessage.value = 'No video selected.'
-        return
-      }
+      if (!id) return
 
       const response: AxiosResponse = await axiosInstance.get(r(`media/videos/${id}/`), {
         headers: { Accept: 'application/json' }
@@ -660,16 +732,20 @@ export const useVideoStore = defineStore('video', () => {
 
       if (response.data.video_url) {
         videoUrl.value = response.data.video_url
-        console.log('Fetched video URL:', videoUrl.value)
-      } else {
-        console.warn('No video URL returned from API response:', response.data)
-        errorMessage.value = 'Video URL not available.'
+      }
+
+      if (currentVideo.value) {
+        // Only overwrite duration if metadata didn't provide it
+        if (response.data.duration && !videoMeta.value?.duration) {
+           currentVideo.value.duration = Number(response.data.duration)
+        }
+        // Only overwrite FPS if metadata didn't provide it
+        if (response.data.fps && !videoMeta.value?.fps) {
+           currentVideo.value.fps = Number(response.data.fps)
+        }
       }
     } catch (error) {
-      const axiosError = error as AxiosError
-      console.error('Error loading video URL:', axiosError.response?.data || axiosError.message)
-      errorMessage.value =
-        'Error loading video URL. Please check the API endpoint or try again later.'
+      console.error('Error loading video URL')
     }
   }
 
@@ -698,14 +774,16 @@ export const useVideoStore = defineStore('video', () => {
 
   async function fetchSegmentsByLabel(id: number, label = 'outside'): Promise<void> {
     try {
-      const response: AxiosResponse<BackendSegment[]> = await axiosInstance.get(        
+      const response: AxiosResponse<SegmentListResponse> = await axiosInstance.get(
         r(`media/videos/${id}/segments/`),
         {
           headers: { Accept: 'application/json' },
           params: { label }, // backend expects ?label=<label_name>
         })
 
-      const segmentsForLabel: Segment[] = response.data.map((backendSeg) =>
+      const rawSegments = normalizeSegmentList(response.data)
+
+      const segmentsForLabel: Segment[] = rawSegments.map((backendSeg) =>
         ensureLabelId(
           backendSegmentToSegment(backendSeg)
         )
@@ -730,23 +808,23 @@ export const useVideoStore = defineStore('video', () => {
   async function fetchVideoSegments(videoId: number): Promise<void> {
     const token = ++_fetchToken.value
     try {
-      const response: AxiosResponse<BackendSegment[]> = await axiosInstance.get(
+      const response: AxiosResponse<SegmentListResponse> = await axiosInstance.get(
         r(`media/videos/${videoId}/segments/`),
         { headers: { Accept: 'application/json' } }
       )
 
       if (token !== _fetchToken.value) return
 
+      const rawSegments = normalizeSegmentList(response.data)
+
       // Clear existing segments
       Object.keys(segmentsByLabel).forEach((key) => {
         delete segmentsByLabel[key]
       })
 
-      console.log(`[VideoStore] Loading ${response.data.length} segments for video ${videoId}`)
+      console.log(`[VideoStore] Loading ${rawSegments.length} segments for video ${videoId}`)
 
-      const backendSegments: BackendSegment[] = response.data
-
-      backendSegments.forEach((backendSeg) => {
+      rawSegments.forEach((backendSeg) => {
         const segmentWithVideoId: Segment = ensureLabelId(
           backendSegmentToSegment(backendSeg)
         )
@@ -801,7 +879,7 @@ export const useVideoStore = defineStore('video', () => {
       }
       const labelId = labelMeta.id
 
-      const fps = duration.value > 0 ? videoMeta.value?.fps || 30 : 30
+      const fps = getEffectiveFps()
       const startFrame = Math.floor(startTime * fps)
       const endFrame = Math.floor(endTime * fps)
 
@@ -849,7 +927,7 @@ export const useVideoStore = defineStore('video', () => {
     endTime: number,
     extra: SegmentUpdatePayload = {}
   ) {
-    const fps = videoMeta.value?.fps || 30
+    const fps = getEffectiveFps()
     const startFrame = Math.floor(startTime * fps)
     const endFrame = Math.floor(endTime * fps)
 
@@ -1006,7 +1084,7 @@ export const useVideoStore = defineStore('video', () => {
       }
 
       // Calculate frame numbers correctly
-      const fps = videoMeta.value?.fps || 30
+      const fps = getEffectiveFps()
       const startFrame = Math.floor(draft.startTime * fps)
       const endFrame = Math.floor(draft.endTime * fps)
 
@@ -1173,21 +1251,27 @@ export const useVideoStore = defineStore('video', () => {
     }
   }
 
-  async function loadVideo(videoId: number): Promise<void> {
+async function loadVideo(videoId: number): Promise<void> {
     console.log(`[VideoStore] loadVideo called with ID: ${videoId}`)
+    
+    // 1. Check Anonymization Status (Client-side pre-check)
     const anonStore = useAnonymizationStore()
     const ok = anonStore.overview.some(
       (f: FileItem) =>
-        f.id === Number(videoId) && f.mediaType === 'video' && f.anonymizationStatus === 'done_processing_anonymization'
+        f.id === Number(videoId) && 
+        f.mediaType === 'video' && 
+        f.anonymizationStatus === 'done_processing_anonymization'
     )
+    
     if (!ok) {
       throw new Error(
         `Video ${videoId} darf nicht annotiert werden, ` +
           `solange die Anonymisierung nicht abgeschlossen ist.`
       )
     }
+
     try {
-      // First create basic video object to ensure currentVideo exists
+      // 2. Initialize Empty State
       currentVideo.value = {
         id: videoId,
         isAnnotated: false,
@@ -1195,42 +1279,26 @@ export const useVideoStore = defineStore('video', () => {
         segments: [],
         videoUrl: '',
         status: 'available',
-        assignedUser: null
+        assignedUser: null,
+        duration: 0,
+        fps: 50 
       }
 
-      // Try to fetch additional video metadata if available
-      try {
-        const response: AxiosResponse = await axiosInstance.get(r(`media/videos/${videoId}/`))
-        const videoData = response.data
-
-        console.log(`[VideoStore] Got video metadata:`, videoData)
-
-        // Update currentVideo with fetched data
-        currentVideo.value = {
-          id: videoData.id || videoId,
-          videoUrl: videoData.video_url || '',
-          status: videoData.status || 'available',
-          assignedUser: videoData.assignedUser || null,
-          isAnnotated: videoData.isAnnotated || false,
-          errorMessage: '',
-          segments: [],
-          duration: videoData.duration,
-          fps: videoData.fps
-        }
-      } catch (metaError) {
-        console.warn(
-          `[VideoStore] Could not fetch video metadata for ${videoId}, using basic object:`,
-          metaError
-        )
-      }
-
-      // Always fetch video URL and segments
-      await fetchVideoUrl(videoId)
-      await fetchAllSegments(videoId)
+      // 3. Parallel Fetching (Optimization)
+      // We can fetch Metadata, URL, and Segments simultaneously to speed up loading
+      await Promise.all([
+        fetchVideoMetadata(videoId), // Gets FPS, Duration, Status
+        fetchVideoUrl(videoId),      // Gets Video URL
+        fetchAllSegments(videoId)    // Gets Segments
+      ])
 
       console.log(
-        `[VideoStore] Video ${videoId} successfully loaded with ${currentVideo.value?.segments?.length || 0} segments`
+        `[VideoStore] Video ${videoId} loaded. ` + 
+        `Duration: ${currentVideo.value?.duration}s, ` + 
+        `FPS: ${currentVideo.value?.fps}, ` +
+        `Segments: ${currentVideo.value?.segments?.length}`
       )
+
     } catch (error) {
       const axiosError = error as AxiosError
       console.error(

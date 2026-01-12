@@ -9,6 +9,14 @@
         >
           <i :class="isPlaying ? 'fas fa-pause' : 'fas fa-play'"></i>
         </button>
+        <button
+          @click="deleteSelectedSegment"
+          class="control-btn danger"
+          :disabled="activeSegmentId == null"
+          title="Ausgewähltes Segment löschen (Entf)"
+        >
+          <i class="fas fa-trash"></i>
+        </button>
         <span class="time-display">
           {{ formatTime(currentTime) }} / {{ formatTime(duration) }}
         </span>
@@ -40,15 +48,21 @@
         </div>
 
         <!-- ✅ UPDATED: Multi-row segment layout with Pointer Events -->
-        <div class="segments-container">
+        <div
+          class="segments-container"
+          :style="{
+            marginTop: markerAreaHeight + 'px',
+            height: totalRowsHeight + 'px'
+          }"
+        >
           <div 
             v-for="row in segmentRows"
             :key="row.key"
             class="segment-row"
             :class="{ 'active': row.label === selectedLabel }"
             :style="{ 
-              top: (row.rowNumber * 45) + 'px',
-              height: '40px'
+              top: (row.rowNumber * rowHeight) + 'px',
+              height: rowContentHeight + 'px'
             }"
           >
             <div 
@@ -58,6 +72,7 @@
               :class="{ 
                 'active': segment.id === activeSegmentId,
                 'draft': segment.isDraft,
+                'too-small': getSegmentWidth(segment.start, segment.end) < 5
               }"
               :style="{
                 left: getSegmentPosition(segment.start) + '%',
@@ -79,14 +94,22 @@
 
               <div class="segment-content">
                 <span class="segment-label">{{ getTranslationForLabel(segment.label) }}</span>
-                <span class="segment-duration">{{ formatDuration(segment.start, segment.end) }}</span>
+                <span
+                  v-if="getSegmentWidth(segment.start, segment.end) >= 5"
+                  class="segment-duration"
+                >
+                  {{ formatDuration(segment.start, segment.end) }}
+                </span>
               </div>
 
-            <div
-            class="segment-delete-btn"
-            @click.stop="deleteSegment(segment)"
-            :title="'Segment löschen'"
-            >X</div>
+              <div
+                v-if="getSegmentWidth(segment.start, segment.end) >= 8"
+                class="segment-delete-btn"
+                @click.stop="deleteSegment(segment)"
+                :title="'Segment löschen'"
+              >
+                X
+              </div>
 
               <!-- End resize handle -->
               <div 
@@ -249,17 +272,13 @@ const zoomLevel = ref<number>(1)
 const isSelecting = ref<boolean>(false)
 const selectionStart = ref<number>(0)
 const selectionEnd = ref<number>(0)
-const labelOrder = ref<string[]>([])
+const markerAreaHeight = 36
+const rowHeight = 56
+const rowContentHeight = 48
+const timelinePadding = 12
+const visibleRowCount = 1
 
-watch(
-  () => props.segments,
-  segs => {
-    (segs || []).forEach(s => {
-      if (!labelOrder.value.includes(s.label)) labelOrder.value.push(s.label)
-    })
-  },
-  { immediate: true },
-)
+
 
 // Context menu
 const contextMenu = ref<ContextMenuState>({
@@ -337,81 +356,52 @@ const toCanonical = (s: Segment): CanonicalSegment => {
   }
 }
 
+
+// 1. Define displayedSegments FIRST (Computed)
+// This sanitizes raw props into the format the timeline needs
+const displayedSegments = computed((): CanonicalSegment[] => {
+  const segs = props.segments || []
+  if (segs.length === 0) return []
+  return segs.map(toCanonical)
+})
+
+// 2. Define labelOrder SECOND (Computed)
+// This AUTOMATICALLY extracts labels from the segments above.
+// No watchers needed!
+const labelOrder = computed((): string[] => {
+  const labels = new Set<string>()
+  displayedSegments.value.forEach(s => labels.add(s.label))
+  return Array.from(labels).sort() // Sorts A-Z. Remove .sort() if you want random order.
+})
+
+// 3. Define selectedLabel (State)
 const selectedLabel = ref<string | null>(null)
 
+// 4. Define selectSegment (Action)
 const selectSegment = (segment: CanonicalSegment): void => {
   selectedLabel.value = segment.label
   emit('segment-select', Number(segment.id))
 }
 
-const displayedSegments = ref<CanonicalSegment[]>([])
-
-watch(
-  () => props.segments,
-  (segments) => {
-    if (segments && segments.length > 0) {
-      console.debug('[Timeline] Processing segments:', {
-        count: segments.length,
-        sample: segments.slice(0, 2).map(s => ({
-          id: s.id,
-          label: s.label,
-          startTime: s.startTime,
-          endTime: s.endTime,
-        }))
-      })
-
-      displayedSegments.value = segments.map(toCanonical)
-
-      console.debug('[Timeline] Canonical segments created:', {
-        count: displayedSegments.value.length,
-        sample: displayedSegments.value.slice(0, 2).map(s => ({
-          id: s.id,
-          label: s.label,
-          start: s.start,
-          end: s.end,
-          startTime: s.startTime,
-          endTime: s.endTime
-        }))
-      })
-    } else {
-      displayedSegments.value = []
-    }
-  },
-  { immediate: true }
-)
-
-// Row layout
+// 5. Define segmentRows THIRD (Computed)
+// This depends on the two computed properties above.
 const segmentRows = computed((): SegmentRow[] => {
   const buckets: Record<string, CanonicalSegment[]> = {}
 
-  console.debug('[Timeline] segmentRows - processing segments:', {
-    count: displayedSegments.value.length,
-    segments: displayedSegments.value.map(s => ({
-      id: s.id,
-      label: s.label,
-      start: s.start,
-      end: s.end
-    }))
-  })
-
+  // Group segments by label
   for (const s of displayedSegments.value) {
-    if (!s.label) {
-      console.error('[Timeline] Segment missing label property:', s)
-      continue
-    }
+    if (!s.label) continue
     (buckets[s.label] ||= []).push(s)
   }
 
-  console.debug('[Timeline] Label buckets created:', {
-    labels: Object.keys(buckets),
-    counts: Object.entries(buckets).map(([label, segs]) => `${label}:${segs.length}`)
-  })
-
+  // Determine the order of rows based on selection + labelOrder
   const orderedLabels = selectedLabel.value
-    ? [selectedLabel.value, ...labelOrder.value.filter(l => l !== selectedLabel.value)]
-    : [...labelOrder.value]
+      ? [selectedLabel.value, ...labelOrder.value.filter(l => l !== selectedLabel.value)]
+      : [...labelOrder.value]
 
   const rows: SegmentRow[] = []
+  
+  // Create rows based on overlapping logic
   orderedLabels.forEach(label => {
     if (!buckets[label]) return
 
@@ -443,24 +433,17 @@ const segmentRows = computed((): SegmentRow[] => {
     rows.push(currentRow)
   })
 
-  console.debug('[Timeline] Rows created:', {
-    count: rows.length,
-    rows: rows.map(r => ({
-      key: r.key,
-      label: r.label,
-      segmentCount: r.segments.length
-    }))
-  })
-
   return rows
 })
 
+
 // Timeline height
+const totalRowsHeight = computed((): number => segmentRows.value.length * rowHeight)
+const visibleRows = computed((): number =>
+  Math.max(1, Math.min(segmentRows.value.length, visibleRowCount))
+)
 const timelineHeight = computed((): number => {
-  const baseHeight = 60
-  const rowHeight = 45
-  const padding = 10
-  return baseHeight + (segmentRows.value.length * rowHeight) + padding
+  return markerAreaHeight + (visibleRows.value * rowHeight) + timelinePadding
 })
 
 // Helpers
@@ -681,6 +664,30 @@ const playPause = (): void => {
   emit('play-pause')
 }
 
+const isEditableTarget = (target: EventTarget | null): boolean => {
+  if (!(target instanceof HTMLElement)) return false
+  if (target.isContentEditable) return true
+  return ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)
+}
+
+const deleteSelectedSegment = (): void => {
+  if (props.activeSegmentId == null) return
+  const segmentToDelete = displayedSegments.value.find(
+    segment => Number(segment.id) === Number(props.activeSegmentId)
+  )
+  if (!segmentToDelete) return
+  emit('segment-delete', segmentToDelete)
+}
+
+const handleKeyDown = (event: KeyboardEvent): void => {
+  if (isEditableTarget(event.target)) return
+  if (event.key === 'Delete' || event.key === 'Backspace') {
+    if (props.activeSegmentId == null) return
+    event.preventDefault()
+    deleteSelectedSegment()
+  }
+}
+
 // Context actions
 const editSegment = (segment: Segment | null): void => {
   if (!segment) return
@@ -828,6 +835,7 @@ watch(segmentRows, (rows: SegmentRow[]) => {
 
 onMounted(() => {
   document.addEventListener('click', handleClickOutside)
+  document.addEventListener('keydown', handleKeyDown)
 
   nextTick(() => {
     initializeDragResize()
@@ -843,6 +851,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
+  document.removeEventListener('keydown', handleKeyDown)
   cleanupFunctions.value.forEach(cleanup => cleanup())
   cleanupFunctions.value = []
   document.removeEventListener('mousemove', onSelectionMouseMove)
@@ -915,6 +924,37 @@ const getNumericSegmentId = (segmentId: number): number | null => {
 .play-btn:disabled {
   background-color: #ccc;
   cursor: not-allowed;
+}
+
+.control-btn {
+  background-color: transparent;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: #555;
+}
+
+.control-btn:hover:not(:disabled) {
+  background-color: #f0f0f0;
+  color: #333;
+}
+
+.control-btn.danger:hover:not(:disabled) {
+  background-color: #ffebee;
+  color: #d32f2f;
+  border-color: #ef9a9a;
+}
+
+.control-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  border-color: #eee;
 }
 
 .time-display {
@@ -1006,11 +1046,10 @@ const getNumericSegmentId = (segmentId: number): number | null => {
 }
 
 .segments-container {
-  position: absolute;
-  top: 60px;
+  position: relative;
   left: 0;
   right: 0;
-  height: 100%;
+  height: auto;
   pointer-events: none;
 }
 
@@ -1024,6 +1063,7 @@ const getNumericSegmentId = (segmentId: number): number | null => {
 .segment {
   position: absolute;
   height: 100%;
+  min-width: 6px;
   border-radius: 4px;
   cursor: pointer;
   transition: all 0.3s ease;
@@ -1066,6 +1106,10 @@ const getNumericSegmentId = (segmentId: number): number | null => {
   height: 100%;
   color: white;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.segment.too-small .segment-content {
+  display: none;
 }
 
 .segment-label {
@@ -1257,8 +1301,8 @@ const getNumericSegmentId = (segmentId: number): number | null => {
 }
 
 .segment {
-  height: auto;
-  min-height: 40px;
+  height: 100%;
+  min-height: 48px;
 }
 
 .segment-delete-btn {

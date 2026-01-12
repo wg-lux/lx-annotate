@@ -91,7 +91,7 @@
                 </div>
                 <div class="progress-legend d-flex justify-content-between">
                   <small class="text-muted">
-                    Total: {{ totalAnnotations }} Annotationen
+                    Insgesamt: {{ totalAnnotations }} Annotationen
                   </small>
                   <small class="text-muted">
                     Letzte Aktualisierung: {{ lastUpdateText }}

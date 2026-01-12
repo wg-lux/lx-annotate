@@ -166,16 +166,14 @@ STATIC_URL = "/static/"
 
 # DESTINATION: Where 'collectstatic' copies files TO (Production serving folder)
 # Keep as string because Django settings expect STATIC_ROOT to be a string.
-STATIC_ROOT = str(REPO_ROOT / "static")
+STATIC_ROOT = str(REPO_ROOT / "staticfiles")
 print(f"STATIC_ROOT set to: {STATIC_ROOT}")
 # Create the directory if it doesn't exist (using Path for the operation)
 Path(STATIC_ROOT).mkdir(parents=True, exist_ok=True)
 # SOURCES: Where Django looks for files to collect
 STATICFILES_DIRS = [
-    # 1. The Vite build output
-    Path(STATIC_ROOT) / "dist",
-    # 2. General static assets
-    Path(STATIC_ROOT) / "assets",
+    # Root source directory so /static/dist/* and /static/assets/* resolve correctly.
+    REPO_ROOT / "static",
 ]
 
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"

@@ -64,7 +64,7 @@
           <li class="nav-item d-flex align-items-center" v-else>
             <a class="nav-link text-body font-weight-bold px-0" href="javascript:;" @click="handleLogin">
               <i class="fa fa-user me-sm-1"></i>
-              <span class="d-sm-inline d-none">Loginn</span>
+              <span class="d-sm-inline d-none">Login</span>
             </a>
           </li>
           <li class="nav-item d-flex align-items-center ms-3" v-if="isAuthenticated">

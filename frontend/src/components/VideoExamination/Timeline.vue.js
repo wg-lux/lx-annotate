@@ -16,13 +16,11 @@ const zoomLevel = ref(1);
 const isSelecting = ref(false);
 const selectionStart = ref(0);
 const selectionEnd = ref(0);
-const labelOrder = ref([]);
-watch(() => props.segments, segs => {
-    (segs || []).forEach(s => {
-        if (!labelOrder.value.includes(s.label))
-            labelOrder.value.push(s.label);
-    });
-}, { immediate: true });
+const markerAreaHeight = 36;
+const rowHeight = 56;
+const rowContentHeight = 48;
+const timelinePadding = 12;
+const visibleRowCount = 1;
 // Context menu
 const contextMenu = ref({
     visible: false,
@@ -88,67 +86,45 @@ const toCanonical = (s) => {
         avgConfidence: s.avgConfidence ?? 0,
     };
 };
+// 1. Define displayedSegments FIRST (Computed)
+// This sanitizes raw props into the format the timeline needs
+const displayedSegments = computed(() => {
+    const segs = props.segments || [];
+    if (segs.length === 0)
+        return [];
+    return segs.map(toCanonical);
+});
+// 2. Define labelOrder SECOND (Computed)
+// This AUTOMATICALLY extracts labels from the segments above.
+// No watchers needed!
+const labelOrder = computed(() => {
+    const labels = new Set();
+    displayedSegments.value.forEach(s => labels.add(s.label));
+    return Array.from(labels).sort(); // Sorts A-Z. Remove .sort() if you want random order.
+});
+// 3. Define selectedLabel (State)
 const selectedLabel = ref(null);
+// 4. Define selectSegment (Action)
 const selectSegment = (segment) => {
     selectedLabel.value = segment.label;
     emit('segment-select', Number(segment.id));
 };
-const displayedSegments = ref([]);
-watch(() => props.segments, (segments) => {
-    if (segments && segments.length > 0) {
-        console.debug('[Timeline] Processing segments:', {
-            count: segments.length,
-            sample: segments.slice(0, 2).map(s => ({
-                id: s.id,
-                label: s.label,
-                startTime: s.startTime,
-                endTime: s.endTime,
-            }))
-        });
-        displayedSegments.value = segments.map(toCanonical);
-        console.debug('[Timeline] Canonical segments created:', {
-            count: displayedSegments.value.length,
-            sample: displayedSegments.value.slice(0, 2).map(s => ({
-                id: s.id,
-                label: s.label,
-                start: s.start,
-                end: s.end,
-                startTime: s.startTime,
-                endTime: s.endTime
-            }))
-        });
-    }
-    else {
-        displayedSegments.value = [];
-    }
-}, { immediate: true });
-// Row layout
+// 5. Define segmentRows THIRD (Computed)
+// This depends on the two computed properties above.
 const segmentRows = computed(() => {
     const buckets = {};
-    console.debug('[Timeline] segmentRows - processing segments:', {
-        count: displayedSegments.value.length,
-        segments: displayedSegments.value.map(s => ({
-            id: s.id,
-            label: s.label,
-            start: s.start,
-            end: s.end
-        }))
-    });
+    // Group segments by label
     for (const s of displayedSegments.value) {
-        if (!s.label) {
-            console.error('[Timeline] Segment missing label property:', s);
+        if (!s.label)
             continue;
-        }
         (buckets[s.label] ||= []).push(s);
     }
-    console.debug('[Timeline] Label buckets created:', {
-        labels: Object.keys(buckets),
-        counts: Object.entries(buckets).map(([label, segs]) => `${label}:${segs.length}`)
-    });
+    // Determine the order of rows based on selection + labelOrder
     const orderedLabels = selectedLabel.value
         ? [selectedLabel.value, ...labelOrder.value.filter(l => l !== selectedLabel.value)]
         : [...labelOrder.value];
     const rows = [];
+    // Create rows based on overlapping logic
     orderedLabels.forEach(label => {
         if (!buckets[label])
             return;
@@ -178,22 +154,13 @@ const segmentRows = computed(() => {
         }
         rows.push(currentRow);
     });
-    console.debug('[Timeline] Rows created:', {
-        count: rows.length,
-        rows: rows.map(r => ({
-            key: r.key,
-            label: r.label,
-            segmentCount: r.segments.length
-        }))
-    });
     return rows;
 });
 // Timeline height
+const totalRowsHeight = computed(() => segmentRows.value.length * rowHeight);
+const visibleRows = computed(() => Math.max(1, Math.min(segmentRows.value.length, visibleRowCount)));
 const timelineHeight = computed(() => {
-    const baseHeight = 60;
-    const rowHeight = 45;
-    const padding = 10;
-    return baseHeight + (segmentRows.value.length * rowHeight) + padding;
+    return markerAreaHeight + (visibleRows.value * rowHeight) + timelinePadding;
 });
 // Helpers
 const formatTime = (seconds) => {
@@ -374,6 +341,31 @@ const zoomOut = () => {
 const playPause = () => {
     emit('play-pause');
 };
+const isEditableTarget = (target) => {
+    if (!(target instanceof HTMLElement))
+        return false;
+    if (target.isContentEditable)
+        return true;
+    return ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName);
+};
+const deleteSelectedSegment = () => {
+    if (props.activeSegmentId == null)
+        return;
+    const segmentToDelete = displayedSegments.value.find(segment => Number(segment.id) === Number(props.activeSegmentId));
+    if (!segmentToDelete)
+        return;
+    emit('segment-delete', segmentToDelete);
+};
+const handleKeyDown = (event) => {
+    if (isEditableTarget(event.target))
+        return;
+    if (event.key === 'Delete' || event.key === 'Backspace') {
+        if (props.activeSegmentId == null)
+            return;
+        event.preventDefault();
+        deleteSelectedSegment();
+    }
+};
 // Context actions
 const editSegment = (segment) => {
     if (!segment)
@@ -499,6 +491,7 @@ watch(segmentRows, (rows) => {
 }, { immediate: true });
 onMounted(() => {
     document.addEventListener('click', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
     nextTick(() => {
         initializeDragResize();
     });
@@ -511,6 +504,7 @@ onMounted(() => {
 });
 onUnmounted(() => {
     document.removeEventListener('click', handleClickOutside);
+    document.removeEventListener('keydown', handleKeyDown);
     cleanupFunctions.value.forEach(cleanup => cleanup());
     cleanupFunctions.value = [];
     document.removeEventListener('mousemove', onSelectionMouseMove);
@@ -529,6 +523,9 @@ let __VLS_components;
 let __VLS_directives;
 /** @type {__VLS_StyleScopedClasses['play-btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['play-btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['control-btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['control-btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['control-btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['zoom-controls']} */ ;
 /** @type {__VLS_StyleScopedClasses['zoom-controls']} */ ;
 /** @type {__VLS_StyleScopedClasses['zoom-controls']} */ ;
@@ -536,8 +533,11 @@ let __VLS_directives;
 /** @type {__VLS_StyleScopedClasses['segment']} */ ;
 /** @type {__VLS_StyleScopedClasses['segment']} */ ;
 /** @type {__VLS_StyleScopedClasses['segment']} */ ;
+/** @type {__VLS_StyleScopedClasses['segment']} */ ;
+/** @type {__VLS_StyleScopedClasses['segment-content']} */ ;
 /** @type {__VLS_StyleScopedClasses['context-menu-item']} */ ;
 /** @type {__VLS_StyleScopedClasses['context-menu-item']} */ ;
+/** @type {__VLS_StyleScopedClasses['danger']} */ ;
 /** @type {__VLS_StyleScopedClasses['context-menu-item']} */ ;
 /** @type {__VLS_StyleScopedClasses['resize-handle']} */ ;
 /** @type {__VLS_StyleScopedClasses['segment']} */ ;
@@ -565,6 +565,15 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElement
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
     ...{ class: (__VLS_ctx.isPlaying ? 'fas fa-pause' : 'fas fa-play') },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+    ...{ onClick: (__VLS_ctx.deleteSelectedSegment) },
+    ...{ class: "control-btn danger" },
+    disabled: (__VLS_ctx.activeSegmentId == null),
+    title: "Ausgewähltes Segment löschen (Entf)",
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+    ...{ class: "fas fa-trash" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
     ...{ class: "time-display" },
@@ -623,6 +632,10 @@ for (const [marker] of __VLS_getVForSourceType((__VLS_ctx.timeMarkers))) {
 }
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "segments-container" },
+    ...{ style: ({
+            marginTop: __VLS_ctx.markerAreaHeight + 'px',
+            height: __VLS_ctx.totalRowsHeight + 'px'
+        }) },
 });
 for (const [row] of __VLS_getVForSourceType((__VLS_ctx.segmentRows))) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -630,8 +643,8 @@ for (const [row] of __VLS_getVForSourceType((__VLS_ctx.segmentRows))) {
         ...{ class: "segment-row" },
         ...{ class: ({ 'active': row.label === __VLS_ctx.selectedLabel }) },
         ...{ style: ({
-                top: (row.rowNumber * 45) + 'px',
-                height: '40px'
+                top: (row.rowNumber * __VLS_ctx.rowHeight) + 'px',
+                height: __VLS_ctx.rowContentHeight + 'px'
             }) },
     });
     for (const [segment] of __VLS_getVForSourceType((row.segments))) {
@@ -647,6 +660,7 @@ for (const [row] of __VLS_getVForSourceType((__VLS_ctx.segmentRows))) {
             ...{ class: ({
                     'active': segment.id === __VLS_ctx.activeSegmentId,
                     'draft': segment.isDraft,
+                    'too-small': __VLS_ctx.getSegmentWidth(segment.start, segment.end) < 5
                 }) },
             ...{ style: ({
                     left: __VLS_ctx.getSegmentPosition(segment.start) + '%',
@@ -670,17 +684,23 @@ for (const [row] of __VLS_getVForSourceType((__VLS_ctx.segmentRows))) {
             ...{ class: "segment-label" },
         });
         (__VLS_ctx.getTranslationForLabel(segment.label));
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-            ...{ class: "segment-duration" },
-        });
-        (__VLS_ctx.formatDuration(segment.start, segment.end));
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ onClick: (...[$event]) => {
-                    __VLS_ctx.deleteSegment(segment);
-                } },
-            ...{ class: "segment-delete-btn" },
-            title: ('Segment löschen'),
-        });
+        if (__VLS_ctx.getSegmentWidth(segment.start, segment.end) >= 5) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                ...{ class: "segment-duration" },
+            });
+            (__VLS_ctx.formatDuration(segment.start, segment.end));
+        }
+        if (__VLS_ctx.getSegmentWidth(segment.start, segment.end) >= 8) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ onClick: (...[$event]) => {
+                        if (!(__VLS_ctx.getSegmentWidth(segment.start, segment.end) >= 8))
+                            return;
+                        __VLS_ctx.deleteSegment(segment);
+                    } },
+                ...{ class: "segment-delete-btn" },
+                title: ('Segment löschen'),
+            });
+        }
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: "resize-handle end-handle" },
             title: ('Segment-Ende ändern'),
@@ -783,6 +803,10 @@ if (__VLS_ctx.tooltip.visible) {
 /** @type {__VLS_StyleScopedClasses['timeline-header']} */ ;
 /** @type {__VLS_StyleScopedClasses['timeline-controls']} */ ;
 /** @type {__VLS_StyleScopedClasses['play-btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['control-btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['danger']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-trash']} */ ;
 /** @type {__VLS_StyleScopedClasses['time-display']} */ ;
 /** @type {__VLS_StyleScopedClasses['zoom-controls']} */ ;
 /** @type {__VLS_StyleScopedClasses['fas']} */ ;
@@ -802,6 +826,7 @@ if (__VLS_ctx.tooltip.visible) {
 /** @type {__VLS_StyleScopedClasses['segment']} */ ;
 /** @type {__VLS_StyleScopedClasses['active']} */ ;
 /** @type {__VLS_StyleScopedClasses['draft']} */ ;
+/** @type {__VLS_StyleScopedClasses['too-small']} */ ;
 /** @type {__VLS_StyleScopedClasses['resize-handle']} */ ;
 /** @type {__VLS_StyleScopedClasses['start-handle']} */ ;
 /** @type {__VLS_StyleScopedClasses['fas']} */ ;
@@ -846,6 +871,9 @@ const __VLS_self = (await import('vue')).defineComponent({
             isSelecting: isSelecting,
             selectionStart: selectionStart,
             selectionEnd: selectionEnd,
+            markerAreaHeight: markerAreaHeight,
+            rowHeight: rowHeight,
+            rowContentHeight: rowContentHeight,
             contextMenu: contextMenu,
             tooltip: tooltip,
             duration: duration,
@@ -856,6 +884,7 @@ const __VLS_self = (await import('vue')).defineComponent({
             selectedLabel: selectedLabel,
             selectSegment: selectSegment,
             segmentRows: segmentRows,
+            totalRowsHeight: totalRowsHeight,
             timelineHeight: timelineHeight,
             formatTime: formatTime,
             formatDuration: formatDuration,
@@ -864,6 +893,7 @@ const __VLS_self = (await import('vue')).defineComponent({
             zoomIn: zoomIn,
             zoomOut: zoomOut,
             playPause: playPause,
+            deleteSelectedSegment: deleteSelectedSegment,
             editSegment: editSegment,
             deleteSegment: deleteSegment,
             playSegment: playSegment,

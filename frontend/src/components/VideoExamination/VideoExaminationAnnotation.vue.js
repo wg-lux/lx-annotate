@@ -221,7 +221,7 @@ const loadVideoDetail = async (videoId) => {
         videoDetail.value = { video_url: response.data.video_url };
         videoMeta.value = {
             duration: Number(response.data.duration ?? 0),
-            fps: Number(response.data.fps ?? 25)
+            fps: Number(response.data.fps ?? 50)
         };
         // Update MediaStore with the current video for consistent URL handling
         const currentVideo = annotatableVideos.value.find(v => v.id === videoId);
@@ -580,6 +580,7 @@ const submitVideoSegments = async () => {
 const saveSegmentChanges = async () => {
     try {
         await videoStore.persistDirtySegments();
+        await loadVideoSegments();
         showSuccessMessage('Segment-Änderungen gespeichert');
     }
     catch (error) {

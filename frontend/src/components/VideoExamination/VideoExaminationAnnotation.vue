@@ -185,7 +185,7 @@
                 <button
                   class="btn"
                   :class="hasUnsavedChanges ? 'btn-primary' : 'btn-outline-secondary'"
-                  @click="saveSegmentChanges"
+                  @click="saveSegmentChanges; submitVideoSegments"
                 >
                   Segmentänderungen speichern
                 </button>
@@ -312,9 +312,9 @@
           <button 
             v-else
             class="btn btn-success btn-lg w-100 d-flex align-items-center justify-content-center gap-2"
-            @click="submitVideoSegments"
+            @click="submitVideoSegments; markValidationFinishedRemoveOutside(selectedVideoId)" 
             style="font-size: 1.1rem; padding: 15px;"
-          >
+          > <!-- Remove mark validated when keeping outside segments for training -->
             <i class="material-icons">check_circle</i>
             <span>Alle Segmente validieren ({{ timelineSegmentsForSelectedVideo.length }})</span>
           </button>
@@ -702,7 +702,7 @@ const loadVideoDetail = async (videoId: number): Promise<void> => {
     videoDetail.value = { video_url: response.data.video_url }
     videoMeta.value = {
       duration: Number(response.data.duration ?? 0),
-      fps: Number(response.data.fps ?? 25)
+      fps: Number(response.data.fps ?? 50)
     }
     
     // Update MediaStore with the current video for consistent URL handling
@@ -1111,6 +1111,7 @@ const submitVideoSegments = async (): Promise<void> => {
       }
     )
 
+
     console.log('✅ Validation response:', response.data)
 
     showSuccessMessage(
@@ -1127,9 +1128,12 @@ const submitVideoSegments = async (): Promise<void> => {
 }
 
 
+
+
 const saveSegmentChanges = async (): Promise<void> => {
   try {
     await videoStore.persistDirtySegments()
+    await loadVideoSegments()
     showSuccessMessage('Segment-Änderungen gespeichert')
   } catch (error:any) {
     console.error('Fehler beim Speichern der Segment-Änderungen:', error)
@@ -1182,6 +1186,25 @@ const getVideoStatusIndicator = (videoId: number): string => {
   }
   
   return statusIndicators[item.anonymizationStatus] || item.anonymizationStatus
+}
+
+const markValidationFinishedRemoveOutside = async (videoId: number): Promise<void> => {
+  try {
+    await axiosInstance.post(
+      r(`media/videos/${videoId}/segments/validation-status/`),
+      {
+        isValidated: true,
+        notes: `Validierung manuell als abgeschlossen markiert am ${new Date().toLocaleString('de-DE')}`,
+        informationSourceName: 'manual_validation',
+      }
+    )
+    showSuccessMessage(`Validierung für Video ${videoId} als abgeschlossen markiert`)
+    // Refresh overview to reflect status change
+    await anonymizationStore.fetchOverview()
+  } catch (error: any) {
+    console.error('Error marking validation as finished:', error)
+    await guarded(Promise.reject(error))
+  }
 }
 
 const getVideoCountByStatus = (status: string): number => {

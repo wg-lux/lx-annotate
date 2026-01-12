@@ -246,7 +246,7 @@ describe('VideoExaminationAnnotation Integration Tests', () => {
                 currentTime: 30,
                 isPlaying: true,
                 selectedSegmentId: 1,
-                fps: 25
+                fps: 50
             });
             await nextTick();
             const timeline = wrapper.findComponent({ name: 'Timeline' });

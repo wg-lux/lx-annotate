@@ -2,6 +2,7 @@
 Production settings.
 """
 
+from lx_annotate.settings.config import AppConfig
 from .settings_base import (
     APP_DATA_DIR,
     SECRET_KEY,
@@ -17,7 +18,7 @@ from .settings_base import (
     BASE_DIR,
     config,
 )
-
+import os
 from pathlib import Path
 from typing import Any, cast
 
@@ -28,6 +29,7 @@ ROOT_URLCONF = cast(str, ROOT_URLCONF)
 STATIC_URL = cast(str, STATIC_URL)
 MEDIA_ROOT = cast(Path, MEDIA_ROOT)
 MEDIA_URL = cast(str, MEDIA_URL)
+config = cast(AppConfig, config)
 # -----------------------------------------------------------------------------
 
 # 1. SECURITY
@@ -41,12 +43,9 @@ DJANGO_VITE = {
     "default": {
         "dev_mode": False,
         "static_url_prefix": "dist",
-        "manifest_path": BASE_DIR
-        / "lx_annotate"
-        / "static"
-        / "dist"
-        / ".vite"
-        / "manifest.json",
+        "manifest_path": os.path.join(
+            BASE_DIR, "static", "dist", ".vite", "manifest.json"
+        ),
     }
 }
 

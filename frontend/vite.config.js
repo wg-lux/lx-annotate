@@ -13,7 +13,7 @@ export default defineConfig(({ mode }) => {
     const isDev = mode === 'development';
     return {
         //base: mode === 'development' ? 'http://localhost:3000/' : './',
-        base: isDev ? '/static/' : '/',
+        base: isDev ? '/static/' : '/static/dist/',
         plugins: [vue(), vueJsx(), vueDevTools()],
         build: {
             manifest: true,

@@ -17,7 +17,6 @@
       crossorigin="anonymous"
       referrerpolicy="no-referrer">
 
-    <link rel="stylesheet" href="@assets/css/custom-overrides.css">
   </header>
   <div class="g-sidenav-show">
     

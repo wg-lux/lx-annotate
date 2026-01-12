@@ -67,10 +67,6 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.link, __VLS_intrinsicElements.
     crossorigin: "anonymous",
     referrerpolicy: "no-referrer",
 });
-__VLS_asFunctionalElement(__VLS_intrinsicElements.link, __VLS_intrinsicElements.link)({
-    rel: "stylesheet",
-    href: "@assets/css/custom-overrides.css",
-});
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "g-sidenav-show" },
 });
