@@ -12,6 +12,8 @@ def get_or_create_secret_key() -> str:
     Returns the existing secret key from disk or generates/saves a new one.
     This is safe to commit to Git because the KEY itself is stored outside the repo.
     """
+    if os.getenv("DJANGO_SECRET_KEY_FILE"):
+        return ""
     secret_file = HOME_DIR / "secret.key"
 
     try:
