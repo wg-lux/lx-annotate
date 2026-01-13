@@ -2,7 +2,7 @@
 Production settings.
 """
 
-from lx_annotate.settings.config import AppConfig
+from .config import AppConfig
 from .settings_base import (
     APP_DATA_DIR,
     SECRET_KEY,
