@@ -1,6 +1,6 @@
 <template>
     <div class="anonymization-overview-page">
-      <AnonymizationCorrectionComponent :fileId=1 />
+      <AnonymizationCorrectionComponent :fileId="1" mediaType="image" />
     </div>
   </template>
   

@@ -17,8 +17,6 @@ public/video.mp4
 
 node_modules/*
 
-/cypress/videos/
-/cypress/screenshots/
 
 # Editor directories and files
 .vscode/*

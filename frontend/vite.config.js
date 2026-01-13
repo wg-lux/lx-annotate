@@ -10,16 +10,19 @@ const __dirname = dirname(__filename);
 // --------------------------------------------------------
 export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, process.cwd(), '');
+    const isDev = mode === 'development';
     return {
-        base: mode === 'development' ? 'http://localhost:3000/' : './',
+        //base: mode === 'development' ? 'http://localhost:3000/' : './',
+        base: isDev ? '/static/' : '/static/dist/',
         plugins: [vue(), vueJsx(), vueDevTools()],
         build: {
-            manifest: mode === 'production' ? 'manifest.json' : false,
+            manifest: true,
             outDir: resolve(__dirname, '../static/dist'),
+            emptyOutDir: true,
             target: 'esnext', // Ermöglicht Top-level await
             rollupOptions: {
                 input: {
-                    main: resolve(__dirname, 'src/main.ts')
+                    main: resolve(__dirname, 'src/main.ts'),
                 },
                 output: {
                     entryFileNames: '[name].js',
@@ -35,23 +38,22 @@ export default defineConfig(({ mode }) => {
         },
         server: {
             cors: true,
-            port: 5173, // Ändere den Port, um Konflikte mit Django zu vermeiden
-            hmr: { host: 'localhost' },
+            host: '127.0.0.1',
+            port: 5173,
+            hmr: { host: '127.0.0.1' },
             proxy: {
-                // Leite alle API-Requests an Django weiter
                 '/api': {
-                    target: 'http://127.0.0.1:8000',
-                    changeOrigin: true,
-                    secure: false
-                },
-                // Zusätzliche Endpunkte falls nötig
-                '/admin': {
-                    target: 'http://127.0.0.1:8000',
+                    target: 'http://localhost:8000',
                     changeOrigin: true,
                     secure: false
                 },
                 '/static': {
-                    target: 'http://127.0.0.1:8000',
+                    target: 'http://localhost:8000',
+                    changeOrigin: true,
+                    secure: false
+                },
+                '/admin': {
+                    target: 'http://localhost:8000',
                     changeOrigin: true,
                     secure: false
                 }
@@ -59,7 +61,7 @@ export default defineConfig(({ mode }) => {
         },
         resolve: {
             alias: {
-                '@': resolve(__dirname, 'src') // one alias is enough
+                '@': resolve(__dirname, 'src')
             }
         },
         css: {

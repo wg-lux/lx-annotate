@@ -578,6 +578,7 @@ const hasProcessedVersion = computed(() => {
 // Props interface for route params
 interface Props {
   fileId: number;
+  mediaType: string;
 }
 
 const props = defineProps<Props>();
@@ -610,7 +611,7 @@ const loadVideoDetails = async (videoId: number) => {
   try {
     // Load video metadata and processing history
     const [videoResponse, metadataResponse, historyResponse] = await Promise.all([
-      axiosInstance.get(r(`media/videos/video-correction/${videoId}/`)),
+      axiosInstance.get(r(`media/videos/video-correction/${videoId}`)),
       axiosInstance.get(r(`media/videos/${videoId}/metadata/`)),
       axiosInstance.get(r(`media/videos/${videoId}/processing-history/`))
     ]);
@@ -948,7 +949,7 @@ const getStatusBadgeClass = (status: string) => {
   const classes: { [key: string]: string } = {
     'not_started': 'bg-secondary',
     'processing': 'bg-warning',
-    'done': 'bg-success',
+    'done_processing_anonymization': 'bg-success',
     'failed': 'bg-danger',
     'success': 'bg-success'
   };
@@ -959,7 +960,7 @@ const getStatusText = (status: string) => {
   const texts: { [key: string]: string } = {
     'not_started': 'Nicht gestartet',
     'processing': 'In Bearbeitung',
-    'done': 'Fertig',
+    'done_processing_anonymization': 'Fertig',
     'failed': 'Fehlgeschlagen',
     'success': 'Erfolgreich'
   };

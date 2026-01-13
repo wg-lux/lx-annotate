@@ -30,7 +30,7 @@ describe('VideoExaminationAnnotation Edge Cases & Stress Tests', () => {
     videoStore.fetchAllSegments = vi.fn()
     videoStore.clearVideo = vi.fn()
     videoStore.createSegment = vi.fn()
-    videoStore.updateSegment = vi.fn()
+    videoStore.updateSegmentInMemory = vi.fn()
     videoStore.deleteSegment = vi.fn()
     videoStore.removeSegment = vi.fn()
     videoStore.patchSegmentLocally = vi.fn()
@@ -185,11 +185,11 @@ describe('VideoExaminationAnnotation Edge Cases & Stress Tests', () => {
 
       // Should only call patchSegmentLocally for previews
       expect(videoStore.patchSegmentLocally).toHaveBeenCalledTimes(10)
-      expect(videoStore.updateSegment).not.toHaveBeenCalled()
+      expect(videoStore.updateSegmentInMemory).not.toHaveBeenCalled()
 
       // Final operation should save
       vm.handleSegmentResize(1, 10, 11, 'resize', true)
-      expect(videoStore.updateSegment).toHaveBeenCalledTimes(1)
+      expect(videoStore.updateSegmentInMemory).toHaveBeenCalledTimes(1)
     })
 
     it('should handle overlapping segment operations', async () => {
@@ -423,7 +423,7 @@ describe('VideoExaminationAnnotation Edge Cases & Stress Tests', () => {
     })
 
     it('should maintain state consistency during errors', async () => {
-      videoStore.updateSegment = vi.fn().mockRejectedValue(new Error('Update failed'))
+      videoStore.updateSegmentInMemory = vi.fn().mockRejectedValue(new Error('Update failed'))
 
       wrapper = mount(VideoExaminationAnnotation, {
         global: {

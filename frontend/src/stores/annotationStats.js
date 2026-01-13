@@ -152,16 +152,36 @@ export const useAnnotationStatsStore = defineStore('annotationStats', {
         },
         async fetchExaminationStats() {
             try {
-                const response = await axios.get('/api/examinations/stats/');
+                const response = await axios.get('/api/examinations/');
                 const data = response.data;
-                this.stats.examinationPending = data.pending || data.total_examinations || 0;
-                this.stats.examinationInProgress = data.in_progress || 0;
-                this.stats.examinationCompleted = data.completed || 0;
+                const items = Array.isArray(data?.results)
+                    ? data.results
+                    : Array.isArray(data)
+                        ? data
+                        : [];
+                const counts = {
+                    pending: 0,
+                    in_progress: 0,
+                    completed: 0,
+                    draft: 0,
+                };
+                for (const item of items) {
+                    const status = item?.status || 'pending';
+                    if (status in counts) {
+                        counts[status] += 1;
+                    }
+                    else {
+                        counts.pending += 1;
+                    }
+                }
+                this.stats.examinationPending = counts.pending + counts.draft;
+                this.stats.examinationInProgress = counts.in_progress;
+                this.stats.examinationCompleted = counts.completed;
             }
             catch (error) {
                 console.warn('Failed to fetch examination stats:', error);
-                // Setze Fallback-Werte basierend auf dem HTML-Inhalt (9 Untersuchungen sichtbar)
-                this.stats.examinationPending = 9;
+                // Setze Fallback-Werte, wenn die Untersuchungen nicht geladen werden können
+                this.stats.examinationPending = 0;
                 this.stats.examinationInProgress = 0;
                 this.stats.examinationCompleted = 0;
             }

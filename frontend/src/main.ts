@@ -1,33 +1,40 @@
+// frontend/src/main.ts
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import App from '@/App.vue'
 import router from '@/router'
-import AuthCheck from '@/components/AuthCheck.vue'
-import 'vite/modulepreload-polyfill'
+
+// CSS Imports
 import '@/assets/css/nucleo-icons.css'
 import '@/assets/css/nucleo-svg.css'
 import '@/assets/css/material-dashboard.css'
-import '@/assets/custom-overrides.css'
 import '@/assets/css/icon-fixes.css'
-import axios from 'axios'
-import Cookies from 'js-cookie'
+import '@/assets/custom-overrides.css'
+
 import VueVirtualScroller from 'vue-virtual-scroller'
 import 'vue-virtual-scroller/dist/vue-virtual-scroller.css'
 
+import { initHttpKC } from '@/utils/http_kc' 
+import canKc from '@/directives/can_kc'
+
+// 1. Initialize Auth
+initHttpKC()
+
+// 2. Create App
 const app = createApp(App)
 
-app.component('AuthCheck', AuthCheck)
-
-app.config.errorHandler = (err, vm, info) => {
+// 3. Configure App
+app.config.errorHandler = (err, _vm, info) => {
   console.error('Global error handler:', err, info)
-  // Optionally, send the error details to an external logging service (e.g., Sentry)
 }
 
+// 4. Use Plugins
 app.use(createPinia())
 app.use(router)
 app.use(VueVirtualScroller)
 
-app.mount('#app')
+// 5. Register Directives (Once is enough!)
+app.directive('can', canKc)
 
-axios.defaults.withCredentials = true
-axios.defaults.headers.common['X-CSRFToken'] = Cookies.get('csrftoken')
+// 6. Mount
+app.mount('#app')

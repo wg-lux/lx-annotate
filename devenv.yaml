@@ -1,6 +1,6 @@
 inputs:
   nixpkgs:
-    url: github:NixOS/nixpkgs/nixpkgs-unstable
+    url: github:NixOS/nixpkgs/nixos-25.05
   
   nix2container:
     url: github:nlewo/nix2container
@@ -10,4 +10,4 @@ inputs:
   mk-shell-bin:
     url: github:rrbutani/nix-mk-shell-bin
 allowUnfree: true
-
+profile: fullstack

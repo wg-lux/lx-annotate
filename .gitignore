@@ -160,3 +160,5 @@ Thumbs.db
 *.swp
 .env
 .env
+
+*./conf

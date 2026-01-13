@@ -1,53 +1,80 @@
-````markdown
-# File Watcher Service
+# File Watcher Service Documentation 📁⚡
 
-Automatic service for monitoring and processing video and PDF files.
+Comprehensive automatic file monitoring and processing service for the Lx Annotate project.
 
-## Overview
+## 🎯 Overview
 
-The File Watcher Service automatically monitors the following directories:
-- `./data/raw_videos/` - For video files (.mp4, .avi, .mov, .mkv, .webm, .m4v)
-- `./data/raw_pdfs/` - For PDF files (.pdf)
+The File Watcher Service provides **real-time automated processing** for media files:
 
-The External File Watcher Service can monitor external folders or the import folder and will then feed the file watcher after processing has finished.
+### Primary Service: `file_watcher.py` 
+- **Monitors**: `./data/raw_videos/` and `./data/raw_pdfs/`
+- **Processes**: Video anonymization, segmentation, and PDF anonymization
+- **Architecture**: Event-driven with concurrent processing
+- **Integration**: Deep Django ORM integration for database operations
 
-When new files are detected, the following processes are automatically triggered:
-- **Videos**: Import, anonymization, and segmentation
-- **PDFs**: Import and anonymization
+### Alternative Service: `external_file_watcher.py`
+- **Monitors**: External directories and import folders
+- **Workflow**: Pre-processes files then feeds to main file watcher
+- **Use Case**: Integration with external systems and bulk import workflows
 
-## Quick Start
+## 🚀 Quick Start Guide
 
-### 1. Setup and Installation
+### Prerequisites
 ```bash
-# Full setup
+# Ensure environment is configured
+python scripts/core/environment.py development
+python scripts/core/setup.py
+
+# Verify system health
+bash scripts/core/system-validation.sh
+```
+
+### Service Management
+
+#### 1. **Full Setup and Installation**
+```bash
+# Complete setup (directories, permissions, systemd service)
 ./scripts/start_filewatcher.sh setup
-````
+```
 
-### 2. Start the Service
-
+#### 2. **Start the Service**
 ```bash
-# As a system service (recommended)
+# Production mode (background systemd service)
 sudo ./scripts/start_filewatcher.sh start
 
-# Or in development mode (foreground)
+# Development mode (foreground with detailed logging)
 ./scripts/start_filewatcher.sh dev
+
+# Direct Python execution (maximum control)
+python scripts/file_watcher.py
 ```
 
-### 3. Check Status
-
+#### 3. **Service Monitoring**
 ```bash
+# Check service status
 ./scripts/start_filewatcher.sh status
-```
 
-### 4. View Logs
-
-```bash
+# View real-time logs
 ./scripts/start_filewatcher.sh logs
+
+# Follow log tail
+sudo journalctl -u lx-filewatcher -f
+
+# Diagnose issues
+python scripts/diagnose_watcher.py
 ```
 
-## Usage
+#### 4. **Service Control**
+```bash
+# Stop service
+sudo ./scripts/start_filewatcher.sh stop
 
-### Adding Files
+# Restart service
+sudo ./scripts/start_filewatcher.sh restart
+
+# Reload configuration
+sudo systemctl reload lx-filewatcher
+```
 
 Simply copy or move files into the monitored directories:
 
@@ -96,7 +123,7 @@ python manage.py start_filewatcher --log-level DEBUG
 
 ### Environment Variables
 
-* `DJANGO_SETTINGS_MODULE`: Django settings (default: `lx_annotate.settings.dev`)
+* `DJANGO_SETTINGS_MODULE`: Django settings (default: `lx_annotate.settings.settings_dev`)
 * `WATCHER_LOG_LEVEL`: Log level (default: `INFO`)
 
 ### Default Settings

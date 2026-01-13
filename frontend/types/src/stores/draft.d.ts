@@ -54,7 +54,7 @@ export declare const useDraftStore: import("pinia").StoreDefinition<"draft", Pic
     clearAllDrafts: () => void;
     loadFromStorage: () => void;
     saveToStorage: () => void;
-}, "isDraftActive" | "isDraftComplete" | "hasUnsavedChanges">, Pick<{
+}, "hasUnsavedChanges" | "isDraftActive" | "isDraftComplete">, Pick<{
     draft: Ref<{
         label: string;
         start: number;

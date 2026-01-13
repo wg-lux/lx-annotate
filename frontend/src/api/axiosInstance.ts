@@ -3,6 +3,7 @@ import Cookies from 'js-cookie'
 import camelcaseKeys from 'camelcase-keys'
 import snakecaseKeys from 'snakecase-keys'
 import { useToastStore } from '@/stores/toastStore'
+import { useAuthKcStore } from '@/stores/auth_kc'
 
 // This handles requests to the local Django API
 
@@ -19,15 +20,27 @@ const axiosInstance = axios.create({
 })
 
 // Error toast - Skip toast messages for polling requests
+// Error handling: Keycloak login on 401 + toast for other errors
 axiosInstance.interceptors.response.use(
   (r) => r,
   (err) => {
     const toast = useToastStore()
+    const auth = useAuthKcStore()
 
-    // Skip toast messages for polling/status requests to avoid spamming users
+    const status = err?.response?.status
     const url = err?.config?.url || ''
+
+    // Skip spam for polling/status requests
     const isPollingRequest = url.includes('/status/') || url.includes('/polling-info/')
 
+    // 🔒 If backend says "unauthenticated", send user to Keycloak login
+    if (status === 401) {
+      // Optional: clear any local state here if you keep some user info in Pinia
+      auth.login()  // 👈 IMPORTANT: this must call Keycloak, not a Vue /login page
+      return Promise.reject(err)
+    }
+
+    // All other errors → show toast (except polling)
     if (!isPollingRequest) {
       const msg =
         err?.response?.data?.detail ||
@@ -41,6 +54,7 @@ axiosInstance.interceptors.response.use(
     return Promise.reject(err) // keep the rejection chain intact
   }
 )
+
 
 // Helper zur Erzeugung des vollständigen API-Pfads
 export function r(path: string): string {

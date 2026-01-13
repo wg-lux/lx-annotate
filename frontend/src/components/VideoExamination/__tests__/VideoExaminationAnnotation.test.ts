@@ -152,8 +152,8 @@ describe('VideoExaminationAnnotation.vue', () => {
     ]
 
     anonymizationStore.overview = [
-      { id: 6, mediaType: 'video', anonymizationStatus: 'done' },
-      { id: 8, mediaType: 'video', anonymizationStatus: 'done' }
+      { id: 6, mediaType: 'video', anonymizationStatus: 'done_processing_anonymization' },
+      { id: 8, mediaType: 'video', anonymizationStatus: 'done_processing_anonymization' }
     ]
 
     // Mock store methods
@@ -162,7 +162,7 @@ describe('VideoExaminationAnnotation.vue', () => {
     videoStore.fetchAllSegments = vi.fn()
     videoStore.clearVideo = vi.fn()
     videoStore.createSegment = vi.fn()
-    videoStore.updateSegment = vi.fn()
+    videoStore.updateSegmentInMemory = vi.fn()
     videoStore.deleteSegment = vi.fn()
     videoStore.removeSegment = vi.fn()
     videoStore.patchSegmentLocally = vi.fn()
@@ -424,12 +424,12 @@ describe('VideoExaminationAnnotation.vue', () => {
         startTime: 10,
         endTime: 20
       })
-      expect(videoStore.updateSegment).not.toHaveBeenCalled()
+      expect(videoStore.updateSegmentInMemory).not.toHaveBeenCalled()
 
       // Test final save (final = true)
       vm.handleSegmentResize(1, 10, 20, 'resize', true)
 
-      expect(videoStore.updateSegment).toHaveBeenCalledWith(1, {
+      expect(videoStore.updateSegmentInMemory).toHaveBeenCalledWith(1, {
         startTime: 10,
         endTime: 20
       })
@@ -442,7 +442,7 @@ describe('VideoExaminationAnnotation.vue', () => {
       vm.handleSegmentResize('temp-123', 10, 20, 'resize', true)
 
       expect(videoStore.patchSegmentLocally).not.toHaveBeenCalled()
-      expect(videoStore.updateSegment).not.toHaveBeenCalled()
+      expect(videoStore.updateSegmentInMemory).not.toHaveBeenCalled()
     })
 
     it('should delete segment correctly', async () => {
@@ -492,7 +492,7 @@ describe('VideoExaminationAnnotation.vue', () => {
         currentTime: 45,
         isPlaying: true,
         selectedSegmentId: 1,
-        fps: 25
+        fps: 50
       })
       await nextTick()
 
@@ -506,7 +506,7 @@ describe('VideoExaminationAnnotation.vue', () => {
       expect(props['is-playing']).toBe(true)
       expect(props['active-segment-id']).toBe(1)
       expect(props['selection-mode']).toBe(true)
-      expect(props.fps).toBe(25)
+      expect(props.fps).toBe(50)
     })
 
     it('should emit correct events to Timeline component', async () => {
@@ -546,7 +546,7 @@ describe('VideoExaminationAnnotation.vue', () => {
         data: {
           video_url: 'http://test.com/video.mp4',
           duration: 120,
-          fps: 25
+          fps: 50
         }
       })
 
@@ -560,7 +560,7 @@ describe('VideoExaminationAnnotation.vue', () => {
       await vm.loadVideoDetail(6)
 
       expect(vm.videoDetail).toEqual({ video_url: 'http://test.com/video.mp4' })
-      expect(vm.videoMeta).toEqual({ duration: 120, fps: 25 })
+      expect(vm.videoMeta).toEqual({ duration: 120, fps: 50 })
       expect(vm.duration).toBe(120)
       expect(mediaStore.setCurrentItem).toHaveBeenCalled()
     })

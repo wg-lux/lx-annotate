@@ -84,7 +84,7 @@ describe('VideoExaminationAnnotation Integration Tests', () => {
         ];
         // Mock store methods
         videoStore.createSegment = vi.fn().mockResolvedValue(undefined);
-        videoStore.updateSegment = vi.fn().mockResolvedValue(undefined);
+        videoStore.updateSegmentInMemory = vi.fn().mockResolvedValue(undefined);
         videoStore.deleteSegment = vi.fn().mockResolvedValue(undefined);
         videoStore.removeSegment = vi.fn();
         videoStore.patchSegmentLocally = vi.fn();
@@ -137,7 +137,7 @@ describe('VideoExaminationAnnotation Integration Tests', () => {
                 startTime: 10,
                 endTime: 20
             });
-            expect(videoStore.updateSegment).toHaveBeenCalledWith(1, {
+            expect(videoStore.updateSegmentInMemory).toHaveBeenCalledWith(1, {
                 startTime: 10,
                 endTime: 20
             });
@@ -147,7 +147,7 @@ describe('VideoExaminationAnnotation Integration Tests', () => {
                 startTime: 15,
                 endTime: 25
             });
-            expect(videoStore.updateSegment).toHaveBeenCalledWith(1, {
+            expect(videoStore.updateSegmentInMemory).toHaveBeenCalledWith(1, {
                 startTime: 15,
                 endTime: 25
             });
@@ -246,7 +246,7 @@ describe('VideoExaminationAnnotation Integration Tests', () => {
                 currentTime: 30,
                 isPlaying: true,
                 selectedSegmentId: 1,
-                fps: 25
+                fps: 50
             });
             await nextTick();
             const timeline = wrapper.findComponent({ name: 'Timeline' });

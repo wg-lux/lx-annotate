@@ -31,7 +31,7 @@ RUN uv sync --dev --frozen && \
 COPY . /app
 
 ENV PATH="/app/.venv/bin:$PATH" \
-    DJANGO_SETTINGS_MODULE=config.settings.dev \
+    DJANGO_SETTINGS_MODULE=config.settings_dev \
     DJANGO_HOST=0.0.0.0 \
     DJANGO_PORT=8118 \
     DJANGO_ENV=development \

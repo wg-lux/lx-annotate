@@ -8,6 +8,7 @@ import { usePdfStore } from '@/stores/pdfStore';
 import { useMediaTypeStore } from '@/stores/mediaTypeStore';
 import OutsideTimelineComponent from '@/components/Anonymizer/OutsideSegmentComponent.vue';
 import { DateConverter, DateValidator } from '@/utils/dateHelpers';
+import { useRoute } from 'vue-router';
 // @ts-ignore
 import axiosInstance, { r } from '@/api/axiosInstance';
 import { usePollingProtection } from '@/composables/usePollingProtection';
@@ -17,9 +18,50 @@ const router = useRouter();
 // Store references
 const anonymizationStore = useAnonymizationStore();
 const videoStore = useVideoStore();
-const patientStore = usePatientStore();
-const pdfStore = usePdfStore();
+// const patientStore = usePatientStore();
+// const pdfStore = usePdfStore();
 const mediaStore = useMediaTypeStore();
+const route = useRoute();
+const isPdf = computed(() => mediaStore.isPdf);
+const isVideo = computed(() => mediaStore.isVideo);
+function restoreLast() {
+    const fid = Number(sessionStorage.getItem('last:fileId') || '');
+    const sc = sessionStorage.getItem('last:scope');
+    return {
+        fileId: Number.isFinite(fid) ? fid : undefined,
+        scope: sc || undefined,
+    };
+}
+const props = defineProps();
+let fileId = Number(props.fileId || route.query.fileId);
+let scope = (props.mediaType || route.query.mediaType);
+console.log("fileid and scope", fileId, scope);
+if (!Number.isFinite(fileId) || !scope) {
+    const restored = restoreLast();
+    if (restored.fileId !== undefined)
+        fileId = restored.fileId;
+    if (restored.scope)
+        scope = restored.scope;
+}
+if (!Number.isFinite(fileId) || !scope) {
+    console.error('Validation view: cannot determine fileId/scope; aborting mediaStore init.', { fileId, scope });
+}
+else {
+    mediaStore.setCurrentByKey(scope, fileId);
+}
+const mediaOptions = [
+    { text: 'Video', value: 'video' },
+    { text: 'PDF', value: 'pdf' },
+];
+const mediaInferral = ref('');
+const mediaUnknown = computed(() => !isPdf.value && !isVideo.value);
+watch(mediaInferral, (val) => {
+    if (!val || !currentItem.value)
+        return;
+    // Remember this type for the current file, both as type and scope
+    mediaStore.rememberType(currentItem.value.id, val, val);
+    mediaStore.setCurrentByKey(val, currentItem.value.id);
+});
 // Local state
 const editedAnonymizedText = ref('');
 const examinationDate = ref('');
@@ -27,9 +69,16 @@ const noMoreNames = ref(false);
 const editedPatient = ref({
     patientFirstName: '',
     patientLastName: '',
-    patientGender: '',
+    patientGenderName: '',
     patientDob: '',
-    casenumber: ''
+    casenumber: '',
+    externalId: '',
+    externalIdOrigin: '',
+    centerName: '',
+    text: '',
+    anonymizedText: '',
+    examinersDisplay: '',
+    examinationDate: '',
 });
 // ✨ Phase 2.2: Validation error tracking
 const validationErrors = ref([]);
@@ -54,7 +103,7 @@ const original = ref({
     patient: {
         patientFirstName: '',
         patientLastName: '',
-        patientGender: '',
+        patientGenderName: '',
         patientDob: '',
         casenumber: '',
     },
@@ -62,7 +111,7 @@ const original = ref({
 function shallowEqual(a, b) {
     return a.patientFirstName === b.patientFirstName &&
         a.patientLastName === b.patientLastName &&
-        a.patientGender === b.patientGender &&
+        a.patientGenderName === b.patientGenderName &&
         a.patientDob === b.patientDob &&
         a.casenumber === b.casenumber;
 }
@@ -76,7 +125,7 @@ function buildSensitiveMetaSnake(dobGerman) {
     return {
         patient_first_name: editedPatient.value.patientFirstName || '',
         patient_last_name: editedPatient.value.patientLastName || '',
-        patient_gender: editedPatient.value.patientGender || '',
+        patient_gender: editedPatient.value.patientGenderName || '',
         patient_dob: dobGerman, // 🎯 Jetzt deutsches Format
         casenumber: editedPatient.value.casenumber || '',
     };
@@ -168,46 +217,36 @@ const validationProgressPercent = computed(() => {
 // ============================================================================
 // Computed
 const currentItem = computed(() => anonymizationStore.current);
-// Use MediaStore for consistent media type detection
-const isPdf = computed(() => {
-    if (!currentItem.value)
-        return false;
-    return mediaStore.detectMediaType(currentItem.value) === 'pdf';
-});
-const isVideo = computed(() => {
-    if (!currentItem.value)
-        return false;
-    return mediaStore.detectMediaType(currentItem.value) === 'video';
-});
-// Media URLs with MediaStore logic
-const pdfSrc = computed(() => {
-    if (!isPdf.value || !currentItem.value)
-        return undefined;
-    // Use MediaStore's URL resolution logic
-    return mediaStore.getPdfUrl(currentItem.value) ||
-        pdfStore.pdfStreamUrl ||
-        pdfStore.buildPdfStreamUrl(currentItem.value.id);
-});
-// ✅ ENHANCED: Dual video streaming for raw vs anonymized comparison
-const videoSrc = computed(() => {
-    if (!isVideo.value || !currentItem.value)
-        return undefined;
-    return mediaStore.getVideoUrl(currentItem.value);
-});
 // ✅ NEW: Raw video URL (original unprocessed video)
 const rawVideoSrc = computed(() => {
     if (!isVideo.value || !currentItem.value)
         return undefined;
     // Build raw video URL with explicit raw parameter
     const base = import.meta.env.VITE_API_BASE_URL || window.location.origin;
-    return `${base}/api/media/videos/${currentItem.value.id}/?type=raw`;
+    return `${base}/api/media/videos/${fileId}/?type=raw`;
 });
 // ✅ NEW: Anonymized video URL (processed/anonymized video)
 const anonymizedVideoSrc = computed(() => {
     if (!isVideo.value || !currentItem.value)
         return undefined;
     const base = import.meta.env.VITE_API_BASE_URL || window.location.origin;
-    return `${base}/api/media/videos/${currentItem.value.id}/?type=processed`;
+    return `${base}/api/media/videos/${fileId}/?type=processed`;
+});
+// ✅ NEW: Raw PDF URL (original unprocessed PDF)
+const rawPdfSrc = computed(() => {
+    if (!isPdf.value || !currentItem.value)
+        return undefined;
+    // Build raw PDF URL with explicit raw parameter
+    const base = import.meta.env.VITE_API_BASE_URL || window.location.origin;
+    return `${base}/api/media/pdfs/${fileId}/stream/?type=raw`;
+});
+// ✅ NEW: Anonymized PDF URL (processed/anonymized PDF)
+const anonymizedPdfSrc = computed(() => {
+    if (!isPdf.value || !currentItem.value)
+        return undefined;
+    // Build anonymized PDF URL with explicit processed parameter
+    const base = import.meta.env.VITE_API_BASE_URL || window.location.origin;
+    return `${base}/api/media/pdfs/${fileId}/stream/?type=processed`;
 });
 // ✅ NEW: Refs for dual video elements
 const rawVideoElement = ref(null);
@@ -262,7 +301,23 @@ const pauseAllVideos = () => {
         anonymizedVideoElement.value.pause();
     console.log('All videos paused');
 };
-// ✅ NEW: Video validation functions for segment annotation
+const downloadRawPdf = () => {
+    if (!rawPdfSrc.value) {
+        toast.warning({ text: 'Original-PDF nicht verfügbar.' });
+        return;
+    }
+    // Open PDF in new tab for download
+    window.open(rawPdfSrc.value, '_blank');
+    console.log('Downloading raw PDF:', rawPdfSrc.value);
+};
+const downloadAnonymizedPdf = () => {
+    if (!anonymizedPdfSrc.value) {
+        toast.warning({ text: 'Anonymisiertes PDF nicht verfügbar.' });
+        return;
+    }
+    window.open(anonymizedPdfSrc.value, '_blank');
+    console.log('Downloading anonymized PDF:', anonymizedPdfSrc.value);
+};
 const validateVideoForSegmentAnnotation = async () => {
     if (!currentItem.value || !isVideo.value) {
         toast.warning({ text: 'Kein Video zur Validierung ausgewählt.' });
@@ -377,41 +432,63 @@ const onOutsideValidationComplete = () => {
     };
     toast.success({ text: 'Outside-Segment Validierung abgeschlossen!' });
 };
-const loadCurrentItemData = (item) => {
+function convertGender(gender) {
+    if (gender == undefined) {
+        return 'unknown';
+    }
+    if (['male', 'männlich', 'm'].includes(gender)) {
+        return "male";
+    }
+    else if (['female', 'weiblich', 'f', 'w'].includes(gender)) {
+        return "female";
+    }
+    else if (['other', 'divers', 'd'].includes(gender)) {
+        return "unknown"; // #TODO Change to diverse gender once supportec
+    }
+    return gender;
+}
+function loadCurrentItemData(item) {
     if (!item)
         return;
-    // ✅ NEW: Reset video validation state when loading new item
+    // reset video validation state
     shouldShowOutsideTimeline.value = false;
     videoValidationStatus.value = null;
     outsideSegmentsValidated.value = 0;
     totalOutsideSegments.value = 0;
     isValidatingVideo.value = false;
-    editedAnonymizedText.value = item.anonymizedText || '';
-    const rawExam = item.reportMeta?.examinationDate || '';
-    const rawDob = item.reportMeta?.patientDob || '';
-    // ✨ Phase 2.1: Using DateConverter for consistent format handling
+    // dates
+    const rawExam = item.examinationDate || '';
+    const rawDob = item.patientDobDisplay || item.patientDob;
     examinationDate.value = DateConverter.toISO(rawExam) || '';
-    const p = {
-        patientFirstName: item.reportMeta?.patientFirstName || '',
-        patientLastName: item.reportMeta?.patientLastName || '',
-        patientGender: item.reportMeta?.patientGender || '',
+    const convertedGender = convertGender(item.patientGenderName);
+    editedPatient.value = {
+        patientFirstName: item.patientFirstName || '',
+        patientLastName: item.patientLastName || '',
+        patientGenderName: convertedGender || '',
         patientDob: DateConverter.toISO(rawDob) || '',
-        casenumber: item.reportMeta?.casenumber || '',
-    };
-    editedPatient.value = { ...p };
-    original.value = {
-        anonymizedText: editedAnonymizedText.value,
+        casenumber: item.casenumber || '',
+        externalId: item.externalId ?? '',
+        externalIdOrigin: item.externalIdOrigin ?? '',
+        centerName: item.centerName ?? '',
+        text: item.text ?? '',
+        anonymizedText: item.anonymizedText ?? '',
+        examinersDisplay: item.examinersDisplay ?? '',
         examinationDate: examinationDate.value,
-        patient: { ...p },
     };
-};
+    // if using a separate ref for anonymized text:
+    // editedAnonymizedText.value = item.anonymizedText ?? '';
+    original.value = {
+        anonymizedText: editedPatient.value.anonymizedText ?? '',
+        examinationDate: examinationDate.value,
+        patient: { ...editedPatient.value },
+    };
+    // optional: remember last file in sessionStorage
+    sessionStorage.setItem('last:fileId', String(item.id));
+}
 // Watch
 watch(currentItem, (newItem) => {
-    if (newItem) {
-        // Update MediaStore with current item for consistent type detection
-        mediaStore.setCurrentItem(newItem);
+    if (newItem)
         loadCurrentItemData(newItem);
-    }
 }, { immediate: true });
 const fetchNextItem = async () => {
     try {
@@ -427,10 +504,9 @@ const dirty = computed(() => editedAnonymizedText.value !== original.value.anony
 // ✅ NEW: Can save computed property
 const canSave = computed(() => {
     // Can save if we have a current item and data is not currently being processed
-    return currentItem.value && !isSaving.value && !isApproving.value;
+    return currentItem.value && !isApproving.value;
 });
 // Concurrency guards
-const isSaving = ref(false);
 const isApproving = ref(false);
 const toggleImage = () => {
     showOriginal.value = !showOriginal.value;
@@ -595,13 +671,17 @@ const approveItem = async () => {
             await axiosInstance.post(r(`anonymization/${currentItem.value.id}/validate/`), {
                 patient_first_name: editedPatient.value.patientFirstName,
                 patient_last_name: editedPatient.value.patientLastName,
-                patient_gender: editedPatient.value.patientGender,
+                patient_gender: editedPatient.value.patientGenderName,
                 patient_dob: DateConverter.toGerman(dobISO.value || '') || '', // 🎯 Phase 2.1: SENDE DEUTSCHES FORMAT
                 examination_date: DateConverter.toGerman(examISO.value || '') || '', // 🎯 Phase 2.1: SENDE DEUTSCHES FORMAT
                 casenumber: editedPatient.value.casenumber || "",
-                anonymized_text: isPdf.value ? editedAnonymizedText.value : undefined,
-                is_verified: true,
+                anonymized_text: editedPatient.value.anonymizedText || undefined,
+                text: editedPatient.value.text || undefined,
+                is_verified: 'true',
                 file_type: isPdf.value ? 'pdf' : isVideo.value ? 'video' : 'unknown',
+                center_name: editedPatient.value.centerName || '',
+                external_id: editedPatient.value.externalId || '',
+                external_id_origin: editedPatient.value.externalIdOrigin || '',
             });
             console.log(`Anonymization validated successfully for file ${currentItem.value.id}`);
             toast.success({ text: 'Dokument bestätigt und Anonymisierung validiert' });
@@ -610,7 +690,14 @@ const approveItem = async () => {
             console.error('Error validating anonymization:', validationError);
             toast.warning({ text: 'Dokument bestätigt, aber Validierung fehlgeschlagen' });
         }
-        pollingProtection.validateAnonymizationSafeWithProtection(currentItem.value.id, 'pdf');
+        const mediaKind = isPdf.value ? 'pdf'
+            : isVideo.value ? 'video'
+                : 'unknown';
+        if (mediaKind === 'unknown') {
+            toast.error({ text: 'Bitte Medientyp auswählen, bevor bestätigt wird.' });
+            return;
+        }
+        pollingProtection.validateAnonymizationSafeWithProtection(currentItem.value.id, mediaKind);
         await navigateToSegmentation();
     }
     catch (error) {
@@ -622,9 +709,6 @@ const approveItem = async () => {
     }
 };
 const saveAnnotation = async () => {
-    if (isSaving.value) {
-        return; // Already saving
-    }
     if (!canSubmit.value) {
         // Provide more specific error messages
         if (!processedUrl.value || !originalUrl.value) {
@@ -645,7 +729,6 @@ const saveAnnotation = async () => {
         }
         return;
     }
-    isSaving.value = true;
     try {
         const annotationData = {
             processed_image_url: processedUrl.value,
@@ -675,9 +758,6 @@ const saveAnnotation = async () => {
         console.error('Error saving annotation:', error);
         toast.error({ text: 'Fehler beim Speichern der Annotation' });
     }
-    finally {
-        isSaving.value = false;
-    }
 };
 const rejectItem = async () => {
     if (currentItem.value) {
@@ -690,61 +770,22 @@ const navigateToCorrection = async () => {
         return;
     }
     // Check for unsaved changes
-    if (dirty.value) {
-        const saveFirst = confirm('Sie haben ungespeicherte Änderungen!\n\n' +
-            'Möchten Sie diese zuerst speichern, bevor Sie zur Korrektur wechseln?\n\n' +
-            '• Ja = Änderungen speichern und zur Korrektur\n' +
-            '• Nein = Änderungen verwerfen und zur Korrektur\n' +
-            '• Abbrechen = Hier bleiben');
-        if (saveFirst === null) {
-            // User cancelled
-            return;
-        }
-        if (saveFirst) {
-            // User wants to save first
-            if (!canSave.value) {
-                toast.error({ text: 'Bitte korrigieren Sie die Validierungsfehler vor dem Speichern.' });
-                return;
-            }
-            try {
-                router.push({ name: 'Anonymisierung Korrektur', params: { fileId: currentItem.value.id.toString() } });
-                // approveItem will navigate to next item, so we need to return
-                toast.info({ text: 'Änderungen gespeichert. Bitte wählen Sie das Element erneut für die Korrektur aus.' });
-                return;
-            }
-            catch (error) {
-                toast.error({ text: 'Fehler beim Speichern. Korrektur-Navigation abgebrochen.' });
-                return;
-            }
-        }
-        // If saveFirst is false, continue with navigation (discard changes)
+    try {
+        router.push({ name: 'Anonymisierung Korrektur', params: { fileId: currentItem.value.id.toString() } });
+        // approveItem will navigate to next item, so we need to return
+        toast.info({ text: 'Änderungen gespeichert. Bitte wählen Sie das Element erneut für die Korrektur aus.' });
+        return;
     }
-    // Ensure MediaStore has the current item for consistent navigation
-    mediaStore.setCurrentItem(currentItem.value);
-    // Different confirmation messages based on media type
-    const mediaType = isVideo.value ? 'Video' : isPdf.value ? 'PDF' : 'Dokument';
-    const correctionOptions = isVideo.value
-        ? 'Verfügbare Optionen: Maskierung, Frame-Entfernung, Neuverarbeitung'
-        : 'Verfügbare Optionen: Text-Annotation anpassen, Metadaten korrigieren';
-    // Log navigation for debugging
-    console.log(`🔧 Navigating to correction for ${mediaType}:`, {
-        id: currentItem.value.id,
-        mediaType,
-        detectedType: mediaStore.detectMediaType(currentItem.value),
-        mediaUrl: mediaStore.currentMediaUrl
-    });
-    // Navigate to correction component with the current item's ID
-    router.push({
-        name: 'AnonymisierungKorrektur',
-        params: { fileId: currentItem.value.id.toString() }
-    });
-    toast.info({
-        text: `${mediaType}-Korrektur geöffnet. ${correctionOptions}`
-    });
+    catch (error) {
+        toast.error({ text: 'Fehler beim Speichern. Korrektur-Navigation abgebrochen.' });
+        return;
+    }
 };
-// Lifecycle
 onMounted(async () => {
-    if (!anonymizationStore.current) { // nur wenn wirklich leer
+    if (Number.isFinite(fileId) && scope) {
+        mediaStore.setCurrentByKey(scope, fileId);
+    }
+    if (!anonymizationStore.current) {
         await fetchNextItem();
     }
     else {
@@ -763,8 +804,20 @@ let __VLS_directives;
 /** @type {__VLS_StyleScopedClasses['media-viewer-container']} */ ;
 /** @type {__VLS_StyleScopedClasses['dual-video-container']} */ ;
 /** @type {__VLS_StyleScopedClasses['video-section']} */ ;
+/** @type {__VLS_StyleScopedClasses['dual-pdf-container']} */ ;
+/** @type {__VLS_StyleScopedClasses['pdf-section']} */ ;
 /** @type {__VLS_StyleScopedClasses['dual-video-container']} */ ;
 /** @type {__VLS_StyleScopedClasses['video-section']} */ ;
+/** @type {__VLS_StyleScopedClasses['dual-pdf-container']} */ ;
+/** @type {__VLS_StyleScopedClasses['pdf-section']} */ ;
+/** @type {__VLS_StyleScopedClasses['dual-pdf-container']} */ ;
+/** @type {__VLS_StyleScopedClasses['pdf-section']} */ ;
+/** @type {__VLS_StyleScopedClasses['dual-pdf-container']} */ ;
+/** @type {__VLS_StyleScopedClasses['pdf-section']} */ ;
+/** @type {__VLS_StyleScopedClasses['raw-pdf']} */ ;
+/** @type {__VLS_StyleScopedClasses['dual-pdf-container']} */ ;
+/** @type {__VLS_StyleScopedClasses['pdf-section']} */ ;
+/** @type {__VLS_StyleScopedClasses['anonymized-pdf']} */ ;
 /** @type {__VLS_StyleScopedClasses['outside-timeline-container']} */ ;
 /** @type {__VLS_StyleScopedClasses['outside-timeline-container']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert']} */ ;
@@ -874,7 +927,7 @@ if (__VLS_ctx.currentItem) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
     __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
     (__VLS_ctx.isPdf ? 'PDF-Dokument' : __VLS_ctx.isVideo ? 'Video-Datei' : 'Unbekanntes Format');
-    (__VLS_ctx.currentItem?.reportMeta?.centerName ? `- ${__VLS_ctx.currentItem.reportMeta.centerName}` : '');
+    (__VLS_ctx.currentItem?.centerName ? `- ${__VLS_ctx.currentItem.centerName}` : '');
     if (__VLS_ctx.currentItem && (__VLS_ctx.isVideo || __VLS_ctx.isPdf)) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: "text-end" },
@@ -998,7 +1051,7 @@ if (__VLS_ctx.currentItem) {
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
         ...{ class: "form-select" },
-        value: (__VLS_ctx.editedPatient.patientGender),
+        value: (__VLS_ctx.editedPatient.patientGenderName),
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
         value: "male",
@@ -1007,7 +1060,7 @@ if (__VLS_ctx.currentItem) {
         value: "female",
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-        value: "other",
+        value: "unknown",
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "mb-3" },
@@ -1094,6 +1147,46 @@ if (__VLS_ctx.currentItem) {
         value: (__VLS_ctx.editedAnonymizedText),
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "mb-3" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+        ...{ class: "form-label" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.textarea, __VLS_intrinsicElements.textarea)({
+        ...{ class: "form-control" },
+        value: (__VLS_ctx.editedPatient.externalId),
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "mb-3" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+        ...{ class: "form-label" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.textarea, __VLS_intrinsicElements.textarea)({
+        ...{ class: "form-control" },
+        value: (__VLS_ctx.editedPatient.examinersDisplay),
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "mb-3" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+        ...{ class: "form-label" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.textarea, __VLS_intrinsicElements.textarea)({
+        ...{ class: "form-control" },
+        value: (__VLS_ctx.editedPatient.externalIdOrigin),
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "mb-3" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+        ...{ class: "form-label" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.textarea, __VLS_intrinsicElements.textarea)({
+        ...{ class: "form-control" },
+        value: (__VLS_ctx.editedPatient.centerName),
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "card bg-light" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -1120,18 +1213,6 @@ if (__VLS_ctx.currentItem) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "mt-3" },
     });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-        ...{ onClick: (__VLS_ctx.saveAnnotation) },
-        ...{ class: "btn btn-primary" },
-    });
-    if (__VLS_ctx.isSaving) {
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-            ...{ class: "spinner-border spinner-border-sm me-2" },
-            role: "status",
-            'aria-hidden': "true",
-        });
-    }
-    (__VLS_ctx.isSaving ? 'Speichern...' : 'Annotation zwischenspeichern');
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "col-md-7" },
     });
@@ -1154,7 +1235,7 @@ if (__VLS_ctx.currentItem) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
     if (__VLS_ctx.isPdf) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
-        (Math.round((__VLS_ctx.currentItem?.reportMeta?.file?.length || 0) / 1024) || 'Unbekannt');
+        (Math.round((__VLS_ctx.anonymizedPdfSrc?.length || 0) / 1024) || 'Nicht Verfügbar');
     }
     else if (__VLS_ctx.isVideo) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
@@ -1169,15 +1250,86 @@ if (__VLS_ctx.currentItem) {
         ...{ class: "card-body media-viewer-container" },
     });
     if (__VLS_ctx.isPdf) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "dual-pdf-container" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "row" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "col-md-6" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "pdf-section raw-pdf" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({
+            ...{ class: "text-center mb-3 text-danger" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: "fas fa-file-pdf me-1" },
+        });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.iframe, __VLS_intrinsicElements.iframe)({
-            src: (__VLS_ctx.pdfSrc),
+            src: (__VLS_ctx.rawPdfSrc),
             width: "100%",
-            height: "800px",
+            height: "700px",
             frameborder: "0",
-            title: "PDF Vorschau",
+            title: "Original PDF Vorschau",
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.a, __VLS_intrinsicElements.a)({
-            href: (__VLS_ctx.pdfSrc),
+            href: (__VLS_ctx.rawPdfSrc),
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "mt-2 text-center" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+            ...{ class: "text-muted" },
+        });
+        (__VLS_ctx.rawPdfSrc || 'Nicht verfügbar');
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "col-md-6" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "pdf-section anonymized-pdf" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({
+            ...{ class: "text-center mb-3 text-success" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: "fas fa-shield-alt me-1" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.iframe, __VLS_intrinsicElements.iframe)({
+            src: (__VLS_ctx.anonymizedPdfSrc),
+            width: "100%",
+            height: "700px",
+            frameborder: "0",
+            title: "Anonymisiertes PDF Vorschau",
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.a, __VLS_intrinsicElements.a)({
+            href: (__VLS_ctx.anonymizedPdfSrc),
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "mt-2 text-center" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+            ...{ class: "text-muted" },
+        });
+        (__VLS_ctx.anonymizedPdfSrc || 'Nicht verfügbar');
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "pdf-controls mt-3 text-center" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+            ...{ onClick: (__VLS_ctx.downloadRawPdf) },
+            ...{ class: "btn btn-outline-primary btn-sm me-2" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: "fas fa-download me-1" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+            ...{ onClick: (__VLS_ctx.downloadAnonymizedPdf) },
+            ...{ class: "btn btn-outline-success btn-sm" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: "fas fa-download me-1" },
         });
     }
     else if (__VLS_ctx.isVideo) {
@@ -1390,9 +1542,6 @@ if (__VLS_ctx.currentItem) {
         (__VLS_ctx.currentItem?.id || 'Nicht verfügbar');
         __VLS_asFunctionalElement(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({});
         __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
-        (__VLS_ctx.currentItem?.sensitiveMetaId || 'Nicht verfügbar');
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({});
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
         (__VLS_ctx.isPdf);
         __VLS_asFunctionalElement(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({});
         __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
@@ -1400,18 +1549,6 @@ if (__VLS_ctx.currentItem) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({});
         __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
         (__VLS_ctx.currentItem ? __VLS_ctx.mediaStore.detectMediaType(__VLS_ctx.currentItem) : 'N/A');
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({});
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
-        (__VLS_ctx.currentItem ? __VLS_ctx.mediaStore.currentMediaUrl : 'N/A');
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({});
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
-        (__VLS_ctx.currentItem?.reportMeta?.pdfUrl || 'Nicht verfügbar');
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({});
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
-        (__VLS_ctx.currentItem?.videoUrl || 'Nicht verfügbar');
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({});
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
-        (__VLS_ctx.currentItem?.pdfStreamUrl || 'Nicht verfügbar');
     }
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "row" },
@@ -1463,6 +1600,21 @@ if (__VLS_ctx.currentItem) {
         });
     }
     (__VLS_ctx.isApproving ? 'Wird bestätigt...' : 'Bestätigen');
+    if (__VLS_ctx.mediaUnknown) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "alert alert-warning mt-2 mb-0" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
+            value: (__VLS_ctx.mediaInferral),
+        });
+        for (const [mediaOption] of __VLS_getVForSourceType((__VLS_ctx.mediaOptions))) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+                value: (mediaOption.value),
+            });
+            (mediaOption.text);
+        }
+    }
     if (!__VLS_ctx.canApprove && __VLS_ctx.approvalBlockReason) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: "alert alert-warning mt-2 mb-0" },
@@ -1593,6 +1745,18 @@ if (__VLS_ctx.currentItem) {
 /** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['form-label']} */ ;
 /** @type {__VLS_StyleScopedClasses['form-control']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-control']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-control']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-control']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-control']} */ ;
 /** @type {__VLS_StyleScopedClasses['card']} */ ;
 /** @type {__VLS_StyleScopedClasses['bg-light']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-body']} */ ;
@@ -1604,11 +1768,6 @@ if (__VLS_ctx.currentItem) {
 /** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn-primary']} */ ;
-/** @type {__VLS_StyleScopedClasses['spinner-border']} */ ;
-/** @type {__VLS_StyleScopedClasses['spinner-border-sm']} */ ;
-/** @type {__VLS_StyleScopedClasses['me-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['col-md-7']} */ ;
 /** @type {__VLS_StyleScopedClasses['card']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-header']} */ ;
@@ -1623,6 +1782,48 @@ if (__VLS_ctx.currentItem) {
 /** @type {__VLS_StyleScopedClasses['me-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-body']} */ ;
 /** @type {__VLS_StyleScopedClasses['media-viewer-container']} */ ;
+/** @type {__VLS_StyleScopedClasses['dual-pdf-container']} */ ;
+/** @type {__VLS_StyleScopedClasses['row']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-md-6']} */ ;
+/** @type {__VLS_StyleScopedClasses['pdf-section']} */ ;
+/** @type {__VLS_StyleScopedClasses['raw-pdf']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-danger']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-file-pdf']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-md-6']} */ ;
+/** @type {__VLS_StyleScopedClasses['pdf-section']} */ ;
+/** @type {__VLS_StyleScopedClasses['anonymized-pdf']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-success']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-shield-alt']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['pdf-controls']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-primary']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-download']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-success']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-download']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['dual-video-container']} */ ;
 /** @type {__VLS_StyleScopedClasses['row']} */ ;
 /** @type {__VLS_StyleScopedClasses['col-md-6']} */ ;
@@ -1742,6 +1943,10 @@ if (__VLS_ctx.currentItem) {
 /** @type {__VLS_StyleScopedClasses['alert-warning']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert-warning']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
 /** @type {__VLS_StyleScopedClasses['fas']} */ ;
 /** @type {__VLS_StyleScopedClasses['fa-exclamation-triangle']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-2']} */ ;
@@ -1752,6 +1957,11 @@ const __VLS_self = (await import('vue')).defineComponent({
             OutsideTimelineComponent: OutsideTimelineComponent,
             anonymizationStore: anonymizationStore,
             mediaStore: mediaStore,
+            isPdf: isPdf,
+            isVideo: isVideo,
+            mediaOptions: mediaOptions,
+            mediaInferral: mediaInferral,
+            mediaUnknown: mediaUnknown,
             editedAnonymizedText: editedAnonymizedText,
             examinationDate: examinationDate,
             noMoreNames: noMoreNames,
@@ -1778,11 +1988,10 @@ const __VLS_self = (await import('vue')).defineComponent({
             approvalBlockReason: approvalBlockReason,
             validationProgressPercent: validationProgressPercent,
             currentItem: currentItem,
-            isPdf: isPdf,
-            isVideo: isVideo,
-            pdfSrc: pdfSrc,
             rawVideoSrc: rawVideoSrc,
             anonymizedVideoSrc: anonymizedVideoSrc,
+            rawPdfSrc: rawPdfSrc,
+            anonymizedPdfSrc: anonymizedPdfSrc,
             rawVideoElement: rawVideoElement,
             anonymizedVideoElement: anonymizedVideoElement,
             onRawVideoError: onRawVideoError,
@@ -1794,11 +2003,12 @@ const __VLS_self = (await import('vue')).defineComponent({
             syncVideoTime: syncVideoTime,
             syncVideos: syncVideos,
             pauseAllVideos: pauseAllVideos,
+            downloadRawPdf: downloadRawPdf,
+            downloadAnonymizedPdf: downloadAnonymizedPdf,
             validateVideoForSegmentAnnotation: validateVideoForSegmentAnnotation,
             onSegmentValidated: onSegmentValidated,
             onOutsideValidationComplete: onOutsideValidationComplete,
             dirty: dirty,
-            isSaving: isSaving,
             isApproving: isApproving,
             toggleImage: toggleImage,
             onDobBlur: onDobBlur,
@@ -1806,15 +2016,16 @@ const __VLS_self = (await import('vue')).defineComponent({
             clearValidationErrors: clearValidationErrors,
             skipItem: skipItem,
             approveItem: approveItem,
-            saveAnnotation: saveAnnotation,
             rejectItem: rejectItem,
             navigateToCorrection: navigateToCorrection,
         };
     },
+    __typeProps: {},
 });
 export default (await import('vue')).defineComponent({
     setup() {
         return {};
     },
+    __typeProps: {},
 });
 ; /* PartiallyEnd: #4569/main.vue */

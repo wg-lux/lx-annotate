@@ -1,7 +1,7 @@
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAnnotationStatsStore } from '@/stores/annotationStats';
-import AnnotationStatsComponent from '@/components/AnnotationStatsComponent.vue';
+import AnnotationStatsComponent from '@/components/Stats/AnnotationStatsComponent.vue';
 import { useToastStore } from '@/stores/toastStore'; // Assuming you have a toast store for notifications
 import axiosInstance, { r } from '@/api/axiosInstance';
 const toast = useToastStore(); // Use your notification system here
