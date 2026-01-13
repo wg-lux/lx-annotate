@@ -1,8 +1,10 @@
 from __future__ import annotations
+
 from pathlib import Path
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
-import os
+
+from .secret_key import get_or_create_secret_key
 
 
 class AppConfig(BaseSettings):
@@ -17,7 +19,7 @@ class AppConfig(BaseSettings):
     )
 
     # Core
-    secret_key: str = Field(min_length=32)
+    secret_key: str = Field(min_length=32, default_factory=get_or_create_secret_key)
     debug: bool = False
 
     # Security: Hosts, CORS, CSRF
@@ -54,19 +56,3 @@ def load_config(env_file: Path | None = None) -> AppConfig:
 
     # Otherwise Pydantic automatically reads os.environ
     return AppConfig()  # type: ignore[call-arg]
-
-
-def get_or_create_secret_key() -> str:
-    """
-    Generates a new secret key for Django.
-    """
-    if Path("/secret_key").exists():
-        return Path("/etc/secret_key.txt").read_text().strip()
-    else:
-        from django.core.management.utils import get_random_secret_key
-
-        os.makedirs("/etc", exist_ok=True)
-        secret_key = get_random_secret_key()
-        Path("/secret_key.txt").write_text(secret_key)
-
-    return get_random_secret_key()
