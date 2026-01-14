@@ -185,4 +185,16 @@ try:
 except ImportError:
     raise RuntimeError("🚨 CRITICAL: endoreg_db is required for production auth!")
 
+# Stable Hosting using NGINX, so we can trust the X-Forwarded-* headers
+USE_X_FORWARDED_HOST = True
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
+# Ensure this matches the 'alias' path we will set in Nginx later
+# The Nix module passes this via environment variable, but fallback is good.
+STATIC_ROOT = os.environ.get("DJANGO_STATIC_ROOT", BASE_DIR / "staticfiles")
+
+# Ensure Nginx can read these
+MEDIA_ROOT = Path(os.environ.get("LX_ANNOTATE_DATA_DIR", BASE_DIR / "media"))
+
+
 print("🔐 PRODUCTION SETTINGS LOADED")
