@@ -49,7 +49,8 @@ if not SECRET_KEY:
         SECRET_KEY = "django-insecure-dev-only-change-me-000000000000"
     else:
         raise RuntimeError(
-            "DJANGO_SECRET_KEY is missing. Set it in the environment or .env file."
+            "DJANGO_SECRET_KEY is missing. Set DJANGO_SECRET_KEY or "
+            "DJANGO_SECRET_KEY_FILE in the environment or .env file."
         )
 
 DEBUG = config.debug
@@ -85,7 +86,8 @@ if not SECRET_KEY:
         )
     else:
         raise RuntimeError(
-            "DJANGO_SECRET_KEY is missing. Set it in the environment or .env file."
+            "DJANGO_SECRET_KEY is missing. Set DJANGO_SECRET_KEY or "
+            "DJANGO_SECRET_KEY_FILE in the environment or .env file."
         )
 DEBUG = config.debug
 ALLOWED_HOSTS = config.allowed_hosts

@@ -162,3 +162,5 @@ Thumbs.db
 .env
 
 *./conf
+
+secret.key

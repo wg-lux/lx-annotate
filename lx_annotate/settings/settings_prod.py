@@ -2,7 +2,7 @@
 Production settings.
 """
 
-from lx_annotate.settings.config import AppConfig
+from .config import AppConfig
 from .settings_base import (
     APP_DATA_DIR,
     SECRET_KEY,
@@ -36,7 +36,10 @@ config = cast(AppConfig, config)
 DEBUG = False
 
 if SECRET_KEY.startswith("***UNSAFE") or not SECRET_KEY:
-    raise RuntimeError("🚨 PRODUCTION ERROR: DJANGO_SECRET_KEY is missing/unsafe!")
+    raise RuntimeError(
+        "🚨 PRODUCTION ERROR: DJANGO_SECRET_KEY is missing/unsafe! "
+        "Set DJANGO_SECRET_KEY or DJANGO_SECRET_KEY_FILE."
+    )
 
 # 2. VITE (Built Assets)
 DJANGO_VITE = {
@@ -67,7 +70,7 @@ DEFAULT_PERMISSION_CLASSES = ["rest_framework.permissions.IsAuthenticated"]
 if SECRET_KEY.startswith("***UNSAFE"):
     raise RuntimeError(
         "🚨 SECURITY ERROR: SECRET_KEY must be set from environment in production!\n"
-        "Set DJANGO_SECRET_KEY environment variable to a secure random value."
+        "Set DJANGO_SECRET_KEY or DJANGO_SECRET_KEY_FILE to a secure value."
     )
 
 # SECURITY: Strict host validation - must be configured
@@ -133,7 +136,7 @@ MIDDLEWARE.insert(
 if not config.keycloak_client_secret:
     raise RuntimeError(
         "🚨 SECURITY ERROR: KEYCLOAK_CLIENT_SECRET must be set in production!\n"
-        "Set the KEYCLOAK_CLIENT_SECRET environment variable."
+        "Set DJANGO_KEYCLOAK_CLIENT_SECRET or DJANGO_KEYCLOAK_CLIENT_SECRET_FILE."
     )
 
 # 4. LOGGING (File based)
@@ -160,7 +163,7 @@ DATABASES = {
 if not DATABASES["default"]["PASSWORD"]:
     raise RuntimeError(
         "🚨 SECURITY ERROR: Database password must be set in production!\n"
-        "Set the DB_PASSWORD environment variable."
+        "Set DJANGO_DB_PASSWORD or DJANGO_DB_PASSWORD_FILE."
     )
 
 # 6. PROD AUTH (Require endoreg_db)
@@ -181,5 +184,17 @@ try:
     ]
 except ImportError:
     raise RuntimeError("🚨 CRITICAL: endoreg_db is required for production auth!")
+
+# Stable Hosting using NGINX, so we can trust the X-Forwarded-* headers
+USE_X_FORWARDED_HOST = True
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
+# Ensure this matches the 'alias' path we will set in Nginx later
+# The Nix module passes this via environment variable, but fallback is good.
+STATIC_ROOT = os.environ.get("DJANGO_STATIC_ROOT", BASE_DIR / "staticfiles")
+
+# Ensure Nginx can read these
+MEDIA_ROOT = Path(os.environ.get("LX_ANNOTATE_DATA_DIR", BASE_DIR / "media"))
+
 
 print("🔐 PRODUCTION SETTINGS LOADED")
