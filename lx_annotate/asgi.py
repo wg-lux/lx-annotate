@@ -15,7 +15,7 @@ from django.core.wsgi import get_wsgi_application
 from asgiref.wsgi import WsgiToAsgi
 from whitenoise import WhiteNoise
 
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "lx_annotate.settings_prod")
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "lx_annotate.settings.settings_prod")
 
 staticfiles_dir = os.path.join(os.path.dirname(__file__), "staticfiles")
 wsgi_application = get_wsgi_application()
