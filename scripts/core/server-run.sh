@@ -20,7 +20,7 @@ fi
 
 # Runtime configuration (favor environment to avoid rebuilds)
 HOST="${DJANGO_HOST:-127.0.0.1}"
-PORT="${DJANGO_PORT:-8118}"
+PORT="${DJANGO_PORT:-8117}"
 DJANGO_MODULE_RUNTIME="${DJANGO_MODULE:-lx-annotate}"
 
 echo "🌟 Starting Lx Annotate Server"

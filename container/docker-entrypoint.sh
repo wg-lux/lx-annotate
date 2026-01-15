@@ -4,7 +4,7 @@ set -e
 echo "🚀 Starting Lx Annotate Development Container"
 echo "Env: ${DJANGO_ENV:-development}"
 echo "Host: ${DJANGO_HOST:-0.0.0.0}"  
-echo "Port: ${DJANGO_PORT:-8118}"
+echo "Port: ${DJANGO_PORT:-8117}"
 
 if [ "${CENTRAL_NODE:-false}" = "true" ] && [ -z "${DJANGO_ENV:-}" ]; then
   export DJANGO_ENV="central"
@@ -38,4 +38,4 @@ python manage.py collectstatic --noinput --clear || echo "Static files collectio
 python manage.py migrate || echo "Migration failed, continuing..."
 
 # Start
-exec python manage.py runserver ${DJANGO_HOST:-0.0.0.0}:${DJANGO_PORT:-8118}
+exec python manage.py runserver ${DJANGO_HOST:-0.0.0.0}:${DJANGO_PORT:-8117}

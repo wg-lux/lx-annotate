@@ -59,7 +59,7 @@ dependencies = [
     "types-requests>=2.32.4.20250913",
     "black>=25.12.0",
     "mypy>=1.18.2",
-    "endoreg-db==0.8.9.21",
+    "endoreg-db==0.8.9.24",
     "pydantic-settings>=2.12.0",
     "pydantic>=2.12.5",
     "lx-anonymizer==0.8.9.14",

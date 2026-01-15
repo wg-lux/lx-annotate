@@ -41,7 +41,7 @@ ENV PATH="/app/.venv/bin:$PATH" \
     STORAGE_DIR=/app/data \
     DATA_DIR=/app/data
 
-EXPOSE 8118
+EXPOSE 8117
 
 # Entry point
 COPY container/docker-entrypoint-prod.sh /app/
