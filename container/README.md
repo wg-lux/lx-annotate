@@ -135,7 +135,7 @@ Both containers support NVIDIA GPU acceleration when:
 
 ```bash
 # GPU-enabled container
-docker run --gpus all -p 8117:8117 lx-annotate-dev
+docker run --gpus all -p 8118:8118 lx-annotate-dev
 ```
 
 ## Build Optimization

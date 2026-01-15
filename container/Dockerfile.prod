@@ -35,7 +35,7 @@ COPY . /app
 ENV PATH="/app/.venv/bin:$PATH" \
     DJANGO_SETTINGS_MODULE=config.settings.prod \
     DJANGO_HOST=0.0.0.0 \
-    DJANGO_PORT=8117 \
+    DJANGO_PORT=8118 \
     DJANGO_ENV=production \
     DJANGO_MODULE=lx_annotate \
     STORAGE_DIR=/app/data \

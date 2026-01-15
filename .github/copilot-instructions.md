@@ -164,7 +164,7 @@ Production deployment uses Kubernetes with the following components:
 
 #### Core Manifests (`k8s/`)
 - **`deployment.tmpl.yaml`** - Main application deployment with health checks
-- **`service.yaml`** - ClusterIP service exposing port 80 → 8117
+- **`service.yaml`** - ClusterIP service exposing port 80 → 8118
 - **`ingress.tmpl.yaml`** - Nginx ingress with Let's Encrypt TLS
 - **`namespace.yaml`** - Dedicated `lx-annotate` namespace
 - **`pvc.yaml`** - Persistent volume claims for data storage
