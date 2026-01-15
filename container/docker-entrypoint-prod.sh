@@ -4,7 +4,7 @@ set -e
 echo "🚀 Starting Lx Annotate Production Container"
 echo "Env: ${DJANGO_ENV:-production}"
 echo "Host: ${DJANGO_HOST:-0.0.0.0}"
-echo "Port: ${DJANGO_PORT:-8118}"
+echo "Port: ${DJANGO_PORT:-8117}"
 
 # Set production Django configuration
 if [ "${CENTRAL_NODE:-false}" = "true" ]; then
@@ -122,7 +122,7 @@ python manage.py check --deploy || echo "⚠️ Health check warnings detected"
 # -----------------------------------------------------------------------------
 echo "🌟 Starting production server..."
 HOST="${DJANGO_HOST:-0.0.0.0}"
-PORT="${DJANGO_PORT:-8118}"
+PORT="${DJANGO_PORT:-8117}"
 
 if command -v daphne >/dev/null 2>&1; then
   echo "🚀 Using Daphne ASGI server (production-ready)"

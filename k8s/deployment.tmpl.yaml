@@ -22,7 +22,7 @@ spec:
           image: ${IMAGE}
           imagePullPolicy: Always
           ports:
-            - containerPort: 8118
+            - containerPort: 8117
           envFrom:
             - secretRef:
                 name: lx-annotate-secrets
@@ -34,7 +34,7 @@ spec:
           readinessProbe:
             httpGet:
               path: /
-              port: 8118
+              port: 8117
               httpHeaders:
                 - name: Host
                   value: lx-annotate.lx-annotate.cluster.local
@@ -46,7 +46,7 @@ spec:
           livenessProbe:
             httpGet:
               path: /
-              port: 8118
+              port: 8117
               httpHeaders:
                 - name: Host
                   value: lx-annotate.lx-annotate.svc.cluster.local

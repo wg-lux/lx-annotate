@@ -351,7 +351,7 @@ in
       type = types.submodule {
         options = {
           hostname = mkOption { type = types.str; default = "localhost"; };
-          port = mkOption { type = types.port; default = 8118; };
+          port = mkOption { type = types.port; default = 8117; };
           useHttps = mkOption { type = types.bool; default = false; };
           sslCertificatePath = mkOption { type = types.nullOr types.path; default = null; };
           sslKeyPath = mkOption { type = types.nullOr types.path; default = null; };

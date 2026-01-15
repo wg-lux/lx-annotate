@@ -30,7 +30,7 @@ This directory contains all container-related files for the Ls Annotate project,
 docker build -f container/Dockerfile.dev -t lx-annotate-dev .
 
 # Run development container
-docker run -p 8118:8118 -v $(pwd)/data:/app/data lx-annotate-dev
+docker run -p 8117:8117 -v $(pwd)/data:/app/data lx-annotate-dev
 ```
 
 ### Production Container (`Dockerfile.prod`)
@@ -49,7 +49,7 @@ docker run -p 8118:8118 -v $(pwd)/data:/app/data lx-annotate-dev
 docker build -f container/Dockerfile.prod -t lx-annotate-prod .
 
 # Run production container
-docker run -p 8118:8118 \
+docker run -p 8117:8117 \
   -e DJANGO_SECRET_KEY="your-secret-key" \
   -e DATABASE_URL="postgresql://user:pass@host:5432/dbname" \
   -v $(pwd)/data:/app/data \
@@ -81,11 +81,11 @@ manage prod && manage build && manage run
 ```bash
 # Development
 docker build -f container/Dockerfile.dev -t lx-annotate-dev .
-docker run --rm -p 8118:8118 lx-annotate-dev
+docker run --rm -p 8117:8117 lx-annotate-dev
 
 # Production
 docker build -f container/Dockerfile.prod -t lx-annotate-prod .
-docker run --rm -p 8118:8118 \
+docker run --rm -p 8117:8117 \
   -e DJANGO_SECRET_KEY="secret" \
   lx-annotate-prod
 ```
@@ -135,7 +135,7 @@ Both containers support NVIDIA GPU acceleration when:
 
 ```bash
 # GPU-enabled container
-docker run --gpus all -p 8118:8118 lx-annotate-dev
+docker run --gpus all -p 8117:8117 lx-annotate-dev
 ```
 
 ## Build Optimization

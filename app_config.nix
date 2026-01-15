@@ -18,7 +18,7 @@ rec {
   # Server Configuration  
   server = {
     host = "localhost";    # Change this for different host binding
-    port = "8118";         # Change this for different port
+    port = "8117";         # Change this for different port
     protocol = "http";     # http or https
     
     # Container settings (usually 0.0.0.0 for containers)

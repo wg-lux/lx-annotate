@@ -164,7 +164,7 @@ Production deployment uses Kubernetes with the following components:
 
 #### Core Manifests (`k8s/`)
 - **`deployment.tmpl.yaml`** - Main application deployment with health checks
-- **`service.yaml`** - ClusterIP service exposing port 80 → 8118
+- **`service.yaml`** - ClusterIP service exposing port 80 → 8117
 - **`ingress.tmpl.yaml`** - Nginx ingress with Let's Encrypt TLS
 - **`namespace.yaml`** - Dedicated `lx-annotate` namespace
 - **`pvc.yaml`** - Persistent volume claims for data storage
@@ -173,7 +173,7 @@ Production deployment uses Kubernetes with the following components:
 ```yaml
 # Key settings in deployment.tmpl.yaml
 ports:
-  - containerPort: 8118         # Django app port
+  - containerPort: 8117         # Django app port
 env:
   - DJANGO_SETTINGS_MODULE: config.settings.prod
 readinessProbe:

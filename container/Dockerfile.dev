@@ -33,13 +33,13 @@ COPY . /app
 ENV PATH="/app/.venv/bin:$PATH" \
     DJANGO_SETTINGS_MODULE=config.settings_dev \
     DJANGO_HOST=0.0.0.0 \
-    DJANGO_PORT=8118 \
+    DJANGO_PORT=8117 \
     DJANGO_ENV=development \
     DJANGO_MODULE=lx_annotate \
     STORAGE_DIR=/app/data \
     DATA_DIR=/app/data
 
-EXPOSE 8118
+EXPOSE 8117
 
 COPY container/docker-entrypoint.sh /app/
 RUN chmod +x /app/docker-entrypoint.sh
