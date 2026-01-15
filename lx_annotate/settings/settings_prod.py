@@ -2,7 +2,7 @@
 Production settings.
 """
 
-from .config import AppConfig
+from lx_annotate.settings.config import load_config, AppConfig
 from .settings_base import (
     APP_DATA_DIR,
     SECRET_KEY,
@@ -32,6 +32,7 @@ MEDIA_URL = cast(str, MEDIA_URL)
 config = cast(AppConfig, config)
 # -----------------------------------------------------------------------------
 
+config = load_config()
 # 1. SECURITY
 DEBUG = False
 

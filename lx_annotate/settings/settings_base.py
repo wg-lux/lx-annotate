@@ -6,7 +6,7 @@ from typing import Any, cast
 import os
 from pathlib import Path
 
-from .config import load_config
+from lx_annotate.settings.config import load_config
 from logging import getLogger
 
 logger = getLogger(__name__)
