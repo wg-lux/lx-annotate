@@ -179,9 +179,6 @@ in
        $SYNC_CMD --quiet || echo "Warning: uv sync failed. Environment might be outdated."
     fi
 
-    echo setting up environment variable defaults from setup.py
-    python scripts/core/setup.py --output .secrets
-    source .secrets
     echo "Exporting environment variables from .env.systemd file..."
     if [ -f ".env.systemd" ]; then
       set -a
