@@ -254,60 +254,6 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.
     ...{ class: "nav-link-text ms-1" },
 });
 var __VLS_23;
-__VLS_asFunctionalElement(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({
-    ...{ class: "nav-item" },
-});
-const __VLS_24 = {}.RouterLink;
-/** @type {[typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, ]} */ ;
-// @ts-ignore
-const __VLS_25 = __VLS_asFunctionalComponent(__VLS_24, new __VLS_24({
-    to: "/report-generator",
-    ...{ class: "nav-link" },
-    ...{ class: ({ active: __VLS_ctx.$route.path === '/report-generator' }) },
-}));
-const __VLS_26 = __VLS_25({
-    to: "/report-generator",
-    ...{ class: "nav-link" },
-    ...{ class: ({ active: __VLS_ctx.$route.path === '/report-generator' }) },
-}, ...__VLS_functionalComponentArgsRest(__VLS_25));
-__VLS_27.slots.default;
-__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center" },
-});
-__VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-    ...{ class: "material-icons opacity-10" },
-});
-__VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-    ...{ class: "nav-link-text ms-1" },
-});
-var __VLS_27;
-__VLS_asFunctionalElement(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({
-    ...{ class: "nav-item" },
-});
-const __VLS_28 = {}.RouterLink;
-/** @type {[typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, ]} */ ;
-// @ts-ignore
-const __VLS_29 = __VLS_asFunctionalComponent(__VLS_28, new __VLS_28({
-    to: "anonymisierung/validierung",
-    ...{ class: "nav-link" },
-    ...{ class: ({ active: __VLS_ctx.$route.path === '/validierung' }) },
-}));
-const __VLS_30 = __VLS_29({
-    to: "anonymisierung/validierung",
-    ...{ class: "nav-link" },
-    ...{ class: ({ active: __VLS_ctx.$route.path === '/validierung' }) },
-}, ...__VLS_functionalComponentArgsRest(__VLS_29));
-__VLS_31.slots.default;
-__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center" },
-});
-__VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-    ...{ class: "material-icons opacity-10" },
-});
-__VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-    ...{ class: "nav-link-text ms-1" },
-});
-var __VLS_31;
 /** @type {__VLS_StyleScopedClasses['sidebar-backdrop']} */ ;
 /** @type {__VLS_StyleScopedClasses['sidenav']} */ ;
 /** @type {__VLS_StyleScopedClasses['show']} */ ;
@@ -340,40 +286,6 @@ var __VLS_31;
 /** @type {__VLS_StyleScopedClasses['opacity-10']} */ ;
 /** @type {__VLS_StyleScopedClasses['nav-link-text']} */ ;
 /** @type {__VLS_StyleScopedClasses['ms-1']} */ ;
-/** @type {__VLS_StyleScopedClasses['nav-link']} */ ;
-/** @type {__VLS_StyleScopedClasses['active']} */ ;
-/** @type {__VLS_StyleScopedClasses['icon']} */ ;
-/** @type {__VLS_StyleScopedClasses['icon-shape']} */ ;
-/** @type {__VLS_StyleScopedClasses['icon-sm']} */ ;
-/** @type {__VLS_StyleScopedClasses['shadow']} */ ;
-/** @type {__VLS_StyleScopedClasses['border-radius-md']} */ ;
-/** @type {__VLS_StyleScopedClasses['text-center']} */ ;
-/** @type {__VLS_StyleScopedClasses['me-2']} */ ;
-/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
-/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
-/** @type {__VLS_StyleScopedClasses['justify-content-center']} */ ;
-/** @type {__VLS_StyleScopedClasses['material-icons']} */ ;
-/** @type {__VLS_StyleScopedClasses['opacity-10']} */ ;
-/** @type {__VLS_StyleScopedClasses['nav-link-text']} */ ;
-/** @type {__VLS_StyleScopedClasses['ms-1']} */ ;
-/** @type {__VLS_StyleScopedClasses['nav-item']} */ ;
-/** @type {__VLS_StyleScopedClasses['nav-link']} */ ;
-/** @type {__VLS_StyleScopedClasses['active']} */ ;
-/** @type {__VLS_StyleScopedClasses['icon']} */ ;
-/** @type {__VLS_StyleScopedClasses['icon-shape']} */ ;
-/** @type {__VLS_StyleScopedClasses['icon-sm']} */ ;
-/** @type {__VLS_StyleScopedClasses['shadow']} */ ;
-/** @type {__VLS_StyleScopedClasses['border-radius-md']} */ ;
-/** @type {__VLS_StyleScopedClasses['text-center']} */ ;
-/** @type {__VLS_StyleScopedClasses['me-2']} */ ;
-/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
-/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
-/** @type {__VLS_StyleScopedClasses['justify-content-center']} */ ;
-/** @type {__VLS_StyleScopedClasses['material-icons']} */ ;
-/** @type {__VLS_StyleScopedClasses['opacity-10']} */ ;
-/** @type {__VLS_StyleScopedClasses['nav-link-text']} */ ;
-/** @type {__VLS_StyleScopedClasses['ms-1']} */ ;
-/** @type {__VLS_StyleScopedClasses['nav-item']} */ ;
 /** @type {__VLS_StyleScopedClasses['nav-link']} */ ;
 /** @type {__VLS_StyleScopedClasses['active']} */ ;
 /** @type {__VLS_StyleScopedClasses['icon']} */ ;

@@ -224,7 +224,6 @@
     "imports": [
       "src/main.ts",
       "_videoStore.js",
-      "src/stores/annotationStore.js",
       "_mediaTypeStore.js",
       "_usePollingProtection.js"
     ],

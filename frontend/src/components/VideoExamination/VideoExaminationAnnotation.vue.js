@@ -629,6 +629,22 @@ const getVideoStatusIndicator = (videoId) => {
     };
     return statusIndicators[item.anonymizationStatus] || item.anonymizationStatus;
 };
+const markValidationFinishedRemoveOutside = async (videoId) => {
+    try {
+        await axiosInstance.post(r(`media/videos/${videoId}/segments/validation-status/`), {
+            isValidated: true,
+            notes: `Validierung manuell als abgeschlossen markiert am ${new Date().toLocaleString('de-DE')}`,
+            informationSourceName: 'manual_validation',
+        });
+        showSuccessMessage(`Validierung für Video ${videoId} als abgeschlossen markiert`);
+        // Refresh overview to reflect status change
+        await anonymizationStore.fetchOverview();
+    }
+    catch (error) {
+        console.error('Error marking validation as finished:', error);
+        await guarded(Promise.reject(error));
+    }
+};
 const getVideoCountByStatus = (status) => {
     return overview.value.filter(o => o.mediaType === 'video' && o.anonymizationStatus === status).length;
 };
@@ -1034,7 +1050,14 @@ if (__VLS_ctx.duration > 0) {
             ...{ class: "btn btn-outline-secondary" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-            ...{ onClick: (__VLS_ctx.saveSegmentChanges) },
+            ...{ onClick: (...[$event]) => {
+                    if (!(__VLS_ctx.duration > 0))
+                        return;
+                    if (!(__VLS_ctx.selectedVideoId && __VLS_ctx.timelineSegmentsForSelectedVideo.length > 0))
+                        return;
+                    __VLS_ctx.saveSegmentChanges;
+                    __VLS_ctx.submitVideoSegments;
+                } },
             ...{ class: "btn" },
             ...{ class: (__VLS_ctx.hasUnsavedChanges ? 'btn-primary' : 'btn-outline-secondary') },
         });
@@ -1181,7 +1204,14 @@ if (__VLS_ctx.selectedVideoId && __VLS_ctx.timelineSegmentsForSelectedVideo.leng
     }
     else {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-            ...{ onClick: (__VLS_ctx.submitVideoSegments) },
+            ...{ onClick: (...[$event]) => {
+                    if (!(__VLS_ctx.selectedVideoId && __VLS_ctx.timelineSegmentsForSelectedVideo.length > 0))
+                        return;
+                    if (!!(__VLS_ctx.overview.find(o => o.id === __VLS_ctx.selectedVideoId && o.mediaType === 'video')?.anonymizationStatus === 'validated'))
+                        return;
+                    __VLS_ctx.submitVideoSegments;
+                    __VLS_ctx.markValidationFinishedRemoveOutside(__VLS_ctx.selectedVideoId);
+                } },
             ...{ class: "btn btn-success btn-lg w-100 d-flex align-items-center justify-content-center gap-2" },
             ...{ style: {} },
         });
@@ -1638,6 +1668,7 @@ const __VLS_self = (await import('vue')).defineComponent({
             onVideoLoadStart: onVideoLoadStart,
             onVideoCanPlay: onVideoCanPlay,
             getVideoStatusIndicator: getVideoStatusIndicator,
+            markValidationFinishedRemoveOutside: markValidationFinishedRemoveOutside,
             getVideoCountByStatus: getVideoCountByStatus,
             getStatusBadgeClass: getStatusBadgeClass,
             getStatusText: getStatusText,
