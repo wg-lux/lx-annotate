@@ -2,6 +2,8 @@ import requests
 import logging
 from django.conf import settings
 from django.contrib.auth.models import AnonymousUser
+import re
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -64,12 +66,21 @@ class OfflineKeycloakMiddleware:
         self.token_validator_url = getattr(
             settings, "TOKEN_VALIDATOR_URL", "http://localhost:3001"
         )
+        self.exempt_urls = [
+            re.compile(url) for url in os.getenv("EXEMPT_URLS", "").split(",") if url
+        ]
         logger.info(
             f"🔐 OfflineKeycloakMiddleware initialized with validator URL: {self.token_validator_url}"
         )
 
     def __call__(self, request):
         # Token aus Authorization Header extrahieren
+
+        path = request.path_info.lstrip("/")
+        for exempt_pattern in self.exempt_urls:
+            if exempt_pattern.match(path):
+                return self.get_response(request)
+
         auth_header = request.headers.get("Authorization", "")
 
         if auth_header.startswith("Bearer "):
@@ -92,8 +103,6 @@ class OfflineKeycloakMiddleware:
             except Exception as e:
                 logger.error(f"🚨 Token validation error: {e}")
                 request.user = AnonymousUser()
-        else:
-            request.user = AnonymousUser()
 
         response = self.get_response(request)
         return response
