@@ -2,7 +2,6 @@ import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAnonymizationStore } from '@/stores/anonymizationStore';
 import { useVideoStore } from '@/stores/videoStore';
-import { useAnnotationStore } from '@/stores/annotationStore';
 import { useMediaTypeStore } from '@/stores/mediaTypeStore';
 import { usePollingProtection } from '@/composables/usePollingProtection';
 import { useMediaManagement } from '@/api/mediaManagement';
@@ -11,7 +10,6 @@ import {} from '../../stores/mediaTypeStore';
 const router = useRouter();
 const anonymizationStore = useAnonymizationStore();
 const videoStore = useVideoStore();
-const annotationStore = useAnnotationStore();
 const mediaStore = useMediaTypeStore();
 const pollingProtection = usePollingProtection();
 const mediaManagement = useMediaManagement();
@@ -266,23 +264,6 @@ const getTotalByStatus = (status) => {
     };
     const relevantStatuses = statusMap[status] || [status];
     return availableFiles.value.filter(file => relevantStatuses.includes(file.anonymizationStatus)).length;
-};
-const validateSegmentsFile = async (fileId) => {
-    processingFiles.value.add(fileId);
-    try {
-        const success = await annotationStore.validateSegmentsAndExaminations(fileId);
-        if (success) {
-            // Refresh overview to get updated status
-            await refreshOverview();
-            console.log('Segments validated successfully for file', fileId);
-        }
-        else {
-            console.warn('validateSegmentsFile failed - staying on current page');
-        }
-    }
-    finally {
-        processingFiles.value.delete(fileId);
-    }
 };
 const hasOriginalFile = (file) => {
     // Check if the file has the necessary properties to indicate original file exists
