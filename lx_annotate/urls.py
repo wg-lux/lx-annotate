@@ -6,14 +6,17 @@ from django.conf.urls.static import static
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-
     # Include endoreg_db URLs WITH 'api/' prefix
     # This prevents endoreg_db routes from overriding the Vue SPA fallback
     path("api/", include(("endoreg_db.urls", "endoreg_db"), namespace="endoreg_db")),
-    
+    # ✅ ADD THIS: OIDC endpoints provided by mozilla-django-oidc
+    path("oidc/", include("mozilla_django_oidc.urls")),
     # Vue SPA fallback – MUST be LAST to catch all non-API routes
-    re_path(r"^(?!api/|admin/|media/).*$", TemplateView.as_view(template_name="base.html"),
-            name="vue_spa"),
+    re_path(
+        r"^(?!api/|admin/|media/|oidc/).*$",
+        TemplateView.as_view(template_name="base.html"),
+        name="vue_spa",
+    ),
 ] + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
 
 # Serve media files in development

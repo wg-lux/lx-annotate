@@ -1,9 +1,9 @@
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAnnotationStatsStore } from '@/stores/annotationStats';
-import AnnotationStatsComponent from '@/components/AnnotationStatsComponent.vue';
+import AnnotationStatsComponent from '@/components/Stats/AnnotationStatsComponent.vue';
 import { useToastStore } from '@/stores/toastStore'; // Assuming you have a toast store for notifications
-import axiosInstance from '@/api/axiosInstance';
+import axiosInstance, { r } from '@/api/axiosInstance';
 const toast = useToastStore(); // Use your notification system here
 const router = useRouter();
 const annotationStatsStore = useAnnotationStatsStore();
@@ -26,7 +26,8 @@ const showError = (message) => {
 const refreshSegments = async () => {
     loadingSegments.value = true;
     try {
-        const response = await axiosInstance.get('/api/video-segments/');
+        // Modern media framework - collection endpoint
+        const response = await axiosInstance.get('/api/media/videos/segments/');
         segments.value = response.data.results || response.data || [];
     }
     catch (error) {
@@ -54,19 +55,23 @@ const refreshExaminations = async () => {
 const refreshSensitiveMeta = async () => {
     loadingSensitiveMeta.value = true;
     try {
-        // Combine video and PDF sensitive meta data
+        // Combine video and PDF sensitive meta data using Modern Media Framework
         const [videoResponse, pdfResponse] = await Promise.all([
-            axiosInstance.get('/api/media/videos/').catch(() => ({ data: [] })),
-            axiosInstance.get('/api/pdf/sensitivemeta/').catch(() => ({ data: [] }))
+            axiosInstance.get(r('media/videos/')).catch(() => ({ data: [] })),
+            axiosInstance.get(r('media/pdfs/sensitive-metadata/')).catch(() => ({ data: { results: [] } }))
         ]);
+        // Extract data from responses
         const videoData = Array.isArray(videoResponse.data) ? videoResponse.data :
             videoResponse.data ? [{ ...videoResponse.data, content_type: 'video' }] : [];
-        const pdfData = Array.isArray(pdfResponse.data) ? pdfResponse.data :
-            pdfResponse.data ? [{ ...pdfResponse.data, content_type: 'pdf' }] : [];
+        // PDF endpoint returns paginated data with 'results' array
+        const pdfData = pdfResponse.data?.results ||
+            (Array.isArray(pdfResponse.data) ? pdfResponse.data :
+                pdfResponse.data ? [pdfResponse.data] : []);
         // Add content type identifier
         videoData.forEach(item => item.content_type = 'video');
         pdfData.forEach(item => item.content_type = 'pdf');
         sensitiveMetaData.value = [...videoData, ...pdfData];
+        console.log('Loaded sensitive metadata:', sensitiveMetaData.value.length, 'items');
     }
     catch (error) {
         console.error('Fehler beim Laden der Patientendaten:', error);
@@ -140,7 +145,8 @@ const editSegment = (segment) => {
 };
 const markSegmentComplete = async (segment) => {
     try {
-        await axiosInstance.patch(`/api/video-segments/${segment.id}/`, { status: 'completed' });
+        // Modern media framework - collection endpoint (video_id not available here)
+        await axiosInstance.patch(`/api/media/videos/segments/${segment.id}/`, { status: 'completed' });
         annotationStatsStore.updateAnnotationStatus('segment', 'in_progress', 'completed');
         await refreshSegments();
     }

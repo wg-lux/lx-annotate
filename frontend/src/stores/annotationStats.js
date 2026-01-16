@@ -19,11 +19,11 @@ export const useAnnotationStatsStore = defineStore('annotationStats', {
             totalPending: 0,
             totalInProgress: 0,
             totalCompleted: 0,
-            totalAnnotations: 0,
+            totalAnnotations: 0
         },
         loading: false,
         error: null,
-        lastUpdated: null,
+        lastUpdated: null
     }),
     getters: {
         // Legacy getter for compatibility
@@ -44,38 +44,42 @@ export const useAnnotationStatsStore = defineStore('annotationStats', {
                 pending: state.stats.segmentPending,
                 inProgress: state.stats.segmentInProgress,
                 completed: state.stats.segmentCompleted,
-                total: state.stats.segmentPending + state.stats.segmentInProgress + state.stats.segmentCompleted,
+                total: state.stats.segmentPending + state.stats.segmentInProgress + state.stats.segmentCompleted
             },
             {
                 type: 'examination',
                 pending: state.stats.examinationPending,
                 inProgress: state.stats.examinationInProgress,
                 completed: state.stats.examinationCompleted,
-                total: state.stats.examinationPending + state.stats.examinationInProgress + state.stats.examinationCompleted,
+                total: state.stats.examinationPending +
+                    state.stats.examinationInProgress +
+                    state.stats.examinationCompleted
             },
             {
                 type: 'sensitive_meta',
                 pending: state.stats.sensitiveMetaPending,
                 inProgress: state.stats.sensitiveMetaInProgress,
                 completed: state.stats.sensitiveMetaCompleted,
-                total: state.stats.sensitiveMetaPending + state.stats.sensitiveMetaInProgress + state.stats.sensitiveMetaCompleted,
-            },
+                total: state.stats.sensitiveMetaPending +
+                    state.stats.sensitiveMetaInProgress +
+                    state.stats.sensitiveMetaCompleted
+            }
         ],
         // Get stats by status
         pendingByType: (state) => ({
             segment: state.stats.segmentPending,
             examination: state.stats.examinationPending,
-            sensitive_meta: state.stats.sensitiveMetaPending,
+            sensitive_meta: state.stats.sensitiveMetaPending
         }),
         inProgressByType: (state) => ({
             segment: state.stats.segmentInProgress,
             examination: state.stats.examinationInProgress,
-            sensitive_meta: state.stats.sensitiveMetaInProgress,
+            sensitive_meta: state.stats.sensitiveMetaInProgress
         }),
         completedByType: (state) => ({
             segment: state.stats.segmentCompleted,
             examination: state.stats.examinationCompleted,
-            sensitive_meta: state.stats.sensitiveMetaCompleted,
+            sensitive_meta: state.stats.sensitiveMetaCompleted
         }),
         // Progress percentages
         completionPercentage: (state) => {
@@ -89,7 +93,7 @@ export const useAnnotationStatsStore = defineStore('annotationStats', {
         pendingPercentage: (state) => {
             const total = state.stats.totalAnnotations;
             return total > 0 ? Math.round((state.stats.totalPending / total) * 100) : 0;
-        },
+        }
     },
     actions: {
         async fetchAnnotationStats() {
@@ -116,7 +120,8 @@ export const useAnnotationStatsStore = defineStore('annotationStats', {
             }
             catch (error) {
                 console.error('Error fetching unified annotation statistics:', error);
-                this.error = error.response?.data?.error || error.message || 'Failed to fetch annotation statistics';
+                this.error =
+                    error.response?.data?.error || error.message || 'Failed to fetch annotation statistics';
                 // Set fallback values on error
                 this.resetStats();
             }
@@ -126,7 +131,8 @@ export const useAnnotationStatsStore = defineStore('annotationStats', {
         },
         async fetchVideoSegmentStats() {
             try {
-                const response = await axios.get('/api/video-segment/stats/');
+                // ✅ Modern media framework endpoint
+                const response = await axios.get('/api/media/videos/segments/stats/');
                 const data = response.data;
                 if (data.status === 'success') {
                     // Für den Moment nehmen wir an, dass alle Segmente noch bearbeitet werden müssen
@@ -146,27 +152,51 @@ export const useAnnotationStatsStore = defineStore('annotationStats', {
         },
         async fetchExaminationStats() {
             try {
-                const response = await axios.get('/api/examinations/stats/');
+                const response = await axios.get('/api/examinations/');
                 const data = response.data;
-                this.stats.examinationPending = data.pending || data.total_examinations || 0;
-                this.stats.examinationInProgress = data.in_progress || 0;
-                this.stats.examinationCompleted = data.completed || 0;
+                const items = Array.isArray(data?.results)
+                    ? data.results
+                    : Array.isArray(data)
+                        ? data
+                        : [];
+                const counts = {
+                    pending: 0,
+                    in_progress: 0,
+                    completed: 0,
+                    draft: 0,
+                };
+                for (const item of items) {
+                    const status = item?.status || 'pending';
+                    if (status in counts) {
+                        counts[status] += 1;
+                    }
+                    else {
+                        counts.pending += 1;
+                    }
+                }
+                this.stats.examinationPending = counts.pending + counts.draft;
+                this.stats.examinationInProgress = counts.in_progress;
+                this.stats.examinationCompleted = counts.completed;
             }
             catch (error) {
                 console.warn('Failed to fetch examination stats:', error);
-                // Setze Fallback-Werte basierend auf dem HTML-Inhalt (9 Untersuchungen sichtbar)
-                this.stats.examinationPending = 9;
+                // Setze Fallback-Werte, wenn die Untersuchungen nicht geladen werden können
+                this.stats.examinationPending = 0;
                 this.stats.examinationInProgress = 0;
                 this.stats.examinationCompleted = 0;
             }
         },
         async fetchSensitiveMetaStats() {
             try {
-                const response = await axios.get('/api/video/sensitivemeta/stats/');
+                // ✅ Modern media framework endpoint - list all sensitive metadata
+                const response = await axios.get('/api/media/sensitive-metadata/');
                 const data = response.data;
-                this.stats.sensitiveMetaPending = data.pending || data.total_sensitive_meta || 1;
-                this.stats.sensitiveMetaInProgress = data.in_progress || 0;
-                this.stats.sensitiveMetaCompleted = data.completed || 0;
+                // Calculate stats from metadata list (no dedicated stats endpoint exists yet)
+                const total = data.results?.length || data.length || 0;
+                const verified = data.results?.filter((m) => m.dob_verified && m.names_verified).length || 0;
+                this.stats.sensitiveMetaPending = total - verified;
+                this.stats.sensitiveMetaInProgress = 0;
+                this.stats.sensitiveMetaCompleted = verified;
             }
             catch (error) {
                 console.warn('Failed to fetch sensitive meta stats:', error);
@@ -178,9 +208,7 @@ export const useAnnotationStatsStore = defineStore('annotationStats', {
         },
         calculateTotals() {
             this.stats.totalPending =
-                this.stats.segmentPending +
-                    this.stats.examinationPending +
-                    this.stats.sensitiveMetaPending;
+                this.stats.segmentPending + this.stats.examinationPending + this.stats.sensitiveMetaPending;
             this.stats.totalInProgress =
                 this.stats.segmentInProgress +
                     this.stats.examinationInProgress +
@@ -190,9 +218,7 @@ export const useAnnotationStatsStore = defineStore('annotationStats', {
                     this.stats.examinationCompleted +
                     this.stats.sensitiveMetaCompleted;
             this.stats.totalAnnotations =
-                this.stats.totalPending +
-                    this.stats.totalInProgress +
-                    this.stats.totalCompleted;
+                this.stats.totalPending + this.stats.totalInProgress + this.stats.totalCompleted;
         },
         resetStats() {
             this.stats = {
@@ -208,7 +234,7 @@ export const useAnnotationStatsStore = defineStore('annotationStats', {
                 totalPending: 0,
                 totalInProgress: 0,
                 totalCompleted: 0,
-                totalAnnotations: 0,
+                totalAnnotations: 0
             };
         },
         async refreshIfNeeded() {
@@ -234,12 +260,14 @@ export const useAnnotationStatsStore = defineStore('annotationStats', {
         incrementCount(type, status, count = 1) {
             const key = `${type}${status.charAt(0).toUpperCase() + status.slice(1)}`;
             if (typeof this.stats[key] === 'number') {
+                ;
                 this.stats[key] += count;
             }
         },
         decrementCount(type, status, count = 1) {
             const key = `${type}${status.charAt(0).toUpperCase() + status.slice(1)}`;
             if (typeof this.stats[key] === 'number') {
+                ;
                 this.stats[key] = Math.max(0, this.stats[key] - count);
             }
         },
@@ -263,5 +291,5 @@ export const useAnnotationStatsStore = defineStore('annotationStats', {
         clearError() {
             this.error = null;
         }
-    },
+    }
 });

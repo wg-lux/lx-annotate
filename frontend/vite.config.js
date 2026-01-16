@@ -10,12 +10,15 @@ const __dirname = dirname(__filename);
 // --------------------------------------------------------
 export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, process.cwd(), '');
+    const isDev = mode === 'development';
     return {
-        base: mode === 'development' ? 'http://localhost:3000/' : './',
+        //base: mode === 'development' ? 'http://localhost:3000/' : './',
+        base: isDev ? '/static/' : '/static/dist/',
         plugins: [vue(), vueJsx(), vueDevTools()],
         build: {
-            manifest: mode === 'production' ? 'manifest.json' : false,
-            outDir: resolve(__dirname, 'dist'), // FIXED: Keep within frontend
+            manifest: true,
+            outDir: resolve(__dirname, '../static/dist'),
+            emptyOutDir: true,
             target: 'esnext', // Ermöglicht Top-level await
             rollupOptions: {
                 input: {
@@ -25,48 +28,48 @@ export default defineConfig(({ mode }) => {
                     entryFileNames: '[name].js',
                     chunkFileNames: '[name].js',
                     assetFileNames: '[name].[ext]',
-                    format: 'es', // ES-Module Format für moderne Features
+                    format: 'es' // ES-Module Format für moderne Features
                 },
-            },
+                external: ['fsevents'] // 👈 tell Rollup to skip this optional macOS dependency
+            }
         },
         esbuild: {
-            target: 'esnext', // Unterstützt moderne JS-Features inklusive Top-level await
+            target: 'esnext' // Unterstützt moderne JS-Features inklusive Top-level await
         },
         server: {
             cors: true,
-            port: 5173, // Ändere den Port, um Konflikte mit Django zu vermeiden
-            hmr: { host: 'localhost' },
+            host: '127.0.0.1',
+            port: 5173,
+            hmr: { host: '127.0.0.1' },
             proxy: {
-                // Leite alle API-Requests an Django weiter
                 '/api': {
-                    target: 'http://127.0.0.1:8000',
+                    target: 'http://localhost:8000',
                     changeOrigin: true,
-                    secure: false,
-                },
-                // Zusätzliche Endpunkte falls nötig
-                '/admin': {
-                    target: 'http://127.0.0.1:8000',
-                    changeOrigin: true,
-                    secure: false,
+                    secure: false
                 },
                 '/static': {
-                    target: 'http://127.0.0.1:8000',
+                    target: 'http://localhost:8000',
                     changeOrigin: true,
-                    secure: false,
+                    secure: false
                 },
-            },
+                '/admin': {
+                    target: 'http://localhost:8000',
+                    changeOrigin: true,
+                    secure: false
+                }
+            }
         },
         resolve: {
             alias: {
-                '@': resolve(__dirname, 'src'), // one alias is enough
-            },
+                '@': resolve(__dirname, 'src')
+            }
         },
         css: {
             preprocessorOptions: {
                 scss: {
-                    additionalData: `@import "@/public/assets/scss/material-dashboard/_variables.scss";`,
-                },
-            },
-        },
+                    additionalData: `@import "@/public/assets/scss/material-dashboard/_variables.scss";`
+                }
+            }
+        }
     };
 });

@@ -64,8 +64,16 @@ describe('Draft Store', () => {
         const drafts = store.getDraftsForVideo(videoId);
         expect(drafts).toHaveLength(2);
         expect(drafts).toEqual(expect.arrayContaining([
-            expect.objectContaining({ id: annotation1.id, note: annotation1.note, label: annotation1.label }),
-            expect.objectContaining({ id: annotation2.id, note: annotation2.note, label: annotation2.label })
+            expect.objectContaining({
+                id: annotation1.id,
+                note: annotation1.note,
+                label: annotation1.label
+            }),
+            expect.objectContaining({
+                id: annotation2.id,
+                note: annotation2.note,
+                label: annotation2.label
+            })
         ]));
     });
     it('should remove draft annotation', () => {

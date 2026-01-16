@@ -3,6 +3,7 @@ import Cookies from 'js-cookie';
 import camelcaseKeys from 'camelcase-keys';
 import snakecaseKeys from 'snakecase-keys';
 import { useToastStore } from '@/stores/toastStore';
+import { useAuthKcStore } from '@/stores/auth_kc';
 // This handles requests to the local Django API
 const API_PREFIX = import.meta.env.VITE_API_PREFIX ?? 'api/';
 const axiosInstance = axios.create({
@@ -11,16 +12,26 @@ const axiosInstance = axios.create({
     baseURL: '/',
     headers: {
         'Content-Type': 'application/json',
-        'Accept': 'application/json',
+        Accept: 'application/json'
     },
-    withCredentials: true,
+    withCredentials: true
 });
 // Error toast - Skip toast messages for polling requests
-axiosInstance.interceptors.response.use(r => r, err => {
+// Error handling: Keycloak login on 401 + toast for other errors
+axiosInstance.interceptors.response.use((r) => r, (err) => {
     const toast = useToastStore();
-    // Skip toast messages for polling/status requests to avoid spamming users
+    const auth = useAuthKcStore();
+    const status = err?.response?.status;
     const url = err?.config?.url || '';
+    // Skip spam for polling/status requests
     const isPollingRequest = url.includes('/status/') || url.includes('/polling-info/');
+    // 🔒 If backend says "unauthenticated", send user to Keycloak login
+    if (status === 401) {
+        // Optional: clear any local state here if you keep some user info in Pinia
+        auth.login(); // 👈 IMPORTANT: this must call Keycloak, not a Vue /login page
+        return Promise.reject(err);
+    }
+    // All other errors → show toast (except polling)
     if (!isPollingRequest) {
         const msg = err?.response?.data?.detail ||
             err?.response?.data?.error ||
@@ -60,7 +71,10 @@ function localSnakecaseKeys(obj, options = {}) {
     else if (obj && typeof obj === 'object') {
         return Object.keys(obj).reduce((acc, key) => {
             const newKey = key.replace(/([A-Z])/g, (match) => `_${match.toLowerCase()}`);
-            acc[newKey] = options.deep && obj[key] && typeof obj[key] === 'object' ? snakecaseKeys(obj[key], options) : obj[key];
+            acc[newKey] =
+                options.deep && obj[key] && typeof obj[key] === 'object'
+                    ? snakecaseKeys(obj[key], options)
+                    : obj[key];
             return acc;
         }, {});
     }
@@ -81,12 +95,12 @@ axiosInstance.interceptors.response.use((response) => {
     }
     return response;
 });
-axiosInstance.interceptors.response.use(r => r, err => {
-    console.error("AXIOS ERROR", {
+axiosInstance.interceptors.response.use((r) => r, (err) => {
+    console.error('AXIOS ERROR', {
         message: err.message,
         code: err.code,
         status: err.response?.status,
-        data: err.response?.data,
+        data: err.response?.data
     });
     return Promise.reject(err);
 });

@@ -1,33 +1,44 @@
-import { createApp } from 'vue';
-import { createPinia } from 'pinia';
-import App from '@/App.vue';
-import router from '@/router';
-import AuthCheck from '@/components/AuthCheck.vue';
-import 'vite/modulepreload-polyfill';
-import '@/assets/css/nucleo-icons.css';
-import '@/assets/css/nucleo-svg.css';
-import '@/assets/css/material-dashboard.css';
-import '@/assets/custom-overrides.css';
-import '@/assets/css/icon-fixes.css';
-import axios from 'axios';
-import Cookies from 'js-cookie';
-import VueVirtualScroller from 'vue-virtual-scroller';
-import 'vue-virtual-scroller/dist/vue-virtual-scroller.css';
+// frontend/src/main.ts
+import { createApp } from 'vue'
+import { createPinia } from 'pinia'
+import App from '@/App.vue'
+import router from '@/router'
 
-const app = createApp(App);
+// CSS Imports
+import '@/assets/css/nucleo-icons.css'
+import '@/assets/css/nucleo-svg.css'
+import '@/assets/css/material-dashboard.css'
+import '@/assets/css/icon-fixes.css'
+import '@/assets/custom-overrides.css'
 
-app.component('AuthCheck', AuthCheck);
+import VueVirtualScroller from 'vue-virtual-scroller'
+import 'vue-virtual-scroller/dist/vue-virtual-scroller.css'
+import AuthCheck from '@/components/Authentification/AuthCheck.vue'
 
-app.config.errorHandler = (err, vm, info) => {
-    console.error("Global error handler:", err, info);
-    // Optionally, send the error details to an external logging service (e.g., Sentry)
-};
+import { initHttpKC } from '@/utils/http_kc' 
+import canKc from '@/directives/can_kc'
+// 1. Initialize Auth
+initHttpKC()
 
-app.use(createPinia());
-app.use(router);
-app.use(VueVirtualScroller);
+// 2. Create App
+const app = createApp(App)
 
-app.mount('#app');
+// 3. Register Directives (Once is enough!)
+app.directive('can', canKc)
+app.component('AuthCheck', AuthCheck)
 
-axios.defaults.withCredentials = true;
-axios.defaults.headers.common['X-CSRFToken'] = Cookies.get('csrftoken');
+// 4. Configure App
+app.config.errorHandler = (err, _vm, info) => {
+  console.error('Global error handler:', err, info)
+}
+
+// 5. Use Plugins
+app.use(createPinia())
+app.use(router)
+app.use(VueVirtualScroller)
+
+
+
+// 6. Mount
+app.mount('#app')
+

@@ -5,7 +5,6 @@ import { useMediaTypeStore } from '@/stores/mediaTypeStore';
 import axiosInstance, { r } from '@/api/axiosInstance';
 // Composables
 const router = useRouter();
-const route = useRoute();
 const anonymizationStore = useAnonymizationStore();
 const mediaStore = useMediaTypeStore();
 // Reactive state
@@ -108,9 +107,9 @@ const loadVideoDetails = async (videoId) => {
     try {
         // Load video metadata and processing history
         const [videoResponse, metadataResponse, historyResponse] = await Promise.all([
-            axiosInstance.get(r(`video-correction/${videoId}/`)),
-            axiosInstance.get(r(`video-metadata/${videoId}/`)),
-            axiosInstance.get(r(`video-processing-history/${videoId}/`))
+            axiosInstance.get(r(`media/videos/video-correction/${videoId}`)),
+            axiosInstance.get(r(`media/videos/${videoId}/metadata/`)),
+            axiosInstance.get(r(`media/videos/${videoId}/processing-history/`))
         ]);
         currentVideo.value = videoResponse.data;
         videoMetadata.value = metadataResponse.data;
@@ -136,7 +135,7 @@ const analyzeVideo = async () => {
     processingProgress.value = 0;
     processingStatus.value = 'Video wird analysiert...';
     try {
-        const response = await axiosInstance.post(r(`video-analyze/${currentVideo.value.id}/`), {
+        const response = await axiosInstance.post(r(`media/videos/${currentVideo.value.id}/analyze/`), {
             use_minicpm: frameConfig.value.detectionEngine !== 'traditional',
             detailed_analysis: true
         });
@@ -182,7 +181,7 @@ const applyMasking = async () => {
             } : undefined
         };
         // Start masking operation
-        const response = await axiosInstance.post(r(`video-apply-mask/${currentVideo.value.id}/`), payload);
+        const response = await axiosInstance.post(r(`media/videos/${currentVideo.value.id}/apply-mask/`), payload);
         // Start polling for progress
         const taskId = response.data.task_id;
         await pollTaskProgress(taskId, 'masking');
@@ -211,7 +210,7 @@ const removeFrames = async () => {
                 : undefined
         };
         // Start frame removal operation
-        const response = await axiosInstance.post(r(`video-remove-frames/${currentVideo.value.id}/`), payload);
+        const response = await axiosInstance.post(r(`media/videos/${currentVideo.value.id}/remove-frames/`), payload);
         // Start polling for progress
         const taskId = response.data.task_id;
         await pollTaskProgress(taskId, 'frame_removal');
@@ -256,7 +255,7 @@ const pollTaskProgress = async (taskId, operation) => {
             throw new Error('Zeitüberschreitung bei der Verarbeitung');
         }
         try {
-            const response = await axiosInstance.get(r(`task-status/${taskId}/`));
+            const response = await axiosInstance.get(r(`media/videos/task-status/${taskId}/`));
             const { status, progress, message, result } = response.data;
             processingProgress.value = progress || 0;
             processingStatus.value = message || 'Verarbeitung läuft...';
@@ -303,7 +302,7 @@ const reprocessVideo = async () => {
     if (!currentVideo.value)
         return;
     try {
-        await axiosInstance.post(r(`video-reprocess/${currentVideo.value.id}/`));
+        await axiosInstance.post(r(`media/videos/${currentVideo.value.id}/reprocess/`));
         await refreshCurrentVideo();
     }
     catch (err) {
@@ -321,7 +320,7 @@ const getVideoUrl = () => {
             .filter(entry => entry.status === 'success' && entry.outputPath)
             .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0];
         if (latestProcessed) {
-            return `${base}/api/media/processed-videos/${currentVideo.value.id}/${latestProcessed.id}/`;
+            return `${base}/api/media/videos/processed-videos/${currentVideo.value.id}/${latestProcessed.id}/`;
         }
     }
     // Default to original
@@ -400,7 +399,7 @@ const getStatusBadgeClass = (status) => {
     const classes = {
         'not_started': 'bg-secondary',
         'processing': 'bg-warning',
-        'done': 'bg-success',
+        'done_processing_anonymization': 'bg-success',
         'failed': 'bg-danger',
         'success': 'bg-success'
     };
@@ -410,7 +409,7 @@ const getStatusText = (status) => {
     const texts = {
         'not_started': 'Nicht gestartet',
         'processing': 'In Bearbeitung',
-        'done': 'Fertig',
+        'done_processing_anonymization': 'Fertig',
         'failed': 'Fehlgeschlagen',
         'success': 'Erfolgreich'
     };
@@ -445,18 +444,17 @@ const getOperationBadgeClass = (operation) => {
 };
 // Lifecycle hooks
 onMounted(async () => {
-    const videoId = route.params.id;
-    if (videoId && !isNaN(parseInt(videoId))) {
-        await loadVideoDetails(parseInt(videoId));
+    if (!isNaN(props.fileId)) {
+        await loadVideoDetails(props.fileId);
     }
     else {
-        error.value = 'Ungültige Video-ID';
+        error.value = 'Ungültige Datei-ID';
     }
 });
 // Watchers
-watch(() => route.params.id, async (newId) => {
-    if (newId && !isNaN(parseInt(newId))) {
-        await loadVideoDetails(parseInt(newId));
+watch(() => props.fileId, async (newId) => {
+    if (newId && !isNaN(newId)) {
+        await loadVideoDetails(newId);
     }
 });
 debugger; /* PartiallyEnd: #3632/scriptSetup.vue */

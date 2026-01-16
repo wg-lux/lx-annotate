@@ -14,9 +14,9 @@ describe('Draft System Integration', () => {
                 getItem: vi.fn(),
                 setItem: vi.fn(),
                 removeItem: vi.fn(),
-                clear: vi.fn(),
+                clear: vi.fn()
             },
-            writable: true,
+            writable: true
         });
     });
     it('should synchronize between DraftIndicator and DraftManager', async () => {
@@ -66,11 +66,7 @@ describe('Draft System Integration', () => {
             end: 40,
             note: 'Video 2 annotation'
         });
-        await Promise.all([
-            indicator.vm.$nextTick(),
-            manager1.vm.$nextTick(),
-            manager2.vm.$nextTick()
-        ]);
+        await Promise.all([indicator.vm.$nextTick(), manager1.vm.$nextTick(), manager2.vm.$nextTick()]);
         // Indicator should show total count
         expect(indicator.find('.draft-count').text()).toBe('2');
         // Each manager should show only its video's drafts

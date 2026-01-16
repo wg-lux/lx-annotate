@@ -33,14 +33,14 @@ export declare function formatDuration(seconds: number): string;
 /**
  * Konvertiert Sekunden zu Frames basierend auf FPS
  * @param seconds - Zeit in Sekunden
- * @param fps - Frames per Second (Standard: 30)
+ * @param fps - Frames per Second (Standard: 50)
  * @returns Frame-Nummer
  */
 export declare function secondsToFrames(seconds: number, fps?: number): number;
 /**
  * Konvertiert Frames zu Sekunden basierend auf FPS
  * @param frames - Frame-Nummer
- * @param fps - Frames per Second (Standard: 30)
+ * @param fps - Frames per Second (Standard: 50)
  * @returns Zeit in Sekunden
  */
 export declare function framesToSeconds(frames: number, fps?: number): number;

@@ -110,8 +110,6 @@
                 <div>Classifications: {{ debugInfo.totalClassifications }} ({{ debugInfo.requiredClassifications }} required)</div>
                 <div>Classifications Loaded: {{ debugInfo.classificationsLoaded }}</div>
                 <div>Data Source: {{ debugInfo.dataSource }}</div>
-                <div v-if="debugInfo.availableCount > 0">Available Findings: {{ debugInfo.availableCount }}</div>
-                <div v-if="debugInfo.necessaryCount > 0">Necessary Findings: {{ debugInfo.necessaryCount }}</div>
             </small>
         </div>
     </div>
@@ -121,14 +119,11 @@
 import { ref, computed, onMounted, watch } from 'vue';
 import { useFindingStore, type Finding, type FindingClassification } from '../../stores/findingStore';
 import { useExaminationStore } from '@/stores/examinationStore';
-import { usePatientExaminationStore } from '@/stores/patientExaminationStore';
 import axiosInstance from '@/api/axiosInstance';
 import { useFindingClassificationStore } from '@/stores/findingClassificationStore';
-import { filterNecessaryFindings } from '@/utils/findingFilters';
 
 const findingStore = useFindingStore();
 const examinationStore = useExaminationStore();
-const patientExaminationStore = usePatientExaminationStore();
 const findingClassificationStore = useFindingClassificationStore();
 
 const examinationId = computed(() => examinationStore.selectedExaminationId || undefined);
@@ -137,14 +132,11 @@ interface Props {
     findingId: number;
     isAddedToExamination?: boolean;
     patientExaminationId?: number;
-    /** Optional: full list of addable findings (from AddableFindingsDetail). */
-    availableFindings?: Finding[];
 }
 
 const props = withDefaults(defineProps<Props>(), {
     isAddedToExamination: false,
-    patientExaminationId: undefined,
-    availableFindings: undefined,
+    patientExaminationId: undefined
 });
 
 const emit = defineEmits<{
@@ -164,11 +156,6 @@ const emit = defineEmits<{
 
 const loading = ref(false);
 const classifications = ref<FindingClassification[]>([]);
-
-// NEW: derive necessary findings from availableFindings prop when provided
-const necessaryFindings = computed<Finding[]>(() =>
-    filterNecessaryFindings(props.availableFindings)
-);
 
 // Computed
 const finding = computed((): Finding | undefined => {
@@ -199,10 +186,7 @@ const debugInfo = computed(() => {
         totalClassifications: classifications.value.length,
         requiredClassifications: requiredClassifications.value.length,
         classificationsLoaded: classifications.value.length > 0,
-        dataSource,
-        // NEW:
-        availableCount: props.availableFindings?.length ?? 0,
-        necessaryCount: necessaryFindings.value.length,
+        dataSource: dataSource
     };
 });
 
@@ -218,10 +202,7 @@ const findingsInfo = computed(() => {
         totalClassifications: classifications.value.length,
         requiredClassifications: requiredClassifications.value.length,
         classificationsLoaded: classifications.value.length > 0,
-        dataSource,
-        // NEW:
-        availableCount: props.availableFindings?.length ?? 0,
-        necessaryCount: necessaryFindings.value.length,
+        dataSource: dataSource
     };
 });
 
@@ -351,18 +332,6 @@ watch(() => findingStore.findings, (newVal, oldVal) => {
         safeLoadFindingsAndClassifications();
     }
 }, { immediate: true });
-
-// Watch for patient examination ID changes - similar to AddableFindingsDetail
-watch(
-  () => patientExaminationStore.getCurrentPatientExaminationId(),
-  (newId) => {
-    if (newId && !props.patientExaminationId) {
-      console.warn('[FindingsDetail] Syncing patientExaminationId, reloading data...');
-      safeLoadFindingsAndClassifications();
-    }
-  },
-  { immediate: true }
-);
 </script>
 
 <style scoped>

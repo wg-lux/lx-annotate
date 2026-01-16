@@ -10,9 +10,9 @@
  */
 export function framesToSeconds(frames: number, fps: number): number {
   if (!Number.isFinite(frames) || !Number.isFinite(fps) || fps <= 0) {
-    return 0;
+    return 0
   }
-  return frames / fps;
+  return frames / fps
 }
 
 /**
@@ -23,9 +23,9 @@ export function framesToSeconds(frames: number, fps: number): number {
  */
 export function secondsToFrames(seconds: number, fps: number): number {
   if (!Number.isFinite(seconds) || !Number.isFinite(fps) || fps <= 0) {
-    return 0;
+    return 0
   }
-  return Math.round(seconds * fps);
+  return Math.round(seconds * fps)
 }
 
 /**
@@ -41,18 +41,12 @@ export function safeTimeConversion(
   fps: number
 ): number {
   // ✅ FIX: Coerce invalid → 0, clamp negative → 0
-  if (
-    timeValue == null ||
-    Number.isNaN(timeValue) ||
-    !Number.isFinite(timeValue) ||
-    timeValue < 0
-  ) return 0;
+  if (timeValue == null || Number.isNaN(timeValue) || !Number.isFinite(timeValue) || timeValue < 0)
+    return 0
 
-  const seconds = isFrames 
-    ? framesToSeconds(timeValue, fps) 
-    : timeValue;
+  const seconds = isFrames ? framesToSeconds(timeValue, fps) : timeValue
 
-  return Math.max(0, seconds); // never negative
+  return Math.max(0, seconds) // never negative
 }
 
 /**
@@ -62,12 +56,12 @@ export function safeTimeConversion(
  */
 export function formatTime(seconds: number): string {
   if (!Number.isFinite(seconds) || seconds < 0) {
-    return '00:00';
+    return '00:00'
   }
-  
-  const mins = Math.floor(seconds / 60);
-  const secs = Math.floor(seconds % 60);
-  return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+
+  const mins = Math.floor(seconds / 60)
+  const secs = Math.floor(seconds % 60)
+  return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
 }
 
 /**
@@ -77,11 +71,7 @@ export function formatTime(seconds: number): string {
  * @param duration Total video duration in seconds
  * @returns Width percentage (0-100)
  */
-export function calculateSegmentWidth(
-  start?: number,
-  end?: number,
-  duration?: number
-): number {
+export function calculateSegmentWidth(start?: number, end?: number, duration?: number): number {
   if (
     !Number.isFinite(start) ||
     !Number.isFinite(end) ||
@@ -89,9 +79,9 @@ export function calculateSegmentWidth(
     duration! <= 0 ||
     end! <= start!
   ) {
-    return 0;
+    return 0
   }
-  return ((end! - start!) / duration!) * 100;
+  return ((end! - start!) / duration!) * 100
 }
 
 /**
@@ -100,12 +90,9 @@ export function calculateSegmentWidth(
  * @param duration Total video duration in seconds
  * @returns Position percentage (0-100)
  */
-export function calculateSegmentPosition(
-  start?: number,
-  duration?: number
-): number {
+export function calculateSegmentPosition(start?: number, duration?: number): number {
   if (!Number.isFinite(start) || !Number.isFinite(duration) || duration! <= 0) {
-    return 0;
+    return 0
   }
-  return (start! / duration!) * 100;
+  return (start! / duration!) * 100
 }

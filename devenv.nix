@@ -6,16 +6,24 @@
   baseBuildInputs, 
   ... }:
 let
+  appConfig = import ./app_config.nix;
+
   appName = "lx_annotate";
   DEPLOYMENT_MODE = "dev";
 
-  dataDir = let env = builtins.getEnv "DATA_DIR"; in if env != "" then env else (let env2 = builtins.getEnv "STORAGE_DIR"; in if env2 != "" then env2 else "./data");
-  confDir = let env = builtins.getEnv "CONF_DIR"; in if env != "" then env else "./conf";
-  confTemplateDir = let env = builtins.getEnv "CONF_TEMPLATE_DIR"; in if env != "" then env else "./conf_template";
-  djangoModuleName = let env = builtins.getEnv "DJANGO_MODULE"; in if env != "" then env else "lx_annotate";
-  http_protocol = let env = builtins.getEnv "HTTP_PROTOCOL"; in if env != "" then env else "http";
-  host = let env = builtins.getEnv "DJANGO_HOST"; in if env != "" then env else "localhost";
-  port = let env = builtins.getEnv "DJANGO_PORT"; in if env != "" then env else "8119";
+  dataDir = let env = builtins.getEnv "DATA_DIR"; in if env != "" then env else appConfig.paths.data;
+  confDir = let env = builtins.getEnv "CONF_DIR"; in if env != "" then env else appConfig.paths.conf;
+  confTemplateDir = let env = builtins.getEnv "CONF_TEMPLATE_DIR"; in if env != "" then env else appConfig.paths.confTemplate;
+
+  importDir = let env = builtins.getEnv "IMPORT_DIR"; in if env != "" then env else appConfig.paths.importDir;
+  importVideoDir = let env = builtins.getEnv "IMPORT_VIDEO_DIR"; in if env != "" then env else appConfig.paths.videoImportDir;
+  importReportDir = let env = builtins.getEnv "REPORT_IMPORT_DIR"; in if env != "" then env else appConfig.paths.reportImportDir;
+
+  homeDir = let env = builtins.getEnv "HOME_DIR"; in if env != "" then env else builtins.getEnv "HOME";
+  djangoModuleName = let env = builtins.getEnv "DJANGO_MODULE"; in if env != "" then env else appConfig.app.djangoModule;
+  http_protocol = let env = builtins.getEnv "HTTP_PROTOCOL"; in if env != "" then env else appConfig.server.protocol;
+  host = let env = builtins.getEnv "DJANGO_HOST"; in if env != "" then env else appConfig.server.host;
+  port = let env = builtins.getEnv "DJANGO_PORT"; in if env != "" then env else appConfig.server.port;
   base_url = let env = builtins.getEnv "BASE_URL"; in if env != "" then env else "${http_protocol}://${host}:${port}";
 
   python = pkgs.python312;
@@ -23,6 +31,8 @@ let
 
   devenv_utils = import ./devenv/default.nix {
     pkgs = pkgs;
+    lib = lib;
+    appConfig = appConfig;
     djangoModuleName = djangoModuleName;
     host = host;
     port = port;
@@ -30,40 +40,25 @@ let
     dataDir = dataDir;
     confDir = confDir;
     confTemplateDir = confTemplateDir;
+    homeDir = homeDir;
     uvPackage = uvPackage;
+    isDev = true;
   };
 
-  buildInputs = devenv_utils.buildInputs ++ [ pkgs.zlib ];
-  runtimePackages = devenv_utils.runtimePackages;
+  devTasks = import ./devenv/devTasks/default.nix { inherit config pkgs lib; };
+
+  buildInputs = devenv_utils.buildInputs;
   lxVars = devenv_utils.lx_vars;
+  exportLxVars = pkgs.writeText "export-lx-vars.json" (builtins.toJSON lxVars);
 
   languages.javascript.enable = true;
   languages.javascript.package = pkgs.nodejs_22; # Specify the Node.js version
   languages.python.enable = true;
   languages.python.uv.enable = true;
 
-  # Define the shellHook for convenience
   commonShellHook = ''
     export PATH="$PATH:$(yarn global bin)"
   '';
-
-  enterShell = ''
-    if [ -x scripts/dev-sync-submodules.sh ]; then
-      echo "Syncing submodules to branch tips…"
-      scripts/dev-sync-submodules.sh || true
-    fi
-  '';
-
-  # --- Directory Structure ---
-  importDir = "endoreg_db/${dataDir}/import";
-  importVideoDir = "endoreg_db/${importDir}/video";
-  importReportDir = "endoreg_db/${importDir}/report";
-  importLegacyAnnotationDir = "endoreg_db/${importDir}/legacy_annotations";
-  exportDir = "endoreg_db/${dataDir}/export";
-  exportFramesRootDir = "endoreg_db/${exportDir}/frames";
-  exportFramesSampleExportDir = "endoreg_db/${exportFramesRootDir}/test_outputs";
-  modelDir = "endoreg_db/${dataDir}/models";
-
 
   customTasks = ( 
     import ./devenv/tasks/default.nix ({
@@ -78,147 +73,90 @@ let
   );
 
   imports = [
-    ./libs/endoreg-db/devenv.nix
-    ./libs/lx-anonymizer/devenv.nix
     ./frontend/flake.nix
   ];
+  myTesseract = pkgs.tesseract.override {
+    enableLanguages = [ "eng" "deu" ];
+  };
+
+
+  _module.args.buildInputs = baseBuildInputs;
+
+  SYNC_CMD = "uv sync --extra dev --extra docs";
+  nixpkgs.config.allowUnfree = true;
 
 in
 {
+
   dotenv.enable = true;
   dotenv.disableHint = true;
+  packages = devenv_utils.buildInputs ++ [ 
+    myTesseract
+    pkgs.ollama
+    pkgs.git
+     ];
 
-
-
-  packages = with pkgs; [
-    stdenv.cc.cc
-    nodejs_22
-    yarn
-    libglvnd
-    inotify-tools 
-    python312Packages.inotify-simple
-    python312Packages.watchdog
-    ffmpeg_6-headless
-  ] ++ runtimePackages;
 
   env = {
-    LD_LIBRARY_PATH = "${
-      with pkgs;
-      lib.makeLibraryPath buildInputs
-    }:/run/opengl-driver/lib:/run/opengl-driver-32/lib";
-  } // lxVars;
+    # include runtimePackages as well so runtime native libs (e.g. zlib) are on LD_LIBRARY_PATH
+    LD_LIBRARY_PATH =
+          lib.makeLibraryPath (devenv_utils.buildInputs ++ [myTesseract])
+          + ":/run/opengl-driver/lib:/run/opengl-driver-32/lib"
+          + ":/usr/lib/wsl/lib"
+          + ":/usr/lib/x86_64-linux-gnu"
+          + ":/usr/lib"
+          ;
+    STORAGE_DIR = lib.mkForce dataDir;
+    TESSDATA_PREFIX = "${myTesseract}/share/tessdata";
+  } // devenv_utils.environment;
 
   languages.python = {
     enable = true;
     package = pkgs.python312;
     uv = {
       enable = true;
+      package = uvPackage;
       sync.enable = true;
     };
   };
 
+
   
+  tasks = devenv_utils.tasks // (if devenv_utils ? isDev && devenv_utils.isDev then devTasks else {});  
+  processes = devenv_utils.processes;
+  containers = devenv_utils.containers;
+  services = devenv_utils.services;
+
   scripts = {
-    
-
-    set-prod-settings.exec = "${pkgs.uv}/bin/uv run python scripts/set_production_settings.py";
-    set-dev-settings.exec = "${pkgs.uv}/bin/uv run python scripts/set_development_settings.py";
-    set-central-settings.exec = "${pkgs.uv}/bin/uv run python scripts/set_central_settings.py";
-    
-    test-luxnix-compatibility.exec = "${pkgs.uv}/bin/uv run python scripts/test_luxnix_compatibility.py";
-
-    run-dev-server.exec = ''
-
-      env-pipe
-      set-dev-settings
-      echo "Running dev server"
-      echo "Host: ${host}"
-      echo "Port: ${port}"
-      deploy-pipe
-      ${pkgs.uv}/bin/uv run python manage.py runserver ${host}:${port}
+    export-nix-vars.exec = ''
+      cat > .devenv-vars.json << EOF
+      {
+      }
+      EOF
+      echo "Exported Nix variables to .devenv-vars.json"
     '';
 
-    env-pipe.exec = ''
-      # Skip local config generation if local_settings.py exists (luxnix managed)
-      if [ ! -f "local_settings.py" ]; then
-        env-init-conf
-        env-build
-      else
-        echo "Detected luxnix managed environment (local_settings.py exists)"
-        echo "Skipping local configuration generation"
-      fi
-      env-export
+    env-setup.exec = ''
+      # Ensure runtimePackages are included in the library path here too
+      export LD_LIBRARY_PATH="${
+        with pkgs; lib.makeLibraryPath (buildInputs)
+      }:/run/opengl-driver/lib:/run/opengl-driver-32/lib"
+      which tesseract
     '';
 
-    deploy-pipe.exec = ''
-      deploy-migrate
-      deploy-load-base-db-data
-      deploy-collectstatic
+    hello.package = pkgs.zsh;
+    hello.exec = "uv run python hello.py";
+    pyshell.exec = "uv run python manage.py shell";
+
+    mkdocs.exec = ''
+      uv run make -C docs html
+      uv run make -C docs linkcheck
     '';
-
-    run-prod-server.exec = ''
-
-      set -e
-
-      echo "[prod] Syncing submodule URLs from .gitmodules..."
-      git submodule sync --recursive
-
-      echo "[prod] Fetching latest commits for submodules and checking out remote-tracking branches..."
-      git submodule update --init --remote --recursive
-
-      echo "[prod] Submodule status after update:"
-      git submodule status --recursive || true
-
-      echo "[prod] Submodule branches and heads:"
-      git submodule foreach --recursive '
-        b=$(git rev-parse --abbrev-ref --symbolic-full-name @{u} 2>/dev/null || true)
-        h=$(git rev-parse --short HEAD 2>/dev/null || true)
-        [ -n "$b" ] || b="<no-upstream>"
-        [ -n "$h" ] || h="<no-head>"
-        echo "  $name -> upstream=$b @ $h"
-      '
-
-      env-pipe
-      # Detect if running in luxnix environment and use appropriate settings
-      if [ "$CENTRAL_NODE" = "true" ]; then
-        echo "Running as central node"
-        set-central-settings
-      else
-        set-prod-settings
-      fi
-      echo "Running production server"
-      echo "Port: ${port}"
-
-
-      # print settings module and other important variables for transparency
-      echo "DJANGO_SETTINGS_MODULE: $DJANGO_SETTINGS_MODULE"
-      echo "BASE_URL: $BASE_URL"
-
-      deploy-pipe
-      ${pkgs.uv}/bin/uv run daphne ${djangoModuleName}.asgi:application -p ${port}
+    uvsnc.exec = ''
+      ${SYNC_CMD}
     '';
+  } // devenv_utils.scripts;
 
-    gpu-check.exec = "${pkgs.uv}/bin/uv run python scripts/gpu-check.py";
-
-    ensure-psql.exec = "${pkgs.uv}/bin/uv run python scripts/ensure_psql.py";
-    env-fetch-db-pwd-file.exec = "${pkgs.uv}/bin/uv run python scripts/fetch_db_pwd_file.py";
-    env-init-conf.exec = "${pkgs.uv}/bin/uv run python scripts/make_conf.py";
-    env-build.exec = "${pkgs.uv}/bin/uv run env_setup.py";
-    env-export.exec = ''
-      set -a
-      source .env
-      set +a
-      echo ".env file loaded successfully."
-      echo "DJANGO_SETTINGS_MODULE=$DJANGO_SETTINGS_MODULE"
-    '';
-    deploy-migrate.exec = "${pkgs.uv}/bin/uv run python manage.py migrate";
-    deploy-load-base-db-data.exec = "${pkgs.uv}/bin/uv run python manage.py load_base_db_data";
-    deploy-collectstatic.exec = "${pkgs.uv}/bin/uv run python manage.py collectstatic --noinput";
-  };
-  
-  tasks = customTasks;
-
-  processes = customProcesses;
   cachix.enable = true;
 
 
@@ -241,7 +179,18 @@ in
        $SYNC_CMD --quiet || echo "Warning: uv sync failed. Environment might be outdated."
     fi
 
-    # Activate Python virtual environment managed by uv
+
+
+    echo "Exporting environment variables from .env file..."
+    if [ -f ".env" ]; then
+      set -a
+      source .env
+      set +a
+      echo ".env file loaded successfully."
+    else
+      echo "Note: .env not found. Defaults apply."
+    fi
+    # Activate Python virtual environment managed by uv inside of devenv
     ACTIVATED=false
     if [ -f ".devenv/state/venv/bin/activate" ]; then
       source .devenv/state/venv/bin/activate
@@ -251,21 +200,9 @@ in
       echo "Warning: uv virtual environment activation script not found. Run 'devenv task run env:clean' and re-enter shell."
     fi
 
-    echo "Exporting environment variables from .env file..."
-    if [ -f ".env" ]; then
-      set -a
-      source .env
-      set +a
-      echo ".env file loaded successfully."
-    elif [ -f "local_settings.py" ]; then
-      echo "Detected luxnix managed environment - using system environment variables"
-      echo "No .env file needed"
-    else
-      echo "Warning: .env file not found. Please run 'devenv tasks run env:build' to create it."
-    fi
-
+    python scripts/core/setup.py --status-only || echo "Warning: Environment setup check failed."
     gpu-check
-    
+
 
   '';
 

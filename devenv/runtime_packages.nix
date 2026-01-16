@@ -10,6 +10,7 @@ let
     glib
     zlib
     ollama.out
+    cryptomator
   ];
 
 

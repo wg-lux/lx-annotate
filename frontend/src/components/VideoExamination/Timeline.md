@@ -19,7 +19,7 @@ Die `Timeline`-Komponente visualisiert zeitbasierte Annotationen (Segmente) eine
 | `currentTime` | `number`       | Aktuelle Zeit im Video (in Sekunden), für den Cursor            |
 | `segments`    | `Segment[]`    | Lokale (nicht persistierte) Segmente                            |
 | `apiSegments` | `ApiSegment[]` | Serverseitig geladene Segmente (frame-basiert)                  |
-| `fps`         | `number`       | Frames pro Sekunde (Standard: 25), zur Frame-Zeit-Konvertierung |
+| `fps`         | `number`       | Frames pro Sekunde (Standard: 50), zur Frame-Zeit-Konvertierung |
 
 ---
 

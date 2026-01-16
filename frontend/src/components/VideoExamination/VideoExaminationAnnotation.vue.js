@@ -3,7 +3,8 @@ import { useVideoStore } from '@/stores/videoStore';
 import { useAnonymizationStore } from '@/stores/anonymizationStore';
 import { useAnnotationStore } from '@/stores/annotationStore';
 import { useAuthStore } from '@/stores/authStore';
-import SimpleExaminationForm from '@/components/Examination/SimpleExaminationForm.vue';
+import { useMediaTypeStore } from '@/stores/mediaTypeStore';
+import RequirementGenerator from '@/components/RequirementReport/RequirementGenerator.vue';
 import axiosInstance, { r } from '@/api/axiosInstance';
 import Timeline from '@/components/VideoExamination/Timeline.vue';
 import { storeToRefs } from 'pinia';
@@ -18,6 +19,7 @@ const router = useRouter();
 const initialVideoId = Number(route.query.video ?? '') || null;
 // Store setup
 const videoStore = useVideoStore();
+const mediaStore = useMediaTypeStore();
 const { videoList, videoStreamUrl, timelineSegments } = storeToRefs(videoStore);
 const videos = computed(() => videoList.value.videos);
 const toastStore = useToastStore();
@@ -30,17 +32,18 @@ const timelineLabels = computed(() => {
     return [...storeLabels]; // Convert readonly array to mutable array
 });
 /**
- * helper: returns true when a video's anonymization status is 'done'
+ * helper: returns true when a video's anonymization status is 'done_processing_anonymization'
  */
 function isAnonymized(videoId) {
     const item = overview.value.find(o => o.id === videoId && o.mediaType === 'video');
-    return item?.anonymizationStatus === 'done';
+    return item?.anonymizationStatus === 'done_processing_anonymization';
 }
 // Reactive data
 const selectedVideoId = ref(initialVideoId);
 const currentTime = ref(0);
 const duration = ref(0);
 const fps = ref(50);
+const isPlaying = ref(false); // ✅ NEW: Track video playing state
 const examinationMarkers = ref([]);
 const savedExaminations = ref([]);
 const currentMarker = ref(null);
@@ -48,22 +51,45 @@ const selectedLabelType = ref('');
 const isMarkingLabel = ref(false);
 const labelMarkingStart = ref(0);
 const selectedSegmentId = ref(null);
+// Video detail and metadata like VideoClassificationComponent
+const videoDetail = ref(null);
+const videoMeta = ref(null);
+// Error and success messages for Bootstrap alerts
+const errorMessage = ref('');
+const successMessage = ref('');
 // Template refs
 const videoRef = ref(null);
 const timelineRef = ref(null);
 // Video Dropdown Watcher
+const hasUnsavedChanges = computed(() => rawSegments.value.some(s => s.isDirty));
 async function loadSelectedVideo() {
     if (selectedVideoId.value == null) {
         videoStore.clearVideo();
+        videoDetail.value = null;
+        videoMeta.value = null;
         return;
     }
+    // ✅ NEW: Validate that selected video is anonymized
+    if (!isAnonymized(selectedVideoId.value)) {
+        showErrorMessage(`Video ${selectedVideoId.value} kann nicht annotiert werden, da es noch nicht anonymisiert wurde.`);
+        selectedVideoId.value = null;
+        return;
+    }
+    // Clear previous error messages when changing videos
+    clearErrorMessage();
+    clearSuccessMessage();
     try {
-        await videoStore.loadVideo(String(selectedVideoId.value));
-        await loadSavedExaminations(); // was only in the old onVideoChange
-        await loadVideoMetadata(); // keep segment behaviour
+        await videoStore.loadVideo(selectedVideoId.value);
+        await loadVideoDetail(selectedVideoId.value);
+        await guarded(loadSavedExaminations());
+        await guarded(loadVideoMetadata());
+        // Load segments with error handling
+        await guarded(videoStore.fetchAllSegments(selectedVideoId.value));
+        console.log('Video fully loaded:', selectedVideoId.value);
     }
     catch (err) {
-        console.error('loadVideo failed', err);
+        console.error('loadSelectedVideo failed', err);
+        await guarded(Promise.reject(err));
     }
 }
 function onVideoChange() {
@@ -81,31 +107,147 @@ watch(() => route.query.video, v => {
 // List of only videos that are both present in the list **and** in state `done` inside anonymizationStore
 const annotatableVideos = computed(() => videoList.value.videos.filter(v => isAnonymized(v.id)));
 const showExaminationForm = computed(() => {
-    return selectedVideoId.value !== null && videoStreamUrl.value !== '';
+    return selectedVideoId.value !== null && anonymizedVideoSrc.value !== undefined;
+});
+// Video streaming URL using MediaStore logic like AnonymizationValidationComponent
+const anonymizedVideoSrc = computed(() => {
+    if (!selectedVideoId.value)
+        return undefined;
+    // Build anonymized video URL with explicit processed parameter like AnonymizationValidationComponent
+    const base = import.meta.env.VITE_API_BASE_URL || window.location.origin;
+    return `${base}/api/media/videos/${selectedVideoId.value}/?type=processed`;
 });
 const hasVideos = computed(() => {
-    return videos.value && videos.value.length > 0;
+    return annotatableVideos.value && annotatableVideos.value.length > 0;
 });
 const noVideosMessage = computed(() => {
-    return videos.value.length === 0 ?
-        'Keine Videos verfügbar. Bitte laden Sie zuerst Videos hoch.' :
-        '';
+    if (videos.value.length === 0) {
+        return 'Keine Videos verfügbar. Bitte laden Sie zuerst Videos hoch.';
+    }
+    else if (annotatableVideos.value.length === 0) {
+        return 'Keine anonymisierten Videos verfügbar. Videos müssen erst anonymisiert werden.';
+    }
+    return '';
+});
+const timelineSegmentsForSelectedVideo = computed(() => {
+    if (!selectedVideoId.value)
+        return [];
+    return rawSegments.value
+        .filter(s => s.videoID === selectedVideoId.value);
 });
 const groupedSegments = computed(() => {
     return videoStore.segmentsByLabel;
 });
 const canStartLabeling = computed(() => {
     return selectedVideoId.value &&
-        videoStreamUrl.value &&
+        (videoDetail.value?.video_url || anonymizedVideoSrc.value) &&
         selectedLabelType.value &&
         !isMarkingLabel.value &&
         duration.value > 0;
 });
-onMounted(videoStore.fetchAllVideos);
+// ✅ PRIORITY: Load labels first, then videos, then anonymization status
+onMounted(async () => {
+    console.log('🚀 [VideoExamination] Component mounted - loading data in priority order...');
+    try {
+        // Step 1: Load labels with high priority
+        await videoStore.fetchLabels();
+        console.log(`✅ [VideoExamination] Labels loaded: ${videoStore.labels.length}`);
+        // Step 2: Load anonymization overview BEFORE videos (needed for filtering)
+        await anonymizationStore.fetchOverview();
+        console.log(`✅ [VideoExamination] Anonymization status loaded: ${overview.value.length} items`);
+        // Step 3: Load videos after labels and anonymization status are available
+        await videoStore.fetchAllVideos();
+        console.log(`✅ [VideoExamination] Videos loaded: ${videoStore.videoList.videos.length}`);
+        console.log(`✅ [VideoExamination] Annotatable videos: ${annotatableVideos.value.length}`);
+    }
+    catch (error) {
+        console.error('❌ [VideoExamination] Error during initial load:', error);
+        showErrorMessage('Fehler beim Laden der Daten. Bitte Seite neu laden.');
+    }
+});
+// Guarded function for error handling like VideoClassificationComponent
+async function guarded(p) {
+    try {
+        return await p;
+    }
+    catch (e) {
+        const errorMsg = e?.response?.data?.detail || e?.response?.data?.error || e?.message || String(e);
+        errorMessage.value = errorMsg;
+        return undefined;
+    }
+}
+watch(videoStreamUrl, (newUrl) => {
+    console.log('Video stream URL updated:', newUrl);
+});
+watch(selectedVideoId, (newId) => {
+    console.log('Selected video ID changed, setting store to:', newId);
+    if (typeof newId === 'number') {
+        videoStore.setCurrentVideo(newId);
+        videoStore.fetchVideoSegments(newId);
+    }
+    else {
+        errorMessage.value = 'Invalid video ID';
+    }
+});
+// Alert management methods
+const clearErrorMessage = () => {
+    errorMessage.value = '';
+};
+const clearSuccessMessage = () => {
+    successMessage.value = '';
+};
+const showSuccessMessage = (message) => {
+    successMessage.value = message;
+    // Auto-clear after 5 seconds
+    setTimeout(() => {
+        clearSuccessMessage();
+    }, 5000);
+};
+const showErrorMessage = (message) => {
+    errorMessage.value = message;
+    // Auto-clear after 10 seconds
+    setTimeout(() => {
+        clearErrorMessage();
+    }, 10000);
+};
+// Load video detail from backend like VideoClassificationComponent
+const loadVideoDetail = async (videoId) => {
+    if (!videoId)
+        return;
+    try {
+        console.log('Loading video detail for ID:', videoId);
+        const response = await axiosInstance.get(r(`media/videos/${videoId}/`));
+        console.log('Video detail response:', response.data);
+        videoDetail.value = { video_url: response.data.video_url };
+        videoMeta.value = {
+            duration: Number(response.data.duration ?? 0),
+            fps: Number(response.data.fps ?? 50)
+        };
+        // Update MediaStore with the current video for consistent URL handling
+        const currentVideo = annotatableVideos.value.find(v => v.id === videoId);
+        if (currentVideo) {
+            mediaStore.setCurrentItem(currentVideo);
+            console.log('MediaStore updated with video:', videoId);
+        }
+        // Update local duration if available
+        if (videoMeta.value.duration > 0) {
+            duration.value = videoMeta.value.duration;
+        }
+        console.log('Video detail loaded:', videoDetail.value);
+        console.log('Video meta loaded:', videoMeta.value);
+        console.log('Stream source will be:', anonymizedVideoSrc.value);
+    }
+    catch (error) {
+        console.error('Error loading video detail:', error);
+        await guarded(Promise.reject(error));
+    }
+};
 const loadSavedExaminations = async () => {
     if (selectedVideoId.value === null)
         return;
     try {
+        // TODO: Migrate to new media framework URL when backend supports /api/media/videos/{id}/examinations/
+        // Currently using old URL as part of partial migration strategy
         const response = await axiosInstance.get(r(`video/${selectedVideoId.value}/examinations/`));
         savedExaminations.value = response.data;
         // Create markers for saved examinations
@@ -117,46 +259,18 @@ const loadSavedExaminations = async () => {
     }
     catch (error) {
         console.error('Error loading saved examinations:', error);
+        // Check if this is an anonymization error like VideoClassificationComponent
+        const errorMessage = error?.response?.data?.error || error?.response?.data?.detail || error?.message || error.toString();
+        if (errorMessage.includes('darf nicht annotiert werden') ||
+            errorMessage.includes('anonymisierung') ||
+            errorMessage.includes('anonymization')) {
+            showErrorMessage(`Video ${selectedVideoId.value} darf nicht annotiert werden, solange die Anonymisierung nicht abgeschlossen ist.`);
+        }
+        else if (error?.response?.status !== 404) {
+            await guarded(Promise.reject(error));
+        }
         savedExaminations.value = [];
         examinationMarkers.value = [];
-    }
-};
-const _onVideoChange = async () => {
-    if (selectedVideoId.value !== null) {
-        loadSavedExaminations();
-        // Load all segments for all labels
-        try {
-            // 1. Set current video in store FIRST
-            await videoStore.loadVideo(selectedVideoId.value.toString());
-            // 2. Wait for video metadata to load
-            await loadVideoMetadata();
-            // 3. Fetch segments for all labels as specified in requirements
-            console.log('Loading segments for all labels...');
-            await Promise.all(videoStore.labels.map(l => videoStore.segmentsByLabel));
-            // 4. Show toast message when all segments are loaded
-            toastStore.success({
-                text: `Alle Segmente für Video ${selectedVideoId.value} geladen`
-            });
-            // 5. Debug log the loaded segments
-            console.log('📊 Segments loaded:');
-            console.log('- Timeline segments:', rawSegments.value.length);
-            console.log('- Store segments by label:', Object.keys(videoStore.segmentsByLabel).length);
-            console.log('- First few segments:', rawSegments.value.slice(0, 3));
-        }
-        catch (error) {
-            console.error('Error loading video data:', error);
-            toastStore.error({
-                text: 'Fehler beim Laden der Video-Segmente'
-            });
-        }
-        currentMarker.value = null;
-    }
-    else {
-        // Clear everything when no video selected
-        examinationMarkers.value = [];
-        savedExaminations.value = [];
-        currentMarker.value = null;
-        videoStore.clearVideo();
     }
 };
 const loadVideoMetadata = async () => {
@@ -180,7 +294,7 @@ const loadVideoSegments = async () => {
     if (selectedVideoId.value === null)
         return;
     try {
-        await videoStore.fetchAllSegments(selectedVideoId.value.toString());
+        await videoStore.fetchAllSegments(selectedVideoId.value);
         console.log('Video segments loaded for video:', selectedVideoId.value);
         console.log('Timeline segments count:', rawSegments.value.length);
     }
@@ -191,8 +305,20 @@ const loadVideoSegments = async () => {
 const onVideoLoaded = () => {
     if (videoRef.value) {
         duration.value = videoRef.value.duration;
+        // ✅ NEW: Add play/pause event listeners for state tracking
+        videoRef.value.addEventListener('play', () => {
+            isPlaying.value = true;
+        });
+        videoRef.value.addEventListener('pause', () => {
+            isPlaying.value = false;
+        });
+        videoRef.value.addEventListener('ended', () => {
+            isPlaying.value = false;
+        });
         console.log('🎥 Video loaded - Frontend');
-        console.log(`- Video source URL: ${videoStreamUrl.value}`);
+        console.log(`- Video source URL: ${anonymizedVideoSrc.value}`);
+        console.log(`- Legacy stream URL: ${videoStreamUrl.value}`);
+        console.log(`- Video detail URL: ${videoDetail.value?.video_url}`);
         console.log(`- Video readyState: ${videoRef.value.readyState}`);
         console.log(`- Video networkState: ${videoRef.value.networkState}`);
         if (videoRef.value.videoWidth && videoRef.value.videoHeight) {
@@ -200,6 +326,9 @@ const onVideoLoaded = () => {
         }
         if (duration.value < 10) {
             console.warn(`⚠️ WARNING: Video duration seems very short (${duration.value}s)`);
+        }
+        else {
+            showSuccessMessage(`Video geladen: ${Math.round(duration.value)}s Dauer`);
         }
     }
 };
@@ -217,119 +346,126 @@ const handleTimelineClick = (event) => {
     const newTime = percentage * duration.value;
     seekToTime(newTime);
 };
-const handleTimelineSeek = (time) => {
+// TS2322-safe event handlers like VideoClassificationComponent
+const handleTimelineSeek = (...args) => {
+    const [time] = args;
     seekToTime(time);
 };
-// ✅ Event Handler Wrapper für Vue Template Compatibility
-const onTimelineSeek = (...args) => {
-    const time = args[0];
-    handleTimelineSeek(time);
-};
-const onSegmentResize = (...args) => {
-    const [segmentId, newStart, newEnd, mode, final] = args;
-    handleSegmentResize(segmentId, newStart, newEnd, mode, final);
-};
-const onSegmentMove = (...args) => {
-    const [segmentId, newStart, newEnd, final] = args;
-    handleSegmentMove(segmentId, newStart, newEnd, final);
-};
-const onSegmentCreate = (...args) => {
-    const event = args[0];
-    handleCreateSegment(event);
-};
-const onTimeSelection = (...args) => {
-    const data = args[0];
-    handleTimeSelection(data);
-};
-const onSegmentDelete = (...args) => {
-    const segment = args[0];
-    handleSegmentDelete(segment);
-};
-const handleSegmentResize = (segmentId, newStart, newEnd, mode, final) => {
-    // ✅ NEW: Verbesserte Guard für Draft/Temp-Segmente (camelCase in finalen PATCH-Aufrufen)
-    if (typeof segmentId === 'string') {
-        if (segmentId === 'draft' || /^temp-/.test(segmentId)) {
-            console.warn('[VideoExamination] Ignoring resize for draft/temp segment:', segmentId);
-            return;
-        }
+// Play/pause handler for Timeline
+const handlePlayPause = (...args) => {
+    if (!videoRef.value)
+        return;
+    if (videoRef.value.paused) {
+        videoRef.value.play().catch(error => {
+            console.error('Error playing video:', error);
+            showErrorMessage('Fehler beim Abspielen des Videos');
+        });
     }
-    const numericId = typeof segmentId === 'string' ? parseInt(segmentId, 10) : segmentId;
-    if (isNaN(numericId)) {
+    else {
+        videoRef.value.pause();
+    }
+};
+// Segment selection handler - detects click on segment and sets it for the timeline
+const handleSegmentSelect = (...args) => {
+    const [segmentId] = args;
+    selectedSegmentId.value = segmentId;
+    console.log('Segment selected:', segmentId);
+};
+const handleSegmentResize = (...args) => {
+    const [segmentId, newStart, newEnd, _mode, _final] = args;
+    if (!Number.isFinite(segmentId)) {
         console.warn('[VideoExamination] Invalid segment ID for resize:', segmentId);
         return;
     }
-    if (final) {
-        // ✅ NEW: Sofortige Previews + Speichern bei Mouse-Up
-        videoStore.patchSegmentLocally(numericId, { startTime: newStart, endTime: newEnd });
-        videoStore.updateSegment(numericId, { startTime: newStart, endTime: newEnd });
-        console.log(`✅ Segment ${numericId} resized and saved: ${formatTime(newStart)} - ${formatTime(newEnd)}`);
+    if (segmentId < 0) {
+        // Draft segment: keep it purely frontend
+        videoStore.patchDraftSegment(segmentId, {
+            startTime: newStart,
+            endTime: newEnd
+        });
     }
     else {
-        // ✅ NEW: Real-time preview während Drag ohne Backend-Aufruf
-        videoStore.patchSegmentLocally(numericId, { startTime: newStart, endTime: newEnd });
-        console.log(`Preview resize segment ${numericId} ${mode}: ${formatTime(newStart)} - ${formatTime(newEnd)}`);
+        // Existing segment: patch locally and mark isDirty
+        videoStore.patchSegmentLocally(segmentId, {
+            startTime: newStart,
+            endTime: newEnd
+        });
     }
+    // ❌ Absolutely no backend call here, this should use the drafts because of the load on the backend.
 };
-const handleSegmentMove = (segmentId, newStart, newEnd, final) => {
-    // Verbesserte Guard für Draft/Temp-Segmente (camelCase in finalen PATCH-Aufrufen)
-    if (typeof segmentId === 'string') {
-        if (segmentId === 'draft' || /^temp-/.test(segmentId)) {
-            console.warn('[VideoExamination] Ignoring move for draft/temp segment:', segmentId);
-            return;
-        }
-    }
-    const numericId = typeof segmentId === 'string' ? parseInt(segmentId, 10) : segmentId;
-    if (isNaN(numericId)) {
+const handleSegmentMove = (...args) => {
+    const [segmentId, newStart, newEnd, _final] = args;
+    if (!Number.isFinite(segmentId)) {
         console.warn('[VideoExamination] Invalid segment ID for move:', segmentId);
         return;
     }
-    if (final) {
-        videoStore.patchSegmentLocally(numericId, { startTime: newStart, endTime: newEnd });
-        videoStore.updateSegment(numericId, { startTime: newStart, endTime: newEnd });
-        console.log(`✅ Segment ${numericId} moved and saved: ${formatTime(newStart)} - ${formatTime(newEnd)}`);
+    if (segmentId < 0) {
+        videoStore.patchDraftSegment(segmentId, {
+            startTime: newStart,
+            endTime: newEnd
+        });
     }
     else {
-        // ✅ NEW: Real-time preview während Drag ohne Backend-Aufruf
-        videoStore.patchSegmentLocally(numericId, { startTime: newStart, endTime: newEnd });
-        console.log(`Preview move segment ${numericId}: ${formatTime(newStart)} - ${formatTime(newEnd)}`);
+        videoStore.patchSegmentLocally(segmentId, {
+            startTime: newStart,
+            endTime: newEnd
+        });
     }
 };
-const handleTimeSelection = (data) => {
-    // Handle time selection for creating new segments
+const handleTimeSelection = (...args) => {
+    const [data] = args;
+    // ✅ FIXED: Only create segment if we have a selected label type
     if (selectedLabelType.value && selectedVideoId.value) {
+        console.log(`Creating segment from time selection: ${formatTime(data.start)} - ${formatTime(data.end)} with label: ${selectedLabelType.value}`);
         handleCreateSegment({
             label: selectedLabelType.value,
             start: data.start,
             end: data.end
         });
     }
-};
-const handleCreateSegment = async (event) => {
-    if (selectedVideoId.value) {
-        // FIX: Use the correct method signature from videoStore
-        await videoStore.createSegment?.(selectedVideoId.value.toString(), event.label, event.start, event.end);
+    else {
+        console.warn('Cannot create segment: no label selected or no video selected');
+        showErrorMessage('Bitte wählen Sie ein Label aus, bevor Sie ein Segment erstellen.');
     }
 };
-const handleSegmentDelete = async (segment) => {
-    if (!segment.id || typeof segment.id !== 'number') {
-        console.warn('Cannot delete draft or temporary segment:', segment.id);
-        return;
-    }
-    try {
-        // 1. Remove from store
-        videoStore.removeSegment(segment.id);
-        // 2. Perform API call
-        await videoStore.deleteSegment(segment.id);
-        toastStore.success({
-            text: `Segment gelöscht: ${getTranslationForLabel(segment.label)}`
-        });
-    }
-    catch (err) {
-        console.error('Segment konnte nicht gelöscht werden:', err);
-        toastStore.error({
-            text: 'Fehler beim Löschen des Segments'
-        });
-    }
+const handleCreateSegment = (...args) => {
+    const [event] = args;
+    return new Promise(async (resolve, reject) => {
+        try {
+            if (selectedVideoId.value) {
+                await videoStore.createSegment?.(selectedVideoId.value, event.label, event.start, event.end);
+                showSuccessMessage(`Segment erstellt: ${getTranslationForLabel(event.label)}`);
+            }
+            resolve();
+        }
+        catch (error) {
+            await guarded(Promise.reject(error));
+            reject(error);
+        }
+    });
+};
+const handleSegmentDelete = (...args) => {
+    const [segment] = args;
+    return new Promise(async (resolve, reject) => {
+        if (!segment.id || typeof segment.id !== 'number') {
+            console.warn('Cannot delete draft or temporary segment:', segment.id);
+            resolve();
+            return;
+        }
+        try {
+            // 1. Remove from store
+            videoStore.removeSegment(segment.id);
+            // 2. Perform API call
+            await videoStore.deleteSegment(segment.id);
+            showSuccessMessage(`Segment gelöscht: ${getTranslationForLabel(segment.label)}`);
+            resolve();
+        }
+        catch (err) {
+            console.error('Segment konnte nicht gelöscht werden:', err);
+            await guarded(Promise.reject(err));
+            reject(err);
+        }
+    });
 };
 const seekToTime = (time) => {
     if (videoRef.value && time >= 0 && time <= duration.value) {
@@ -374,36 +510,6 @@ const cancelLabelMarking = () => {
     selectedLabelType.value = '';
     console.log('Label-Markierung abgebrochen');
 };
-const onExaminationSaved = async (examination) => {
-    // Add new examination to list
-    savedExaminations.value.push(examination);
-    // Create new marker
-    const marker = {
-        id: `exam-${examination.id}`,
-        timestamp: examination.timestamp,
-        examination_data: examination.data
-    };
-    examinationMarkers.value.push(marker);
-    // ✅ NEW: Create corresponding annotation for examination
-    try {
-        const annotationStore = useAnnotationStore();
-        const authStore = useAuthStore();
-        // Ensure mock user is initialized
-        authStore.initMockUser();
-        if (authStore.user?.id && selectedVideoId.value) {
-            await annotationStore.createExaminationAnnotation(selectedVideoId.value.toString(), examination.timestamp, examination.examination_type || 'examination', examination.id, authStore.user.id);
-            console.log(`✅ Created annotation for examination ${examination.id}`);
-        }
-        else {
-            console.warn('No authenticated user or video ID found for examination annotation creation');
-        }
-    }
-    catch (annotationError) {
-        console.error('Failed to create examination annotation:', annotationError);
-        // Don't fail the examination save if annotation fails
-    }
-    console.log('Examination saved:', examination);
-};
 const jumpToExamination = (examination) => {
     seekToTime(examination.timestamp);
     currentMarker.value = examinationMarkers.value.find(m => m.id === `exam-${examination.id}`) || null;
@@ -418,11 +524,158 @@ const deleteExamination = async (examinationId) => {
         if (currentMarker.value?.id === `exam-${examinationId}`) {
             currentMarker.value = null;
         }
+        showSuccessMessage(`Untersuchung ${examinationId} gelöscht`);
         console.log('Examination deleted:', examinationId);
     }
     catch (error) {
         console.error('Error deleting examination:', error);
+        await guarded(Promise.reject(error));
     }
+};
+// Validate all video segments (complete video review)
+const submitVideoSegments = async () => {
+    if (!selectedVideoId.value) {
+        showErrorMessage('Kein Video ausgewählt');
+        return;
+    }
+    const segmentCount = timelineSegmentsForSelectedVideo.value.length;
+    if (segmentCount === 0) {
+        showErrorMessage('Keine Segmente zum Validieren vorhanden');
+        return;
+    }
+    // Confirm with user before validation
+    if (!confirm(`Möchten Sie alle ${segmentCount} Segmente von Video ${selectedVideoId.value} als validiert markieren? Außerhalb-Segmente werden danach gelöscht.`)) {
+        return;
+    }
+    // Build payload including updated start/end times (in seconds)
+    const segmentPayload = timelineSegmentsForSelectedVideo.value
+        .filter(s => typeof s.id === 'number')
+        .map(s => ({
+        id: s.id,
+        // assuming Segment has startTime/endTime in seconds
+        start_time: s.startTime,
+        end_time: s.endTime,
+    }));
+    console.log('🔄 Sending segments to backend:', segmentPayload);
+    try {
+        console.log(`🔍 Validating all segments for video ${selectedVideoId.value}...`);
+        const response = await axiosInstance.post(r(`media/videos/${selectedVideoId.value}/segments/validate-bulk/`), {
+            segmentIds: segmentPayload.map(s => s.id),
+            segments: segmentPayload,
+            isValidated: true,
+            notes: `Vollständige Video-Review abgeschlossen am ${new Date().toLocaleString('de-DE')}`,
+            informationSourceName: 'manual_annotation', // or 'manual_validation', see backend
+        });
+        console.log('✅ Validation response:', response.data);
+        showSuccessMessage(`Erfolgreich! ${response.data.updatedCount} von ${response.data.totalSegments ?? response.data.requestedCount} Segmenten validiert.`);
+        // Reload segments to reflect validation status + updated times
+        await loadVideoSegments();
+    }
+    catch (error) {
+        console.error('❌ Error validating video segments:', error);
+        const errorMsg = error?.response?.data?.error || error?.message || 'Unbekannter Fehler';
+        showErrorMessage(`Validierung fehlgeschlagen: ${errorMsg}`);
+    }
+};
+const saveSegmentChanges = async () => {
+    try {
+        await videoStore.persistDirtySegments();
+        await loadVideoSegments();
+        showSuccessMessage('Segment-Änderungen gespeichert');
+    }
+    catch (error) {
+        console.error('Fehler beim Speichern der Segment-Änderungen:', error);
+        await guarded(Promise.reject(error));
+    }
+};
+const discardSegmentChanges = () => {
+    // simplest version: reload from backend
+    if (!selectedVideoId.value)
+        return;
+    videoStore.fetchVideoSegments(selectedVideoId.value);
+    showSuccessMessage('Lokale Änderungen verworfen');
+};
+// Video event handlers from AnonymizationValidationComponent
+const onVideoError = (event) => {
+    console.error('Video loading error:', event);
+    const video = event.target;
+    console.error('Video error details:', {
+        error: video.error,
+        networkState: video.networkState,
+        readyState: video.readyState,
+        currentSrc: video.currentSrc
+    });
+    showErrorMessage('Fehler beim Laden des Videos. Bitte versuchen Sie es erneut.');
+};
+const onVideoLoadStart = () => {
+    console.log('Video loading started for:', anonymizedVideoSrc.value);
+};
+const onVideoCanPlay = () => {
+    console.log('Video can play, loaded successfully');
+    showSuccessMessage('Video erfolgreich geladen');
+};
+// ✅ NEW: Helper functions for video status display
+const getVideoStatusIndicator = (videoId) => {
+    const item = overview.value.find(o => o.id === videoId && o.mediaType === 'video');
+    if (!item)
+        return '';
+    const statusIndicators = {
+        'not_started': '⏳ Wartend',
+        'processing_anonymization': '🔄 In Verarbeitung',
+        'extracting_frames': '🎬 Frames',
+        'done_processing_anonymization': '✅ Anonymisiert - Validierung steht aus',
+        'validated': '🛡️ Validiert & Anonymisiert',
+        'failed': '❌ Fehler'
+    };
+    return statusIndicators[item.anonymizationStatus] || item.anonymizationStatus;
+};
+const markValidationFinishedRemoveOutside = async (videoId) => {
+    try {
+        await axiosInstance.post(r(`media/videos/${videoId}/segments/validation-status/`), {
+            isValidated: true,
+            notes: `Validierung manuell als abgeschlossen markiert am ${new Date().toLocaleString('de-DE')}`,
+            informationSourceName: 'manual_validation',
+        });
+        showSuccessMessage(`Validierung für Video ${videoId} als abgeschlossen markiert`);
+        // Refresh overview to reflect status change
+        await anonymizationStore.fetchOverview();
+    }
+    catch (error) {
+        console.error('Error marking validation as finished:', error);
+        await guarded(Promise.reject(error));
+    }
+};
+const getVideoCountByStatus = (status) => {
+    return overview.value.filter(o => o.mediaType === 'video' && o.anonymizationStatus === status).length;
+};
+const getStatusBadgeClass = (status) => {
+    const classes = {
+        'not_started': 'bg-secondary',
+        'processing_anonymization': 'bg-warning',
+        'extracting_frames': 'bg-info',
+        'predicting_segments': 'bg-info',
+        'done_processing_anonymization': 'bg-success',
+        'validated': 'bg-primary',
+        'failed': 'bg-danger'
+    };
+    return classes[status] || 'bg-secondary';
+};
+const getStatusText = (status) => {
+    const texts = {
+        'not_started': 'Nicht gestartet',
+        'processing_anonymization': 'Anonymisierung läuft',
+        'extracting_frames': 'Frames extrahieren',
+        'predicting_segments': 'Segmente vorhersagen',
+        'done_processing_anonymization': 'Fertig',
+        'validated': 'Validiert',
+        'failed': 'Fehlgeschlagen'
+    };
+    return texts[status] || status;
+};
+// Enhanced validation status tracking
+const isVideoValidated = (videoId) => {
+    const item = overview.value.find(o => o.id === videoId && o.mediaType === 'video');
+    return item?.anonymizationStatus === 'validated';
 };
 debugger; /* PartiallyEnd: #3632/scriptSetup.vue */
 const __VLS_ctx = {};
@@ -430,11 +683,59 @@ let __VLS_components;
 let __VLS_directives;
 /** @type {__VLS_StyleScopedClasses['examination-marker']} */ ;
 /** @type {__VLS_StyleScopedClasses['list-group-item']} */ ;
+/** @type {__VLS_StyleScopedClasses['requirement-generator-embedded']} */ ;
+/** @type {__VLS_StyleScopedClasses['requirement-generator-embedded']} */ ;
+/** @type {__VLS_StyleScopedClasses['requirement-generator-embedded']} */ ;
+/** @type {__VLS_StyleScopedClasses['requirement-generator-embedded']} */ ;
+/** @type {__VLS_StyleScopedClasses['requirement-generator-embedded']} */ ;
+/** @type {__VLS_StyleScopedClasses['requirement-generator-embedded']} */ ;
+/** @type {__VLS_StyleScopedClasses['requirement-generator-embedded']} */ ;
+/** @type {__VLS_StyleScopedClasses['requirement-generator-embedded']} */ ;
+/** @type {__VLS_StyleScopedClasses['requirement-generator-embedded']} */ ;
+/** @type {__VLS_StyleScopedClasses['requirement-generator-embedded']} */ ;
+/** @type {__VLS_StyleScopedClasses['requirement-generator-embedded']} */ ;
+/** @type {__VLS_StyleScopedClasses['requirement-generator-embedded']} */ ;
+/** @type {__VLS_StyleScopedClasses['status-badge-container']} */ ;
+/** @type {__VLS_StyleScopedClasses['validation-status-alert']} */ ;
 // CSS variable injection 
 // CSS variable injection end 
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "container-fluid py-4" },
 });
+if (__VLS_ctx.errorMessage) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "alert alert-danger alert-dismissible fade show" },
+        role: "alert",
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+        ...{ class: "material-icons me-2" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+    (__VLS_ctx.errorMessage);
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+        ...{ onClick: (__VLS_ctx.clearErrorMessage) },
+        type: "button",
+        ...{ class: "btn-close" },
+        'aria-label': "Close",
+    });
+}
+if (__VLS_ctx.successMessage) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "alert alert-success alert-dismissible fade show" },
+        role: "alert",
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+        ...{ class: "material-icons me-2" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+    (__VLS_ctx.successMessage);
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+        ...{ onClick: (__VLS_ctx.clearSuccessMessage) },
+        type: "button",
+        ...{ class: "btn-close" },
+        'aria-label': "Close",
+    });
+}
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "row" },
 });
@@ -447,7 +748,7 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.d
     ...{ class: "row" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "col-lg-8" },
+    ...{ class: "col-lg-12" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "card" },
@@ -477,14 +778,15 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElement
     value: (null),
 });
 (__VLS_ctx.hasVideos ? 'Bitte Video auswählen...' : 'Keine Videos verfügbar');
-for (const [annotatableVideos] of __VLS_getVForSourceType((__VLS_ctx.videos))) {
+for (const [video] of __VLS_getVForSourceType((__VLS_ctx.annotatableVideos))) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-        key: (annotatableVideos.id),
-        value: (annotatableVideos.id),
+        key: (video.id),
+        value: (video.id),
     });
-    (annotatableVideos.original_file_name || 'Video Nr. ' + annotatableVideos.id);
-    ('Center:' + annotatableVideos.centerName || 'Unbekanntes Zentrum');
-    ('Processor:' + annotatableVideos.processorName || 'Unbekannter Prozessor');
+    (video.original_file_name || 'Video Nr. ' + video.id);
+    (__VLS_ctx.getVideoStatusIndicator(video.id));
+    (video.centerName || 'Unbekannt');
+    (video.processorName || 'Unbekannt');
 }
 if (!__VLS_ctx.hasVideos) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
@@ -492,7 +794,39 @@ if (!__VLS_ctx.hasVideos) {
     });
     (__VLS_ctx.noVideosMessage);
 }
-if (!__VLS_ctx.videoStreamUrl && __VLS_ctx.hasVideos) {
+if (__VLS_ctx.videos.length > 0) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "mt-2" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "d-flex flex-wrap gap-2 align-items-center" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+        ...{ class: "text-muted" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+        ...{ class: "badge bg-success" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+        ...{ class: "fas fa-check me-1" },
+    });
+    (__VLS_ctx.getVideoCountByStatus('done_processing_anonymization'));
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+        ...{ class: "badge bg-primary" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+        ...{ class: "fas fa-check-double me-1" },
+    });
+    (__VLS_ctx.getVideoCountByStatus('validated'));
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+        ...{ class: "badge bg-secondary" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+        ...{ class: "fas fa-clock me-1" },
+    });
+    (__VLS_ctx.videos.length - __VLS_ctx.annotatableVideos.length);
+}
+if (!__VLS_ctx.anonymizedVideoSrc && __VLS_ctx.hasVideos) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "text-center text-muted py-5" },
     });
@@ -503,6 +837,28 @@ if (!__VLS_ctx.videoStreamUrl && __VLS_ctx.hasVideos) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
         ...{ class: "mt-2" },
     });
+    if (__VLS_ctx.selectedVideoId) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "alert alert-info mt-2" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "d-flex align-items-center justify-content-center" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: "fas fa-info-circle me-2" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "text-start" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+        (__VLS_ctx.selectedVideoId);
+        (__VLS_ctx.getVideoStatusIndicator(__VLS_ctx.selectedVideoId));
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.br, __VLS_intrinsicElements.br)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+            ...{ class: "text-muted" },
+        });
+        (__VLS_ctx.anonymizedVideoSrc || 'Wird geladen...');
+    }
 }
 if (!__VLS_ctx.hasVideos) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -518,21 +874,100 @@ if (!__VLS_ctx.hasVideos) {
     (__VLS_ctx.noVideosMessage);
     __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({});
 }
-if (__VLS_ctx.videoStreamUrl) {
+if (__VLS_ctx.anonymizedVideoSrc) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "video-container" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.video, __VLS_intrinsicElements.video)({
         ...{ onTimeupdate: (__VLS_ctx.handleTimeUpdate) },
         ...{ onLoadedmetadata: (__VLS_ctx.onVideoLoaded) },
+        ...{ onError: (__VLS_ctx.onVideoError) },
+        ...{ onLoadstart: (__VLS_ctx.onVideoLoadStart) },
+        ...{ onCanplay: (__VLS_ctx.onVideoCanPlay) },
         ref: "videoRef",
         'data-cy': "video-player",
-        src: (__VLS_ctx.videoStreamUrl),
+        src: (__VLS_ctx.anonymizedVideoSrc),
         controls: true,
         ...{ class: "w-100" },
         ...{ style: {} },
     });
     /** @type {typeof __VLS_ctx.videoRef} */ ;
+    if (__VLS_ctx.selectedVideoId) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "mt-3 p-3 rounded border video-status-card" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "row align-items-center" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "col-md-8" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({
+            ...{ class: "mb-1" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: "fas fa-video me-2 text-primary" },
+        });
+        (__VLS_ctx.annotatableVideos.find(v => v.id === __VLS_ctx.selectedVideoId)?.original_file_name || `Video ${__VLS_ctx.selectedVideoId}`);
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "status-badge-container mb-2" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+            ...{ class: (__VLS_ctx.getStatusBadgeClass(__VLS_ctx.overview.find(o => o.id === __VLS_ctx.selectedVideoId && o.mediaType === 'video')?.anonymizationStatus || 'not_started')) },
+            ...{ class: "badge" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: "fas fa-shield-alt me-1" },
+        });
+        (__VLS_ctx.getStatusText(__VLS_ctx.overview.find(o => o.id === __VLS_ctx.selectedVideoId && o.mediaType === 'video')?.anonymizationStatus || 'not_started'));
+        if (__VLS_ctx.timelineSegmentsForSelectedVideo.length > 0) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                ...{ class: "badge bg-info" },
+            });
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                ...{ class: "fas fa-cut me-1" },
+            });
+            (__VLS_ctx.timelineSegmentsForSelectedVideo.length);
+        }
+        if (__VLS_ctx.savedExaminations.length > 0) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                ...{ class: "badge bg-warning" },
+            });
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                ...{ class: "fas fa-stethoscope me-1" },
+            });
+            (__VLS_ctx.savedExaminations.length);
+        }
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "col-md-4 text-md-end" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+            ...{ class: "text-muted d-block" },
+        });
+        (__VLS_ctx.annotatableVideos.find(v => v.id === __VLS_ctx.selectedVideoId)?.centerName || 'Unbekannt');
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+            ...{ class: "text-muted d-block" },
+        });
+        (__VLS_ctx.annotatableVideos.find(v => v.id === __VLS_ctx.selectedVideoId)?.processorName || 'Unbekannt');
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+            ...{ class: "text-muted d-block" },
+        });
+        (__VLS_ctx.formatTime(__VLS_ctx.duration));
+    }
+}
+if (!__VLS_ctx.anonymizedVideoSrc) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+        ...{ onClick: (...[$event]) => {
+                if (!(!__VLS_ctx.anonymizedVideoSrc))
+                    return;
+                __VLS_ctx.videoStore.deleteVideo(__VLS_ctx.selectedVideoId);
+            } },
+        ...{ class: "btn btn-primary" },
+        disabled: (!__VLS_ctx.hasVideos),
+    });
 }
 if (__VLS_ctx.duration > 0) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -542,16 +977,18 @@ if (__VLS_ctx.duration > 0) {
     // @ts-ignore
     const __VLS_0 = __VLS_asFunctionalComponent(Timeline, new Timeline({
         ...{ 'onSeek': {} },
+        ...{ 'onPlayPause': {} },
+        ...{ 'onSegmentSelect': {} },
         ...{ 'onSegmentResize': {} },
         ...{ 'onSegmentMove': {} },
         ...{ 'onSegmentCreate': {} },
+        ...{ 'onSegmentDelete': {} },
         ...{ 'onTimeSelection': {} },
-        ...{ 'onDeleteSegment': {} },
         video: ({ duration: __VLS_ctx.duration }),
-        segments: (__VLS_ctx.timelineSegments),
+        segments: (__VLS_ctx.timelineSegmentsForSelectedVideo),
         labels: (__VLS_ctx.timelineLabels),
         currentTime: (__VLS_ctx.currentTime),
-        isPlaying: (false),
+        isPlaying: (__VLS_ctx.isPlaying),
         activeSegmentId: (__VLS_ctx.selectedSegmentId),
         showWaveform: (false),
         selectionMode: (true),
@@ -559,16 +996,18 @@ if (__VLS_ctx.duration > 0) {
     }));
     const __VLS_1 = __VLS_0({
         ...{ 'onSeek': {} },
+        ...{ 'onPlayPause': {} },
+        ...{ 'onSegmentSelect': {} },
         ...{ 'onSegmentResize': {} },
         ...{ 'onSegmentMove': {} },
         ...{ 'onSegmentCreate': {} },
+        ...{ 'onSegmentDelete': {} },
         ...{ 'onTimeSelection': {} },
-        ...{ 'onDeleteSegment': {} },
         video: ({ duration: __VLS_ctx.duration }),
-        segments: (__VLS_ctx.timelineSegments),
+        segments: (__VLS_ctx.timelineSegmentsForSelectedVideo),
         labels: (__VLS_ctx.timelineLabels),
         currentTime: (__VLS_ctx.currentTime),
-        isPlaying: (false),
+        isPlaying: (__VLS_ctx.isPlaying),
         activeSegmentId: (__VLS_ctx.selectedSegmentId),
         showWaveform: (false),
         selectionMode: (true),
@@ -578,176 +1017,223 @@ if (__VLS_ctx.duration > 0) {
     let __VLS_4;
     let __VLS_5;
     const __VLS_6 = {
-        onSeek: (__VLS_ctx.onTimelineSeek)
+        onSeek: (__VLS_ctx.handleTimelineSeek)
     };
     const __VLS_7 = {
-        onSegmentResize: (__VLS_ctx.onSegmentResize)
+        onPlayPause: (__VLS_ctx.handlePlayPause)
     };
     const __VLS_8 = {
-        onSegmentMove: (__VLS_ctx.onSegmentMove)
+        onSegmentSelect: (__VLS_ctx.handleSegmentSelect)
     };
     const __VLS_9 = {
-        onSegmentCreate: (__VLS_ctx.onSegmentCreate)
+        onSegmentResize: (__VLS_ctx.handleSegmentResize)
     };
     const __VLS_10 = {
-        onTimeSelection: (__VLS_ctx.onTimeSelection)
+        onSegmentMove: (__VLS_ctx.handleSegmentMove)
     };
     const __VLS_11 = {
-        onDeleteSegment: (__VLS_ctx.onSegmentDelete)
+        onSegmentCreate: (__VLS_ctx.handleCreateSegment)
+    };
+    const __VLS_12 = {
+        onSegmentDelete: (__VLS_ctx.handleSegmentDelete)
+    };
+    const __VLS_13 = {
+        onTimeSelection: (__VLS_ctx.handleTimeSelection)
     };
     var __VLS_2;
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ onClick: (__VLS_ctx.handleTimelineClick) },
-        ...{ class: "simple-timeline-track mt-2" },
-        ref: "timelineRef",
-    });
-    /** @type {typeof __VLS_ctx.timelineRef} */ ;
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "progress-bar" },
-        ...{ style: ({ width: `${(__VLS_ctx.currentTime / __VLS_ctx.duration) * 100}%` }) },
-    });
-    for (const [marker] of __VLS_getVForSourceType((__VLS_ctx.examinationMarkers))) {
+    if (__VLS_ctx.selectedVideoId && __VLS_ctx.timelineSegmentsForSelectedVideo.length > 0) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            key: (marker.id),
-            ...{ class: "examination-marker" },
-            ...{ style: ({ left: `${(marker.timestamp / __VLS_ctx.duration) * 100}%` }) },
-            title: (`Untersuchung bei ${__VLS_ctx.formatTime(marker.timestamp)}`),
+            ...{ class: "mt-3 d-flex gap-2" },
         });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+            ...{ onClick: (__VLS_ctx.discardSegmentChanges) },
+            ...{ class: "btn btn-outline-secondary" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+            ...{ onClick: (...[$event]) => {
+                    if (!(__VLS_ctx.duration > 0))
+                        return;
+                    if (!(__VLS_ctx.selectedVideoId && __VLS_ctx.timelineSegmentsForSelectedVideo.length > 0))
+                        return;
+                    __VLS_ctx.saveSegmentChanges;
+                    __VLS_ctx.submitVideoSegments;
+                } },
+            ...{ class: "btn" },
+            ...{ class: (__VLS_ctx.hasUnsavedChanges ? 'btn-primary' : 'btn-outline-secondary') },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ onClick: (__VLS_ctx.handleTimelineClick) },
+            ...{ class: "simple-timeline-track mt-2" },
+            ref: "timelineRef",
+        });
+        /** @type {typeof __VLS_ctx.timelineRef} */ ;
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "progress-bar" },
+            ...{ style: ({ width: `${(__VLS_ctx.currentTime / __VLS_ctx.duration) * 100}%` }) },
+        });
+        for (const [marker] of __VLS_getVForSourceType((__VLS_ctx.examinationMarkers))) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                key: (marker.id),
+                ...{ class: "examination-marker" },
+                ...{ style: ({ left: `${(marker.timestamp / __VLS_ctx.duration) * 100}%` }) },
+                title: (`Untersuchung bei ${__VLS_ctx.formatTime(marker.timestamp)}`),
+            });
+        }
+    }
+    if (__VLS_ctx.duration > 0) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "debug-info mt-2" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+            ...{ class: "text-muted" },
+        });
+        (__VLS_ctx.timelineSegmentsForSelectedVideo.length);
+        (__VLS_ctx.rawSegments.length);
+        (__VLS_ctx.formatTime(__VLS_ctx.duration));
+        (__VLS_ctx.isPlaying);
+        (Object.keys(__VLS_ctx.groupedSegments).length);
+    }
+    if (__VLS_ctx.selectedVideoId) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "timeline-controls mt-4" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "d-flex align-items-center gap-3" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "d-flex align-items-center" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+            ...{ class: "form-label mb-0 me-2" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
+            ...{ onChange: (__VLS_ctx.onLabelSelect) },
+            value: (__VLS_ctx.selectedLabelType),
+            ...{ class: "form-select form-select-sm control-select" },
+            'data-cy': "label-select",
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+            value: "",
+        });
+        for (const [label] of __VLS_getVForSourceType((__VLS_ctx.timelineLabels))) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+                key: (label.id),
+                value: (label.name),
+            });
+            (__VLS_ctx.getTranslationForLabel(label.name));
+        }
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "d-flex align-items-center gap-2" },
+        });
+        if (!__VLS_ctx.isMarkingLabel) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+                ...{ onClick: (__VLS_ctx.startLabelMarking) },
+                ...{ class: "btn btn-success btn-sm control-button" },
+                disabled: (!__VLS_ctx.canStartLabeling),
+                'data-cy': "start-label-button",
+            });
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                ...{ class: "material-icons" },
+            });
+        }
+        if (__VLS_ctx.isMarkingLabel) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+                ...{ onClick: (__VLS_ctx.finishLabelMarking) },
+                ...{ class: "btn btn-warning btn-sm control-button" },
+                'data-cy': "finish-label-button",
+            });
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                ...{ class: "material-icons" },
+            });
+        }
+        if (__VLS_ctx.isMarkingLabel) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+                ...{ onClick: (__VLS_ctx.cancelLabelMarking) },
+                ...{ class: "btn btn-outline-secondary btn-sm control-button" },
+            });
+        }
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+            ...{ class: "ms-3 text-muted" },
+        });
+        (__VLS_ctx.formatTime(__VLS_ctx.currentTime));
+        (__VLS_ctx.formatTime(__VLS_ctx.duration));
+        if (__VLS_ctx.videoStore.draftSegment) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: "alert alert-info mt-2 mb-0" },
+            });
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({});
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                ...{ class: "material-icons align-middle me-1" },
+                ...{ style: {} },
+            });
+            (__VLS_ctx.getTranslationForLabel(__VLS_ctx.videoStore.draftSegment.label));
+            if (__VLS_ctx.videoStore.draftSegment.endTime) {
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+                (__VLS_ctx.formatTime(__VLS_ctx.videoStore.draftSegment.startTime));
+                (__VLS_ctx.formatTime(__VLS_ctx.videoStore.draftSegment.endTime));
+            }
+            else {
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+                (__VLS_ctx.formatTime(__VLS_ctx.videoStore.draftSegment.startTime));
+            }
+        }
     }
 }
-if (__VLS_ctx.duration > 0) {
+if (__VLS_ctx.selectedVideoId && __VLS_ctx.timelineSegmentsForSelectedVideo.length > 0) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "debug-info mt-2" },
+        ...{ class: "mt-3" },
     });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
-        ...{ class: "text-muted" },
-    });
-    (__VLS_ctx.rawSegments.length);
-    (__VLS_ctx.formatTime(__VLS_ctx.duration));
-    (Object.keys(__VLS_ctx.groupedSegments).length);
-}
-if (__VLS_ctx.selectedVideoId) {
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "timeline-controls mt-4" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "d-flex align-items-center gap-3" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "d-flex align-items-center" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
-        ...{ class: "form-label mb-0 me-2" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
-        ...{ onChange: (__VLS_ctx.onLabelSelect) },
-        value: (__VLS_ctx.selectedLabelType),
-        ...{ class: "form-select form-select-sm control-select" },
-        'data-cy': "label-select",
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-        value: "",
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-        value: "appendix",
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-        value: "blood",
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-        value: "diverticule",
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-        value: "grasper",
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-        value: "ileocaecalvalve",
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-        value: "ileum",
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-        value: "low_quality",
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-        value: "nbi",
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-        value: "needle",
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-        value: "outside",
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-        value: "polyp",
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-        value: "snare",
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-        value: "water_jet",
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-        value: "wound",
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "d-flex align-items-center gap-2" },
-    });
-    if (!__VLS_ctx.isMarkingLabel) {
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-            ...{ onClick: (__VLS_ctx.startLabelMarking) },
-            ...{ class: "btn btn-success btn-sm control-button" },
-            disabled: (!__VLS_ctx.canStartLabeling),
-            'data-cy': "start-label-button",
-        });
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "material-icons" },
-        });
-    }
-    if (__VLS_ctx.isMarkingLabel) {
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-            ...{ onClick: (__VLS_ctx.finishLabelMarking) },
-            ...{ class: "btn btn-warning btn-sm control-button" },
-            'data-cy': "finish-label-button",
-        });
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "material-icons" },
-        });
-    }
-    if (__VLS_ctx.isMarkingLabel) {
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-            ...{ onClick: (__VLS_ctx.cancelLabelMarking) },
-            ...{ class: "btn btn-outline-secondary btn-sm control-button" },
-        });
-    }
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-        ...{ class: "ms-3 text-muted" },
-    });
-    (__VLS_ctx.formatTime(__VLS_ctx.currentTime));
-    (__VLS_ctx.formatTime(__VLS_ctx.duration));
-    if (__VLS_ctx.videoStore.draftSegment) {
+    if (__VLS_ctx.overview.find(o => o.id === __VLS_ctx.selectedVideoId && o.mediaType === 'video')?.anonymizationStatus === 'validated') {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: "alert alert-info mt-2 mb-0" },
+            ...{ class: "alert alert-success d-flex align-items-center validation-status-alert" },
         });
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({});
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "material-icons align-middle me-1" },
+            ...{ class: "fas fa-check-circle fa-2x me-3 text-success" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({
+            ...{ class: "mb-1" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: "fas fa-medal me-1" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+            ...{ class: "text-muted" },
+        });
+        (__VLS_ctx.timelineSegmentsForSelectedVideo.length);
+    }
+    else {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+            ...{ onClick: (...[$event]) => {
+                    if (!(__VLS_ctx.selectedVideoId && __VLS_ctx.timelineSegmentsForSelectedVideo.length > 0))
+                        return;
+                    if (!!(__VLS_ctx.overview.find(o => o.id === __VLS_ctx.selectedVideoId && o.mediaType === 'video')?.anonymizationStatus === 'validated'))
+                        return;
+                    __VLS_ctx.submitVideoSegments;
+                    __VLS_ctx.markValidationFinishedRemoveOutside(__VLS_ctx.selectedVideoId);
+                } },
+            ...{ class: "btn btn-success btn-lg w-100 d-flex align-items-center justify-content-center gap-2" },
             ...{ style: {} },
         });
-        (__VLS_ctx.getTranslationForLabel(__VLS_ctx.videoStore.draftSegment.label));
-        if (__VLS_ctx.videoStore.draftSegment.end) {
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
-            (__VLS_ctx.formatTime(__VLS_ctx.videoStore.draftSegment.start));
-            (__VLS_ctx.formatTime(__VLS_ctx.videoStore.draftSegment.end));
-        }
-        else {
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
-            (__VLS_ctx.formatTime(__VLS_ctx.videoStore.draftSegment.start));
-        }
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: "material-icons" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+        (__VLS_ctx.timelineSegmentsForSelectedVideo.length);
+    }
+    if (__VLS_ctx.overview.find(o => o.id === __VLS_ctx.selectedVideoId && o.mediaType === 'video')?.anonymizationStatus !== 'validated') {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
+            ...{ class: "text-muted text-center mt-2 mb-0" },
+            ...{ style: {} },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: "material-icons" },
+            ...{ style: {} },
+        });
     }
 }
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "col-lg-4" },
+    ...{ class: "col-lg-12" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "card" },
@@ -758,48 +1244,57 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.d
 __VLS_asFunctionalElement(__VLS_intrinsicElements.h5, __VLS_intrinsicElements.h5)({
     ...{ class: "mb-0" },
 });
+__VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+    ...{ class: "fas fa-clipboard-list me-2" },
+});
 if (__VLS_ctx.currentMarker) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
         ...{ class: "text-muted" },
     });
     (__VLS_ctx.formatTime(__VLS_ctx.currentMarker.timestamp));
 }
+if (__VLS_ctx.selectedVideoId) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "mt-2" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "alert alert-info alert-sm mb-0" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+        ...{ class: "fas fa-info-circle me-1" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+    (__VLS_ctx.selectedVideoId);
+}
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "card-body" },
+    ...{ class: "card-body p-0" },
+    ...{ style: {} },
 });
 if (__VLS_ctx.showExaminationForm) {
-    /** @type {[typeof SimpleExaminationForm, ]} */ ;
+    /** @type {[typeof RequirementGenerator, ]} */ ;
     // @ts-ignore
-    const __VLS_12 = __VLS_asFunctionalComponent(SimpleExaminationForm, new SimpleExaminationForm({
-        ...{ 'onExaminationSaved': {} },
-        videoTimestamp: (__VLS_ctx.currentTime),
-        videoId: (__VLS_ctx.selectedVideoId),
-        dataCy: "examination-form",
+    const __VLS_14 = __VLS_asFunctionalComponent(RequirementGenerator, new RequirementGenerator({
+        ...{ class: "requirement-generator-embedded" },
+        dataCy: "requirement-generator",
     }));
-    const __VLS_13 = __VLS_12({
-        ...{ 'onExaminationSaved': {} },
-        videoTimestamp: (__VLS_ctx.currentTime),
-        videoId: (__VLS_ctx.selectedVideoId),
-        dataCy: "examination-form",
-    }, ...__VLS_functionalComponentArgsRest(__VLS_12));
-    let __VLS_15;
-    let __VLS_16;
-    let __VLS_17;
-    const __VLS_18 = {
-        onExaminationSaved: (__VLS_ctx.onExaminationSaved)
-    };
-    var __VLS_14;
+    const __VLS_15 = __VLS_14({
+        ...{ class: "requirement-generator-embedded" },
+        dataCy: "requirement-generator",
+    }, ...__VLS_functionalComponentArgsRest(__VLS_14));
 }
 else {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "text-center text-muted py-5" },
+        ...{ class: "text-center text-muted py-5 px-3" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "material-icons" },
-        ...{ style: {} },
+        ...{ class: "fas fa-video fa-3x mb-3 text-muted" },
     });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({});
     __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
-        ...{ class: "mt-2" },
+        ...{ class: "mb-0" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+        ...{ class: "text-muted" },
     });
 }
 if (__VLS_ctx.savedExaminations.length > 0) {
@@ -856,12 +1351,29 @@ if (__VLS_ctx.savedExaminations.length > 0) {
         });
     }
 }
+/** @type {__VLS_StyleScopedClasses['']} */ ;
 /** @type {__VLS_StyleScopedClasses['container-fluid']} */ ;
 /** @type {__VLS_StyleScopedClasses['py-4']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert-danger']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert-dismissible']} */ ;
+/** @type {__VLS_StyleScopedClasses['fade']} */ ;
+/** @type {__VLS_StyleScopedClasses['show']} */ ;
+/** @type {__VLS_StyleScopedClasses['material-icons']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-close']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert-success']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert-dismissible']} */ ;
+/** @type {__VLS_StyleScopedClasses['fade']} */ ;
+/** @type {__VLS_StyleScopedClasses['show']} */ ;
+/** @type {__VLS_StyleScopedClasses['material-icons']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-close']} */ ;
 /** @type {__VLS_StyleScopedClasses['row']} */ ;
 /** @type {__VLS_StyleScopedClasses['col-12']} */ ;
 /** @type {__VLS_StyleScopedClasses['row']} */ ;
-/** @type {__VLS_StyleScopedClasses['col-lg-8']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-lg-12']} */ ;
 /** @type {__VLS_StyleScopedClasses['card']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-header']} */ ;
 /** @type {__VLS_StyleScopedClasses['pb-0']} */ ;
@@ -871,11 +1383,43 @@ if (__VLS_ctx.savedExaminations.length > 0) {
 /** @type {__VLS_StyleScopedClasses['form-label']} */ ;
 /** @type {__VLS_StyleScopedClasses['form-select']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['flex-wrap']} */ ;
+/** @type {__VLS_StyleScopedClasses['gap-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['bg-success']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-check']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['bg-primary']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-check-double']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['bg-secondary']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-clock']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['py-5']} */ ;
 /** @type {__VLS_StyleScopedClasses['material-icons']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert-info']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['justify-content-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-info-circle']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-start']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['py-5']} */ ;
@@ -883,8 +1427,53 @@ if (__VLS_ctx.savedExaminations.length > 0) {
 /** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['video-container']} */ ;
 /** @type {__VLS_StyleScopedClasses['w-100']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['p-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['rounded']} */ ;
+/** @type {__VLS_StyleScopedClasses['border']} */ ;
+/** @type {__VLS_StyleScopedClasses['video-status-card']} */ ;
+/** @type {__VLS_StyleScopedClasses['row']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-md-8']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-video']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-primary']} */ ;
+/** @type {__VLS_StyleScopedClasses['status-badge-container']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-shield-alt']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['bg-info']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-cut']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['bg-warning']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-stethoscope']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-md-4']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-md-end']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-block']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-block']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-block']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-primary']} */ ;
 /** @type {__VLS_StyleScopedClasses['timeline-wrapper']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['gap-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-secondary']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['simple-timeline-track']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['progress-bar']} */ ;
@@ -931,18 +1520,67 @@ if (__VLS_ctx.savedExaminations.length > 0) {
 /** @type {__VLS_StyleScopedClasses['material-icons']} */ ;
 /** @type {__VLS_StyleScopedClasses['align-middle']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
-/** @type {__VLS_StyleScopedClasses['col-lg-4']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert-success']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['validation-status-alert']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-check-circle']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-2x']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-success']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-medal']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-success']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-lg']} */ ;
+/** @type {__VLS_StyleScopedClasses['w-100']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['justify-content-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['gap-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['material-icons']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['material-icons']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-lg-12']} */ ;
 /** @type {__VLS_StyleScopedClasses['card']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-header']} */ ;
 /** @type {__VLS_StyleScopedClasses['pb-0']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-clipboard-list']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert-info']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-info-circle']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-body']} */ ;
+/** @type {__VLS_StyleScopedClasses['p-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['requirement-generator-embedded']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['py-5']} */ ;
-/** @type {__VLS_StyleScopedClasses['material-icons']} */ ;
-/** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['px-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-video']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-3x']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['card']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-header']} */ ;
@@ -970,50 +1608,70 @@ var __VLS_dollars;
 const __VLS_self = (await import('vue')).defineComponent({
     setup() {
         return {
-            SimpleExaminationForm: SimpleExaminationForm,
+            RequirementGenerator: RequirementGenerator,
             Timeline: Timeline,
             formatTime: formatTime,
             getTranslationForLabel: getTranslationForLabel,
             videoStore: videoStore,
-            videoStreamUrl: videoStreamUrl,
-            timelineSegments: timelineSegments,
             videos: videos,
             rawSegments: rawSegments,
+            overview: overview,
             timelineLabels: timelineLabels,
             selectedVideoId: selectedVideoId,
             currentTime: currentTime,
             duration: duration,
             fps: fps,
+            isPlaying: isPlaying,
             examinationMarkers: examinationMarkers,
             savedExaminations: savedExaminations,
             currentMarker: currentMarker,
             selectedLabelType: selectedLabelType,
             isMarkingLabel: isMarkingLabel,
             selectedSegmentId: selectedSegmentId,
+            errorMessage: errorMessage,
+            successMessage: successMessage,
             videoRef: videoRef,
             timelineRef: timelineRef,
+            hasUnsavedChanges: hasUnsavedChanges,
             onVideoChange: onVideoChange,
+            annotatableVideos: annotatableVideos,
             showExaminationForm: showExaminationForm,
+            anonymizedVideoSrc: anonymizedVideoSrc,
             hasVideos: hasVideos,
             noVideosMessage: noVideosMessage,
+            timelineSegmentsForSelectedVideo: timelineSegmentsForSelectedVideo,
             groupedSegments: groupedSegments,
             canStartLabeling: canStartLabeling,
+            clearErrorMessage: clearErrorMessage,
+            clearSuccessMessage: clearSuccessMessage,
             onVideoLoaded: onVideoLoaded,
             handleTimeUpdate: handleTimeUpdate,
             handleTimelineClick: handleTimelineClick,
-            onTimelineSeek: onTimelineSeek,
-            onSegmentResize: onSegmentResize,
-            onSegmentMove: onSegmentMove,
-            onSegmentCreate: onSegmentCreate,
-            onTimeSelection: onTimeSelection,
-            onSegmentDelete: onSegmentDelete,
+            handleTimelineSeek: handleTimelineSeek,
+            handlePlayPause: handlePlayPause,
+            handleSegmentSelect: handleSegmentSelect,
+            handleSegmentResize: handleSegmentResize,
+            handleSegmentMove: handleSegmentMove,
+            handleTimeSelection: handleTimeSelection,
+            handleCreateSegment: handleCreateSegment,
+            handleSegmentDelete: handleSegmentDelete,
             onLabelSelect: onLabelSelect,
             startLabelMarking: startLabelMarking,
             finishLabelMarking: finishLabelMarking,
             cancelLabelMarking: cancelLabelMarking,
-            onExaminationSaved: onExaminationSaved,
             jumpToExamination: jumpToExamination,
             deleteExamination: deleteExamination,
+            submitVideoSegments: submitVideoSegments,
+            saveSegmentChanges: saveSegmentChanges,
+            discardSegmentChanges: discardSegmentChanges,
+            onVideoError: onVideoError,
+            onVideoLoadStart: onVideoLoadStart,
+            onVideoCanPlay: onVideoCanPlay,
+            getVideoStatusIndicator: getVideoStatusIndicator,
+            markValidationFinishedRemoveOutside: markValidationFinishedRemoveOutside,
+            getVideoCountByStatus: getVideoCountByStatus,
+            getStatusBadgeClass: getStatusBadgeClass,
+            getStatusText: getStatusText,
         };
     },
 });

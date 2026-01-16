@@ -1,19 +1,38 @@
 [Unit]
 Description=LX-Annotate File Watcher Service
-After=network.target
-Wants=network.target
+After=network-online.target
+Wants=network-online.target
 
 [Service]
 Type=simple
 User=admin
 Group=admin
-WorkingDirectory=/home/admin/test/lx-annotate
-Environment=DJANGO_SETTINGS_MODULE=lx_annotate.settings.dev
-Environment=WATCHER_LOG_LEVEL=INFO
-Environment=PYTHONPATH=/home/admin/test/lx-annotate
-ExecStart=/home/admin/test/lx-annotate/.devenv/state/venv/bin/python /home/admin/test/lx-annotate/scripts/file_watcher.py
+
+# ... limits and security settings ...
+
+# ------------------------------------------------------------------
+# NO EXTERNAL SCRIPT REQUIRED
+# We use /bin/bash -c to run a small script logic immediately.
+# Note the use of single quotes ' around the whole command.
+# ------------------------------------------------------------------
+ExecStart=/bin/bash -c ' \
+    # 1. Define possible paths \
+    PATHS=("/home/admin/dev/lx-annotate" "/home/admin/lx-annotate"); \
+    ROOT=""; \
+    # 2. Loop to find which one exists \
+    for p in "${PATHS[@]}"; do \
+        if [ -d "$p" ]; then ROOT="$p"; break; fi; \
+    done; \
+    # 3. Fallback or Execute \
+    if [ -z "$ROOT" ]; then echo "Repo not found"; exit 1; fi; \
+    # 4. Run the app using the discovered root \
+    exec "$ROOT/.devenv/state/venv/bin/python" "$ROOT/scripts/file_watcher.py" \
+'
+
 Restart=always
 RestartSec=10
+TimeoutStartSec=60
+
 StandardOutput=journal
 StandardError=journal
 
@@ -21,13 +40,22 @@ StandardError=journal
 LimitNOFILE=65536
 MemoryMax=2G
 
-# Security settings
+# Security hardening (still compatible with your writes)
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
-ReadWritePaths=/home/admin/test/lx-annotate/data
-ReadWritePaths=/home/admin/test/lx-annotate/logs
-ReadWritePaths=/home/admin/test/lx-annotate/storage
+ProtectHome=true
+
+# Allow writes (include BOTH dev checkout + XDG default used by settings_base)
+ReadWritePaths=/home/admin/dev/lx-annotate
+ReadWritePaths=/home/admin/lx-annotate
+ReadWritePaths=/home/admin/.local/share/lx-annotate
+ReadWritePaths=/tmp
+
+# (Optional) if you rely on GPU libs/devices:
+DeviceAllow=/dev/nvidiactl rw
+DeviceAllow=/dev/nvidia0 rw
+PrivateDevices=false
 
 [Install]
 WantedBy=multi-user.target

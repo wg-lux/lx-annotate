@@ -1,38 +1,48 @@
-import { defineStore } from 'pinia';
-import { reactive, ref, computed, readonly } from 'vue';
-import axiosInstance, { r } from '@/api/axiosInstance';
-import type { Finding } from '@/stores/findingStore';
+import { defineStore } from 'pinia'
+import { reactive, ref, computed, readonly } from 'vue'
+import axiosInstance, { r } from '@/api/axiosInstance'
+import type { Finding } from '@/stores/findingStore'
 
 // --- Interfaces ---
 export interface Examination {
-  id: number;
-  name: string;
-  name_de?: string;
-  name_en?: string;
-  displayName?: string;
+  id: number
+  name: string
+  name_de?: string
+  name_en?: string
+  displayName?: string
 }
 
-
-export interface LocationClassificationChoice { id: number; name: string; name_de?: string }
-export interface MorphologyClassificationChoice { id: number; name: string; name_de?: string }
+export interface LocationClassificationChoice {
+  id: number
+  name: string
+  name_de?: string
+}
+export interface MorphologyClassificationChoice {
+  id: number
+  name: string
+  name_de?: string
+}
 
 export interface LocationClassification {
-  id: number; name: string; name_de?: string;
-  choices: LocationClassificationChoice[];
-  required?: boolean;
+  id: number
+  name: string
+  name_de?: string
+  choices: LocationClassificationChoice[]
+  required?: boolean
 }
 
 export interface MorphologyClassification {
-  id: number; name: string; name_de?: string;
-  choices: MorphologyClassificationChoice[];
-  required?: boolean;
+  id: number
+  name: string
+  name_de?: string
+  choices: MorphologyClassificationChoice[]
+  required?: boolean
 }
 
-
 type ClassifPayload = {
-  locationClassifications: LocationClassification[];
-  morphologyClassifications: MorphologyClassification[];
-};
+  locationClassifications: LocationClassification[]
+  morphologyClassifications: MorphologyClassification[]
+}
 
 export const useExaminationStore = defineStore('examination', {
   state: () => ({
@@ -43,33 +53,33 @@ export const useExaminationStore = defineStore('examination', {
 
     // cache (optional)
     findingsByExam: new Map<number, Finding[]>(),
-    classificationsByFinding: new Map<number, ClassifPayload>(),
+    classificationsByFinding: new Map<number, ClassifPayload>()
   }),
 
   getters: {
     examinations(state): Examination[] {
-      return state.exams;
+      return state.exams
     },
     examinationsDropdown(state): { id: number; name: string; displayName: string }[] {
-      return state.exams.map(e => ({
+      return state.exams.map((e) => ({
         id: e.id,
         name: e.name,
-        displayName: e.displayName ?? e.name_de ?? e.name,
-      }));
+        displayName: e.displayName ?? e.name_de ?? e.name
+      }))
     },
     selectedExamination(state): Examination | null {
-      return state.exams.find(e => e.id === state.selectedExaminationId) ?? null;
+      return state.exams.find((e) => e.id === state.selectedExaminationId) ?? null
     },
     availableFindings(state): Finding[] {
-      const id = state.selectedExaminationId;
-      if (!id) return [];
-      return state.findingsByExam.get(id) ?? [];
-    },
+      const id = state.selectedExaminationId
+      if (!id) return []
+      return state.findingsByExam.get(id) ?? []
+    }
   },
 
   actions: {
     setSelectedExamination(id: number | null) {
-      this.selectedExaminationId = id;
+      this.selectedExaminationId = id
     },
 
     /**
@@ -81,21 +91,22 @@ export const useExaminationStore = defineStore('examination', {
      * While patient Examinations will filter the examinations available for the patient, examinations query will return all available examinations.
      */
     async fetchExaminations(): Promise<void> {
-      this.loading = true; this.error = null;
+      this.loading = true
+      this.error = null
       try {
-        const res = await axiosInstance.get('/api/examinations/');
+        const res = await axiosInstance.get('/api/examinations/')
         // Normalize to Examination[]
         this.exams = (res.data as any[]).map((e) => ({
           id: e.id,
           name: e.name,
           name_de: e.name_de,
           name_en: e.name_en,
-          displayName: e.displayName ?? e.name_de ?? e.name_en ?? e.name,
-        }));
+          displayName: e.displayName ?? e.name_de ?? e.name_en ?? e.name
+        }))
       } catch (e: any) {
-        this.error = e?.response?.data?.detail ?? e?.message ?? 'Unbekannter Fehler';
+        this.error = e?.response?.data?.detail ?? e?.message ?? 'Unbekannter Fehler'
       } finally {
-        this.loading = false;
+        this.loading = false
       }
     },
 
@@ -104,24 +115,25 @@ export const useExaminationStore = defineStore('examination', {
      * URLs (from show_urls): /api/examinations/<int:examination_id>/findings/
      */
     async loadFindingsForExamination(examId: number): Promise<Finding[]> {
-      if (!examId) return [];
-      this.loading = true; this.error = null;
+      if (!examId) return []
+      this.loading = true
+      this.error = null
       try {
-        const res = await axiosInstance.get(`/api/examinations/${examId}/findings/`);
-        const findings: Finding[] = res.data;
-        this.findingsByExam.set(examId, findings);
-        return findings;
+        const res = await axiosInstance.get(`/api/examinations/${examId}/findings/`)
+        const findings: Finding[] = res.data
+        this.findingsByExam.set(examId, findings)
+        return findings
       } catch (e: any) {
-        this.error = e?.response?.data?.detail ?? e?.message ?? 'Unbekannter Fehler';
-        return [];
+        this.error = e?.response?.data?.detail ?? e?.message ?? 'Unbekannter Fehler'
+        return []
       } finally {
-        this.loading = false;
+        this.loading = false
       }
     },
     async getCurrentExaminationId(): Promise<number | null> {
-      if (this.selectedExaminationId) return this.selectedExaminationId;
-      await this.fetchExaminations();
-      return this.selectedExaminationId;
+      if (this.selectedExaminationId) return this.selectedExaminationId
+      await this.fetchExaminations()
+      return this.selectedExaminationId
     },
 
     /**
@@ -130,18 +142,19 @@ export const useExaminationStore = defineStore('examination', {
      * (You also have specific endpoints for location/morphology, but the combined one is easiest.)
      */
     async loadFindingClassifications(findingId: number): Promise<ClassifPayload> {
-      this.loading = true; this.error = null;
+      this.loading = true
+      this.error = null
       try {
-        const res = await axiosInstance.get(`/api/findings/${findingId}/classifications/`);
-        const payload: ClassifPayload = res.data;
-        this.classificationsByFinding.set(findingId, payload);
-        return payload;
+        const res = await axiosInstance.get(`/api/findings/${findingId}/classifications/`)
+        const payload: ClassifPayload = res.data
+        this.classificationsByFinding.set(findingId, payload)
+        return payload
       } catch (e: any) {
-        this.error = e?.response?.data?.detail ?? e?.message ?? 'Unbekannter Fehler';
-        return { locationClassifications: [], morphologyClassifications: [] };
+        this.error = e?.response?.data?.detail ?? e?.message ?? 'Unbekannter Fehler'
+        return { locationClassifications: [], morphologyClassifications: [] }
       } finally {
-        this.loading = false;
+        this.loading = false
       }
-    },
-  },
-});
+    }
+  }
+})

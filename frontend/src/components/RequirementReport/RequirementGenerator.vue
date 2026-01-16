@@ -1,10 +1,6 @@
 <template>
   <div class="requirement-generator container-fluid py-4">
-    <div v-if="patientStore.error || error || examinationStore.error" class="alert alert-danger">
-      <p v-if="patientStore.error">Patienten-Store Fehler: {{ patientStore.error }}</p>
-      <p v-if="examinationStore.error">Untersuchungs-Store Fehler: {{ examinationStore.error }}</p>
-      <p v-if="error">Lookup Fehler: {{ error }}</p>
-    </div>
+
 
     <!-- Patient and Examination Selection -->
     <div class="card mb-3">
@@ -18,19 +14,6 @@
             <div class="form-group">
               <div class="d-flex justify-content-between align-items-center mb-2">
                 <label for="patient-select">Patient auswählen</label>
-                <div v-if="selectedPatientId" class="d-flex align-items-center gap-2">
-                  <span class="badge bg-info">
-                    <i class="fas fa-user"></i> Aktiv
-                  </span>
-                  <button
-                    type="button"
-                    class="btn btn-sm btn-outline-secondary"
-                    @click="patientStore.clearCurrentPatient()"
-                    title="Patientenauswahl zurücksetzen"
-                  >
-                    <i class="fas fa-times"></i>
-                  </button>
-                </div>
               </div>
               <select
                 id="patient-select"
@@ -88,19 +71,10 @@
         </div>
       </div>
     </div>
+    <!-- under "Available Findings" card or wherever it fits best -->
 
-    <!-- Requirement Issue Display - Shows errors when they occur using the Requirement Issues Component-->
-    <div class="row g-3">
-      <div class="col-12">
-        <RequirementIssues 
-          :payload="requirementIssuesPayload" 
-          :unmet-by-set="requirementIssuesUnmetBySet" 
-        />
-      </div>
-    </div>
-
-    <!-- Lookup Data Display - Shown when all data is set and the lookup is available -->
-    <div class="row g-3" v-if="selectedPatientId && selectedExaminationId && lookup">
+    <!-- Lookup Data Display -->
+    <div v-if="lookup && debug" class="row g-3">
       <!-- Debug Info -->
       <div class="col-12">
         <div class="card">
@@ -179,21 +153,6 @@
                   <div class="d-flex justify-content-between align-items-center">
                     <span class="fw-semibold">{{ rs.name }}</span>
                     <div class="d-flex align-items-center gap-2">
-                      <!-- Issues Badges -->
-                      <template v-if="getSetIssuesCount(rs.id).total > 0">
-                        <div class="d-flex gap-1">
-                          <span v-if="getSetIssuesCount(rs.id).error > 0" class="badge bg-danger" title="Fehler">
-                            {{ getSetIssuesCount(rs.id).error }} <i class="fas fa-times-circle"></i>
-                          </span>
-                          <span v-if="getSetIssuesCount(rs.id).warning > 0" class="badge bg-warning" title="Warnungen">
-                            {{ getSetIssuesCount(rs.id).warning }} <i class="fas fa-exclamation-triangle"></i>
-                          </span>
-                          <span v-if="getSetIssuesCount(rs.id).info > 0" class="badge bg-info" title="Informationen">
-                            {{ getSetIssuesCount(rs.id).info }} <i class="fas fa-info-circle"></i>
-                          </span>
-                        </div>
-                      </template>
-                      
                       <!-- Evaluation Status Badge -->
                       <template v-if="getRequirementSetEvaluationStatus(rs.id)">
                         <span
@@ -204,17 +163,6 @@
                           {{ getRequirementSetEvaluationStatus(rs.id)!.met ? 'Erfüllt' : 'Nicht erfüllt' }}
                         </span>
                       </template>
-                      
-                      <!-- Issues Toggle Button -->
-                      <button 
-                        v-if="getSetIssuesCount(rs.id).total > 0"
-                        class="btn btn-sm btn-outline-secondary"
-                        @click="toggleIssuesForSet(rs.id)"
-                        :title="`${getSetIssuesCount(rs.id).total} Issues anzeigen/verstecken`"
-                      >
-                        <i class="fas" :class="showIssuesForSet.has(rs.id) ? 'fa-chevron-up' : 'fa-chevron-down'"></i>
-                      </button>
-                      
                       <!-- Evaluate Button -->
                       <button
                         class="btn btn-sm btn-outline-info"
@@ -244,44 +192,6 @@
               <li v-if="!requirementSets.length" class="list-group-item text-muted">Keine Sets gefunden.</li>
             </ul>
 
-            <!-- Issues Display for each set -->
-            <div v-for="rs in requirementSets" :key="`issues-${rs.id}`" class="mt-2">
-              <div 
-                v-if="showIssuesForSet.has(rs.id) && getIssuesForSet(rs.id).length > 0" 
-                class="card border-warning"
-              >
-                <div class="card-header bg-warning bg-opacity-10">
-                  <h6 class="mb-0">
-                    <i class="fas fa-exclamation-triangle text-warning me-2"></i>
-                    Issues für "{{ rs.name }}"
-                  </h6>
-                </div>
-                <div class="card-body">
-                  <div v-for="issue in getIssuesForSet(rs.id)" :key="issue.id || issue.message" class="mb-2">
-                    <div class="d-flex align-items-start gap-2">
-                      <i class="fas mt-1" :class="{
-                        'fa-times-circle text-danger': issue.severity === 'error',
-                        'fa-exclamation-triangle text-warning': issue.severity === 'warning', 
-                        'fa-info-circle text-info': issue.severity === 'info'
-                      }"></i>
-                      <div>
-                        <div class="fw-semibold">{{ issue.requirement_name || 'Allgemein' }}</div>
-                        <div class="small">{{ issue.message }}</div>
-                        <div v-if="issue.code || issue.finding_id" class="small text-muted">
-                          <span v-if="issue.code">Code: {{ issue.code }}</span>
-                          <span v-if="issue.finding_id" class="ms-2">Finding ID: {{ issue.finding_id }}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <div v-if="getIssuesForSet(rs.id).length === 0" class="text-muted small">
-                    <i class="fas fa-check-circle text-success me-1"></i>
-                    Keine Probleme
-                  </div>
-                </div>
-              </div>
-            </div>
-
             <!-- Evaluation Summary -->
             <div v-if="evaluationSummary && evaluationSummary.totalSets > 0" class="mt-3 p-3 bg-light rounded">
               <h6 class="mb-2">Evaluierungsübersicht</h6>
@@ -307,6 +217,12 @@
                 </button>
               </div>
             </div>
+          <RequirementIssues
+            v-if="lookup"
+            :patient-examination-id="lookup.patientExaminationId || null"
+            :requirement-set-ids="selectedRequirementSetIds"
+            :show-only-unmet="true"
+          />
 
           <div class="card-body">
             <!-- Debug output -->
@@ -364,7 +280,7 @@
                   <small class="text-muted">Wählen Sie eine Untersuchung aus, um verfügbare Befunde zu laden.</small>
                 </div>
             </div>
-        </div>
+        </div>alert
       </div>
     </div>
 
@@ -392,13 +308,25 @@
         </div>
       </div>
     </div>
+                    <div v-if="selectedPatientId" class="d-flex align-items-center gap-2">
+                  <span class="badge bg-info">
+                    <i class="fas fa-user"></i> Aktiv
+                  </span>
+                  <strong>Zurücksetzen:</strong>
+                  <button
+                    type="button"
+                    class="btn btn-sm btn-outline-secondary"
+                    @click="patientStore.clearCurrentPatient()"
+                    title="Patientenauswahl zurücksetzen"
+                  >
+                    <i class="fas fa-times"></i>
+                  </button>
+                </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
-import type { Ref } from 'vue';
-import { debounce } from 'lodash-es';
 import axiosInstance from '@/api/axiosInstance';
 import { usePatientStore } from '@/stores/patientStore';
 import type { Patient } from '@/stores/patientStore';
@@ -410,8 +338,7 @@ import type { PatientExamination } from '@/stores/patientExaminationStore';
 import PatientAdder from '@/components/CaseGenerator/PatientAdder.vue';
 import FindingsDetail from './FindingsDetail.vue';
 import AddableFindingsDetail from './AddableFindingsDetail.vue';
-import RequirementIssues from './RequirementIssues.vue';
-import type { EvaluateRequirementsResponse } from '@/types/api/evaluateRequirements';
+import RequirementIssues from './RequirementIssues.vue'
 
 // --- Types ---
 type RequirementSetLite = { id: number; name: string; type: string };
@@ -431,11 +358,6 @@ type LookupDict = {
   selectedChoices?: Record<string, any>;
 };
 
-// Structured requirement issues for RequirementIssues component
-const requirementIssuesPayload = computed(() => requirementStore.requirementIssuesPayload);
-const requirementIssuesUnmetBySet = computed(() => requirementStore.requirementIssuesUnmetBySet);
-const requirementIssues = computed(() => requirementStore.issues);
-
 // --- Store ---
 const patientStore = usePatientStore();
 const examinationStore = useExaminationStore();
@@ -445,6 +367,7 @@ const patientExaminationStore = usePatientExaminationStore();
 
 // --- API ---
 const LOOKUP_BASE = '/api/lookup';
+const debug = ref<boolean>(false);
 
 // --- Component State ---
 const selectedPatientId = ref<number | null>(null);
@@ -458,9 +381,13 @@ const showCreatePatientModal = ref(false);
 const successMessage = ref<string | null>(null);
 const isRestarting = ref(false); // Prevent infinite restart loops
 
-// Issues UI State
-const showIssuesForSet = ref<Set<number>>(new Set());
-
+if (error!==null) {
+  debug.value = true;
+}
+else
+{
+  debug.value = false;
+}
 
 // --- Computed from Store ---
 
@@ -704,33 +631,6 @@ const evaluationSummary = computed(() => {
   };
 });
 
-// --- Issues Management Methods ---
-
-// Get issues count for a specific requirement set
-const getSetIssuesCount = (setId: number) => {
-  const counts = requirementStore.getSeverityCounts(setId);
-  return {
-    ...counts,
-    total: counts.info + counts.warning + counts.error
-  };
-};
-
-// Toggle issues visibility for a specific set
-const toggleIssuesForSet = (setId: number) => {
-  const newSet = new Set(showIssuesForSet.value);
-  if (newSet.has(setId)) {
-    newSet.delete(setId);
-  } else {
-    newSet.add(setId);
-  }
-  showIssuesForSet.value = newSet;
-};
-
-// Get issues for a specific requirement set
-const getIssuesForSet = (setId: number) => {
-  return requirementStore.getIssuesForSet(setId);
-};
-
 // --- Methods ---
 function axiosError(e: any): string {
   if (e?.response?.data?.detail) return e.response.data.detail;
@@ -847,9 +747,6 @@ async function fetchLookupAll() {
     const res = await axiosInstance.get(`${LOOKUP_BASE}/${lookupToken.value}/all/?skip_recompute=true`);
     console.log('Lookup API response:', res.data); // Debug log
     applyLookup(res.data);
-    
-    // Ingest issues from lookup response
-    requirementStore.ingestIssues(res.data);
   } catch (e: any) {
     // Handle token expiration
     if (e?.response?.status === 404) {
@@ -953,9 +850,6 @@ async function triggerRecompute() {
     if (res.data.updates) {
       applyLookup(res.data.updates);
     }
-
-    // Ingest issues from recompute response
-    requirementStore.ingestIssues(res.data);
 
     // Fetch fresh data to get the complete updated state
     await fetchLookupAll();
@@ -1076,71 +970,6 @@ function resetLookupSession() {
   localStorage.removeItem(TOKEN_STORAGE_KEY);
   localStorage.removeItem(PATIENT_EXAM_STORAGE_KEY);
 }
-
-/**
- * Rebuild lookup session for current selection
- * 
- * This function ensures that the lookup data is always fresh when 
- * the examination selection changes. It performs a hard reset of
- * the lookup session and rebuilds it from scratch.
- */
-async function rebuildLookupForSelection() {
-  console.log('🔄 [RequirementGenerator] rebuildLookupForSelection called', {
-    selectedPatientId: selectedPatientId.value,
-    selectedExaminationId: selectedExaminationId.value,
-    currentToken: lookupToken.value,
-    currentPatientExaminationId: currentPatientExaminationId.value
-  });
-
-  // Return immediately if required selections are missing
-  if (!selectedPatientId.value || !selectedExaminationId.value) {
-    console.log('⚠️ [RequirementGenerator] Missing required selections, skipping rebuild');
-    return;
-  }
-
-  try {
-    // Store current requirement set selection to restore after rebuild
-    const previousRequirementSetIds = [...selectedRequirementSetIds.value];
-    
-    console.log('🧹 [RequirementGenerator] Resetting lookup session...');
-    // Hard reset of lookup session (clears token, heartbeat, storage, state)
-    resetLookupSession();
-    
-    // Clear requirement store state
-    requirementStore.reset();
-    
-    console.log('🏗️ [RequirementGenerator] Creating/reinitializing PatientExamination and lookup...');
-    // Create/reuse PatientExamination and initialize fresh lookup token
-    await createPatientExaminationAndInitLookup();
-    
-    // If we had selected requirement sets before, restore and trigger recompute
-    if (previousRequirementSetIds.length > 0 && lookupToken.value) {
-      console.log('🔄 [RequirementGenerator] Restoring requirement set selection and triggering recompute...', previousRequirementSetIds);
-      
-      // Restore selection (this will trigger the watcher that calls patchLookup)
-      selectedRequirementSetIds.value = previousRequirementSetIds;
-      
-      // Trigger recomputation with restored selection
-      setTimeout(async () => {
-        await triggerRecompute();
-        
-        // Follow up with evaluation
-        setTimeout(async () => {
-          await evaluateRequirementsOnChange();
-        }, 500);
-      }, 300);
-    }
-    
-    console.log('✅ [RequirementGenerator] Lookup rebuild completed successfully');
-    
-  } catch (err) {
-    console.error('❌ [RequirementGenerator] Error during lookup rebuild:', err);
-    error.value = 'Fehler beim Neuaufbau der Lookup-Session: ' + (err instanceof Error ? err.message : String(err));
-  }
-}
-
-// Debounced version to avoid burst calls on rapid selection changes
-const debouncedRebuildLookup = debounce(rebuildLookupForSelection, 100);
 
 async function resetSessionForNewPatient(): Promise<void> {
   console.log('Resetting session for new patient...');
@@ -1303,30 +1132,20 @@ watch(currentPatientExaminationId, (newId) => {
 });
 
 // --- Watchers ---
-watch(selectedExaminationId, (newId, oldId) => {
-  console.log('🔄 [RequirementGenerator] Examination selection changed:', {
-    oldId,
+watch(selectedExaminationId, (newId) => {
+  console.log('Examination selection changed:', {
     newId,
     selectedPatientId: selectedPatientId.value,
     availableExams: examinationsDropdown.value.map(e => ({ id: e.id, name: e.name }))
   });
-  
-  // Update examination store and load findings for the selected exam
   examinationStore.setSelectedExamination(newId);
   if (newId) {
     examinationStore.loadFindingsForExamination(newId);
   }
-  
-  // If we have both patient and examination selected, and this is a real change
-  // (not just initialization), rebuild the lookup session to ensure fresh data
-  if (newId && selectedPatientId.value && newId !== oldId) {
-    console.log('🔄 [RequirementGenerator] Triggering lookup rebuild for examination change...');
-    debouncedRebuildLookup();
-  }
 });
 
 watch(selectedPatientId, async (newPatientId, oldPatientId) => {
-  console.log('🔄 [RequirementGenerator] Patient selection changed:', {
+  console.log('Patient selection changed:', {
     oldPatientId,
     newPatientId,
     currentExaminationsCount: examinationsDropdown.value.length
@@ -1337,7 +1156,7 @@ watch(selectedPatientId, async (newPatientId, oldPatientId) => {
 
   // If patient actually changed (not just initialized), reset the session
   if (oldPatientId && newPatientId !== oldPatientId) {
-    console.log('🔄 [RequirementGenerator] Patient changed, resetting session for new overview...');
+    console.log('Patient changed, resetting session for new overview...');
     await resetSessionForNewPatient();
   }
 });

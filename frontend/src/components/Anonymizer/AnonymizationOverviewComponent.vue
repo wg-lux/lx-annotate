@@ -12,15 +12,8 @@
             <i class="fas fa-sync-alt" :class="{ 'fa-spin': isRefreshing }"></i>
             Aktualisieren
           </button>
-          <!-- use the same route the Validate-button jumps to -->
-          <router-link 
-            to="/anonymisierung/validierung" 
-            class="btn btn-primary btn-sm"
-          >
-            <i class="fas fa-play me-1"></i>
-            Validierung starten
-          </router-link>
         </div>
+
       </div>
 
       <div class="card-body">
@@ -43,12 +36,8 @@
           </div>
           <h5 class="text-muted">Keine Dateien vorhanden</h5>
           <p class="text-muted mb-4">
-            Laden Sie Videos oder PDFs hoch, um mit der Anonymisierung zu beginnen.
+            Laden Sie Videos oder PDFs in den data Ordner oder den import ordner, um mit der Anonymisierung zu beginnen.
           </p>
-          <router-link to="/upload" class="btn btn-primary">
-            <i class="fas fa-upload me-2"></i>
-            Dateien hochladen
-          </router-link>
         </div>
 
         <!-- Files Table -->
@@ -60,13 +49,13 @@
                 <th>Typ</th>
                 <th>Anonymisierung</th>
                 <th>Annotation</th>
+                <th>Unverarbeitete Daten vorhanden</th>
                 <th>Erstellt</th>
                 <th>Aktionen</th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="file in availableFiles" :key="file.id">
-                <!-- Filename -->
+              <tr v-for="file in availableFiles" :key="`${file.mediaType}-${file.id}`">                <!-- Filename -->
                 <td>
                   <div class="d-flex align-items-center">
                     <i 
@@ -108,6 +97,18 @@
                     class="badge"
                   >
                     {{ getStatusText(file.annotationStatus) }}
+                  </span>
+                </td>
+
+                <!-- Raw File Available -->
+                <td>
+                  <span v-if="hasOriginalFile(file)" class="text-success">
+                    <i class="fas fa-check-circle me-1"></i>
+                    Ja
+                  </span>
+                  <span v-else class="text-danger">
+                    <i class="fas fa-times-circle me-1"></i>
+                    Nein
                   </span>
                 </td>
 
@@ -169,8 +170,8 @@
 
                     <!-- View/Validate - only show when anonymization is done -->
                     <button
-                      v-if="file.anonymizationStatus === 'done'"
-                      @click="validateFile(file.id)"
+                      v-if="file.anonymizationStatus === 'done_processing_anonymization'"
+                      @click="validateFile(file.id, file.mediaType)"
                       class="btn btn-outline-success bg-success"
                       :disabled="!isReadyForValidation(file.id)"
                     >
@@ -180,7 +181,7 @@
 
                     <!-- Video Correction -->
                     <button
-                      v-if="file.mediaType === 'video' && (file.anonymizationStatus === 'done' || file.anonymizationStatus === 'validated')"
+                      v-if="file.mediaType === 'video' && (file.anonymizationStatus === 'done_processing_anonymization' || file.anonymizationStatus === 'validated')"
                       @click="correctVideo(file.id)"
                       class="btn btn-outline-warning"
                       :disabled="isProcessing(file.id)"
@@ -260,7 +261,7 @@
                   <div class="col-md-3">
                     <div class="mb-2">
                       <span class="badge bg-success fs-6">
-                        {{ getTotalByStatus('done') }}
+                        {{ getTotalByStatus('done_processing_anonymization') }}
                       </span>
                     </div>
                     <small class="text-muted">Fertig</small>
@@ -294,16 +295,15 @@ import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAnonymizationStore, type FileItem } from '@/stores/anonymizationStore';
 import { useVideoStore } from '@/stores/videoStore';
-import { useAnnotationStore } from '@/stores/annotationStore';
 import { useMediaTypeStore } from '@/stores/mediaTypeStore';
 import { usePollingProtection } from '@/composables/usePollingProtection';
 import { useMediaManagement } from '@/api/mediaManagement';
+import { type MediaType } from '../../stores/mediaTypeStore';
 
 // Composables
 const router = useRouter();
 const anonymizationStore = useAnonymizationStore();
 const videoStore = useVideoStore();
-const annotationStore = useAnnotationStore();
 const mediaStore = useMediaTypeStore();
 const pollingProtection = usePollingProtection();
 const mediaManagement = useMediaManagement();
@@ -324,6 +324,9 @@ const refreshOverview = async () => {
   isRefreshing.value = true;
   try {
     await anonymizationStore.fetchOverview();
+    mediaStore.seedTypesFromOverview(anonymizationStore.overview);
+
+
   } finally {
     isRefreshing.value = false;
   }
@@ -357,9 +360,18 @@ const correctVideo = async (fileId: number) => {
   if (file) {
     mediaStore.setCurrentItem(file as any);
   }
-  
+  else {
+    console.warn('File not found for correction:', fileId);
+    return;
+  }
+
+
+
   // Navigate directly to the correction component with the video ID
-  router.push({ name: 'AnonymisierungKorrektur', params: { fileId } });
+  router.push({ name: 'Anonymisierung Korrektur',       query: {
+        fileId: String(fileId),       
+        mediaType: file.mediaType      // 'video' | 'pdf'
+     } });
 };
 
 const isReadyForValidation = (fileId: number) => {
@@ -368,20 +380,10 @@ const isReadyForValidation = (fileId: number) => {
   if (!file) return false;
 
   // Only allow validation if anonymization is done
-  return file.anonymizationStatus === 'done' || file.anonymizationStatus === 'validated';
+  return file.anonymizationStatus === 'done_processing_anonymization';
 };
 
-const isValidated = (fileId: number) => {
-  // Check if the file is validated
-  const file = availableFiles.value.find(f => f.id === fileId);
-  if (!file) return false;
-
-  // Only allow validation if anonymization is done
-  return file.anonymizationStatus === 'validated';
-};
-
-const validateFile = async (fileId: number) => {
-  // Find the file to determine media type
+const validateFile = async (fileId: number, mediaType: string) => {
   processingFiles.value.add(fileId);
   if (!fileId) {
     console.warn('File not found for validation:', fileId);
@@ -389,29 +391,47 @@ const validateFile = async (fileId: number) => {
   }
 
   try {
-    // Set the file in MediaStore for consistency
-    const result = await anonymizationStore.setCurrentForValidation(fileId);
+    const result = await anonymizationStore.setCurrentForValidation(fileId, mediaType);
+
     if (result) {
-        const file = availableFiles.value.find(f => f.id === fileId);
-        if (!file) 
-        {
-          console.warn('File not found for validation:', fileId);
-          return;
+      // 🔧 use BOTH id and mediaType here to avoid choosing the wrong file when ids are the same (different media types)
+      const file = availableFiles.value.find(
+        f => f.id === fileId && f.mediaType === mediaType
+      );
+      if (!file) {
+        console.warn('File not found for validation with given mediaType:', { fileId, mediaType });
+        return;
+      }
+
+      mediaStore.setCurrentItem(file as any);
+      const kind = file.mediaType as MediaType;
+
+      try {
+        mediaStore.rememberType(fileId, kind, kind);
+      } catch (e) {
+        console.error('Error remembering media type for file:', fileId, e);
+      }
+
+      if (file.sensitiveMetaId) {
+        mediaStore.rememberType(file.sensitiveMetaId, kind, 'meta');
+      }
+
+      sessionStorage.setItem('last:fileId', String(fileId));
+      sessionStorage.setItem('last:scope', kind);
+
+      console.log('File set for validation:', fileId, 'file media type:', file.mediaType);
+
+      router.push({
+        name: 'AnonymisierungValidierung',
+        query: {
+          fileId: String(fileId),
+          mediaType: file.mediaType   // now correctly 'pdf' when you clicked a pdf
         }
-        else {
-          mediaStore.setCurrentItem(file as any);
+      });
     }
-    
-    // Simply navigate to validation page without changing status
-    // The status should only change when user actually completes validation
-    router.push('/anonymisierung/validierung'); 
-    
-  }
-  }
-  catch (error) {
+  } catch (error) {
     console.error('Navigation to validation failed:', error);
-  }
-  finally {
+  } finally {
     processingFiles.value.delete(fileId);
   }
 };
@@ -436,13 +456,12 @@ const reimportVideo = async (fileId: number) => {
 const reimportPdf = async (fileId: number) => {
   processingFiles.value.add(fileId);
   try {
-    // For PDFs, use reset status for now as there's no specific PDF reimport endpoint
-    // This will reset the PDF to allow re-processing
-    const result = await mediaManagement.resetProcessingStatus(fileId);
-    if (result) {
+    // Use the dedicated PDF reimport endpoint from the anonymization store
+    const success = await anonymizationStore.reimportPdf(fileId);
+    if (success) {
       // Refresh overview to get updated status
       await refreshOverview();
-      console.log('PDF re-import initiated successfully:', fileId);
+      console.log('PDF re-imported successfully:', fileId);
     } else {
       console.warn('PDF re-import failed - staying on current page');
     }
@@ -510,7 +529,7 @@ const needsReimport = (file: FileItem) => {
   
   // PDF files might need re-import if anonymization failed or no text extracted
   if (file.mediaType === 'pdf') {
-    return file.anonymizationStatus === 'failed' || file.anonymizationStatus === 'not_started';
+    return !file.metadataImported || file.anonymizationStatus === 'failed' || file.anonymizationStatus === 'not_started';
   }
   
   return false;
@@ -530,9 +549,10 @@ const getStatusBadgeClass = (status: string) => {
     'processing_anonymization': 'bg-warning',
     'extracting_frames': 'bg-info',
     'predicting_segments': 'bg-info',
-    'done': 'bg-success',
+    'done_processing_anonymization': 'bg-success',
     'validated': 'bg-success',
     'failed': 'bg-danger'
+
   };
   return classes[status] || 'bg-secondary';
 };
@@ -543,7 +563,7 @@ const getStatusText = (status: string) => {
     'processing_anonymization': 'Anonymisierung läuft',
     'extracting_frames': 'Frames extrahieren',
     'predicting_segments': 'Segmente vorhersagen',
-    'done': 'Fertig',
+    'done_processing_anonymization': 'Fertig',
     'validated': 'Validiert',
     'failed': 'Fehlgeschlagen'
   };
@@ -567,7 +587,7 @@ const getTotalByStatus = (status: string) => {
   const statusMap: { [key: string]: string[] } = {
     'not_started': ['not_started'],
     'processing': ['processing_anonymization', 'extracting_frames', 'predicting_segments'],
-    'done': ['done', 'validated'],
+    'done_processing_anonymization': ['done_processing_anonymization', 'validated'],
     'failed': ['failed']
   };
   
@@ -577,28 +597,12 @@ const getTotalByStatus = (status: string) => {
   ).length;
 };
 
-const validateSegmentsFile = async (fileId: number) => {
-  processingFiles.value.add(fileId);
-  try {
-
-    const success = await annotationStore.validateSegmentsAndExaminations(fileId);
-    if (success) {
-      // Refresh overview to get updated status
-      await refreshOverview();
-      console.log('Segments validated successfully for file', fileId);
-    } else {
-      console.warn('validateSegmentsFile failed - staying on current page');
-    }
-  } finally {
-    processingFiles.value.delete(fileId);
-  }
-};
 
 const hasOriginalFile = (file: FileItem): boolean => {
   // Check if the file has the necessary properties to indicate original file exists
   if (file.mediaType === 'video') {
     // For videos, check if rawFile exists and has a valid path
-    return !!(file.rawFile && file.rawFile.trim() !== '');
+    return videoStore.hasRawVideoFile?.valueOf() ?? false;
   } else if (file.mediaType === 'pdf') {
     // For PDFs, check if original_file exists and has a valid path
     return !!(file.rawFile && file.rawFile.trim() !== '');
@@ -612,11 +616,28 @@ const hasOriginalFile = (file: FileItem): boolean => {
 onMounted(async () => {
   // Fetch overview data
   await anonymizationStore.fetchOverview();
+  mediaStore.seedTypesFromOverview(anonymizationStore.overview);
+    console.table(
+      anonymizationStore.overview.map(f => ({
+        id: f.id,
+        fromOverview: f.mediaType,
+        remembered: mediaStore.getType(f.id) // scans both pdf/video scopes
+      }))
+    )
+
+  // Don't poll files with final states: 'done_processing_anonymization', 'validated', 'failed', 'not_started'
+  const processingStatuses = ['processing_anonymization', 'extracting_frames', 'predicting_segments'];
   
-  // Start polling for all files
   anonymizationStore.overview.forEach((file: FileItem) => {
-    anonymizationStore.startPolling(file.id);
+    if (processingStatuses.includes(file.anonymizationStatus)) {
+      console.log(`Starting polling for processing file ${file.id} (status: ${file.anonymizationStatus})`);
+      anonymizationStore.startPolling(file.id);
+    } else {
+      console.log(`Skipping polling for file ${file.id} (status: ${file.anonymizationStatus})`);
+    }
   });
+
+
 });
 
 onUnmounted(() => {

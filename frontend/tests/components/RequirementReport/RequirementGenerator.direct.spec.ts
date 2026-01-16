@@ -1,14 +1,14 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { mount } from '@vue/test-utils';
-import { nextTick, ref } from 'vue';
-import { createPinia, setActivePinia } from 'pinia';
-import RequirementGenerator from '../RequirementGenerator.vue';
+import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { mount } from '@vue/test-utils'
+import { nextTick, ref } from 'vue'
+import { createPinia, setActivePinia } from 'pinia'
+import RequirementGenerator from '../RequirementGenerator.vue'
 
 describe('RequirementGenerator - Direct Mocking', () => {
   beforeEach(() => {
-    const pinia = createPinia();
-    setActivePinia(pinia);
-  });
+    const pinia = createPinia()
+    setActivePinia(pinia)
+  })
 
   it('should render the main title', async () => {
     // Create mock stores
@@ -24,7 +24,7 @@ describe('RequirementGenerator - Direct Mocking', () => {
       error: ref(null),
       fetchPatients: vi.fn().mockResolvedValue([]),
       initializeLookupData: vi.fn().mockResolvedValue(undefined)
-    };
+    }
 
     const mockExaminationStore = {
       examinations: ref([
@@ -35,7 +35,7 @@ describe('RequirementGenerator - Direct Mocking', () => {
       isError: ref(false),
       error: ref(null),
       fetchExaminations: vi.fn().mockResolvedValue([])
-    };
+    }
 
     const mockFindingStore = {
       findings: ref([]),
@@ -43,7 +43,7 @@ describe('RequirementGenerator - Direct Mocking', () => {
       isError: ref(false),
       error: ref(null),
       fetchFindings: vi.fn().mockResolvedValue([])
-    };
+    }
 
     const mockRequirementStore = {
       requirements: ref([]),
@@ -51,7 +51,7 @@ describe('RequirementGenerator - Direct Mocking', () => {
       isError: ref(false),
       error: ref(null),
       fetchRequirements: vi.fn().mockResolvedValue([])
-    };
+    }
 
     const mockPatientExaminationStore = {
       patientExaminations: ref([]),
@@ -60,7 +60,7 @@ describe('RequirementGenerator - Direct Mocking', () => {
       error: ref(null),
       createPatientExamination: vi.fn().mockResolvedValue({ id: 1 }),
       fetchPatientExaminations: vi.fn().mockResolvedValue([])
-    };
+    }
 
     // Create a minimal wrapper that only checks title rendering
     const wrapper = mount(RequirementGenerator, {
@@ -79,12 +79,12 @@ describe('RequirementGenerator - Direct Mocking', () => {
           usePatientExaminationStore: () => mockPatientExaminationStore
         }
       }
-    });
+    })
 
     // Give Vue some time to initialize
-    await nextTick();
-    
+    await nextTick()
+
     // Check if title is rendered
-    expect(wrapper.text()).toContain('Patient Examination Report Generator');
-  });
-});
+    expect(wrapper.text()).toContain('Patient Examination Report Generator')
+  })
+})

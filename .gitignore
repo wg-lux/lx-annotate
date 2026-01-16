@@ -1,3 +1,6 @@
+conf/db.yaml
+conf/db_pwd.example
+conf/db_pwd
 .devenv-vars.json
 .devenv/
 django-settings.json
@@ -8,6 +11,7 @@ __pycache__/
 *$py.class
 *.kate-swp
 db.sqlite3
+conf/
 .direnv/
 logs/
 .env
@@ -27,7 +31,6 @@ devenv.lock
 .env
 flake.json
 storage/
-static/
 .staticfiles/
 staticfiles
 ./frontend/public/video.mp4
@@ -39,7 +42,6 @@ results/
 .Python
 build/
 develop-eggs/
-dist/
 downloads/
 eggs/
 .eggs/
@@ -121,13 +123,13 @@ result
 # (Usually these are created outside the project, but if you accidentally include one, ignore it)
 venv/
 .env/
-.env.*
 
 # -------------------------------
 # Node / NPM related (for the root and frontend)
 # -------------------------------
 node_modules/
 frontend/node_modules/
+static/img/frames_demo/*
 
 # -------------------------------
 # Frontend build and Vite-related files
@@ -158,3 +160,7 @@ Thumbs.db
 *.swp
 .env
 .env
+
+*./conf
+
+secret.key

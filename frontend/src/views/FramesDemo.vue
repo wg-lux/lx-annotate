@@ -11,7 +11,7 @@
 </template>
 
 <script>
-import Demo from '@/components/SelectFrames/Demo.vue';
+import Demo from '@/components/SelectFramesDemo/Demo.vue';
 
   
 export default {

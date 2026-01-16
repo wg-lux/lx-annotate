@@ -19,7 +19,7 @@ export class ErrorHandler {
             details,
             originalError,
             timestamp: new Date(),
-            userFriendlyMessage: this.getUserFriendlyMessage(type, message),
+            userFriendlyMessage: this.getUserFriendlyMessage(type, message)
         };
     }
     static getUserFriendlyMessage(type, originalMessage) {
@@ -69,8 +69,8 @@ export class ErrorHandler {
     }
     static handleAsyncError(asyncFn, context) {
         return asyncFn()
-            .then(data => ({ data }))
-            .catch(error => {
+            .then((data) => ({ data }))
+            .catch((error) => {
             const appError = this.handleApiError(error);
             if (context) {
                 logger.error(`Error in ${context}`, error, { appError });

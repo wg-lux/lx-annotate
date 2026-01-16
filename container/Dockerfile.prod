@@ -1,0 +1,50 @@
+# Production Dockerfile (no DevEnv) for Lx Annotate
+FROM python:3.12-slim AS base
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=on \
+    UV_LINK_MODE=copy
+
+# System dependencies (runtime)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates curl \
+    ffmpeg \
+    libpq5 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install uv
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh && \
+    echo 'export PATH="/root/.local/bin:$PATH"' >> /etc/profile
+ENV PATH="/root/.local/bin:$PATH"
+
+WORKDIR /app
+
+# Make local path sources available for uv ([tool.uv.sources])
+COPY libs/ /app/libs/
+
+# Copy project metadata for lockfile install and create venv (Requires README.md)
+COPY pyproject.toml uv.lock* README.md ./
+RUN uv sync --frozen --no-dev && \
+    . .venv/bin/activate && python --version
+
+# Copy application code
+COPY . /app
+
+# Runtime environment defaults
+ENV PATH="/app/.venv/bin:$PATH" \
+    DJANGO_SETTINGS_MODULE=config.settings.prod \
+    DJANGO_HOST=0.0.0.0 \
+    DJANGO_PORT=8117 \
+    DJANGO_ENV=production \
+    DJANGO_MODULE=lx_annotate \
+    STORAGE_DIR=/app/data \
+    DATA_DIR=/app/data
+
+EXPOSE 8117
+
+# Entry point
+COPY container/docker-entrypoint-prod.sh /app/
+RUN chmod +x /app/docker-entrypoint-prod.sh
+
+CMD ["/app/docker-entrypoint-prod.sh"]

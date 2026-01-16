@@ -33,6 +33,6 @@ export function useErrorHandler() {
         isError,
         clearError,
         handleError,
-        handleAsyncOperation,
+        handleAsyncOperation
     };
 }

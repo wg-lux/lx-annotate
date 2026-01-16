@@ -1,52 +1,83 @@
 #!/usr/bin/env python3
 """
-File Watcher Service for Automatic Video and PDF Processing
+File Watcher Service for Automatic Video and report Processing
 
 This service monitors directories for new files and automatically triggers:
 - Video anonymization and segmentation for files in data/raw_videos/
-- PDF anonymization for files in data/raw_pdfs/
+- report anonymization for files in data/raw_reports/
 
 Usage:
     python scripts/file_watcher.py
 
 Environment Variables:
-    DJANGO_SETTINGS_MODULE: Django settings module (default: lx_annotate.settings.dev)
+    DJANGO_SETTINGS_MODULE: Django settings module (default: lx_annotate.settings.settings_dev)
     WATCHER_LOG_LEVEL: Logging level (default: INFO)
 """
 
+import glob
+import logging
 import os
+import shutil
 import sys
 import time
-import logging
-import subprocess
-import shutil
-from pathlib import Path
-from typing import Set, Optional
 from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
+from typing import Set
 
+import requests
+from watchdog.events import FileCreatedEvent, FileMovedEvent, FileSystemEventHandler
 from watchdog.observers import Observer
-from watchdog.events import FileSystemEventHandler, FileCreatedEvent, FileMovedEvent
+
+try:
+    from endoreg_db.utils import data_paths as root_data_paths
+    project_root = root_data_paths["project_root"]
+except (ImportError, ModuleNotFoundError, KeyError):
+    # Fallback to determining project root from file location
+    project_root = Path(__file__).parent.parent
+
+PROJECT_ROOT = Path(project_root)
+
+# Ensure core directories exist before configuring logging or imports
+LOG_DIR = PROJECT_ROOT / 'logs'
+LOG_DIR.mkdir(parents=True, exist_ok=True)
 
 # Add project root to Python path
-PROJECT_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 # Set Django settings before importing Django
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'lx_annotate.settings.dev')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'lx_annotate.settings.settings_dev')
 
 # Configure Django
 import django
+
 django.setup()
 
 # Import Django models and services after setup
-from django.core.management import call_command
-from endoreg_db.models import VideoFile, Center, EndoscopyProcessor
+from endoreg_db.models import Center, EndoscopyProcessor
+from endoreg_db.services.report_import import ReportImportService
 from endoreg_db.services.video_import import VideoImportService
-from endoreg_db.services.pdf_import import PdfImportService
+from endoreg_db.utils.paths import data_paths
 
 video_import_service = VideoImportService()
-pdf_import_service = PdfImportService()
-# Ensure FFmpeg is available
+report_import_service = ReportImportService()
+
+def unload_ollama_model(model_name="llama3.2:1b"):
+    """
+    Tells Ollama to immediately unload the model and free VRAM
+    by setting keep_alive to 0.
+    """
+    try:
+        url = "http://localhost:11434/api/chat"
+        # Sending an empty prompt with keep_alive=0 triggers the unload
+        payload = {
+            "model": model_name,
+            "keep_alive": 0
+        }
+        requests.post(url, json=payload, timeout=2)
+        logger.info(f"Requested immediate VRAM release for model: {model_name}")
+    except Exception as e:
+        logger.warning(f"Failed to unload Ollama model (VRAM might not be freed): {e}")
+        
 def _setup_ffmpeg():
     """Ensure FFmpeg binaries are available in PATH."""
     # Common FFmpeg binary names
@@ -62,7 +93,6 @@ def _setup_ffmpeg():
             ]
             
             for pattern in possible_paths:
-                import glob
                 matches = glob.glob(pattern)
                 if matches:
                     # Add the directory to PATH
@@ -75,7 +105,7 @@ def _setup_ffmpeg():
             else:
                 print(f"Warning: Could not find {binary} binary")
 
-# Setup FFmpeg before other imports
+# Ensure FFmpeg binaries are available before processing begins.
 _setup_ffmpeg()
 
 # Configure logging
@@ -84,11 +114,11 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
         logging.StreamHandler(),
-        logging.FileHandler(PROJECT_ROOT / 'logs' / 'file_watcher.log')
+        logging.FileHandler(LOG_DIR / 'file_watcher.log')
     ]
 )
 
-# ⭐ FIX: Reduce watchdog logging to prevent CPU overload
+# Reduce watchdog logging to avoid CPU overhead.
 logging.getLogger("watchdog").setLevel(logging.WARNING)
 logging.getLogger("watchdog.observers").setLevel(logging.WARNING)
 logging.getLogger("watchdog.observers.inotify_buffer").setLevel(logging.WARNING)
@@ -99,15 +129,15 @@ def should_ignore_file(file_path: str | Path) -> bool:
     """
     Central ignore helper to skip internal/temporary files and quarantine paths
     Args:
-        file_path (str | Path): The file path to check.#
+        file_path (str | Path): The file path to check.
     """
 
     p = Path(file_path)
     # Ignore lock files created by import services
     if p.suffix == '.lock':
         return True
-    # Ignore any files within quarantine/processing directories (PDFs and Videos)
-    # e.g., data/pdfs/_processing or data/videos/_processing
+    # Ignore any files within quarantine/processing directories (reports and Videos)
+    # e.g., data/reports/_processing or data/videos/_processing
     if any(part == '_processing' for part in p.parts):
         return True
     # Ignore hidden and temp files
@@ -117,14 +147,14 @@ def should_ignore_file(file_path: str | Path) -> bool:
 
 class AutoProcessingHandler(FileSystemEventHandler):
     """
-    Handles file system events for automatic processing of videos and PDFs.
+    Handles file system events for automatic processing of videos and reports.
     """
     
     def __init__(self):
         super().__init__()
         self.processed_files: Set[str] = set()
         self.video_extensions = {'.mp4', '.avi', '.mov', '.mkv', '.webm', '.m4v'}
-        self.pdf_extensions = {'.pdf'}
+        self.report_extensions = {'.pdf'}
         
         self.default_center = "university_hospital_wuerzburg"
         self.default_processor = "olympus_cv_1500"
@@ -134,10 +164,10 @@ class AutoProcessingHandler(FileSystemEventHandler):
         
         logger.info("AutoProcessingHandler initialized")
         logger.info(f"Monitoring video extensions: {self.video_extensions}")
-        logger.info(f"Monitoring PDF extensions: {self.pdf_extensions}")
+        logger.info(f"Monitoring report extensions: {self.report_extensions}")
 
     def dispatch(self, event):
-        """⭐ FIX: Filter out noisy events to reduce CPU load."""
+        """Filter out noisy events to reduce CPU load."""
         # Skip directory events
         if event.is_directory:
             return
@@ -145,12 +175,15 @@ class AutoProcessingHandler(FileSystemEventHandler):
         # Skip opened/closed events that don't indicate actual file completion
         if hasattr(event, 'event_type') and event.event_type in {'opened', 'closed'}:
             return
+        
+        src_path = str(event.src_path)
+        dest_path = getattr(event, 'dest_path', None)
             
         # Skip temp files and FFmpeg intermediate files
         if hasattr(event, 'src_path'):
-            if should_ignore_file(event.src_path):
+            if should_ignore_file(src_path):
                 return
-            path = Path(event.src_path)
+            path = Path(src_path)
             if (path.name.startswith('.') or 
                 path.name.startswith('~') or
                 'tmp' in str(path) or
@@ -158,7 +191,7 @@ class AutoProcessingHandler(FileSystemEventHandler):
                 return
         # Also check destination path for move events
         if hasattr(event, 'dest_path'):
-            if should_ignore_file(event.dest_path):
+            if dest_path and should_ignore_file(dest_path):
                 return
         
         # Continue with normal dispatch
@@ -167,14 +200,14 @@ class AutoProcessingHandler(FileSystemEventHandler):
     def on_created(self, event):
         """Handle file creation events."""
         if isinstance(event, FileCreatedEvent) and not event.is_directory:
-            # ⭐ FIX: Offload to thread pool instead of blocking inotify thread
-            self.executor.submit(self._process_file, event.src_path)
+            # Offload to thread pool instead of blocking the inotify thread.
+            self.executor.submit(self._process_file, str(event.src_path))
 
     def on_moved(self, event) -> None:
         """Handle file move events (useful for files moved into watched directories)."""
         if isinstance(event, FileMovedEvent) and not event.is_directory:
-            # ⭐ FIX: Offload to thread pool instead of blocking inotify thread
-            self.executor.submit(self._process_file, event.dest_path)
+            # Offload to thread pool instead of blocking the inotify thread.
+            self.executor.submit(self._process_file, str(event.dest_path))
 
     def _process_file(self, file_path: str):
         """
@@ -197,10 +230,6 @@ class AutoProcessingHandler(FileSystemEventHandler):
                 return
             
             # Skip temporary or hidden files
-            if path.name.startswith('.') or path.name.startswith('~'):
-                logger.debug(f"Skipping temporary/hidden file: {path}")
-                return
-            
             # Wait for file to be completely written
             if not self._wait_for_file_stable(path):
                 logger.warning(f"File not stable after waiting: {path}")
@@ -208,15 +237,18 @@ class AutoProcessingHandler(FileSystemEventHandler):
             
             # Determine file type and parent directory
             file_extension = path.suffix.lower()
-            parent_dir = path.parent.name
+            parent_dir = path.parent.resolve()
             
-            if parent_dir == 'raw_videos' and file_extension in self.video_extensions:
+            logger.debug(f"Parent: {parent_dir}")
+
+            
+            if parent_dir == data_paths["import_video"].resolve() and file_extension in self.video_extensions:
                 logger.info(f"New video detected: {path}")
                 
                 self._process_video(path)
-            elif parent_dir == 'raw_pdfs' and file_extension in self.pdf_extensions:
-                logger.info(f"New PDF detected: {path}")
-                self._process_pdf(path)
+            elif parent_dir == data_paths["import_report"].resolve() and file_extension in self.report_extensions:
+                logger.info(f"New report detected: {path}")
+                self._process_report(path)
             else:
                 logger.debug(f"Ignoring file (wrong type/location): {path}")
                 
@@ -276,6 +308,7 @@ class AutoProcessingHandler(FileSystemEventHandler):
         """
         try:
             logger.info(f"Starting video processing: {video_path}")
+            video_file = None
             
             # Mark as processed to avoid duplicate processing
             self.processed_files.add(str(video_path))
@@ -283,9 +316,11 @@ class AutoProcessingHandler(FileSystemEventHandler):
             # Early storage capacity check
             try:
                 from endoreg_db.exceptions import InsufficientStorageError
-                from endoreg_db.models.media.video.create_from_file import check_storage_capacity
+                from endoreg_db.models.media.video.create_from_file import (
+                    check_storage_capacity,
+                )
                 storage_root = os.getenv('DJANGO_DATA_DIR', str(PROJECT_ROOT / 'data' / 'videos'))
-                check_storage_capacity(video_path, storage_root)
+                check_storage_capacity(video_path, Path(storage_root))
             except InsufficientStorageError as storage_error:
                 logger.error(f"Insufficient storage space for {video_path}: {storage_error}")
                 # Don't mark as processed - allow retry when space is available
@@ -301,12 +336,20 @@ class AutoProcessingHandler(FileSystemEventHandler):
                     file_path=video_path,
                     center_name=self.default_center,
                     processor_name=self.default_processor,
-                    save_video=True,
-                    delete_source=True 
+                    retry=False,
+                    delete_source=False,
                 )
                 
+                # Handle case where import_and_anonymize returns None (file already being processed)
+                if video_file is None:
+                    logger.info(f"Video import skipped (already being processed): {video_path}")
+                    return
+                
+                if not video_file.sensitive_meta:
+                    logger.warning(f"Video imported but no SensitiveMeta created: {video_file.video_hash}")
+                
 
-                logger.info(f"Video imported successfully: {video_file.uuid}")
+                logger.info(f"Video imported successfully: {video_file.video_hash}")
                 
             except Exception as import_error:
                 error_msg = str(import_error)
@@ -325,24 +368,27 @@ class AutoProcessingHandler(FileSystemEventHandler):
                     return
             
             # Run segmentation if video was imported successfully
-            if video_file and video_file.pk:
+            if video_file and hasattr(video_file, 'pk') and video_file.pk:
                 try:
-
+                    unload_ollama_model(model_name=self.default_model)
                     success = video_file.pipe_1(
                         model_name=self.default_model,
                         delete_frames_after=True
                     )
                     
                     if success:
-                        logger.info(f"Video segmentation completed: {video_file.uuid}")
+                        logger.info(f"Video segmentation completed: {video_file.video_hash}")
 
                     else:
-                        logger.error(f"Video segmentation failed: {video_file.uuid}")
+                        logger.error(f"Video segmentation failed: {video_file.video_hash}")
                         
                 except Exception as e:
                     logger.error(f"Error during video segmentation: {str(e)}", exc_info=True)
             
             logger.info(f"Video processing completed: {video_path}")
+            if video_path.exists():
+                logger.info(f"Source video still exists: {video_path}")
+                video_path.unlink()
             
         except Exception as e:
             error_msg = str(e)
@@ -359,65 +405,70 @@ class AutoProcessingHandler(FileSystemEventHandler):
                 # For other errors, remove from processed set to allow retry
                 logger.warning(f"Removing {video_path} from processed set due to error")
                 self.processed_files.discard(str(video_path))
+                return
     
-    def _process_pdf(self, pdf_path: Path):
+    def _process_report(self, report_path: Path):
         """
-        Process a PDF file: import and anonymize with improved error handling.
+        Process a report file: import and anonymize with improved error handling.
         
         Args:
-            pdf_path: Path to the PDF file
+            report_path: Path to the report file
         """
         try:
-            logger.info(f"Starting PDF processing: {pdf_path}")
+            logger.info(f"Starting report processing: {report_path}")
             
             # Mark as processed to avoid duplicate processing
-            self.processed_files.add(str(pdf_path))
+            self.processed_files.add(str(report_path))
             
             
             # Early storage capacity check
             try:
                 from endoreg_db.exceptions import InsufficientStorageError
-                storage_root = os.getenv('PDF_STORAGE_ROOT', str(PROJECT_ROOT / 'data' / 'pdfs'))
+                storage_root = os.getenv('report_STORAGE_ROOT', str(PROJECT_ROOT / 'data' / 'reports'))
                 storage_root = Path(storage_root)
                 if not storage_root.is_absolute():
                     storage_root = PROJECT_ROOT / storage_root
                 if not storage_root.exists():
                     storage_root.mkdir(parents=True, exist_ok=True)
                 # Check if storage root exists and has enough space
-                MIN_REQUIRED_SPACE = 100 * 1024 * 1024  # 100 MB minimum
                 if not storage_root.exists():
                     raise InsufficientStorageError(f"Storage root does not exist: {storage_root}")
                 
-                pdf_import_service.check_storage_capacity(pdf_path, storage_root, MIN_REQUIRED_SPACE)
                 
-                # Import and anonymize PDF
-                raw_pdf = pdf_import_service.import_and_anonymize(
-                    file_path=pdf_path,
+                                
+                # Import and anonymize report
+                raw_report = report_import_service.import_and_anonymize(
+                    file_path=report_path,
                     center_name=self.default_center,
                     delete_source=False
                 )
                 
-                if raw_pdf:
-                    logger.info(f"PDF imported successfully: {raw_pdf.pdf_hash}")
+                if raw_report:
+                    logger.info(f"report imported successfully: {raw_report.pdf_hash}")
+                    try:
+                        if report_path.exists():
+                            report_path.unlink()
+                    except Exception as e:
+                        logger.error(f"Error removing report file {report_path}: {e}")
                 else:
-                    logger.info(f"PDF import skipped (already being processed): {pdf_path}")
+                    logger.info(f"report import skipped (already being processed): {report_path}")
                     # Remove from our local processed set since it was handled elsewhere
-                    self.processed_files.discard(str(pdf_path))
+                    self.processed_files.discard(str(report_path))
                     return
                 
             except InsufficientStorageError as storage_error:
-                logger.error(f"Insufficient storage space for {pdf_path}: {storage_error}")
+                logger.error(f"Insufficient storage space for {report_path}: {storage_error}")
                 # Don't mark as processed - allow retry when space is available
-                self.processed_files.discard(str(pdf_path))
+                self.processed_files.discard(str(report_path))
                 return
             except Exception as import_error:
-                logger.error(f"PDF import failed for {pdf_path}: {import_error}")
-                self.processed_files.discard(str(pdf_path))
+                logger.error(f"report import failed for {report_path}: {import_error}")
+                self.processed_files.discard(str(report_path))
                 return
             
         except Exception as e:
-            logger.error(f"Error processing pdf {pdf_path}: {str(e)}", exc_info=True)
-            self.processed_files.discard(str(pdf_path))
+            logger.error(f"Error processing report {report_path}: {str(e)}", exc_info=True)
+            self.processed_files.discard(str(report_path))
             return
                 
     def shutdown(self):
@@ -437,15 +488,15 @@ class FileWatcherService:
         self.handler = AutoProcessingHandler()
         
         # Define watched directories
-        self.video_dir = PROJECT_ROOT / 'data' / 'raw_videos'
-        self.pdf_dir = PROJECT_ROOT / 'data' / 'raw_pdfs'
+        self.video_dir = data_paths["import_video"].resolve()
+        self.report_dir = data_paths["import_report"].resolve()
         
         # Ensure directories exist
         self.video_dir.mkdir(parents=True, exist_ok=True)
-        self.pdf_dir.mkdir(parents=True, exist_ok=True)
+        self.report_dir.mkdir(parents=True, exist_ok=True)
         
         logger.info(f"Video directory: {self.video_dir}")
-        logger.info(f"PDF directory: {self.pdf_dir}")
+        logger.info(f"report directory: {self.report_dir}")
         logger.info(f"Using observer: {type(self.observer).__name__}")
 
     def start(self):
@@ -463,7 +514,7 @@ class FileWatcherService:
             
             self.observer.schedule(
                 self.handler,
-                str(self.pdf_dir),
+                str(self.report_dir),
                 recursive=False
             )
             
@@ -471,7 +522,7 @@ class FileWatcherService:
             self.observer.start()
             logger.info("File watcher service started successfully")
             logger.info(f"Monitoring: {self.video_dir}")
-            logger.info(f"Monitoring: {self.pdf_dir}")
+            logger.info(f"Monitoring: {self.report_dir}")
             
             # Process any existing files on startup (in background)
             self.handler.executor.submit(self._process_existing_files)
@@ -497,7 +548,7 @@ class FileWatcherService:
             self.observer.join()
             logger.info("File watcher service stopped")
         
-        # ⭐ FIX: Shutdown thread pool
+        # Shutdown thread pool.
         self.handler.shutdown()
 
     def _validate_django_setup(self):
@@ -527,11 +578,11 @@ class FileWatcherService:
                 logger.info(f"Processing existing video: {video_file}")
                 self.handler._process_file(str(video_file))
         
-        # Process existing PDFs
-        for pdf_file in self.pdf_dir.glob('*'):
-            if pdf_file.is_file() and pdf_file.suffix.lower() in self.handler.pdf_extensions:
-                logger.info(f"Processing existing PDF: {pdf_file}")
-                self.handler._process_file(str(pdf_file))
+        # Process existing reports
+        for report_file in self.report_dir.glob('*'):
+            if report_file.is_file() and report_file.suffix.lower() in self.handler.report_extensions:
+                logger.info(f"Processing existing report: {report_file}")
+                self.handler._process_file(str(report_file))
         
         logger.info("Existing files processing completed")
 
@@ -548,7 +599,7 @@ class FileWatcherService:
             )
             self.observer.schedule(
                 self.handler,
-                str(self.pdf_dir),
+                str(self.report_dir),
                 recursive=False
             )
             self.observer.start()
@@ -574,7 +625,6 @@ class FileWatcherService:
         except Exception as e:
             logger.debug(f"Storage check failed: {e}")
 
-    # ...existing code...
 def main():
     """Main entry point for the file watcher service."""
     logger.info("Starting File Watcher Service")

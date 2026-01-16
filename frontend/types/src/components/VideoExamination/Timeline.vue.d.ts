@@ -7,7 +7,7 @@ type __VLS_Props = {
     labels?: LabelMeta[];
     currentTime?: number;
     isPlaying?: boolean;
-    activeSegmentId?: string | number | null;
+    activeSegmentId?: number | null;
     showWaveform?: boolean;
     selectionMode?: boolean;
     fps?: number;

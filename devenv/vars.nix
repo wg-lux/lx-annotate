@@ -24,10 +24,11 @@ let
 
   lx_vars = {
     DJANGO_MODULE = djangoModuleName;
-    DJANGO_SETTINGS_MODULE_PRODUCTION = "${djangoModuleName}.settings_prod";
-    DJANGO_SETTINGS_MODULE_DEVELOPMENT = "${djangoModuleName}.settings_dev";
+    DJANGO_SETTINGS_MODULE_PRODUCTION = "${djangoModuleName}.settings.settings_prod";
+    DJANGO_SETTINGS_MODULE_DEVELOPMENT = "${djangoModuleName}.settings.settings_dev";
     # Add central node settings support for luxnix compatibility
     DJANGO_SETTINGS_MODULE_CENTRAL = "${djangoModuleName}.settings_central";
+    DJANGO_SETTINGS_MODULE_TEST = "${djangoModuleName}.settings.settings_test";
     DJANGO_HOST = host;
     DJANGO_PORT = port;
     DATA_DIR = dataDir;
