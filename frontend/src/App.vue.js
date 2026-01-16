@@ -2,6 +2,7 @@ import NavbarComponent from './components/Menus/NavbarComponent.vue';
 import SidebarComponent from './components/Menus/SidebarComponent.vue';
 import DashboardComponent from './components/Dashboard/DashboardComponent.vue';
 import ToastMessageContainer from './components/Utils/ToastMessageContainer.vue';
+import AuthCheck from '@/components/Authentification/AuthCheck.vue';
 import axios from 'axios';
 // Move this to your http_kc.ts or main.ts if possible, but it works here too
 axios.defaults.baseURL = '/';
@@ -12,6 +13,7 @@ export default (await import('vue')).defineComponent({
         SidebarComponent,
         DashboardComponent,
         ToastMessageContainer,
+        AuthCheck
     },
     data() {
         return {
@@ -32,6 +34,7 @@ const __VLS_componentsOption = {
     SidebarComponent,
     DashboardComponent,
     ToastMessageContainer,
+    AuthCheck
 };
 let __VLS_components;
 let __VLS_directives;

@@ -175,7 +175,6 @@ if ENFORCE_AUTH:
             f"⚠️ Keycloak config dir not found or already in sys.path: {KEYCLOAK_CONFIG_ROOT}"
         )
 
-    # now this import will succeed
     from endoreg_db.config.settings import keycloak as KEYCLOAK
 
     DEBUG = False  # force prod behavior so PolicyPermission doesn't bypass
