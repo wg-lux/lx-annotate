@@ -8,7 +8,6 @@
 let
   appConfig = import ./app_config.nix;
   env.DATABASE_URL = config.secretspec.secrets.DATABASE_URL;
-  env.REDIS_URL = config.secretspec.secrets.REDIS_URL;
   env.OIDC_RP_CLIENT_SECRET = config.secretspec.secrets.OIDC_RP_CLIENT_SECRET;
   appName = "lx_annotate";
   DEPLOYMENT_MODE = "dev";
@@ -50,8 +49,6 @@ let
   devTasks = import ./devenv/devTasks/default.nix { inherit config pkgs lib; };
 
   buildInputs = devenv_utils.buildInputs;
-  lxVars = devenv_utils.lx_vars;
-  exportLxVars = pkgs.writeText "export-lx-vars.json" (builtins.toJSON lxVars);
 
   languages.javascript.enable = true;
   languages.javascript.package = pkgs.nodejs_22; # Specify the Node.js version
@@ -90,8 +87,7 @@ let
 in
 {
 
-  dotenv.enable = true;
-  dotenv.disableHint = true;
+  dotenv.enable = false;
   packages = devenv_utils.buildInputs ++ [ 
     myTesseract
     pkgs.ollama
@@ -183,8 +179,9 @@ in
        $SYNC_CMD --quiet || echo "Warning: uv sync failed. Environment might be outdated."
     fi
 
-
-
+    echo setting up environment variable defaults from setup.py
+    python scripts/core/setup.py --output .secrets
+    source .secrets
     echo "Exporting environment variables from .env.systemd file..."
     if [ -f ".env.systemd" ]; then
       set -a

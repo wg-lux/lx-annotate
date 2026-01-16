@@ -11,10 +11,11 @@ let
       exec = "${pkgs.uv}/bin/uv run python scripts/make_conf.py";
     };
     "env:build" = {
-      description = "Build the .env file";
-      after = ["env:init-conf"];
-      exec = "uv run env_setup.py";
-      status = "test -f .env";
+        description = "Generate the .secrets file using the setup script";
+        after = ["env:init-conf"];
+        # We pass the filename to the script
+        exec = "python scripts/core/setup.py --output .secrets";
+        status = "test -f .secrets";
     };
     "env:clean" = {
       description = "Remove the uv virtual environment and lock file for a clean sync";
