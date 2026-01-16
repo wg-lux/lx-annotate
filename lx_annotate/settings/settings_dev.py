@@ -25,6 +25,7 @@ from .settings_base import (
 from pathlib import Path
 
 import os
+from endoreg_db.config.settings import keycloak as KEYCLOAK
 
 LOGGING = cast(dict[str, Any], LOGGING)
 REST_FRAMEWORK = cast(dict[str, Any], REST_FRAMEWORK)
@@ -66,8 +67,6 @@ ENFORCE_AUTH = os.getenv("ENFORCE_AUTH", "0") == "1"
 if ENFORCE_AUTH:
     print("🔒 AUTH: ENFORCED (Keycloak Mock/Real)")
     try:
-        from endoreg_db.config.settings import keycloak as KEYCLOAK
-
         INSTALLED_APPS.extend(KEYCLOAK.EXTRA_INSTALLED_APPS)
         MIDDLEWARE.extend(KEYCLOAK.EXTRA_MIDDLEWARE)
 

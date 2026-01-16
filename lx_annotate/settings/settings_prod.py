@@ -18,6 +18,8 @@ from .settings_base import (
     BASE_DIR,
     config,
 )
+from endoreg_db.config.settings import keycloak as KEYCLOAK
+
 import os
 from pathlib import Path
 from typing import Any, cast
@@ -174,8 +176,6 @@ if ENFORCE_AUTH:
         print(
             f"⚠️ Keycloak config dir not found or already in sys.path: {KEYCLOAK_CONFIG_ROOT}"
         )
-
-    from endoreg_db.config.settings import keycloak as KEYCLOAK
 
     DEBUG = False  # force prod behavior so PolicyPermission doesn't bypass
 
