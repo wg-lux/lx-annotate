@@ -25,9 +25,13 @@
 <body>
     <div id="app"></div>
 
-    <form id="oidc-logout-form" method="post" action="/oidc/logout/" style="display:none;">
-        {% csrf_token %}
-    </form>
+        <!-- Hidden form for OIDC logout (POST) -->
+        <form id="oidc-logout-form"
+            method="post"
+            action="/oidc/logout/"
+            style="display:none;">
+            {% csrf_token %}
+        </form>
 
     <script>
         window.STATIC_URL = "{{ STATIC_URL }}";
