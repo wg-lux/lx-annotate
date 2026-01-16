@@ -17,7 +17,6 @@ import AuthCheck from '@/components/Authentification/AuthCheck.vue'
 
 import { initHttpKC } from '@/utils/http_kc' 
 import canKc from '@/directives/can_kc'
-import { useAuthKcStore } from '@/stores/auth_kc'
 // 1. Initialize Auth
 initHttpKC()
 
@@ -43,4 +42,3 @@ app.use(VueVirtualScroller)
 // 6. Mount
 app.mount('#app')
 
-const auth = useAuthKcStore()
