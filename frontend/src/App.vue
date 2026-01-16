@@ -61,6 +61,7 @@ import NavbarComponent from './components/Menus/NavbarComponent.vue';
 import SidebarComponent from './components/Menus/SidebarComponent.vue';
 import DashboardComponent from './components/Dashboard/DashboardComponent.vue';
 import ToastMessageContainer from './components/Utils/ToastMessageContainer.vue';
+import AuthCheck from '@/components/Authentification/AuthCheck.vue';
 import axios from 'axios';
 
 // Move this to your http_kc.ts or main.ts if possible, but it works here too
@@ -73,6 +74,7 @@ export default {
     SidebarComponent,
     DashboardComponent,
     ToastMessageContainer,
+    AuthCheck
   },
   data() {
     return {
