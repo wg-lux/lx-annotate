@@ -138,7 +138,7 @@ in
       ##### TODO
     export $(grep -v '^#' .env | xargs)
     echo "🌀 Starting Daphne on ${appConfig.server.host}:${appConfig.server.port}..."
-    exec daphne -b "''${DJANGO_HOST}" -p "''${DJANGO_PORT}" lx_annotate.asgi:application
+    secretspec run exec daphne -b "''${DJANGO_HOST}" -p "''${DJANGO_PORT}" lx_annotate.asgi:application
     '';
 
 

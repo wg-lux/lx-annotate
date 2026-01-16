@@ -7,7 +7,9 @@
   ... }:
 let
   appConfig = import ./app_config.nix;
-
+  env.DATABASE_URL = config.secretspec.secrets.DATABASE_URL;
+  env.REDIS_URL = config.secretspec.secrets.REDIS_URL;
+  env.OIDC_RP_CLIENT_SECRET = config.secretspec.secrets.OIDC_RP_CLIENT_SECRET;
   appName = "lx_annotate";
   DEPLOYMENT_MODE = "dev";
 
@@ -94,6 +96,8 @@ in
     myTesseract
     pkgs.ollama
     pkgs.git
+    pkgs.secretspec
+    pkgs.cachix
      ];
 
 
