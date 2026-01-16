@@ -181,14 +181,14 @@ in
 
 
 
-    echo "Exporting environment variables from .env file..."
-    if [ -f ".env" ]; then
+    echo "Exporting environment variables from .env.systemd file..."
+    if [ -f ".env.systemd" ]; then
       set -a
-      source .env
+      source .env.systemd
       set +a
-      echo ".env file loaded successfully."
+      echo ".env.systemd file loaded successfully."
     else
-      echo "Note: .env not found. Defaults apply."
+      echo "Note: .env.systemd not found. Defaults apply."
     fi
     # Activate Python virtual environment managed by uv inside of devenv
     ACTIVATED=false
