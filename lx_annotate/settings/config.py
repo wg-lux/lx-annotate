@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Annotated
+import json
 import os
 from pydantic import Field, field_validator, model_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 from .secret_key import get_or_create_secret_key
 
@@ -35,11 +37,11 @@ class AppConfig(BaseSettings):
     debug: bool = False
 
     # Security: Hosts, CORS, CSRF
-    allowed_hosts: list[str] = Field(
-        default_factory=lambda: ["lx-annotate.net", "localhost", "127.0.0.1", "[::1]"]
+    allowed_hosts: Annotated[list[str], NoDecode] = Field(
+        default_factory=lambda: ["lx-annotate.local", "localhost", "127.0.0.1", "[::1]"]
     )
-    csrf_trusted_origins: list[str] = Field(default_factory=list)
-    cors_allowed_origins: list[str] = Field(default_factory=list)
+    csrf_trusted_origins: Annotated[list[str], NoDecode] = Field(default_factory=list)
+    cors_allowed_origins: Annotated[list[str], NoDecode] = Field(default_factory=list)
 
     # DB (Granular settings required by production.py)
     # Defaults set to standard Postgres values, but can be overridden
@@ -76,6 +78,34 @@ class AppConfig(BaseSettings):
         if isinstance(value, str) and not value.strip():
             return None
         return value
+
+    @field_validator(
+        "allowed_hosts",
+        "csrf_trusted_origins",
+        "cors_allowed_origins",
+        mode="before",
+    )
+    @classmethod
+    def parse_list_settings(cls, value: object) -> object:
+        if value is None:
+            return value
+        if isinstance(value, (list, tuple)):
+            return list(value)
+        if not isinstance(value, str):
+            return value
+        raw = value.strip()
+        if not raw:
+            return []
+        if raw.startswith("[") or raw.startswith('"') or raw.startswith("'"):
+            try:
+                decoded = json.loads(raw)
+            except json.JSONDecodeError:
+                decoded = None
+            if isinstance(decoded, list):
+                return decoded
+            if isinstance(decoded, str):
+                return [decoded]
+        return [item.strip() for item in raw.split(",") if item.strip()]
 
     @model_validator(mode="after")
     def apply_secret_files(self) -> "AppConfig":
