@@ -63,7 +63,7 @@ print("LX_ANNOTATE SETTINGS: Loading config...")
 print(f"Using .env path:      {_env_path} (Exists: {_env_path.exists()})")
 _key_status = "MISSING"
 if SECRET_KEY:
-    _key_status = f"SET (Starts with: {SECRET_KEY[:4]}...)"
+    _key_status = "SET"
 print(f"DJANGO_SECRET_KEY:    {_key_status}")
 print("----------------------------------------------------------------")
 # -------------------------

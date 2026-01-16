@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import Annotated
+import ast
 import json
 import os
 from pydantic import Field, field_validator, model_validator
@@ -96,13 +97,21 @@ class AppConfig(BaseSettings):
         raw = value.strip()
         if not raw:
             return []
-        if raw.startswith("[") or raw.startswith('"') or raw.startswith("'"):
+        if raw.startswith(("[", "{", "(", '"', "'")):
             try:
                 decoded = json.loads(raw)
             except json.JSONDecodeError:
                 decoded = None
             if isinstance(decoded, list):
                 return decoded
+            if isinstance(decoded, str):
+                return [decoded]
+            try:
+                decoded = ast.literal_eval(raw)
+            except (SyntaxError, ValueError):
+                decoded = None
+            if isinstance(decoded, (list, tuple, set)):
+                return list(decoded)
             if isinstance(decoded, str):
                 return [decoded]
         return [item.strip() for item in raw.split(",") if item.strip()]

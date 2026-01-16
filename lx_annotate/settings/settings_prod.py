@@ -76,6 +76,7 @@ if SECRET_KEY.startswith("***UNSAFE"):
 
 # SECURITY: Strict host validation - must be configured
 ALLOWED_HOSTS = config.allowed_hosts
+
 if not ALLOWED_HOSTS:
     raise RuntimeError(
         "🚨 SECURITY ERROR: DJANGO_ALLOWED_HOSTS must be set in production!\n"
