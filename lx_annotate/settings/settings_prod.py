@@ -123,16 +123,6 @@ assert REST_FRAMEWORK["DEFAULT_PERMISSION_CLASSES"] == [
     "rest_framework.permissions.IsAuthenticated"
 ], "🚨 SECURITY ERROR: Production API must require authentication!"
 
-# Add Keycloak authentication in production
-REST_FRAMEWORK["DEFAULT_AUTHENTICATION_CLASSES"] = [
-    "lx_annotate.keycloak_auth.KeycloakAuthentication",
-    "rest_framework.authentication.SessionAuthentication",
-]
-
-# Add Keycloak middleware in production
-MIDDLEWARE.insert(
-    -2, "lx_annotate.offline_keycloak_middleware.OfflineKeycloakMiddleware"
-)
 
 # SECURITY: Keycloak configuration must be complete in production
 if not config.keycloak_client_secret:
@@ -168,24 +158,64 @@ if not DATABASES["default"]["PASSWORD"]:
         "Set DJANGO_DB_PASSWORD or DJANGO_DB_PASSWORD_FILE."
     )
 
-# 6. PROD AUTH (Require endoreg_db)
-try:
+ENFORCE_AUTH = os.getenv("ENFORCE_AUTH", "1") == "1"  # default OFF
+
+if ENFORCE_AUTH:
+    # ✅ Make sure libs/endoreg-db is on sys.path so `config.settings` is importable
+    import sys
+    from pathlib import Path
+
+    # BASE_DIR comes from settings_base.py which you imported above
+    KEYCLOAK_CONFIG_ROOT = BASE_DIR / "libs" / "endoreg-db"
+    if KEYCLOAK_CONFIG_ROOT.exists() and str(KEYCLOAK_CONFIG_ROOT) not in sys.path:
+        sys.path.insert(0, str(KEYCLOAK_CONFIG_ROOT))
+        print(f"🔧 Added to sys.path for Keycloak: {KEYCLOAK_CONFIG_ROOT}")
+    else:
+        print(
+            f"⚠️ Keycloak config dir not found or already in sys.path: {KEYCLOAK_CONFIG_ROOT}"
+        )
+
+    # now this import will succeed
     from endoreg_db.config.settings import keycloak as KEYCLOAK
 
-    # ... (Copy auth injection logic from dev/base or import shared util)
-    # Ideally, extract the OIDC injection into a mixin file to avoid duplicating in dev/prod
-    INSTALLED_APPS.extend(KEYCLOAK.EXTRA_INSTALLED_APPS)
-    MIDDLEWARE.extend(KEYCLOAK.EXTRA_MIDDLEWARE)
+    DEBUG = False  # force prod behavior so PolicyPermission doesn't bypass
+
+    INSTALLED_APPS += KEYCLOAK.EXTRA_INSTALLED_APPS
+    MIDDLEWARE += KEYCLOAK.EXTRA_MIDDLEWARE
+
+    LOGIN_URL = KEYCLOAK.LOGIN_URL
+    LOGIN_REDIRECT_URL = KEYCLOAK.LOGIN_REDIRECT_URL
+    LOGOUT_REDIRECT_URL = KEYCLOAK.LOGOUT_REDIRECT_URL
+
+    KEYCLOAK_BASE_URL = KEYCLOAK.KEYCLOAK_BASE_URL
+    KEYCLOAK_REALM = KEYCLOAK.KEYCLOAK_REALM
+    OIDC_RP_CLIENT_ID = KEYCLOAK.OIDC_RP_CLIENT_ID
+    OIDC_RP_CLIENT_SECRET = KEYCLOAK.OIDC_RP_CLIENT_SECRET
+    OIDC_OP_DISCOVERY_ENDPOINT = KEYCLOAK.OIDC_OP_DISCOVERY_ENDPOINT
+    OIDC_OP_AUTHORIZATION_ENDPOINT = KEYCLOAK.OIDC_OP_AUTHORIZATION_ENDPOINT
+    OIDC_OP_TOKEN_ENDPOINT = KEYCLOAK.OIDC_OP_TOKEN_ENDPOINT
+    OIDC_OP_USER_ENDPOINT = KEYCLOAK.OIDC_OP_USER_ENDPOINT
+    OIDC_OP_JWKS_ENDPOINT = KEYCLOAK.OIDC_OP_JWKS_ENDPOINT
+    OIDC_VERIFY_SSL = KEYCLOAK.OIDC_VERIFY_SSL
+    OIDC_RP_SCOPES = KEYCLOAK.OIDC_RP_SCOPES
+    OIDC_RP_SIGN_ALGO = KEYCLOAK.OIDC_RP_SIGN_ALGO
+    OIDC_OP_LOGOUT_ENDPOINT = KEYCLOAK.OIDC_OP_LOGOUT_ENDPOINT
+    OIDC_STORE_ID_TOKEN = KEYCLOAK.OIDC_STORE_ID_TOKEN
+    OIDC_LOGOUT_REDIRECT_URL = KEYCLOAK.OIDC_LOGOUT_REDIRECT_URL
+    OIDC_AUTH_REQUEST_EXTRA_PARAMS = KEYCLOAK.OIDC_AUTH_REQUEST_EXTRA_PARAMS
+
     AUTHENTICATION_BACKENDS = KEYCLOAK.AUTHENTICATION_BACKENDS
     REST_FRAMEWORK["DEFAULT_AUTHENTICATION_CLASSES"] = (
         KEYCLOAK.REST_FRAMEWORK_DEFAULT_AUTH
     )
+
+    # ❗ This is the critical line you were missing at runtime:
     REST_FRAMEWORK["DEFAULT_PERMISSION_CLASSES"] = [
         "rest_framework.permissions.IsAuthenticated",
         "endoreg_db.authz.permissions.PolicyPermission",
     ]
-except ImportError:
-    raise RuntimeError("🚨 CRITICAL: endoreg_db is required for production auth!")
+
+    print("🔒 ENFORCE_AUTH=1 → Keycloak enabled (session SSO) + RBAC ON")
 
 # Stable Hosting using NGINX, so we can trust the X-Forwarded-* headers
 USE_X_FORWARDED_HOST = True
