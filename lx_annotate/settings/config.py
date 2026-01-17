@@ -47,12 +47,12 @@ class AppConfig(BaseSettings):
     # DB (Granular settings required by production.py)
     # Defaults set to standard Postgres values, but can be overridden
     db_engine: str = "django.db.backends.postgresql"
-    db_name: str = "endoreg_db"
-    db_user: str = "postgres"
+    db_name: str = os.getenv("DJANGO_DB_NAME", "lx_annotate")
+    db_user: str = os.getenv("DJANGO_DB_USER", "lx_annotate")
     db_password: str = ""
     db_password_file: Path | None = None
-    db_host: str = "localhost"
-    db_port: str = "5432"
+    db_host: str = os.getenv("DJANGO_DB_HOST", "localhost")
+    db_port: str = os.getenv("DJANGO_DB_PORT", "5432")
     db_sslmode: str = "prefer"
 
     keycloak_server_url: str = "https://keycloak-endoreg.net"
