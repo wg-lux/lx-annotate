@@ -133,7 +133,7 @@ in
 
     "run-server".exec = ''
       echo "🌀 Starting Daphne on ${env.DJANGO_HOST}:${env.DJANGO_PORT}..."
-      secretspec run --provider env uv run daphne -b "${env.DJANGO_HOST}" -p "${env.DJANGO_HOST}" lx_annotate.asgi:application    '';
+      secretspec run --provider env uv run daphne -b "${env.DJANGO_HOST}" -p "${env.DJANGO_PORT}" lx_annotate.asgi:application    '';
 
     "docker-dev-build".exec = ''
       set -e
