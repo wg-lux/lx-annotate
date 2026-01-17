@@ -4,10 +4,10 @@
 # This file consolidates all management tasks, scripts, and container operations
 # into a unified DevEnv-based approach using the centralized configuration.
 
-{ pkgs, lib, appConfig, isDev ? false }:
+{ pkgs, lib, env, isDev ? false }:
 let
   # Utility functions (legacy placeholders; kept for future use)
-  containerName = mode: "${appConfig.app.name}-${mode}-test";
+  containerName = mode: "${env.app.name}-${mode}-test";
   commonContainerArgs = mode: [ ];
   gpuArgs = ''
     : # GPU args placeholder
@@ -27,11 +27,9 @@ in
         
         # Step 1: Ensure directories
         export WORKING_DIR="''${WORKING_DIR:-$(pwd)}"
-        mkdir -p ${appConfig.paths.data} ${appConfig.paths.conf} staticfiles
-        mkdir -p ${appConfig.paths.data}/{import,export,videos,frames,pdfs,model_weights,logs}
+        mkdir -p ${env.WORKING_DIR} staticfiles
+        mkdir -p ${env.WORKING_DIR}/{import,export,videos,frames,pdfs,model_weights,logs}
         
-        # Step 2: Configuration setup (use existing scripts)
-        ${pkgs.uv}/bin/uv run python scripts/database/make_conf.py
         
         # Step 3: Environment file setup
         ${pkgs.uv}/bin/uv run python scripts/core/setup.py
@@ -100,9 +98,9 @@ in
           echo "Current Configuration:"
           echo "====================="
           echo "Env: $(cat .mode 2>/dev/null || echo 'development')"
-          echo "App: ${appConfig.app.name}"
-          echo "Port: ${appConfig.server.port}"
-          echo "Host: ${appConfig.server.host}"
+          echo "App: ${env.DJANGO_HOST}"
+          echo "Port: ${env.DJANGO_PORT}"
+          echo "Host: ${env.DJANGO_HOST}"
           ;;
         "help"|*)
           echo "Lx Annotate Management Commands"
@@ -134,8 +132,8 @@ in
     
 
     "run-server".exec = ''
-      echo "🌀 Starting Daphne on ${appConfig.server.host}:${appConfig.server.port}..."
-      secretspec run --provider env uv run daphne -b "''${DJANGO_HOST}" -p "''${DJANGO_PORT}" lx_annotate.asgi:application    '';
+      echo "🌀 Starting Daphne on ${env.DJANGO_HOST}:${env.DJANGO_PORT}..."
+      secretspec run --provider env uv run daphne -b "${env.DJANGO_HOST}" -p "${env.DJANGO_HOST}" lx_annotate.asgi:application    '';
 
     "docker-dev-build".exec = ''
       set -e
@@ -150,13 +148,9 @@ in
       if command -v podman >/dev/null 2>&1; then RUNTIME=podman; elif command -v docker >/dev/null 2>&1; then RUNTIME=docker; else echo "No container engine"; exit 1; fi
       $RUNTIME rm -f lx-annotate-dev >/dev/null 2>&1 || true
       $RUNTIME run -d --name lx-annotate-dev \
-        -p ${appConfig.server.port}:${appConfig.server.port} \
+        -p ${env.DJANGO_HOST}:${env.DJANGO_PORT} \
         -e DJANGO_ENV=development \
-        -e DJANGO_HOST=0.0.0.0 \
-        -e DJANGO_PORT=${appConfig.server.port} \
-        -e DJANGO_MODULE=${appConfig.app.djangoModule} \
-        -v $(pwd)/${appConfig.paths.data}:/app/${appConfig.paths.data} \
-        -v $(pwd)/${appConfig.paths.conf}:/app/${appConfig.paths.conf} \
+        -v $(pwd)/${env.WORKING_DIR}:/app/${env.WORKING_DIR} \
         -v $(pwd)/staticfiles:/app/staticfiles \
         lx-annotate:dev
     '';
@@ -183,11 +177,9 @@ in
 
       $RUNTIME rm -f lx-annotate-prod >/dev/null 2>&1 || true
       $RUNTIME run -d --name lx-annotate-prod \
-        -p ${appConfig.server.port}:${appConfig.server.port} \
+        -p ${env.DJANGO_HOST}:${env.DJANGO_PORT} \
         -e DJANGO_ENV=production \
-        -e DJANGO_HOST=0.0.0.0 \
-        -e DJANGO_PORT=${appConfig.server.port} \
-        -e DJANGO_MODULE=${appConfig.app.djangoModule} \
+        -e DJANGO_HOST=${env.DJANGO_HOST} \
         -e DJANGO_SECRET_KEY="$DJANGO_SECRET_KEY" \
         -e DJANGO_ALLOWED_HOSTS \
         -e DJANGO_DEBUG \
@@ -201,7 +193,7 @@ in
         -e DB_PASSWORD \
         -e DB_HOST \
         -e DB_PORT \
-        -v $(pwd)/${appConfig.paths.data}:/app/${appConfig.paths.data} \
+        -v $(pwd)/${env.WORKING_DIR}:/app/${env.WORKING_DIR} \
         -v $(pwd)/staticfiles:/app/staticfiles \
         lx-annotate:prod
     '';

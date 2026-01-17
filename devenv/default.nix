@@ -2,58 +2,37 @@
 { 
   pkgs,
   lib,
-  appConfig,
-  djangoModuleName, 
-  host, 
-  port, 
-  base_url,
-  dataDir,
-  confDir, 
-  confTemplateDir,
-  homeDir,
   uvPackage,
   isDev ? false,
+  env
 }:
 let
-  # import lx_vars from vars.nix
-  # homeDir seems to be read out from root folder default.nix in endoAPI, therefore it is left out devenv/default.nix
 
-  lx_vars = import ./vars.nix {
-    dataDir = dataDir;
-    confDir = confDir;
-    confTemplateDir = confTemplateDir;
-    djangoModuleName = djangoModuleName;
-    host = host;
-    port = port;
-    base_url = base_url;
-  };
   # import build inputs from build_inputs.nix
   buildInputs = import ./build_inputs.nix { inherit pkgs; };
   runtimePackages = import ./runtime_packages.nix { inherit pkgs uvPackage; };
     # import modular configurations
   scripts = import ./scripts.nix { 
-    inherit pkgs lib appConfig djangoModuleName host port isDev; 
+    inherit pkgs lib env isDev; 
   };
   
   services = import ./services.nix { 
-    inherit pkgs lib appConfig isDev; 
+    inherit pkgs lib env isDev; 
   };
   
   processes = import ./processes.nix { 
-    inherit pkgs lib appConfig isDev; 
+    inherit pkgs lib env isDev; 
   };
   
   environment = import ./environment.nix { 
-    lxVars = lx_vars;
-    inherit buildInputs runtimePackages pkgs lib isDev appConfig;
+    inherit buildInputs runtimePackages pkgs lib isDev env;
   };
 
   # Import centralized management system
-  managementSystem = import ./management.nix { inherit pkgs lib appConfig isDev; };
+  managementSystem = import ./management.nix { inherit pkgs lib env isDev; };
 
 in 
 {
-  lx_vars = lx_vars;
   buildInputs = buildInputs;
   runtimePackages = runtimePackages;
   # Integrate centralized management with legacy modular components

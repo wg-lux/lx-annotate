@@ -8,7 +8,6 @@ let
     };
     "env:init-conf" = {
       # after = ["env:psql-pwd-file-exists" "devenv:enterShell"];
-      exec = "${pkgs.uv}/bin/uv run python scripts/make_conf.py";
     };
     "env:clean" = {
       description = "Remove the uv virtual environment and lock file for a clean sync";

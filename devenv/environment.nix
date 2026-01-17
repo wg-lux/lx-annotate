@@ -1,5 +1,5 @@
 # Environment configuration for devenv
-{ lxVars, buildInputs, runtimePackages ? [], pkgs, lib, isDev ? false, appConfig }:
+{ buildInputs, runtimePackages ? [], pkgs, lib, isDev ? false }:
 {
   LD_LIBRARY_PATH = "${
     with pkgs;
@@ -8,4 +8,3 @@
     )
   }:/run/opengl-driver/lib:/run/opengl-driver-32/lib";
 }
-// lxVars

@@ -41,8 +41,6 @@ let
     EXPORT_FRAMES_ROOT_DIR = exportFramesRootDir;
     EXPORT_FRAMES_SAMPLE_EXPORT_DIR = exportFramesSampleExportDir;
     MODEL_DIR = modelDir;
-    CONF_DIR = confDir; 
-    CONF_TEMPLATE_DIR = confTemplateDir;
     DB_PWD_FILE = "${confDir}/db_pwd";
     DB_CONFIG_FILE = "${confDir}/db.yaml";
     WORKING_DIR = builtins.getEnv "PWD";

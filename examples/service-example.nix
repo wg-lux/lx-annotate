@@ -173,8 +173,6 @@ with lib.luxnix; let
       # Set environment variables needed by the Django config scripts
       export DATA_DIR="${envDataDir}"
       export STORAGE_DIR="${envStorageDir}"
-      export CONF_DIR="${envConfDir}"
-      export CONF_TEMPLATE_DIR="${envConfTemplateDir}"
       export WORKING_DIR="${repoDir}"
       export HOME_DIR="${endoreg-service-user-home}"
       export DB_PWD_FILE="${envConfDir}/db_pwd"
@@ -211,10 +209,6 @@ with lib.luxnix; let
         devenv shell env-init-conf || { 
           echo "WARNING: devenv env-init-conf failed, trying direct script execution"
           # Fallback to direct execution if devenv fails
-          if [ -f "scripts/make_conf.py" ]; then
-            python scripts/make_conf.py || echo "WARNING: make_conf.py execution failed"
-          fi
-        }
 
         echo "Building .env from template..."
         if ! devenv shell env-build; then

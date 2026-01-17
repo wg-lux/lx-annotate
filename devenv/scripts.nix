@@ -2,21 +2,21 @@
 { 
   pkgs,
   lib,
-  appConfig,
-  djangoModuleName,
-  host,
-  port,
+  env,
   isDev ? false
 }:
 let
   # Common server startup logic (DRY) - now uses centralized config
+  containerMode = env.containerMode or false;
+  djangoHost = env.DJANGO_HOST;
+  containerHost = env.containerHost;
   serverStartup = containerMode: let
-    serverHost = if containerMode then appConfig.server.containerHost else if isDev then host else appConfig.server.containerHost;
+    serverHost = if containerMode then containerHost else djangoHost;
     hostText = if containerMode then "containerized server" else "server";
   in ''
-    # Use unified server script (DRY) and honor runtime env for host/port
-    export DJANGO_HOST="''${DJANGO_HOST:-${if containerMode then appConfig.server.containerHost else host}}"
-    export DJANGO_PORT="''${DJANGO_PORT:-${port}}"
+    # Use unified server script (DRY) and honor runtime env for env.DJANGO_HOST/env.DJANGO_PORT
+    export DJANGO_HOST="''${DJANGO_HOST:-${env.DJANGO_HOST}}"
+    export DJANGO_PORT="''${DJANGO_PORT:-${env.DJANGO_PORT}}"
     bash scripts/core/server-run.sh
   '';
 in
@@ -89,8 +89,8 @@ in
     # Runtime mode detection
     if [ "''${DJANGO_ENV:-development}" = "production" ]; then
       echo "Production mode: Services should be managed externally"
-      echo "Expecting PostgreSQL on external host"
-      echo "Expecting Redis on external host"
+      echo "Expecting PostgreSQL on external env.DJANGO_HOST"
+      echo "Expecting Redis on external env.DJANGO_HOST"
     else
       echo "Starting development services (postgres, redis)..."
       devenv up postgres redis
@@ -143,7 +143,6 @@ in
   # Core utility scripts
   ensure-psql.exec = "${pkgs.uv}/bin/uv run python scripts/database/ensure_psql.py";
   env-fetch-db-pwd-file.exec = "${pkgs.uv}/bin/uv run python scripts/database/fetch_db_pwd_file.py";
-  env-init-conf.exec = "${pkgs.uv}/bin/uv run python scripts/database/make_conf.py";
   env-build.exec = "${pkgs.uv}/bin/uv run python scripts/core/setup.py";
   
   # Django management commands
