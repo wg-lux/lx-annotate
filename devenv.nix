@@ -7,10 +7,9 @@
   ... }:
 let
   appConfig = import ./app_config.nix;
-  env.DATABASE_URL = config.secretspec.secrets.DATABASE_URL;
-  env.OIDC_RP_CLIENT_SECRET = config.secretspec.secrets.OIDC_RP_CLIENT_SECRET;
+
   appName = "lx_annotate";
-  DEPLOYMENT_MODE = "dev";
+  DEPLOYMENT_MODE = "prod";
 
   dataDir = let env = builtins.getEnv "DATA_DIR"; in if env != "" then env else appConfig.paths.data;
   confDir = let env = builtins.getEnv "CONF_DIR"; in if env != "" then env else appConfig.paths.conf;
@@ -108,6 +107,74 @@ in
           ;
     STORAGE_DIR = lib.mkForce dataDir;
     TESSDATA_PREFIX = "${myTesseract}/share/tessdata";
+    # --- Directories & Paths ---
+    DATA_DIR = config.secretspec.secrets.DATA_DIR;
+    CONF_DIR = config.secretspec.secrets.CONF_DIR;
+    CONF_TEMPLATE_DIR = config.secretspec.secrets.CONF_TEMPLATE_DIR;
+    IMPORT_DIR = config.secretspec.secrets.IMPORT_DIR;
+    IMPORT_VIDEO_DIR = config.secretspec.secrets.IMPORT_VIDEO_DIR;
+    ASSET_DIR = config.secretspec.secrets.ASSET_DIR;
+    HOME_DIR = config.secretspec.secrets.HOME_DIR;
+    WORKING_DIR = config.secretspec.secrets.WORKING_DIR;
+    DJANGO_STATIC_ROOT = config.secretspec.secrets.DJANGO_STATIC_ROOT;
+
+    # --- Network & Server ---
+    HTTP_PROTOCOL = config.secretspec.secrets.HTTP_PROTOCOL;
+    DJANGO_HOST = config.secretspec.secrets.DJANGO_HOST;
+    DJANGO_PORT = config.secretspec.secrets.DJANGO_PORT;
+    BASE_URL = config.secretspec.secrets.BASE_URL;
+    ALLOWED_HOSTS = config.secretspec.secrets.ALLOWED_HOSTS;
+    DJANGO_ALLOWED_HOSTS = config.secretspec.secrets.ALLOWED_HOSTS;
+    DJANGO_CSRF_TRUSTED_ORIGINS = config.secretspec.secrets.DJANGO_CSRF_TRUSTED_ORIGINS;
+    STATIC_URL = config.secretspec.secrets.STATIC_URL;
+    MEDIA_URL = config.secretspec.secrets.MEDIA_URL;
+    EXEMPT_URLS = config.secretspec.secrets.EXEMPT_URLS;
+    LOGIN_URL = config.secretspec.secrets.LOGIN_URL;
+
+    # --- Database ---
+    DJANGO_DB_ENGINE = config.secretspec.secrets.DJANGO_DB_ENGINE;
+    DJANGO_DB_NAME = config.secretspec.secrets.DJANGO_DB_NAME;
+    DJANGO_DB_USER = config.secretspec.secrets.DJANGO_DB_USER;
+    DJANGO_DB_PASSWORD = config.secretspec.secrets.DJANGO_DB_PASSWORD;
+    DJANGO_DB_HOST = config.secretspec.secrets.DJANGO_DB_HOST;
+    DJANGO_DB_PORT = config.secretspec.secrets.DJANGO_DB_PORT;
+
+    # --- Django Core ---
+    DJANGO_MODULE = config.secretspec.secrets.DJANGO_MODULE;
+    DJANGO_SETTINGS_MODULE = config.secretspec.secrets.DJANGO_SETTINGS_MODULE;
+    DJANGO_SETTINGS_MODULE_PRODUCTION = config.secretspec.secrets.DJANGO_SETTINGS_MODULE_PRODUCTION;
+    DJANGO_SETTINGS_MODULE_DEVELOPMENT = config.secretspec.secrets.DJANGO_SETTINGS_MODULE_DEVELOPMENT;
+    DJANGO_ENV = config.secretspec.secrets.DJANGO_ENV;
+    DJANGO_DEBUG = config.secretspec.secrets.DJANGO_DEBUG;
+    TIME_ZONE = config.secretspec.secrets.TIME_ZONE;
+    DEFAULT_CENTER = config.secretspec.secrets.CENTER_NAME;
+
+    # --- Authentication & Secrets ---
+    DJANGO_SECRET_KEY = config.secretspec.secrets.DJANGO_SECRET_KEY;
+    SECRET_KEY = config.secretspec.secrets.SECRET_KEY;
+    OIDC_RP_CLIENT_ID = config.secretspec.secrets.OIDC_RP_CLIENT_ID;
+    OIDC_RP_CLIENT_SECRET = config.secretspec.secrets.OIDC_RP_CLIENT_SECRET;
+
+    # --- AI & HuggingFace Models ---
+    HF_HOME = config.secretspec.secrets.HF_HOME;
+    HF_HUB_CACHE = config.secretspec.secrets.HF_HUB_CACHE;
+    TRANSFORMERS_CACHE = config.secretspec.secrets.TRANSFORMERS_CACHE;
+    OLLAMA_MODELS = config.secretspec.secrets.OLLAMA_MODELS;
+    OLLAMA_KEEP_ALIVE = config.secretspec.secrets.OLLAMA_KEEP_ALIVE;
+    HF_HUB_ENABLE_HF_TRANSFER = config.secretspec.secrets.HF_HUB_ENABLE_HF_TRANSFER;
+
+    # --- Video Processing & Tests ---
+    RUN_VIDEO_TESTS = config.secretspec.secrets.RUN_VIDEO_TESTS;
+    SKIP_EXPENSIVE_TESTS = config.secretspec.secrets.SKIP_EXPENSIVE_TESTS;
+    VIDEO_DEFAULT_FPS = config.secretspec.secrets.VIDEO_DEFAULT_FPS;
+    VIDEO_ALLOW_FPS_FALLBACK = config.secretspec.secrets.VIDEO_ALLOW_FPS_FALLBACK;
+    LABEL_VIDEO_SEGMENT_MIN_DURATION_S_FOR_ANNOTATION = config.secretspec.secrets.LABEL_VIDEO_SEGMENT_MIN_DURATION_S_FOR_ANNOTATION;
+    DJANGO_FFMPEG_EXTRACT_FRAME_BATCHSIZE = config.secretspec.secrets.DJANGO_FFMPEG_EXTRACT_FRAME_BATCHSIZE;
+
+    # --- System & Throttling ---
+    RUST_BACKTRACE = config.secretspec.secrets.RUST_BACKTRACE;
+    DRF_THROTTLE_ANON = config.secretspec.secrets.DRF_THROTTLE_ANON;
+    DRF_THROTTLE_USER = config.secretspec.secrets.DRF_THROTTLE_USER;
   } // devenv_utils.environment;
 
   languages.python = {
