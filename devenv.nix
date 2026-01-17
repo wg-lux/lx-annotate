@@ -128,7 +128,7 @@ let
 in
 {
 
-  dotenv.enable = false;
+  dotenv.enable = true;
   packages = devenv_utils.buildInputs ++ [ 
     myTesseract
     pkgs.ollama
