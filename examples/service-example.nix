@@ -331,6 +331,18 @@ PY
     # Set additional environment variables
     ${lib.concatStringsSep "\n" (lib.mapAttrsToList (name: value: "export ${name}='${value}'") cfg.service.extraEnvironment)}
     ''}
+    SECRETSPEC_CONFIG_DIR="${endoreg-service-user-home}/.config/secretspec"
+    mkdir -p "$SECRETSPEC_CONFIG_DIR"
+    
+    echo "Generating secretspec configuration at $SECRETSPEC_CONFIG_DIR/config.toml..."
+    cat > "$SECRETSPEC_CONFIG_DIR/config.toml" <<EOF
+[defaults]
+provider = "env"
+profile = "default"
+EOF
+    
+    # Ensure correct ownership
+    chown -R ${endoreg-service-user-name}:${endoreg-service-group-name} "${endoreg-service-user-home}/.config"
 
     echo "Starting Django server..."
     echo "Hostname: ${envDjangoHost}"
