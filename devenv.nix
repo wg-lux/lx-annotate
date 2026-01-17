@@ -140,6 +140,7 @@ in
 
   env = baseEnv // {
     # include runtimePackages as well so runtime native libs (e.g. zlib) are on LD_LIBRARY_PATH
+    PYTHONPATH = "$PWD";
     LD_LIBRARY_PATH =
           lib.makeLibraryPath (devenv_utils.buildInputs ++ [myTesseract])
           + ":/run/opengl-driver/lib:/run/opengl-driver-32/lib"
