@@ -137,9 +137,8 @@ in
       # export all env variables from .env if it exists
       export $(grep -v '^#' .env | xargs)
       echo "🌀 Starting Daphne on ${appConfig.server.host}:${appConfig.server.port}..."
-      secretspec run --provider env exec daphne -b "''${DJANGO_HOST}" -p "''${DJANGO_PORT}" lx_annotate.asgi:application
-    ''; 
-
+      secretspec run --provider env exec -- python -m daphne -b "''${DJANGO_HOST}" -p "''${DJANGO_PORT}" lx_annotate.asgi:application
+    '';
 
     "docker-dev-build".exec = ''
       set -e
