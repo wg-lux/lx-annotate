@@ -135,11 +135,10 @@ in
 
     "run-server".exec = ''
       # export all env variables from .env if it exists
-      ##### TODO
-    export $(grep -v '^#' .env | xargs)
-    echo "🌀 Starting Daphne on ${appConfig.server.host}:${appConfig.server.port}..."
-    secretspec run exec daphne -b "''${DJANGO_HOST}" -p "''${DJANGO_PORT}" lx_annotate.asgi:application
-    '';
+      export $(grep -v '^#' .env | xargs)
+      echo "🌀 Starting Daphne on ${appConfig.server.host}:${appConfig.server.port}..."
+      secretspec run --provider env exec daphne -b "''${DJANGO_HOST}" -p "''${DJANGO_PORT}" lx_annotate.asgi:application
+    ''; 
 
 
     "docker-dev-build".exec = ''
