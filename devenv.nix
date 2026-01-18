@@ -102,15 +102,13 @@ let
 
   customTasks = ( 
     import ./devenv/tasks/default.nix ({
-      inherit config pkgs lib;
-      env = baseEnv;
+      inherit config pkgs lib baseEnv;
     })
   );
 
   customProcesses = (
     import ./devenv/processes/default.nix ({
-       inherit config pkgs lib;
-        env = baseEnv;
+       inherit config pkgs lib baseEnv;
     })
   );
 
@@ -203,7 +201,7 @@ in
 
 
   enterShell = lib.mkAfter ''
-
+    direnv disallow
     export SYNC_CMD="uv sync"
     
     # Ensure dependencies are synced using uv
