@@ -9,6 +9,8 @@ from pathlib import Path
 from lx_annotate.settings.config import load_config
 from logging import getLogger
 
+from lx_annotate.settings.settings_prod import CORS_ALLOWED_ORIGINS
+
 logger = getLogger(__name__)
 # -----------------------------------------------------------------------------
 # 1. PATH CONFIGURATION
@@ -98,6 +100,7 @@ if not SECRET_KEY:
         )
 DEBUG = config.debug
 ALLOWED_HOSTS = config.allowed_hosts
+CORS_ALLOWED_ORIGINS = config.cors_allowed_origins
 
 INSTALLED_APPS = [
     "django.contrib.admin",
