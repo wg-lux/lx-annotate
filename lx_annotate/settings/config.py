@@ -39,7 +39,7 @@ class AppConfig(BaseSettings):
 
     # Security: Hosts, CORS, CSRF
     allowed_hosts: Annotated[list[str], NoDecode] = Field(
-        default_factory=lambda: ["lx-annotate.local", "localhost", "127.0.0.1", "[::1]"]
+        default_factory=lambda: ["https://lx-annotate.local", "http://lx-annotate.local", "http://localhost", "https://localhost", "http://127.0.0.1", "https://127.0.0.1", "[::1]"]
     )
     csrf_trusted_origins: Annotated[list[str], NoDecode] = Field(default_factory=list)
     cors_allowed_origins: Annotated[list[str], NoDecode] = Field(default_factory=list)
