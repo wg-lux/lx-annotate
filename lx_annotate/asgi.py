@@ -14,7 +14,19 @@ from django.core.wsgi import get_wsgi_application
 
 from asgiref.wsgi import WsgiToAsgi
 from whitenoise import WhiteNoise
+import os, importlib, traceback, sys
+print("DJANGO_SETTINGS_MODULE =", os.getenv("DJANGO_SETTINGS_MODULE"))
+print("sys.path[:10] =", sys.path[:10])
 
+m = os.getenv("DJANGO_SETTINGS_MODULE")
+if not m:
+    raise SystemExit("DJANGO_SETTINGS_MODULE is not set")
+
+try:
+    importlib.import_module(m)
+    print("Imported settings module OK:", m)
+except Exception:
+    traceback.print_exc()
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "lx_annotate.settings.settings_prod")
 
 staticfiles_dir = os.path.join(os.path.dirname(__file__), "staticfiles")

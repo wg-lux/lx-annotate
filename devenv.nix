@@ -198,6 +198,7 @@ in
     uvsnc.exec = ''
       ${SYNC_CMD}
     '';
+  
   } // devenv_utils.scripts;
 
   cachix.enable = true;
@@ -238,6 +239,7 @@ in
       echo "Warning: uv virtual environment activation script not found. Run 'devenv task run env:clean' and re-enter shell."
     fi
     gpu-check
+    
 
 
   '';
