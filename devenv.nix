@@ -201,7 +201,7 @@ in
 
 
   enterShell = lib.mkAfter ''
-
+    direnv disallow
     export SYNC_CMD="uv sync"
 
     # Ensure dependencies are synced using uv
