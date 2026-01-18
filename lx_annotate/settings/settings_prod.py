@@ -18,7 +18,6 @@ from .settings_base import (
     BASE_DIR,
     config,
 )
-from endoreg_db.config.settings import keycloak as KEYCLOAK
 
 import os
 from pathlib import Path
@@ -162,7 +161,7 @@ if not DATABASES["default"]["PASSWORD"]:
 
 ENFORCE_AUTH = os.getenv("ENFORCE_AUTH", "1") == "1"  # default OFF
 
-if ENFORCE_AUTH:
+try:
     # ✅ Make sure libs/endoreg-db is on sys.path so `config.settings` is importable
     import sys
     from pathlib import Path
@@ -176,6 +175,8 @@ if ENFORCE_AUTH:
         print(
             f"⚠️ Keycloak config dir not found or already in sys.path: {KEYCLOAK_CONFIG_ROOT}"
         )
+
+    from endoreg_db.config.settings import keycloak as KEYCLOAK
 
     DEBUG = False  # force prod behavior so PolicyPermission doesn't bypass
 
@@ -215,7 +216,14 @@ if ENFORCE_AUTH:
     ]
 
     print("🔒 ENFORCE_AUTH=1 → Keycloak enabled (session SSO) + RBAC ON")
-
+except ImportError as e:
+    print(f"❌ Keycloak integration failed to load: {e}")
+    if ENFORCE_AUTH:
+        raise RuntimeError(
+            "🚨 SECURITY ERROR: ENFORCE_AUTH=1 but Keycloak integration failed to load!"
+        ) from e
+    else:
+        print("🔓 ENFORCE_AUTH=0 → Keycloak disabled, no authentication")
 # Stable Hosting using NGINX, so we can trust the X-Forwarded-* headers
 USE_X_FORWARDED_HOST = True
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")

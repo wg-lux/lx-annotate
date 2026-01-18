@@ -25,7 +25,6 @@ from .settings_base import (
 from pathlib import Path
 
 import os
-from endoreg_db.config.settings import keycloak as KEYCLOAK
 
 LOGGING = cast(dict[str, Any], LOGGING)
 REST_FRAMEWORK = cast(dict[str, Any], REST_FRAMEWORK)
@@ -67,6 +66,22 @@ ENFORCE_AUTH = os.getenv("ENFORCE_AUTH", "0") == "1"
 if ENFORCE_AUTH:
     print("🔒 AUTH: ENFORCED (Keycloak Mock/Real)")
     try:
+            # ✅ Make sure libs/endoreg-db is on sys.path so `config.settings` is importable
+        import sys
+        from pathlib import Path
+
+        # BASE_DIR comes from settings_base.py which you imported above
+        KEYCLOAK_CONFIG_ROOT = BASE_DIR / "libs" / "endoreg-db"
+        if KEYCLOAK_CONFIG_ROOT.exists() and str(KEYCLOAK_CONFIG_ROOT) not in sys.path:
+            sys.path.insert(0, str(KEYCLOAK_CONFIG_ROOT))
+            print(f"🔧 Added to sys.path for Keycloak: {KEYCLOAK_CONFIG_ROOT}")
+        else:
+            print(
+                f"⚠️ Keycloak config dir not found or already in sys.path: {KEYCLOAK_CONFIG_ROOT}"
+            )
+
+        from endoreg_db.config.settings import keycloak as KEYCLOAK
+
         INSTALLED_APPS.extend(KEYCLOAK.EXTRA_INSTALLED_APPS)
         MIDDLEWARE.extend(KEYCLOAK.EXTRA_MIDDLEWARE)
 

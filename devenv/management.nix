@@ -32,7 +32,6 @@ in
         
         
         # Step 3: Environment file setup
-        ${pkgs.uv}/bin/uv run python scripts/core/setup.py
         
         # Step 4: CUDA environment setup (optional)
         devenv tasks run env:setup-cuda || true

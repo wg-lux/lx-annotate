@@ -56,7 +56,7 @@ wait_for_db() {
   while true; do
     if python - <<'PY'
 import os, django
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', os.environ.get('DJANGO_SETTINGS_MODULE','lx-annotate.settings_prod'))
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', os.environ.get('DJANGO_SETTINGS_MODULE','lx_annotate.settings.settings_prod'))
 try:
     django.setup()
     from django.db import connections

@@ -12,7 +12,7 @@ let
   python = pkgs.python312;
   uvPackage = pkgs.uv;
 
-  devTasks = import ./devenv/devTasks/default.nix { inherit config pkgs lib; };
+  devTasks = import ./devenv/devTasks/default.nix { inherit config pkgs lib; env=baseEnv; };
 
   languages.javascript.enable = true;
   languages.javascript.package = pkgs.nodejs_22; # Specify the Node.js version
@@ -24,6 +24,8 @@ let
   # These are variables that do NOT depend on devenv_utils
   baseEnv = {
     # --- Directories & Paths ---
+    PYTHONPATH = "$PWD";
+
     containerHost = "None";
     containerMode = false;
     STORAGE_DIR = config.secretspec.secrets.STORAGE_DIR;
@@ -94,7 +96,7 @@ let
     lib = lib;
     uvPackage = uvPackage;
     isDev = true;
-    env = baseEnv; # Use baseEnv instead of env
+    env = baseEnv;
   };
   commonShellHook = ''
     export PATH="$PATH:$(yarn global bin)"
@@ -103,12 +105,14 @@ let
   customTasks = ( 
     import ./devenv/tasks/default.nix ({
       inherit config pkgs lib;
+      env = baseEnv;
     })
   );
 
   customProcesses = (
     import ./devenv/processes/default.nix ({
        inherit config pkgs lib;
+        env = baseEnv;
     })
   );
 
@@ -140,7 +144,6 @@ in
 
   env = baseEnv // {
     # include runtimePackages as well so runtime native libs (e.g. zlib) are on LD_LIBRARY_PATH
-    PYTHONPATH = "$PWD";
     LD_LIBRARY_PATH =
           lib.makeLibraryPath (devenv_utils.buildInputs ++ [myTesseract])
           + ":/run/opengl-driver/lib:/run/opengl-driver-32/lib"
@@ -234,7 +237,6 @@ in
     else
       echo "Warning: uv virtual environment activation script not found. Run 'devenv task run env:clean' and re-enter shell."
     fi
-    python scripts/core/setup.py --status-only || echo "Warning: Environment setup check failed."
     gpu-check
 
 
