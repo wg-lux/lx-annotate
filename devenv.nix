@@ -215,6 +215,13 @@ in
        $SYNC_CMD --quiet || echo "Warning: uv sync failed. Environment might be outdated."
     fi
 
+    mkdir -p "${config.secretspec.secrets.STORAGE_DIR}"
+    mkdir -p "${config.secretspec.secrets.ASSET_DIR}"
+    mkdir -p "${config.secretspec.secrets.HOME_DIR}"
+    mkdir -p "${config.secretspec.secrets.WORKING_DIR}"
+    mkdir -p "${config.secretspec.secrets.DJANGO_STATIC_ROOT}"
+    mkdir -p "./.devenv/state/logs"
+
     echo "Exporting environment variables from .env.systemd file..."
     echo "Note: In dev mode you can set defaults in secretspec.toml or source them from local env by enabling the env source in your config.yaml for secretspec."
     if [ -f ".env.systemd" ]; then
