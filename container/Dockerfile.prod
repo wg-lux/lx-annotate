@@ -33,7 +33,7 @@ COPY . /app
 
 # Runtime environment defaults
 ENV PATH="/app/.venv/bin:$PATH" \
-    DJANGO_SETTINGS_MODULE=config.settings.prod \
+    DJANGO_SETTINGS_MODULE=lx_annotate.settings.settings_prod \
     DJANGO_HOST=0.0.0.0 \
     DJANGO_PORT=8117 \
     DJANGO_ENV=production \

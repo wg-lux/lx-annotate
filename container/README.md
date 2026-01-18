@@ -103,7 +103,7 @@ docker run --rm -p 8117:8117 \
 
 Both containers now mirror the `.env.example` template used by the core application. Key defaults:
 
-- `DJANGO_SETTINGS_MODULE` – defaults to `config.settings_dev` (dev) or `config.settings.prod` (prod)
+- `DJANGO_SETTINGS_MODULE` – defaults to `config.settings_dev` (dev) or `lx_annotate.settings.settings_prod` (prod)
 - `DJANGO_ENV` – `development`, `production`, or `central`
 - `TIME_ZONE` – default `Europe/Berlin`
 - `STORAGE_DIR` / `DATA_DIR` – default `/app/data`

@@ -124,14 +124,23 @@ class EnvironmentSetup:
         new_lines = []
         updates_count = 0
         
+        FORCE_KEYS = {
+            "DJANGO_SETTINGS_MODULE",
+            "DJANGO_SETTINGS_MODULE_PRODUCTION",
+            "DJANGO_SETTINGS_MODULE_DEVELOPMENT",
+            "DJANGO_ENV",
+        }
+
         for key, default_val in self.defaults.items():
-            if key in current_secrets and not self.force:
+            should_overwrite = self.force or (key in FORCE_KEYS)
+
+            if key in current_secrets and not should_overwrite:
                 val = current_secrets[key]
             else:
-                # Execute generator if it's a function (like get_random_secret_key)
                 val = default_val() if callable(default_val) else default_val
                 current_secrets[key] = str(val)
                 updates_count += 1
+
             
             # Determine if we should quote the value (simple heuristic)
             if " " in val or "/" in val:

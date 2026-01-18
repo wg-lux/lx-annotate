@@ -12,7 +12,7 @@ if [ "${CENTRAL_NODE:-false}" = "true" ]; then
   export DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS_MODULE:-config.settings.central}"
 else
   export DJANGO_ENV="${DJANGO_ENV:-production}"
-  export DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS_MODULE:-config.settings.prod}"
+  export DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS_MODULE:-lx_annotate.settings.settings_prod}"
 fi
 export DJANGO_MODULE="${DJANGO_MODULE:-lx_annotate}"
 
