@@ -28,14 +28,20 @@ APP_DATA_DIR.mkdir(parents=True, exist_ok=True)
 # 2. Look in Repo Root (.env)
 # 3. Fallback to Environment Variables
 
-_env_path = APP_DATA_DIR / ".env.systemd"
-if not _env_path.exists():
-    _env_path = BASE_DIR / ".env.systemd"
 
 
-config = load_config(env_file=_env_path)
 _settings_module = os.getenv("DJANGO_SETTINGS_MODULE", "")
 _is_dev_settings = _settings_module.endswith("settings_dev")
+if not _is_dev_settings:
+    _env_path = APP_DATA_DIR / ".env.systemd"
+    if not _env_path.exists():
+        _env_path = BASE_DIR / ".env.systemd"
+else:
+    _env_path = BASE_DIR / ".env"
+    if not _env_path.exists():
+        _env_path = APP_DATA_DIR / ".env"
+        
+config = load_config(env_file=Path(_env_path))
 
 # --- DEBUG / LOG GUARD ---
 SECRET_KEY = config.secret_key
