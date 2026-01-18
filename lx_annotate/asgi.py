@@ -8,6 +8,8 @@ https://docs.djangoproject.com/en/4.2/howto/deployment/asgi/
 """
 
 import os
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "lx_annotate.settings.settings_prod")
+
 
 from django.core.asgi import get_asgi_application
 from django.core.wsgi import get_wsgi_application
