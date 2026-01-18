@@ -8,22 +8,18 @@ https://docs.djangoproject.com/en/4.2/howto/deployment/asgi/
 """
 
 import os
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "lx_annotate.settings.settings_prod")
-
-
+os.environ["DJANGO_SETTINGS_MODULE"] = "lx_annotate.settings.settings_prod"
 from django.core.asgi import get_asgi_application
 from django.core.wsgi import get_wsgi_application
 
 from asgiref.wsgi import WsgiToAsgi
 from whitenoise import WhiteNoise
-import os, importlib, traceback, sys
+
+import importlib, traceback, sys
 print("DJANGO_SETTINGS_MODULE =", os.getenv("DJANGO_SETTINGS_MODULE"))
 print("sys.path[:10] =", sys.path[:10])
 
-m = os.getenv("DJANGO_SETTINGS_MODULE")
-if not m:
-    raise SystemExit("DJANGO_SETTINGS_MODULE is not set")
-
+m = os.getenv("DJANGO_SETTINGS_MODULE", "lx_annotate.settings.settings_prod")
 try:
     importlib.import_module(m)
     print("Imported settings module OK:", m)

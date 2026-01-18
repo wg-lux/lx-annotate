@@ -24,8 +24,6 @@ let
   # These are variables that do NOT depend on devenv_utils
   baseEnv = {
     # --- Directories & Paths ---
-    PYTHONPATH = "$PWD";
-
     containerHost = "None";
     containerMode = false;
     STORAGE_DIR = config.secretspec.secrets.STORAGE_DIR;
@@ -132,7 +130,7 @@ let
 in
 {
 
-  dotenv.enable = true;
+  dotenv.enable = false;
   packages = devenv_utils.buildInputs ++ [ 
     myTesseract
     pkgs.ollama
@@ -207,7 +205,7 @@ in
   enterShell = lib.mkAfter ''
 
     export SYNC_CMD="uv sync"
-
+    
     # Ensure dependencies are synced using uv
     # Check if venv exists. If not, run sync verbosely. If it exists, sync quietly.
     if [ ! -d ".devenv/state/venv" ]; then
@@ -220,6 +218,7 @@ in
     fi
 
     echo "Exporting environment variables from .env.systemd file..."
+    echo "Note: In dev mode you can set defaults in secretspec.toml or source them from local env by enabling the env source in your config.yaml for secretspec."
     if [ -f ".env.systemd" ]; then
       set -a
       source .env.systemd
