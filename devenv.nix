@@ -102,13 +102,13 @@ let
 
   customTasks = ( 
     import ./devenv/tasks/default.nix ({
-      inherit config pkgs lib;
+      inherit config pkgs lib baseEnv;
     })
   );
 
   customProcesses = (
     import ./devenv/processes/default.nix ({
-       inherit config pkgs lib;
+       inherit config pkgs lib baseEnv;
     })
   );
 
@@ -234,7 +234,6 @@ in
     else
       echo "Warning: uv virtual environment activation script not found. Run 'devenv task run env:clean' and re-enter shell."
     fi
-    python scripts/core/setup.py --status-only || echo "Warning: Environment setup check failed."
     gpu-check
 
 
