@@ -139,6 +139,7 @@ in
     "vue-build".exec = ''
       cd lx-annotate
       cd frontend
+      pwd
       direnv allow
       npm install
       npm run build
