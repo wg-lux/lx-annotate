@@ -161,6 +161,11 @@ in
       sync.enable = true;
     };
   };
+  languages.javascript = {
+    enable = true;
+    package = pkgs.nodejs_22; 
+    npm.install.enable = true; 
+  };
 
 
   

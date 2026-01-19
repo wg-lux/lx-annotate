@@ -138,7 +138,6 @@ in
 
     "vue-build".exec = ''
       cd frontend
-      nix-shell -p nodejs_22
       npm install
       npm run build
       exit
