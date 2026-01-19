@@ -34,7 +34,7 @@ in
   runtimePackages = runtimePackages;
   # Integrate centralized management with legacy modular components
   # Unified system: management.nix provides all functionality
-  
+  scripts = managementSystem.scripts;
   processes = processes;
   environment = environment;
 }

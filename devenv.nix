@@ -188,7 +188,7 @@ in
       ${SYNC_CMD}
     '';
   
-  };
+  } // devenv_utils.scripts;
 
   cachix.enable = true;
 
