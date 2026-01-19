@@ -19,6 +19,7 @@ let
   languages.python.enable = true;
   languages.python.uv.enable = true;
 
+  isDev = if config.secretspec.secrets.DJANGO_ENV == "development" then true else false;
 
   # 1. DEFINE STATIC ENV VARS HERE
   # These are variables that do NOT depend on devenv_utils
@@ -163,7 +164,7 @@ in
 
 
   
-  tasks = devenv_utils.tasks // (if isDev then devTasks else {});
+  tasks = devenv_utils.tasks;
   processes = devenv_utils.processes;
   containers = devenv_utils.containers;
   services = devenv_utils.services;
@@ -246,12 +247,6 @@ in
     fi
     gpu-check
 
-    if [ -f "static/dist/.vite/manifest.json" ]; then
-      echo "Vite manifest found."
-    else
-      echo "Warning: Vite manifest not found. You may need to build frontend assets with 'devenv task run frontend:build'."
-      devenv tasks run vue:build
-    fi
     
 
 

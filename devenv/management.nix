@@ -62,6 +62,13 @@ in
         echo "✅ Deploy pipeline complete"
       '';
     };
+    "vue:build".exec = 
+      ''
+      cd frontend
+      direnv allow
+      npm install
+      npm run build
+    '';
   };
 
   # =============================================================================
@@ -127,6 +134,13 @@ in
           echo "  manage docker-dev-build && manage docker-dev-run"
           ;;
       esac
+    '';
+
+    "vue-build".exec = ''
+      cd frontend
+      direnv allow
+      npm install
+      npm run build
     '';
     
 
