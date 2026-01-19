@@ -102,18 +102,6 @@ let
     export PATH="$PATH:$(yarn global bin)"
   '';
 
-  customTasks = ( 
-    import ./devenv/tasks/default.nix ({
-      inherit config pkgs lib baseEnv;
-    })
-  );
-
-  customProcesses = (
-    import ./devenv/processes/default.nix ({
-       inherit config pkgs lib baseEnv;
-    })
-  );
-
   imports = [
     ./frontend/flake.nix
   ];
@@ -169,10 +157,7 @@ in
 
 
   
-  tasks = devenv_utils.tasks;
   processes = devenv_utils.processes;
-  containers = devenv_utils.containers;
-  services = devenv_utils.services;
 
   scripts = {
     export-nix-vars.exec = ''
@@ -203,7 +188,7 @@ in
       ${SYNC_CMD}
     '';
   
-  } // devenv_utils.scripts;
+  };
 
   cachix.enable = true;
 

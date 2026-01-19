@@ -16,10 +16,7 @@ let
     inherit pkgs lib env isDev; 
   };
   
-  services = import ./services.nix { 
-    inherit pkgs lib env isDev; 
-  };
-  
+
   processes = import ./processes.nix { 
     inherit pkgs lib env isDev; 
   };
@@ -37,10 +34,7 @@ in
   runtimePackages = runtimePackages;
   # Integrate centralized management with legacy modular components
   # Unified system: management.nix provides all functionality
-  scripts = scripts // managementSystem.scripts;
-  tasks = managementSystem.tasks;  # All tasks come from management.nix
   
-  services = services;
   processes = processes;
   environment = environment;
 }
