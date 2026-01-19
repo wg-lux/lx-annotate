@@ -87,6 +87,7 @@ let
     RUST_BACKTRACE = config.secretspec.secrets.RUST_BACKTRACE;
     DRF_THROTTLE_ANON = config.secretspec.secrets.DRF_THROTTLE_ANON;
     DRF_THROTTLE_USER = config.secretspec.secrets.DRF_THROTTLE_USER;
+    TEST_RUN_FRAME_NUMBER = config.secretspec.secrets.TEST_RUN_FRAME_NUMBER;
   };
 
   devenv_utils = import ./devenv/default.nix {
@@ -220,7 +221,6 @@ in
     mkdir -p "${config.secretspec.secrets.ASSET_DIR}"
     mkdir -p "${config.secretspec.secrets.HOME_DIR}"
     mkdir -p "${config.secretspec.secrets.WORKING_DIR}"
-    mkdir -p "${config.secretspec.secrets.DJANGO_STATIC_ROOT}"
     mkdir -p "./.devenv/state/logs"
 
     echo "Exporting environment variables from .env.systemd file..."
