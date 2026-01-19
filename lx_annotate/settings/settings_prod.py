@@ -18,7 +18,6 @@ from .settings_base import (
     BASE_DIR,
     config,
 )
-from endoreg_db.config.settings import keycloak as KEYCLOAK
 
 import os
 from pathlib import Path
@@ -32,9 +31,12 @@ STATIC_URL = cast(str, STATIC_URL)
 MEDIA_ROOT = cast(Path, MEDIA_ROOT)
 MEDIA_URL = cast(str, MEDIA_URL)
 config = cast(AppConfig, config)
+
 # -----------------------------------------------------------------------------
 
 config = load_config()
+
+STATIC_ROOT = config.static_root
 # 1. SECURITY
 DEBUG = False
 
@@ -50,7 +52,7 @@ DJANGO_VITE = {
         "dev_mode": False,
         "static_url_prefix": "dist",
         "manifest_path": os.path.join(
-            BASE_DIR, "static", "dist", ".vite", "manifest.json"
+            STATIC_ROOT, "dist", ".vite", "manifest.json"
         ),
     }
 }
@@ -162,7 +164,7 @@ if not DATABASES["default"]["PASSWORD"]:
 
 ENFORCE_AUTH = os.getenv("ENFORCE_AUTH", "1") == "1"  # default OFF
 
-if ENFORCE_AUTH:
+try:
     # ✅ Make sure libs/endoreg-db is on sys.path so `config.settings` is importable
     import sys
     from pathlib import Path
@@ -176,6 +178,8 @@ if ENFORCE_AUTH:
         print(
             f"⚠️ Keycloak config dir not found or already in sys.path: {KEYCLOAK_CONFIG_ROOT}"
         )
+
+    from endoreg_db.config.settings import keycloak as KEYCLOAK
 
     DEBUG = False  # force prod behavior so PolicyPermission doesn't bypass
 
@@ -208,14 +212,20 @@ if ENFORCE_AUTH:
         KEYCLOAK.REST_FRAMEWORK_DEFAULT_AUTH
     )
 
-    # ❗ This is the critical line you were missing at runtime:
     REST_FRAMEWORK["DEFAULT_PERMISSION_CLASSES"] = [
         "rest_framework.permissions.IsAuthenticated",
         "endoreg_db.authz.permissions.PolicyPermission",
     ]
 
     print("🔒 ENFORCE_AUTH=1 → Keycloak enabled (session SSO) + RBAC ON")
-
+except ImportError as e:
+    print(f"❌ Keycloak integration failed to load: {e}")
+    if ENFORCE_AUTH:
+        raise RuntimeError(
+            "🚨 SECURITY ERROR: ENFORCE_AUTH=1 but Keycloak integration failed to load!"
+        ) from e
+    else:
+        print("🔓 ENFORCE_AUTH=0 → Keycloak disabled, no authentication")
 # Stable Hosting using NGINX, so we can trust the X-Forwarded-* headers
 USE_X_FORWARDED_HOST = True
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")

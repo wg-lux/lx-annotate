@@ -54,6 +54,7 @@ class AppConfig(BaseSettings):
     db_host: str = os.getenv("DJANGO_DB_HOST", "localhost")
     db_port: str = os.getenv("DJANGO_DB_PORT", "5432")
     db_sslmode: str = "prefer"
+    static_root: Path = Path(os.getenv("DJANGO_STATIC_ROOT", "./static"))
 
     keycloak_server_url: str = "https://keycloak-endoreg.net"
     keycloak_client_id: str = "lx-frontend"
@@ -115,6 +116,36 @@ class AppConfig(BaseSettings):
             if isinstance(decoded, str):
                 return [decoded]
         return [item.strip() for item in raw.split(",") if item.strip()]
+    
+    
+    @field_validator("allowed_hosts", mode="after")
+    @classmethod
+    def clean_allowed_hosts(cls, v: list[str]) -> list[str]:
+        """Strip http:// and https:// from ALLOWED_HOSTS."""
+        cleaned = []
+        for host in v:
+            # Remove scheme if present
+            if "://" in host:
+                host = host.split("://")[-1]
+            # Remove trailing slashes
+            host = host.rstrip("/")
+            cleaned.append(str(host))
+        return cleaned
+
+    @field_validator("csrf_trusted_origins", "cors_allowed_origins", mode="after")
+    @classmethod
+    def ensure_schemes(cls, v: list[str]) -> list[str]:
+        """Ensure origins start with http:// or https://."""
+        cleaned = []
+        for origin in v:
+            origin = origin.rstrip("/")
+            if "://" not in origin:
+                # Default to https if missing, unless it looks like localhost
+                scheme = "http" if "localhost" in origin or "127.0.0.1" in origin else "https"
+                cleaned.append(f"{scheme}://{origin}")
+            else:
+                cleaned.append(origin)
+        return cleaned
 
     @model_validator(mode="after")
     def apply_secret_files(self) -> "AppConfig":

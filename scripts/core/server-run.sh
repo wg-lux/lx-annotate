@@ -36,10 +36,8 @@ if [ ! -f ".env" ]; then
     manage setup || { echo "❌ Setup failed"; exit 1; }
   else
     if command -v uv >/dev/null 2>&1; then
-      uv run python scripts/core/setup.py || { echo "❌ Setup failed"; exit 1; }
       uv run python scripts/database/make_conf.py || { echo "❌ Database configuration failed"; exit 1; }
     else
-      python scripts/core/setup.py || { echo "❌ Setup failed"; exit 1; }
       python scripts/database/make_conf.py || { echo "❌ Database configuration failed"; exit 1; }
     fi
   fi

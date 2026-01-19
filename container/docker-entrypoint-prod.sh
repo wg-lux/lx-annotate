@@ -12,7 +12,7 @@ if [ "${CENTRAL_NODE:-false}" = "true" ]; then
   export DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS_MODULE:-config.settings.central}"
 else
   export DJANGO_ENV="${DJANGO_ENV:-production}"
-  export DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS_MODULE:-config.settings.prod}"
+  export DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS_MODULE:-lx_annotate.settings.settings_prod}"
 fi
 export DJANGO_MODULE="${DJANGO_MODULE:-lx_annotate}"
 
@@ -56,7 +56,7 @@ wait_for_db() {
   while true; do
     if python - <<'PY'
 import os, django
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', os.environ.get('DJANGO_SETTINGS_MODULE','lx-annotate.settings_prod'))
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', os.environ.get('DJANGO_SETTINGS_MODULE','lx_annotate.settings.settings_prod'))
 try:
     django.setup()
     from django.db import connections

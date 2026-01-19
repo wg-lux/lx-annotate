@@ -12,11 +12,12 @@ Usage:
     python scripts/environment.py central
 """
 
+import argparse
 import os
 import sys
 from pathlib import Path
 from typing import Optional
-import argparse
+
 
 class EnvironmentManager:
     """Unified environment configuration management"""
@@ -59,7 +60,7 @@ class EnvironmentManager:
         
         settings_module = os.environ.get("DJANGO_SETTINGS_MODULE_DEVELOPMENT")
         if not settings_module:
-            settings_module = "lx-annotate.settings_dev"
+            settings_module = "lx_annotate.settings.settings_dev"
             print(f"⚠️  Using default development settings: {settings_module}")
         
         self._update_env_var("DJANGO_SETTINGS_MODULE", settings_module)
@@ -74,7 +75,7 @@ class EnvironmentManager:
         
         settings_module = os.environ.get("DJANGO_SETTINGS_MODULE_PRODUCTION")
         if not settings_module:
-            settings_module = "lx-annotate.settings_prod"
+            settings_module = "lx_annotate.settings.settings_prod"
             print(f"⚠️  Using default production settings: {settings_module}")
         
         self._update_env_var("DJANGO_SETTINGS_MODULE", settings_module)
@@ -89,7 +90,7 @@ class EnvironmentManager:
         
         settings_module = os.environ.get("DJANGO_SETTINGS_MODULE_CENTRAL")
         if not settings_module:
-            settings_module = "lx-annotate.settings_central"
+            settings_module = "lx_annotate.settings.settings_central"
             print(f"⚠️  Using default central settings: {settings_module}")
         
         self._update_env_var("DJANGO_SETTINGS_MODULE", settings_module)

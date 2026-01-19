@@ -13,3 +13,4 @@ inputs:
 allowUnfree: true
 secretspec:
   enable: true
+  provider: "env"

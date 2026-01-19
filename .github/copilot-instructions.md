@@ -175,7 +175,7 @@ Production deployment uses Kubernetes with the following components:
 ports:
   - containerPort: 8117         # Django app port
 env:
-  - DJANGO_SETTINGS_MODULE: config.settings.prod
+  - DJANGO_SETTINGS_MODULE: lx_annotate.settings.settings_prod  # Production settings
 readinessProbe:
   path: /                       # Health check endpoint
 securityContext:

@@ -4,8 +4,8 @@ import sys
 from pathlib import Path
 
 
-DEFAULT_CENTRAL_SETTINGS = "config.settings.central"
-DEFAULT_PROD_SETTINGS = "config.settings.prod"
+DEFAULT_CENTRAL_SETTINGS = "lx_annotate.settings_central"
+DEFAULT_PROD_SETTINGS = "lx_annotate.settings.settings_prod"
 
 
 # Use central settings if available, otherwise fall back to production defaults

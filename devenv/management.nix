@@ -32,7 +32,6 @@ in
         
         
         # Step 3: Environment file setup
-        ${pkgs.uv}/bin/uv run python scripts/core/setup.py
         
         # Step 4: CUDA environment setup (optional)
         devenv tasks run env:setup-cuda || true
@@ -133,6 +132,16 @@ in
 
     "run-server".exec = ''
       echo "🌀 Starting Daphne on ${env.DJANGO_HOST}:${env.DJANGO_PORT}..."
+      if [ -z "''${DJANGO_SETTINGS_MODULE:-}" ]; then
+        echo "⚠️  DJANGO_SETTINGS_MODULE not set, defaulting to lx_annotate.settings"
+        export DJANGO_SETTINGS_MODULE="lx_annotate.settings"
+      else
+        case "$DJANGO_SETTINGS_MODULE" in
+          config* )
+          export DJANGO_SETTINGS_MODULE="lx_annotate.settings.settings_prod"
+            ;;
+        esac
+      fi
       secretspec run --provider env uv run daphne -b "${env.DJANGO_HOST}" -p "${env.DJANGO_PORT}" lx_annotate.asgi:application    '';
 
     "docker-dev-build".exec = ''

@@ -12,7 +12,7 @@ let
   python = pkgs.python312;
   uvPackage = pkgs.uv;
 
-  devTasks = import ./devenv/devTasks/default.nix { inherit config pkgs lib; };
+  devTasks = import ./devenv/devTasks/default.nix { inherit config pkgs lib; env=baseEnv; };
 
   languages.javascript.enable = true;
   languages.javascript.package = pkgs.nodejs_22; # Specify the Node.js version
@@ -87,14 +87,15 @@ let
     RUST_BACKTRACE = config.secretspec.secrets.RUST_BACKTRACE;
     DRF_THROTTLE_ANON = config.secretspec.secrets.DRF_THROTTLE_ANON;
     DRF_THROTTLE_USER = config.secretspec.secrets.DRF_THROTTLE_USER;
+    TEST_RUN_FRAME_NUMBER = config.secretspec.secrets.TEST_RUN_FRAME_NUMBER;
   };
 
   devenv_utils = import ./devenv/default.nix {
     pkgs = pkgs;
     lib = lib;
     uvPackage = uvPackage;
-    isDev = true;
-    env = baseEnv; # Use baseEnv instead of env
+    isDev = isDev;
+    env = baseEnv;
   };
   commonShellHook = ''
     export PATH="$PATH:$(yarn global bin)"
@@ -127,8 +128,9 @@ let
 
 in
 {
+  secretspec.provider = "env";
 
-  dotenv.enable = true;
+  dotenv.enable = false;
   packages = devenv_utils.buildInputs ++ [ 
     myTesseract
     pkgs.ollama
@@ -140,7 +142,6 @@ in
 
   env = baseEnv // {
     # include runtimePackages as well so runtime native libs (e.g. zlib) are on LD_LIBRARY_PATH
-    PYTHONPATH = "$PWD";
     LD_LIBRARY_PATH =
           lib.makeLibraryPath (devenv_utils.buildInputs ++ [myTesseract])
           + ":/run/opengl-driver/lib:/run/opengl-driver-32/lib"
@@ -162,7 +163,7 @@ in
 
 
   
-  tasks = devenv_utils.tasks // (if devenv_utils ? isDev && devenv_utils.isDev then devTasks else {});  
+  tasks = devenv_utils.tasks // (if isDev then devTasks else {});
   processes = devenv_utils.processes;
   containers = devenv_utils.containers;
   services = devenv_utils.services;
@@ -195,6 +196,7 @@ in
     uvsnc.exec = ''
       ${SYNC_CMD}
     '';
+  
   } // devenv_utils.scripts;
 
   cachix.enable = true;
@@ -203,7 +205,7 @@ in
   enterShell = lib.mkAfter ''
     direnv disallow
     export SYNC_CMD="uv sync"
-
+    
     # Ensure dependencies are synced using uv
     # Check if venv exists. If not, run sync verbosely. If it exists, sync quietly.
     if [ ! -d ".devenv/state/venv" ]; then
@@ -215,7 +217,15 @@ in
        $SYNC_CMD --quiet || echo "Warning: uv sync failed. Environment might be outdated."
     fi
 
+    mkdir -p "${config.secretspec.secrets.STORAGE_DIR}"
+    mkdir -p "${config.secretspec.secrets.ASSET_DIR}"
+    mkdir -p "${config.secretspec.secrets.HOME_DIR}"
+    mkdir -p "${config.secretspec.secrets.WORKING_DIR}"
+    mkdir -p "${config.secretspec.secrets.DJANGO_STATIC_ROOT}"
+    mkdir -p "./.devenv/state/logs"
+
     echo "Exporting environment variables from .env.systemd file..."
+    echo "Note: In dev mode you can set defaults in secretspec.toml or source them from local env by enabling the env source in your config.yaml for secretspec."
     if [ -f ".env.systemd" ]; then
       set -a
       source .env.systemd
@@ -235,6 +245,14 @@ in
       echo "Warning: uv virtual environment activation script not found. Run 'devenv task run env:clean' and re-enter shell."
     fi
     gpu-check
+
+    if [ -f "static/dist/.vite/manifest.json" ]; then
+      echo "Vite manifest found."
+    else
+      echo "Warning: Vite manifest not found. You may need to build frontend assets with 'devenv task run frontend:build'."
+      devenv tasks run vue:build
+    fi
+    
 
 
   '';
