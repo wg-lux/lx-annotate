@@ -143,7 +143,6 @@ in
   # Core utility scripts
   ensure-psql.exec = "${pkgs.uv}/bin/uv run python scripts/database/ensure_psql.py";
   env-fetch-db-pwd-file.exec = "${pkgs.uv}/bin/uv run python scripts/database/fetch_db_pwd_file.py";
-  env-build.exec = "${pkgs.uv}/bin/uv run python scripts/core/setup.py";
   
   # Django management commands
   env-export.exec = ''
