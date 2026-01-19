@@ -209,7 +209,6 @@ try:
         KEYCLOAK.REST_FRAMEWORK_DEFAULT_AUTH
     )
 
-    # ❗ This is the critical line you were missing at runtime:
     REST_FRAMEWORK["DEFAULT_PERMISSION_CLASSES"] = [
         "rest_framework.permissions.IsAuthenticated",
         "endoreg_db.authz.permissions.PolicyPermission",

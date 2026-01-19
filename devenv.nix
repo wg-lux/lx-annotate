@@ -8,6 +8,7 @@
 let
   appName = "lx_annotate";
   DEPLOYMENT_MODE = "prod";
+  secretspec.provider = "env";
 
   python = pkgs.python312;
   uvPackage = pkgs.uv;
