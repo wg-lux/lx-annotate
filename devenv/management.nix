@@ -140,7 +140,6 @@ in
       cd frontend
       npm install
       npm run build
-      exit
     '';
     
 
