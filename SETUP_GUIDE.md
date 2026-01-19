@@ -31,9 +31,9 @@ python manage.py runserver
 
 to start the django server.
 
-In production this changes to
+In luxnix production this changes to
 
-
+https://lx-annotate.local/
 
 Videos need to be placed in
 
