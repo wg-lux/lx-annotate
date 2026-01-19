@@ -94,7 +94,7 @@ let
     pkgs = pkgs;
     lib = lib;
     uvPackage = uvPackage;
-    isDev = true;
+    isDev = isDev;
     env = baseEnv;
   };
   commonShellHook = ''
@@ -163,7 +163,7 @@ in
 
 
   
-  tasks = devenv_utils.tasks // (if devenv_utils ? isDev && devenv_utils.isDev then devTasks else {});  
+  tasks = devenv_utils.tasks // (if isDev then devTasks else {});
   processes = devenv_utils.processes;
   containers = devenv_utils.containers;
   services = devenv_utils.services;
@@ -221,6 +221,7 @@ in
     mkdir -p "${config.secretspec.secrets.ASSET_DIR}"
     mkdir -p "${config.secretspec.secrets.HOME_DIR}"
     mkdir -p "${config.secretspec.secrets.WORKING_DIR}"
+    mkdir -p "${config.secretspec.secrets.DJANGO_STATIC_ROOT}"
     mkdir -p "./.devenv/state/logs"
 
     echo "Exporting environment variables from .env.systemd file..."
@@ -244,6 +245,13 @@ in
       echo "Warning: uv virtual environment activation script not found. Run 'devenv task run env:clean' and re-enter shell."
     fi
     gpu-check
+
+    if [ -f "static/dist/.vite/manifest.json" ]; then
+      echo "Vite manifest found."
+    else
+      echo "Warning: Vite manifest not found. You may need to build frontend assets with 'devenv task run frontend:build'."
+      devenv tasks run vue:build
+    fi
     
 
 
