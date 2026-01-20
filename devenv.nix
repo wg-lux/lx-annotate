@@ -91,6 +91,7 @@ let
     DRF_THROTTLE_ANON = config.secretspec.secrets.DRF_THROTTLE_ANON;
     DRF_THROTTLE_USER = config.secretspec.secrets.DRF_THROTTLE_USER;
     TEST_RUN_FRAME_NUMBER = config.secretspec.secrets.TEST_RUN_FRAME_NUMBER;
+    ENABLE_FILE_WATCHER = config.secretspec.secrets.ENABLE_FILE_WATCHER;
   };
 
   devenv_utils = import ./devenv/default.nix {
