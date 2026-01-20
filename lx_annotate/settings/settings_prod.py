@@ -51,9 +51,7 @@ DJANGO_VITE = {
     "default": {
         "dev_mode": False,
         "static_url_prefix": "dist",
-        "manifest_path": os.path.join(
-            STATIC_ROOT, "dist", ".vite", "manifest.json"
-        ),
+        "manifest_path": os.path.join(STATIC_ROOT, "dist", ".vite", "manifest.json"),
     }
 }
 
@@ -230,9 +228,6 @@ except ImportError as e:
 USE_X_FORWARDED_HOST = True
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
-# Ensure this matches the 'alias' path we will set in Nginx later
-# The Nix module passes this via environment variable, but fallback is good.
-STATIC_ROOT = os.environ.get("DJANGO_STATIC_ROOT", BASE_DIR / "staticfiles")
 
 # Ensure Nginx can read these
 MEDIA_ROOT = Path(os.environ.get("LX_ANNOTATE_DATA_DIR", BASE_DIR / "media"))

@@ -116,8 +116,7 @@ class AppConfig(BaseSettings):
             if isinstance(decoded, str):
                 return [decoded]
         return [item.strip() for item in raw.split(",") if item.strip()]
-    
-    
+
     @field_validator("allowed_hosts", mode="after")
     @classmethod
     def clean_allowed_hosts(cls, v: list[str]) -> list[str]:
@@ -141,7 +140,11 @@ class AppConfig(BaseSettings):
             origin = origin.rstrip("/")
             if "://" not in origin:
                 # Default to https if missing, unless it looks like localhost
-                scheme = "http" if "localhost" in origin or "127.0.0.1" in origin else "https"
+                scheme = (
+                    "http"
+                    if "localhost" in origin or "127.0.0.1" in origin
+                    else "https"
+                )
                 cleaned.append(f"{scheme}://{origin}")
             else:
                 cleaned.append(origin)
