@@ -9,6 +9,9 @@ let
   appName = "lx_annotate";
   DEPLOYMENT_MODE = "prod";
   devenv.url = "github:cachix/devenv/v1.3.1";
+
+  cachix.pull = [ "nixpkgs" ];
+
   python = pkgs.python312;
   uvPackage = pkgs.uv;
 
@@ -124,7 +127,6 @@ let
 
 in
 {
-  secretspec.provider = "env";
 
   dotenv.enable = false;
   packages = devenv_utils.buildInputs ++ [ 
@@ -135,6 +137,7 @@ in
     pkgs.cachix
      ];
 
+  secretspec.provider = "env";
 
   env = baseEnv // {
     # include runtimePackages as well so runtime native libs (e.g. zlib) are on LD_LIBRARY_PATH
@@ -232,19 +235,7 @@ in
     else
       echo "Note: .env.systemd not found. Defaults apply."
     fi
-    # Activate Python virtual environment managed by uv inside of devenv
-    # Activate Python virtual environment managed by uv inside of devenv
-    ACTIVATED=false
-    if [ -f ".devenv/state/venv/bin/activate" ]; then
-      source .devenv/state/venv/bin/activate
-      ACTIVATED=true
-      echo "Virtual environment activated."
-    else
-      echo "Warning: uv virtual environment activation script not found. Run 'devenv task run env:clean' and re-enter shell."
-    fi
-    gpu-check
 
-    
 
 
   '';

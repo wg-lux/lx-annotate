@@ -69,6 +69,7 @@ in
       npm install
       npm run build
     '';
+
   };
 
   # =============================================================================
@@ -156,6 +157,12 @@ in
         esac
       fi
       secretspec run --provider env uv run daphne -b "${env.DJANGO_HOST}" -p "${env.DJANGO_PORT}" lx_annotate.asgi:application    '';
+    
+    "start-filewatcher".exec = 
+      ''
+      echo "👀 Starting file watcher for auto-import..."
+      secretspec ${pkgs.uv}/bin/uv run python manage.py start_filewatcher
+    '';
 
 
   };
