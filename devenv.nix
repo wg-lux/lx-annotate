@@ -19,7 +19,7 @@ let
   languages.python.enable = true;
   languages.python.uv.enable = true;
 
-  isDev = if config.secretspec.secrets.DJANGO_ENV == "development" then true else false;
+  isDev = if config.secretspec.secrets.DJANGO_SETTINGS_MODULE == "lx_annotate.settings.settings_dev" then true else false;
 
   # 1. DEFINE STATIC ENV VARS HERE
   # These are variables that do NOT depend on devenv_utils
@@ -102,18 +102,6 @@ let
     export PATH="$PATH:$(yarn global bin)"
   '';
 
-  customTasks = ( 
-    import ./devenv/tasks/default.nix ({
-      inherit config pkgs lib baseEnv;
-    })
-  );
-
-  customProcesses = (
-    import ./devenv/processes/default.nix ({
-       inherit config pkgs lib baseEnv;
-    })
-  );
-
   imports = [
     ./frontend/flake.nix
   ];
@@ -161,13 +149,15 @@ in
       sync.enable = true;
     };
   };
+  languages.javascript = {
+    enable = true;
+    package = pkgs.nodejs_22; 
+    npm.install.enable = true; 
+  };
 
 
   
-  tasks = devenv_utils.tasks;
   processes = devenv_utils.processes;
-  containers = devenv_utils.containers;
-  services = devenv_utils.services;
 
   scripts = {
     export-nix-vars.exec = ''

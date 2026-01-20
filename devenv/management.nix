@@ -138,7 +138,6 @@ in
 
     "vue-build".exec = ''
       cd frontend
-      direnv allow
       npm install
       npm run build
     '';
@@ -158,82 +157,6 @@ in
       fi
       secretspec run --provider env uv run daphne -b "${env.DJANGO_HOST}" -p "${env.DJANGO_PORT}" lx_annotate.asgi:application    '';
 
-    "docker-dev-build".exec = ''
-      set -e
-      RUNTIME=""
-      if command -v podman >/dev/null 2>&1; then RUNTIME=podman; elif command -v docker >/dev/null 2>&1; then RUNTIME=docker; else echo "No container engine"; exit 1; fi
-      $RUNTIME build -f container/Dockerfile.dev -t lx-annotate:dev .
-    '';
 
-    "docker-dev-run".exec = ''
-      set -e
-      RUNTIME=""
-      if command -v podman >/dev/null 2>&1; then RUNTIME=podman; elif command -v docker >/dev/null 2>&1; then RUNTIME=docker; else echo "No container engine"; exit 1; fi
-      $RUNTIME rm -f lx-annotate-dev >/dev/null 2>&1 || true
-      $RUNTIME run -d --name lx-annotate-dev \
-        -p ${env.DJANGO_HOST}:${env.DJANGO_PORT} \
-        -e DJANGO_ENV=development \
-        -v $(pwd)/${env.WORKING_DIR}:/app/${env.WORKING_DIR} \
-        -v $(pwd)/staticfiles:/app/staticfiles \
-        lx-annotate:dev
-    '';
-
-    "docker-prod-build".exec = ''
-      set -e
-      RUNTIME=""
-      if command -v podman >/dev/null 2>&1; then RUNTIME=podman; elif command -v docker >/dev/null 2>&1; then RUNTIME=docker; else echo "No container engine"; exit 1; fi
-      $RUNTIME build -f container/Dockerfile.prod -t lx-annotate:prod .
-    '';
-
-    "docker-prod-run".exec = ''
-      set -e
-      RUNTIME=""
-      if command -v podman >/dev/null 2>&1; then RUNTIME=podman; elif command -v docker >/dev/null 2>&1; then RUNTIME=docker; else echo "No container engine"; exit 1; fi
-
-      if [ -z "''${DJANGO_SECRET_KEY:-}" ]; then echo "DJANGO_SECRET_KEY must be set"; exit 1; fi
-
-      if [ -z "''${DATABASE_URL:-}" ] \
-         && [ -z "''${DB_NAME:-}" ] && [ -z "''${DB_USER:-}" ] && [ -z "''${DB_PASSWORD:-}" ] \
-         && [ -z "''${DB_HOST:-}" ] && [ -z "''${DB_PORT:-}" ]; then
-        echo "Provide DATABASE_URL or DB_* env vars before running."; exit 1
-      fi
-
-      $RUNTIME rm -f lx-annotate-prod >/dev/null 2>&1 || true
-      $RUNTIME run -d --name lx-annotate-prod \
-        -p ${env.DJANGO_HOST}:${env.DJANGO_PORT} \
-        -e DJANGO_ENV=production \
-        -e DJANGO_HOST=${env.DJANGO_HOST} \
-        -e DJANGO_SECRET_KEY="$DJANGO_SECRET_KEY" \
-        -e DJANGO_ALLOWED_HOSTS \
-        -e DJANGO_DEBUG \
-        -e DJANGO_SECURE_SSL_REDIRECT \
-        -e DJANGO_SESSION_COOKIE_SECURE \
-        -e DJANGO_CSRF_COOKIE_SECURE \
-        -e DATABASE_URL \
-        -e DB_ENGINE \
-        -e DB_NAME \
-        -e DB_USER \
-        -e DB_PASSWORD \
-        -e DB_HOST \
-        -e DB_PORT \
-        -v $(pwd)/${env.WORKING_DIR}:/app/${env.WORKING_DIR} \
-        -v $(pwd)/staticfiles:/app/staticfiles \
-        lx-annotate:prod
-    '';
-
-    "docker-logs".exec = ''
-      RUNTIME=""; if command -v podman >/dev/null 2>&1; then RUNTIME=podman; elif command -v docker >/dev/null 2>&1; then RUNTIME=docker; else echo "No container engine"; exit 1; fi
-      tier="''${1:-dev}"; name="lx-annotate-$tier"; $RUNTIME logs -f "$name"
-    '';
-
-    "docker-stop".exec = ''
-      RUNTIME=""; if command -v podman >/dev/null 2>&1; then RUNTIME=podman; elif command -v docker >/dev/null 2>&1; then RUNTIME=docker; else echo "No container engine"; exit 1; fi
-      for tier in dev prod; do $RUNTIME rm -f lx-annotate-$tier >/dev/null 2>&1 || true; done
-    '';
-
-    "docker-clean".exec = ''
-      RUNTIME=""; if command -v podman >/dev/null 2>&1; then RUNTIME=podman; elif command -v docker >/dev/null 2>&1; then RUNTIME=docker; else echo "No container engine"; exit 1; fi
-      for img in lx-annotate:dev lx-annotate:prod; do $RUNTIME rmi "$img" >/dev/null 2>&1 || true; done
-    '';
   };
 }

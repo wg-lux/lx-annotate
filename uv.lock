@@ -1924,6 +1924,7 @@ dependencies = [
     { name = "python-dotenv" },
     { name = "python-environ" },
     { name = "requests" },
+    { name = "sdnotify" },
     { name = "sops" },
     { name = "torch" },
     { name = "torchvision" },
@@ -2013,6 +2014,7 @@ requires-dist = [
     { name = "python-environ", specifier = ">=0.4.54" },
     { name = "requests", specifier = ">=2.32.3" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.14.8" },
+    { name = "sdnotify", specifier = ">=0.3.2" },
     { name = "sops", specifier = ">=1.18" },
     { name = "sphinx", marker = "extra == 'dev'", specifier = ">=8.2.3,<9.0" },
     { name = "sphinx", marker = "extra == 'docs'", specifier = ">=8.2.3,<9.0" },
@@ -3741,6 +3743,12 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/92/ce/672ed546f96d5d41ae78c4b9b02006cedd0b3d6f2bf5bb76ea455c320c28/scipy-1.17.0-cp312-cp312-win_amd64.whl", hash = "sha256:0937a0b0d8d593a198cededd4c439a0ea216a3f36653901ea1f3e4be949056f8", size = 36328121, upload-time = "2026-01-10T21:26:16.509Z" },
     { url = "https://files.pythonhosted.org/packages/9d/21/38165845392cae67b61843a52c6455d47d0cc2a40dd495c89f4362944654/scipy-1.17.0-cp312-cp312-win_arm64.whl", hash = "sha256:f603d8a5518c7426414d1d8f82e253e454471de682ce5e39c29adb0df1efb86b", size = 24314368, upload-time = "2026-01-10T21:26:23.087Z" },
 ]
+
+[[package]]
+name = "sdnotify"
+version = "0.3.2"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/ce/d8/9fdc36b2a912bf78106de4b3f0de3891ff8f369e7a6f80be842b8b0b6bd5/sdnotify-0.3.2.tar.gz", hash = "sha256:73977fc746b36cc41184dd43c3fe81323e7b8b06c2bb0826c4f59a20c56bb9f1", size = 2459, upload-time = "2017-08-02T20:03:44.395Z" }
 
 [[package]]
 name = "secretstorage"
