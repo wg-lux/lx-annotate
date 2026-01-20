@@ -161,7 +161,7 @@ in
     "start-filewatcher".exec = 
       ''
       echo "👀 Starting file watcher for auto-import..."
-      secretspec ${pkgs.uv}/bin/uv run python manage.py start_filewatcher
+      secretspec run --provider env uv run python manage.py start_filewatcher
     '';
 
 
