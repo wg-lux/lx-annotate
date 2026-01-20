@@ -8,7 +8,7 @@
 let
   appName = "lx_annotate";
   DEPLOYMENT_MODE = "prod";
-
+  devenv.url = "github:cachix/devenv/v1.3.1";
   python = pkgs.python312;
   uvPackage = pkgs.uv;
 

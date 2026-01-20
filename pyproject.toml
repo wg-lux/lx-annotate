@@ -64,6 +64,7 @@ dependencies = [
     "pydantic>=2.12.5",
     "lx-anonymizer==0.8.9.14",
     "sops>=1.18",
+    "sdnotify>=0.3.2",
 ]
 
 [tool.pytest.ini_options]

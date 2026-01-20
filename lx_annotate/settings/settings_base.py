@@ -29,7 +29,6 @@ APP_DATA_DIR.mkdir(parents=True, exist_ok=True)
 # 3. Fallback to Environment Variables
 
 
-
 _settings_module = os.getenv("DJANGO_SETTINGS_MODULE", "")
 _is_dev_settings = _settings_module.endswith("settings_dev")
 if not _is_dev_settings:
@@ -40,7 +39,7 @@ else:
     _env_path = BASE_DIR / ".env"
     if not _env_path.exists():
         _env_path = APP_DATA_DIR / ".env"
-        
+
 config = load_config(env_file=Path(_env_path))
 
 # --- DEBUG / LOG GUARD ---

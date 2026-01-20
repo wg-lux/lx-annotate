@@ -66,7 +66,7 @@ ENFORCE_AUTH = os.getenv("ENFORCE_AUTH", "0") == "1"
 if ENFORCE_AUTH:
     print("🔒 AUTH: ENFORCED (Keycloak Mock/Real)")
     try:
-            # ✅ Make sure libs/endoreg-db is on sys.path so `config.settings` is importable
+        # ✅ Make sure libs/endoreg-db is on sys.path so `config.settings` is importable
         import sys
         from pathlib import Path
 
