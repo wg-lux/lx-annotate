@@ -235,6 +235,14 @@ in
     else
       echo "Note: .env.systemd not found. Defaults apply."
     fi
+        ACTIVATED=false
+    if [ -f ".devenv/state/venv/bin/activate" ]; then
+      source .devenv/state/venv/bin/activate
+      ACTIVATED=true
+      echo "Virtual environment activated."
+    else
+      echo "Warning: uv virtual environment activation script not found. Run 'devenv task run env:clean' and re-enter shell."
+    fi
 
 
 
