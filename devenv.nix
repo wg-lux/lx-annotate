@@ -19,7 +19,9 @@ let
   languages.python.enable = true;
   languages.python.uv.enable = true;
 
-  isDev = if config.secretspec.secrets.DJANGO_ENV == "development" then true else false;
+  #isDev = if config.secretspec.secrets.DJANGO_ENV == "development" then true else false;
+  #isDev = (config.secretspec.secrets.DJANGO_ENV or "production") == "development";
+  isDev = if config.secretspec.secrets.DJANGO_SETTINGS_MODULE == "lx_annotate.settings.settings_dev" then true else false;
 
   # 1. DEFINE STATIC ENV VARS HERE
   # These are variables that do NOT depend on devenv_utils
@@ -103,8 +105,12 @@ let
   '';
 
   imports = [
+    inputs.secretspec.devenvModules.default
     ./frontend/flake.nix
   ];
+
+
+
   myTesseract = pkgs.tesseract.override {
     enableLanguages = [ "eng" "deu" ];
   };
