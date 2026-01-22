@@ -9,6 +9,7 @@ sys.path.insert(0, "/home/admin/dev/lx-annotate/libs/endoreg-db")
 
 from lx_annotate.settings.settings_base import BASE_DIR
 
+os.environ.setdefault("DATA_DIR", str(Path(BASE_DIR) / "data"))
 os.environ.setdefault("STORAGE_DIR", str(Path(BASE_DIR) / "data"))
 
 

@@ -24,7 +24,6 @@ export DJANGO_MODULE="${DJANGO_MODULE:-lx_annotate}"
 export DJANGO_SECRET_KEY="${DJANGO_SECRET_KEY:-dev-secret-key-$(date +%s)}"
 export DJANGO_DEBUG="${DJANGO_DEBUG:-True}"
 export DJANGO_ALLOWED_HOSTS="${DJANGO_ALLOWED_HOSTS:-*}"
-export STORAGE_DIR="${STORAGE_DIR:-/app/data}"
 export DATA_DIR="${DATA_DIR:-/app/data}"
 export WORKING_DIR="${WORKING_DIR:-/app}"
 

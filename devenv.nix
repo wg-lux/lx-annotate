@@ -32,7 +32,6 @@ let
     # --- Directories & Paths ---
     containerHost = "None";
     containerMode = false;
-    STORAGE_DIR = config.secretspec.secrets.STORAGE_DIR;
     ASSET_DIR = config.secretspec.secrets.ASSET_DIR;
     HOME_DIR = config.secretspec.secrets.HOME_DIR;
     WORKING_DIR = config.secretspec.secrets.WORKING_DIR;
@@ -217,8 +216,7 @@ in
        echo "Syncing Python dependencies with uv..."
        $SYNC_CMD --quiet || echo "Warning: uv sync failed. Environment might be outdated."
     fi
-
-    mkdir -p "${config.secretspec.secrets.STORAGE_DIR}"
+    mkdir -p "${config.secretspec.secrets.DATA_DIR}"
     mkdir -p "${config.secretspec.secrets.ASSET_DIR}"
     mkdir -p "${config.secretspec.secrets.HOME_DIR}"
     mkdir -p "${config.secretspec.secrets.WORKING_DIR}"

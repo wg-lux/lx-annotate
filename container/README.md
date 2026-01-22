@@ -106,7 +106,6 @@ Both containers now mirror the `.env.example` template used by the core applicat
 - `DJANGO_SETTINGS_MODULE` – defaults to `config.settings_dev` (dev) or `lx_annotate.settings.settings_prod` (prod)
 - `DJANGO_ENV` – `development`, `production`, or `central`
 - `TIME_ZONE` – default `Europe/Berlin`
-- `STORAGE_DIR` / `DATA_DIR` – default `/app/data`
 - `STATIC_URL` / `MEDIA_URL` – default `/static/` and `/media/`
 
 Additional notes:

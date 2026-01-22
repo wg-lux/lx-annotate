@@ -36,7 +36,6 @@ ENV PATH="/app/.venv/bin:$PATH" \
     DJANGO_PORT=8117 \
     DJANGO_ENV=development \
     DJANGO_MODULE=lx_annotate \
-    STORAGE_DIR=/app/data \
     DATA_DIR=/app/data
 
 EXPOSE 8117
