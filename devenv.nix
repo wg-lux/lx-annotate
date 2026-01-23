@@ -91,6 +91,8 @@ let
     DRF_THROTTLE_USER = config.secretspec.secrets.DRF_THROTTLE_USER;
     TEST_RUN_FRAME_NUMBER = config.secretspec.secrets.TEST_RUN_FRAME_NUMBER;
     DJANGO_CORS_ALLOWED_ORIGINS = config.secretspec.secrets.DJANGO_CORS_ALLOWED_ORIGINS;
+    SERVE_WITH_NGINX = config.secretspec.secrets.SERVE_WITH_NGINX;
+    NGINX_PROTECTED_MEDIA_URL = config.secretspec.secrets.NGINX_PROTECTED_MEDIA_URL;
 
   };
 
