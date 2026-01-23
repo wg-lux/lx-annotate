@@ -4,7 +4,7 @@
   LD_LIBRARY_PATH = "${
     with pkgs;
     lib.makeLibraryPath (
-      buildInputs ++ runtimePackages ++ [ stdenv.cc.cc.lib gcc-unwrapped.lib glibc ]
+      buildInputs ++ runtimePackages ++ [ stdenv.cc.cc.lib gcc-unwrapped.lib glibc x11basic ]
     )
   }:/run/opengl-driver/lib:/run/opengl-driver-32/lib";
 }

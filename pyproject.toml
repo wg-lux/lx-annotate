@@ -11,6 +11,7 @@ authors = [
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Intended Audience :: Science/Research",
+  "License :: OSI Approved :: MIT License",
   "Programming Language :: Python :: 3.12",
   "Topic :: Scientific/Engineering :: Medical Science Apps.",
 ]
@@ -23,10 +24,6 @@ maintainers = [
 license = "MIT"
 readme = "README.md"
 requires-python = ">=3.12.0,<3.13"
-
-[build-system]
-requires = ["setuptools>=61.0", "wheel"]
-build-backend = "setuptools.build_meta"
 
 dependencies = [
     "django>=5.1.1",
@@ -62,12 +59,11 @@ dependencies = [
     "types-requests>=2.32.4.20250913",
     "black>=25.12.0",
     "mypy>=1.18.2",
-    "endoreg-db==0.8.9.27",
+    "endoreg-db==0.8.9.30",
     "pydantic-settings>=2.12.0",
     "pydantic>=2.12.5",
     "lx-anonymizer==0.8.9.14",
     "sops>=1.18",
-    "setuptools>=80.9.0",
 ]
 
 [tool.pytest.ini_options]
@@ -121,9 +117,6 @@ target-version = ["py312"]
 [tool.mypy]
 ignore_missing_imports = true
 exclude = ["venv", ".devenv"]
-
-[tool.setuptools.packages.find]
-include = ["lx_annotate*", "lx_logging*"]
 
 [[tool.mypy.overrides]]
 module = [

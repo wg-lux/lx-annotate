@@ -6,6 +6,8 @@ conf/db_pwd
 django-settings.json
 #frozen_east_text_detection.pb
 # Byte-compiled / optimized / DLL files
+.direnv/
+.venv/
 __pycache__/
 *.py[cod]
 *$py.class

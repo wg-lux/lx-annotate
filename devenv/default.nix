@@ -22,7 +22,7 @@ let
   };
   
   environment = import ./environment.nix { 
-    inherit buildInputs runtimePackages pkgs lib isDev env;
+    inherit buildInputs runtimePackages pkgs lib isDev;
   };
 
   # Import centralized management system

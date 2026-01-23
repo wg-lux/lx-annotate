@@ -1,3 +1,4 @@
+
 { 
   pkgs, 
   lib, 
@@ -7,10 +8,8 @@
   ... }:
 let
   appName = "lx_annotate";
-  DEPLOYMENT_MODE = "prod";
-  devenv.url = "github:cachix/devenv/v1.3.1";
 
-  cachix.pull = [ "nixpkgs" ];
+  DEPLOYMENT_MODE = "prod";
 
   python = pkgs.python312;
   uvPackage = pkgs.uv;
@@ -22,16 +21,14 @@ let
   languages.python.enable = true;
   languages.python.uv.enable = true;
 
-  #isDev = if config.secretspec.secrets.DJANGO_ENV == "development" then true else false;
-  #isDev = (config.secretspec.secrets.DJANGO_ENV or "production") == "development";
-  isDev = if config.secretspec.secrets.DJANGO_SETTINGS_MODULE == "lx_annotate.settings.settings_dev" then true else false;
+  isDev = if config.secretspec.secrets.DJANGO_ENV == "development" then true else false;
 
   # 1. DEFINE STATIC ENV VARS HERE
-  # These are variables that do NOT depend on devenv_utils
   baseEnv = {
     # --- Directories & Paths ---
     containerHost = "None";
     containerMode = false;
+    STORAGE_DIR = config.secretspec.secrets.STORAGE_DIR;
     ASSET_DIR = config.secretspec.secrets.ASSET_DIR;
     HOME_DIR = config.secretspec.secrets.HOME_DIR;
     WORKING_DIR = config.secretspec.secrets.WORKING_DIR;
@@ -93,7 +90,8 @@ let
     DRF_THROTTLE_ANON = config.secretspec.secrets.DRF_THROTTLE_ANON;
     DRF_THROTTLE_USER = config.secretspec.secrets.DRF_THROTTLE_USER;
     TEST_RUN_FRAME_NUMBER = config.secretspec.secrets.TEST_RUN_FRAME_NUMBER;
-    ENABLE_FILE_WATCHER = config.secretspec.secrets.ENABLE_FILE_WATCHER;
+    DJANGO_CORS_ALLOWED_ORIGINS = config.secretspec.secrets.DJANGO_CORS_ALLOWED_ORIGINS;
+
   };
 
   devenv_utils = import ./devenv/default.nix {
@@ -107,16 +105,40 @@ let
     export PATH="$PATH:$(yarn global bin)"
   '';
 
+  customTasks = ( 
+    import ./devenv/tasks/default.nix ({
+      inherit config pkgs lib baseEnv;
+    })
+  );
+
+  customProcesses = (
+    import ./devenv/processes/default.nix ({
+       inherit config pkgs lib baseEnv;
+    })
+  );
+
   imports = [
-    inputs.secretspec.devenvModules.default
     ./frontend/flake.nix
   ];
-
-
-
   myTesseract = pkgs.tesseract.override {
     enableLanguages = [ "eng" "deu" ];
   };
+
+  runtimePackages = with pkgs; [
+    stdenv.cc.cc
+    ffmpeg-headless.bin
+    tesseract
+    uvPackage
+    libglvnd # Add libglvnd for libGL.so.1
+    glib
+    zlib
+    ollama.out
+    tesseract
+    git
+    myTesseract
+    secretspec
+    xorg.libxcb
+  ];
 
 
   _module.args.buildInputs = baseBuildInputs;
@@ -126,27 +148,23 @@ let
 
 in
 {
-
-  dotenv.enable = false;
-  packages = devenv_utils.buildInputs ++ [ 
-    myTesseract
-    pkgs.ollama
-    pkgs.git
-    pkgs.secretspec
-    pkgs.cachix
-     ];
-
   secretspec.provider = "env";
 
+  dotenv.enable = false;
+  dotenv.disableHint = true;
+  packages = devenv_utils.buildInputs ++ runtimePackages;
+
+
+
   env = baseEnv // {
-    # include runtimePackages as well so runtime native libs (e.g. zlib) are on LD_LIBRARY_PATH
     LD_LIBRARY_PATH =
-          lib.makeLibraryPath (devenv_utils.buildInputs ++ [myTesseract])
+          lib.makeLibraryPath (runtimePackages)
           + ":/run/opengl-driver/lib:/run/opengl-driver-32/lib"
           + ":/usr/lib/wsl/lib"
           + ":/usr/lib/x86_64-linux-gnu"
           + ":/usr/lib"
           ;
+    TESSDATA_PREFIX = "${myTesseract}/share/tessdata";
   };
 
   languages.python = {
@@ -165,8 +183,9 @@ in
   };
 
 
-  
+
   processes = devenv_utils.processes;
+  containers = devenv_utils.containers;
 
   scripts = {
     export-nix-vars.exec = ''
@@ -180,7 +199,7 @@ in
     env-setup.exec = ''
       # Ensure runtimePackages are included in the library path here too
       export LD_LIBRARY_PATH="${
-        with pkgs; lib.makeLibraryPath (devenv_utils.buildInputs)
+        with pkgs; lib.makeLibraryPath (runtimePackages)
       }:/run/opengl-driver/lib:/run/opengl-driver-32/lib"
       which tesseract
     '';
@@ -196,32 +215,33 @@ in
     uvsnc.exec = ''
       ${SYNC_CMD}
     '';
-  
+
   } // devenv_utils.scripts;
 
-  cachix.enable = true;
 
 
   enterShell = lib.mkAfter ''
     direnv disallow
-    export SYNC_CMD="uv sync"
-    
+    env-setup
     # Ensure dependencies are synced using uv
     # Check if venv exists. If not, run sync verbosely. If it exists, sync quietly.
-    if [ ! -d ".devenv/state/venv" ]; then
-       echo "Virtual environment not found. Running initial uv sync..."
-       $SYNC_CMD || echo "Error: Initial uv sync failed. Please check network and pyproject.toml."
+    SYNC_STAMP=".devenv/state/.uv-sync.stamp"
+    LOCK_HASH="$(sha256sum uv.lock pyproject.toml 2>/dev/null | sha256sum | cut -d' ' -f1)"
+
+    if [ ! -f "$SYNC_STAMP" ] || [ "$(cat "$SYNC_STAMP")" != "$LOCK_HASH" ]; then
+      echo "uv deps changed -> syncing..."
+      $SYNC_CMD || echo "Warning: uv sync failed."
+      echo "$LOCK_HASH" > "$SYNC_STAMP"
     else
-       # Sync quietly if venv exists
-       echo "Syncing Python dependencies with uv..."
-       $SYNC_CMD --quiet || echo "Warning: uv sync failed. Environment might be outdated."
+      echo "uv deps unchanged -> skip sync"
     fi
-    mkdir -p "${config.secretspec.secrets.DATA_DIR}"
+
+    mkdir -p "${config.secretspec.secrets.STORAGE_DIR}"
     mkdir -p "${config.secretspec.secrets.ASSET_DIR}"
     mkdir -p "${config.secretspec.secrets.HOME_DIR}"
     mkdir -p "${config.secretspec.secrets.WORKING_DIR}"
     mkdir -p "${config.secretspec.secrets.DJANGO_STATIC_ROOT}"
-    mkdir -p "./.devenv/state/logs"
+
 
     echo "Exporting environment variables from .env.systemd file..."
     echo "Note: In dev mode you can set defaults in secretspec.toml or source them from local env by enabling the env source in your config.yaml for secretspec."
@@ -233,7 +253,8 @@ in
     else
       echo "Note: .env.systemd not found. Defaults apply."
     fi
-        ACTIVATED=false
+    # Activate Python virtual environment managed by uv inside of devenv
+    ACTIVATED=false
     if [ -f ".devenv/state/venv/bin/activate" ]; then
       source .devenv/state/venv/bin/activate
       ACTIVATED=true
@@ -241,9 +262,9 @@ in
     else
       echo "Warning: uv virtual environment activation script not found. Run 'devenv task run env:clean' and re-enter shell."
     fi
+    python scripts/gpu-check.py
 
-
-
+    
   '';
-
 }
+
