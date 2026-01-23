@@ -37,6 +37,26 @@ with a media ingestion pipeline for videos and PDFs.
 
 Open `http://127.0.0.1:8000/`.
 
+## Environment Variables
+
+In a production environment, the secrets of lx annotate are deployed using the system service on the local machine (NixOS Variables are injected from a secure place).
+
+To run locally, using your own secrets, either change your defaults in secretspec.toml or add a local .env file.
+
+CAUTION: DONT PUBLISH YOUR SECRETS! Secretspec.toml is not in gitignore.
+
+run 
+
+```bash
+direnv allow
+secretspec --provider dotenv -- profile development python manage.py runserver
+```
+
+to verify. To inject the secrets, running the server or shell with secretspec is required.
+
+See https://secretspec.dev/ for further reference.
+
+A .env.example comes with the project. Possibly, you will need to set dotenv = true in devenv.nix as well.
 ## Frontend
 
 ```bash
