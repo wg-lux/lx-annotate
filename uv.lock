@@ -1029,7 +1029,7 @@ sdist = { url = "https://files.pythonhosted.org/packages/62/59/e47bbd0542d0e6f4c
 
 [[package]]
 name = "endoreg-db"
-version = "0.8.9.31"
+version = "0.8.9.32"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "agl-report-reader" },
@@ -1103,9 +1103,9 @@ dependencies = [
     { name = "vocos" },
     { name = "whitenoise" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ba/e8/1b4a598b989c284c50481e6c357fcd84d71b62ef3cab665860566f859aa4/endoreg_db-0.8.9.31.tar.gz", hash = "sha256:b33baab9051d0691d1e2068073bbfb27a5f2335fe9fb0f79f09cb964950797d9", size = 1899604, upload-time = "2026-01-23T12:59:52.899Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/53/60/ad56d4bc0bcb9a8050f5a7e896936db83ca130820ca1af9cd1aeb14e2e9c/endoreg_db-0.8.9.32.tar.gz", hash = "sha256:866c6b0426f84ac544f274e96a61602440d47671ca03dfb4bc38391cfc75adec", size = 1899632, upload-time = "2026-01-23T15:27:02.489Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/a1/8e/0915f01d0a7d9ee6ede46929778ae4a884bae2af58454bc38e185c87900b/endoreg_db-0.8.9.31-py3-none-any.whl", hash = "sha256:b754f41c8b5a8d26ba87694d2597cc5b49054fd3c44ac89c1a3789459c09112b", size = 872459, upload-time = "2026-01-23T12:59:49.703Z" },
+    { url = "https://files.pythonhosted.org/packages/c1/22/e2907865c21ab29dcfff8ed5957cc5d8b5f21aa47472c3426f40162d3b5a/endoreg_db-0.8.9.32-py3-none-any.whl", hash = "sha256:56f094895e584d9b962f9a2db437c09efd6a338069291ea1554a6b2af0b9c194", size = 872471, upload-time = "2026-01-23T15:26:59.674Z" },
 ]
 
 [[package]]
@@ -1981,7 +1981,7 @@ requires-dist = [
     { name = "django-webpack-loader", specifier = ">=0.7.0" },
     { name = "djangorestframework", specifier = ">=3.12.4" },
     { name = "drf-spectacular", specifier = ">=0.28.0" },
-    { name = "endoreg-db", specifier = "==0.8.9.31" },
+    { name = "endoreg-db", specifier = "==0.8.9.32" },
     { name = "flake8", marker = "extra == 'dev'", specifier = ">=7.3.0" },
     { name = "furo", marker = "extra == 'dev'", specifier = ">=2025.9.25" },
     { name = "furo", marker = "extra == 'docs'", specifier = ">=2025.9.25" },
