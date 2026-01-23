@@ -99,6 +99,8 @@ python scripts/file_watcher.py
 
 ## Nix builds
 
+THIS NEEDS FURTHER IMPLEMENTATION; AI ON FULL NIX BUILD IS HARD. FLAKES ARE LOCATED IN /build
+
 ```bash
 nix build .#prod-server
 ./result/bin/run-prod-server
