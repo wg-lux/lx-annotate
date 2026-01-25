@@ -323,6 +323,7 @@ export const useVideoStore = defineStore('video', () => {
   const videoList = ref<VideoList>({ videos: [], labels: [] })
   const videoMeta = ref<VideoMeta | null>(null)
   const activeSegmentId = ref<string | number | null>(null)
+  const activeVideoId = ref<number | null>(null)
   const _fetchToken = ref<number>(0)
   const draftSegment = ref<DraftSegment | null>(null)
   const hasRawVideoFile = ref<boolean | null>(null)
@@ -529,17 +530,9 @@ export const useVideoStore = defineStore('video', () => {
     console.log(`[VideoStore] fetchAllSegments called with video ID: ${id}`)
 
     // Ensure currentVideo exists before loading segments
-    if (!currentVideo.value) {
+    if (!currentVideo.value || currentVideo.value.id !== id) {
       console.log(`[VideoStore] No currentVideo found, creating basic video object for ID: ${id}`)
-      currentVideo.value = {
-        id: id,
-        isAnnotated: false,
-        errorMessage: '',
-        segments: [],
-        videoUrl: '',
-        status: 'available',
-        assignedUser: null
-      }
+      setCurrentVideo(id)
     }
 
     const cachedSegments = forceRefresh ? null : getCachedSegments(id)
@@ -679,6 +672,7 @@ export const useVideoStore = defineStore('video', () => {
   function clearVideo(): void {
     currentVideo.value = null
     videoMeta.value = null
+    activeVideoId.value = null
   }
 
   function setVideo(video: VideoAnnotation): void {
@@ -686,6 +680,7 @@ export const useVideoStore = defineStore('video', () => {
   }
 
   function setCurrentVideo(videoId: number): VideoAnnotation | null {
+    activeVideoId.value = videoId
     const video = videoList.value.videos.find((v) => v.id === videoId) || null
     if (video) {
       const cachedSegments = getCachedSegments(videoId)
@@ -704,7 +699,16 @@ export const useVideoStore = defineStore('video', () => {
         clearSegments()
       }
     } else {
-      currentVideo.value = null
+      currentVideo.value = {
+        id: videoId,
+        isAnnotated: false,
+        errorMessage: '',
+        segments: [],
+        videoUrl: '',
+        status: 'available',
+        assignedUser: null
+      }
+      clearSegments()
     }
     return currentVideo.value
   }
@@ -1094,6 +1098,15 @@ export const useVideoStore = defineStore('video', () => {
     }
 
     if (!currentVideo.value) {
+      if (activeVideoId.value !== null) {
+        console.warn(
+          `[Draft] Kein currentVideo gefunden, setze activeVideoId ${activeVideoId.value} als Fallback`
+        )
+        setCurrentVideo(activeVideoId.value)
+      }
+    }
+
+    if (!currentVideo.value) {
       console.warn('[Draft] Kein currentVideo gefunden')
       return null
     }
@@ -1291,6 +1304,7 @@ export const useVideoStore = defineStore('video', () => {
 
 async function loadVideo(videoId: number): Promise<void> {
     console.log(`[VideoStore] loadVideo called with ID: ${videoId}`)
+    activeVideoId.value = Number(videoId)
     
     // 1. Check Anonymization Status (Client-side pre-check)
     const anonStore = useAnonymizationStore()
