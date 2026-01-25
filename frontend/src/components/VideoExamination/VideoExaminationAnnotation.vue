@@ -174,7 +174,7 @@
                 @segment-delete="handleSegmentDelete"
                 @time-selection="handleTimeSelection"
               />
-              <div v-if="selectedVideoId && timelineSegmentsForSelectedVideo.length > 0" class="mt-3 d-flex gap-2">
+              <div v-if="selectedVideoId" class="mt-3 d-flex gap-2">
                 <button
                   class="btn btn-outline-secondary"
                   @click="discardSegmentChanges"
@@ -293,9 +293,9 @@
         </div>
         
         <!-- ✅ Enhanced Validation Button with Status -->
-        <div v-if="selectedVideoId && timelineSegmentsForSelectedVideo.length > 0" class="mt-3">
-          <!-- Show different button based on validation status -->
-          <div v-if="overview.find(o => o.id === selectedVideoId && o.mediaType === 'video')?.anonymizationStatus === 'validated'" 
+        <div v-if="selectedVideoId" class="mt-3">
+          <!-- Show different button based on annotation status -->
+          <div v-if="isAnnotationFinished(selectedVideoId)" 
                class="alert alert-success d-flex align-items-center validation-status-alert">
             <i class="fas fa-check-circle fa-2x me-3 text-success"></i>
             <div>
@@ -319,7 +319,7 @@
             <span>Alle Segmente validieren ({{ timelineSegmentsForSelectedVideo.length }})</span>
           </button>
           
-          <p v-if="overview.find(o => o.id === selectedVideoId && o.mediaType === 'video')?.anonymizationStatus !== 'validated'" 
+          <p v-if="!isAnnotationFinished(selectedVideoId)" 
              class="text-muted text-center mt-2 mb-0" style="font-size: 0.9rem;">
             <i class="material-icons" style="font-size: 16px; vertical-align: middle;">info</i>
             Markiert alle Segmente als überprüft und setzt Video-Status auf "Validiert"

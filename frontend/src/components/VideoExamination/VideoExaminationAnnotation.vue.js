@@ -1047,7 +1047,7 @@ if (__VLS_ctx.duration > 0) {
         onTimeSelection: (__VLS_ctx.handleTimeSelection)
     };
     var __VLS_2;
-    if (__VLS_ctx.selectedVideoId && __VLS_ctx.timelineSegmentsForSelectedVideo.length > 0) {
+    if (__VLS_ctx.selectedVideoId) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: "mt-3 d-flex gap-2" },
         });
@@ -1059,7 +1059,7 @@ if (__VLS_ctx.duration > 0) {
             ...{ onClick: (...[$event]) => {
                     if (!(__VLS_ctx.duration > 0))
                         return;
-                    if (!(__VLS_ctx.selectedVideoId && __VLS_ctx.timelineSegmentsForSelectedVideo.length > 0))
+                    if (!(__VLS_ctx.selectedVideoId))
                         return;
                     __VLS_ctx.saveSegmentChanges;
                     __VLS_ctx.submitVideoSegments;
@@ -1185,11 +1185,11 @@ if (__VLS_ctx.duration > 0) {
         }
     }
 }
-if (__VLS_ctx.selectedVideoId && __VLS_ctx.timelineSegmentsForSelectedVideo.length > 0) {
+if (__VLS_ctx.selectedVideoId) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "mt-3" },
     });
-    if (__VLS_ctx.overview.find(o => o.id === __VLS_ctx.selectedVideoId && o.mediaType === 'video')?.anonymizationStatus === 'validated') {
+    if (__VLS_ctx.isAnnotationFinished(__VLS_ctx.selectedVideoId)) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: "alert alert-success d-flex align-items-center validation-status-alert" },
         });
@@ -1211,9 +1211,9 @@ if (__VLS_ctx.selectedVideoId && __VLS_ctx.timelineSegmentsForSelectedVideo.leng
     else {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
             ...{ onClick: (...[$event]) => {
-                    if (!(__VLS_ctx.selectedVideoId && __VLS_ctx.timelineSegmentsForSelectedVideo.length > 0))
+                    if (!(__VLS_ctx.selectedVideoId))
                         return;
-                    if (!!(__VLS_ctx.overview.find(o => o.id === __VLS_ctx.selectedVideoId && o.mediaType === 'video')?.anonymizationStatus === 'validated'))
+                    if (!!(__VLS_ctx.isAnnotationFinished(__VLS_ctx.selectedVideoId)))
                         return;
                     __VLS_ctx.submitVideoSegments;
                     __VLS_ctx.markValidationFinishedRemoveOutside(__VLS_ctx.selectedVideoId);
@@ -1227,7 +1227,7 @@ if (__VLS_ctx.selectedVideoId && __VLS_ctx.timelineSegmentsForSelectedVideo.leng
         __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
         (__VLS_ctx.timelineSegmentsForSelectedVideo.length);
     }
-    if (__VLS_ctx.overview.find(o => o.id === __VLS_ctx.selectedVideoId && o.mediaType === 'video')?.anonymizationStatus !== 'validated') {
+    if (!__VLS_ctx.isAnnotationFinished(__VLS_ctx.selectedVideoId)) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
             ...{ class: "text-muted text-center mt-2 mb-0" },
             ...{ style: {} },
@@ -1623,6 +1623,7 @@ const __VLS_self = (await import('vue')).defineComponent({
             rawSegments: rawSegments,
             overview: overview,
             timelineLabels: timelineLabels,
+            isAnnotationFinished: isAnnotationFinished,
             selectedVideoId: selectedVideoId,
             currentTime: currentTime,
             duration: duration,
