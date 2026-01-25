@@ -485,6 +485,9 @@ const onLabelSelect = () => {
 const startLabelMarking = () => {
     if (!canStartLabeling.value)
         return;
+    if (selectedVideoId.value) {
+        videoStore.setCurrentVideo(selectedVideoId.value);
+    }
     isMarkingLabel.value = true;
     labelMarkingStart.value = currentTime.value;
     // FIX: Use startDraft statt startDraftSegment
@@ -495,6 +498,7 @@ const finishLabelMarking = async () => {
     if (!isMarkingLabel.value || !selectedVideoId.value)
         return;
     try {
+        videoStore.setCurrentVideo(selectedVideoId.value);
         // FIX: Use updateDraftEnd und commitDraft statt finishDraftSegment
         videoStore.updateDraftEnd(currentTime.value);
         await videoStore.commitDraft();
