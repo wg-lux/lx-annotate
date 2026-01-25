@@ -121,6 +121,7 @@ export interface VideoMeta {
     status: string;
     assignedUser?: string | null;
     anonymized: boolean;
+    segmentAnnotationsValidated?: boolean;
     duration?: number;
     fps?: number;
     hasROI?: boolean;
@@ -281,6 +282,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
             readonly status: string;
             readonly assignedUser?: string | null | undefined;
             readonly anonymized: boolean;
+            readonly segmentAnnotationsValidated?: boolean | undefined;
             readonly duration?: number | undefined;
             readonly fps?: number | undefined;
             readonly hasROI?: boolean | undefined;
@@ -330,6 +332,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
             readonly status: string;
             readonly assignedUser?: string | null | undefined;
             readonly anonymized: boolean;
+            readonly segmentAnnotationsValidated?: boolean | undefined;
             readonly duration?: number | undefined;
             readonly fps?: number | undefined;
             readonly hasROI?: boolean | undefined;
@@ -379,6 +382,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
         readonly status: string;
         readonly assignedUser?: string | null | undefined;
         readonly anonymized: boolean;
+        readonly segmentAnnotationsValidated?: boolean | undefined;
         readonly duration?: number | undefined;
         readonly fps?: number | undefined;
         readonly hasROI?: boolean | undefined;
@@ -421,6 +425,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
         readonly status: string;
         readonly assignedUser?: string | null | undefined;
         readonly anonymized: boolean;
+        readonly segmentAnnotationsValidated?: boolean | undefined;
         readonly duration?: number | undefined;
         readonly fps?: number | undefined;
         readonly hasROI?: boolean | undefined;
@@ -633,6 +638,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
             readonly status: string;
             readonly assignedUser?: string | null | undefined;
             readonly anonymized: boolean;
+            readonly segmentAnnotationsValidated?: boolean | undefined;
             readonly duration?: number | undefined;
             readonly fps?: number | undefined;
             readonly hasROI?: boolean | undefined;
@@ -682,6 +688,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
             readonly status: string;
             readonly assignedUser?: string | null | undefined;
             readonly anonymized: boolean;
+            readonly segmentAnnotationsValidated?: boolean | undefined;
             readonly duration?: number | undefined;
             readonly fps?: number | undefined;
             readonly hasROI?: boolean | undefined;
@@ -731,6 +738,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
         readonly status: string;
         readonly assignedUser?: string | null | undefined;
         readonly anonymized: boolean;
+        readonly segmentAnnotationsValidated?: boolean | undefined;
         readonly duration?: number | undefined;
         readonly fps?: number | undefined;
         readonly hasROI?: boolean | undefined;
@@ -773,6 +781,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
         readonly status: string;
         readonly assignedUser?: string | null | undefined;
         readonly anonymized: boolean;
+        readonly segmentAnnotationsValidated?: boolean | undefined;
         readonly duration?: number | undefined;
         readonly fps?: number | undefined;
         readonly hasROI?: boolean | undefined;
@@ -985,6 +994,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
             readonly status: string;
             readonly assignedUser?: string | null | undefined;
             readonly anonymized: boolean;
+            readonly segmentAnnotationsValidated?: boolean | undefined;
             readonly duration?: number | undefined;
             readonly fps?: number | undefined;
             readonly hasROI?: boolean | undefined;
@@ -1034,6 +1044,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
             readonly status: string;
             readonly assignedUser?: string | null | undefined;
             readonly anonymized: boolean;
+            readonly segmentAnnotationsValidated?: boolean | undefined;
             readonly duration?: number | undefined;
             readonly fps?: number | undefined;
             readonly hasROI?: boolean | undefined;
@@ -1083,6 +1094,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
         readonly status: string;
         readonly assignedUser?: string | null | undefined;
         readonly anonymized: boolean;
+        readonly segmentAnnotationsValidated?: boolean | undefined;
         readonly duration?: number | undefined;
         readonly fps?: number | undefined;
         readonly hasROI?: boolean | undefined;
@@ -1125,6 +1137,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
         readonly status: string;
         readonly assignedUser?: string | null | undefined;
         readonly anonymized: boolean;
+        readonly segmentAnnotationsValidated?: boolean | undefined;
         readonly duration?: number | undefined;
         readonly fps?: number | undefined;
         readonly hasROI?: boolean | undefined;

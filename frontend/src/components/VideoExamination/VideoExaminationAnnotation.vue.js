@@ -38,6 +38,10 @@ function isAnonymized(videoId) {
     const item = overview.value.find(o => o.id === videoId && o.mediaType === 'video');
     return item?.anonymizationStatus === 'done_processing_anonymization' || item?.anonymizationStatus === 'validated';
 }
+function isAnnotationFinished(videoId) {
+    const video = videoList.value.videos.find(v => v.id === videoId);
+    return Boolean(video?.segmentAnnotationsValidated);
+}
 // Reactive data
 const selectedVideoId = ref(initialVideoId);
 const currentTime = ref(0);
@@ -75,6 +79,11 @@ async function loadSelectedVideo() {
         selectedVideoId.value = null;
         return;
     }
+    if (isAnnotationFinished(selectedVideoId.value)) {
+        showErrorMessage(`Video ${selectedVideoId.value} ist bereits vollständig annotiert.`);
+        selectedVideoId.value = null;
+        return;
+    }
     // Clear previous error messages when changing videos
     clearErrorMessage();
     clearSuccessMessage();
@@ -103,7 +112,7 @@ watch(() => route.query.video, v => {
         selectedVideoId.value = id;
 }, { immediate: true });
 // List of only videos that are both present in the list **and** in state `done` inside anonymizationStore
-const annotatableVideos = computed(() => videoList.value.videos.filter(v => isAnonymized(v.id)));
+const annotatableVideos = computed(() => videoList.value.videos.filter(v => isAnonymized(v.id) && !isAnnotationFinished(v.id)));
 const showExaminationForm = computed(() => {
     return selectedVideoId.value !== null && anonymizedVideoSrc.value !== undefined;
 });

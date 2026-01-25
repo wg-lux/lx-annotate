@@ -158,6 +158,7 @@ export interface VideoMeta {
   status: string
   assignedUser?: string | null
   anonymized: boolean
+  segmentAnnotationsValidated?: boolean
   duration?: number
   fps?: number
   hasROI?: boolean
@@ -642,6 +643,8 @@ export const useVideoStore = defineStore('video', () => {
           status: video.status || 'available',
           assignedUser: video.assignedUser || null,
           anonymized: video.anonymized || false,
+          segmentAnnotationsValidated:
+            video.segmentAnnotationsValidated ?? video.segment_annotations_validated ?? false,
           centerName: video.centerName || video.center_name || 'Unbekannt',
           processorName: video.processorName || video.processor_name || 'Unbekannt',
           segments

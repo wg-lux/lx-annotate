@@ -481,6 +481,11 @@ const timelineLabels = computed(() => {
   return item?.anonymizationStatus === 'done_processing_anonymization' || item?.anonymizationStatus === 'validated'
 }
 
+function isAnnotationFinished(videoId: number): boolean {
+  const video = videoList.value.videos.find(v => v.id === videoId)
+  return Boolean(video?.segmentAnnotationsValidated)
+}
+
 // Reactive data
 const selectedVideoId = ref<number | null>(initialVideoId)
 const currentTime = ref<number>(0)
@@ -526,6 +531,11 @@ async function loadSelectedVideo() {
     selectedVideoId.value = null
     return
   }
+  if (isAnnotationFinished(selectedVideoId.value)) {
+    showErrorMessage(`Video ${selectedVideoId.value} ist bereits vollständig annotiert.`)
+    selectedVideoId.value = null
+    return
+  }
 
   // Clear previous error messages when changing videos
   clearErrorMessage()
@@ -563,7 +573,7 @@ watch(
 )
 // List of only videos that are both present in the list **and** in state `done` inside anonymizationStore
 const annotatableVideos = computed(() =>
-  videoList.value.videos.filter(v => isAnonymized(v.id))
+  videoList.value.videos.filter(v => isAnonymized(v.id) && !isAnnotationFinished(v.id))
 )
 
 
