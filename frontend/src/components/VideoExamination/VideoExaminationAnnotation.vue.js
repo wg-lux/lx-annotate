@@ -36,7 +36,7 @@ const timelineLabels = computed(() => {
  */
 function isAnonymized(videoId) {
     const item = overview.value.find(o => o.id === videoId && o.mediaType === 'video');
-    return item?.anonymizationStatus === 'done_processing_anonymization';
+    return item?.anonymizationStatus === 'done_processing_anonymization' || item?.anonymizationStatus === 'validated';
 }
 // Reactive data
 const selectedVideoId = ref(initialVideoId);
