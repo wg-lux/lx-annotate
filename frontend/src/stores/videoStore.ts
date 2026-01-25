@@ -82,20 +82,20 @@ export interface TimeSegments {
 
 export interface BackendSegment {
   id: number
-  videoFile: number
-  videoName: string
-  videoId: number
-  label: number | null
-  labelName: string | null
-  labelId: number | null
+  videoFile?: number
+  videoName?: string
+  videoId?: number
+  label?: number | null
+  labelName?: string | null
+  labelId?: number | null
   startFrameNumber: number
   endFrameNumber: number
   startTime: number
   endTime: number
-  labelDisplay: string
-  framePredictions: BackendFramePrediction[]
-  manualFrameAnnotations: any[]
-  timeSegments: TimeSegments | null
+  labelDisplay?: string
+  framePredictions?: BackendFramePrediction[]
+  manualFrameAnnotations?: any[]
+  timeSegments?: TimeSegments | null
 }
 
 
@@ -164,6 +164,7 @@ export interface VideoMeta {
   outsideFrameCount?: number
   centerName: string
   processorName: string
+  segments?: Segment[]
 }
 
 /**
@@ -482,12 +483,49 @@ export const useVideoStore = defineStore('video', () => {
     })
   }
 
+  function getCachedSegments(videoId: number): Segment[] | null {
+    const cachedVideo = videoList.value.videos.find((video) => video.id === videoId)
+    if (!cachedVideo || !Array.isArray(cachedVideo.segments)) {
+      return null
+    }
+
+    return cachedVideo.segments.map((segment) =>
+      ensureLabelId({
+        ...segment,
+        videoID: segment.videoID ?? videoId
+      })
+    )
+  }
+
+  function applyCachedSegments(videoId: number, segments: Segment[]): void {
+    clearSegments()
+
+    segments.forEach((segment) => {
+      const segmentWithVideoId = ensureLabelId({
+        ...segment,
+        videoID: segment.videoID ?? videoId
+      })
+      const label = segmentWithVideoId.label
+      if (!segmentsByLabel[label]) {
+        segmentsByLabel[label] = []
+      }
+      segmentsByLabel[label].push(segmentWithVideoId)
+    })
+
+    if (currentVideo.value && currentVideo.value.id === videoId) {
+      currentVideo.value.segments = Object.values(segmentsByLabel).flat()
+      console.log(
+        `[VideoStore] Cached timeline segments populated: ${currentVideo.value.segments.length} segments for video ${videoId}`
+      )
+    }
+  }
+
 
   // ===================================================================
   // SEGMENT MANAGEMENT FUNCTIONS
   // ===================================================================
 
-  async function fetchAllSegments(id: number): Promise<void> {
+  async function fetchAllSegments(id: number, forceRefresh = false): Promise<void> {
     console.log(`[VideoStore] fetchAllSegments called with video ID: ${id}`)
 
     // Ensure currentVideo exists before loading segments
@@ -504,6 +542,12 @@ export const useVideoStore = defineStore('video', () => {
       }
     }
 
+    const cachedSegments = forceRefresh ? null : getCachedSegments(id)
+    if (cachedSegments !== null) {
+      applyCachedSegments(id, cachedSegments)
+      return
+    }
+
     await fetchVideoSegments(id)
 
     if (currentVideo.value) {
@@ -513,6 +557,10 @@ export const useVideoStore = defineStore('video', () => {
       })
 
       currentVideo.value.segments = allSegmentsArray
+      const listVideo = videoList.value.videos.find((video) => video.id === id)
+      if (listVideo) {
+        listVideo.segments = allSegmentsArray
+      }
       console.log(
         `[VideoStore] Timeline segments populated: ${allSegmentsArray.length} segments for video ${id}`
       )
@@ -584,50 +632,34 @@ export const useVideoStore = defineStore('video', () => {
         : []
 
       // Process videos with enhanced metadata
-      const processedVideos: VideoMeta[] = rawVideos.map((video: any) => ({
-        id: parseInt(video.id),
-        original_file_name: video.original_file_name,
-        status: video.status || 'available',
-        assignedUser: video.assignedUser || null,
-        anonymized: video.anonymized || false,
-        centerName: video.centerName || video.center_name || 'Unbekannt',
-        processorName: video.processorName || video.processor_name || 'Unbekannt'
-      }))
+      const processedVideos: VideoMeta[] = rawVideos.map((video: any) => {
+        const videoId = Number(video.id)
+        const rawSegments: BackendSegment[] = Array.isArray(video.segments)
+          ? video.segments
+          : []
+        const segments: Segment[] = rawSegments.map((backendSeg) =>
+          ensureLabelId(
+            backendSegmentToSegment({ ...backendSeg, videoId })
+          )
+        )
+
+        return {
+          id: videoId,
+          original_file_name: video.original_file_name,
+          status: video.status || 'available',
+          assignedUser: video.assignedUser || null,
+          anonymized: video.anonymized || false,
+          centerName: video.centerName || video.center_name || 'Unbekannt',
+          processorName: video.processorName || video.processor_name || 'Unbekannt',
+          segments
+        }
+      })
 
       // Labels already fetched and stored above
       const processedLabels: LabelMeta[] = videoList.value.labels
 
-      // Fetch segments for each video in parallel
-      console.log('Fetching segments for', processedVideos.length, 'videos...')
-      const videosWithSegments = await Promise.all(
-        processedVideos.map(async (video) => {
-          try {
-            // Modern media framework endpoint
-            const segmentsResponse = await axiosInstance.get(
-              r(`media/videos/${video.id}/segments/`)
-            )
-            const rawSegments: BackendSegment[] = Array.isArray(segmentsResponse.data?.results)
-              ? segmentsResponse.data.results
-              : Array.isArray(segmentsResponse.data)
-              ? segmentsResponse.data
-              : []
-            console.log(`Video ${video.id}: Found ${rawSegments.length} segments`)
-            const segments: Segment[] = rawSegments.map((backendSeg) =>
-              ensureLabelId(
-                backendSegmentToSegment(backendSeg)
-              )
-            )
-
-            return { ...video, segments }
-          } catch (segmentError) {
-            console.warn(`Failed to load segments for video ${video.id}:`, segmentError)
-            return { ...video, segments: [] }
-          }
-        })
-      )
-
       videoList.value = {
-        videos: videosWithSegments,
+        videos: processedVideos,
         labels: processedLabels
       }
 
@@ -656,14 +688,20 @@ export const useVideoStore = defineStore('video', () => {
   function setCurrentVideo(videoId: number): VideoAnnotation | null {
     const video = videoList.value.videos.find((v) => v.id === videoId) || null
     if (video) {
+      const cachedSegments = getCachedSegments(videoId)
       currentVideo.value = {
         id: video.id,
         isAnnotated: true,
         errorMessage: '',
-        segments: [],
+        segments: cachedSegments ?? [],
         videoUrl: buildVideoStreamUrl(video.id) + '?type=processed',
         status: video.status as VideoStatus,
         assignedUser: video.assignedUser || null
+      }
+      if (cachedSegments !== null) {
+        applyCachedSegments(videoId, cachedSegments)
+      } else {
+        clearSegments()
       }
     } else {
       currentVideo.value = null

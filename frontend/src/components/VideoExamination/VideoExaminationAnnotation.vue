@@ -536,10 +536,7 @@ async function loadSelectedVideo() {
     await loadVideoDetail(selectedVideoId.value)
     await guarded(loadSavedExaminations())
     await guarded(loadVideoMetadata())
-    
-    // Load segments with error handling
-    await guarded(videoStore.fetchAllSegments(selectedVideoId.value))
-    
+
     console.log('Video fully loaded:', selectedVideoId.value)
   } catch (err: any) {
     console.error('loadSelectedVideo failed', err)
@@ -658,7 +655,6 @@ watch(selectedVideoId, (newId) => {
   console.log('Selected video ID changed, setting store to:', newId)
   if (typeof newId === 'number') {
     videoStore.setCurrentVideo(newId)
-    videoStore.fetchVideoSegments(newId)
   } 
   else {
     errorMessage.value = 'Invalid video ID'
@@ -780,7 +776,7 @@ const loadVideoSegments = async (): Promise<void> => {
   if (selectedVideoId.value === null) return
   
   try {
-    await videoStore.fetchAllSegments(selectedVideoId.value)
+    await videoStore.fetchAllSegments(selectedVideoId.value, true)
     console.log('Video segments loaded for video:', selectedVideoId.value)
     console.log('Timeline segments count:', rawSegments.value.length)
   } catch (error) {
