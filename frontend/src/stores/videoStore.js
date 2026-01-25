@@ -199,10 +199,38 @@ export const useVideoStore = defineStore('video', () => {
             delete segmentsByLabel[key];
         });
     }
+    function getCachedSegments(videoId) {
+        const cachedVideo = videoList.value.videos.find((video) => video.id === videoId);
+        if (!cachedVideo || !Array.isArray(cachedVideo.segments)) {
+            return null;
+        }
+        return cachedVideo.segments.map((segment) => ensureLabelId({
+            ...segment,
+            videoID: segment.videoID ?? videoId
+        }));
+    }
+    function applyCachedSegments(videoId, segments) {
+        clearSegments();
+        segments.forEach((segment) => {
+            const segmentWithVideoId = ensureLabelId({
+                ...segment,
+                videoID: segment.videoID ?? videoId
+            });
+            const label = segmentWithVideoId.label;
+            if (!segmentsByLabel[label]) {
+                segmentsByLabel[label] = [];
+            }
+            segmentsByLabel[label].push(segmentWithVideoId);
+        });
+        if (currentVideo.value && currentVideo.value.id === videoId) {
+            currentVideo.value.segments = Object.values(segmentsByLabel).flat();
+            console.log(`[VideoStore] Cached timeline segments populated: ${currentVideo.value.segments.length} segments for video ${videoId}`);
+        }
+    }
     // ===================================================================
     // SEGMENT MANAGEMENT FUNCTIONS
     // ===================================================================
-    async function fetchAllSegments(id) {
+    async function fetchAllSegments(id, forceRefresh = false) {
         console.log(`[VideoStore] fetchAllSegments called with video ID: ${id}`);
         // Ensure currentVideo exists before loading segments
         if (!currentVideo.value) {
@@ -217,6 +245,11 @@ export const useVideoStore = defineStore('video', () => {
                 assignedUser: null
             };
         }
+        const cachedSegments = forceRefresh ? null : getCachedSegments(id);
+        if (cachedSegments !== null) {
+            applyCachedSegments(id, cachedSegments);
+            return;
+        }
         await fetchVideoSegments(id);
         if (currentVideo.value) {
             const allSegmentsArray = [];
@@ -224,6 +257,10 @@ export const useVideoStore = defineStore('video', () => {
                 allSegmentsArray.push(...labelSegments);
             });
             currentVideo.value.segments = allSegmentsArray;
+            const listVideo = videoList.value.videos.find((video) => video.id === id);
+            if (listVideo) {
+                listVideo.segments = allSegmentsArray;
+            }
             console.log(`[VideoStore] Timeline segments populated: ${allSegmentsArray.length} segments for video ${id}`);
         }
     }
@@ -280,39 +317,27 @@ export const useVideoStore = defineStore('video', () => {
                         ? response.data
                         : [];
             // Process videos with enhanced metadata
-            const processedVideos = rawVideos.map((video) => ({
-                id: parseInt(video.id),
-                original_file_name: video.original_file_name,
-                status: video.status || 'available',
-                assignedUser: video.assignedUser || null,
-                anonymized: video.anonymized || false,
-                centerName: video.centerName || video.center_name || 'Unbekannt',
-                processorName: video.processorName || video.processor_name || 'Unbekannt'
-            }));
+            const processedVideos = rawVideos.map((video) => {
+                const videoId = Number(video.id);
+                const rawSegments = Array.isArray(video.segments)
+                    ? video.segments
+                    : [];
+                const segments = rawSegments.map((backendSeg) => ensureLabelId(backendSegmentToSegment({ ...backendSeg, videoId })));
+                return {
+                    id: videoId,
+                    original_file_name: video.original_file_name,
+                    status: video.status || 'available',
+                    assignedUser: video.assignedUser || null,
+                    anonymized: video.anonymized || false,
+                    centerName: video.centerName || video.center_name || 'Unbekannt',
+                    processorName: video.processorName || video.processor_name || 'Unbekannt',
+                    segments
+                };
+            });
             // Labels already fetched and stored above
             const processedLabels = videoList.value.labels;
-            // Fetch segments for each video in parallel
-            console.log('Fetching segments for', processedVideos.length, 'videos...');
-            const videosWithSegments = await Promise.all(processedVideos.map(async (video) => {
-                try {
-                    // Modern media framework endpoint
-                    const segmentsResponse = await axiosInstance.get(r(`media/videos/${video.id}/segments/`));
-                    const rawSegments = Array.isArray(segmentsResponse.data?.results)
-                        ? segmentsResponse.data.results
-                        : Array.isArray(segmentsResponse.data)
-                            ? segmentsResponse.data
-                            : [];
-                    console.log(`Video ${video.id}: Found ${rawSegments.length} segments`);
-                    const segments = rawSegments.map((backendSeg) => ensureLabelId(backendSegmentToSegment(backendSeg)));
-                    return { ...video, segments };
-                }
-                catch (segmentError) {
-                    console.warn(`Failed to load segments for video ${video.id}:`, segmentError);
-                    return { ...video, segments: [] };
-                }
-            }));
             videoList.value = {
-                videos: videosWithSegments,
+                videos: processedVideos,
                 labels: processedLabels
             };
             console.log('✅ Processed videos with segments:', videoList.value);
@@ -337,15 +362,22 @@ export const useVideoStore = defineStore('video', () => {
     function setCurrentVideo(videoId) {
         const video = videoList.value.videos.find((v) => v.id === videoId) || null;
         if (video) {
+            const cachedSegments = getCachedSegments(videoId);
             currentVideo.value = {
                 id: video.id,
                 isAnnotated: true,
                 errorMessage: '',
-                segments: [],
+                segments: cachedSegments ?? [],
                 videoUrl: buildVideoStreamUrl(video.id) + '?type=processed',
                 status: video.status,
                 assignedUser: video.assignedUser || null
             };
+            if (cachedSegments !== null) {
+                applyCachedSegments(videoId, cachedSegments);
+            }
+            else {
+                clearSegments();
+            }
         }
         else {
             currentVideo.value = null;

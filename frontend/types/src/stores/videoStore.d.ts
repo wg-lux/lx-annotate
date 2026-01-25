@@ -50,20 +50,20 @@ export interface TimeSegments {
  */
 export interface BackendSegment {
     id: number;
-    videoFile: number;
-    videoName: string;
-    videoId: number;
-    label: number | null;
-    labelName: string | null;
-    labelId: number | null;
+    videoFile?: number;
+    videoName?: string;
+    videoId?: number;
+    label?: number | null;
+    labelName?: string | null;
+    labelId?: number | null;
     startFrameNumber: number;
     endFrameNumber: number;
     startTime: number;
     endTime: number;
-    labelDisplay: string;
-    framePredictions: BackendFramePrediction[];
-    manualFrameAnnotations: any[];
-    timeSegments: TimeSegments | null;
+    labelDisplay?: string;
+    framePredictions?: BackendFramePrediction[];
+    manualFrameAnnotations?: any[];
+    timeSegments?: TimeSegments | null;
 }
 /**
  * Frontend segment format (unified camelCase)
@@ -127,6 +127,7 @@ export interface VideoMeta {
     outsideFrameCount?: number;
     centerName: string;
     processorName: string;
+    segments?: Segment[];
 }
 /**
  * Label metadata
@@ -286,6 +287,36 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
             readonly outsideFrameCount?: number | undefined;
             readonly centerName: string;
             readonly processorName: string;
+            readonly segments?: readonly {
+                readonly id: number;
+                readonly label: string;
+                readonly startTime: number;
+                readonly endTime: number;
+                readonly avgConfidence: number;
+                readonly videoID?: number | undefined;
+                readonly labelID: number | null;
+                readonly frames?: {
+                    readonly [x: string]: {
+                        readonly frameFilename: string;
+                        readonly frameFilePath: string;
+                        readonly frameUrl: string;
+                        readonly allClassifications: readonly any[];
+                        readonly predictions: readonly any[] | readonly {
+                            readonly frameNumber: number;
+                            readonly label: string;
+                            readonly confidence: number;
+                        }[];
+                        readonly frameId: number;
+                        readonly manualAnnotations: readonly any[];
+                    };
+                } | undefined;
+                readonly color?: string | undefined;
+                readonly startFrameNumber?: number | undefined;
+                readonly endFrameNumber?: number | undefined;
+                readonly usingFPS?: boolean | undefined;
+                readonly isDraft?: boolean | undefined;
+                readonly isDirty?: boolean | undefined;
+            }[] | undefined;
         }[];
         readonly labels: readonly {
             readonly id: number;
@@ -305,6 +336,36 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
             readonly outsideFrameCount?: number | undefined;
             readonly centerName: string;
             readonly processorName: string;
+            readonly segments?: readonly {
+                readonly id: number;
+                readonly label: string;
+                readonly startTime: number;
+                readonly endTime: number;
+                readonly avgConfidence: number;
+                readonly videoID?: number | undefined;
+                readonly labelID: number | null;
+                readonly frames?: {
+                    readonly [x: string]: {
+                        readonly frameFilename: string;
+                        readonly frameFilePath: string;
+                        readonly frameUrl: string;
+                        readonly allClassifications: readonly any[];
+                        readonly predictions: readonly any[] | readonly {
+                            readonly frameNumber: number;
+                            readonly label: string;
+                            readonly confidence: number;
+                        }[];
+                        readonly frameId: number;
+                        readonly manualAnnotations: readonly any[];
+                    };
+                } | undefined;
+                readonly color?: string | undefined;
+                readonly startFrameNumber?: number | undefined;
+                readonly endFrameNumber?: number | undefined;
+                readonly usingFPS?: boolean | undefined;
+                readonly isDraft?: boolean | undefined;
+                readonly isDirty?: boolean | undefined;
+            }[] | undefined;
         }[];
         readonly labels: readonly {
             readonly id: number;
@@ -324,6 +385,36 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
         readonly outsideFrameCount?: number | undefined;
         readonly centerName: string;
         readonly processorName: string;
+        readonly segments?: readonly {
+            readonly id: number;
+            readonly label: string;
+            readonly startTime: number;
+            readonly endTime: number;
+            readonly avgConfidence: number;
+            readonly videoID?: number | undefined;
+            readonly labelID: number | null;
+            readonly frames?: {
+                readonly [x: string]: {
+                    readonly frameFilename: string;
+                    readonly frameFilePath: string;
+                    readonly frameUrl: string;
+                    readonly allClassifications: readonly any[];
+                    readonly predictions: readonly any[] | readonly {
+                        readonly frameNumber: number;
+                        readonly label: string;
+                        readonly confidence: number;
+                    }[];
+                    readonly frameId: number;
+                    readonly manualAnnotations: readonly any[];
+                };
+            } | undefined;
+            readonly color?: string | undefined;
+            readonly startFrameNumber?: number | undefined;
+            readonly endFrameNumber?: number | undefined;
+            readonly usingFPS?: boolean | undefined;
+            readonly isDraft?: boolean | undefined;
+            readonly isDirty?: boolean | undefined;
+        }[] | undefined;
     } | null, {
         readonly id: number;
         readonly original_file_name: string;
@@ -336,6 +427,36 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
         readonly outsideFrameCount?: number | undefined;
         readonly centerName: string;
         readonly processorName: string;
+        readonly segments?: readonly {
+            readonly id: number;
+            readonly label: string;
+            readonly startTime: number;
+            readonly endTime: number;
+            readonly avgConfidence: number;
+            readonly videoID?: number | undefined;
+            readonly labelID: number | null;
+            readonly frames?: {
+                readonly [x: string]: {
+                    readonly frameFilename: string;
+                    readonly frameFilePath: string;
+                    readonly frameUrl: string;
+                    readonly allClassifications: readonly any[];
+                    readonly predictions: readonly any[] | readonly {
+                        readonly frameNumber: number;
+                        readonly label: string;
+                        readonly confidence: number;
+                    }[];
+                    readonly frameId: number;
+                    readonly manualAnnotations: readonly any[];
+                };
+            } | undefined;
+            readonly color?: string | undefined;
+            readonly startFrameNumber?: number | undefined;
+            readonly endFrameNumber?: number | undefined;
+            readonly usingFPS?: boolean | undefined;
+            readonly isDraft?: boolean | undefined;
+            readonly isDirty?: boolean | undefined;
+        }[] | undefined;
     } | null>>;
     videos: Ref<{
         [x: string]: any;
@@ -391,7 +512,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
     setVideo: (video: VideoAnnotation) => void;
     loadVideo: (videoId: number) => Promise<void>;
     fetchVideoUrl: (videoId?: number) => Promise<void>;
-    fetchAllSegments: (id: number) => Promise<void>;
+    fetchAllSegments: (id: number, forceRefresh?: boolean) => Promise<void>;
     fetchAllVideos: () => Promise<VideoList>;
     fetchLabels: () => Promise<LabelMeta[]>;
     fetchVideoSegments: (videoId: number) => Promise<void>;
@@ -518,6 +639,36 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
             readonly outsideFrameCount?: number | undefined;
             readonly centerName: string;
             readonly processorName: string;
+            readonly segments?: readonly {
+                readonly id: number;
+                readonly label: string;
+                readonly startTime: number;
+                readonly endTime: number;
+                readonly avgConfidence: number;
+                readonly videoID?: number | undefined;
+                readonly labelID: number | null;
+                readonly frames?: {
+                    readonly [x: string]: {
+                        readonly frameFilename: string;
+                        readonly frameFilePath: string;
+                        readonly frameUrl: string;
+                        readonly allClassifications: readonly any[];
+                        readonly predictions: readonly any[] | readonly {
+                            readonly frameNumber: number;
+                            readonly label: string;
+                            readonly confidence: number;
+                        }[];
+                        readonly frameId: number;
+                        readonly manualAnnotations: readonly any[];
+                    };
+                } | undefined;
+                readonly color?: string | undefined;
+                readonly startFrameNumber?: number | undefined;
+                readonly endFrameNumber?: number | undefined;
+                readonly usingFPS?: boolean | undefined;
+                readonly isDraft?: boolean | undefined;
+                readonly isDirty?: boolean | undefined;
+            }[] | undefined;
         }[];
         readonly labels: readonly {
             readonly id: number;
@@ -537,6 +688,36 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
             readonly outsideFrameCount?: number | undefined;
             readonly centerName: string;
             readonly processorName: string;
+            readonly segments?: readonly {
+                readonly id: number;
+                readonly label: string;
+                readonly startTime: number;
+                readonly endTime: number;
+                readonly avgConfidence: number;
+                readonly videoID?: number | undefined;
+                readonly labelID: number | null;
+                readonly frames?: {
+                    readonly [x: string]: {
+                        readonly frameFilename: string;
+                        readonly frameFilePath: string;
+                        readonly frameUrl: string;
+                        readonly allClassifications: readonly any[];
+                        readonly predictions: readonly any[] | readonly {
+                            readonly frameNumber: number;
+                            readonly label: string;
+                            readonly confidence: number;
+                        }[];
+                        readonly frameId: number;
+                        readonly manualAnnotations: readonly any[];
+                    };
+                } | undefined;
+                readonly color?: string | undefined;
+                readonly startFrameNumber?: number | undefined;
+                readonly endFrameNumber?: number | undefined;
+                readonly usingFPS?: boolean | undefined;
+                readonly isDraft?: boolean | undefined;
+                readonly isDirty?: boolean | undefined;
+            }[] | undefined;
         }[];
         readonly labels: readonly {
             readonly id: number;
@@ -556,6 +737,36 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
         readonly outsideFrameCount?: number | undefined;
         readonly centerName: string;
         readonly processorName: string;
+        readonly segments?: readonly {
+            readonly id: number;
+            readonly label: string;
+            readonly startTime: number;
+            readonly endTime: number;
+            readonly avgConfidence: number;
+            readonly videoID?: number | undefined;
+            readonly labelID: number | null;
+            readonly frames?: {
+                readonly [x: string]: {
+                    readonly frameFilename: string;
+                    readonly frameFilePath: string;
+                    readonly frameUrl: string;
+                    readonly allClassifications: readonly any[];
+                    readonly predictions: readonly any[] | readonly {
+                        readonly frameNumber: number;
+                        readonly label: string;
+                        readonly confidence: number;
+                    }[];
+                    readonly frameId: number;
+                    readonly manualAnnotations: readonly any[];
+                };
+            } | undefined;
+            readonly color?: string | undefined;
+            readonly startFrameNumber?: number | undefined;
+            readonly endFrameNumber?: number | undefined;
+            readonly usingFPS?: boolean | undefined;
+            readonly isDraft?: boolean | undefined;
+            readonly isDirty?: boolean | undefined;
+        }[] | undefined;
     } | null, {
         readonly id: number;
         readonly original_file_name: string;
@@ -568,6 +779,36 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
         readonly outsideFrameCount?: number | undefined;
         readonly centerName: string;
         readonly processorName: string;
+        readonly segments?: readonly {
+            readonly id: number;
+            readonly label: string;
+            readonly startTime: number;
+            readonly endTime: number;
+            readonly avgConfidence: number;
+            readonly videoID?: number | undefined;
+            readonly labelID: number | null;
+            readonly frames?: {
+                readonly [x: string]: {
+                    readonly frameFilename: string;
+                    readonly frameFilePath: string;
+                    readonly frameUrl: string;
+                    readonly allClassifications: readonly any[];
+                    readonly predictions: readonly any[] | readonly {
+                        readonly frameNumber: number;
+                        readonly label: string;
+                        readonly confidence: number;
+                    }[];
+                    readonly frameId: number;
+                    readonly manualAnnotations: readonly any[];
+                };
+            } | undefined;
+            readonly color?: string | undefined;
+            readonly startFrameNumber?: number | undefined;
+            readonly endFrameNumber?: number | undefined;
+            readonly usingFPS?: boolean | undefined;
+            readonly isDraft?: boolean | undefined;
+            readonly isDirty?: boolean | undefined;
+        }[] | undefined;
     } | null>>;
     videos: Ref<{
         [x: string]: any;
@@ -623,7 +864,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
     setVideo: (video: VideoAnnotation) => void;
     loadVideo: (videoId: number) => Promise<void>;
     fetchVideoUrl: (videoId?: number) => Promise<void>;
-    fetchAllSegments: (id: number) => Promise<void>;
+    fetchAllSegments: (id: number, forceRefresh?: boolean) => Promise<void>;
     fetchAllVideos: () => Promise<VideoList>;
     fetchLabels: () => Promise<LabelMeta[]>;
     fetchVideoSegments: (videoId: number) => Promise<void>;
@@ -750,6 +991,36 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
             readonly outsideFrameCount?: number | undefined;
             readonly centerName: string;
             readonly processorName: string;
+            readonly segments?: readonly {
+                readonly id: number;
+                readonly label: string;
+                readonly startTime: number;
+                readonly endTime: number;
+                readonly avgConfidence: number;
+                readonly videoID?: number | undefined;
+                readonly labelID: number | null;
+                readonly frames?: {
+                    readonly [x: string]: {
+                        readonly frameFilename: string;
+                        readonly frameFilePath: string;
+                        readonly frameUrl: string;
+                        readonly allClassifications: readonly any[];
+                        readonly predictions: readonly any[] | readonly {
+                            readonly frameNumber: number;
+                            readonly label: string;
+                            readonly confidence: number;
+                        }[];
+                        readonly frameId: number;
+                        readonly manualAnnotations: readonly any[];
+                    };
+                } | undefined;
+                readonly color?: string | undefined;
+                readonly startFrameNumber?: number | undefined;
+                readonly endFrameNumber?: number | undefined;
+                readonly usingFPS?: boolean | undefined;
+                readonly isDraft?: boolean | undefined;
+                readonly isDirty?: boolean | undefined;
+            }[] | undefined;
         }[];
         readonly labels: readonly {
             readonly id: number;
@@ -769,6 +1040,36 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
             readonly outsideFrameCount?: number | undefined;
             readonly centerName: string;
             readonly processorName: string;
+            readonly segments?: readonly {
+                readonly id: number;
+                readonly label: string;
+                readonly startTime: number;
+                readonly endTime: number;
+                readonly avgConfidence: number;
+                readonly videoID?: number | undefined;
+                readonly labelID: number | null;
+                readonly frames?: {
+                    readonly [x: string]: {
+                        readonly frameFilename: string;
+                        readonly frameFilePath: string;
+                        readonly frameUrl: string;
+                        readonly allClassifications: readonly any[];
+                        readonly predictions: readonly any[] | readonly {
+                            readonly frameNumber: number;
+                            readonly label: string;
+                            readonly confidence: number;
+                        }[];
+                        readonly frameId: number;
+                        readonly manualAnnotations: readonly any[];
+                    };
+                } | undefined;
+                readonly color?: string | undefined;
+                readonly startFrameNumber?: number | undefined;
+                readonly endFrameNumber?: number | undefined;
+                readonly usingFPS?: boolean | undefined;
+                readonly isDraft?: boolean | undefined;
+                readonly isDirty?: boolean | undefined;
+            }[] | undefined;
         }[];
         readonly labels: readonly {
             readonly id: number;
@@ -788,6 +1089,36 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
         readonly outsideFrameCount?: number | undefined;
         readonly centerName: string;
         readonly processorName: string;
+        readonly segments?: readonly {
+            readonly id: number;
+            readonly label: string;
+            readonly startTime: number;
+            readonly endTime: number;
+            readonly avgConfidence: number;
+            readonly videoID?: number | undefined;
+            readonly labelID: number | null;
+            readonly frames?: {
+                readonly [x: string]: {
+                    readonly frameFilename: string;
+                    readonly frameFilePath: string;
+                    readonly frameUrl: string;
+                    readonly allClassifications: readonly any[];
+                    readonly predictions: readonly any[] | readonly {
+                        readonly frameNumber: number;
+                        readonly label: string;
+                        readonly confidence: number;
+                    }[];
+                    readonly frameId: number;
+                    readonly manualAnnotations: readonly any[];
+                };
+            } | undefined;
+            readonly color?: string | undefined;
+            readonly startFrameNumber?: number | undefined;
+            readonly endFrameNumber?: number | undefined;
+            readonly usingFPS?: boolean | undefined;
+            readonly isDraft?: boolean | undefined;
+            readonly isDirty?: boolean | undefined;
+        }[] | undefined;
     } | null, {
         readonly id: number;
         readonly original_file_name: string;
@@ -800,6 +1131,36 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
         readonly outsideFrameCount?: number | undefined;
         readonly centerName: string;
         readonly processorName: string;
+        readonly segments?: readonly {
+            readonly id: number;
+            readonly label: string;
+            readonly startTime: number;
+            readonly endTime: number;
+            readonly avgConfidence: number;
+            readonly videoID?: number | undefined;
+            readonly labelID: number | null;
+            readonly frames?: {
+                readonly [x: string]: {
+                    readonly frameFilename: string;
+                    readonly frameFilePath: string;
+                    readonly frameUrl: string;
+                    readonly allClassifications: readonly any[];
+                    readonly predictions: readonly any[] | readonly {
+                        readonly frameNumber: number;
+                        readonly label: string;
+                        readonly confidence: number;
+                    }[];
+                    readonly frameId: number;
+                    readonly manualAnnotations: readonly any[];
+                };
+            } | undefined;
+            readonly color?: string | undefined;
+            readonly startFrameNumber?: number | undefined;
+            readonly endFrameNumber?: number | undefined;
+            readonly usingFPS?: boolean | undefined;
+            readonly isDraft?: boolean | undefined;
+            readonly isDirty?: boolean | undefined;
+        }[] | undefined;
     } | null>>;
     videos: Ref<{
         [x: string]: any;
@@ -855,7 +1216,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
     setVideo: (video: VideoAnnotation) => void;
     loadVideo: (videoId: number) => Promise<void>;
     fetchVideoUrl: (videoId?: number) => Promise<void>;
-    fetchAllSegments: (id: number) => Promise<void>;
+    fetchAllSegments: (id: number, forceRefresh?: boolean) => Promise<void>;
     fetchAllVideos: () => Promise<VideoList>;
     fetchLabels: () => Promise<LabelMeta[]>;
     fetchVideoSegments: (videoId: number) => Promise<void>;
