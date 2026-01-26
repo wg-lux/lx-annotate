@@ -463,6 +463,7 @@ const handleSegmentDelete = (...args) => {
             videoStore.removeSegment(segment.id);
             // 2. Perform API call
             await videoStore.deleteSegment(segment.id);
+            await loadVideoSegments();
             showSuccessMessage(`Segment gelöscht: ${getTranslationForLabel(segment.label)}`);
             resolve();
         }
@@ -505,6 +506,8 @@ const finishLabelMarking = async () => {
         // Reset state
         isMarkingLabel.value = false;
         selectedLabelType.value = '';
+        // Reload segments to show the new one
+        await loadVideoSegments();
         console.log('Label-Markierung abgeschlossen');
     }
     catch (error) {
