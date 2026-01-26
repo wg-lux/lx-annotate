@@ -505,8 +505,6 @@ const finishLabelMarking = async () => {
         // Reset state
         isMarkingLabel.value = false;
         selectedLabelType.value = '';
-        // Reload segments to show the new one
-        await loadVideoSegments();
         console.log('Label-Markierung abgeschlossen');
     }
     catch (error) {

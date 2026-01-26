@@ -24,7 +24,7 @@ django.setup()
 
 from django.db import transaction
 from endoreg_db.models import VideoFile, Frame, LabelVideoSegment
-from endoreg_db.utils.paths import DATA_DIR
+from endoreg_db.utils.paths import STORAGE_DIR
 
 # Minimum viable frame count (videos with fewer frames are considered invalid)
 MIN_FRAME_COUNT = 10
@@ -94,7 +94,7 @@ def check_video_validity(video: VideoFile, report: VideoCleanupReport) -> Tuple[
             if file_name.startswith('/'):
                 file_path = Path(file_name)
             else:
-                file_path = DATA_DIR / file_name
+                file_path = STORAGE_DIR / file_name
             
             if not file_path.exists():
                 return False, f"Raw file not found: {file_path}"
@@ -116,7 +116,7 @@ def check_video_validity(video: VideoFile, report: VideoCleanupReport) -> Tuple[
             if file_name.startswith('/'):
                 file_path = Path(file_name)
             else:
-                file_path = DATA_DIR / file_name
+                file_path = STORAGE_DIR / file_name
             
             if not file_path.exists():
                 print(f"  ⚠️  Video {video.id}: Processed file missing (raw still valid)")
@@ -181,7 +181,7 @@ def cleanup_invalid_videos(dry_run: bool = True) -> VideoCleanupReport:
                             if file_name.startswith('/'):
                                 file_path = Path(file_name)
                             else:
-                                file_path = DATA_DIR / file_name
+                                file_path = STORAGE_DIR / file_name
                             
                             if file_path.exists():
                                 file_path.unlink()

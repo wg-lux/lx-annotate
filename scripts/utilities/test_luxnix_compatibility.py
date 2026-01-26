@@ -42,7 +42,7 @@ def test_environment_variables():
     required_vars = [
         "DJANGO_HOST",
         "DJANGO_PORT",
-        "DATA_DIR",
+        "STORAGE_DIR",
         "CONF_DIR",
         "DJANGO_MODULE"
     ]

@@ -1029,9 +1029,6 @@ const finishLabelMarking = async (): Promise<void> => {
     isMarkingLabel.value = false
     selectedLabelType.value = ''
     
-    // Reload segments to show the new one
-    await loadVideoSegments()
-    
     console.log('Label-Markierung abgeschlossen')
   } catch (error) {
     console.error('Error finishing label marking:', error)
