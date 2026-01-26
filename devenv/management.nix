@@ -142,6 +142,11 @@ in
       npm install
       npm run build
     '';
+
+    "export-frames".exec = ''
+      mkdir -p "${env.STORAGE_DIR}/export/frames/"
+      secretspec run --profile env python manage.py export_frame_annot --output-path "${env.STORAGE_DIR}/export/frames/"
+    '';
     
 
     "run-server".exec = ''

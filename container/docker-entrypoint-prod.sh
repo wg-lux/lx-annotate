@@ -19,7 +19,7 @@ export DJANGO_MODULE="${DJANGO_MODULE:-lx_annotate}"
 # Production environment variables
 export DJANGO_DEBUG="${DJANGO_DEBUG:-False}"
 export DJANGO_ALLOWED_HOSTS="${DJANGO_ALLOWED_HOSTS:-*}"
-export DATA_DIR="${DATA_DIR:-/app/data}"
+export STORAGE_DIR="${STORAGE_DIR:-/app/data}"
 export WORKING_DIR="${WORKING_DIR:-/app}"
 
 # Production safety check: Prevent DEBUG=True in production
@@ -32,7 +32,7 @@ if [ "$debug_val" = "1" ] || [ "$debug_val" = "true" ] || [ "$debug_val" = "yes"
 fi
 
 # Ensure essential directories exist (no credentials required via volumes)
-mkdir -p "$DATA_DIR" /app/staticfiles
+mkdir -p "$STORAGE_DIR" /app/staticfiles
 
 # Validate critical environment variables
 if [ -z "${DJANGO_SECRET_KEY:-}" ]; then

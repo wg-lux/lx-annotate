@@ -24,11 +24,11 @@ export DJANGO_MODULE="${DJANGO_MODULE:-lx_annotate}"
 export DJANGO_SECRET_KEY="${DJANGO_SECRET_KEY:-dev-secret-key-$(date +%s)}"
 export DJANGO_DEBUG="${DJANGO_DEBUG:-True}"
 export DJANGO_ALLOWED_HOSTS="${DJANGO_ALLOWED_HOSTS:-*}"
-export DATA_DIR="${DATA_DIR:-/app/data}"
+export STORAGE_DIR="${STORAGE_DIR:-/app/data}"
 export WORKING_DIR="${WORKING_DIR:-/app}"
 
 # Ensure dirs
-mkdir -p "$DATA_DIR" /app/staticfiles
+mkdir -p "$STORAGE_DIR" /app/staticfiles
 
 # Collect static and migrate (best effort)
 python manage.py collectstatic --noinput --clear || echo "Static files collection skipped"
