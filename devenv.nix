@@ -29,6 +29,7 @@ let
     containerHost = "None";
     containerMode = false;
     STORAGE_DIR = config.secretspec.secrets.STORAGE_DIR;
+    EXPORT_OUTPUT_DIR = config.secretspec.secrets.EXPORT_OUTPUT_DIR;
     ASSET_DIR = config.secretspec.secrets.ASSET_DIR;
     HOME_DIR = config.secretspec.secrets.HOME_DIR;
     WORKING_DIR = config.secretspec.secrets.WORKING_DIR;

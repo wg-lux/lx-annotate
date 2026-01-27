@@ -414,8 +414,8 @@ const isExporting = ref(false)
 const exportMessage = ref<{ type: 'success' | 'error'; text: string } | null>(null)
 
 const exportOutputDir =
-  import.meta.env.VITE_EXPORT_OUTPUT_DIR ||
-  import.meta.env.VITE_STORAGE_DIR ||
+  import.meta.env.EXPORT_OUTPUT_DIR ||
+  import.meta.env.STORAGE_DIR ||
   '/data/export'
 
 const exportSegmentIds = computed(() =>
