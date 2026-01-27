@@ -1,4 +1,4 @@
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useVideoStore } from '@/stores/videoStore';
 import { useAnonymizationStore } from '@/stores/anonymizationStore';
 import { useMediaTypeStore } from '@/stores/mediaTypeStore';
@@ -169,6 +169,10 @@ onMounted(async () => {
         console.error('❌ [VideoExamination] Error during initial load:', error);
         showErrorMessage('Fehler beim Laden der Daten. Bitte Seite neu laden.');
     }
+    document.addEventListener('keydown', handleKeyDown);
+});
+onUnmounted(() => {
+    document.removeEventListener('keydown', handleKeyDown);
 });
 // Guarded function for error handling like VideoClassificationComponent
 async function guarded(p) {
@@ -482,6 +486,39 @@ const seekToTime = (time) => {
 const onLabelSelect = () => {
     console.log('Label selected:', selectedLabelType.value);
 };
+const isEditableTarget = (target) => {
+    if (!(target instanceof HTMLElement))
+        return false;
+    if (target.isContentEditable)
+        return true;
+    return ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName);
+};
+const handleKeyDown = (event) => {
+    if (isEditableTarget(event.target))
+        return;
+    if (event.key === 'Escape') {
+        if (isMarkingLabel.value) {
+            event.preventDefault();
+            cancelLabelMarking();
+        }
+        return;
+    }
+    const isPlus = event.key === '+' ||
+        event.code === 'NumpadAdd' ||
+        (event.code === 'Equal' && event.shiftKey);
+    const isMinus = event.key === '-' ||
+        event.code === 'Minus' ||
+        event.code === 'NumpadSubtract';
+    if (isPlus) {
+        event.preventDefault();
+        startLabelMarking();
+        return;
+    }
+    if (isMinus) {
+        event.preventDefault();
+        finishLabelMarking();
+    }
+};
 const startLabelMarking = () => {
     if (!canStartLabeling.value)
         return;
@@ -502,9 +539,8 @@ const finishLabelMarking = async () => {
         // FIX: Use updateDraftEnd und commitDraft statt finishDraftSegment
         videoStore.updateDraftEnd(currentTime.value);
         await videoStore.commitDraft();
-        // Reset state
+        // Reset state (keep last selected label)
         isMarkingLabel.value = false;
-        selectedLabelType.value = '';
         // Reload segments to show the new one
         await loadVideoSegments();
         console.log('Label-Markierung abgeschlossen');
@@ -514,10 +550,8 @@ const finishLabelMarking = async () => {
     }
 };
 const cancelLabelMarking = () => {
-    // FIX: Use cancelDraft statt cancelDraftSegment
     videoStore.cancelDraft();
     isMarkingLabel.value = false;
-    selectedLabelType.value = '';
     console.log('Label-Markierung abgebrochen');
 };
 const jumpToExamination = (examination) => {
@@ -707,6 +741,7 @@ let __VLS_directives;
 /** @type {__VLS_StyleScopedClasses['requirement-generator-embedded']} */ ;
 /** @type {__VLS_StyleScopedClasses['status-badge-container']} */ ;
 /** @type {__VLS_StyleScopedClasses['validation-status-alert']} */ ;
+/** @type {__VLS_StyleScopedClasses['shortcuts-toggle']} */ ;
 // CSS variable injection 
 // CSS variable injection end 
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -1051,6 +1086,21 @@ if (__VLS_ctx.duration > 0) {
         onTimeSelection: (__VLS_ctx.handleTimeSelection)
     };
     var __VLS_2;
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.details, __VLS_intrinsicElements.details)({
+        ...{ class: "mt-2 text-muted shortcuts-details" },
+        ...{ style: {} },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.summary, __VLS_intrinsicElements.summary)({
+        ...{ class: "shortcuts-toggle" },
+        'aria-label': "Shortcuts anzeigen",
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+        ...{ class: "shortcuts-icon" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "mt-1 shortcuts-body" },
+    });
     if (__VLS_ctx.selectedVideoId) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: "mt-3 d-flex gap-2" },
@@ -1478,6 +1528,13 @@ if (__VLS_ctx.savedExaminations.length > 0) {
 /** @type {__VLS_StyleScopedClasses['btn-primary']} */ ;
 /** @type {__VLS_StyleScopedClasses['timeline-wrapper']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['shortcuts-details']} */ ;
+/** @type {__VLS_StyleScopedClasses['shortcuts-toggle']} */ ;
+/** @type {__VLS_StyleScopedClasses['shortcuts-icon']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['shortcuts-body']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
 /** @type {__VLS_StyleScopedClasses['gap-2']} */ ;

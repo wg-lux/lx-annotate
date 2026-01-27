@@ -10,6 +10,22 @@
           <i :class="isPlaying ? 'fas fa-pause' : 'fas fa-play'"></i>
         </button>
         <button
+          @click="stepFrame(-1)"
+          class="control-btn"
+          :disabled="!video || duration <= 0"
+          title="Ein Frame zurück"
+        >
+          <i class="fas fa-step-backward"></i>
+        </button>
+        <button
+          @click="stepFrame(1)"
+          class="control-btn"
+          :disabled="!video || duration <= 0"
+          title="Ein Frame vor"
+        >
+          <i class="fas fa-step-forward"></i>
+        </button>
+        <button
           @click="deleteSelectedSegment"
           class="control-btn danger"
           :disabled="activeSegmentId == null"
@@ -277,6 +293,8 @@ const rowHeight = 56
 const rowContentHeight = 48
 const timelinePadding = 12
 const visibleRowCount = 1
+const clipboardSegment = ref<{ label: string; duration: number } | null>(null)
+const deletedSegments = ref<Array<{ label: string; start: number; end: number }>>([])
 
 
 
@@ -676,11 +694,121 @@ const deleteSelectedSegment = (): void => {
     segment => Number(segment.id) === Number(props.activeSegmentId)
   )
   if (!segmentToDelete) return
+  rememberDeletedSegment(segmentToDelete)
   emit('segment-delete', segmentToDelete)
+}
+
+const stepFrame = (direction: -1 | 1): void => {
+  if (!duration.value) return
+  const fps = props.fps && props.fps > 0 ? props.fps : 50
+  const step = 1 / fps
+  const current = props.currentTime ?? 0
+  const next = Math.max(0, Math.min(duration.value, current + direction * step))
+  emit('seek', next)
+}
+
+const getSegmentRange = (segment: Segment | CanonicalSegment): { label: string; start: number; end: number } => {
+  const canonical = segment as CanonicalSegment
+  const start = Number.isFinite(canonical.start) ? canonical.start : segment.startTime ?? 0
+  const end = Number.isFinite(canonical.end) ? canonical.end : segment.endTime ?? start
+  return { label: segment.label, start, end }
+}
+
+const rememberDeletedSegment = (segment: Segment | CanonicalSegment): void => {
+  if (segment.isDraft) return
+  const range = getSegmentRange(segment)
+  const start = Math.max(0, range.start)
+  const end = Math.max(start, range.end)
+  deletedSegments.value.push({ label: range.label, start, end })
+  if (deletedSegments.value.length > 20) {
+    deletedSegments.value.shift()
+  }
+}
+
+const copySelectedSegment = (): boolean => {
+  if (props.activeSegmentId == null) return false
+  const segment = displayedSegments.value.find(
+    s => Number(s.id) === Number(props.activeSegmentId)
+  )
+  if (!segment) return false
+  const range = getSegmentRange(segment)
+  const fps = props.fps && props.fps > 0 ? props.fps : 50
+  const minDuration = 1 / fps
+  const duration = Math.max(minDuration, range.end - range.start)
+  clipboardSegment.value = { label: range.label, duration }
+  toast.success({ text: 'Segment kopiert' })
+  return true
+}
+
+const pasteSegment = (): boolean => {
+  if (!clipboardSegment.value) {
+    toast.info({ text: 'Kein Segment in der Zwischenablage' })
+    return false
+  }
+  const start = Math.max(0, props.currentTime ?? 0)
+  const fps = props.fps && props.fps > 0 ? props.fps : 50
+  const minDuration = 1 / fps
+  const targetDuration = Math.max(minDuration, clipboardSegment.value.duration)
+  let end = start + targetDuration
+  if (duration.value > 0) {
+    end = Math.min(duration.value, end)
+  }
+  if (end <= start) return false
+  emit('segment-create', { label: clipboardSegment.value.label, start, end })
+  toast.success({ text: 'Segment eingefügt' })
+  return true
+}
+
+const undoDelete = (): boolean => {
+  const last = deletedSegments.value.pop()
+  if (!last) {
+    toast.info({ text: 'Nichts zum Rückgängig machen' })
+    return false
+  }
+  emit('segment-create', { label: last.label, start: last.start, end: last.end })
+  toast.success({ text: 'Löschung rückgängig gemacht' })
+  return true
 }
 
 const handleKeyDown = (event: KeyboardEvent): void => {
   if (isEditableTarget(event.target)) return
+  const isMeta = event.ctrlKey || event.metaKey
+
+  if (isMeta && event.key.toLowerCase() === 'z') {
+    if (undoDelete()) {
+      event.preventDefault()
+    }
+    return
+  }
+
+  if (isMeta && event.key.toLowerCase() === 'c') {
+    if (copySelectedSegment()) {
+      event.preventDefault()
+    }
+    return
+  }
+
+  if (isMeta && event.key.toLowerCase() === 'v') {
+    if (pasteSegment()) {
+      event.preventDefault()
+    }
+    return
+  }
+
+  if (!isMeta && !event.altKey) {
+    const isComma = event.key === ',' || event.code === 'Comma'
+    const isPeriod = event.key === '.' || event.code === 'Period'
+    if (isComma) {
+      event.preventDefault()
+      stepFrame(-1)
+      return
+    }
+    if (isPeriod) {
+      event.preventDefault()
+      stepFrame(1)
+      return
+    }
+  }
   if (event.key === 'Delete' || event.key === 'Backspace') {
     if (props.activeSegmentId == null) return
     event.preventDefault()
@@ -698,6 +826,7 @@ const editSegment = (segment: Segment | null): void => {
 const deleteSegment = (segment: Segment | null): void => {
   if (!segment) return
   hideContextMenu()
+  rememberDeletedSegment(segment)
   emit('segment-delete', segment)
 }
 

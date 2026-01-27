@@ -21,6 +21,8 @@ const rowHeight = 56;
 const rowContentHeight = 48;
 const timelinePadding = 12;
 const visibleRowCount = 1;
+const clipboardSegment = ref(null);
+const deletedSegments = ref([]);
 // Context menu
 const contextMenu = ref({
     visible: false,
@@ -354,11 +356,114 @@ const deleteSelectedSegment = () => {
     const segmentToDelete = displayedSegments.value.find(segment => Number(segment.id) === Number(props.activeSegmentId));
     if (!segmentToDelete)
         return;
+    rememberDeletedSegment(segmentToDelete);
     emit('segment-delete', segmentToDelete);
+};
+const stepFrame = (direction) => {
+    if (!duration.value)
+        return;
+    const fps = props.fps && props.fps > 0 ? props.fps : 50;
+    const step = 1 / fps;
+    const current = props.currentTime ?? 0;
+    const next = Math.max(0, Math.min(duration.value, current + direction * step));
+    emit('seek', next);
+};
+const getSegmentRange = (segment) => {
+    const canonical = segment;
+    const start = Number.isFinite(canonical.start) ? canonical.start : segment.startTime ?? 0;
+    const end = Number.isFinite(canonical.end) ? canonical.end : segment.endTime ?? start;
+    return { label: segment.label, start, end };
+};
+const rememberDeletedSegment = (segment) => {
+    if (segment.isDraft)
+        return;
+    const range = getSegmentRange(segment);
+    const start = Math.max(0, range.start);
+    const end = Math.max(start, range.end);
+    deletedSegments.value.push({ label: range.label, start, end });
+    if (deletedSegments.value.length > 20) {
+        deletedSegments.value.shift();
+    }
+};
+const copySelectedSegment = () => {
+    if (props.activeSegmentId == null)
+        return false;
+    const segment = displayedSegments.value.find(s => Number(s.id) === Number(props.activeSegmentId));
+    if (!segment)
+        return false;
+    const range = getSegmentRange(segment);
+    const fps = props.fps && props.fps > 0 ? props.fps : 50;
+    const minDuration = 1 / fps;
+    const duration = Math.max(minDuration, range.end - range.start);
+    clipboardSegment.value = { label: range.label, duration };
+    toast.success({ text: 'Segment kopiert' });
+    return true;
+};
+const pasteSegment = () => {
+    if (!clipboardSegment.value) {
+        toast.info({ text: 'Kein Segment in der Zwischenablage' });
+        return false;
+    }
+    const start = Math.max(0, props.currentTime ?? 0);
+    const fps = props.fps && props.fps > 0 ? props.fps : 50;
+    const minDuration = 1 / fps;
+    const targetDuration = Math.max(minDuration, clipboardSegment.value.duration);
+    let end = start + targetDuration;
+    if (duration.value > 0) {
+        end = Math.min(duration.value, end);
+    }
+    if (end <= start)
+        return false;
+    emit('segment-create', { label: clipboardSegment.value.label, start, end });
+    toast.success({ text: 'Segment eingefügt' });
+    return true;
+};
+const undoDelete = () => {
+    const last = deletedSegments.value.pop();
+    if (!last) {
+        toast.info({ text: 'Nichts zum Rückgängig machen' });
+        return false;
+    }
+    emit('segment-create', { label: last.label, start: last.start, end: last.end });
+    toast.success({ text: 'Löschung rückgängig gemacht' });
+    return true;
 };
 const handleKeyDown = (event) => {
     if (isEditableTarget(event.target))
         return;
+    const isMeta = event.ctrlKey || event.metaKey;
+    if (isMeta && event.key.toLowerCase() === 'z') {
+        if (undoDelete()) {
+            event.preventDefault();
+        }
+        return;
+    }
+    if (isMeta && event.key.toLowerCase() === 'c') {
+        if (copySelectedSegment()) {
+            event.preventDefault();
+        }
+        return;
+    }
+    if (isMeta && event.key.toLowerCase() === 'v') {
+        if (pasteSegment()) {
+            event.preventDefault();
+        }
+        return;
+    }
+    if (!isMeta && !event.altKey) {
+        const isComma = event.key === ',' || event.code === 'Comma';
+        const isPeriod = event.key === '.' || event.code === 'Period';
+        if (isComma) {
+            event.preventDefault();
+            stepFrame(-1);
+            return;
+        }
+        if (isPeriod) {
+            event.preventDefault();
+            stepFrame(1);
+            return;
+        }
+    }
     if (event.key === 'Delete' || event.key === 'Backspace') {
         if (props.activeSegmentId == null)
             return;
@@ -377,6 +482,7 @@ const deleteSegment = (segment) => {
     if (!segment)
         return;
     hideContextMenu();
+    rememberDeletedSegment(segment);
     emit('segment-delete', segment);
 };
 const playSegment = (segment) => {
@@ -565,6 +671,28 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElement
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
     ...{ class: (__VLS_ctx.isPlaying ? 'fas fa-pause' : 'fas fa-play') },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+    ...{ onClick: (...[$event]) => {
+            __VLS_ctx.stepFrame(-1);
+        } },
+    ...{ class: "control-btn" },
+    disabled: (!__VLS_ctx.video || __VLS_ctx.duration <= 0),
+    title: "Ein Frame zurück",
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+    ...{ class: "fas fa-step-backward" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+    ...{ onClick: (...[$event]) => {
+            __VLS_ctx.stepFrame(1);
+        } },
+    ...{ class: "control-btn" },
+    disabled: (!__VLS_ctx.video || __VLS_ctx.duration <= 0),
+    title: "Ein Frame vor",
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+    ...{ class: "fas fa-step-forward" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
     ...{ onClick: (__VLS_ctx.deleteSelectedSegment) },
@@ -804,6 +932,12 @@ if (__VLS_ctx.tooltip.visible) {
 /** @type {__VLS_StyleScopedClasses['timeline-controls']} */ ;
 /** @type {__VLS_StyleScopedClasses['play-btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['control-btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-step-backward']} */ ;
+/** @type {__VLS_StyleScopedClasses['control-btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-step-forward']} */ ;
+/** @type {__VLS_StyleScopedClasses['control-btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['danger']} */ ;
 /** @type {__VLS_StyleScopedClasses['fas']} */ ;
 /** @type {__VLS_StyleScopedClasses['fa-trash']} */ ;
@@ -894,6 +1028,7 @@ const __VLS_self = (await import('vue')).defineComponent({
             zoomOut: zoomOut,
             playPause: playPause,
             deleteSelectedSegment: deleteSelectedSegment,
+            stepFrame: stepFrame,
             editSegment: editSegment,
             deleteSegment: deleteSegment,
             playSegment: playSegment,

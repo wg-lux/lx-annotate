@@ -174,6 +174,22 @@
                 @segment-delete="handleSegmentDelete"
                 @time-selection="handleTimeSelection"
               />
+              <details class="mt-2 text-muted shortcuts-details" style="font-size: 0.85rem;">
+                <summary class="shortcuts-toggle" aria-label="Shortcuts anzeigen">
+                  <span class="shortcuts-icon">?</span>
+                  <span>Shortcuts</span>
+                </summary>
+                <div class="mt-1 shortcuts-body">
+                  , / . = Frame zurück/vor ·
+                  Ctrl/Cmd + C = Segment kopieren ·
+                  Ctrl/Cmd + V = Segment einfügen ·
+                  Ctrl/Cmd + Z = Löschen rückgängig ·
+                  Delete/Backspace = Segment löschen ·
+                  + = Segment-Start ·
+                  - = Segment-Ende ·
+                  Esc = Abbrechen
+                </div>
+              </details>
               <div v-if="selectedVideoId" class="mt-3 d-flex gap-2">
                 <button
                   class="btn btn-outline-secondary"
@@ -405,7 +421,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useVideoStore, type Segment, type Video } from '@/stores/videoStore'
 import { useAnonymizationStore } from '@/stores/anonymizationStore'
 import { useMediaTypeStore } from '@/stores/mediaTypeStore'
@@ -642,6 +658,12 @@ onMounted(async () => {
     console.error('❌ [VideoExamination] Error during initial load:', error)
     showErrorMessage('Fehler beim Laden der Daten. Bitte Seite neu laden.')
   }
+
+  document.addEventListener('keydown', handleKeyDown)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('keydown', handleKeyDown)
 })
 
 // Guarded function for error handling like VideoClassificationComponent
@@ -999,6 +1021,44 @@ const onLabelSelect = (): void => {
   console.log('Label selected:', selectedLabelType.value)
 }
 
+const isEditableTarget = (target: EventTarget | null): boolean => {
+  if (!(target instanceof HTMLElement)) return false
+  if (target.isContentEditable) return true
+  return ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)
+}
+
+const handleKeyDown = (event: KeyboardEvent): void => {
+  if (isEditableTarget(event.target)) return
+
+  if (event.key === 'Escape') {
+    if (isMarkingLabel.value) {
+      event.preventDefault()
+      cancelLabelMarking()
+    }
+    return
+  }
+
+  const isPlus =
+    event.key === '+' ||
+    event.code === 'NumpadAdd' ||
+    (event.code === 'Equal' && event.shiftKey)
+  const isMinus =
+    event.key === '-' ||
+    event.code === 'Minus' ||
+    event.code === 'NumpadSubtract'
+
+  if (isPlus) {
+    event.preventDefault()
+    startLabelMarking()
+    return
+  }
+
+  if (isMinus) {
+    event.preventDefault()
+    finishLabelMarking()
+  }
+}
+
 const startLabelMarking = (): void => {
   if (!canStartLabeling.value) return
 
@@ -1025,9 +1085,8 @@ const finishLabelMarking = async (): Promise<void> => {
     videoStore.updateDraftEnd(currentTime.value)
     await videoStore.commitDraft()
     
-    // Reset state
+    // Reset state (keep last selected label)
     isMarkingLabel.value = false
-    selectedLabelType.value = ''
     
     // Reload segments to show the new one
     await loadVideoSegments()
@@ -1039,10 +1098,8 @@ const finishLabelMarking = async (): Promise<void> => {
 }
 
 const cancelLabelMarking = (): void => {
-  // FIX: Use cancelDraft statt cancelDraftSegment
   videoStore.cancelDraft()
   isMarkingLabel.value = false
-  selectedLabelType.value = ''
   
   console.log('Label-Markierung abgebrochen')
 }
@@ -1421,5 +1478,48 @@ const isVideoValidated = (videoId: number): boolean => {
 
 .validation-status-alert .fas {
   opacity: 0.8;
+}
+
+.shortcuts-details {
+  display: inline-block;
+}
+
+.shortcuts-toggle {
+  list-style: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 10px 2px 6px;
+  border: 1px solid #dee2e6;
+  border-radius: 999px;
+  background: #f8f9fa;
+  cursor: pointer;
+  user-select: none;
+}
+
+.shortcuts-toggle::-webkit-details-marker {
+  display: none;
+}
+
+.shortcuts-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #0d6efd;
+  color: #fff;
+  font-weight: 700;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.shortcuts-body {
+  margin-top: 6px;
+  padding: 6px 10px;
+  border: 1px dashed #dee2e6;
+  border-radius: 6px;
+  background: #fff;
 }
 </style>
