@@ -184,6 +184,7 @@ const transcodeExt = ref('mp4');
 const useFramePkPaths = ref(false);
 const isExporting = ref(false);
 const exportMessage = ref(null);
+const isBackfilling = ref(false);
 const exportBaseDir = computed(() => {
     // output_dir is interpreted on the backend filesystem. Prefer explicit config, otherwise
     // fall back to an app-local path that is typically writable in dev (`data/...`).
@@ -210,6 +211,36 @@ const getExportGuardError = () => {
     return null;
 };
 const exportButtonLabel = computed(() => (isExporting.value ? 'Export läuft …' : 'Export starten'));
+const backfillButtonLabel = computed(() => isBackfilling.value ? 'Annotationen werden erzeugt …' : 'Fehlende Annotationen erzeugen');
+const backfillAnnotations = async () => {
+    exportMessage.value = null;
+    if (!selectedVideoId.value) {
+        exportMessage.value = { type: 'error', text: 'Bitte zuerst ein Video auswählen.' };
+        return;
+    }
+    isBackfilling.value = true;
+    try {
+        const resp = await axiosInstance.post(r(`media/videos/${selectedVideoId.value}/ensure-segment-annotations/`), { only_validated: true });
+        const created = Number(resp?.data?.annotationsCreated ?? resp?.data?.annotations_created ?? 0);
+        exportMessage.value = {
+            type: 'success',
+            text: `Backfill abgeschlossen. Neu erzeugte Annotationen: ${created}.`
+        };
+    }
+    catch (error) {
+        console.error('Backfill request failed', error);
+        exportMessage.value = {
+            type: 'error',
+            text: error?.response?.data?.detail ||
+                error?.response?.data?.error ||
+                error?.message ||
+                'Backfill fehlgeschlagen'
+        };
+    }
+    finally {
+        isBackfilling.value = false;
+    }
+};
 const startExport = async () => {
     exportMessage.value = null;
     const guardError = getExportGuardError();
@@ -554,6 +585,13 @@ if (__VLS_ctx.selectedVideoId) {
         disabled: (__VLS_ctx.isExporting),
     });
     (__VLS_ctx.exportButtonLabel);
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+        ...{ onClick: (__VLS_ctx.backfillAnnotations) },
+        type: "button",
+        ...{ class: "btn btn-outline-primary w-100 mt-2" },
+        disabled: (__VLS_ctx.isBackfilling || !__VLS_ctx.selectedVideoId),
+    });
+    (__VLS_ctx.backfillButtonLabel);
     if (__VLS_ctx.exportMessage) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: (['alert', __VLS_ctx.exportMessage.type === 'success' ? 'alert-success' : 'alert-danger', 'mt-3']) },
@@ -670,6 +708,10 @@ if (__VLS_ctx.selectedVideoId) {
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-success']} */ ;
 /** @type {__VLS_StyleScopedClasses['w-100']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-primary']} */ ;
+/** @type {__VLS_StyleScopedClasses['w-100']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
 var __VLS_dollars;
@@ -704,8 +746,11 @@ const __VLS_self = (await import('vue')).defineComponent({
             useFramePkPaths: useFramePkPaths,
             isExporting: isExporting,
             exportMessage: exportMessage,
+            isBackfilling: isBackfilling,
             exportOutputDir: exportOutputDir,
             exportButtonLabel: exportButtonLabel,
+            backfillButtonLabel: backfillButtonLabel,
+            backfillAnnotations: backfillAnnotations,
             startExport: startExport,
         };
     },

@@ -206,6 +206,14 @@
         >
           {{ exportButtonLabel }}
         </button>
+        <button
+          type="button"
+          class="btn btn-outline-primary w-100 mt-2"
+          :disabled="isBackfilling || !selectedVideoId"
+          @click="backfillAnnotations"
+        >
+          {{ backfillButtonLabel }}
+        </button>
         <div
           v-if="exportMessage"
           :class="['alert', exportMessage.type === 'success' ? 'alert-success' : 'alert-danger', 'mt-3']"
@@ -420,6 +428,7 @@ const transcodeExt = ref('mp4')
 const useFramePkPaths = ref(false)
 const isExporting = ref(false)
 const exportMessage = ref<{ type: 'success' | 'error'; text: string } | null>(null)
+const isBackfilling = ref(false)
 
 const exportBaseDir = computed(() => {
   // output_dir is interpreted on the backend filesystem. Prefer explicit config, otherwise
@@ -451,6 +460,44 @@ const getExportGuardError = (): string | null => {
 }
 
 const exportButtonLabel = computed(() => (isExporting.value ? 'Export läuft …' : 'Export starten'))
+
+const backfillButtonLabel = computed(() =>
+  isBackfilling.value ? 'Annotationen werden erzeugt …' : 'Fehlende Annotationen erzeugen'
+)
+
+const backfillAnnotations = async () => {
+  exportMessage.value = null
+  if (!selectedVideoId.value) {
+    exportMessage.value = { type: 'error', text: 'Bitte zuerst ein Video auswählen.' }
+    return
+  }
+
+  isBackfilling.value = true
+  try {
+    const resp = await axiosInstance.post(
+      r(`media/videos/${selectedVideoId.value}/ensure-segment-annotations/`),
+      { only_validated: true }
+    )
+
+    const created = Number(resp?.data?.annotationsCreated ?? resp?.data?.annotations_created ?? 0)
+    exportMessage.value = {
+      type: 'success',
+      text: `Backfill abgeschlossen. Neu erzeugte Annotationen: ${created}.`
+    }
+  } catch (error: any) {
+    console.error('Backfill request failed', error)
+    exportMessage.value = {
+      type: 'error',
+      text:
+        error?.response?.data?.detail ||
+        error?.response?.data?.error ||
+        error?.message ||
+        'Backfill fehlgeschlagen'
+    }
+  } finally {
+    isBackfilling.value = false
+  }
+}
 
 const startExport = async () => {
   exportMessage.value = null
