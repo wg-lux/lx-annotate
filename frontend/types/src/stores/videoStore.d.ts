@@ -10,6 +10,7 @@ export interface Video {
     original_file_name?: string;
     status?: string;
     video_url?: string;
+    exportSegmentsByVideo?: boolean;
     [key: string]: any;
 }
 export type LabelKey = 'appendix' | 'blood' | 'diverticule' | 'grasper' | 'ileocaecalvalve' | 'ileum' | 'low_quality' | 'nbi' | 'needle' | 'outside' | 'polyp' | 'snare' | 'water_jet' | 'wound';
@@ -60,6 +61,8 @@ export interface BackendSegment {
     endFrameNumber: number;
     startTime: number;
     endTime: number;
+    exportSegment?: boolean;
+    export_segment?: boolean;
     labelDisplay?: string;
     framePredictions?: BackendFramePrediction[];
     manualFrameAnnotations?: any[];
@@ -97,6 +100,7 @@ export interface Segment {
     usingFPS?: boolean;
     isDraft?: boolean;
     isDirty?: boolean;
+    exportSegment?: boolean;
 }
 /**
  * Video annotation interface
@@ -129,6 +133,7 @@ export interface VideoMeta {
     centerName: string;
     processorName: string;
     segments?: Segment[];
+    exportSegmentsByVideo?: boolean;
 }
 /**
  * Label metadata
@@ -182,6 +187,8 @@ export interface SegmentUpdatePayload {
     endTime?: number;
     start_time?: number;
     end_time?: number;
+    exportSegment?: boolean;
+    export_segment?: boolean;
     [key: string]: any;
 }
 export interface CreateSegmentResponse extends BackendSegment {
@@ -226,6 +233,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
             readonly usingFPS?: boolean | undefined;
             readonly isDraft?: boolean | undefined;
             readonly isDirty?: boolean | undefined;
+            readonly exportSegment?: boolean | undefined;
         }[];
         readonly videoUrl: string;
         readonly status: VideoStatus;
@@ -265,6 +273,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
             readonly usingFPS?: boolean | undefined;
             readonly isDraft?: boolean | undefined;
             readonly isDirty?: boolean | undefined;
+            readonly exportSegment?: boolean | undefined;
         }[];
         readonly videoUrl: string;
         readonly status: VideoStatus;
@@ -318,7 +327,9 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
                 readonly usingFPS?: boolean | undefined;
                 readonly isDraft?: boolean | undefined;
                 readonly isDirty?: boolean | undefined;
+                readonly exportSegment?: boolean | undefined;
             }[] | undefined;
+            readonly exportSegmentsByVideo?: boolean | undefined;
         }[];
         readonly labels: readonly {
             readonly id: number;
@@ -368,7 +379,9 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
                 readonly usingFPS?: boolean | undefined;
                 readonly isDraft?: boolean | undefined;
                 readonly isDirty?: boolean | undefined;
+                readonly exportSegment?: boolean | undefined;
             }[] | undefined;
+            readonly exportSegmentsByVideo?: boolean | undefined;
         }[];
         readonly labels: readonly {
             readonly id: number;
@@ -418,7 +431,9 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
             readonly usingFPS?: boolean | undefined;
             readonly isDraft?: boolean | undefined;
             readonly isDirty?: boolean | undefined;
+            readonly exportSegment?: boolean | undefined;
         }[] | undefined;
+        readonly exportSegmentsByVideo?: boolean | undefined;
     } | null, {
         readonly id: number;
         readonly original_file_name: string;
@@ -461,7 +476,9 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
             readonly usingFPS?: boolean | undefined;
             readonly isDraft?: boolean | undefined;
             readonly isDirty?: boolean | undefined;
+            readonly exportSegment?: boolean | undefined;
         }[] | undefined;
+        readonly exportSegmentsByVideo?: boolean | undefined;
     } | null>>;
     videos: Ref<{
         [x: string]: any;
@@ -471,6 +488,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
         original_file_name?: string | undefined;
         status?: string | undefined;
         video_url?: string | undefined;
+        exportSegmentsByVideo?: boolean | undefined;
     }[], Video[] | {
         [x: string]: any;
         id: number;
@@ -479,6 +497,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
         original_file_name?: string | undefined;
         status?: string | undefined;
         video_url?: string | undefined;
+        exportSegmentsByVideo?: boolean | undefined;
     }[]>;
     allSegments: ComputedRef<Segment[]>;
     draftSegment: Ref<{
@@ -524,6 +543,8 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
     fetchSegmentsByLabel: (id: number, label?: string) => Promise<void>;
     createSegment: (videoId: number, label: string, startTime: number, endTime: number) => Promise<Segment | null>;
     updateSegmentAPI: (segmentId: number, updates: SegmentUpdatePayload) => Promise<boolean>;
+    setSegmentExportFlag: (segmentId: number, exportSegment: boolean) => Promise<boolean>;
+    setVideoExportFlag: (videoId: number, exportSegmentsByVideo: boolean) => Promise<boolean>;
     deleteSegment: (segmentId: number) => Promise<boolean>;
     removeSegment: (segmentId: number) => void;
     saveAnnotations: () => Promise<void>;
@@ -582,6 +603,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
             readonly usingFPS?: boolean | undefined;
             readonly isDraft?: boolean | undefined;
             readonly isDirty?: boolean | undefined;
+            readonly exportSegment?: boolean | undefined;
         }[];
         readonly videoUrl: string;
         readonly status: VideoStatus;
@@ -621,6 +643,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
             readonly usingFPS?: boolean | undefined;
             readonly isDraft?: boolean | undefined;
             readonly isDirty?: boolean | undefined;
+            readonly exportSegment?: boolean | undefined;
         }[];
         readonly videoUrl: string;
         readonly status: VideoStatus;
@@ -674,7 +697,9 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
                 readonly usingFPS?: boolean | undefined;
                 readonly isDraft?: boolean | undefined;
                 readonly isDirty?: boolean | undefined;
+                readonly exportSegment?: boolean | undefined;
             }[] | undefined;
+            readonly exportSegmentsByVideo?: boolean | undefined;
         }[];
         readonly labels: readonly {
             readonly id: number;
@@ -724,7 +749,9 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
                 readonly usingFPS?: boolean | undefined;
                 readonly isDraft?: boolean | undefined;
                 readonly isDirty?: boolean | undefined;
+                readonly exportSegment?: boolean | undefined;
             }[] | undefined;
+            readonly exportSegmentsByVideo?: boolean | undefined;
         }[];
         readonly labels: readonly {
             readonly id: number;
@@ -774,7 +801,9 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
             readonly usingFPS?: boolean | undefined;
             readonly isDraft?: boolean | undefined;
             readonly isDirty?: boolean | undefined;
+            readonly exportSegment?: boolean | undefined;
         }[] | undefined;
+        readonly exportSegmentsByVideo?: boolean | undefined;
     } | null, {
         readonly id: number;
         readonly original_file_name: string;
@@ -817,7 +846,9 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
             readonly usingFPS?: boolean | undefined;
             readonly isDraft?: boolean | undefined;
             readonly isDirty?: boolean | undefined;
+            readonly exportSegment?: boolean | undefined;
         }[] | undefined;
+        readonly exportSegmentsByVideo?: boolean | undefined;
     } | null>>;
     videos: Ref<{
         [x: string]: any;
@@ -827,6 +858,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
         original_file_name?: string | undefined;
         status?: string | undefined;
         video_url?: string | undefined;
+        exportSegmentsByVideo?: boolean | undefined;
     }[], Video[] | {
         [x: string]: any;
         id: number;
@@ -835,6 +867,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
         original_file_name?: string | undefined;
         status?: string | undefined;
         video_url?: string | undefined;
+        exportSegmentsByVideo?: boolean | undefined;
     }[]>;
     allSegments: ComputedRef<Segment[]>;
     draftSegment: Ref<{
@@ -880,6 +913,8 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
     fetchSegmentsByLabel: (id: number, label?: string) => Promise<void>;
     createSegment: (videoId: number, label: string, startTime: number, endTime: number) => Promise<Segment | null>;
     updateSegmentAPI: (segmentId: number, updates: SegmentUpdatePayload) => Promise<boolean>;
+    setSegmentExportFlag: (segmentId: number, exportSegment: boolean) => Promise<boolean>;
+    setVideoExportFlag: (videoId: number, exportSegmentsByVideo: boolean) => Promise<boolean>;
     deleteSegment: (segmentId: number) => Promise<boolean>;
     removeSegment: (segmentId: number) => void;
     saveAnnotations: () => Promise<void>;
@@ -938,6 +973,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
             readonly usingFPS?: boolean | undefined;
             readonly isDraft?: boolean | undefined;
             readonly isDirty?: boolean | undefined;
+            readonly exportSegment?: boolean | undefined;
         }[];
         readonly videoUrl: string;
         readonly status: VideoStatus;
@@ -977,6 +1013,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
             readonly usingFPS?: boolean | undefined;
             readonly isDraft?: boolean | undefined;
             readonly isDirty?: boolean | undefined;
+            readonly exportSegment?: boolean | undefined;
         }[];
         readonly videoUrl: string;
         readonly status: VideoStatus;
@@ -1030,7 +1067,9 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
                 readonly usingFPS?: boolean | undefined;
                 readonly isDraft?: boolean | undefined;
                 readonly isDirty?: boolean | undefined;
+                readonly exportSegment?: boolean | undefined;
             }[] | undefined;
+            readonly exportSegmentsByVideo?: boolean | undefined;
         }[];
         readonly labels: readonly {
             readonly id: number;
@@ -1080,7 +1119,9 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
                 readonly usingFPS?: boolean | undefined;
                 readonly isDraft?: boolean | undefined;
                 readonly isDirty?: boolean | undefined;
+                readonly exportSegment?: boolean | undefined;
             }[] | undefined;
+            readonly exportSegmentsByVideo?: boolean | undefined;
         }[];
         readonly labels: readonly {
             readonly id: number;
@@ -1130,7 +1171,9 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
             readonly usingFPS?: boolean | undefined;
             readonly isDraft?: boolean | undefined;
             readonly isDirty?: boolean | undefined;
+            readonly exportSegment?: boolean | undefined;
         }[] | undefined;
+        readonly exportSegmentsByVideo?: boolean | undefined;
     } | null, {
         readonly id: number;
         readonly original_file_name: string;
@@ -1173,7 +1216,9 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
             readonly usingFPS?: boolean | undefined;
             readonly isDraft?: boolean | undefined;
             readonly isDirty?: boolean | undefined;
+            readonly exportSegment?: boolean | undefined;
         }[] | undefined;
+        readonly exportSegmentsByVideo?: boolean | undefined;
     } | null>>;
     videos: Ref<{
         [x: string]: any;
@@ -1183,6 +1228,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
         original_file_name?: string | undefined;
         status?: string | undefined;
         video_url?: string | undefined;
+        exportSegmentsByVideo?: boolean | undefined;
     }[], Video[] | {
         [x: string]: any;
         id: number;
@@ -1191,6 +1237,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
         original_file_name?: string | undefined;
         status?: string | undefined;
         video_url?: string | undefined;
+        exportSegmentsByVideo?: boolean | undefined;
     }[]>;
     allSegments: ComputedRef<Segment[]>;
     draftSegment: Ref<{
@@ -1236,6 +1283,8 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
     fetchSegmentsByLabel: (id: number, label?: string) => Promise<void>;
     createSegment: (videoId: number, label: string, startTime: number, endTime: number) => Promise<Segment | null>;
     updateSegmentAPI: (segmentId: number, updates: SegmentUpdatePayload) => Promise<boolean>;
+    setSegmentExportFlag: (segmentId: number, exportSegment: boolean) => Promise<boolean>;
+    setVideoExportFlag: (videoId: number, exportSegmentsByVideo: boolean) => Promise<boolean>;
     deleteSegment: (segmentId: number) => Promise<boolean>;
     removeSegment: (segmentId: number) => void;
     saveAnnotations: () => Promise<void>;
@@ -1260,4 +1309,4 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
     formatTime: (seconds: number) => string;
     getSegmentOptions: () => SegmentOption[];
     clearSegments: () => void;
-}, "buildVideoStreamUrl" | "setCurrentVideo" | "clearVideo" | "deleteVideo" | "setVideo" | "loadVideo" | "fetchVideoUrl" | "fetchAllSegments" | "fetchAllVideos" | "fetchLabels" | "fetchVideoSegments" | "fetchSegmentsByLabel" | "createSegment" | "updateSegmentAPI" | "deleteSegment" | "removeSegment" | "saveAnnotations" | "getSegmentStyle" | "getColorForLabel" | "getTranslationForLabel" | "jumpToSegment" | "setActiveSegment" | "updateVideoStatus" | "assignUserToVideo" | "hasRawVideoFileFn" | "persistDirtySegments" | "updateSegmentInMemory" | "startDraft" | "updateDraftEnd" | "commitDraft" | "cancelDraft" | "createFiveSecondSegment" | "patchDraftSegment" | "patchSegmentLocally" | "backendSegmentToSegment" | "formatTime" | "getSegmentOptions" | "clearSegments">>;
+}, "buildVideoStreamUrl" | "setCurrentVideo" | "clearVideo" | "deleteVideo" | "setVideo" | "loadVideo" | "fetchVideoUrl" | "fetchAllSegments" | "fetchAllVideos" | "fetchLabels" | "fetchVideoSegments" | "fetchSegmentsByLabel" | "createSegment" | "updateSegmentAPI" | "setSegmentExportFlag" | "setVideoExportFlag" | "deleteSegment" | "removeSegment" | "saveAnnotations" | "getSegmentStyle" | "getColorForLabel" | "getTranslationForLabel" | "jumpToSegment" | "setActiveSegment" | "updateVideoStatus" | "assignUserToVideo" | "hasRawVideoFileFn" | "persistDirtySegments" | "updateSegmentInMemory" | "startDraft" | "updateDraftEnd" | "commitDraft" | "cancelDraft" | "createFiveSecondSegment" | "patchDraftSegment" | "patchSegmentLocally" | "backendSegmentToSegment" | "formatTime" | "getSegmentOptions" | "clearSegments">>;

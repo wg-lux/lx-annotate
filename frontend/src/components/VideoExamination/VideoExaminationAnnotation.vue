@@ -92,7 +92,15 @@
             </div>
 
             <!-- Video Player -->
-            <div v-if="anonymizedVideoSrc" class="video-container">
+            <div v-if="anonymizedVideoSrc" ref="videoContainerRef" class="video-container">
+              <button
+                type="button"
+                class="fullscreen-toggle"
+                @click="toggleFullscreen"
+                :title="isFullscreen ? 'Vollbild verlassen' : 'Vollbild'"
+              >
+                <i :class="isFullscreen ? 'fas fa-compress' : 'fas fa-expand'"></i>
+              </button>
               <video 
                 ref="videoRef"
                 data-cy="video-player"
@@ -108,6 +116,35 @@
               >
                 Ihr Browser unterstützt das Video-Element nicht.
               </video>
+              <div
+                v-if="isLabelSelectActive"
+                class="label-overlay"
+                @click.self="closeLabelOverlay"
+              >
+                <div class="label-overlay-card">
+                  <div class="label-overlay-header">
+                    <span>Label auswählen</span>
+                    <button type="button" class="label-overlay-close" @click="closeLabelOverlay">
+                      ×
+                    </button>
+                  </div>
+                  <div class="label-overlay-hint">
+                    ↑/↓ wechseln · Enter übernehmen · Esc schließen
+                  </div>
+                  <div class="label-overlay-list">
+                    <button
+                      v-for="label in timelineLabels"
+                      :key="label.id"
+                      type="button"
+                      class="label-overlay-item"
+                      :class="{ active: label.name === selectedLabelType }"
+                      @click="selectLabelFromOverlay(label.name)"
+                    >
+                      {{ getTranslationForLabel(label.name) }}
+                    </button>
+                  </div>
+                </div>
+              </div>
               
               <!-- ✅ NEW: Video Status and Information Card -->
               <div v-if="selectedVideoId" class="mt-3 p-3 rounded border video-status-card">
@@ -180,6 +217,10 @@
                   <span>Shortcuts</span>
                 </summary>
                 <div class="mt-1 shortcuts-body">
+                  O = Labelauswahl ·
+                  ↑/↓ = Label wechseln ·
+                  Enter = Label übernehmen ·
+                  F = Vollbild ·
                   , / . = Frame zurück/vor ·
                   Ctrl/Cmd + C = Segment kopieren ·
                   Ctrl/Cmd + V = Segment einfügen ·
@@ -190,6 +231,11 @@
                   Esc = Abbrechen
                 </div>
               </details>
+              <ExportAnnotations
+                class="mt-3"
+                :videoId="selectedVideoId"
+                :segments="timelineSegmentsForSelectedVideo"
+              />
               <div v-if="selectedVideoId" class="mt-3 d-flex gap-2">
                 <button
                   class="btn btn-outline-secondary"
@@ -239,8 +285,11 @@
                 <div class="d-flex align-items-center">
                   <label class="form-label mb-0 me-2">Neues Label setzen:</label>
                   <select 
+                    ref="labelSelectRef"
                     v-model="selectedLabelType" 
                     @change="onLabelSelect"
+                    @focus="isLabelSelectActive = true"
+                    @blur="isLabelSelectActive = false"
                     class="form-select form-select-sm control-select"
                     data-cy="label-select"
                   >
@@ -428,6 +477,7 @@ import { useMediaTypeStore } from '@/stores/mediaTypeStore'
 import RequirementGenerator from '@/components/RequirementReport/RequirementGenerator.vue'
 import axiosInstance, { r } from '@/api/axiosInstance'
 import Timeline from '@/components/VideoExamination/Timeline.vue'
+import ExportAnnotations from '@/components/VideoExamination/ExportAnnotations.vue'
 import { storeToRefs } from 'pinia'
 import { useToastStore } from '@/stores/toastStore'
 import { formatTime, getTranslationForLabel, getColorForLabel } from '@/utils/videoUtils'
@@ -510,6 +560,7 @@ const examinationMarkers = ref<ExaminationMarker[]>([])
 const savedExaminations = ref<SavedExamination[]>([])
 const currentMarker = ref<ExaminationMarker | null>(null)
 const selectedLabelType = ref<string>('')
+const isLabelSelectActive = ref<boolean>(false)
 const isMarkingLabel = ref<boolean>(false)
 const labelMarkingStart = ref<number>(0)
 const selectedSegmentId = ref<number | null>(null)
@@ -521,9 +572,12 @@ const videoMeta = ref<{ duration: number; fps: number } | null>(null)
 // Error and success messages for Bootstrap alerts
 const errorMessage = ref<string>('')
 const successMessage = ref<string>('')
+const isFullscreen = ref<boolean>(false)
 
 // Template refs
 const videoRef = ref<HTMLVideoElement | null>(null)
+const videoContainerRef = ref<HTMLElement | null>(null)
+const labelSelectRef = ref<HTMLSelectElement | null>(null)
 const timelineRef = ref<HTMLElement | null>(null)
 // Video Dropdown Watcher
 
@@ -660,10 +714,12 @@ onMounted(async () => {
   }
 
   document.addEventListener('keydown', handleKeyDown)
+  document.addEventListener('fullscreenchange', handleFullscreenChange)
 })
 
 onUnmounted(() => {
   document.removeEventListener('keydown', handleKeyDown)
+  document.removeEventListener('fullscreenchange', handleFullscreenChange)
 })
 
 // Guarded function for error handling like VideoClassificationComponent
@@ -1021,16 +1077,90 @@ const onLabelSelect = (): void => {
   console.log('Label selected:', selectedLabelType.value)
 }
 
+const handleFullscreenChange = (): void => {
+  isFullscreen.value = document.fullscreenElement === videoContainerRef.value
+}
+
+const toggleFullscreen = async (): Promise<void> => {
+  const container = videoContainerRef.value
+  if (!container) return
+
+  try {
+    if (document.fullscreenElement === container) {
+      await document.exitFullscreen()
+    } else {
+      await container.requestFullscreen()
+    }
+  } catch (error) {
+    console.error('Fullscreen toggle failed:', error)
+  }
+}
+
+const closeLabelOverlay = (): void => {
+  isLabelSelectActive.value = false
+  labelSelectRef.value?.blur()
+}
+
+const selectLabelFromOverlay = (labelName: string): void => {
+  selectedLabelType.value = labelName
+  closeLabelOverlay()
+}
+
 const isEditableTarget = (target: EventTarget | null): boolean => {
   if (!(target instanceof HTMLElement)) return false
   if (target.isContentEditable) return true
+  if (target instanceof HTMLSelectElement && isLabelSelectActive.value) return false
   return ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)
 }
 
 const handleKeyDown = (event: KeyboardEvent): void => {
   if (isEditableTarget(event.target)) return
 
+  const key = event.key.toLowerCase()
+
+  if (!event.ctrlKey && !event.metaKey && !event.altKey && key === 'o') {
+    event.preventDefault()
+    event.stopPropagation()
+    isLabelSelectActive.value = true
+    labelSelectRef.value?.focus()
+    return
+  }
+
+  if (!event.ctrlKey && !event.metaKey && !event.altKey && key === 'f') {
+    event.preventDefault()
+    event.stopPropagation()
+    toggleFullscreen()
+    return
+  }
+
+  if (isLabelSelectActive.value) {
+    if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+      event.preventDefault()
+      event.stopPropagation()
+      const labels = timelineLabels.value
+      if (labels.length === 0) return
+      const currentIndex = labels.findIndex((l) => l.name === selectedLabelType.value)
+      const delta = event.key === 'ArrowUp' ? -1 : 1
+      const startIndex = currentIndex === -1 ? (delta > 0 ? -1 : 0) : currentIndex
+      const nextIndex = (startIndex + delta + labels.length) % labels.length
+      selectedLabelType.value = labels[nextIndex].name
+      return
+    }
+    if (event.key === 'Enter') {
+      event.preventDefault()
+      event.stopPropagation()
+      closeLabelOverlay()
+      return
+    }
+  }
+
   if (event.key === 'Escape') {
+    if (isLabelSelectActive.value) {
+      event.preventDefault()
+      event.stopPropagation()
+      closeLabelOverlay()
+      return
+    }
     if (isMarkingLabel.value) {
       event.preventDefault()
       cancelLabelMarking()
@@ -1324,6 +1454,23 @@ const isVideoValidated = (videoId: number): boolean => {
   overflow: hidden;
 }
 
+.fullscreen-toggle {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 6;
+  border: none;
+  border-radius: 999px;
+  padding: 6px 10px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  cursor: pointer;
+}
+
+.fullscreen-toggle:hover {
+  background: rgba(0, 0, 0, 0.75);
+}
+
 .simple-timeline-track {
   position: relative;
   height: 20px;
@@ -1478,6 +1625,69 @@ const isVideoValidated = (videoId: number): boolean => {
 
 .validation-status-alert .fas {
   opacity: 0.8;
+}
+
+.label-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 5;
+}
+
+.label-overlay-card {
+  background: #ffffff;
+  border-radius: 10px;
+  padding: 12px;
+  min-width: 260px;
+  max-width: 70%;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+}
+
+.label-overlay-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.label-overlay-close {
+  border: none;
+  background: transparent;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.label-overlay-hint {
+  font-size: 0.8rem;
+  color: #6c757d;
+  margin-bottom: 8px;
+}
+
+.label-overlay-list {
+  display: grid;
+  gap: 6px;
+  max-height: 45vh;
+  overflow: auto;
+}
+
+.label-overlay-item {
+  width: 100%;
+  text-align: left;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid #dee2e6;
+  background: #f8f9fa;
+  cursor: pointer;
+}
+
+.label-overlay-item.active {
+  border-color: #0d6efd;
+  background: #e7f1ff;
 }
 
 .shortcuts-details {

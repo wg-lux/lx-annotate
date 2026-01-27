@@ -1,0 +1,1 @@
+import{E as o}from"./ExportAnnotations.js";import{d as t,c as e,b as r,o as n}from"./main.js";import"./videoStore.js";import"./timeHelpers.js";const a={class:"container-fluid h-100 w-100 py-1 px-4"},f=t({__name:"Export",setup(s){return(p,c)=>(n(),e("div",a,[r(o)]))}});export{f as default};

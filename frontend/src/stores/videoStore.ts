@@ -20,6 +20,7 @@ export interface Video {
   original_file_name?: string
   status?: string
   video_url?: string
+  exportSegmentsByVideo?: boolean
   [key: string]: any
 }
 
@@ -92,6 +93,8 @@ export interface BackendSegment {
   endFrameNumber: number
   startTime: number
   endTime: number
+  exportSegment?: boolean
+  export_segment?: boolean
   labelDisplay?: string
   framePredictions?: BackendFramePrediction[]
   manualFrameAnnotations?: any[]
@@ -132,6 +135,7 @@ export interface Segment {
   usingFPS?: boolean
   isDraft?: boolean
   isDirty?: boolean            // ⬅ used by persistDirtySegments()
+  exportSegment?: boolean
 }
 
 /**
@@ -166,6 +170,7 @@ export interface VideoMeta {
   centerName: string
   processorName: string
   segments?: Segment[]
+  exportSegmentsByVideo?: boolean
 }
 
 /**
@@ -225,6 +230,8 @@ export interface SegmentUpdatePayload {
   endTime?: number
   start_time?: number
   end_time?: number
+  exportSegment?: boolean
+  export_segment?: boolean
   [key: string]: any
 }
 
@@ -264,6 +271,7 @@ export function backendSegmentToSegment(backend: BackendSegment): Segment {
     labelID: backend.labelId ?? (typeof backend.label === 'number' ? backend.label : null),
     startFrameNumber: backend.startFrameNumber,
     endFrameNumber: backend.endFrameNumber,
+    exportSegment: backend.exportSegment ?? backend.export_segment ?? false,
     frames: framesMap
   }
 }
@@ -328,6 +336,14 @@ export const useVideoStore = defineStore('video', () => {
   const _fetchToken = ref<number>(0)
   const draftSegment = ref<DraftSegment | null>(null)
   const hasRawVideoFile = ref<boolean | null>(null)
+
+  function findSegmentById(segmentId: number): Segment | null {
+    for (const label in segmentsByLabel) {
+      const match = segmentsByLabel[label].find((s) => s.id === segmentId)
+      if (match) return match
+    }
+    return null
+  }
 
   function buildVideoStreamUrl(id: string | number) {
     const base = import.meta.env.VITE_API_BASE_URL || window.location.origin
@@ -684,6 +700,8 @@ export const useVideoStore = defineStore('video', () => {
             video.segmentAnnotationsValidated ?? video.segment_annotations_validated ?? false,
           centerName: video.centerName || video.center_name || 'Unbekannt',
           processorName: video.processorName || video.processor_name || 'Unbekannt',
+          exportSegmentsByVideo:
+            video.exportSegmentsByVideo ?? video.export_segments_by_video ?? false,
           segments
         }
       })
@@ -778,7 +796,10 @@ export const useVideoStore = defineStore('video', () => {
         hasROI: Boolean(meta.hasROI ?? meta.has_roi ?? false),
         outsideFrameCount: Number(meta.outsideFrameCount ?? meta.outside_frame_count ?? 0),
         centerName: String(meta.centerName ?? meta.center_name ?? 'Unbekannt'),
-        processorName: String(meta.processorName ?? meta.processor_name ?? 'Unbekannt')
+        processorName: String(meta.processorName ?? meta.processor_name ?? 'Unbekannt'),
+        exportSegmentsByVideo: Boolean(
+          meta.exportSegmentsByVideo ?? meta.export_segments_by_video ?? false
+        )
       }
 
       videoMeta.value = normalizedMeta
@@ -1015,13 +1036,20 @@ export const useVideoStore = defineStore('video', () => {
     const startFrame = Math.floor(startTime * fps)
     const endFrame = Math.floor(endTime * fps)
 
+    const {
+      exportSegment,
+      export_segment,
+      ...rest
+    } = extra
+
     return {
       // backend expects snake_case:
       start_time: startTime,
       end_time: endTime,
       start_frame_number: startFrame,
       end_frame_number: endFrame,
-      ...extra
+      export_segment: export_segment ?? exportSegment,
+      ...rest
     }
   }
 
@@ -1036,10 +1064,18 @@ export const useVideoStore = defineStore('video', () => {
         return false
       }
 
+      const currentSegment = findSegmentById(segmentId)
+      const fallbackStart = currentSegment?.startTime ?? 0
+      const fallbackEnd = currentSegment?.endTime ?? 0
+      if (!currentSegment && updates.startTime == null && updates.start_time == null) {
+        console.error('[VideoStore] Cannot infer segment times for update', segmentId)
+        return false
+      }
+
       const updatePayload = createSegmentUpdatePayload(
         segmentId,
-        (updates.startTime ?? updates.start_time) ?? 0,
-        (updates.endTime ?? updates.end_time) ?? 0,
+        (updates.startTime ?? updates.start_time) ?? fallbackStart,
+        (updates.endTime ?? updates.end_time) ?? fallbackEnd,
         updates
       )
 
@@ -1056,6 +1092,45 @@ export const useVideoStore = defineStore('video', () => {
       console.error('Error updating segment:', axiosError.response?.data || axiosError.message)
       errorMessage.value = 'Error updating segment. Please try again.'
       toast.error({text: 'Fehler beim Aktualisieren des Segments'})
+      return false
+    }
+  }
+
+  async function setSegmentExportFlag(
+    segmentId: number,
+    exportSegment: boolean
+  ): Promise<boolean> {
+    return await updateSegmentAPI(segmentId, { export_segment: exportSegment })
+  }
+
+  async function setVideoExportFlag(
+    videoId: number,
+    exportSegmentsByVideo: boolean
+  ): Promise<boolean> {
+    try {
+      const response: AxiosResponse = await axiosInstance.patch(
+        r(`media/videos/${videoId}/`),
+        { export_segments_by_video: exportSegmentsByVideo }
+      )
+      const updatedValue =
+        response.data?.export_segments_by_video ??
+        response.data?.exportSegmentsByVideo ??
+        exportSegmentsByVideo
+
+      const listVideo = videoList.value.videos.find((v) => v.id === videoId)
+      if (listVideo) {
+        listVideo.exportSegmentsByVideo = Boolean(updatedValue)
+      }
+      if (videoMeta.value?.id === videoId) {
+        videoMeta.value.exportSegmentsByVideo = Boolean(updatedValue)
+      }
+      return true
+    } catch (error) {
+      const axiosError = error as AxiosError
+      console.error(
+        'Error updating video export flag:',
+        axiosError.response?.data || axiosError.message
+      )
       return false
     }
   }
@@ -1481,6 +1556,8 @@ export const useVideoStore = defineStore('video', () => {
     fetchSegmentsByLabel,
     createSegment,
     updateSegmentAPI,
+    setSegmentExportFlag,
+    setVideoExportFlag,
     deleteSegment,
     removeSegment,
     saveAnnotations,

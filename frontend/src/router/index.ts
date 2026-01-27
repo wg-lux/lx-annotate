@@ -53,6 +53,14 @@ const router = createRouter({
         description: 'Hier können Sie Befunde erstellen.'
       }
     },
+        {
+      path: '/export',
+      name: 'Export',
+      component: () => import('@/views/Export.vue'),
+      meta: {
+        description: 'Hier können Sie Annotationen exportieren.'
+      }
+    },
     {
       path: '/patient',
       name: 'Patient hinzufügen',

@@ -13,6 +13,22 @@
       "AnnotationDashboard.css"
     ]
   },
+  "_ExportAnnotations.css": {
+    "file": "ExportAnnotations.css",
+    "src": "_ExportAnnotations.css"
+  },
+  "_ExportAnnotations.js": {
+    "file": "ExportAnnotations.js",
+    "name": "ExportAnnotations",
+    "imports": [
+      "_videoStore.js",
+      "_timeHelpers.js",
+      "src/main.ts"
+    ],
+    "css": [
+      "ExportAnnotations.css"
+    ]
+  },
   "_PatientAdder.css": {
     "file": "PatientAdder.css",
     "src": "_PatientAdder.css"
@@ -53,6 +69,7 @@
     "name": "Timeline",
     "imports": [
       "src/main.ts",
+      "_timeHelpers.js",
       "_videoStore.js"
     ],
     "css": [
@@ -72,6 +89,10 @@
     "imports": [
       "src/main.ts"
     ]
+  },
+  "_timeHelpers.js": {
+    "file": "timeHelpers.js",
+    "name": "timeHelpers"
   },
   "_usePollingProtection.js": {
     "file": "usePollingProtection.js",
@@ -130,7 +151,8 @@
       "_videoStore.js",
       "_mediaTypeStore.js",
       "_Timeline.js",
-      "_usePollingProtection.js"
+      "_usePollingProtection.js",
+      "_timeHelpers.js"
     ],
     "css": [
       "AnonymizationValidationComponent.css"
@@ -148,6 +170,7 @@
       "src/views/UeberUns.vue",
       "src/views/PageOverview.vue",
       "src/views/Examination.vue",
+      "src/views/Export.vue",
       "src/views/PatientAdder.vue",
       "src/views/PatientOverview.vue",
       "src/views/Profil.vue",
@@ -190,6 +213,7 @@
       "_videoStore.js",
       "_mediaTypeStore.js",
       "_Timeline.js",
+      "_timeHelpers.js",
       "_usePollingProtection.js"
     ]
   },
@@ -228,6 +252,18 @@
       "src/main.ts",
       "_patientStore.js",
       "_PatientAdder2.js"
+    ]
+  },
+  "src/views/Export.vue": {
+    "file": "Export.js",
+    "name": "Export",
+    "src": "src/views/Export.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "_ExportAnnotations.js",
+      "src/main.ts",
+      "_videoStore.js",
+      "_timeHelpers.js"
     ]
   },
   "src/views/PageOverview.vue": {
@@ -304,6 +340,7 @@
       "_videoStore.js",
       "_mediaTypeStore.js",
       "_Timeline.js",
+      "_timeHelpers.js",
       "_usePollingProtection.js"
     ],
     "css": [
@@ -321,8 +358,10 @@
       "_mediaTypeStore.js",
       "_RequirementGenerator.js",
       "_Timeline.js",
+      "_ExportAnnotations.js",
       "_patientStore.js",
-      "_PatientAdder2.js"
+      "_PatientAdder2.js",
+      "_timeHelpers.js"
     ],
     "css": [
       "VideoExamination.css"

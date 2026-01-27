@@ -34,6 +34,7 @@ export function backendSegmentToSegment(backend) {
         labelID: backend.labelId ?? (typeof backend.label === 'number' ? backend.label : null),
         startFrameNumber: backend.startFrameNumber,
         endFrameNumber: backend.endFrameNumber,
+        exportSegment: backend.exportSegment ?? backend.export_segment ?? false,
         frames: framesMap
     };
 }
@@ -80,6 +81,14 @@ export const useVideoStore = defineStore('video', () => {
     const _fetchToken = ref(0);
     const draftSegment = ref(null);
     const hasRawVideoFile = ref(null);
+    function findSegmentById(segmentId) {
+        for (const label in segmentsByLabel) {
+            const match = segmentsByLabel[label].find((s) => s.id === segmentId);
+            if (match)
+                return match;
+        }
+        return null;
+    }
     function buildVideoStreamUrl(id) {
         const base = import.meta.env.VITE_API_BASE_URL || window.location.origin;
         return `${base}/api/media/videos/${id}/`;
@@ -359,6 +368,7 @@ export const useVideoStore = defineStore('video', () => {
                     segmentAnnotationsValidated: video.segmentAnnotationsValidated ?? video.segment_annotations_validated ?? false,
                     centerName: video.centerName || video.center_name || 'Unbekannt',
                     processorName: video.processorName || video.processor_name || 'Unbekannt',
+                    exportSegmentsByVideo: video.exportSegmentsByVideo ?? video.export_segments_by_video ?? false,
                     segments
                 };
             });
@@ -446,7 +456,8 @@ export const useVideoStore = defineStore('video', () => {
                 hasROI: Boolean(meta.hasROI ?? meta.has_roi ?? false),
                 outsideFrameCount: Number(meta.outsideFrameCount ?? meta.outside_frame_count ?? 0),
                 centerName: String(meta.centerName ?? meta.center_name ?? 'Unbekannt'),
-                processorName: String(meta.processorName ?? meta.processor_name ?? 'Unbekannt')
+                processorName: String(meta.processorName ?? meta.processor_name ?? 'Unbekannt'),
+                exportSegmentsByVideo: Boolean(meta.exportSegmentsByVideo ?? meta.export_segments_by_video ?? false)
             };
             videoMeta.value = normalizedMeta;
             // Update currentVideo immediately if it exists
@@ -610,13 +621,15 @@ export const useVideoStore = defineStore('video', () => {
         const fps = getEffectiveFps();
         const startFrame = Math.floor(startTime * fps);
         const endFrame = Math.floor(endTime * fps);
+        const { exportSegment, export_segment, ...rest } = extra;
         return {
             // backend expects snake_case:
             start_time: startTime,
             end_time: endTime,
             start_frame_number: startFrame,
             end_frame_number: endFrame,
-            ...extra
+            export_segment: export_segment ?? exportSegment,
+            ...rest
         };
     }
     async function updateSegmentAPI(segmentId, updates) {
@@ -626,7 +639,14 @@ export const useVideoStore = defineStore('video', () => {
                 console.error('[VideoStore] Cannot update segment without current video');
                 return false;
             }
-            const updatePayload = createSegmentUpdatePayload(segmentId, (updates.startTime ?? updates.start_time) ?? 0, (updates.endTime ?? updates.end_time) ?? 0, updates);
+            const currentSegment = findSegmentById(segmentId);
+            const fallbackStart = currentSegment?.startTime ?? 0;
+            const fallbackEnd = currentSegment?.endTime ?? 0;
+            if (!currentSegment && updates.startTime == null && updates.start_time == null) {
+                console.error('[VideoStore] Cannot infer segment times for update', segmentId);
+                return false;
+            }
+            const updatePayload = createSegmentUpdatePayload(segmentId, (updates.startTime ?? updates.start_time) ?? fallbackStart, (updates.endTime ?? updates.end_time) ?? fallbackEnd, updates);
             const url = r(`media/videos/${videoId}/segments/${segmentId}/`);
             const response = await axiosInstance.patch(url, updatePayload);
             const updatedSegment = backendSegmentToSegment(response.data);
@@ -639,6 +659,30 @@ export const useVideoStore = defineStore('video', () => {
             console.error('Error updating segment:', axiosError.response?.data || axiosError.message);
             errorMessage.value = 'Error updating segment. Please try again.';
             toast.error({ text: 'Fehler beim Aktualisieren des Segments' });
+            return false;
+        }
+    }
+    async function setSegmentExportFlag(segmentId, exportSegment) {
+        return await updateSegmentAPI(segmentId, { export_segment: exportSegment });
+    }
+    async function setVideoExportFlag(videoId, exportSegmentsByVideo) {
+        try {
+            const response = await axiosInstance.patch(r(`media/videos/${videoId}/`), { export_segments_by_video: exportSegmentsByVideo });
+            const updatedValue = response.data?.export_segments_by_video ??
+                response.data?.exportSegmentsByVideo ??
+                exportSegmentsByVideo;
+            const listVideo = videoList.value.videos.find((v) => v.id === videoId);
+            if (listVideo) {
+                listVideo.exportSegmentsByVideo = Boolean(updatedValue);
+            }
+            if (videoMeta.value?.id === videoId) {
+                videoMeta.value.exportSegmentsByVideo = Boolean(updatedValue);
+            }
+            return true;
+        }
+        catch (error) {
+            const axiosError = error;
+            console.error('Error updating video export flag:', axiosError.response?.data || axiosError.message);
             return false;
         }
     }
@@ -962,6 +1006,8 @@ export const useVideoStore = defineStore('video', () => {
         fetchSegmentsByLabel,
         createSegment,
         updateSegmentAPI,
+        setSegmentExportFlag,
+        setVideoExportFlag,
         deleteSegment,
         removeSegment,
         saveAnnotations,

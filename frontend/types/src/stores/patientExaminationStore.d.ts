@@ -51,6 +51,7 @@ export declare const usePatientExaminationStore: import("pinia").StoreDefinition
                 original_file_name?: string | undefined;
                 status?: string | undefined;
                 video_url?: string | undefined;
+                exportSegmentsByVideo?: boolean | undefined;
             } | null;
             id: number;
         }[];
@@ -95,6 +96,7 @@ export declare const usePatientExaminationStore: import("pinia").StoreDefinition
             original_file_name?: string | undefined;
             status?: string | undefined;
             video_url?: string | undefined;
+            exportSegmentsByVideo?: boolean | undefined;
         } | null;
         id: number;
     } | null;
@@ -136,6 +138,7 @@ export declare const usePatientExaminationStore: import("pinia").StoreDefinition
                 original_file_name?: string | undefined;
                 status?: string | undefined;
                 video_url?: string | undefined;
+                exportSegmentsByVideo?: boolean | undefined;
             } | null;
             id: number;
         }[];
@@ -184,6 +187,7 @@ export declare const usePatientExaminationStore: import("pinia").StoreDefinition
                 original_file_name?: string | undefined;
                 status?: string | undefined;
                 video_url?: string | undefined;
+                exportSegmentsByVideo?: boolean | undefined;
             } | null;
             id: number;
         }[];
@@ -232,6 +236,7 @@ export declare const usePatientExaminationStore: import("pinia").StoreDefinition
                 original_file_name?: string | undefined;
                 status?: string | undefined;
                 video_url?: string | undefined;
+                exportSegmentsByVideo?: boolean | undefined;
             } | null;
             id: number;
         }[];
@@ -276,6 +281,7 @@ export declare const usePatientExaminationStore: import("pinia").StoreDefinition
             original_file_name?: string | undefined;
             status?: string | undefined;
             video_url?: string | undefined;
+            exportSegmentsByVideo?: boolean | undefined;
         } | null;
         id: number;
     }[];
@@ -317,6 +323,7 @@ export declare const usePatientExaminationStore: import("pinia").StoreDefinition
                 original_file_name?: string | undefined;
                 status?: string | undefined;
                 video_url?: string | undefined;
+                exportSegmentsByVideo?: boolean | undefined;
             } | null;
             id: number;
         }[];

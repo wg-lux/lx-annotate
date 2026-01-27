@@ -5,6 +5,7 @@ import { useMediaTypeStore } from '@/stores/mediaTypeStore';
 import RequirementGenerator from '@/components/RequirementReport/RequirementGenerator.vue';
 import axiosInstance, { r } from '@/api/axiosInstance';
 import Timeline from '@/components/VideoExamination/Timeline.vue';
+import ExportAnnotations from '@/components/VideoExamination/ExportAnnotations.vue';
 import { storeToRefs } from 'pinia';
 import { useToastStore } from '@/stores/toastStore';
 import { formatTime, getTranslationForLabel, getColorForLabel } from '@/utils/videoUtils';
@@ -50,6 +51,7 @@ const examinationMarkers = ref([]);
 const savedExaminations = ref([]);
 const currentMarker = ref(null);
 const selectedLabelType = ref('');
+const isLabelSelectActive = ref(false);
 const isMarkingLabel = ref(false);
 const labelMarkingStart = ref(0);
 const selectedSegmentId = ref(null);
@@ -59,8 +61,11 @@ const videoMeta = ref(null);
 // Error and success messages for Bootstrap alerts
 const errorMessage = ref('');
 const successMessage = ref('');
+const isFullscreen = ref(false);
 // Template refs
 const videoRef = ref(null);
+const videoContainerRef = ref(null);
+const labelSelectRef = ref(null);
 const timelineRef = ref(null);
 // Video Dropdown Watcher
 const hasUnsavedChanges = computed(() => rawSegments.value.some(s => s.isDirty));
@@ -170,9 +175,11 @@ onMounted(async () => {
         showErrorMessage('Fehler beim Laden der Daten. Bitte Seite neu laden.');
     }
     document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
 });
 onUnmounted(() => {
     document.removeEventListener('keydown', handleKeyDown);
+    document.removeEventListener('fullscreenchange', handleFullscreenChange);
 });
 // Guarded function for error handling like VideoClassificationComponent
 async function guarded(p) {
@@ -486,17 +493,87 @@ const seekToTime = (time) => {
 const onLabelSelect = () => {
     console.log('Label selected:', selectedLabelType.value);
 };
+const handleFullscreenChange = () => {
+    isFullscreen.value = document.fullscreenElement === videoContainerRef.value;
+};
+const toggleFullscreen = async () => {
+    const container = videoContainerRef.value;
+    if (!container)
+        return;
+    try {
+        if (document.fullscreenElement === container) {
+            await document.exitFullscreen();
+        }
+        else {
+            await container.requestFullscreen();
+        }
+    }
+    catch (error) {
+        console.error('Fullscreen toggle failed:', error);
+    }
+};
+const closeLabelOverlay = () => {
+    isLabelSelectActive.value = false;
+    labelSelectRef.value?.blur();
+};
+const selectLabelFromOverlay = (labelName) => {
+    selectedLabelType.value = labelName;
+    closeLabelOverlay();
+};
 const isEditableTarget = (target) => {
     if (!(target instanceof HTMLElement))
         return false;
     if (target.isContentEditable)
         return true;
+    if (target instanceof HTMLSelectElement && isLabelSelectActive.value)
+        return false;
     return ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName);
 };
 const handleKeyDown = (event) => {
     if (isEditableTarget(event.target))
         return;
+    const key = event.key.toLowerCase();
+    if (!event.ctrlKey && !event.metaKey && !event.altKey && key === 'o') {
+        event.preventDefault();
+        event.stopPropagation();
+        isLabelSelectActive.value = true;
+        labelSelectRef.value?.focus();
+        return;
+    }
+    if (!event.ctrlKey && !event.metaKey && !event.altKey && key === 'f') {
+        event.preventDefault();
+        event.stopPropagation();
+        toggleFullscreen();
+        return;
+    }
+    if (isLabelSelectActive.value) {
+        if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+            event.preventDefault();
+            event.stopPropagation();
+            const labels = timelineLabels.value;
+            if (labels.length === 0)
+                return;
+            const currentIndex = labels.findIndex((l) => l.name === selectedLabelType.value);
+            const delta = event.key === 'ArrowUp' ? -1 : 1;
+            const startIndex = currentIndex === -1 ? (delta > 0 ? -1 : 0) : currentIndex;
+            const nextIndex = (startIndex + delta + labels.length) % labels.length;
+            selectedLabelType.value = labels[nextIndex].name;
+            return;
+        }
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            event.stopPropagation();
+            closeLabelOverlay();
+            return;
+        }
+    }
     if (event.key === 'Escape') {
+        if (isLabelSelectActive.value) {
+            event.preventDefault();
+            event.stopPropagation();
+            closeLabelOverlay();
+            return;
+        }
         if (isMarkingLabel.value) {
             event.preventDefault();
             cancelLabelMarking();
@@ -725,6 +802,7 @@ debugger; /* PartiallyEnd: #3632/scriptSetup.vue */
 const __VLS_ctx = {};
 let __VLS_components;
 let __VLS_directives;
+/** @type {__VLS_StyleScopedClasses['fullscreen-toggle']} */ ;
 /** @type {__VLS_StyleScopedClasses['examination-marker']} */ ;
 /** @type {__VLS_StyleScopedClasses['list-group-item']} */ ;
 /** @type {__VLS_StyleScopedClasses['requirement-generator-embedded']} */ ;
@@ -741,6 +819,7 @@ let __VLS_directives;
 /** @type {__VLS_StyleScopedClasses['requirement-generator-embedded']} */ ;
 /** @type {__VLS_StyleScopedClasses['status-badge-container']} */ ;
 /** @type {__VLS_StyleScopedClasses['validation-status-alert']} */ ;
+/** @type {__VLS_StyleScopedClasses['label-overlay-item']} */ ;
 /** @type {__VLS_StyleScopedClasses['shortcuts-toggle']} */ ;
 // CSS variable injection 
 // CSS variable injection end 
@@ -921,7 +1000,18 @@ if (!__VLS_ctx.hasVideos) {
 }
 if (__VLS_ctx.anonymizedVideoSrc) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ref: "videoContainerRef",
         ...{ class: "video-container" },
+    });
+    /** @type {typeof __VLS_ctx.videoContainerRef} */ ;
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+        ...{ onClick: (__VLS_ctx.toggleFullscreen) },
+        type: "button",
+        ...{ class: "fullscreen-toggle" },
+        title: (__VLS_ctx.isFullscreen ? 'Vollbild verlassen' : 'Vollbild'),
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+        ...{ class: (__VLS_ctx.isFullscreen ? 'fas fa-compress' : 'fas fa-expand') },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.video, __VLS_intrinsicElements.video)({
         ...{ onTimeupdate: (__VLS_ctx.handleTimeUpdate) },
@@ -937,6 +1027,46 @@ if (__VLS_ctx.anonymizedVideoSrc) {
         ...{ style: {} },
     });
     /** @type {typeof __VLS_ctx.videoRef} */ ;
+    if (__VLS_ctx.isLabelSelectActive) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ onClick: (__VLS_ctx.closeLabelOverlay) },
+            ...{ class: "label-overlay" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "label-overlay-card" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "label-overlay-header" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+            ...{ onClick: (__VLS_ctx.closeLabelOverlay) },
+            type: "button",
+            ...{ class: "label-overlay-close" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "label-overlay-hint" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "label-overlay-list" },
+        });
+        for (const [label] of __VLS_getVForSourceType((__VLS_ctx.timelineLabels))) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+                ...{ onClick: (...[$event]) => {
+                        if (!(__VLS_ctx.anonymizedVideoSrc))
+                            return;
+                        if (!(__VLS_ctx.isLabelSelectActive))
+                            return;
+                        __VLS_ctx.selectLabelFromOverlay(label.name);
+                    } },
+                key: (label.id),
+                type: "button",
+                ...{ class: "label-overlay-item" },
+                ...{ class: ({ active: label.name === __VLS_ctx.selectedLabelType }) },
+            });
+            (__VLS_ctx.getTranslationForLabel(label.name));
+        }
+    }
     if (__VLS_ctx.selectedVideoId) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: "mt-3 p-3 rounded border video-status-card" },
@@ -1101,6 +1231,18 @@ if (__VLS_ctx.duration > 0) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "mt-1 shortcuts-body" },
     });
+    /** @type {[typeof ExportAnnotations, ]} */ ;
+    // @ts-ignore
+    const __VLS_14 = __VLS_asFunctionalComponent(ExportAnnotations, new ExportAnnotations({
+        ...{ class: "mt-3" },
+        videoId: (__VLS_ctx.selectedVideoId),
+        segments: (__VLS_ctx.timelineSegmentsForSelectedVideo),
+    }));
+    const __VLS_15 = __VLS_14({
+        ...{ class: "mt-3" },
+        videoId: (__VLS_ctx.selectedVideoId),
+        segments: (__VLS_ctx.timelineSegmentsForSelectedVideo),
+    }, ...__VLS_functionalComponentArgsRest(__VLS_14));
     if (__VLS_ctx.selectedVideoId) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: "mt-3 d-flex gap-2" },
@@ -1168,10 +1310,26 @@ if (__VLS_ctx.duration > 0) {
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
             ...{ onChange: (__VLS_ctx.onLabelSelect) },
+            ...{ onFocus: (...[$event]) => {
+                    if (!(__VLS_ctx.duration > 0))
+                        return;
+                    if (!(__VLS_ctx.selectedVideoId))
+                        return;
+                    __VLS_ctx.isLabelSelectActive = true;
+                } },
+            ...{ onBlur: (...[$event]) => {
+                    if (!(__VLS_ctx.duration > 0))
+                        return;
+                    if (!(__VLS_ctx.selectedVideoId))
+                        return;
+                    __VLS_ctx.isLabelSelectActive = false;
+                } },
+            ref: "labelSelectRef",
             value: (__VLS_ctx.selectedLabelType),
             ...{ class: "form-select form-select-sm control-select" },
             'data-cy': "label-select",
         });
+        /** @type {typeof __VLS_ctx.labelSelectRef} */ ;
         __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
             value: "",
         });
@@ -1333,14 +1491,14 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.d
 if (__VLS_ctx.showExaminationForm) {
     /** @type {[typeof RequirementGenerator, ]} */ ;
     // @ts-ignore
-    const __VLS_14 = __VLS_asFunctionalComponent(RequirementGenerator, new RequirementGenerator({
+    const __VLS_17 = __VLS_asFunctionalComponent(RequirementGenerator, new RequirementGenerator({
         ...{ class: "requirement-generator-embedded" },
         dataCy: "requirement-generator",
     }));
-    const __VLS_15 = __VLS_14({
+    const __VLS_18 = __VLS_17({
         ...{ class: "requirement-generator-embedded" },
         dataCy: "requirement-generator",
-    }, ...__VLS_functionalComponentArgsRest(__VLS_14));
+    }, ...__VLS_functionalComponentArgsRest(__VLS_17));
 }
 else {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -1486,7 +1644,16 @@ if (__VLS_ctx.savedExaminations.length > 0) {
 /** @type {__VLS_StyleScopedClasses['material-icons']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['video-container']} */ ;
+/** @type {__VLS_StyleScopedClasses['fullscreen-toggle']} */ ;
 /** @type {__VLS_StyleScopedClasses['w-100']} */ ;
+/** @type {__VLS_StyleScopedClasses['label-overlay']} */ ;
+/** @type {__VLS_StyleScopedClasses['label-overlay-card']} */ ;
+/** @type {__VLS_StyleScopedClasses['label-overlay-header']} */ ;
+/** @type {__VLS_StyleScopedClasses['label-overlay-close']} */ ;
+/** @type {__VLS_StyleScopedClasses['label-overlay-hint']} */ ;
+/** @type {__VLS_StyleScopedClasses['label-overlay-list']} */ ;
+/** @type {__VLS_StyleScopedClasses['label-overlay-item']} */ ;
+/** @type {__VLS_StyleScopedClasses['active']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['p-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['rounded']} */ ;
@@ -1535,6 +1702,7 @@ if (__VLS_ctx.savedExaminations.length > 0) {
 /** @type {__VLS_StyleScopedClasses['shortcuts-icon']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['shortcuts-body']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
 /** @type {__VLS_StyleScopedClasses['gap-2']} */ ;
@@ -1677,6 +1845,7 @@ const __VLS_self = (await import('vue')).defineComponent({
         return {
             RequirementGenerator: RequirementGenerator,
             Timeline: Timeline,
+            ExportAnnotations: ExportAnnotations,
             formatTime: formatTime,
             getTranslationForLabel: getTranslationForLabel,
             videoStore: videoStore,
@@ -1694,11 +1863,15 @@ const __VLS_self = (await import('vue')).defineComponent({
             savedExaminations: savedExaminations,
             currentMarker: currentMarker,
             selectedLabelType: selectedLabelType,
+            isLabelSelectActive: isLabelSelectActive,
             isMarkingLabel: isMarkingLabel,
             selectedSegmentId: selectedSegmentId,
             errorMessage: errorMessage,
             successMessage: successMessage,
+            isFullscreen: isFullscreen,
             videoRef: videoRef,
+            videoContainerRef: videoContainerRef,
+            labelSelectRef: labelSelectRef,
             timelineRef: timelineRef,
             hasUnsavedChanges: hasUnsavedChanges,
             onVideoChange: onVideoChange,
@@ -1724,6 +1897,9 @@ const __VLS_self = (await import('vue')).defineComponent({
             handleCreateSegment: handleCreateSegment,
             handleSegmentDelete: handleSegmentDelete,
             onLabelSelect: onLabelSelect,
+            toggleFullscreen: toggleFullscreen,
+            closeLabelOverlay: closeLabelOverlay,
+            selectLabelFromOverlay: selectLabelFromOverlay,
             startLabelMarking: startLabelMarking,
             finishLabelMarking: finishLabelMarking,
             cancelLabelMarking: cancelLabelMarking,
