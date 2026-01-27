@@ -142,6 +142,17 @@ const loadSelectedVideo = async () => {
 const onVideoChange = () => {
     loadSelectedVideo();
 };
+const autoSelectInitialVideo = async () => {
+    if (isExternalSelection.value)
+        return;
+    if (selectedVideoId.value)
+        return;
+    const firstVideo = annotatableVideos.value[0];
+    if (firstVideo) {
+        selectedVideoId.value = firstVideo.id;
+        await loadSelectedVideo();
+    }
+};
 onMounted(async () => {
     if (videoStore.videoList.videos.length === 0) {
         try {
@@ -160,16 +171,21 @@ onMounted(async () => {
             console.error('Fehler beim Laden der Anonymisierungsübersicht:', error);
         }
     }
-    if (!isExternalSelection.value && selectedVideoId.value) {
-        await loadSelectedVideo();
-    }
+    await autoSelectInitialVideo();
 });
 const selectedFormat = ref('csv');
 const useExportFlags = ref(true);
+const exportVideos = ref(true);
+const exportFrames = ref(false);
+const transcodeFrames = ref(false);
+const transcodeFps = ref(30);
+const transcodeQuality = ref(23);
+const transcodeExt = ref('mp4');
+const useFramePkPaths = ref(false);
 const isExporting = ref(false);
 const exportMessage = ref(null);
-const exportOutputDir = import.meta.env.VITE_EXPORT_OUTPUT_DIR ||
-    import.meta.env.VITE_STORAGE_DIR ||
+const exportOutputDir = import.meta.env.EXPORT_OUTPUT_DIR ||
+    import.meta.env.STORAGE_DIR ||
     '/data/export';
 const exportSegmentIds = computed(() => sortedSegments.value.filter((segment) => segment.exportSegment === true).map((segment) => segment.id));
 const canExport = Boolean(selectedVideoId.value) &&
@@ -185,12 +201,21 @@ const startExport = async () => {
     const payload = {
         output_dir: exportOutputDir,
         output_format: selectedFormat.value,
-        use_export_flags: useExportFlags.value
+        use_export_flags: useExportFlags.value,
+        export_videos: exportVideos.value,
+        export_frames: exportFrames.value,
+        use_frame_pk_paths: useFramePkPaths.value
     };
     if (selectedVideoId.value)
         payload.video_id = selectedVideoId.value;
     if (!useExportFlags.value && exportSegmentIds.value.length > 0) {
         payload.segment_ids = exportSegmentIds.value;
+    }
+    if (transcodeFrames.value) {
+        payload.transcode_frames = true;
+        payload.transcode_fps = transcodeFps.value;
+        payload.transcode_quality = transcodeQuality.value;
+        payload.transcode_ext = transcodeExt.value;
     }
     isExporting.value = true;
     try {
@@ -395,6 +420,111 @@ if (__VLS_ctx.selectedVideoId) {
         ...{ class: "form-check-label" },
         for: "use-export-flags",
     });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "export-extra d-flex flex-wrap gap-3" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "form-check form-switch" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
+        id: "export-videos",
+        ...{ class: "form-check-input" },
+        type: "checkbox",
+    });
+    (__VLS_ctx.exportVideos);
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+        ...{ class: "form-check-label" },
+        for: "export-videos",
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "form-check form-switch" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
+        id: "export-frames",
+        ...{ class: "form-check-input" },
+        type: "checkbox",
+    });
+    (__VLS_ctx.exportFrames);
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+        ...{ class: "form-check-label" },
+        for: "export-frames",
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "form-check form-switch" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
+        id: "use-frame-pk-paths",
+        ...{ class: "form-check-input" },
+        type: "checkbox",
+    });
+    (__VLS_ctx.useFramePkPaths);
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+        ...{ class: "form-check-label" },
+        for: "use-frame-pk-paths",
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "export-extra mt-3" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "form-check form-switch" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
+        id: "transcode-frames",
+        ...{ class: "form-check-input" },
+        type: "checkbox",
+    });
+    (__VLS_ctx.transcodeFrames);
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+        ...{ class: "form-check-label" },
+        for: "transcode-frames",
+    });
+    if (__VLS_ctx.transcodeFrames) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "transcode-options row gx-2 mt-2" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "col-6 col-md-3" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+            ...{ class: "form-label mb-0" },
+            for: "transcode-fps",
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
+            id: "transcode-fps",
+            type: "number",
+            min: "1",
+            ...{ class: "form-control form-control-sm" },
+        });
+        (__VLS_ctx.transcodeFps);
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "col-6 col-md-3" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+            ...{ class: "form-label mb-0" },
+            for: "transcode-quality",
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
+            id: "transcode-quality",
+            type: "number",
+            min: "1",
+            max: "51",
+            ...{ class: "form-control form-control-sm" },
+        });
+        (__VLS_ctx.transcodeQuality);
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "col-12 col-md-4" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+            ...{ class: "form-label mb-0" },
+            for: "transcode-ext",
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
+            id: "transcode-ext",
+            type: "text",
+            ...{ class: "form-control form-control-sm" },
+            value: (__VLS_ctx.transcodeExt),
+        });
+    }
     __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
         ...{ onClick: (__VLS_ctx.startExport) },
         type: "button",
@@ -471,6 +601,50 @@ if (__VLS_ctx.selectedVideoId) {
 /** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
 /** @type {__VLS_StyleScopedClasses['form-check-input']} */ ;
 /** @type {__VLS_StyleScopedClasses['form-check-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['export-extra']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['flex-wrap']} */ ;
+/** @type {__VLS_StyleScopedClasses['gap-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-check']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-switch']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-check-input']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-check-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-check']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-switch']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-check-input']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-check-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-check']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-switch']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-check-input']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-check-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['export-extra']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-check']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-switch']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-check-input']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-check-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['transcode-options']} */ ;
+/** @type {__VLS_StyleScopedClasses['row']} */ ;
+/** @type {__VLS_StyleScopedClasses['gx-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-6']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-md-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-control']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-control-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-6']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-md-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-control']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-control-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-12']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-md-4']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-control']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-control-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-success']} */ ;
 /** @type {__VLS_StyleScopedClasses['w-100']} */ ;
@@ -499,6 +673,13 @@ const __VLS_self = (await import('vue')).defineComponent({
             onVideoChange: onVideoChange,
             selectedFormat: selectedFormat,
             useExportFlags: useExportFlags,
+            exportVideos: exportVideos,
+            exportFrames: exportFrames,
+            transcodeFrames: transcodeFrames,
+            transcodeFps: transcodeFps,
+            transcodeQuality: transcodeQuality,
+            transcodeExt: transcodeExt,
+            useFramePkPaths: useFramePkPaths,
             isExporting: isExporting,
             exportMessage: exportMessage,
             exportOutputDir: exportOutputDir,

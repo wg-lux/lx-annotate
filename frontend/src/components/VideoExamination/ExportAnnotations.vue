@@ -379,6 +379,16 @@ const onVideoChange = () => {
   loadSelectedVideo()
 }
 
+const autoSelectInitialVideo = async () => {
+  if (isExternalSelection.value) return
+  if (selectedVideoId.value) return
+  const firstVideo = annotatableVideos.value[0]
+  if (firstVideo) {
+    selectedVideoId.value = firstVideo.id
+    await loadSelectedVideo()
+  }
+}
+
 onMounted(async () => {
   if (videoStore.videoList.videos.length === 0) {
     try {
@@ -397,9 +407,7 @@ onMounted(async () => {
     }
   }
 
-  if (!isExternalSelection.value && selectedVideoId.value) {
-    await loadSelectedVideo()
-  }
+  await autoSelectInitialVideo()
 })
 const selectedFormat = ref<'csv' | 'json'>('csv')
 const useExportFlags = ref(true)
