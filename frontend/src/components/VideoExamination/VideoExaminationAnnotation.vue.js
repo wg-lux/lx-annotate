@@ -535,8 +535,8 @@ const handleKeyDown = (event) => {
     if (!event.ctrlKey && !event.metaKey && !event.altKey && key === 'o') {
         event.preventDefault();
         event.stopPropagation();
+        preselectLabelForOverlay();
         isLabelSelectActive.value = true;
-        labelSelectRef.value?.focus();
         return;
     }
     if (!event.ctrlKey && !event.metaKey && !event.altKey && key === 'f') {
@@ -593,6 +593,22 @@ const handleKeyDown = (event) => {
     if (isMinus) {
         event.preventDefault();
         finishLabelMarking();
+    }
+};
+const preselectLabelForOverlay = () => {
+    const segments = timelineSegmentsForSelectedVideo.value;
+    if (segments.length === 0)
+        return;
+    if (selectedSegmentId.value !== null) {
+        const selectedSegment = segments.find((segment) => segment.id === selectedSegmentId.value);
+        if (selectedSegment) {
+            selectedLabelType.value = selectedSegment.label;
+            return;
+        }
+    }
+    const currentSegment = segments.find((segment) => currentTime.value >= segment.startTime && currentTime.value <= segment.endTime);
+    if (currentSegment) {
+        selectedLabelType.value = currentSegment.label;
     }
 };
 const startLabelMarking = () => {
