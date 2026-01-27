@@ -118,6 +118,86 @@
             </div>
           </div>
         </div>
+        <div class="export-extra d-flex flex-wrap gap-3">
+          <div class="form-check form-switch">
+            <input
+              id="export-videos"
+              class="form-check-input"
+              type="checkbox"
+              v-model="exportVideos"
+            />
+            <label class="form-check-label" for="export-videos">
+              Video-Dateien exportieren
+            </label>
+          </div>
+          <div class="form-check form-switch">
+            <input
+              id="export-frames"
+              class="form-check-input"
+              type="checkbox"
+              v-model="exportFrames"
+            />
+            <label class="form-check-label" for="export-frames">
+              Frames exportieren
+            </label>
+          </div>
+          <div class="form-check form-switch">
+            <input
+              id="use-frame-pk-paths"
+              class="form-check-input"
+              type="checkbox"
+              v-model="useFramePkPaths"
+            />
+            <label class="form-check-label" for="use-frame-pk-paths">
+              use_frame_pk_paths verwenden
+</label>
+          </div>
+        </div>
+        <div class="export-extra mt-3">
+          <div class="form-check form-switch">
+            <input
+              id="transcode-frames"
+              class="form-check-input"
+              type="checkbox"
+              v-model="transcodeFrames"
+            />
+            <label class="form-check-label" for="transcode-frames">
+              Frames transkodieren
+            </label>
+          </div>
+          <div v-if="transcodeFrames" class="transcode-options row gx-2 mt-2">
+            <div class="col-6 col-md-3">
+              <label class="form-label mb-0" for="transcode-fps">FPS</label>
+              <input
+                id="transcode-fps"
+                type="number"
+                min="1"
+                class="form-control form-control-sm"
+                v-model.number="transcodeFps"
+              />
+            </div>
+            <div class="col-6 col-md-3">
+              <label class="form-label mb-0" for="transcode-quality">Quality</label>
+              <input
+                id="transcode-quality"
+                type="number"
+                min="1"
+                max="51"
+                class="form-control form-control-sm"
+                v-model.number="transcodeQuality"
+              />
+            </div>
+            <div class="col-12 col-md-4">
+              <label class="form-label mb-0" for="transcode-ext">Extension</label>
+              <input
+                id="transcode-ext"
+                type="text"
+                class="form-control form-control-sm"
+                v-model="transcodeExt"
+              />
+            </div>
+          </div>
+        </div>
         <button
           type="button"
           class="btn btn-success w-100"
@@ -323,6 +403,13 @@ onMounted(async () => {
 })
 const selectedFormat = ref<'csv' | 'json'>('csv')
 const useExportFlags = ref(true)
+const exportVideos = ref(true)
+const exportFrames = ref(false)
+const transcodeFrames = ref(false)
+const transcodeFps = ref(30)
+const transcodeQuality = ref(23)
+const transcodeExt = ref('mp4')
+const useFramePkPaths = ref(false)
 const isExporting = ref(false)
 const exportMessage = ref<{ type: 'success' | 'error'; text: string } | null>(null)
 
@@ -352,12 +439,22 @@ const startExport = async () => {
   const payload: Record<string, any> = {
     output_dir: exportOutputDir,
     output_format: selectedFormat.value,
-    use_export_flags: useExportFlags.value
+    use_export_flags: useExportFlags.value,
+    export_videos: exportVideos.value,
+    export_frames: exportFrames.value,
+    use_frame_pk_paths: useFramePkPaths.value
   }
 
   if (selectedVideoId.value) payload.video_id = selectedVideoId.value
   if (!useExportFlags.value && exportSegmentIds.value.length > 0) {
     payload.segment_ids = exportSegmentIds.value
+  }
+
+  if (transcodeFrames.value) {
+    payload.transcode_frames = true
+    payload.transcode_fps = transcodeFps.value
+    payload.transcode_quality = transcodeQuality.value
+    payload.transcode_ext = transcodeExt.value
   }
 
   isExporting.value = true
@@ -442,5 +539,14 @@ const startExport = async () => {
   font-weight: 600;
   font-size: 0.9rem;
   color: #0d6efd;
+}
+
+.export-extra {
+  border-top: 1px solid #e9ecef;
+  padding-top: 12px;
+}
+
+.transcode-options .form-control-sm {
+  max-width: 100%;
 }
 </style>
