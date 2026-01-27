@@ -28,7 +28,7 @@
       <template v-else>
         <div class="export-toggle">
           <label class="form-check-label" for="export-all-video">
-            Alle Segmente dieses Videos exportieren
+            Alle Segmente dieses Videos für den Export vorbereiten
           </label>
           <div class="form-check form-switch">
             <input
@@ -92,12 +92,55 @@
           </div>
         </div>
       </template>
+
+      <div v-if="selectedVideoId" class="export-controls mt-4">
+        <div class="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-3 mb-3">
+          <div>
+            <small class="text-muted">Ausgabe-Verzeichnis</small>
+            <div class="export-dir text-break">{{ exportOutputDir }}</div>
+          </div>
+          <div class="d-flex align-items-center gap-2 flex-wrap">
+            <label class="form-label mb-0">Format</label>
+            <select v-model="selectedFormat" class="form-select form-select-sm">
+              <option value="csv">CSV</option>
+              <option value="json">JSON</option>
+            </select>
+            <div class="form-check form-switch mb-0">
+              <input
+                id="use-export-flags"
+                class="form-check-input"
+                type="checkbox"
+                v-model="useExportFlags"
+              />
+              <label class="form-check-label" for="use-export-flags">
+                Export-Flags verwenden
+              </label>
+            </div>
+          </div>
+        </div>
+        <button
+          type="button"
+          class="btn btn-success w-100"
+          :disabled="!canExport || isExporting"
+          @click="startExport"
+        >
+          {{ exportButtonLabel }}
+        </button>
+        <div
+          v-if="exportMessage"
+          :class="['alert', exportMessage.type === 'success' ? 'alert-success' : 'alert-danger', 'mt-3']"
+          role="alert"
+        >
+          {{ exportMessage.text }}
+        </div>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref, watch, withDefaults } from 'vue'
+import axiosInstance, { r } from '@/api/axiosInstance'
 import { useVideoStore, type Segment } from '@/stores/videoStore'
 import { formatTime as formatTimeHelper } from '@/utils/timeHelpers'
 import { useToastStore } from '@/stores/toastStore'
@@ -278,6 +321,62 @@ onMounted(async () => {
     await loadSelectedVideo()
   }
 })
+const selectedFormat = ref<'csv' | 'json'>('csv')
+const useExportFlags = ref(true)
+const isExporting = ref(false)
+const exportMessage = ref<{ type: 'success' | 'error'; text: string } | null>(null)
+
+const exportOutputDir =
+  import.meta.env.VITE_EXPORT_OUTPUT_DIR ||
+  import.meta.env.VITE_STORAGE_DIR ||
+  '/data/export'
+
+const exportSegmentIds = computed(() =>
+  sortedSegments.value.filter((segment) => segment.exportSegment === true).map((segment) => segment.id)
+)
+
+const canExport =
+  Boolean(selectedVideoId.value) &&
+  exportOutputDir &&
+  (useExportFlags.value || exportSegmentIds.value.length > 0)
+
+const exportButtonLabel = computed(() => (isExporting.value ? 'Export läuft …' : 'Export starten'))
+
+const startExport = async () => {
+  exportMessage.value = null
+  if (!canExport) {
+    exportMessage.value = { type: 'error', text: 'Bitte Video und Segmente auswählen.' }
+    return
+  }
+
+  const payload: Record<string, any> = {
+    output_dir: exportOutputDir,
+    output_format: selectedFormat.value,
+    use_export_flags: useExportFlags.value
+  }
+
+  if (selectedVideoId.value) payload.video_id = selectedVideoId.value
+  if (!useExportFlags.value && exportSegmentIds.value.length > 0) {
+    payload.segment_ids = exportSegmentIds.value
+  }
+
+  isExporting.value = true
+  try {
+    await axiosInstance.post(r('media/videos/export-annotated/'), payload)
+    exportMessage.value = {
+      type: 'success',
+      text: 'Exportauftrag erfolgreich gestartet. Überprüfen Sie die Logs für den Fortschritt.'
+    }
+  } catch (error: any) {
+    console.error('Export request failed', error)
+    exportMessage.value = {
+      type: 'error',
+      text: error?.response?.data?.detail || error?.message || 'Export fehlgeschlagen'
+    }
+  } finally {
+    isExporting.value = false
+  }
+}
 </script>
 
 <style scoped>
@@ -332,5 +431,16 @@ onMounted(async () => {
 .segment-time {
   font-size: 12px;
   color: #6c757d;
+}
+
+.export-controls {
+  border-top: 1px solid #e9ecef;
+  padding-top: 16px;
+}
+
+.export-dir {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: #0d6efd;
 }
 </style>

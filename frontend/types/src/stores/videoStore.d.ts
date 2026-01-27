@@ -542,7 +542,10 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
     fetchVideoSegments: (videoId: number) => Promise<void>;
     fetchSegmentsByLabel: (id: number, label?: string) => Promise<void>;
     createSegment: (videoId: number, label: string, startTime: number, endTime: number) => Promise<Segment | null>;
-    updateSegmentAPI: (segmentId: number, updates: SegmentUpdatePayload) => Promise<boolean>;
+    updateSegmentAPI: (segmentId: number, updates: SegmentUpdatePayload, options?: {
+        silent?: boolean;
+        videoId?: number;
+    }) => Promise<boolean>;
     setSegmentExportFlag: (segmentId: number, exportSegment: boolean) => Promise<boolean>;
     setVideoExportFlag: (videoId: number, exportSegmentsByVideo: boolean) => Promise<boolean>;
     deleteSegment: (segmentId: number) => Promise<boolean>;
@@ -912,7 +915,10 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
     fetchVideoSegments: (videoId: number) => Promise<void>;
     fetchSegmentsByLabel: (id: number, label?: string) => Promise<void>;
     createSegment: (videoId: number, label: string, startTime: number, endTime: number) => Promise<Segment | null>;
-    updateSegmentAPI: (segmentId: number, updates: SegmentUpdatePayload) => Promise<boolean>;
+    updateSegmentAPI: (segmentId: number, updates: SegmentUpdatePayload, options?: {
+        silent?: boolean;
+        videoId?: number;
+    }) => Promise<boolean>;
     setSegmentExportFlag: (segmentId: number, exportSegment: boolean) => Promise<boolean>;
     setVideoExportFlag: (videoId: number, exportSegmentsByVideo: boolean) => Promise<boolean>;
     deleteSegment: (segmentId: number) => Promise<boolean>;
@@ -1282,7 +1288,10 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
     fetchVideoSegments: (videoId: number) => Promise<void>;
     fetchSegmentsByLabel: (id: number, label?: string) => Promise<void>;
     createSegment: (videoId: number, label: string, startTime: number, endTime: number) => Promise<Segment | null>;
-    updateSegmentAPI: (segmentId: number, updates: SegmentUpdatePayload) => Promise<boolean>;
+    updateSegmentAPI: (segmentId: number, updates: SegmentUpdatePayload, options?: {
+        silent?: boolean;
+        videoId?: number;
+    }) => Promise<boolean>;
     setSegmentExportFlag: (segmentId: number, exportSegment: boolean) => Promise<boolean>;
     setVideoExportFlag: (videoId: number, exportSegmentsByVideo: boolean) => Promise<boolean>;
     deleteSegment: (segmentId: number) => Promise<boolean>;

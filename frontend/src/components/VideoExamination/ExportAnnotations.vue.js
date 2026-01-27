@@ -1,4 +1,5 @@
 import { computed, onMounted, ref, watch, withDefaults } from 'vue';
+import axiosInstance, { r } from '@/api/axiosInstance';
 import { useVideoStore } from '@/stores/videoStore';
 import { formatTime as formatTimeHelper } from '@/utils/timeHelpers';
 import { useToastStore } from '@/stores/toastStore';
@@ -163,6 +164,53 @@ onMounted(async () => {
         await loadSelectedVideo();
     }
 });
+const selectedFormat = ref('csv');
+const useExportFlags = ref(true);
+const isExporting = ref(false);
+const exportMessage = ref(null);
+const exportOutputDir = import.meta.env.VITE_EXPORT_OUTPUT_DIR ||
+    import.meta.env.VITE_STORAGE_DIR ||
+    '/data/export';
+const exportSegmentIds = computed(() => sortedSegments.value.filter((segment) => segment.exportSegment === true).map((segment) => segment.id));
+const canExport = Boolean(selectedVideoId.value) &&
+    exportOutputDir &&
+    (useExportFlags.value || exportSegmentIds.value.length > 0);
+const exportButtonLabel = computed(() => (isExporting.value ? 'Export läuft …' : 'Export starten'));
+const startExport = async () => {
+    exportMessage.value = null;
+    if (!canExport) {
+        exportMessage.value = { type: 'error', text: 'Bitte Video und Segmente auswählen.' };
+        return;
+    }
+    const payload = {
+        output_dir: exportOutputDir,
+        output_format: selectedFormat.value,
+        use_export_flags: useExportFlags.value
+    };
+    if (selectedVideoId.value)
+        payload.video_id = selectedVideoId.value;
+    if (!useExportFlags.value && exportSegmentIds.value.length > 0) {
+        payload.segment_ids = exportSegmentIds.value;
+    }
+    isExporting.value = true;
+    try {
+        await axiosInstance.post(r('media/videos/export-annotated/'), payload);
+        exportMessage.value = {
+            type: 'success',
+            text: 'Exportauftrag erfolgreich gestartet. Überprüfen Sie die Logs für den Fortschritt.'
+        };
+    }
+    catch (error) {
+        console.error('Export request failed', error);
+        exportMessage.value = {
+            type: 'error',
+            text: error?.response?.data?.detail || error?.message || 'Export fehlgeschlagen'
+        };
+    }
+    finally {
+        isExporting.value = false;
+    }
+};
 debugger; /* PartiallyEnd: #3632/scriptSetup.vue */
 const __VLS_withDefaultsArg = (function (t) { return t; })({
     videoId: null,
@@ -303,6 +351,65 @@ else {
         });
     }
 }
+if (__VLS_ctx.selectedVideoId) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "export-controls mt-4" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-3 mb-3" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+        ...{ class: "text-muted" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "export-dir text-break" },
+    });
+    (__VLS_ctx.exportOutputDir);
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "d-flex align-items-center gap-2 flex-wrap" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+        ...{ class: "form-label mb-0" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
+        value: (__VLS_ctx.selectedFormat),
+        ...{ class: "form-select form-select-sm" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+        value: "csv",
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+        value: "json",
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "form-check form-switch mb-0" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
+        id: "use-export-flags",
+        ...{ class: "form-check-input" },
+        type: "checkbox",
+    });
+    (__VLS_ctx.useExportFlags);
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+        ...{ class: "form-check-label" },
+        for: "use-export-flags",
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+        ...{ onClick: (__VLS_ctx.startExport) },
+        type: "button",
+        ...{ class: "btn btn-success w-100" },
+        disabled: (!__VLS_ctx.canExport || __VLS_ctx.isExporting),
+    });
+    (__VLS_ctx.exportButtonLabel);
+    if (__VLS_ctx.exportMessage) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: (['alert', __VLS_ctx.exportMessage.type === 'success' ? 'alert-success' : 'alert-danger', 'mt-3']) },
+            role: "alert",
+        });
+        (__VLS_ctx.exportMessage.text);
+    }
+}
 /** @type {__VLS_StyleScopedClasses['card']} */ ;
 /** @type {__VLS_StyleScopedClasses['export-annotations']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-header']} */ ;
@@ -338,6 +445,37 @@ else {
 /** @type {__VLS_StyleScopedClasses['form-check']} */ ;
 /** @type {__VLS_StyleScopedClasses['form-switch']} */ ;
 /** @type {__VLS_StyleScopedClasses['form-check-input']} */ ;
+/** @type {__VLS_StyleScopedClasses['export-controls']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-4']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['flex-column']} */ ;
+/** @type {__VLS_StyleScopedClasses['flex-md-row']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-start']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-md-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['justify-content-between']} */ ;
+/** @type {__VLS_StyleScopedClasses['gap-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['export-dir']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-break']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['gap-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['flex-wrap']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-select']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-select-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-check']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-switch']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-check-input']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-check-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-success']} */ ;
+/** @type {__VLS_StyleScopedClasses['w-100']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
 var __VLS_dollars;
 const __VLS_self = (await import('vue')).defineComponent({
     setup() {
@@ -359,6 +497,14 @@ const __VLS_self = (await import('vue')).defineComponent({
             selectAllSegments: selectAllSegments,
             getVideoStatusIndicator: getVideoStatusIndicator,
             onVideoChange: onVideoChange,
+            selectedFormat: selectedFormat,
+            useExportFlags: useExportFlags,
+            isExporting: isExporting,
+            exportMessage: exportMessage,
+            exportOutputDir: exportOutputDir,
+            canExport: canExport,
+            exportButtonLabel: exportButtonLabel,
+            startExport: startExport,
         };
     },
     __typeProps: {},

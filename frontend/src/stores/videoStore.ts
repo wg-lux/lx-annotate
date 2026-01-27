@@ -309,6 +309,24 @@ const translationMap: Record<LabelKey, string> = {
   wound: 'Wunde'
 }
 
+// Cancel in-flight segment fetches to avoid piling up requests on rapid refreshes.
+let fetchSegmentsController: AbortController | null = null
+
+type SegmentUpdateJob = {
+  videoId: number
+  segmentId: number
+  payload: SegmentUpdatePayload
+  attempts: number
+}
+
+const MAX_SEGMENT_UPDATE_RETRIES = 5
+const SEGMENT_UPDATE_RETRY_BASE_MS = 1000
+const SEGMENT_UPDATE_RETRY_MAX_MS = 30000
+
+const segmentUpdateQueue: SegmentUpdateJob[] = []
+let isProcessingSegmentQueue = false
+let segmentQueueTimer: ReturnType<typeof setTimeout> | null = null
+
 const defaultSegments: Record<string, Segment[]> = {}
 const MIN_SEGMENT_DURATION = 1 / 50 // Mindestlänge: 1 Frame bei 50 FPS
 const FIVE_SECOND_SEGMENT_DURATION = 5 // 5 Sekunden für Shift-Klick
@@ -910,10 +928,16 @@ export const useVideoStore = defineStore('video', () => {
 
   async function fetchVideoSegments(videoId: number): Promise<void> {
     const token = ++_fetchToken.value
+    let controller: AbortController | null = null
     try {
+      if (fetchSegmentsController) {
+        fetchSegmentsController.abort()
+      }
+      controller = new AbortController()
+      fetchSegmentsController = controller
       const response: AxiosResponse<SegmentListResponse> = await axiosInstance.get(
         r(`media/videos/${videoId}/segments/`),
-        { headers: { Accept: 'application/json' } }
+        { headers: { Accept: 'application/json' }, signal: controller.signal }
       )
 
       if (token !== _fetchToken.value) return
@@ -956,13 +980,20 @@ export const useVideoStore = defineStore('video', () => {
       )
       syncCurrentVideoSegments(videoId)
     } catch (error) {
+      const axiosError = error as AxiosError
+      if (axiosError.code === 'ERR_CANCELED' || axiosError.name === 'CanceledError') {
+        return
+      }
       if (token === _fetchToken.value) {
-        const axiosError = error as AxiosError
         console.error(
           'Error loading video segments:',
           axiosError.response?.data || axiosError.message
         )
         errorMessage.value = 'Error loading video segments. Please try again later.'
+      }
+    } finally {
+      if (fetchSegmentsController === controller) {
+        fetchSegmentsController = null
       }
     }
   }
@@ -1053,37 +1084,132 @@ export const useVideoStore = defineStore('video', () => {
     }
   }
 
-  async function updateSegmentAPI(
+  function buildSegmentUpdatePayload(
     segmentId: number,
     updates: SegmentUpdatePayload
+  ): SegmentUpdatePayload | null {
+    const currentSegment = findSegmentById(segmentId)
+    const fallbackStart = currentSegment?.startTime ?? 0
+    const fallbackEnd = currentSegment?.endTime ?? 0
+    if (!currentSegment && updates.startTime == null && updates.start_time == null) {
+      console.error('[VideoStore] Cannot infer segment times for update', segmentId)
+      return null
+    }
+
+    return createSegmentUpdatePayload(
+      segmentId,
+      (updates.startTime ?? updates.start_time) ?? fallbackStart,
+      (updates.endTime ?? updates.end_time) ?? fallbackEnd,
+      updates
+    )
+  }
+
+  function shouldRetrySegmentUpdate(error: AxiosError): boolean {
+    const status = error.response?.status
+    if (!status) return true
+    if (status === 408 || status === 429) return true
+    return status >= 500
+  }
+
+  function getSegmentUpdateRetryDelay(attempt: number): number {
+    const base = SEGMENT_UPDATE_RETRY_BASE_MS * Math.pow(2, Math.max(0, attempt - 1))
+    const jitter = Math.floor(Math.random() * 250)
+    return Math.min(base + jitter, SEGMENT_UPDATE_RETRY_MAX_MS)
+  }
+
+  function enqueueSegmentUpdate(job: SegmentUpdateJob): void {
+    const existing = segmentUpdateQueue.find(
+      (item) => item.videoId === job.videoId && item.segmentId === job.segmentId
+    )
+    if (existing) {
+      existing.payload = { ...existing.payload, ...job.payload }
+      existing.attempts = Math.min(existing.attempts, job.attempts)
+    } else {
+      segmentUpdateQueue.push(job)
+    }
+
+    if (!isProcessingSegmentQueue) {
+      if (segmentQueueTimer) {
+        clearTimeout(segmentQueueTimer)
+        segmentQueueTimer = null
+      }
+      void processSegmentUpdateQueue()
+    }
+  }
+
+  async function updateSegmentWithPayload(
+    videoId: number,
+    segmentId: number,
+    payload: SegmentUpdatePayload,
+    options: { updateLocal?: boolean } = {}
+  ): Promise<BackendSegment> {
+    const url = r(`media/videos/${videoId}/segments/${segmentId}/`)
+    const response: AxiosResponse<BackendSegment> = await axiosInstance.patch(url, payload)
+
+    if (options.updateLocal !== false && currentVideo.value?.id === videoId) {
+      const updatedSegment = backendSegmentToSegment(response.data)
+      updateSegmentInMemory(segmentId, updatedSegment)
+    }
+
+    return response.data
+  }
+
+  async function processSegmentUpdateQueue(): Promise<void> {
+    if (isProcessingSegmentQueue || segmentUpdateQueue.length === 0) return
+    isProcessingSegmentQueue = true
+
+    const job = segmentUpdateQueue.shift() as SegmentUpdateJob
+    let scheduledRetry = false
+
+    try {
+      await updateSegmentWithPayload(job.videoId, job.segmentId, job.payload)
+      console.log(`[VideoStore] Queued update succeeded for segment ${job.segmentId}`)
+    } catch (error) {
+      const axiosError = error as AxiosError
+      job.attempts += 1
+
+      if (job.attempts <= MAX_SEGMENT_UPDATE_RETRIES && shouldRetrySegmentUpdate(axiosError)) {
+        segmentUpdateQueue.push(job)
+        const delay = getSegmentUpdateRetryDelay(job.attempts)
+        scheduledRetry = true
+        if (segmentQueueTimer) clearTimeout(segmentQueueTimer)
+        segmentQueueTimer = setTimeout(() => {
+          segmentQueueTimer = null
+          void processSegmentUpdateQueue()
+        }, delay)
+      } else {
+        console.error(
+          '[VideoStore] Segment update failed after retries:',
+          axiosError.response?.data || axiosError.message
+        )
+        toast.error({ text: 'Segment konnte nicht gespeichert werden. Bitte erneut speichern.' })
+      }
+    } finally {
+      isProcessingSegmentQueue = false
+      if (!scheduledRetry && segmentUpdateQueue.length > 0 && !segmentQueueTimer) {
+        void processSegmentUpdateQueue()
+      }
+    }
+  }
+
+  async function updateSegmentAPI(
+    segmentId: number,
+    updates: SegmentUpdatePayload,
+    options: { silent?: boolean; videoId?: number } = {}
   ): Promise<boolean> {
     try {
-      const videoId = currentVideo.value?.id
+      const videoId = options.videoId ?? currentVideo.value?.id
       if (!videoId) {
         console.error('[VideoStore] Cannot update segment without current video')
         return false
       }
 
-      const currentSegment = findSegmentById(segmentId)
-      const fallbackStart = currentSegment?.startTime ?? 0
-      const fallbackEnd = currentSegment?.endTime ?? 0
-      if (!currentSegment && updates.startTime == null && updates.start_time == null) {
-        console.error('[VideoStore] Cannot infer segment times for update', segmentId)
+      const updatePayload = buildSegmentUpdatePayload(segmentId, updates)
+      if (!updatePayload) {
         return false
       }
 
-      const updatePayload = createSegmentUpdatePayload(
-        segmentId,
-        (updates.startTime ?? updates.start_time) ?? fallbackStart,
-        (updates.endTime ?? updates.end_time) ?? fallbackEnd,
-        updates
-      )
-
-      const url = r(`media/videos/${videoId}/segments/${segmentId}/`)
-      const response: AxiosResponse<BackendSegment> = await axiosInstance.patch(url, updatePayload)
-
-      const updatedSegment = backendSegmentToSegment(response.data)
-      updateSegmentInMemory(segmentId, updatedSegment)
+      await updateSegmentWithPayload(videoId, segmentId, updatePayload)
 
       console.log(`[VideoStore] Successfully updated segment ${segmentId}`)
       return true
@@ -1091,7 +1217,9 @@ export const useVideoStore = defineStore('video', () => {
       const axiosError = error as AxiosError
       console.error('Error updating segment:', axiosError.response?.data || axiosError.message)
       errorMessage.value = 'Error updating segment. Please try again.'
-      toast.error({text: 'Fehler beim Aktualisieren des Segments'})
+      if (!options.silent) {
+        toast.error({ text: 'Fehler beim Aktualisieren des Segments' })
+      }
       return false
     }
   }
@@ -1376,28 +1504,56 @@ export const useVideoStore = defineStore('video', () => {
     console.log(`[VideoStore] Persisting ${dirtySegments.length} dirty segments...`)
 
     try {
+      const videoId = currentVideo.value.id
+      let queuedAny = false
       const results = await Promise.all(
-        dirtySegments.map((segment) =>
-          updateSegmentAPI(segment.id, {
+        dirtySegments.map(async (segment) => {
+          const payload = buildSegmentUpdatePayload(segment.id, {
             startTime: segment.startTime,
             endTime: segment.endTime
           })
-        )
+          if (!payload) return { ok: false, segment }
+
+          try {
+            await updateSegmentWithPayload(videoId, segment.id, payload)
+            return { ok: true, segment }
+          } catch (error) {
+            const axiosError = error as AxiosError
+            if (shouldRetrySegmentUpdate(axiosError)) {
+              enqueueSegmentUpdate({
+                videoId,
+                segmentId: segment.id,
+                payload,
+                attempts: 0
+              })
+              queuedAny = true
+            } else {
+              console.error(
+                'Error updating segment:',
+                axiosError.response?.data || axiosError.message
+              )
+              toast.error({ text: 'Fehler beim Aktualisieren des Segments' })
+            }
+            return { ok: false, segment }
+          }
+        })
       )
       let successCount = 0
-      results.forEach((ok, index) => {
+      results.forEach(({ ok, segment }) => {
         if (ok) {
-          dirtySegments[index].isDirty = false
+          segment.isDirty = false
           successCount += 1
         }
       })
 
       if (successCount === dirtySegments.length) {
-        toast.success({text: 'Alle Änderungen gespeichert'})
+        toast.success({ text: 'Alle Änderungen gespeichert' })
+      } else if (queuedAny) {
+        toast.info({ text: 'Segment-Updates werden erneut versucht.' })
       } else if (successCount > 0) {
-        toast.warning({text: `${successCount} von ${dirtySegments.length} Segmenten gespeichert`})
+        toast.warning({ text: `${successCount} von ${dirtySegments.length} Segmenten gespeichert` })
       } else {
-        toast.error({text: 'Speichern fehlgeschlagen'})
+        toast.error({ text: 'Speichern fehlgeschlagen' })
       }
 
       if (successCount > 0 && currentVideo.value?.id) {
