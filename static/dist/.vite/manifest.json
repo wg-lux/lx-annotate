@@ -13,22 +13,6 @@
       "AnnotationDashboard.css"
     ]
   },
-  "_ExportAnnotations.css": {
-    "file": "ExportAnnotations.css",
-    "src": "_ExportAnnotations.css"
-  },
-  "_ExportAnnotations.js": {
-    "file": "ExportAnnotations.js",
-    "name": "ExportAnnotations",
-    "imports": [
-      "_videoStore.js",
-      "_timeHelpers.js",
-      "src/main.ts"
-    ],
-    "css": [
-      "ExportAnnotations.css"
-    ]
-  },
   "_PatientAdder.css": {
     "file": "PatientAdder.css",
     "src": "_PatientAdder.css"
@@ -260,10 +244,12 @@
     "src": "src/views/Export.vue",
     "isDynamicEntry": true,
     "imports": [
-      "_ExportAnnotations.js",
       "src/main.ts",
       "_videoStore.js",
       "_timeHelpers.js"
+    ],
+    "css": [
+      "Export.css"
     ]
   },
   "src/views/PageOverview.vue": {
@@ -358,7 +344,6 @@
       "_mediaTypeStore.js",
       "_RequirementGenerator.js",
       "_Timeline.js",
-      "_ExportAnnotations.js",
       "_patientStore.js",
       "_PatientAdder2.js",
       "_timeHelpers.js"

@@ -5,7 +5,6 @@ import { useMediaTypeStore } from '@/stores/mediaTypeStore';
 import RequirementGenerator from '@/components/RequirementReport/RequirementGenerator.vue';
 import axiosInstance, { r } from '@/api/axiosInstance';
 import Timeline from '@/components/VideoExamination/Timeline.vue';
-import ExportAnnotations from '@/components/VideoExamination/ExportAnnotations.vue';
 import { storeToRefs } from 'pinia';
 import { useToastStore } from '@/stores/toastStore';
 import { formatTime, getTranslationForLabel, getColorForLabel } from '@/utils/videoUtils';
@@ -1231,18 +1230,6 @@ if (__VLS_ctx.duration > 0) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "mt-1 shortcuts-body" },
     });
-    /** @type {[typeof ExportAnnotations, ]} */ ;
-    // @ts-ignore
-    const __VLS_14 = __VLS_asFunctionalComponent(ExportAnnotations, new ExportAnnotations({
-        ...{ class: "mt-3" },
-        videoId: (__VLS_ctx.selectedVideoId),
-        segments: (__VLS_ctx.timelineSegmentsForSelectedVideo),
-    }));
-    const __VLS_15 = __VLS_14({
-        ...{ class: "mt-3" },
-        videoId: (__VLS_ctx.selectedVideoId),
-        segments: (__VLS_ctx.timelineSegmentsForSelectedVideo),
-    }, ...__VLS_functionalComponentArgsRest(__VLS_14));
     if (__VLS_ctx.selectedVideoId) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: "mt-3 d-flex gap-2" },
@@ -1491,14 +1478,14 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.d
 if (__VLS_ctx.showExaminationForm) {
     /** @type {[typeof RequirementGenerator, ]} */ ;
     // @ts-ignore
-    const __VLS_17 = __VLS_asFunctionalComponent(RequirementGenerator, new RequirementGenerator({
+    const __VLS_14 = __VLS_asFunctionalComponent(RequirementGenerator, new RequirementGenerator({
         ...{ class: "requirement-generator-embedded" },
         dataCy: "requirement-generator",
     }));
-    const __VLS_18 = __VLS_17({
+    const __VLS_15 = __VLS_14({
         ...{ class: "requirement-generator-embedded" },
         dataCy: "requirement-generator",
-    }, ...__VLS_functionalComponentArgsRest(__VLS_17));
+    }, ...__VLS_functionalComponentArgsRest(__VLS_14));
 }
 else {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -1703,7 +1690,6 @@ if (__VLS_ctx.savedExaminations.length > 0) {
 /** @type {__VLS_StyleScopedClasses['mt-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['shortcuts-body']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
-/** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
 /** @type {__VLS_StyleScopedClasses['gap-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
@@ -1845,7 +1831,6 @@ const __VLS_self = (await import('vue')).defineComponent({
         return {
             RequirementGenerator: RequirementGenerator,
             Timeline: Timeline,
-            ExportAnnotations: ExportAnnotations,
             formatTime: formatTime,
             getTranslationForLabel: getTranslationForLabel,
             videoStore: videoStore,

@@ -7,9 +7,23 @@
       </p>
     </div>
     <div class="card-body">
-      <div v-if="!videoId" class="text-muted">
+      <div v-if="!selectedVideoId" class="text-muted">
         Bitte zuerst ein Video auswählen.
       </div>
+
+      <label class="form-label">Video auswählen:</label>
+        <select v-model.number="selectedVideoId" @change="onVideoChange" class="form-select" :disabled="!hasVideos || isExternalSelection">
+          <option :value="null">{{ hasVideos ? 'Bitte Video auswählen...' : 'Keine Videos verfügbar' }}</option>
+          <option v-for="video in annotatableVideos" :key="video.id" :value="video.id">
+            📹 {{video.original_file_name || 'Video Nr. '+ video.id }} 
+            {{ getVideoStatusIndicator(video.id) }}
+            | Center: {{ video.centerName || 'Unbekannt' }} 
+            | Processor: {{ video.processorName || 'Unbekannt' }}
+          </option>
+        </select>
+        <small v-if="!hasVideos" class="text-muted">
+          {{ noVideosMessage }}
+        </small>
 
       <template v-else>
         <div class="export-toggle">
@@ -83,10 +97,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, withDefaults } from 'vue'
+import { computed, onMounted, ref, watch, withDefaults } from 'vue'
 import { useVideoStore, type Segment } from '@/stores/videoStore'
 import { formatTime as formatTimeHelper } from '@/utils/timeHelpers'
 import { useToastStore } from '@/stores/toastStore'
+import { useAnonymizationStore } from '@/stores/anonymizationStore'
+import { storeToRefs } from 'pinia'
 
 const props = withDefaults(defineProps<{
   videoId?: number | null
@@ -98,19 +114,53 @@ const props = withDefaults(defineProps<{
 
 const videoStore = useVideoStore()
 const toast = useToastStore()
+const anonymizationStore = useAnonymizationStore()
+const { overview } = storeToRefs(anonymizationStore)
 const getTranslationForLabel = videoStore.getTranslationForLabel
 
 const isUpdatingVideo = ref(false)
 const updatingSegments = ref<Set<number>>(new Set())
 const isBulkUpdating = ref(false)
 
+const selectedVideoId = ref<number | null>(props.videoId ?? null)
+const isExternalSelection = computed(() => props.videoId !== null && props.videoId !== undefined)
+
+watch(
+  () => props.videoId,
+  (nextId) => {
+    if (nextId !== undefined) {
+      selectedVideoId.value = nextId ?? null
+    }
+  }
+)
+
+const videos = computed(() => videoStore.videoList.videos)
+const annotatableVideos = computed(() => videos.value)
+
+const hasVideos = computed(() => annotatableVideos.value.length > 0)
+
+const noVideosMessage = computed(() => {
+  if (videos.value.length === 0) {
+    return 'Keine Videos verfügbar. Bitte laden Sie zuerst Videos hoch.'
+  }
+  return 'Keine exportierbaren Videos verfügbar.'
+})
+
+const effectiveSegments = computed<Segment[]>(() => {
+  if (props.videoId !== null && props.videoId !== undefined) {
+    return props.segments
+  }
+  if (!selectedVideoId.value) return []
+  return videoStore.allSegments
+})
+
 const sortedSegments = computed(() => {
-  return [...props.segments].sort((a, b) => a.startTime - b.startTime)
+  return [...effectiveSegments.value].sort((a, b) => a.startTime - b.startTime)
 })
 
 const videoExportFlag = computed(() => {
-  if (!props.videoId) return false
-  const video = videoStore.videoList.videos.find((v) => v.id === props.videoId)
+  if (!selectedVideoId.value) return false
+  const video = videoStore.videoList.videos.find((v) => v.id === selectedVideoId.value)
   return Boolean(video?.exportSegmentsByVideo)
 })
 
@@ -122,12 +172,12 @@ const formatTime = (value: number | undefined) => {
 const isSegmentUpdating = (segmentId: number) => updatingSegments.value.has(segmentId)
 
 const onToggleVideoExport = async (event: Event) => {
-  if (!props.videoId) return
+  if (!selectedVideoId.value) return
   const target = event.target as HTMLInputElement
   const nextValue = target.checked
   isUpdatingVideo.value = true
   try {
-    const ok = await videoStore.setVideoExportFlag(props.videoId, nextValue)
+    const ok = await videoStore.setVideoExportFlag(selectedVideoId.value, nextValue)
     if (!ok) {
       target.checked = !nextValue
       toast.error({ text: 'Video-Export-Flag konnte nicht gespeichert werden.' })
@@ -171,6 +221,63 @@ const selectAllSegments = async (flag: boolean) => {
     isBulkUpdating.value = false
   }
 }
+
+const getVideoStatusIndicator = (videoId: number): string => {
+  const item = overview.value.find((o) => o.id === videoId && o.mediaType === 'video')
+  if (!item) return ''
+
+  const statusIndicators: Record<string, string> = {
+    not_started: '⏳ Wartend',
+    processing_anonymization: '🔄 In Verarbeitung',
+    extracting_frames: '🎬 Frames',
+    done_processing_anonymization: '✅ Anonymisiert - Validierung steht aus',
+    validated: '🛡️ Validiert & Anonymisiert',
+    failed: '❌ Fehler'
+  }
+
+  return statusIndicators[item.anonymizationStatus] || item.anonymizationStatus
+}
+
+const loadSelectedVideo = async () => {
+  if (isExternalSelection.value) return
+  if (!selectedVideoId.value) {
+    videoStore.clearVideo()
+    return
+  }
+  try {
+    await videoStore.fetchAllSegments(selectedVideoId.value)
+  } catch (error) {
+    console.error('Fehler beim Laden der Segmente:', error)
+    toast.error({ text: 'Segmente konnten nicht geladen werden.' })
+  }
+}
+
+const onVideoChange = () => {
+  loadSelectedVideo()
+}
+
+onMounted(async () => {
+  if (videoStore.videoList.videos.length === 0) {
+    try {
+      await videoStore.fetchAllVideos()
+    } catch (error) {
+      console.error('Fehler beim Laden der Videos:', error)
+      toast.error({ text: 'Videos konnten nicht geladen werden.' })
+    }
+  }
+
+  if (overview.value.length === 0) {
+    try {
+      await anonymizationStore.fetchOverview()
+    } catch (error) {
+      console.error('Fehler beim Laden der Anonymisierungsübersicht:', error)
+    }
+  }
+
+  if (!isExternalSelection.value && selectedVideoId.value) {
+    await loadSelectedVideo()
+  }
+})
 </script>
 
 <style scoped>

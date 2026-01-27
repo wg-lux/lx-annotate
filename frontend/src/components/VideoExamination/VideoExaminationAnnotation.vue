@@ -231,11 +231,6 @@
                   Esc = Abbrechen
                 </div>
               </details>
-              <ExportAnnotations
-                class="mt-3"
-                :videoId="selectedVideoId"
-                :segments="timelineSegmentsForSelectedVideo"
-              />
               <div v-if="selectedVideoId" class="mt-3 d-flex gap-2">
                 <button
                   class="btn btn-outline-secondary"
@@ -392,6 +387,8 @@
         </div>
       </div>
 
+
+
       <!-- Advanced Requirement Generator Section -->
       <div class="col-lg-12">
         <div class="card">
@@ -477,7 +474,6 @@ import { useMediaTypeStore } from '@/stores/mediaTypeStore'
 import RequirementGenerator from '@/components/RequirementReport/RequirementGenerator.vue'
 import axiosInstance, { r } from '@/api/axiosInstance'
 import Timeline from '@/components/VideoExamination/Timeline.vue'
-import ExportAnnotations from '@/components/VideoExamination/ExportAnnotations.vue'
 import { storeToRefs } from 'pinia'
 import { useToastStore } from '@/stores/toastStore'
 import { formatTime, getTranslationForLabel, getColorForLabel } from '@/utils/videoUtils'
