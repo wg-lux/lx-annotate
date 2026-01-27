@@ -1237,7 +1237,7 @@ export const useVideoStore = defineStore('video', () => {
   ): Promise<boolean> {
     try {
       const response: AxiosResponse = await axiosInstance.patch(
-        r(`media/videos/${videoId}/`),
+        r(`media/videos/${videoId}/details/`),
         { export_segments_by_video: exportSegmentsByVideo }
       )
       const updatedValue =

@@ -201,7 +201,7 @@
         <button
           type="button"
           class="btn btn-success w-100"
-          :disabled="!canExport || isExporting"
+          :disabled="isExporting"
           @click="startExport"
         >
           {{ exportButtonLabel }}
@@ -430,17 +430,22 @@ const exportSegmentIds = computed(() =>
   sortedSegments.value.filter((segment) => segment.exportSegment === true).map((segment) => segment.id)
 )
 
-const canExport =
-  Boolean(selectedVideoId.value) &&
-  exportOutputDir &&
-  (useExportFlags.value || exportSegmentIds.value.length > 0)
+const getExportGuardError = (): string | null => {
+  if (!selectedVideoId.value) return 'Bitte zuerst ein Video auswählen.'
+  if (!exportOutputDir) return 'Kein Ausgabe-Verzeichnis konfiguriert (VITE_EXPORT_OUTPUT_DIR).'
+  if (!useExportFlags.value && exportSegmentIds.value.length === 0) {
+    return 'Bitte mindestens ein Segment markieren oder "Export-Flags verwenden" aktivieren.'
+  }
+  return null
+}
 
 const exportButtonLabel = computed(() => (isExporting.value ? 'Export läuft …' : 'Export starten'))
 
 const startExport = async () => {
   exportMessage.value = null
-  if (!canExport) {
-    exportMessage.value = { type: 'error', text: 'Bitte Video und Segmente auswählen.' }
+  const guardError = getExportGuardError()
+  if (guardError) {
+    exportMessage.value = { type: 'error', text: guardError }
     return
   }
 
@@ -454,6 +459,9 @@ const startExport = async () => {
   }
 
   if (selectedVideoId.value) payload.video_id = selectedVideoId.value
+  if (exportSegmentIds.value.length > 0) {
+    payload.segmentIds = exportSegmentIds.value
+  }
   if (!useExportFlags.value && exportSegmentIds.value.length > 0) {
     payload.segment_ids = exportSegmentIds.value
   }
