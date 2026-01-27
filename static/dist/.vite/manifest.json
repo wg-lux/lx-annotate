@@ -85,10 +85,6 @@
     "name": "videoStore",
     "imports": [
       "src/main.ts"
-    ],
-    "dynamicImports": [
-      "src/stores/annotationStore.js",
-      "src/stores/authStore.js"
     ]
   },
   "src/assets/fonts/nucleo-icons.eot": {
@@ -171,25 +167,6 @@
       "nucleo-icons.woff",
       "nucleo-icons.ttf",
       "nucleo-icons.svg"
-    ]
-  },
-  "src/stores/annotationStore.js": {
-    "file": "annotationStore.js",
-    "name": "annotationStore",
-    "src": "src/stores/annotationStore.js",
-    "isDynamicEntry": true,
-    "imports": [
-      "src/main.ts",
-      "_videoStore.js"
-    ]
-  },
-  "src/stores/authStore.js": {
-    "file": "authStore.js",
-    "name": "authStore",
-    "src": "src/stores/authStore.js",
-    "isDynamicEntry": true,
-    "imports": [
-      "src/main.ts"
     ]
   },
   "src/views/AnnotationDashboard.vue": {
@@ -341,7 +318,6 @@
     "imports": [
       "src/main.ts",
       "_videoStore.js",
-      "src/stores/annotationStore.js",
       "_mediaTypeStore.js",
       "_RequirementGenerator.js",
       "_Timeline.js",

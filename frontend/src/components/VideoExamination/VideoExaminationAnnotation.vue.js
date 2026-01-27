@@ -1,8 +1,6 @@
 import { ref, computed, onMounted, watch } from 'vue';
 import { useVideoStore } from '@/stores/videoStore';
 import { useAnonymizationStore } from '@/stores/anonymizationStore';
-import { useAnnotationStore } from '@/stores/annotationStore';
-import { useAuthStore } from '@/stores/authStore';
 import { useMediaTypeStore } from '@/stores/mediaTypeStore';
 import RequirementGenerator from '@/components/RequirementReport/RequirementGenerator.vue';
 import axiosInstance, { r } from '@/api/axiosInstance';
@@ -389,6 +387,7 @@ const handleSegmentResize = (...args) => {
             startTime: newStart,
             endTime: newEnd
         });
+        videoStore.commitDraft();
     }
     else {
         // Existing segment: patch locally and mark isDirty

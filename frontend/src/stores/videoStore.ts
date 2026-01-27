@@ -461,16 +461,33 @@ export const useVideoStore = defineStore('video', () => {
     updates: Partial<Segment>,
     markDirty = false
   ): void {
+    let foundSegment: Segment | undefined
+    let oldLabel: string | undefined
+
     for (const label in segmentsByLabel) {
       const segment = segmentsByLabel[label].find((s) => s.id === segmentId)
       if (segment) {
-        Object.assign(segment, updates)
-        if (markDirty && !segment.isDraft) {
-          segment.isDirty = true
-        }
+        foundSegment = segment
+        oldLabel = label
         break
       }
     }
+
+    if (!foundSegment) return
+
+    Object.assign(foundSegment, updates)
+    if (markDirty && !foundSegment.isDraft) {
+      foundSegment.isDirty = true
+    }
+
+    if (updates.label && oldLabel && updates.label !== oldLabel) {
+      segmentsByLabel[oldLabel] = segmentsByLabel[oldLabel].filter((s) => s.id !== segmentId)
+      if (!segmentsByLabel[updates.label]) {
+        segmentsByLabel[updates.label] = []
+      }
+      segmentsByLabel[updates.label].push(foundSegment)
+    }
+
     if (currentVideo.value?.segments) {
       const segment = currentVideo.value.segments.find((s) => s.id === segmentId)
       if (segment) {
@@ -1038,7 +1055,7 @@ export const useVideoStore = defineStore('video', () => {
       const axiosError = error as AxiosError
       console.error('Error updating segment:', axiosError.response?.data || axiosError.message)
       errorMessage.value = 'Error updating segment. Please try again.'
-      toast.success({text: "Segment aktualisiert"})
+      toast.error({text: 'Fehler beim Aktualisieren des Segments'})
       return false
     }
   }
@@ -1216,36 +1233,11 @@ export const useVideoStore = defineStore('video', () => {
         segmentsByLabel[label] = []
       }
       segmentsByLabel[label].push(newSegment)
+      syncCurrentVideoSegments(videoId)
       console.log(
         '[Draft] Added segment to segmentsByLabel[' + label + '], new count:',
         segmentsByLabel[label].length
       )
-
-      // ✅ NEW: Create corresponding annotation after successful segment creation
-      try {
-        const { useAnnotationStore } = await import('./annotationStore')
-        const { useAuthStore } = await import('./authStore')
-
-        const annotationStore = useAnnotationStore()
-        const authStore = useAuthStore()
-
-        // Ensure mock user is initialized
-        authStore.initMockUser()
-
-        if (authStore.user?.id) {
-          await annotationStore.createSegmentAnnotation(
-            currentVideo.value.id.toString(),
-            newSegment,
-            authStore.user.id
-          )
-          console.log(`✅ Created annotation for segment ${newSegment.id}`)
-        } else {
-          console.warn('No authenticated user found for annotation creation')
-        }
-      } catch (annotationError) {
-        console.error('Failed to create segment annotation:', annotationError)
-        // Don't fail the segment creation if annotation fails
-      }
 
       // Clear draft AFTER successful creation
       const draftInfo = { ...draftSegment.value }
@@ -1298,54 +1290,78 @@ export const useVideoStore = defineStore('video', () => {
 
   async function persistDirtySegments(): Promise<void> {
     if (!currentVideo.value?.id) return;
-    const videoId = currentVideo.value.id;
 
     // Filter for segments that have been moved/resized locally
     const dirtySegments = allSegments.value.filter(s => s.isDirty && !s.isDraft);
-    if (dirtySegments.length === 0) return;
+    if (dirtySegments.length === 0) {
+      console.log('[VideoStore] No dirty segments to persist.')
+      return;
+    }
 
-    const payload = {
-      segment_ids: dirtySegments.map(s => s.id),
-      segments: dirtySegments.map(s => ({
-        id: s.id,
-        start_time: s.startTime,
-        end_time: s.endTime
-      })),
-      is_validated: false, // Keep existing validation status
-      information_source_name: 'manual_annotation'
-    };
+    console.log(`[VideoStore] Persisting ${dirtySegments.length} dirty segments...`)
 
     try {
-      // Target the route for bulk validation:
-      // /api/media/videos/<int:pk>/segments/validate-bulk/
-      await axiosInstance.post(r(`media/videos/${videoId}/segments/validate-bulk/`), payload);
-      
-      // Reset dirty flags
-      dirtySegments.forEach(s => s.isDirty = false);
-      toast.success({text: 'Änderungen am Server gespeichert'});
+      const results = await Promise.all(
+        dirtySegments.map((segment) =>
+          updateSegmentAPI(segment.id, {
+            startTime: segment.startTime,
+            endTime: segment.endTime
+          })
+        )
+      )
+      let successCount = 0
+      results.forEach((ok, index) => {
+        if (ok) {
+          dirtySegments[index].isDirty = false
+          successCount += 1
+        }
+      })
+
+      if (successCount === dirtySegments.length) {
+        toast.success({text: 'Alle Änderungen gespeichert'})
+      } else if (successCount > 0) {
+        toast.warning({text: `${successCount} von ${dirtySegments.length} Segmenten gespeichert`})
+      } else {
+        toast.error({text: 'Speichern fehlgeschlagen'})
+      }
+
+      if (successCount > 0 && currentVideo.value?.id) {
+        syncCurrentVideoSegments(currentVideo.value.id)
+      }
     } catch (error) {
       console.error('Save failed:', error);
-      toast.error({text: 'Speichern der Änderungen fehlgeschlagen'});
+      toast.error({text: 'Systemfehler beim Speichern'});
     }
   }
 
-async function loadVideo(videoId: number): Promise<void> {
+  async function loadVideo(videoId: number): Promise<void> {
     console.log(`[VideoStore] loadVideo called with ID: ${videoId}`)
     activeVideoId.value = Number(videoId)
     
     // 1. Check Anonymization Status (Client-side pre-check)
     const anonStore = useAnonymizationStore()
-    const ok = anonStore.overview.some(
-      (f: FileItem) =>
-        f.id === Number(videoId) && 
-        f.mediaType === 'video' && 
-        f.anonymizationStatus === 'done_processing_anonymization'
+
+    if (anonStore.overview.length === 0) {
+      console.log('[VideoStore] Anonymization overview empty, fetching...')
+      try {
+        await anonStore.fetchOverview()
+      } catch (error) {
+        console.warn('[VideoStore] Failed to fetch anonymization overview, proceeding with caution.')
+      }
+    }
+
+    const videoItem = anonStore.overview.find(
+      (f: FileItem) => f.id === Number(videoId) && f.mediaType === 'video'
     )
-    
-    if (!ok) {
+
+    if (
+      videoItem &&
+      videoItem.anonymizationStatus !== 'done_processing_anonymization' &&
+      videoItem.anonymizationStatus !== 'validated'
+    ) {
       throw new Error(
         `Video ${videoId} darf nicht annotiert werden, ` +
-          `solange die Anonymisierung nicht abgeschlossen ist.`
+          `solange die Anonymisierung nicht abgeschlossen ist. (Status: ${videoItem.anonymizationStatus})`
       )
     }
 
