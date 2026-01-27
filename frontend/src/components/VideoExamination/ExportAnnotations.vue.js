@@ -184,22 +184,41 @@ const transcodeExt = ref('mp4');
 const useFramePkPaths = ref(false);
 const isExporting = ref(false);
 const exportMessage = ref(null);
-const exportOutputDir = import.meta.env.EXPORT_OUTPUT_DIR ||
-    import.meta.env.STORAGE_DIR ||
-    '/data/export';
+const exportBaseDir = computed(() => {
+    // output_dir is interpreted on the backend filesystem. Prefer explicit config, otherwise
+    // fall back to an app-local path that is typically writable in dev (`data/...`).
+    const base = import.meta.env.VITE_EXPORT_OUTPUT_DIR ||
+        (import.meta.env.VITE_STORAGE_DIR
+            ? `${import.meta.env.VITE_STORAGE_DIR}/export`
+            : 'data/export');
+    return String(base).replace(/\/+$/, '');
+});
+const exportOutputDir = computed(() => {
+    if (!selectedVideoId.value)
+        return exportBaseDir.value;
+    return `${exportBaseDir.value}/video_${selectedVideoId.value}_annotated`;
+});
 const exportSegmentIds = computed(() => sortedSegments.value.filter((segment) => segment.exportSegment === true).map((segment) => segment.id));
-const canExport = Boolean(selectedVideoId.value) &&
-    exportOutputDir &&
-    (useExportFlags.value || exportSegmentIds.value.length > 0);
+const getExportGuardError = () => {
+    if (!selectedVideoId.value)
+        return 'Bitte zuerst ein Video auswählen.';
+    if (!exportOutputDir.value)
+        return 'Kein Ausgabe-Verzeichnis konfiguriert.';
+    if (!useExportFlags.value && exportSegmentIds.value.length === 0) {
+        return 'Bitte mindestens ein Segment markieren oder "Export-Flags verwenden" aktivieren.';
+    }
+    return null;
+};
 const exportButtonLabel = computed(() => (isExporting.value ? 'Export läuft …' : 'Export starten'));
 const startExport = async () => {
     exportMessage.value = null;
-    if (!canExport) {
-        exportMessage.value = { type: 'error', text: 'Bitte Video und Segmente auswählen.' };
+    const guardError = getExportGuardError();
+    if (guardError) {
+        exportMessage.value = { type: 'error', text: guardError };
         return;
     }
     const payload = {
-        output_dir: exportOutputDir,
+        output_dir: exportOutputDir.value,
         output_format: selectedFormat.value,
         use_export_flags: useExportFlags.value,
         export_videos: exportVideos.value,
@@ -208,6 +227,9 @@ const startExport = async () => {
     };
     if (selectedVideoId.value)
         payload.video_id = selectedVideoId.value;
+    if (exportSegmentIds.value.length > 0) {
+        payload.segmentIds = exportSegmentIds.value;
+    }
     if (!useExportFlags.value && exportSegmentIds.value.length > 0) {
         payload.segment_ids = exportSegmentIds.value;
     }
@@ -529,7 +551,7 @@ if (__VLS_ctx.selectedVideoId) {
         ...{ onClick: (__VLS_ctx.startExport) },
         type: "button",
         ...{ class: "btn btn-success w-100" },
-        disabled: (!__VLS_ctx.canExport || __VLS_ctx.isExporting),
+        disabled: (__VLS_ctx.isExporting),
     });
     (__VLS_ctx.exportButtonLabel);
     if (__VLS_ctx.exportMessage) {
@@ -683,7 +705,6 @@ const __VLS_self = (await import('vue')).defineComponent({
             isExporting: isExporting,
             exportMessage: exportMessage,
             exportOutputDir: exportOutputDir,
-            canExport: canExport,
             exportButtonLabel: exportButtonLabel,
             startExport: startExport,
         };

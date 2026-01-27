@@ -421,10 +421,21 @@ const useFramePkPaths = ref(false)
 const isExporting = ref(false)
 const exportMessage = ref<{ type: 'success' | 'error'; text: string } | null>(null)
 
-const exportOutputDir =
-  import.meta.env.EXPORT_OUTPUT_DIR ||
-  import.meta.env.STORAGE_DIR ||
-  '/data/export'
+const exportBaseDir = computed(() => {
+  // output_dir is interpreted on the backend filesystem. Prefer explicit config, otherwise
+  // fall back to an app-local path that is typically writable in dev (`data/...`).
+  const base =
+    import.meta.env.VITE_EXPORT_OUTPUT_DIR ||
+    (import.meta.env.VITE_STORAGE_DIR
+      ? `${import.meta.env.VITE_STORAGE_DIR}/export`
+      : 'data/export')
+  return String(base).replace(/\/+$/, '')
+})
+
+const exportOutputDir = computed(() => {
+  if (!selectedVideoId.value) return exportBaseDir.value
+  return `${exportBaseDir.value}/video_${selectedVideoId.value}_annotated`
+})
 
 const exportSegmentIds = computed(() =>
   sortedSegments.value.filter((segment) => segment.exportSegment === true).map((segment) => segment.id)
@@ -432,7 +443,7 @@ const exportSegmentIds = computed(() =>
 
 const getExportGuardError = (): string | null => {
   if (!selectedVideoId.value) return 'Bitte zuerst ein Video auswählen.'
-  if (!exportOutputDir) return 'Kein Ausgabe-Verzeichnis konfiguriert (VITE_EXPORT_OUTPUT_DIR).'
+  if (!exportOutputDir.value) return 'Kein Ausgabe-Verzeichnis konfiguriert.'
   if (!useExportFlags.value && exportSegmentIds.value.length === 0) {
     return 'Bitte mindestens ein Segment markieren oder "Export-Flags verwenden" aktivieren.'
   }
@@ -450,7 +461,7 @@ const startExport = async () => {
   }
 
   const payload: Record<string, any> = {
-    output_dir: exportOutputDir,
+    output_dir: exportOutputDir.value,
     output_format: selectedFormat.value,
     use_export_flags: useExportFlags.value,
     export_videos: exportVideos.value,

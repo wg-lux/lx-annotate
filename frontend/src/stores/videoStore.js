@@ -769,7 +769,7 @@ export const useVideoStore = defineStore('video', () => {
     }
     async function setVideoExportFlag(videoId, exportSegmentsByVideo) {
         try {
-            const response = await axiosInstance.patch(r(`media/videos/${videoId}/`), { export_segments_by_video: exportSegmentsByVideo });
+            const response = await axiosInstance.patch(r(`media/videos/${videoId}/details/`), { export_segments_by_video: exportSegmentsByVideo });
             const updatedValue = response.data?.export_segments_by_video ??
                 response.data?.exportSegmentsByVideo ??
                 exportSegmentsByVideo;
