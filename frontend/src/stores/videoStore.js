@@ -191,6 +191,15 @@ export const useVideoStore = defineStore('video', () => {
                 break;
             }
         }
+        if (currentVideo.value?.segments) {
+            const segment = currentVideo.value.segments.find((s) => s.id === segmentId);
+            if (segment) {
+                Object.assign(segment, updates);
+                if (markDirty && !segment.isDraft) {
+                    segment.isDirty = true;
+                }
+            }
+        }
     }
     function getSegmentOptions() {
         return segmentOptions.value;
@@ -226,6 +235,18 @@ export const useVideoStore = defineStore('video', () => {
         if (currentVideo.value && currentVideo.value.id === videoId) {
             currentVideo.value.segments = Object.values(segmentsByLabel).flat();
             console.log(`[VideoStore] Cached timeline segments populated: ${currentVideo.value.segments.length} segments for video ${videoId}`);
+        }
+    }
+    function syncCurrentVideoSegments(videoId) {
+        if (!currentVideo.value)
+            return;
+        if (videoId !== undefined && currentVideo.value.id !== videoId)
+            return;
+        const merged = Object.values(segmentsByLabel).flat();
+        currentVideo.value.segments = merged;
+        const listVideo = videoList.value.videos.find((video) => video.id === currentVideo.value?.id);
+        if (listVideo) {
+            listVideo.segments = merged;
         }
     }
     // ===================================================================
@@ -518,6 +539,7 @@ export const useVideoStore = defineStore('video', () => {
                 segmentsByLabel[label].push(segmentWithVideoId);
             });
             console.log(`[VideoStore] Processed segments by label:`, Object.keys(segmentsByLabel).map((label) => `${label}: ${segmentsByLabel[label].length}`));
+            syncCurrentVideoSegments(videoId);
         }
         catch (error) {
             if (token === _fetchToken.value) {
@@ -560,6 +582,7 @@ export const useVideoStore = defineStore('video', () => {
                 segmentsByLabel[label] = [];
             }
             segmentsByLabel[label].push(newSegment);
+            syncCurrentVideoSegments(videoId);
             console.log('Created segment:', newSegment);
             return newSegment;
         }
@@ -622,6 +645,7 @@ export const useVideoStore = defineStore('video', () => {
                     break;
                 }
             }
+            syncCurrentVideoSegments(videoId);
             return true;
         }
         catch (error) {
@@ -636,6 +660,7 @@ export const useVideoStore = defineStore('video', () => {
         for (const label of labels) {
             segmentsByLabel[label] = segmentsByLabel[label].filter((s) => s.id !== segmentId);
         }
+        syncCurrentVideoSegments();
     }
     // ===================================================================
     // DRAFT SEGMENT MANAGEMENT

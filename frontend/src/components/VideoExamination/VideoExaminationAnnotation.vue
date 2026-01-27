@@ -478,7 +478,7 @@ const timelineLabels = computed(() => {
  */
  function isAnonymized(videoId: number): boolean {
   const item = overview.value.find(o => o.id === videoId && o.mediaType === 'video')
-  return item?.anonymizationStatus === 'done_processing_anonymization' || item?.anonymizationStatus === 'validated'
+  return item?.anonymizationStatus === 'validated'
 }
 
 function isAnnotationFinished(videoId: number): boolean {
