@@ -36,7 +36,7 @@
               class="form-check-input"
               type="checkbox"
               :checked="videoExportFlag"
-              :disabled="isUpdatingVideo"
+              :disabled="isUpdatingVideo || isBulkUpdating"
               @change="onToggleVideoExport"
             />
           </div>
@@ -291,8 +291,9 @@ const sortedSegments = computed(() => {
 
 const videoExportFlag = computed(() => {
   if (!selectedVideoId.value) return false
-  const video = videoStore.videoList.videos.find((v) => v.id === selectedVideoId.value)
-  return Boolean(video?.exportSegmentsByVideo)
+  // "All segments" toggle reflects whether every segment in the current list is selected for export.
+  if (sortedSegments.value.length === 0) return false
+  return sortedSegments.value.every((s) => s.exportSegment === true)
 })
 
 const formatTime = (value: number | undefined) => {
@@ -308,10 +309,11 @@ const onToggleVideoExport = async (event: Event) => {
   const nextValue = target.checked
   isUpdatingVideo.value = true
   try {
-    const ok = await videoStore.setVideoExportFlag(selectedVideoId.value, nextValue)
+    // Instead of triggering an export or relying on a per-video flag, explicitly mark/unmark
+    // all segments via their export flags so the backend can export by selected segment IDs.
+    const ok = await selectAllSegments(nextValue)
     if (!ok) {
       target.checked = !nextValue
-      toast.error({ text: 'Video-Export-Flag konnte nicht gespeichert werden.' })
     }
   } finally {
     isUpdatingVideo.value = false
@@ -333,9 +335,10 @@ const onToggleSegmentExport = async (segmentId: number, event: Event) => {
   }
 }
 
-const selectAllSegments = async (flag: boolean) => {
-  if (sortedSegments.value.length === 0) return
+const selectAllSegments = async (flag: boolean): Promise<boolean> => {
+  if (sortedSegments.value.length === 0) return false
   isBulkUpdating.value = true
+  let okAll = true
   try {
     for (const segment of sortedSegments.value) {
       if (segment.exportSegment === flag) continue
@@ -343,6 +346,7 @@ const selectAllSegments = async (flag: boolean) => {
       const ok = await videoStore.setSegmentExportFlag(segment.id, flag)
       if (!ok) {
         toast.error({ text: `Segment ${segment.id} konnte nicht aktualisiert werden.` })
+        okAll = false
         break
       }
       updatingSegments.value.delete(segment.id)
@@ -351,6 +355,7 @@ const selectAllSegments = async (flag: boolean) => {
     updatingSegments.value.clear()
     isBulkUpdating.value = false
   }
+  return okAll
 }
 
 const getVideoStatusIndicator = (videoId: number): string => {
