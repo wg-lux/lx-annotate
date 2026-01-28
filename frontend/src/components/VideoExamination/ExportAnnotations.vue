@@ -28,16 +28,16 @@
       <template v-else>
         <div class="export-toggle">
           <label class="form-check-label" for="export-all-video">
-            Alle Segmente dieses Videos für den Export vorbereiten
+            Alle Segmente dieses Videos für den Export markieren
           </label>
           <div class="form-check form-switch">
             <input
               id="export-all-video"
               class="form-check-input"
               type="checkbox"
-              :checked="videoExportFlag"
-              :disabled="isUpdatingVideo || isBulkUpdating"
-              @change="onToggleVideoExport"
+              :checked="allSegmentsSelected"
+              :disabled="isBulkUpdating || sortedSegments.length === 0"
+              @change="onToggleAllSegments"
             />
           </div>
         </div>
@@ -45,22 +45,6 @@
         <div class="export-list mt-3">
           <div class="export-list-header">
             <span>Segmente</span>
-            <button
-              type="button"
-              class="btn btn-sm btn-outline-primary"
-              :disabled="isBulkUpdating"
-              @click="selectAllSegments(true)"
-            >
-              Alle markieren
-            </button>
-            <button
-              type="button"
-              class="btn btn-sm btn-outline-secondary"
-              :disabled="isBulkUpdating"
-              @click="selectAllSegments(false)"
-            >
-              Alle abwählen
-            </button>
           </div>
 
           <div v-if="sortedSegments.length === 0" class="text-muted mt-2">
@@ -249,7 +233,6 @@ const anonymizationStore = useAnonymizationStore()
 const { overview } = storeToRefs(anonymizationStore)
 const getTranslationForLabel = videoStore.getTranslationForLabel
 
-const isUpdatingVideo = ref(false)
 const updatingSegments = ref<Set<number>>(new Set())
 const isBulkUpdating = ref(false)
 
@@ -289,9 +272,8 @@ const sortedSegments = computed(() => {
   return [...effectiveSegments.value].sort((a, b) => a.startTime - b.startTime)
 })
 
-const videoExportFlag = computed(() => {
+const allSegmentsSelected = computed(() => {
   if (!selectedVideoId.value) return false
-  // "All segments" toggle reflects whether every segment in the current list is selected for export.
   if (sortedSegments.value.length === 0) return false
   return sortedSegments.value.every((s) => s.exportSegment === true)
 })
@@ -303,21 +285,11 @@ const formatTime = (value: number | undefined) => {
 
 const isSegmentUpdating = (segmentId: number) => updatingSegments.value.has(segmentId)
 
-const onToggleVideoExport = async (event: Event) => {
-  if (!selectedVideoId.value) return
+const onToggleAllSegments = async (event: Event) => {
   const target = event.target as HTMLInputElement
   const nextValue = target.checked
-  isUpdatingVideo.value = true
-  try {
-    // Instead of triggering an export or relying on a per-video flag, explicitly mark/unmark
-    // all segments via their export flags so the backend can export by selected segment IDs.
-    const ok = await selectAllSegments(nextValue)
-    if (!ok) {
-      target.checked = !nextValue
-    }
-  } finally {
-    isUpdatingVideo.value = false
-  }
+  const ok = await selectAllSegments(nextValue)
+  if (!ok) target.checked = !nextValue
 }
 
 const onToggleSegmentExport = async (segmentId: number, event: Event) => {
@@ -382,6 +354,9 @@ const loadSelectedVideo = async () => {
   }
   try {
     await videoStore.fetchAllSegments(selectedVideoId.value)
+    // Occam's razor: export should "just work". Default to selecting all segments after load
+    // so the user doesn't have to manually toggle dozens of segment switches.
+    await selectAllSegments(true)
   } catch (error) {
     console.error('Fehler beim Laden der Segmente:', error)
     toast.error({ text: 'Segmente konnten nicht geladen werden.' })
