@@ -177,10 +177,7 @@ in
         source ''$REPO_ROOT/.devenv/state/venv/bin/activate
 
         # Use the explicit Venv Python to run daphne as a module
-        secretspec run --provider env uv run -m daphne \
-          -b "${env.DJANGO_HOST}" \
-          -p "${env.DJANGO_PORT}" \
-          lx_annotate.asgi:application
+        secretspec run --provider env uv run daphne -b "${env.DJANGO_HOST}" -p "${env.DJANGO_PORT}" lx_annotate.asgi:application;
     '';
 
     "run-filewatcher".exec = ''
