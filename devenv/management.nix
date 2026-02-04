@@ -78,7 +78,7 @@ in
 
   scripts = {
     "manage".exec = ''
-      REPO_ROOT="${env.PROJECT_ROOT}"
+      REPO_ROOT="${env.WORKING_DIR}"
       cd "$REPO_ROOT"
       subcmd="''${1:-help}"
       case "$subcmd" in
@@ -140,7 +140,7 @@ in
     '';
 
     "vue-build".exec = ''
-      REPO_ROOT="${env.PROJECT_ROOT}"
+      REPO_ROOT="${env.WORKING_DIR}"
       cd "$REPO_ROOT"
       cd frontend
       npm install
@@ -148,7 +148,7 @@ in
     '';
 
     "export-frames".exec = ''
-      REPO_ROOT="${env.PROJECT_ROOT}"
+      REPO_ROOT="${env.WORKING_DIR}"
       cd "$REPO_ROOT"
       mkdir -p "${env.STORAGE_DIR}/export/frames/"
       secretspec run --profile env python manage.py export_frame_annot --output-path "${env.STORAGE_DIR}/export/frames/"
@@ -156,7 +156,7 @@ in
     
 
     "run-server".exec = ''
-      REPO_ROOT="${env.PROJECT_ROOT}"
+      REPO_ROOT="${env.WORKING_DIR}"
       cd "$REPO_ROOT"
       echo "🌀 Starting Daphne on ${env.DJANGO_HOST}:${env.DJANGO_PORT}..."
       if [ -z "''${DJANGO_SETTINGS_MODULE:-}" ]; then
@@ -173,7 +173,7 @@ in
     
     "start-filewatcher".exec = 
       ''
-      REPO_ROOT="${env.PROJECT_ROOT}"
+      REPO_ROOT="${env.WORKING_DIR}"
       cd "$REPO_ROOT"
       echo "👀 Starting file watcher for auto-import..."
       secretspec run --provider env python manage.py start_filewatcher
