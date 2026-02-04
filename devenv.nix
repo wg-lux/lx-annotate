@@ -231,13 +231,9 @@ in
     SYNC_STAMP=".devenv/state/.uv-sync.stamp"
     LOCK_HASH="$(sha256sum uv.lock pyproject.toml 2>/dev/null | sha256sum | cut -d' ' -f1)"
 
-    if [ ! -f "$SYNC_STAMP" ] || [ "$(cat "$SYNC_STAMP")" != "$LOCK_HASH" ]; then
-      echo "uv deps changed -> syncing..."
-      $SYNC_CMD || echo "Warning: uv sync failed."
-      echo "$LOCK_HASH" > "$SYNC_STAMP"
-    else
-      echo "uv deps unchanged -> skip sync"
-    fi
+    echo "uv deps changed -> syncing..."
+    $SYNC_CMD || echo "Warning: uv sync failed."
+    echo "$LOCK_HASH" > "$SYNC_STAMP"
 
     mkdir -p "${config.secretspec.secrets.STORAGE_DIR}"
     mkdir -p "${config.secretspec.secrets.ASSET_DIR}"
@@ -257,14 +253,11 @@ in
       echo "Note: .env.systemd not found. Defaults apply."
     fi
     # Activate Python virtual environment managed by uv inside of devenv
-    ACTIVATED=false
-    if [ -f ".devenv/state/venv/bin/activate" ]; then
-      source .devenv/state/venv/bin/activate
-      ACTIVATED=true
-      echo "Virtual environment activated."
-    else
-      echo "Warning: uv virtual environment activation script not found. Run 'devenv task run env:clean' and re-enter shell."
-    fi
+    source .devenv/state/venv/bin/activate
+    ACTIVATED=true
+    echo "Virtual environment activated."
+    echo "Warning: uv virtual environment activation script not found. Run 'devenv task run env:clean' and re-enter shell."
+    
     python scripts/gpu-check.py
 
     
