@@ -203,7 +203,7 @@ in
 
         # Use the explicit Venv Python to run daphne as a module
         # This bypasses the broken 'uv run' shell logic
-        secretspec run --provider env $VENV_PYTHON -m scripts/file_watcher.py
+        secretspec run --provider env $VENV_PYTHON -m scripts/file_watcher
     '';
 
   };
