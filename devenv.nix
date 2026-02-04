@@ -256,7 +256,6 @@ in
     source .devenv/state/venv/bin/activate
     ACTIVATED=true
     echo "Virtual environment activated."
-    echo "Warning: uv virtual environment activation script not found. Run 'devenv task run env:clean' and re-enter shell."
     
     python scripts/gpu-check.py
 
