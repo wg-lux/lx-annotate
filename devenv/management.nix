@@ -182,6 +182,29 @@ in
           lx_annotate.asgi:application
     '';
 
+    "run-filewatcher".exec = ''
+            REPO_ROOT="${env.WORKING_DIR}"
+        cd "$REPO_ROOT"
+        
+        # Define the explicit path to the venv python
+        VENV_PYTHON="$REPO_ROOT/.devenv/state/venv/bin/python"
+        
+        echo "🌀 Starting Filewatcher using Venv Python..."
+        
+        if [ -z "''${DJANGO_SETTINGS_MODULE:-}" ]; then
+          export DJANGO_SETTINGS_MODULE="lx_annotate.settings"
+        else
+          case "$DJANGO_SETTINGS_MODULE" in
+            config* )
+              export DJANGO_SETTINGS_MODULE="lx_annotate.settings.settings_prod"
+              ;;
+          esac
+        fi
+
+        # Use the explicit Venv Python to run daphne as a module
+        # This bypasses the broken 'uv run' shell logic
+        secretspec run --provider env $VENV_PYTHON -m scripts/file_watcher.py
+
 
   };
 }
