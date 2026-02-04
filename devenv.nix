@@ -13,6 +13,7 @@ let
 
   python = pkgs.python312;
   uvPackage = pkgs.uv;
+  projectRoot = toString ./;
 
   devTasks = import ./devenv/devTasks/default.nix { inherit config pkgs lib; env=baseEnv; };
 
@@ -33,6 +34,7 @@ let
     ASSET_DIR = config.secretspec.secrets.ASSET_DIR;
     HOME_DIR = config.secretspec.secrets.HOME_DIR;
     WORKING_DIR = config.secretspec.secrets.WORKING_DIR;
+    PROJECT_ROOT = projectRoot;
     DJANGO_STATIC_ROOT = config.secretspec.secrets.DJANGO_STATIC_ROOT;
     # --- Network & Server ---
     HTTP_PROTOCOL = config.secretspec.secrets.HTTP_PROTOCOL;
@@ -257,8 +259,5 @@ in
     ACTIVATED=true
     echo "Virtual environment activated."
     
-
-    
   '';
 }
-

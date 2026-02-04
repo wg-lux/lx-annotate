@@ -78,6 +78,8 @@ in
 
   scripts = {
     "manage".exec = ''
+      REPO_ROOT="${env.PROJECT_ROOT}"
+      cd "$REPO_ROOT"
       subcmd="''${1:-help}"
       case "$subcmd" in
         "setup")
@@ -138,18 +140,24 @@ in
     '';
 
     "vue-build".exec = ''
+      REPO_ROOT="${env.PROJECT_ROOT}"
+      cd "$REPO_ROOT"
       cd frontend
       npm install
       npm run build
     '';
 
     "export-frames".exec = ''
+      REPO_ROOT="${env.PROJECT_ROOT}"
+      cd "$REPO_ROOT"
       mkdir -p "${env.STORAGE_DIR}/export/frames/"
       secretspec run --profile env python manage.py export_frame_annot --output-path "${env.STORAGE_DIR}/export/frames/"
     '';
     
 
     "run-server".exec = ''
+      REPO_ROOT="${env.PROJECT_ROOT}"
+      cd "$REPO_ROOT"
       echo "🌀 Starting Daphne on ${env.DJANGO_HOST}:${env.DJANGO_PORT}..."
       if [ -z "''${DJANGO_SETTINGS_MODULE:-}" ]; then
         echo "⚠️  DJANGO_SETTINGS_MODULE not set, defaulting to lx_annotate.settings"
@@ -165,6 +173,8 @@ in
     
     "start-filewatcher".exec = 
       ''
+      REPO_ROOT="${env.PROJECT_ROOT}"
+      cd "$REPO_ROOT"
       echo "👀 Starting file watcher for auto-import..."
       secretspec run --provider env python manage.py start_filewatcher
     '';
