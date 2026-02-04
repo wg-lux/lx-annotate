@@ -257,7 +257,6 @@ in
     ACTIVATED=true
     echo "Virtual environment activated."
     
-    python scripts/gpu-check.py
 
     
   '';
