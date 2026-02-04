@@ -174,9 +174,10 @@ in
           esac
         fi
 
+        source ''$REPO_ROOT/.devenv/state/venv/bin/activate
+
         # Use the explicit Venv Python to run daphne as a module
-        # This bypasses the broken 'uv run' shell logic
-        secretspec run --provider env $VENV_PYTHON -m daphne \
+        secretspec run --provider env uv run -m daphne \
           -b "${env.DJANGO_HOST}" \
           -p "${env.DJANGO_PORT}" \
           lx_annotate.asgi:application
