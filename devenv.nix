@@ -228,8 +228,6 @@ in
     env-setup
     # Ensure dependencies are synced using uv
     # Check if venv exists. If not, run sync verbosely. If it exists, sync quietly.
-    SYNC_STAMP=".devenv/state/.uv-sync.stamp"
-    LOCK_HASH="$(sha256sum uv.lock pyproject.toml 2>/dev/null | sha256sum | cut -d' ' -f1)"
 
     echo "uv deps changed -> syncing..."
     $SYNC_CMD || echo "Warning: uv sync failed."
