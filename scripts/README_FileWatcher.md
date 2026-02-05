@@ -256,5 +256,6 @@ python manage.py start_filewatcher --verbosity 2
 * **Processing Logic**: Extend `_process_video()` and `_process_pdf()`
 * **Default Settings**: Change class variables in `AutoProcessingHandler`
 
-```
-```
+## Legacy devenv command
+
+The `devenv` helper previously exposed a `start-filewatcher` script that ran `python manage.py start_filewatcher`. During the rework described in `devenv/management.nix` the alias was removed and replaced by the `run-filewatcher` exec block that starts `scripts/file_watcher.py` with the `.devenv/state/venv/bin/python` interpreter instead (see `devenv/management.nix:183-205`). Because the old entry no longer exists, `devenv start-filewatcher` will fail; use `devenv run-filewatcher` or `scripts/start_filewatcher.sh`/systemd to start the watcher from now on.

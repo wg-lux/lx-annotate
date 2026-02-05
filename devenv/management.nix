@@ -181,7 +181,7 @@ in
     '';
 
     "run-filewatcher".exec = ''
-            REPO_ROOT="${env.WORKING_DIR}"
+        REPO_ROOT="${env.WORKING_DIR}"
         cd "$REPO_ROOT"
         
         # Define the explicit path to the venv python

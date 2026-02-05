@@ -396,7 +396,7 @@ onMounted(async () => {
   }
 
   await autoSelectInitialVideo()
-})
+}) 
 const selectedFormat = ref<'csv' | 'json'>('csv')
 const useExportFlags = ref(true)
 const exportVideos = ref(true)

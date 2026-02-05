@@ -38,10 +38,26 @@
     "imports": [
       "src/main.ts",
       "_patientStore.js",
+      "_RequirementIssues.vue_vue_type_script_setup_true_lang.js",
       "_PatientAdder2.js"
     ],
     "css": [
       "RequirementGenerator.css"
+    ]
+  },
+  "_RequirementIssues.css": {
+    "file": "RequirementIssues.css",
+    "src": "_RequirementIssues.css"
+  },
+  "_RequirementIssues.vue_vue_type_script_setup_true_lang.js": {
+    "file": "RequirementIssues.vue_vue_type_script_setup_true_lang.js",
+    "name": "RequirementIssues.vue_vue_type_script_setup_true_lang",
+    "imports": [
+      "src/main.ts",
+      "_patientStore.js"
+    ],
+    "css": [
+      "RequirementIssues.css"
     ]
   },
   "_Timeline.css": {
@@ -235,6 +251,7 @@
       "_RequirementGenerator.js",
       "src/main.ts",
       "_patientStore.js",
+      "_RequirementIssues.vue_vue_type_script_setup_true_lang.js",
       "_PatientAdder2.js"
     ]
   },
@@ -300,10 +317,13 @@
     "src": "src/views/ReportGenerator.vue",
     "isDynamicEntry": true,
     "imports": [
-      "_RequirementGenerator.js",
       "src/main.ts",
       "_patientStore.js",
+      "_RequirementIssues.vue_vue_type_script_setup_true_lang.js",
       "_PatientAdder2.js"
+    ],
+    "css": [
+      "ReportGenerator.css"
     ]
   },
   "src/views/UeberUns.vue": {
@@ -345,6 +365,7 @@
       "_RequirementGenerator.js",
       "_Timeline.js",
       "_patientStore.js",
+      "_RequirementIssues.vue_vue_type_script_setup_true_lang.js",
       "_PatientAdder2.js",
       "_timeHelpers.js"
     ],

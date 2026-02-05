@@ -14,7 +14,6 @@ const toast = useToastStore();
 const anonymizationStore = useAnonymizationStore();
 const { overview } = storeToRefs(anonymizationStore);
 const getTranslationForLabel = videoStore.getTranslationForLabel;
-const isUpdatingVideo = ref(false);
 const updatingSegments = ref(new Set());
 const isBulkUpdating = ref(false);
 const selectedVideoId = ref(props.videoId ?? null);
@@ -44,11 +43,12 @@ const effectiveSegments = computed(() => {
 const sortedSegments = computed(() => {
     return [...effectiveSegments.value].sort((a, b) => a.startTime - b.startTime);
 });
-const videoExportFlag = computed(() => {
+const allSegmentsSelected = computed(() => {
     if (!selectedVideoId.value)
         return false;
-    const video = videoStore.videoList.videos.find((v) => v.id === selectedVideoId.value);
-    return Boolean(video?.exportSegmentsByVideo);
+    if (sortedSegments.value.length === 0)
+        return false;
+    return sortedSegments.value.every((s) => s.exportSegment === true);
 });
 const formatTime = (value) => {
     if (typeof value !== 'number' || Number.isNaN(value))
@@ -56,22 +56,12 @@ const formatTime = (value) => {
     return formatTimeHelper(value);
 };
 const isSegmentUpdating = (segmentId) => updatingSegments.value.has(segmentId);
-const onToggleVideoExport = async (event) => {
-    if (!selectedVideoId.value)
-        return;
+const onToggleAllSegments = async (event) => {
     const target = event.target;
     const nextValue = target.checked;
-    isUpdatingVideo.value = true;
-    try {
-        const ok = await videoStore.setVideoExportFlag(selectedVideoId.value, nextValue);
-        if (!ok) {
-            target.checked = !nextValue;
-            toast.error({ text: 'Video-Export-Flag konnte nicht gespeichert werden.' });
-        }
-    }
-    finally {
-        isUpdatingVideo.value = false;
-    }
+    const ok = await selectAllSegments(nextValue);
+    if (!ok)
+        target.checked = !nextValue;
 };
 const onToggleSegmentExport = async (segmentId, event) => {
     const target = event.target;
@@ -90,8 +80,9 @@ const onToggleSegmentExport = async (segmentId, event) => {
 };
 const selectAllSegments = async (flag) => {
     if (sortedSegments.value.length === 0)
-        return;
+        return false;
     isBulkUpdating.value = true;
+    let okAll = true;
     try {
         for (const segment of sortedSegments.value) {
             if (segment.exportSegment === flag)
@@ -100,6 +91,7 @@ const selectAllSegments = async (flag) => {
             const ok = await videoStore.setSegmentExportFlag(segment.id, flag);
             if (!ok) {
                 toast.error({ text: `Segment ${segment.id} konnte nicht aktualisiert werden.` });
+                okAll = false;
                 break;
             }
             updatingSegments.value.delete(segment.id);
@@ -109,6 +101,7 @@ const selectAllSegments = async (flag) => {
         updatingSegments.value.clear();
         isBulkUpdating.value = false;
     }
+    return okAll;
 };
 const getVideoStatusIndicator = (videoId) => {
     const item = overview.value.find((o) => o.id === videoId && o.mediaType === 'video');
@@ -133,6 +126,9 @@ const loadSelectedVideo = async () => {
     }
     try {
         await videoStore.fetchAllSegments(selectedVideoId.value);
+        // Occam's razor: export should "just work". Default to selecting all segments after load
+        // so the user doesn't have to manually toggle dozens of segment switches.
+        await selectAllSegments(true);
     }
     catch (error) {
         console.error('Fehler beim Laden der Segmente:', error);
@@ -361,12 +357,12 @@ else {
         ...{ class: "form-check form-switch" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
-        ...{ onChange: (__VLS_ctx.onToggleVideoExport) },
+        ...{ onChange: (__VLS_ctx.onToggleAllSegments) },
         id: "export-all-video",
         ...{ class: "form-check-input" },
         type: "checkbox",
-        checked: (__VLS_ctx.videoExportFlag),
-        disabled: (__VLS_ctx.isUpdatingVideo),
+        checked: (__VLS_ctx.allSegmentsSelected),
+        disabled: (__VLS_ctx.isBulkUpdating || __VLS_ctx.sortedSegments.length === 0),
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "export-list mt-3" },
@@ -375,26 +371,6 @@ else {
         ...{ class: "export-list-header" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-        ...{ onClick: (...[$event]) => {
-                if (!!(!__VLS_ctx.hasVideos))
-                    return;
-                __VLS_ctx.selectAllSegments(true);
-            } },
-        type: "button",
-        ...{ class: "btn btn-sm btn-outline-primary" },
-        disabled: (__VLS_ctx.isBulkUpdating),
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-        ...{ onClick: (...[$event]) => {
-                if (!!(!__VLS_ctx.hasVideos))
-                    return;
-                __VLS_ctx.selectAllSegments(false);
-            } },
-        type: "button",
-        ...{ class: "btn btn-sm btn-outline-secondary" },
-        disabled: (__VLS_ctx.isBulkUpdating),
-    });
     if (__VLS_ctx.sortedSegments.length === 0) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: "text-muted mt-2" },
@@ -620,12 +596,6 @@ if (__VLS_ctx.selectedVideoId) {
 /** @type {__VLS_StyleScopedClasses['export-list']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['export-list-header']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn-outline-primary']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn-outline-secondary']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['export-segment']} */ ;
@@ -719,7 +689,6 @@ const __VLS_self = (await import('vue')).defineComponent({
     setup() {
         return {
             getTranslationForLabel: getTranslationForLabel,
-            isUpdatingVideo: isUpdatingVideo,
             isBulkUpdating: isBulkUpdating,
             selectedVideoId: selectedVideoId,
             isExternalSelection: isExternalSelection,
@@ -727,12 +696,11 @@ const __VLS_self = (await import('vue')).defineComponent({
             hasVideos: hasVideos,
             noVideosMessage: noVideosMessage,
             sortedSegments: sortedSegments,
-            videoExportFlag: videoExportFlag,
+            allSegmentsSelected: allSegmentsSelected,
             formatTime: formatTime,
             isSegmentUpdating: isSegmentUpdating,
-            onToggleVideoExport: onToggleVideoExport,
+            onToggleAllSegments: onToggleAllSegments,
             onToggleSegmentExport: onToggleSegmentExport,
-            selectAllSegments: selectAllSegments,
             getVideoStatusIndicator: getVideoStatusIndicator,
             onVideoChange: onVideoChange,
             selectedFormat: selectedFormat,

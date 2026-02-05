@@ -519,7 +519,6 @@ const { videoList, videoStreamUrl, timelineSegments } = storeToRefs(videoStore)
 
 const videos = computed(() => videoList.value.videos)
 
-const toastStore = useToastStore()
 const { allSegments: rawSegments } = storeToRefs(videoStore)
 
 const anonymizationStore = useAnonymizationStore()
@@ -560,6 +559,7 @@ const isLabelSelectActive = ref<boolean>(false)
 const isMarkingLabel = ref<boolean>(false)
 const labelMarkingStart = ref<number>(0)
 const selectedSegmentId = ref<number | null>(null)
+const isInitialLoading = ref<boolean>(true)
 
 // Video detail and metadata like VideoClassificationComponent
 const videoDetail = ref<{ video_url: string } | null>(null)
@@ -620,13 +620,29 @@ async function loadSelectedVideo() {
 
 
 function onVideoChange() {                // handler for the <select>
-  loadSelectedVideo()
   /** update the url so users can bookmark / refresh */
   router.replace({ query: { video: selectedVideoId.value } })
 }
 
 //  fire loader whenever selectedVideoId changes programmatically  */
-watch(selectedVideoId, loadSelectedVideo)
+watch(
+  selectedVideoId,
+  async (newId) => {
+    console.log('Selected video ID changed, syncing store and loading details:', newId)
+    if (typeof newId === 'number') {
+      videoStore.setCurrentVideo(newId)
+    } else if (newId !== null) {
+      errorMessage.value = 'Invalid video ID'
+      return
+    }
+
+    await loadSelectedVideo()
+    if (newId !== null) {
+      await loadVideoSegments()
+    }
+  },
+  { immediate: true }
+)
 watch(
   () => route.query.video,
   v => {
@@ -691,6 +707,7 @@ const canStartLabeling = computed(() => {
 // ✅ PRIORITY: Load labels first, then videos, then anonymization status
 onMounted(async () => {
   console.log('🚀 [VideoExamination] Component mounted - loading data in priority order...')
+  isInitialLoading.value = true
   try {
     // Step 1: Load labels with high priority
     await videoStore.fetchLabels()
@@ -704,9 +721,12 @@ onMounted(async () => {
     await videoStore.fetchAllVideos()
     console.log(`✅ [VideoExamination] Videos loaded: ${videoStore.videoList.videos.length}`)
     console.log(`✅ [VideoExamination] Annotatable videos: ${annotatableVideos.value.length}`)
+    await loadVideoSegments()
   } catch (error) {
     console.error('❌ [VideoExamination] Error during initial load:', error)
     showErrorMessage('Fehler beim Laden der Daten. Bitte Seite neu laden.')
+  } finally {
+    isInitialLoading.value = false
   }
 
   document.addEventListener('keydown', handleKeyDown)
@@ -731,16 +751,6 @@ async function guarded<T>(p: Promise<T>): Promise<T | undefined> {
 
 watch(videoStreamUrl, (newUrl) => {
   console.log('Video stream URL updated:', newUrl)
-})
-
-watch(selectedVideoId, (newId) => {
-  console.log('Selected video ID changed, setting store to:', newId)
-  if (typeof newId === 'number') {
-    videoStore.setCurrentVideo(newId)
-  } 
-  else {
-    errorMessage.value = 'Invalid video ID'
-  }
 })
 
 // Alert management methods
@@ -854,7 +864,7 @@ const loadVideoMetadata = async (): Promise<void> => {
   }
 }
 
-const loadVideoSegments = async (): Promise<void> => {
+async function loadVideoSegments(): Promise<void> {
   if (selectedVideoId.value === null) return
   
   try {
@@ -1469,6 +1479,12 @@ const isVideoValidated = (videoId: number): boolean => {
   background: #000;
   border-radius: 8px;
   overflow: hidden;
+  z-index: 100;
+}
+
+:fullscreen .label-overlay{
+  display: flex !important;
+  z-index: 2147483647;
 }
 
 .fullscreen-toggle {
@@ -1651,7 +1667,7 @@ const isVideoValidated = (videoId: number): boolean => {
   align-items: center;
   justify-content: center;
   background: rgba(0, 0, 0, 0.45);
-  z-index: 5;
+  z-index: 2147483647;
 }
 
 .label-overlay-card {

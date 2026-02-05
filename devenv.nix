@@ -225,6 +225,8 @@ in
 
   enterShell = lib.mkAfter ''
     direnv disallow
+    source .devenv/state/venv/bin/activate
+
     env-setup
     # Ensure dependencies are synced using uv
     # Check if venv exists. If not, run sync verbosely. If it exists, sync quietly.
@@ -251,7 +253,6 @@ in
       echo "Note: .env.systemd not found. Defaults apply."
     fi
     # Activate Python virtual environment managed by uv inside of devenv
-    source .devenv/state/venv/bin/activate
     echo "Virtual environment activated."
     
   '';

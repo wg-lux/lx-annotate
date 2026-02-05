@@ -20,7 +20,6 @@ const videoStore = useVideoStore();
 const mediaStore = useMediaTypeStore();
 const { videoList, videoStreamUrl, timelineSegments } = storeToRefs(videoStore);
 const videos = computed(() => videoList.value.videos);
-const toastStore = useToastStore();
 const { allSegments: rawSegments } = storeToRefs(videoStore);
 const anonymizationStore = useAnonymizationStore();
 const { overview } = storeToRefs(anonymizationStore);
@@ -54,6 +53,7 @@ const isLabelSelectActive = ref(false);
 const isMarkingLabel = ref(false);
 const labelMarkingStart = ref(0);
 const selectedSegmentId = ref(null);
+const isInitialLoading = ref(true);
 // Video detail and metadata like VideoClassificationComponent
 const videoDetail = ref(null);
 const videoMeta = ref(null);
@@ -102,12 +102,24 @@ async function loadSelectedVideo() {
     }
 }
 function onVideoChange() {
-    loadSelectedVideo();
     /** update the url so users can bookmark / refresh */
     router.replace({ query: { video: selectedVideoId.value } });
 }
 //  fire loader whenever selectedVideoId changes programmatically  */
-watch(selectedVideoId, loadSelectedVideo);
+watch(selectedVideoId, async (newId) => {
+    console.log('Selected video ID changed, syncing store and loading details:', newId);
+    if (typeof newId === 'number') {
+        videoStore.setCurrentVideo(newId);
+    }
+    else if (newId !== null) {
+        errorMessage.value = 'Invalid video ID';
+        return;
+    }
+    await loadSelectedVideo();
+    if (newId !== null) {
+        await loadVideoSegments();
+    }
+}, { immediate: true });
 watch(() => route.query.video, v => {
     const id = Number(v ?? '') || null;
     if (id !== selectedVideoId.value)
@@ -157,6 +169,7 @@ const canStartLabeling = computed(() => {
 // ✅ PRIORITY: Load labels first, then videos, then anonymization status
 onMounted(async () => {
     console.log('🚀 [VideoExamination] Component mounted - loading data in priority order...');
+    isInitialLoading.value = true;
     try {
         // Step 1: Load labels with high priority
         await videoStore.fetchLabels();
@@ -168,10 +181,14 @@ onMounted(async () => {
         await videoStore.fetchAllVideos();
         console.log(`✅ [VideoExamination] Videos loaded: ${videoStore.videoList.videos.length}`);
         console.log(`✅ [VideoExamination] Annotatable videos: ${annotatableVideos.value.length}`);
+        await loadVideoSegments();
     }
     catch (error) {
         console.error('❌ [VideoExamination] Error during initial load:', error);
         showErrorMessage('Fehler beim Laden der Daten. Bitte Seite neu laden.');
+    }
+    finally {
+        isInitialLoading.value = false;
     }
     document.addEventListener('keydown', handleKeyDown);
     document.addEventListener('fullscreenchange', handleFullscreenChange);
@@ -193,15 +210,6 @@ async function guarded(p) {
 }
 watch(videoStreamUrl, (newUrl) => {
     console.log('Video stream URL updated:', newUrl);
-});
-watch(selectedVideoId, (newId) => {
-    console.log('Selected video ID changed, setting store to:', newId);
-    if (typeof newId === 'number') {
-        videoStore.setCurrentVideo(newId);
-    }
-    else {
-        errorMessage.value = 'Invalid video ID';
-    }
 });
 // Alert management methods
 const clearErrorMessage = () => {
@@ -304,7 +312,7 @@ const loadVideoMetadata = async () => {
         });
     }
 };
-const loadVideoSegments = async () => {
+async function loadVideoSegments() {
     if (selectedVideoId.value === null)
         return;
     try {
@@ -315,7 +323,7 @@ const loadVideoSegments = async () => {
     catch (error) {
         console.error('Error loading video segments:', error);
     }
-};
+}
 const onVideoLoaded = () => {
     if (videoRef.value) {
         duration.value = videoRef.value.duration;
@@ -834,6 +842,7 @@ let __VLS_directives;
 /** @type {__VLS_StyleScopedClasses['requirement-generator-embedded']} */ ;
 /** @type {__VLS_StyleScopedClasses['status-badge-container']} */ ;
 /** @type {__VLS_StyleScopedClasses['validation-status-alert']} */ ;
+/** @type {__VLS_StyleScopedClasses['label-overlay']} */ ;
 /** @type {__VLS_StyleScopedClasses['label-overlay-item']} */ ;
 /** @type {__VLS_StyleScopedClasses['shortcuts-toggle']} */ ;
 // CSS variable injection 
