@@ -20,7 +20,7 @@
       <div class="sidenav-header">
         <a class="navbar-brand m-0" href="/">
           <div class="sidenav-header-inner text-center">
-            <img :src="staticUrl + 'img/ColoReg.png'" alt="Logo" />
+            <img :src="staticUrl + 'img/ColoReg.png'" alt="Logo" class="logo-img" />
           </div>
           <div class="ms-1 font-weight-bold text-white text-center">AG Lux</div>
         </a>
@@ -213,7 +213,15 @@ export default {
 .sidenav-header-inner {
   padding: 0.5rem 1rem;
   margin-bottom: 1.5rem;
-  background-color: white;
+  box-sizing: border-box;
+
+}
+.logo-img {
+  display: block;
+  width: 100%;      /* fill available box width */
+  max-width: 100%;  /* never overflow container */
+  height: auto;     /* keep aspect ratio */
+  object-fit: contain;
 }
 
 .navbar-nav {

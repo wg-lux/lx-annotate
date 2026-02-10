@@ -224,8 +224,8 @@ in
 
 
   enterShell = lib.mkAfter ''
-    direnv disallow
     source .devenv/state/venv/bin/activate
+    direnv disallow
 
     env-setup
     # Ensure dependencies are synced using uv
@@ -254,6 +254,6 @@ in
     fi
     # Activate Python virtual environment managed by uv inside of devenv
     echo "Virtual environment activated."
-    
+
   '';
 }

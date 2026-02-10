@@ -83,6 +83,7 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.d
 __VLS_asFunctionalElement(__VLS_intrinsicElements.img)({
     src: (__VLS_ctx.staticUrl + 'img/ColoReg.png'),
     alt: "Logo",
+    ...{ class: "logo-img" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "ms-1 font-weight-bold text-white text-center" },
@@ -289,6 +290,7 @@ var __VLS_27;
 /** @type {__VLS_StyleScopedClasses['m-0']} */ ;
 /** @type {__VLS_StyleScopedClasses['sidenav-header-inner']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['logo-img']} */ ;
 /** @type {__VLS_StyleScopedClasses['ms-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['font-weight-bold']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-white']} */ ;
