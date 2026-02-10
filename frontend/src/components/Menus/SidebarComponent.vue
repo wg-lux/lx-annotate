@@ -18,39 +18,39 @@
 
     <div class="sidenav" :class="{ show: isSidebarOpen }">
       <div class="sidenav-header">
-
         <a class="navbar-brand m-0" href="/">
           <div class="sidenav-header-inner text-center">
-            <img :src="staticUrl + 'img/ag_lux_logo_light_grey.svg'" alt="Logo" />
+            <img :src="staticUrl + 'img/ColoReg.png'" alt="Logo" />
           </div>
           <div class="ms-1 font-weight-bold text-white text-center">AG Lux</div>
         </a>
-        <div class="w-auto max-height-vh-100" >
-          <ul class="navbar-nav">
-            <li class="nav-item">
-              <router-link to="/" class="nav-link" :class="{ active: $route.path === '/' }">
-                <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
-                  <i class="material-icons opacity-10">dashboard</i>
-                </div>
-                <span class="nav-link-text ms-1">Dashboard</span>
-              </router-link>
-            </li>
-            <li>
-              <router-link to="/uebersicht" class="nav-link" :class="{ active: $route.path === '/uebersicht' }">
-                <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
-                  <i class="material-icons opacity-10">dashboard</i>
-                </div>
-                <span class="nav-link-text ms-1">Alle Seiten</span>
-              </router-link>
-            </li>
-            <li class="nav-item" v-can="'page.patients.view:GET'">
-              <router-link to="/patienten" class="nav-link" :class="{ active: $route.path === '/patienten' }">
-                <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
-                 <i class="material-icons opacity-10">people</i>
-                </div>
-                <span class="nav-link-text ms-1">Patienten</span>
-              </router-link>
-            </li>
+      </div>
+      <div class="sidenav-body w-auto max-height-vh-100">
+        <ul class="navbar-nav">
+          <li class="nav-item">
+            <router-link to="/" class="nav-link" :class="{ active: $route.path === '/' }">
+              <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
+                <i class="material-icons opacity-10">dashboard</i>
+              </div>
+              <span class="nav-link-text ms-1">Dashboard</span>
+            </router-link>
+          </li>
+          <li>
+            <router-link to="/uebersicht" class="nav-link" :class="{ active: $route.path === '/uebersicht' }">
+              <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
+                <i class="material-icons opacity-10">dashboard</i>
+              </div>
+              <span class="nav-link-text ms-1">Alle Seiten</span>
+            </router-link>
+          </li>
+          <li class="nav-item" v-can="'page.patients.view:GET'">
+            <router-link to="/patienten" class="nav-link" :class="{ active: $route.path === '/patienten' }">
+              <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
+               <i class="material-icons opacity-10">people</i>
+              </div>
+              <span class="nav-link-text ms-1">Patienten</span>
+            </router-link>
+          </li>
 
             <li class="nav-item">
               <router-link to="/anonymisierung/uebersicht" class="nav-link" :class="{ active: $route.path === '/anonymisierung' }">
@@ -156,8 +156,7 @@
               </router-link>
             </li>
             -->
-          </ul>
-        </div>
+        </ul>
       </div>
     </div>
   </div>
@@ -243,6 +242,12 @@ export default {
   border-radius: 0.375rem;
 }
 
+.sidenav-body {
+  overflow-y: auto;
+  max-height: calc(100vh - 4.875rem);
+  -webkit-overflow-scrolling: touch;
+}
+
 /* Mobile Responsiveness Improvements */
 @media (max-width: 1199.98px) {
   .sidenav {
@@ -255,6 +260,7 @@ export default {
     z-index: 9999;
     background: linear-gradient(195deg, #42424a, #191919) !important;
     transition: transform 0.3s ease-in-out !important;
+    overflow: hidden;
   }
   
   .sidenav.show {

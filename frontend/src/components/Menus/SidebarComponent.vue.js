@@ -81,7 +81,7 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.d
     ...{ class: "sidenav-header-inner text-center" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.img)({
-    src: (__VLS_ctx.staticUrl + 'img/ag_lux_logo_light_grey.svg'),
+    src: (__VLS_ctx.staticUrl + 'img/ColoReg.png'),
     alt: "Logo",
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
