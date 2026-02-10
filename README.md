@@ -1,20 +1,20 @@
 # LX-Annotate
 
 LX-Annotate is a Django + Vue application for annotating AI-generated outputs,
-with a media ingestion pipeline for videos and PDFs.
+with a media ingestion pipeline for videos and PDFs. This project was created by a team at Universitätsklinikum Würzburg, Bavaria.  
 
 ## Highlights
 
 - Django backend with REST APIs and optional OIDC authentication
-- Vue 3 SPA frontend integrated via django-vite
-- File watcher for automated video/PDF processing
-- Reproducible environments via Nix/devenv and Docker
+- Vue 3 SPA frontend integrated with Django via `django-vite`
+- File watcher for automated video and PDF processing
+- Reproducible environments via `devenv`/Nix and Docker
 
-## Repository layout
+## Repository Layout
 
 - `lx_annotate/` Django app and settings
 - `frontend/` Vue 3 application
-- `scripts/` operational tooling and file watcher
+- `scripts/` operational tooling and file watcher scripts
 - `data/` runtime data (raw videos, PDFs, model cache)
 - `conf_template/` sample configuration templates
 - `container/` Dockerfiles and container docs
@@ -23,40 +23,36 @@ with a media ingestion pipeline for videos and PDFs.
 
 - Python 3.12
 - Node.js 18+ (frontend)
-- PostgreSQL (for the main app)
-- Optional: `uv`, `direnv`, `devenv`, `nix`, Docker
+- PostgreSQL (main app)
+- Optional: `uv`, `direnv`, `devenv`, Nix, Docker
 
-## Quick start (dev)
+## Quick Start (Development)
 
-1. `direnv allow` (if you use devenv)
-2. `uv sync` (or install deps with pip)
-3. `cp conf_template/default.env .env` and update values as needed
+1. `direnv allow` (if you use `devenv`)
+2. `uv sync` (or install dependencies with `pip`)
+3. `cp conf_template/default.env .env` and update values
 4. `export DJANGO_SETTINGS_MODULE=lx_annotate.settings.settings_dev`
 5. `python manage.py load_base_db_data`
 6. `python manage.py runserver`
 
 Open `http://127.0.0.1:8000/`.
 
-## Environment Variables
+## Environment Variables and Secrets
 
-In a production environment, the secrets of lx annotate are deployed using the system service on the local machine (NixOS Variables are injected from a secure place).
+Production secrets are typically injected by the host system.
+For local development, use either `secretspec.toml` defaults or a local `.env` file.
 
-To run locally, using your own secrets, either change your defaults in secretspec.toml or add a local .env file.
+Do not commit secrets. `secretspec.toml` is tracked in git.
 
-CAUTION: DONT PUBLISH YOUR SECRETS! Secretspec.toml is not in gitignore.
-
-run 
+Example:
 
 ```bash
 direnv allow
-secretspec --provider dotenv -- profile development python manage.py runserver
+secretspec --provider dotenv --profile development python manage.py runserver
 ```
 
-to verify. To inject the secrets, running the server or shell with secretspec is required.
+See <https://secretspec.dev/> for details.
 
-See https://secretspec.dev/ for further reference.
-
-A .env.example comes with the project. Possibly, you will need to set dotenv = true in devenv.nix as well.
 ## Frontend
 
 ```bash
@@ -79,10 +75,12 @@ export DJANGO_SETTINGS_MODULE=lx_annotate.settings.settings_dev
 python manage.py runserver
 ```
 
-## File watcher
+## File Watcher
 
-The file watcher ingests media placed in `data/raw_videos/` and
-`data/raw_pdfs/`.
+The file watcher ingests media placed in:
+
+- `data/raw_videos/`
+- `data/raw_pdfs/`
 
 ```bash
 ./scripts/start_filewatcher.sh dev
@@ -92,14 +90,13 @@ python scripts/file_watcher.py
 
 ## Configuration
 
-- Dev `.env` is read from the repo root or `~/.local/share/lx-annotate/.env`.
-- Settings are driven by environment variables; see `secretspec.toml` for
-  defaults.
+- Development `.env` is read from the repository root or `~/.local/share/lx-annotate/.env`.
+- Settings are driven by environment variables (see `secretspec.toml` defaults).
 - Sample configs live in `conf_template/`.
 
-## Nix builds
+## Nix Builds
 
-THIS NEEDS FURTHER IMPLEMENTATION; AI ON FULL NIX BUILD IS HARD. FLAKES ARE LOCATED IN /build
+Nix build targets are available, but deployment paths may still need project-specific adjustments.
 
 ```bash
 nix build .#prod-server

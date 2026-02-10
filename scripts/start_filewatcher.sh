@@ -128,11 +128,9 @@ install_service() {
     fi
 }
 
-# start_dev starts the file watchers in development mode and runs the internal watcher in the foreground.
-# It exports required environment variables, launches the external watcher in the background (saving its PID),
-# runs the internal watcher in the foreground, and installs an EXIT trap to stop the external watcher on script exit.
+# start_dev starts the internal watcher in development mode.
 start_dev() {
-    print_status "Starting file watchers in development mode..."
+    print_status "Starting file watcher in development mode..."
     cd "$HOME_DIR"
 
     # Ensure expected directory layout exists before starting services
@@ -142,16 +140,7 @@ start_dev() {
     export WATCHER_LOG_LEVEL=DEBUG
     export PYTHONPATH="$HOME_DIR"
 
-    # Start external watcher (moves files into raw folders)
-    print_status "Starting external file watcher..."
-    python scripts/external_file_watcher.py &
-    EXTERNAL_WATCHER_PID=$!
-    print_status "External watcher started (PID: $EXTERNAL_WATCHER_PID)"
-
-    # Start internal watcher (processes files in raw folders)
     print_status "Starting internal file watcher..."
-    trap "print_status 'Stopping external watcher...'; kill $EXTERNAL_WATCHER_PID" EXIT
-
     python scripts/file_watcher.py
 }
 
