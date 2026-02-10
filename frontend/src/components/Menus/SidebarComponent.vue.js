@@ -88,7 +88,7 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.d
     ...{ class: "ms-1 font-weight-bold text-white text-center" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "w-auto max-height-vh-100" },
+    ...{ class: "sidenav-body w-auto max-height-vh-100" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.ul, __VLS_intrinsicElements.ul)({
     ...{ class: "navbar-nav" },
@@ -293,6 +293,7 @@ var __VLS_27;
 /** @type {__VLS_StyleScopedClasses['font-weight-bold']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-white']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['sidenav-body']} */ ;
 /** @type {__VLS_StyleScopedClasses['w-auto']} */ ;
 /** @type {__VLS_StyleScopedClasses['max-height-vh-100']} */ ;
 /** @type {__VLS_StyleScopedClasses['navbar-nav']} */ ;
