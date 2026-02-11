@@ -1,4 +1,4 @@
-#!/nix/store/lpi16513bai8kg2bd841745vzk72475x-python3-3.11.9/bin/python
+#!/usr/bin/env python3
 """Django's command-line utility for administrative tasks."""
 import os
 import subprocess
