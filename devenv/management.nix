@@ -161,6 +161,8 @@ in
         
         # Define the explicit path to the venv python
         VENV_PYTHON="$REPO_ROOT/.devenv/state/venv/bin/python"
+
+        git submodule update --init --recursive
         
         echo "🌀 Starting Daphne using Venv Python..."
         

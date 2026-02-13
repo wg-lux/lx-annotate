@@ -21,6 +21,7 @@ export interface Video {
   status?: string
   video_url?: string
   exportSegmentsByVideo?: boolean
+  frameCount?: number
   [key: string]: any
 }
 
@@ -151,6 +152,7 @@ export interface VideoAnnotation {
   assignedUser: string | null
   duration?: number
   fps?: number
+  frameCount?: number
 }
 
 /**
@@ -167,6 +169,7 @@ export interface VideoMeta {
   fps?: number
   hasROI?: boolean
   outsideFrameCount?: number
+  frameCount?: number
   centerName: string
   processorName: string
   segments?: Segment[]
@@ -290,7 +293,7 @@ export type UploadErrorCallback = (message: string) => void
 
 const videos = ref<Video[]>([])
 
-const toast = useToastStore()
+const getToastStore = () => useToastStore()
 
 const translationMap: Record<LabelKey, string> = {
   appendix: 'Appendix',
@@ -385,6 +388,55 @@ export const useVideoStore = defineStore('video', () => {
   const getEffectiveFps = (): number => {
     const fps = videoMeta.value?.fps ?? currentVideo.value?.fps ?? 50
     return Number.isFinite(fps) && fps > 0 ? fps : 50
+  }
+
+  const getEffectiveFrameCount = (): number | null => {
+    const frameCount = videoMeta.value?.frameCount ?? currentVideo.value?.frameCount
+    if (Number.isFinite(frameCount) && (frameCount as number) > 0) {
+      return Math.floor(frameCount as number)
+    }
+
+    const d = duration.value
+    const fps = getEffectiveFps()
+    if (!Number.isFinite(d) || d <= 0 || !Number.isFinite(fps) || fps <= 0) {
+      return null
+    }
+
+    return Math.max(1, Math.floor(d * fps))
+  }
+
+  function toBoundedFrameRange(startTime: number, endTime: number) {
+    const fps = getEffectiveFps()
+    const safeStart = Number.isFinite(startTime) ? Math.max(0, startTime) : 0
+    const safeEnd = Number.isFinite(endTime) ? Math.max(0, endTime) : 0
+
+    let startFrame = Math.floor(safeStart * fps)
+    let endFrame = Math.floor(safeEnd * fps)
+
+    const frameCount = getEffectiveFrameCount()
+    if (frameCount !== null) {
+      const maxStart = Math.max(0, frameCount - 1)
+      startFrame = Math.min(startFrame, maxStart)
+      endFrame = Math.min(endFrame, frameCount)
+    }
+
+    if (endFrame <= startFrame) {
+      if (frameCount !== null) {
+        endFrame = Math.min(frameCount, startFrame + 1)
+        if (endFrame <= startFrame) {
+          startFrame = Math.max(0, endFrame - 1)
+        }
+      } else {
+        endFrame = startFrame + 1
+      }
+    }
+
+    return {
+      startFrame,
+      endFrame,
+      startTime: startFrame / fps,
+      endTime: endFrame / fps
+    }
   }
 
   const segments = computed<Segment[]>(() => currentVideo.value?.segments || [])
@@ -716,6 +768,14 @@ export const useVideoStore = defineStore('video', () => {
           anonymized: video.anonymized || false,
           segmentAnnotationsValidated:
             video.segmentAnnotationsValidated ?? video.segment_annotations_validated ?? false,
+          duration: video.duration !== undefined ? Number(video.duration) : undefined,
+          fps: video.fps !== undefined ? Number(video.fps) : undefined,
+          frameCount:
+            video.frameCount !== undefined
+              ? Number(video.frameCount)
+              : video.frame_count !== undefined
+              ? Number(video.frame_count)
+              : undefined,
           centerName: video.centerName || video.center_name || 'Unbekannt',
           processorName: video.processorName || video.processor_name || 'Unbekannt',
           exportSegmentsByVideo:
@@ -767,7 +827,10 @@ export const useVideoStore = defineStore('video', () => {
         segments: cachedSegments ?? [],
         videoUrl: buildVideoStreamUrl(video.id) + '?type=processed',
         status: video.status as VideoStatus,
-        assignedUser: video.assignedUser || null
+        assignedUser: video.assignedUser || null,
+        duration: video.duration,
+        fps: video.fps,
+        frameCount: video.frameCount
       }
       if (cachedSegments !== null) {
         applyCachedSegments(videoId, cachedSegments)
@@ -813,6 +876,12 @@ export const useVideoStore = defineStore('video', () => {
         fps: meta.fps !== undefined ? Number(meta.fps) : 50,
         hasROI: Boolean(meta.hasROI ?? meta.has_roi ?? false),
         outsideFrameCount: Number(meta.outsideFrameCount ?? meta.outside_frame_count ?? 0),
+        frameCount:
+          meta.frameCount !== undefined
+            ? Number(meta.frameCount)
+            : meta.frame_count !== undefined
+            ? Number(meta.frame_count)
+            : undefined,
         centerName: String(meta.centerName ?? meta.center_name ?? 'Unbekannt'),
         processorName: String(meta.processorName ?? meta.processor_name ?? 'Unbekannt'),
         exportSegmentsByVideo: Boolean(
@@ -829,6 +898,9 @@ export const useVideoStore = defineStore('video', () => {
         }
         if (normalizedMeta.fps !== undefined && normalizedMeta.fps > 0) {
           currentVideo.value.fps = normalizedMeta.fps
+        }
+        if (normalizedMeta.frameCount !== undefined && normalizedMeta.frameCount > 0) {
+          currentVideo.value.frameCount = normalizedMeta.frameCount
         }
       }
 
@@ -1014,9 +1086,7 @@ export const useVideoStore = defineStore('video', () => {
       }
       const labelId = labelMeta.id
 
-      const fps = getEffectiveFps()
-      const startFrame = Math.floor(startTime * fps)
-      const endFrame = Math.floor(endTime * fps)
+      const { startFrame, endFrame } = toBoundedFrameRange(startTime, endTime)
 
       const segmentData = {
         video_file: videoId,
@@ -1063,9 +1133,7 @@ export const useVideoStore = defineStore('video', () => {
     endTime: number,
     extra: SegmentUpdatePayload = {}
   ) {
-    const fps = getEffectiveFps()
-    const startFrame = Math.floor(startTime * fps)
-    const endFrame = Math.floor(endTime * fps)
+    const bounded = toBoundedFrameRange(startTime, endTime)
 
     const {
       exportSegment,
@@ -1075,10 +1143,10 @@ export const useVideoStore = defineStore('video', () => {
 
     return {
       // backend expects snake_case:
-      start_time: startTime,
-      end_time: endTime,
-      start_frame_number: startFrame,
-      end_frame_number: endFrame,
+      start_time: bounded.startTime,
+      end_time: bounded.endTime,
+      start_frame_number: bounded.startFrame,
+      end_frame_number: bounded.endFrame,
       export_segment: export_segment ?? exportSegment,
       ...rest
     }
@@ -1182,7 +1250,7 @@ export const useVideoStore = defineStore('video', () => {
           '[VideoStore] Segment update failed after retries:',
           axiosError.response?.data || axiosError.message
         )
-        toast.error({ text: 'Segment konnte nicht gespeichert werden. Bitte erneut speichern.' })
+        getToastStore().error({ text: 'Segment konnte nicht gespeichert werden. Bitte erneut speichern.' })
       }
     } finally {
       isProcessingSegmentQueue = false
@@ -1218,7 +1286,7 @@ export const useVideoStore = defineStore('video', () => {
       console.error('Error updating segment:', axiosError.response?.data || axiosError.message)
       errorMessage.value = 'Error updating segment. Please try again.'
       if (!options.silent) {
-        toast.error({ text: 'Fehler beim Aktualisieren des Segments' })
+        getToastStore().error({ text: 'Fehler beim Aktualisieren des Segments' })
       }
       return false
     }
@@ -1381,10 +1449,8 @@ export const useVideoStore = defineStore('video', () => {
         return null
       }
 
-      // Calculate frame numbers correctly
-      const fps = getEffectiveFps()
-      const startFrame = Math.floor(draft.startTime * fps)
-      const endFrame = Math.floor(draft.endTime * fps)
+      // Clamp to available frames before sending to backend.
+      const { startFrame, endFrame } = toBoundedFrameRange(draft.startTime, draft.endTime)
 
       // Use correct backend API format
       const payload = {
@@ -1532,7 +1598,7 @@ export const useVideoStore = defineStore('video', () => {
                 'Error updating segment:',
                 axiosError.response?.data || axiosError.message
               )
-              toast.error({ text: 'Fehler beim Aktualisieren des Segments' })
+              getToastStore().error({ text: 'Fehler beim Aktualisieren des Segments' })
             }
             return { ok: false, segment }
           }
@@ -1547,13 +1613,13 @@ export const useVideoStore = defineStore('video', () => {
       })
 
       if (successCount === dirtySegments.length) {
-        toast.success({ text: 'Alle Änderungen gespeichert' })
+        getToastStore().success({ text: 'Alle Änderungen gespeichert' })
       } else if (queuedAny) {
-        toast.info({ text: 'Segment-Updates werden erneut versucht.' })
+        getToastStore().info({ text: 'Segment-Updates werden erneut versucht.' })
       } else if (successCount > 0) {
-        toast.warning({ text: `${successCount} von ${dirtySegments.length} Segmenten gespeichert` })
+        getToastStore().warning({ text: `${successCount} von ${dirtySegments.length} Segmenten gespeichert` })
       } else {
-        toast.error({ text: 'Speichern fehlgeschlagen' })
+        getToastStore().error({ text: 'Speichern fehlgeschlagen' })
       }
 
       if (successCount > 0 && currentVideo.value?.id) {
@@ -1561,7 +1627,7 @@ export const useVideoStore = defineStore('video', () => {
       }
     } catch (error) {
       console.error('Save failed:', error);
-      toast.error({text: 'Systemfehler beim Speichern'});
+      getToastStore().error({text: 'Systemfehler beim Speichern'});
     }
   }
 
