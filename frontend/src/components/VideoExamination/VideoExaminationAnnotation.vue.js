@@ -842,8 +842,6 @@ let __VLS_directives;
 /** @type {__VLS_StyleScopedClasses['requirement-generator-embedded']} */ ;
 /** @type {__VLS_StyleScopedClasses['status-badge-container']} */ ;
 /** @type {__VLS_StyleScopedClasses['validation-status-alert']} */ ;
-/** @type {__VLS_StyleScopedClasses['validation-action-button']} */ ;
-/** @type {__VLS_StyleScopedClasses['validation-action-button']} */ ;
 /** @type {__VLS_StyleScopedClasses['label-overlay']} */ ;
 /** @type {__VLS_StyleScopedClasses['label-overlay-item']} */ ;
 /** @type {__VLS_StyleScopedClasses['shortcuts-toggle']} */ ;
@@ -1435,9 +1433,6 @@ if (__VLS_ctx.selectedVideoId) {
         (__VLS_ctx.timelineSegmentsForSelectedVideo.length);
     }
     else {
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: "d-flex justify-content-center" },
-        });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
             ...{ onClick: (...[$event]) => {
                     if (!(__VLS_ctx.selectedVideoId))
@@ -1447,10 +1442,11 @@ if (__VLS_ctx.selectedVideoId) {
                     __VLS_ctx.submitVideoSegments;
                     __VLS_ctx.markValidationFinishedRemoveOutside(__VLS_ctx.selectedVideoId);
                 } },
-            ...{ class: "btn validation-action-button d-inline-flex align-items-center justify-content-center gap-2" },
+            ...{ class: "btn btn-success btn-lg w-100 d-flex align-items-center justify-content-center gap-2" },
+            ...{ style: {} },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "material-icons validation-action-icon" },
+            ...{ class: "material-icons" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
         (__VLS_ctx.timelineSegmentsForSelectedVideo.length);
@@ -1786,16 +1782,15 @@ if (__VLS_ctx.savedExaminations.length > 0) {
 /** @type {__VLS_StyleScopedClasses['fa-medal']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
-/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
-/** @type {__VLS_StyleScopedClasses['justify-content-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
-/** @type {__VLS_StyleScopedClasses['validation-action-button']} */ ;
-/** @type {__VLS_StyleScopedClasses['d-inline-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-success']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-lg']} */ ;
+/** @type {__VLS_StyleScopedClasses['w-100']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
 /** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['justify-content-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['gap-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['material-icons']} */ ;
-/** @type {__VLS_StyleScopedClasses['validation-action-icon']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
