@@ -1,124 +1,49 @@
-## 📘 Timeline.vue – Komponente zur Videosegmentierung
+# Timeline.vue
 
-### **Zweck**
+## Purpose
+`Timeline.vue` renders video segments and provides timeline interactions for:
+- seeking and playback control
+- selecting time ranges to create segments
+- dragging/resizing existing segments
+- deleting/copying/pasting/undoing segments
+- editing segment start/end times via right-click inline input
 
-Die `Timeline`-Komponente visualisiert zeitbasierte Annotationen (Segmente) eines Videos, gruppiert nach Label. Sie erlaubt:
+## Props
+- `video?: { duration?: number } | null`
+- `segments?: Segment[]`
+- `labels?: LabelMeta[]`
+- `currentTime?: number`
+- `isPlaying?: boolean`
+- `activeSegmentId?: number | null`
+- `showWaveform?: boolean`
+- `selectionMode?: boolean`
+- `fps?: number`
 
-* Anzeige von Zeitmarkierungen und Segmenten
-* Visuelles Navigieren und Springen im Video
-* Interaktive Bearbeitung (Segment-Resize)
-* Neue Segmenterstellung per Klick
+## Emits
+- `seek(time: number)`
+- `play-pause()`
+- `segment-select(segmentId: number)`
+- `segment-edit(segment: Segment)`
+- `segment-delete(segment: Segment)`
+- `segment-create(data: { label: string; start: number; end: number })`
+- `segment-resize(segmentId: number, newStart: number, newEnd: number, mode: string, final?: boolean)`
+- `segment-move(segmentId: number, newStart: number, newEnd: number, final?: boolean)`
+- `time-selection(data: { start: number; end: number })`
 
----
+## Right-Click Time Editing
+- Default right-click on a segment opens an inline editor at mouse position.
+- Input formats accepted:
+- `ss` (seconds, decimal allowed)
+- `mm:ss`
+- `hh:mm:ss`
+- Save triggers `segment-resize` with `mode = 'manual'` and `final = true`.
+- Validation prevents invalid ranges (negative, end <= start, end > video duration).
+- `Esc` or outside click closes the editor.
+- `Shift + Right-Click` opens the legacy context menu.
 
-### **Props**
+## Parent Integration
+In `VideoExaminationAnnotation.vue`, `Timeline` is wired with:
+- `@segment-resize="handleSegmentResize"`
+- `@segment-move="handleSegmentMove"`
 
-| Name          | Typ            | Beschreibung                                                    |
-| ------------- | -------------- | --------------------------------------------------------------- |
-| `duration`    | `number`       | Gesamtdauer des Videos (in Sekunden), **Pflichtfeld**           |
-| `currentTime` | `number`       | Aktuelle Zeit im Video (in Sekunden), für den Cursor            |
-| `segments`    | `Segment[]`    | Lokale (nicht persistierte) Segmente                            |
-| `apiSegments` | `ApiSegment[]` | Serverseitig geladene Segmente (frame-basiert)                  |
-| `fps`         | `number`       | Frames pro Sekunde (Standard: 50), zur Frame-Zeit-Konvertierung |
-
----
-
-### **Emits**
-
-| Event           | Argumente                                         | Beschreibung                       |
-| --------------- | ------------------------------------------------- | ---------------------------------- |
-| `seek`          | `(targetTime: number)`                            | Springt zu gegebener Zeit im Video |
-| `resize`        | `(id: number, endTime: number, endFrame: number)` | Anpassung des Segment-Endes        |
-| `createSegment` | `(time: number, frame: number)`                   | Neues Segment bei Shift+Klick      |
-
----
-
-### **Reaktive Referenzen (`ref`)**
-
-| Name             | Zweck                                              |
-| ---------------- | -------------------------------------------------- |
-| `timelineRef`    | Zugriff auf Timeline-DOM für Koordinatenberechnung |
-| `timeMarkersRef` | Zugriff auf Zeitmarkierungen                       |
-| `activeSegment`  | Temporär ausgewähltes Segment beim Resizing        |
-| `isResizing`     | Aktiviert Mausmove-Handler                         |
-| `startX`         | Mausstartposition bei Resizing                     |
-| `initialEndTime` | Ursprüngliches Segment-Ende                        |
-| `lastTimestamp`  | Throttling für MouseMove                           |
-
----
-
-### **Computed Properties**
-
-| Name                | Typ            | Beschreibung                                                   |
-| ------------------- | -------------- | -------------------------------------------------------------- |
-| `convertedSegments` | `Segment[]`    | Umwandlung von `apiSegments` in segmentObjekte mit Zeitangaben |
-| `organizedSegments` | `LabelGroup[]` | Gruppierung aller Segmente nach Label (inkl. Farbcodierung)    |
-| `cursorPosition`    | `number`       | Prozentualer Ort des aktuellen Timers                          |
-| `timeMarkers`       | `TimeMarker[]` | Automatisch berechnete Zeitmarken für das Header-Grid          |
-
----
-
-### **Zentrale Methoden**
-
-* **`startResize()`**: Beginnt Ziehvorgang am Segmentende
-* **`onMouseMove()`**: Berechnet neue Endzeit und aktualisiert Store + emit
-* **`onMouseUp()`**: Beendet Resize-Vorgang
-* **`handleTimelineClick()`**: Seek oder Segmenterstellung (Shift)
-* **`jumpToSegment()`**: Springt in das Segment (10% Offset zur Mitte)
-* **`getSegmentStyle()`**: Berechnet Position + Breite + Farbe eines Segments
-
----
-
-### **CSS & UX Features**
-
-* Responsive Design (angepasste Label-Größen für Mobilgeräte)
-* Hover-Effekte, Box-Shadows, visuelles Feedback
-* Zeitlabels mit Hintergrund
-* Farbige Labels mit konsistentem Farbschema
-
----
-
-### **Verwendete Typen**
-
-```ts
-type Segment = {
-  id: number;
-  video_id: number;
-  label_id: number;
-  startTime: number;
-  endTime: number;
-  start_frame_number: number;
-  end_frame_number: number;
-  label: string;
-  label_display: string;
-  avgConfidence: number;
-};
-
-type ApiSegment = {
-  id: number;
-  video_id: number;
-  label_id: number;
-  start_frame_number: number;
-  end_frame_number: number;
-};
-
-type LabelGroup = {
-  labelName: string;
-  color: string;
-  segments: Segment[];
-};
-
-type TimeMarker = {
-  time: number;
-  position: number;
-};
-```
-
----
-
-### ✅ **Typische Anwendungsfälle**
-
-* In Video-Annotationstools für medizinische oder maschinelle Lernzwecke
-* Bei Visualisierung von automatischer Segment-Erkennung
-* Als Timeline-Editor für Benutzer-Eingriffe
-
+`handleSegmentResize(...args)` already accepts `(segmentId, newStart, newEnd, mode, final?)`, so manual typed edits are handled through the same update path as drag/resize.
