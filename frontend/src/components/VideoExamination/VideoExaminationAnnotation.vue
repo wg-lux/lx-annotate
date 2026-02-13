@@ -369,15 +369,15 @@
             </div>
           </div>
           
-          <button 
-            v-else
-            class="btn btn-success btn-lg w-100 d-flex align-items-center justify-content-center gap-2"
-            @click="submitVideoSegments; markValidationFinishedRemoveOutside(selectedVideoId)" 
-            style="font-size: 1.1rem; padding: 15px;"
-          > <!-- Remove mark validated when keeping outside segments for training -->
-            <i class="material-icons">check_circle</i>
-            <span>Alle Segmente validieren ({{ timelineSegmentsForSelectedVideo.length }})</span>
-          </button>
+          <div v-else class="d-flex justify-content-center">
+            <button 
+              class="btn validation-action-button d-inline-flex align-items-center justify-content-center gap-2"
+              @click="submitVideoSegments; markValidationFinishedRemoveOutside(selectedVideoId)" 
+            > <!-- Remove mark validated when keeping outside segments for training -->
+              <i class="material-icons validation-action-icon">check_circle</i>
+              <span>Alle Segmente validieren ({{ timelineSegmentsForSelectedVideo.length }})</span>
+            </button>
+          </div>
           
           <p v-if="!isAnnotationFinished(selectedVideoId)" 
              class="text-muted text-center mt-2 mb-0" style="font-size: 0.9rem;">
@@ -1658,6 +1658,30 @@ const isVideoValidated = (videoId: number): boolean => {
 
 .validation-status-alert .fas {
   opacity: 0.8;
+}
+
+.validation-action-button {
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 0.45rem 1rem;
+  border-radius: 999px;
+  border: 1px solid #1f7a3a;
+  background: linear-gradient(135deg, #32b55b 0%, #239245 100%);
+  color: #ffffff;
+  box-shadow: 0 4px 10px rgba(35, 146, 69, 0.25);
+}
+
+.validation-action-button:hover {
+  background: linear-gradient(135deg, #2ca650 0%, #1f7a3a 100%);
+  color: #ffffff;
+}
+
+.validation-action-button:focus {
+  box-shadow: 0 0 0 0.2rem rgba(35, 146, 69, 0.3);
+}
+
+.validation-action-icon {
+  font-size: 18px;
 }
 
 .label-overlay {
