@@ -98,7 +98,7 @@
               }"
               :data-id="segment.id"
               @click="selectSegment(segment)"
-              @contextmenu.prevent="openSegmentTimeEditor(segment, $event)"
+              @contextmenu.prevent="showSegmentMenu(segment, $event)"
             >
               <!-- Start resize handle -->
               <div 
@@ -191,40 +191,6 @@
       </div>
     </div>
 
-    <div
-      v-if="timeEditor.visible"
-      class="time-editor"
-      :style="{ left: timeEditor.x + 'px', top: timeEditor.y + 'px' }"
-      @click.stop
-      @mousedown.stop
-    >
-      <div class="time-editor-title">Segmentzeiten bearbeiten</div>
-      <label class="time-editor-label" for="segment-start-input">Start</label>
-      <input
-        id="segment-start-input"
-        ref="timeEditorStartInput"
-        v-model="timeEditor.startInput"
-        class="time-editor-input"
-        placeholder="mm:ss oder hh:mm:ss"
-        @keydown.enter.prevent="applyTimeEditorChanges"
-        @keydown.esc.prevent="hideTimeEditor"
-      />
-      <label class="time-editor-label" for="segment-end-input">Ende</label>
-      <input
-        id="segment-end-input"
-        v-model="timeEditor.endInput"
-        class="time-editor-input"
-        placeholder="mm:ss oder hh:mm:ss"
-        @keydown.enter.prevent="applyTimeEditorChanges"
-        @keydown.esc.prevent="hideTimeEditor"
-      />
-      <div v-if="timeEditor.error" class="time-editor-error">{{ timeEditor.error }}</div>
-      <div class="time-editor-actions">
-        <button type="button" class="time-editor-btn" @click="hideTimeEditor">Abbrechen</button>
-        <button type="button" class="time-editor-btn primary" @click="applyTimeEditorChanges">Speichern</button>
-      </div>
-    </div>
-
     <!-- Timeline tooltip -->
     <div 
       v-if="tooltip.visible"
@@ -275,16 +241,6 @@ interface TooltipState {
   text: string
 }
 
-interface TimeEditorState {
-  visible: boolean
-  x: number
-  y: number
-  segment: CanonicalSegment | null
-  startInput: string
-  endInput: string
-  error: string
-}
-
 interface CanonicalSegment extends Segment {
   start: number
   end: number
@@ -327,7 +283,6 @@ const emit = defineEmits<{
 // Refs with proper types
 const timeline = ref<HTMLElement | null>(null)
 const waveformCanvas = ref<HTMLCanvasElement | null>(null)
-const timeEditorStartInput = ref<HTMLInputElement | null>(null)
 const cleanupFunctions = ref<Array<() => void>>([])
 const zoomLevel = ref<number>(1)
 const isSelecting = ref<boolean>(false)
@@ -357,16 +312,6 @@ const tooltip = ref<TooltipState>({
   x: 0,
   y: 0,
   text: ''
-})
-
-const timeEditor = ref<TimeEditorState>({
-  visible: false,
-  x: 0,
-  y: 0,
-  segment: null,
-  startInput: '',
-  endInput: '',
-  error: ''
 })
 
 // Computed properties
@@ -762,7 +707,6 @@ const stepFrame = (direction: -1 | 1): void => {
   emit('seek', next)
 }
 
-
 const getSegmentRange = (segment: Segment | CanonicalSegment): { label: string; start: number; end: number } => {
   const canonical = segment as CanonicalSegment
   const start = Number.isFinite(canonical.start) ? canonical.start : segment.startTime ?? 0
@@ -827,11 +771,6 @@ const undoDelete = (): boolean => {
 }
 
 const handleKeyDown = (event: KeyboardEvent): void => {
-  if (event.key === 'Escape' && timeEditor.value.visible) {
-    hideTimeEditor()
-    event.preventDefault()
-    return
-  }
   if (isEditableTarget(event.target)) return
   const isMeta = event.ctrlKey || event.metaKey
 
@@ -859,8 +798,6 @@ const handleKeyDown = (event: KeyboardEvent): void => {
   if (!isMeta && !event.altKey) {
     const isComma = event.key === ',' || event.code === 'Comma'
     const isPeriod = event.key === '.' || event.code === 'Period'
-    const isK = event.key.toLowerCase() === 'k'
-    const isL = event.key.toLowerCase() === 'l'
     if (isComma) {
       event.preventDefault()
       stepFrame(-1)
@@ -868,21 +805,6 @@ const handleKeyDown = (event: KeyboardEvent): void => {
     }
     if (isPeriod) {
       event.preventDefault()
-      stepFrame(1)
-      return
-    }
-    if (isK) {
-      event.preventDefault()
-      stepFrame(-1)
-      stepFrame(-1)
-      stepFrame(-1)
-
-      return
-    }
-    if (isL) {
-      event.preventDefault()
-      stepFrame(1)
-      stepFrame(1)
       stepFrame(1)
       return
     }
@@ -917,7 +839,6 @@ const playSegment = (segment: Segment | null): void => {
 
 // Context menu
 const showSegmentMenu = (segment: Segment, event: MouseEvent): void => {
-  hideTimeEditor()
   contextMenu.value = {
     visible: true,
     x: event.clientX,
@@ -928,108 +849,6 @@ const showSegmentMenu = (segment: Segment, event: MouseEvent): void => {
 
 const hideContextMenu = (): void => {
   contextMenu.value.visible = false
-}
-
-const formatEditorTime = (timeInSeconds: number): string => {
-  if (!Number.isFinite(timeInSeconds) || timeInSeconds < 0) return '0'
-  const hours = Math.floor(timeInSeconds / 3600)
-  const minutes = Math.floor((timeInSeconds % 3600) / 60)
-  const seconds = timeInSeconds % 60
-  const secStr = seconds.toFixed(3).replace(/\.?0+$/, '')
-  if (hours > 0) {
-    return `${hours}:${String(minutes).padStart(2, '0')}:${secStr.padStart(2, '0')}`
-  }
-  return `${minutes}:${secStr.padStart(2, '0')}`
-}
-
-const parseEditorTime = (value: string): number | null => {
-  const input = value.trim()
-  if (!input) return null
-  if (/^\d+(\.\d+)?$/.test(input)) {
-    const seconds = Number(input)
-    return Number.isFinite(seconds) ? seconds : null
-  }
-
-  const parts = input.split(':').map(p => p.trim())
-  if (parts.length < 2 || parts.length > 3) return null
-  if (parts.some(p => p === '' || !/^\d+(\.\d+)?$/.test(p))) return null
-
-  const numericParts = parts.map(Number)
-  if (numericParts.some(v => !Number.isFinite(v))) return null
-  if (numericParts.slice(1).some(v => v >= 60)) return null
-
-  if (numericParts.length === 2) {
-    return numericParts[0] * 60 + numericParts[1]
-  }
-  return numericParts[0] * 3600 + numericParts[1] * 60 + numericParts[2]
-}
-
-const hideTimeEditor = (): void => {
-  timeEditor.value.visible = false
-  timeEditor.value.segment = null
-  timeEditor.value.error = ''
-}
-
-const openSegmentTimeEditor = (segment: CanonicalSegment, event: MouseEvent): void => {
-  if (event.shiftKey) {
-    showSegmentMenu(segment, event)
-    return
-  }
-  hideContextMenu()
-  const range = getSegmentRange(segment)
-  timeEditor.value = {
-    visible: true,
-    x: event.clientX,
-    y: event.clientY,
-    segment,
-    startInput: formatEditorTime(range.start),
-    endInput: formatEditorTime(range.end),
-    error: ''
-  }
-  selectSegment(segment)
-  nextTick(() => {
-    timeEditorStartInput.value?.focus()
-    timeEditorStartInput.value?.select()
-  })
-}
-
-const applyTimeEditorChanges = (): void => {
-  const editingState = timeEditor.value
-  if (!editingState.visible || !editingState.segment) return
-
-  const parsedStart = parseEditorTime(editingState.startInput)
-  const parsedEnd = parseEditorTime(editingState.endInput)
-
-  if (parsedStart === null || parsedEnd === null) {
-    timeEditor.value.error = 'Ungültiges Zeitformat.'
-    return
-  }
-  if (parsedStart < 0 || parsedEnd < 0) {
-    timeEditor.value.error = 'Zeiten dürfen nicht negativ sein.'
-    return
-  }
-  if (parsedEnd <= parsedStart) {
-    timeEditor.value.error = 'Die Endzeit muss nach der Startzeit liegen.'
-    return
-  }
-  if (duration.value > 0 && parsedEnd > duration.value) {
-    timeEditor.value.error = `Die Endzeit darf maximal ${formatTime(duration.value)} sein.`
-    return
-  }
-
-  const localSegment = displayedSegments.value.find(s => s.id === editingState.segment?.id)
-  if (localSegment) {
-    localSegment.start = parsedStart
-    localSegment.end = parsedEnd
-    localSegment.startTime = parsedStart
-    localSegment.endTime = parsedEnd
-  }
-
-  const numericId = getNumericSegmentId(editingState.segment.id)
-  if (numericId !== null) {
-    emit('segment-resize', numericId, parsedStart, parsedEnd, 'manual', true)
-  }
-  hideTimeEditor()
 }
 
 // Timeline interaction
@@ -1115,9 +934,6 @@ const initializeWaveform = (): void => {
 const handleClickOutside = (event: Event): void => {
   if (contextMenu.value.visible && !(event.target as Element)?.closest('.context-menu')) {
     hideContextMenu()
-  }
-  if (timeEditor.value.visible && !(event.target as Element)?.closest('.time-editor')) {
-    hideTimeEditor()
   }
 }
 
@@ -1513,72 +1329,6 @@ const getNumericSegmentId = (segmentId: number): number | null => {
   z-index: 1000;
   min-width: 160px;
   overflow: hidden;
-}
-
-.time-editor {
-  position: fixed;
-  z-index: 1100;
-  min-width: 220px;
-  background-color: #fff;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
-  padding: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.time-editor-title {
-  font-size: 12px;
-  font-weight: 700;
-  color: #333;
-}
-
-.time-editor-label {
-  font-size: 11px;
-  color: #666;
-}
-
-.time-editor-input {
-  width: 100%;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  padding: 6px 8px;
-  font-size: 12px;
-}
-
-.time-editor-input:focus {
-  outline: none;
-  border-color: #2196f3;
-  box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.15);
-}
-
-.time-editor-error {
-  color: #d32f2f;
-  font-size: 11px;
-}
-
-.time-editor-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-}
-
-.time-editor-btn {
-  border: 1px solid #ccc;
-  background: #fff;
-  color: #444;
-  border-radius: 4px;
-  padding: 5px 8px;
-  font-size: 12px;
-  cursor: pointer;
-}
-
-.time-editor-btn.primary {
-  border-color: #2196f3;
-  background: #2196f3;
-  color: #fff;
 }
 
 .context-menu-item {

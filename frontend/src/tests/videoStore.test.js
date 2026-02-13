@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { setActivePinia, createPinia } from 'pinia';
 import { useVideoStore } from '@/stores/videoStore';
-import axiosInstance from '@/api/axiosInstance';
 import { framesToSeconds, secondsToFrames, safeTimeConversion } from '@/utils/timeHelpers';
 // ✅ FIX: Mock axiosInstance at the top level with a factory function
 vi.mock('@/api/axiosInstance', () => ({
@@ -16,7 +15,6 @@ vi.mock('@/api/axiosInstance', () => ({
 describe('VideoStore - Frame to Time Conversion', () => {
     beforeEach(() => {
         setActivePinia(createPinia());
-        vi.clearAllMocks();
     });
     describe('Helper Functions', () => {
         it('should convert frames to seconds correctly', () => {
@@ -52,50 +50,6 @@ describe('VideoStore - Frame to Time Conversion', () => {
         });
     });
     describe('VideoStore Integration', () => {
-        it('should clamp end_frame_number to frameCount when creating a segment', async () => {
-            const store = useVideoStore();
-
-            axiosInstance.get.mockResolvedValueOnce({
-                data: [{ id: 1, name: 'polyp', color: '#ff0000' }]
-            });
-            await store.fetchLabels();
-
-            store.setVideo({
-                id: 1,
-                isAnnotated: true,
-                errorMessage: '',
-                segments: [],
-                videoUrl: '',
-                status: 'available',
-                assignedUser: null,
-                duration: 10,
-                fps: 50,
-                frameCount: 500
-            });
-
-            axiosInstance.post.mockResolvedValueOnce({
-                data: {
-                    id: 42,
-                    videoId: 1,
-                    labelName: 'polyp',
-                    startFrameNumber: 0,
-                    endFrameNumber: 500,
-                    startTime: 0,
-                    endTime: 10
-                }
-            });
-
-            await store.createSegment(1, 'polyp', 0, 10.1);
-
-            expect(axiosInstance.post).toHaveBeenCalledWith(
-                'media/videos/1/segments/',
-                expect.objectContaining({
-                    start_frame_number: 0,
-                    end_frame_number: 500
-                })
-            );
-        });
-
         it('should process segments with correct time conversion', async () => {
             const store = useVideoStore();
             // Mock video metadata

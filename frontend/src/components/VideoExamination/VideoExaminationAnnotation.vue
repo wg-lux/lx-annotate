@@ -226,7 +226,6 @@
                   Ctrl/Cmd + V = Segment einfügen ·
                   Ctrl/Cmd + Z = Löschen rückgängig ·
                   Delete/Backspace = Segment löschen ·
-                  Rechtsklick auf Segment = Start/Ende tippen ·
                   + = Segment-Start ·
                   - = Segment-Ende ·
                   Esc = Abbrechen

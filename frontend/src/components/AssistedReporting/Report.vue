@@ -95,74 +95,6 @@
       :isActive="currentStep === 2"
       @next="goToStep(3)"
     >
-      <div class="card mb-3">
-        <div class="card-header d-flex justify-content-between align-items-center">
-          <div>
-            <h6 class="mb-1">Report Template (Django API)</h6>
-            <small class="text-muted">Quelle: {{ selectedKbModule }}</small>
-          </div>
-          <button
-            class="btn btn-sm btn-outline-secondary"
-            :disabled="reportTemplateLoading"
-            @click="fetchReportTemplateByName(selectedKbModule, selectedTemplateName)"
-          >
-            Neu laden
-          </button>
-        </div>
-        <div class="card-body">
-          <div class="row g-2 mb-3">
-            <div class="col-md-6">
-              <label class="form-label mb-1">Knowledge-Base Modul</label>
-              <input v-model="selectedKbModule" class="form-control form-control-sm" />
-            </div>
-            <div class="col-md-6">
-              <label class="form-label mb-1">Report Template</label>
-              <select
-                v-model="selectedTemplateName"
-                class="form-select form-select-sm"
-                :disabled="reportTemplateLoading || !reportTemplateOptions.length"
-              >
-                <option v-if="!reportTemplateOptions.length" :value="selectedTemplateName">
-                  Keine Templates für Untersuchung
-                </option>
-                <option
-                  v-for="tpl in reportTemplateOptions"
-                  :key="tpl.name"
-                  :value="tpl.name"
-                >
-                  {{ tpl.name }}
-                </option>
-              </select>
-              <small class="text-muted">
-                {{ reportTemplateOptions.length }} Template(s) verfügbar
-              </small>
-            </div>
-          </div>
-
-          <div v-if="reportTemplateLoading" class="text-muted small">
-            Lade Report Template...
-          </div>
-          <div v-else-if="reportTemplate">
-            <p class="mb-2">
-              <strong>{{ reportTemplate.name }}</strong>
-              <span class="text-muted">({{ reportTemplate.examination }})</span>
-            </p>
-            <ul class="mb-2">
-              <li v-for="section in reportTemplate.reportSections" :key="section.name">
-                {{ section.position }} - {{ section.name }} ({{ section.findings.length }} Findings)
-              </li>
-            </ul>
-            <small class="text-muted">
-              Validators: {{ reportTemplate.validators.examinationValidators.length }} examination,
-              {{ reportTemplate.validators.findingsValidators.length }} findings
-            </small>
-          </div>
-          <div v-else class="text-muted small">
-            Kein Report Template für die aktuelle Untersuchung gefunden.
-          </div>
-        </div>
-      </div>
-
       <div v-if="!lookupToken" class="text-muted small">
         Starten Sie zunächst die Lookup-Session, um Requirement Sets zu sehen.
       </div>
@@ -361,35 +293,6 @@ type LookupDict = {
   selectedChoices?: Record<string, any>;
 };
 
-type ReportTemplateClassification = {
-  classification: string;
-  required: boolean;
-};
-
-type ReportTemplateFinding = {
-  finding: string;
-  required: boolean;
-  multipleAllowed: boolean;
-  classifications: ReportTemplateClassification[];
-};
-
-type ReportTemplateSection = {
-  name: string;
-  position: number;
-  types: string[];
-  findings: ReportTemplateFinding[];
-};
-
-type ReportTemplatePayload = {
-  name: string;
-  examination: string;
-  reportSections: ReportTemplateSection[];
-  validators: {
-    examinationValidators: any[];
-    findingsValidators: any[];
-  };
-};
-
 // --- Store ---
 const patientStore = usePatientStore();
 const examinationStore = useExaminationStore();
@@ -399,7 +302,6 @@ const patientExaminationStore = usePatientExaminationStore();
 
 // --- API ---
 const LOOKUP_BASE = '/api/lookup';
-const REPORT_TEMPLATE_BASE = '/base_api/report-templates';
 const debug = ref<boolean>(false);
 
 // --- Component State ---
@@ -413,13 +315,6 @@ const loading = ref(false);
 const showCreatePatientModal = ref(false);
 const successMessage = ref<string | null>(null);
 const isRestarting = ref(false); // Prevent infinite restart loops
-const selectedKbModule = ref<string>('report_template_examples');
-const selectedTemplateName = ref<string>('star_upper_gi_main');
-const reportTemplate = ref<ReportTemplatePayload | null>(null);
-const reportTemplateLoading = ref<boolean>(false);
-const reportTemplateOptions = ref<ReportTemplatePayload[]>([]);
-const autoSelectionAppliedKey = ref<string | null>(null);
-const hasManualRequirementSelection = ref<boolean>(false);
 
 const currentStep = ref(1);
 const goToStep = (step: number) => {
@@ -503,84 +398,6 @@ const selectionsPretty = computed(() => JSON.stringify({
   token: lookupToken.value,
   selectedRequirementSetIds: selectedRequirementSetIds.value,
 }, null, 2));
-
-const normalizeKey = (value: string): string =>
-  String(value || '')
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, '_')
-    .replace(/-/g, '_');
-
-const makeSelectionKey = (token: string | null, templateName: string): string =>
-  `${token || 'no-token'}::${templateName}`;
-
-const collectTemplateFindingNames = (template: ReportTemplatePayload): Set<string> => {
-  const names = new Set<string>();
-  for (const section of template.reportSections || []) {
-    for (const finding of section.findings || []) {
-      if (finding?.finding) {
-        names.add(normalizeKey(finding.finding));
-      }
-    }
-  }
-  return names;
-};
-
-const getMatchingRequirementSetIdsFromTemplate = (
-  template: ReportTemplatePayload
-): number[] => {
-  const findingNames = collectTemplateFindingNames(template);
-  if (!findingNames.size) {
-    return [];
-  }
-
-  const matching = (lookup.value?.requirementSets || []).filter((set) => {
-    if (findingNames.has(normalizeKey(set.name)) || findingNames.has(normalizeKey(set.type || ''))) {
-      return true;
-    }
-
-    const requirementsForSet = lookup.value?.requirementsBySet?.[String(set.id)] || [];
-    return requirementsForSet.some((req: RequirementLite) =>
-      findingNames.has(normalizeKey(req.name))
-    );
-  });
-
-  return matching.map((s) => s.id);
-};
-
-const sameIdSet = (a: number[], b: number[]): boolean => {
-  if (a.length !== b.length) return false;
-  const aa = new Set(a);
-  if (aa.size !== b.length) return false;
-  for (const id of b) {
-    if (!aa.has(id)) return false;
-  }
-  return true;
-};
-
-const applyTemplateToRequirementSelection = async (): Promise<void> => {
-  if (!lookupToken.value || !reportTemplate.value || !lookup.value) return;
-  if (hasManualRequirementSelection.value) return;
-
-  const selectionKey = makeSelectionKey(lookupToken.value, reportTemplate.value.name);
-  if (autoSelectionAppliedKey.value === selectionKey) return;
-
-  const matchedSetIds = getMatchingRequirementSetIdsFromTemplate(reportTemplate.value);
-  if (!matchedSetIds.length) {
-    autoSelectionAppliedKey.value = selectionKey;
-    return;
-  }
-
-  if (!sameIdSet(selectedRequirementSetIds.value, matchedSetIds)) {
-    selectedRequirementSetIds.value = matchedSetIds;
-    requirementStore.setCurrentRequirementSetIds(matchedSetIds);
-    await patchLookup({ selectedRequirementSetIds: matchedSetIds });
-    await triggerRecompute();
-    await evaluateRequirementsOnChange();
-  }
-
-  autoSelectionAppliedKey.value = selectionKey;
-};
 
 
 
@@ -769,76 +586,6 @@ function applyLookup(partial: Partial<LookupDict>) {
   }
 }
 
-async function fetchReportTemplateByName(moduleName: string, templateName: string) {
-  reportTemplateLoading.value = true;
-  try {
-    const res = await axiosInstance.get(
-      `${REPORT_TEMPLATE_BASE}/${moduleName}/${templateName}`
-    );
-    reportTemplate.value = res.data as ReportTemplatePayload;
-    if (
-      reportTemplate.value &&
-      !reportTemplateOptions.value.some((t) => t.name === reportTemplate.value!.name)
-    ) {
-      reportTemplateOptions.value = [reportTemplate.value, ...reportTemplateOptions.value];
-    }
-  } catch (e) {
-    reportTemplate.value = null;
-    console.warn('Failed to fetch report template by name:', axiosError(e));
-  } finally {
-    reportTemplateLoading.value = false;
-  }
-}
-
-async function fetchReportTemplateByExamination(
-  moduleName: string,
-  examinationName: string
-) {
-  if (!examinationName) {
-    reportTemplate.value = null;
-    reportTemplateOptions.value = [];
-    return;
-  }
-
-  reportTemplateLoading.value = true;
-  try {
-    const res = await axiosInstance.get(
-      `${REPORT_TEMPLATE_BASE}/by-examination/${moduleName}/${encodeURIComponent(examinationName)}`
-    );
-    const templates = Array.isArray(res.data)
-      ? (res.data as ReportTemplatePayload[])
-      : [];
-    reportTemplateOptions.value = templates;
-
-    const selected = templates.find((t) => t.name === selectedTemplateName.value);
-    reportTemplate.value = selected || (templates.length ? templates[0] : null);
-    if (reportTemplate.value) {
-      selectedTemplateName.value = reportTemplate.value.name;
-    }
-  } catch (e) {
-    reportTemplate.value = null;
-    reportTemplateOptions.value = [];
-    console.warn('Failed to fetch report template by examination:', axiosError(e));
-  } finally {
-    reportTemplateLoading.value = false;
-  }
-}
-
-const onTemplateSelectionChange = async () => {
-  if (!selectedTemplateName.value) {
-    reportTemplate.value = null;
-    return;
-  }
-  const local = reportTemplateOptions.value.find(
-    (t) => t.name === selectedTemplateName.value
-  );
-  if (local) {
-    reportTemplate.value = local;
-    return;
-  }
-  await fetchReportTemplateByName(selectedKbModule.value, selectedTemplateName.value);
-};
-
 async function createPatientExaminationAndInitLookup() {
   if (isRestarting.value) {
     console.log('Restart already in progress, skipping createPatientExaminationAndInitLookup...');
@@ -1017,7 +764,6 @@ async function patchLookup(updates: Record<string, any>) {
 }
 
 function toggleRequirementSet(id: number, on: boolean) {
-  hasManualRequirementSelection.value = true;
   const s = new Set(selectedRequirementSetIds.value);
   if (on) s.add(id); else s.delete(id);
   selectedRequirementSetIds.value = Array.from(s);
@@ -1334,17 +1080,9 @@ watch(selectedExaminationId, (newId) => {
     selectedPatientId: selectedPatientId.value,
     availableExams: examinationsDropdown.value.map(e => ({ id: e.id, name: e.name }))
   });
-  autoSelectionAppliedKey.value = null;
-  hasManualRequirementSelection.value = false;
   examinationStore.setSelectedExamination(newId);
   if (newId) {
     examinationStore.loadFindingsForExamination(newId);
-    const selectedExam = examinationsDropdown.value.find(exam => exam.id === newId);
-    if (selectedExam?.name) {
-      fetchReportTemplateByExamination(selectedKbModule.value, selectedExam.name);
-    }
-  } else {
-    reportTemplate.value = null;
   }
 });
 
@@ -1362,8 +1100,6 @@ watch(selectedPatientId, async (newPatientId, oldPatientId) => {
   if (oldPatientId && newPatientId !== oldPatientId) {
     console.log('Patient changed, resetting session for new overview...');
     await resetSessionForNewPatient();
-    autoSelectionAppliedKey.value = null;
-    hasManualRequirementSelection.value = false;
   }
 });
 
@@ -1391,22 +1127,8 @@ watch(lookup, (newLookup) => {
   if (newLookup && newLookup.requirementsBySet) {
     console.log('Loading requirement sets from lookup data...');
     requirementStore.loadRequirementSetsFromLookup(newLookup);
-    void applyTemplateToRequirementSelection();
   }
 }, { immediate: true });
-
-watch(reportTemplate, () => {
-  void applyTemplateToRequirementSelection();
-});
-
-watch(selectedTemplateName, async () => {
-  await onTemplateSelectionChange();
-});
-
-watch(lookupToken, () => {
-  autoSelectionAppliedKey.value = null;
-  hasManualRequirementSelection.value = false;
-});
 
 // --- Lifecycle ---
 onMounted(async () => {
@@ -1446,7 +1168,6 @@ onMounted(async () => {
 
   // Load findings data on component mount
   await loadFindingsData();
-  await fetchReportTemplateByName(selectedKbModule.value, selectedTemplateName.value);
 });
 
 onUnmounted(() => {
