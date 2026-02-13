@@ -65,6 +65,17 @@
               </div>
             </div>
 
+            <div
+              v-if="lastValidationClickedVideoId !== null"
+              class="mt-2 p-2 rounded validation-click-indicator"
+              :class="selectedVideoId === lastValidationClickedVideoId ? 'validation-click-indicator-active' : 'validation-click-indicator-muted'"
+            >
+              <small class="fw-semibold">
+                <i class="fas fa-highlighter me-1"></i>
+                Das Video mit dieser ID wurde als validiert markiert {{ lastValidationClickedVideoId }}
+              </small>
+            </div>
+
             <!-- No Video Selected State -->
             <div v-if="!anonymizedVideoSrc && hasVideos" class="text-center text-muted py-5">
               <i class="material-icons" style="font-size: 48px;">movie</i>
@@ -373,7 +384,8 @@
           <div v-else class="d-flex justify-content-center">
             <button 
               class="btn validation-action-button d-inline-flex align-items-center justify-content-center gap-2"
-              @click="submitVideoSegments; markValidationFinishedRemoveOutside(selectedVideoId)" 
+              :class="{ 'validation-action-button-clicked': selectedVideoId === lastValidationClickedVideoId }"
+              @click="handleValidateAndMark(selectedVideoId)" 
             > <!-- Remove mark validated when keeping outside segments for training -->
               <i class="material-icons validation-action-icon">check_circle</i>
               <span>Alle Segmente validieren ({{ timelineSegmentsForSelectedVideo.length }})</span>
@@ -561,6 +573,7 @@ const isMarkingLabel = ref<boolean>(false)
 const labelMarkingStart = ref<number>(0)
 const selectedSegmentId = ref<number | null>(null)
 const isInitialLoading = ref<boolean>(true)
+const lastValidationClickedVideoId = ref<number | null>(null)
 
 // Video detail and metadata like VideoClassificationComponent
 const videoDetail = ref<{ video_url: string } | null>(null)
@@ -1354,6 +1367,17 @@ const submitVideoSegments = async (): Promise<void> => {
   }
 }
 
+const handleValidateAndMark = async (videoId: number | null): Promise<void> => {
+  if (!videoId) {
+    showErrorMessage('Kein Video ausgewählt')
+    return
+  }
+
+  lastValidationClickedVideoId.value = videoId
+  await submitVideoSegments()
+  await markValidationFinishedRemoveOutside(videoId)
+}
+
 
 
 
@@ -1681,8 +1705,29 @@ const isVideoValidated = (videoId: number): boolean => {
   box-shadow: 0 0 0 0.2rem rgba(35, 146, 69, 0.3);
 }
 
+.validation-action-button-clicked {
+  border-color: #0f5a2b;
+  background: linear-gradient(135deg, #248649 0%, #176b37 100%);
+  box-shadow: 0 0 0 0.2rem rgba(36, 134, 73, 0.28);
+}
+
 .validation-action-icon {
   font-size: 18px;
+}
+
+.validation-click-indicator {
+  border: 1px solid #d5dbe3;
+}
+
+.validation-click-indicator-active {
+  background: linear-gradient(135deg, #e4f7eb 0%, #d2f0dd 100%);
+  border-color: #2e9e55;
+  color: #165b33;
+}
+
+.validation-click-indicator-muted {
+  background: #f8f9fa;
+  color: #495057;
 }
 
 .label-overlay {
