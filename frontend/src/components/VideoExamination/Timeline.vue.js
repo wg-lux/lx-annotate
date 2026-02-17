@@ -11,6 +11,7 @@ const emit = defineEmits();
 // Refs with proper types
 const timeline = ref(null);
 const waveformCanvas = ref(null);
+const timeEditorStartInput = ref(null);
 const cleanupFunctions = ref([]);
 const zoomLevel = ref(1);
 const isSelecting = ref(false);
@@ -36,6 +37,15 @@ const tooltip = ref({
     x: 0,
     y: 0,
     text: ''
+});
+const timeEditor = ref({
+    visible: false,
+    x: 0,
+    y: 0,
+    segment: null,
+    startInput: '',
+    endInput: '',
+    error: ''
 });
 // Computed properties
 const duration = computed(() => props.video?.duration || 0);
@@ -429,6 +439,11 @@ const undoDelete = () => {
     return true;
 };
 const handleKeyDown = (event) => {
+    if (event.key === 'Escape' && timeEditor.value.visible) {
+        hideTimeEditor();
+        event.preventDefault();
+        return;
+    }
     if (isEditableTarget(event.target))
         return;
     const isMeta = event.ctrlKey || event.metaKey;
@@ -453,6 +468,8 @@ const handleKeyDown = (event) => {
     if (!isMeta && !event.altKey) {
         const isComma = event.key === ',' || event.code === 'Comma';
         const isPeriod = event.key === '.' || event.code === 'Period';
+        const isK = event.key.toLowerCase() === 'k';
+        const isL = event.key.toLowerCase() === 'l';
         if (isComma) {
             event.preventDefault();
             stepFrame(-1);
@@ -460,6 +477,20 @@ const handleKeyDown = (event) => {
         }
         if (isPeriod) {
             event.preventDefault();
+            stepFrame(1);
+            return;
+        }
+        if (isK) {
+            event.preventDefault();
+            stepFrame(-1);
+            stepFrame(-1);
+            stepFrame(-1);
+            return;
+        }
+        if (isL) {
+            event.preventDefault();
+            stepFrame(1);
+            stepFrame(1);
             stepFrame(1);
             return;
         }
@@ -494,6 +525,7 @@ const playSegment = (segment) => {
 };
 // Context menu
 const showSegmentMenu = (segment, event) => {
+    hideTimeEditor();
     contextMenu.value = {
         visible: true,
         x: event.clientX,
@@ -503,6 +535,103 @@ const showSegmentMenu = (segment, event) => {
 };
 const hideContextMenu = () => {
     contextMenu.value.visible = false;
+};
+const formatEditorTime = (timeInSeconds) => {
+    if (!Number.isFinite(timeInSeconds) || timeInSeconds < 0)
+        return '0';
+    const hours = Math.floor(timeInSeconds / 3600);
+    const minutes = Math.floor((timeInSeconds % 3600) / 60);
+    const seconds = timeInSeconds % 60;
+    const secStr = seconds.toFixed(3).replace(/\.?0+$/, '');
+    if (hours > 0) {
+        return `${hours}:${String(minutes).padStart(2, '0')}:${secStr.padStart(2, '0')}`;
+    }
+    return `${minutes}:${secStr.padStart(2, '0')}`;
+};
+const parseEditorTime = (value) => {
+    const input = value.trim();
+    if (!input)
+        return null;
+    if (/^\d+(\.\d+)?$/.test(input)) {
+        const seconds = Number(input);
+        return Number.isFinite(seconds) ? seconds : null;
+    }
+    const parts = input.split(':').map(p => p.trim());
+    if (parts.length < 2 || parts.length > 3)
+        return null;
+    if (parts.some(p => p === '' || !/^\d+(\.\d+)?$/.test(p)))
+        return null;
+    const numericParts = parts.map(Number);
+    if (numericParts.some(v => !Number.isFinite(v)))
+        return null;
+    if (numericParts.slice(1).some(v => v >= 60))
+        return null;
+    if (numericParts.length === 2) {
+        return numericParts[0] * 60 + numericParts[1];
+    }
+    return numericParts[0] * 3600 + numericParts[1] * 60 + numericParts[2];
+};
+const hideTimeEditor = () => {
+    timeEditor.value.visible = false;
+    timeEditor.value.segment = null;
+    timeEditor.value.error = '';
+};
+const openSegmentTimeEditor = (segment, event) => {
+    if (event.shiftKey) {
+        showSegmentMenu(segment, event);
+        return;
+    }
+    hideContextMenu();
+    const range = getSegmentRange(segment);
+    timeEditor.value = {
+        visible: true,
+        x: event.clientX,
+        y: event.clientY,
+        segment,
+        startInput: formatEditorTime(range.start),
+        endInput: formatEditorTime(range.end),
+        error: ''
+    };
+    selectSegment(segment);
+    nextTick(() => {
+        timeEditorStartInput.value?.focus();
+        timeEditorStartInput.value?.select();
+    });
+};
+const applyTimeEditorChanges = () => {
+    const editingState = timeEditor.value;
+    if (!editingState.visible || !editingState.segment)
+        return;
+    const parsedStart = parseEditorTime(editingState.startInput);
+    const parsedEnd = parseEditorTime(editingState.endInput);
+    if (parsedStart === null || parsedEnd === null) {
+        timeEditor.value.error = 'Ungültiges Zeitformat.';
+        return;
+    }
+    if (parsedStart < 0 || parsedEnd < 0) {
+        timeEditor.value.error = 'Zeiten dürfen nicht negativ sein.';
+        return;
+    }
+    if (parsedEnd <= parsedStart) {
+        timeEditor.value.error = 'Die Endzeit muss nach der Startzeit liegen.';
+        return;
+    }
+    if (duration.value > 0 && parsedEnd > duration.value) {
+        timeEditor.value.error = `Die Endzeit darf maximal ${formatTime(duration.value)} sein.`;
+        return;
+    }
+    const localSegment = displayedSegments.value.find(s => s.id === editingState.segment?.id);
+    if (localSegment) {
+        localSegment.start = parsedStart;
+        localSegment.end = parsedEnd;
+        localSegment.startTime = parsedStart;
+        localSegment.endTime = parsedEnd;
+    }
+    const numericId = getNumericSegmentId(editingState.segment.id);
+    if (numericId !== null) {
+        emit('segment-resize', numericId, parsedStart, parsedEnd, 'manual', true);
+    }
+    hideTimeEditor();
 };
 // Timeline interaction
 const onTimelineMouseDown = (event) => {
@@ -576,6 +705,9 @@ const handleClickOutside = (event) => {
     if (contextMenu.value.visible && !event.target?.closest('.context-menu')) {
         hideContextMenu();
     }
+    if (timeEditor.value.visible && !event.target?.closest('.time-editor')) {
+        hideTimeEditor();
+    }
 };
 // Lifecycle
 watch(() => props.video, () => {
@@ -641,6 +773,8 @@ let __VLS_directives;
 /** @type {__VLS_StyleScopedClasses['segment']} */ ;
 /** @type {__VLS_StyleScopedClasses['segment']} */ ;
 /** @type {__VLS_StyleScopedClasses['segment-content']} */ ;
+/** @type {__VLS_StyleScopedClasses['time-editor-input']} */ ;
+/** @type {__VLS_StyleScopedClasses['time-editor-btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['context-menu-item']} */ ;
 /** @type {__VLS_StyleScopedClasses['context-menu-item']} */ ;
 /** @type {__VLS_StyleScopedClasses['danger']} */ ;
@@ -781,7 +915,7 @@ for (const [row] of __VLS_getVForSourceType((__VLS_ctx.segmentRows))) {
                     __VLS_ctx.selectSegment(segment);
                 } },
             ...{ onContextmenu: (...[$event]) => {
-                    __VLS_ctx.showSegmentMenu(segment, $event);
+                    __VLS_ctx.openSegmentTimeEditor(segment, $event);
                 } },
             key: (segment.id),
             ...{ class: "segment" },
@@ -920,6 +1054,62 @@ if (__VLS_ctx.contextMenu.visible) {
         ...{ class: "fas fa-play" },
     });
 }
+if (__VLS_ctx.timeEditor.visible) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ onClick: () => { } },
+        ...{ onMousedown: () => { } },
+        ...{ class: "time-editor" },
+        ...{ style: ({ left: __VLS_ctx.timeEditor.x + 'px', top: __VLS_ctx.timeEditor.y + 'px' }) },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "time-editor-title" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+        ...{ class: "time-editor-label" },
+        for: "segment-start-input",
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
+        ...{ onKeydown: (__VLS_ctx.applyTimeEditorChanges) },
+        ...{ onKeydown: (__VLS_ctx.hideTimeEditor) },
+        id: "segment-start-input",
+        ref: "timeEditorStartInput",
+        ...{ class: "time-editor-input" },
+        placeholder: "mm:ss oder hh:mm:ss",
+    });
+    (__VLS_ctx.timeEditor.startInput);
+    /** @type {typeof __VLS_ctx.timeEditorStartInput} */ ;
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+        ...{ class: "time-editor-label" },
+        for: "segment-end-input",
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
+        ...{ onKeydown: (__VLS_ctx.applyTimeEditorChanges) },
+        ...{ onKeydown: (__VLS_ctx.hideTimeEditor) },
+        id: "segment-end-input",
+        ...{ class: "time-editor-input" },
+        placeholder: "mm:ss oder hh:mm:ss",
+    });
+    (__VLS_ctx.timeEditor.endInput);
+    if (__VLS_ctx.timeEditor.error) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "time-editor-error" },
+        });
+        (__VLS_ctx.timeEditor.error);
+    }
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "time-editor-actions" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+        ...{ onClick: (__VLS_ctx.hideTimeEditor) },
+        type: "button",
+        ...{ class: "time-editor-btn" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+        ...{ onClick: (__VLS_ctx.applyTimeEditorChanges) },
+        type: "button",
+        ...{ class: "time-editor-btn primary" },
+    });
+}
 if (__VLS_ctx.tooltip.visible) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "timeline-tooltip" },
@@ -994,6 +1184,17 @@ if (__VLS_ctx.tooltip.visible) {
 /** @type {__VLS_StyleScopedClasses['context-menu-item']} */ ;
 /** @type {__VLS_StyleScopedClasses['fas']} */ ;
 /** @type {__VLS_StyleScopedClasses['fa-play']} */ ;
+/** @type {__VLS_StyleScopedClasses['time-editor']} */ ;
+/** @type {__VLS_StyleScopedClasses['time-editor-title']} */ ;
+/** @type {__VLS_StyleScopedClasses['time-editor-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['time-editor-input']} */ ;
+/** @type {__VLS_StyleScopedClasses['time-editor-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['time-editor-input']} */ ;
+/** @type {__VLS_StyleScopedClasses['time-editor-error']} */ ;
+/** @type {__VLS_StyleScopedClasses['time-editor-actions']} */ ;
+/** @type {__VLS_StyleScopedClasses['time-editor-btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['time-editor-btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['primary']} */ ;
 /** @type {__VLS_StyleScopedClasses['timeline-tooltip']} */ ;
 var __VLS_dollars;
 const __VLS_self = (await import('vue')).defineComponent({
@@ -1001,6 +1202,7 @@ const __VLS_self = (await import('vue')).defineComponent({
         return {
             timeline: timeline,
             waveformCanvas: waveformCanvas,
+            timeEditorStartInput: timeEditorStartInput,
             zoomLevel: zoomLevel,
             isSelecting: isSelecting,
             selectionStart: selectionStart,
@@ -1010,6 +1212,7 @@ const __VLS_self = (await import('vue')).defineComponent({
             rowContentHeight: rowContentHeight,
             contextMenu: contextMenu,
             tooltip: tooltip,
+            timeEditor: timeEditor,
             duration: duration,
             playheadPosition: playheadPosition,
             timeMarkers: timeMarkers,
@@ -1032,7 +1235,9 @@ const __VLS_self = (await import('vue')).defineComponent({
             editSegment: editSegment,
             deleteSegment: deleteSegment,
             playSegment: playSegment,
-            showSegmentMenu: showSegmentMenu,
+            hideTimeEditor: hideTimeEditor,
+            openSegmentTimeEditor: openSegmentTimeEditor,
+            applyTimeEditorChanges: applyTimeEditorChanges,
             onTimelineMouseDown: onTimelineMouseDown,
         };
     },

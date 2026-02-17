@@ -54,6 +54,7 @@ const isMarkingLabel = ref(false);
 const labelMarkingStart = ref(0);
 const selectedSegmentId = ref(null);
 const isInitialLoading = ref(true);
+const lastValidationClickedVideoId = ref(null);
 // Video detail and metadata like VideoClassificationComponent
 const videoDetail = ref(null);
 const videoMeta = ref(null);
@@ -721,6 +722,15 @@ const submitVideoSegments = async () => {
         showErrorMessage(`Validierung fehlgeschlagen: ${errorMsg}`);
     }
 };
+const handleValidateAndMark = async (videoId) => {
+    if (!videoId) {
+        showErrorMessage('Kein Video ausgewählt');
+        return;
+    }
+    lastValidationClickedVideoId.value = videoId;
+    await submitVideoSegments();
+    await markValidationFinishedRemoveOutside(videoId);
+};
 const saveSegmentChanges = async () => {
     try {
         await videoStore.persistDirtySegments();
@@ -975,6 +985,19 @@ if (__VLS_ctx.videos.length > 0) {
         ...{ class: "fas fa-clock me-1" },
     });
     (__VLS_ctx.videos.length - __VLS_ctx.annotatableVideos.length);
+}
+if (__VLS_ctx.lastValidationClickedVideoId !== null) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "mt-2 p-2 rounded validation-click-indicator" },
+        ...{ class: (__VLS_ctx.selectedVideoId === __VLS_ctx.lastValidationClickedVideoId ? 'validation-click-indicator-active' : 'validation-click-indicator-muted') },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+        ...{ class: "fw-semibold" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+        ...{ class: "fas fa-highlighter me-1" },
+    });
+    (__VLS_ctx.lastValidationClickedVideoId);
 }
 if (!__VLS_ctx.anonymizedVideoSrc && __VLS_ctx.hasVideos) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -1444,10 +1467,10 @@ if (__VLS_ctx.selectedVideoId) {
                         return;
                     if (!!(__VLS_ctx.isAnnotationFinished(__VLS_ctx.selectedVideoId)))
                         return;
-                    __VLS_ctx.submitVideoSegments;
-                    __VLS_ctx.markValidationFinishedRemoveOutside(__VLS_ctx.selectedVideoId);
+                    __VLS_ctx.handleValidateAndMark(__VLS_ctx.selectedVideoId);
                 } },
             ...{ class: "btn validation-action-button d-inline-flex align-items-center justify-content-center gap-2" },
+            ...{ class: ({ 'validation-action-button-clicked': __VLS_ctx.selectedVideoId === __VLS_ctx.lastValidationClickedVideoId }) },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
             ...{ class: "material-icons validation-action-icon" },
@@ -1638,6 +1661,14 @@ if (__VLS_ctx.savedExaminations.length > 0) {
 /** @type {__VLS_StyleScopedClasses['fas']} */ ;
 /** @type {__VLS_StyleScopedClasses['fa-clock']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['p-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['rounded']} */ ;
+/** @type {__VLS_StyleScopedClasses['validation-click-indicator']} */ ;
+/** @type {__VLS_StyleScopedClasses['fw-semibold']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-highlighter']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['py-5']} */ ;
@@ -1794,6 +1825,7 @@ if (__VLS_ctx.savedExaminations.length > 0) {
 /** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['justify-content-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['gap-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['validation-action-button-clicked']} */ ;
 /** @type {__VLS_StyleScopedClasses['material-icons']} */ ;
 /** @type {__VLS_StyleScopedClasses['validation-action-icon']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
@@ -1881,6 +1913,7 @@ const __VLS_self = (await import('vue')).defineComponent({
             isLabelSelectActive: isLabelSelectActive,
             isMarkingLabel: isMarkingLabel,
             selectedSegmentId: selectedSegmentId,
+            lastValidationClickedVideoId: lastValidationClickedVideoId,
             errorMessage: errorMessage,
             successMessage: successMessage,
             isFullscreen: isFullscreen,
@@ -1921,13 +1954,13 @@ const __VLS_self = (await import('vue')).defineComponent({
             jumpToExamination: jumpToExamination,
             deleteExamination: deleteExamination,
             submitVideoSegments: submitVideoSegments,
+            handleValidateAndMark: handleValidateAndMark,
             saveSegmentChanges: saveSegmentChanges,
             discardSegmentChanges: discardSegmentChanges,
             onVideoError: onVideoError,
             onVideoLoadStart: onVideoLoadStart,
             onVideoCanPlay: onVideoCanPlay,
             getVideoStatusIndicator: getVideoStatusIndicator,
-            markValidationFinishedRemoveOutside: markValidationFinishedRemoveOutside,
             getVideoCountByStatus: getVideoCountByStatus,
             getStatusBadgeClass: getStatusBadgeClass,
             getStatusText: getStatusText,

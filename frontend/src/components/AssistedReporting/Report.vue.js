@@ -18,6 +18,7 @@ const requirementStore = useRequirementStore();
 const patientExaminationStore = usePatientExaminationStore();
 // --- API ---
 const LOOKUP_BASE = '/api/lookup';
+const REPORT_TEMPLATE_BASE = '/base_api/report-templates';
 const debug = ref(false);
 // --- Component State ---
 const selectedPatientId = ref(null);
@@ -30,6 +31,13 @@ const loading = ref(false);
 const showCreatePatientModal = ref(false);
 const successMessage = ref(null);
 const isRestarting = ref(false); // Prevent infinite restart loops
+const selectedKbModule = ref('report_template_examples');
+const selectedTemplateName = ref('star_upper_gi_main');
+const reportTemplate = ref(null);
+const reportTemplateLoading = ref(false);
+const reportTemplateOptions = ref([]);
+const autoSelectionAppliedKey = ref(null);
+const hasManualRequirementSelection = ref(false);
 const currentStep = ref(1);
 const goToStep = (step) => {
     currentStep.value = Math.min(Math.max(step, 1), 4);
@@ -107,6 +115,71 @@ const selectionsPretty = computed(() => JSON.stringify({
     token: lookupToken.value,
     selectedRequirementSetIds: selectedRequirementSetIds.value,
 }, null, 2));
+const normalizeKey = (value) => String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '_')
+    .replace(/-/g, '_');
+const makeSelectionKey = (token, templateName) => `${token || 'no-token'}::${templateName}`;
+const collectTemplateFindingNames = (template) => {
+    const names = new Set();
+    for (const section of template.reportSections || []) {
+        for (const finding of section.findings || []) {
+            if (finding?.finding) {
+                names.add(normalizeKey(finding.finding));
+            }
+        }
+    }
+    return names;
+};
+const getMatchingRequirementSetIdsFromTemplate = (template) => {
+    const findingNames = collectTemplateFindingNames(template);
+    if (!findingNames.size) {
+        return [];
+    }
+    const matching = (lookup.value?.requirementSets || []).filter((set) => {
+        if (findingNames.has(normalizeKey(set.name)) || findingNames.has(normalizeKey(set.type || ''))) {
+            return true;
+        }
+        const requirementsForSet = lookup.value?.requirementsBySet?.[String(set.id)] || [];
+        return requirementsForSet.some((req) => findingNames.has(normalizeKey(req.name)));
+    });
+    return matching.map((s) => s.id);
+};
+const sameIdSet = (a, b) => {
+    if (a.length !== b.length)
+        return false;
+    const aa = new Set(a);
+    if (aa.size !== b.length)
+        return false;
+    for (const id of b) {
+        if (!aa.has(id))
+            return false;
+    }
+    return true;
+};
+const applyTemplateToRequirementSelection = async () => {
+    if (!lookupToken.value || !reportTemplate.value || !lookup.value)
+        return;
+    if (hasManualRequirementSelection.value)
+        return;
+    const selectionKey = makeSelectionKey(lookupToken.value, reportTemplate.value.name);
+    if (autoSelectionAppliedKey.value === selectionKey)
+        return;
+    const matchedSetIds = getMatchingRequirementSetIdsFromTemplate(reportTemplate.value);
+    if (!matchedSetIds.length) {
+        autoSelectionAppliedKey.value = selectionKey;
+        return;
+    }
+    if (!sameIdSet(selectedRequirementSetIds.value, matchedSetIds)) {
+        selectedRequirementSetIds.value = matchedSetIds;
+        requirementStore.setCurrentRequirementSetIds(matchedSetIds);
+        await patchLookup({ selectedRequirementSetIds: matchedSetIds });
+        await triggerRecompute();
+        await evaluateRequirementsOnChange();
+    }
+    autoSelectionAppliedKey.value = selectionKey;
+};
 // --- Finding Management Methods ---
 const isFindingAddedToExamination = (findingId) => {
     if (!lookup.value)
@@ -258,6 +331,64 @@ function applyLookup(partial) {
         lookup.value = { ...lookup.value, ...partial };
     }
 }
+async function fetchReportTemplateByName(moduleName, templateName) {
+    reportTemplateLoading.value = true;
+    try {
+        const res = await axiosInstance.get(`${REPORT_TEMPLATE_BASE}/${moduleName}/${templateName}`);
+        reportTemplate.value = res.data;
+        if (reportTemplate.value &&
+            !reportTemplateOptions.value.some((t) => t.name === reportTemplate.value.name)) {
+            reportTemplateOptions.value = [reportTemplate.value, ...reportTemplateOptions.value];
+        }
+    }
+    catch (e) {
+        reportTemplate.value = null;
+        console.warn('Failed to fetch report template by name:', axiosError(e));
+    }
+    finally {
+        reportTemplateLoading.value = false;
+    }
+}
+async function fetchReportTemplateByExamination(moduleName, examinationName) {
+    if (!examinationName) {
+        reportTemplate.value = null;
+        reportTemplateOptions.value = [];
+        return;
+    }
+    reportTemplateLoading.value = true;
+    try {
+        const res = await axiosInstance.get(`${REPORT_TEMPLATE_BASE}/by-examination/${moduleName}/${encodeURIComponent(examinationName)}`);
+        const templates = Array.isArray(res.data)
+            ? res.data
+            : [];
+        reportTemplateOptions.value = templates;
+        const selected = templates.find((t) => t.name === selectedTemplateName.value);
+        reportTemplate.value = selected || (templates.length ? templates[0] : null);
+        if (reportTemplate.value) {
+            selectedTemplateName.value = reportTemplate.value.name;
+        }
+    }
+    catch (e) {
+        reportTemplate.value = null;
+        reportTemplateOptions.value = [];
+        console.warn('Failed to fetch report template by examination:', axiosError(e));
+    }
+    finally {
+        reportTemplateLoading.value = false;
+    }
+}
+const onTemplateSelectionChange = async () => {
+    if (!selectedTemplateName.value) {
+        reportTemplate.value = null;
+        return;
+    }
+    const local = reportTemplateOptions.value.find((t) => t.name === selectedTemplateName.value);
+    if (local) {
+        reportTemplate.value = local;
+        return;
+    }
+    await fetchReportTemplateByName(selectedKbModule.value, selectedTemplateName.value);
+};
 async function createPatientExaminationAndInitLookup() {
     if (isRestarting.value) {
         console.log('Restart already in progress, skipping createPatientExaminationAndInitLookup...');
@@ -426,6 +557,7 @@ async function patchLookup(updates) {
     }
 }
 function toggleRequirementSet(id, on) {
+    hasManualRequirementSelection.value = true;
     const s = new Set(selectedRequirementSetIds.value);
     if (on)
         s.add(id);
@@ -708,9 +840,18 @@ watch(selectedExaminationId, (newId) => {
         selectedPatientId: selectedPatientId.value,
         availableExams: examinationsDropdown.value.map(e => ({ id: e.id, name: e.name }))
     });
+    autoSelectionAppliedKey.value = null;
+    hasManualRequirementSelection.value = false;
     examinationStore.setSelectedExamination(newId);
     if (newId) {
         examinationStore.loadFindingsForExamination(newId);
+        const selectedExam = examinationsDropdown.value.find(exam => exam.id === newId);
+        if (selectedExam?.name) {
+            fetchReportTemplateByExamination(selectedKbModule.value, selectedExam.name);
+        }
+    }
+    else {
+        reportTemplate.value = null;
     }
 });
 watch(selectedPatientId, async (newPatientId, oldPatientId) => {
@@ -725,6 +866,8 @@ watch(selectedPatientId, async (newPatientId, oldPatientId) => {
     if (oldPatientId && newPatientId !== oldPatientId) {
         console.log('Patient changed, resetting session for new overview...');
         await resetSessionForNewPatient();
+        autoSelectionAppliedKey.value = null;
+        hasManualRequirementSelection.value = false;
     }
 });
 // Watch for changes in selected requirement sets to trigger evaluation
@@ -749,8 +892,19 @@ watch(lookup, (newLookup) => {
     if (newLookup && newLookup.requirementsBySet) {
         console.log('Loading requirement sets from lookup data...');
         requirementStore.loadRequirementSetsFromLookup(newLookup);
+        void applyTemplateToRequirementSelection();
     }
 }, { immediate: true });
+watch(reportTemplate, () => {
+    void applyTemplateToRequirementSelection();
+});
+watch(selectedTemplateName, async () => {
+    await onTemplateSelectionChange();
+});
+watch(lookupToken, () => {
+    autoSelectionAppliedKey.value = null;
+    hasManualRequirementSelection.value = false;
+});
 // --- Lifecycle ---
 onMounted(async () => {
     console.log('Component mounted, starting data loading...');
@@ -785,6 +939,7 @@ onMounted(async () => {
     }
     // Load findings data on component mount
     await loadFindingsData();
+    await fetchReportTemplateByName(selectedKbModule.value, selectedTemplateName.value);
 });
 onUnmounted(() => {
     stopHeartbeat();
@@ -1020,6 +1175,108 @@ const __VLS_13 = {
     }
 };
 __VLS_9.slots.default;
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "card mb-3" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "card-header d-flex justify-content-between align-items-center" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({
+    ...{ class: "mb-1" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+    ...{ class: "text-muted" },
+});
+(__VLS_ctx.selectedKbModule);
+__VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+    ...{ onClick: (...[$event]) => {
+            __VLS_ctx.fetchReportTemplateByName(__VLS_ctx.selectedKbModule, __VLS_ctx.selectedTemplateName);
+        } },
+    ...{ class: "btn btn-sm btn-outline-secondary" },
+    disabled: (__VLS_ctx.reportTemplateLoading),
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "card-body" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "row g-2 mb-3" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "col-md-6" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+    ...{ class: "form-label mb-1" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
+    ...{ class: "form-control form-control-sm" },
+});
+(__VLS_ctx.selectedKbModule);
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "col-md-6" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+    ...{ class: "form-label mb-1" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
+    value: (__VLS_ctx.selectedTemplateName),
+    ...{ class: "form-select form-select-sm" },
+    disabled: (__VLS_ctx.reportTemplateLoading || !__VLS_ctx.reportTemplateOptions.length),
+});
+if (!__VLS_ctx.reportTemplateOptions.length) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+        value: (__VLS_ctx.selectedTemplateName),
+    });
+}
+for (const [tpl] of __VLS_getVForSourceType((__VLS_ctx.reportTemplateOptions))) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+        key: (tpl.name),
+        value: (tpl.name),
+    });
+    (tpl.name);
+}
+__VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+    ...{ class: "text-muted" },
+});
+(__VLS_ctx.reportTemplateOptions.length);
+if (__VLS_ctx.reportTemplateLoading) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "text-muted small" },
+    });
+}
+else if (__VLS_ctx.reportTemplate) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
+        ...{ class: "mb-2" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+    (__VLS_ctx.reportTemplate.name);
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+        ...{ class: "text-muted" },
+    });
+    (__VLS_ctx.reportTemplate.examination);
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.ul, __VLS_intrinsicElements.ul)({
+        ...{ class: "mb-2" },
+    });
+    for (const [section] of __VLS_getVForSourceType((__VLS_ctx.reportTemplate.reportSections))) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({
+            key: (section.name),
+        });
+        (section.position);
+        (section.name);
+        (section.findings.length);
+    }
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+        ...{ class: "text-muted" },
+    });
+    (__VLS_ctx.reportTemplate.validators.examinationValidators.length);
+    (__VLS_ctx.reportTemplate.validators.findingsValidators.length);
+}
+else {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "text-muted small" },
+    });
+}
 if (!__VLS_ctx.lookupToken) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "text-muted small" },
@@ -1497,6 +1754,40 @@ if (__VLS_ctx.showCreatePatientModal) {
 /** @type {__VLS_StyleScopedClasses['fas']} */ ;
 /** @type {__VLS_StyleScopedClasses['fa-times']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['card']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['card-header']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['justify-content-between']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-secondary']} */ ;
+/** @type {__VLS_StyleScopedClasses['card-body']} */ ;
+/** @type {__VLS_StyleScopedClasses['row']} */ ;
+/** @type {__VLS_StyleScopedClasses['g-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-md-6']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-control']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-control-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-md-6']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-select']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-select-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['small']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['small']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['small']} */ ;
 /** @type {__VLS_StyleScopedClasses['card']} */ ;
@@ -1647,6 +1938,11 @@ const __VLS_self = (await import('vue')).defineComponent({
             loading: loading,
             showCreatePatientModal: showCreatePatientModal,
             successMessage: successMessage,
+            selectedKbModule: selectedKbModule,
+            selectedTemplateName: selectedTemplateName,
+            reportTemplate: reportTemplate,
+            reportTemplateLoading: reportTemplateLoading,
+            reportTemplateOptions: reportTemplateOptions,
             currentStep: currentStep,
             goToStep: goToStep,
             patients: patients,
@@ -1663,6 +1959,7 @@ const __VLS_self = (await import('vue')).defineComponent({
             loadFindingsData: loadFindingsData,
             evaluateRequirementsOnChange: evaluateRequirementsOnChange,
             evaluationSummary: evaluationSummary,
+            fetchReportTemplateByName: fetchReportTemplateByName,
             createPatientExaminationAndInitLookup: createPatientExaminationAndInitLookup,
             fetchLookupAll: fetchLookupAll,
             toggleRequirementSet: toggleRequirementSet,

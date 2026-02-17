@@ -52,6 +52,7 @@ export declare const usePatientExaminationStore: import("pinia").StoreDefinition
                 status?: string | undefined;
                 video_url?: string | undefined;
                 exportSegmentsByVideo?: boolean | undefined;
+                frameCount?: number | undefined;
             } | null;
             id: number;
         }[];
@@ -97,6 +98,7 @@ export declare const usePatientExaminationStore: import("pinia").StoreDefinition
             status?: string | undefined;
             video_url?: string | undefined;
             exportSegmentsByVideo?: boolean | undefined;
+            frameCount?: number | undefined;
         } | null;
         id: number;
     } | null;
@@ -139,6 +141,7 @@ export declare const usePatientExaminationStore: import("pinia").StoreDefinition
                 status?: string | undefined;
                 video_url?: string | undefined;
                 exportSegmentsByVideo?: boolean | undefined;
+                frameCount?: number | undefined;
             } | null;
             id: number;
         }[];
@@ -188,6 +191,7 @@ export declare const usePatientExaminationStore: import("pinia").StoreDefinition
                 status?: string | undefined;
                 video_url?: string | undefined;
                 exportSegmentsByVideo?: boolean | undefined;
+                frameCount?: number | undefined;
             } | null;
             id: number;
         }[];
@@ -237,6 +241,7 @@ export declare const usePatientExaminationStore: import("pinia").StoreDefinition
                 status?: string | undefined;
                 video_url?: string | undefined;
                 exportSegmentsByVideo?: boolean | undefined;
+                frameCount?: number | undefined;
             } | null;
             id: number;
         }[];
@@ -282,6 +287,7 @@ export declare const usePatientExaminationStore: import("pinia").StoreDefinition
             status?: string | undefined;
             video_url?: string | undefined;
             exportSegmentsByVideo?: boolean | undefined;
+            frameCount?: number | undefined;
         } | null;
         id: number;
     }[];
@@ -324,6 +330,7 @@ export declare const usePatientExaminationStore: import("pinia").StoreDefinition
                 status?: string | undefined;
                 video_url?: string | undefined;
                 exportSegmentsByVideo?: boolean | undefined;
+                frameCount?: number | undefined;
             } | null;
             id: number;
         }[];

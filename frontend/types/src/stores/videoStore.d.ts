@@ -11,6 +11,7 @@ export interface Video {
     status?: string;
     video_url?: string;
     exportSegmentsByVideo?: boolean;
+    frameCount?: number;
     [key: string]: any;
 }
 export type LabelKey = 'appendix' | 'blood' | 'diverticule' | 'grasper' | 'ileocaecalvalve' | 'ileum' | 'low_quality' | 'nbi' | 'needle' | 'outside' | 'polyp' | 'snare' | 'water_jet' | 'wound';
@@ -115,6 +116,7 @@ export interface VideoAnnotation {
     assignedUser: string | null;
     duration?: number;
     fps?: number;
+    frameCount?: number;
 }
 /**
  * Video metadata from backend
@@ -130,6 +132,7 @@ export interface VideoMeta {
     fps?: number;
     hasROI?: boolean;
     outsideFrameCount?: number;
+    frameCount?: number;
     centerName: string;
     processorName: string;
     segments?: Segment[];
@@ -240,6 +243,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
         readonly assignedUser: string | null;
         readonly duration?: number | undefined;
         readonly fps?: number | undefined;
+        readonly frameCount?: number | undefined;
     } | null, {
         readonly id: number;
         readonly isAnnotated: boolean;
@@ -280,6 +284,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
         readonly assignedUser: string | null;
         readonly duration?: number | undefined;
         readonly fps?: number | undefined;
+        readonly frameCount?: number | undefined;
     } | null>>;
     errorMessage: Readonly<Ref<string, string>>;
     videoUrl: Readonly<Ref<string, string>>;
@@ -296,6 +301,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
             readonly fps?: number | undefined;
             readonly hasROI?: boolean | undefined;
             readonly outsideFrameCount?: number | undefined;
+            readonly frameCount?: number | undefined;
             readonly centerName: string;
             readonly processorName: string;
             readonly segments?: readonly {
@@ -348,6 +354,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
             readonly fps?: number | undefined;
             readonly hasROI?: boolean | undefined;
             readonly outsideFrameCount?: number | undefined;
+            readonly frameCount?: number | undefined;
             readonly centerName: string;
             readonly processorName: string;
             readonly segments?: readonly {
@@ -400,6 +407,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
         readonly fps?: number | undefined;
         readonly hasROI?: boolean | undefined;
         readonly outsideFrameCount?: number | undefined;
+        readonly frameCount?: number | undefined;
         readonly centerName: string;
         readonly processorName: string;
         readonly segments?: readonly {
@@ -445,6 +453,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
         readonly fps?: number | undefined;
         readonly hasROI?: boolean | undefined;
         readonly outsideFrameCount?: number | undefined;
+        readonly frameCount?: number | undefined;
         readonly centerName: string;
         readonly processorName: string;
         readonly segments?: readonly {
@@ -489,6 +498,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
         status?: string | undefined;
         video_url?: string | undefined;
         exportSegmentsByVideo?: boolean | undefined;
+        frameCount?: number | undefined;
     }[], Video[] | {
         [x: string]: any;
         id: number;
@@ -498,6 +508,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
         status?: string | undefined;
         video_url?: string | undefined;
         exportSegmentsByVideo?: boolean | undefined;
+        frameCount?: number | undefined;
     }[]>;
     allSegments: ComputedRef<Segment[]>;
     draftSegment: Ref<{
@@ -613,6 +624,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
         readonly assignedUser: string | null;
         readonly duration?: number | undefined;
         readonly fps?: number | undefined;
+        readonly frameCount?: number | undefined;
     } | null, {
         readonly id: number;
         readonly isAnnotated: boolean;
@@ -653,6 +665,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
         readonly assignedUser: string | null;
         readonly duration?: number | undefined;
         readonly fps?: number | undefined;
+        readonly frameCount?: number | undefined;
     } | null>>;
     errorMessage: Readonly<Ref<string, string>>;
     videoUrl: Readonly<Ref<string, string>>;
@@ -669,6 +682,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
             readonly fps?: number | undefined;
             readonly hasROI?: boolean | undefined;
             readonly outsideFrameCount?: number | undefined;
+            readonly frameCount?: number | undefined;
             readonly centerName: string;
             readonly processorName: string;
             readonly segments?: readonly {
@@ -721,6 +735,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
             readonly fps?: number | undefined;
             readonly hasROI?: boolean | undefined;
             readonly outsideFrameCount?: number | undefined;
+            readonly frameCount?: number | undefined;
             readonly centerName: string;
             readonly processorName: string;
             readonly segments?: readonly {
@@ -773,6 +788,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
         readonly fps?: number | undefined;
         readonly hasROI?: boolean | undefined;
         readonly outsideFrameCount?: number | undefined;
+        readonly frameCount?: number | undefined;
         readonly centerName: string;
         readonly processorName: string;
         readonly segments?: readonly {
@@ -818,6 +834,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
         readonly fps?: number | undefined;
         readonly hasROI?: boolean | undefined;
         readonly outsideFrameCount?: number | undefined;
+        readonly frameCount?: number | undefined;
         readonly centerName: string;
         readonly processorName: string;
         readonly segments?: readonly {
@@ -862,6 +879,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
         status?: string | undefined;
         video_url?: string | undefined;
         exportSegmentsByVideo?: boolean | undefined;
+        frameCount?: number | undefined;
     }[], Video[] | {
         [x: string]: any;
         id: number;
@@ -871,6 +889,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
         status?: string | undefined;
         video_url?: string | undefined;
         exportSegmentsByVideo?: boolean | undefined;
+        frameCount?: number | undefined;
     }[]>;
     allSegments: ComputedRef<Segment[]>;
     draftSegment: Ref<{
@@ -986,6 +1005,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
         readonly assignedUser: string | null;
         readonly duration?: number | undefined;
         readonly fps?: number | undefined;
+        readonly frameCount?: number | undefined;
     } | null, {
         readonly id: number;
         readonly isAnnotated: boolean;
@@ -1026,6 +1046,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
         readonly assignedUser: string | null;
         readonly duration?: number | undefined;
         readonly fps?: number | undefined;
+        readonly frameCount?: number | undefined;
     } | null>>;
     errorMessage: Readonly<Ref<string, string>>;
     videoUrl: Readonly<Ref<string, string>>;
@@ -1042,6 +1063,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
             readonly fps?: number | undefined;
             readonly hasROI?: boolean | undefined;
             readonly outsideFrameCount?: number | undefined;
+            readonly frameCount?: number | undefined;
             readonly centerName: string;
             readonly processorName: string;
             readonly segments?: readonly {
@@ -1094,6 +1116,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
             readonly fps?: number | undefined;
             readonly hasROI?: boolean | undefined;
             readonly outsideFrameCount?: number | undefined;
+            readonly frameCount?: number | undefined;
             readonly centerName: string;
             readonly processorName: string;
             readonly segments?: readonly {
@@ -1146,6 +1169,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
         readonly fps?: number | undefined;
         readonly hasROI?: boolean | undefined;
         readonly outsideFrameCount?: number | undefined;
+        readonly frameCount?: number | undefined;
         readonly centerName: string;
         readonly processorName: string;
         readonly segments?: readonly {
@@ -1191,6 +1215,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
         readonly fps?: number | undefined;
         readonly hasROI?: boolean | undefined;
         readonly outsideFrameCount?: number | undefined;
+        readonly frameCount?: number | undefined;
         readonly centerName: string;
         readonly processorName: string;
         readonly segments?: readonly {
@@ -1235,6 +1260,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
         status?: string | undefined;
         video_url?: string | undefined;
         exportSegmentsByVideo?: boolean | undefined;
+        frameCount?: number | undefined;
     }[], Video[] | {
         [x: string]: any;
         id: number;
@@ -1244,6 +1270,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
         status?: string | undefined;
         video_url?: string | undefined;
         exportSegmentsByVideo?: boolean | undefined;
+        frameCount?: number | undefined;
     }[]>;
     allSegments: ComputedRef<Segment[]>;
     draftSegment: Ref<{

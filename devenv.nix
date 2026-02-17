@@ -224,10 +224,9 @@ in
 
 
   enterShell = lib.mkAfter ''
-    source .devenv/state/venv/bin/activate
+    source .venv/bin/activate
     direnv disallow
 
-    env-setup
     # Ensure dependencies are synced using uv
     # Check if venv exists. If not, run sync verbosely. If it exists, sync quietly.
 
