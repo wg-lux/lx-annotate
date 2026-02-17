@@ -32,15 +32,52 @@
             <!-- Video Selection -->
             <div class="mb-3">
               <label class="form-label">Video auswählen:</label>
-              <select v-model.number="selectedVideoId" @change="onVideoChange" class="form-select" :disabled="!hasVideos">
-                <option :value="null">{{ hasVideos ? 'Bitte Video auswählen...' : 'Keine Videos verfügbar' }}</option>
-                <option v-for="video in annotatableVideos" :key="video.id" :value="video.id">
-                  📹 {{video.original_file_name || 'Video Nr. '+ video.id }} 
-                  {{ getVideoStatusIndicator(video.id) }}
-                  | Center: {{ video.centerName || 'Unbekannt' }} 
-                  | Processor: {{ video.processorName || 'Unbekannt' }}
-                </option>
-              </select>
+              <div ref="videoDropdownRef" class="video-dropdown">
+                <button
+                  type="button"
+                  class="video-dropdown-trigger"
+                  :disabled="!hasVideos"
+                  :aria-expanded="isVideoDropdownOpen ? 'true' : 'false'"
+                  aria-haspopup="listbox"
+                  @click="toggleVideoDropdown"
+                >
+                  <span class="video-dropdown-trigger-text">{{ selectedVideoLabel }}</span>
+                  <i class="fas" :class="isVideoDropdownOpen ? 'fa-chevron-up' : 'fa-chevron-down'"></i>
+                </button>
+                <div v-if="isVideoDropdownOpen && hasVideos" class="video-dropdown-menu" role="listbox">
+                  <button
+                    v-for="video in selectableVideos"
+                    :key="video.id"
+                    type="button"
+                    class="video-dropdown-item"
+                    :class="{
+                      'video-dropdown-item-selected': selectedVideoId === video.id,
+                      'video-dropdown-item-validated': video.segmentAnnotationsValidated,
+                      'video-dropdown-item-pending': !video.segmentAnnotationsValidated
+                    }"
+                    :disabled="video.segmentAnnotationsValidated"
+                    @click="selectVideoFromDropdown(video.id)"
+                  >
+                    <div class="video-dropdown-main">
+                      <span class="video-dropdown-title">📹 {{ video.original_file_name || 'Video Nr. ' + video.id }}</span>
+                      <span
+                        class="video-dropdown-status-badge"
+                        :class="video.segmentAnnotationsValidated ? 'badge-validated' : 'badge-pending'"
+                      >
+                        <i class="fas me-1" :class="video.segmentAnnotationsValidated ? 'fa-check-double' : 'fa-hourglass-half'"></i>
+                        {{ video.segmentAnnotationsValidated ? 'Validiert (Outside entfernt)' : 'Validierung offen' }}
+                      </span>
+                    </div>
+                    <div class="video-dropdown-meta">
+                      <span>{{ getVideoStatusIndicator(video.id) }}</span>
+                      <span>| Center: {{ video.centerName || 'Unbekannt' }}</span>
+                      <span>| Processor: {{ video.processorName || 'Unbekannt' }}</span>
+                      <span>| Geschlecht: {{ getVideoPatientGender(video.id) }}</span>
+                      <span>| Alter: {{ getVideoPatientAgeLabel(video.id) }}</span>
+                    </div>
+                  </button>
+                </div>
+              </div>
               <small v-if="!hasVideos" class="text-muted">
                 {{ noVideosMessage }}
               </small>
@@ -233,6 +270,7 @@
                   Enter = Label übernehmen ·
                   F = Vollbild ·
                   , / . = Frame zurück/vor ·
+                  K / L = 5s zurück/vor ·
                   Ctrl/Cmd + C = Segment kopieren ·
                   Ctrl/Cmd + V = Segment einfügen ·
                   Ctrl/Cmd + Z = Löschen rückgängig ·
@@ -524,6 +562,11 @@ interface CreateSegmentEvent {
   end: number
 }
 
+interface VideoSensitiveMeta {
+  patient_dob?: string | null
+  patient_gender_name?: string | null
+}
+
 // Store setup
 const videoStore = useVideoStore()
 const mediaStore = useMediaTypeStore()
@@ -548,9 +591,9 @@ const timelineLabels = computed(() => {
 /**
  * helper: returns true when a video's anonymization status is 'done_processing_anonymization'
  */
- function isAnonymized(videoId: number): boolean {
+function isAnonymized(videoId: number): boolean {
   const item = overview.value.find(o => o.id === videoId && o.mediaType === 'video')
-  return item?.anonymizationStatus === 'validated'
+  return item?.anonymizationStatus === 'done_processing_anonymization' || item?.anonymizationStatus === 'validated'
 }
 
 function isAnnotationFinished(videoId: number): boolean {
@@ -589,6 +632,9 @@ const videoRef = ref<HTMLVideoElement | null>(null)
 const videoContainerRef = ref<HTMLElement | null>(null)
 const labelSelectRef = ref<HTMLSelectElement | null>(null)
 const timelineRef = ref<HTMLElement | null>(null)
+const videoDropdownRef = ref<HTMLElement | null>(null)
+const isVideoDropdownOpen = ref<boolean>(false)
+const videoSensitiveMetaMap = ref<Record<number, VideoSensitiveMeta>>({})
 // Video Dropdown Watcher
 
 const hasUnsavedChanges = computed(() => 
@@ -638,6 +684,108 @@ function onVideoChange() {                // handler for the <select>
   router.replace({ query: { video: selectedVideoId.value } })
 }
 
+function toggleVideoDropdown(): void {
+  if (!hasVideos.value) return
+  isVideoDropdownOpen.value = !isVideoDropdownOpen.value
+  if (isVideoDropdownOpen.value) {
+    loadSensitiveMetaForVideos(selectableVideos.value.map(v => v.id))
+  }
+}
+
+function closeVideoDropdown(): void {
+  isVideoDropdownOpen.value = false
+}
+
+function selectVideoFromDropdown(videoId: number): void {
+  const selected = selectableVideos.value.find(video => video.id === videoId)
+  if (!selected || selected.segmentAnnotationsValidated) return
+  selectedVideoId.value = videoId
+  onVideoChange()
+  closeVideoDropdown()
+}
+
+const handleDocumentClick = (event: MouseEvent): void => {
+  const target = event.target
+  if (!(target instanceof Node)) return
+  if (!videoDropdownRef.value) return
+  if (!videoDropdownRef.value.contains(target)) {
+    closeVideoDropdown()
+  }
+}
+
+const parseDobToDate = (rawDob: string | null | undefined): Date | null => {
+  if (!rawDob) return null
+  const trimmed = rawDob.trim()
+  if (!trimmed) return null
+
+  const isoCandidate = new Date(trimmed)
+  if (!Number.isNaN(isoCandidate.getTime())) return isoCandidate
+
+  const deMatch = trimmed.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/)
+  if (deMatch) {
+    const [, day, month, year] = deMatch
+    const parsed = new Date(Number(year), Number(month) - 1, Number(day))
+    if (!Number.isNaN(parsed.getTime())) return parsed
+  }
+
+  return null
+}
+
+const getAgeFromDob = (rawDob: string | null | undefined): number | null => {
+  const dob = parseDobToDate(rawDob)
+  if (!dob) return null
+  const today = new Date()
+  let age = today.getFullYear() - dob.getFullYear()
+  const monthDelta = today.getMonth() - dob.getMonth()
+  if (monthDelta < 0 || (monthDelta === 0 && today.getDate() < dob.getDate())) {
+    age -= 1
+  }
+  return age >= 0 ? age : null
+}
+
+const normalizeGenderLabel = (value: string | null | undefined): string => {
+  if (!value) return 'Unbekannt'
+  const normalized = value.toLowerCase()
+  if (normalized === 'male' || normalized === 'männlich') return 'Männlich'
+  if (normalized === 'female' || normalized === 'weiblich') return 'Weiblich'
+  if (normalized === 'diverse') return 'Divers'
+  return value
+}
+
+const getVideoPatientGender = (videoId: number): string => {
+  return normalizeGenderLabel(videoSensitiveMetaMap.value[videoId]?.patient_gender_name)
+}
+
+const getVideoPatientAgeLabel = (videoId: number): string => {
+  const age = getAgeFromDob(videoSensitiveMetaMap.value[videoId]?.patient_dob)
+  return age == null ? 'Unbekannt' : `${age} J.`
+}
+
+const loadSensitiveMetaForVideos = async (videoIds: number[]): Promise<void> => {
+  const missingIds = videoIds.filter(id => !(id in videoSensitiveMetaMap.value))
+  if (missingIds.length === 0) return
+
+  const results = await Promise.all(
+    missingIds.map(async (id) => {
+      try {
+        const { data } = await axiosInstance.get<VideoSensitiveMeta>(r(`media/videos/${id}/sensitive-metadata/`))
+        return { id, data }
+      } catch {
+        return { id, data: { patient_dob: null, patient_gender_name: null } as VideoSensitiveMeta }
+      }
+    })
+  )
+
+  const nextMap = { ...videoSensitiveMetaMap.value }
+  results.forEach(({ id, data }) => {
+    nextMap[id] = {
+      patient_dob: data?.patient_dob ?? null,
+      patient_gender_name: data?.patient_gender_name ?? null,
+    }
+  })
+  videoSensitiveMetaMap.value = nextMap
+}
+
 //  fire loader whenever selectedVideoId changes programmatically  */
 watch(
   selectedVideoId,
@@ -666,8 +814,29 @@ watch(
   { immediate: true }
 )
 // List of only videos that are both present in the list **and** in state `done` inside anonymizationStore
+const selectableVideos = computed(() =>
+  videoList.value.videos.filter(v => isAnonymized(v.id))
+)
+
 const annotatableVideos = computed(() =>
-  videoList.value.videos.filter(v => isAnonymized(v.id) && !isAnnotationFinished(v.id))
+  selectableVideos.value.filter(v => !isAnnotationFinished(v.id))
+)
+
+const selectedVideoLabel = computed(() => {
+  if (!selectableVideos.value.length) return 'Keine Videos verfügbar'
+  if (selectedVideoId.value == null) return 'Bitte Video auswählen...'
+  const video = selectableVideos.value.find(v => v.id === selectedVideoId.value)
+  if (!video) return `Video ${selectedVideoId.value}`
+  return `📹 ${video.original_file_name || `Video Nr. ${video.id}`}`
+})
+
+watch(
+  selectableVideos,
+  (videos) => {
+    if (!videos.length) return
+    loadSensitiveMetaForVideos(videos.map(v => v.id))
+  },
+  { immediate: true }
 )
 
 
@@ -685,14 +854,16 @@ const anonymizedVideoSrc = computed(() => {
 })
 
 const hasVideos = computed(() => {
-  return annotatableVideos.value && annotatableVideos.value.length > 0
+  return selectableVideos.value && selectableVideos.value.length > 0
 })
 
 const noVideosMessage = computed(() => {
   if (videos.value.length === 0) {
     return 'Keine Videos verfügbar. Bitte laden Sie zuerst Videos hoch.'
-  } else if (annotatableVideos.value.length === 0) {
+  } else if (selectableVideos.value.length === 0) {
     return 'Keine anonymisierten Videos verfügbar. Videos müssen erst anonymisiert werden.'
+  } else if (annotatableVideos.value.length === 0) {
+    return 'Alle anonymisierten Videos sind bereits validiert.'
   }
   return ''
 })
@@ -744,11 +915,13 @@ onMounted(async () => {
   }
 
   document.addEventListener('keydown', handleKeyDown)
+  document.addEventListener('click', handleDocumentClick)
   document.addEventListener('fullscreenchange', handleFullscreenChange)
 })
 
 onUnmounted(() => {
   document.removeEventListener('keydown', handleKeyDown)
+  document.removeEventListener('click', handleDocumentClick)
   document.removeEventListener('fullscreenchange', handleFullscreenChange)
 })
 
@@ -808,7 +981,7 @@ const loadVideoDetail = async (videoId: number): Promise<void> => {
     }
     
     // Update MediaStore with the current video for consistent URL handling
-    const currentVideo = annotatableVideos.value.find(v => v.id === videoId)
+    const currentVideo = selectableVideos.value.find(v => v.id === videoId)
     if (currentVideo) {
       mediaStore.setCurrentItem(currentVideo as any)
       console.log('MediaStore updated with video:', videoId)
@@ -1674,6 +1847,121 @@ const isVideoValidated = (videoId: number): boolean => {
 
 .video-dropdown-option {
   font-family: 'Segoe UI', system-ui, sans-serif;
+}
+
+.video-dropdown {
+  position: relative;
+}
+
+.video-dropdown-trigger {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid #ced4da;
+  border-radius: 0.375rem;
+  background: #ffffff;
+  color: #212529;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+}
+
+.video-dropdown-trigger:disabled {
+  background: #e9ecef;
+  color: #6c757d;
+  cursor: not-allowed;
+}
+
+.video-dropdown-trigger-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.video-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 0.25rem);
+  left: 0;
+  right: 0;
+  z-index: 2000;
+  max-height: 320px;
+  overflow-y: auto;
+  border: 1px solid #ced4da;
+  border-radius: 0.5rem;
+  background: #ffffff;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12);
+}
+
+.video-dropdown-item {
+  width: 100%;
+  border: none;
+  background: transparent;
+  padding: 0.6rem 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid #eef1f4;
+}
+
+.video-dropdown-item:last-child {
+  border-bottom: none;
+}
+
+.video-dropdown-item:hover:not(:disabled) {
+  background: #f8f9fa;
+}
+
+.video-dropdown-item:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.video-dropdown-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.video-dropdown-title {
+  font-weight: 600;
+}
+
+.video-dropdown-status-badge {
+  font-size: 0.72rem;
+  border-radius: 999px;
+  padding: 0.15rem 0.5rem;
+  white-space: nowrap;
+}
+
+.badge-validated {
+  background: #d1e7dd;
+  color: #0f5132;
+}
+
+.badge-pending {
+  background: #fff3cd;
+  color: #664d03;
+}
+
+.video-dropdown-meta {
+  font-size: 0.78rem;
+  color: #5f6b76;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.video-dropdown-item-selected {
+  background: #e7f1ff;
+}
+
+.video-dropdown-item-validated {
+  border-left: 4px solid #198754;
+}
+
+.video-dropdown-item-pending {
+  border-left: 4px solid #ffc107;
 }
 
 .validation-status-alert {

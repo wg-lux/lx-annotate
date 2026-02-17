@@ -33,7 +33,7 @@ const timelineLabels = computed(() => {
  */
 function isAnonymized(videoId) {
     const item = overview.value.find(o => o.id === videoId && o.mediaType === 'video');
-    return item?.anonymizationStatus === 'validated';
+    return item?.anonymizationStatus === 'done_processing_anonymization' || item?.anonymizationStatus === 'validated';
 }
 function isAnnotationFinished(videoId) {
     const video = videoList.value.videos.find(v => v.id === videoId);
@@ -67,6 +67,9 @@ const videoRef = ref(null);
 const videoContainerRef = ref(null);
 const labelSelectRef = ref(null);
 const timelineRef = ref(null);
+const videoDropdownRef = ref(null);
+const isVideoDropdownOpen = ref(false);
+const videoSensitiveMetaMap = ref({});
 // Video Dropdown Watcher
 const hasUnsavedChanges = computed(() => rawSegments.value.some(s => s.isDirty));
 async function loadSelectedVideo() {
@@ -106,6 +109,106 @@ function onVideoChange() {
     /** update the url so users can bookmark / refresh */
     router.replace({ query: { video: selectedVideoId.value } });
 }
+function toggleVideoDropdown() {
+    if (!hasVideos.value)
+        return;
+    isVideoDropdownOpen.value = !isVideoDropdownOpen.value;
+    if (isVideoDropdownOpen.value) {
+        loadSensitiveMetaForVideos(selectableVideos.value.map(v => v.id));
+    }
+}
+function closeVideoDropdown() {
+    isVideoDropdownOpen.value = false;
+}
+function selectVideoFromDropdown(videoId) {
+    const selected = selectableVideos.value.find(video => video.id === videoId);
+    if (!selected || selected.segmentAnnotationsValidated)
+        return;
+    selectedVideoId.value = videoId;
+    onVideoChange();
+    closeVideoDropdown();
+}
+const handleDocumentClick = (event) => {
+    const target = event.target;
+    if (!(target instanceof Node))
+        return;
+    if (!videoDropdownRef.value)
+        return;
+    if (!videoDropdownRef.value.contains(target)) {
+        closeVideoDropdown();
+    }
+};
+const parseDobToDate = (rawDob) => {
+    if (!rawDob)
+        return null;
+    const trimmed = rawDob.trim();
+    if (!trimmed)
+        return null;
+    const isoCandidate = new Date(trimmed);
+    if (!Number.isNaN(isoCandidate.getTime()))
+        return isoCandidate;
+    const deMatch = trimmed.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+    if (deMatch) {
+        const [, day, month, year] = deMatch;
+        const parsed = new Date(Number(year), Number(month) - 1, Number(day));
+        if (!Number.isNaN(parsed.getTime()))
+            return parsed;
+    }
+    return null;
+};
+const getAgeFromDob = (rawDob) => {
+    const dob = parseDobToDate(rawDob);
+    if (!dob)
+        return null;
+    const today = new Date();
+    let age = today.getFullYear() - dob.getFullYear();
+    const monthDelta = today.getMonth() - dob.getMonth();
+    if (monthDelta < 0 || (monthDelta === 0 && today.getDate() < dob.getDate())) {
+        age -= 1;
+    }
+    return age >= 0 ? age : null;
+};
+const normalizeGenderLabel = (value) => {
+    if (!value)
+        return 'Unbekannt';
+    const normalized = value.toLowerCase();
+    if (normalized === 'male' || normalized === 'männlich')
+        return 'Männlich';
+    if (normalized === 'female' || normalized === 'weiblich')
+        return 'Weiblich';
+    if (normalized === 'diverse')
+        return 'Divers';
+    return value;
+};
+const getVideoPatientGender = (videoId) => {
+    return normalizeGenderLabel(videoSensitiveMetaMap.value[videoId]?.patient_gender_name);
+};
+const getVideoPatientAgeLabel = (videoId) => {
+    const age = getAgeFromDob(videoSensitiveMetaMap.value[videoId]?.patient_dob);
+    return age == null ? 'Unbekannt' : `${age} J.`;
+};
+const loadSensitiveMetaForVideos = async (videoIds) => {
+    const missingIds = videoIds.filter(id => !(id in videoSensitiveMetaMap.value));
+    if (missingIds.length === 0)
+        return;
+    const results = await Promise.all(missingIds.map(async (id) => {
+        try {
+            const { data } = await axiosInstance.get(r(`media/videos/${id}/sensitive-metadata/`));
+            return { id, data };
+        }
+        catch {
+            return { id, data: { patient_dob: null, patient_gender_name: null } };
+        }
+    }));
+    const nextMap = { ...videoSensitiveMetaMap.value };
+    results.forEach(({ id, data }) => {
+        nextMap[id] = {
+            patient_dob: data?.patient_dob ?? null,
+            patient_gender_name: data?.patient_gender_name ?? null,
+        };
+    });
+    videoSensitiveMetaMap.value = nextMap;
+};
 //  fire loader whenever selectedVideoId changes programmatically  */
 watch(selectedVideoId, async (newId) => {
     console.log('Selected video ID changed, syncing store and loading details:', newId);
@@ -127,7 +230,23 @@ watch(() => route.query.video, v => {
         selectedVideoId.value = id;
 }, { immediate: true });
 // List of only videos that are both present in the list **and** in state `done` inside anonymizationStore
-const annotatableVideos = computed(() => videoList.value.videos.filter(v => isAnonymized(v.id) && !isAnnotationFinished(v.id)));
+const selectableVideos = computed(() => videoList.value.videos.filter(v => isAnonymized(v.id)));
+const annotatableVideos = computed(() => selectableVideos.value.filter(v => !isAnnotationFinished(v.id)));
+const selectedVideoLabel = computed(() => {
+    if (!selectableVideos.value.length)
+        return 'Keine Videos verfügbar';
+    if (selectedVideoId.value == null)
+        return 'Bitte Video auswählen...';
+    const video = selectableVideos.value.find(v => v.id === selectedVideoId.value);
+    if (!video)
+        return `Video ${selectedVideoId.value}`;
+    return `📹 ${video.original_file_name || `Video Nr. ${video.id}`}`;
+});
+watch(selectableVideos, (videos) => {
+    if (!videos.length)
+        return;
+    loadSensitiveMetaForVideos(videos.map(v => v.id));
+}, { immediate: true });
 const showExaminationForm = computed(() => {
     return selectedVideoId.value !== null && anonymizedVideoSrc.value !== undefined;
 });
@@ -140,14 +259,17 @@ const anonymizedVideoSrc = computed(() => {
     return `${base}/api/media/videos/${selectedVideoId.value}/?type=processed`;
 });
 const hasVideos = computed(() => {
-    return annotatableVideos.value && annotatableVideos.value.length > 0;
+    return selectableVideos.value && selectableVideos.value.length > 0;
 });
 const noVideosMessage = computed(() => {
     if (videos.value.length === 0) {
         return 'Keine Videos verfügbar. Bitte laden Sie zuerst Videos hoch.';
     }
-    else if (annotatableVideos.value.length === 0) {
+    else if (selectableVideos.value.length === 0) {
         return 'Keine anonymisierten Videos verfügbar. Videos müssen erst anonymisiert werden.';
+    }
+    else if (annotatableVideos.value.length === 0) {
+        return 'Alle anonymisierten Videos sind bereits validiert.';
     }
     return '';
 });
@@ -192,10 +314,12 @@ onMounted(async () => {
         isInitialLoading.value = false;
     }
     document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('click', handleDocumentClick);
     document.addEventListener('fullscreenchange', handleFullscreenChange);
 });
 onUnmounted(() => {
     document.removeEventListener('keydown', handleKeyDown);
+    document.removeEventListener('click', handleDocumentClick);
     document.removeEventListener('fullscreenchange', handleFullscreenChange);
 });
 // Guarded function for error handling like VideoClassificationComponent
@@ -247,7 +371,7 @@ const loadVideoDetail = async (videoId) => {
             fps: Number(response.data.fps ?? 50)
         };
         // Update MediaStore with the current video for consistent URL handling
-        const currentVideo = annotatableVideos.value.find(v => v.id === videoId);
+        const currentVideo = selectableVideos.value.find(v => v.id === videoId);
         if (currentVideo) {
             mediaStore.setCurrentItem(currentVideo);
             console.log('MediaStore updated with video:', videoId);
@@ -851,6 +975,10 @@ let __VLS_directives;
 /** @type {__VLS_StyleScopedClasses['requirement-generator-embedded']} */ ;
 /** @type {__VLS_StyleScopedClasses['requirement-generator-embedded']} */ ;
 /** @type {__VLS_StyleScopedClasses['status-badge-container']} */ ;
+/** @type {__VLS_StyleScopedClasses['video-dropdown-trigger']} */ ;
+/** @type {__VLS_StyleScopedClasses['video-dropdown-item']} */ ;
+/** @type {__VLS_StyleScopedClasses['video-dropdown-item']} */ ;
+/** @type {__VLS_StyleScopedClasses['video-dropdown-item']} */ ;
 /** @type {__VLS_StyleScopedClasses['validation-status-alert']} */ ;
 /** @type {__VLS_StyleScopedClasses['validation-action-button']} */ ;
 /** @type {__VLS_StyleScopedClasses['validation-action-button']} */ ;
@@ -928,25 +1056,79 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.d
 __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
     ...{ class: "form-label" },
 });
-__VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
-    ...{ onChange: (__VLS_ctx.onVideoChange) },
-    value: (__VLS_ctx.selectedVideoId),
-    ...{ class: "form-select" },
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ref: "videoDropdownRef",
+    ...{ class: "video-dropdown" },
+});
+/** @type {typeof __VLS_ctx.videoDropdownRef} */ ;
+__VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+    ...{ onClick: (__VLS_ctx.toggleVideoDropdown) },
+    type: "button",
+    ...{ class: "video-dropdown-trigger" },
     disabled: (!__VLS_ctx.hasVideos),
+    'aria-expanded': (__VLS_ctx.isVideoDropdownOpen ? 'true' : 'false'),
+    'aria-haspopup': "listbox",
 });
-__VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-    value: (null),
+__VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+    ...{ class: "video-dropdown-trigger-text" },
 });
-(__VLS_ctx.hasVideos ? 'Bitte Video auswählen...' : 'Keine Videos verfügbar');
-for (const [video] of __VLS_getVForSourceType((__VLS_ctx.annotatableVideos))) {
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-        key: (video.id),
-        value: (video.id),
+(__VLS_ctx.selectedVideoLabel);
+__VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+    ...{ class: "fas" },
+    ...{ class: (__VLS_ctx.isVideoDropdownOpen ? 'fa-chevron-up' : 'fa-chevron-down') },
+});
+if (__VLS_ctx.isVideoDropdownOpen && __VLS_ctx.hasVideos) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "video-dropdown-menu" },
+        role: "listbox",
     });
-    (video.original_file_name || 'Video Nr. ' + video.id);
-    (__VLS_ctx.getVideoStatusIndicator(video.id));
-    (video.centerName || 'Unbekannt');
-    (video.processorName || 'Unbekannt');
+    for (const [video] of __VLS_getVForSourceType((__VLS_ctx.selectableVideos))) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+            ...{ onClick: (...[$event]) => {
+                    if (!(__VLS_ctx.isVideoDropdownOpen && __VLS_ctx.hasVideos))
+                        return;
+                    __VLS_ctx.selectVideoFromDropdown(video.id);
+                } },
+            key: (video.id),
+            type: "button",
+            ...{ class: "video-dropdown-item" },
+            ...{ class: ({
+                    'video-dropdown-item-selected': __VLS_ctx.selectedVideoId === video.id,
+                    'video-dropdown-item-validated': video.segmentAnnotationsValidated,
+                    'video-dropdown-item-pending': !video.segmentAnnotationsValidated
+                }) },
+            disabled: (video.segmentAnnotationsValidated),
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "video-dropdown-main" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+            ...{ class: "video-dropdown-title" },
+        });
+        (video.original_file_name || 'Video Nr. ' + video.id);
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+            ...{ class: "video-dropdown-status-badge" },
+            ...{ class: (video.segmentAnnotationsValidated ? 'badge-validated' : 'badge-pending') },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: "fas me-1" },
+            ...{ class: (video.segmentAnnotationsValidated ? 'fa-check-double' : 'fa-hourglass-half') },
+        });
+        (video.segmentAnnotationsValidated ? 'Validiert (Outside entfernt)' : 'Validierung offen');
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "video-dropdown-meta" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+        (__VLS_ctx.getVideoStatusIndicator(video.id));
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+        (video.centerName || 'Unbekannt');
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+        (video.processorName || 'Unbekannt');
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+        (__VLS_ctx.getVideoPatientGender(video.id));
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+        (__VLS_ctx.getVideoPatientAgeLabel(video.id));
+    }
 }
 if (!__VLS_ctx.hasVideos) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
@@ -1638,7 +1820,21 @@ if (__VLS_ctx.savedExaminations.length > 0) {
 /** @type {__VLS_StyleScopedClasses['card-body']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['form-label']} */ ;
-/** @type {__VLS_StyleScopedClasses['form-select']} */ ;
+/** @type {__VLS_StyleScopedClasses['video-dropdown']} */ ;
+/** @type {__VLS_StyleScopedClasses['video-dropdown-trigger']} */ ;
+/** @type {__VLS_StyleScopedClasses['video-dropdown-trigger-text']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['video-dropdown-menu']} */ ;
+/** @type {__VLS_StyleScopedClasses['video-dropdown-item']} */ ;
+/** @type {__VLS_StyleScopedClasses['video-dropdown-item-selected']} */ ;
+/** @type {__VLS_StyleScopedClasses['video-dropdown-item-validated']} */ ;
+/** @type {__VLS_StyleScopedClasses['video-dropdown-item-pending']} */ ;
+/** @type {__VLS_StyleScopedClasses['video-dropdown-main']} */ ;
+/** @type {__VLS_StyleScopedClasses['video-dropdown-title']} */ ;
+/** @type {__VLS_StyleScopedClasses['video-dropdown-status-badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['video-dropdown-meta']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
@@ -1921,9 +2117,16 @@ const __VLS_self = (await import('vue')).defineComponent({
             videoContainerRef: videoContainerRef,
             labelSelectRef: labelSelectRef,
             timelineRef: timelineRef,
+            videoDropdownRef: videoDropdownRef,
+            isVideoDropdownOpen: isVideoDropdownOpen,
             hasUnsavedChanges: hasUnsavedChanges,
-            onVideoChange: onVideoChange,
+            toggleVideoDropdown: toggleVideoDropdown,
+            selectVideoFromDropdown: selectVideoFromDropdown,
+            getVideoPatientGender: getVideoPatientGender,
+            getVideoPatientAgeLabel: getVideoPatientAgeLabel,
+            selectableVideos: selectableVideos,
             annotatableVideos: annotatableVideos,
+            selectedVideoLabel: selectedVideoLabel,
             showExaminationForm: showExaminationForm,
             anonymizedVideoSrc: anonymizedVideoSrc,
             hasVideos: hasVideos,

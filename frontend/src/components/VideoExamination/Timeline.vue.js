@@ -378,6 +378,13 @@ const stepFrame = (direction) => {
     const next = Math.max(0, Math.min(duration.value, current + direction * step));
     emit('seek', next);
 };
+const seekBySeconds = (deltaSeconds) => {
+    if (!duration.value)
+        return;
+    const current = props.currentTime ?? 0;
+    const next = Math.max(0, Math.min(duration.value, current + deltaSeconds));
+    emit('seek', next);
+};
 const getSegmentRange = (segment) => {
     const canonical = segment;
     const start = Number.isFinite(canonical.start) ? canonical.start : segment.startTime ?? 0;
@@ -482,16 +489,12 @@ const handleKeyDown = (event) => {
         }
         if (isK) {
             event.preventDefault();
-            stepFrame(-1);
-            stepFrame(-1);
-            stepFrame(-1);
+            seekBySeconds(-5);
             return;
         }
         if (isL) {
             event.preventDefault();
-            stepFrame(1);
-            stepFrame(1);
-            stepFrame(1);
+            seekBySeconds(5);
             return;
         }
     }

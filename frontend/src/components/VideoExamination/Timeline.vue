@@ -762,6 +762,13 @@ const stepFrame = (direction: -1 | 1): void => {
   emit('seek', next)
 }
 
+const seekBySeconds = (deltaSeconds: number): void => {
+  if (!duration.value) return
+  const current = props.currentTime ?? 0
+  const next = Math.max(0, Math.min(duration.value, current + deltaSeconds))
+  emit('seek', next)
+}
+
 
 const getSegmentRange = (segment: Segment | CanonicalSegment): { label: string; start: number; end: number } => {
   const canonical = segment as CanonicalSegment
@@ -873,17 +880,12 @@ const handleKeyDown = (event: KeyboardEvent): void => {
     }
     if (isK) {
       event.preventDefault()
-      stepFrame(-1)
-      stepFrame(-1)
-      stepFrame(-1)
-
+      seekBySeconds(-5)
       return
     }
     if (isL) {
       event.preventDefault()
-      stepFrame(1)
-      stepFrame(1)
-      stepFrame(1)
+      seekBySeconds(5)
       return
     }
   }
