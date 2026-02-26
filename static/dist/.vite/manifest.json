@@ -13,6 +13,31 @@
       "AnnotationDashboard.css"
     ]
   },
+  "_FindingsDetail.css": {
+    "file": "FindingsDetail.css",
+    "src": "_FindingsDetail.css"
+  },
+  "_FindingsDetail.js": {
+    "file": "FindingsDetail.js",
+    "name": "FindingsDetail",
+    "imports": [
+      "src/main.ts",
+      "_findingStore.js",
+      "_patientStore.js",
+      "_patientExaminationStore.js",
+      "_examinationStore.js"
+    ],
+    "css": [
+      "FindingsDetail.css"
+    ]
+  },
+  "_LookupStatusPanel.vue_vue_type_script_setup_true_lang.js": {
+    "file": "LookupStatusPanel.vue_vue_type_script_setup_true_lang.js",
+    "name": "LookupStatusPanel.vue_vue_type_script_setup_true_lang",
+    "imports": [
+      "src/main.ts"
+    ]
+  },
   "_PatientAdder.css": {
     "file": "PatientAdder.css",
     "src": "_PatientAdder.css"
@@ -38,26 +63,22 @@
     "imports": [
       "src/main.ts",
       "_patientStore.js",
+      "_examinationStore.js",
+      "_findingStore.js",
       "_RequirementIssues.vue_vue_type_script_setup_true_lang.js",
-      "_PatientAdder2.js"
+      "_patientExaminationStore.js",
+      "_PatientAdder2.js",
+      "_FindingsDetail.js"
     ],
     "css": [
       "RequirementGenerator.css"
     ]
   },
-  "_RequirementIssues.css": {
-    "file": "RequirementIssues.css",
-    "src": "_RequirementIssues.css"
-  },
   "_RequirementIssues.vue_vue_type_script_setup_true_lang.js": {
     "file": "RequirementIssues.vue_vue_type_script_setup_true_lang.js",
     "name": "RequirementIssues.vue_vue_type_script_setup_true_lang",
     "imports": [
-      "src/main.ts",
-      "_patientStore.js"
-    ],
-    "css": [
-      "RequirementIssues.css"
+      "src/main.ts"
     ]
   },
   "_Timeline.css": {
@@ -76,9 +97,31 @@
       "Timeline.css"
     ]
   },
+  "_examinationStore.js": {
+    "file": "examinationStore.js",
+    "name": "examinationStore",
+    "imports": [
+      "src/main.ts"
+    ]
+  },
+  "_findingStore.js": {
+    "file": "findingStore.js",
+    "name": "findingStore",
+    "imports": [
+      "src/main.ts",
+      "_examinationStore.js"
+    ]
+  },
   "_mediaTypeStore.js": {
     "file": "mediaTypeStore.js",
     "name": "mediaTypeStore",
+    "imports": [
+      "src/main.ts"
+    ]
+  },
+  "_patientExaminationStore.js": {
+    "file": "patientExaminationStore.js",
+    "name": "patientExaminationStore",
     "imports": [
       "src/main.ts"
     ]
@@ -90,9 +133,27 @@
       "src/main.ts"
     ]
   },
+  "_reportSubmissionUtils.js": {
+    "file": "reportSubmissionUtils.js",
+    "name": "reportSubmissionUtils"
+  },
+  "_reportingFlowStore.js": {
+    "file": "reportingFlowStore.js",
+    "name": "reportingFlowStore",
+    "imports": [
+      "src/main.ts"
+    ]
+  },
   "_timeHelpers.js": {
     "file": "timeHelpers.js",
     "name": "timeHelpers"
+  },
+  "_useLookupActions.js": {
+    "file": "useLookupActions.js",
+    "name": "useLookupActions",
+    "imports": [
+      "src/main.ts"
+    ]
   },
   "_usePollingProtection.js": {
     "file": "usePollingProtection.js",
@@ -164,6 +225,15 @@
     "src": "src/main.ts",
     "isEntry": true,
     "dynamicImports": [
+      "src/views/reporting/ReportingShell.vue",
+      "src/views/reporting/ReportingWorklistPage.vue",
+      "src/views/reporting/CaseSetupPage.vue",
+      "src/views/reporting/TemplateRequirementsPage.vue",
+      "src/views/reporting/FindingsCapturePage.vue",
+      "src/views/reporting/RequirementsReviewPage.vue",
+      "src/views/reporting/ReportEditorPage.vue",
+      "src/views/reporting/FrameSelectorPage.vue",
+      "src/views/reporting/FinalizedResultPage.vue",
       "src/views/AnnotationDashboard.vue",
       "src/views/VideoExamination.vue",
       "src/views/Dashboard.vue",
@@ -251,8 +321,12 @@
       "_RequirementGenerator.js",
       "src/main.ts",
       "_patientStore.js",
+      "_examinationStore.js",
+      "_findingStore.js",
       "_RequirementIssues.vue_vue_type_script_setup_true_lang.js",
-      "_PatientAdder2.js"
+      "_patientExaminationStore.js",
+      "_PatientAdder2.js",
+      "_FindingsDetail.js"
     ]
   },
   "src/views/Export.vue": {
@@ -319,8 +393,13 @@
     "imports": [
       "src/main.ts",
       "_patientStore.js",
+      "_examinationStore.js",
+      "_findingStore.js",
       "_RequirementIssues.vue_vue_type_script_setup_true_lang.js",
-      "_PatientAdder2.js"
+      "_patientExaminationStore.js",
+      "_PatientAdder2.js",
+      "_FindingsDetail.js",
+      "_reportSubmissionUtils.js"
     ],
     "css": [
       "ReportGenerator.css"
@@ -365,12 +444,129 @@
       "_RequirementGenerator.js",
       "_Timeline.js",
       "_patientStore.js",
+      "_examinationStore.js",
+      "_findingStore.js",
       "_RequirementIssues.vue_vue_type_script_setup_true_lang.js",
+      "_patientExaminationStore.js",
       "_PatientAdder2.js",
+      "_FindingsDetail.js",
       "_timeHelpers.js"
     ],
     "css": [
       "VideoExamination.css"
+    ]
+  },
+  "src/views/reporting/CaseSetupPage.vue": {
+    "file": "CaseSetupPage.js",
+    "name": "CaseSetupPage",
+    "src": "src/views/reporting/CaseSetupPage.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "src/main.ts",
+      "_reportingFlowStore.js",
+      "_patientStore.js",
+      "_examinationStore.js",
+      "_patientExaminationStore.js"
+    ]
+  },
+  "src/views/reporting/FinalizedResultPage.vue": {
+    "file": "FinalizedResultPage.js",
+    "name": "FinalizedResultPage",
+    "src": "src/views/reporting/FinalizedResultPage.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "src/main.ts"
+    ]
+  },
+  "src/views/reporting/FindingsCapturePage.vue": {
+    "file": "FindingsCapturePage.js",
+    "name": "FindingsCapturePage",
+    "src": "src/views/reporting/FindingsCapturePage.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "_FindingsDetail.js",
+      "_LookupStatusPanel.vue_vue_type_script_setup_true_lang.js",
+      "_useLookupActions.js",
+      "_reportingFlowStore.js",
+      "_findingStore.js",
+      "_patientExaminationStore.js",
+      "src/main.ts",
+      "_patientStore.js",
+      "_examinationStore.js"
+    ]
+  },
+  "src/views/reporting/FrameSelectorPage.vue": {
+    "file": "FrameSelectorPage.js",
+    "name": "FrameSelectorPage",
+    "src": "src/views/reporting/FrameSelectorPage.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "src/main.ts",
+      "_LookupStatusPanel.vue_vue_type_script_setup_true_lang.js",
+      "_reportingFlowStore.js",
+      "_findingStore.js",
+      "_examinationStore.js"
+    ],
+    "css": [
+      "FrameSelectorPage.css"
+    ]
+  },
+  "src/views/reporting/ReportEditorPage.vue": {
+    "file": "ReportEditorPage.js",
+    "name": "ReportEditorPage",
+    "src": "src/views/reporting/ReportEditorPage.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "src/main.ts",
+      "_LookupStatusPanel.vue_vue_type_script_setup_true_lang.js",
+      "_reportSubmissionUtils.js",
+      "_reportingFlowStore.js",
+      "_patientStore.js"
+    ]
+  },
+  "src/views/reporting/ReportingShell.vue": {
+    "file": "ReportingShell.js",
+    "name": "ReportingShell",
+    "src": "src/views/reporting/ReportingShell.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "src/main.ts",
+      "_reportingFlowStore.js"
+    ],
+    "css": [
+      "ReportingShell.css"
+    ]
+  },
+  "src/views/reporting/ReportingWorklistPage.vue": {
+    "file": "ReportingWorklistPage.js",
+    "name": "ReportingWorklistPage",
+    "src": "src/views/reporting/ReportingWorklistPage.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "src/main.ts"
+    ]
+  },
+  "src/views/reporting/RequirementsReviewPage.vue": {
+    "file": "RequirementsReviewPage.js",
+    "name": "RequirementsReviewPage",
+    "src": "src/views/reporting/RequirementsReviewPage.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "_LookupStatusPanel.vue_vue_type_script_setup_true_lang.js",
+      "src/main.ts",
+      "_useLookupActions.js",
+      "_reportingFlowStore.js"
+    ]
+  },
+  "src/views/reporting/TemplateRequirementsPage.vue": {
+    "file": "TemplateRequirementsPage.js",
+    "name": "TemplateRequirementsPage",
+    "src": "src/views/reporting/TemplateRequirementsPage.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "src/main.ts",
+      "_useLookupActions.js",
+      "_reportingFlowStore.js"
     ]
   }
 }

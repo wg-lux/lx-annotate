@@ -86,7 +86,7 @@
     </MedicalBlock>
 
     <MedicalBlock
-      title="2. Requirement Sets"
+      title="2. Befundvorlage auswählen"
       subtitle="Anforderungen überprüfen"
       icon="widgets"
       iconBgClass="bg-gradient-warning"
@@ -156,6 +156,70 @@
               Validators: {{ reportTemplate.validators.examinationValidators.length }} examination,
               {{ reportTemplate.validators.findingsValidators.length }} findings
             </small>
+
+            <div class="mt-3 border-top pt-3">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <h6 class="mb-0">Template-Abgleich mit API-Daten</h6>
+                <small class="text-muted">
+                  {{ templateDetailSummary.matchedFindings }} / {{ templateDetailSummary.totalFindings }} Findings gefunden
+                </small>
+              </div>
+
+              <div v-if="templateDetailsLoading" class="text-muted small">
+                Lade Detailabgleich...
+              </div>
+              <div v-else-if="!templateFindingDetails.length" class="text-muted small">
+                Keine Detaildaten verfügbar.
+              </div>
+              <div v-else class="small">
+                <div
+                  v-for="detail in templateFindingDetails"
+                  :key="`${detail.sectionName}::${detail.templateFindingName}`"
+                  class="border rounded p-2 mb-2"
+                >
+                  <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <div>
+                      <strong>{{ detail.templateFindingName }}</strong>
+                      <span class="text-muted ms-2">({{ detail.sectionName }})</span>
+                    </div>
+                    <span
+                      class="badge"
+                      :class="detail.matchedFinding ? 'bg-success' : 'bg-danger'"
+                    >
+                      {{ detail.matchedFinding ? 'Gefunden' : 'Nicht gefunden' }}
+                    </span>
+                  </div>
+
+                  <div v-if="detail.matchedFinding" class="text-muted mt-1">
+                    ID {{ detail.matchedFinding.id }} - {{ detail.matchedFinding.displayName }}
+                    <span v-if="detail.matchedFinding.description">
+                      - {{ detail.matchedFinding.description }}
+                    </span>
+                  </div>
+
+                  <div class="mt-1">
+                    <span class="text-muted">
+                      Template Klassifikationen: {{ detail.requiredTemplateClassifications.length }} erforderlich /
+                      {{ detail.templateClassifications.length }} gesamt
+                    </span>
+                    <span class="text-muted ms-3" v-if="detail.matchedFinding">
+                      API Klassifikationen: {{ detail.apiClassifications.length }}
+                    </span>
+                    <span class="ms-3 badge" :class="detail.isAddedToPatientExamination ? 'bg-success' : 'bg-secondary'">
+                      {{ detail.isAddedToPatientExamination ? 'Im Bericht erfasst' : 'Noch nicht erfasst' }}
+                    </span>
+                  </div>
+
+                  <div
+                    v-if="detail.missingRequiredClassifications.length"
+                    class="text-danger mt-1"
+                  >
+                    Fehlende Pflicht-Klassifikationen:
+                    {{ detail.missingRequiredClassifications.join(', ') }}
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
           <div v-else class="text-muted small">
             Kein Report Template für die aktuelle Untersuchung gefunden.
@@ -304,6 +368,71 @@
       :isActive="currentStep === 4"
       :showAction="false"
     >
+      <div class="card mb-3">
+        <div class="card-body">
+          <div class="d-flex flex-wrap align-items-center gap-2 justify-content-between">
+            <div class="small text-muted">
+              <span v-if="currentReportId">Report #{{ currentReportId }}</span>
+              <span v-if="currentReportId && currentReportVersion != null"> · Version {{ currentReportVersion }}</span>
+              <span v-if="lastSaveStatus"> · Letzter Save: {{ lastSaveStatus }}</span>
+              <span v-if="!currentReportId">Noch nicht gespeichert</span>
+            </div>
+            <div class="d-flex gap-2">
+              <button
+                class="btn btn-sm btn-outline-primary"
+                :disabled="saveSubmissionLoading || !currentPatientExaminationId || !reportTemplate"
+                @click="saveReportSubmission('draft')"
+              >
+                <span v-if="saveSubmissionLoading && lastSaveStatus === 'draft'" class="spinner-border spinner-border-sm me-1" />
+                Entwurf speichern
+              </button>
+              <button
+                class="btn btn-sm btn-success"
+                :disabled="saveSubmissionLoading || !currentPatientExaminationId || !reportTemplate"
+                @click="saveReportSubmission('final')"
+              >
+                <span v-if="saveSubmissionLoading && lastSaveStatus === 'final'" class="spinner-border spinner-border-sm me-1" />
+                Final speichern
+              </button>
+            </div>
+          </div>
+
+          <div v-if="saveWarnings.length" class="mt-3">
+            <div
+              v-for="(warning, idx) in saveWarnings"
+              :key="`save-warning-${idx}`"
+              class="alert alert-warning py-2 mb-2"
+            >
+              {{ warning }}
+            </div>
+          </div>
+
+          <div
+            v-if="lastPersistedArtifacts?.pdfDownloadUrl || lastPersistedArtifacts?.pdfViewUrl"
+            class="mt-2 d-flex flex-wrap gap-2"
+          >
+            <a
+              v-if="lastPersistedArtifacts?.pdfViewUrl"
+              class="btn btn-sm btn-outline-secondary"
+              :href="lastPersistedArtifacts.pdfViewUrl"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              PDF Vorschau
+            </a>
+            <a
+              v-if="lastPersistedArtifacts?.pdfDownloadUrl"
+              class="btn btn-sm btn-outline-secondary"
+              :href="lastPersistedArtifacts.pdfDownloadUrl"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              PDF Download
+            </a>
+          </div>
+        </div>
+      </div>
+
       <RequirementIssues
         :patient-examination-id="lookup?.patientExaminationId || null"
         :requirement-set-ids="selectedRequirementSetIds"
@@ -329,7 +458,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
-import axiosInstance from '@/api/axiosInstance';
+import axiosInstance, { r } from '@/api/axiosInstance';
 import { usePatientStore } from '@/stores/patientStore';
 import type { Patient } from '@/stores/patientStore';
 import { useExaminationStore } from '@/stores/examinationStore';
@@ -342,6 +471,21 @@ import MedicalBlock from './MedicalBlock.vue';
 import FindingsDetail from '../RequirementReport/FindingsDetail.vue';
 import AddableFindingsDetail from '../RequirementReport/AddableFindingsDetail.vue';
 import RequirementIssues from '../RequirementReport/RequirementIssues.vue';
+import { endpoints } from '@/types/api/endpoints';
+import type {
+  ReportSubmissionStatus,
+  SaveReportSubmissionRequest,
+  SaveReportSubmissionResponse
+} from '@/types/api/reportSubmission';
+import {
+  formatDateOnly,
+  mergeClassificationSelections,
+  normalizeInterventions
+} from './reportSubmissionUtils';
+import type {
+  PatientFindingApiClassification,
+  PatientFindingApiIntervention
+} from './reportSubmissionUtils';
 
 // --- Types ---
 type RequirementSetLite = { id: number; name: string; type: string };
@@ -390,6 +534,44 @@ type ReportTemplatePayload = {
   };
 };
 
+type ApiFindingLite = {
+  id: number;
+  name?: string;
+  nameDe?: string;
+  description?: string;
+};
+
+type ApiFindingClassificationLite = {
+  id?: number;
+  name?: string;
+  nameDe?: string;
+  required?: boolean;
+  choices?: Array<{ id?: number; name?: string; nameDe?: string }>;
+};
+
+type TemplateFindingDetail = {
+  sectionName: string;
+  templateFindingName: string;
+  templateClassifications: string[];
+  requiredTemplateClassifications: string[];
+  apiClassifications: string[];
+  missingRequiredClassifications: string[];
+  isAddedToPatientExamination: boolean;
+  matchedFinding: {
+    id: number;
+    displayName: string;
+    description?: string;
+  } | null;
+};
+
+type PatientFindingApiRow = {
+  id: number;
+  finding: number;
+  isActive?: boolean;
+  classifications?: Array<number | PatientFindingApiClassification>;
+  interventions?: Array<number | PatientFindingApiIntervention>;
+};
+
 // --- Store ---
 const patientStore = usePatientStore();
 const examinationStore = useExaminationStore();
@@ -420,6 +602,18 @@ const reportTemplateLoading = ref<boolean>(false);
 const reportTemplateOptions = ref<ReportTemplatePayload[]>([]);
 const autoSelectionAppliedKey = ref<string | null>(null);
 const hasManualRequirementSelection = ref<boolean>(false);
+const templateDetailsLoading = ref<boolean>(false);
+const templateFindingDetails = ref<TemplateFindingDetail[]>([]);
+const findingClassificationsCache = ref<Record<number, ApiFindingClassificationLite[]>>({});
+const currentReportId = ref<number | null>(null);
+const currentReportVersion = ref<number | null>(null);
+const lastSaveStatus = ref<ReportSubmissionStatus | null>(null);
+const saveSubmissionLoading = ref<boolean>(false);
+const saveWarnings = ref<string[]>([]);
+const lastHistoryContext = ref<Record<string, unknown> | null>(null);
+const lastRequirementGuidance = ref<Record<string, unknown> | null>(null);
+const lastPersistedArtifacts = ref<SaveReportSubmissionResponse['persistedArtifacts']>(null);
+const localFindingClassificationSelections = ref<Record<number, Record<number, number>>>({});
 
 const currentStep = ref(1);
 const goToStep = (step: number) => {
@@ -461,6 +655,11 @@ const selectedRequirementSetIds = computed<number[]>({
 });
 const selectedRequirementSetIdSet = computed(() => new Set(selectedRequirementSetIds.value));
 const availableFindings = computed<number[]>(() => lookup.value?.availableFindings ?? []);
+const templateDetailSummary = computed(() => {
+  const totalFindings = templateFindingDetails.value.length;
+  const matchedFindings = templateFindingDetails.value.filter((d) => !!d.matchedFinding).length;
+  return { totalFindings, matchedFindings };
+});
 
 const watchingLookup = ref(false);
 watch(lookup, (newVal, oldVal) => {
@@ -510,6 +709,152 @@ const normalizeKey = (value: string): string =>
     .toLowerCase()
     .replace(/\s+/g, '_')
     .replace(/-/g, '_');
+
+const normalizeClassificationsPayload = (payload: any): ApiFindingClassificationLite[] => {
+  if (Array.isArray(payload)) return payload as ApiFindingClassificationLite[];
+  if (payload && typeof payload === 'object') {
+    const location = Array.isArray(payload.locationClassifications)
+      ? payload.locationClassifications
+      : [];
+    const morphology = Array.isArray(payload.morphologyClassifications)
+      ? payload.morphologyClassifications
+      : [];
+    return [...location, ...morphology] as ApiFindingClassificationLite[];
+  }
+  return [];
+};
+
+const getFindingDisplayName = (finding: ApiFindingLite): string =>
+  finding.nameDe || finding.name || `Finding ${finding.id}`;
+
+const getClassificationDisplayName = (classification: ApiFindingClassificationLite): string =>
+  classification.nameDe || classification.name || 'unknown';
+
+const fetchFindingClassificationsCached = async (
+  findingId: number
+): Promise<ApiFindingClassificationLite[]> => {
+  const cached = findingClassificationsCache.value[findingId];
+  if (cached) return cached;
+
+  let normalized: ApiFindingClassificationLite[] = [];
+  try {
+    const res = await axiosInstance.get(`/api/findings/${findingId}/classifications/`);
+    normalized = normalizeClassificationsPayload(res.data);
+  } catch {
+    const [locationRes, morphologyRes] = await Promise.all([
+      axiosInstance.get(`/api/findings/${findingId}/location_classifications/`).catch(() => ({ data: [] })),
+      axiosInstance.get(`/api/findings/${findingId}/morphology_classifications/`).catch(() => ({ data: [] }))
+    ]);
+    normalized = [
+      ...normalizeClassificationsPayload(locationRes.data),
+      ...normalizeClassificationsPayload(morphologyRes.data)
+    ];
+  }
+
+  findingClassificationsCache.value = {
+    ...findingClassificationsCache.value,
+    [findingId]: normalized
+  };
+  return normalized;
+};
+
+const refreshTemplateFindingDetails = async (): Promise<void> => {
+  if (!reportTemplate.value || !selectedExaminationId.value) {
+    templateFindingDetails.value = [];
+    return;
+  }
+
+  templateDetailsLoading.value = true;
+  try {
+    const findingsRes = await axiosInstance.get(
+      `/api/examinations/${selectedExaminationId.value}/findings/`
+    );
+    const examinationFindings = Array.isArray(findingsRes.data)
+      ? (findingsRes.data as ApiFindingLite[])
+      : [];
+
+    const byName = new Map<string, ApiFindingLite>();
+    for (const finding of examinationFindings) {
+      if (finding.name) byName.set(normalizeKey(finding.name), finding);
+      if (finding.nameDe) byName.set(normalizeKey(finding.nameDe), finding);
+    }
+
+    let patientExaminationFindingKeys = new Set<string>();
+    if (currentPatientExaminationId.value) {
+      try {
+        const peFindingsRes = await axiosInstance.get(
+          `/api/patient-examinations/${currentPatientExaminationId.value}/findings/`
+        );
+        const peFindings = Array.isArray(peFindingsRes.data)
+          ? (peFindingsRes.data as ApiFindingLite[])
+          : [];
+        patientExaminationFindingKeys = new Set(
+          peFindings.flatMap((f) =>
+            [f.name, f.nameDe]
+              .filter((v): v is string => !!v)
+              .map((v) => normalizeKey(v))
+          )
+        );
+      } catch {
+        // Keep detail rendering even if this endpoint is unavailable.
+      }
+    }
+
+    const details: TemplateFindingDetail[] = [];
+
+    for (const section of reportTemplate.value.reportSections || []) {
+      for (const finding of section.findings || []) {
+        const templateName = finding.finding || '';
+        const matched = byName.get(normalizeKey(templateName)) || null;
+        const templateClassifications = (finding.classifications || []).map(
+          (c) => c.classification
+        );
+        const requiredTemplateClassifications = (finding.classifications || [])
+          .filter((c) => !!c.required)
+          .map((c) => c.classification);
+
+        let apiClassifications: string[] = [];
+        if (matched) {
+          const classes = await fetchFindingClassificationsCached(matched.id);
+          apiClassifications = classes.map((c) => getClassificationDisplayName(c));
+        }
+
+        const apiClassificationKeySet = new Set(
+          apiClassifications.map((name) => normalizeKey(name))
+        );
+        const missingRequiredClassifications = requiredTemplateClassifications.filter(
+          (requiredName) => !apiClassificationKeySet.has(normalizeKey(requiredName))
+        );
+
+        details.push({
+          sectionName: section.name,
+          templateFindingName: templateName,
+          templateClassifications,
+          requiredTemplateClassifications,
+          apiClassifications,
+          missingRequiredClassifications,
+          isAddedToPatientExamination:
+            matched !== null &&
+            patientExaminationFindingKeys.has(normalizeKey(matched.nameDe || matched.name || '')),
+          matchedFinding: matched
+            ? {
+                id: matched.id,
+                displayName: getFindingDisplayName(matched),
+                description: matched.description
+              }
+            : null
+        });
+      }
+    }
+
+    templateFindingDetails.value = details;
+  } catch (e) {
+    templateFindingDetails.value = [];
+    console.warn('Failed to enrich template detail data:', axiosError(e));
+  } finally {
+    templateDetailsLoading.value = false;
+  }
+};
 
 const makeSelectionKey = (token: string | null, templateName: string): string =>
   `${token || 'no-token'}::${templateName}`;
@@ -648,6 +993,20 @@ const onClassificationUpdated = (findingId: number, classificationId: number, ch
   // Handle when a classification choice is updated
   console.log('Classification updated:', { findingId, classificationId, choiceId });
 
+  const next = { ...localFindingClassificationSelections.value };
+  const findingSelections = { ...(next[findingId] || {}) };
+  if (choiceId == null) {
+    delete findingSelections[classificationId];
+  } else {
+    findingSelections[classificationId] = choiceId;
+  }
+  if (Object.keys(findingSelections).length) {
+    next[findingId] = findingSelections;
+  } else {
+    delete next[findingId];
+  }
+  localFindingClassificationSelections.value = next;
+
   // Get finding and classification names for better user feedback
   const finding = findingStore.getFindingById(findingId);
   const findingName = finding?.name || `Befund ${findingId}`;
@@ -761,6 +1120,137 @@ function axiosError(e: any): string {
   return 'Unbekannter Fehler';
 }
 
+const buildPatientDataPayload = (): SaveReportSubmissionRequest['patientData'] => {
+  const patient = selectedPatientId.value ? patientStore.getPatientById(selectedPatientId.value) : null;
+  if (!patient) return {};
+
+  return {
+    patientBirthDate: formatDateOnly(patient.dob),
+    patientGender: patient.gender || null,
+    firstName: patient.firstName || null,
+    lastName: patient.lastName || null,
+    center: (patient as any).center || null
+  };
+};
+
+const fetchNormalizedFindingsPayload = async (): Promise<SaveReportSubmissionRequest['findings']> => {
+  if (!currentPatientExaminationId.value) return [];
+
+  try {
+    const res = await axiosInstance.get(
+      `/api/patient-findings/?patient_examination=${currentPatientExaminationId.value}`
+    );
+    const rows = (Array.isArray(res.data?.results) ? res.data.results : res.data) as PatientFindingApiRow[];
+    return (Array.isArray(rows) ? rows : [])
+      .filter((row) => row && row.finding && row.isActive !== false)
+      .map((row) => ({
+        finding: row.finding,
+        classifications: mergeClassificationSelections(
+          row.finding,
+          row.classifications,
+          localFindingClassificationSelections.value
+        ),
+        interventions: normalizeInterventions(row.interventions)
+      }));
+  } catch (e) {
+    console.warn('Failed to fetch patient-findings for report save, falling back to examination findings:', axiosError(e));
+  }
+
+  try {
+    const res = await axiosInstance.get(`/api/patient-examinations/${currentPatientExaminationId.value}/findings/`);
+    const rows = (Array.isArray(res.data?.results) ? res.data.results : res.data) as Array<{ id?: number }>;
+    return (Array.isArray(rows) ? rows : [])
+      .map((row) => Number(row?.id))
+      .filter((id) => Number.isFinite(id))
+      .map((findingId) => ({
+        finding: findingId,
+        classifications: mergeClassificationSelections(
+          findingId,
+          undefined,
+          localFindingClassificationSelections.value
+        ),
+        interventions: []
+      }));
+  } catch (e) {
+    console.warn('Fallback findings fetch also failed:', axiosError(e));
+    return [];
+  }
+};
+
+const buildEditorPayloadForSubmission = () => ({
+  source: 'assisted_reporting',
+  lookupToken: lookupToken.value,
+  selectedRequirementSetIds: selectedRequirementSetIds.value,
+  templateName: reportTemplate.value?.name || null,
+  savedAt: new Date().toISOString()
+});
+
+const buildRenderedTextForSubmission = (): string => {
+  // No structured report text editor is wired here yet; keep rendered text empty for now.
+  return '';
+};
+
+async function saveReportSubmission(status: ReportSubmissionStatus) {
+  if (!currentPatientExaminationId.value) {
+    error.value = 'Keine Patientenuntersuchung ausgewählt.';
+    return;
+  }
+  if (!reportTemplate.value?.name) {
+    error.value = 'Kein Report-Template ausgewählt.';
+    return;
+  }
+
+  error.value = null;
+  saveSubmissionLoading.value = true;
+  lastSaveStatus.value = status;
+
+  try {
+    const findings = await fetchNormalizedFindingsPayload();
+    const payload: SaveReportSubmissionRequest = {
+      ...(currentReportId.value ? { reportId: currentReportId.value } : {}),
+      ...(currentReportVersion.value ? { expectedVersion: currentReportVersion.value } : {}),
+      patientExaminationId: currentPatientExaminationId.value,
+      templateName: reportTemplate.value.name,
+      status,
+      editorPayload: buildEditorPayloadForSubmission(),
+      renderedText: buildRenderedTextForSubmission(),
+      patientData: buildPatientDataPayload(),
+      indications: [],
+      findings,
+      selectedRequirementSetIds: selectedRequirementSetIds.value
+    };
+
+    const res = await axiosInstance.post<SaveReportSubmissionResponse>(
+      r(endpoints.report.saveReportSubmission),
+      payload
+    );
+    const data = res.data;
+
+    currentReportId.value = data.report.id;
+    currentReportVersion.value = data.report.version;
+    lastSaveStatus.value = (data.report.status as ReportSubmissionStatus) || status;
+    saveWarnings.value = Array.isArray(data.warnings) ? data.warnings : [];
+    lastHistoryContext.value = (data.historyContext || null) as Record<string, unknown> | null;
+    lastRequirementGuidance.value = (data.requirementGuidance || null) as Record<string, unknown> | null;
+    lastPersistedArtifacts.value = data.persistedArtifacts || null;
+
+    const verb = data.created ? 'erstellt' : 'aktualisiert';
+    successMessage.value = `Bericht wurde als ${status === 'final' ? 'final' : 'Entwurf'} ${verb} (Version ${data.report.version}).`;
+    setTimeout(() => {
+      if (successMessage.value?.includes('Bericht wurde')) successMessage.value = null;
+    }, 4000);
+  } catch (e: any) {
+    const versionConflictMessage = e?.response?.data?.expectedVersion;
+    if (typeof versionConflictMessage === 'string' && versionConflictMessage.toLowerCase().includes('version conflict')) {
+      error.value = `Versionskonflikt beim Speichern: ${versionConflictMessage}`;
+    } else {
+      error.value = `Fehler beim Speichern des Berichts: ${axiosError(e)}`;
+    }
+  } finally {
+    saveSubmissionLoading.value = false;
+  }
+}
+
 function applyLookup(partial: Partial<LookupDict>) {
   if (!lookup.value) {
     lookup.value = partial as LookupDict;
@@ -782,8 +1272,10 @@ async function fetchReportTemplateByName(moduleName: string, templateName: strin
     ) {
       reportTemplateOptions.value = [reportTemplate.value, ...reportTemplateOptions.value];
     }
+    await refreshTemplateFindingDetails();
   } catch (e) {
     reportTemplate.value = null;
+    templateFindingDetails.value = [];
     console.warn('Failed to fetch report template by name:', axiosError(e));
   } finally {
     reportTemplateLoading.value = false;
@@ -815,9 +1307,11 @@ async function fetchReportTemplateByExamination(
     if (reportTemplate.value) {
       selectedTemplateName.value = reportTemplate.value.name;
     }
+    await refreshTemplateFindingDetails();
   } catch (e) {
     reportTemplate.value = null;
     reportTemplateOptions.value = [];
+    templateFindingDetails.value = [];
     console.warn('Failed to fetch report template by examination:', axiosError(e));
   } finally {
     reportTemplateLoading.value = false;
@@ -1158,6 +1652,13 @@ function resetLookupSession() {
   lookupToken.value = null;
   lookup.value = null;
   currentPatientExaminationId.value = null;
+  currentReportId.value = null;
+  currentReportVersion.value = null;
+  lastSaveStatus.value = null;
+  saveWarnings.value = [];
+  lastHistoryContext.value = null;
+  lastRequirementGuidance.value = null;
+  lastPersistedArtifacts.value = null;
   error.value = null;
   successMessage.value = null;
   stopHeartbeat();
@@ -1174,6 +1675,13 @@ async function resetSessionForNewPatient(): Promise<void> {
   lookupToken.value = null;
   lookup.value = null;
   currentPatientExaminationId.value = null;
+  currentReportId.value = null;
+  currentReportVersion.value = null;
+  lastSaveStatus.value = null;
+  saveWarnings.value = [];
+  lastHistoryContext.value = null;
+  lastRequirementGuidance.value = null;
+  lastPersistedArtifacts.value = null;
   error.value = null;
   successMessage.value = null;
   stopHeartbeat();
@@ -1324,6 +1832,13 @@ watch(currentPatientExaminationId, (newId) => {
     localStorage.setItem(PATIENT_EXAM_STORAGE_KEY, newId.toString());
   } else {
     localStorage.removeItem(PATIENT_EXAM_STORAGE_KEY);
+    currentReportId.value = null;
+    currentReportVersion.value = null;
+    lastSaveStatus.value = null;
+    saveWarnings.value = [];
+    lastHistoryContext.value = null;
+    lastRequirementGuidance.value = null;
+    lastPersistedArtifacts.value = null;
   }
 });
 
@@ -1397,6 +1912,7 @@ watch(lookup, (newLookup) => {
 
 watch(reportTemplate, () => {
   void applyTemplateToRequirementSelection();
+  void refreshTemplateFindingDetails();
 });
 
 watch(selectedTemplateName, async () => {

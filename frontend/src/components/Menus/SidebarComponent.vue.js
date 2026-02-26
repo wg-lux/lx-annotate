@@ -1,10 +1,19 @@
+function normalizeStaticUrl(value) {
+    const base = value || '/static/';
+    return base.endsWith('/') ? base : `${base}/`;
+}
 export default (await import('vue')).defineComponent({
     name: 'SidebarComponent',
     data() {
         return {
-            staticUrl: window.STATIC_URL,
+            staticUrl: normalizeStaticUrl(window.STATIC_URL),
             isSidebarOpen: false
         };
+    },
+    computed: {
+        logoSrc() {
+            return `${this.staticUrl}img/ColoReg.png`;
+        }
     },
     methods: {
         toggleSidebar() {
@@ -40,7 +49,9 @@ export default (await import('vue')).defineComponent({
 const __VLS_ctx = {};
 let __VLS_components;
 let __VLS_directives;
+/** @type {__VLS_StyleScopedClasses['sidenav-header']} */ ;
 /** @type {__VLS_StyleScopedClasses['nav-link']} */ ;
+/** @type {__VLS_StyleScopedClasses['sidenav']} */ ;
 /** @type {__VLS_StyleScopedClasses['sidenav']} */ ;
 /** @type {__VLS_StyleScopedClasses['sidenav']} */ ;
 /** @type {__VLS_StyleScopedClasses['show']} */ ;
@@ -81,7 +92,7 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.d
     ...{ class: "sidenav-header-inner text-center" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.img)({
-    src: (__VLS_ctx.staticUrl + 'img/ColoReg.png'),
+    src: (__VLS_ctx.logoSrc),
     alt: "Logo",
     ...{ class: "logo-img" },
 });
@@ -289,14 +300,14 @@ const __VLS_28 = {}.RouterLink;
 /** @type {[typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, ]} */ ;
 // @ts-ignore
 const __VLS_29 = __VLS_asFunctionalComponent(__VLS_28, new __VLS_28({
-    to: "/report-generator",
+    to: "/reporting",
     ...{ class: "nav-link" },
-    ...{ class: ({ active: __VLS_ctx.$route.path === '/report-generator' }) },
+    ...{ class: ({ active: __VLS_ctx.$route.path === '/reporting' }) },
 }));
 const __VLS_30 = __VLS_29({
-    to: "/report-generator",
+    to: "/reporting",
     ...{ class: "nav-link" },
-    ...{ class: ({ active: __VLS_ctx.$route.path === '/report-generator' }) },
+    ...{ class: ({ active: __VLS_ctx.$route.path === '/reporting' }) },
 }, ...__VLS_functionalComponentArgsRest(__VLS_29));
 __VLS_31.slots.default;
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -309,6 +320,60 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.
     ...{ class: "nav-link-text ms-1" },
 });
 var __VLS_31;
+__VLS_asFunctionalElement(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({
+    ...{ class: "nav-item" },
+});
+const __VLS_32 = {}.RouterLink;
+/** @type {[typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, ]} */ ;
+// @ts-ignore
+const __VLS_33 = __VLS_asFunctionalComponent(__VLS_32, new __VLS_32({
+    to: "/reporting/case-setup",
+    ...{ class: "nav-link" },
+    ...{ class: ({ active: __VLS_ctx.$route.path.startsWith('/reporting/case-setup') }) },
+}));
+const __VLS_34 = __VLS_33({
+    to: "/reporting/case-setup",
+    ...{ class: "nav-link" },
+    ...{ class: ({ active: __VLS_ctx.$route.path.startsWith('/reporting/case-setup') }) },
+}, ...__VLS_functionalComponentArgsRest(__VLS_33));
+__VLS_35.slots.default;
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+    ...{ class: "material-icons opacity-10" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+    ...{ class: "nav-link-text ms-1" },
+});
+var __VLS_35;
+__VLS_asFunctionalElement(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({
+    ...{ class: "nav-item" },
+});
+const __VLS_36 = {}.RouterLink;
+/** @type {[typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, ]} */ ;
+// @ts-ignore
+const __VLS_37 = __VLS_asFunctionalComponent(__VLS_36, new __VLS_36({
+    to: "/reporting",
+    ...{ class: "nav-link" },
+    ...{ class: ({ active: __VLS_ctx.$route.path.startsWith('/reporting/') && __VLS_ctx.$route.path !== '/reporting' }) },
+}));
+const __VLS_38 = __VLS_37({
+    to: "/reporting",
+    ...{ class: "nav-link" },
+    ...{ class: ({ active: __VLS_ctx.$route.path.startsWith('/reporting/') && __VLS_ctx.$route.path !== '/reporting' }) },
+}, ...__VLS_functionalComponentArgsRest(__VLS_37));
+__VLS_39.slots.default;
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+    ...{ class: "material-icons opacity-10" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+    ...{ class: "nav-link-text ms-1" },
+});
+var __VLS_39;
 /** @type {__VLS_StyleScopedClasses['sidebar-backdrop']} */ ;
 /** @type {__VLS_StyleScopedClasses['sidenav']} */ ;
 /** @type {__VLS_StyleScopedClasses['show']} */ ;
@@ -343,6 +408,40 @@ var __VLS_31;
 /** @type {__VLS_StyleScopedClasses['opacity-10']} */ ;
 /** @type {__VLS_StyleScopedClasses['nav-link-text']} */ ;
 /** @type {__VLS_StyleScopedClasses['ms-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['nav-link']} */ ;
+/** @type {__VLS_StyleScopedClasses['active']} */ ;
+/** @type {__VLS_StyleScopedClasses['icon']} */ ;
+/** @type {__VLS_StyleScopedClasses['icon-shape']} */ ;
+/** @type {__VLS_StyleScopedClasses['icon-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['shadow']} */ ;
+/** @type {__VLS_StyleScopedClasses['border-radius-md']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['justify-content-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['material-icons']} */ ;
+/** @type {__VLS_StyleScopedClasses['opacity-10']} */ ;
+/** @type {__VLS_StyleScopedClasses['nav-link-text']} */ ;
+/** @type {__VLS_StyleScopedClasses['ms-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['nav-item']} */ ;
+/** @type {__VLS_StyleScopedClasses['nav-link']} */ ;
+/** @type {__VLS_StyleScopedClasses['active']} */ ;
+/** @type {__VLS_StyleScopedClasses['icon']} */ ;
+/** @type {__VLS_StyleScopedClasses['icon-shape']} */ ;
+/** @type {__VLS_StyleScopedClasses['icon-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['shadow']} */ ;
+/** @type {__VLS_StyleScopedClasses['border-radius-md']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['justify-content-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['material-icons']} */ ;
+/** @type {__VLS_StyleScopedClasses['opacity-10']} */ ;
+/** @type {__VLS_StyleScopedClasses['nav-link-text']} */ ;
+/** @type {__VLS_StyleScopedClasses['ms-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['nav-item']} */ ;
 /** @type {__VLS_StyleScopedClasses['nav-link']} */ ;
 /** @type {__VLS_StyleScopedClasses['active']} */ ;
 /** @type {__VLS_StyleScopedClasses['icon']} */ ;

@@ -1,5 +1,5 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
-import axiosInstance from '@/api/axiosInstance';
+import axiosInstance, { r } from '@/api/axiosInstance';
 import { usePatientStore } from '@/stores/patientStore';
 import { useExaminationStore } from '@/stores/examinationStore';
 import { useFindingStore } from '@/stores/findingStore';
@@ -10,6 +10,8 @@ import MedicalBlock from './MedicalBlock.vue';
 import FindingsDetail from '../RequirementReport/FindingsDetail.vue';
 import AddableFindingsDetail from '../RequirementReport/AddableFindingsDetail.vue';
 import RequirementIssues from '../RequirementReport/RequirementIssues.vue';
+import { endpoints } from '@/types/api/endpoints';
+import { formatDateOnly, mergeClassificationSelections, normalizeInterventions } from './reportSubmissionUtils';
 // --- Store ---
 const patientStore = usePatientStore();
 const examinationStore = useExaminationStore();
@@ -38,6 +40,18 @@ const reportTemplateLoading = ref(false);
 const reportTemplateOptions = ref([]);
 const autoSelectionAppliedKey = ref(null);
 const hasManualRequirementSelection = ref(false);
+const templateDetailsLoading = ref(false);
+const templateFindingDetails = ref([]);
+const findingClassificationsCache = ref({});
+const currentReportId = ref(null);
+const currentReportVersion = ref(null);
+const lastSaveStatus = ref(null);
+const saveSubmissionLoading = ref(false);
+const saveWarnings = ref([]);
+const lastHistoryContext = ref(null);
+const lastRequirementGuidance = ref(null);
+const lastPersistedArtifacts = ref(null);
+const localFindingClassificationSelections = ref({});
 const currentStep = ref(1);
 const goToStep = (step) => {
     currentStep.value = Math.min(Math.max(step, 1), 4);
@@ -74,6 +88,11 @@ const selectedRequirementSetIds = computed({
 });
 const selectedRequirementSetIdSet = computed(() => new Set(selectedRequirementSetIds.value));
 const availableFindings = computed(() => lookup.value?.availableFindings ?? []);
+const templateDetailSummary = computed(() => {
+    const totalFindings = templateFindingDetails.value.length;
+    const matchedFindings = templateFindingDetails.value.filter((d) => !!d.matchedFinding).length;
+    return { totalFindings, matchedFindings };
+});
 const watchingLookup = ref(false);
 watch(lookup, (newVal, oldVal) => {
     if (watchingLookup.value)
@@ -120,6 +139,125 @@ const normalizeKey = (value) => String(value || '')
     .toLowerCase()
     .replace(/\s+/g, '_')
     .replace(/-/g, '_');
+const normalizeClassificationsPayload = (payload) => {
+    if (Array.isArray(payload))
+        return payload;
+    if (payload && typeof payload === 'object') {
+        const location = Array.isArray(payload.locationClassifications)
+            ? payload.locationClassifications
+            : [];
+        const morphology = Array.isArray(payload.morphologyClassifications)
+            ? payload.morphologyClassifications
+            : [];
+        return [...location, ...morphology];
+    }
+    return [];
+};
+const getFindingDisplayName = (finding) => finding.nameDe || finding.name || `Finding ${finding.id}`;
+const getClassificationDisplayName = (classification) => classification.nameDe || classification.name || 'unknown';
+const fetchFindingClassificationsCached = async (findingId) => {
+    const cached = findingClassificationsCache.value[findingId];
+    if (cached)
+        return cached;
+    let normalized = [];
+    try {
+        const res = await axiosInstance.get(`/api/findings/${findingId}/classifications/`);
+        normalized = normalizeClassificationsPayload(res.data);
+    }
+    catch {
+        const [locationRes, morphologyRes] = await Promise.all([
+            axiosInstance.get(`/api/findings/${findingId}/location_classifications/`).catch(() => ({ data: [] })),
+            axiosInstance.get(`/api/findings/${findingId}/morphology_classifications/`).catch(() => ({ data: [] }))
+        ]);
+        normalized = [
+            ...normalizeClassificationsPayload(locationRes.data),
+            ...normalizeClassificationsPayload(morphologyRes.data)
+        ];
+    }
+    findingClassificationsCache.value = {
+        ...findingClassificationsCache.value,
+        [findingId]: normalized
+    };
+    return normalized;
+};
+const refreshTemplateFindingDetails = async () => {
+    if (!reportTemplate.value || !selectedExaminationId.value) {
+        templateFindingDetails.value = [];
+        return;
+    }
+    templateDetailsLoading.value = true;
+    try {
+        const findingsRes = await axiosInstance.get(`/api/examinations/${selectedExaminationId.value}/findings/`);
+        const examinationFindings = Array.isArray(findingsRes.data)
+            ? findingsRes.data
+            : [];
+        const byName = new Map();
+        for (const finding of examinationFindings) {
+            if (finding.name)
+                byName.set(normalizeKey(finding.name), finding);
+            if (finding.nameDe)
+                byName.set(normalizeKey(finding.nameDe), finding);
+        }
+        let patientExaminationFindingKeys = new Set();
+        if (currentPatientExaminationId.value) {
+            try {
+                const peFindingsRes = await axiosInstance.get(`/api/patient-examinations/${currentPatientExaminationId.value}/findings/`);
+                const peFindings = Array.isArray(peFindingsRes.data)
+                    ? peFindingsRes.data
+                    : [];
+                patientExaminationFindingKeys = new Set(peFindings.flatMap((f) => [f.name, f.nameDe]
+                    .filter((v) => !!v)
+                    .map((v) => normalizeKey(v))));
+            }
+            catch {
+                // Keep detail rendering even if this endpoint is unavailable.
+            }
+        }
+        const details = [];
+        for (const section of reportTemplate.value.reportSections || []) {
+            for (const finding of section.findings || []) {
+                const templateName = finding.finding || '';
+                const matched = byName.get(normalizeKey(templateName)) || null;
+                const templateClassifications = (finding.classifications || []).map((c) => c.classification);
+                const requiredTemplateClassifications = (finding.classifications || [])
+                    .filter((c) => !!c.required)
+                    .map((c) => c.classification);
+                let apiClassifications = [];
+                if (matched) {
+                    const classes = await fetchFindingClassificationsCached(matched.id);
+                    apiClassifications = classes.map((c) => getClassificationDisplayName(c));
+                }
+                const apiClassificationKeySet = new Set(apiClassifications.map((name) => normalizeKey(name)));
+                const missingRequiredClassifications = requiredTemplateClassifications.filter((requiredName) => !apiClassificationKeySet.has(normalizeKey(requiredName)));
+                details.push({
+                    sectionName: section.name,
+                    templateFindingName: templateName,
+                    templateClassifications,
+                    requiredTemplateClassifications,
+                    apiClassifications,
+                    missingRequiredClassifications,
+                    isAddedToPatientExamination: matched !== null &&
+                        patientExaminationFindingKeys.has(normalizeKey(matched.nameDe || matched.name || '')),
+                    matchedFinding: matched
+                        ? {
+                            id: matched.id,
+                            displayName: getFindingDisplayName(matched),
+                            description: matched.description
+                        }
+                        : null
+                });
+            }
+        }
+        templateFindingDetails.value = details;
+    }
+    catch (e) {
+        templateFindingDetails.value = [];
+        console.warn('Failed to enrich template detail data:', axiosError(e));
+    }
+    finally {
+        templateDetailsLoading.value = false;
+    }
+};
 const makeSelectionKey = (token, templateName) => `${token || 'no-token'}::${templateName}`;
 const collectTemplateFindingNames = (template) => {
     const names = new Set();
@@ -230,6 +368,21 @@ const onFindingAddedToExamination = (findingIdOrData, findingName) => {
 const onClassificationUpdated = (findingId, classificationId, choiceId) => {
     // Handle when a classification choice is updated
     console.log('Classification updated:', { findingId, classificationId, choiceId });
+    const next = { ...localFindingClassificationSelections.value };
+    const findingSelections = { ...(next[findingId] || {}) };
+    if (choiceId == null) {
+        delete findingSelections[classificationId];
+    }
+    else {
+        findingSelections[classificationId] = choiceId;
+    }
+    if (Object.keys(findingSelections).length) {
+        next[findingId] = findingSelections;
+    }
+    else {
+        delete next[findingId];
+    }
+    localFindingClassificationSelections.value = next;
     // Get finding and classification names for better user feedback
     const finding = findingStore.getFindingById(findingId);
     const findingName = finding?.name || `Befund ${findingId}`;
@@ -323,6 +476,119 @@ function axiosError(e) {
         return e.message;
     return 'Unbekannter Fehler';
 }
+const buildPatientDataPayload = () => {
+    const patient = selectedPatientId.value ? patientStore.getPatientById(selectedPatientId.value) : null;
+    if (!patient)
+        return {};
+    return {
+        patientBirthDate: formatDateOnly(patient.dob),
+        patientGender: patient.gender || null,
+        firstName: patient.firstName || null,
+        lastName: patient.lastName || null,
+        center: patient.center || null
+    };
+};
+const fetchNormalizedFindingsPayload = async () => {
+    if (!currentPatientExaminationId.value)
+        return [];
+    try {
+        const res = await axiosInstance.get(`/api/patient-findings/?patient_examination=${currentPatientExaminationId.value}`);
+        const rows = (Array.isArray(res.data?.results) ? res.data.results : res.data);
+        return (Array.isArray(rows) ? rows : [])
+            .filter((row) => row && row.finding && row.isActive !== false)
+            .map((row) => ({
+            finding: row.finding,
+            classifications: mergeClassificationSelections(row.finding, row.classifications, localFindingClassificationSelections.value),
+            interventions: normalizeInterventions(row.interventions)
+        }));
+    }
+    catch (e) {
+        console.warn('Failed to fetch patient-findings for report save, falling back to examination findings:', axiosError(e));
+    }
+    try {
+        const res = await axiosInstance.get(`/api/patient-examinations/${currentPatientExaminationId.value}/findings/`);
+        const rows = (Array.isArray(res.data?.results) ? res.data.results : res.data);
+        return (Array.isArray(rows) ? rows : [])
+            .map((row) => Number(row?.id))
+            .filter((id) => Number.isFinite(id))
+            .map((findingId) => ({
+            finding: findingId,
+            classifications: mergeClassificationSelections(findingId, undefined, localFindingClassificationSelections.value),
+            interventions: []
+        }));
+    }
+    catch (e) {
+        console.warn('Fallback findings fetch also failed:', axiosError(e));
+        return [];
+    }
+};
+const buildEditorPayloadForSubmission = () => ({
+    source: 'assisted_reporting',
+    lookupToken: lookupToken.value,
+    selectedRequirementSetIds: selectedRequirementSetIds.value,
+    templateName: reportTemplate.value?.name || null,
+    savedAt: new Date().toISOString()
+});
+const buildRenderedTextForSubmission = () => {
+    // No structured report text editor is wired here yet; keep rendered text empty for now.
+    return '';
+};
+async function saveReportSubmission(status) {
+    if (!currentPatientExaminationId.value) {
+        error.value = 'Keine Patientenuntersuchung ausgewählt.';
+        return;
+    }
+    if (!reportTemplate.value?.name) {
+        error.value = 'Kein Report-Template ausgewählt.';
+        return;
+    }
+    error.value = null;
+    saveSubmissionLoading.value = true;
+    lastSaveStatus.value = status;
+    try {
+        const findings = await fetchNormalizedFindingsPayload();
+        const payload = {
+            ...(currentReportId.value ? { reportId: currentReportId.value } : {}),
+            ...(currentReportVersion.value ? { expectedVersion: currentReportVersion.value } : {}),
+            patientExaminationId: currentPatientExaminationId.value,
+            templateName: reportTemplate.value.name,
+            status,
+            editorPayload: buildEditorPayloadForSubmission(),
+            renderedText: buildRenderedTextForSubmission(),
+            patientData: buildPatientDataPayload(),
+            indications: [],
+            findings,
+            selectedRequirementSetIds: selectedRequirementSetIds.value
+        };
+        const res = await axiosInstance.post(r(endpoints.report.saveReportSubmission), payload);
+        const data = res.data;
+        currentReportId.value = data.report.id;
+        currentReportVersion.value = data.report.version;
+        lastSaveStatus.value = data.report.status || status;
+        saveWarnings.value = Array.isArray(data.warnings) ? data.warnings : [];
+        lastHistoryContext.value = (data.historyContext || null);
+        lastRequirementGuidance.value = (data.requirementGuidance || null);
+        lastPersistedArtifacts.value = data.persistedArtifacts || null;
+        const verb = data.created ? 'erstellt' : 'aktualisiert';
+        successMessage.value = `Bericht wurde als ${status === 'final' ? 'final' : 'Entwurf'} ${verb} (Version ${data.report.version}).`;
+        setTimeout(() => {
+            if (successMessage.value?.includes('Bericht wurde'))
+                successMessage.value = null;
+        }, 4000);
+    }
+    catch (e) {
+        const versionConflictMessage = e?.response?.data?.expectedVersion;
+        if (typeof versionConflictMessage === 'string' && versionConflictMessage.toLowerCase().includes('version conflict')) {
+            error.value = `Versionskonflikt beim Speichern: ${versionConflictMessage}`;
+        }
+        else {
+            error.value = `Fehler beim Speichern des Berichts: ${axiosError(e)}`;
+        }
+    }
+    finally {
+        saveSubmissionLoading.value = false;
+    }
+}
 function applyLookup(partial) {
     if (!lookup.value) {
         lookup.value = partial;
@@ -340,9 +606,11 @@ async function fetchReportTemplateByName(moduleName, templateName) {
             !reportTemplateOptions.value.some((t) => t.name === reportTemplate.value.name)) {
             reportTemplateOptions.value = [reportTemplate.value, ...reportTemplateOptions.value];
         }
+        await refreshTemplateFindingDetails();
     }
     catch (e) {
         reportTemplate.value = null;
+        templateFindingDetails.value = [];
         console.warn('Failed to fetch report template by name:', axiosError(e));
     }
     finally {
@@ -367,10 +635,12 @@ async function fetchReportTemplateByExamination(moduleName, examinationName) {
         if (reportTemplate.value) {
             selectedTemplateName.value = reportTemplate.value.name;
         }
+        await refreshTemplateFindingDetails();
     }
     catch (e) {
         reportTemplate.value = null;
         reportTemplateOptions.value = [];
+        templateFindingDetails.value = [];
         console.warn('Failed to fetch report template by examination:', axiosError(e));
     }
     finally {
@@ -689,6 +959,13 @@ function resetLookupSession() {
     lookupToken.value = null;
     lookup.value = null;
     currentPatientExaminationId.value = null;
+    currentReportId.value = null;
+    currentReportVersion.value = null;
+    lastSaveStatus.value = null;
+    saveWarnings.value = [];
+    lastHistoryContext.value = null;
+    lastRequirementGuidance.value = null;
+    lastPersistedArtifacts.value = null;
     error.value = null;
     successMessage.value = null;
     stopHeartbeat();
@@ -702,6 +979,13 @@ async function resetSessionForNewPatient() {
     lookupToken.value = null;
     lookup.value = null;
     currentPatientExaminationId.value = null;
+    currentReportId.value = null;
+    currentReportVersion.value = null;
+    lastSaveStatus.value = null;
+    saveWarnings.value = [];
+    lastHistoryContext.value = null;
+    lastRequirementGuidance.value = null;
+    lastPersistedArtifacts.value = null;
     error.value = null;
     successMessage.value = null;
     stopHeartbeat();
@@ -831,6 +1115,13 @@ watch(currentPatientExaminationId, (newId) => {
     }
     else {
         localStorage.removeItem(PATIENT_EXAM_STORAGE_KEY);
+        currentReportId.value = null;
+        currentReportVersion.value = null;
+        lastSaveStatus.value = null;
+        saveWarnings.value = [];
+        lastHistoryContext.value = null;
+        lastRequirementGuidance.value = null;
+        lastPersistedArtifacts.value = null;
     }
 });
 // --- Watchers ---
@@ -897,6 +1188,7 @@ watch(lookup, (newLookup) => {
 }, { immediate: true });
 watch(reportTemplate, () => {
     void applyTemplateToRequirementSelection();
+    void refreshTemplateFindingDetails();
 });
 watch(selectedTemplateName, async () => {
     await onTemplateSelectionChange();
@@ -1148,7 +1440,7 @@ var __VLS_2;
 // @ts-ignore
 const __VLS_7 = __VLS_asFunctionalComponent(MedicalBlock, new MedicalBlock({
     ...{ 'onNext': {} },
-    title: "2. Requirement Sets",
+    title: "2. Befundvorlage auswählen",
     subtitle: "Anforderungen überprüfen",
     icon: "widgets",
     iconBgClass: "bg-gradient-warning",
@@ -1158,7 +1450,7 @@ const __VLS_7 = __VLS_asFunctionalComponent(MedicalBlock, new MedicalBlock({
 }));
 const __VLS_8 = __VLS_7({
     ...{ 'onNext': {} },
-    title: "2. Requirement Sets",
+    title: "2. Befundvorlage auswählen",
     subtitle: "Anforderungen überprüfen",
     icon: "widgets",
     iconBgClass: "bg-gradient-warning",
@@ -1271,6 +1563,92 @@ else if (__VLS_ctx.reportTemplate) {
     });
     (__VLS_ctx.reportTemplate.validators.examinationValidators.length);
     (__VLS_ctx.reportTemplate.validators.findingsValidators.length);
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "mt-3 border-top pt-3" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "d-flex justify-content-between align-items-center mb-2" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({
+        ...{ class: "mb-0" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+        ...{ class: "text-muted" },
+    });
+    (__VLS_ctx.templateDetailSummary.matchedFindings);
+    (__VLS_ctx.templateDetailSummary.totalFindings);
+    if (__VLS_ctx.templateDetailsLoading) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "text-muted small" },
+        });
+    }
+    else if (!__VLS_ctx.templateFindingDetails.length) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "text-muted small" },
+        });
+    }
+    else {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "small" },
+        });
+        for (const [detail] of __VLS_getVForSourceType((__VLS_ctx.templateFindingDetails))) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                key: (`${detail.sectionName}::${detail.templateFindingName}`),
+                ...{ class: "border rounded p-2 mb-2" },
+            });
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: "d-flex justify-content-between align-items-center flex-wrap gap-2" },
+            });
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+            (detail.templateFindingName);
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                ...{ class: "text-muted ms-2" },
+            });
+            (detail.sectionName);
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                ...{ class: "badge" },
+                ...{ class: (detail.matchedFinding ? 'bg-success' : 'bg-danger') },
+            });
+            (detail.matchedFinding ? 'Gefunden' : 'Nicht gefunden');
+            if (detail.matchedFinding) {
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                    ...{ class: "text-muted mt-1" },
+                });
+                (detail.matchedFinding.id);
+                (detail.matchedFinding.displayName);
+                if (detail.matchedFinding.description) {
+                    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+                    (detail.matchedFinding.description);
+                }
+            }
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: "mt-1" },
+            });
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                ...{ class: "text-muted" },
+            });
+            (detail.requiredTemplateClassifications.length);
+            (detail.templateClassifications.length);
+            if (detail.matchedFinding) {
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                    ...{ class: "text-muted ms-3" },
+                });
+                (detail.apiClassifications.length);
+            }
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                ...{ class: "ms-3 badge" },
+                ...{ class: (detail.isAddedToPatientExamination ? 'bg-success' : 'bg-secondary') },
+            });
+            (detail.isAddedToPatientExamination ? 'Im Bericht erfasst' : 'Noch nicht erfasst');
+            if (detail.missingRequiredClassifications.length) {
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                    ...{ class: "text-danger mt-1" },
+                });
+                (detail.missingRequiredClassifications.join(', '));
+            }
+        }
+    }
 }
 else {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -1640,6 +2018,97 @@ if (__VLS_ctx.lookupToken) {
         showAction: (false),
     }, ...__VLS_functionalComponentArgsRest(__VLS_37));
     __VLS_39.slots.default;
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "card mb-3" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "card-body" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "d-flex flex-wrap align-items-center gap-2 justify-content-between" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "small text-muted" },
+    });
+    if (__VLS_ctx.currentReportId) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+        (__VLS_ctx.currentReportId);
+    }
+    if (__VLS_ctx.currentReportId && __VLS_ctx.currentReportVersion != null) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+        (__VLS_ctx.currentReportVersion);
+    }
+    if (__VLS_ctx.lastSaveStatus) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+        (__VLS_ctx.lastSaveStatus);
+    }
+    if (!__VLS_ctx.currentReportId) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+    }
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "d-flex gap-2" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+        ...{ onClick: (...[$event]) => {
+                if (!(__VLS_ctx.lookupToken))
+                    return;
+                __VLS_ctx.saveReportSubmission('draft');
+            } },
+        ...{ class: "btn btn-sm btn-outline-primary" },
+        disabled: (__VLS_ctx.saveSubmissionLoading || !__VLS_ctx.currentPatientExaminationId || !__VLS_ctx.reportTemplate),
+    });
+    if (__VLS_ctx.saveSubmissionLoading && __VLS_ctx.lastSaveStatus === 'draft') {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span)({
+            ...{ class: "spinner-border spinner-border-sm me-1" },
+        });
+    }
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+        ...{ onClick: (...[$event]) => {
+                if (!(__VLS_ctx.lookupToken))
+                    return;
+                __VLS_ctx.saveReportSubmission('final');
+            } },
+        ...{ class: "btn btn-sm btn-success" },
+        disabled: (__VLS_ctx.saveSubmissionLoading || !__VLS_ctx.currentPatientExaminationId || !__VLS_ctx.reportTemplate),
+    });
+    if (__VLS_ctx.saveSubmissionLoading && __VLS_ctx.lastSaveStatus === 'final') {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span)({
+            ...{ class: "spinner-border spinner-border-sm me-1" },
+        });
+    }
+    if (__VLS_ctx.saveWarnings.length) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "mt-3" },
+        });
+        for (const [warning, idx] of __VLS_getVForSourceType((__VLS_ctx.saveWarnings))) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                key: (`save-warning-${idx}`),
+                ...{ class: "alert alert-warning py-2 mb-2" },
+            });
+            (warning);
+        }
+    }
+    if (__VLS_ctx.lastPersistedArtifacts?.pdfDownloadUrl || __VLS_ctx.lastPersistedArtifacts?.pdfViewUrl) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "mt-2 d-flex flex-wrap gap-2" },
+        });
+        if (__VLS_ctx.lastPersistedArtifacts?.pdfViewUrl) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.a, __VLS_intrinsicElements.a)({
+                ...{ class: "btn btn-sm btn-outline-secondary" },
+                href: (__VLS_ctx.lastPersistedArtifacts.pdfViewUrl),
+                target: "_blank",
+                rel: "noopener noreferrer",
+            });
+        }
+        if (__VLS_ctx.lastPersistedArtifacts?.pdfDownloadUrl) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.a, __VLS_intrinsicElements.a)({
+                ...{ class: "btn btn-sm btn-outline-secondary" },
+                href: (__VLS_ctx.lastPersistedArtifacts.pdfDownloadUrl),
+                target: "_blank",
+                rel: "noopener noreferrer",
+            });
+        }
+    }
     /** @type {[typeof RequirementIssues, ]} */ ;
     // @ts-ignore
     const __VLS_40 = __VLS_asFunctionalComponent(RequirementIssues, new RequirementIssues({
@@ -1786,6 +2255,42 @@ if (__VLS_ctx.showCreatePatientModal) {
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['border-top']} */ ;
+/** @type {__VLS_StyleScopedClasses['pt-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['justify-content-between']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['small']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['small']} */ ;
+/** @type {__VLS_StyleScopedClasses['small']} */ ;
+/** @type {__VLS_StyleScopedClasses['border']} */ ;
+/** @type {__VLS_StyleScopedClasses['rounded']} */ ;
+/** @type {__VLS_StyleScopedClasses['p-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['justify-content-between']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['flex-wrap']} */ ;
+/** @type {__VLS_StyleScopedClasses['gap-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['ms-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['ms-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['ms-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-danger']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['small']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
@@ -1909,6 +2414,45 @@ if (__VLS_ctx.showCreatePatientModal) {
 /** @type {__VLS_StyleScopedClasses['fa-2x']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['card']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['card-body']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['flex-wrap']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['gap-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['justify-content-between']} */ ;
+/** @type {__VLS_StyleScopedClasses['small']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['gap-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-primary']} */ ;
+/** @type {__VLS_StyleScopedClasses['spinner-border']} */ ;
+/** @type {__VLS_StyleScopedClasses['spinner-border-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-success']} */ ;
+/** @type {__VLS_StyleScopedClasses['spinner-border']} */ ;
+/** @type {__VLS_StyleScopedClasses['spinner-border-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert-warning']} */ ;
+/** @type {__VLS_StyleScopedClasses['py-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['flex-wrap']} */ ;
+/** @type {__VLS_StyleScopedClasses['gap-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-secondary']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-secondary']} */ ;
 /** @type {__VLS_StyleScopedClasses['modal-overlay']} */ ;
 /** @type {__VLS_StyleScopedClasses['modal-dialog']} */ ;
 /** @type {__VLS_StyleScopedClasses['modal-content']} */ ;
@@ -1943,6 +2487,14 @@ const __VLS_self = (await import('vue')).defineComponent({
             reportTemplate: reportTemplate,
             reportTemplateLoading: reportTemplateLoading,
             reportTemplateOptions: reportTemplateOptions,
+            templateDetailsLoading: templateDetailsLoading,
+            templateFindingDetails: templateFindingDetails,
+            currentReportId: currentReportId,
+            currentReportVersion: currentReportVersion,
+            lastSaveStatus: lastSaveStatus,
+            saveSubmissionLoading: saveSubmissionLoading,
+            saveWarnings: saveWarnings,
+            lastPersistedArtifacts: lastPersistedArtifacts,
             currentStep: currentStep,
             goToStep: goToStep,
             patients: patients,
@@ -1953,12 +2505,14 @@ const __VLS_self = (await import('vue')).defineComponent({
             selectedRequirementSetIds: selectedRequirementSetIds,
             selectedRequirementSetIdSet: selectedRequirementSetIdSet,
             availableFindings: availableFindings,
+            templateDetailSummary: templateDetailSummary,
             isFindingAddedToExamination: isFindingAddedToExamination,
             onFindingAddedToExamination: onFindingAddedToExamination,
             onClassificationUpdated: onClassificationUpdated,
             loadFindingsData: loadFindingsData,
             evaluateRequirementsOnChange: evaluateRequirementsOnChange,
             evaluationSummary: evaluationSummary,
+            saveReportSubmission: saveReportSubmission,
             fetchReportTemplateByName: fetchReportTemplateByName,
             createPatientExaminationAndInitLookup: createPatientExaminationAndInitLookup,
             fetchLookupAll: fetchLookupAll,

@@ -13,7 +13,7 @@ export type GeneratePseudonymResponse = {
 
 export async function generatePatientPseudonym(id: number): Promise<GeneratePseudonymResponse> {
   if (!Number.isFinite(id) || id <= 0) throw new Error('Ungültige patientId')
-  const { data } = await axiosInstance.post(`/api/patients/${id}/pseudonym/`)
+  const { data } = await axiosInstance.post(r(`/api/patients/${id}/pseudonym/`))
   return data as GeneratePseudonymResponse
 }
 

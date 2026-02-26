@@ -30,7 +30,7 @@ declare const _default: import("vue").DefineComponent<Props, {}, {}, {}, {}, imp
         selectedClassifications: number;
     }) => any) | undefined;
 }>, {
-    isAddedToExamination: boolean;
     patientExaminationId: number;
+    isAddedToExamination: boolean;
 }, {}, {}, {}, string, import("vue").ComponentProvideOptions, false, {}, any>;
 export default _default;

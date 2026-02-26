@@ -1,7 +1,9 @@
 declare const _default: import("vue").DefineComponent<{}, {}, {
     staticUrl: any;
     isSidebarOpen: boolean;
-}, {}, {
+}, {
+    logoSrc(): string;
+}, {
     toggleSidebar(): void;
     closeSidebar(): void;
     openSidebar(): void;

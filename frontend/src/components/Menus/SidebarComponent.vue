@@ -20,7 +20,7 @@
       <div class="sidenav-header">
         <a class="navbar-brand m-0" href="/">
           <div class="sidenav-header-inner text-center">
-            <img :src="staticUrl + 'img/ColoReg.png'" alt="Logo" class="logo-img" />
+            <img :src="logoSrc" alt="Logo" class="logo-img" />
           </div>
           <div class="ms-1 font-weight-bold text-white text-center">AG Lux</div>
         </a>
@@ -115,11 +115,41 @@
             </li>
             
             <li class="nav-item">
-              <router-link to="/report-generator" class="nav-link" :class="{ active: $route.path === '/report-generator' }">
+              <router-link
+                to="/reporting"
+                class="nav-link"
+                :class="{ active: $route.path === '/reporting' }"
+              >
                 <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
-                  <i class="material-icons opacity-10">article</i>
+                  <i class="material-icons opacity-10">fact_check</i>
                 </div>
-                <span class="nav-link-text ms-1">Report Generator</span>
+                <span class="nav-link-text ms-1">Berichtsworkflow (neu)</span>
+              </router-link>
+            </li>
+
+            <li class="nav-item">
+              <router-link
+                to="/reporting/case-setup"
+                class="nav-link"
+                :class="{ active: $route.path.startsWith('/reporting/case-setup') }"
+              >
+                <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
+                  <i class="material-icons opacity-10">playlist_add_check</i>
+                </div>
+                <span class="nav-link-text ms-1">Befundung: Fall-Setup</span>
+              </router-link>
+            </li>
+
+            <li class="nav-item">
+              <router-link
+                to="/reporting"
+                class="nav-link"
+                :class="{ active: $route.path.startsWith('/reporting/') && $route.path !== '/reporting' }"
+              >
+                <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
+                  <i class="material-icons opacity-10">route</i>
+                </div>
+                <span class="nav-link-text ms-1">Befundung: Übersicht öffnen</span>
               </router-link>
             </li>
             <!-- <li class="nav-item">
@@ -163,12 +193,22 @@
 </template>
 
 <script>
+function normalizeStaticUrl(value) {
+  const base = value || '/static/'
+  return base.endsWith('/') ? base : `${base}/`
+}
+
 export default {
   name: 'SidebarComponent',
   data() {
     return {
-      staticUrl: window.STATIC_URL,
+      staticUrl: normalizeStaticUrl(window.STATIC_URL),
       isSidebarOpen: false
+    }
+  },
+  computed: {
+    logoSrc() {
+      return `${this.staticUrl}img/ColoReg.png`
     }
   },
   methods: {
@@ -210,11 +250,28 @@ export default {
 
 <style scoped>
 /* Preserve original desktop sidebar styles */
+.sidenav {
+  display: flex;
+  flex-direction: column;
+}
+
+.sidenav-header {
+  flex: 0 0 auto;
+  position: relative;
+  z-index: 1;
+}
+
+.sidenav-header .navbar-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-decoration: none;
+}
+
 .sidenav-header-inner {
   padding: 0.5rem 1rem;
   margin-bottom: 1.5rem;
   box-sizing: border-box;
-
 }
 .logo-img {
   display: block;
@@ -251,6 +308,8 @@ export default {
 }
 
 .sidenav-body {
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
   max-height: calc(100vh - 4.875rem);
   -webkit-overflow-scrolling: touch;

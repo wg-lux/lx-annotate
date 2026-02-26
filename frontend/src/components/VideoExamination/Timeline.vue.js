@@ -477,6 +477,18 @@ const handleKeyDown = (event) => {
         const isPeriod = event.key === '.' || event.code === 'Period';
         const isK = event.key.toLowerCase() === 'k';
         const isL = event.key.toLowerCase() === 'l';
+        const isArrowLeft = event.key === 'ArrowLeft';
+        const isArrowRight = event.key === 'ArrowRight';
+        if (isArrowLeft) {
+            event.preventDefault();
+            seekBySeconds(-2);
+            return;
+        }
+        if (isArrowRight) {
+            event.preventDefault();
+            seekBySeconds(2);
+            return;
+        }
         if (isComma) {
             event.preventDefault();
             stepFrame(-1);
@@ -489,12 +501,12 @@ const handleKeyDown = (event) => {
         }
         if (isK) {
             event.preventDefault();
-            seekBySeconds(-5);
+            seekBySeconds(-2);
             return;
         }
         if (isL) {
             event.preventDefault();
-            seekBySeconds(5);
+            seekBySeconds(2);
             return;
         }
     }

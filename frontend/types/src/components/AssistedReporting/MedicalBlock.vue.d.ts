@@ -42,9 +42,9 @@ declare const _default: __VLS_WithSlots<import("vue").DefineComponent<import("vu
     loading: BooleanConstructor;
 }>> & Readonly<{}>, {
     loading: boolean;
+    isActive: boolean;
     iconBgClass: string;
     isComplete: boolean;
-    isActive: boolean;
     actionLabel: string;
     showAction: boolean;
 }, {}, {}, {}, string, import("vue").ComponentProvideOptions, true, {}, any>, {
