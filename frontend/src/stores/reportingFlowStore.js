@@ -21,7 +21,26 @@ function loadPersistedState() {
                     examinationIndicationId: typeof row?.examinationIndicationId === 'number' ? row.examinationIndicationId : null,
                     indicationChoiceId: typeof row?.indicationChoiceId === 'number' ? row.indicationChoiceId : null
                 }))
-                : []
+                : [],
+            selectedKbModule: typeof parsed.selectedKbModule === 'string' && parsed.selectedKbModule.trim()
+                ? parsed.selectedKbModule
+                : 'report_template_examples',
+            selectedTemplateName: typeof parsed.selectedTemplateName === 'string' && parsed.selectedTemplateName.trim()
+                ? parsed.selectedTemplateName
+                : null,
+            templateSectionDrafts: parsed.templateSectionDrafts && typeof parsed.templateSectionDrafts === 'object'
+                ? Object.fromEntries(Object.entries(parsed.templateSectionDrafts).map(([key, value]) => {
+                    const draft = value;
+                    return [
+                        key,
+                        {
+                            note: typeof draft?.note === 'string' ? draft.note : '',
+                            includePatientData: !!draft?.includePatientData,
+                            includeExaminationData: !!draft?.includeExaminationData
+                        }
+                    ];
+                }))
+                : {}
         };
     }
     catch {
@@ -37,6 +56,9 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
     const selectedExaminationId = ref(persisted?.selectedExaminationId ?? null);
     const selectedRequirementSetIds = ref(persisted?.selectedRequirementSetIds ?? []);
     const activeReportId = ref(persisted?.activeReportId ?? null);
+    const selectedKbModule = ref(persisted?.selectedKbModule ?? 'report_template_examples');
+    const selectedTemplateName = ref(persisted?.selectedTemplateName ?? null);
+    const templateSectionDrafts = ref(persisted?.templateSectionDrafts ?? {});
     const indications = ref(persisted?.indications ?? [{ examinationIndicationId: null, indicationChoiceId: null }]);
     const lookupSnapshot = ref(null);
     const lastRequirementGuidance = ref(null);
@@ -64,6 +86,34 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
     function setSessionStatus(status) {
         sessionStatus.value = status;
     }
+    function setTemplateSelection(params) {
+        if (params.moduleName !== undefined) {
+            selectedKbModule.value = params.moduleName || 'report_template_examples';
+        }
+        if (params.templateName !== undefined) {
+            selectedTemplateName.value = params.templateName || null;
+        }
+    }
+    function setTemplateSectionDraft(sectionName, patch) {
+        if (!sectionName)
+            return;
+        const current = templateSectionDrafts.value[sectionName] || {
+            note: '',
+            includePatientData: false,
+            includeExaminationData: false
+        };
+        templateSectionDrafts.value = {
+            ...templateSectionDrafts.value,
+            [sectionName]: {
+                note: patch.note ?? current.note,
+                includePatientData: patch.includePatientData ?? current.includePatientData,
+                includeExaminationData: patch.includeExaminationData ?? current.includeExaminationData
+            }
+        };
+    }
+    function clearTemplateSectionDrafts() {
+        templateSectionDrafts.value = {};
+    }
     function resetForPatientSwitch() {
         lookupToken.value = null;
         patientExaminationId.value = null;
@@ -76,6 +126,8 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
         lastRequirementGuidance.value = null;
         findingsRevision.value = 0;
         lastFindingsEvent.value = null;
+        selectedTemplateName.value = null;
+        templateSectionDrafts.value = {};
     }
     function clearAll() {
         lookupToken.value = null;
@@ -90,6 +142,9 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
         lastRequirementGuidance.value = null;
         findingsRevision.value = 0;
         lastFindingsEvent.value = null;
+        selectedKbModule.value = 'report_template_examples';
+        selectedTemplateName.value = null;
+        templateSectionDrafts.value = {};
     }
     function setIndications(rows) {
         indications.value = rows.length ? rows : [{ examinationIndicationId: null, indicationChoiceId: null }];
@@ -154,7 +209,10 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
         selectedExaminationId: selectedExaminationId.value,
         selectedRequirementSetIds: selectedRequirementSetIds.value,
         activeReportId: activeReportId.value,
-        indications: indications.value
+        indications: indications.value,
+        selectedKbModule: selectedKbModule.value,
+        selectedTemplateName: selectedTemplateName.value,
+        templateSectionDrafts: templateSectionDrafts.value
     }));
     watch(persistable, (state) => {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -167,6 +225,9 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
         selectedExaminationId,
         selectedRequirementSetIds,
         activeReportId,
+        selectedKbModule,
+        selectedTemplateName,
+        templateSectionDrafts,
         indications,
         lookupSnapshot,
         lastRequirementGuidance,
@@ -179,6 +240,9 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
         setSelectedRequirementSetIds,
         setActiveReportId,
         setSessionStatus,
+        setTemplateSelection,
+        setTemplateSectionDraft,
+        clearTemplateSectionDrafts,
         setIndications,
         setLookupSnapshot,
         patchLookupSnapshot,

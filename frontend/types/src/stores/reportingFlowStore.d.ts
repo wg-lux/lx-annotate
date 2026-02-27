@@ -1,3 +1,4 @@
+import type { ReportTemplateSectionDraft } from '@/types/reportTemplate';
 type SessionStatus = 'idle' | 'active' | 'expired' | 'restarting';
 export type ReportingLookupSnapshot = {
     requirementStatus?: Record<string, boolean>;
@@ -24,6 +25,9 @@ export declare const useReportingFlowStore: import("pinia").StoreDefinition<"rep
     selectedExaminationId: import("vue").Ref<number | null, number | null>;
     selectedRequirementSetIds: import("vue").Ref<number[], number[]>;
     activeReportId: import("vue").Ref<number | null, number | null>;
+    selectedKbModule: import("vue").Ref<string, string>;
+    selectedTemplateName: import("vue").Ref<string | null, string | null>;
+    templateSectionDrafts: import("vue").Ref<Record<string, ReportTemplateSectionDraft>, Record<string, ReportTemplateSectionDraft>>;
     indications: import("vue").Ref<{
         examinationIndicationId: number | null;
         indicationChoiceId: number | null;
@@ -89,6 +93,12 @@ export declare const useReportingFlowStore: import("pinia").StoreDefinition<"rep
     setSelectedRequirementSetIds: (ids: number[]) => void;
     setActiveReportId: (id: number | null) => void;
     setSessionStatus: (status: SessionStatus) => void;
+    setTemplateSelection: (params: {
+        moduleName?: string;
+        templateName?: string | null;
+    }) => void;
+    setTemplateSectionDraft: (sectionName: string, patch: Partial<ReportTemplateSectionDraft>) => void;
+    clearTemplateSectionDrafts: () => void;
     setIndications: (rows: ReportingIndicationRow[]) => void;
     setLookupSnapshot: (snapshot: ReportingLookupSnapshot | null) => void;
     patchLookupSnapshot: (partial: ReportingLookupSnapshot) => void;
@@ -100,7 +110,7 @@ export declare const useReportingFlowStore: import("pinia").StoreDefinition<"rep
     removeIndicationRow: (index: number) => void;
     resetForPatientSwitch: () => void;
     clearAll: () => void;
-}, "lookupToken" | "patientExaminationId" | "selectedPatientId" | "selectedExaminationId" | "selectedRequirementSetIds" | "activeReportId" | "indications" | "sessionStatus" | "lookupSnapshot" | "lastRequirementGuidance" | "findingsRevision" | "lastFindingsEvent">, Pick<{
+}, "lookupToken" | "patientExaminationId" | "selectedPatientId" | "selectedExaminationId" | "selectedRequirementSetIds" | "activeReportId" | "indications" | "selectedKbModule" | "selectedTemplateName" | "templateSectionDrafts" | "sessionStatus" | "lookupSnapshot" | "lastRequirementGuidance" | "findingsRevision" | "lastFindingsEvent">, Pick<{
     sessionStatus: import("vue").Ref<SessionStatus, SessionStatus>;
     lookupToken: import("vue").Ref<string | null, string | null>;
     patientExaminationId: import("vue").Ref<number | null, number | null>;
@@ -108,6 +118,9 @@ export declare const useReportingFlowStore: import("pinia").StoreDefinition<"rep
     selectedExaminationId: import("vue").Ref<number | null, number | null>;
     selectedRequirementSetIds: import("vue").Ref<number[], number[]>;
     activeReportId: import("vue").Ref<number | null, number | null>;
+    selectedKbModule: import("vue").Ref<string, string>;
+    selectedTemplateName: import("vue").Ref<string | null, string | null>;
+    templateSectionDrafts: import("vue").Ref<Record<string, ReportTemplateSectionDraft>, Record<string, ReportTemplateSectionDraft>>;
     indications: import("vue").Ref<{
         examinationIndicationId: number | null;
         indicationChoiceId: number | null;
@@ -173,6 +186,12 @@ export declare const useReportingFlowStore: import("pinia").StoreDefinition<"rep
     setSelectedRequirementSetIds: (ids: number[]) => void;
     setActiveReportId: (id: number | null) => void;
     setSessionStatus: (status: SessionStatus) => void;
+    setTemplateSelection: (params: {
+        moduleName?: string;
+        templateName?: string | null;
+    }) => void;
+    setTemplateSectionDraft: (sectionName: string, patch: Partial<ReportTemplateSectionDraft>) => void;
+    clearTemplateSectionDrafts: () => void;
     setIndications: (rows: ReportingIndicationRow[]) => void;
     setLookupSnapshot: (snapshot: ReportingLookupSnapshot | null) => void;
     patchLookupSnapshot: (partial: ReportingLookupSnapshot) => void;
@@ -192,6 +211,9 @@ export declare const useReportingFlowStore: import("pinia").StoreDefinition<"rep
     selectedExaminationId: import("vue").Ref<number | null, number | null>;
     selectedRequirementSetIds: import("vue").Ref<number[], number[]>;
     activeReportId: import("vue").Ref<number | null, number | null>;
+    selectedKbModule: import("vue").Ref<string, string>;
+    selectedTemplateName: import("vue").Ref<string | null, string | null>;
+    templateSectionDrafts: import("vue").Ref<Record<string, ReportTemplateSectionDraft>, Record<string, ReportTemplateSectionDraft>>;
     indications: import("vue").Ref<{
         examinationIndicationId: number | null;
         indicationChoiceId: number | null;
@@ -257,6 +279,12 @@ export declare const useReportingFlowStore: import("pinia").StoreDefinition<"rep
     setSelectedRequirementSetIds: (ids: number[]) => void;
     setActiveReportId: (id: number | null) => void;
     setSessionStatus: (status: SessionStatus) => void;
+    setTemplateSelection: (params: {
+        moduleName?: string;
+        templateName?: string | null;
+    }) => void;
+    setTemplateSectionDraft: (sectionName: string, patch: Partial<ReportTemplateSectionDraft>) => void;
+    clearTemplateSectionDrafts: () => void;
     setIndications: (rows: ReportingIndicationRow[]) => void;
     setLookupSnapshot: (snapshot: ReportingLookupSnapshot | null) => void;
     patchLookupSnapshot: (partial: ReportingLookupSnapshot) => void;
@@ -268,5 +296,5 @@ export declare const useReportingFlowStore: import("pinia").StoreDefinition<"rep
     removeIndicationRow: (index: number) => void;
     resetForPatientSwitch: () => void;
     clearAll: () => void;
-}, "setLookupSession" | "setCaseSelection" | "setSelectedRequirementSetIds" | "setActiveReportId" | "setSessionStatus" | "setIndications" | "setLookupSnapshot" | "patchLookupSnapshot" | "setLastRequirementGuidance" | "noteFindingAdded" | "noteClassificationUpdated" | "addIndicationRow" | "updateIndicationRow" | "removeIndicationRow" | "resetForPatientSwitch" | "clearAll">>;
+}, "setLookupSession" | "setCaseSelection" | "setSelectedRequirementSetIds" | "setActiveReportId" | "setSessionStatus" | "setTemplateSelection" | "setTemplateSectionDraft" | "clearTemplateSectionDrafts" | "setIndications" | "setLookupSnapshot" | "patchLookupSnapshot" | "setLastRequirementGuidance" | "noteFindingAdded" | "noteClassificationUpdated" | "addIndicationRow" | "updateIndicationRow" | "removeIndicationRow" | "resetForPatientSwitch" | "clearAll">>;
 export {};

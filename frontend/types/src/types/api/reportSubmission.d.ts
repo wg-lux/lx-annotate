@@ -49,6 +49,8 @@ export type SaveReportSubmissionResponse = {
     warnings: string[];
     historyContext: Record<string, unknown> | null;
     requirementGuidance: Record<string, unknown> | null;
+    persistedReportArtifactId?: number | null;
+    persistedPdfArtifactId?: number | null;
     persistedArtifacts: {
         fullReportId?: number | null;
         pdfId?: number | null;

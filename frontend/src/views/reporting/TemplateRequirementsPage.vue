@@ -1,5 +1,84 @@
 <template>
   <div class="d-flex flex-column gap-3">
+    <MedicalBlock
+      title="Template-Auswahl"
+      subtitle="Report-Templates nach Untersuchung laden und für den Editor vorbereiten"
+      icon="description"
+      icon-bg-class="bg-gradient-primary"
+      :is-complete="!!selectedTemplateName"
+      :is-active="true"
+      :show-action="false"
+      :loading="templateLoading"
+    >
+      <template #default>
+        <div class="row g-3 mb-3">
+          <div class="col-md-4">
+            <label class="form-label">KB-Modul</label>
+            <input
+              class="form-control"
+              :value="selectedKbModule"
+              :disabled="templateLoading"
+              @change="onModuleChange(($event.target as HTMLInputElement).value)"
+            />
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Untersuchung</label>
+            <input class="form-control" :value="selectedExaminationDisplayName || ''" readonly />
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Template</label>
+            <select
+              class="form-select"
+              :value="selectedTemplateName || ''"
+              :disabled="templateLoading || !templateOptions.length"
+              @change="onTemplateSelectionChange(($event.target as HTMLSelectElement).value)"
+            >
+              <option value="" disabled>
+                {{ templateLoading ? 'Templates laden...' : 'Template wählen' }}
+              </option>
+              <option v-for="template in templateOptions" :key="template.name" :value="template.name">
+                {{ template.name }}
+              </option>
+            </select>
+          </div>
+        </div>
+
+        <div class="d-flex flex-wrap gap-2 mb-3">
+          <button
+            class="btn btn-outline-secondary btn-sm"
+            :disabled="templateLoading || !selectedExaminationName"
+            @click="refreshTemplatesForExamination"
+          >
+            Templates für Untersuchung laden
+          </button>
+        </div>
+
+        <div v-if="templateErrorMessage" class="alert alert-danger py-2 mb-2">
+          {{ templateErrorMessage }}
+        </div>
+        <div v-if="templateStatusMessage" class="alert alert-success py-2 mb-0">
+          {{ templateStatusMessage }}
+        </div>
+
+        <div v-if="selectedTemplate" class="mt-3">
+          <div class="small text-muted mb-2">
+            Abschnitte: {{ sectionBlocks.length }} · Validators:
+            {{ selectedTemplate.validators.examinationValidators.length }} examination,
+            {{ selectedTemplate.validators.findingsValidators.length }} findings
+          </div>
+          <ul class="list-group list-group-flush">
+            <li v-for="section in sectionBlocks" :key="section.name" class="list-group-item px-0">
+              <div class="fw-semibold">{{ section.title }}</div>
+              <div class="small text-muted">
+                {{ section.findings.length }} Befunde, {{ section.requiredFindingsCount }} erforderlich,
+                {{ section.requiredClassificationsCount }} Pflicht-Klassifikationen
+              </div>
+            </li>
+          </ul>
+        </div>
+      </template>
+    </MedicalBlock>
+
     <div class="card shadow-sm">
       <div class="card-header d-flex justify-content-between align-items-center">
         <div>
@@ -65,12 +144,14 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import axiosInstance from '@/api/axiosInstance'
+import MedicalBlock from '@/components/AssistedReporting/MedicalBlock.vue'
 import LookupActionsBar from '@/components/Reporting/LookupActionsBar.vue'
 import RequirementSetSelectionList from '@/components/Reporting/RequirementSetSelectionList.vue'
 import { useLookupActions } from '@/composables/reporting/useLookupActions'
+import { useReportTemplates } from '@/composables/reporting/useReportTemplates'
+import { useExaminationStore } from '@/stores/examinationStore'
 import { useReportingFlowStore } from '@/stores/reportingFlowStore'
 
 type RequirementSetLite = { id: number; name: string; type: string }
@@ -87,11 +168,38 @@ type LookupDict = {
 
 const route = useRoute()
 const flow = useReportingFlowStore()
+const examinationStore = useExaminationStore()
 
 const lookup = ref<LookupDict | null>(null)
 const loading = ref(false)
 const errorMessage = ref<string | null>(null)
 const successMessage = ref<string | null>(null)
+
+const {
+  moduleName: selectedKbModule,
+  selectedTemplateName,
+  templateOptions,
+  selectedTemplate,
+  sectionBlocks,
+  loading: templateLoading,
+  errorMessage: templateErrorMessage,
+  fetchTemplatesByExamination,
+  selectTemplateByName,
+  setModuleName
+} = useReportTemplates({
+  initialModuleName: flow.selectedKbModule,
+  initialTemplateName: flow.selectedTemplateName
+})
+
+const selectedExamination = computed(
+  () =>
+    examinationStore.examinationsDropdown.find((item) => item.id === flow.selectedExaminationId) || null
+)
+const selectedExaminationName = computed(() => selectedExamination.value?.name || null)
+const selectedExaminationDisplayName = computed(
+  () => selectedExamination.value?.displayName || selectedExaminationName.value || null
+)
+const templateStatusMessage = ref<string | null>(null)
 
 const requirementSets = computed<RequirementSetLite[]>(() => lookup.value?.requirementSets ?? [])
 const selectedRequirementSetIdSet = computed(() => new Set(flow.selectedRequirementSetIds))
@@ -123,6 +231,34 @@ const lookupActions = useLookupActions<LookupDict>({
   applyLookup,
   clearMessages
 })
+
+watch([selectedKbModule, selectedTemplateName], ([moduleName, templateName]) => {
+  flow.setTemplateSelection({
+    moduleName,
+    templateName
+  })
+})
+
+async function refreshTemplatesForExamination() {
+  templateStatusMessage.value = null
+  const examName = selectedExaminationName.value
+  if (!examName) return
+  const templates = await fetchTemplatesByExamination(examName)
+  if (templates.length) {
+    templateStatusMessage.value = `${templates.length} Template(s) für "${examName}" geladen.`
+  } else {
+    templateStatusMessage.value = `Keine Templates für "${examName}" gefunden.`
+  }
+}
+
+function onModuleChange(next: string) {
+  setModuleName(next.trim() || 'report_template_examples')
+  void refreshTemplatesForExamination()
+}
+
+function onTemplateSelectionChange(name: string) {
+  void selectTemplateByName(name || null)
+}
 
 async function fetchLookupAll() {
   await lookupActions.fetchLookupAll()
@@ -171,6 +307,14 @@ async function triggerRecompute() {
 }
 
 onMounted(async () => {
+  if (!examinationStore.exams.length) {
+    await examinationStore.fetchExaminations()
+  }
+
+  if (selectedExaminationName.value) {
+    await refreshTemplatesForExamination()
+  }
+
   if (
     flow.patientExaminationId &&
     Number(route.params.patient_examination_id) !== flow.patientExaminationId

@@ -1,10 +1,11 @@
 import { computed, onMounted, ref } from 'vue';
 import { RouterLink } from 'vue-router';
-import axiosInstance from '@/api/axiosInstance';
+import axiosInstance, { r } from '@/api/axiosInstance';
 import { useReportingFlowStore } from '@/stores/reportingFlowStore';
 import { usePatientStore } from '@/stores/patientStore';
 import { useExaminationStore } from '@/stores/examinationStore';
 import { usePatientExaminationStore } from '@/stores/patientExaminationStore';
+import { endpoints } from '@/types/api/endpoints';
 const flow = useReportingFlowStore();
 const patientStore = usePatientStore();
 const examinationStore = useExaminationStore();
@@ -91,7 +92,7 @@ async function createPatientExaminationAndInitLookup() {
     clearMessages();
     try {
         const formattedDate = new Date().toISOString().split('T')[0];
-        const peRes = await axiosInstance.post('/api/patient-examinations/', {
+        const peRes = await axiosInstance.post(r(endpoints.router.patientExaminations), {
             patient: selectedPatient.patientHash || `patient_${selectedPatient.id}`,
             examination: selectedExam.name,
             dateStart: formattedDate,
@@ -101,7 +102,7 @@ async function createPatientExaminationAndInitLookup() {
         const pe = peRes.data;
         patientExaminationStore.addPatientExamination(pe);
         patientExaminationStore.setCurrentPatientExaminationId(pe.id);
-        const initRes = await axiosInstance.post('/api/lookup/init/', {
+        const initRes = await axiosInstance.post(r(endpoints.requirements.lookupInit), {
             patientExaminationId: pe.id
         });
         flow.setLookupSession({
@@ -132,7 +133,7 @@ async function reinitLookup() {
     clearMessages();
     flow.setSessionStatus('restarting');
     try {
-        const initRes = await axiosInstance.post('/api/lookup/init/', {
+        const initRes = await axiosInstance.post(r(endpoints.requirements.lookupInit), {
             patientExaminationId: flow.patientExaminationId
         });
         flow.setLookupSession({

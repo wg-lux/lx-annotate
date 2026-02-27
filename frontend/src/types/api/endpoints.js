@@ -62,7 +62,7 @@ export const endpoints = {
         lookupInit: 'lookup/init/',
         lookupAll: (token) => `lookup/${token}/all/`,
         lookupParts: (token, keys) => {
-            if (!(keys == null ? void 0 : keys.length))
+            if (!keys?.length)
                 return `lookup/${token}/parts/`;
             return `lookup/${token}/parts/?keys=${encodeURIComponent(keys.join(','))}`;
         },

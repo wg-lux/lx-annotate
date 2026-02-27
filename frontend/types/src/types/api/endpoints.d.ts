@@ -47,6 +47,8 @@ export declare const endpoints: {
         readonly patientExaminationReportById: (id: Id) => string;
         readonly patientExaminationReportsByPatientExamination: (patientExaminationId: Id) => string;
         readonly saveReportSubmission: "patient-examination-reports/save-submission/";
+        readonly segmentFrameSelectorBase: "patient-examination-reports/segment-frame-selector/";
+        readonly segmentFrameSelector: (patientExaminationId: Id, reportId?: Id) => string;
         readonly reportHistoryContext: (patientExaminationId: Id, limit?: number) => string;
     };
     readonly upload: {
@@ -55,6 +57,10 @@ export declare const endpoints: {
     };
     readonly requirements: {
         readonly lookup: "lookup/";
+        readonly lookupInit: "lookup/init/";
+        readonly lookupAll: (token: Id) => string;
+        readonly lookupParts: (token: Id, keys?: string[]) => string;
+        readonly lookupRecompute: (token: Id) => string;
         readonly evaluateRequirements: "evaluate-requirements/";
     };
     readonly stats: {
@@ -81,6 +87,7 @@ export declare const endpoints: {
         readonly resetStatus: (fileId: Id) => string;
     };
     readonly media: {
+        readonly patientTimeline: (patientId: Id) => string;
         readonly sensitiveMediaId: (pk: Id, mediaType: string) => string;
         readonly videos: "media/videos/";
         readonly videoDetailStream: (pk: Id) => string;

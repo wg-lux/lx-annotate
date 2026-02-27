@@ -1,8 +1,9 @@
 import { computed, onMounted, ref, watch } from 'vue';
-import axiosInstance from '@/api/axiosInstance';
+import axiosInstance, { r } from '@/api/axiosInstance';
 import LookupStatusPanel from '@/components/Reporting/LookupStatusPanel.vue';
 import { useReportingFlowStore } from '@/stores/reportingFlowStore';
 import { useFindingStore } from '@/stores/findingStore';
+import { endpoints } from '@/types/api/endpoints';
 const CLEAR_FINDING_SENTINEL = -1;
 const flow = useReportingFlowStore();
 const findingStore = useFindingStore();
@@ -23,13 +24,7 @@ function clearMessages() {
 function selectorUrl() {
     if (!flow.patientExaminationId)
         return null;
-    const params = new URLSearchParams({
-        patient_examination_id: String(flow.patientExaminationId)
-    });
-    if (flow.activeReportId) {
-        params.set('report_id', String(flow.activeReportId));
-    }
-    return `/api/patient-examination-reports/segment-frame-selector/?${params.toString()}`;
+    return r(endpoints.report.segmentFrameSelector(flow.patientExaminationId, flow.activeReportId ?? undefined));
 }
 async function ensureFindingsLoaded() {
     if (!findingStore.findings.length) {
@@ -106,7 +101,7 @@ async function patchSegmentAction(action, step) {
     loading.value = true;
     clearMessages();
     try {
-        const res = await axiosInstance.patch('/api/patient-examination-reports/segment-frame-selector/', body);
+        const res = await axiosInstance.patch(r(endpoints.report.segmentFrameSelectorBase), body);
         frameSelectorState.value = res.data;
         if (frameSelectorState.value?.reportId) {
             flow.setActiveReportId(frameSelectorState.value.reportId);
@@ -141,7 +136,7 @@ async function setFrameManual() {
     loading.value = true;
     clearMessages();
     try {
-        const res = await axiosInstance.patch('/api/patient-examination-reports/segment-frame-selector/', body);
+        const res = await axiosInstance.patch(r(endpoints.report.segmentFrameSelectorBase), body);
         frameSelectorState.value = res.data;
         if (frameSelectorState.value?.reportId) {
             flow.setActiveReportId(frameSelectorState.value.reportId);
