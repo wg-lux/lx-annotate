@@ -1,1 +1,1 @@
-import{_ as e,a as s,o as t,b as r}from"./main.js";const n={name:"Profil",components:{}},a={class:"about"};function c(l,o,p,f,i,_){return t(),s("div",a,[...o[0]||(o[0]=[r("h1",null,"Userprofil",-1)])])}const m=e(n,[["render",c]]);export{m as default};
+import{_ as e,o as s,a as t,b as r}from"./main.js";const n={name:"Profil",components:{}},a={class:"about"};function c(l,o,p,f,i,_){return s(),t("div",a,[...o[0]||(o[0]=[r("h1",null,"Userprofil",-1)])])}const m=e(n,[["render",c]]);export{m as default};

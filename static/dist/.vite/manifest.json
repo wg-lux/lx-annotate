@@ -38,6 +38,20 @@
       "src/main.ts"
     ]
   },
+  "_MedicalBlock.css": {
+    "file": "MedicalBlock.css",
+    "src": "_MedicalBlock.css"
+  },
+  "_MedicalBlock.vue_vue_type_style_index_0_lang.js": {
+    "file": "MedicalBlock.vue_vue_type_style_index_0_lang.js",
+    "name": "MedicalBlock.vue_vue_type_style_index_0_lang",
+    "imports": [
+      "src/main.ts"
+    ],
+    "css": [
+      "MedicalBlock.css"
+    ]
+  },
   "_PatientAdder.css": {
     "file": "PatientAdder.css",
     "src": "_PatientAdder.css"
@@ -155,9 +169,9 @@
       "src/main.ts"
     ]
   },
-  "_usePollingProtection.js": {
-    "file": "usePollingProtection.js",
-    "name": "usePollingProtection",
+  "_useReportTemplates.js": {
+    "file": "useReportTemplates.js",
+    "name": "useReportTemplates",
     "imports": [
       "src/main.ts"
     ]
@@ -168,6 +182,31 @@
     "imports": [
       "src/main.ts"
     ]
+  },
+  "node_modules/pdf-lib/es/index.js": {
+    "file": "index.js",
+    "name": "index",
+    "src": "node_modules/pdf-lib/es/index.js",
+    "isDynamicEntry": true
+  },
+  "node_modules/pdfjs-dist/build/pdf.worker.min.mjs": {
+    "file": "pdf.worker.min.mjs",
+    "src": "node_modules/pdfjs-dist/build/pdf.worker.min.mjs"
+  },
+  "node_modules/pdfjs-dist/build/pdf.worker.min.mjs?url": {
+    "file": "pdf.worker.min.js",
+    "name": "pdf.worker.min",
+    "src": "node_modules/pdfjs-dist/build/pdf.worker.min.mjs?url",
+    "isDynamicEntry": true,
+    "assets": [
+      "pdf.worker.min.mjs"
+    ]
+  },
+  "node_modules/pdfjs-dist/legacy/build/pdf.mjs": {
+    "file": "pdf.js",
+    "name": "pdf",
+    "src": "node_modules/pdfjs-dist/legacy/build/pdf.mjs",
+    "isDynamicEntry": true
   },
   "src/assets/fonts/nucleo-icons.eot": {
     "file": "nucleo-icons.eot",
@@ -198,6 +237,11 @@
       "src/main.ts",
       "_mediaTypeStore.js"
     ],
+    "dynamicImports": [
+      "node_modules/pdfjs-dist/legacy/build/pdf.mjs",
+      "node_modules/pdfjs-dist/build/pdf.worker.min.mjs?url",
+      "node_modules/pdf-lib/es/index.js"
+    ],
     "css": [
       "AnonymizationCorrectionComponent.css"
     ]
@@ -212,7 +256,6 @@
       "_videoStore.js",
       "_mediaTypeStore.js",
       "_Timeline.js",
-      "_usePollingProtection.js",
       "_timeHelpers.js"
     ],
     "css": [
@@ -283,8 +326,7 @@
       "_videoStore.js",
       "_mediaTypeStore.js",
       "_Timeline.js",
-      "_timeHelpers.js",
-      "_usePollingProtection.js"
+      "_timeHelpers.js"
     ]
   },
   "src/views/AnonymizationOverview.vue": {
@@ -295,8 +337,7 @@
     "imports": [
       "src/main.ts",
       "_videoStore.js",
-      "_mediaTypeStore.js",
-      "_usePollingProtection.js"
+      "_mediaTypeStore.js"
     ],
     "css": [
       "AnonymizationOverview.css"
@@ -397,8 +438,9 @@
       "_findingStore.js",
       "_RequirementIssues.vue_vue_type_script_setup_true_lang.js",
       "_patientExaminationStore.js",
-      "_PatientAdder2.js",
       "_FindingsDetail.js",
+      "_PatientAdder2.js",
+      "_MedicalBlock.vue_vue_type_style_index_0_lang.js",
       "_reportSubmissionUtils.js"
     ],
     "css": [
@@ -425,8 +467,7 @@
       "_videoStore.js",
       "_mediaTypeStore.js",
       "_Timeline.js",
-      "_timeHelpers.js",
-      "_usePollingProtection.js"
+      "_timeHelpers.js"
     ],
     "css": [
       "Validierung.css"
@@ -475,7 +516,8 @@
     "src": "src/views/reporting/FinalizedResultPage.vue",
     "isDynamicEntry": true,
     "imports": [
-      "src/main.ts"
+      "src/main.ts",
+      "_reportingFlowStore.js"
     ]
   },
   "src/views/reporting/FindingsCapturePage.vue": {
@@ -518,9 +560,12 @@
     "isDynamicEntry": true,
     "imports": [
       "src/main.ts",
+      "_MedicalBlock.vue_vue_type_style_index_0_lang.js",
       "_LookupStatusPanel.vue_vue_type_script_setup_true_lang.js",
-      "_reportSubmissionUtils.js",
+      "_useReportTemplates.js",
+      "_examinationStore.js",
       "_reportingFlowStore.js",
+      "_reportSubmissionUtils.js",
       "_patientStore.js"
     ]
   },
@@ -565,7 +610,10 @@
     "isDynamicEntry": true,
     "imports": [
       "src/main.ts",
+      "_MedicalBlock.vue_vue_type_style_index_0_lang.js",
       "_useLookupActions.js",
+      "_useReportTemplates.js",
+      "_examinationStore.js",
       "_reportingFlowStore.js"
     ]
   }

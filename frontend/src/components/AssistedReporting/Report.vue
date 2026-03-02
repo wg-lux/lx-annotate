@@ -847,8 +847,9 @@ const refreshAddedFindingIds = async (): Promise<void> => {
   try {
     await patientFindingStore.fetchPatientFindings(patientExaminationId);
     const ids = new Set<number>();
-    for (const row of patientFindingStore.patientFindings as Array<{ finding?: unknown; isActive?: boolean }>) {
-      if (row?.isActive === false) continue;
+    for (const row of patientFindingStore.patientFindings) {
+      const rowStatus = row as unknown as { isActive?: boolean; is_active?: boolean };
+      if (rowStatus.isActive === false || rowStatus.is_active === false) continue;
       const findingId = extractFindingId(row?.finding);
       if (findingId != null) ids.add(findingId);
     }
@@ -1302,10 +1303,11 @@ const fetchNormalizedFindingsPayload = async (): Promise<SaveReportSubmissionReq
       `/api/patient-findings/?patient_examination=${currentPatientExaminationId.value}`
     );
     const rows = (Array.isArray(res.data?.results) ? res.data.results : res.data) as PatientFindingApiRow[];
-    return (Array.isArray(rows) ? rows : [])
+    const normalizedRows: Array<SaveReportSubmissionRequest['findings'][number] | null> = (Array.isArray(rows) ? rows : [])
       .map((row) => {
         const findingId = extractFindingId(row?.finding);
-        if (findingId == null || row?.isActive === false) return null;
+        const isInactive = row?.isActive === false || (row as { is_active?: boolean })?.is_active === false;
+        if (findingId == null || isInactive) return null;
         return {
           finding: findingId,
           classifications: mergeClassificationSelections(
@@ -1315,8 +1317,8 @@ const fetchNormalizedFindingsPayload = async (): Promise<SaveReportSubmissionReq
           ),
           interventions: normalizeInterventions(row.interventions)
         };
-      })
-      .filter((row): row is SaveReportSubmissionRequest['findings'][number] => !!row);
+      });
+    return normalizedRows.filter((row): row is SaveReportSubmissionRequest['findings'][number] => row !== null);
   } catch (e) {
     console.warn('Failed to fetch patient-findings for report save, falling back to examination findings:', axiosError(e));
   }

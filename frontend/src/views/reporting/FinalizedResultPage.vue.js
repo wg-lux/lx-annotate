@@ -25,6 +25,18 @@ const statusClass = computed(() => {
     return 'bg-secondary';
 });
 const persistedArtifacts = computed(() => latestReportDetail.value?.persistedArtifacts || null);
+const reportDocumentType = computed(() => {
+    const fromArtifacts = persistedArtifacts.value
+        ?.documentType ||
+        persistedArtifacts.value
+            ?.document_type;
+    if (typeof fromArtifacts === 'string' && fromArtifacts.trim().length > 0)
+        return fromArtifacts;
+    const fromDetail = latestReportDetail.value?.documentType || latestReportDetail.value?.document_type;
+    if (typeof fromDetail === 'string' && fromDetail.trim().length > 0)
+        return fromDetail;
+    return null;
+});
 const fallbackPdfId = computed(() => {
     if (typeof persistedArtifacts.value?.pdfId === 'number')
         return persistedArtifacts.value.pdfId;
@@ -47,11 +59,21 @@ const pdfDownloadUrl = computed(() => {
         return `/${r(endpoints.media.pdfStream(fallbackPdfId.value))}?type=raw&download=1`;
     return null;
 });
+function withPatientExaminationFilter(url) {
+    if (!patientExaminationId.value)
+        return url;
+    if (url.includes('patient_examination_id='))
+        return url;
+    const separator = url.includes('?') ? '&' : '?';
+    return `${url}${separator}patient_examination_id=${patientExaminationId.value}`;
+}
 const patientTimelineUrl = computed(() => {
-    if (persistedArtifacts.value?.patientTimelineUrl)
-        return persistedArtifacts.value.patientTimelineUrl;
-    if (flow.selectedPatientId)
-        return `/${r(endpoints.media.patientTimeline(flow.selectedPatientId))}`;
+    if (persistedArtifacts.value?.patientTimelineUrl) {
+        return withPatientExaminationFilter(persistedArtifacts.value.patientTimelineUrl);
+    }
+    if (flow.selectedPatientId) {
+        return withPatientExaminationFilter(`/${r(endpoints.media.patientTimeline(flow.selectedPatientId))}`);
+    }
     return null;
 });
 function formatTimestamp(value) {
@@ -177,7 +199,7 @@ else {
         ...{ class: "row g-3 mb-3" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "col-md-4" },
+        ...{ class: "col-md-3" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "small text-muted" },
@@ -189,7 +211,7 @@ else {
     });
     (__VLS_ctx.latestReport.status || 'unknown');
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "col-md-4" },
+        ...{ class: "col-md-3" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "small text-muted" },
@@ -197,13 +219,21 @@ else {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
     (__VLS_ctx.latestReport.version ?? 'n/a');
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "col-md-4" },
+        ...{ class: "col-md-3" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "small text-muted" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
     (__VLS_ctx.formatTimestamp(__VLS_ctx.latestReport.updatedAt || __VLS_ctx.latestReport.createdAt));
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "col-md-3" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "small text-muted" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
+    (__VLS_ctx.reportDocumentType || 'n/a');
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "d-flex flex-wrap gap-2" },
     });
@@ -278,14 +308,17 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.code, __VLS_intrinsicElements.
 /** @type {__VLS_StyleScopedClasses['row']} */ ;
 /** @type {__VLS_StyleScopedClasses['g-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
-/** @type {__VLS_StyleScopedClasses['col-md-4']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-md-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['small']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['badge']} */ ;
-/** @type {__VLS_StyleScopedClasses['col-md-4']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-md-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['small']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
-/** @type {__VLS_StyleScopedClasses['col-md-4']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-md-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['small']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-md-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['small']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
@@ -317,6 +350,7 @@ const __VLS_self = (await import('vue')).defineComponent({
             latestReport: latestReport,
             patientExaminationId: patientExaminationId,
             statusClass: statusClass,
+            reportDocumentType: reportDocumentType,
             pdfViewUrl: pdfViewUrl,
             pdfDownloadUrl: pdfDownloadUrl,
             patientTimelineUrl: patientTimelineUrl,

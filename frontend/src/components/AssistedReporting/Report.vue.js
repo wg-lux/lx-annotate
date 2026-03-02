@@ -5,6 +5,7 @@ import { useExaminationStore } from '@/stores/examinationStore';
 import { useFindingStore } from '@/stores/findingStore';
 import { useRequirementStore } from '@/stores/requirementStore';
 import { usePatientExaminationStore } from '@/stores/patientExaminationStore';
+import { usePatientFindingStore } from '@/stores/patientFindingStore';
 import PatientAdder from '@/components/CaseGenerator/PatientAdder.vue';
 import MedicalBlock from './MedicalBlock.vue';
 import FindingsDetail from '../RequirementReport/FindingsDetail.vue';
@@ -18,6 +19,7 @@ const examinationStore = useExaminationStore();
 const findingStore = useFindingStore();
 const requirementStore = useRequirementStore();
 const patientExaminationStore = usePatientExaminationStore();
+const patientFindingStore = usePatientFindingStore();
 // --- API ---
 const LOOKUP_BASE = '/api/lookup';
 const REPORT_TEMPLATE_BASE = '/base_api/report-templates';
@@ -52,6 +54,9 @@ const lastHistoryContext = ref(null);
 const lastRequirementGuidance = ref(null);
 const lastPersistedArtifacts = ref(null);
 const localFindingClassificationSelections = ref({});
+const addedFindingIds = ref(new Set());
+const previousReportTextsLoading = ref(false);
+const previousReportTexts = ref([]);
 const currentStep = ref(1);
 const goToStep = (step) => {
     currentStep.value = Math.min(Math.max(step, 1), 4);
@@ -180,6 +185,111 @@ const fetchFindingClassificationsCached = async (findingId) => {
     };
     return normalized;
 };
+const resolvePatientExaminationId = () => {
+    if (lookup.value?.patientExaminationId)
+        return lookup.value.patientExaminationId;
+    return currentPatientExaminationId.value;
+};
+const extractFindingId = (value) => {
+    if (typeof value === 'number' && Number.isFinite(value))
+        return value;
+    if (value && typeof value === 'object') {
+        const nested = Number(value.id);
+        if (Number.isFinite(nested))
+            return nested;
+    }
+    return null;
+};
+const refreshAddedFindingIds = async () => {
+    const patientExaminationId = resolvePatientExaminationId();
+    if (!patientExaminationId) {
+        addedFindingIds.value = new Set();
+        return;
+    }
+    try {
+        await patientFindingStore.fetchPatientFindings(patientExaminationId);
+        const ids = new Set();
+        for (const row of patientFindingStore.patientFindings) {
+            const rowStatus = row;
+            if (rowStatus.isActive === false || rowStatus.is_active === false)
+                continue;
+            const findingId = extractFindingId(row?.finding);
+            if (findingId != null)
+                ids.add(findingId);
+        }
+        addedFindingIds.value = ids;
+    }
+    catch (e) {
+        console.warn('Failed to refresh added findings state:', axiosError(e));
+    }
+};
+const getTimelinePatientExaminationId = (item) => {
+    if (Number.isFinite(item.patientExaminationId))
+        return Number(item.patientExaminationId);
+    const nestedId = Number(item.patientExamination?.id);
+    return Number.isFinite(nestedId) ? nestedId : null;
+};
+const formatTimelineDate = (value) => {
+    if (!value)
+        return 'ohne Datum';
+    const dt = new Date(value);
+    if (Number.isNaN(dt.getTime()))
+        return value;
+    return dt.toLocaleString('de-DE');
+};
+const fetchPreviousReportTexts = async () => {
+    if (!selectedPatientId.value) {
+        previousReportTexts.value = [];
+        return;
+    }
+    previousReportTextsLoading.value = true;
+    try {
+        const timelineRes = await axiosInstance.get(r(endpoints.media.patientTimeline(selectedPatientId.value)));
+        const rows = (Array.isArray(timelineRes.data?.results) ? timelineRes.data.results : timelineRes.data);
+        const currentExamId = currentPatientExaminationId.value;
+        const entries = (Array.isArray(rows) ? rows : [])
+            .map((item, index) => {
+            const text = String(item?.anonymizedText || item?.text || '').trim();
+            if (!text)
+                return null;
+            const mediaType = item?.mediaType ? String(item.mediaType).toLowerCase() : null;
+            const looksLikeReport = !mediaType ||
+                mediaType.includes('report') ||
+                mediaType.includes('pdf') ||
+                mediaType.includes('document');
+            if (!looksLikeReport)
+                return null;
+            const patientExaminationId = getTimelinePatientExaminationId(item);
+            const id = Number(item?.id);
+            return {
+                id: Number.isFinite(id) ? id : index + 1,
+                mediaType,
+                createdAt: item?.createdAt || null,
+                documentType: typeof item?.documentType === 'string' && item.documentType.trim().length > 0
+                    ? item.documentType
+                    : null,
+                patientExaminationId,
+                text
+            };
+        })
+            .filter((entry) => !!entry)
+            .filter((entry) => entry.patientExaminationId == null || entry.patientExaminationId !== currentExamId)
+            .sort((a, b) => {
+            const aTs = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+            const bTs = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+            return bTs - aTs;
+        })
+            .slice(0, 8);
+        previousReportTexts.value = entries;
+    }
+    catch (e) {
+        previousReportTexts.value = [];
+        console.warn('Failed to fetch previous report texts:', axiosError(e));
+    }
+    finally {
+        previousReportTextsLoading.value = false;
+    }
+};
 const refreshTemplateFindingDetails = async () => {
     if (!reportTemplate.value || !selectedExaminationId.value) {
         templateFindingDetails.value = [];
@@ -198,20 +308,10 @@ const refreshTemplateFindingDetails = async () => {
             if (finding.nameDe)
                 byName.set(normalizeKey(finding.nameDe), finding);
         }
-        let patientExaminationFindingKeys = new Set();
-        if (currentPatientExaminationId.value) {
-            try {
-                const peFindingsRes = await axiosInstance.get(`/api/patient-examinations/${currentPatientExaminationId.value}/findings/`);
-                const peFindings = Array.isArray(peFindingsRes.data)
-                    ? peFindingsRes.data
-                    : [];
-                patientExaminationFindingKeys = new Set(peFindings.flatMap((f) => [f.name, f.nameDe]
-                    .filter((v) => !!v)
-                    .map((v) => normalizeKey(v))));
-            }
-            catch {
-                // Keep detail rendering even if this endpoint is unavailable.
-            }
+        let currentAddedFindingIds = new Set(addedFindingIds.value);
+        if (currentPatientExaminationId.value && currentAddedFindingIds.size === 0) {
+            await refreshAddedFindingIds();
+            currentAddedFindingIds = new Set(addedFindingIds.value);
         }
         const details = [];
         for (const section of reportTemplate.value.reportSections || []) {
@@ -237,7 +337,7 @@ const refreshTemplateFindingDetails = async () => {
                     apiClassifications,
                     missingRequiredClassifications,
                     isAddedToPatientExamination: matched !== null &&
-                        patientExaminationFindingKeys.has(normalizeKey(matched.nameDe || matched.name || '')),
+                        currentAddedFindingIds.has(matched.id),
                     matchedFinding: matched
                         ? {
                             id: matched.id,
@@ -320,6 +420,8 @@ const applyTemplateToRequirementSelection = async () => {
 };
 // --- Finding Management Methods ---
 const isFindingAddedToExamination = (findingId) => {
+    if (addedFindingIds.value.has(findingId))
+        return true;
     if (!lookup.value)
         return false;
     const currentFindingIds = findingStore.getFindingIdsByPatientExaminationId(lookup.value.patientExaminationId);
@@ -327,7 +429,7 @@ const isFindingAddedToExamination = (findingId) => {
         return true;
     return false;
 };
-const onFindingAddedToExamination = (findingIdOrData, findingName) => {
+const onFindingAddedToExamination = async (findingIdOrData, findingName) => {
     // Handle both old and new signatures
     let findingId;
     let name;
@@ -360,6 +462,9 @@ const onFindingAddedToExamination = (findingIdOrData, findingName) => {
     setTimeout(() => {
         successMessage.value = null;
     }, 5000); // Longer display for more detailed message
+    await refreshAddedFindingIds();
+    await refreshTemplateFindingDetails();
+    await fetchPreviousReportTexts();
     // Trigger requirement evaluation after finding is added
     setTimeout(() => {
         evaluateRequirementsOnChange();
@@ -494,13 +599,19 @@ const fetchNormalizedFindingsPayload = async () => {
     try {
         const res = await axiosInstance.get(`/api/patient-findings/?patient_examination=${currentPatientExaminationId.value}`);
         const rows = (Array.isArray(res.data?.results) ? res.data.results : res.data);
-        return (Array.isArray(rows) ? rows : [])
-            .filter((row) => row && row.finding && row.isActive !== false)
-            .map((row) => ({
-            finding: row.finding,
-            classifications: mergeClassificationSelections(row.finding, row.classifications, localFindingClassificationSelections.value),
-            interventions: normalizeInterventions(row.interventions)
-        }));
+        const normalizedRows = (Array.isArray(rows) ? rows : [])
+            .map((row) => {
+            const findingId = extractFindingId(row?.finding);
+            const isInactive = row?.isActive === false || row?.is_active === false;
+            if (findingId == null || isInactive)
+                return null;
+            return {
+                finding: findingId,
+                classifications: mergeClassificationSelections(findingId, row.classifications, localFindingClassificationSelections.value),
+                interventions: normalizeInterventions(row.interventions)
+            };
+        });
+        return normalizedRows.filter((row) => row !== null);
     }
     catch (e) {
         console.warn('Failed to fetch patient-findings for report save, falling back to examination findings:', axiosError(e));
@@ -959,6 +1070,7 @@ function resetLookupSession() {
     lookupToken.value = null;
     lookup.value = null;
     currentPatientExaminationId.value = null;
+    addedFindingIds.value = new Set();
     currentReportId.value = null;
     currentReportVersion.value = null;
     lastSaveStatus.value = null;
@@ -979,6 +1091,8 @@ async function resetSessionForNewPatient() {
     lookupToken.value = null;
     lookup.value = null;
     currentPatientExaminationId.value = null;
+    addedFindingIds.value = new Set();
+    previousReportTexts.value = [];
     currentReportId.value = null;
     currentReportVersion.value = null;
     lastSaveStatus.value = null;
@@ -1124,6 +1238,16 @@ watch(currentPatientExaminationId, (newId) => {
         lastPersistedArtifacts.value = null;
     }
 });
+watch(currentPatientExaminationId, async (newId) => {
+    if (newId) {
+        await refreshAddedFindingIds();
+        await refreshTemplateFindingDetails();
+        await fetchPreviousReportTexts();
+    }
+    else {
+        addedFindingIds.value = new Set();
+    }
+}, { immediate: true });
 // --- Watchers ---
 watch(selectedExaminationId, (newId) => {
     console.log('Examination selection changed:', {
@@ -1159,6 +1283,12 @@ watch(selectedPatientId, async (newPatientId, oldPatientId) => {
         await resetSessionForNewPatient();
         autoSelectionAppliedKey.value = null;
         hasManualRequirementSelection.value = false;
+    }
+    if (newPatientId) {
+        await fetchPreviousReportTexts();
+    }
+    else {
+        previousReportTexts.value = [];
     }
 });
 // Watch for changes in selected requirement sets to trigger evaluation
@@ -1232,6 +1362,10 @@ onMounted(async () => {
     // Load findings data on component mount
     await loadFindingsData();
     await fetchReportTemplateByName(selectedKbModule.value, selectedTemplateName.value);
+    await refreshAddedFindingIds();
+    if (selectedPatientId.value) {
+        await fetchPreviousReportTexts();
+    }
 });
 onUnmounted(() => {
     stopHeartbeat();
@@ -2109,6 +2243,71 @@ if (__VLS_ctx.lookupToken) {
             });
         }
     }
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "card mb-3" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "card-header d-flex justify-content-between align-items-center" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({
+        ...{ class: "mb-0" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+        ...{ class: "text-muted" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+        ...{ onClick: (__VLS_ctx.fetchPreviousReportTexts) },
+        ...{ class: "btn btn-sm btn-outline-secondary" },
+        disabled: (__VLS_ctx.previousReportTextsLoading || !__VLS_ctx.selectedPatientId),
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "card-body" },
+    });
+    if (__VLS_ctx.previousReportTextsLoading) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "text-muted small" },
+        });
+    }
+    else if (!__VLS_ctx.previousReportTexts.length) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "text-muted small" },
+        });
+    }
+    else {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "d-flex flex-column gap-3" },
+        });
+        for (const [entry] of __VLS_getVForSourceType((__VLS_ctx.previousReportTexts))) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                key: (entry.id),
+                ...{ class: "border rounded p-3 bg-light" },
+            });
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: "d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2" },
+            });
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+                ...{ class: "text-muted" },
+            });
+            (__VLS_ctx.formatTimelineDate(entry.createdAt));
+            if (entry.documentType) {
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                    ...{ class: "badge text-bg-secondary" },
+                });
+                (entry.documentType);
+            }
+            if (entry.patientExaminationId) {
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+                    ...{ class: "text-muted d-block mb-2" },
+                });
+                (entry.patientExaminationId);
+            }
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: "previous-report-text" },
+            });
+            (entry.text);
+        }
+    }
     /** @type {[typeof RequirementIssues, ]} */ ;
     // @ts-ignore
     const __VLS_40 = __VLS_asFunctionalComponent(RequirementIssues, new RequirementIssues({
@@ -2453,6 +2652,42 @@ if (__VLS_ctx.showCreatePatientModal) {
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-secondary']} */ ;
+/** @type {__VLS_StyleScopedClasses['card']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['card-header']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['justify-content-between']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-secondary']} */ ;
+/** @type {__VLS_StyleScopedClasses['card-body']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['small']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['small']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['flex-column']} */ ;
+/** @type {__VLS_StyleScopedClasses['gap-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['border']} */ ;
+/** @type {__VLS_StyleScopedClasses['rounded']} */ ;
+/** @type {__VLS_StyleScopedClasses['p-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['bg-light']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['flex-wrap']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['justify-content-between']} */ ;
+/** @type {__VLS_StyleScopedClasses['gap-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-bg-secondary']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-block']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['previous-report-text']} */ ;
 /** @type {__VLS_StyleScopedClasses['modal-overlay']} */ ;
 /** @type {__VLS_StyleScopedClasses['modal-dialog']} */ ;
 /** @type {__VLS_StyleScopedClasses['modal-content']} */ ;
@@ -2495,6 +2730,8 @@ const __VLS_self = (await import('vue')).defineComponent({
             saveSubmissionLoading: saveSubmissionLoading,
             saveWarnings: saveWarnings,
             lastPersistedArtifacts: lastPersistedArtifacts,
+            previousReportTextsLoading: previousReportTextsLoading,
+            previousReportTexts: previousReportTexts,
             currentStep: currentStep,
             goToStep: goToStep,
             patients: patients,
@@ -2506,6 +2743,8 @@ const __VLS_self = (await import('vue')).defineComponent({
             selectedRequirementSetIdSet: selectedRequirementSetIdSet,
             availableFindings: availableFindings,
             templateDetailSummary: templateDetailSummary,
+            formatTimelineDate: formatTimelineDate,
+            fetchPreviousReportTexts: fetchPreviousReportTexts,
             isFindingAddedToExamination: isFindingAddedToExamination,
             onFindingAddedToExamination: onFindingAddedToExamination,
             onClassificationUpdated: onClassificationUpdated,

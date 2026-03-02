@@ -1,3 +1,5 @@
+import axiosInstance, { r } from '@/api/axiosInstance';
+import { endpoints } from '@/types/api/endpoints';
 function normalizeStaticUrl(value) {
     const base = value || '/static/';
     return base.endsWith('/') ? base : `${base}/`;
@@ -7,12 +9,43 @@ export default (await import('vue')).defineComponent({
     data() {
         return {
             staticUrl: normalizeStaticUrl(window.STATIC_URL),
-            isSidebarOpen: false
+            isSidebarOpen: false,
+            pendingValidationCount: 0,
+            processingCount: 0,
+            workflowCountsInterval: null
         };
     },
     computed: {
         logoSrc() {
             return `${this.staticUrl}img/ColoReg.png`;
+        },
+        isAnonymizationOverviewRoute() {
+            return this.$route.path === '/anonymisierung' || this.$route.path.startsWith('/anonymisierung/uebersicht');
+        },
+        isAnonymizationValidationRoute() {
+            return this.$route.path.startsWith('/anonymisierung/validierung');
+        },
+        isReportingRoute() {
+            return this.$route.path.startsWith('/reporting');
+        },
+        isReportingCaseSetupRoute() {
+            return this.$route.path.startsWith('/reporting/case-setup');
+        },
+        lastValidationTo() {
+            const fileIdRaw = sessionStorage.getItem('last:fileId');
+            const mediaTypeRaw = sessionStorage.getItem('last:scope');
+            const fileId = Number(fileIdRaw);
+            const mediaType = mediaTypeRaw === 'video' || mediaTypeRaw === 'pdf' ? mediaTypeRaw : null;
+            if (Number.isFinite(fileId) && mediaType) {
+                return {
+                    path: '/anonymisierung/validierung',
+                    query: {
+                        fileId: String(fileId),
+                        mediaType
+                    }
+                };
+            }
+            return '/anonymisierung/validierung';
         }
     },
     methods: {
@@ -24,26 +57,55 @@ export default (await import('vue')).defineComponent({
         },
         openSidebar() {
             this.isSidebarOpen = true;
-        }
-    },
-    mounted() {
-        // Listen for custom events from navbar
-        const handleToggle = () => {
+        },
+        async refreshWorkflowCounts() {
+            try {
+                const { data } = await axiosInstance.get(r(endpoints.anonymization.itemsOverview));
+                if (!Array.isArray(data)) {
+                    this.pendingValidationCount = 0;
+                    this.processingCount = 0;
+                    return;
+                }
+                this.pendingValidationCount = data.filter((item) => {
+                    return (item?.anonymizationStatus === 'done_processing_anonymization' &&
+                        item?.annotationStatus !== 'validated');
+                }).length;
+                this.processingCount = data.filter((item) => {
+                    return [
+                        'processing_anonymization',
+                        'extracting_frames',
+                        'predicting_segments'
+                    ].includes(item?.anonymizationStatus);
+                }).length;
+            }
+            catch (error) {
+                console.error('Failed to refresh workflow counts in sidebar:', error);
+            }
+        },
+        handleToggleSidebarEvent() {
             this.toggleSidebar();
-        };
-        document.addEventListener('toggleSidebar', handleToggle);
-        // Handle window resize to close sidebar on larger screens
-        const handleResize = () => {
+        },
+        handleWindowResize() {
             if (window.innerWidth >= 1200) {
                 this.isSidebarOpen = false;
             }
-        };
-        window.addEventListener('resize', handleResize);
-        // Cleanup event listeners
-        this.$once('hook:beforeDestroy', () => {
-            document.removeEventListener('toggleSidebar', handleToggle);
-            window.removeEventListener('resize', handleResize);
-        });
+        }
+    },
+    mounted() {
+        document.addEventListener('toggleSidebar', this.handleToggleSidebarEvent);
+        window.addEventListener('resize', this.handleWindowResize);
+        this.refreshWorkflowCounts();
+        this.workflowCountsInterval = window.setInterval(() => {
+            this.refreshWorkflowCounts();
+        }, 30000);
+    },
+    beforeUnmount() {
+        document.removeEventListener('toggleSidebar', this.handleToggleSidebarEvent);
+        window.removeEventListener('resize', this.handleWindowResize);
+        if (this.workflowCountsInterval) {
+            window.clearInterval(this.workflowCountsInterval);
+            this.workflowCountsInterval = null;
+        }
     }
 });
 const __VLS_ctx = {};
@@ -104,6 +166,9 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.d
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.ul, __VLS_intrinsicElements.ul)({
     ...{ class: "navbar-nav" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({
+    ...{ class: "nav-section-title" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({
     ...{ class: "nav-item" },
@@ -194,12 +259,12 @@ const __VLS_12 = {}.RouterLink;
 const __VLS_13 = __VLS_asFunctionalComponent(__VLS_12, new __VLS_12({
     to: "/anonymisierung/uebersicht",
     ...{ class: "nav-link" },
-    ...{ class: ({ active: __VLS_ctx.$route.path === '/anonymisierung' }) },
+    ...{ class: ({ active: __VLS_ctx.isAnonymizationOverviewRoute }) },
 }));
 const __VLS_14 = __VLS_13({
     to: "/anonymisierung/uebersicht",
     ...{ class: "nav-link" },
-    ...{ class: ({ active: __VLS_ctx.$route.path === '/anonymisierung' }) },
+    ...{ class: ({ active: __VLS_ctx.isAnonymizationOverviewRoute }) },
 }, ...__VLS_functionalComponentArgsRest(__VLS_13));
 __VLS_15.slots.default;
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -209,8 +274,15 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)(
     ...{ class: "material-icons opacity-10" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-    ...{ class: "nav-link-text ms-1" },
+    ...{ class: "nav-link-text nav-link-text-with-badge ms-1" },
 });
+if (__VLS_ctx.processingCount > 0) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+        ...{ class: "workflow-badge workflow-badge-processing" },
+        title: "Dateien werden aktuell anonymisiert",
+    });
+    (__VLS_ctx.processingCount);
+}
 var __VLS_15;
 __VLS_asFunctionalElement(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({
     ...{ class: "nav-item" },
@@ -219,14 +291,14 @@ const __VLS_16 = {}.RouterLink;
 /** @type {[typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, ]} */ ;
 // @ts-ignore
 const __VLS_17 = __VLS_asFunctionalComponent(__VLS_16, new __VLS_16({
-    to: "/video-untersuchung",
+    to: (__VLS_ctx.lastValidationTo),
     ...{ class: "nav-link" },
-    ...{ class: ({ active: __VLS_ctx.$route.path === '/video-untersuchung' }) },
+    ...{ class: ({ active: __VLS_ctx.isAnonymizationValidationRoute }) },
 }));
 const __VLS_18 = __VLS_17({
-    to: "/video-untersuchung",
+    to: (__VLS_ctx.lastValidationTo),
     ...{ class: "nav-link" },
-    ...{ class: ({ active: __VLS_ctx.$route.path === '/video-untersuchung' }) },
+    ...{ class: ({ active: __VLS_ctx.isAnonymizationValidationRoute }) },
 }, ...__VLS_functionalComponentArgsRest(__VLS_17));
 __VLS_19.slots.default;
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -236,8 +308,15 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)(
     ...{ class: "material-icons opacity-10" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-    ...{ class: "nav-link-text ms-1" },
+    ...{ class: "nav-link-text nav-link-text-with-badge ms-1" },
 });
+if (__VLS_ctx.pendingValidationCount > 0) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+        ...{ class: "workflow-badge" },
+        title: "Dateien warten auf Validierung",
+    });
+    (__VLS_ctx.pendingValidationCount);
+}
 var __VLS_19;
 __VLS_asFunctionalElement(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({
     ...{ class: "nav-item" },
@@ -246,14 +325,14 @@ const __VLS_20 = {}.RouterLink;
 /** @type {[typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, ]} */ ;
 // @ts-ignore
 const __VLS_21 = __VLS_asFunctionalComponent(__VLS_20, new __VLS_20({
-    to: "/untersuchung",
+    to: "/video-untersuchung",
     ...{ class: "nav-link" },
-    ...{ class: ({ active: __VLS_ctx.$route.path === '/untersuchung' }) },
+    ...{ class: ({ active: __VLS_ctx.$route.path === '/video-untersuchung' }) },
 }));
 const __VLS_22 = __VLS_21({
-    to: "/untersuchung",
+    to: "/video-untersuchung",
     ...{ class: "nav-link" },
-    ...{ class: ({ active: __VLS_ctx.$route.path === '/untersuchung' }) },
+    ...{ class: ({ active: __VLS_ctx.$route.path === '/video-untersuchung' }) },
 }, ...__VLS_functionalComponentArgsRest(__VLS_21));
 __VLS_23.slots.default;
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -273,14 +352,14 @@ const __VLS_24 = {}.RouterLink;
 /** @type {[typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, ]} */ ;
 // @ts-ignore
 const __VLS_25 = __VLS_asFunctionalComponent(__VLS_24, new __VLS_24({
-    to: "/export",
+    to: "/reporting/case-setup",
     ...{ class: "nav-link" },
-    ...{ class: ({ active: __VLS_ctx.$route.path === '/export' }) },
+    ...{ class: ({ active: __VLS_ctx.isReportingCaseSetupRoute }) },
 }));
 const __VLS_26 = __VLS_25({
-    to: "/export",
+    to: "/reporting/case-setup",
     ...{ class: "nav-link" },
-    ...{ class: ({ active: __VLS_ctx.$route.path === '/export' }) },
+    ...{ class: ({ active: __VLS_ctx.isReportingCaseSetupRoute }) },
 }, ...__VLS_functionalComponentArgsRest(__VLS_25));
 __VLS_27.slots.default;
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -302,12 +381,12 @@ const __VLS_28 = {}.RouterLink;
 const __VLS_29 = __VLS_asFunctionalComponent(__VLS_28, new __VLS_28({
     to: "/reporting",
     ...{ class: "nav-link" },
-    ...{ class: ({ active: __VLS_ctx.$route.path === '/reporting' }) },
+    ...{ class: ({ active: __VLS_ctx.isReportingRoute }) },
 }));
 const __VLS_30 = __VLS_29({
     to: "/reporting",
     ...{ class: "nav-link" },
-    ...{ class: ({ active: __VLS_ctx.$route.path === '/reporting' }) },
+    ...{ class: ({ active: __VLS_ctx.isReportingRoute }) },
 }, ...__VLS_functionalComponentArgsRest(__VLS_29));
 __VLS_31.slots.default;
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -327,14 +406,14 @@ const __VLS_32 = {}.RouterLink;
 /** @type {[typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, ]} */ ;
 // @ts-ignore
 const __VLS_33 = __VLS_asFunctionalComponent(__VLS_32, new __VLS_32({
-    to: "/reporting/case-setup",
+    to: "/untersuchung",
     ...{ class: "nav-link" },
-    ...{ class: ({ active: __VLS_ctx.$route.path.startsWith('/reporting/case-setup') }) },
+    ...{ class: ({ active: __VLS_ctx.$route.path === '/untersuchung' }) },
 }));
 const __VLS_34 = __VLS_33({
-    to: "/reporting/case-setup",
+    to: "/untersuchung",
     ...{ class: "nav-link" },
-    ...{ class: ({ active: __VLS_ctx.$route.path.startsWith('/reporting/case-setup') }) },
+    ...{ class: ({ active: __VLS_ctx.$route.path === '/untersuchung' }) },
 }, ...__VLS_functionalComponentArgsRest(__VLS_33));
 __VLS_35.slots.default;
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -354,14 +433,14 @@ const __VLS_36 = {}.RouterLink;
 /** @type {[typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, ]} */ ;
 // @ts-ignore
 const __VLS_37 = __VLS_asFunctionalComponent(__VLS_36, new __VLS_36({
-    to: "/reporting",
+    to: "/export",
     ...{ class: "nav-link" },
-    ...{ class: ({ active: __VLS_ctx.$route.path.startsWith('/reporting/') && __VLS_ctx.$route.path !== '/reporting' }) },
+    ...{ class: ({ active: __VLS_ctx.$route.path === '/export' }) },
 }));
 const __VLS_38 = __VLS_37({
-    to: "/reporting",
+    to: "/export",
     ...{ class: "nav-link" },
-    ...{ class: ({ active: __VLS_ctx.$route.path.startsWith('/reporting/') && __VLS_ctx.$route.path !== '/reporting' }) },
+    ...{ class: ({ active: __VLS_ctx.$route.path === '/export' }) },
 }, ...__VLS_functionalComponentArgsRest(__VLS_37));
 __VLS_39.slots.default;
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -391,6 +470,7 @@ var __VLS_39;
 /** @type {__VLS_StyleScopedClasses['w-auto']} */ ;
 /** @type {__VLS_StyleScopedClasses['max-height-vh-100']} */ ;
 /** @type {__VLS_StyleScopedClasses['navbar-nav']} */ ;
+/** @type {__VLS_StyleScopedClasses['nav-section-title']} */ ;
 /** @type {__VLS_StyleScopedClasses['nav-item']} */ ;
 /** @type {__VLS_StyleScopedClasses['nav-link']} */ ;
 /** @type {__VLS_StyleScopedClasses['active']} */ ;
@@ -457,7 +537,10 @@ var __VLS_39;
 /** @type {__VLS_StyleScopedClasses['material-icons']} */ ;
 /** @type {__VLS_StyleScopedClasses['opacity-10']} */ ;
 /** @type {__VLS_StyleScopedClasses['nav-link-text']} */ ;
+/** @type {__VLS_StyleScopedClasses['nav-link-text-with-badge']} */ ;
 /** @type {__VLS_StyleScopedClasses['ms-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['workflow-badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['workflow-badge-processing']} */ ;
 /** @type {__VLS_StyleScopedClasses['nav-item']} */ ;
 /** @type {__VLS_StyleScopedClasses['nav-link']} */ ;
 /** @type {__VLS_StyleScopedClasses['active']} */ ;
@@ -474,7 +557,9 @@ var __VLS_39;
 /** @type {__VLS_StyleScopedClasses['material-icons']} */ ;
 /** @type {__VLS_StyleScopedClasses['opacity-10']} */ ;
 /** @type {__VLS_StyleScopedClasses['nav-link-text']} */ ;
+/** @type {__VLS_StyleScopedClasses['nav-link-text-with-badge']} */ ;
 /** @type {__VLS_StyleScopedClasses['ms-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['workflow-badge']} */ ;
 /** @type {__VLS_StyleScopedClasses['nav-item']} */ ;
 /** @type {__VLS_StyleScopedClasses['nav-link']} */ ;
 /** @type {__VLS_StyleScopedClasses['active']} */ ;

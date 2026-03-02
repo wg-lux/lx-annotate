@@ -251,7 +251,7 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
     }) => Promise<PatientFinding>;
     updatePatientFinding: (id: number, updateData: Partial<PatientFinding>) => Promise<PatientFinding>;
     deletePatientFinding: (id: number) => Promise<void>;
-}, "error" | "loading" | "patientFindings">, Pick<{
+}, "loading" | "error" | "patientFindings">, Pick<{
     patientFindings: Readonly<import("vue").Ref<readonly {
         readonly id: number;
         readonly examination: string;
