@@ -111,13 +111,18 @@ export default (await import('vue')).defineComponent({
 const __VLS_ctx = {};
 let __VLS_components;
 let __VLS_directives;
+/** @type {__VLS_StyleScopedClasses['sidenav']} */ ;
+/** @type {__VLS_StyleScopedClasses['sidenav-header']} */ ;
 /** @type {__VLS_StyleScopedClasses['sidenav-header']} */ ;
 /** @type {__VLS_StyleScopedClasses['nav-link']} */ ;
-/** @type {__VLS_StyleScopedClasses['sidenav']} */ ;
-/** @type {__VLS_StyleScopedClasses['sidenav']} */ ;
-/** @type {__VLS_StyleScopedClasses['sidenav']} */ ;
-/** @type {__VLS_StyleScopedClasses['show']} */ ;
 /** @type {__VLS_StyleScopedClasses['nav-link']} */ ;
+/** @type {__VLS_StyleScopedClasses['nav-link']} */ ;
+/** @type {__VLS_StyleScopedClasses['nav-link']} */ ;
+/** @type {__VLS_StyleScopedClasses['nav-link']} */ ;
+/** @type {__VLS_StyleScopedClasses['material-icons']} */ ;
+/** @type {__VLS_StyleScopedClasses['nav-link-text']} */ ;
+/** @type {__VLS_StyleScopedClasses['sidenav']} */ ;
+/** @type {__VLS_StyleScopedClasses['sidenav']} */ ;
 /** @type {__VLS_StyleScopedClasses['sidebar-backdrop']} */ ;
 /** @type {__VLS_StyleScopedClasses['sidenav']} */ ;
 // CSS variable injection 

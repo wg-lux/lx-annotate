@@ -22,6 +22,12 @@ const __VLS_ctx = {};
 let __VLS_components;
 let __VLS_directives;
 /** @type {__VLS_StyleScopedClasses['reporting-shell']} */ ;
+/** @type {__VLS_StyleScopedClasses['reporting-shell']} */ ;
+/** @type {__VLS_StyleScopedClasses['reporting-shell']} */ ;
+/** @type {__VLS_StyleScopedClasses['reporting-shell']} */ ;
+/** @type {__VLS_StyleScopedClasses['reporting-shell']} */ ;
+/** @type {__VLS_StyleScopedClasses['reporting-shell']} */ ;
+/** @type {__VLS_StyleScopedClasses['reporting-shell']} */ ;
 /** @type {__VLS_StyleScopedClasses['workflow-step-btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['reporting-shell']} */ ;
 /** @type {__VLS_StyleScopedClasses['workflow-step-btn']} */ ;
@@ -31,6 +37,9 @@ let __VLS_directives;
 /** @type {__VLS_StyleScopedClasses['is-inactive']} */ ;
 /** @type {__VLS_StyleScopedClasses['reporting-shell']} */ ;
 /** @type {__VLS_StyleScopedClasses['workflow-step-btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['reporting-shell']} */ ;
+/** @type {__VLS_StyleScopedClasses['workflow-step-btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['reporting-shell']} */ ;
 // CSS variable injection 
 // CSS variable injection end 
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({

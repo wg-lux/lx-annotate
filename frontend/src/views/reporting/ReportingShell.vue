@@ -62,25 +62,75 @@ function isActive(path: string): boolean {
 </script>
 
 <style scoped>
+.reporting-shell {
+  position: relative;
+  isolation: isolate;
+}
+
+.reporting-shell .row > [class*='col-'] {
+  min-width: 0;
+}
+
+.reporting-shell .card {
+  border: 1px solid #d6dce7;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+  overflow: hidden;
+}
+
+.reporting-shell .card-header {
+  background: linear-gradient(180deg, #f9fbff, #eef3fb);
+  color: #172234;
+  border-bottom: 1px solid #d6dce7;
+}
+
+.reporting-shell .card-body {
+  background: #fff;
+  color: #1f2a37;
+}
+
+.reporting-shell .text-muted {
+  color: #4b5565 !important;
+}
+
 .reporting-shell .workflow-step-btn {
+  display: block;
+  width: 100%;
   white-space: normal;
   text-decoration: none;
+  font-weight: 600;
+  line-height: 1.3;
+  border-width: 1px;
+  border-style: solid;
 }
 
 .reporting-shell .workflow-step-btn.is-inactive {
-  color: #344767 !important;
-  background-color: #f8f9fa;
-  border-color: #d6dbe3;
+  color: #1f2a37 !important;
+  background-color: #f7f9fc;
+  border-color: #cbd5e1;
 }
 
 .reporting-shell .workflow-step-btn.is-inactive:hover,
 .reporting-shell .workflow-step-btn.is-inactive:focus-visible {
-  color: #1f2a37 !important;
-  background-color: #eef2f7;
-  border-color: #c7d0dd;
+  color: #111827 !important;
+  background-color: #e8eef7;
+  border-color: #b6c4d8;
 }
 
 .reporting-shell .workflow-step-btn.is-active {
   color: #fff !important;
+  background-color: #243247 !important;
+  border-color: #243247 !important;
+  box-shadow: 0 6px 14px rgba(16, 24, 40, 0.24);
+}
+
+.reporting-shell .workflow-step-btn:focus-visible {
+  outline: 2px solid #9dc2ff;
+  outline-offset: 1px;
+}
+
+@media (max-width: 991.98px) {
+  .reporting-shell {
+    padding-inline: 0.5rem;
+  }
 }
 </style>

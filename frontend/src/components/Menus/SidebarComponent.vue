@@ -336,12 +336,16 @@ export default {
 </script>
 
 <style scoped>
-/* Preserve original desktop sidebar styles */
 .sidenav {
   display: flex;
   flex-direction: column;
   height: 100%;
   min-height: 0;
+  color: #f5f8ff;
+}
+
+.sidenav * {
+  box-sizing: border-box;
 }
 
 .sidenav-header {
@@ -357,19 +361,38 @@ export default {
   flex-direction: column;
   align-items: center;
   text-decoration: none;
+  padding: 0 !important;
+  margin: 0 !important;
+  white-space: normal;
+}
+
+.sidenav-header .font-weight-bold {
+  color: #fff !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+  object-fit: contain;
 }
 
 .sidenav-header-inner {
   padding: 0.5rem 1rem;
   margin-bottom: 1.5rem;
-  box-sizing: border-box;
 }
+
 .logo-img {
   display: block;
-  width: 100%;      /* fill available box width */
-  max-width: 100%;  /* never overflow container */
-  height: auto;     /* keep aspect ratio */
+  width: 100%;
+  max-width: 100%;
+  height: auto;
   object-fit: contain;
+}
+
+.sidenav-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  max-height: none;
+  padding: 0.2rem 0.45rem 0.8rem;
+  -webkit-overflow-scrolling: touch;
 }
 
 .navbar-nav {
@@ -379,77 +402,63 @@ export default {
 }
 
 .nav-section-title {
-  padding: 0.25rem 1rem 0.5rem;
+  padding: 0.35rem 0.75rem 0.6rem;
   font-size: 0.72rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.6);
+  color: #d6deed;
   font-weight: 700;
 }
 
 .nav-item {
   width: 100%;
-  margin-bottom: 1.5px;
+  margin-bottom: 2px;
 }
 
 .nav-link {
   display: flex;
   align-items: center;
+  gap: 0.5rem;
   white-space: nowrap;
-  padding: 0.5rem 1rem;
-  color: #fff;
-  transition: all 0.2s ease-in-out;
+  min-height: 2.25rem;
+  padding: 0.5rem 0.65rem;
+  color: #f5f8ff !important;
+  border: 1px solid transparent;
+  border-radius: 0.5rem;
+  transition: background-color 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
   text-decoration: none;
 }
 
+.nav-link .nav-link-text {
+  color: inherit !important;
+}
+
+.nav-link .material-icons {
+  color: inherit !important;
+  opacity: 0.92 !important;
+}
+
 .nav-link:hover {
-  background-color: rgba(255, 255, 255, 0.1);
-  border-radius: 0.375rem;
+  background-color: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.18);
 }
 
-.sidenav-body {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow-y: auto;
-  max-height: none;
-  -webkit-overflow-scrolling: touch;
-}
-
-/* Mobile Responsiveness Improvements */
-@media (max-width: 1199.98px) {
-  .sidenav {
-    position: fixed !important;
-    top: 0;
-    left: 0;
-    width: 250px !important;
-    height: 100vh;
-    transform: translateX(-100%) !important;
-    z-index: 9999;
-    background: linear-gradient(195deg, #42424a, #191919) !important;
-    transition: transform 0.3s ease-in-out !important;
-    overflow: hidden;
-  }
-  
-  .sidenav.show {
-    transform: translateX(0) !important;
-  }
-  
-  /* Ensure content doesn't get blocked when sidebar is closed */
-  .sidenav:not(.show) + .main-content {
-    margin-left: 0 !important;
-  }
+.nav-link:focus-visible {
+  outline: 2px solid #9dc2ff;
+  outline-offset: 1px;
 }
 
 .nav-link.active {
-  background-color: rgba(255, 255, 255, 0.1);
-  border-radius: 0.375rem;
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  background-color: rgba(255, 255, 255, 0.24);
+  border-color: rgba(255, 255, 255, 0.28);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.2);
 }
 
 .icon-shape {
   width: 32px;
   height: 32px;
-  background-color: rgba(255, 255, 255, 0.1);
+  flex: 0 0 32px;
+  background-color: rgba(255, 255, 255, 0.16);
   border-radius: 0.75rem;
 }
 
@@ -460,7 +469,7 @@ export default {
 
 .nav-link-text {
   font-size: 0.875rem;
-  font-weight: 400;
+  font-weight: 500;
 }
 
 .nav-link-text-with-badge {
@@ -480,17 +489,19 @@ export default {
   font-size: 0.72rem;
   font-weight: 700;
   line-height: 1;
-  color: #191919;
+  color: #111827;
   background: #ffd24a;
+  border: 1px solid rgba(0, 0, 0, 0.12);
 }
 
 .workflow-badge-processing {
   color: #fff;
   background: #1a73e8;
+  border-color: rgba(255, 255, 255, 0.22);
 }
 
 hr.horizontal.light {
-  background-image: linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,.4), rgba(255,255,255,0));
+  background-image: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0));
   height: 1px;
   border: 0;
   opacity: 0.25;
@@ -501,17 +512,15 @@ hr.horizontal.light {
   object-fit: contain;
 }
 
-/* Mobile sidebar backdrop */
 .sidebar-backdrop {
   position: fixed;
-  top: 0;
-  left: 0;
+  inset: 0;
   width: 100%;
-  height: 100vh;
-  background-color: rgba(0, 0, 0, 0.5);
-  z-index: 9998;
+  height: 100dvh;
+  background-color: rgba(12, 18, 32, 0.56);
+  z-index: 1040;
   opacity: 0;
-  animation: fadeIn 0.3s ease-in-out forwards;
+  animation: fadeIn 0.2s ease-out forwards;
 }
 
 @keyframes fadeIn {
@@ -520,18 +529,36 @@ hr.horizontal.light {
   }
 }
 
-/* Responsive improvements for larger screens */
+@media (max-width: 1199.98px) {
+  .sidenav {
+    position: fixed !important;
+    top: 0;
+    left: 0;
+    width: min(320px, 82vw) !important;
+    height: 100dvh;
+    transform: translateX(-110%) !important;
+    z-index: 1050;
+    background: linear-gradient(195deg, #42424a, #191919) !important;
+    transition: transform 0.22s ease-out !important;
+    overflow: hidden;
+    box-shadow: 14px 0 28px rgba(0, 0, 0, 0.36);
+    pointer-events: none;
+  }
+
+  .sidenav.show {
+    transform: translateX(0) !important;
+    pointer-events: auto;
+  }
+}
+
 @media (min-width: 1200px) {
   .sidebar-backdrop {
     display: none;
   }
-  
+
   .sidenav {
     transform: none !important;
     position: relative !important;
   }
 }
-
-
-
 </style>
