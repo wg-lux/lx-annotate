@@ -31,13 +31,12 @@ RUN uv sync --dev --frozen && \
 COPY . /app
 
 ENV PATH="/app/.venv/bin:$PATH" \
-    DJANGO_SETTINGS_MODULE=config.settings_dev \
+    DJANGO_SETTINGS_MODULE=lx_annotate.settings.settings_dev \
     DJANGO_HOST=0.0.0.0 \
     DJANGO_PORT=8117 \
     DJANGO_ENV=development \
     DJANGO_MODULE=lx_annotate \
-    STORAGE_DIR=/app/data \
-    DATA_DIR=/app/data
+    STORAGE_DIR=/app/data
 
 EXPOSE 8117
 

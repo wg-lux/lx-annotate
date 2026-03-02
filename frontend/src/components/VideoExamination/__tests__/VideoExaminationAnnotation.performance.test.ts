@@ -183,8 +183,8 @@ describe('VideoExaminationAnnotation Performance Tests', () => {
       // Should format 10k times in less than 20ms
       expect(executionTime).toBeLessThan(20)
       expect(formattedTimes).toHaveLength(10000)
-      expect(formattedTimes[0]).toBe('0:00')
-      expect(formattedTimes[600]).toBe('1:00') // 60 seconds
+      expect(formattedTimes[0]).toBe('00:00')
+      expect(formattedTimes[600]).toBe('01:00') // 60 seconds
     })
 
     it('should translate labels efficiently', () => {

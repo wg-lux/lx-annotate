@@ -10,6 +10,22 @@
           <i :class="isPlaying ? 'fas fa-pause' : 'fas fa-play'"></i>
         </button>
         <button
+          @click="stepFrame(-1)"
+          class="control-btn"
+          :disabled="!video || duration <= 0"
+          title="Ein Frame zurück"
+        >
+          <i class="fas fa-step-backward"></i>
+        </button>
+        <button
+          @click="stepFrame(1)"
+          class="control-btn"
+          :disabled="!video || duration <= 0"
+          title="Ein Frame vor"
+        >
+          <i class="fas fa-step-forward"></i>
+        </button>
+        <button
           @click="deleteSelectedSegment"
           class="control-btn danger"
           :disabled="activeSegmentId == null"
@@ -82,7 +98,7 @@
               }"
               :data-id="segment.id"
               @click="selectSegment(segment)"
-              @contextmenu.prevent="showSegmentMenu(segment, $event)"
+              @contextmenu.prevent="openSegmentTimeEditor(segment, $event)"
             >
               <!-- Start resize handle -->
               <div 
@@ -175,6 +191,40 @@
       </div>
     </div>
 
+    <div
+      v-if="timeEditor.visible"
+      class="time-editor"
+      :style="{ left: timeEditor.x + 'px', top: timeEditor.y + 'px' }"
+      @click.stop
+      @mousedown.stop
+    >
+      <div class="time-editor-title">Segmentzeiten bearbeiten</div>
+      <label class="time-editor-label" for="segment-start-input">Start</label>
+      <input
+        id="segment-start-input"
+        ref="timeEditorStartInput"
+        v-model="timeEditor.startInput"
+        class="time-editor-input"
+        placeholder="mm:ss oder hh:mm:ss"
+        @keydown.enter.prevent="applyTimeEditorChanges"
+        @keydown.esc.prevent="hideTimeEditor"
+      />
+      <label class="time-editor-label" for="segment-end-input">Ende</label>
+      <input
+        id="segment-end-input"
+        v-model="timeEditor.endInput"
+        class="time-editor-input"
+        placeholder="mm:ss oder hh:mm:ss"
+        @keydown.enter.prevent="applyTimeEditorChanges"
+        @keydown.esc.prevent="hideTimeEditor"
+      />
+      <div v-if="timeEditor.error" class="time-editor-error">{{ timeEditor.error }}</div>
+      <div class="time-editor-actions">
+        <button type="button" class="time-editor-btn" @click="hideTimeEditor">Abbrechen</button>
+        <button type="button" class="time-editor-btn primary" @click="applyTimeEditorChanges">Speichern</button>
+      </div>
+    </div>
+
     <!-- Timeline tooltip -->
     <div 
       v-if="tooltip.visible"
@@ -225,6 +275,16 @@ interface TooltipState {
   text: string
 }
 
+interface TimeEditorState {
+  visible: boolean
+  x: number
+  y: number
+  segment: CanonicalSegment | null
+  startInput: string
+  endInput: string
+  error: string
+}
+
 interface CanonicalSegment extends Segment {
   start: number
   end: number
@@ -267,6 +327,7 @@ const emit = defineEmits<{
 // Refs with proper types
 const timeline = ref<HTMLElement | null>(null)
 const waveformCanvas = ref<HTMLCanvasElement | null>(null)
+const timeEditorStartInput = ref<HTMLInputElement | null>(null)
 const cleanupFunctions = ref<Array<() => void>>([])
 const zoomLevel = ref<number>(1)
 const isSelecting = ref<boolean>(false)
@@ -277,6 +338,8 @@ const rowHeight = 56
 const rowContentHeight = 48
 const timelinePadding = 12
 const visibleRowCount = 1
+const clipboardSegment = ref<{ label: string; duration: number } | null>(null)
+const deletedSegments = ref<Array<{ label: string; start: number; end: number }>>([])
 
 
 
@@ -294,6 +357,16 @@ const tooltip = ref<TooltipState>({
   x: 0,
   y: 0,
   text: ''
+})
+
+const timeEditor = ref<TimeEditorState>({
+  visible: false,
+  x: 0,
+  y: 0,
+  segment: null,
+  startInput: '',
+  endInput: '',
+  error: ''
 })
 
 // Computed properties
@@ -676,11 +749,160 @@ const deleteSelectedSegment = (): void => {
     segment => Number(segment.id) === Number(props.activeSegmentId)
   )
   if (!segmentToDelete) return
+  rememberDeletedSegment(segmentToDelete)
   emit('segment-delete', segmentToDelete)
 }
 
+const stepFrame = (direction: -1 | 1): void => {
+  if (!duration.value) return
+  const fps = props.fps && props.fps > 0 ? props.fps : 50
+  const step = 1 / fps
+  const current = props.currentTime ?? 0
+  const next = Math.max(0, Math.min(duration.value, current + direction * step))
+  emit('seek', next)
+}
+
+const seekBySeconds = (deltaSeconds: number): void => {
+  if (!duration.value) return
+  const current = props.currentTime ?? 0
+  const next = Math.max(0, Math.min(duration.value, current + deltaSeconds))
+  emit('seek', next)
+}
+
+
+const getSegmentRange = (segment: Segment | CanonicalSegment): { label: string; start: number; end: number } => {
+  const canonical = segment as CanonicalSegment
+  const start = Number.isFinite(canonical.start) ? canonical.start : segment.startTime ?? 0
+  const end = Number.isFinite(canonical.end) ? canonical.end : segment.endTime ?? start
+  return { label: segment.label, start, end }
+}
+
+const rememberDeletedSegment = (segment: Segment | CanonicalSegment): void => {
+  if (segment.isDraft) return
+  const range = getSegmentRange(segment)
+  const start = Math.max(0, range.start)
+  const end = Math.max(start, range.end)
+  deletedSegments.value.push({ label: range.label, start, end })
+  if (deletedSegments.value.length > 20) {
+    deletedSegments.value.shift()
+  }
+}
+
+const copySelectedSegment = (): boolean => {
+  if (props.activeSegmentId == null) return false
+  const segment = displayedSegments.value.find(
+    s => Number(s.id) === Number(props.activeSegmentId)
+  )
+  if (!segment) return false
+  const range = getSegmentRange(segment)
+  const fps = props.fps && props.fps > 0 ? props.fps : 50
+  const minDuration = 1 / fps
+  const duration = Math.max(minDuration, range.end - range.start)
+  clipboardSegment.value = { label: range.label, duration }
+  toast.success({ text: 'Segment kopiert' })
+  return true
+}
+
+const pasteSegment = (): boolean => {
+  if (!clipboardSegment.value) {
+    toast.info({ text: 'Kein Segment in der Zwischenablage' })
+    return false
+  }
+  const start = Math.max(0, props.currentTime ?? 0)
+  const fps = props.fps && props.fps > 0 ? props.fps : 50
+  const minDuration = 1 / fps
+  const targetDuration = Math.max(minDuration, clipboardSegment.value.duration)
+  let end = start + targetDuration
+  if (duration.value > 0) {
+    end = Math.min(duration.value, end)
+  }
+  if (end <= start) return false
+  emit('segment-create', { label: clipboardSegment.value.label, start, end })
+  toast.success({ text: 'Segment eingefügt' })
+  return true
+}
+
+const undoDelete = (): boolean => {
+  const last = deletedSegments.value.pop()
+  if (!last) {
+    toast.info({ text: 'Nichts zum Rückgängig machen' })
+    return false
+  }
+  emit('segment-create', { label: last.label, start: last.start, end: last.end })
+  toast.success({ text: 'Löschung rückgängig gemacht' })
+  return true
+}
+
 const handleKeyDown = (event: KeyboardEvent): void => {
+  if (event.key === 'Escape' && timeEditor.value.visible) {
+    hideTimeEditor()
+    event.preventDefault()
+    return
+  }
   if (isEditableTarget(event.target)) return
+  const isMeta = event.ctrlKey || event.metaKey
+
+  if (isMeta && event.key.toLowerCase() === 'z') {
+    if (undoDelete()) {
+      event.preventDefault()
+    }
+    return
+  }
+
+  if (isMeta && event.key.toLowerCase() === 'c') {
+    if (copySelectedSegment()) {
+      event.preventDefault()
+    }
+    return
+  }
+
+  if (isMeta && event.key.toLowerCase() === 'v') {
+    if (pasteSegment()) {
+      event.preventDefault()
+    }
+    return
+  }
+
+  if (!isMeta && !event.altKey) {
+    const isComma = event.key === ',' || event.code === 'Comma'
+    const isPeriod = event.key === '.' || event.code === 'Period'
+    const isK = event.key.toLowerCase() === 'k'
+    const isL = event.key.toLowerCase() === 'l'
+    const isArrowLeft = event.key === 'ArrowLeft'
+    const isArrowRight = event.key === 'ArrowRight'
+
+    if (isArrowLeft) {
+      event.preventDefault()
+      seekBySeconds(-2)
+      return
+    }
+
+    if (isArrowRight) {
+      event.preventDefault()
+      seekBySeconds(2)
+      return
+    }
+    if (isComma) {
+      event.preventDefault()
+      stepFrame(-1)
+      return
+    }
+    if (isPeriod) {
+      event.preventDefault()
+      stepFrame(1)
+      return
+    }
+    if (isK) {
+      event.preventDefault()
+      seekBySeconds(-2)
+      return
+    }
+    if (isL) {
+      event.preventDefault()
+      seekBySeconds(2)
+      return
+    }
+  }
   if (event.key === 'Delete' || event.key === 'Backspace') {
     if (props.activeSegmentId == null) return
     event.preventDefault()
@@ -698,6 +920,7 @@ const editSegment = (segment: Segment | null): void => {
 const deleteSegment = (segment: Segment | null): void => {
   if (!segment) return
   hideContextMenu()
+  rememberDeletedSegment(segment)
   emit('segment-delete', segment)
 }
 
@@ -710,6 +933,7 @@ const playSegment = (segment: Segment | null): void => {
 
 // Context menu
 const showSegmentMenu = (segment: Segment, event: MouseEvent): void => {
+  hideTimeEditor()
   contextMenu.value = {
     visible: true,
     x: event.clientX,
@@ -720,6 +944,108 @@ const showSegmentMenu = (segment: Segment, event: MouseEvent): void => {
 
 const hideContextMenu = (): void => {
   contextMenu.value.visible = false
+}
+
+const formatEditorTime = (timeInSeconds: number): string => {
+  if (!Number.isFinite(timeInSeconds) || timeInSeconds < 0) return '0'
+  const hours = Math.floor(timeInSeconds / 3600)
+  const minutes = Math.floor((timeInSeconds % 3600) / 60)
+  const seconds = timeInSeconds % 60
+  const secStr = seconds.toFixed(3).replace(/\.?0+$/, '')
+  if (hours > 0) {
+    return `${hours}:${String(minutes).padStart(2, '0')}:${secStr.padStart(2, '0')}`
+  }
+  return `${minutes}:${secStr.padStart(2, '0')}`
+}
+
+const parseEditorTime = (value: string): number | null => {
+  const input = value.trim()
+  if (!input) return null
+  if (/^\d+(\.\d+)?$/.test(input)) {
+    const seconds = Number(input)
+    return Number.isFinite(seconds) ? seconds : null
+  }
+
+  const parts = input.split(':').map(p => p.trim())
+  if (parts.length < 2 || parts.length > 3) return null
+  if (parts.some(p => p === '' || !/^\d+(\.\d+)?$/.test(p))) return null
+
+  const numericParts = parts.map(Number)
+  if (numericParts.some(v => !Number.isFinite(v))) return null
+  if (numericParts.slice(1).some(v => v >= 60)) return null
+
+  if (numericParts.length === 2) {
+    return numericParts[0] * 60 + numericParts[1]
+  }
+  return numericParts[0] * 3600 + numericParts[1] * 60 + numericParts[2]
+}
+
+const hideTimeEditor = (): void => {
+  timeEditor.value.visible = false
+  timeEditor.value.segment = null
+  timeEditor.value.error = ''
+}
+
+const openSegmentTimeEditor = (segment: CanonicalSegment, event: MouseEvent): void => {
+  if (event.shiftKey) {
+    showSegmentMenu(segment, event)
+    return
+  }
+  hideContextMenu()
+  const range = getSegmentRange(segment)
+  timeEditor.value = {
+    visible: true,
+    x: event.clientX,
+    y: event.clientY,
+    segment,
+    startInput: formatEditorTime(range.start),
+    endInput: formatEditorTime(range.end),
+    error: ''
+  }
+  selectSegment(segment)
+  nextTick(() => {
+    timeEditorStartInput.value?.focus()
+    timeEditorStartInput.value?.select()
+  })
+}
+
+const applyTimeEditorChanges = (): void => {
+  const editingState = timeEditor.value
+  if (!editingState.visible || !editingState.segment) return
+
+  const parsedStart = parseEditorTime(editingState.startInput)
+  const parsedEnd = parseEditorTime(editingState.endInput)
+
+  if (parsedStart === null || parsedEnd === null) {
+    timeEditor.value.error = 'Ungültiges Zeitformat.'
+    return
+  }
+  if (parsedStart < 0 || parsedEnd < 0) {
+    timeEditor.value.error = 'Zeiten dürfen nicht negativ sein.'
+    return
+  }
+  if (parsedEnd <= parsedStart) {
+    timeEditor.value.error = 'Die Endzeit muss nach der Startzeit liegen.'
+    return
+  }
+  if (duration.value > 0 && parsedEnd > duration.value) {
+    timeEditor.value.error = `Die Endzeit darf maximal ${formatTime(duration.value)} sein.`
+    return
+  }
+
+  const localSegment = displayedSegments.value.find(s => s.id === editingState.segment?.id)
+  if (localSegment) {
+    localSegment.start = parsedStart
+    localSegment.end = parsedEnd
+    localSegment.startTime = parsedStart
+    localSegment.endTime = parsedEnd
+  }
+
+  const numericId = getNumericSegmentId(editingState.segment.id)
+  if (numericId !== null) {
+    emit('segment-resize', numericId, parsedStart, parsedEnd, 'manual', true)
+  }
+  hideTimeEditor()
 }
 
 // Timeline interaction
@@ -805,6 +1131,9 @@ const initializeWaveform = (): void => {
 const handleClickOutside = (event: Event): void => {
   if (contextMenu.value.visible && !(event.target as Element)?.closest('.context-menu')) {
     hideContextMenu()
+  }
+  if (timeEditor.value.visible && !(event.target as Element)?.closest('.time-editor')) {
+    hideTimeEditor()
   }
 }
 
@@ -1200,6 +1529,72 @@ const getNumericSegmentId = (segmentId: number): number | null => {
   z-index: 1000;
   min-width: 160px;
   overflow: hidden;
+}
+
+.time-editor {
+  position: fixed;
+  z-index: 1100;
+  min-width: 220px;
+  background-color: #fff;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.time-editor-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: #333;
+}
+
+.time-editor-label {
+  font-size: 11px;
+  color: #666;
+}
+
+.time-editor-input {
+  width: 100%;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 6px 8px;
+  font-size: 12px;
+}
+
+.time-editor-input:focus {
+  outline: none;
+  border-color: #2196f3;
+  box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.15);
+}
+
+.time-editor-error {
+  color: #d32f2f;
+  font-size: 11px;
+}
+
+.time-editor-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.time-editor-btn {
+  border: 1px solid #ccc;
+  background: #fff;
+  color: #444;
+  border-radius: 4px;
+  padding: 5px 8px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.time-editor-btn.primary {
+  border-color: #2196f3;
+  background: #2196f3;
+  color: #fff;
 }
 
 .context-menu-item {

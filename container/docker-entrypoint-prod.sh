@@ -12,7 +12,7 @@ if [ "${CENTRAL_NODE:-false}" = "true" ]; then
   export DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS_MODULE:-config.settings.central}"
 else
   export DJANGO_ENV="${DJANGO_ENV:-production}"
-  export DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS_MODULE:-config.settings.prod}"
+  export DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS_MODULE:-lx_annotate.settings.settings_prod}"
 fi
 export DJANGO_MODULE="${DJANGO_MODULE:-lx_annotate}"
 
@@ -20,7 +20,6 @@ export DJANGO_MODULE="${DJANGO_MODULE:-lx_annotate}"
 export DJANGO_DEBUG="${DJANGO_DEBUG:-False}"
 export DJANGO_ALLOWED_HOSTS="${DJANGO_ALLOWED_HOSTS:-*}"
 export STORAGE_DIR="${STORAGE_DIR:-/app/data}"
-export DATA_DIR="${DATA_DIR:-/app/data}"
 export WORKING_DIR="${WORKING_DIR:-/app}"
 
 # Production safety check: Prevent DEBUG=True in production
@@ -33,7 +32,7 @@ if [ "$debug_val" = "1" ] || [ "$debug_val" = "true" ] || [ "$debug_val" = "yes"
 fi
 
 # Ensure essential directories exist (no credentials required via volumes)
-mkdir -p "$DATA_DIR" /app/staticfiles
+mkdir -p "$STORAGE_DIR" /app/staticfiles
 
 # Validate critical environment variables
 if [ -z "${DJANGO_SECRET_KEY:-}" ]; then
@@ -56,7 +55,7 @@ wait_for_db() {
   while true; do
     if python - <<'PY'
 import os, django
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', os.environ.get('DJANGO_SETTINGS_MODULE','lx-annotate.settings_prod'))
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', os.environ.get('DJANGO_SETTINGS_MODULE','lx_annotate.settings.settings_prod'))
 try:
     django.setup()
     from django.db import connections

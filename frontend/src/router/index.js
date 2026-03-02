@@ -6,6 +6,55 @@ const router = createRouter({
     history: createWebHistory('/'),
     routes: [
         {
+            path: '/reporting',
+            component: () => import('@/views/reporting/ReportingShell.vue'),
+            meta: {
+                description: 'Page-based reporting workflow (new scaffold).'
+            },
+            children: [
+                {
+                    path: '',
+                    name: 'Reporting Arbeitsliste',
+                    component: () => import('@/views/reporting/ReportingWorklistPage.vue')
+                },
+                {
+                    path: 'case-setup',
+                    name: 'Reporting Fall-Setup',
+                    component: () => import('@/views/reporting/CaseSetupPage.vue')
+                },
+                {
+                    path: ':patient_examination_id/template-requirements',
+                    name: 'Reporting Template und Anforderungssets',
+                    component: () => import('@/views/reporting/TemplateRequirementsPage.vue')
+                },
+                {
+                    path: ':patient_examination_id/findings',
+                    name: 'Reporting Befunderfassung',
+                    component: () => import('@/views/reporting/FindingsCapturePage.vue')
+                },
+                {
+                    path: ':patient_examination_id/requirements-review',
+                    name: 'Reporting Anforderungsprüfung',
+                    component: () => import('@/views/reporting/RequirementsReviewPage.vue')
+                },
+                {
+                    path: ':patient_examination_id/report-editor',
+                    name: 'Reporting Berichtseditor',
+                    component: () => import('@/views/reporting/ReportEditorPage.vue')
+                },
+                {
+                    path: ':patient_examination_id/frame-selector',
+                    name: 'Reporting Segment-Frame-Auswahl',
+                    component: () => import('@/views/reporting/FrameSelectorPage.vue')
+                },
+                {
+                    path: ':patient_examination_id/finalized',
+                    name: 'Reporting Finalisierung und Artefakte',
+                    component: () => import('@/views/reporting/FinalizedResultPage.vue')
+                }
+            ]
+        },
+        {
             path: '/annotationen',
             name: 'Annotationen',
             component: () => import('@/views/AnnotationDashboard.vue'),
@@ -51,6 +100,14 @@ const router = createRouter({
             component: () => import('@/views/Examination.vue'),
             meta: {
                 description: 'Hier können Sie Befunde erstellen.'
+            }
+        },
+        {
+            path: '/export',
+            name: 'Export',
+            component: () => import('@/views/Export.vue'),
+            meta: {
+                description: 'Hier können Sie Annotationen exportieren.'
             }
         },
         {
@@ -203,5 +260,14 @@ router.beforeEach((to, _from, next) => {
     }
     // User is logged in but missing capability → redirect away
     return next({ path: '/', query: { denied: '1', from: to.path } });
+});
+router.beforeEach((to, _from, next) => {
+    if (!to.path.startsWith('/reporting/'))
+        return next();
+    const peParam = to.params.patient_examination_id;
+    if (peParam === ':patient_examination_id') {
+        return next('/reporting/case-setup');
+    }
+    next();
 });
 export default router;

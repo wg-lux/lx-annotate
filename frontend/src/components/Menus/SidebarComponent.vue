@@ -18,46 +18,82 @@
 
     <div class="sidenav" :class="{ show: isSidebarOpen }">
       <div class="sidenav-header">
-
         <a class="navbar-brand m-0" href="/">
           <div class="sidenav-header-inner text-center">
-            <img :src="staticUrl + 'img/ag_lux_logo_light_grey.svg'" alt="Logo" />
+            <img :src="logoSrc" alt="Logo" class="logo-img" />
           </div>
           <div class="ms-1 font-weight-bold text-white text-center">AG Lux</div>
         </a>
-        <div class="w-auto max-height-vh-100" >
-          <ul class="navbar-nav">
+      </div>
+      <div class="sidenav-body w-auto max-height-vh-100">
+        <ul class="navbar-nav">
+          <li class="nav-section-title">Workflow</li>
+          <li class="nav-item">
+            <router-link to="/" class="nav-link" :class="{ active: $route.path === '/' }">
+              <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
+                <i class="material-icons opacity-10">dashboard</i>
+              </div>
+              <span class="nav-link-text ms-1">Dashboard</span>
+            </router-link>
+          </li>
+          <li>
+            <router-link to="/uebersicht" class="nav-link" :class="{ active: $route.path === '/uebersicht' }">
+              <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
+                <i class="material-icons opacity-10">dashboard</i>
+              </div>
+              <span class="nav-link-text ms-1">Alle Seiten</span>
+            </router-link>
+          </li>
+          <li class="nav-item" v-can="'page.patients.view:GET'">
+            <router-link to="/patienten" class="nav-link" :class="{ active: $route.path === '/patienten' }">
+              <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
+               <i class="material-icons opacity-10">people</i>
+              </div>
+              <span class="nav-link-text ms-1">Patienten</span>
+            </router-link>
+          </li>
+
             <li class="nav-item">
-              <router-link to="/" class="nav-link" :class="{ active: $route.path === '/' }">
+              <router-link
+                to="/anonymisierung/uebersicht"
+                class="nav-link"
+                :class="{ active: isAnonymizationOverviewRoute }"
+              >
                 <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
-                  <i class="material-icons opacity-10">dashboard</i>
+                  <i class="material-icons opacity-10">check_circle</i>
                 </div>
-                <span class="nav-link-text ms-1">Dashboard</span>
-              </router-link>
-            </li>
-            <li>
-              <router-link to="/uebersicht" class="nav-link" :class="{ active: $route.path === '/uebersicht' }">
-                <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
-                  <i class="material-icons opacity-10">dashboard</i>
-                </div>
-                <span class="nav-link-text ms-1">Alle Seiten</span>
-              </router-link>
-            </li>
-            <li class="nav-item" v-can="'page.patients.view:GET'">
-              <router-link to="/patienten" class="nav-link" :class="{ active: $route.path === '/patienten' }">
-                <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
-                 <i class="material-icons opacity-10">people</i>
-                </div>
-                <span class="nav-link-text ms-1">Patienten</span>
+                <span class="nav-link-text nav-link-text-with-badge ms-1">
+                  1. Anonymisierung
+                  <span
+                    v-if="processingCount > 0"
+                    class="workflow-badge workflow-badge-processing"
+                    title="Dateien werden aktuell anonymisiert"
+                  >
+                    {{ processingCount }}
+                  </span>
+                </span>
               </router-link>
             </li>
 
             <li class="nav-item">
-              <router-link to="/anonymisierung/uebersicht" class="nav-link" :class="{ active: $route.path === '/anonymisierung' }">
+              <router-link
+                :to="lastValidationTo"
+                class="nav-link"
+                :class="{ active: isAnonymizationValidationRoute }"
+              >
                 <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
-                  <i class="material-icons opacity-10">check_circle</i>
+                  <i class="material-icons opacity-10">verified_user</i>
                 </div>
-                <span class="nav-link-text ms-1">1. Anonymisierung</span>
+                <span class="nav-link-text nav-link-text-with-badge ms-1">
+                  1b. Validierung fortsetzen
+                  <span
+                    v-if="pendingValidationCount > 0"
+                    class="workflow-badge"
+                    title="Dateien warten auf Validierung"
+                  >
+                    {{ pendingValidationCount }}
+                  </span>
+                </span>
               </router-link>
             </li>
             <li class="nav-item">
@@ -66,6 +102,32 @@
                   <i class="material-icons opacity-10">video_call</i>
                 </div>
                 <span class="nav-link-text ms-1">2. Video-Untersuchung</span>
+              </router-link>
+            </li>
+
+            <li class="nav-item">
+              <router-link
+                to="/reporting/case-setup"
+                class="nav-link"
+                :class="{ active: isReportingCaseSetupRoute }"
+              >
+                <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
+                  <i class="material-icons opacity-10">playlist_add_check</i>
+                </div>
+                <span class="nav-link-text ms-1">3. Befundung starten</span>
+              </router-link>
+            </li>
+
+            <li class="nav-item">
+              <router-link
+                to="/reporting"
+                class="nav-link"
+                :class="{ active: isReportingRoute }"
+              >
+                <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
+                  <i class="material-icons opacity-10">fact_check</i>
+                </div>
+                <span class="nav-link-text ms-1">Befundung: Übersicht</span>
               </router-link>
             </li>
             <!-- #TODO: Add back when ready
@@ -105,15 +167,15 @@
                 <span class="nav-link-text ms-1">Untersuchung</span>
               </router-link>
             </li>
-            <!-- <li class="nav-item">
-              <router-link to="/report-generator" class="nav-link" :class="{ active: $route.path === '/report-generator' }">
+            <li class="nav-item">
+              <router-link to="/export" class="nav-link" :class="{ active: $route.path === '/export' }">
                 <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
-                  <i class="material-icons opacity-10">article</i>
+                  <i class="material-icons opacity-10">arrow</i>
                 </div>
-                <span class="nav-link-text ms-1">Report Generator</span>
+                <span class="nav-link-text ms-1">Export</span>
               </router-link>
             </li>
-            <li class="nav-item">
+            <!-- <li class="nav-item">
               <router-link to="anonymisierung/validierung" class="nav-link" :class="{ active: $route.path === '/validierung' }">
                 <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
                   <i class="material-icons opacity-10">check_circle</i>
@@ -147,20 +209,65 @@
               </router-link>
             </li>
             -->
-          </ul>
-        </div>
+        </ul>
       </div>
     </div>
   </div>
 </template>
 
 <script>
+import axiosInstance, { r } from '@/api/axiosInstance'
+import { endpoints } from '@/types/api/endpoints'
+
+function normalizeStaticUrl(value) {
+  const base = value || '/static/'
+  return base.endsWith('/') ? base : `${base}/`
+}
+
 export default {
   name: 'SidebarComponent',
   data() {
     return {
-      staticUrl: window.STATIC_URL,
-      isSidebarOpen: false
+      staticUrl: normalizeStaticUrl(window.STATIC_URL),
+      isSidebarOpen: false,
+      pendingValidationCount: 0,
+      processingCount: 0,
+      workflowCountsInterval: null
+    }
+  },
+  computed: {
+    logoSrc() {
+      return `${this.staticUrl}img/ColoReg.png`
+    },
+    isAnonymizationOverviewRoute() {
+      return this.$route.path === '/anonymisierung' || this.$route.path.startsWith('/anonymisierung/uebersicht')
+    },
+    isAnonymizationValidationRoute() {
+      return this.$route.path.startsWith('/anonymisierung/validierung')
+    },
+    isReportingRoute() {
+      return this.$route.path.startsWith('/reporting')
+    },
+    isReportingCaseSetupRoute() {
+      return this.$route.path.startsWith('/reporting/case-setup')
+    },
+    lastValidationTo() {
+      const fileIdRaw = sessionStorage.getItem('last:fileId')
+      const mediaTypeRaw = sessionStorage.getItem('last:scope')
+      const fileId = Number(fileIdRaw)
+      const mediaType = mediaTypeRaw === 'video' || mediaTypeRaw === 'pdf' ? mediaTypeRaw : null
+
+      if (Number.isFinite(fileId) && mediaType) {
+        return {
+          path: '/anonymisierung/validierung',
+          query: {
+            fileId: String(fileId),
+            mediaType
+          }
+        }
+      }
+
+      return '/anonymisierung/validierung'
     }
   },
   methods: {
@@ -172,46 +279,108 @@ export default {
     },
     openSidebar() {
       this.isSidebarOpen = true;
-    }
-  },
-  mounted() {
-    // Listen for custom events from navbar
-    const handleToggle = () => {
+    },
+    async refreshWorkflowCounts() {
+      try {
+        const { data } = await axiosInstance.get(r(endpoints.anonymization.itemsOverview))
+        if (!Array.isArray(data)) {
+          this.pendingValidationCount = 0
+          this.processingCount = 0
+          return
+        }
+
+        this.pendingValidationCount = data.filter((item) => {
+          return (
+            item?.anonymizationStatus === 'done_processing_anonymization' &&
+            item?.annotationStatus !== 'validated'
+          )
+        }).length
+
+        this.processingCount = data.filter((item) => {
+          return [
+            'processing_anonymization',
+            'extracting_frames',
+            'predicting_segments'
+          ].includes(item?.anonymizationStatus)
+        }).length
+      } catch (error) {
+        console.error('Failed to refresh workflow counts in sidebar:', error)
+      }
+    },
+    handleToggleSidebarEvent() {
       this.toggleSidebar();
-    };
-    
-    document.addEventListener('toggleSidebar', handleToggle);
-    
-    // Handle window resize to close sidebar on larger screens
-    const handleResize = () => {
+    },
+    handleWindowResize() {
       if (window.innerWidth >= 1200) {
         this.isSidebarOpen = false;
       }
-    };
-    
-    window.addEventListener('resize', handleResize);
-    
-    // Cleanup event listeners
-    this.$once('hook:beforeDestroy', () => {
-      document.removeEventListener('toggleSidebar', handleToggle);
-      window.removeEventListener('resize', handleResize);
-    });
+    }
+  },
+  mounted() {
+    document.addEventListener('toggleSidebar', this.handleToggleSidebarEvent);
+    window.addEventListener('resize', this.handleWindowResize);
+    this.refreshWorkflowCounts();
+    this.workflowCountsInterval = window.setInterval(() => {
+      this.refreshWorkflowCounts();
+    }, 30000);
+  },
+  beforeUnmount() {
+    document.removeEventListener('toggleSidebar', this.handleToggleSidebarEvent);
+    window.removeEventListener('resize', this.handleWindowResize);
+    if (this.workflowCountsInterval) {
+      window.clearInterval(this.workflowCountsInterval);
+      this.workflowCountsInterval = null;
+    }
   }
 }
 </script>
 
 <style scoped>
 /* Preserve original desktop sidebar styles */
+.sidenav {
+  display: flex;
+  flex-direction: column;
+}
+
+.sidenav-header {
+  flex: 0 0 auto;
+  position: relative;
+  z-index: 1;
+}
+
+.sidenav-header .navbar-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-decoration: none;
+}
+
 .sidenav-header-inner {
   padding: 0.5rem 1rem;
   margin-bottom: 1.5rem;
-  background-color: white;
+  box-sizing: border-box;
+}
+.logo-img {
+  display: block;
+  width: 100%;      /* fill available box width */
+  max-width: 100%;  /* never overflow container */
+  height: auto;     /* keep aspect ratio */
+  object-fit: contain;
 }
 
 .navbar-nav {
   padding-left: 0;
   margin-bottom: 0;
   list-style: none;
+}
+
+.nav-section-title {
+  padding: 0.25rem 1rem 0.5rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.6);
+  font-weight: 700;
 }
 
 .nav-item {
@@ -234,6 +403,14 @@ export default {
   border-radius: 0.375rem;
 }
 
+.sidenav-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  max-height: calc(100vh - 4.875rem);
+  -webkit-overflow-scrolling: touch;
+}
+
 /* Mobile Responsiveness Improvements */
 @media (max-width: 1199.98px) {
   .sidenav {
@@ -246,6 +423,7 @@ export default {
     z-index: 9999;
     background: linear-gradient(195deg, #42424a, #191919) !important;
     transition: transform 0.3s ease-in-out !important;
+    overflow: hidden;
   }
   
   .sidenav.show {
@@ -279,6 +457,32 @@ export default {
 .nav-link-text {
   font-size: 0.875rem;
   font-weight: 400;
+}
+
+.nav-link-text-with-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.workflow-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.35rem;
+  height: 1.35rem;
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1;
+  color: #191919;
+  background: #ffd24a;
+}
+
+.workflow-badge-processing {
+  color: #fff;
+  background: #1a73e8;
 }
 
 hr.horizontal.light {

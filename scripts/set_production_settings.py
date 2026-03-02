@@ -3,7 +3,7 @@ import os
 from pathlib import Path
 
 
-DEFAULT_PROD_SETTINGS = "config.settings.prod"
+DEFAULT_PROD_SETTINGS = "lx_annotate.settings.settings_prod"
 
 
 settings_module = os.environ.get("DJANGO_SETTINGS_MODULE_PRODUCTION", DEFAULT_PROD_SETTINGS)

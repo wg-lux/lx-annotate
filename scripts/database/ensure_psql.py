@@ -4,7 +4,8 @@ import os
 from pathlib import Path
 from urllib.parse import urlparse, unquote
 
-# DB_CONFIG_FILE support removed. Use DATABASE_URL or DB_* env vars.
+# DB_CONFIG_FILE support r  env.DATABASE_URL = config.secretspec.secrets.DATABASE_URL;
+  env.REDIS_URL = config.secretspec.secrets.REDIS_URL;emoved. Use DATABASE_URL or DB_* env vars.
 db_name = os.environ.get("DB_NAME")
 db_user = os.environ.get("DB_USER")
 db_password = os.environ.get("DB_PASSWORD")
@@ -29,7 +30,7 @@ def run_psql_command(sql):
     from subprocess import run, PIPE
 
     result = run(
-        ["sudo", "-u", "postgres", "psql", "-c", sql], capture_output=True, text=True
+        ["sudo", "-u", db_user, "psql", "-c", sql], capture_output=True, text=True
     )
     if "ERROR" in result.stderr:
         ic("SQL Error:", result.stderr.strip())

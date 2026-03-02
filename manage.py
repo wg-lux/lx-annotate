@@ -1,4 +1,4 @@
-#!/nix/store/lpi16513bai8kg2bd841745vzk72475x-python3-3.11.9/bin/python
+#!/usr/bin/env python3
 """Django's command-line utility for administrative tasks."""
 import os
 import subprocess
@@ -9,6 +9,7 @@ sys.path.insert(0, "/home/admin/dev/lx-annotate/libs/endoreg-db")
 
 from lx_annotate.settings.settings_base import BASE_DIR
 
+os.environ.setdefault("DATA_DIR", str(Path(BASE_DIR) / "data"))
 os.environ.setdefault("STORAGE_DIR", str(Path(BASE_DIR) / "data"))
 
 

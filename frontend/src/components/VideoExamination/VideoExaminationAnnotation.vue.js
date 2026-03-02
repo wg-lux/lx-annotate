@@ -1,8 +1,6 @@
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useVideoStore } from '@/stores/videoStore';
 import { useAnonymizationStore } from '@/stores/anonymizationStore';
-import { useAnnotationStore } from '@/stores/annotationStore';
-import { useAuthStore } from '@/stores/authStore';
 import { useMediaTypeStore } from '@/stores/mediaTypeStore';
 import RequirementGenerator from '@/components/RequirementReport/RequirementGenerator.vue';
 import axiosInstance, { r } from '@/api/axiosInstance';
@@ -22,7 +20,6 @@ const videoStore = useVideoStore();
 const mediaStore = useMediaTypeStore();
 const { videoList, videoStreamUrl, timelineSegments } = storeToRefs(videoStore);
 const videos = computed(() => videoList.value.videos);
-const toastStore = useToastStore();
 const { allSegments: rawSegments } = storeToRefs(videoStore);
 const anonymizationStore = useAnonymizationStore();
 const { overview } = storeToRefs(anonymizationStore);
@@ -36,7 +33,11 @@ const timelineLabels = computed(() => {
  */
 function isAnonymized(videoId) {
     const item = overview.value.find(o => o.id === videoId && o.mediaType === 'video');
-    return item?.anonymizationStatus === 'done_processing_anonymization';
+    return item?.anonymizationStatus === 'done_processing_anonymization' || item?.anonymizationStatus === 'validated';
+}
+function isAnnotationFinished(videoId) {
+    const video = videoList.value.videos.find(v => v.id === videoId);
+    return Boolean(video?.segmentAnnotationsValidated);
 }
 // Reactive data
 const selectedVideoId = ref(initialVideoId);
@@ -48,18 +49,27 @@ const examinationMarkers = ref([]);
 const savedExaminations = ref([]);
 const currentMarker = ref(null);
 const selectedLabelType = ref('');
+const isLabelSelectActive = ref(false);
 const isMarkingLabel = ref(false);
 const labelMarkingStart = ref(0);
 const selectedSegmentId = ref(null);
+const isInitialLoading = ref(true);
+const lastValidationClickedVideoId = ref(null);
 // Video detail and metadata like VideoClassificationComponent
 const videoDetail = ref(null);
 const videoMeta = ref(null);
 // Error and success messages for Bootstrap alerts
 const errorMessage = ref('');
 const successMessage = ref('');
+const isFullscreen = ref(false);
 // Template refs
 const videoRef = ref(null);
+const videoContainerRef = ref(null);
+const labelSelectRef = ref(null);
 const timelineRef = ref(null);
+const videoDropdownRef = ref(null);
+const isVideoDropdownOpen = ref(false);
+const videoSensitiveMetaMap = ref({});
 // Video Dropdown Watcher
 const hasUnsavedChanges = computed(() => rawSegments.value.some(s => s.isDirty));
 async function loadSelectedVideo() {
@@ -75,6 +85,11 @@ async function loadSelectedVideo() {
         selectedVideoId.value = null;
         return;
     }
+    if (isAnnotationFinished(selectedVideoId.value)) {
+        showErrorMessage(`Video ${selectedVideoId.value} ist bereits vollständig annotiert.`);
+        selectedVideoId.value = null;
+        return;
+    }
     // Clear previous error messages when changing videos
     clearErrorMessage();
     clearSuccessMessage();
@@ -83,8 +98,6 @@ async function loadSelectedVideo() {
         await loadVideoDetail(selectedVideoId.value);
         await guarded(loadSavedExaminations());
         await guarded(loadVideoMetadata());
-        // Load segments with error handling
-        await guarded(videoStore.fetchAllSegments(selectedVideoId.value));
         console.log('Video fully loaded:', selectedVideoId.value);
     }
     catch (err) {
@@ -93,19 +106,147 @@ async function loadSelectedVideo() {
     }
 }
 function onVideoChange() {
-    loadSelectedVideo();
     /** update the url so users can bookmark / refresh */
     router.replace({ query: { video: selectedVideoId.value } });
 }
+function toggleVideoDropdown() {
+    if (!hasVideos.value)
+        return;
+    isVideoDropdownOpen.value = !isVideoDropdownOpen.value;
+    if (isVideoDropdownOpen.value) {
+        loadSensitiveMetaForVideos(selectableVideos.value.map(v => v.id));
+    }
+}
+function closeVideoDropdown() {
+    isVideoDropdownOpen.value = false;
+}
+function selectVideoFromDropdown(videoId) {
+    const selected = selectableVideos.value.find(video => video.id === videoId);
+    if (!selected || selected.segmentAnnotationsValidated)
+        return;
+    selectedVideoId.value = videoId;
+    onVideoChange();
+    closeVideoDropdown();
+}
+const handleDocumentClick = (event) => {
+    const target = event.target;
+    if (!(target instanceof Node))
+        return;
+    if (!videoDropdownRef.value)
+        return;
+    if (!videoDropdownRef.value.contains(target)) {
+        closeVideoDropdown();
+    }
+};
+const parseDobToDate = (rawDob) => {
+    if (!rawDob)
+        return null;
+    const trimmed = rawDob.trim();
+    if (!trimmed)
+        return null;
+    const isoCandidate = new Date(trimmed);
+    if (!Number.isNaN(isoCandidate.getTime()))
+        return isoCandidate;
+    const deMatch = trimmed.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+    if (deMatch) {
+        const [, day, month, year] = deMatch;
+        const parsed = new Date(Number(year), Number(month) - 1, Number(day));
+        if (!Number.isNaN(parsed.getTime()))
+            return parsed;
+    }
+    return null;
+};
+const getAgeFromDob = (rawDob) => {
+    const dob = parseDobToDate(rawDob);
+    if (!dob)
+        return null;
+    const today = new Date();
+    let age = today.getFullYear() - dob.getFullYear();
+    const monthDelta = today.getMonth() - dob.getMonth();
+    if (monthDelta < 0 || (monthDelta === 0 && today.getDate() < dob.getDate())) {
+        age -= 1;
+    }
+    return age >= 0 ? age : null;
+};
+const normalizeGenderLabel = (value) => {
+    if (!value)
+        return 'Unbekannt';
+    const normalized = value.toLowerCase();
+    if (normalized === 'male' || normalized === 'männlich')
+        return 'Männlich';
+    if (normalized === 'female' || normalized === 'weiblich')
+        return 'Weiblich';
+    if (normalized === 'diverse')
+        return 'Divers';
+    return value;
+};
+const getVideoPatientGender = (videoId) => {
+    return normalizeGenderLabel(videoSensitiveMetaMap.value[videoId]?.patient_gender_name);
+};
+const getVideoPatientAgeLabel = (videoId) => {
+    const age = getAgeFromDob(videoSensitiveMetaMap.value[videoId]?.patient_dob);
+    return age == null ? 'Unbekannt' : `${age} J.`;
+};
+const loadSensitiveMetaForVideos = async (videoIds) => {
+    const missingIds = videoIds.filter(id => !(id in videoSensitiveMetaMap.value));
+    if (missingIds.length === 0)
+        return;
+    const results = await Promise.all(missingIds.map(async (id) => {
+        try {
+            const { data } = await axiosInstance.get(r(`media/videos/${id}/sensitive-metadata/`));
+            return { id, data };
+        }
+        catch {
+            return { id, data: { patient_dob: null, patient_gender_name: null } };
+        }
+    }));
+    const nextMap = { ...videoSensitiveMetaMap.value };
+    results.forEach(({ id, data }) => {
+        nextMap[id] = {
+            patient_dob: data?.patient_dob ?? null,
+            patient_gender_name: data?.patient_gender_name ?? null,
+        };
+    });
+    videoSensitiveMetaMap.value = nextMap;
+};
 //  fire loader whenever selectedVideoId changes programmatically  */
-watch(selectedVideoId, loadSelectedVideo);
+watch(selectedVideoId, async (newId) => {
+    console.log('Selected video ID changed, syncing store and loading details:', newId);
+    if (typeof newId === 'number') {
+        videoStore.setCurrentVideo(newId);
+    }
+    else if (newId !== null) {
+        errorMessage.value = 'Invalid video ID';
+        return;
+    }
+    await loadSelectedVideo();
+    if (newId !== null) {
+        await loadVideoSegments();
+    }
+}, { immediate: true });
 watch(() => route.query.video, v => {
     const id = Number(v ?? '') || null;
     if (id !== selectedVideoId.value)
         selectedVideoId.value = id;
 }, { immediate: true });
 // List of only videos that are both present in the list **and** in state `done` inside anonymizationStore
-const annotatableVideos = computed(() => videoList.value.videos.filter(v => isAnonymized(v.id)));
+const selectableVideos = computed(() => videoList.value.videos.filter(v => isAnonymized(v.id)));
+const annotatableVideos = computed(() => selectableVideos.value.filter(v => !isAnnotationFinished(v.id)));
+const selectedVideoLabel = computed(() => {
+    if (!selectableVideos.value.length)
+        return 'Keine Videos verfügbar';
+    if (selectedVideoId.value == null)
+        return 'Bitte Video auswählen...';
+    const video = selectableVideos.value.find(v => v.id === selectedVideoId.value);
+    if (!video)
+        return `Video ${selectedVideoId.value}`;
+    return `📹 ${video.original_file_name || `Video Nr. ${video.id}`}`;
+});
+watch(selectableVideos, (videos) => {
+    if (!videos.length)
+        return;
+    loadSensitiveMetaForVideos(videos.map(v => v.id));
+}, { immediate: true });
 const showExaminationForm = computed(() => {
     return selectedVideoId.value !== null && anonymizedVideoSrc.value !== undefined;
 });
@@ -118,14 +259,17 @@ const anonymizedVideoSrc = computed(() => {
     return `${base}/api/media/videos/${selectedVideoId.value}/?type=processed`;
 });
 const hasVideos = computed(() => {
-    return annotatableVideos.value && annotatableVideos.value.length > 0;
+    return selectableVideos.value && selectableVideos.value.length > 0;
 });
 const noVideosMessage = computed(() => {
     if (videos.value.length === 0) {
         return 'Keine Videos verfügbar. Bitte laden Sie zuerst Videos hoch.';
     }
-    else if (annotatableVideos.value.length === 0) {
+    else if (selectableVideos.value.length === 0) {
         return 'Keine anonymisierten Videos verfügbar. Videos müssen erst anonymisiert werden.';
+    }
+    else if (annotatableVideos.value.length === 0) {
+        return 'Alle anonymisierten Videos sind bereits validiert.';
     }
     return '';
 });
@@ -148,6 +292,7 @@ const canStartLabeling = computed(() => {
 // ✅ PRIORITY: Load labels first, then videos, then anonymization status
 onMounted(async () => {
     console.log('🚀 [VideoExamination] Component mounted - loading data in priority order...');
+    isInitialLoading.value = true;
     try {
         // Step 1: Load labels with high priority
         await videoStore.fetchLabels();
@@ -159,11 +304,23 @@ onMounted(async () => {
         await videoStore.fetchAllVideos();
         console.log(`✅ [VideoExamination] Videos loaded: ${videoStore.videoList.videos.length}`);
         console.log(`✅ [VideoExamination] Annotatable videos: ${annotatableVideos.value.length}`);
+        await loadVideoSegments();
     }
     catch (error) {
         console.error('❌ [VideoExamination] Error during initial load:', error);
         showErrorMessage('Fehler beim Laden der Daten. Bitte Seite neu laden.');
     }
+    finally {
+        isInitialLoading.value = false;
+    }
+    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('click', handleDocumentClick);
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+});
+onUnmounted(() => {
+    document.removeEventListener('keydown', handleKeyDown);
+    document.removeEventListener('click', handleDocumentClick);
+    document.removeEventListener('fullscreenchange', handleFullscreenChange);
 });
 // Guarded function for error handling like VideoClassificationComponent
 async function guarded(p) {
@@ -178,16 +335,6 @@ async function guarded(p) {
 }
 watch(videoStreamUrl, (newUrl) => {
     console.log('Video stream URL updated:', newUrl);
-});
-watch(selectedVideoId, (newId) => {
-    console.log('Selected video ID changed, setting store to:', newId);
-    if (typeof newId === 'number') {
-        videoStore.setCurrentVideo(newId);
-        videoStore.fetchVideoSegments(newId);
-    }
-    else {
-        errorMessage.value = 'Invalid video ID';
-    }
 });
 // Alert management methods
 const clearErrorMessage = () => {
@@ -224,7 +371,7 @@ const loadVideoDetail = async (videoId) => {
             fps: Number(response.data.fps ?? 50)
         };
         // Update MediaStore with the current video for consistent URL handling
-        const currentVideo = annotatableVideos.value.find(v => v.id === videoId);
+        const currentVideo = selectableVideos.value.find(v => v.id === videoId);
         if (currentVideo) {
             mediaStore.setCurrentItem(currentVideo);
             console.log('MediaStore updated with video:', videoId);
@@ -290,18 +437,18 @@ const loadVideoMetadata = async () => {
         });
     }
 };
-const loadVideoSegments = async () => {
+async function loadVideoSegments() {
     if (selectedVideoId.value === null)
         return;
     try {
-        await videoStore.fetchAllSegments(selectedVideoId.value);
+        await videoStore.fetchAllSegments(selectedVideoId.value, true);
         console.log('Video segments loaded for video:', selectedVideoId.value);
         console.log('Timeline segments count:', rawSegments.value.length);
     }
     catch (error) {
         console.error('Error loading video segments:', error);
     }
-};
+}
 const onVideoLoaded = () => {
     if (videoRef.value) {
         duration.value = videoRef.value.duration;
@@ -383,6 +530,7 @@ const handleSegmentResize = (...args) => {
             startTime: newStart,
             endTime: newEnd
         });
+        videoStore.commitDraft();
     }
     else {
         // Existing segment: patch locally and mark isDirty
@@ -457,6 +605,7 @@ const handleSegmentDelete = (...args) => {
             videoStore.removeSegment(segment.id);
             // 2. Perform API call
             await videoStore.deleteSegment(segment.id);
+            await loadVideoSegments();
             showSuccessMessage(`Segment gelöscht: ${getTranslationForLabel(segment.label)}`);
             resolve();
         }
@@ -476,9 +625,131 @@ const seekToTime = (time) => {
 const onLabelSelect = () => {
     console.log('Label selected:', selectedLabelType.value);
 };
+const handleFullscreenChange = () => {
+    isFullscreen.value = document.fullscreenElement === videoContainerRef.value;
+};
+const toggleFullscreen = async () => {
+    const container = videoContainerRef.value;
+    if (!container)
+        return;
+    try {
+        if (document.fullscreenElement === container) {
+            await document.exitFullscreen();
+        }
+        else {
+            await container.requestFullscreen();
+        }
+    }
+    catch (error) {
+        console.error('Fullscreen toggle failed:', error);
+    }
+};
+const closeLabelOverlay = () => {
+    isLabelSelectActive.value = false;
+    labelSelectRef.value?.blur();
+};
+const selectLabelFromOverlay = (labelName) => {
+    selectedLabelType.value = labelName;
+    closeLabelOverlay();
+};
+const isEditableTarget = (target) => {
+    if (!(target instanceof HTMLElement))
+        return false;
+    if (target.isContentEditable)
+        return true;
+    if (target instanceof HTMLSelectElement && isLabelSelectActive.value)
+        return false;
+    return ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName);
+};
+const handleKeyDown = (event) => {
+    if (isEditableTarget(event.target))
+        return;
+    const key = event.key.toLowerCase();
+    if (!event.ctrlKey && !event.metaKey && !event.altKey && key === 'o') {
+        event.preventDefault();
+        event.stopPropagation();
+        preselectLabelForOverlay();
+        isLabelSelectActive.value = true;
+        return;
+    }
+    if (!event.ctrlKey && !event.metaKey && !event.altKey && key === 'f') {
+        event.preventDefault();
+        event.stopPropagation();
+        toggleFullscreen();
+        return;
+    }
+    if (isLabelSelectActive.value) {
+        if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+            event.preventDefault();
+            event.stopPropagation();
+            const labels = timelineLabels.value;
+            if (labels.length === 0)
+                return;
+            const currentIndex = labels.findIndex((l) => l.name === selectedLabelType.value);
+            const delta = event.key === 'ArrowUp' ? -1 : 1;
+            const startIndex = currentIndex === -1 ? (delta > 0 ? -1 : 0) : currentIndex;
+            const nextIndex = (startIndex + delta + labels.length) % labels.length;
+            selectedLabelType.value = labels[nextIndex].name;
+            return;
+        }
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            event.stopPropagation();
+            closeLabelOverlay();
+            return;
+        }
+    }
+    if (event.key === 'Escape') {
+        if (isLabelSelectActive.value) {
+            event.preventDefault();
+            event.stopPropagation();
+            closeLabelOverlay();
+            return;
+        }
+        if (isMarkingLabel.value) {
+            event.preventDefault();
+            cancelLabelMarking();
+        }
+        return;
+    }
+    const isPlus = event.key === '+' ||
+        event.code === 'NumpadAdd' ||
+        (event.code === 'Equal' && event.shiftKey);
+    const isMinus = event.key === '-' ||
+        event.code === 'Minus' ||
+        event.code === 'NumpadSubtract';
+    if (isPlus) {
+        event.preventDefault();
+        startLabelMarking();
+        return;
+    }
+    if (isMinus) {
+        event.preventDefault();
+        finishLabelMarking();
+    }
+};
+const preselectLabelForOverlay = () => {
+    const segments = timelineSegmentsForSelectedVideo.value;
+    if (segments.length === 0)
+        return;
+    if (selectedSegmentId.value !== null) {
+        const selectedSegment = segments.find((segment) => segment.id === selectedSegmentId.value);
+        if (selectedSegment) {
+            selectedLabelType.value = selectedSegment.label;
+            return;
+        }
+    }
+    const currentSegment = segments.find((segment) => currentTime.value >= segment.startTime && currentTime.value <= segment.endTime);
+    if (currentSegment) {
+        selectedLabelType.value = currentSegment.label;
+    }
+};
 const startLabelMarking = () => {
     if (!canStartLabeling.value)
         return;
+    if (selectedVideoId.value) {
+        videoStore.setCurrentVideo(selectedVideoId.value);
+    }
     isMarkingLabel.value = true;
     labelMarkingStart.value = currentTime.value;
     // FIX: Use startDraft statt startDraftSegment
@@ -489,12 +760,12 @@ const finishLabelMarking = async () => {
     if (!isMarkingLabel.value || !selectedVideoId.value)
         return;
     try {
+        videoStore.setCurrentVideo(selectedVideoId.value);
         // FIX: Use updateDraftEnd und commitDraft statt finishDraftSegment
         videoStore.updateDraftEnd(currentTime.value);
         await videoStore.commitDraft();
-        // Reset state
+        // Reset state (keep last selected label)
         isMarkingLabel.value = false;
-        selectedLabelType.value = '';
         // Reload segments to show the new one
         await loadVideoSegments();
         console.log('Label-Markierung abgeschlossen');
@@ -504,10 +775,8 @@ const finishLabelMarking = async () => {
     }
 };
 const cancelLabelMarking = () => {
-    // FIX: Use cancelDraft statt cancelDraftSegment
     videoStore.cancelDraft();
     isMarkingLabel.value = false;
-    selectedLabelType.value = '';
     console.log('Label-Markierung abgebrochen');
 };
 const jumpToExamination = (examination) => {
@@ -576,6 +845,15 @@ const submitVideoSegments = async () => {
         const errorMsg = error?.response?.data?.error || error?.message || 'Unbekannter Fehler';
         showErrorMessage(`Validierung fehlgeschlagen: ${errorMsg}`);
     }
+};
+const handleValidateAndMark = async (videoId) => {
+    if (!videoId) {
+        showErrorMessage('Kein Video ausgewählt');
+        return;
+    }
+    lastValidationClickedVideoId.value = videoId;
+    await submitVideoSegments();
+    await markValidationFinishedRemoveOutside(videoId);
 };
 const saveSegmentChanges = async () => {
     try {
@@ -681,6 +959,7 @@ debugger; /* PartiallyEnd: #3632/scriptSetup.vue */
 const __VLS_ctx = {};
 let __VLS_components;
 let __VLS_directives;
+/** @type {__VLS_StyleScopedClasses['fullscreen-toggle']} */ ;
 /** @type {__VLS_StyleScopedClasses['examination-marker']} */ ;
 /** @type {__VLS_StyleScopedClasses['list-group-item']} */ ;
 /** @type {__VLS_StyleScopedClasses['requirement-generator-embedded']} */ ;
@@ -696,7 +975,16 @@ let __VLS_directives;
 /** @type {__VLS_StyleScopedClasses['requirement-generator-embedded']} */ ;
 /** @type {__VLS_StyleScopedClasses['requirement-generator-embedded']} */ ;
 /** @type {__VLS_StyleScopedClasses['status-badge-container']} */ ;
+/** @type {__VLS_StyleScopedClasses['video-dropdown-trigger']} */ ;
+/** @type {__VLS_StyleScopedClasses['video-dropdown-item']} */ ;
+/** @type {__VLS_StyleScopedClasses['video-dropdown-item']} */ ;
+/** @type {__VLS_StyleScopedClasses['video-dropdown-item']} */ ;
 /** @type {__VLS_StyleScopedClasses['validation-status-alert']} */ ;
+/** @type {__VLS_StyleScopedClasses['validation-action-button']} */ ;
+/** @type {__VLS_StyleScopedClasses['validation-action-button']} */ ;
+/** @type {__VLS_StyleScopedClasses['label-overlay']} */ ;
+/** @type {__VLS_StyleScopedClasses['label-overlay-item']} */ ;
+/** @type {__VLS_StyleScopedClasses['shortcuts-toggle']} */ ;
 // CSS variable injection 
 // CSS variable injection end 
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -768,25 +1056,79 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.d
 __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
     ...{ class: "form-label" },
 });
-__VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
-    ...{ onChange: (__VLS_ctx.onVideoChange) },
-    value: (__VLS_ctx.selectedVideoId),
-    ...{ class: "form-select" },
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ref: "videoDropdownRef",
+    ...{ class: "video-dropdown" },
+});
+/** @type {typeof __VLS_ctx.videoDropdownRef} */ ;
+__VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+    ...{ onClick: (__VLS_ctx.toggleVideoDropdown) },
+    type: "button",
+    ...{ class: "video-dropdown-trigger" },
     disabled: (!__VLS_ctx.hasVideos),
+    'aria-expanded': (__VLS_ctx.isVideoDropdownOpen ? 'true' : 'false'),
+    'aria-haspopup': "listbox",
 });
-__VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-    value: (null),
+__VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+    ...{ class: "video-dropdown-trigger-text" },
 });
-(__VLS_ctx.hasVideos ? 'Bitte Video auswählen...' : 'Keine Videos verfügbar');
-for (const [video] of __VLS_getVForSourceType((__VLS_ctx.annotatableVideos))) {
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-        key: (video.id),
-        value: (video.id),
+(__VLS_ctx.selectedVideoLabel);
+__VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+    ...{ class: "fas" },
+    ...{ class: (__VLS_ctx.isVideoDropdownOpen ? 'fa-chevron-up' : 'fa-chevron-down') },
+});
+if (__VLS_ctx.isVideoDropdownOpen && __VLS_ctx.hasVideos) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "video-dropdown-menu" },
+        role: "listbox",
     });
-    (video.original_file_name || 'Video Nr. ' + video.id);
-    (__VLS_ctx.getVideoStatusIndicator(video.id));
-    (video.centerName || 'Unbekannt');
-    (video.processorName || 'Unbekannt');
+    for (const [video] of __VLS_getVForSourceType((__VLS_ctx.selectableVideos))) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+            ...{ onClick: (...[$event]) => {
+                    if (!(__VLS_ctx.isVideoDropdownOpen && __VLS_ctx.hasVideos))
+                        return;
+                    __VLS_ctx.selectVideoFromDropdown(video.id);
+                } },
+            key: (video.id),
+            type: "button",
+            ...{ class: "video-dropdown-item" },
+            ...{ class: ({
+                    'video-dropdown-item-selected': __VLS_ctx.selectedVideoId === video.id,
+                    'video-dropdown-item-validated': video.segmentAnnotationsValidated,
+                    'video-dropdown-item-pending': !video.segmentAnnotationsValidated
+                }) },
+            disabled: (video.segmentAnnotationsValidated),
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "video-dropdown-main" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+            ...{ class: "video-dropdown-title" },
+        });
+        (video.original_file_name || 'Video Nr. ' + video.id);
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+            ...{ class: "video-dropdown-status-badge" },
+            ...{ class: (video.segmentAnnotationsValidated ? 'badge-validated' : 'badge-pending') },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: "fas me-1" },
+            ...{ class: (video.segmentAnnotationsValidated ? 'fa-check-double' : 'fa-hourglass-half') },
+        });
+        (video.segmentAnnotationsValidated ? 'Validiert (Outside entfernt)' : 'Validierung offen');
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "video-dropdown-meta" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+        (__VLS_ctx.getVideoStatusIndicator(video.id));
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+        (video.centerName || 'Unbekannt');
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+        (video.processorName || 'Unbekannt');
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+        (__VLS_ctx.getVideoPatientGender(video.id));
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+        (__VLS_ctx.getVideoPatientAgeLabel(video.id));
+    }
 }
 if (!__VLS_ctx.hasVideos) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
@@ -825,6 +1167,19 @@ if (__VLS_ctx.videos.length > 0) {
         ...{ class: "fas fa-clock me-1" },
     });
     (__VLS_ctx.videos.length - __VLS_ctx.annotatableVideos.length);
+}
+if (__VLS_ctx.lastValidationClickedVideoId !== null) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "mt-2 p-2 rounded validation-click-indicator" },
+        ...{ class: (__VLS_ctx.selectedVideoId === __VLS_ctx.lastValidationClickedVideoId ? 'validation-click-indicator-active' : 'validation-click-indicator-muted') },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+        ...{ class: "fw-semibold" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+        ...{ class: "fas fa-highlighter me-1" },
+    });
+    (__VLS_ctx.lastValidationClickedVideoId);
 }
 if (!__VLS_ctx.anonymizedVideoSrc && __VLS_ctx.hasVideos) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -876,7 +1231,18 @@ if (!__VLS_ctx.hasVideos) {
 }
 if (__VLS_ctx.anonymizedVideoSrc) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ref: "videoContainerRef",
         ...{ class: "video-container" },
+    });
+    /** @type {typeof __VLS_ctx.videoContainerRef} */ ;
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+        ...{ onClick: (__VLS_ctx.toggleFullscreen) },
+        type: "button",
+        ...{ class: "fullscreen-toggle" },
+        title: (__VLS_ctx.isFullscreen ? 'Vollbild verlassen' : 'Vollbild'),
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+        ...{ class: (__VLS_ctx.isFullscreen ? 'fas fa-compress' : 'fas fa-expand') },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.video, __VLS_intrinsicElements.video)({
         ...{ onTimeupdate: (__VLS_ctx.handleTimeUpdate) },
@@ -892,6 +1258,46 @@ if (__VLS_ctx.anonymizedVideoSrc) {
         ...{ style: {} },
     });
     /** @type {typeof __VLS_ctx.videoRef} */ ;
+    if (__VLS_ctx.isLabelSelectActive) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ onClick: (__VLS_ctx.closeLabelOverlay) },
+            ...{ class: "label-overlay" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "label-overlay-card" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "label-overlay-header" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+            ...{ onClick: (__VLS_ctx.closeLabelOverlay) },
+            type: "button",
+            ...{ class: "label-overlay-close" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "label-overlay-hint" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "label-overlay-list" },
+        });
+        for (const [label] of __VLS_getVForSourceType((__VLS_ctx.timelineLabels))) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+                ...{ onClick: (...[$event]) => {
+                        if (!(__VLS_ctx.anonymizedVideoSrc))
+                            return;
+                        if (!(__VLS_ctx.isLabelSelectActive))
+                            return;
+                        __VLS_ctx.selectLabelFromOverlay(label.name);
+                    } },
+                key: (label.id),
+                type: "button",
+                ...{ class: "label-overlay-item" },
+                ...{ class: ({ active: label.name === __VLS_ctx.selectedLabelType }) },
+            });
+            (__VLS_ctx.getTranslationForLabel(label.name));
+        }
+    }
     if (__VLS_ctx.selectedVideoId) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: "mt-3 p-3 rounded border video-status-card" },
@@ -1041,7 +1447,22 @@ if (__VLS_ctx.duration > 0) {
         onTimeSelection: (__VLS_ctx.handleTimeSelection)
     };
     var __VLS_2;
-    if (__VLS_ctx.selectedVideoId && __VLS_ctx.timelineSegmentsForSelectedVideo.length > 0) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.details, __VLS_intrinsicElements.details)({
+        ...{ class: "mt-2 text-muted shortcuts-details" },
+        ...{ style: {} },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.summary, __VLS_intrinsicElements.summary)({
+        ...{ class: "shortcuts-toggle" },
+        'aria-label': "Shortcuts anzeigen",
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+        ...{ class: "shortcuts-icon" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "mt-1 shortcuts-body" },
+    });
+    if (__VLS_ctx.selectedVideoId) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: "mt-3 d-flex gap-2" },
         });
@@ -1053,7 +1474,7 @@ if (__VLS_ctx.duration > 0) {
             ...{ onClick: (...[$event]) => {
                     if (!(__VLS_ctx.duration > 0))
                         return;
-                    if (!(__VLS_ctx.selectedVideoId && __VLS_ctx.timelineSegmentsForSelectedVideo.length > 0))
+                    if (!(__VLS_ctx.selectedVideoId))
                         return;
                     __VLS_ctx.saveSegmentChanges;
                     __VLS_ctx.submitVideoSegments;
@@ -1108,10 +1529,26 @@ if (__VLS_ctx.duration > 0) {
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
             ...{ onChange: (__VLS_ctx.onLabelSelect) },
+            ...{ onFocus: (...[$event]) => {
+                    if (!(__VLS_ctx.duration > 0))
+                        return;
+                    if (!(__VLS_ctx.selectedVideoId))
+                        return;
+                    __VLS_ctx.isLabelSelectActive = true;
+                } },
+            ...{ onBlur: (...[$event]) => {
+                    if (!(__VLS_ctx.duration > 0))
+                        return;
+                    if (!(__VLS_ctx.selectedVideoId))
+                        return;
+                    __VLS_ctx.isLabelSelectActive = false;
+                } },
+            ref: "labelSelectRef",
             value: (__VLS_ctx.selectedLabelType),
             ...{ class: "form-select form-select-sm control-select" },
             'data-cy': "label-select",
         });
+        /** @type {typeof __VLS_ctx.labelSelectRef} */ ;
         __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
             value: "",
         });
@@ -1179,11 +1616,11 @@ if (__VLS_ctx.duration > 0) {
         }
     }
 }
-if (__VLS_ctx.selectedVideoId && __VLS_ctx.timelineSegmentsForSelectedVideo.length > 0) {
+if (__VLS_ctx.selectedVideoId) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "mt-3" },
     });
-    if (__VLS_ctx.overview.find(o => o.id === __VLS_ctx.selectedVideoId && o.mediaType === 'video')?.anonymizationStatus === 'validated') {
+    if (__VLS_ctx.isAnnotationFinished(__VLS_ctx.selectedVideoId)) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: "alert alert-success d-flex align-items-center validation-status-alert" },
         });
@@ -1203,25 +1640,27 @@ if (__VLS_ctx.selectedVideoId && __VLS_ctx.timelineSegmentsForSelectedVideo.leng
         (__VLS_ctx.timelineSegmentsForSelectedVideo.length);
     }
     else {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "d-flex justify-content-center" },
+        });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
             ...{ onClick: (...[$event]) => {
-                    if (!(__VLS_ctx.selectedVideoId && __VLS_ctx.timelineSegmentsForSelectedVideo.length > 0))
+                    if (!(__VLS_ctx.selectedVideoId))
                         return;
-                    if (!!(__VLS_ctx.overview.find(o => o.id === __VLS_ctx.selectedVideoId && o.mediaType === 'video')?.anonymizationStatus === 'validated'))
+                    if (!!(__VLS_ctx.isAnnotationFinished(__VLS_ctx.selectedVideoId)))
                         return;
-                    __VLS_ctx.submitVideoSegments;
-                    __VLS_ctx.markValidationFinishedRemoveOutside(__VLS_ctx.selectedVideoId);
+                    __VLS_ctx.handleValidateAndMark(__VLS_ctx.selectedVideoId);
                 } },
-            ...{ class: "btn btn-success btn-lg w-100 d-flex align-items-center justify-content-center gap-2" },
-            ...{ style: {} },
+            ...{ class: "btn validation-action-button d-inline-flex align-items-center justify-content-center gap-2" },
+            ...{ class: ({ 'validation-action-button-clicked': __VLS_ctx.selectedVideoId === __VLS_ctx.lastValidationClickedVideoId }) },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "material-icons" },
+            ...{ class: "material-icons validation-action-icon" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
         (__VLS_ctx.timelineSegmentsForSelectedVideo.length);
     }
-    if (__VLS_ctx.overview.find(o => o.id === __VLS_ctx.selectedVideoId && o.mediaType === 'video')?.anonymizationStatus !== 'validated') {
+    if (!__VLS_ctx.isAnnotationFinished(__VLS_ctx.selectedVideoId)) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
             ...{ class: "text-muted text-center mt-2 mb-0" },
             ...{ style: {} },
@@ -1381,7 +1820,21 @@ if (__VLS_ctx.savedExaminations.length > 0) {
 /** @type {__VLS_StyleScopedClasses['card-body']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['form-label']} */ ;
-/** @type {__VLS_StyleScopedClasses['form-select']} */ ;
+/** @type {__VLS_StyleScopedClasses['video-dropdown']} */ ;
+/** @type {__VLS_StyleScopedClasses['video-dropdown-trigger']} */ ;
+/** @type {__VLS_StyleScopedClasses['video-dropdown-trigger-text']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['video-dropdown-menu']} */ ;
+/** @type {__VLS_StyleScopedClasses['video-dropdown-item']} */ ;
+/** @type {__VLS_StyleScopedClasses['video-dropdown-item-selected']} */ ;
+/** @type {__VLS_StyleScopedClasses['video-dropdown-item-validated']} */ ;
+/** @type {__VLS_StyleScopedClasses['video-dropdown-item-pending']} */ ;
+/** @type {__VLS_StyleScopedClasses['video-dropdown-main']} */ ;
+/** @type {__VLS_StyleScopedClasses['video-dropdown-title']} */ ;
+/** @type {__VLS_StyleScopedClasses['video-dropdown-status-badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['video-dropdown-meta']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
@@ -1403,6 +1856,14 @@ if (__VLS_ctx.savedExaminations.length > 0) {
 /** @type {__VLS_StyleScopedClasses['bg-secondary']} */ ;
 /** @type {__VLS_StyleScopedClasses['fas']} */ ;
 /** @type {__VLS_StyleScopedClasses['fa-clock']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['p-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['rounded']} */ ;
+/** @type {__VLS_StyleScopedClasses['validation-click-indicator']} */ ;
+/** @type {__VLS_StyleScopedClasses['fw-semibold']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-highlighter']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
@@ -1426,7 +1887,16 @@ if (__VLS_ctx.savedExaminations.length > 0) {
 /** @type {__VLS_StyleScopedClasses['material-icons']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['video-container']} */ ;
+/** @type {__VLS_StyleScopedClasses['fullscreen-toggle']} */ ;
 /** @type {__VLS_StyleScopedClasses['w-100']} */ ;
+/** @type {__VLS_StyleScopedClasses['label-overlay']} */ ;
+/** @type {__VLS_StyleScopedClasses['label-overlay-card']} */ ;
+/** @type {__VLS_StyleScopedClasses['label-overlay-header']} */ ;
+/** @type {__VLS_StyleScopedClasses['label-overlay-close']} */ ;
+/** @type {__VLS_StyleScopedClasses['label-overlay-hint']} */ ;
+/** @type {__VLS_StyleScopedClasses['label-overlay-list']} */ ;
+/** @type {__VLS_StyleScopedClasses['label-overlay-item']} */ ;
+/** @type {__VLS_StyleScopedClasses['active']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['p-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['rounded']} */ ;
@@ -1468,6 +1938,13 @@ if (__VLS_ctx.savedExaminations.length > 0) {
 /** @type {__VLS_StyleScopedClasses['btn-primary']} */ ;
 /** @type {__VLS_StyleScopedClasses['timeline-wrapper']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['shortcuts-details']} */ ;
+/** @type {__VLS_StyleScopedClasses['shortcuts-toggle']} */ ;
+/** @type {__VLS_StyleScopedClasses['shortcuts-icon']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['shortcuts-body']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
 /** @type {__VLS_StyleScopedClasses['gap-2']} */ ;
@@ -1536,15 +2013,17 @@ if (__VLS_ctx.savedExaminations.length > 0) {
 /** @type {__VLS_StyleScopedClasses['fa-medal']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn-success']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn-lg']} */ ;
-/** @type {__VLS_StyleScopedClasses['w-100']} */ ;
 /** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['justify-content-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['validation-action-button']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-inline-flex']} */ ;
 /** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['justify-content-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['gap-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['validation-action-button-clicked']} */ ;
 /** @type {__VLS_StyleScopedClasses['material-icons']} */ ;
+/** @type {__VLS_StyleScopedClasses['validation-action-icon']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
@@ -1617,6 +2096,7 @@ const __VLS_self = (await import('vue')).defineComponent({
             rawSegments: rawSegments,
             overview: overview,
             timelineLabels: timelineLabels,
+            isAnnotationFinished: isAnnotationFinished,
             selectedVideoId: selectedVideoId,
             currentTime: currentTime,
             duration: duration,
@@ -1626,15 +2106,27 @@ const __VLS_self = (await import('vue')).defineComponent({
             savedExaminations: savedExaminations,
             currentMarker: currentMarker,
             selectedLabelType: selectedLabelType,
+            isLabelSelectActive: isLabelSelectActive,
             isMarkingLabel: isMarkingLabel,
             selectedSegmentId: selectedSegmentId,
+            lastValidationClickedVideoId: lastValidationClickedVideoId,
             errorMessage: errorMessage,
             successMessage: successMessage,
+            isFullscreen: isFullscreen,
             videoRef: videoRef,
+            videoContainerRef: videoContainerRef,
+            labelSelectRef: labelSelectRef,
             timelineRef: timelineRef,
+            videoDropdownRef: videoDropdownRef,
+            isVideoDropdownOpen: isVideoDropdownOpen,
             hasUnsavedChanges: hasUnsavedChanges,
-            onVideoChange: onVideoChange,
+            toggleVideoDropdown: toggleVideoDropdown,
+            selectVideoFromDropdown: selectVideoFromDropdown,
+            getVideoPatientGender: getVideoPatientGender,
+            getVideoPatientAgeLabel: getVideoPatientAgeLabel,
+            selectableVideos: selectableVideos,
             annotatableVideos: annotatableVideos,
+            selectedVideoLabel: selectedVideoLabel,
             showExaminationForm: showExaminationForm,
             anonymizedVideoSrc: anonymizedVideoSrc,
             hasVideos: hasVideos,
@@ -1656,19 +2148,22 @@ const __VLS_self = (await import('vue')).defineComponent({
             handleCreateSegment: handleCreateSegment,
             handleSegmentDelete: handleSegmentDelete,
             onLabelSelect: onLabelSelect,
+            toggleFullscreen: toggleFullscreen,
+            closeLabelOverlay: closeLabelOverlay,
+            selectLabelFromOverlay: selectLabelFromOverlay,
             startLabelMarking: startLabelMarking,
             finishLabelMarking: finishLabelMarking,
             cancelLabelMarking: cancelLabelMarking,
             jumpToExamination: jumpToExamination,
             deleteExamination: deleteExamination,
             submitVideoSegments: submitVideoSegments,
+            handleValidateAndMark: handleValidateAndMark,
             saveSegmentChanges: saveSegmentChanges,
             discardSegmentChanges: discardSegmentChanges,
             onVideoError: onVideoError,
             onVideoLoadStart: onVideoLoadStart,
             onVideoCanPlay: onVideoCanPlay,
             getVideoStatusIndicator: getVideoStatusIndicator,
-            markValidationFinishedRemoveOutside: markValidationFinishedRemoveOutside,
             getVideoCountByStatus: getVideoCountByStatus,
             getStatusBadgeClass: getStatusBadgeClass,
             getStatusText: getStatusText,

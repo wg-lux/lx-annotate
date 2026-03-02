@@ -1,4 +1,4 @@
-{
+ {
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
@@ -73,9 +73,19 @@
         myApp = self.defaultPackage;
       };
 
-      # Optionally, you can define tests or other outputs
-      # apps = {};
-      # checks = {};
+      packages.frontend = pkgs.buildNpmPackage { # or buildYarnPackage
+        pname = "lx-annotate-frontend";
+        version = "1.0.0";
+        src = ./frontend; # Path to your vue code
+
+        # Nix needs a hash of your npm dependencies to build offline
+        npmDepsHash = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="; 
+
+        installPhase = ''
+          mkdir -p $out
+          cp -r dist/* $out/ 
+        '';
+      };
     }
   );
 }

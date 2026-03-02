@@ -11,8 +11,7 @@ import { DateConverter, DateValidator } from '@/utils/dateHelpers';
 import { useRoute } from 'vue-router';
 // @ts-ignore
 import axiosInstance, { r } from '@/api/axiosInstance';
-import { usePollingProtection } from '@/composables/usePollingProtection';
-const pollingProtection = usePollingProtection();
+import { endpoints } from '@/types/api/endpoints';
 const toast = useToastStore();
 const router = useRouter();
 // Store references
@@ -35,6 +34,8 @@ function restoreLast() {
 const props = defineProps();
 let fileId = Number(props.fileId || route.query.fileId);
 let scope = (props.mediaType || route.query.mediaType);
+const sourceFileId = ref(Number.isFinite(fileId) ? fileId : null);
+const sourceMediaScope = ref(scope === 'video' || scope === 'pdf' ? scope : null);
 console.log("fileid and scope", fileId, scope);
 if (!Number.isFinite(fileId) || !scope) {
     const restored = restoreLast();
@@ -42,12 +43,17 @@ if (!Number.isFinite(fileId) || !scope) {
         fileId = restored.fileId;
     if (restored.scope)
         scope = restored.scope;
+    if (restored.scope === 'video' || restored.scope === 'pdf') {
+        sourceMediaScope.value = restored.scope;
+    }
 }
 if (!Number.isFinite(fileId) || !scope) {
     console.error('Validation view: cannot determine fileId/scope; aborting mediaStore init.', { fileId, scope });
 }
 else {
     mediaStore.setCurrentByKey(scope, fileId);
+    sourceFileId.value = fileId;
+    sourceMediaScope.value = scope;
 }
 const mediaOptions = [
     { text: 'Video', value: 'video' },
@@ -61,11 +67,22 @@ watch(mediaInferral, (val) => {
     // Remember this type for the current file, both as type and scope
     mediaStore.rememberType(currentItem.value.id, val, val);
     mediaStore.setCurrentByKey(val, currentItem.value.id);
+    sourceMediaScope.value = val;
 });
 // Local state
 const editedAnonymizedText = ref('');
 const examinationDate = ref('');
 const noMoreNames = ref(false);
+const documentTypeOptions = ref([]);
+const selectedDocumentType = ref('');
+const isLoadingDocumentTypes = ref(false);
+const documentTypeLoadError = ref('');
+const documentTypeTouched = ref(false);
+const patientExaminationOptions = ref([]);
+const selectedPatientExaminationOption = ref('');
+const manualPatientExaminationId = ref('');
+const isLoadingPatientExaminations = ref(false);
+const patientExaminationLoadError = ref('');
 const editedPatient = ref({
     patientFirstName: '',
     patientLastName: '',
@@ -159,6 +176,26 @@ const isExaminationDateValid = computed(() => {
 });
 // Global save gates
 const dataOk = computed(() => firstNameOk.value && lastNameOk.value && isDobValid.value && isExaminationDateValid.value);
+const hasValidDocumentType = computed(() => {
+    if (!isPdf.value)
+        return true;
+    return documentTypeOptions.value.some((option) => option.value === selectedDocumentType.value);
+});
+const selectedPatientExaminationIdForRouting = computed(() => {
+    if (!isPdf.value)
+        return null;
+    if (selectedPatientExaminationOption.value === '__manual__') {
+        return toPositiveInteger(manualPatientExaminationId.value);
+    }
+    return toPositiveInteger(selectedPatientExaminationOption.value);
+});
+const hasValidPatientExaminationSelection = computed(() => {
+    if (!isPdf.value)
+        return true;
+    if (selectedPatientExaminationOption.value !== '__manual__')
+        return true;
+    return selectedPatientExaminationIdForRouting.value !== null;
+});
 const canSubmit = computed(() => {
     // For annotation saving, we need both uploaded images AND valid patient data
     return dataOk.value;
@@ -173,6 +210,12 @@ const canSubmit = computed(() => {
 const canApprove = computed(() => {
     // Basic data validation must pass
     if (!dataOk.value)
+        return false;
+    // PDFs require an explicit document type
+    if (!hasValidDocumentType.value)
+        return false;
+    // Manual patient examination selection must be valid if used
+    if (!hasValidPatientExaminationSelection.value)
         return false;
     // For videos: Check if outside segments need validation
     if (isVideo.value && shouldShowOutsideTimeline.value) {
@@ -197,6 +240,12 @@ const approvalBlockReason = computed(() => {
         if (!isExaminationDateValid.value)
             errors.push('gültiges Untersuchungsdatum');
         return `Bitte korrigieren Sie: ${errors.join(', ')}`;
+    }
+    if (!hasValidDocumentType.value) {
+        return 'Bitte wählen Sie einen Dokumenttyp für die PDF-Validierung.';
+    }
+    if (!hasValidPatientExaminationSelection.value) {
+        return 'Bitte geben Sie eine gültige PatientExamination-ID ein oder wählen Sie "Automatisch bestimmen".';
     }
     if (isVideo.value && shouldShowOutsideTimeline.value) {
         const remaining = totalOutsideSegments.value - outsideSegmentsValidated.value;
@@ -447,6 +496,143 @@ function convertGender(gender) {
     }
     return gender;
 }
+function normalizeDocumentTypeOptions(raw) {
+    if (!Array.isArray(raw))
+        return [];
+    return raw
+        .map((entry) => {
+        if (typeof entry === 'string') {
+            return { value: entry, label: entry };
+        }
+        if (entry &&
+            typeof entry === 'object' &&
+            typeof entry.value === 'string' &&
+            typeof entry.label === 'string') {
+            return {
+                value: entry.value,
+                label: entry.label,
+            };
+        }
+        return null;
+    })
+        .filter((entry) => entry !== null);
+}
+async function fetchDocumentTypeOptions() {
+    if (isLoadingDocumentTypes.value)
+        return;
+    isLoadingDocumentTypes.value = true;
+    documentTypeLoadError.value = '';
+    try {
+        const response = await axiosInstance.get(r(endpoints.anonymization.documentTypesDropdown));
+        const options = normalizeDocumentTypeOptions(response.data);
+        documentTypeOptions.value = options;
+        if (!options.some((option) => option.value === selectedDocumentType.value)) {
+            selectedDocumentType.value = '';
+        }
+    }
+    catch (error) {
+        console.error('Error loading document type options:', error);
+        documentTypeOptions.value = [];
+        documentTypeLoadError.value =
+            error?.response?.data?.error ||
+                error?.message ||
+                'Dokumenttypen konnten nicht geladen werden.';
+    }
+    finally {
+        isLoadingDocumentTypes.value = false;
+    }
+}
+function normalizePatientExaminationOption(raw) {
+    if (!raw || typeof raw !== 'object')
+        return null;
+    const row = raw;
+    const id = toPositiveInteger(row.id);
+    if (id === null)
+        return null;
+    const examinationName = (typeof row.examination_name === 'string' && row.examination_name.trim()) ||
+        (typeof row.examination === 'string' && row.examination.trim()) ||
+        'Untersuchung';
+    const dateStartRaw = typeof row.date_start === 'string' ? row.date_start : '';
+    const dateStart = dateStartRaw ? dateStartRaw.split('T')[0] : '';
+    return {
+        id,
+        label: dateStart
+            ? `#${id} · ${examinationName} · ${dateStart}`
+            : `#${id} · ${examinationName}`,
+    };
+}
+function addOrReplacePatientExaminationOption(target, option) {
+    const existingIndex = target.findIndex((entry) => entry.id === option.id);
+    if (existingIndex >= 0) {
+        target[existingIndex] = option;
+        return;
+    }
+    target.push(option);
+}
+async function fetchPatientExaminationOptions() {
+    if (!isPdf.value) {
+        patientExaminationOptions.value = [];
+        patientExaminationLoadError.value = '';
+        return;
+    }
+    if (isLoadingPatientExaminations.value)
+        return;
+    isLoadingPatientExaminations.value = true;
+    patientExaminationLoadError.value = '';
+    const options = [];
+    const pdfFileId = sourceFileId.value;
+    if (pdfFileId === null) {
+        patientExaminationOptions.value = options;
+        patientExaminationLoadError.value =
+            'Datei-ID für die Untersuchungsauswahl konnte nicht bestimmt werden.';
+        isLoadingPatientExaminations.value = false;
+        return;
+    }
+    try {
+        const pdfDetailResponse = await axiosInstance.get(r(endpoints.media.pdfDetail(pdfFileId)));
+        const pdfDetail = pdfDetailResponse?.data;
+        const suggestedPatientExaminationId = extractPatientExaminationId(pdfDetail) ??
+            extractPatientExaminationId(currentItem.value);
+        if (suggestedPatientExaminationId !== null) {
+            addOrReplacePatientExaminationOption(options, {
+                id: suggestedPatientExaminationId,
+                label: `#${suggestedPatientExaminationId} · Bereits zugeordnet`,
+            });
+        }
+        const patientId = extractPatientId(pdfDetail) ?? extractPatientId(currentItem.value);
+        if (patientId !== null) {
+            const peResponse = await axiosInstance.get(r(endpoints.router.patientExaminations), { params: { patient_id: patientId } });
+            const rows = Array.isArray(peResponse.data?.results)
+                ? peResponse.data.results
+                : Array.isArray(peResponse.data)
+                    ? peResponse.data
+                    : [];
+            rows.forEach((row) => {
+                const normalized = normalizePatientExaminationOption(row);
+                if (normalized) {
+                    addOrReplacePatientExaminationOption(options, normalized);
+                }
+            });
+        }
+        else if (suggestedPatientExaminationId === null) {
+            patientExaminationLoadError.value =
+                'Keine bestehende Untersuchung automatisch gefunden. Bitte wählen Sie eine ID manuell oder legen Sie eine neue Untersuchung im Fall-Setup an.';
+        }
+        patientExaminationOptions.value = options.sort((a, b) => b.id - a.id);
+    }
+    catch (error) {
+        console.error('Error loading patient examinations for validation:', error);
+        patientExaminationOptions.value = options;
+        patientExaminationLoadError.value =
+            error?.response?.data?.detail ||
+                error?.response?.data?.error ||
+                error?.message ||
+                'Untersuchungen konnten nicht geladen werden.';
+    }
+    finally {
+        isLoadingPatientExaminations.value = false;
+    }
+}
 function loadCurrentItemData(item) {
     if (!item)
         return;
@@ -456,6 +642,9 @@ function loadCurrentItemData(item) {
     outsideSegmentsValidated.value = 0;
     totalOutsideSegments.value = 0;
     isValidatingVideo.value = false;
+    documentTypeTouched.value = false;
+    patientExaminationLoadError.value = '';
+    manualPatientExaminationId.value = '';
     // dates
     const rawExam = item.examinationDate || '';
     const rawDob = item.patientDobDisplay || item.patientDob;
@@ -475,21 +664,48 @@ function loadCurrentItemData(item) {
         examinersDisplay: item.examinersDisplay ?? '',
         examinationDate: examinationDate.value,
     };
-    // if using a separate ref for anonymized text:
-    // editedAnonymizedText.value = item.anonymizedText ?? '';
+    const normalizedAnonymizedText = item.anonymizedText ?? editedPatient.value.anonymizedText ?? item.text ?? '';
+    editedAnonymizedText.value = normalizedAnonymizedText;
+    editedPatient.value.anonymizedText = normalizedAnonymizedText;
+    const backendDocumentType = item.documentType ??
+        item.document_type ??
+        '';
+    selectedDocumentType.value = typeof backendDocumentType === 'string' ? backendDocumentType : '';
+    const backendPatientExaminationId = extractPatientExaminationId(item);
+    selectedPatientExaminationOption.value =
+        backendPatientExaminationId !== null ? String(backendPatientExaminationId) : '';
     original.value = {
-        anonymizedText: editedPatient.value.anonymizedText ?? '',
+        anonymizedText: editedAnonymizedText.value,
         examinationDate: examinationDate.value,
         patient: { ...editedPatient.value },
     };
     // optional: remember last file in sessionStorage
-    sessionStorage.setItem('last:fileId', String(item.id));
+    const persistedFileId = resolveFileIdFromContext();
+    if (persistedFileId !== null) {
+        sessionStorage.setItem('last:fileId', String(persistedFileId));
+    }
 }
 // Watch
-watch(currentItem, (newItem) => {
-    if (newItem)
-        loadCurrentItemData(newItem);
+watch(currentItem, async (newItem) => {
+    if (!newItem)
+        return;
+    loadCurrentItemData(newItem);
+    if (isPdf.value) {
+        await fetchPatientExaminationOptions();
+    }
 }, { immediate: true });
+watch(isPdf, async (pdfMode) => {
+    if (!pdfMode) {
+        patientExaminationOptions.value = [];
+        selectedPatientExaminationOption.value = '';
+        manualPatientExaminationId.value = '';
+        return;
+    }
+    if (documentTypeOptions.value.length === 0) {
+        await fetchDocumentTypeOptions();
+    }
+    await fetchPatientExaminationOptions();
+});
 const fetchNextItem = async () => {
     try {
         await anonymizationStore.fetchNext();
@@ -633,16 +849,159 @@ const navigateToSegmentation = () => {
         toast.error({ text: 'Kein Video zur Segmentierung ausgewählt.' });
         return;
     }
+    const videoFileId = resolveFileIdFromContext();
+    if (videoFileId === null) {
+        toast.error({ text: 'Video-Datei-ID konnte nicht bestimmt werden.' });
+        return;
+    }
     // Navigate with video ID as query parameter to ensure correct video selection
     router.push({
         name: 'Video-Untersuchung',
-        query: { video: currentItem.value.id.toString() }
+        query: { video: String(videoFileId) }
     });
-    console.log(`🎯 Navigating to Video-Untersuchung with video ID: ${currentItem.value.id}`);
+    console.log(`🎯 Navigating to Video-Untersuchung with video ID: ${videoFileId}`);
+};
+function toPositiveInteger(value) {
+    const parsed = typeof value === 'number'
+        ? value
+        : typeof value === 'string'
+            ? Number(value)
+            : Number.NaN;
+    if (!Number.isFinite(parsed)) {
+        return null;
+    }
+    const normalized = Math.trunc(parsed);
+    return normalized > 0 ? normalized : null;
+}
+function resolveFileIdFromContext() {
+    const fromSource = toPositiveInteger(sourceFileId.value);
+    if (fromSource !== null) {
+        return fromSource;
+    }
+    return toPositiveInteger(sessionStorage.getItem('last:fileId'));
+}
+function extractPatientExaminationId(payload) {
+    if (!payload || typeof payload !== 'object') {
+        return null;
+    }
+    const obj = payload;
+    const directMatch = toPositiveInteger(obj.patient_examination_id ??
+        obj.patient_examination ??
+        obj.patientExaminationId ??
+        obj.examination_id ??
+        obj.examinationId);
+    if (directMatch !== null) {
+        return directMatch;
+    }
+    const reportFile = obj.report_file;
+    if (reportFile && typeof reportFile === 'object') {
+        const nestedMatch = extractPatientExaminationId(reportFile);
+        if (nestedMatch !== null) {
+            return nestedMatch;
+        }
+    }
+    const patientExamination = obj.patient_examination;
+    if (patientExamination && typeof patientExamination === 'object') {
+        const nestedId = toPositiveInteger(patientExamination.id);
+        if (nestedId !== null) {
+            return nestedId;
+        }
+    }
+    return null;
+}
+function extractPatientId(payload) {
+    if (!payload || typeof payload !== 'object') {
+        return null;
+    }
+    const obj = payload;
+    const directMatch = toPositiveInteger(obj.patient_id ?? obj.patientId ?? obj.pseudo_patient_id);
+    if (directMatch !== null) {
+        return directMatch;
+    }
+    const patientObject = obj.patient;
+    if (patientObject && typeof patientObject === 'object') {
+        const nestedId = toPositiveInteger(patientObject.id);
+        if (nestedId !== null) {
+            return nestedId;
+        }
+    }
+    return null;
+}
+async function resolvePatientExaminationIdForPdf(pdfFileId, validateResponseData) {
+    const fromValidateResponse = extractPatientExaminationId(validateResponseData);
+    if (fromValidateResponse !== null) {
+        return fromValidateResponse;
+    }
+    const fromCurrentItem = extractPatientExaminationId(currentItem.value);
+    if (fromCurrentItem !== null) {
+        return fromCurrentItem;
+    }
+    try {
+        const { data: pdfDetail } = await axiosInstance.get(r(endpoints.media.pdfDetail(pdfFileId)));
+        const fromPdfDetail = extractPatientExaminationId(pdfDetail);
+        if (fromPdfDetail !== null) {
+            return fromPdfDetail;
+        }
+        const patientId = extractPatientId(pdfDetail) ?? extractPatientId(currentItem.value);
+        if (patientId === null) {
+            return null;
+        }
+        const { data: timeline } = await axiosInstance.get(r(endpoints.media.patientTimeline(patientId)));
+        const results = Array.isArray(timeline?.results) ? timeline.results : [];
+        const matchingItem = results.find((item) => {
+            if (!item || typeof item !== 'object') {
+                return false;
+            }
+            const entry = item;
+            const mediaType = String(entry.media_type ?? '');
+            const entryId = toPositiveInteger(entry.id);
+            const rawPdfId = toPositiveInteger(entry.raw_pdf_id);
+            return ((mediaType === 'pdf' && entryId === pdfFileId) ||
+                (mediaType === 'full_report' && rawPdfId === pdfFileId));
+        });
+        return extractPatientExaminationId(matchingItem);
+    }
+    catch (error) {
+        console.warn('Could not resolve patient_examination_id for PDF deep-link.', error);
+        return null;
+    }
+}
+const navigateAfterApproval = async (mediaKind, validateResponseData) => {
+    if (mediaKind === 'video') {
+        navigateToSegmentation();
+        return;
+    }
+    const explicitPatientExaminationId = selectedPatientExaminationIdForRouting.value;
+    if (explicitPatientExaminationId !== null) {
+        sessionStorage.setItem('last:patientExaminationId', String(explicitPatientExaminationId));
+        await router.push(`/reporting/${explicitPatientExaminationId}/report-editor`);
+        toast.info({
+            text: `PDF validiert. Gewählte Untersuchung ${explicitPatientExaminationId} im Berichtseditor geöffnet.`,
+        });
+        return;
+    }
+    const pdfFileId = resolveFileIdFromContext();
+    if (pdfFileId !== null) {
+        const patientExaminationId = await resolvePatientExaminationIdForPdf(pdfFileId, validateResponseData);
+        if (patientExaminationId !== null) {
+            sessionStorage.setItem('last:patientExaminationId', String(patientExaminationId));
+            await router.push(`/reporting/${patientExaminationId}/report-editor`);
+            toast.info({
+                text: `PDF validiert. Direkt zur Befundung für Fall ${patientExaminationId} geöffnet.`,
+            });
+            return;
+        }
+    }
+    await router.push('/reporting/case-setup');
+    toast.info({
+        text: 'PDF validiert. Keine patient_examination_id gefunden, daher Fall-Setup geöffnet.',
+    });
 };
 const approveItem = async () => {
     if (!currentItem.value || !canSave.value || isApproving.value)
         return;
+    documentTypeTouched.value = true;
+    editedPatient.value.anonymizedText = editedAnonymizedText.value;
     // ============================================================================
     // Phase 3.1: Segment Validation Enforcement
     // ============================================================================
@@ -664,45 +1023,64 @@ const approveItem = async () => {
     // ============================================================================
     // End Phase 3.1
     // ============================================================================
+    const mediaKind = sourceMediaScope.value === 'pdf' || sourceMediaScope.value === 'video'
+        ? sourceMediaScope.value
+        : isPdf.value
+            ? 'pdf'
+            : isVideo.value
+                ? 'video'
+                : 'unknown';
+    if (mediaKind === 'unknown') {
+        toast.error({ text: 'Bitte Medientyp auswählen, bevor bestätigt wird.' });
+        return;
+    }
+    const validationPayload = {
+        patient_first_name: editedPatient.value.patientFirstName,
+        patient_last_name: editedPatient.value.patientLastName,
+        patient_gender: editedPatient.value.patientGenderName,
+        patient_dob: DateConverter.toGerman(dobISO.value || '') || '',
+        examination_date: DateConverter.toGerman(examISO.value || '') || '',
+        casenumber: editedPatient.value.casenumber || '',
+        anonymized_text: editedAnonymizedText.value || undefined,
+        text: editedPatient.value.text || undefined,
+        is_verified: 'true',
+        file_type: mediaKind,
+        center_name: editedPatient.value.centerName || '',
+        external_id: editedPatient.value.externalId || '',
+        external_id_origin: editedPatient.value.externalIdOrigin || '',
+    };
+    if (isPdf.value) {
+        validationPayload.document_type = selectedDocumentType.value;
+    }
+    const validationFileId = resolveFileIdFromContext();
+    if (validationFileId === null) {
+        toast.error({ text: 'Datei-ID konnte nicht bestimmt werden. Bitte Datei aus der Übersicht erneut öffnen.' });
+        return;
+    }
     isApproving.value = true;
     try {
-        console.log(`Validating anonymization for file ${currentItem.value.id}...`);
-        try {
-            await axiosInstance.post(r(`anonymization/${currentItem.value.id}/validate/`), {
-                patient_first_name: editedPatient.value.patientFirstName,
-                patient_last_name: editedPatient.value.patientLastName,
-                patient_gender: editedPatient.value.patientGenderName,
-                patient_dob: DateConverter.toGerman(dobISO.value || '') || '', // 🎯 Phase 2.1: SENDE DEUTSCHES FORMAT
-                examination_date: DateConverter.toGerman(examISO.value || '') || '', // 🎯 Phase 2.1: SENDE DEUTSCHES FORMAT
-                casenumber: editedPatient.value.casenumber || "",
-                anonymized_text: editedPatient.value.anonymizedText || undefined,
-                text: editedPatient.value.text || undefined,
-                is_verified: 'true',
-                file_type: isPdf.value ? 'pdf' : isVideo.value ? 'video' : 'unknown',
-                center_name: editedPatient.value.centerName || '',
-                external_id: editedPatient.value.externalId || '',
-                external_id_origin: editedPatient.value.externalIdOrigin || '',
-            });
-            console.log(`Anonymization validated successfully for file ${currentItem.value.id}`);
-            toast.success({ text: 'Dokument bestätigt und Anonymisierung validiert' });
+        console.log(`Validating anonymization for file ${validationFileId}...`);
+        const response = await axiosInstance.post(r(endpoints.anonymization.validate(validationFileId)), validationPayload);
+        const reportFileId = response?.data?.report_file?.id;
+        if (typeof reportFileId === 'number') {
+            sessionStorage.setItem('last:reportFileId', String(reportFileId));
         }
-        catch (validationError) {
-            console.error('Error validating anonymization:', validationError);
-            toast.warning({ text: 'Dokument bestätigt, aber Validierung fehlgeschlagen' });
-        }
-        const mediaKind = isPdf.value ? 'pdf'
-            : isVideo.value ? 'video'
-                : 'unknown';
-        if (mediaKind === 'unknown') {
-            toast.error({ text: 'Bitte Medientyp auswählen, bevor bestätigt wird.' });
-            return;
-        }
-        pollingProtection.validateAnonymizationSafeWithProtection(currentItem.value.id, mediaKind);
-        await navigateToSegmentation();
+        console.log(`Anonymization validated successfully for file ${validationFileId}`);
+        toast.success({ text: 'Dokument bestätigt und Anonymisierung validiert' });
+        await navigateAfterApproval(mediaKind, response?.data);
     }
     catch (error) {
         console.error('Error approving item:', error);
-        toast.error({ text: 'Fehler beim Bestätigen des Elements' });
+        const allowedTypes = normalizeDocumentTypeOptions(error?.response?.data?.allowed_document_types);
+        if (allowedTypes.length > 0) {
+            documentTypeOptions.value = allowedTypes;
+        }
+        const backendMessage = error?.response?.data?.error;
+        toast.error({
+            text: backendMessage
+                ? `Fehler beim Bestätigen: ${backendMessage}`
+                : 'Fehler beim Bestätigen des Elements',
+        });
     }
     finally {
         isApproving.value = false;
@@ -771,7 +1149,12 @@ const navigateToCorrection = async () => {
     }
     // Check for unsaved changes
     try {
-        router.push({ name: 'Anonymisierung Korrektur', params: { fileId: currentItem.value.id.toString() } });
+        const correctionFileId = resolveFileIdFromContext();
+        if (correctionFileId === null) {
+            toast.error({ text: 'Datei-ID für Korrektur konnte nicht bestimmt werden.' });
+            return;
+        }
+        router.push({ name: 'Anonymisierung Korrektur', params: { fileId: String(correctionFileId) } });
         // approveItem will navigate to next item, so we need to return
         toast.info({ text: 'Änderungen gespeichert. Bitte wählen Sie das Element erneut für die Korrektur aus.' });
         return;
@@ -782,6 +1165,9 @@ const navigateToCorrection = async () => {
     }
 };
 onMounted(async () => {
+    if (isPdf.value) {
+        await fetchDocumentTypeOptions();
+    }
     if (Number.isFinite(fileId) && scope) {
         mediaStore.setCurrentByKey(scope, fileId);
     }
@@ -1135,6 +1521,108 @@ if (__VLS_ctx.currentItem) {
         });
         (__VLS_ctx.examDateErrorMessage || 'Das Untersuchungsdatum darf nicht vor dem Geburtsdatum liegen.');
     }
+    if (__VLS_ctx.isPdf) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "mb-3" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+            ...{ class: "form-label" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
+            ...{ class: "form-select" },
+            value: (__VLS_ctx.selectedDocumentType),
+            ...{ class: ({ 'is-invalid': __VLS_ctx.documentTypeTouched && !__VLS_ctx.hasValidDocumentType }) },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+            value: "",
+            disabled: true,
+        });
+        for (const [option] of __VLS_getVForSourceType((__VLS_ctx.documentTypeOptions))) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+                key: (option.value),
+                value: (option.value),
+            });
+            (option.label);
+        }
+        if (__VLS_ctx.isLoadingDocumentTypes) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+                ...{ class: "form-text text-muted" },
+            });
+        }
+        else if (__VLS_ctx.documentTypeLoadError) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+                ...{ class: "form-text text-danger" },
+            });
+            (__VLS_ctx.documentTypeLoadError);
+        }
+        if (__VLS_ctx.documentTypeTouched && !__VLS_ctx.hasValidDocumentType) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: "invalid-feedback" },
+            });
+        }
+    }
+    if (__VLS_ctx.isPdf) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "mb-3" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+            ...{ class: "form-label" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
+            ...{ class: "form-select" },
+            value: (__VLS_ctx.selectedPatientExaminationOption),
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+            value: "",
+        });
+        for (const [option] of __VLS_getVForSourceType((__VLS_ctx.patientExaminationOptions))) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+                key: (option.id),
+                value: (String(option.id)),
+            });
+            (option.label);
+        }
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+            value: "__manual__",
+        });
+        if (__VLS_ctx.selectedPatientExaminationOption === '__manual__') {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.input, __VLS_intrinsicElements.input)({
+                type: "number",
+                min: "1",
+                step: "1",
+                ...{ class: "form-control mt-2" },
+                placeholder: "PatientExamination-ID eingeben",
+            });
+            (__VLS_ctx.manualPatientExaminationId);
+        }
+        if (__VLS_ctx.isLoadingPatientExaminations) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+                ...{ class: "form-text text-muted" },
+            });
+        }
+        else if (__VLS_ctx.patientExaminationLoadError) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+                ...{ class: "form-text text-danger" },
+            });
+            (__VLS_ctx.patientExaminationLoadError);
+        }
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+            ...{ class: "form-text text-muted d-block mt-1" },
+        });
+        const __VLS_4 = {}.RouterLink;
+        /** @type {[typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, ]} */ ;
+        // @ts-ignore
+        const __VLS_5 = __VLS_asFunctionalComponent(__VLS_4, new __VLS_4({
+            to: "/reporting/case-setup",
+            ...{ class: "btn btn-outline-secondary btn-sm mt-2" },
+        }));
+        const __VLS_6 = __VLS_5({
+            to: "/reporting/case-setup",
+            ...{ class: "btn btn-outline-secondary btn-sm mt-2" },
+        }, ...__VLS_functionalComponentArgsRest(__VLS_5));
+        __VLS_7.slots.default;
+        var __VLS_7;
+    }
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "mb-3" },
     });
@@ -1487,26 +1975,26 @@ if (__VLS_ctx.currentItem) {
             });
             /** @type {[typeof OutsideTimelineComponent, ]} */ ;
             // @ts-ignore
-            const __VLS_4 = __VLS_asFunctionalComponent(OutsideTimelineComponent, new OutsideTimelineComponent({
+            const __VLS_8 = __VLS_asFunctionalComponent(OutsideTimelineComponent, new OutsideTimelineComponent({
                 ...{ 'onSegmentValidated': {} },
                 ...{ 'onValidationComplete': {} },
                 videoId: (__VLS_ctx.currentItem.id),
             }));
-            const __VLS_5 = __VLS_4({
+            const __VLS_9 = __VLS_8({
                 ...{ 'onSegmentValidated': {} },
                 ...{ 'onValidationComplete': {} },
                 videoId: (__VLS_ctx.currentItem.id),
-            }, ...__VLS_functionalComponentArgsRest(__VLS_4));
-            let __VLS_7;
-            let __VLS_8;
-            let __VLS_9;
-            const __VLS_10 = {
+            }, ...__VLS_functionalComponentArgsRest(__VLS_8));
+            let __VLS_11;
+            let __VLS_12;
+            let __VLS_13;
+            const __VLS_14 = {
                 onSegmentValidated: (__VLS_ctx.onSegmentValidated)
             };
-            const __VLS_11 = {
+            const __VLS_15 = {
                 onValidationComplete: (__VLS_ctx.onOutsideValidationComplete)
             };
-            var __VLS_6;
+            var __VLS_10;
         }
         if (__VLS_ctx.videoValidationStatus) {
             __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -1744,6 +2232,32 @@ if (__VLS_ctx.currentItem) {
 /** @type {__VLS_StyleScopedClasses['invalid-feedback']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['form-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-select']} */ ;
+/** @type {__VLS_StyleScopedClasses['is-invalid']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-text']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-text']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-danger']} */ ;
+/** @type {__VLS_StyleScopedClasses['invalid-feedback']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-select']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-control']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-text']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-text']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-danger']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-text']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-block']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-secondary']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-label']} */ ;
 /** @type {__VLS_StyleScopedClasses['form-control']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['form-label']} */ ;
@@ -1965,6 +2479,16 @@ const __VLS_self = (await import('vue')).defineComponent({
             editedAnonymizedText: editedAnonymizedText,
             examinationDate: examinationDate,
             noMoreNames: noMoreNames,
+            documentTypeOptions: documentTypeOptions,
+            selectedDocumentType: selectedDocumentType,
+            isLoadingDocumentTypes: isLoadingDocumentTypes,
+            documentTypeLoadError: documentTypeLoadError,
+            documentTypeTouched: documentTypeTouched,
+            patientExaminationOptions: patientExaminationOptions,
+            selectedPatientExaminationOption: selectedPatientExaminationOption,
+            manualPatientExaminationId: manualPatientExaminationId,
+            isLoadingPatientExaminations: isLoadingPatientExaminations,
+            patientExaminationLoadError: patientExaminationLoadError,
             editedPatient: editedPatient,
             validationErrors: validationErrors,
             dobErrorMessage: dobErrorMessage,
@@ -1984,6 +2508,7 @@ const __VLS_self = (await import('vue')).defineComponent({
             validationErrorSummary: validationErrorSummary,
             isDobValid: isDobValid,
             isExaminationDateValid: isExaminationDateValid,
+            hasValidDocumentType: hasValidDocumentType,
             canApprove: canApprove,
             approvalBlockReason: approvalBlockReason,
             validationProgressPercent: validationProgressPercent,

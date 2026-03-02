@@ -14,11 +14,9 @@ fi
 
 # Select settings module
 if [ "$DJANGO_ENV" = "production" ]; then
-  export DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS_MODULE:-config.settings.prod}"
-elif [ "$DJANGO_ENV" = "central" ]; then
-  export DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS_MODULE:-config.settings.central}"
+  export DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS_MODULE:-lx_annotate.settings.settings_prod}"
 else
-  export DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS_MODULE:-config.settings_dev}"
+  export DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS_MODULE:-lx_annotate.settings.settings_dev}"
 fi
 export DJANGO_MODULE="${DJANGO_MODULE:-lx_annotate}"
 
@@ -27,11 +25,10 @@ export DJANGO_SECRET_KEY="${DJANGO_SECRET_KEY:-dev-secret-key-$(date +%s)}"
 export DJANGO_DEBUG="${DJANGO_DEBUG:-True}"
 export DJANGO_ALLOWED_HOSTS="${DJANGO_ALLOWED_HOSTS:-*}"
 export STORAGE_DIR="${STORAGE_DIR:-/app/data}"
-export DATA_DIR="${DATA_DIR:-/app/data}"
 export WORKING_DIR="${WORKING_DIR:-/app}"
 
 # Ensure dirs
-mkdir -p "$DATA_DIR" /app/staticfiles
+mkdir -p "$STORAGE_DIR" /app/staticfiles
 
 # Collect static and migrate (best effort)
 python manage.py collectstatic --noinput --clear || echo "Static files collection skipped"

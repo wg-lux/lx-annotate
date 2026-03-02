@@ -134,13 +134,9 @@ export const useAnnotationStatsStore = defineStore('annotationStats', {
                 // ✅ Modern media framework endpoint
                 const response = await axios.get('/api/media/videos/segments/stats/');
                 const data = response.data;
-                if (data.status === 'success') {
-                    // Für den Moment nehmen wir an, dass alle Segmente noch bearbeitet werden müssen
-                    // Diese Logik muss basierend auf der tatsächlichen Status-Implementierung angepasst werden
-                    this.stats.segmentPending = data.total_segments;
-                    this.stats.segmentInProgress = 0;
-                    this.stats.segmentCompleted = 0;
-                }
+                this.stats.segmentPending = data.total_segments;
+                this.stats.segmentInProgress = 0;
+                this.stats.segmentCompleted = 0;
             }
             catch (error) {
                 console.warn('Failed to fetch video segment stats:', error);

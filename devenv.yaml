@@ -1,13 +1,11 @@
 inputs:
   nixpkgs:
-    url: github:NixOS/nixpkgs/nixos-25.05
-  
-  nix2container:
-    url: github:nlewo/nix2container
-    inputs:
-      nixpkgs:
-        follows: nixpkgs
+    url: github:cachix/devenv-nixpkgs/rolling
+  nixpkgs-unstable:
+    url: github:NixOS/nixpkgs/nixpkgs-unstable
   mk-shell-bin:
     url: github:rrbutani/nix-mk-shell-bin
 allowUnfree: true
-profile: fullstack
+secretspec:
+  enable: true
+  provider: "env"

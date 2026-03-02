@@ -173,9 +173,6 @@ const patientExaminationStore = usePatientExaminationStore();
 const findingClassificationStore = useFindingClassificationStore();
 
 
-const patientExaminationId = patientExaminationStore.getCurrentPatientExaminationId();
-
-patientExaminationStore.setCurrentPatientExaminationId(patientExaminationId);
 interface Props {
     patientExaminationId?: number;
     examinationId?: number;
@@ -218,6 +215,11 @@ const availableExaminationFindings = ref<Finding[]>([]);
 const addedFindings = ref<Finding[]>([]);
 
 // Computed Properties
+const effectivePatientExaminationId = computed<number | null>(() => {
+    if (props.patientExaminationId) return props.patientExaminationId;
+    return patientExaminationStore.getCurrentPatientExaminationId();
+});
+
 const availableFindings = computed(() => {
     return availableExaminationFindings.value;
 });
@@ -230,7 +232,7 @@ const fetchedAddedFindings = computed(async () => {
 });
 
 async function loadAddedFindingsForCurrentExam() {
-  const id = patientExaminationStore.getCurrentPatientExaminationId();
+  const id = effectivePatientExaminationId.value;
   if (!id) {
     addedFindings.value = [];
     return;
@@ -239,13 +241,13 @@ async function loadAddedFindingsForCurrentExam() {
   addedFindings.value = patientFindingStore.patientFindings.map(pf => JSON.parse(JSON.stringify(pf.finding)) as Finding);
 }
 
-watch(
-  () => patientExaminationStore.getCurrentPatientExaminationId(),
-  async (newId) => {
-    if (newId) await loadAddedFindingsForCurrentExam();
-  },
-  { immediate: true }
-);
+watch(effectivePatientExaminationId, async (newId) => {
+  if (newId) {
+    await loadAddedFindingsForCurrentExam();
+  } else {
+    addedFindings.value = [];
+  }
+}, { immediate: true });
 
 const selectedFinding = computed((): Finding | undefined => {
     if (!selectedFindingId.value) return undefined;
@@ -264,7 +266,7 @@ const hasAllRequiredClassifications = computed(() => {
 const canAddFinding = computed(() => {
   return selectedFindingId.value &&
          hasAllRequiredClassifications.value &&
-         props.patientExaminationId &&  // <-- blocks when undefined
+         effectivePatientExaminationId.value &&
          !loading.value;
 });
 
@@ -321,7 +323,7 @@ const updateChoice = (classificationId: number, event: Event) => {
 };
 
 const addFindingToExamination = async () => {
-    if (!canAddFinding.value || !selectedFinding.value || !props.patientExaminationId || !selectedFindingId.value) {
+    if (!canAddFinding.value || !selectedFinding.value || !effectivePatientExaminationId.value || !selectedFindingId.value) {
         
         return;
     }
@@ -331,7 +333,7 @@ const addFindingToExamination = async () => {
 
         // Prepare the data for the patient finding store
         const findingData = {
-            patientExamination: props.patientExaminationId,
+            patientExamination: effectivePatientExaminationId.value,
             finding: selectedFindingId.value,
             classifications: Object.entries(selectedChoices.value).map(([classificationId, choiceId]) => ({
                 classification: parseInt(classificationId),
@@ -346,6 +348,7 @@ const addFindingToExamination = async () => {
         if (createdFinding) {
             addedFindings.value.push(createdFinding);
         }
+        await loadAddedFindingsForCurrentExam();
         const findingName = selectedFinding.value.nameDe || selectedFinding.value.name;
         emit('finding-added', selectedFindingId.value, findingName);
 
@@ -397,9 +400,9 @@ const loadAvailableFindingsForPatientExamination = async () => {
     
     // Priorisiere props.examinationId, falls verfügbar
     let examId = props.examinationId;
-    if (!examId && props.patientExaminationId) {
+    if (!examId && effectivePatientExaminationId.value) {
       // Hole Examination ID aus PatientExamination
-      const patientExamination = patientExaminationStore.getPatientExaminationById(props.patientExaminationId);
+      const patientExamination = patientExaminationStore.getPatientExaminationById(effectivePatientExaminationId.value);
       examId = patientExamination?.examination?.id;
     }
     

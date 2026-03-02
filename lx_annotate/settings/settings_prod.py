@@ -18,6 +18,7 @@ from .settings_base import (
     BASE_DIR,
     config,
 )
+
 import os
 from pathlib import Path
 from typing import Any, cast
@@ -30,9 +31,12 @@ STATIC_URL = cast(str, STATIC_URL)
 MEDIA_ROOT = cast(Path, MEDIA_ROOT)
 MEDIA_URL = cast(str, MEDIA_URL)
 config = cast(AppConfig, config)
+
 # -----------------------------------------------------------------------------
 
 config = load_config()
+
+STATIC_ROOT = config.static_root
 # 1. SECURITY
 DEBUG = False
 
@@ -47,9 +51,7 @@ DJANGO_VITE = {
     "default": {
         "dev_mode": False,
         "static_url_prefix": "dist",
-        "manifest_path": os.path.join(
-            BASE_DIR, "static", "dist", ".vite", "manifest.json"
-        ),
+        "manifest_path": os.path.join(STATIC_ROOT, "dist", ".vite", "manifest.json"),
     }
 }
 
@@ -160,7 +162,7 @@ if not DATABASES["default"]["PASSWORD"]:
 
 ENFORCE_AUTH = os.getenv("ENFORCE_AUTH", "1") == "1"  # default OFF
 
-if ENFORCE_AUTH:
+try:
     # ✅ Make sure libs/endoreg-db is on sys.path so `config.settings` is importable
     import sys
     from pathlib import Path
@@ -208,21 +210,24 @@ if ENFORCE_AUTH:
         KEYCLOAK.REST_FRAMEWORK_DEFAULT_AUTH
     )
 
-    # ❗ This is the critical line you were missing at runtime:
     REST_FRAMEWORK["DEFAULT_PERMISSION_CLASSES"] = [
         "rest_framework.permissions.IsAuthenticated",
         "endoreg_db.authz.permissions.PolicyPermission",
     ]
 
     print("🔒 ENFORCE_AUTH=1 → Keycloak enabled (session SSO) + RBAC ON")
-
+except ImportError as e:
+    print(f"❌ Keycloak integration failed to load: {e}")
+    if ENFORCE_AUTH:
+        raise RuntimeError(
+            "🚨 SECURITY ERROR: ENFORCE_AUTH=1 but Keycloak integration failed to load!"
+        ) from e
+    else:
+        print("🔓 ENFORCE_AUTH=0 → Keycloak disabled, no authentication")
 # Stable Hosting using NGINX, so we can trust the X-Forwarded-* headers
 USE_X_FORWARDED_HOST = True
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
-# Ensure this matches the 'alias' path we will set in Nginx later
-# The Nix module passes this via environment variable, but fallback is good.
-STATIC_ROOT = os.environ.get("DJANGO_STATIC_ROOT", BASE_DIR / "staticfiles")
 
 # Ensure Nginx can read these
 MEDIA_ROOT = Path(os.environ.get("LX_ANNOTATE_DATA_DIR", BASE_DIR / "media"))

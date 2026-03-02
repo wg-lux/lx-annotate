@@ -42,6 +42,8 @@ export interface SensitiveMeta {
     namesVerified?: boolean;
     anonymizedText?: string;
     text?: string;
+    documentType?: string | null;
+    document_type?: string | null;
     externalId?: string;
     externalIdOrigin?: string;
 }
@@ -93,6 +95,8 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
             namesVerified?: boolean | undefined;
             anonymizedText?: string | undefined;
             text?: string | undefined;
+            documentType?: string | null | undefined;
+            document_type?: string | null | undefined;
             externalId?: string | undefined;
             externalIdOrigin?: string | undefined;
         } | null;
@@ -143,6 +147,8 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
         namesVerified?: boolean | undefined;
         anonymizedText?: string | undefined;
         text?: string | undefined;
+        documentType?: string | null | undefined;
+        document_type?: string | null | undefined;
         externalId?: string | undefined;
         externalIdOrigin?: string | undefined;
     } | null;
@@ -170,6 +176,8 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
             namesVerified?: boolean | undefined;
             anonymizedText?: string | undefined;
             text?: string | undefined;
+            documentType?: string | null | undefined;
+            document_type?: string | null | undefined;
             externalId?: string | undefined;
             externalIdOrigin?: string | undefined;
         } | null;
@@ -226,6 +234,8 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
             namesVerified?: boolean | undefined;
             anonymizedText?: string | undefined;
             text?: string | undefined;
+            documentType?: string | null | undefined;
+            document_type?: string | null | undefined;
             externalId?: string | undefined;
             externalIdOrigin?: string | undefined;
         } | null;
@@ -293,6 +303,8 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
             namesVerified?: boolean | undefined;
             anonymizedText?: string | undefined;
             text?: string | undefined;
+            documentType?: string | null | undefined;
+            document_type?: string | null | undefined;
             externalId?: string | undefined;
             externalIdOrigin?: string | undefined;
         } | null;
@@ -348,6 +360,8 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
             namesVerified?: boolean | undefined;
             anonymizedText?: string | undefined;
             text?: string | undefined;
+            documentType?: string | null | undefined;
+            document_type?: string | null | undefined;
             externalId?: string | undefined;
             externalIdOrigin?: string | undefined;
         } | null;

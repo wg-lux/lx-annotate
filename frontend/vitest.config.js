@@ -9,10 +9,20 @@ export default defineConfig({
     plugins: [vue(), vueJsx()],
     test: {
         environment: 'jsdom',
-        exclude: ['**/node_modules/**', '**/dist/**', '**/e2e/**'],
+        include: ['tests/**/*.{test,spec}.ts', 'src/**/*.{test,spec}.ts'],
+        exclude: [
+            '**/.direnv/**',
+            '**/node_modules/**',
+            '**/dist/**',
+            '**/e2e/**',
+            '**/types/**'
+        ],
         root: fileURLToPath(new URL('./', import.meta.url)),
         globals: true,
-        setupFiles: []
+        setupFiles: ['./tests/setup.ts'],
+        clearMocks: true,
+        restoreMocks: true,
+        mockReset: true
     },
     resolve: {
         alias: {

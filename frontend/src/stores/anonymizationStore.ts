@@ -67,6 +67,8 @@ export interface SensitiveMeta {
   namesVerified?: boolean
   anonymizedText?:string
   text?: string
+  documentType?: string | null
+  document_type?: string | null
   externalId?:string
   externalIdOrigin?:string
 }

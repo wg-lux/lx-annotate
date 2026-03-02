@@ -8,6 +8,7 @@ class LxAnnotateConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"
     name = "lx_annotate"
 
+    # This is running in development server only. On luxnix, filewatcher is started via systemd service.
     def ready(self):
         # Only for runserver
         if "runserver" not in sys.argv:

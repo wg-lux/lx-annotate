@@ -95,8 +95,8 @@ export default {
 /* CSS imports in Vue usually go in main.ts, but simple component styles go here */
 @import url('https://fonts.googleapis.com/css2?family=Comfortaa:wght@300..700&display=swap');
 
-@media (max-width: 1200px) {
-  .sidenav {
+@media (max-width: 1199.98px) {
+  .g-sidenav-show > aside.sidenav.navbar {
     transform: none !important;
     position: static;
     width: auto;

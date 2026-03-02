@@ -32,15 +32,52 @@
             <!-- Video Selection -->
             <div class="mb-3">
               <label class="form-label">Video auswählen:</label>
-              <select v-model.number="selectedVideoId" @change="onVideoChange" class="form-select" :disabled="!hasVideos">
-                <option :value="null">{{ hasVideos ? 'Bitte Video auswählen...' : 'Keine Videos verfügbar' }}</option>
-                <option v-for="video in annotatableVideos" :key="video.id" :value="video.id">
-                  📹 {{video.original_file_name || 'Video Nr. '+ video.id }} 
-                  {{ getVideoStatusIndicator(video.id) }}
-                  | Center: {{ video.centerName || 'Unbekannt' }} 
-                  | Processor: {{ video.processorName || 'Unbekannt' }}
-                </option>
-              </select>
+              <div ref="videoDropdownRef" class="video-dropdown">
+                <button
+                  type="button"
+                  class="video-dropdown-trigger"
+                  :disabled="!hasVideos"
+                  :aria-expanded="isVideoDropdownOpen ? 'true' : 'false'"
+                  aria-haspopup="listbox"
+                  @click="toggleVideoDropdown"
+                >
+                  <span class="video-dropdown-trigger-text">{{ selectedVideoLabel }}</span>
+                  <i class="fas" :class="isVideoDropdownOpen ? 'fa-chevron-up' : 'fa-chevron-down'"></i>
+                </button>
+                <div v-if="isVideoDropdownOpen && hasVideos" class="video-dropdown-menu" role="listbox">
+                  <button
+                    v-for="video in selectableVideos"
+                    :key="video.id"
+                    type="button"
+                    class="video-dropdown-item"
+                    :class="{
+                      'video-dropdown-item-selected': selectedVideoId === video.id,
+                      'video-dropdown-item-validated': video.segmentAnnotationsValidated,
+                      'video-dropdown-item-pending': !video.segmentAnnotationsValidated
+                    }"
+                    :disabled="video.segmentAnnotationsValidated"
+                    @click="selectVideoFromDropdown(video.id)"
+                  >
+                    <div class="video-dropdown-main">
+                      <span class="video-dropdown-title">📹 {{ video.original_file_name || 'Video Nr. ' + video.id }}</span>
+                      <span
+                        class="video-dropdown-status-badge"
+                        :class="video.segmentAnnotationsValidated ? 'badge-validated' : 'badge-pending'"
+                      >
+                        <i class="fas me-1" :class="video.segmentAnnotationsValidated ? 'fa-check-double' : 'fa-hourglass-half'"></i>
+                        {{ video.segmentAnnotationsValidated ? 'Validiert (Outside entfernt)' : 'Validierung offen' }}
+                      </span>
+                    </div>
+                    <div class="video-dropdown-meta">
+                      <span>{{ getVideoStatusIndicator(video.id) }}</span>
+                      <span>| Center: {{ video.centerName || 'Unbekannt' }}</span>
+                      <span>| Processor: {{ video.processorName || 'Unbekannt' }}</span>
+                      <span>| Geschlecht: {{ getVideoPatientGender(video.id) }}</span>
+                      <span>| Alter: {{ getVideoPatientAgeLabel(video.id) }}</span>
+                    </div>
+                  </button>
+                </div>
+              </div>
               <small v-if="!hasVideos" class="text-muted">
                 {{ noVideosMessage }}
               </small>
@@ -63,6 +100,17 @@
                   </span>
                 </div>
               </div>
+            </div>
+
+            <div
+              v-if="lastValidationClickedVideoId !== null"
+              class="mt-2 p-2 rounded validation-click-indicator"
+              :class="selectedVideoId === lastValidationClickedVideoId ? 'validation-click-indicator-active' : 'validation-click-indicator-muted'"
+            >
+              <small class="fw-semibold">
+                <i class="fas fa-highlighter me-1"></i>
+                Das Video mit dieser ID wurde als validiert markiert {{ lastValidationClickedVideoId }}
+              </small>
             </div>
 
             <!-- No Video Selected State -->
@@ -92,7 +140,15 @@
             </div>
 
             <!-- Video Player -->
-            <div v-if="anonymizedVideoSrc" class="video-container">
+            <div v-if="anonymizedVideoSrc" ref="videoContainerRef" class="video-container">
+              <button
+                type="button"
+                class="fullscreen-toggle"
+                @click="toggleFullscreen"
+                :title="isFullscreen ? 'Vollbild verlassen' : 'Vollbild'"
+              >
+                <i :class="isFullscreen ? 'fas fa-compress' : 'fas fa-expand'"></i>
+              </button>
               <video 
                 ref="videoRef"
                 data-cy="video-player"
@@ -108,6 +164,35 @@
               >
                 Ihr Browser unterstützt das Video-Element nicht.
               </video>
+              <div
+                v-if="isLabelSelectActive"
+                class="label-overlay"
+                @click.self="closeLabelOverlay"
+              >
+                <div class="label-overlay-card">
+                  <div class="label-overlay-header">
+                    <span>Label auswählen</span>
+                    <button type="button" class="label-overlay-close" @click="closeLabelOverlay">
+                      ×
+                    </button>
+                  </div>
+                  <div class="label-overlay-hint">
+                    ↑/↓ wechseln · Enter übernehmen · Esc schließen
+                  </div>
+                  <div class="label-overlay-list">
+                    <button
+                      v-for="label in timelineLabels"
+                      :key="label.id"
+                      type="button"
+                      class="label-overlay-item"
+                      :class="{ active: label.name === selectedLabelType }"
+                      @click="selectLabelFromOverlay(label.name)"
+                    >
+                      {{ getTranslationForLabel(label.name) }}
+                    </button>
+                  </div>
+                </div>
+              </div>
               
               <!-- ✅ NEW: Video Status and Information Card -->
               <div v-if="selectedVideoId" class="mt-3 p-3 rounded border video-status-card">
@@ -174,7 +259,29 @@
                 @segment-delete="handleSegmentDelete"
                 @time-selection="handleTimeSelection"
               />
-              <div v-if="selectedVideoId && timelineSegmentsForSelectedVideo.length > 0" class="mt-3 d-flex gap-2">
+              <details class="mt-2 text-muted shortcuts-details" style="font-size: 0.85rem;">
+                <summary class="shortcuts-toggle" aria-label="Shortcuts anzeigen">
+                  <span class="shortcuts-icon">?</span>
+                  <span>Shortcuts</span>
+                </summary>
+                <div class="mt-1 shortcuts-body">
+                  O = Labelauswahl ·
+                  ↑/↓ = Label wechseln ·
+                  Enter = Label übernehmen ·
+                  F = Vollbild ·
+                  , / . = Frame zurück/vor ·
+                  K / L = 5s zurück/vor ·
+                  Ctrl/Cmd + C = Segment kopieren ·
+                  Ctrl/Cmd + V = Segment einfügen ·
+                  Ctrl/Cmd + Z = Löschen rückgängig ·
+                  Delete/Backspace = Segment löschen ·
+                  Rechtsklick auf Segment = Start/Ende tippen ·
+                  + = Segment-Start ·
+                  - = Segment-Ende ·
+                  Esc = Abbrechen
+                </div>
+              </details>
+              <div v-if="selectedVideoId" class="mt-3 d-flex gap-2">
                 <button
                   class="btn btn-outline-secondary"
                   @click="discardSegmentChanges"
@@ -223,8 +330,11 @@
                 <div class="d-flex align-items-center">
                   <label class="form-label mb-0 me-2">Neues Label setzen:</label>
                   <select 
+                    ref="labelSelectRef"
                     v-model="selectedLabelType" 
                     @change="onLabelSelect"
+                    @focus="isLabelSelectActive = true"
+                    @blur="isLabelSelectActive = false"
                     class="form-select form-select-sm control-select"
                     data-cy="label-select"
                   >
@@ -293,9 +403,9 @@
         </div>
         
         <!-- ✅ Enhanced Validation Button with Status -->
-        <div v-if="selectedVideoId && timelineSegmentsForSelectedVideo.length > 0" class="mt-3">
-          <!-- Show different button based on validation status -->
-          <div v-if="overview.find(o => o.id === selectedVideoId && o.mediaType === 'video')?.anonymizationStatus === 'validated'" 
+        <div v-if="selectedVideoId" class="mt-3">
+          <!-- Show different button based on annotation status -->
+          <div v-if="isAnnotationFinished(selectedVideoId)" 
                class="alert alert-success d-flex align-items-center validation-status-alert">
             <i class="fas fa-check-circle fa-2x me-3 text-success"></i>
             <div>
@@ -309,23 +419,26 @@
             </div>
           </div>
           
-          <button 
-            v-else
-            class="btn btn-success btn-lg w-100 d-flex align-items-center justify-content-center gap-2"
-            @click="submitVideoSegments; markValidationFinishedRemoveOutside(selectedVideoId)" 
-            style="font-size: 1.1rem; padding: 15px;"
-          > <!-- Remove mark validated when keeping outside segments for training -->
-            <i class="material-icons">check_circle</i>
-            <span>Alle Segmente validieren ({{ timelineSegmentsForSelectedVideo.length }})</span>
-          </button>
+          <div v-else class="d-flex justify-content-center">
+            <button 
+              class="btn validation-action-button d-inline-flex align-items-center justify-content-center gap-2"
+              :class="{ 'validation-action-button-clicked': selectedVideoId === lastValidationClickedVideoId }"
+              @click="handleValidateAndMark(selectedVideoId)" 
+            > <!-- Remove mark validated when keeping outside segments for training -->
+              <i class="material-icons validation-action-icon">check_circle</i>
+              <span>Alle Segmente validieren ({{ timelineSegmentsForSelectedVideo.length }})</span>
+            </button>
+          </div>
           
-          <p v-if="overview.find(o => o.id === selectedVideoId && o.mediaType === 'video')?.anonymizationStatus !== 'validated'" 
+          <p v-if="!isAnnotationFinished(selectedVideoId)" 
              class="text-muted text-center mt-2 mb-0" style="font-size: 0.9rem;">
             <i class="material-icons" style="font-size: 16px; vertical-align: middle;">info</i>
             Markiert alle Segmente als überprüft und setzt Video-Status auf "Validiert"
           </p>
         </div>
       </div>
+
+
 
       <!-- Advanced Requirement Generator Section -->
       <div class="col-lg-12">
@@ -405,11 +518,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useVideoStore, type Segment, type Video } from '@/stores/videoStore'
 import { useAnonymizationStore } from '@/stores/anonymizationStore'
-import { useAnnotationStore } from '@/stores/annotationStore'
-import { useAuthStore } from '@/stores/authStore'
 import { useMediaTypeStore } from '@/stores/mediaTypeStore'
 import RequirementGenerator from '@/components/RequirementReport/RequirementGenerator.vue'
 import axiosInstance, { r } from '@/api/axiosInstance'
@@ -451,6 +562,11 @@ interface CreateSegmentEvent {
   end: number
 }
 
+interface VideoSensitiveMeta {
+  patient_dob?: string | null
+  patient_gender_name?: string | null
+}
+
 // Store setup
 const videoStore = useVideoStore()
 const mediaStore = useMediaTypeStore()
@@ -459,7 +575,6 @@ const { videoList, videoStreamUrl, timelineSegments } = storeToRefs(videoStore)
 
 const videos = computed(() => videoList.value.videos)
 
-const toastStore = useToastStore()
 const { allSegments: rawSegments } = storeToRefs(videoStore)
 
 const anonymizationStore = useAnonymizationStore()
@@ -476,9 +591,14 @@ const timelineLabels = computed(() => {
 /**
  * helper: returns true when a video's anonymization status is 'done_processing_anonymization'
  */
- function isAnonymized(videoId: number): boolean {
+function isAnonymized(videoId: number): boolean {
   const item = overview.value.find(o => o.id === videoId && o.mediaType === 'video')
-  return item?.anonymizationStatus === 'done_processing_anonymization'
+  return item?.anonymizationStatus === 'done_processing_anonymization' || item?.anonymizationStatus === 'validated'
+}
+
+function isAnnotationFinished(videoId: number): boolean {
+  const video = videoList.value.videos.find(v => v.id === videoId)
+  return Boolean(video?.segmentAnnotationsValidated)
 }
 
 // Reactive data
@@ -491,9 +611,12 @@ const examinationMarkers = ref<ExaminationMarker[]>([])
 const savedExaminations = ref<SavedExamination[]>([])
 const currentMarker = ref<ExaminationMarker | null>(null)
 const selectedLabelType = ref<string>('')
+const isLabelSelectActive = ref<boolean>(false)
 const isMarkingLabel = ref<boolean>(false)
 const labelMarkingStart = ref<number>(0)
 const selectedSegmentId = ref<number | null>(null)
+const isInitialLoading = ref<boolean>(true)
+const lastValidationClickedVideoId = ref<number | null>(null)
 
 // Video detail and metadata like VideoClassificationComponent
 const videoDetail = ref<{ video_url: string } | null>(null)
@@ -502,10 +625,16 @@ const videoMeta = ref<{ duration: number; fps: number } | null>(null)
 // Error and success messages for Bootstrap alerts
 const errorMessage = ref<string>('')
 const successMessage = ref<string>('')
+const isFullscreen = ref<boolean>(false)
 
 // Template refs
 const videoRef = ref<HTMLVideoElement | null>(null)
+const videoContainerRef = ref<HTMLElement | null>(null)
+const labelSelectRef = ref<HTMLSelectElement | null>(null)
 const timelineRef = ref<HTMLElement | null>(null)
+const videoDropdownRef = ref<HTMLElement | null>(null)
+const isVideoDropdownOpen = ref<boolean>(false)
+const videoSensitiveMetaMap = ref<Record<number, VideoSensitiveMeta>>({})
 // Video Dropdown Watcher
 
 const hasUnsavedChanges = computed(() => 
@@ -526,6 +655,11 @@ async function loadSelectedVideo() {
     selectedVideoId.value = null
     return
   }
+  if (isAnnotationFinished(selectedVideoId.value)) {
+    showErrorMessage(`Video ${selectedVideoId.value} ist bereits vollständig annotiert.`)
+    selectedVideoId.value = null
+    return
+  }
 
   // Clear previous error messages when changing videos
   clearErrorMessage()
@@ -536,10 +670,7 @@ async function loadSelectedVideo() {
     await loadVideoDetail(selectedVideoId.value)
     await guarded(loadSavedExaminations())
     await guarded(loadVideoMetadata())
-    
-    // Load segments with error handling
-    await guarded(videoStore.fetchAllSegments(selectedVideoId.value))
-    
+
     console.log('Video fully loaded:', selectedVideoId.value)
   } catch (err: any) {
     console.error('loadSelectedVideo failed', err)
@@ -549,13 +680,131 @@ async function loadSelectedVideo() {
 
 
 function onVideoChange() {                // handler for the <select>
-  loadSelectedVideo()
   /** update the url so users can bookmark / refresh */
   router.replace({ query: { video: selectedVideoId.value } })
 }
 
+function toggleVideoDropdown(): void {
+  if (!hasVideos.value) return
+  isVideoDropdownOpen.value = !isVideoDropdownOpen.value
+  if (isVideoDropdownOpen.value) {
+    loadSensitiveMetaForVideos(selectableVideos.value.map(v => v.id))
+  }
+}
+
+function closeVideoDropdown(): void {
+  isVideoDropdownOpen.value = false
+}
+
+function selectVideoFromDropdown(videoId: number): void {
+  const selected = selectableVideos.value.find(video => video.id === videoId)
+  if (!selected || selected.segmentAnnotationsValidated) return
+  selectedVideoId.value = videoId
+  onVideoChange()
+  closeVideoDropdown()
+}
+
+const handleDocumentClick = (event: MouseEvent): void => {
+  const target = event.target
+  if (!(target instanceof Node)) return
+  if (!videoDropdownRef.value) return
+  if (!videoDropdownRef.value.contains(target)) {
+    closeVideoDropdown()
+  }
+}
+
+const parseDobToDate = (rawDob: string | null | undefined): Date | null => {
+  if (!rawDob) return null
+  const trimmed = rawDob.trim()
+  if (!trimmed) return null
+
+  const isoCandidate = new Date(trimmed)
+  if (!Number.isNaN(isoCandidate.getTime())) return isoCandidate
+
+  const deMatch = trimmed.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/)
+  if (deMatch) {
+    const [, day, month, year] = deMatch
+    const parsed = new Date(Number(year), Number(month) - 1, Number(day))
+    if (!Number.isNaN(parsed.getTime())) return parsed
+  }
+
+  return null
+}
+
+const getAgeFromDob = (rawDob: string | null | undefined): number | null => {
+  const dob = parseDobToDate(rawDob)
+  if (!dob) return null
+  const today = new Date()
+  let age = today.getFullYear() - dob.getFullYear()
+  const monthDelta = today.getMonth() - dob.getMonth()
+  if (monthDelta < 0 || (monthDelta === 0 && today.getDate() < dob.getDate())) {
+    age -= 1
+  }
+  return age >= 0 ? age : null
+}
+
+const normalizeGenderLabel = (value: string | null | undefined): string => {
+  if (!value) return 'Unbekannt'
+  const normalized = value.toLowerCase()
+  if (normalized === 'male' || normalized === 'männlich') return 'Männlich'
+  if (normalized === 'female' || normalized === 'weiblich') return 'Weiblich'
+  if (normalized === 'diverse') return 'Divers'
+  return value
+}
+
+const getVideoPatientGender = (videoId: number): string => {
+  return normalizeGenderLabel(videoSensitiveMetaMap.value[videoId]?.patient_gender_name)
+}
+
+const getVideoPatientAgeLabel = (videoId: number): string => {
+  const age = getAgeFromDob(videoSensitiveMetaMap.value[videoId]?.patient_dob)
+  return age == null ? 'Unbekannt' : `${age} J.`
+}
+
+const loadSensitiveMetaForVideos = async (videoIds: number[]): Promise<void> => {
+  const missingIds = videoIds.filter(id => !(id in videoSensitiveMetaMap.value))
+  if (missingIds.length === 0) return
+
+  const results = await Promise.all(
+    missingIds.map(async (id) => {
+      try {
+        const { data } = await axiosInstance.get<VideoSensitiveMeta>(r(`media/videos/${id}/sensitive-metadata/`))
+        return { id, data }
+      } catch {
+        return { id, data: { patient_dob: null, patient_gender_name: null } as VideoSensitiveMeta }
+      }
+    })
+  )
+
+  const nextMap = { ...videoSensitiveMetaMap.value }
+  results.forEach(({ id, data }) => {
+    nextMap[id] = {
+      patient_dob: data?.patient_dob ?? null,
+      patient_gender_name: data?.patient_gender_name ?? null,
+    }
+  })
+  videoSensitiveMetaMap.value = nextMap
+}
+
 //  fire loader whenever selectedVideoId changes programmatically  */
-watch(selectedVideoId, loadSelectedVideo)
+watch(
+  selectedVideoId,
+  async (newId) => {
+    console.log('Selected video ID changed, syncing store and loading details:', newId)
+    if (typeof newId === 'number') {
+      videoStore.setCurrentVideo(newId)
+    } else if (newId !== null) {
+      errorMessage.value = 'Invalid video ID'
+      return
+    }
+
+    await loadSelectedVideo()
+    if (newId !== null) {
+      await loadVideoSegments()
+    }
+  },
+  { immediate: true }
+)
 watch(
   () => route.query.video,
   v => {
@@ -565,8 +814,29 @@ watch(
   { immediate: true }
 )
 // List of only videos that are both present in the list **and** in state `done` inside anonymizationStore
-const annotatableVideos = computed(() =>
+const selectableVideos = computed(() =>
   videoList.value.videos.filter(v => isAnonymized(v.id))
+)
+
+const annotatableVideos = computed(() =>
+  selectableVideos.value.filter(v => !isAnnotationFinished(v.id))
+)
+
+const selectedVideoLabel = computed(() => {
+  if (!selectableVideos.value.length) return 'Keine Videos verfügbar'
+  if (selectedVideoId.value == null) return 'Bitte Video auswählen...'
+  const video = selectableVideos.value.find(v => v.id === selectedVideoId.value)
+  if (!video) return `Video ${selectedVideoId.value}`
+  return `📹 ${video.original_file_name || `Video Nr. ${video.id}`}`
+})
+
+watch(
+  selectableVideos,
+  (videos) => {
+    if (!videos.length) return
+    loadSensitiveMetaForVideos(videos.map(v => v.id))
+  },
+  { immediate: true }
 )
 
 
@@ -584,14 +854,16 @@ const anonymizedVideoSrc = computed(() => {
 })
 
 const hasVideos = computed(() => {
-  return annotatableVideos.value && annotatableVideos.value.length > 0
+  return selectableVideos.value && selectableVideos.value.length > 0
 })
 
 const noVideosMessage = computed(() => {
   if (videos.value.length === 0) {
     return 'Keine Videos verfügbar. Bitte laden Sie zuerst Videos hoch.'
-  } else if (annotatableVideos.value.length === 0) {
+  } else if (selectableVideos.value.length === 0) {
     return 'Keine anonymisierten Videos verfügbar. Videos müssen erst anonymisiert werden.'
+  } else if (annotatableVideos.value.length === 0) {
+    return 'Alle anonymisierten Videos sind bereits validiert.'
   }
   return ''
 })
@@ -620,6 +892,7 @@ const canStartLabeling = computed(() => {
 // ✅ PRIORITY: Load labels first, then videos, then anonymization status
 onMounted(async () => {
   console.log('🚀 [VideoExamination] Component mounted - loading data in priority order...')
+  isInitialLoading.value = true
   try {
     // Step 1: Load labels with high priority
     await videoStore.fetchLabels()
@@ -633,10 +906,23 @@ onMounted(async () => {
     await videoStore.fetchAllVideos()
     console.log(`✅ [VideoExamination] Videos loaded: ${videoStore.videoList.videos.length}`)
     console.log(`✅ [VideoExamination] Annotatable videos: ${annotatableVideos.value.length}`)
+    await loadVideoSegments()
   } catch (error) {
     console.error('❌ [VideoExamination] Error during initial load:', error)
     showErrorMessage('Fehler beim Laden der Daten. Bitte Seite neu laden.')
+  } finally {
+    isInitialLoading.value = false
   }
+
+  document.addEventListener('keydown', handleKeyDown)
+  document.addEventListener('click', handleDocumentClick)
+  document.addEventListener('fullscreenchange', handleFullscreenChange)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('keydown', handleKeyDown)
+  document.removeEventListener('click', handleDocumentClick)
+  document.removeEventListener('fullscreenchange', handleFullscreenChange)
 })
 
 // Guarded function for error handling like VideoClassificationComponent
@@ -652,17 +938,6 @@ async function guarded<T>(p: Promise<T>): Promise<T | undefined> {
 
 watch(videoStreamUrl, (newUrl) => {
   console.log('Video stream URL updated:', newUrl)
-})
-
-watch(selectedVideoId, (newId) => {
-  console.log('Selected video ID changed, setting store to:', newId)
-  if (typeof newId === 'number') {
-    videoStore.setCurrentVideo(newId)
-    videoStore.fetchVideoSegments(newId)
-  } 
-  else {
-    errorMessage.value = 'Invalid video ID'
-  }
 })
 
 // Alert management methods
@@ -706,7 +981,7 @@ const loadVideoDetail = async (videoId: number): Promise<void> => {
     }
     
     // Update MediaStore with the current video for consistent URL handling
-    const currentVideo = annotatableVideos.value.find(v => v.id === videoId)
+    const currentVideo = selectableVideos.value.find(v => v.id === videoId)
     if (currentVideo) {
       mediaStore.setCurrentItem(currentVideo as any)
       console.log('MediaStore updated with video:', videoId)
@@ -776,11 +1051,11 @@ const loadVideoMetadata = async (): Promise<void> => {
   }
 }
 
-const loadVideoSegments = async (): Promise<void> => {
+async function loadVideoSegments(): Promise<void> {
   if (selectedVideoId.value === null) return
   
   try {
-    await videoStore.fetchAllSegments(selectedVideoId.value)
+    await videoStore.fetchAllSegments(selectedVideoId.value, true)
     console.log('Video segments loaded for video:', selectedVideoId.value)
     console.log('Timeline segments count:', rawSegments.value.length)
   } catch (error) {
@@ -883,6 +1158,7 @@ const handleSegmentResize = (...args: unknown[]): void => {
       startTime: newStart,
       endTime: newEnd
     })
+    videoStore.commitDraft()
   } else {
     // Existing segment: patch locally and mark isDirty
     videoStore.patchSegmentLocally(segmentId, {
@@ -970,6 +1246,7 @@ const handleSegmentDelete = (...args: unknown[]): Promise<void> => {
 
       // 2. Perform API call
       await videoStore.deleteSegment(segment.id)
+      await loadVideoSegments()
 
       showSuccessMessage(`Segment gelöscht: ${getTranslationForLabel(segment.label)}`)
       resolve();
@@ -993,8 +1270,145 @@ const onLabelSelect = (): void => {
   console.log('Label selected:', selectedLabelType.value)
 }
 
+const handleFullscreenChange = (): void => {
+  isFullscreen.value = document.fullscreenElement === videoContainerRef.value
+}
+
+const toggleFullscreen = async (): Promise<void> => {
+  const container = videoContainerRef.value
+  if (!container) return
+
+  try {
+    if (document.fullscreenElement === container) {
+      await document.exitFullscreen()
+    } else {
+      await container.requestFullscreen()
+    }
+  } catch (error) {
+    console.error('Fullscreen toggle failed:', error)
+  }
+}
+
+const closeLabelOverlay = (): void => {
+  isLabelSelectActive.value = false
+  labelSelectRef.value?.blur()
+}
+
+const selectLabelFromOverlay = (labelName: string): void => {
+  selectedLabelType.value = labelName
+  closeLabelOverlay()
+}
+
+const isEditableTarget = (target: EventTarget | null): boolean => {
+  if (!(target instanceof HTMLElement)) return false
+  if (target.isContentEditable) return true
+  if (target instanceof HTMLSelectElement && isLabelSelectActive.value) return false
+  return ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)
+}
+
+const handleKeyDown = (event: KeyboardEvent): void => {
+  if (isEditableTarget(event.target)) return
+
+  const key = event.key.toLowerCase()
+
+  if (!event.ctrlKey && !event.metaKey && !event.altKey && key === 'o') {
+    event.preventDefault()
+    event.stopPropagation()
+    preselectLabelForOverlay()
+    isLabelSelectActive.value = true
+    return
+  }
+
+  if (!event.ctrlKey && !event.metaKey && !event.altKey && key === 'f') {
+    event.preventDefault()
+    event.stopPropagation()
+    toggleFullscreen()
+    return
+  }
+
+  if (isLabelSelectActive.value) {
+    if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+      event.preventDefault()
+      event.stopPropagation()
+      const labels = timelineLabels.value
+      if (labels.length === 0) return
+      const currentIndex = labels.findIndex((l) => l.name === selectedLabelType.value)
+      const delta = event.key === 'ArrowUp' ? -1 : 1
+      const startIndex = currentIndex === -1 ? (delta > 0 ? -1 : 0) : currentIndex
+      const nextIndex = (startIndex + delta + labels.length) % labels.length
+      selectedLabelType.value = labels[nextIndex].name
+      return
+    }
+    if (event.key === 'Enter') {
+      event.preventDefault()
+      event.stopPropagation()
+      closeLabelOverlay()
+      return
+    }
+  }
+
+  if (event.key === 'Escape') {
+    if (isLabelSelectActive.value) {
+      event.preventDefault()
+      event.stopPropagation()
+      closeLabelOverlay()
+      return
+    }
+    if (isMarkingLabel.value) {
+      event.preventDefault()
+      cancelLabelMarking()
+    }
+    return
+  }
+
+  const isPlus =
+    event.key === '+' ||
+    event.code === 'NumpadAdd' ||
+    (event.code === 'Equal' && event.shiftKey)
+  const isMinus =
+    event.key === '-' ||
+    event.code === 'Minus' ||
+    event.code === 'NumpadSubtract'
+
+  if (isPlus) {
+    event.preventDefault()
+    startLabelMarking()
+    return
+  }
+
+  if (isMinus) {
+    event.preventDefault()
+    finishLabelMarking()
+  }
+}
+
+const preselectLabelForOverlay = (): void => {
+  const segments = timelineSegmentsForSelectedVideo.value
+  if (segments.length === 0) return
+
+  if (selectedSegmentId.value !== null) {
+    const selectedSegment = segments.find((segment) => segment.id === selectedSegmentId.value)
+    if (selectedSegment) {
+      selectedLabelType.value = selectedSegment.label
+      return
+    }
+  }
+
+  const currentSegment = segments.find(
+    (segment) =>
+      currentTime.value >= segment.startTime && currentTime.value <= segment.endTime
+  )
+  if (currentSegment) {
+    selectedLabelType.value = currentSegment.label
+  }
+}
+
 const startLabelMarking = (): void => {
   if (!canStartLabeling.value) return
+
+  if (selectedVideoId.value) {
+    videoStore.setCurrentVideo(selectedVideoId.value)
+  }
   
   isMarkingLabel.value = true
   labelMarkingStart.value = currentTime.value
@@ -1009,13 +1423,14 @@ const finishLabelMarking = async (): Promise<void> => {
   if (!isMarkingLabel.value || !selectedVideoId.value) return
   
   try {
+    videoStore.setCurrentVideo(selectedVideoId.value)
+
     // FIX: Use updateDraftEnd und commitDraft statt finishDraftSegment
     videoStore.updateDraftEnd(currentTime.value)
     await videoStore.commitDraft()
     
-    // Reset state
+    // Reset state (keep last selected label)
     isMarkingLabel.value = false
-    selectedLabelType.value = ''
     
     // Reload segments to show the new one
     await loadVideoSegments()
@@ -1027,10 +1442,8 @@ const finishLabelMarking = async (): Promise<void> => {
 }
 
 const cancelLabelMarking = (): void => {
-  // FIX: Use cancelDraft statt cancelDraftSegment
   videoStore.cancelDraft()
   isMarkingLabel.value = false
-  selectedLabelType.value = ''
   
   console.log('Label-Markierung abgebrochen')
 }
@@ -1125,6 +1538,17 @@ const submitVideoSegments = async (): Promise<void> => {
     const errorMsg = error?.response?.data?.error || error?.message || 'Unbekannter Fehler'
     showErrorMessage(`Validierung fehlgeschlagen: ${errorMsg}`)
   }
+}
+
+const handleValidateAndMark = async (videoId: number | null): Promise<void> => {
+  if (!videoId) {
+    showErrorMessage('Kein Video ausgewählt')
+    return
+  }
+
+  lastValidationClickedVideoId.value = videoId
+  await submitVideoSegments()
+  await markValidationFinishedRemoveOutside(videoId)
 }
 
 
@@ -1253,6 +1677,29 @@ const isVideoValidated = (videoId: number): boolean => {
   background: #000;
   border-radius: 8px;
   overflow: hidden;
+  z-index: 100;
+}
+
+:fullscreen .label-overlay{
+  display: flex !important;
+  z-index: 2147483647;
+}
+
+.fullscreen-toggle {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 6;
+  border: none;
+  border-radius: 999px;
+  padding: 6px 10px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  cursor: pointer;
+}
+
+.fullscreen-toggle:hover {
+  background: rgba(0, 0, 0, 0.75);
 }
 
 .simple-timeline-track {
@@ -1402,6 +1849,121 @@ const isVideoValidated = (videoId: number): boolean => {
   font-family: 'Segoe UI', system-ui, sans-serif;
 }
 
+.video-dropdown {
+  position: relative;
+}
+
+.video-dropdown-trigger {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid #ced4da;
+  border-radius: 0.375rem;
+  background: #ffffff;
+  color: #212529;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+}
+
+.video-dropdown-trigger:disabled {
+  background: #e9ecef;
+  color: #6c757d;
+  cursor: not-allowed;
+}
+
+.video-dropdown-trigger-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.video-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 0.25rem);
+  left: 0;
+  right: 0;
+  z-index: 2000;
+  max-height: 320px;
+  overflow-y: auto;
+  border: 1px solid #ced4da;
+  border-radius: 0.5rem;
+  background: #ffffff;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12);
+}
+
+.video-dropdown-item {
+  width: 100%;
+  border: none;
+  background: transparent;
+  padding: 0.6rem 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid #eef1f4;
+}
+
+.video-dropdown-item:last-child {
+  border-bottom: none;
+}
+
+.video-dropdown-item:hover:not(:disabled) {
+  background: #f8f9fa;
+}
+
+.video-dropdown-item:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.video-dropdown-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.video-dropdown-title {
+  font-weight: 600;
+}
+
+.video-dropdown-status-badge {
+  font-size: 0.72rem;
+  border-radius: 999px;
+  padding: 0.15rem 0.5rem;
+  white-space: nowrap;
+}
+
+.badge-validated {
+  background: #d1e7dd;
+  color: #0f5132;
+}
+
+.badge-pending {
+  background: #fff3cd;
+  color: #664d03;
+}
+
+.video-dropdown-meta {
+  font-size: 0.78rem;
+  color: #5f6b76;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.video-dropdown-item-selected {
+  background: #e7f1ff;
+}
+
+.video-dropdown-item-validated {
+  border-left: 4px solid #198754;
+}
+
+.video-dropdown-item-pending {
+  border-left: 4px solid #ffc107;
+}
+
 .validation-status-alert {
   border-left: 4px solid #28a745;
   background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
@@ -1409,5 +1971,156 @@ const isVideoValidated = (videoId: number): boolean => {
 
 .validation-status-alert .fas {
   opacity: 0.8;
+}
+
+.validation-action-button {
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 0.45rem 1rem;
+  border-radius: 999px;
+  border: 1px solid #1f7a3a;
+  background: linear-gradient(135deg, #32b55b 0%, #239245 100%);
+  color: #ffffff;
+  box-shadow: 0 4px 10px rgba(35, 146, 69, 0.25);
+}
+
+.validation-action-button:hover {
+  background: linear-gradient(135deg, #2ca650 0%, #1f7a3a 100%);
+  color: #ffffff;
+}
+
+.validation-action-button:focus {
+  box-shadow: 0 0 0 0.2rem rgba(35, 146, 69, 0.3);
+}
+
+.validation-action-button-clicked {
+  border-color: #0f5a2b;
+  background: linear-gradient(135deg, #248649 0%, #176b37 100%);
+  box-shadow: 0 0 0 0.2rem rgba(36, 134, 73, 0.28);
+}
+
+.validation-action-icon {
+  font-size: 18px;
+}
+
+.validation-click-indicator {
+  border: 1px solid #d5dbe3;
+}
+
+.validation-click-indicator-active {
+  background: linear-gradient(135deg, #e4f7eb 0%, #d2f0dd 100%);
+  border-color: #2e9e55;
+  color: #165b33;
+}
+
+.validation-click-indicator-muted {
+  background: #f8f9fa;
+  color: #495057;
+}
+
+.label-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 2147483647;
+}
+
+.label-overlay-card {
+  background: #ffffff;
+  border-radius: 10px;
+  padding: 12px;
+  min-width: 260px;
+  max-width: 70%;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+}
+
+.label-overlay-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.label-overlay-close {
+  border: none;
+  background: transparent;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.label-overlay-hint {
+  font-size: 0.8rem;
+  color: #6c757d;
+  margin-bottom: 8px;
+}
+
+.label-overlay-list {
+  display: grid;
+  gap: 6px;
+  max-height: 45vh;
+  overflow: auto;
+}
+
+.label-overlay-item {
+  width: 100%;
+  text-align: left;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid #dee2e6;
+  background: #f8f9fa;
+  cursor: pointer;
+}
+
+.label-overlay-item.active {
+  border-color: #0d6efd;
+  background: #e7f1ff;
+}
+
+.shortcuts-details {
+  display: inline-block;
+}
+
+.shortcuts-toggle {
+  list-style: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 10px 2px 6px;
+  border: 1px solid #dee2e6;
+  border-radius: 999px;
+  background: #f8f9fa;
+  cursor: pointer;
+  user-select: none;
+}
+
+.shortcuts-toggle::-webkit-details-marker {
+  display: none;
+}
+
+.shortcuts-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #0d6efd;
+  color: #fff;
+  font-weight: 700;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.shortcuts-body {
+  margin-top: 6px;
+  padding: 6px 10px;
+  border: 1px dashed #dee2e6;
+  border-radius: 6px;
+  background: #fff;
 }
 </style>

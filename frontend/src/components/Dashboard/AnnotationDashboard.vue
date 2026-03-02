@@ -338,6 +338,8 @@ const sensitiveMetaData = ref([]);
 const loadingSegments = ref(false);
 const loadingExaminations = ref(false);
 const loadingSensitiveMeta = ref(false);
+const MAX_VIDEOS_FOR_SEGMENT_OVERVIEW = 25;
+const MAX_SEGMENTS_IN_OVERVIEW = 500;
 
 // Methods for fetching detailed data
 // Add at the top of script setup
@@ -351,9 +353,36 @@ const showError = (message) => {
 const refreshSegments = async () => {
   loadingSegments.value = true;
   try {
-    // Modern media framework - collection endpoint
-    const response = await axiosInstance.get('/api/media/videos/segments/');
-    segments.value = response.data.results || response.data || [];
+    const videosResponse = await axiosInstance.get(r('media/videos/'));
+    const videos =
+      videosResponse.data?.results ||
+      videosResponse.data?.videos ||
+      videosResponse.data ||
+      [];
+
+    const videoIds = videos
+      .map((video) => Number(video.id))
+      .filter((id) => Number.isFinite(id))
+      .slice(0, MAX_VIDEOS_FOR_SEGMENT_OVERVIEW);
+
+    const segmentLists = await Promise.all(
+      videoIds.map(async (videoId) => {
+        try {
+          const response = await axiosInstance.get(
+            r(`media/videos/${videoId}/segments/`)
+          );
+          const videoSegments = response.data?.results || response.data || [];
+          return videoSegments.map((segment) => ({
+            ...segment,
+            videoId: segment.videoId ?? segment.video_id ?? videoId,
+          }));
+        } catch {
+          return [];
+        }
+      })
+    );
+
+    segments.value = segmentLists.flat().slice(0, MAX_SEGMENTS_IN_OVERVIEW);
   } catch (error) {
     showError('Fehler beim Laden der Video-Segmente');
     segments.value = [];
@@ -470,16 +499,28 @@ const getSensitiveMetaStatusText = (status) => {
 
 // Action methods
 const editSegment = (segment) => {
+  const videoId = segment.videoId ?? segment.video_id;
+  if (!videoId) {
+    showError('Segment kann nicht geöffnet werden: Video-ID fehlt');
+    return;
+  }
   router.push({
     name: 'Frame Annotation',
-    query: { videoId: segment.video_id, segmentId: segment.id }
+    query: { videoId, segmentId: segment.id }
   });
 };
 
 const markSegmentComplete = async (segment) => {
   try {
-    // Modern media framework - collection endpoint (video_id not available here)
-    await axiosInstance.patch(`/api/media/videos/segments/${segment.id}/`, { status: 'completed' });
+    const videoId = segment.videoId ?? segment.video_id;
+    if (!videoId) {
+      showError('Segment kann nicht aktualisiert werden: Video-ID fehlt');
+      return;
+    }
+    await axiosInstance.patch(
+      `/api/media/videos/${videoId}/segments/${segment.id}/`,
+      { status: 'completed' }
+    );
     annotationStatsStore.updateAnnotationStatus('segment', 'in_progress', 'completed');
     await refreshSegments();
   } catch (error) {

@@ -1,7 +1,6 @@
-import axios, { type AxiosRequestConfig } from 'axios'
+import axios from 'axios'
 import Cookies from 'js-cookie'
 import camelcaseKeys from 'camelcase-keys'
-import snakecaseKeys from 'snakecase-keys'
 import { useToastStore } from '@/stores/toastStore'
 import { useAuthKcStore } from '@/stores/auth_kc'
 
@@ -85,24 +84,35 @@ axiosInstance.interceptors.request.use((config: InternalAxiosRequestConfig) => {
 })
 
 function localSnakecaseKeys(obj: any, options: { deep?: boolean } = {}): any {
+  const isPlainObject = (v: unknown): v is Record<string, any> => {
+    if (!v || typeof v !== 'object') return false
+    if (Object.prototype.toString.call(v) !== '[object Object]') return false
+    const proto = Object.getPrototypeOf(v)
+    return proto === Object.prototype || proto === null
+  }
+
   if (Array.isArray(obj)) {
+    // Keep arrays of primitives intact; recurse only when elements are arrays/objects.
+    if (!options.deep) return obj
     return obj.map((item) =>
-      item && typeof item === 'object' ? snakecaseKeys(item, options) : item
-    )
-  } else if (obj && typeof obj === 'object') {
-    return Object.keys(obj).reduce(
-      (acc, key) => {
-        const newKey = key.replace(/([A-Z])/g, (match) => `_${match.toLowerCase()}`)
-        acc[newKey] =
-          options.deep && obj[key] && typeof obj[key] === 'object'
-            ? snakecaseKeys(obj[key], options)
-            : obj[key]
-        return acc
-      },
-      {} as Record<string, any>
+      Array.isArray(item) || isPlainObject(item) ? localSnakecaseKeys(item, options) : item
     )
   }
-  return obj
+
+  if (!isPlainObject(obj)) return obj
+
+  return Object.keys(obj).reduce(
+    (acc, key) => {
+      const newKey = key.replace(/([A-Z])/g, (match) => `_${match.toLowerCase()}`)
+      const value = obj[key]
+      acc[newKey] =
+        options.deep && (Array.isArray(value) || isPlainObject(value))
+          ? localSnakecaseKeys(value, options)
+          : value
+      return acc
+    },
+    {} as Record<string, any>
+  )
 }
 
 // ─── Convert outgoing payload from camelCase → snake_case ───────────

@@ -4,10 +4,10 @@
 # This file consolidates all management tasks, scripts, and container operations
 # into a unified DevEnv-based approach using the centralized configuration.
 
-{ pkgs, lib, appConfig, isDev ? false }:
+{ pkgs, lib, env, isDev ? false }:
 let
   # Utility functions (legacy placeholders; kept for future use)
-  containerName = mode: "${appConfig.app.name}-${mode}-test";
+  containerName = mode: "${env.app.name}-${mode}-test";
   commonContainerArgs = mode: [ ];
   gpuArgs = ''
     : # GPU args placeholder
@@ -27,14 +27,11 @@ in
         
         # Step 1: Ensure directories
         export WORKING_DIR="''${WORKING_DIR:-$(pwd)}"
-        mkdir -p ${appConfig.paths.data} ${appConfig.paths.conf} staticfiles
-        mkdir -p ${appConfig.paths.data}/{import,export,videos,frames,pdfs,model_weights,logs}
+        mkdir -p ${env.WORKING_DIR} staticfiles
+        mkdir -p ${env.WORKING_DIR}/{import,export,videos,frames,pdfs,model_weights,logs}
         
-        # Step 2: Configuration setup (use existing scripts)
-        ${pkgs.uv}/bin/uv run python scripts/database/make_conf.py
         
         # Step 3: Environment file setup
-        ${pkgs.uv}/bin/uv run python scripts/core/setup.py
         
         # Step 4: CUDA environment setup (optional)
         devenv tasks run env:setup-cuda || true
@@ -65,6 +62,14 @@ in
         echo "✅ Deploy pipeline complete"
       '';
     };
+    "vue:build".exec = 
+      ''
+      cd frontend
+      direnv allow
+      npm install
+      npm run build
+    '';
+
   };
 
   # =============================================================================
@@ -73,6 +78,8 @@ in
 
   scripts = {
     "manage".exec = ''
+      REPO_ROOT="${env.WORKING_DIR}"
+      cd "$REPO_ROOT"
       subcmd="''${1:-help}"
       case "$subcmd" in
         "setup")
@@ -100,9 +107,9 @@ in
           echo "Current Configuration:"
           echo "====================="
           echo "Env: $(cat .mode 2>/dev/null || echo 'development')"
-          echo "App: ${appConfig.app.name}"
-          echo "Port: ${appConfig.server.port}"
-          echo "Host: ${appConfig.server.host}"
+          echo "App: ${env.DJANGO_HOST}"
+          echo "Port: ${env.DJANGO_PORT}"
+          echo "Host: ${env.DJANGO_HOST}"
           ;;
         "help"|*)
           echo "Lx Annotate Management Commands"
@@ -131,99 +138,73 @@ in
           ;;
       esac
     '';
+
+    "vue-build".exec = ''
+      REPO_ROOT="${env.WORKING_DIR}"
+      cd "$REPO_ROOT"
+      cd frontend
+      npm install
+      npm run build
+    '';
+
+    "export-frames".exec = ''
+      REPO_ROOT="${env.WORKING_DIR}"
+      cd "$REPO_ROOT"
+      mkdir -p "${env.STORAGE_DIR}/export/frames/"
+      secretspec run --profile env python manage.py export_frame_annot --output-path "${env.STORAGE_DIR}/export/frames/"
+    '';
     
 
     "run-server".exec = ''
-      # export all env variables from .env if it exists
-      ##### TODO
-    export $(grep -v '^#' .env | xargs)
-    echo "🌀 Starting Daphne on ${appConfig.server.host}:${appConfig.server.port}..."
-    exec daphne -b "''${DJANGO_HOST}" -p "''${DJANGO_PORT}" lx_annotate.asgi:application
+      REPO_ROOT="${env.WORKING_DIR}"
+        cd "$REPO_ROOT"
+        
+        # Define the explicit path to the venv python
+        VENV_PYTHON="$REPO_ROOT/.devenv/state/venv/bin/python"
+
+        git submodule update --init --recursive
+        
+        echo "🌀 Starting Daphne using Venv Python..."
+        
+        if [ -z "''${DJANGO_SETTINGS_MODULE:-}" ]; then
+          export DJANGO_SETTINGS_MODULE="lx_annotate.settings"
+        else
+          case "$DJANGO_SETTINGS_MODULE" in
+            config* )
+              export DJANGO_SETTINGS_MODULE="lx_annotate.settings.settings_prod"
+              ;;
+          esac
+        fi
+
+        source ''$REPO_ROOT/.devenv/state/venv/bin/activate
+
+        # Use the explicit Venv Python to run daphne as a module
+        secretspec run --provider env uv run daphne -b "${env.DJANGO_HOST}" -p "${env.DJANGO_PORT}" lx_annotate.asgi:application;
     '';
 
+    "run-filewatcher".exec = ''
+        REPO_ROOT="${env.WORKING_DIR}"
+        cd "$REPO_ROOT"
+        
+        # Define the explicit path to the venv python
+        VENV_PYTHON="$REPO_ROOT/.devenv/state/venv/bin/python"
+        
+        echo "🌀 Starting Filewatcher using Venv Python..."
+        
+        if [ -z "''${DJANGO_SETTINGS_MODULE:-}" ]; then
+          export DJANGO_SETTINGS_MODULE="lx_annotate.settings"
+        else
+          case "$DJANGO_SETTINGS_MODULE" in
+            config* )
+              export DJANGO_SETTINGS_MODULE="lx_annotate.settings.settings_prod"
+              ;;
+          esac
+        fi
 
-    "docker-dev-build".exec = ''
-      set -e
-      RUNTIME=""
-      if command -v podman >/dev/null 2>&1; then RUNTIME=podman; elif command -v docker >/dev/null 2>&1; then RUNTIME=docker; else echo "No container engine"; exit 1; fi
-      $RUNTIME build -f container/Dockerfile.dev -t lx-annotate:dev .
+        # Use the explicit Venv Python to run daphne as a module
+        # This bypasses the broken 'uv run' shell logic
+        secretspec run --provider env $VENV_PYTHON scripts/file_watcher.py
     '';
 
-    "docker-dev-run".exec = ''
-      set -e
-      RUNTIME=""
-      if command -v podman >/dev/null 2>&1; then RUNTIME=podman; elif command -v docker >/dev/null 2>&1; then RUNTIME=docker; else echo "No container engine"; exit 1; fi
-      $RUNTIME rm -f lx-annotate-dev >/dev/null 2>&1 || true
-      $RUNTIME run -d --name lx-annotate-dev \
-        -p ${appConfig.server.port}:${appConfig.server.port} \
-        -e DJANGO_ENV=development \
-        -e DJANGO_HOST=0.0.0.0 \
-        -e DJANGO_PORT=${appConfig.server.port} \
-        -e DJANGO_MODULE=${appConfig.app.djangoModule} \
-        -v $(pwd)/${appConfig.paths.data}:/app/${appConfig.paths.data} \
-        -v $(pwd)/${appConfig.paths.conf}:/app/${appConfig.paths.conf} \
-        -v $(pwd)/staticfiles:/app/staticfiles \
-        lx-annotate:dev
-    '';
-
-    "docker-prod-build".exec = ''
-      set -e
-      RUNTIME=""
-      if command -v podman >/dev/null 2>&1; then RUNTIME=podman; elif command -v docker >/dev/null 2>&1; then RUNTIME=docker; else echo "No container engine"; exit 1; fi
-      $RUNTIME build -f container/Dockerfile.prod -t lx-annotate:prod .
-    '';
-
-    "docker-prod-run".exec = ''
-      set -e
-      RUNTIME=""
-      if command -v podman >/dev/null 2>&1; then RUNTIME=podman; elif command -v docker >/dev/null 2>&1; then RUNTIME=docker; else echo "No container engine"; exit 1; fi
-
-      if [ -z "''${DJANGO_SECRET_KEY:-}" ]; then echo "DJANGO_SECRET_KEY must be set"; exit 1; fi
-
-      if [ -z "''${DATABASE_URL:-}" ] \
-         && [ -z "''${DB_NAME:-}" ] && [ -z "''${DB_USER:-}" ] && [ -z "''${DB_PASSWORD:-}" ] \
-         && [ -z "''${DB_HOST:-}" ] && [ -z "''${DB_PORT:-}" ]; then
-        echo "Provide DATABASE_URL or DB_* env vars before running."; exit 1
-      fi
-
-      $RUNTIME rm -f lx-annotate-prod >/dev/null 2>&1 || true
-      $RUNTIME run -d --name lx-annotate-prod \
-        -p ${appConfig.server.port}:${appConfig.server.port} \
-        -e DJANGO_ENV=production \
-        -e DJANGO_HOST=0.0.0.0 \
-        -e DJANGO_PORT=${appConfig.server.port} \
-        -e DJANGO_MODULE=${appConfig.app.djangoModule} \
-        -e DJANGO_SECRET_KEY="$DJANGO_SECRET_KEY" \
-        -e DJANGO_ALLOWED_HOSTS \
-        -e DJANGO_DEBUG \
-        -e DJANGO_SECURE_SSL_REDIRECT \
-        -e DJANGO_SESSION_COOKIE_SECURE \
-        -e DJANGO_CSRF_COOKIE_SECURE \
-        -e DATABASE_URL \
-        -e DB_ENGINE \
-        -e DB_NAME \
-        -e DB_USER \
-        -e DB_PASSWORD \
-        -e DB_HOST \
-        -e DB_PORT \
-        -v $(pwd)/${appConfig.paths.data}:/app/${appConfig.paths.data} \
-        -v $(pwd)/staticfiles:/app/staticfiles \
-        lx-annotate:prod
-    '';
-
-    "docker-logs".exec = ''
-      RUNTIME=""; if command -v podman >/dev/null 2>&1; then RUNTIME=podman; elif command -v docker >/dev/null 2>&1; then RUNTIME=docker; else echo "No container engine"; exit 1; fi
-      tier="''${1:-dev}"; name="lx-annotate-$tier"; $RUNTIME logs -f "$name"
-    '';
-
-    "docker-stop".exec = ''
-      RUNTIME=""; if command -v podman >/dev/null 2>&1; then RUNTIME=podman; elif command -v docker >/dev/null 2>&1; then RUNTIME=docker; else echo "No container engine"; exit 1; fi
-      for tier in dev prod; do $RUNTIME rm -f lx-annotate-$tier >/dev/null 2>&1 || true; done
-    '';
-
-    "docker-clean".exec = ''
-      RUNTIME=""; if command -v podman >/dev/null 2>&1; then RUNTIME=podman; elif command -v docker >/dev/null 2>&1; then RUNTIME=docker; else echo "No container engine"; exit 1; fi
-      for img in lx-annotate:dev lx-annotate:prod; do $RUNTIME rmi "$img" >/dev/null 2>&1 || true; done
-    '';
   };
 }

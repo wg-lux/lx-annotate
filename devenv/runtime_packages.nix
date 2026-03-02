@@ -8,6 +8,7 @@ let
     uvPackage
     libglvnd 
     glib
+    xorg.libxcb
     zlib
     ollama.out
     cryptomator

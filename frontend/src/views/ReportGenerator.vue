@@ -2,12 +2,12 @@
   <div class="container-fluid py-4">
     <div class="row">
       <div class="col-12">
-        <RequirementGenerator />
+        <Report />
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import RequirementGenerator from '@/components/RequirementReport/RequirementGenerator.vue'
+import Report from '@/components/AssistedReporting/Report.vue'
 </script>
