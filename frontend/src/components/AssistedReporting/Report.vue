@@ -433,6 +433,46 @@
         </div>
       </div>
 
+      <div class="card mb-3">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <div>
+            <h6 class="mb-0">Vorherige Berichte (anonymisiert)</h6>
+            <small class="text-muted">Texte aus früheren Dokumenten des Patienten</small>
+          </div>
+          <button
+            class="btn btn-sm btn-outline-secondary"
+            :disabled="previousReportTextsLoading || !selectedPatientId"
+            @click="fetchPreviousReportTexts"
+          >
+            Aktualisieren
+          </button>
+        </div>
+        <div class="card-body">
+          <div v-if="previousReportTextsLoading" class="text-muted small">
+            Lade vorherige Berichtstexte...
+          </div>
+          <div v-else-if="!previousReportTexts.length" class="text-muted small">
+            Keine vorherigen Berichtstexte gefunden.
+          </div>
+          <div v-else class="d-flex flex-column gap-3">
+            <div
+              v-for="entry in previousReportTexts"
+              :key="entry.id"
+              class="border rounded p-3 bg-light"
+            >
+              <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+                <small class="text-muted">{{ formatTimelineDate(entry.createdAt) }}</small>
+                <span v-if="entry.documentType" class="badge text-bg-secondary">{{ entry.documentType }}</span>
+              </div>
+              <small v-if="entry.patientExaminationId" class="text-muted d-block mb-2">
+                PatientExamination #{{ entry.patientExaminationId }}
+              </small>
+              <div class="previous-report-text">{{ entry.text }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <RequirementIssues
         :patient-examination-id="lookup?.patientExaminationId || null"
         :requirement-set-ids="selectedRequirementSetIds"
@@ -465,6 +505,7 @@ import { useExaminationStore } from '@/stores/examinationStore';
 import { useFindingStore } from '@/stores/findingStore';
 import { useRequirementStore } from '@/stores/requirementStore';
 import { usePatientExaminationStore } from '@/stores/patientExaminationStore';
+import { usePatientFindingStore } from '@/stores/patientFindingStore';
 import type { PatientExamination } from '@/stores/patientExaminationStore';
 import PatientAdder from '@/components/CaseGenerator/PatientAdder.vue';
 import MedicalBlock from './MedicalBlock.vue';
@@ -566,10 +607,30 @@ type TemplateFindingDetail = {
 
 type PatientFindingApiRow = {
   id: number;
-  finding: number;
+  finding: number | { id?: number | null };
   isActive?: boolean;
   classifications?: Array<number | PatientFindingApiClassification>;
   interventions?: Array<number | PatientFindingApiIntervention>;
+};
+
+type TimelineItemRow = {
+  id?: number;
+  mediaType?: string | null;
+  createdAt?: string | null;
+  documentType?: string | null;
+  anonymizedText?: string | null;
+  text?: string | null;
+  patientExaminationId?: number | null;
+  patientExamination?: { id?: number | null } | null;
+};
+
+type PreviousReportTextEntry = {
+  id: number;
+  mediaType: string | null;
+  createdAt: string | null;
+  documentType: string | null;
+  patientExaminationId: number | null;
+  text: string;
 };
 
 // --- Store ---
@@ -578,6 +639,7 @@ const examinationStore = useExaminationStore();
 const findingStore = useFindingStore();
 const requirementStore = useRequirementStore();
 const patientExaminationStore = usePatientExaminationStore();
+const patientFindingStore = usePatientFindingStore();
 
 // --- API ---
 const LOOKUP_BASE = '/api/lookup';
@@ -614,6 +676,9 @@ const lastHistoryContext = ref<Record<string, unknown> | null>(null);
 const lastRequirementGuidance = ref<Record<string, unknown> | null>(null);
 const lastPersistedArtifacts = ref<SaveReportSubmissionResponse['persistedArtifacts']>(null);
 const localFindingClassificationSelections = ref<Record<number, Record<number, number>>>({});
+const addedFindingIds = ref<Set<number>>(new Set());
+const previousReportTextsLoading = ref<boolean>(false);
+const previousReportTexts = ref<PreviousReportTextEntry[]>([]);
 
 const currentStep = ref(1);
 const goToStep = (step: number) => {
@@ -758,6 +823,112 @@ const fetchFindingClassificationsCached = async (
   return normalized;
 };
 
+const resolvePatientExaminationId = (): number | null => {
+  if (lookup.value?.patientExaminationId) return lookup.value.patientExaminationId;
+  return currentPatientExaminationId.value;
+};
+
+const extractFindingId = (value: unknown): number | null => {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (value && typeof value === 'object') {
+    const nested = Number((value as { id?: number | null }).id);
+    if (Number.isFinite(nested)) return nested;
+  }
+  return null;
+};
+
+const refreshAddedFindingIds = async (): Promise<void> => {
+  const patientExaminationId = resolvePatientExaminationId();
+  if (!patientExaminationId) {
+    addedFindingIds.value = new Set();
+    return;
+  }
+
+  try {
+    await patientFindingStore.fetchPatientFindings(patientExaminationId);
+    const ids = new Set<number>();
+    for (const row of patientFindingStore.patientFindings as Array<{ finding?: unknown; isActive?: boolean }>) {
+      if (row?.isActive === false) continue;
+      const findingId = extractFindingId(row?.finding);
+      if (findingId != null) ids.add(findingId);
+    }
+    addedFindingIds.value = ids;
+  } catch (e) {
+    console.warn('Failed to refresh added findings state:', axiosError(e));
+  }
+};
+
+const getTimelinePatientExaminationId = (item: TimelineItemRow): number | null => {
+  if (Number.isFinite(item.patientExaminationId)) return Number(item.patientExaminationId);
+  const nestedId = Number(item.patientExamination?.id);
+  return Number.isFinite(nestedId) ? nestedId : null;
+};
+
+const formatTimelineDate = (value: string | null): string => {
+  if (!value) return 'ohne Datum';
+  const dt = new Date(value);
+  if (Number.isNaN(dt.getTime())) return value;
+  return dt.toLocaleString('de-DE');
+};
+
+const fetchPreviousReportTexts = async (): Promise<void> => {
+  if (!selectedPatientId.value) {
+    previousReportTexts.value = [];
+    return;
+  }
+
+  previousReportTextsLoading.value = true;
+  try {
+    const timelineRes = await axiosInstance.get(
+      r(endpoints.media.patientTimeline(selectedPatientId.value))
+    );
+    const rows = (Array.isArray(timelineRes.data?.results) ? timelineRes.data.results : timelineRes.data) as TimelineItemRow[];
+    const currentExamId = currentPatientExaminationId.value;
+    const entries = (Array.isArray(rows) ? rows : [])
+      .map((item, index) => {
+        const text = String(item?.anonymizedText || item?.text || '').trim();
+        if (!text) return null;
+
+        const mediaType = item?.mediaType ? String(item.mediaType).toLowerCase() : null;
+        const looksLikeReport =
+          !mediaType ||
+          mediaType.includes('report') ||
+          mediaType.includes('pdf') ||
+          mediaType.includes('document');
+        if (!looksLikeReport) return null;
+
+        const patientExaminationId = getTimelinePatientExaminationId(item);
+        const id = Number(item?.id);
+        return {
+          id: Number.isFinite(id) ? id : index + 1,
+          mediaType,
+          createdAt: item?.createdAt || null,
+          documentType:
+            typeof item?.documentType === 'string' && item.documentType.trim().length > 0
+              ? item.documentType
+              : null,
+          patientExaminationId,
+          text
+        } as PreviousReportTextEntry;
+      })
+      .filter((entry): entry is PreviousReportTextEntry => !!entry)
+      .filter((entry) => entry.patientExaminationId == null || entry.patientExaminationId !== currentExamId)
+      .sort((a, b) => {
+        const aTs = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const bTs = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return bTs - aTs;
+      })
+      .slice(0, 8);
+
+    previousReportTexts.value = entries;
+  } catch (e) {
+    previousReportTexts.value = [];
+    console.warn('Failed to fetch previous report texts:', axiosError(e));
+  } finally {
+    previousReportTextsLoading.value = false;
+  }
+};
+
 const refreshTemplateFindingDetails = async (): Promise<void> => {
   if (!reportTemplate.value || !selectedExaminationId.value) {
     templateFindingDetails.value = [];
@@ -779,25 +950,10 @@ const refreshTemplateFindingDetails = async (): Promise<void> => {
       if (finding.nameDe) byName.set(normalizeKey(finding.nameDe), finding);
     }
 
-    let patientExaminationFindingKeys = new Set<string>();
-    if (currentPatientExaminationId.value) {
-      try {
-        const peFindingsRes = await axiosInstance.get(
-          `/api/patient-examinations/${currentPatientExaminationId.value}/findings/`
-        );
-        const peFindings = Array.isArray(peFindingsRes.data)
-          ? (peFindingsRes.data as ApiFindingLite[])
-          : [];
-        patientExaminationFindingKeys = new Set(
-          peFindings.flatMap((f) =>
-            [f.name, f.nameDe]
-              .filter((v): v is string => !!v)
-              .map((v) => normalizeKey(v))
-          )
-        );
-      } catch {
-        // Keep detail rendering even if this endpoint is unavailable.
-      }
+    let currentAddedFindingIds = new Set<number>(addedFindingIds.value);
+    if (currentPatientExaminationId.value && currentAddedFindingIds.size === 0) {
+      await refreshAddedFindingIds();
+      currentAddedFindingIds = new Set<number>(addedFindingIds.value);
     }
 
     const details: TemplateFindingDetail[] = [];
@@ -835,7 +991,7 @@ const refreshTemplateFindingDetails = async (): Promise<void> => {
           missingRequiredClassifications,
           isAddedToPatientExamination:
             matched !== null &&
-            patientExaminationFindingKeys.has(normalizeKey(matched.nameDe || matched.name || '')),
+            currentAddedFindingIds.has(matched.id),
           matchedFinding: matched
             ? {
                 id: matched.id,
@@ -931,6 +1087,7 @@ const applyTemplateToRequirementSelection = async (): Promise<void> => {
 
 // --- Finding Management Methods ---
 const isFindingAddedToExamination = (findingId: number): boolean => {
+  if (addedFindingIds.value.has(findingId)) return true;
   if (!lookup.value) return false;
   const currentFindingIds = findingStore.getFindingIdsByPatientExaminationId(lookup.value.patientExaminationId);
   if (currentFindingIds.includes(findingId)) return true;
@@ -938,7 +1095,7 @@ const isFindingAddedToExamination = (findingId: number): boolean => {
 };
 
 
-const onFindingAddedToExamination = (
+const onFindingAddedToExamination = async (
   findingIdOrData: number | {
     findingId: number;
     findingName?: string;
@@ -982,6 +1139,10 @@ const onFindingAddedToExamination = (
   setTimeout(() => {
     successMessage.value = null;
   }, 5000); // Longer display for more detailed message
+
+  await refreshAddedFindingIds();
+  await refreshTemplateFindingDetails();
+  await fetchPreviousReportTexts();
 
   // Trigger requirement evaluation after finding is added
   setTimeout(() => {
@@ -1142,16 +1303,20 @@ const fetchNormalizedFindingsPayload = async (): Promise<SaveReportSubmissionReq
     );
     const rows = (Array.isArray(res.data?.results) ? res.data.results : res.data) as PatientFindingApiRow[];
     return (Array.isArray(rows) ? rows : [])
-      .filter((row) => row && row.finding && row.isActive !== false)
-      .map((row) => ({
-        finding: row.finding,
-        classifications: mergeClassificationSelections(
-          row.finding,
-          row.classifications,
-          localFindingClassificationSelections.value
-        ),
-        interventions: normalizeInterventions(row.interventions)
-      }));
+      .map((row) => {
+        const findingId = extractFindingId(row?.finding);
+        if (findingId == null || row?.isActive === false) return null;
+        return {
+          finding: findingId,
+          classifications: mergeClassificationSelections(
+            findingId,
+            row.classifications,
+            localFindingClassificationSelections.value
+          ),
+          interventions: normalizeInterventions(row.interventions)
+        };
+      })
+      .filter((row): row is SaveReportSubmissionRequest['findings'][number] => !!row);
   } catch (e) {
     console.warn('Failed to fetch patient-findings for report save, falling back to examination findings:', axiosError(e));
   }
@@ -1652,6 +1817,7 @@ function resetLookupSession() {
   lookupToken.value = null;
   lookup.value = null;
   currentPatientExaminationId.value = null;
+  addedFindingIds.value = new Set();
   currentReportId.value = null;
   currentReportVersion.value = null;
   lastSaveStatus.value = null;
@@ -1675,6 +1841,8 @@ async function resetSessionForNewPatient(): Promise<void> {
   lookupToken.value = null;
   lookup.value = null;
   currentPatientExaminationId.value = null;
+  addedFindingIds.value = new Set();
+  previousReportTexts.value = [];
   currentReportId.value = null;
   currentReportVersion.value = null;
   lastSaveStatus.value = null;
@@ -1842,6 +2010,20 @@ watch(currentPatientExaminationId, (newId) => {
   }
 });
 
+watch(
+  currentPatientExaminationId,
+  async (newId) => {
+    if (newId) {
+      await refreshAddedFindingIds();
+      await refreshTemplateFindingDetails();
+      await fetchPreviousReportTexts();
+    } else {
+      addedFindingIds.value = new Set();
+    }
+  },
+  { immediate: true }
+);
+
 // --- Watchers ---
 watch(selectedExaminationId, (newId) => {
   console.log('Examination selection changed:', {
@@ -1879,6 +2061,12 @@ watch(selectedPatientId, async (newPatientId, oldPatientId) => {
     await resetSessionForNewPatient();
     autoSelectionAppliedKey.value = null;
     hasManualRequirementSelection.value = false;
+  }
+
+  if (newPatientId) {
+    await fetchPreviousReportTexts();
+  } else {
+    previousReportTexts.value = [];
   }
 });
 
@@ -1963,6 +2151,10 @@ onMounted(async () => {
   // Load findings data on component mount
   await loadFindingsData();
   await fetchReportTemplateByName(selectedKbModule.value, selectedTemplateName.value);
+  await refreshAddedFindingIds();
+  if (selectedPatientId.value) {
+    await fetchPreviousReportTexts();
+  }
 });
 
 onUnmounted(() => {
@@ -2059,6 +2251,18 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+}
+
+.previous-report-text {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 0.9rem;
+  background-color: #fff;
+  border: 1px solid #dee2e6;
+  border-radius: 0.375rem;
+  padding: 0.75rem;
+  max-height: 220px;
+  overflow: auto;
 }
 
 /* Enhanced animations and transitions */

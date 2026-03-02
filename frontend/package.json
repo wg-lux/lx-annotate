@@ -27,6 +27,8 @@
     "keycloak-js": "^26.1.5",
     "lodash-es": "^4.17.21",
     "material-dashboard": "^3.0.9",
+    "pdf-lib": "^1.17.1",
+    "pdfjs-dist": "^4.10.38",
     "pinia": "^3.0.3",
     "snakecase-keys": "^8.0.1",
     "uuid": "^11.0.3",

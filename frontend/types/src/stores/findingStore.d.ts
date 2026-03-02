@@ -182,7 +182,7 @@ export declare const useFindingStore: import("pinia").StoreDefinition<"finding",
     isExaminationFindingsLoading: (examinationId: number) => boolean;
     clearExaminationFindingsCache: (examinationId?: number) => void;
     fetchFindingsByPatientExamination: (patientExaminationId: number | null) => Promise<Finding[]>;
-}, "loading" | "error" | "findings" | "FindingClassification" | "currentFinding" | "examinationFindings">, Pick<{
+}, "error" | "loading" | "findings" | "FindingClassification" | "currentFinding" | "examinationFindings">, Pick<{
     findings: Readonly<import("vue").Ref<readonly {
         readonly id: number;
         readonly name: string;

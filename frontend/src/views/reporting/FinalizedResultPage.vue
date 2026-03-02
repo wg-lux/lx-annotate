@@ -31,17 +31,21 @@
         </div>
         <template v-else>
           <div class="row g-3 mb-3">
-            <div class="col-md-4">
+            <div class="col-md-3">
               <div class="small text-muted">Status</div>
               <div><span class="badge" :class="statusClass">{{ latestReport.status || 'unknown' }}</span></div>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
               <div class="small text-muted">Version</div>
               <div>{{ latestReport.version ?? 'n/a' }}</div>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
               <div class="small text-muted">Aktualisiert</div>
               <div>{{ formatTimestamp(latestReport.updatedAt || latestReport.createdAt) }}</div>
+            </div>
+            <div class="col-md-3">
+              <div class="small text-muted">Dokumenttyp</div>
+              <div>{{ reportDocumentType || 'n/a' }}</div>
             </div>
           </div>
 
@@ -99,11 +103,15 @@ type ReportListRow = {
 
 type ReportDetailRow = {
   id: number
+  documentType?: string | null
+  document_type?: string | null
   persistedArtifacts?: {
     pdfViewUrl?: string | null
     pdfDownloadUrl?: string | null
     patientTimelineUrl?: string | null
     pdfId?: number | null
+    documentType?: string | null
+    document_type?: string | null
   } | null
   persistedPdfArtifactId?: number | null
 }
@@ -133,6 +141,18 @@ const statusClass = computed(() => {
 
 const persistedArtifacts = computed(() => latestReportDetail.value?.persistedArtifacts || null)
 
+const reportDocumentType = computed<string | null>(() => {
+  const fromArtifacts =
+    (persistedArtifacts.value as { documentType?: string | null; document_type?: string | null } | null)
+      ?.documentType ||
+    (persistedArtifacts.value as { documentType?: string | null; document_type?: string | null } | null)
+      ?.document_type
+  if (typeof fromArtifacts === 'string' && fromArtifacts.trim().length > 0) return fromArtifacts
+  const fromDetail = latestReportDetail.value?.documentType || latestReportDetail.value?.document_type
+  if (typeof fromDetail === 'string' && fromDetail.trim().length > 0) return fromDetail
+  return null
+})
+
 const fallbackPdfId = computed<number | null>(() => {
   if (typeof persistedArtifacts.value?.pdfId === 'number') return persistedArtifacts.value.pdfId
   if (typeof latestReportDetail.value?.persistedPdfArtifactId === 'number') {
@@ -153,9 +173,20 @@ const pdfDownloadUrl = computed(() => {
   return null
 })
 
+function withPatientExaminationFilter(url: string): string {
+  if (!patientExaminationId.value) return url
+  if (url.includes('patient_examination_id=')) return url
+  const separator = url.includes('?') ? '&' : '?'
+  return `${url}${separator}patient_examination_id=${patientExaminationId.value}`
+}
+
 const patientTimelineUrl = computed(() => {
-  if (persistedArtifacts.value?.patientTimelineUrl) return persistedArtifacts.value.patientTimelineUrl
-  if (flow.selectedPatientId) return `/${r(endpoints.media.patientTimeline(flow.selectedPatientId))}`
+  if (persistedArtifacts.value?.patientTimelineUrl) {
+    return withPatientExaminationFilter(persistedArtifacts.value.patientTimelineUrl)
+  }
+  if (flow.selectedPatientId) {
+    return withPatientExaminationFilter(`/${r(endpoints.media.patientTimeline(flow.selectedPatientId))}`)
+  }
   return null
 })
 

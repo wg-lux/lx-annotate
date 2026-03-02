@@ -49,6 +49,25 @@ describe('FinalizedResultPage', () => {
         const hrefs = wrapper.findAll('a').map((a) => a.attributes('href'));
         expect(hrefs).toContain('/api/media/pdfs/12/stream/?type=raw');
         expect(hrefs).toContain('/api/media/pdfs/12/stream/?type=raw&download=1');
-        expect(hrefs).toContain('/api/media/patients/9/timeline/');
+        expect(hrefs).toContain('/api/media/patients/9/timeline/?patient_examination_id=17');
+    });
+    it('builds fallback timeline link with patient_examination_id filter', async () => {
+        vi.mocked(axiosInstance.get)
+            .mockResolvedValueOnce({
+            data: [{ id: 88, status: 'final', version: 4, updatedAt: '2026-02-27T08:00:00Z' }]
+        })
+            .mockResolvedValueOnce({
+            data: {
+                id: 88,
+                persistedArtifacts: {
+                    pdfViewUrl: '/api/media/pdfs/12/stream/?type=raw',
+                    pdfDownloadUrl: '/api/media/pdfs/12/stream/?type=raw&download=1'
+                }
+            }
+        });
+        const wrapper = mount(FinalizedResultPage);
+        await flushPromises();
+        const hrefs = wrapper.findAll('a').map((a) => a.attributes('href'));
+        expect(hrefs).toContain('/api/media/patients/9/timeline/?patient_examination_id=17');
     });
 });

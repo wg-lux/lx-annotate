@@ -78,6 +78,7 @@ export const endpoints = {
     },
     anonymization: {
         itemsOverview: 'anonymization/items/overview/',
+        documentTypesDropdown: 'anonymization/document-types/dropdown/',
         current: (fileId) => `anonymization/${fileId}/current/`,
         start: (fileId) => `anonymization/${fileId}/start/`,
         status: (fileId) => `anonymization/${fileId}/status/`,

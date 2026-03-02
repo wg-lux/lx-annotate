@@ -72,6 +72,7 @@ export declare const endpoints: {
     };
     readonly anonymization: {
         readonly itemsOverview: "anonymization/items/overview/";
+        readonly documentTypesDropdown: "anonymization/document-types/dropdown/";
         readonly current: (fileId: Id) => string;
         readonly start: (fileId: Id) => string;
         readonly status: (fileId: Id) => string;
