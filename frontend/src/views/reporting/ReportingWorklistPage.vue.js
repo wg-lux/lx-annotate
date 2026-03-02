@@ -203,10 +203,6 @@ else {
         }
     }
 }
-__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "alert alert-secondary mb-0" },
-});
-__VLS_asFunctionalElement(__VLS_intrinsicElements.code, __VLS_intrinsicElements.code)({});
 /** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
 /** @type {__VLS_StyleScopedClasses['flex-column']} */ ;
 /** @type {__VLS_StyleScopedClasses['gap-3']} */ ;
@@ -257,9 +253,6 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.code, __VLS_intrinsicElements.
 /** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['small']} */ ;
-/** @type {__VLS_StyleScopedClasses['alert']} */ ;
-/** @type {__VLS_StyleScopedClasses['alert-secondary']} */ ;
-/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
 var __VLS_dollars;
 const __VLS_self = (await import('vue')).defineComponent({
     setup() {

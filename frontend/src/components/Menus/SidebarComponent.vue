@@ -340,10 +340,14 @@ export default {
 .sidenav {
   display: flex;
   flex-direction: column;
+  height: 100%;
+  min-height: 0;
 }
 
 .sidenav-header {
   flex: 0 0 auto;
+  height: auto !important;
+  min-height: 0;
   position: relative;
   z-index: 1;
 }
@@ -407,7 +411,7 @@ export default {
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
-  max-height: calc(100vh - 4.875rem);
+  max-height: none;
   -webkit-overflow-scrolling: touch;
 }
 

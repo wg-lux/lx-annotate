@@ -14,8 +14,13 @@
               PE: {{ flow.patientExaminationId || 'n/a' }} · Token: {{ flow.lookupToken ? 'ja' : 'nein' }}
             </div>
             <nav class="nav flex-column gap-1">
-              <RouterLink v-for="item in navItems" :key="item.to" :to="item.to" class="btn btn-sm text-start"
-                :class="isActive(item.to) ? 'btn-dark' : 'btn-outline-secondary'">
+              <RouterLink
+                v-for="item in navItems"
+                :key="item.to"
+                :to="item.to"
+                class="workflow-step-btn btn btn-sm text-start"
+                :class="isActive(item.to) ? 'btn-dark is-active' : 'btn-outline-secondary is-inactive'"
+              >
                 {{ item.label }}
               </RouterLink>
             </nav>
@@ -57,7 +62,25 @@ function isActive(path: string): boolean {
 </script>
 
 <style scoped>
-.reporting-shell .nav .btn {
+.reporting-shell .workflow-step-btn {
   white-space: normal;
+  text-decoration: none;
+}
+
+.reporting-shell .workflow-step-btn.is-inactive {
+  color: #344767 !important;
+  background-color: #f8f9fa;
+  border-color: #d6dbe3;
+}
+
+.reporting-shell .workflow-step-btn.is-inactive:hover,
+.reporting-shell .workflow-step-btn.is-inactive:focus-visible {
+  color: #1f2a37 !important;
+  background-color: #eef2f7;
+  border-color: #c7d0dd;
+}
+
+.reporting-shell .workflow-step-btn.is-active {
+  color: #fff !important;
 }
 </style>

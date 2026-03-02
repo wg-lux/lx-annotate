@@ -76,10 +76,6 @@
         </div>
       </div>
     </div>
-
-    <div class="alert alert-secondary mb-0">
-      Der bestehende monolithische Workflow bleibt unter <code>/report-generator</code> verfügbar.
-    </div>
   </div>
 </template>
 

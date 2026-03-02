@@ -21,6 +21,16 @@ debugger; /* PartiallyEnd: #3632/scriptSetup.vue */
 const __VLS_ctx = {};
 let __VLS_components;
 let __VLS_directives;
+/** @type {__VLS_StyleScopedClasses['reporting-shell']} */ ;
+/** @type {__VLS_StyleScopedClasses['workflow-step-btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['reporting-shell']} */ ;
+/** @type {__VLS_StyleScopedClasses['workflow-step-btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['is-inactive']} */ ;
+/** @type {__VLS_StyleScopedClasses['reporting-shell']} */ ;
+/** @type {__VLS_StyleScopedClasses['workflow-step-btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['is-inactive']} */ ;
+/** @type {__VLS_StyleScopedClasses['reporting-shell']} */ ;
+/** @type {__VLS_StyleScopedClasses['workflow-step-btn']} */ ;
 // CSS variable injection 
 // CSS variable injection end 
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -64,14 +74,14 @@ for (const [item] of __VLS_getVForSourceType((__VLS_ctx.navItems))) {
     const __VLS_1 = __VLS_asFunctionalComponent(__VLS_0, new __VLS_0({
         key: (item.to),
         to: (item.to),
-        ...{ class: "btn btn-sm text-start" },
-        ...{ class: (__VLS_ctx.isActive(item.to) ? 'btn-dark' : 'btn-outline-secondary') },
+        ...{ class: "workflow-step-btn btn btn-sm text-start" },
+        ...{ class: (__VLS_ctx.isActive(item.to) ? 'btn-dark is-active' : 'btn-outline-secondary is-inactive') },
     }));
     const __VLS_2 = __VLS_1({
         key: (item.to),
         to: (item.to),
-        ...{ class: "btn btn-sm text-start" },
-        ...{ class: (__VLS_ctx.isActive(item.to) ? 'btn-dark' : 'btn-outline-secondary') },
+        ...{ class: "workflow-step-btn btn btn-sm text-start" },
+        ...{ class: (__VLS_ctx.isActive(item.to) ? 'btn-dark is-active' : 'btn-outline-secondary is-inactive') },
     }, ...__VLS_functionalComponentArgsRest(__VLS_1));
     __VLS_3.slots.default;
     (item.label);
@@ -108,6 +118,7 @@ const __VLS_6 = __VLS_5({}, ...__VLS_functionalComponentArgsRest(__VLS_5));
 /** @type {__VLS_StyleScopedClasses['nav']} */ ;
 /** @type {__VLS_StyleScopedClasses['flex-column']} */ ;
 /** @type {__VLS_StyleScopedClasses['gap-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['workflow-step-btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-start']} */ ;
