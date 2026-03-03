@@ -1,5 +1,6 @@
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
+import axiosInstance, { r } from '@/api/axiosInstance';
 import MedicalBlock from '@/components/AssistedReporting/MedicalBlock.vue';
 import LookupActionsBar from '@/components/Reporting/LookupActionsBar.vue';
 import RequirementSetSelectionList from '@/components/Reporting/RequirementSetSelectionList.vue';
@@ -7,6 +8,7 @@ import { useLookupActions } from '@/composables/reporting/useLookupActions';
 import { useReportTemplates } from '@/composables/reporting/useReportTemplates';
 import { useExaminationStore } from '@/stores/examinationStore';
 import { useReportingFlowStore } from '@/stores/reportingFlowStore';
+import { endpoints } from '@/types/api/endpoints';
 const route = useRoute();
 const flow = useReportingFlowStore();
 const examinationStore = useExaminationStore();
@@ -25,6 +27,10 @@ const templateStatusMessage = ref(null);
 const requirementSets = computed(() => lookup.value?.requirementSets ?? []);
 const selectedRequirementSetIdSet = computed(() => new Set(flow.selectedRequirementSetIds));
 const prettySuggestedActions = computed(() => JSON.stringify(lookup.value?.suggestedActions || {}, null, 2));
+const routePatientExaminationId = computed(() => {
+    const raw = Number(route.params.patient_examination_id);
+    return Number.isFinite(raw) ? raw : null;
+});
 function clearMessages() {
     errorMessage.value = null;
     successMessage.value = null;
@@ -38,6 +44,99 @@ function applyLookup(partial) {
     }
     if (Array.isArray(partial.selectedRequirementSetIds)) {
         flow.setSelectedRequirementSetIds(partial.selectedRequirementSetIds);
+    }
+}
+function extractPatientId(payload) {
+    const patientId = Number(payload?.patientData?.id ?? payload?.patient_data?.id);
+    return Number.isFinite(patientId) ? patientId : null;
+}
+function extractExaminationName(payload) {
+    if (typeof payload?.examination === 'string' && payload.examination.trim()) {
+        return payload.examination.trim();
+    }
+    if (payload?.examination &&
+        typeof payload.examination === 'object' &&
+        typeof payload.examination.name === 'string' &&
+        payload.examination.name.trim()) {
+        return payload.examination.name.trim();
+    }
+    if (typeof payload?.examinationName === 'string' && payload.examinationName.trim()) {
+        return payload.examinationName.trim();
+    }
+    if (typeof payload?.examination_name === 'string' && payload.examination_name.trim()) {
+        return payload.examination_name.trim();
+    }
+    return null;
+}
+function resolveExaminationIdByName(name) {
+    const normalized = name.trim().toLowerCase();
+    const match = examinationStore.examinationsDropdown.find((item) => String(item.name || '').trim().toLowerCase() === normalized);
+    return match?.id ?? null;
+}
+function applyRoutePatientExaminationContext(routeId) {
+    if (flow.patientExaminationId !== routeId) {
+        flow.setLookupSession({
+            patientExaminationId: routeId,
+            lookupToken: null,
+            status: 'idle'
+        });
+        flow.setSelectedRequirementSetIds([]);
+        flow.setActiveReportId(null);
+    }
+}
+async function hydrateCaseSelectionFromPatientExamination(routeId) {
+    const res = await axiosInstance.get(r(endpoints.examination.patientExaminationDetail(routeId)));
+    const payload = res.data;
+    const patientId = extractPatientId(payload);
+    if (patientId != null) {
+        flow.setCaseSelection({ selectedPatientId: patientId });
+    }
+    const examinationName = extractExaminationName(payload);
+    if (examinationName) {
+        const examinationId = resolveExaminationIdByName(examinationName);
+        if (examinationId != null) {
+            flow.setCaseSelection({ selectedExaminationId: examinationId });
+        }
+    }
+}
+async function ensureLookupSession(routeId) {
+    if (flow.lookupToken) {
+        flow.setLookupSession({
+            patientExaminationId: routeId,
+            lookupToken: flow.lookupToken,
+            status: 'active'
+        });
+        return;
+    }
+    const initRes = await axiosInstance.post(r(endpoints.requirements.lookupInit), {
+        patientExaminationId: routeId
+    });
+    const token = String(initRes.data?.token || '');
+    if (!token) {
+        throw new Error('Lookup-Init lieferte kein Token.');
+    }
+    flow.setLookupSession({
+        patientExaminationId: routeId,
+        lookupToken: token,
+        status: 'active'
+    });
+}
+async function initializeFromRouteContext() {
+    const routeId = routePatientExaminationId.value;
+    if (!routeId)
+        return;
+    applyRoutePatientExaminationContext(routeId);
+    await hydrateCaseSelectionFromPatientExamination(routeId);
+    await ensureLookupSession(routeId);
+    const lookupResult = await lookupActions.fetchLookupAll();
+    if (!lookupResult.ok && lookupResult.expired) {
+        flow.setLookupSession({
+            patientExaminationId: routeId,
+            lookupToken: null,
+            status: 'expired'
+        });
+        await ensureLookupSession(routeId);
+        await lookupActions.fetchLookupAll();
     }
 }
 const lookupActions = useLookupActions({
@@ -122,6 +221,7 @@ onMounted(async () => {
     if (!examinationStore.exams.length) {
         await examinationStore.fetchExaminations();
     }
+    await initializeFromRouteContext();
     if (selectedExaminationName.value) {
         await refreshTemplatesForExamination();
     }
@@ -130,8 +230,16 @@ onMounted(async () => {
         errorMessage.value =
             'Warnung: Route-Parameter und gespeicherte Patientenuntersuchung stimmen nicht überein.';
     }
-    if (flow.lookupToken) {
+    if (flow.lookupToken && !lookup.value) {
         await fetchLookupAll();
+    }
+});
+watch(routePatientExaminationId, async (newId, oldId) => {
+    if (!newId || newId === oldId)
+        return;
+    await initializeFromRouteContext();
+    if (selectedExaminationName.value) {
+        await refreshTemplatesForExamination();
     }
 });
 debugger; /* PartiallyEnd: #3632/scriptSetup.vue */
@@ -270,6 +378,9 @@ __VLS_2.slots.default;
             (section.requiredClassificationsCount);
         }
     }
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "alert alert-info py-2 mt-3 mb-0" },
+    });
 }
 var __VLS_2;
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -457,6 +568,11 @@ else {
 /** @type {__VLS_StyleScopedClasses['fw-semibold']} */ ;
 /** @type {__VLS_StyleScopedClasses['small']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert-info']} */ ;
+/** @type {__VLS_StyleScopedClasses['py-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
 /** @type {__VLS_StyleScopedClasses['card']} */ ;
 /** @type {__VLS_StyleScopedClasses['shadow-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-header']} */ ;

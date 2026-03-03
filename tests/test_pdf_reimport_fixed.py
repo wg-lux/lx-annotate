@@ -26,7 +26,7 @@ def test_pdf_reimport():
     source_dirs = [
         Path("data/pdfs/sensitive"),
         Path("data/pdfs"),
-        Path("data/raw_pdfs"),
+        Path("data/import/report_import"),
     ]
 
     source_pdf = None
@@ -41,12 +41,12 @@ def test_pdf_reimport():
         print("❌ No PDF files found for testing")
         return False
 
-    # Create test copies in raw_pdfs directory
-    raw_pdf_dir = Path("data/raw_pdfs")
-    raw_pdf_dir.mkdir(exist_ok=True)
+    # Create test copies in report import directory
+    report_import_dir = Path("data/import/report_import")
+    report_import_dir.mkdir(parents=True, exist_ok=True)
 
-    test_pdf1 = raw_pdf_dir / f"test_reimport_1_{source_pdf.name}"
-    test_pdf2 = raw_pdf_dir / f"test_reimport_2_{source_pdf.name}"
+    test_pdf1 = report_import_dir / f"test_reimport_1_{source_pdf.name}"
+    test_pdf2 = report_import_dir / f"test_reimport_2_{source_pdf.name}"
 
     print(f"Testing PDF reimport functionality using source: {source_pdf}")
     print(f"Test files: {test_pdf1.name}, {test_pdf2.name}")
@@ -83,7 +83,7 @@ def test_pdf_reimport():
         print("\n3️⃣ Testing current processing protection...")
 
         # First, create a third test file
-        test_pdf3 = raw_pdf_dir / f"test_reimport_3_{source_pdf.name}"
+        test_pdf3 = report_import_dir / f"test_reimport_3_{source_pdf.name}"
         shutil.copy2(source_pdf, test_pdf3)
 
         # Add to processed files set manually to simulate concurrent processing

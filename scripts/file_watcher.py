@@ -3,8 +3,8 @@
 File Watcher Service for Automatic Video and report Processing
 
 This service monitors directories for new files and automatically triggers:
-- Video anonymization and segmentation for files in data/raw_videos/
-- report anonymization for files in data/raw_reports/
+- Video anonymization and segmentation for files in data/import/video_import/
+- report anonymization for files in data/import/report_import/
 
 Usage:
     python scripts/file_watcher.py

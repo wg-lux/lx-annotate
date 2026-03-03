@@ -62,13 +62,13 @@ install_dependencies() {
 # Create required directories
 create_directories() {
     print_status "Creating required directories..."
-    mkdir -p "$HOME_DIR/data/raw_videos"
-    mkdir -p "$HOME_DIR/data/raw_pdfs"
+    mkdir -p "$HOME_DIR/data/import/video_import"
+    mkdir -p "$HOME_DIR/data/import/report_import"
     mkdir -p "$HOME_DIR/logs"
     
     print_status "Directories created:"
-    echo "  - $HOME_DIR/data/raw_videos"
-    echo "  - $HOME_DIR/data/raw_pdfs"
+    echo "  - $HOME_DIR/data/import/video_import"
+    echo "  - $HOME_DIR/data/import/report_import"
     echo "  - $HOME_DIR/logs"
 }
 

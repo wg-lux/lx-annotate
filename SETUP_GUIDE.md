@@ -37,11 +37,10 @@ https://lx-annotate.local/
 
 Videos need to be placed in
 
-data/raw_videos
+data/import/video_import
 
 pdfs in
 
-data/raw_pdfs
+data/import/report_import
 
 to start processing.
-

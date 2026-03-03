@@ -79,8 +79,8 @@ python manage.py runserver
 
 The file watcher ingests media placed in:
 
-- `data/raw_videos/`
-- `data/raw_pdfs/`
+- `data/import/video_import/`
+- `data/import/report_import/`
 
 ```bash
 ./scripts/start_filewatcher.sh dev

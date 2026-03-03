@@ -95,6 +95,14 @@ const router = createRouter({
       }
     },
     {
+      path: '/documentation',
+      name: 'Dokumentation',
+      component: () => import('@/views/Documentation.vue'),
+      meta: {
+        description: 'Sphinx-Dokumentation innerhalb der Anwendung.'
+      }
+    },
+    {
       path: '/untersuchung',
       name: 'Untersuchung',
       component: () => import('@/views/Examination.vue'),

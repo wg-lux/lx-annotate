@@ -10,8 +10,15 @@ used throughout the project.
 :maxdepth: 2
 :caption: Guides
 
+guides/general-documentation
+assisted-reporting-report
+guides/segment-annotation-workflow
+guides/anonymization-validation-correction-workflow
 guides/dates-and-times
 guides/pydantic-cheatsheet
+guides/reporting-template-requirements-page
+guides/endoreg_db_report_import_path_handoff
+guides/endoreg_db_video_import_path_handoff
 ```
 
 ```{toctree}

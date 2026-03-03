@@ -44,6 +44,14 @@
               <span class="nav-link-text ms-1">Alle Seiten</span>
             </router-link>
           </li>
+          <li class="nav-item">
+            <router-link to="/documentation" class="nav-link" :class="{ active: $route.path === '/documentation' }">
+              <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
+                <i class="material-icons opacity-10">menu_book</i>
+              </div>
+              <span class="nav-link-text ms-1">Dokumentation</span>
+            </router-link>
+          </li>
           <li class="nav-item" v-can="'page.patients.view:GET'">
             <router-link to="/patienten" class="nav-link" :class="{ active: $route.path === '/patienten' }">
               <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">

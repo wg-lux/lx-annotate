@@ -20,7 +20,7 @@ DEVENV_RUN = $(DEVENV) shell --
 .PHONY: help doctor check-tools check-repo ensure-repo-dir ensure-git-repo \
 	setup bootstrap update submodules reset-branch migrate load-base-data static \
 	deploy-prod deploy start-app start-watcher start-export shell django-check \
-	test lint frontend-build backend-server
+	test lint frontend-build backend-server docs-build docs-publish
 
 help: ## Show available targets
 	@awk 'BEGIN {FS = ":.*## "}; /^[a-zA-Z0-9_.-]+:.*## / {printf "%-20s %s\n", $$1, $$2}' $(MAKEFILE_LIST) | sort
@@ -84,6 +84,13 @@ load-base-data: check-repo check-tools ## Load baseline application data
 
 static: check-repo check-tools ## Collect static files
 	cd "$(REPO_DIR)" && $(DEVENV_RUN) python manage.py collectstatic --noinput --clear
+
+docs-build: check-repo check-tools ## Build Sphinx HTML docs
+	cd "$(REPO_DIR)" && $(DEVENV_RUN) uv run --extra docs make -C docs html
+
+docs-publish: docs-build ## Publish docs to static/docs for the /documentation app route
+	cd "$(REPO_DIR)" && $(MKDIR_P) static/docs
+	cd "$(REPO_DIR)" && rsync -a --delete docs/_build/html/ static/docs/
 
 deploy-prod: update submodules migrate load-base-data static ## Update code and prepare prod assets
 	@echo "Production deploy steps completed."

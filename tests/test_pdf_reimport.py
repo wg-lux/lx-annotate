@@ -17,12 +17,14 @@ def test_pdf_reimport():
 
     # Test file path - use a file that we know exists
     test_file = Path(
-        "/home/admin/dev/lx-annotate/data/raw_pdfs/ca300ab6623217e4b570375b0fe3f315e35caf0d32968e42fc300af47891f409.pdf"
+        "/home/admin/dev/lx-annotate/data/import/report_import/ca300ab6623217e4b570375b0fe3f315e35caf0d32968e42fc300af47891f409.pdf"
     )
 
     if not test_file.exists():
         print(f"Test file not found: {test_file}")
-        print("Please ensure a PDF file exists in the raw_pdfs directory.")
+        print(
+            "Please ensure a PDF file exists in the data/import/report_import directory."
+        )
         return False
 
     print(f"Testing PDF reimport with file: {test_file}")

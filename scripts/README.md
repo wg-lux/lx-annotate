@@ -29,7 +29,7 @@ scripts/
 
 ## Key Scripts
 
-- `file_watcher.py`: watches `data/raw_videos/` and `data/raw_pdfs/` and processes new files
+- `file_watcher.py`: watches `data/import/video_import/` and `data/import/report_import/` and processes new files
 - `start_filewatcher.sh`: setup and service control wrapper for the watcher
 - `diagnose_watcher.py`: diagnostics for watcher configuration/runtime issues
 - `cleanup_invalid_videos.py`: removes or reports invalid/corrupted video files

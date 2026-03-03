@@ -16,8 +16,8 @@ Supported monitored inputs (via project data paths):
 
 In most local setups these map to:
 
-- `data/raw_videos/`
-- `data/raw_pdfs/`
+- `data/import/video_import/`
+- `data/import/report_import/`
 
 ## Quick Start
 
