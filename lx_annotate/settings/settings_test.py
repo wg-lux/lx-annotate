@@ -73,7 +73,7 @@ class DisableMigrations:
         return None
 
 
-MIGRATION_MODULES = DisableMigrations()
+MIGRATION_MODULES = cast(Any, DisableMigrations())
 
 # -----------------------------------------------------------------------------
 # 4. PATHS & ASSETS
