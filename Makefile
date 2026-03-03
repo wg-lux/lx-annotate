@@ -105,7 +105,7 @@ backend-server: check-repo check-tools ## Start backend server via devenv script
 	cd "$(REPO_DIR)" && $(DEVENV_RUN) run-server
 
 start-app: check-repo check-tools
-    cd "$(REPO_DIR)" && $(DEVENV) shell "frontend-build && backend-server"
+	cd "$(REPO_DIR)" && $(DEVENV) shell "frontend-build && backend-server"
 
 start-watcher: check-repo check-tools ## Start file watcher process
 	cd "$(REPO_DIR)" && $(DEVENV_RUN) run-filewatcher
