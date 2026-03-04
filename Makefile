@@ -98,14 +98,14 @@ deploy-prod: update submodules migrate load-base-data static ## Update code and 
 deploy: deploy-prod ## Alias for deploy-prod
 	@true
 
-frontend-build: check-repo check-tools ## Build frontend assets via devenv script
+frontend-build: check-repo check-tools
 	cd "$(REPO_DIR)" && $(DEVENV_RUN) vue-build
 
-backend-server: check-repo check-tools ## Start backend server via devenv script
+backend-server: check-repo check-tools
 	cd "$(REPO_DIR)" && $(DEVENV_RUN) run-server
 
 start-app: check-repo check-tools
-	$(DEVENV) shell "cd $(REPO_DIR) && frontend-build && backend-server"
+	cd "$(REPO_DIR)" && $(DEVENV) shell "frontend-build && backend-server"
 
 start-watcher: check-repo check-tools ## Start file watcher process
 	cd "$(REPO_DIR)" && $(DEVENV_RUN) run-filewatcher
