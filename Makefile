@@ -138,8 +138,8 @@ frontend-build-force: check-repo check-tools ## Force-build frontend assets and 
 backend-server: check-repo check-tools
 	cd "$(REPO_DIR)" && $(DEVENV_RUN) run-server
 
-start-app: check-repo check-tools
-	cd "$(REPO_DIR)" && $(DEVENV) shell "make frontend-build && make backend-server"
+start-app: check-repo check-tools frontend-build
+	cd "$(REPO_DIR)" && exec $(DEVENV_RUN) run-server
 
 start-watcher: check-repo check-tools ## Start file watcher process
 	cd "$(REPO_DIR)" && $(DEVENV_RUN) run-filewatcher
