@@ -18,12 +18,27 @@ export default defineConfig(({ mode }) => {
     //base: mode === 'development' ? 'http://localhost:3000/' : './',
     base: isDev ? '/static/' : '/static/dist/',
     plugins: [vue(), vueJsx(), vueDevTools()],
+    define: {
+      // Label Studio expects a Node-style global in browser context.
+      global: 'window'
+    },
+    optimizeDeps: {
+      include: [
+        '@pareto-engineering/label-studio-mono',
+        'react',
+        'react-dom'
+      ]
+    },
 
     build: {
       manifest: true,
       outDir: resolve(__dirname, '../static/dist'),
       emptyOutDir: true,
       target: 'esnext', // Ermöglicht Top-level await
+      commonjsOptions: {
+        include: [/@pareto-engineering\/label-studio-mono/, /node_modules/],
+        transformMixedEsModules: true
+      },
       rollupOptions: {
         input: {
           main: resolve(__dirname, 'src/main.ts'),

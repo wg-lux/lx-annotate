@@ -51,6 +51,11 @@ export declare const endpoints: {
         readonly segmentFrameSelector: (patientExaminationId: Id, reportId?: Id) => string;
         readonly reportHistoryContext: (patientExaminationId: Id, limit?: number) => string;
     };
+    readonly annotation: {
+        readonly randomTask: "media/annotations/frames/random-task/";
+        readonly bulkUpsert: "media/annotations/frames/bulk-upsert/";
+        readonly skip: "media/annotations/frames/skip/";
+    };
     readonly upload: {
         readonly upload: "upload/";
         readonly uploadStatus: (id: UUID) => string;

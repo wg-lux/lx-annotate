@@ -279,9 +279,11 @@
       "src/views/reporting/FinalizedResultPage.vue",
       "src/views/AnnotationDashboard.vue",
       "src/views/VideoExamination.vue",
+      "src/views/FrameAnnotation.vue",
       "src/views/Dashboard.vue",
       "src/views/UeberUns.vue",
       "src/views/PageOverview.vue",
+      "src/views/Documentation.vue",
       "src/views/Examination.vue",
       "src/views/Export.vue",
       "src/views/PatientAdder.vue",
@@ -353,6 +355,18 @@
       "_AnnotationDashboard2.js"
     ]
   },
+  "src/views/Documentation.vue": {
+    "file": "Documentation.js",
+    "name": "Documentation",
+    "src": "src/views/Documentation.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "src/main.ts"
+    ],
+    "css": [
+      "Documentation.css"
+    ]
+  },
   "src/views/Examination.vue": {
     "file": "Examination.js",
     "name": "Examination",
@@ -382,6 +396,18 @@
     ],
     "css": [
       "Export.css"
+    ]
+  },
+  "src/views/FrameAnnotation.vue": {
+    "file": "FrameAnnotation.js",
+    "name": "FrameAnnotation",
+    "src": "src/views/FrameAnnotation.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "src/main.ts"
+    ],
+    "css": [
+      "FrameAnnotation.css"
     ]
   },
   "src/views/PageOverview.vue": {

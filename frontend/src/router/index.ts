@@ -71,6 +71,14 @@ const router = createRouter({
       }
     },
     {
+      path: '/frame-annotation',
+      name: 'Frame Annotation',
+      component: () => import('@/views/FrameAnnotation.vue'),
+      meta: {
+        description: 'Annotieren Sie zufällige Frames in Label Studio.'
+      }
+    },
+    {
       path: '/',
       name: 'Dashboard',
       component: () => import('@/views/Dashboard.vue'),

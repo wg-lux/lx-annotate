@@ -69,6 +69,12 @@ export const endpoints = {
         : `patient-examination-reports/history-context/?patient_examination_id=${patientExaminationId}&limit=${limit}`
   },
 
+  annotation: {
+    randomTask: 'media/annotations/frames/random-task/',
+    bulkUpsert: 'media/annotations/frames/bulk-upsert/',
+    skip: 'media/annotations/frames/skip/'
+  },
+
   upload: {
     upload: 'upload/',
     uploadStatus: (id: UUID) => `upload/${id}/status/`

@@ -1,10 +1,12 @@
 type CapMap = Record<string, boolean>;
+export interface User {
+    username: string;
+    roles: string[];
+    sub?: string;
+}
 export declare const useAuthKcStore: import("pinia").StoreDefinition<"auth_kc", {
     /** Filled from backend bootstrap */
-    user: {
-        username: string;
-        roles: string[];
-    } | null;
+    user: User | null;
     roles: string[];
     /** Capabilities normalized to simple booleans (see normalizeCaps) */
     caps: CapMap;
@@ -15,16 +17,14 @@ export declare const useAuthKcStore: import("pinia").StoreDefinition<"auth_kc", 
         user: {
             username: string;
             roles: string[];
+            sub?: string | undefined;
         } | null;
         roles: string[];
         caps: CapMap;
         loaded: boolean;
     } & import("pinia").PiniaCustomStateProperties<{
         /** Filled from backend bootstrap */
-        user: {
-            username: string;
-            roles: string[];
-        } | null;
+        user: User | null;
         roles: string[];
         /** Capabilities normalized to simple booleans (see normalizeCaps) */
         caps: CapMap;

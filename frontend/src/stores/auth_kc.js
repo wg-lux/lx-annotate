@@ -61,7 +61,22 @@ export const useAuthKcStore = defineStore('auth_kc', {
                     data = res.data;
                 }
                 // User & roles (support both shapes)
-                const user = (data && 'user' in data) ? data.user : null;
+                const rawUser = (data && 'user' in data) ? data.user : null;
+                const fallbackSub = typeof data?.sub === 'string'
+                    ? data.sub
+                    : typeof data?.oidcSub === 'string'
+                        ? data.oidcSub
+                        : typeof data?.oidc_sub === 'string'
+                            ? data.oidc_sub
+                            : null;
+                const user = rawUser
+                    ? {
+                        ...rawUser,
+                        sub: typeof rawUser.sub === 'string' && rawUser.sub.trim()
+                            ? rawUser.sub
+                            : fallbackSub ?? undefined
+                    }
+                    : null;
                 const roles = (data?.roles && Array.isArray(data.roles))
                     ? data.roles
                     : (user?.roles ?? []);

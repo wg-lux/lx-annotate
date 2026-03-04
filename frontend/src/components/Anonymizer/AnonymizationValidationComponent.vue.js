@@ -138,6 +138,12 @@ function shallowEqual(a, b) {
 // ============================================================================
 // Legacy functions removed - now using DateConverter from @/utils/dateHelpers
 // Migration: Oct 2025 (Phase 2.1)
+function normalizeDateInputToGerman(value) {
+    const isoDate = DateConverter.toISO(value);
+    if (!isoDate)
+        return '';
+    return DateConverter.toGerman(isoDate);
+}
 function buildSensitiveMetaSnake(dobGerman) {
     return {
         patient_first_name: editedPatient.value.patientFirstName || '',
@@ -648,13 +654,13 @@ function loadCurrentItemData(item) {
     // dates
     const rawExam = item.examinationDate || '';
     const rawDob = item.patientDobDisplay || item.patientDob;
-    examinationDate.value = DateConverter.toISO(rawExam) || '';
+    examinationDate.value = normalizeDateInputToGerman(rawExam);
     const convertedGender = convertGender(item.patientGenderName);
     editedPatient.value = {
         patientFirstName: item.patientFirstName || '',
         patientLastName: item.patientLastName || '',
         patientGenderName: convertedGender || '',
-        patientDob: DateConverter.toISO(rawDob) || '',
+        patientDob: normalizeDateInputToGerman(rawDob),
         casenumber: item.casenumber || '',
         externalId: item.externalId ?? '',
         externalIdOrigin: item.externalIdOrigin ?? '',
@@ -679,6 +685,7 @@ function loadCurrentItemData(item) {
         examinationDate: examinationDate.value,
         patient: { ...editedPatient.value },
     };
+    validateAllDates();
     // optional: remember last file in sessionStorage
     const persistedFileId = resolveFileIdFromContext();
     if (persistedFileId !== null) {
@@ -742,16 +749,12 @@ function validateAllDates() {
     // Validate DOB
     if (editedPatient.value.patientDob) {
         const dobValue = editedPatient.value.patientDob;
-        // Try to determine format
-        if (DateConverter.validate(dobValue, 'ISO')) {
-            dobDisplayFormat.value = 'ISO (YYYY-MM-DD)';
-        }
-        else if (DateConverter.validate(dobValue, 'German')) {
-            dobDisplayFormat.value = 'Deutsch (DD.MM.YYYY)';
+        if (DateConverter.validate(dobValue, 'German')) {
+            dobDisplayFormat.value = 'Deutsch (TT.MM.JJJJ)';
         }
         else {
             dobDisplayFormat.value = '';
-            dobErrorMessage.value = 'Ungültiges Format. Verwenden Sie DD.MM.YYYY oder YYYY-MM-DD';
+            dobErrorMessage.value = 'Ungültiges Format. Verwenden Sie TT.MM.JJJJ';
             validator.addField('Geburtsdatum', dobValue, 'German'); // Will fail
         }
     }
@@ -761,17 +764,13 @@ function validateAllDates() {
     // Validate Exam Date
     if (examinationDate.value) {
         const examValue = examinationDate.value;
-        // Try to determine format
-        if (DateConverter.validate(examValue, 'ISO')) {
-            examDateDisplayFormat.value = 'ISO (YYYY-MM-DD)';
-        }
-        else if (DateConverter.validate(examValue, 'German')) {
-            examDateDisplayFormat.value = 'Deutsch (DD.MM.YYYY)';
+        if (DateConverter.validate(examValue, 'German')) {
+            examDateDisplayFormat.value = 'Deutsch (TT.MM.JJJJ)';
         }
         else {
             examDateDisplayFormat.value = '';
-            examDateErrorMessage.value = 'Ungültiges Format. Verwenden Sie DD.MM.YYYY oder YYYY-MM-DD';
-            validator.addField('Untersuchungsdatum', examValue, 'ISO'); // Will fail
+            examDateErrorMessage.value = 'Ungültiges Format. Verwenden Sie TT.MM.JJJJ';
+            validator.addField('Untersuchungsdatum', examValue, 'German'); // Will fail
         }
     }
     else {
@@ -803,11 +802,11 @@ function onDobBlur() {
     const value = editedPatient.value.patientDob;
     if (!value)
         return;
-    // Try to convert to ISO for consistent storage
-    const isoDate = DateConverter.toISO(value);
-    if (isoDate) {
-        editedPatient.value.patientDob = isoDate;
-        dobDisplayFormat.value = 'ISO (YYYY-MM-DD)';
+    // Normalize to German for consistent UI entry format
+    const germanDate = normalizeDateInputToGerman(value);
+    if (germanDate) {
+        editedPatient.value.patientDob = germanDate;
+        dobDisplayFormat.value = 'Deutsch (TT.MM.JJJJ)';
     }
     // Validate all dates
     validateAllDates();
@@ -819,11 +818,11 @@ function onExamDateBlur() {
     const value = examinationDate.value;
     if (!value)
         return;
-    // Try to convert to ISO for consistent storage
-    const isoDate = DateConverter.toISO(value);
-    if (isoDate) {
-        examinationDate.value = isoDate;
-        examDateDisplayFormat.value = 'ISO (YYYY-MM-DD)';
+    // Normalize to German for consistent UI entry format
+    const germanDate = normalizeDateInputToGerman(value);
+    if (germanDate) {
+        examinationDate.value = germanDate;
+        examDateDisplayFormat.value = 'Deutsch (TT.MM.JJJJ)';
     }
     // Validate all dates
     validateAllDates();
@@ -1456,11 +1455,14 @@ if (__VLS_ctx.currentItem) {
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.input, __VLS_intrinsicElements.input)({
         ...{ onBlur: (__VLS_ctx.onDobBlur) },
-        type: "date",
+        type: "text",
         ...{ class: "form-control" },
+        value: (__VLS_ctx.editedPatient.patientDob),
         ...{ class: ({ 'is-invalid': !__VLS_ctx.isDobValid }) },
+        placeholder: "TT.MM.JJJJ",
+        inputmode: "numeric",
+        autocomplete: "bday",
     });
-    (__VLS_ctx.editedPatient.patientDob);
     __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
         ...{ class: "form-text text-muted" },
     });
@@ -1498,11 +1500,14 @@ if (__VLS_ctx.currentItem) {
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.input, __VLS_intrinsicElements.input)({
         ...{ onBlur: (__VLS_ctx.onExamDateBlur) },
-        type: "date",
+        type: "text",
         ...{ class: "form-control" },
+        value: (__VLS_ctx.examinationDate),
         ...{ class: ({ 'is-invalid': !__VLS_ctx.isExaminationDateValid }) },
+        placeholder: "TT.MM.JJJJ",
+        inputmode: "numeric",
+        autocomplete: "off",
     });
-    (__VLS_ctx.examinationDate);
     __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
         ...{ class: "form-text text-muted" },
     });

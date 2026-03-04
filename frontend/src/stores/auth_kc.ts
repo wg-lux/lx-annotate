@@ -13,10 +13,19 @@ type RW = { read?: boolean; write?: boolean }
 type RawCaps = Record<string, boolean | RW>
 type CapMap = Record<string, boolean>
 
+export interface User {
+  username: string
+  roles: string[]
+  sub?: string
+}
+
 interface Bootstrap {
-  user: { username: string; roles: string[] } | null
+  user: User | null
   roles?: string[]
   capabilities?: RawCaps
+  sub?: string
+  oidcSub?: string
+  oidc_sub?: string
 }
 
 /** Normalize arbitrary capability payloads into a simple boolean map. */
@@ -82,7 +91,24 @@ export const useAuthKcStore = defineStore('auth_kc', {
         }
 
         // User & roles (support both shapes)
-        const user = (data && 'user' in data) ? (data.user as Bootstrap['user']) : null
+        const rawUser = (data && 'user' in data) ? (data.user as Bootstrap['user']) : null
+        const fallbackSub =
+          typeof data?.sub === 'string'
+            ? data.sub
+            : typeof data?.oidcSub === 'string'
+              ? data.oidcSub
+              : typeof data?.oidc_sub === 'string'
+                ? data.oidc_sub
+                : null
+        const user = rawUser
+          ? {
+              ...rawUser,
+              sub:
+                typeof rawUser.sub === 'string' && rawUser.sub.trim()
+                  ? rawUser.sub
+                  : fallbackSub ?? undefined
+            }
+          : null
         const roles = (data?.roles && Array.isArray(data.roles))
           ? data.roles
           : (user?.roles ?? [])

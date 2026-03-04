@@ -1,3 +1,9 @@
+# Node Environment
+
+Inside of the folder frontend, the flake.nix provides a node js / npm development environment.
+Backend to frontend (snake_case to camelCase) conversion is handled by axiosInstance.ts in the frontend.
+The backend views and urls are located inside of /home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db and /home/admin/dev/lx-annotate/lx-data-models (git submodule)
+
 # Lookup Contract Guide For Frontend Agents
 
 ## Purpose
