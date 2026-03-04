@@ -13,6 +13,9 @@ REMOTE ?= origin
 DEVENV ?= devenv
 GIT ?= git
 MKDIR_P ?= mkdir -p
+CACHE_DIR ?= $(REPO_DIR)/.make-cache
+FRONTEND_HASH_FILE ?= $(CACHE_DIR)/frontend-src.sha256
+MIGRATIONS_HASH_FILE ?= $(CACHE_DIR)/migrations.sha256
 
 # Helper: run commands inside the devenv environment
 DEVENV_RUN = $(DEVENV) shell --
@@ -20,7 +23,8 @@ DEVENV_RUN = $(DEVENV) shell --
 .PHONY: help doctor check-tools check-repo ensure-repo-dir ensure-git-repo \
 	setup bootstrap update submodules reset-branch migrate load-base-data static \
 	deploy-prod deploy start-app start-watcher start-export shell django-check \
-	test lint frontend-build backend-server docs-build docs-publish
+	test lint frontend-build frontend-build-force backend-server docs-build docs-publish \
+	migrate-force
 
 help: ## Show available targets
 	@awk 'BEGIN {FS = ":.*## "}; /^[a-zA-Z0-9_.-]+:.*## / {printf "%-20s %s\n", $$1, $$2}' $(MAKEFILE_LIST) | sort
@@ -76,8 +80,23 @@ reset-branch: setup ## Hard-reset local branch to remote (destructive; use caref
 django-check: check-repo check-tools ## Run Django checks in devenv
 	cd "$(REPO_DIR)" && $(DEVENV_RUN) python manage.py check
 
-migrate: check-repo check-tools ## Apply database migrations
+migrate: check-repo check-tools ## Apply database migrations (only when migration files changed)
+	@$(MKDIR_P) "$(CACHE_DIR)"
+	@set -e; \
+	new_hash="$$(cd "$(REPO_DIR)" && { find . -type f -path '*/migrations/*.py' ! -name '__init__.py' -print0 | sort -z | xargs -0 -r sha256sum; } | sha256sum | awk '{print $$1}')"; \
+	old_hash="$$(cat "$(MIGRATIONS_HASH_FILE)" 2>/dev/null || true)"; \
+	if [ "$$new_hash" != "$$old_hash" ]; then \
+		echo "Migration files changed; applying migrations."; \
+		cd "$(REPO_DIR)" && $(DEVENV_RUN) python manage.py migrate --noinput; \
+		printf '%s\n' "$$new_hash" > "$(MIGRATIONS_HASH_FILE)"; \
+	else \
+		echo "Migration files unchanged; skipping migrate."; \
+	fi
+
+migrate-force: check-repo check-tools ## Force-apply database migrations and refresh migration cache
 	cd "$(REPO_DIR)" && $(DEVENV_RUN) python manage.py migrate --noinput
+	@$(MKDIR_P) "$(CACHE_DIR)"
+	@cd "$(REPO_DIR)" && { find . -type f -path '*/migrations/*.py' ! -name '__init__.py' -print0 | sort -z | xargs -0 -r sha256sum; } | sha256sum | awk '{print $$1}' > "$(MIGRATIONS_HASH_FILE)"
 
 load-base-data: check-repo check-tools ## Load baseline application data
 	cd "$(REPO_DIR)" && $(DEVENV_RUN) python manage.py load_base_db_data
@@ -98,8 +117,23 @@ deploy-prod: update submodules migrate load-base-data static ## Update code and 
 deploy: deploy-prod ## Alias for deploy-prod
 	@true
 
-frontend-build: check-repo check-tools
+frontend-build: check-repo check-tools ## Build frontend assets only when frontend/src changed
+	@$(MKDIR_P) "$(CACHE_DIR)"
+	@set -e; \
+	new_hash="$$(cd "$(REPO_DIR)" && { find frontend/src -type f -print0 | sort -z | xargs -0 -r sha256sum; } | sha256sum | awk '{print $$1}')"; \
+	old_hash="$$(cat "$(FRONTEND_HASH_FILE)" 2>/dev/null || true)"; \
+	if [ "$$new_hash" != "$$old_hash" ]; then \
+		echo "frontend/src changed; building frontend assets."; \
+		cd "$(REPO_DIR)" && $(DEVENV_RUN) vue-build; \
+		printf '%s\n' "$$new_hash" > "$(FRONTEND_HASH_FILE)"; \
+	else \
+		echo "frontend/src unchanged; skipping frontend build."; \
+	fi
+
+frontend-build-force: check-repo check-tools ## Force-build frontend assets and refresh frontend cache
 	cd "$(REPO_DIR)" && $(DEVENV_RUN) vue-build
+	@$(MKDIR_P) "$(CACHE_DIR)"
+	@cd "$(REPO_DIR)" && { find frontend/src -type f -print0 | sort -z | xargs -0 -r sha256sum; } | sha256sum | awk '{print $$1}' > "$(FRONTEND_HASH_FILE)"
 
 backend-server: check-repo check-tools
 	cd "$(REPO_DIR)" && $(DEVENV_RUN) run-server
