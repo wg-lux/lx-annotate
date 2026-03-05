@@ -1,5 +1,17 @@
 import axiosInstance, { r } from '@/api/axiosInstance';
 import { endpoints } from '@/types/api/endpoints';
+function isRecordLike(value) {
+    return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+function normalizeLookupPayload(payload) {
+    if (!isRecordLike(payload))
+        return {};
+    if (isRecordLike(payload.data))
+        return payload.data;
+    if (isRecordLike(payload.lookup))
+        return payload.lookup;
+    return payload;
+}
 function getErrorText(e, fallback) {
     return e?.response?.data?.detail || e?.message || fallback;
 }
@@ -39,7 +51,7 @@ export function useLookupActions(params) {
         try {
             const skipRecompute = opts?.skipRecompute ?? true;
             const res = await axiosInstance.get(`${r(endpoints.requirements.lookupAll(token))}${skipRecompute ? '?skip_recompute=true' : ''}`);
-            applyLookup(res.data);
+            applyLookup(normalizeLookupPayload(res.data));
             flow.setSessionStatus('active');
             return { ok: true };
         }
@@ -60,7 +72,7 @@ export function useLookupActions(params) {
         clearMessages();
         try {
             const res = await axiosInstance.get(r(endpoints.requirements.lookupParts(token, keys)));
-            applyLookup(res.data);
+            applyLookup(normalizeLookupPayload(res.data));
             flow.setSessionStatus('active');
             return { ok: true };
         }
@@ -98,7 +110,7 @@ export function useLookupActions(params) {
         try {
             const res = await axiosInstance.post(r(endpoints.requirements.lookupRecompute(token)));
             if ((opts?.applyUpdates ?? true) && res.data?.updates) {
-                applyLookup(res.data.updates);
+                applyLookup(normalizeLookupPayload(res.data.updates));
             }
             flow.setSessionStatus('active');
             loading.value = false;

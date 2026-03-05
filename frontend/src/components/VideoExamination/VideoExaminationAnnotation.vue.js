@@ -1592,6 +1592,12 @@ if (__VLS_ctx.duration > 0) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
             ...{ class: "ms-3 text-muted" },
         });
+        if (__VLS_ctx.videoStore.draftSegment && __VLS_ctx.videoStore.draftSegment.startTime !== null) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
+                ...{ class: "mb-0" },
+            });
+            (__VLS_ctx.formatTime(__VLS_ctx.videoStore.draftSegment.startTime));
+        }
         (__VLS_ctx.formatTime(__VLS_ctx.currentTime));
         (__VLS_ctx.formatTime(__VLS_ctx.duration));
         if (__VLS_ctx.videoStore.draftSegment) {
@@ -1990,6 +1996,7 @@ if (__VLS_ctx.savedExaminations.length > 0) {
 /** @type {__VLS_StyleScopedClasses['control-button']} */ ;
 /** @type {__VLS_StyleScopedClasses['ms-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert-info']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-2']} */ ;

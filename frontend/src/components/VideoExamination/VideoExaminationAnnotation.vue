@@ -381,7 +381,7 @@
                 </div>
                 
                 <span class="ms-3 text-muted">
-                  Zeit: {{ formatTime(currentTime) }} / {{ formatTime(duration) }}
+                   <p v-if="videoStore.draftSegment && videoStore.draftSegment.startTime !== null" class="mb-0">Aktueller Label Start: {{ formatTime(videoStore.draftSegment.startTime) }}</p> Zeit: {{ formatTime(currentTime) }} / {{ formatTime(duration) }}
                 </span>
               </div>
               

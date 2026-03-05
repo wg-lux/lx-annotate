@@ -42,10 +42,18 @@ export const useFindingClassificationStore = defineStore('findingsClassification
   const getClassificationsForFinding = (findingId: number): FindingClassification[] => {
     const finding = findings.value[findingId]
     if (!finding) return []
+    const primaryClassifications =
+      Array.isArray(finding.classifications) && finding.classifications.length
+        ? finding.classifications
+        : Array.isArray(finding.FindingClassifications)
+          ? finding.FindingClassifications
+          : []
     return [
-      ...(finding.classifications || []),
-      ...(finding.location_classifications || []),
-      ...(finding.morphology_classifications || [])
+      ...primaryClassifications,
+      ...(Array.isArray(finding.location_classifications) ? finding.location_classifications : []),
+      ...(Array.isArray(finding.morphology_classifications)
+        ? finding.morphology_classifications
+        : [])
     ]
   }
 
@@ -72,10 +80,18 @@ export const useFindingClassificationStore = defineStore('findingsClassification
     loading.value = isLoading
   }
 
-  const setClassificationChoicesFromLookup = (lookupFindings: Finding[]) => {
+  const setClassificationChoicesFromLookup = (lookupFindings: unknown) => {
+    const list = Array.isArray(lookupFindings) ? lookupFindings : []
     const findingsMap: Record<number, Finding> = {}
-    lookupFindings.forEach((finding) => {
-      findingsMap[finding.id] = finding
+    list.forEach((entry) => {
+      if (!entry || typeof entry !== 'object') return
+      const finding = entry as Finding
+      const id = Number((finding as any).id)
+      if (!Number.isFinite(id)) return
+      findingsMap[id] = {
+        ...finding,
+        id
+      }
     })
     findings.value = findingsMap
     console.log(

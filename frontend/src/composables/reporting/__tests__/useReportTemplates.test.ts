@@ -61,4 +61,36 @@ describe('useReportTemplates', () => {
     )
     expect(catalog.selectedTemplateName.value).toBe('custom_template')
   })
+
+  it('normalizes malformed template payloads to stable defaults', async () => {
+    vi.mocked(axiosInstance.get).mockResolvedValue({
+      data: [
+        {
+          name: 'broken_template',
+          examination: 'colonoscopy',
+          reportSections: [
+            {
+              name: 'findings',
+              position: '2',
+              findings: { invalid: true }
+            }
+          ],
+          validators: null
+        }
+      ]
+    } as any)
+
+    const catalog = useReportTemplates({
+      initialModuleName: 'report_template_examples',
+      initialTemplateName: null
+    })
+
+    const templates = await catalog.fetchTemplatesByExamination('colonoscopy')
+
+    expect(templates).toHaveLength(1)
+    expect(templates[0].reportSections[0].findings).toEqual([])
+    expect(templates[0].validators.examinationValidators).toEqual([])
+    expect(templates[0].validators.findingsValidators).toEqual([])
+    expect(catalog.sectionBlocks.value[0].requiredFindingsCount).toBe(0)
+  })
 })

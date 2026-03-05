@@ -194,8 +194,8 @@ export declare const useFindingClassificationStore: import("pinia").StoreDefinit
     clearFindings: () => void;
     setError: (err: string) => void;
     setLoading: (isLoading: boolean) => void;
-    setClassificationChoicesFromLookup: (lookupFindings: Finding[]) => void;
-}, "loading" | "error" | "findings">, Pick<{
+    setClassificationChoicesFromLookup: (lookupFindings: unknown) => void;
+}, "error" | "loading" | "findings">, Pick<{
     findings: Readonly<import("vue").Ref<{
         readonly [x: number]: {
             readonly id: number;
@@ -363,7 +363,7 @@ export declare const useFindingClassificationStore: import("pinia").StoreDefinit
     clearFindings: () => void;
     setError: (err: string) => void;
     setLoading: (isLoading: boolean) => void;
-    setClassificationChoicesFromLookup: (lookupFindings: Finding[]) => void;
+    setClassificationChoicesFromLookup: (lookupFindings: unknown) => void;
 }, "getAllFindings">, Pick<{
     findings: Readonly<import("vue").Ref<{
         readonly [x: number]: {
@@ -532,5 +532,5 @@ export declare const useFindingClassificationStore: import("pinia").StoreDefinit
     clearFindings: () => void;
     setError: (err: string) => void;
     setLoading: (isLoading: boolean) => void;
-    setClassificationChoicesFromLookup: (lookupFindings: Finding[]) => void;
+    setClassificationChoicesFromLookup: (lookupFindings: unknown) => void;
 }, "getFindingById" | "getClassificationsForFinding" | "clearFindings" | "setError" | "setLoading" | "setClassificationChoicesFromLookup">>;

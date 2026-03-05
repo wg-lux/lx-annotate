@@ -4,6 +4,8 @@ import axiosInstance, { r } from '@/api/axiosInstance'
 import { endpoints } from '@/types/api/endpoints'
 
 const SELECTED_GROUP_STORAGE_KEY = 'annotationQueue.selectedLabelGroupId.v1'
+const DEBUG_DUMMY_TASK_QUERY_KEY = 'ls_dummy_task'
+const DEBUG_DUMMY_TASK_GROUP_ID = '1'
 
 function loadStoredGroupId(): string | null {
   try {
@@ -32,6 +34,26 @@ export interface AnnotationTask {
     frameId: number
     imageUrl: string
     existingExternalId?: string
+  }
+}
+
+function isDummyTaskModeEnabled(): boolean {
+  if (!import.meta.env.DEV) return false
+  if (typeof window === 'undefined') return false
+  const query = new URLSearchParams(window.location.search)
+  const raw = query.get(DEBUG_DUMMY_TASK_QUERY_KEY)
+  return raw === '1' || raw === 'true'
+}
+
+function createDummyTask(groupId: string | null): AnnotationTask {
+  const activeGroupId = groupId && groupId.trim() ? groupId : DEBUG_DUMMY_TASK_GROUP_ID
+  return {
+    id: `dummy-task-${activeGroupId}`,
+    data: {
+      frameId: 999,
+      imageUrl: 'https://picsum.photos/seed/lx-annotate/800/600',
+      existingExternalId: `dummy-external-${activeGroupId}`
+    }
   }
 }
 
@@ -97,7 +119,10 @@ function extractTaskList(payload: unknown): RawTask[] {
 }
 
 export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
-  const selectedLabelGroupId = ref<string | null>(loadStoredGroupId())
+  const dummyTaskModeEnabled = isDummyTaskModeEnabled()
+  const selectedLabelGroupId = ref<string | null>(
+    loadStoredGroupId() ?? (dummyTaskModeEnabled ? DEBUG_DUMMY_TASK_GROUP_ID : null)
+  )
   const taskQueue = ref<AnnotationTask[]>([])
   const isInitialLoading = ref(false)
   const isPrefetching = ref(false)
@@ -112,7 +137,10 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
   }
 
   async function fetchBatch(batchSize = 10): Promise<AnnotationTask[]> {
-    if (!selectedLabelGroupId.value) return []
+    if (!selectedLabelGroupId.value) {
+      if (!dummyTaskModeEnabled) return []
+      selectedLabelGroupId.value = DEBUG_DUMMY_TASK_GROUP_ID
+    }
 
     lastError.value = null
     try {
@@ -126,6 +154,11 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
         .map((raw) => coerceTask(raw))
         .filter((task): task is AnnotationTask => task !== null)
       taskQueue.value.push(...parsed)
+      if (dummyTaskModeEnabled && parsed.length === 0 && taskQueue.value.length === 0) {
+        const dummy = createDummyTask(selectedLabelGroupId.value)
+        taskQueue.value.push(dummy)
+        return [dummy]
+      }
       return parsed
     } catch (error: any) {
       lastError.value =
@@ -133,6 +166,11 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
         error?.response?.data?.error ||
         error?.message ||
         'Failed to fetch annotation tasks.'
+      if (dummyTaskModeEnabled && taskQueue.value.length === 0) {
+        const dummy = createDummyTask(selectedLabelGroupId.value)
+        taskQueue.value.push(dummy)
+        return [dummy]
+      }
       return []
     }
   }

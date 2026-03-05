@@ -162,7 +162,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue';
-import { useFindingStore, type Finding, type FindingClassification, type FindingClassificationChoice } from '@/stores/findingStore';
+import { type Finding, type FindingClassification } from '@/stores/findingStore';
 import { usePatientFindingStore } from '@/stores/patientFindingStore';
 import axiosInstance from '@/api/axiosInstance';
 import { usePatientExaminationStore } from '@/stores/patientExaminationStore';
@@ -200,7 +200,6 @@ const emit = defineEmits<{
   'finding-error': [error: string]
 }>();
 
-const findingStore = useFindingStore();
 const patientFindingStore = usePatientFindingStore();
 const examinationStore = useExaminationStore();
 
@@ -224,12 +223,30 @@ const availableFindings = computed(() => {
     return availableExaminationFindings.value;
 });
 
-const fetchedAddedFindings = computed(async () => {
-    const currentPatientExaminationId = patientExaminationStore.getCurrentPatientExaminationId();
-    if (!currentPatientExaminationId) return [];
-    const findings = await findingStore.fetchFindingsByPatientExamination(currentPatientExaminationId);
-    return findings || [];
-});
+function normalizeFindingsList(value: unknown): Finding[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((entry): entry is Finding => {
+    if (!entry || typeof entry !== 'object') return false;
+    return Number.isFinite(Number((entry as any).id));
+  });
+}
+
+function dedupeFindings(findings: Finding[]): Finding[] {
+  return Array.from(new Map(findings.map((finding) => [finding.id, finding])).values());
+}
+
+async function createPatientFindingWithFallback(payload: {
+  patientExamination: number
+  finding: number
+  classifications: Array<{ classification: number; choice: number }>
+}) {
+  const createAction = (patientFindingStore as any)?.createPatientFinding;
+  if (typeof createAction === 'function') {
+    return await createAction(payload);
+  }
+  const response = await axiosInstance.post('/api/patient-findings/', payload);
+  return response.data;
+}
 
 async function loadAddedFindingsForCurrentExam() {
   const id = effectivePatientExaminationId.value;
@@ -238,7 +255,8 @@ async function loadAddedFindingsForCurrentExam() {
     return;
   }
   await patientFindingStore.fetchPatientFindings(id);
-  addedFindings.value = patientFindingStore.patientFindings.map(pf => JSON.parse(JSON.stringify(pf.finding)) as Finding);
+  const findings = patientFindingStore.patientFindings.map((pf) => pf?.finding);
+  addedFindings.value = dedupeFindings(normalizeFindingsList(findings));
 }
 
 watch(effectivePatientExaminationId, async (newId) => {
@@ -264,10 +282,12 @@ const hasAllRequiredClassifications = computed(() => {
 });
 
 const canAddFinding = computed(() => {
-  return selectedFindingId.value &&
+  return Boolean(
+         selectedFindingId.value &&
          hasAllRequiredClassifications.value &&
          effectivePatientExaminationId.value &&
-         !loading.value;
+         !loading.value
+  );
 });
 
 const classificationProgress = computed(() => {
@@ -302,7 +322,8 @@ const clearSelection = () => {
 const loadFindingClassifications = async (findingId: number) => {
     try {
         loading.value = true;
-        findingClassifications.value = findingClassificationStore.getClassificationsForFinding(findingId);
+        const classifications = findingClassificationStore.getClassificationsForFinding(findingId);
+        findingClassifications.value = Array.isArray(classifications) ? classifications : [];
     } catch (error) {
         console.error('Error loading classifications:', error);
         emit('finding-error', 'Fehler beim Laden der Klassifikationen');
@@ -341,16 +362,18 @@ const addFindingToExamination = async () => {
             }))
         };
 
-        // Use patientFindingStore to create the patient finding - should be linked to the patient examination!
-        const newPatientFinding = await patientFindingStore.createPatientFinding(findingData);
-        const newFindingId = newPatientFinding.finding.id;
-        const createdFinding = findingClassificationStore.getFindingById(newFindingId);
-        if (createdFinding) {
+        const newPatientFinding = await createPatientFindingWithFallback(findingData);
+        const resolvedFindingId = Number(
+          newPatientFinding?.finding?.id ?? newPatientFinding?.finding ?? selectedFindingId.value
+        );
+        const findingId = Number.isFinite(resolvedFindingId) ? resolvedFindingId : selectedFindingId.value;
+        const createdFinding = findingClassificationStore.getFindingById(findingId) || selectedFinding.value;
+        if (createdFinding && !addedFindings.value.some((entry) => entry.id === createdFinding.id)) {
             addedFindings.value.push(createdFinding);
         }
         await loadAddedFindingsForCurrentExam();
         const findingName = selectedFinding.value.nameDe || selectedFinding.value.name;
-        emit('finding-added', selectedFindingId.value, findingName);
+        emit('finding-added', findingId, findingName);
 
         // Reset the component state
         clearSelection();
@@ -379,9 +402,10 @@ const loadFindingsAndClassifications = async (examinationId: number) => {
         }
 
         // Load findings from the API
-        const response = await axiosInstance.get(`/api/examinations/${examinationId}/findings`);
-        const findings = response.data;
+        const response = await axiosInstance.get(`/api/examinations/${examinationId}/findings/`);
+        const findings = normalizeFindingsList(response.data);
         findingClassificationStore.setClassificationChoicesFromLookup(findings);
+        availableExaminationFindings.value = dedupeFindings(findings);
 
         console.log('Loaded findings for examination:', findings.length);
         
@@ -412,8 +436,8 @@ const loadAvailableFindingsForPatientExamination = async () => {
     }
     
     // Verwende den korrigierten Store-Aufruf
-    const findings = await examinationStore.loadFindingsForExamination(examId);
-    availableExaminationFindings.value = findings;
+    const findings = normalizeFindingsList(await examinationStore.loadFindingsForExamination(examId));
+    availableExaminationFindings.value = dedupeFindings(findings);
     
     console.log('📋 [AddableFindingsDetail] Loaded findings for examinationId:', examId, 'findings count:', findings.length);
   } catch (error) {

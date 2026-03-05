@@ -3,6 +3,8 @@ import { ref, watch } from 'vue';
 import axiosInstance, { r } from '@/api/axiosInstance';
 import { endpoints } from '@/types/api/endpoints';
 const SELECTED_GROUP_STORAGE_KEY = 'annotationQueue.selectedLabelGroupId.v1';
+const DEBUG_DUMMY_TASK_QUERY_KEY = 'ls_dummy_task';
+const DEBUG_DUMMY_TASK_GROUP_ID = '1';
 function loadStoredGroupId() {
     try {
         const raw = localStorage.getItem(SELECTED_GROUP_STORAGE_KEY);
@@ -24,6 +26,26 @@ function persistGroupId(groupId) {
     catch {
         // Persistence failure should not block annotation flow.
     }
+}
+function isDummyTaskModeEnabled() {
+    if (!import.meta.env.DEV)
+        return false;
+    if (typeof window === 'undefined')
+        return false;
+    const query = new URLSearchParams(window.location.search);
+    const raw = query.get(DEBUG_DUMMY_TASK_QUERY_KEY);
+    return raw === '1' || raw === 'true';
+}
+function createDummyTask(groupId) {
+    const activeGroupId = groupId && groupId.trim() ? groupId : DEBUG_DUMMY_TASK_GROUP_ID;
+    return {
+        id: `dummy-task-${activeGroupId}`,
+        data: {
+            frameId: 999,
+            imageUrl: 'https://picsum.photos/seed/lx-annotate/800/600',
+            existingExternalId: `dummy-external-${activeGroupId}`
+        }
+    };
 }
 function coerceTask(raw) {
     const frameIdRaw = raw.frameId ??
@@ -76,7 +98,8 @@ function extractTaskList(payload) {
     return [obj];
 }
 export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
-    const selectedLabelGroupId = ref(loadStoredGroupId());
+    const dummyTaskModeEnabled = isDummyTaskModeEnabled();
+    const selectedLabelGroupId = ref(loadStoredGroupId() ?? (dummyTaskModeEnabled ? DEBUG_DUMMY_TASK_GROUP_ID : null));
     const taskQueue = ref([]);
     const isInitialLoading = ref(false);
     const isPrefetching = ref(false);
@@ -88,8 +111,11 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
         selectedLabelGroupId.value = groupId && groupId.trim() ? groupId : null;
     }
     async function fetchBatch(batchSize = 10) {
-        if (!selectedLabelGroupId.value)
-            return [];
+        if (!selectedLabelGroupId.value) {
+            if (!dummyTaskModeEnabled)
+                return [];
+            selectedLabelGroupId.value = DEBUG_DUMMY_TASK_GROUP_ID;
+        }
         lastError.value = null;
         try {
             const res = await axiosInstance.get(r(endpoints.annotation.randomTask), {
@@ -102,6 +128,11 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
                 .map((raw) => coerceTask(raw))
                 .filter((task) => task !== null);
             taskQueue.value.push(...parsed);
+            if (dummyTaskModeEnabled && parsed.length === 0 && taskQueue.value.length === 0) {
+                const dummy = createDummyTask(selectedLabelGroupId.value);
+                taskQueue.value.push(dummy);
+                return [dummy];
+            }
             return parsed;
         }
         catch (error) {
@@ -110,6 +141,11 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
                     error?.response?.data?.error ||
                     error?.message ||
                     'Failed to fetch annotation tasks.';
+            if (dummyTaskModeEnabled && taskQueue.value.length === 0) {
+                const dummy = createDummyTask(selectedLabelGroupId.value);
+                taskQueue.value.push(dummy);
+                return [dummy];
+            }
             return [];
         }
     }

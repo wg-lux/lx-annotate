@@ -7,10 +7,10 @@
           <small class="text-muted">Befunde hinzufügen, Klassifikationen setzen, Lookup-Hinweise aktualisieren</small>
         </div>
         <div class="d-flex gap-2">
-          <button class="btn btn-outline-secondary btn-sm" :disabled="loading || !flow.lookupToken" @click="fetchLookupAll">
+          <button class="btn btn-outline-secondary btn-sm" :disabled="loading || !canInitializeLookup" @click="fetchLookupAll">
             Lookup laden
           </button>
-          <button class="btn btn-primary btn-sm" :disabled="loading || !flow.lookupToken" @click="triggerRecompute">
+          <button class="btn btn-primary btn-sm" :disabled="loading || !canInitializeLookup" @click="triggerRecompute">
             Lookup neu berechnen
           </button>
         </div>
@@ -32,6 +32,13 @@
         </div>
 
         <template v-else>
+          <div v-if="!flow.lookupToken" class="alert alert-info d-flex justify-content-between align-items-center">
+            <span>Keine aktive Lookup-Session. Initialisieren Sie die Session für diese Untersuchung.</span>
+            <button class="btn btn-sm btn-outline-primary" :disabled="loading || !canInitializeLookup" @click="ensureLookupSession">
+              Lookup initialisieren
+            </button>
+          </div>
+
           <div class="mb-3">
             <AddableFindingsDetail
               :examination-id="flow.selectedExaminationId || undefined"
@@ -80,6 +87,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import axiosInstance, { r } from '@/api/axiosInstance'
 import AddableFindingsDetail from '@/components/RequirementReport/AddableFindingsDetail.vue'
 import FindingsDetail from '@/components/RequirementReport/FindingsDetail.vue'
 import LookupStatusPanel from '@/components/Reporting/LookupStatusPanel.vue'
@@ -87,6 +95,7 @@ import { useLookupActions } from '@/composables/reporting/useLookupActions'
 import { useReportingFlowStore } from '@/stores/reportingFlowStore'
 import { useFindingStore } from '@/stores/findingStore'
 import { usePatientExaminationStore } from '@/stores/patientExaminationStore'
+import { endpoints } from '@/types/api/endpoints'
 
 type LookupFindingsState = {
   availableFindings?: number[]
@@ -106,25 +115,105 @@ const loading = ref(false)
 const errorMessage = ref<string | null>(null)
 const successMessage = ref<string | null>(null)
 const lookupState = ref<LookupFindingsState | null>(null)
+const lookupInitInFlight = ref<Promise<boolean> | null>(null)
 
-const availableFindings = computed<number[]>(() => lookupState.value?.availableFindings ?? [])
+function normalizeIdArray(value: unknown): number[] {
+  if (!Array.isArray(value)) return []
+  const ids = value
+    .map((entry) => Number(entry))
+    .filter((entry) => Number.isFinite(entry))
+    .map((entry) => Math.trunc(entry))
+  return Array.from(new Set(ids))
+}
+
+function normalizeBooleanRecord(value: unknown): Record<string, boolean> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
+  return Object.fromEntries(
+    Object.entries(value).map(([key, entry]) => [String(key), !!entry])
+  )
+}
+
+function normalizeSuggestedActions(value: unknown): Record<string, any[]> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
+  return Object.fromEntries(
+    Object.entries(value).map(([key, entry]) => [String(key), Array.isArray(entry) ? entry : []])
+  )
+}
+
+function normalizeRequirementsBySet(
+  value: unknown
+): Record<string, Array<{ id: number; name: string }>> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
+  return Object.fromEntries(
+    Object.entries(value).map(([key, entry]) => {
+      const requirements = Array.isArray(entry)
+        ? entry
+            .map((requirement) => {
+              if (!requirement || typeof requirement !== 'object') return null
+              const id = Number((requirement as any).id)
+              const name = String((requirement as any).name || '')
+              if (!Number.isFinite(id) || !name) return null
+              return { id, name }
+            })
+            .filter((requirement): requirement is { id: number; name: string } => !!requirement)
+        : []
+      return [String(key), requirements]
+    })
+  )
+}
+
+function normalizeLookupPartial(partial: Partial<LookupFindingsState>): Partial<LookupFindingsState> {
+  const normalized: Partial<LookupFindingsState> = { ...partial }
+  if ('availableFindings' in partial) {
+    normalized.availableFindings = normalizeIdArray(partial.availableFindings)
+  }
+  if ('requiredFindings' in partial) {
+    normalized.requiredFindings = normalizeIdArray(partial.requiredFindings)
+  }
+  if ('selectedRequirementSetIds' in partial) {
+    normalized.selectedRequirementSetIds = normalizeIdArray(partial.selectedRequirementSetIds)
+  }
+  if ('requirementStatus' in partial) {
+    normalized.requirementStatus = normalizeBooleanRecord(partial.requirementStatus)
+  }
+  if ('requirementSetStatus' in partial) {
+    normalized.requirementSetStatus = normalizeBooleanRecord(partial.requirementSetStatus)
+  }
+  if ('suggestedActions' in partial) {
+    normalized.suggestedActions = normalizeSuggestedActions(partial.suggestedActions)
+  }
+  if ('requirementsBySet' in partial) {
+    normalized.requirementsBySet = normalizeRequirementsBySet(partial.requirementsBySet)
+  }
+  return normalized
+}
+
+const availableFindings = computed<number[]>(() =>
+  normalizeIdArray(lookupState.value?.availableFindings)
+)
+const canInitializeLookup = computed(() => !!flow.patientExaminationId)
 
 function clearMessages() {
   errorMessage.value = null
   successMessage.value = null
 }
 
+function formatApiError(e: any, fallback: string): string {
+  return e?.response?.data?.detail || e?.response?.data?.error || e?.message || fallback
+}
+
 function applyLookup(partial: Partial<LookupFindingsState>) {
-  lookupState.value = { ...(lookupState.value || {}), ...partial }
+  const normalizedPartial = normalizeLookupPartial(partial)
+  lookupState.value = { ...(lookupState.value || {}), ...normalizedPartial }
   flow.patchLookupSnapshot({
-    requirementStatus: partial.requirementStatus as any,
-    requirementSetStatus: partial.requirementSetStatus as any,
-    suggestedActions: partial.suggestedActions as any,
-    requirementsBySet: partial.requirementsBySet as any,
-    selectedRequirementSetIds: partial.selectedRequirementSetIds
+    requirementStatus: normalizedPartial.requirementStatus as any,
+    requirementSetStatus: normalizedPartial.requirementSetStatus as any,
+    suggestedActions: normalizedPartial.suggestedActions as any,
+    requirementsBySet: normalizedPartial.requirementsBySet as any,
+    selectedRequirementSetIds: normalizedPartial.selectedRequirementSetIds
   })
-  if (Array.isArray(partial.selectedRequirementSetIds)) {
-    flow.setSelectedRequirementSetIds(partial.selectedRequirementSetIds)
+  if (Array.isArray(normalizedPartial.selectedRequirementSetIds)) {
+    flow.setSelectedRequirementSetIds(normalizedPartial.selectedRequirementSetIds)
   }
 }
 
@@ -144,12 +233,16 @@ async function loadFindingsCatalog() {
 }
 
 async function fetchLookupAll() {
+  const ensured = await ensureLookupSessionForCurrentPatientExamination()
+  if (!ensured) return
   await lookupActions.fetchLookupAll({
     fallbackErrorMessage: 'Fehler beim Laden des Lookup-Zustands.'
   })
 }
 
 async function triggerRecompute() {
+  const ensured = await ensureLookupSessionForCurrentPatientExamination()
+  if (!ensured) return
   const result = await lookupActions.recomputeLookup({
     applyUpdates: true,
     refreshAfter: true,
@@ -158,6 +251,56 @@ async function triggerRecompute() {
   if (result.ok) {
     successMessage.value = 'Lookup wurde nach Befundänderungen neu berechnet.'
   }
+}
+
+async function ensureLookupSessionForCurrentPatientExamination(): Promise<boolean> {
+  if (flow.lookupToken) return true
+  const patientExaminationId = flow.patientExaminationId
+  if (!patientExaminationId) {
+    errorMessage.value = 'Keine Patientenuntersuchung vorhanden. Bitte zuerst im Fall-Setup initialisieren.'
+    return false
+  }
+  if (lookupInitInFlight.value) {
+    return await lookupInitInFlight.value
+  }
+
+  const initPromise = (async () => {
+    loading.value = true
+    errorMessage.value = null
+    flow.setSessionStatus('restarting')
+    try {
+      const initRes = await axiosInstance.post(r(endpoints.requirements.lookupInit), {
+        patientExaminationId
+      })
+      const token = String(initRes.data?.token || '')
+      if (!token) {
+        throw new Error('Lookup-Init lieferte kein Token.')
+      }
+      flow.setLookupSession({
+        patientExaminationId,
+        lookupToken: token,
+        status: 'active'
+      })
+      return true
+    } catch (e: any) {
+      flow.setSessionStatus('expired')
+      errorMessage.value = formatApiError(
+        e,
+        'Lookup-Session konnte nicht initialisiert werden.'
+      )
+      return false
+    } finally {
+      loading.value = false
+      lookupInitInFlight.value = null
+    }
+  })()
+
+  lookupInitInFlight.value = initPromise
+  return await initPromise
+}
+
+async function ensureLookupSession() {
+  await ensureLookupSessionForCurrentPatientExamination()
 }
 
 function isFindingAddedToExamination(findingId: number): boolean {
@@ -214,7 +357,7 @@ onMounted(async () => {
     patientExaminationStore.setCurrentPatientExaminationId(flow.patientExaminationId)
   }
   await loadFindingsCatalog()
-  if (flow.lookupToken) {
+  if (flow.patientExaminationId) {
     await fetchLookupAll()
   }
 })

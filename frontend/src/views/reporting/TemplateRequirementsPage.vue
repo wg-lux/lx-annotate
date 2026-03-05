@@ -63,8 +63,8 @@
         <div v-if="selectedTemplate" class="mt-3">
           <div class="small text-muted mb-2">
             Abschnitte: {{ sectionBlocks.length }} · Validators:
-            {{ selectedTemplate.validators.examinationValidators.length }} examination,
-            {{ selectedTemplate.validators.findingsValidators.length }} findings
+            {{ selectedTemplateValidatorCounts.examination }} examination,
+            {{ selectedTemplateValidatorCounts.findings }} findings
           </div>
           <ul class="list-group list-group-flush">
             <li v-for="section in sectionBlocks" :key="section.name" class="list-group-item px-0">
@@ -122,18 +122,18 @@
             :items="requirementSets"
             :selected-id-set="selectedRequirementSetIdSet"
             :loading="loading"
-            :requirement-set-status="lookup?.requirementSetStatus || {}"
+            :requirement-set-status="lookupRequirementSetStatus"
             @toggle="toggleRequirementSet"
           />
 
           <div class="mt-3 p-3 bg-light rounded">
             <div class="d-flex justify-content-between align-items-center">
               <span class="fw-semibold">Ausgewählte Set-IDs</span>
-              <code>{{ flow.selectedRequirementSetIds.join(', ') || 'keine' }}</code>
+              <code>{{ selectedRequirementSetIdsDisplay }}</code>
             </div>
           </div>
 
-          <div v-if="lookup?.suggestedActions && Object.keys(lookup.suggestedActions).length" class="mt-3">
+          <div v-if="hasSuggestedActions" class="mt-3">
             <h6 class="mb-2">Empfohlene Aktionen (Lookup)</h6>
             <pre class="small bg-light rounded p-2 mb-0">{{ prettySuggestedActions }}</pre>
           </div>
@@ -212,11 +212,116 @@ const selectedExaminationDisplayName = computed(
 )
 const templateStatusMessage = ref<string | null>(null)
 
-const requirementSets = computed<RequirementSetLite[]>(() => lookup.value?.requirementSets ?? [])
-const selectedRequirementSetIdSet = computed(() => new Set(flow.selectedRequirementSetIds))
-const prettySuggestedActions = computed(() =>
-  JSON.stringify(lookup.value?.suggestedActions || {}, null, 2)
+function normalizeIdArray(value: unknown): number[] {
+  if (!Array.isArray(value)) return []
+  const ids = value
+    .map((entry) => Number(entry))
+    .filter((entry) => Number.isFinite(entry))
+    .map((entry) => Math.trunc(entry))
+  return Array.from(new Set(ids))
+}
+
+function normalizeRequirementSets(value: unknown): RequirementSetLite[] {
+  if (!Array.isArray(value)) return []
+  return value
+    .map((entry) => {
+      if (!entry || typeof entry !== 'object') return null
+      const id = Number((entry as any).id)
+      if (!Number.isFinite(id)) return null
+      return {
+        id,
+        name: String((entry as any).name || ''),
+        type: String((entry as any).type || '')
+      }
+    })
+    .filter((entry): entry is RequirementSetLite => !!entry)
+}
+
+function normalizeRequirementsBySet(value: unknown): Record<string, RequirementLite[]> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
+  return Object.fromEntries(
+    Object.entries(value).map(([key, entry]) => {
+      const requirements = Array.isArray(entry)
+        ? entry
+            .map((item) => {
+              if (!item || typeof item !== 'object') return null
+              const id = Number((item as any).id)
+              if (!Number.isFinite(id)) return null
+              return {
+                id,
+                name: String((item as any).name || '')
+              }
+            })
+            .filter((item): item is RequirementLite => !!item)
+        : []
+      return [String(key), requirements]
+    })
+  )
+}
+
+function normalizeBooleanRecord(value: unknown): Record<string, boolean> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
+  return Object.fromEntries(Object.entries(value).map(([key, entry]) => [String(key), !!entry]))
+}
+
+function normalizeSuggestedActions(value: unknown): Record<string, any[]> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
+  return Object.fromEntries(
+    Object.entries(value).map(([key, entry]) => [String(key), Array.isArray(entry) ? entry : []])
+  )
+}
+
+function normalizeLookupPartial(partial: Partial<LookupDict>): Partial<LookupDict> {
+  const normalized: Partial<LookupDict> = { ...partial }
+  if ('requirementSets' in partial) {
+    normalized.requirementSets = normalizeRequirementSets(partial.requirementSets)
+  }
+  if ('requirementsBySet' in partial) {
+    normalized.requirementsBySet = normalizeRequirementsBySet(partial.requirementsBySet)
+  }
+  if ('requirementStatus' in partial) {
+    normalized.requirementStatus = normalizeBooleanRecord(partial.requirementStatus)
+  }
+  if ('requirementSetStatus' in partial) {
+    normalized.requirementSetStatus = normalizeBooleanRecord(partial.requirementSetStatus)
+  }
+  if ('suggestedActions' in partial) {
+    normalized.suggestedActions = normalizeSuggestedActions(partial.suggestedActions)
+  }
+  if ('selectedRequirementSetIds' in partial) {
+    normalized.selectedRequirementSetIds = normalizeIdArray(partial.selectedRequirementSetIds)
+  }
+  return normalized
+}
+
+const requirementSets = computed<RequirementSetLite[]>(() =>
+  normalizeRequirementSets(lookup.value?.requirementSets)
 )
+const selectedRequirementSetIds = computed(() => normalizeIdArray(flow.selectedRequirementSetIds))
+const selectedRequirementSetIdSet = computed(() => new Set(selectedRequirementSetIds.value))
+const selectedRequirementSetIdsDisplay = computed(() =>
+  selectedRequirementSetIds.value.length ? selectedRequirementSetIds.value.join(', ') : 'keine'
+)
+const lookupRequirementSetStatus = computed(() =>
+  normalizeBooleanRecord(lookup.value?.requirementSetStatus)
+)
+const hasSuggestedActions = computed(
+  () => Object.keys(normalizeSuggestedActions(lookup.value?.suggestedActions)).length > 0
+)
+const prettySuggestedActions = computed(() =>
+  JSON.stringify(normalizeSuggestedActions(lookup.value?.suggestedActions), null, 2)
+)
+const selectedTemplateValidatorCounts = computed(() => {
+  const validators = selectedTemplate.value?.validators
+  return {
+    examination: Array.isArray(validators?.examinationValidators)
+      ? validators.examinationValidators.length
+      : 0,
+    findings: Array.isArray(validators?.findingsValidators)
+      ? validators.findingsValidators.length
+      : 0
+  }
+})
 const routePatientExaminationId = computed<number | null>(() => {
   const raw = Number(route.params.patient_examination_id)
   return Number.isFinite(raw) ? raw : null
@@ -228,13 +333,14 @@ function clearMessages() {
 }
 
 function applyLookup(partial: Partial<LookupDict>) {
+  const normalizedPartial = normalizeLookupPartial(partial)
   if (!lookup.value) {
-    lookup.value = partial as LookupDict
+    lookup.value = normalizedPartial as LookupDict
   } else {
-    lookup.value = { ...lookup.value, ...partial }
+    lookup.value = { ...lookup.value, ...normalizedPartial }
   }
-  if (Array.isArray(partial.selectedRequirementSetIds)) {
-    flow.setSelectedRequirementSetIds(partial.selectedRequirementSetIds)
+  if (Array.isArray(normalizedPartial.selectedRequirementSetIds)) {
+    flow.setSelectedRequirementSetIds(normalizedPartial.selectedRequirementSetIds)
   }
 }
 
@@ -396,7 +502,7 @@ async function fetchLookupParts(keys: string[]) {
 async function toggleRequirementSet(id: number, checked: boolean) {
   if (loading.value) return
   clearMessages()
-  const next = new Set(flow.selectedRequirementSetIds)
+  const next = new Set(selectedRequirementSetIds.value)
   if (checked) next.add(id)
   else next.delete(id)
   const ids = Array.from(next)

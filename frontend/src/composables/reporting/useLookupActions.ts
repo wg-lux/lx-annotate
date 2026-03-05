@@ -24,6 +24,17 @@ type LookupActionResult = {
   expired?: boolean
 }
 
+function isRecordLike(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value)
+}
+
+function normalizeLookupPayload<TLookup>(payload: unknown): Partial<TLookup> {
+  if (!isRecordLike(payload)) return {} as Partial<TLookup>
+  if (isRecordLike(payload.data)) return payload.data as Partial<TLookup>
+  if (isRecordLike(payload.lookup)) return payload.lookup as Partial<TLookup>
+  return payload as Partial<TLookup>
+}
+
 function getErrorText(e: any, fallback: string): string {
   return e?.response?.data?.detail || e?.message || fallback
 }
@@ -72,7 +83,7 @@ export function useLookupActions<TLookup>(params: UseLookupActionsParams<TLookup
       const res = await axiosInstance.get(
         `${r(endpoints.requirements.lookupAll(token))}${skipRecompute ? '?skip_recompute=true' : ''}`
       )
-      applyLookup(res.data as Partial<TLookup>)
+      applyLookup(normalizeLookupPayload<TLookup>(res.data))
       flow.setSessionStatus('active')
       return { ok: true }
     } catch (e: any) {
@@ -94,7 +105,7 @@ export function useLookupActions<TLookup>(params: UseLookupActionsParams<TLookup
     clearMessages()
     try {
       const res = await axiosInstance.get(r(endpoints.requirements.lookupParts(token, keys)))
-      applyLookup(res.data as Partial<TLookup>)
+      applyLookup(normalizeLookupPayload<TLookup>(res.data))
       flow.setSessionStatus('active')
       return { ok: true }
     } catch (e: any) {
@@ -143,7 +154,7 @@ export function useLookupActions<TLookup>(params: UseLookupActionsParams<TLookup
     try {
       const res = await axiosInstance.post(r(endpoints.requirements.lookupRecompute(token)))
       if ((opts?.applyUpdates ?? true) && res.data?.updates) {
-        applyLookup(res.data.updates as Partial<TLookup>)
+        applyLookup(normalizeLookupPayload<TLookup>(res.data.updates))
       }
       flow.setSessionStatus('active')
       loading.value = false

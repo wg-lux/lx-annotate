@@ -13,22 +13,87 @@ const loading = ref(false);
 const errorMessage = ref(null);
 const successMessage = ref(null);
 const lookupState = ref(null);
-const availableFindings = computed(() => lookupState.value?.availableFindings ?? []);
+function normalizeIdArray(value) {
+    if (!Array.isArray(value))
+        return [];
+    const ids = value
+        .map((entry) => Number(entry))
+        .filter((entry) => Number.isFinite(entry))
+        .map((entry) => Math.trunc(entry));
+    return Array.from(new Set(ids));
+}
+function normalizeBooleanRecord(value) {
+    if (!value || typeof value !== 'object' || Array.isArray(value))
+        return {};
+    return Object.fromEntries(Object.entries(value).map(([key, entry]) => [String(key), !!entry]));
+}
+function normalizeSuggestedActions(value) {
+    if (!value || typeof value !== 'object' || Array.isArray(value))
+        return {};
+    return Object.fromEntries(Object.entries(value).map(([key, entry]) => [String(key), Array.isArray(entry) ? entry : []]));
+}
+function normalizeRequirementsBySet(value) {
+    if (!value || typeof value !== 'object' || Array.isArray(value))
+        return {};
+    return Object.fromEntries(Object.entries(value).map(([key, entry]) => {
+        const requirements = Array.isArray(entry)
+            ? entry
+                .map((requirement) => {
+                if (!requirement || typeof requirement !== 'object')
+                    return null;
+                const id = Number(requirement.id);
+                const name = String(requirement.name || '');
+                if (!Number.isFinite(id) || !name)
+                    return null;
+                return { id, name };
+            })
+                .filter((requirement) => !!requirement)
+            : [];
+        return [String(key), requirements];
+    }));
+}
+function normalizeLookupPartial(partial) {
+    const normalized = { ...partial };
+    if ('availableFindings' in partial) {
+        normalized.availableFindings = normalizeIdArray(partial.availableFindings);
+    }
+    if ('requiredFindings' in partial) {
+        normalized.requiredFindings = normalizeIdArray(partial.requiredFindings);
+    }
+    if ('selectedRequirementSetIds' in partial) {
+        normalized.selectedRequirementSetIds = normalizeIdArray(partial.selectedRequirementSetIds);
+    }
+    if ('requirementStatus' in partial) {
+        normalized.requirementStatus = normalizeBooleanRecord(partial.requirementStatus);
+    }
+    if ('requirementSetStatus' in partial) {
+        normalized.requirementSetStatus = normalizeBooleanRecord(partial.requirementSetStatus);
+    }
+    if ('suggestedActions' in partial) {
+        normalized.suggestedActions = normalizeSuggestedActions(partial.suggestedActions);
+    }
+    if ('requirementsBySet' in partial) {
+        normalized.requirementsBySet = normalizeRequirementsBySet(partial.requirementsBySet);
+    }
+    return normalized;
+}
+const availableFindings = computed(() => normalizeIdArray(lookupState.value?.availableFindings));
 function clearMessages() {
     errorMessage.value = null;
     successMessage.value = null;
 }
 function applyLookup(partial) {
-    lookupState.value = { ...(lookupState.value || {}), ...partial };
+    const normalizedPartial = normalizeLookupPartial(partial);
+    lookupState.value = { ...(lookupState.value || {}), ...normalizedPartial };
     flow.patchLookupSnapshot({
-        requirementStatus: partial.requirementStatus,
-        requirementSetStatus: partial.requirementSetStatus,
-        suggestedActions: partial.suggestedActions,
-        requirementsBySet: partial.requirementsBySet,
-        selectedRequirementSetIds: partial.selectedRequirementSetIds
+        requirementStatus: normalizedPartial.requirementStatus,
+        requirementSetStatus: normalizedPartial.requirementSetStatus,
+        suggestedActions: normalizedPartial.suggestedActions,
+        requirementsBySet: normalizedPartial.requirementsBySet,
+        selectedRequirementSetIds: normalizedPartial.selectedRequirementSetIds
     });
-    if (Array.isArray(partial.selectedRequirementSetIds)) {
-        flow.setSelectedRequirementSetIds(partial.selectedRequirementSetIds);
+    if (Array.isArray(normalizedPartial.selectedRequirementSetIds)) {
+        flow.setSelectedRequirementSetIds(normalizedPartial.selectedRequirementSetIds);
     }
 }
 const lookupActions = useLookupActions({

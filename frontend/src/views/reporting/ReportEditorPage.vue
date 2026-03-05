@@ -157,11 +157,15 @@
         <IndicationsEditor
           class="mb-4"
           :rows="flow.indications"
+          :indication-options="indicationOptionsForEditor"
           :disabled="loading"
+          :options-loading="indicationOptionsLoading"
+          :options-error="indicationOptionsError"
           description="Dieser Status wird direkt auf &lt;code&gt;save-submission.indications&lt;/code&gt; gemappt. Leere Liste &lt;code&gt;[]&lt;/code&gt; löscht bestehende Indikationen auf dem Backend."
           @update-row="(idx, patch) => flow.updateIndicationRow(idx, patch)"
           @add-row="flow.addIndicationRow()"
           @remove-row="(idx) => flow.removeIndicationRow(idx)"
+          @refresh-options="loadIndicationCatalog"
         />
 
         <div class="d-flex flex-wrap gap-2">
@@ -261,6 +265,17 @@ type PatientExaminationReportListItem = {
   updatedAt?: string
 }
 
+type IndicationChoiceOption = {
+  id: number
+  label: string
+}
+
+type IndicationOption = {
+  id: number
+  label: string
+  choices: IndicationChoiceOption[]
+}
+
 const flow = useReportingFlowStore()
 const patientStore = usePatientStore()
 const examinationStore = useExaminationStore()
@@ -276,6 +291,9 @@ const currentReportVersion = ref<number | null>(null)
 const persistedArtifacts = ref<SaveReportSubmissionResponse['persistedArtifacts']>(null)
 const historyContext = ref<Record<string, unknown> | null>(null)
 const requirementGuidance = ref<Record<string, unknown> | null>(null)
+const indicationOptions = ref<IndicationOption[]>([])
+const indicationOptionsLoading = ref(false)
+const indicationOptionsError = ref<string | null>(null)
 
 const {
   moduleName: selectedKbModule,
@@ -322,6 +340,70 @@ const normalizedIndicationsPreview = computed(() =>
   JSON.stringify(normalizedIndications.value, null, 2)
 )
 
+const indicationOptionsForEditor = computed<IndicationOption[]>(() => {
+  const optionsById = new Map<number, IndicationOption>()
+
+  const upsert = (option: IndicationOption) => {
+    const existing = optionsById.get(option.id)
+    if (!existing) {
+      optionsById.set(option.id, {
+        id: option.id,
+        label: option.label || `Indikation #${option.id}`,
+        choices: option.choices.slice()
+      })
+      return
+    }
+    existing.label = existing.label || option.label || `Indikation #${option.id}`
+    const choiceById = new Map<number, IndicationChoiceOption>()
+    for (const choice of existing.choices) {
+      choiceById.set(choice.id, choice)
+    }
+    for (const choice of option.choices) {
+      choiceById.set(choice.id, {
+        id: choice.id,
+        label: choice.label || `Auswahl #${choice.id}`
+      })
+    }
+    existing.choices = Array.from(choiceById.values())
+  }
+
+  for (const option of indicationOptions.value) {
+    upsert({
+      id: option.id,
+      label: option.label,
+      choices: option.choices.slice()
+    })
+  }
+
+  for (const row of flow.indications) {
+    const indicationId = row.examinationIndicationId
+    if (indicationId == null) continue
+    if (!optionsById.has(indicationId)) {
+      upsert({
+        id: indicationId,
+        label: `Unbekannte Indikation (#${indicationId})`,
+        choices: []
+      })
+    }
+    const choiceId = row.indicationChoiceId
+    if (choiceId == null) continue
+    const option = optionsById.get(indicationId)
+    if (!option) continue
+    if (!option.choices.some((choice) => choice.id === choiceId)) {
+      option.choices = [{ id: choiceId, label: `Unbekannte Auswahl (#${choiceId})` }, ...option.choices]
+    }
+  }
+
+  return Array.from(optionsById.values())
+    .map((option) => ({
+      ...option,
+      choices: option.choices
+        .slice()
+        .sort((a, b) => a.label.localeCompare(b.label, 'de', { numeric: true }))
+    }))
+    .sort((a, b) => a.label.localeCompare(b.label, 'de', { numeric: true }))
+})
+
 const sectionDraftPreview = computed(() => JSON.stringify(flow.templateSectionDrafts || {}, null, 2))
 
 watch(
@@ -336,6 +418,311 @@ watch(
     }
   }
 )
+
+watch(
+  [() => flow.patientExaminationId, () => flow.selectedExaminationId],
+  ([nextPatientExaminationId, nextExaminationId], [previousPatientExaminationId, previousExaminationId]) => {
+    if (
+      nextPatientExaminationId === previousPatientExaminationId &&
+      nextExaminationId === previousExaminationId
+    ) {
+      return
+    }
+    void loadIndicationCatalog()
+  }
+)
+
+function normalizePositiveId(value: unknown): number | null {
+  const parsed = Number(value)
+  if (!Number.isFinite(parsed)) return null
+  const id = Math.trunc(parsed)
+  return id > 0 ? id : null
+}
+
+function normalizeDisplayLabel(value: unknown): string | null {
+  if (typeof value !== 'string') return null
+  const normalized = value.trim()
+  return normalized || null
+}
+
+function normalizeChoiceOptions(value: unknown): IndicationChoiceOption[] {
+  if (!Array.isArray(value)) return []
+  const choiceById = new Map<number, IndicationChoiceOption>()
+  for (const entry of value) {
+    if (entry && typeof entry === 'object') {
+      const row = entry as Record<string, unknown>
+      const id = normalizePositiveId(
+        row.id ??
+          row.choiceId ??
+          row.choice_id ??
+          row.indicationChoiceId ??
+          row.indication_choice_id
+      )
+      if (id == null) continue
+      const label =
+        normalizeDisplayLabel(
+          row.label ?? row.name ?? row.displayName ?? row.name_de ?? row.nameDe
+        ) || `Auswahl #${id}`
+      choiceById.set(id, { id, label })
+      continue
+    }
+    const id = normalizePositiveId(entry)
+    if (id == null) continue
+    choiceById.set(id, { id, label: `Auswahl #${id}` })
+  }
+  return Array.from(choiceById.values())
+}
+
+function normalizeChoiceOptionsFromClassifications(value: unknown): IndicationChoiceOption[] {
+  if (!Array.isArray(value)) return []
+  const aggregated: IndicationChoiceOption[] = []
+  for (const entry of value) {
+    if (!entry || typeof entry !== 'object') continue
+    const row = entry as Record<string, unknown>
+    aggregated.push(...normalizeChoiceOptions(row.choices))
+  }
+  const deduped = new Map<number, IndicationChoiceOption>()
+  for (const choice of aggregated) {
+    deduped.set(choice.id, choice)
+  }
+  return Array.from(deduped.values())
+}
+
+function normalizeIndicationOptions(value: unknown): IndicationOption[] {
+  if (!Array.isArray(value)) return []
+  const indicationById = new Map<number, IndicationOption>()
+  for (const entry of value) {
+    if (entry && typeof entry === 'object') {
+      const row = entry as Record<string, unknown>
+      const id = normalizePositiveId(
+        row.id ??
+          row.indicationId ??
+          row.indication_id ??
+          row.examinationIndicationId ??
+          row.examination_indication_id
+      )
+      if (id == null) continue
+      const label =
+        normalizeDisplayLabel(
+          row.label ?? row.name ?? row.displayName ?? row.name_de ?? row.nameDe
+        ) || `Indikation #${id}`
+      const choices = [
+        ...normalizeChoiceOptions(row.choices),
+        ...normalizeChoiceOptions(row.indicationChoices),
+        ...normalizeChoiceOptions(row.indication_choices),
+        ...normalizeChoiceOptionsFromClassifications(row.classifications)
+      ]
+      const choiceById = new Map<number, IndicationChoiceOption>()
+      for (const choice of choices) {
+        choiceById.set(choice.id, choice)
+      }
+      indicationById.set(id, {
+        id,
+        label,
+        choices: Array.from(choiceById.values())
+      })
+      continue
+    }
+    const id = normalizePositiveId(entry)
+    if (id == null) continue
+    indicationById.set(id, {
+      id,
+      label: `Indikation #${id}`,
+      choices: []
+    })
+  }
+  return Array.from(indicationById.values())
+}
+
+function upsertIndicationOption(
+  optionsById: Map<number, IndicationOption>,
+  option: IndicationOption
+) {
+  const existing = optionsById.get(option.id)
+  if (!existing) {
+    optionsById.set(option.id, {
+      id: option.id,
+      label: option.label || `Indikation #${option.id}`,
+      choices: option.choices.slice()
+    })
+    return
+  }
+
+  if (!existing.label || existing.label.startsWith('Unbekannte')) {
+    existing.label = option.label || existing.label || `Indikation #${option.id}`
+  }
+
+  const choiceById = new Map<number, IndicationChoiceOption>()
+  for (const choice of existing.choices) {
+    choiceById.set(choice.id, choice)
+  }
+  for (const choice of option.choices) {
+    choiceById.set(choice.id, {
+      id: choice.id,
+      label: choice.label || `Auswahl #${choice.id}`
+    })
+  }
+  existing.choices = Array.from(choiceById.values())
+}
+
+function extractOptionsFromPayload(
+  payload: unknown,
+  optionsById: Map<number, IndicationOption>
+) {
+  if (!payload || typeof payload !== 'object') return
+  const data = payload as Record<string, unknown>
+  const nestedExamination =
+    data.examination && typeof data.examination === 'object'
+      ? (data.examination as Record<string, unknown>)
+      : null
+
+  const indicationCandidates: unknown[] = [
+    data.indications,
+    data.examinationIndications,
+    data.examination_indications,
+    data.examination_indication_options,
+    nestedExamination?.indications,
+    nestedExamination?.examinationIndications,
+    nestedExamination?.examination_indications,
+    nestedExamination?.examination_indication_options
+  ]
+
+  for (const candidate of indicationCandidates) {
+    for (const option of normalizeIndicationOptions(candidate)) {
+      upsertIndicationOption(optionsById, option)
+    }
+  }
+
+  const topLevelChoiceCandidates: unknown[] = [
+    data.indicationChoices,
+    data.indication_choices,
+    nestedExamination?.indicationChoices,
+    nestedExamination?.indication_choices
+  ]
+
+  for (const candidate of topLevelChoiceCandidates) {
+    if (Array.isArray(candidate)) {
+      for (const row of candidate) {
+        if (!row || typeof row !== 'object') continue
+        const value = row as Record<string, unknown>
+        const indicationId = normalizePositiveId(
+          value.examinationIndicationId ??
+            value.examination_indication_id ??
+            value.indicationId ??
+            value.indication_id
+        )
+        const choiceId = normalizePositiveId(
+          value.id ??
+            value.choiceId ??
+            value.choice_id ??
+            value.indicationChoiceId ??
+            value.indication_choice_id
+        )
+        if (indicationId == null || choiceId == null) continue
+        const label =
+          normalizeDisplayLabel(
+            value.label ?? value.name ?? value.displayName ?? value.name_de ?? value.nameDe
+          ) || `Auswahl #${choiceId}`
+        const option = optionsById.get(indicationId)
+        if (!option) continue
+        if (!option.choices.some((choice) => choice.id === choiceId)) {
+          option.choices.push({ id: choiceId, label })
+        }
+      }
+      continue
+    }
+
+    if (!candidate || typeof candidate !== 'object') continue
+    for (const [key, choices] of Object.entries(candidate as Record<string, unknown>)) {
+      const indicationId = normalizePositiveId(key)
+      if (indicationId == null) continue
+      const option = optionsById.get(indicationId)
+      if (!option) continue
+      const normalizedChoices = normalizeChoiceOptions(choices)
+      for (const choice of normalizedChoices) {
+        if (!option.choices.some((existingChoice) => existingChoice.id === choice.id)) {
+          option.choices.push(choice)
+        }
+      }
+    }
+  }
+}
+
+async function loadIndicationCatalog() {
+  const patientExaminationId = flow.patientExaminationId
+  const selectedExaminationId = flow.selectedExaminationId
+
+  if (!patientExaminationId && !selectedExaminationId) {
+    indicationOptions.value = []
+    indicationOptionsError.value = null
+    indicationOptionsLoading.value = false
+    return
+  }
+
+  indicationOptionsLoading.value = true
+  indicationOptionsError.value = null
+
+  const optionsById = new Map<number, IndicationOption>()
+  const loadErrors: string[] = []
+
+  if (patientExaminationId) {
+    try {
+      const detailRes = await axiosInstance.get(
+        r(endpoints.examination.patientExaminationDetail(patientExaminationId))
+      )
+      extractOptionsFromPayload(detailRes.data, optionsById)
+    } catch {
+      loadErrors.push('patient-examination')
+    }
+  }
+
+  if (selectedExaminationId) {
+    try {
+      const examRes = await axiosInstance.get(
+        r(`${endpoints.router.examinations}${selectedExaminationId}/`)
+      )
+      extractOptionsFromPayload(examRes.data, optionsById)
+    } catch {
+      loadErrors.push('examination-detail')
+    }
+  }
+
+  if (selectedExaminationId && !optionsById.size) {
+    try {
+      const listRes = await axiosInstance.get(r(endpoints.router.examinations))
+      const rows = (Array.isArray(listRes.data?.results) ? listRes.data.results : listRes.data) as unknown[]
+      const selectedRow = Array.isArray(rows)
+        ? rows.find(
+            (entry) =>
+              !!entry &&
+              typeof entry === 'object' &&
+              normalizePositiveId((entry as Record<string, unknown>).id) === selectedExaminationId
+          )
+        : null
+      if (selectedRow) {
+        extractOptionsFromPayload(selectedRow, optionsById)
+      }
+    } catch {
+      loadErrors.push('examination-list')
+    }
+  }
+
+  indicationOptions.value = Array.from(optionsById.values())
+    .map((option) => ({
+      ...option,
+      choices: option.choices
+        .slice()
+        .sort((a, b) => a.label.localeCompare(b.label, 'de', { numeric: true }))
+    }))
+    .sort((a, b) => a.label.localeCompare(b.label, 'de', { numeric: true }))
+
+  if (!indicationOptions.value.length && loadErrors.length) {
+    indicationOptionsError.value =
+      'Indikationsoptionen konnten aus der aktuellen Backend-Antwort nicht abgeleitet werden.'
+  }
+
+  indicationOptionsLoading.value = false
+}
 
 function clearMessages() {
   errorMessage.value = null
@@ -626,6 +1013,7 @@ onMounted(async () => {
     return
   }
   await Promise.all([ensurePatientsLoaded(), ensureExaminationsLoaded()])
+  await loadIndicationCatalog()
   await refreshTemplatesForExamination()
   await loadLatestReportMeta()
 })

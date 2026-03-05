@@ -24,9 +24,105 @@ const selectedExamination = computed(() => examinationStore.examinationsDropdown
 const selectedExaminationName = computed(() => selectedExamination.value?.name || null);
 const selectedExaminationDisplayName = computed(() => selectedExamination.value?.displayName || selectedExaminationName.value || null);
 const templateStatusMessage = ref(null);
-const requirementSets = computed(() => lookup.value?.requirementSets ?? []);
-const selectedRequirementSetIdSet = computed(() => new Set(flow.selectedRequirementSetIds));
-const prettySuggestedActions = computed(() => JSON.stringify(lookup.value?.suggestedActions || {}, null, 2));
+function normalizeIdArray(value) {
+    if (!Array.isArray(value))
+        return [];
+    const ids = value
+        .map((entry) => Number(entry))
+        .filter((entry) => Number.isFinite(entry))
+        .map((entry) => Math.trunc(entry));
+    return Array.from(new Set(ids));
+}
+function normalizeRequirementSets(value) {
+    if (!Array.isArray(value))
+        return [];
+    return value
+        .map((entry) => {
+        if (!entry || typeof entry !== 'object')
+            return null;
+        const id = Number(entry.id);
+        if (!Number.isFinite(id))
+            return null;
+        return {
+            id,
+            name: String(entry.name || ''),
+            type: String(entry.type || '')
+        };
+    })
+        .filter((entry) => !!entry);
+}
+function normalizeRequirementsBySet(value) {
+    if (!value || typeof value !== 'object' || Array.isArray(value))
+        return {};
+    return Object.fromEntries(Object.entries(value).map(([key, entry]) => {
+        const requirements = Array.isArray(entry)
+            ? entry
+                .map((item) => {
+                if (!item || typeof item !== 'object')
+                    return null;
+                const id = Number(item.id);
+                if (!Number.isFinite(id))
+                    return null;
+                return {
+                    id,
+                    name: String(item.name || '')
+                };
+            })
+                .filter((item) => !!item)
+            : [];
+        return [String(key), requirements];
+    }));
+}
+function normalizeBooleanRecord(value) {
+    if (!value || typeof value !== 'object' || Array.isArray(value))
+        return {};
+    return Object.fromEntries(Object.entries(value).map(([key, entry]) => [String(key), !!entry]));
+}
+function normalizeSuggestedActions(value) {
+    if (!value || typeof value !== 'object' || Array.isArray(value))
+        return {};
+    return Object.fromEntries(Object.entries(value).map(([key, entry]) => [String(key), Array.isArray(entry) ? entry : []]));
+}
+function normalizeLookupPartial(partial) {
+    const normalized = { ...partial };
+    if ('requirementSets' in partial) {
+        normalized.requirementSets = normalizeRequirementSets(partial.requirementSets);
+    }
+    if ('requirementsBySet' in partial) {
+        normalized.requirementsBySet = normalizeRequirementsBySet(partial.requirementsBySet);
+    }
+    if ('requirementStatus' in partial) {
+        normalized.requirementStatus = normalizeBooleanRecord(partial.requirementStatus);
+    }
+    if ('requirementSetStatus' in partial) {
+        normalized.requirementSetStatus = normalizeBooleanRecord(partial.requirementSetStatus);
+    }
+    if ('suggestedActions' in partial) {
+        normalized.suggestedActions = normalizeSuggestedActions(partial.suggestedActions);
+    }
+    if ('selectedRequirementSetIds' in partial) {
+        normalized.selectedRequirementSetIds = normalizeIdArray(partial.selectedRequirementSetIds);
+    }
+    return normalized;
+}
+const requirementSets = computed(() => normalizeRequirementSets(lookup.value?.requirementSets));
+const selectedRequirementSetIds = computed(() => normalizeIdArray(flow.selectedRequirementSetIds));
+const selectedRequirementSetIdSet = computed(() => new Set(selectedRequirementSetIds.value));
+const selectedRequirementSetIdsDisplay = computed(() => selectedRequirementSetIds.value.length ? selectedRequirementSetIds.value.join(', ') : 'keine');
+const lookupRequirementSetStatus = computed(() => normalizeBooleanRecord(lookup.value?.requirementSetStatus));
+const hasSuggestedActions = computed(() => Object.keys(normalizeSuggestedActions(lookup.value?.suggestedActions)).length > 0);
+const prettySuggestedActions = computed(() => JSON.stringify(normalizeSuggestedActions(lookup.value?.suggestedActions), null, 2));
+const selectedTemplateValidatorCounts = computed(() => {
+    const validators = selectedTemplate.value?.validators;
+    return {
+        examination: Array.isArray(validators?.examinationValidators)
+            ? validators.examinationValidators.length
+            : 0,
+        findings: Array.isArray(validators?.findingsValidators)
+            ? validators.findingsValidators.length
+            : 0
+    };
+});
 const routePatientExaminationId = computed(() => {
     const raw = Number(route.params.patient_examination_id);
     return Number.isFinite(raw) ? raw : null;
@@ -36,14 +132,15 @@ function clearMessages() {
     successMessage.value = null;
 }
 function applyLookup(partial) {
+    const normalizedPartial = normalizeLookupPartial(partial);
     if (!lookup.value) {
-        lookup.value = partial;
+        lookup.value = normalizedPartial;
     }
     else {
-        lookup.value = { ...lookup.value, ...partial };
+        lookup.value = { ...lookup.value, ...normalizedPartial };
     }
-    if (Array.isArray(partial.selectedRequirementSetIds)) {
-        flow.setSelectedRequirementSetIds(partial.selectedRequirementSetIds);
+    if (Array.isArray(normalizedPartial.selectedRequirementSetIds)) {
+        flow.setSelectedRequirementSetIds(normalizedPartial.selectedRequirementSetIds);
     }
 }
 function extractPatientId(payload) {
@@ -186,7 +283,7 @@ async function toggleRequirementSet(id, checked) {
     if (loading.value)
         return;
     clearMessages();
-    const next = new Set(flow.selectedRequirementSetIds);
+    const next = new Set(selectedRequirementSetIds.value);
     if (checked)
         next.add(id);
     else
@@ -356,8 +453,8 @@ __VLS_2.slots.default;
             ...{ class: "small text-muted mb-2" },
         });
         (__VLS_ctx.sectionBlocks.length);
-        (__VLS_ctx.selectedTemplate.validators.examinationValidators.length);
-        (__VLS_ctx.selectedTemplate.validators.findingsValidators.length);
+        (__VLS_ctx.selectedTemplateValidatorCounts.examination);
+        (__VLS_ctx.selectedTemplateValidatorCounts.findings);
         __VLS_asFunctionalElement(__VLS_intrinsicElements.ul, __VLS_intrinsicElements.ul)({
             ...{ class: "list-group list-group-flush" },
         });
@@ -484,14 +581,14 @@ else {
         items: (__VLS_ctx.requirementSets),
         selectedIdSet: (__VLS_ctx.selectedRequirementSetIdSet),
         loading: (__VLS_ctx.loading),
-        requirementSetStatus: (__VLS_ctx.lookup?.requirementSetStatus || {}),
+        requirementSetStatus: (__VLS_ctx.lookupRequirementSetStatus),
     }));
     const __VLS_13 = __VLS_12({
         ...{ 'onToggle': {} },
         items: (__VLS_ctx.requirementSets),
         selectedIdSet: (__VLS_ctx.selectedRequirementSetIdSet),
         loading: (__VLS_ctx.loading),
-        requirementSetStatus: (__VLS_ctx.lookup?.requirementSetStatus || {}),
+        requirementSetStatus: (__VLS_ctx.lookupRequirementSetStatus),
     }, ...__VLS_functionalComponentArgsRest(__VLS_12));
     let __VLS_15;
     let __VLS_16;
@@ -510,8 +607,8 @@ else {
         ...{ class: "fw-semibold" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.code, __VLS_intrinsicElements.code)({});
-    (__VLS_ctx.flow.selectedRequirementSetIds.join(', ') || 'keine');
-    if (__VLS_ctx.lookup?.suggestedActions && Object.keys(__VLS_ctx.lookup.suggestedActions).length) {
+    (__VLS_ctx.selectedRequirementSetIdsDisplay);
+    if (__VLS_ctx.hasSuggestedActions) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: "mt-3" },
         });
@@ -619,7 +716,6 @@ const __VLS_self = (await import('vue')).defineComponent({
             RequirementSetSelectionList: RequirementSetSelectionList,
             route: route,
             flow: flow,
-            lookup: lookup,
             loading: loading,
             errorMessage: errorMessage,
             successMessage: successMessage,
@@ -635,7 +731,11 @@ const __VLS_self = (await import('vue')).defineComponent({
             templateStatusMessage: templateStatusMessage,
             requirementSets: requirementSets,
             selectedRequirementSetIdSet: selectedRequirementSetIdSet,
+            selectedRequirementSetIdsDisplay: selectedRequirementSetIdsDisplay,
+            lookupRequirementSetStatus: lookupRequirementSetStatus,
+            hasSuggestedActions: hasSuggestedActions,
             prettySuggestedActions: prettySuggestedActions,
+            selectedTemplateValidatorCounts: selectedTemplateValidatorCounts,
             refreshTemplatesForExamination: refreshTemplatesForExamination,
             onModuleChange: onModuleChange,
             onTemplateSelectionChange: onTemplateSelectionChange,

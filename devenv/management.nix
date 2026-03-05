@@ -153,14 +153,17 @@ in
       mkdir -p "${env.STORAGE_DIR}/export/frames/"
       secretspec run --profile env python manage.py export_frame_annot --output-path "${env.STORAGE_DIR}/export/frames/"
     '';
-    
+
+    "train-model".exec = ''
+      REPO_ROOT="${env.WORKING_DIR}"
+      cd "$REPO_ROOT"
+      secretspec run --profile env python manage.py train_model
+    '';
 
     "run-server".exec = ''
       REPO_ROOT="${env.WORKING_DIR}"
         cd "$REPO_ROOT"
         
-        # Define the explicit path to the venv python
-        VENV_PYTHON="$REPO_ROOT/.devenv/state/venv/bin/python"
 
         git submodule update --init --recursive
         
@@ -178,7 +181,6 @@ in
 
         source ''$REPO_ROOT/.devenv/state/venv/bin/activate
 
-        # Use the explicit Venv Python to run daphne as a module
         secretspec run --provider env uv run daphne -b "${env.DJANGO_HOST}" -p "${env.DJANGO_PORT}" lx_annotate.asgi:application;
     '';
 

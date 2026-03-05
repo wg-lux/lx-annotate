@@ -2,11 +2,17 @@ import { computed, ref } from 'vue'
 
 import axiosInstance from '@/api/axiosInstance'
 import type {
+  ReportTemplateClassification,
+  ReportTemplateFinding,
   ReportTemplatePayload,
   ReportTemplateSectionBlock
 } from '@/types/reportTemplate'
 
 const REPORT_TEMPLATE_BASE = '/base_api/report-templates'
+
+function isRecordLike(value: unknown): value is Record<string, any> {
+  return !!value && typeof value === 'object' && !Array.isArray(value)
+}
 
 function titleFromSectionName(name: string): string {
   return name
@@ -14,6 +20,73 @@ function titleFromSectionName(name: string): string {
     .filter(Boolean)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ')
+}
+
+function normalizeClassifications(
+  classifications: unknown
+): ReportTemplateClassification[] {
+  if (!Array.isArray(classifications)) return []
+  return classifications
+    .filter((classification): classification is Record<string, any> =>
+      isRecordLike(classification)
+    )
+    .map((classification) => ({
+      classification:
+        typeof classification.classification === 'string'
+          ? classification.classification
+          : '',
+      required: !!classification.required
+    }))
+    .filter((classification) => !!classification.classification)
+}
+
+function normalizeFindings(findings: unknown): ReportTemplateFinding[] {
+  if (!Array.isArray(findings)) return []
+  return findings
+    .filter((finding): finding is Record<string, any> => isRecordLike(finding))
+    .map((finding) => ({
+      finding: typeof finding.finding === 'string' ? finding.finding : '',
+      required: !!finding.required,
+      multipleAllowed: !!finding.multipleAllowed,
+      classifications: normalizeClassifications(finding.classifications)
+    }))
+    .filter((finding) => !!finding.finding)
+}
+
+function normalizeTemplatePayload(payload: unknown): ReportTemplatePayload | null {
+  if (!isRecordLike(payload)) return null
+  const name = typeof payload.name === 'string' ? payload.name : ''
+  if (!name) return null
+
+  const sections = Array.isArray(payload.reportSections)
+    ? payload.reportSections
+        .filter((section): section is Record<string, any> => isRecordLike(section))
+        .map((section) => ({
+          name: typeof section.name === 'string' ? section.name : '',
+          position: Number.isFinite(Number(section.position)) ? Number(section.position) : 0,
+          types: Array.isArray(section.types)
+            ? section.types.filter((entry): entry is string => typeof entry === 'string')
+            : [],
+          findings: normalizeFindings(section.findings)
+        }))
+        .filter((section) => !!section.name)
+    : []
+
+  const validators = isRecordLike(payload.validators) ? payload.validators : {}
+
+  return {
+    name,
+    examination: typeof payload.examination === 'string' ? payload.examination : '',
+    reportSections: sections,
+    validators: {
+      examinationValidators: Array.isArray(validators.examinationValidators)
+        ? validators.examinationValidators
+        : [],
+      findingsValidators: Array.isArray(validators.findingsValidators)
+        ? validators.findingsValidators
+        : []
+    }
+  }
 }
 
 function normalizeSections(
@@ -28,7 +101,10 @@ function normalizeSections(
       const optionalFindingsCount = Math.max(0, findings.length - requiredFindingsCount)
       const requiredClassificationsCount = findings.reduce(
         (acc, finding) =>
-          acc + (finding.classifications || []).filter((classification) => !!classification.required).length,
+          acc +
+          (Array.isArray(finding.classifications) ? finding.classifications : []).filter(
+            (classification) => !!classification.required
+          ).length,
         0
       )
       return {
@@ -78,7 +154,10 @@ export function useReportTemplates(params?: {
       const res = await axiosInstance.get(
         `${REPORT_TEMPLATE_BASE}/${encodeURIComponent(useModule)}/${encodeURIComponent(templateName)}`
       )
-      const payload = res.data as ReportTemplatePayload
+      const payload = normalizeTemplatePayload(res.data)
+      if (!payload) {
+        throw new Error('Ungültiges Report-Template-Format.')
+      }
       const existingIndex = templateOptions.value.findIndex((item) => item.name === payload.name)
       if (existingIndex >= 0) {
         templateOptions.value.splice(existingIndex, 1, payload)
@@ -116,7 +195,11 @@ export function useReportTemplates(params?: {
       const res = await axiosInstance.get(
         `${REPORT_TEMPLATE_BASE}/by-examination/${encodeURIComponent(useModule)}/${encodeURIComponent(examinationName)}`
       )
-      const templates = Array.isArray(res.data) ? (res.data as ReportTemplatePayload[]) : []
+      const templates = Array.isArray(res.data)
+        ? res.data
+            .map((entry) => normalizeTemplatePayload(entry))
+            .filter((entry): entry is ReportTemplatePayload => !!entry)
+        : []
       templateOptions.value = templates
 
       const preferredName = selectedTemplateName.value

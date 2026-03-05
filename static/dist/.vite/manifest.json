@@ -22,10 +22,10 @@
     "name": "FindingsDetail",
     "imports": [
       "src/main.ts",
-      "_findingStore.js",
+      "_examinationStore.js",
       "_patientStore.js",
       "_patientExaminationStore.js",
-      "_examinationStore.js"
+      "_findingStore.js"
     ],
     "css": [
       "FindingsDetail.css"
@@ -559,8 +559,8 @@
       "_findingStore.js",
       "_patientExaminationStore.js",
       "src/main.ts",
-      "_patientStore.js",
-      "_examinationStore.js"
+      "_examinationStore.js",
+      "_patientStore.js"
     ]
   },
   "src/views/reporting/FrameSelectorPage.vue": {
