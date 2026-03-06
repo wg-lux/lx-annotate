@@ -2,7 +2,7 @@
   "name": "lx-annotate",
   "version": "1.0.0",
   "description": "A package to solve challenges in medical ai and data processing.",
-  "main": "static/dist/index.js",
+  "main": "static/index.js",
   "directories": {
     "doc": "docs",
     "example": "examples",

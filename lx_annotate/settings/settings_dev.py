@@ -50,10 +50,8 @@ ALLOWED_HOSTS = ["*"]
 DJANGO_VITE = {
     "default": {
         "dev_mode": False,
-        "static_url_prefix": "dist",
-        "manifest_path": os.path.join(
-            BASE_DIR, "static", "dist", ".vite", "manifest.json"
-        ),
+        "static_url_prefix": "",
+        "manifest_path": os.path.join(BASE_DIR, "static", ".vite", "manifest.json"),
     }
 }
 

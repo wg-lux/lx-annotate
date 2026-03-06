@@ -11,6 +11,7 @@ used throughout the project.
 :caption: Guides
 
 guides/general-documentation
+guides/asset-deployment
 assisted-reporting-report
 guides/segment-annotation-workflow
 guides/anonymization-validation-correction-workflow

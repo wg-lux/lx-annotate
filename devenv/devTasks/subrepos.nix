@@ -9,7 +9,6 @@ let
   customTasks = {
   "setup:endoreg-db" = {
     description = "Clone or update endoreg-db";
-    before      = [ "env:build" ];
     after      = [ "devenv:files" ];
     status      = ''
       if [ -d "${ENDOREG_DB_DIR}/.git" ]; then
@@ -34,7 +33,6 @@ let
 
   "setup:lx-anonymizer" = {
     description = "Clone or update lx-anonymizer";
-    before      = [ "env:build" ];
     after       = [ "purge:endoreg_db_envrc" ];
     status = ''
       [ -d "${ENDOREG_DB_DIR}/${LX_ANONYMIZER_DIR}/.git" ] && exit 0 || exit 1
@@ -64,7 +62,6 @@ let
 
   "setup:frontend" = {
     description = "Install frontend NPM deps";
-    before      = [ "env:build" ];
     after      = [ "devenv:files" ];
     status      = ''
       if [ -d "${FRONTEND_DIR}/node_modules" ]; then exit 0; else exit 1; fi

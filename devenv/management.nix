@@ -12,6 +12,7 @@ let
   gpuArgs = ''
     : # GPU args placeholder
   '';
+  pythonBin = "${pkgs.python3}/bin/python";
 in
 {
   # =============================================================================
@@ -55,11 +56,36 @@ in
     "deploy:full" = {
       description = "Run migrations, load base data, and collect static files";
       exec = ''
-        set -e
+        set -euo pipefail
+        devenv tasks run deploy:verify-vite-artifacts
         ${pkgs.uv}/bin/uv run python manage.py migrate
         ${pkgs.uv}/bin/uv run python manage.py load_base_db_data || true
         ${pkgs.uv}/bin/uv run python manage.py collectstatic --noinput
         echo "✅ Deploy pipeline complete"
+      '';
+    };
+    "deploy:verify-vite-artifacts" = {
+      description = "Run vue build and fail if committed static artifacts are stale";
+      exec = ''
+        set -euo pipefail
+        REPO_ROOT="${env.WORKING_DIR}"
+        cd "$REPO_ROOT"
+
+        if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+          echo "⚠️  Not a git checkout; skipping static drift check."
+          exit 0
+        fi
+
+        echo "🔎 Verifying Vite artifacts in static are up to date..."
+        devenv tasks run vue:build
+
+        if ! git diff --quiet -- static || ! git diff --cached --quiet -- static; then
+          echo "❌ static changed after vue:build. Commit updated frontend artifacts."
+          git --no-pager diff --name-only -- static || true
+          exit 1
+        fi
+
+        echo "✅ static artifacts are up to date."
       '';
     };
     "vue:build".exec = 
@@ -162,10 +188,53 @@ in
 
     "run-server".exec = ''
       REPO_ROOT="${env.WORKING_DIR}"
+        set -euo pipefail
         cd "$REPO_ROOT"
         
 
         git submodule update --init --recursive
+
+        ensure_vite_manifest_runtime() {
+          local static_root manifest entry_file asset_path
+          static_root="''${DJANGO_STATIC_ROOT:-$REPO_ROOT/static}"
+          manifest="$static_root/.vite/manifest.json"
+
+          if [ ! -f "$manifest" ]; then
+            echo "❌ Missing Vite manifest: $manifest"
+            echo "   Run: devenv shell -- vue-build"
+            return 1
+          fi
+
+          entry_file="$(${pythonBin} - "$manifest" <<'PY'
+import json
+import sys
+
+manifest_path = sys.argv[1]
+try:
+    with open(manifest_path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+except Exception:
+    sys.exit(2)
+
+entry = data.get("src/main.ts", {}).get("file")
+if not entry:
+    sys.exit(3)
+print(entry)
+PY
+)"
+          if [ -z "$entry_file" ]; then
+            echo "❌ Vite manifest has no src/main.ts entry: $manifest"
+            return 1
+          fi
+
+          asset_path="$static_root/$entry_file"
+          if [ ! -f "$asset_path" ]; then
+            echo "❌ Vite manifest points to missing asset: $asset_path"
+            return 1
+          fi
+        }
+
+        ensure_vite_manifest_runtime || exit 1
         
         echo "🌀 Starting Daphne using Venv Python..."
         
@@ -203,8 +272,6 @@ in
           esac
         fi
 
-        # Use the explicit Venv Python to run daphne as a module
-        # This bypasses the broken 'uv run' shell logic
         secretspec run --provider env $VENV_PYTHON scripts/file_watcher.py
     '';
 

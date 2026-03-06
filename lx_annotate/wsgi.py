@@ -12,7 +12,6 @@ import os
 from django.core.wsgi import get_wsgi_application
 
 print("WSGI config started")
-# /home/agl-admin/agl_anonymizer/agl_anonymizer/wsgi.py
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "lx_annotate.settings.settings_dev")
 

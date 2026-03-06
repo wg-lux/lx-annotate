@@ -137,7 +137,7 @@ static/img/frames_demo/*
 # -------------------------------
 # Frontend build and Vite-related files
 # -------------------------------
-# Although your Vite config outputs to ../static/dist (which is versioned in STATICFILES_DIRS),
+# Although your Vite config outputs to ../static (which is versioned in STATICFILES_DIRS),
 # you don’t want to commit any other generated files.
 # (If you ever have a build folder inside the frontend directory, ignore it)
 frontend/dist/

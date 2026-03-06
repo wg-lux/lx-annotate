@@ -19,13 +19,13 @@ buildNpmPackage rec {
 
     mkdir -p "$out"
 
-    # Vite is configured to emit to ../static/dist relative to ./frontend.
-    if [ -d ../static/dist ]; then
-      cp -r ../static/dist "$out/dist"
-    elif [ -d static/dist ]; then
-      cp -r static/dist "$out/dist"
+    # Vite is configured to emit to ../static relative to ./frontend.
+    if [ -d ../static ]; then
+      cp -r ../static "$out/dist"
+    elif [ -d static ]; then
+      cp -r static "$out/dist"
     else
-      echo "Expected frontend build output in ../static/dist or static/dist" >&2
+      echo "Expected frontend build output in ../static or static" >&2
       exit 1
     fi
 

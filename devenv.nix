@@ -108,12 +108,6 @@ let
     export PATH="$PATH:$(yarn global bin)"
   '';
 
-  customTasks = ( 
-    import ./devenv/tasks/default.nix ({
-      inherit config pkgs lib baseEnv;
-    })
-  );
-
   customProcesses = (
     import ./devenv/processes/default.nix ({
        inherit config pkgs lib baseEnv;
@@ -187,6 +181,7 @@ in
 
   processes = devenv_utils.processes;
   containers = devenv_utils.containers;
+  tasks = devTasks;
 
   scripts = {
     export-nix-vars.exec = ''

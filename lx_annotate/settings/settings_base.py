@@ -188,7 +188,7 @@ print(f"STATIC_ROOT set to: {STATIC_ROOT}")
 Path(STATIC_ROOT).mkdir(parents=True, exist_ok=True)
 # SOURCES: Where Django looks for files to collect
 STATICFILES_DIRS = [
-    # Root source directory so /static/dist/* and /static/assets/* resolve correctly.
+    # Root source directory so /static/* and /static/assets/* resolve correctly.
     REPO_ROOT / "static",
 ]
 
@@ -246,9 +246,7 @@ CACHES = {
         "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
         "LOCATION": "unique-snowflake",
         "TIMEOUT": 60 * 30,  # 30 minutes
-        "OPTIONS": {
-            "MAX_ENTRIES": 1000  # Limit cache size
-        },
+        "OPTIONS": {"MAX_ENTRIES": 1000},  # Limit cache size
     }
 }
 # DRF Base

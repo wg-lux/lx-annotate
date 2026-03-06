@@ -1,60 +1,42 @@
-import { defineConfig, loadEnv } from 'vite'
+import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import vueJsx from '@vitejs/plugin-vue-jsx'
 import vueDevTools from 'vite-plugin-vue-devtools'
 import { fileURLToPath } from 'node:url'
-import { dirname, resolve } from 'node:path' // ← add dirname
+import { dirname, resolve } from 'node:path'
 
-// ---- make the CommonJS-style globals -------------------
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
-// --------------------------------------------------------
 
-export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, process.cwd(), '')
-  const isDev = mode === 'development'
-
-  return {
-    //base: mode === 'development' ? 'http://localhost:3000/' : './',
-    base: isDev ? '/static/' : '/static/dist/',
+export default defineConfig({
+    base: '/static/',
     plugins: [vue(), vueJsx(), vueDevTools()],
-    define: {
-      // Label Studio expects a Node-style global in browser context.
-      global: 'window'
-    },
-    optimizeDeps: {
-      include: [
-        '@pareto-engineering/label-studio-mono',
-        'react',
-        'react-dom'
-      ]
-    },
 
     build: {
       manifest: true,
-      outDir: resolve(__dirname, '../static/dist'),
-      emptyOutDir: true,
-      target: 'esnext', // Ermöglicht Top-level await
+      outDir: resolve(__dirname, '../static'),
+      // Keep non-Vite static assets (e.g. Django/admin/docs) intact.
+      emptyOutDir: false,
+      target: 'esnext',
       commonjsOptions: {
-        include: [/@pareto-engineering\/label-studio-mono/, /node_modules/],
         transformMixedEsModules: true
       },
       rollupOptions: {
         input: {
-          main: resolve(__dirname, 'src/main.ts'),
+          main: resolve(__dirname, 'src/main.ts')
         },
         output: {
           entryFileNames: '[name].js',
           chunkFileNames: '[name].js',
           assetFileNames: '[name].[ext]',
-          format: 'es' // ES-Module Format für moderne Features
+          format: 'es'
         },
-        external: ['fsevents'] // 👈 tell Rollup to skip this optional macOS dependency
+        external: ['fsevents', 'LabelStudio']
       }
     },
 
     esbuild: {
-      target: 'esnext' // Unterstützt moderne JS-Features inklusive Top-level await
+      target: 'esnext'
     },
 
     server: {
@@ -64,7 +46,7 @@ export default defineConfig(({ mode }) => {
       hmr: { host: '127.0.0.1' },
       proxy: {
         '/api': {
-                    target: 'http://localhost:8000',
+          target: 'http://localhost:8000',
           changeOrigin: true,
           secure: false
         },
@@ -72,7 +54,6 @@ export default defineConfig(({ mode }) => {
           target: 'http://localhost:8000',
           changeOrigin: true,
           secure: false
-          
         },
         '/admin': {
           target: 'http://localhost:8000',
@@ -95,5 +76,4 @@ export default defineConfig(({ mode }) => {
         }
       }
     }
-  }
 })

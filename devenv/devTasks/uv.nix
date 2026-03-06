@@ -3,7 +3,6 @@ let
   customTasks = {
   "uv:sync" = {
     description = "Run uv sync to synchronize Python packages";
-    after       = [ "env:build" ];
     exec        = ''
           # Ensure dependencies are synced using uv
               # Check if venv exists. If not, run sync verbosely. If it exists, sync quietly.

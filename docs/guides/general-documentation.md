@@ -12,6 +12,7 @@ This page is the central orientation for `lx-annotate` documentation.
 ## Documentation Structure
 
 - `assisted-reporting-report`: Practical reporting workflow with step-by-step guidance
+- `guides/asset-deployment`: Frontend build/manifest/runtime deployment contract
 - `guides/segment-annotation-workflow`: Practical video segment review and validation workflow
 - `guides/anonymization-validation-correction-workflow`: Validation/approval and correction flow before reporting
 - `guides/reporting-template-requirements-page`: Detailed template and requirement-set workflow

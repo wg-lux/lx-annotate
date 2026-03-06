@@ -52,8 +52,8 @@ if SECRET_KEY.startswith("***UNSAFE") or not SECRET_KEY:
 DJANGO_VITE = {
     "default": {
         "dev_mode": False,
-        "static_url_prefix": "dist",
-        "manifest_path": os.path.join(STATIC_ROOT, "dist", ".vite", "manifest.json"),
+        "static_url_prefix": "",
+        "manifest_path": os.path.join(STATIC_ROOT, ".vite", "manifest.json"),
     }
 }
 

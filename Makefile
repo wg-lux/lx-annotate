@@ -24,7 +24,7 @@ DEVENV_RUN = $(DEVENV) shell --
 	setup bootstrap update submodules reset-branch migrate load-base-data static \
 	deploy-prod deploy start-app start-watcher start-export shell django-check \
 	test lint frontend-build frontend-build-force backend-server docs-build docs-publish \
-	migrate-force
+	migrate-force verify-vite-artifacts
 
 help: ## Show available targets
 	@awk 'BEGIN {FS = ":.*## "}; /^[a-zA-Z0-9_.-]+:.*## / {printf "%-20s %s\n", $$1, $$2}' $(MAKEFILE_LIST) | sort
@@ -111,7 +111,15 @@ docs-publish: docs-build ## Publish docs to static/docs for the /documentation a
 	cd "$(REPO_DIR)" && $(MKDIR_P) static/docs
 	cd "$(REPO_DIR)" && rsync -a --delete docs/_build/html/ static/docs/
 
-deploy-prod: update submodules migrate load-base-data static ## Update code and prepare prod assets
+verify-vite-artifacts: check-repo check-tools frontend-build-force ## Fail if frontend build changes committed static artifacts
+	@set -e; \
+	if ! cd "$(REPO_DIR)" && "$(GIT)" diff --quiet -- static; then \
+		echo "static changed after vue-build. Commit updated frontend artifacts."; \
+		cd "$(REPO_DIR)" && "$(GIT)" diff --name-only -- static; \
+		exit 1; \
+	fi
+
+deploy-prod: update submodules verify-vite-artifacts migrate load-base-data static ## Update code and prepare prod assets
 	@echo "Production deploy steps completed."
 
 deploy: deploy-prod ## Alias for deploy-prod
@@ -138,7 +146,7 @@ frontend-build-force: check-repo check-tools ## Force-build frontend assets and 
 backend-server: check-repo check-tools
 	cd "$(REPO_DIR)" && $(DEVENV_RUN) run-server
 
-start-app: check-repo check-tools frontend-build
+start-app: check-repo check-tools
 	cd "$(REPO_DIR)" && exec $(DEVENV_RUN) run-server
 
 start-watcher: check-repo check-tools ## Start file watcher process
