@@ -2,38 +2,44 @@ import { defineStore } from 'pinia'
 import { reactive, ref, computed, readonly } from 'vue'
 import axiosInstance, { r } from '@/api/axiosInstance'
 import type { Finding } from '@/stores/findingStore'
+import type {
+  ClassificationChoiceCore,
+  ClassificationCore,
+  ExaminationCore
+} from '@/types/coreConcepts'
 
 // --- Interfaces ---
-export interface Examination {
+export interface Examination extends Pick<ExaminationCore, 'name'> {
   id: number
-  name: string
+  nameDe?: string
+  nameEn?: string
   name_de?: string
   name_en?: string
   displayName?: string
 }
 
-export interface LocationClassificationChoice {
+export interface LocationClassificationChoice extends Pick<ClassificationChoiceCore, 'name'> {
   id: number
-  name: string
+  nameDe?: string
   name_de?: string
 }
-export interface MorphologyClassificationChoice {
+export interface MorphologyClassificationChoice extends Pick<ClassificationChoiceCore, 'name'> {
   id: number
-  name: string
+  nameDe?: string
   name_de?: string
 }
 
-export interface LocationClassification {
+export interface LocationClassification extends Pick<ClassificationCore, 'name'> {
   id: number
-  name: string
+  nameDe?: string
   name_de?: string
   choices: LocationClassificationChoice[]
   required?: boolean
 }
 
-export interface MorphologyClassification {
+export interface MorphologyClassification extends Pick<ClassificationCore, 'name'> {
   id: number
-  name: string
+  nameDe?: string
   name_de?: string
   choices: MorphologyClassificationChoice[]
   required?: boolean
@@ -64,7 +70,7 @@ export const useExaminationStore = defineStore('examination', {
       return state.exams.map((e) => ({
         id: e.id,
         name: e.name,
-        displayName: e.displayName ?? e.name_de ?? e.name
+        displayName: e.displayName ?? e.nameDe ?? e.name_de ?? e.name
       }))
     },
     selectedExamination(state): Examination | null {
@@ -99,9 +105,12 @@ export const useExaminationStore = defineStore('examination', {
         this.exams = (res.data as any[]).map((e) => ({
           id: e.id,
           name: e.name,
-          name_de: e.name_de,
-          name_en: e.name_en,
-          displayName: e.displayName ?? e.name_de ?? e.name_en ?? e.name
+          nameDe: e.nameDe ?? e.name_de,
+          nameEn: e.nameEn ?? e.name_en,
+          name_de: e.name_de ?? e.nameDe,
+          name_en: e.name_en ?? e.nameEn,
+          displayName:
+            e.displayName ?? e.nameDe ?? e.name_de ?? e.nameEn ?? e.name_en ?? e.name
         }))
       } catch (e: any) {
         this.error = e?.response?.data?.detail ?? e?.message ?? 'Unbekannter Fehler'

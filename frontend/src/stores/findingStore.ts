@@ -3,30 +3,27 @@ import axiosInstance from '@/api/axiosInstance'
 import { ref, readonly, computed } from 'vue'
 import type { Patient } from '../api/patientService'
 import { useExaminationStore } from '@/stores/examinationStore'
+import type { ClassificationChoiceCore, ClassificationCore, FindingCore } from '@/types/coreConcepts'
 
 // --- Interfaces ---
 
-interface Finding {
+interface Finding extends Pick<FindingCore, 'name'> {
   id: number
-  name: string
-  nameDe?: string
   description: string
+  nameDe?: string
   examinations: Array<string>
   PatientExaminationId?: number
   FindingClassifications: Array<FindingClassification>
-  findingTypes: Array<string>
-  findingInterventions: Array<string>
+  findingTypes: FindingCore['findingTypes']
+  findingInterventions: FindingCore['interventions']
 }
 
-interface FindingClassificationChoice {
+interface FindingClassificationChoice extends Pick<ClassificationChoiceCore, 'name'> {
   id: number
-  name: string
 }
 
-interface FindingClassification {
+interface FindingClassification extends Partial<Pick<ClassificationCore, 'name' | 'description'>> {
   id: number
-  name?: string
-  description?: string
   classificationType?: Array<string>
   choices?: Array<FindingClassificationChoice>
   required?: boolean | undefined

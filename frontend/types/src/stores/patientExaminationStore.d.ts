@@ -38,10 +38,12 @@ export declare const usePatientExaminationStore: import("pinia").StoreDefinition
             };
             examination: {
                 id: number;
-                name: string;
+                nameDe?: string | undefined;
+                nameEn?: string | undefined;
                 name_de?: string | undefined;
                 name_en?: string | undefined;
                 displayName?: string | undefined;
+                name: string;
             };
             video: {
                 [x: string]: any;
@@ -84,10 +86,12 @@ export declare const usePatientExaminationStore: import("pinia").StoreDefinition
         };
         examination: {
             id: number;
-            name: string;
+            nameDe?: string | undefined;
+            nameEn?: string | undefined;
             name_de?: string | undefined;
             name_en?: string | undefined;
             displayName?: string | undefined;
+            name: string;
         };
         video: {
             [x: string]: any;
@@ -127,10 +131,12 @@ export declare const usePatientExaminationStore: import("pinia").StoreDefinition
             };
             examination: {
                 id: number;
-                name: string;
+                nameDe?: string | undefined;
+                nameEn?: string | undefined;
                 name_de?: string | undefined;
                 name_en?: string | undefined;
                 displayName?: string | undefined;
+                name: string;
             };
             video: {
                 [x: string]: any;
@@ -177,10 +183,12 @@ export declare const usePatientExaminationStore: import("pinia").StoreDefinition
             };
             examination: {
                 id: number;
-                name: string;
+                nameDe?: string | undefined;
+                nameEn?: string | undefined;
                 name_de?: string | undefined;
                 name_en?: string | undefined;
                 displayName?: string | undefined;
+                name: string;
             };
             video: {
                 [x: string]: any;
@@ -227,10 +235,12 @@ export declare const usePatientExaminationStore: import("pinia").StoreDefinition
             };
             examination: {
                 id: number;
-                name: string;
+                nameDe?: string | undefined;
+                nameEn?: string | undefined;
                 name_de?: string | undefined;
                 name_en?: string | undefined;
                 displayName?: string | undefined;
+                name: string;
             };
             video: {
                 [x: string]: any;
@@ -273,10 +283,12 @@ export declare const usePatientExaminationStore: import("pinia").StoreDefinition
         };
         examination: {
             id: number;
-            name: string;
+            nameDe?: string | undefined;
+            nameEn?: string | undefined;
             name_de?: string | undefined;
             name_en?: string | undefined;
             displayName?: string | undefined;
+            name: string;
         };
         video: {
             [x: string]: any;
@@ -316,10 +328,12 @@ export declare const usePatientExaminationStore: import("pinia").StoreDefinition
             };
             examination: {
                 id: number;
-                name: string;
+                nameDe?: string | undefined;
+                nameEn?: string | undefined;
                 name_de?: string | undefined;
                 name_en?: string | undefined;
                 displayName?: string | undefined;
+                name: string;
             };
             video: {
                 [x: string]: any;

@@ -19,7 +19,7 @@ export const useExaminationStore = defineStore('examination', {
             return state.exams.map((e) => ({
                 id: e.id,
                 name: e.name,
-                displayName: e.displayName ?? e.name_de ?? e.name
+                displayName: e.displayName ?? e.nameDe ?? e.name_de ?? e.name
             }));
         },
         selectedExamination(state) {
@@ -53,9 +53,11 @@ export const useExaminationStore = defineStore('examination', {
                 this.exams = res.data.map((e) => ({
                     id: e.id,
                     name: e.name,
-                    name_de: e.name_de,
-                    name_en: e.name_en,
-                    displayName: e.displayName ?? e.name_de ?? e.name_en ?? e.name
+                    nameDe: e.nameDe ?? e.name_de,
+                    nameEn: e.nameEn ?? e.name_en,
+                    name_de: e.name_de ?? e.nameDe,
+                    name_en: e.name_en ?? e.nameEn,
+                    displayName: e.displayName ?? e.nameDe ?? e.name_de ?? e.nameEn ?? e.name_en ?? e.name
                 }));
             }
             catch (e) {

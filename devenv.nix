@@ -120,28 +120,26 @@ let
     })
   );
 
-  imports = [
-    ./frontend/flake.nix
-  ];
   myTesseract = pkgs.tesseract.override {
     enableLanguages = [ "eng" "deu" ];
   };
 
+  # Ollama currently pulls CUDA-linked dependencies in this nixpkgs snapshot.
+  # Keep it opt-in so shell evaluation remains reliable on non-CUDA setups.
+  enableOllama = builtins.getEnv "DEVENV_ENABLE_OLLAMA" == "1";
+
   runtimePackages = with pkgs; [
     stdenv.cc.cc
     ffmpeg-headless.bin
-    tesseract
     uvPackage
     libglvnd # Add libglvnd for libGL.so.1
     glib
     zlib
-    ollama.out
-    tesseract
     git
     myTesseract
     secretspec
-    xorg.libxcb
-  ];
+    libxcb
+  ] ++ lib.optionals enableOllama [ ollama.out ];
 
 
   _module.args.buildInputs = baseBuildInputs;
@@ -155,7 +153,7 @@ in
 
   dotenv.enable = false;
   dotenv.disableHint = true;
-  packages = devenv_utils.buildInputs ++ runtimePackages;
+  packages = lib.unique (devenv_utils.buildInputs ++ runtimePackages);
 
 
 
@@ -182,7 +180,7 @@ in
   languages.javascript = {
     enable = true;
     package = pkgs.nodejs_22; 
-    npm.install.enable = true; 
+    npm.install.enable = false;
   };
 
 
@@ -226,12 +224,21 @@ in
   enterShell = lib.mkAfter ''
     source .devenv/state/venv/bin/activate
 
-    # Ensure dependencies are synced using uv
-    # Check if venv exists. If not, run sync verbosely. If it exists, sync quietly.
+    # Sync Python deps only when uv.lock changes to avoid slow shell startup.
+    SYNC_STAMP=".devenv/state/uv.syncstamp"
+    LOCK_HASH="$(${pkgs.coreutils}/bin/sha256sum uv.lock 2>/dev/null | ${pkgs.gawk}/bin/awk '{print $1}')"
+    PREV_LOCK_HASH="$(${pkgs.coreutils}/bin/cat "$SYNC_STAMP" 2>/dev/null || true)"
 
-    echo "uv deps changed -> syncing..."
-    $SYNC_CMD || echo "Warning: uv sync failed."
-    echo "$LOCK_HASH" > "$SYNC_STAMP"
+    if [ -z "$LOCK_HASH" ] || [ "$LOCK_HASH" != "$PREV_LOCK_HASH" ]; then
+      echo "uv deps changed -> syncing..."
+      $SYNC_CMD || echo "Warning: uv sync failed."
+      if [ -n "$LOCK_HASH" ]; then
+        ${pkgs.coreutils}/bin/mkdir -p "$(${pkgs.coreutils}/bin/dirname "$SYNC_STAMP")"
+        echo "$LOCK_HASH" > "$SYNC_STAMP"
+      fi
+    else
+      echo "uv deps unchanged -> skipping sync."
+    fi
 
     mkdir -p "${config.secretspec.secrets.STORAGE_DIR}"
     mkdir -p "${config.secretspec.secrets.ASSET_DIR}"

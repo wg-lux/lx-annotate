@@ -1,5 +1,6 @@
 {pkgs,uvPackage, ...}:
 let
+  enableOllama = builtins.getEnv "DEVENV_ENABLE_OLLAMA" == "1";
 
   runtimePackages = with pkgs; [
     stdenv.cc.cc
@@ -10,9 +11,8 @@ let
     glib
     xorg.libxcb
     zlib
-    ollama.out
     cryptomator
-  ];
+  ] ++ (if enableOllama then [ ollama.out ] else [ ]);
 
 
 in runtimePackages

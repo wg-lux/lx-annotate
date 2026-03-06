@@ -1,31 +1,33 @@
 import type { Finding } from '@/stores/findingStore';
-export interface Examination {
+import type { ClassificationChoiceCore, ClassificationCore, ExaminationCore } from '@/types/coreConcepts';
+export interface Examination extends Pick<ExaminationCore, 'name'> {
     id: number;
-    name: string;
+    nameDe?: string;
+    nameEn?: string;
     name_de?: string;
     name_en?: string;
     displayName?: string;
 }
-export interface LocationClassificationChoice {
+export interface LocationClassificationChoice extends Pick<ClassificationChoiceCore, 'name'> {
     id: number;
-    name: string;
+    nameDe?: string;
     name_de?: string;
 }
-export interface MorphologyClassificationChoice {
+export interface MorphologyClassificationChoice extends Pick<ClassificationChoiceCore, 'name'> {
     id: number;
-    name: string;
+    nameDe?: string;
     name_de?: string;
 }
-export interface LocationClassification {
+export interface LocationClassification extends Pick<ClassificationCore, 'name'> {
     id: number;
-    name: string;
+    nameDe?: string;
     name_de?: string;
     choices: LocationClassificationChoice[];
     required?: boolean;
 }
-export interface MorphologyClassification {
+export interface MorphologyClassification extends Pick<ClassificationCore, 'name'> {
     id: number;
-    name: string;
+    nameDe?: string;
     name_de?: string;
     choices: MorphologyClassificationChoice[];
     required?: boolean;
@@ -47,55 +49,61 @@ export declare const useExaminationStore: import("pinia").StoreDefinition<"exami
         error: string | null;
         exams: {
             id: number;
-            name: string;
+            nameDe?: string | undefined;
+            nameEn?: string | undefined;
             name_de?: string | undefined;
             name_en?: string | undefined;
             displayName?: string | undefined;
+            name: string;
         }[];
         selectedExaminationId: number | null;
         findingsByExam: Map<number, {
             id: number;
-            name: string;
-            nameDe?: string | undefined;
             description: string;
+            nameDe?: string | undefined;
             examinations: string[];
             PatientExaminationId?: number | undefined;
             FindingClassifications: {
                 id: number;
-                name?: string | undefined;
-                description?: string | undefined;
                 classificationType?: string[] | undefined;
                 choices?: {
                     id: number;
                     name: string;
                 }[] | undefined;
                 required?: boolean | undefined;
+                name?: string | undefined;
+                description?: string | undefined;
             }[];
             findingTypes: string[];
             findingInterventions: string[];
+            name: string;
         }[]> & Omit<Map<number, Finding[]>, keyof Map<any, any>>;
         classificationsByFinding: Map<number, {
             locationClassifications: {
                 id: number;
-                name: string;
+                nameDe?: string | undefined;
                 name_de?: string | undefined;
                 choices: {
                     id: number;
-                    name: string;
+                    nameDe?: string | undefined;
                     name_de?: string | undefined;
+                    name: string;
                 }[];
                 required?: boolean | undefined;
+                name: string;
             }[];
             morphologyClassifications: {
                 id: number;
-                name: string;
+                nameDe?: string | undefined;
                 name_de?: string | undefined;
                 choices: {
                     id: number;
-                    name: string;
+                    nameDe?: string | undefined;
                     name_de?: string | undefined;
+                    name: string;
                 }[];
                 required?: boolean | undefined;
+                name: string;
             }[];
         }> & Omit<Map<number, ClassifPayload>, keyof Map<any, any>>;
     } & import("pinia").PiniaCustomStateProperties<{
@@ -111,55 +119,61 @@ export declare const useExaminationStore: import("pinia").StoreDefinition<"exami
         error: string | null;
         exams: {
             id: number;
-            name: string;
+            nameDe?: string | undefined;
+            nameEn?: string | undefined;
             name_de?: string | undefined;
             name_en?: string | undefined;
             displayName?: string | undefined;
+            name: string;
         }[];
         selectedExaminationId: number | null;
         findingsByExam: Map<number, {
             id: number;
-            name: string;
-            nameDe?: string | undefined;
             description: string;
+            nameDe?: string | undefined;
             examinations: string[];
             PatientExaminationId?: number | undefined;
             FindingClassifications: {
                 id: number;
-                name?: string | undefined;
-                description?: string | undefined;
                 classificationType?: string[] | undefined;
                 choices?: {
                     id: number;
                     name: string;
                 }[] | undefined;
                 required?: boolean | undefined;
+                name?: string | undefined;
+                description?: string | undefined;
             }[];
             findingTypes: string[];
             findingInterventions: string[];
+            name: string;
         }[]> & Omit<Map<number, Finding[]>, keyof Map<any, any>>;
         classificationsByFinding: Map<number, {
             locationClassifications: {
                 id: number;
-                name: string;
+                nameDe?: string | undefined;
                 name_de?: string | undefined;
                 choices: {
                     id: number;
-                    name: string;
+                    nameDe?: string | undefined;
                     name_de?: string | undefined;
+                    name: string;
                 }[];
                 required?: boolean | undefined;
+                name: string;
             }[];
             morphologyClassifications: {
                 id: number;
-                name: string;
+                nameDe?: string | undefined;
                 name_de?: string | undefined;
                 choices: {
                     id: number;
-                    name: string;
+                    nameDe?: string | undefined;
                     name_de?: string | undefined;
+                    name: string;
                 }[];
                 required?: boolean | undefined;
+                name: string;
             }[];
         }> & Omit<Map<number, ClassifPayload>, keyof Map<any, any>>;
     } & import("pinia").PiniaCustomStateProperties<{
@@ -179,55 +193,61 @@ export declare const useExaminationStore: import("pinia").StoreDefinition<"exami
         error: string | null;
         exams: {
             id: number;
-            name: string;
+            nameDe?: string | undefined;
+            nameEn?: string | undefined;
             name_de?: string | undefined;
             name_en?: string | undefined;
             displayName?: string | undefined;
+            name: string;
         }[];
         selectedExaminationId: number | null;
         findingsByExam: Map<number, {
             id: number;
-            name: string;
-            nameDe?: string | undefined;
             description: string;
+            nameDe?: string | undefined;
             examinations: string[];
             PatientExaminationId?: number | undefined;
             FindingClassifications: {
                 id: number;
-                name?: string | undefined;
-                description?: string | undefined;
                 classificationType?: string[] | undefined;
                 choices?: {
                     id: number;
                     name: string;
                 }[] | undefined;
                 required?: boolean | undefined;
+                name?: string | undefined;
+                description?: string | undefined;
             }[];
             findingTypes: string[];
             findingInterventions: string[];
+            name: string;
         }[]> & Omit<Map<number, Finding[]>, keyof Map<any, any>>;
         classificationsByFinding: Map<number, {
             locationClassifications: {
                 id: number;
-                name: string;
+                nameDe?: string | undefined;
                 name_de?: string | undefined;
                 choices: {
                     id: number;
-                    name: string;
+                    nameDe?: string | undefined;
                     name_de?: string | undefined;
+                    name: string;
                 }[];
                 required?: boolean | undefined;
+                name: string;
             }[];
             morphologyClassifications: {
                 id: number;
-                name: string;
+                nameDe?: string | undefined;
                 name_de?: string | undefined;
                 choices: {
                     id: number;
-                    name: string;
+                    nameDe?: string | undefined;
                     name_de?: string | undefined;
+                    name: string;
                 }[];
                 required?: boolean | undefined;
+                name: string;
             }[];
         }> & Omit<Map<number, ClassifPayload>, keyof Map<any, any>>;
     } & import("pinia").PiniaCustomStateProperties<{
@@ -243,55 +263,61 @@ export declare const useExaminationStore: import("pinia").StoreDefinition<"exami
         error: string | null;
         exams: {
             id: number;
-            name: string;
+            nameDe?: string | undefined;
+            nameEn?: string | undefined;
             name_de?: string | undefined;
             name_en?: string | undefined;
             displayName?: string | undefined;
+            name: string;
         }[];
         selectedExaminationId: number | null;
         findingsByExam: Map<number, {
             id: number;
-            name: string;
-            nameDe?: string | undefined;
             description: string;
+            nameDe?: string | undefined;
             examinations: string[];
             PatientExaminationId?: number | undefined;
             FindingClassifications: {
                 id: number;
-                name?: string | undefined;
-                description?: string | undefined;
                 classificationType?: string[] | undefined;
                 choices?: {
                     id: number;
                     name: string;
                 }[] | undefined;
                 required?: boolean | undefined;
+                name?: string | undefined;
+                description?: string | undefined;
             }[];
             findingTypes: string[];
             findingInterventions: string[];
+            name: string;
         }[]> & Omit<Map<number, Finding[]>, keyof Map<any, any>>;
         classificationsByFinding: Map<number, {
             locationClassifications: {
                 id: number;
-                name: string;
+                nameDe?: string | undefined;
                 name_de?: string | undefined;
                 choices: {
                     id: number;
-                    name: string;
+                    nameDe?: string | undefined;
                     name_de?: string | undefined;
+                    name: string;
                 }[];
                 required?: boolean | undefined;
+                name: string;
             }[];
             morphologyClassifications: {
                 id: number;
-                name: string;
+                nameDe?: string | undefined;
                 name_de?: string | undefined;
                 choices: {
                     id: number;
-                    name: string;
+                    nameDe?: string | undefined;
                     name_de?: string | undefined;
+                    name: string;
                 }[];
                 required?: boolean | undefined;
+                name: string;
             }[];
         }> & Omit<Map<number, ClassifPayload>, keyof Map<any, any>>;
     } & import("pinia").PiniaCustomStateProperties<{

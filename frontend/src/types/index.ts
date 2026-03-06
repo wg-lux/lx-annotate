@@ -55,6 +55,7 @@ export interface Segment {
 
 // ✅ Export new annotation types (including Label)
 export * from './annotation'
+export * from './coreConcepts'
 
 // Legacy types - kept for backwards compatibility
 export interface Annotation {

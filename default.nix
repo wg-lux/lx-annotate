@@ -5,7 +5,7 @@
 , glib
 , libglvnd
 , zlib
-, xorg
+, libxcb
 , stdenv
 , secretspec
 , frontend ? null
@@ -45,7 +45,7 @@ EOF
     glib
     zlib
     libglvnd
-    xorg.libxcb
+    libxcb
   ];
 
   # Python dependencies (Mapping your uv extras/requirements)
@@ -61,7 +61,7 @@ EOF
         glib 
         zlib 
         libglvnd 
-        xorg.libxcb 
+        libxcb 
         ffmpeg-headless 
       ]}"
     "--set TESSDATA_PREFIX ${tesseract}/share/tessdata"

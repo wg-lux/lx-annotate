@@ -47,6 +47,7 @@ export interface Segment {
     end_frame_number?: number;
 }
 export * from './annotation';
+export * from './coreConcepts';
 export interface Annotation {
     id: string;
     videoId: string;

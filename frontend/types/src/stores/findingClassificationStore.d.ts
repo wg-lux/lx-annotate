@@ -1,27 +1,25 @@
-export interface FindingChoice {
+import type { ClassificationChoiceCore, ClassificationCore, FindingCore } from '@/types/coreConcepts';
+export interface FindingChoice extends Pick<ClassificationChoiceCore, 'name' | 'description'> {
     id: number;
-    name: string;
     description: string;
     subcategories: Record<string, any>;
     numerical_descriptors: Record<string, any>;
 }
-export interface FindingClassification {
+export interface FindingClassification extends Pick<ClassificationCore, 'name' | 'description'> {
     id: number;
-    name: string;
     description: string;
     choices: FindingChoice[];
-    classification_types: number[];
+    classification_types: string[];
 }
-export interface Finding {
+export interface Finding extends Pick<FindingCore, 'name'> {
     id: number;
-    name: string;
-    nameDe?: string;
     description: string;
+    nameDe?: string;
     examinations: string[];
     PatientExaminationId?: number;
     FindingClassifications: FindingClassification[];
-    findingTypes: string[];
-    findingInterventions: string[];
+    findingTypes: FindingCore['findingTypes'];
+    findingInterventions: FindingCore['interventions'];
     classifications?: FindingClassification[];
     location_classifications?: FindingClassification[];
     morphology_classifications?: FindingClassification[];
@@ -30,18 +28,15 @@ export declare const useFindingClassificationStore: import("pinia").StoreDefinit
     findings: Readonly<import("vue").Ref<{
         readonly [x: number]: {
             readonly id: number;
-            readonly name: string;
-            readonly nameDe?: string | undefined;
             readonly description: string;
+            readonly nameDe?: string | undefined;
             readonly examinations: readonly string[];
             readonly PatientExaminationId?: number | undefined;
             readonly FindingClassifications: readonly {
                 readonly id: number;
-                readonly name: string;
                 readonly description: string;
                 readonly choices: readonly {
                     readonly id: number;
-                    readonly name: string;
                     readonly description: string;
                     readonly subcategories: {
                         readonly [x: string]: any;
@@ -49,18 +44,18 @@ export declare const useFindingClassificationStore: import("pinia").StoreDefinit
                     readonly numerical_descriptors: {
                         readonly [x: string]: any;
                     };
+                    readonly name: string;
                 }[];
-                readonly classification_types: readonly number[];
+                readonly classification_types: readonly string[];
+                readonly name: string;
             }[];
             readonly findingTypes: readonly string[];
             readonly findingInterventions: readonly string[];
             readonly classifications?: readonly {
                 readonly id: number;
-                readonly name: string;
                 readonly description: string;
                 readonly choices: readonly {
                     readonly id: number;
-                    readonly name: string;
                     readonly description: string;
                     readonly subcategories: {
                         readonly [x: string]: any;
@@ -68,16 +63,16 @@ export declare const useFindingClassificationStore: import("pinia").StoreDefinit
                     readonly numerical_descriptors: {
                         readonly [x: string]: any;
                     };
+                    readonly name: string;
                 }[];
-                readonly classification_types: readonly number[];
+                readonly classification_types: readonly string[];
+                readonly name: string;
             }[] | undefined;
             readonly location_classifications?: readonly {
                 readonly id: number;
-                readonly name: string;
                 readonly description: string;
                 readonly choices: readonly {
                     readonly id: number;
-                    readonly name: string;
                     readonly description: string;
                     readonly subcategories: {
                         readonly [x: string]: any;
@@ -85,16 +80,16 @@ export declare const useFindingClassificationStore: import("pinia").StoreDefinit
                     readonly numerical_descriptors: {
                         readonly [x: string]: any;
                     };
+                    readonly name: string;
                 }[];
-                readonly classification_types: readonly number[];
+                readonly classification_types: readonly string[];
+                readonly name: string;
             }[] | undefined;
             readonly morphology_classifications?: readonly {
                 readonly id: number;
-                readonly name: string;
                 readonly description: string;
                 readonly choices: readonly {
                     readonly id: number;
-                    readonly name: string;
                     readonly description: string;
                     readonly subcategories: {
                         readonly [x: string]: any;
@@ -102,25 +97,25 @@ export declare const useFindingClassificationStore: import("pinia").StoreDefinit
                     readonly numerical_descriptors: {
                         readonly [x: string]: any;
                     };
+                    readonly name: string;
                 }[];
-                readonly classification_types: readonly number[];
+                readonly classification_types: readonly string[];
+                readonly name: string;
             }[] | undefined;
+            readonly name: string;
         };
     }, {
         readonly [x: number]: {
             readonly id: number;
-            readonly name: string;
-            readonly nameDe?: string | undefined;
             readonly description: string;
+            readonly nameDe?: string | undefined;
             readonly examinations: readonly string[];
             readonly PatientExaminationId?: number | undefined;
             readonly FindingClassifications: readonly {
                 readonly id: number;
-                readonly name: string;
                 readonly description: string;
                 readonly choices: readonly {
                     readonly id: number;
-                    readonly name: string;
                     readonly description: string;
                     readonly subcategories: {
                         readonly [x: string]: any;
@@ -128,18 +123,18 @@ export declare const useFindingClassificationStore: import("pinia").StoreDefinit
                     readonly numerical_descriptors: {
                         readonly [x: string]: any;
                     };
+                    readonly name: string;
                 }[];
-                readonly classification_types: readonly number[];
+                readonly classification_types: readonly string[];
+                readonly name: string;
             }[];
             readonly findingTypes: readonly string[];
             readonly findingInterventions: readonly string[];
             readonly classifications?: readonly {
                 readonly id: number;
-                readonly name: string;
                 readonly description: string;
                 readonly choices: readonly {
                     readonly id: number;
-                    readonly name: string;
                     readonly description: string;
                     readonly subcategories: {
                         readonly [x: string]: any;
@@ -147,16 +142,16 @@ export declare const useFindingClassificationStore: import("pinia").StoreDefinit
                     readonly numerical_descriptors: {
                         readonly [x: string]: any;
                     };
+                    readonly name: string;
                 }[];
-                readonly classification_types: readonly number[];
+                readonly classification_types: readonly string[];
+                readonly name: string;
             }[] | undefined;
             readonly location_classifications?: readonly {
                 readonly id: number;
-                readonly name: string;
                 readonly description: string;
                 readonly choices: readonly {
                     readonly id: number;
-                    readonly name: string;
                     readonly description: string;
                     readonly subcategories: {
                         readonly [x: string]: any;
@@ -164,16 +159,16 @@ export declare const useFindingClassificationStore: import("pinia").StoreDefinit
                     readonly numerical_descriptors: {
                         readonly [x: string]: any;
                     };
+                    readonly name: string;
                 }[];
-                readonly classification_types: readonly number[];
+                readonly classification_types: readonly string[];
+                readonly name: string;
             }[] | undefined;
             readonly morphology_classifications?: readonly {
                 readonly id: number;
-                readonly name: string;
                 readonly description: string;
                 readonly choices: readonly {
                     readonly id: number;
-                    readonly name: string;
                     readonly description: string;
                     readonly subcategories: {
                         readonly [x: string]: any;
@@ -181,9 +176,12 @@ export declare const useFindingClassificationStore: import("pinia").StoreDefinit
                     readonly numerical_descriptors: {
                         readonly [x: string]: any;
                     };
+                    readonly name: string;
                 }[];
-                readonly classification_types: readonly number[];
+                readonly classification_types: readonly string[];
+                readonly name: string;
             }[] | undefined;
+            readonly name: string;
         };
     }>>;
     loading: Readonly<import("vue").Ref<boolean, boolean>>;
@@ -195,22 +193,19 @@ export declare const useFindingClassificationStore: import("pinia").StoreDefinit
     setError: (err: string) => void;
     setLoading: (isLoading: boolean) => void;
     setClassificationChoicesFromLookup: (lookupFindings: unknown) => void;
-}, "error" | "loading" | "findings">, Pick<{
+}, "loading" | "error" | "findings">, Pick<{
     findings: Readonly<import("vue").Ref<{
         readonly [x: number]: {
             readonly id: number;
-            readonly name: string;
-            readonly nameDe?: string | undefined;
             readonly description: string;
+            readonly nameDe?: string | undefined;
             readonly examinations: readonly string[];
             readonly PatientExaminationId?: number | undefined;
             readonly FindingClassifications: readonly {
                 readonly id: number;
-                readonly name: string;
                 readonly description: string;
                 readonly choices: readonly {
                     readonly id: number;
-                    readonly name: string;
                     readonly description: string;
                     readonly subcategories: {
                         readonly [x: string]: any;
@@ -218,18 +213,18 @@ export declare const useFindingClassificationStore: import("pinia").StoreDefinit
                     readonly numerical_descriptors: {
                         readonly [x: string]: any;
                     };
+                    readonly name: string;
                 }[];
-                readonly classification_types: readonly number[];
+                readonly classification_types: readonly string[];
+                readonly name: string;
             }[];
             readonly findingTypes: readonly string[];
             readonly findingInterventions: readonly string[];
             readonly classifications?: readonly {
                 readonly id: number;
-                readonly name: string;
                 readonly description: string;
                 readonly choices: readonly {
                     readonly id: number;
-                    readonly name: string;
                     readonly description: string;
                     readonly subcategories: {
                         readonly [x: string]: any;
@@ -237,16 +232,16 @@ export declare const useFindingClassificationStore: import("pinia").StoreDefinit
                     readonly numerical_descriptors: {
                         readonly [x: string]: any;
                     };
+                    readonly name: string;
                 }[];
-                readonly classification_types: readonly number[];
+                readonly classification_types: readonly string[];
+                readonly name: string;
             }[] | undefined;
             readonly location_classifications?: readonly {
                 readonly id: number;
-                readonly name: string;
                 readonly description: string;
                 readonly choices: readonly {
                     readonly id: number;
-                    readonly name: string;
                     readonly description: string;
                     readonly subcategories: {
                         readonly [x: string]: any;
@@ -254,16 +249,16 @@ export declare const useFindingClassificationStore: import("pinia").StoreDefinit
                     readonly numerical_descriptors: {
                         readonly [x: string]: any;
                     };
+                    readonly name: string;
                 }[];
-                readonly classification_types: readonly number[];
+                readonly classification_types: readonly string[];
+                readonly name: string;
             }[] | undefined;
             readonly morphology_classifications?: readonly {
                 readonly id: number;
-                readonly name: string;
                 readonly description: string;
                 readonly choices: readonly {
                     readonly id: number;
-                    readonly name: string;
                     readonly description: string;
                     readonly subcategories: {
                         readonly [x: string]: any;
@@ -271,25 +266,25 @@ export declare const useFindingClassificationStore: import("pinia").StoreDefinit
                     readonly numerical_descriptors: {
                         readonly [x: string]: any;
                     };
+                    readonly name: string;
                 }[];
-                readonly classification_types: readonly number[];
+                readonly classification_types: readonly string[];
+                readonly name: string;
             }[] | undefined;
+            readonly name: string;
         };
     }, {
         readonly [x: number]: {
             readonly id: number;
-            readonly name: string;
-            readonly nameDe?: string | undefined;
             readonly description: string;
+            readonly nameDe?: string | undefined;
             readonly examinations: readonly string[];
             readonly PatientExaminationId?: number | undefined;
             readonly FindingClassifications: readonly {
                 readonly id: number;
-                readonly name: string;
                 readonly description: string;
                 readonly choices: readonly {
                     readonly id: number;
-                    readonly name: string;
                     readonly description: string;
                     readonly subcategories: {
                         readonly [x: string]: any;
@@ -297,18 +292,18 @@ export declare const useFindingClassificationStore: import("pinia").StoreDefinit
                     readonly numerical_descriptors: {
                         readonly [x: string]: any;
                     };
+                    readonly name: string;
                 }[];
-                readonly classification_types: readonly number[];
+                readonly classification_types: readonly string[];
+                readonly name: string;
             }[];
             readonly findingTypes: readonly string[];
             readonly findingInterventions: readonly string[];
             readonly classifications?: readonly {
                 readonly id: number;
-                readonly name: string;
                 readonly description: string;
                 readonly choices: readonly {
                     readonly id: number;
-                    readonly name: string;
                     readonly description: string;
                     readonly subcategories: {
                         readonly [x: string]: any;
@@ -316,16 +311,16 @@ export declare const useFindingClassificationStore: import("pinia").StoreDefinit
                     readonly numerical_descriptors: {
                         readonly [x: string]: any;
                     };
+                    readonly name: string;
                 }[];
-                readonly classification_types: readonly number[];
+                readonly classification_types: readonly string[];
+                readonly name: string;
             }[] | undefined;
             readonly location_classifications?: readonly {
                 readonly id: number;
-                readonly name: string;
                 readonly description: string;
                 readonly choices: readonly {
                     readonly id: number;
-                    readonly name: string;
                     readonly description: string;
                     readonly subcategories: {
                         readonly [x: string]: any;
@@ -333,16 +328,16 @@ export declare const useFindingClassificationStore: import("pinia").StoreDefinit
                     readonly numerical_descriptors: {
                         readonly [x: string]: any;
                     };
+                    readonly name: string;
                 }[];
-                readonly classification_types: readonly number[];
+                readonly classification_types: readonly string[];
+                readonly name: string;
             }[] | undefined;
             readonly morphology_classifications?: readonly {
                 readonly id: number;
-                readonly name: string;
                 readonly description: string;
                 readonly choices: readonly {
                     readonly id: number;
-                    readonly name: string;
                     readonly description: string;
                     readonly subcategories: {
                         readonly [x: string]: any;
@@ -350,9 +345,12 @@ export declare const useFindingClassificationStore: import("pinia").StoreDefinit
                     readonly numerical_descriptors: {
                         readonly [x: string]: any;
                     };
+                    readonly name: string;
                 }[];
-                readonly classification_types: readonly number[];
+                readonly classification_types: readonly string[];
+                readonly name: string;
             }[] | undefined;
+            readonly name: string;
         };
     }>>;
     loading: Readonly<import("vue").Ref<boolean, boolean>>;
@@ -368,18 +366,15 @@ export declare const useFindingClassificationStore: import("pinia").StoreDefinit
     findings: Readonly<import("vue").Ref<{
         readonly [x: number]: {
             readonly id: number;
-            readonly name: string;
-            readonly nameDe?: string | undefined;
             readonly description: string;
+            readonly nameDe?: string | undefined;
             readonly examinations: readonly string[];
             readonly PatientExaminationId?: number | undefined;
             readonly FindingClassifications: readonly {
                 readonly id: number;
-                readonly name: string;
                 readonly description: string;
                 readonly choices: readonly {
                     readonly id: number;
-                    readonly name: string;
                     readonly description: string;
                     readonly subcategories: {
                         readonly [x: string]: any;
@@ -387,18 +382,18 @@ export declare const useFindingClassificationStore: import("pinia").StoreDefinit
                     readonly numerical_descriptors: {
                         readonly [x: string]: any;
                     };
+                    readonly name: string;
                 }[];
-                readonly classification_types: readonly number[];
+                readonly classification_types: readonly string[];
+                readonly name: string;
             }[];
             readonly findingTypes: readonly string[];
             readonly findingInterventions: readonly string[];
             readonly classifications?: readonly {
                 readonly id: number;
-                readonly name: string;
                 readonly description: string;
                 readonly choices: readonly {
                     readonly id: number;
-                    readonly name: string;
                     readonly description: string;
                     readonly subcategories: {
                         readonly [x: string]: any;
@@ -406,16 +401,16 @@ export declare const useFindingClassificationStore: import("pinia").StoreDefinit
                     readonly numerical_descriptors: {
                         readonly [x: string]: any;
                     };
+                    readonly name: string;
                 }[];
-                readonly classification_types: readonly number[];
+                readonly classification_types: readonly string[];
+                readonly name: string;
             }[] | undefined;
             readonly location_classifications?: readonly {
                 readonly id: number;
-                readonly name: string;
                 readonly description: string;
                 readonly choices: readonly {
                     readonly id: number;
-                    readonly name: string;
                     readonly description: string;
                     readonly subcategories: {
                         readonly [x: string]: any;
@@ -423,16 +418,16 @@ export declare const useFindingClassificationStore: import("pinia").StoreDefinit
                     readonly numerical_descriptors: {
                         readonly [x: string]: any;
                     };
+                    readonly name: string;
                 }[];
-                readonly classification_types: readonly number[];
+                readonly classification_types: readonly string[];
+                readonly name: string;
             }[] | undefined;
             readonly morphology_classifications?: readonly {
                 readonly id: number;
-                readonly name: string;
                 readonly description: string;
                 readonly choices: readonly {
                     readonly id: number;
-                    readonly name: string;
                     readonly description: string;
                     readonly subcategories: {
                         readonly [x: string]: any;
@@ -440,25 +435,25 @@ export declare const useFindingClassificationStore: import("pinia").StoreDefinit
                     readonly numerical_descriptors: {
                         readonly [x: string]: any;
                     };
+                    readonly name: string;
                 }[];
-                readonly classification_types: readonly number[];
+                readonly classification_types: readonly string[];
+                readonly name: string;
             }[] | undefined;
+            readonly name: string;
         };
     }, {
         readonly [x: number]: {
             readonly id: number;
-            readonly name: string;
-            readonly nameDe?: string | undefined;
             readonly description: string;
+            readonly nameDe?: string | undefined;
             readonly examinations: readonly string[];
             readonly PatientExaminationId?: number | undefined;
             readonly FindingClassifications: readonly {
                 readonly id: number;
-                readonly name: string;
                 readonly description: string;
                 readonly choices: readonly {
                     readonly id: number;
-                    readonly name: string;
                     readonly description: string;
                     readonly subcategories: {
                         readonly [x: string]: any;
@@ -466,18 +461,18 @@ export declare const useFindingClassificationStore: import("pinia").StoreDefinit
                     readonly numerical_descriptors: {
                         readonly [x: string]: any;
                     };
+                    readonly name: string;
                 }[];
-                readonly classification_types: readonly number[];
+                readonly classification_types: readonly string[];
+                readonly name: string;
             }[];
             readonly findingTypes: readonly string[];
             readonly findingInterventions: readonly string[];
             readonly classifications?: readonly {
                 readonly id: number;
-                readonly name: string;
                 readonly description: string;
                 readonly choices: readonly {
                     readonly id: number;
-                    readonly name: string;
                     readonly description: string;
                     readonly subcategories: {
                         readonly [x: string]: any;
@@ -485,16 +480,16 @@ export declare const useFindingClassificationStore: import("pinia").StoreDefinit
                     readonly numerical_descriptors: {
                         readonly [x: string]: any;
                     };
+                    readonly name: string;
                 }[];
-                readonly classification_types: readonly number[];
+                readonly classification_types: readonly string[];
+                readonly name: string;
             }[] | undefined;
             readonly location_classifications?: readonly {
                 readonly id: number;
-                readonly name: string;
                 readonly description: string;
                 readonly choices: readonly {
                     readonly id: number;
-                    readonly name: string;
                     readonly description: string;
                     readonly subcategories: {
                         readonly [x: string]: any;
@@ -502,16 +497,16 @@ export declare const useFindingClassificationStore: import("pinia").StoreDefinit
                     readonly numerical_descriptors: {
                         readonly [x: string]: any;
                     };
+                    readonly name: string;
                 }[];
-                readonly classification_types: readonly number[];
+                readonly classification_types: readonly string[];
+                readonly name: string;
             }[] | undefined;
             readonly morphology_classifications?: readonly {
                 readonly id: number;
-                readonly name: string;
                 readonly description: string;
                 readonly choices: readonly {
                     readonly id: number;
-                    readonly name: string;
                     readonly description: string;
                     readonly subcategories: {
                         readonly [x: string]: any;
@@ -519,9 +514,12 @@ export declare const useFindingClassificationStore: import("pinia").StoreDefinit
                     readonly numerical_descriptors: {
                         readonly [x: string]: any;
                     };
+                    readonly name: string;
                 }[];
-                readonly classification_types: readonly number[];
+                readonly classification_types: readonly string[];
+                readonly name: string;
             }[] | undefined;
+            readonly name: string;
         };
     }>>;
     loading: Readonly<import("vue").Ref<boolean, boolean>>;

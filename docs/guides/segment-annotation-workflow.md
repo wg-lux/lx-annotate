@@ -73,3 +73,10 @@ This page explains the practical workflow for segment annotation in videos after
 
 - `frontend/src/components/VideoExamination/VideoExaminationAnnotation.vue`
 - `frontend/src/components/VideoExamination/Timeline.vue`
+
+## Fixed Issues
+
+We already made the following UI observations and fixed them:
+
+- Video validation status was hard to read -> add color coding and symbols
+- Button for final validation didnt register -> changed button size and broke color code

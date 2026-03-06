@@ -1,32 +1,30 @@
 import { defineStore } from 'pinia'
 import { reactive, ref, computed, readonly } from 'vue'
+import type { ClassificationChoiceCore, ClassificationCore, FindingCore } from '@/types/coreConcepts'
 
-export interface FindingChoice {
+export interface FindingChoice extends Pick<ClassificationChoiceCore, 'name' | 'description'> {
   id: number
-  name: string
   description: string
   subcategories: Record<string, any>
   numerical_descriptors: Record<string, any>
 }
 
-export interface FindingClassification {
+export interface FindingClassification extends Pick<ClassificationCore, 'name' | 'description'> {
   id: number
-  name: string
   description: string
   choices: FindingChoice[]
-  classification_types: number[]
+  classification_types: string[]
 }
 
-export interface Finding {
+export interface Finding extends Pick<FindingCore, 'name'> {
   id: number
-  name: string
-  nameDe?: string
   description: string
+  nameDe?: string
   examinations: string[]
   PatientExaminationId?: number
   FindingClassifications: FindingClassification[]
-  findingTypes: string[]
-  findingInterventions: string[]
+  findingTypes: FindingCore['findingTypes']
+  findingInterventions: FindingCore['interventions']
   classifications?: FindingClassification[] // Add for compatibility
   location_classifications?: FindingClassification[]
   morphology_classifications?: FindingClassification[]

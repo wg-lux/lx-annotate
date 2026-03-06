@@ -1,4 +1,5 @@
 import { computed, onMounted, ref } from 'vue';
+import axiosInstance, { r } from '@/api/axiosInstance';
 import AddableFindingsDetail from '@/components/RequirementReport/AddableFindingsDetail.vue';
 import FindingsDetail from '@/components/RequirementReport/FindingsDetail.vue';
 import LookupStatusPanel from '@/components/Reporting/LookupStatusPanel.vue';
@@ -6,6 +7,7 @@ import { useLookupActions } from '@/composables/reporting/useLookupActions';
 import { useReportingFlowStore } from '@/stores/reportingFlowStore';
 import { useFindingStore } from '@/stores/findingStore';
 import { usePatientExaminationStore } from '@/stores/patientExaminationStore';
+import { endpoints } from '@/types/api/endpoints';
 const flow = useReportingFlowStore();
 const findingStore = useFindingStore();
 const patientExaminationStore = usePatientExaminationStore();
@@ -13,6 +15,7 @@ const loading = ref(false);
 const errorMessage = ref(null);
 const successMessage = ref(null);
 const lookupState = ref(null);
+const lookupInitInFlight = ref(null);
 function normalizeIdArray(value) {
     if (!Array.isArray(value))
         return [];
@@ -78,9 +81,13 @@ function normalizeLookupPartial(partial) {
     return normalized;
 }
 const availableFindings = computed(() => normalizeIdArray(lookupState.value?.availableFindings));
+const canInitializeLookup = computed(() => !!flow.patientExaminationId);
 function clearMessages() {
     errorMessage.value = null;
     successMessage.value = null;
+}
+function formatApiError(e, fallback) {
+    return e?.response?.data?.detail || e?.response?.data?.error || e?.message || fallback;
 }
 function applyLookup(partial) {
     const normalizedPartial = normalizeLookupPartial(partial);
@@ -110,11 +117,17 @@ async function loadFindingsCatalog() {
     }
 }
 async function fetchLookupAll() {
+    const ensured = await ensureLookupSessionForCurrentPatientExamination();
+    if (!ensured)
+        return;
     await lookupActions.fetchLookupAll({
         fallbackErrorMessage: 'Fehler beim Laden des Lookup-Zustands.'
     });
 }
 async function triggerRecompute() {
+    const ensured = await ensureLookupSessionForCurrentPatientExamination();
+    if (!ensured)
+        return;
     const result = await lookupActions.recomputeLookup({
         applyUpdates: true,
         refreshAfter: true,
@@ -123,6 +136,52 @@ async function triggerRecompute() {
     if (result.ok) {
         successMessage.value = 'Lookup wurde nach Befundänderungen neu berechnet.';
     }
+}
+async function ensureLookupSessionForCurrentPatientExamination() {
+    if (flow.lookupToken)
+        return true;
+    const patientExaminationId = flow.patientExaminationId;
+    if (!patientExaminationId) {
+        errorMessage.value = 'Keine Patientenuntersuchung vorhanden. Bitte zuerst im Fall-Setup initialisieren.';
+        return false;
+    }
+    if (lookupInitInFlight.value) {
+        return await lookupInitInFlight.value;
+    }
+    const initPromise = (async () => {
+        loading.value = true;
+        errorMessage.value = null;
+        flow.setSessionStatus('restarting');
+        try {
+            const initRes = await axiosInstance.post(r(endpoints.requirements.lookupInit), {
+                patientExaminationId
+            });
+            const token = String(initRes.data?.token || '');
+            if (!token) {
+                throw new Error('Lookup-Init lieferte kein Token.');
+            }
+            flow.setLookupSession({
+                patientExaminationId,
+                lookupToken: token,
+                status: 'active'
+            });
+            return true;
+        }
+        catch (e) {
+            flow.setSessionStatus('expired');
+            errorMessage.value = formatApiError(e, 'Lookup-Session konnte nicht initialisiert werden.');
+            return false;
+        }
+        finally {
+            loading.value = false;
+            lookupInitInFlight.value = null;
+        }
+    })();
+    lookupInitInFlight.value = initPromise;
+    return await initPromise;
+}
+async function ensureLookupSession() {
+    await ensureLookupSessionForCurrentPatientExamination();
 }
 function isFindingAddedToExamination(findingId) {
     if (!flow.patientExaminationId)
@@ -162,7 +221,7 @@ onMounted(async () => {
         patientExaminationStore.setCurrentPatientExaminationId(flow.patientExaminationId);
     }
     await loadFindingsCatalog();
-    if (flow.lookupToken) {
+    if (flow.patientExaminationId) {
         await fetchLookupAll();
     }
 });
@@ -192,12 +251,12 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.d
 __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
     ...{ onClick: (__VLS_ctx.fetchLookupAll) },
     ...{ class: "btn btn-outline-secondary btn-sm" },
-    disabled: (__VLS_ctx.loading || !__VLS_ctx.flow.lookupToken),
+    disabled: (__VLS_ctx.loading || !__VLS_ctx.canInitializeLookup),
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
     ...{ onClick: (__VLS_ctx.triggerRecompute) },
     ...{ class: "btn btn-primary btn-sm" },
-    disabled: (__VLS_ctx.loading || !__VLS_ctx.flow.lookupToken),
+    disabled: (__VLS_ctx.loading || !__VLS_ctx.canInitializeLookup),
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "card-body" },
@@ -236,6 +295,17 @@ if (!__VLS_ctx.flow.patientExaminationId || !__VLS_ctx.flow.selectedExaminationI
     });
 }
 else {
+    if (!__VLS_ctx.flow.lookupToken) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "alert alert-info d-flex justify-content-between align-items-center" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+            ...{ onClick: (__VLS_ctx.ensureLookupSession) },
+            ...{ class: "btn btn-sm btn-outline-primary" },
+            disabled: (__VLS_ctx.loading || !__VLS_ctx.canInitializeLookup),
+        });
+    }
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "mb-3" },
     });
@@ -370,6 +440,14 @@ else {
 /** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert-warning']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert-info']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['justify-content-between']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-primary']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['card']} */ ;
 /** @type {__VLS_StyleScopedClasses['h-100']} */ ;
@@ -405,8 +483,10 @@ const __VLS_self = (await import('vue')).defineComponent({
             errorMessage: errorMessage,
             successMessage: successMessage,
             availableFindings: availableFindings,
+            canInitializeLookup: canInitializeLookup,
             fetchLookupAll: fetchLookupAll,
             triggerRecompute: triggerRecompute,
+            ensureLookupSession: ensureLookupSession,
             isFindingAddedToExamination: isFindingAddedToExamination,
             onFindingAddedToExamination: onFindingAddedToExamination,
             onClassificationUpdated: onClassificationUpdated,
