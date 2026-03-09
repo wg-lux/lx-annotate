@@ -17,7 +17,7 @@ interface PatientFinding {
   updatedAt: string
   createdBy?: string // ISO date string
   updatedBy?: string
-  finding: Finding
+  finding: Finding | number
   patient: Patient
   classifications?: PatientFindingClassification[]
 }
@@ -30,6 +30,29 @@ interface PatientFindingClassification {
   is_active: boolean
   subcategories?: Record<string, any>
   numerical_descriptors?: Record<string, any>
+}
+
+function extractApiErrorMessage(err: any, fallback: string): string {
+  const data = err?.response?.data
+  if (typeof data === 'string' && data.trim()) return data
+  if (typeof data?.detail === 'string' && data.detail.trim()) return data.detail
+  if (Array.isArray(data?.nonFieldErrors) && data.nonFieldErrors.length) {
+    return data.nonFieldErrors.join(', ')
+  }
+  if (Array.isArray(data?.non_field_errors) && data.non_field_errors.length) {
+    return data.non_field_errors.join(', ')
+  }
+  if (data && typeof data === 'object') {
+    for (const [field, value] of Object.entries(data)) {
+      if (Array.isArray(value) && value.length) {
+        return `${field}: ${value.join(', ')}`
+      }
+      if (typeof value === 'string' && value.trim()) {
+        return `${field}: ${value}`
+      }
+    }
+  }
+  return err?.message || fallback
 }
 
 const usePatientFindingStore = defineStore('patientFinding', () => {
@@ -49,10 +72,10 @@ const usePatientFindingStore = defineStore('patientFinding', () => {
       const response = await axiosInstance.get('/api/patient-findings/', {
         params: { patient_examination: patientExaminationId }
       })
-      patientFindings.value = response.data.results || response.data
+      const payload = response.data?.results ?? response.data
+      patientFindings.value = Array.isArray(payload) ? payload : []
     } catch (err: any) {
-      error.value =
-        'Fehler beim Laden der Patientenbefunde: ' + (err.response?.data?.detail || err.message)
+      error.value = 'Fehler beim Laden der Patientenbefunde: ' + extractApiErrorMessage(err, '')
       console.error('Fetch patient findings error:', err)
     } finally {
       loading.value = false
@@ -69,7 +92,8 @@ const usePatientFindingStore = defineStore('patientFinding', () => {
   })
 
   const createPatientFinding = async (patientFindingData: {
-    patientExamination: number
+    patient_examination?: number
+    patientExamination?: number
     finding: number
     classifications?: Array<{
       classification: number
@@ -79,7 +103,14 @@ const usePatientFindingStore = defineStore('patientFinding', () => {
     try {
       loading.value = true
       error.value = null
-      const response = await axiosInstance.post('/api/patient-findings/', patientFindingData)
+      const normalizedPayload = {
+        ...patientFindingData,
+        patient_examination:
+          patientFindingData.patient_examination ?? patientFindingData.patientExamination
+      }
+      delete (normalizedPayload as { patientExamination?: number }).patientExamination
+
+      const response = await axiosInstance.post('/api/patient-findings/', normalizedPayload)
       const newPatientFinding = response.data as PatientFinding
 
       // Add to local state
@@ -87,8 +118,7 @@ const usePatientFindingStore = defineStore('patientFinding', () => {
 
       return newPatientFinding
     } catch (err: any) {
-      error.value =
-        'Fehler beim Erstellen des Patientenbefunds: ' + (err.response?.data?.detail || err.message)
+      error.value = 'Fehler beim Erstellen des Patientenbefunds: ' + extractApiErrorMessage(err, '')
       console.error('Create patient finding error:', err)
       throw err
     } finally {
@@ -115,8 +145,7 @@ const usePatientFindingStore = defineStore('patientFinding', () => {
       return updatedFinding
     } catch (err: any) {
       error.value =
-        'Fehler beim Aktualisieren des Patientenbefunds: ' +
-        (err.response?.data?.detail || err.message)
+        'Fehler beim Aktualisieren des Patientenbefunds: ' + extractApiErrorMessage(err, '')
       console.error('Update patient finding error:', err)
       throw err
     } finally {
@@ -133,8 +162,7 @@ const usePatientFindingStore = defineStore('patientFinding', () => {
       // Remove from local state
       patientFindings.value = patientFindings.value.filter((pf) => pf.id !== id)
     } catch (err: any) {
-      error.value =
-        'Fehler beim Löschen des Patientenbefunds: ' + (err.response?.data?.detail || err.message)
+      error.value = 'Fehler beim Löschen des Patientenbefunds: ' + extractApiErrorMessage(err, '')
       console.error('Delete patient finding error:', err)
       throw err
     } finally {

@@ -220,7 +220,8 @@ const effectivePatientExaminationId = computed<number | null>(() => {
 });
 
 const availableFindings = computed(() => {
-    return availableExaminationFindings.value;
+    const addedIds = new Set(addedFindings.value.map((finding) => finding.id));
+    return availableExaminationFindings.value.filter((finding) => !addedIds.has(finding.id));
 });
 
 function normalizeFindingsList(value: unknown): Finding[] {
@@ -235,8 +236,51 @@ function dedupeFindings(findings: Finding[]): Finding[] {
   return Array.from(new Map(findings.map((finding) => [finding.id, finding])).values());
 }
 
+function resolveFindingById(findingId: number): Finding | undefined {
+  return (
+    availableExaminationFindings.value.find((finding) => finding.id === findingId) ||
+    findingClassificationStore.getFindingById(findingId)
+  );
+}
+
+function normalizeAddedFinding(value: unknown): Finding | null {
+  if (value && typeof value === 'object') {
+    const entry = value as Record<string, unknown>;
+    const id = Number(entry.id);
+    if (Number.isFinite(id)) {
+      return entry as Finding;
+    }
+  }
+  const id = Number(value);
+  if (!Number.isFinite(id)) return null;
+  return resolveFindingById(id) ?? null;
+}
+
+function extractApiErrorMessage(error: any): string {
+  const data = error?.response?.data;
+  if (typeof data === 'string' && data.trim()) return data;
+  if (typeof data?.detail === 'string' && data.detail.trim()) return data.detail;
+  if (Array.isArray(data?.nonFieldErrors) && data.nonFieldErrors.length) {
+    return data.nonFieldErrors.join(', ');
+  }
+  if (Array.isArray(data?.non_field_errors) && data.non_field_errors.length) {
+    return data.non_field_errors.join(', ');
+  }
+  if (data && typeof data === 'object') {
+    for (const [field, value] of Object.entries(data)) {
+      if (Array.isArray(value) && value.length) {
+        return `${field}: ${value.join(', ')}`;
+      }
+      if (typeof value === 'string' && value.trim()) {
+        return `${field}: ${value}`;
+      }
+    }
+  }
+  return error?.message || 'Fehler beim Hinzufügen des Befunds';
+}
+
 async function createPatientFindingWithFallback(payload: {
-  patientExamination: number
+  patient_examination: number
   finding: number
   classifications: Array<{ classification: number; choice: number }>
 }) {
@@ -255,8 +299,10 @@ async function loadAddedFindingsForCurrentExam() {
     return;
   }
   await patientFindingStore.fetchPatientFindings(id);
-  const findings = patientFindingStore.patientFindings.map((pf) => pf?.finding);
-  addedFindings.value = dedupeFindings(normalizeFindingsList(findings));
+  const findings = patientFindingStore.patientFindings
+    .map((pf) => normalizeAddedFinding((pf as any)?.finding))
+    .filter((finding): finding is Finding => !!finding);
+  addedFindings.value = dedupeFindings(findings);
 }
 
 watch(effectivePatientExaminationId, async (newId) => {
@@ -354,7 +400,7 @@ const addFindingToExamination = async () => {
 
         // Prepare the data for the patient finding store
         const findingData = {
-            patientExamination: effectivePatientExaminationId.value,
+            patient_examination: effectivePatientExaminationId.value,
             finding: selectedFindingId.value,
             classifications: Object.entries(selectedChoices.value).map(([classificationId, choiceId]) => ({
                 classification: parseInt(classificationId),
@@ -383,9 +429,7 @@ const addFindingToExamination = async () => {
         console.error('Error adding finding to examination:', error);
         const errorMessage = patientFindingStore.error ||
                            error.response?.data?.error ||
-                           error.response?.data?.detail ||
-                           error.message ||
-                           'Fehler beim Hinzufügen des Befunds';
+                           extractApiErrorMessage(error);
         emit('finding-error', errorMessage);
     } finally {
         loading.value = false;
@@ -453,6 +497,7 @@ const loadFindingsAndClassificationsNew = async () => {
     if (props.examinationId) {
         await loadFindingsAndClassifications(props.examinationId);
     }
+    await loadAddedFindingsForCurrentExam();
 };
 
 // Watchers

@@ -139,7 +139,10 @@ axiosInstance.interceptors.response.use(
       message: err.message,
       code: err.code,
       status: err.response?.status,
-      data: err.response?.data
+      method: err.config?.method,
+      url: err.config?.url,
+      requestData: err.config?.data,
+      responseData: err.response?.data
     })
     return Promise.reject(err)
   }
