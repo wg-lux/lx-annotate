@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from argparse import ArgumentParser
 from collections.abc import Iterable
 from dataclasses import asdict, dataclass
 from typing import Any
@@ -82,7 +83,7 @@ def _walk(patterns: list[Any], prefix: str = "") -> list[RouteRow]:
 class Command(BaseCommand):
     help = "Export Django URL route manifest as JSON for CI route matrix checks."
 
-    def add_arguments(self, parser) -> None:
+    def add_arguments(self, parser: ArgumentParser) -> None:
         parser.add_argument(
             "--output", type=str, default="-", help="Output file path or '-' for stdout"
         )
@@ -98,7 +99,7 @@ class Command(BaseCommand):
             help="Include DRF format-suffix duplicate routes",
         )
 
-    def handle(self, *args, **options):
+    def handle(self, *args: Any, **options: Any) -> None:
         include_non_api = bool(options["include_non_api"])
         include_admin = bool(options["include_admin"])
         include_format_suffix = bool(options["include_format_suffix"])
