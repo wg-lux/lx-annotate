@@ -1,5 +1,6 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import axiosInstance, { r } from '@/api/axiosInstance';
+import { findingsApi } from '@/api/findingsApi';
 import { usePatientStore } from '@/stores/patientStore';
 import { useExaminationStore } from '@/stores/examinationStore';
 import { useFindingStore } from '@/stores/findingStore';
@@ -164,21 +165,8 @@ const fetchFindingClassificationsCached = async (findingId) => {
     const cached = findingClassificationsCache.value[findingId];
     if (cached)
         return cached;
-    let normalized = [];
-    try {
-        const res = await axiosInstance.get(`/api/findings/${findingId}/classifications/`);
-        normalized = normalizeClassificationsPayload(res.data);
-    }
-    catch {
-        const [locationRes, morphologyRes] = await Promise.all([
-            axiosInstance.get(`/api/findings/${findingId}/location_classifications/`).catch(() => ({ data: [] })),
-            axiosInstance.get(`/api/findings/${findingId}/morphology_classifications/`).catch(() => ({ data: [] }))
-        ]);
-        normalized = [
-            ...normalizeClassificationsPayload(locationRes.data),
-            ...normalizeClassificationsPayload(morphologyRes.data)
-        ];
-    }
+    const payload = await findingsApi.getFindingClassifications(findingId);
+    const normalized = normalizeClassificationsPayload(payload);
     findingClassificationsCache.value = {
         ...findingClassificationsCache.value,
         [findingId]: normalized
@@ -297,10 +285,7 @@ const refreshTemplateFindingDetails = async () => {
     }
     templateDetailsLoading.value = true;
     try {
-        const findingsRes = await axiosInstance.get(`/api/examinations/${selectedExaminationId.value}/findings/`);
-        const examinationFindings = Array.isArray(findingsRes.data)
-            ? findingsRes.data
-            : [];
+        const examinationFindings = (await findingsApi.getExaminationFindings(selectedExaminationId.value));
         const byName = new Map();
         for (const finding of examinationFindings) {
             if (finding.name)
@@ -597,8 +582,7 @@ const fetchNormalizedFindingsPayload = async () => {
     if (!currentPatientExaminationId.value)
         return [];
     try {
-        const res = await axiosInstance.get(`/api/patient-findings/?patient_examination=${currentPatientExaminationId.value}`);
-        const rows = (Array.isArray(res.data?.results) ? res.data.results : res.data);
+        const rows = (await findingsApi.listPatientFindings(currentPatientExaminationId.value));
         const normalizedRows = (Array.isArray(rows) ? rows : [])
             .map((row) => {
             const findingId = extractFindingId(row?.finding);

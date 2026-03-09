@@ -63,7 +63,6 @@ export const endpoints = {
         uploadStatus: (id) => `upload/${id}/status/`
     },
     requirements: {
-        lookup: 'lookup/',
         lookupInit: 'lookup/init/',
         lookupAll: (token) => `lookup/${token}/all/`,
         lookupParts: (token, keys) => {

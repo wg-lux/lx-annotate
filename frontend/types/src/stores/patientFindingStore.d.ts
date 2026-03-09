@@ -1,34 +1,30 @@
-import type { Finding, FindingClassification, FindingClassificationChoice } from '@/stores/findingStore';
+import type { Finding } from '@/stores/findingStore';
 import type { Patient } from '@/stores/patientStore';
-interface PatientFinding {
+import { type ClassificationSelection, type PatientFindingRow } from '@/api/findingsApi';
+interface PatientFinding extends Partial<PatientFindingRow> {
     id: number;
-    examination: string;
-    createdAt: number;
-    updatedAt: string;
+    examination?: string;
+    createdAt?: number | string;
+    updatedAt?: string;
     createdBy?: string;
     updatedBy?: string;
-    finding: Finding;
-    patient: Patient;
-    classifications?: PatientFindingClassification[];
-}
-interface PatientFindingClassification {
-    id: number;
-    finding: number;
-    classification: FindingClassification;
-    classification_choice: FindingClassificationChoice;
-    is_active: boolean;
-    subcategories?: Record<string, any>;
-    numerical_descriptors?: Record<string, any>;
+    finding: Finding | PatientFindingRow['finding'];
+    patient?: Patient;
+    classifications?: PatientFindingRow['classifications'];
+    patientExamination?: number;
+    patient_examination?: number;
+    isActive?: boolean;
+    is_active?: boolean;
 }
 declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFinding", Pick<{
     patientFindings: Readonly<import("vue").Ref<readonly {
         readonly id: number;
-        readonly examination: string;
-        readonly createdAt: number;
-        readonly updatedAt: string;
+        readonly examination?: string | undefined;
+        readonly createdAt?: string | number | undefined;
+        readonly updatedAt?: string | undefined;
         readonly createdBy?: string | undefined;
         readonly updatedBy?: string | undefined;
-        readonly finding: {
+        readonly finding: number | {
             readonly id: number;
             readonly description: string;
             readonly nameDe?: string | undefined;
@@ -42,14 +38,16 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
                     readonly name: string;
                 }[] | undefined;
                 readonly required?: boolean | undefined;
-                readonly description?: string | undefined;
                 readonly name?: string | undefined;
+                readonly description?: string | undefined;
             }[];
             readonly findingTypes: readonly string[];
             readonly findingInterventions: readonly string[];
             readonly name: string;
+        } | {
+            readonly id: number;
         };
-        readonly patient: {
+        readonly patient?: {
             readonly id?: number | undefined;
             readonly firstName: string;
             readonly lastName: string;
@@ -67,41 +65,26 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
             readonly age?: number | null | undefined;
             readonly createdAt?: string | undefined;
             readonly updatedAt?: string | undefined;
-        };
-        readonly classifications?: readonly {
-            readonly id: number;
-            readonly finding: number;
-            readonly classification: {
-                readonly id: number;
-                readonly classificationType?: readonly string[] | undefined;
-                readonly choices?: readonly {
-                    readonly id: number;
-                    readonly name: string;
-                }[] | undefined;
-                readonly required?: boolean | undefined;
-                readonly description?: string | undefined;
-                readonly name?: string | undefined;
-            };
-            readonly classification_choice: {
-                readonly id: number;
-                readonly name: string;
-            };
-            readonly is_active: boolean;
-            readonly subcategories?: {
-                readonly [x: string]: any;
-            } | undefined;
-            readonly numerical_descriptors?: {
-                readonly [x: string]: any;
-            } | undefined;
-        }[] | undefined;
+        } | undefined;
+        readonly classifications?: readonly (number | {
+            readonly id?: number | undefined;
+            readonly classification?: number | undefined;
+            readonly classificationChoice?: number | undefined;
+            readonly classificationId?: number | undefined;
+            readonly classificationChoiceId?: number | undefined;
+        })[] | undefined;
+        readonly patientExamination?: number | undefined;
+        readonly patient_examination?: number | undefined;
+        readonly isActive?: boolean | undefined;
+        readonly is_active?: boolean | undefined;
     }[], readonly {
         readonly id: number;
-        readonly examination: string;
-        readonly createdAt: number;
-        readonly updatedAt: string;
+        readonly examination?: string | undefined;
+        readonly createdAt?: string | number | undefined;
+        readonly updatedAt?: string | undefined;
         readonly createdBy?: string | undefined;
         readonly updatedBy?: string | undefined;
-        readonly finding: {
+        readonly finding: number | {
             readonly id: number;
             readonly description: string;
             readonly nameDe?: string | undefined;
@@ -115,14 +98,16 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
                     readonly name: string;
                 }[] | undefined;
                 readonly required?: boolean | undefined;
-                readonly description?: string | undefined;
                 readonly name?: string | undefined;
+                readonly description?: string | undefined;
             }[];
             readonly findingTypes: readonly string[];
             readonly findingInterventions: readonly string[];
             readonly name: string;
+        } | {
+            readonly id: number;
         };
-        readonly patient: {
+        readonly patient?: {
             readonly id?: number | undefined;
             readonly firstName: string;
             readonly lastName: string;
@@ -140,42 +125,27 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
             readonly age?: number | null | undefined;
             readonly createdAt?: string | undefined;
             readonly updatedAt?: string | undefined;
-        };
-        readonly classifications?: readonly {
-            readonly id: number;
-            readonly finding: number;
-            readonly classification: {
-                readonly id: number;
-                readonly classificationType?: readonly string[] | undefined;
-                readonly choices?: readonly {
-                    readonly id: number;
-                    readonly name: string;
-                }[] | undefined;
-                readonly required?: boolean | undefined;
-                readonly description?: string | undefined;
-                readonly name?: string | undefined;
-            };
-            readonly classification_choice: {
-                readonly id: number;
-                readonly name: string;
-            };
-            readonly is_active: boolean;
-            readonly subcategories?: {
-                readonly [x: string]: any;
-            } | undefined;
-            readonly numerical_descriptors?: {
-                readonly [x: string]: any;
-            } | undefined;
-        }[] | undefined;
+        } | undefined;
+        readonly classifications?: readonly (number | {
+            readonly id?: number | undefined;
+            readonly classification?: number | undefined;
+            readonly classificationChoice?: number | undefined;
+            readonly classificationId?: number | undefined;
+            readonly classificationChoiceId?: number | undefined;
+        })[] | undefined;
+        readonly patientExamination?: number | undefined;
+        readonly patient_examination?: number | undefined;
+        readonly isActive?: boolean | undefined;
+        readonly is_active?: boolean | undefined;
     }[]>>;
     patientFindingsByCurrentPatient: import("vue").ComputedRef<{
         id: number;
-        examination: string;
-        createdAt: number;
-        updatedAt: string;
+        examination?: string | undefined;
+        createdAt?: string | number | undefined;
+        updatedAt?: string | undefined;
         createdBy?: string | undefined;
         updatedBy?: string | undefined;
-        finding: {
+        finding: number | {
             id: number;
             description: string;
             nameDe?: string | undefined;
@@ -189,14 +159,16 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
                     name: string;
                 }[] | undefined;
                 required?: boolean | undefined;
-                description?: string | undefined;
                 name?: string | undefined;
+                description?: string | undefined;
             }[];
             findingTypes: string[];
             findingInterventions: string[];
             name: string;
+        } | {
+            id: number;
         };
-        patient: {
+        patient?: {
             id?: number | undefined;
             firstName: string;
             lastName: string;
@@ -214,52 +186,39 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
             age?: number | null | undefined;
             createdAt?: string | undefined;
             updatedAt?: string | undefined;
-        };
-        classifications?: {
-            id: number;
-            finding: number;
-            classification: {
-                id: number;
-                classificationType?: string[] | undefined;
-                choices?: {
-                    id: number;
-                    name: string;
-                }[] | undefined;
-                required?: boolean | undefined;
-                description?: string | undefined;
-                name?: string | undefined;
-            };
-            classification_choice: {
-                id: number;
-                name: string;
-            };
-            is_active: boolean;
-            subcategories?: Record<string, any> | undefined;
-            numerical_descriptors?: Record<string, any> | undefined;
-        }[] | undefined;
+        } | undefined;
+        classifications?: (number | {
+            id?: number | undefined;
+            classification?: number | undefined;
+            classificationChoice?: number | undefined;
+            classificationId?: number | undefined;
+            classificationChoiceId?: number | undefined;
+        })[] | undefined;
+        patientExamination?: number | undefined;
+        patient_examination?: number | undefined;
+        isActive?: boolean | undefined;
+        is_active?: boolean | undefined;
     }[]>;
     loading: Readonly<import("vue").Ref<boolean, boolean>>;
     error: Readonly<import("vue").Ref<string | null, string | null>>;
     fetchPatientFindings: (patientExaminationId: number) => Promise<void>;
     createPatientFinding: (patientFindingData: {
-        patientExamination: number;
+        patient_examination?: number;
+        patientExamination?: number;
         finding: number;
-        classifications?: Array<{
-            classification: number;
-            choice: number;
-        }>;
+        classifications?: ClassificationSelection[];
     }) => Promise<PatientFinding>;
     updatePatientFinding: (id: number, updateData: Partial<PatientFinding>) => Promise<PatientFinding>;
     deletePatientFinding: (id: number) => Promise<void>;
-}, "error" | "loading" | "patientFindings">, Pick<{
+}, "loading" | "error" | "patientFindings">, Pick<{
     patientFindings: Readonly<import("vue").Ref<readonly {
         readonly id: number;
-        readonly examination: string;
-        readonly createdAt: number;
-        readonly updatedAt: string;
+        readonly examination?: string | undefined;
+        readonly createdAt?: string | number | undefined;
+        readonly updatedAt?: string | undefined;
         readonly createdBy?: string | undefined;
         readonly updatedBy?: string | undefined;
-        readonly finding: {
+        readonly finding: number | {
             readonly id: number;
             readonly description: string;
             readonly nameDe?: string | undefined;
@@ -273,14 +232,16 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
                     readonly name: string;
                 }[] | undefined;
                 readonly required?: boolean | undefined;
-                readonly description?: string | undefined;
                 readonly name?: string | undefined;
+                readonly description?: string | undefined;
             }[];
             readonly findingTypes: readonly string[];
             readonly findingInterventions: readonly string[];
             readonly name: string;
+        } | {
+            readonly id: number;
         };
-        readonly patient: {
+        readonly patient?: {
             readonly id?: number | undefined;
             readonly firstName: string;
             readonly lastName: string;
@@ -298,41 +259,26 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
             readonly age?: number | null | undefined;
             readonly createdAt?: string | undefined;
             readonly updatedAt?: string | undefined;
-        };
-        readonly classifications?: readonly {
-            readonly id: number;
-            readonly finding: number;
-            readonly classification: {
-                readonly id: number;
-                readonly classificationType?: readonly string[] | undefined;
-                readonly choices?: readonly {
-                    readonly id: number;
-                    readonly name: string;
-                }[] | undefined;
-                readonly required?: boolean | undefined;
-                readonly description?: string | undefined;
-                readonly name?: string | undefined;
-            };
-            readonly classification_choice: {
-                readonly id: number;
-                readonly name: string;
-            };
-            readonly is_active: boolean;
-            readonly subcategories?: {
-                readonly [x: string]: any;
-            } | undefined;
-            readonly numerical_descriptors?: {
-                readonly [x: string]: any;
-            } | undefined;
-        }[] | undefined;
+        } | undefined;
+        readonly classifications?: readonly (number | {
+            readonly id?: number | undefined;
+            readonly classification?: number | undefined;
+            readonly classificationChoice?: number | undefined;
+            readonly classificationId?: number | undefined;
+            readonly classificationChoiceId?: number | undefined;
+        })[] | undefined;
+        readonly patientExamination?: number | undefined;
+        readonly patient_examination?: number | undefined;
+        readonly isActive?: boolean | undefined;
+        readonly is_active?: boolean | undefined;
     }[], readonly {
         readonly id: number;
-        readonly examination: string;
-        readonly createdAt: number;
-        readonly updatedAt: string;
+        readonly examination?: string | undefined;
+        readonly createdAt?: string | number | undefined;
+        readonly updatedAt?: string | undefined;
         readonly createdBy?: string | undefined;
         readonly updatedBy?: string | undefined;
-        readonly finding: {
+        readonly finding: number | {
             readonly id: number;
             readonly description: string;
             readonly nameDe?: string | undefined;
@@ -346,14 +292,16 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
                     readonly name: string;
                 }[] | undefined;
                 readonly required?: boolean | undefined;
-                readonly description?: string | undefined;
                 readonly name?: string | undefined;
+                readonly description?: string | undefined;
             }[];
             readonly findingTypes: readonly string[];
             readonly findingInterventions: readonly string[];
             readonly name: string;
+        } | {
+            readonly id: number;
         };
-        readonly patient: {
+        readonly patient?: {
             readonly id?: number | undefined;
             readonly firstName: string;
             readonly lastName: string;
@@ -371,42 +319,27 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
             readonly age?: number | null | undefined;
             readonly createdAt?: string | undefined;
             readonly updatedAt?: string | undefined;
-        };
-        readonly classifications?: readonly {
-            readonly id: number;
-            readonly finding: number;
-            readonly classification: {
-                readonly id: number;
-                readonly classificationType?: readonly string[] | undefined;
-                readonly choices?: readonly {
-                    readonly id: number;
-                    readonly name: string;
-                }[] | undefined;
-                readonly required?: boolean | undefined;
-                readonly description?: string | undefined;
-                readonly name?: string | undefined;
-            };
-            readonly classification_choice: {
-                readonly id: number;
-                readonly name: string;
-            };
-            readonly is_active: boolean;
-            readonly subcategories?: {
-                readonly [x: string]: any;
-            } | undefined;
-            readonly numerical_descriptors?: {
-                readonly [x: string]: any;
-            } | undefined;
-        }[] | undefined;
+        } | undefined;
+        readonly classifications?: readonly (number | {
+            readonly id?: number | undefined;
+            readonly classification?: number | undefined;
+            readonly classificationChoice?: number | undefined;
+            readonly classificationId?: number | undefined;
+            readonly classificationChoiceId?: number | undefined;
+        })[] | undefined;
+        readonly patientExamination?: number | undefined;
+        readonly patient_examination?: number | undefined;
+        readonly isActive?: boolean | undefined;
+        readonly is_active?: boolean | undefined;
     }[]>>;
     patientFindingsByCurrentPatient: import("vue").ComputedRef<{
         id: number;
-        examination: string;
-        createdAt: number;
-        updatedAt: string;
+        examination?: string | undefined;
+        createdAt?: string | number | undefined;
+        updatedAt?: string | undefined;
         createdBy?: string | undefined;
         updatedBy?: string | undefined;
-        finding: {
+        finding: number | {
             id: number;
             description: string;
             nameDe?: string | undefined;
@@ -420,14 +353,16 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
                     name: string;
                 }[] | undefined;
                 required?: boolean | undefined;
-                description?: string | undefined;
                 name?: string | undefined;
+                description?: string | undefined;
             }[];
             findingTypes: string[];
             findingInterventions: string[];
             name: string;
+        } | {
+            id: number;
         };
-        patient: {
+        patient?: {
             id?: number | undefined;
             firstName: string;
             lastName: string;
@@ -445,52 +380,39 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
             age?: number | null | undefined;
             createdAt?: string | undefined;
             updatedAt?: string | undefined;
-        };
-        classifications?: {
-            id: number;
-            finding: number;
-            classification: {
-                id: number;
-                classificationType?: string[] | undefined;
-                choices?: {
-                    id: number;
-                    name: string;
-                }[] | undefined;
-                required?: boolean | undefined;
-                description?: string | undefined;
-                name?: string | undefined;
-            };
-            classification_choice: {
-                id: number;
-                name: string;
-            };
-            is_active: boolean;
-            subcategories?: Record<string, any> | undefined;
-            numerical_descriptors?: Record<string, any> | undefined;
-        }[] | undefined;
+        } | undefined;
+        classifications?: (number | {
+            id?: number | undefined;
+            classification?: number | undefined;
+            classificationChoice?: number | undefined;
+            classificationId?: number | undefined;
+            classificationChoiceId?: number | undefined;
+        })[] | undefined;
+        patientExamination?: number | undefined;
+        patient_examination?: number | undefined;
+        isActive?: boolean | undefined;
+        is_active?: boolean | undefined;
     }[]>;
     loading: Readonly<import("vue").Ref<boolean, boolean>>;
     error: Readonly<import("vue").Ref<string | null, string | null>>;
     fetchPatientFindings: (patientExaminationId: number) => Promise<void>;
     createPatientFinding: (patientFindingData: {
-        patientExamination: number;
+        patient_examination?: number;
+        patientExamination?: number;
         finding: number;
-        classifications?: Array<{
-            classification: number;
-            choice: number;
-        }>;
+        classifications?: ClassificationSelection[];
     }) => Promise<PatientFinding>;
     updatePatientFinding: (id: number, updateData: Partial<PatientFinding>) => Promise<PatientFinding>;
     deletePatientFinding: (id: number) => Promise<void>;
 }, "patientFindingsByCurrentPatient">, Pick<{
     patientFindings: Readonly<import("vue").Ref<readonly {
         readonly id: number;
-        readonly examination: string;
-        readonly createdAt: number;
-        readonly updatedAt: string;
+        readonly examination?: string | undefined;
+        readonly createdAt?: string | number | undefined;
+        readonly updatedAt?: string | undefined;
         readonly createdBy?: string | undefined;
         readonly updatedBy?: string | undefined;
-        readonly finding: {
+        readonly finding: number | {
             readonly id: number;
             readonly description: string;
             readonly nameDe?: string | undefined;
@@ -504,14 +426,16 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
                     readonly name: string;
                 }[] | undefined;
                 readonly required?: boolean | undefined;
-                readonly description?: string | undefined;
                 readonly name?: string | undefined;
+                readonly description?: string | undefined;
             }[];
             readonly findingTypes: readonly string[];
             readonly findingInterventions: readonly string[];
             readonly name: string;
+        } | {
+            readonly id: number;
         };
-        readonly patient: {
+        readonly patient?: {
             readonly id?: number | undefined;
             readonly firstName: string;
             readonly lastName: string;
@@ -529,41 +453,26 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
             readonly age?: number | null | undefined;
             readonly createdAt?: string | undefined;
             readonly updatedAt?: string | undefined;
-        };
-        readonly classifications?: readonly {
-            readonly id: number;
-            readonly finding: number;
-            readonly classification: {
-                readonly id: number;
-                readonly classificationType?: readonly string[] | undefined;
-                readonly choices?: readonly {
-                    readonly id: number;
-                    readonly name: string;
-                }[] | undefined;
-                readonly required?: boolean | undefined;
-                readonly description?: string | undefined;
-                readonly name?: string | undefined;
-            };
-            readonly classification_choice: {
-                readonly id: number;
-                readonly name: string;
-            };
-            readonly is_active: boolean;
-            readonly subcategories?: {
-                readonly [x: string]: any;
-            } | undefined;
-            readonly numerical_descriptors?: {
-                readonly [x: string]: any;
-            } | undefined;
-        }[] | undefined;
+        } | undefined;
+        readonly classifications?: readonly (number | {
+            readonly id?: number | undefined;
+            readonly classification?: number | undefined;
+            readonly classificationChoice?: number | undefined;
+            readonly classificationId?: number | undefined;
+            readonly classificationChoiceId?: number | undefined;
+        })[] | undefined;
+        readonly patientExamination?: number | undefined;
+        readonly patient_examination?: number | undefined;
+        readonly isActive?: boolean | undefined;
+        readonly is_active?: boolean | undefined;
     }[], readonly {
         readonly id: number;
-        readonly examination: string;
-        readonly createdAt: number;
-        readonly updatedAt: string;
+        readonly examination?: string | undefined;
+        readonly createdAt?: string | number | undefined;
+        readonly updatedAt?: string | undefined;
         readonly createdBy?: string | undefined;
         readonly updatedBy?: string | undefined;
-        readonly finding: {
+        readonly finding: number | {
             readonly id: number;
             readonly description: string;
             readonly nameDe?: string | undefined;
@@ -577,14 +486,16 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
                     readonly name: string;
                 }[] | undefined;
                 readonly required?: boolean | undefined;
-                readonly description?: string | undefined;
                 readonly name?: string | undefined;
+                readonly description?: string | undefined;
             }[];
             readonly findingTypes: readonly string[];
             readonly findingInterventions: readonly string[];
             readonly name: string;
+        } | {
+            readonly id: number;
         };
-        readonly patient: {
+        readonly patient?: {
             readonly id?: number | undefined;
             readonly firstName: string;
             readonly lastName: string;
@@ -602,42 +513,27 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
             readonly age?: number | null | undefined;
             readonly createdAt?: string | undefined;
             readonly updatedAt?: string | undefined;
-        };
-        readonly classifications?: readonly {
-            readonly id: number;
-            readonly finding: number;
-            readonly classification: {
-                readonly id: number;
-                readonly classificationType?: readonly string[] | undefined;
-                readonly choices?: readonly {
-                    readonly id: number;
-                    readonly name: string;
-                }[] | undefined;
-                readonly required?: boolean | undefined;
-                readonly description?: string | undefined;
-                readonly name?: string | undefined;
-            };
-            readonly classification_choice: {
-                readonly id: number;
-                readonly name: string;
-            };
-            readonly is_active: boolean;
-            readonly subcategories?: {
-                readonly [x: string]: any;
-            } | undefined;
-            readonly numerical_descriptors?: {
-                readonly [x: string]: any;
-            } | undefined;
-        }[] | undefined;
+        } | undefined;
+        readonly classifications?: readonly (number | {
+            readonly id?: number | undefined;
+            readonly classification?: number | undefined;
+            readonly classificationChoice?: number | undefined;
+            readonly classificationId?: number | undefined;
+            readonly classificationChoiceId?: number | undefined;
+        })[] | undefined;
+        readonly patientExamination?: number | undefined;
+        readonly patient_examination?: number | undefined;
+        readonly isActive?: boolean | undefined;
+        readonly is_active?: boolean | undefined;
     }[]>>;
     patientFindingsByCurrentPatient: import("vue").ComputedRef<{
         id: number;
-        examination: string;
-        createdAt: number;
-        updatedAt: string;
+        examination?: string | undefined;
+        createdAt?: string | number | undefined;
+        updatedAt?: string | undefined;
         createdBy?: string | undefined;
         updatedBy?: string | undefined;
-        finding: {
+        finding: number | {
             id: number;
             description: string;
             nameDe?: string | undefined;
@@ -651,14 +547,16 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
                     name: string;
                 }[] | undefined;
                 required?: boolean | undefined;
-                description?: string | undefined;
                 name?: string | undefined;
+                description?: string | undefined;
             }[];
             findingTypes: string[];
             findingInterventions: string[];
             name: string;
+        } | {
+            id: number;
         };
-        patient: {
+        patient?: {
             id?: number | undefined;
             firstName: string;
             lastName: string;
@@ -676,40 +574,27 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
             age?: number | null | undefined;
             createdAt?: string | undefined;
             updatedAt?: string | undefined;
-        };
-        classifications?: {
-            id: number;
-            finding: number;
-            classification: {
-                id: number;
-                classificationType?: string[] | undefined;
-                choices?: {
-                    id: number;
-                    name: string;
-                }[] | undefined;
-                required?: boolean | undefined;
-                description?: string | undefined;
-                name?: string | undefined;
-            };
-            classification_choice: {
-                id: number;
-                name: string;
-            };
-            is_active: boolean;
-            subcategories?: Record<string, any> | undefined;
-            numerical_descriptors?: Record<string, any> | undefined;
-        }[] | undefined;
+        } | undefined;
+        classifications?: (number | {
+            id?: number | undefined;
+            classification?: number | undefined;
+            classificationChoice?: number | undefined;
+            classificationId?: number | undefined;
+            classificationChoiceId?: number | undefined;
+        })[] | undefined;
+        patientExamination?: number | undefined;
+        patient_examination?: number | undefined;
+        isActive?: boolean | undefined;
+        is_active?: boolean | undefined;
     }[]>;
     loading: Readonly<import("vue").Ref<boolean, boolean>>;
     error: Readonly<import("vue").Ref<string | null, string | null>>;
     fetchPatientFindings: (patientExaminationId: number) => Promise<void>;
     createPatientFinding: (patientFindingData: {
-        patientExamination: number;
+        patient_examination?: number;
+        patientExamination?: number;
         finding: number;
-        classifications?: Array<{
-            classification: number;
-            choice: number;
-        }>;
+        classifications?: ClassificationSelection[];
     }) => Promise<PatientFinding>;
     updatePatientFinding: (id: number, updateData: Partial<PatientFinding>) => Promise<PatientFinding>;
     deletePatientFinding: (id: number) => Promise<void>;

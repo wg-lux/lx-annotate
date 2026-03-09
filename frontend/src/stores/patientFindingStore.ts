@@ -1,5 +1,4 @@
 import { defineStore } from 'pinia'
-import axiosInstance from '@/api/axiosInstance'
 import { ref, readonly, computed } from 'vue'
 import type {
   Finding,
@@ -7,19 +6,29 @@ import type {
   FindingClassificationChoice
 } from '@/stores/findingStore'
 import type { Patient } from '@/stores/patientStore'
+import {
+  findingsApi,
+  parseFindingsApiError,
+  type ClassificationSelection,
+  type PatientFindingRow
+} from '@/api/findingsApi'
 
 import { usePatientStore } from '@/stores/patientStore'
 
-interface PatientFinding {
+interface PatientFinding extends Partial<PatientFindingRow> {
   id: number
-  examination: string
-  createdAt: number
-  updatedAt: string
+  examination?: string
+  createdAt?: number | string
+  updatedAt?: string
   createdBy?: string // ISO date string
   updatedBy?: string
-  finding: Finding | number
-  patient: Patient
-  classifications?: PatientFindingClassification[]
+  finding: Finding | PatientFindingRow['finding']
+  patient?: Patient
+  classifications?: PatientFindingRow['classifications']
+  patientExamination?: number
+  patient_examination?: number
+  isActive?: boolean
+  is_active?: boolean
 }
 
 interface PatientFindingClassification {
@@ -30,29 +39,6 @@ interface PatientFindingClassification {
   is_active: boolean
   subcategories?: Record<string, any>
   numerical_descriptors?: Record<string, any>
-}
-
-function extractApiErrorMessage(err: any, fallback: string): string {
-  const data = err?.response?.data
-  if (typeof data === 'string' && data.trim()) return data
-  if (typeof data?.detail === 'string' && data.detail.trim()) return data.detail
-  if (Array.isArray(data?.nonFieldErrors) && data.nonFieldErrors.length) {
-    return data.nonFieldErrors.join(', ')
-  }
-  if (Array.isArray(data?.non_field_errors) && data.non_field_errors.length) {
-    return data.non_field_errors.join(', ')
-  }
-  if (data && typeof data === 'object') {
-    for (const [field, value] of Object.entries(data)) {
-      if (Array.isArray(value) && value.length) {
-        return `${field}: ${value.join(', ')}`
-      }
-      if (typeof value === 'string' && value.trim()) {
-        return `${field}: ${value}`
-      }
-    }
-  }
-  return err?.message || fallback
 }
 
 const usePatientFindingStore = defineStore('patientFinding', () => {
@@ -69,13 +55,11 @@ const usePatientFindingStore = defineStore('patientFinding', () => {
     try {
       loading.value = true
       error.value = null
-      const response = await axiosInstance.get('/api/patient-findings/', {
-        params: { patient_examination: patientExaminationId }
-      })
-      const payload = response.data?.results ?? response.data
-      patientFindings.value = Array.isArray(payload) ? payload : []
+      const payload = await findingsApi.listPatientFindings(patientExaminationId)
+      patientFindings.value = Array.isArray(payload) ? (payload as PatientFinding[]) : []
     } catch (err: any) {
-      error.value = 'Fehler beim Laden der Patientenbefunde: ' + extractApiErrorMessage(err, '')
+      const parsed = parseFindingsApiError(err)
+      error.value = `Fehler beim Laden der Patientenbefunde (${parsed.code}): ${parsed.message}`
       console.error('Fetch patient findings error:', err)
     } finally {
       loading.value = false
@@ -88,37 +72,32 @@ const usePatientFindingStore = defineStore('patientFinding', () => {
     if (!currentPatient) {
       return []
     }
-    return patientFindings.value.filter((pf) => pf.patient.id === currentPatient.id)
+    return patientFindings.value.filter((pf) => pf.patient?.id === currentPatient.id)
   })
 
   const createPatientFinding = async (patientFindingData: {
     patient_examination?: number
     patientExamination?: number
     finding: number
-    classifications?: Array<{
-      classification: number
-      choice: number
-    }>
+    classifications?: ClassificationSelection[]
   }): Promise<PatientFinding> => {
     try {
       loading.value = true
       error.value = null
-      const normalizedPayload = {
-        ...patientFindingData,
-        patient_examination:
-          patientFindingData.patient_examination ?? patientFindingData.patientExamination
-      }
-      delete (normalizedPayload as { patientExamination?: number }).patientExamination
-
-      const response = await axiosInstance.post('/api/patient-findings/', normalizedPayload)
-      const newPatientFinding = response.data as PatientFinding
+      const newPatientFinding = (await findingsApi.createPatientFinding({
+        patientExamination:
+          patientFindingData.patient_examination ?? patientFindingData.patientExamination ?? 0,
+        finding: patientFindingData.finding,
+        classifications: patientFindingData.classifications || []
+      })) as PatientFinding
 
       // Add to local state
       patientFindings.value.push(newPatientFinding)
 
       return newPatientFinding
     } catch (err: any) {
-      error.value = 'Fehler beim Erstellen des Patientenbefunds: ' + extractApiErrorMessage(err, '')
+      const parsed = parseFindingsApiError(err)
+      error.value = `Fehler beim Erstellen des Patientenbefunds (${parsed.code}): ${parsed.message}`
       console.error('Create patient finding error:', err)
       throw err
     } finally {
@@ -133,8 +112,20 @@ const usePatientFindingStore = defineStore('patientFinding', () => {
     try {
       loading.value = true
       error.value = null
-      const response = await axiosInstance.patch(`/api/patient-findings/${id}/`, updateData)
-      const updatedFinding = response.data as PatientFinding
+      const updatedFinding = (await findingsApi.updatePatientFinding(id, {
+        finding: Number.isFinite(Number((updateData as any).finding))
+          ? Number((updateData as any).finding)
+          : undefined,
+        isActive:
+          typeof (updateData as any).is_active === 'boolean'
+            ? (updateData as any).is_active
+            : typeof (updateData as any).isActive === 'boolean'
+              ? (updateData as any).isActive
+              : undefined,
+        classifications: Array.isArray((updateData as any).classifications)
+          ? (updateData as any).classifications
+          : undefined
+      })) as PatientFinding
 
       // Update local state
       const index = patientFindings.value.findIndex((pf) => pf.id === id)
@@ -144,8 +135,8 @@ const usePatientFindingStore = defineStore('patientFinding', () => {
 
       return updatedFinding
     } catch (err: any) {
-      error.value =
-        'Fehler beim Aktualisieren des Patientenbefunds: ' + extractApiErrorMessage(err, '')
+      const parsed = parseFindingsApiError(err)
+      error.value = `Fehler beim Aktualisieren des Patientenbefunds (${parsed.code}): ${parsed.message}`
       console.error('Update patient finding error:', err)
       throw err
     } finally {
@@ -157,12 +148,13 @@ const usePatientFindingStore = defineStore('patientFinding', () => {
     try {
       loading.value = true
       error.value = null
-      await axiosInstance.delete(`/api/patient-findings/${id}/`)
+      await findingsApi.deletePatientFinding(id)
 
       // Remove from local state
       patientFindings.value = patientFindings.value.filter((pf) => pf.id !== id)
     } catch (err: any) {
-      error.value = 'Fehler beim Löschen des Patientenbefunds: ' + extractApiErrorMessage(err, '')
+      const parsed = parseFindingsApiError(err)
+      error.value = `Fehler beim Löschen des Patientenbefunds (${parsed.code}): ${parsed.message}`
       console.error('Delete patient finding error:', err)
       throw err
     } finally {

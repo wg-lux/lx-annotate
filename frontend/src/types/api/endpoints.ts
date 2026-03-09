@@ -81,7 +81,6 @@ export const endpoints = {
   },
 
   requirements: {
-    lookup: 'lookup/',
     lookupInit: 'lookup/init/',
     lookupAll: (token: Id) => `lookup/${token}/all/`,
     lookupParts: (token: Id, keys?: string[]) => {

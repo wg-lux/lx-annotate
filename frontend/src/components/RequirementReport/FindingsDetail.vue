@@ -80,7 +80,7 @@
             <div v-else>
                 <p>Befunde konnten nicht geladen werden...</p>
                 <small>Finding ID: {{ findingId }}</small>
-                <button v-if="examinationId" class="btn btn-primary mt-2" @click="safeLoadFindingsAndClassifications">Erneut versuchen</button>
+                <button class="btn btn-primary mt-2" @click="loadClassifications">Erneut versuchen</button>
             </div>
         </div>
 
@@ -116,17 +116,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue';
-import { useFindingStore, type Finding, type FindingClassification } from '../../stores/findingStore';
-import { useExaminationStore } from '@/stores/examinationStore';
-import axiosInstance from '@/api/axiosInstance';
-import { useFindingClassificationStore } from '@/stores/findingClassificationStore';
+import { computed, ref, watch } from 'vue'
+import { useFindingStore, type Finding, type FindingClassification } from '../../stores/findingStore'
+import { useFindingClassificationStore } from '@/stores/findingClassificationStore'
 
-const findingStore = useFindingStore();
-const examinationStore = useExaminationStore();
-const findingClassificationStore = useFindingClassificationStore();
-
-const examinationId = computed(() => examinationStore.selectedExaminationId || undefined);
+const findingStore = useFindingStore()
+const findingClassificationStore = useFindingClassificationStore()
 
 interface Props {
     findingId: number;
@@ -135,9 +130,9 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-    isAddedToExamination: false,
-    patientExaminationId: undefined
-});
+  isAddedToExamination: false,
+  patientExaminationId: undefined
+})
 
 const emit = defineEmits<{
   'added-to-examination': [data: {
@@ -152,186 +147,120 @@ const emit = defineEmits<{
     error: string;
     selectedClassifications: number;
   }];
-}>();
+}>()
 
-const loading = ref(false);
-const classifications = ref<FindingClassification[]>([]);
+const loading = ref(false)
+const classifications = ref<FindingClassification[]>([])
 
 // Computed
 const finding = computed((): Finding | undefined => {
-    // First try findingClassificationStore (where AddableFindingsDetail stores data)
-    const findingFromClassificationStore = findingClassificationStore.getFindingById(props.findingId);
-    if (findingFromClassificationStore) {
-        return findingFromClassificationStore;
-    }
-    
-    // Fallback to findingStore
-    return findingStore.getFindingById(props.findingId);
-});
+  const findingFromClassificationStore = findingClassificationStore.getFindingById(props.findingId)
+  if (findingFromClassificationStore) {
+    return findingFromClassificationStore
+  }
+  return findingStore.getFindingById(props.findingId)
+})
 
 
 const requiredClassifications = computed(() => {
-    return classifications.value.filter(classification => classification.required);
-});
+  return classifications.value.filter((classification) => classification.required)
+})
 
 // Debug-Informationen
 const debugInfo = computed(() => {
-    const findingFromClassificationStore = findingClassificationStore.getFindingById(props.findingId);
-    const findingFromFindingStore = findingStore.getFindingById(props.findingId);
-    const dataSource = findingFromClassificationStore ? 'findingClassificationStore' : (findingFromFindingStore ? 'findingStore' : 'none');
-    
-    return {
-        findingId: props.findingId,
-        findingName: finding.value?.nameDe || finding.value?.name,
-        totalClassifications: classifications.value.length,
-        requiredClassifications: requiredClassifications.value.length,
-        classificationsLoaded: classifications.value.length > 0,
-        dataSource: dataSource
-    };
-});
+  const findingFromClassificationStore = findingClassificationStore.getFindingById(props.findingId)
+  const findingFromFindingStore = findingStore.getFindingById(props.findingId)
+  const dataSource = findingFromClassificationStore
+    ? 'findingClassificationStore'
+    : findingFromFindingStore
+      ? 'findingStore'
+      : 'none'
+
+  return {
+    findingId: props.findingId,
+    findingName: finding.value?.nameDe || finding.value?.name,
+    totalClassifications: classifications.value.length,
+    requiredClassifications: requiredClassifications.value.length,
+    classificationsLoaded: classifications.value.length > 0,
+    dataSource
+  }
+})
 
 const findingsInfo = computed(() => {
-    const findingFromClassificationStore = findingClassificationStore.getFindingById(props.findingId);
-    const findingFromFindingStore = findingStore.getFindingById(props.findingId);
-    const dataSource = findingFromClassificationStore ? 'findingClassificationStore' : (findingFromFindingStore ? 'findingStore' : 'none');
-    
-    return {
-        findingId: props.findingId,
-        findingName: finding.value?.nameDe || finding.value?.name,
-        findingDescription: finding.value?.description || 'Keine Beschreibung verfügbar',
-        totalClassifications: classifications.value.length,
-        requiredClassifications: requiredClassifications.value.length,
-        classificationsLoaded: classifications.value.length > 0,
-        dataSource: dataSource
-    };
-});
+  const findingFromClassificationStore = findingClassificationStore.getFindingById(props.findingId)
+  const findingFromFindingStore = findingStore.getFindingById(props.findingId)
+  const dataSource = findingFromClassificationStore
+    ? 'findingClassificationStore'
+    : findingFromFindingStore
+      ? 'findingStore'
+      : 'none'
 
-const loadFindingsAndClassifications = async (examinationId: number) => {
-    try {
-        loading.value = true;
-        
-        // Load findings for the examination
-        if (findingClassificationStore.getAllFindings.length === 0) {
-            // Findings will be loaded from API below
-        }
-
-        // Load findings from the API
-        const response = await axiosInstance.get(`/api/examinations/${examinationId}/findings`);
-        const findings = response.data;
-        findingClassificationStore.setClassificationChoicesFromLookup(findings);
-
-        console.log('Loaded findings for examination:', findings.length);
-        
-    } catch (error) {
-        console.error('Error loading examination data:', error);
-        emit('error-occurred', {
-            findingId: props.findingId,
-            error: 'Fehler beim Laden der Untersuchungsdaten',
-            selectedClassifications: 0
-        });
-    } finally {
-        loading.value = false;
-    }
-};
+  return {
+    findingId: props.findingId,
+    findingName: finding.value?.nameDe || finding.value?.name,
+    findingDescription: finding.value?.description || 'Keine Beschreibung verfügbar',
+    totalClassifications: classifications.value.length,
+    requiredClassifications: requiredClassifications.value.length,
+    classificationsLoaded: classifications.value.length > 0,
+    dataSource
+  }
+})
 
 const loadClassifications = async () => {
-    if (!props.findingId) {
-        console.log('📋 [FindingsDetail] No findingId provided, skipping classifications load');
-        return;
+  if (!props.findingId) return
+  try {
+    loading.value = true
+    const stored = findingClassificationStore.getClassificationsForFinding(props.findingId)
+    if (stored.length > 0) {
+      classifications.value = stored
+      return
     }
-    
-    try {
-        loading.value = true;
-        
-        // Get classifications from the store
-        const findingClassifications = findingClassificationStore.getClassificationsForFinding(props.findingId);
-        
-        if (findingClassifications.length > 0) {
-            classifications.value = findingClassifications;
-            console.log('📋 [FindingsDetail] Loaded classifications from store:', findingClassifications.length);
-        } else {
-            // Try to get from finding data if available
-            const finding = findingClassificationStore.getFindingById(props.findingId);
-            if (finding?.FindingClassifications) {
-                classifications.value = finding.FindingClassifications;
-                console.log('📋 [FindingsDetail] Loaded classifications from finding data:', finding.FindingClassifications.length);
-            } else {
-                console.warn('📋 [FindingsDetail] No classifications found for finding:', props.findingId);
-                classifications.value = [];
-            }
-        }
-        
-    } catch (error) {
-        console.error('Error loading classifications:', error);
-        classifications.value = [];
-    } finally {
-        loading.value = false;
-    }
-};
 
-// Safe wrapper for loading with examination ID check
-const safeLoadFindingsAndClassifications = async () => {
-    // Just load classifications from the store - data should already be available from AddableFindingsDetail
-    await loadClassifications();
-};
+    const findingEntry = findingClassificationStore.getFindingById(props.findingId)
+    if (findingEntry?.FindingClassifications) {
+      classifications.value = findingEntry.FindingClassifications
+      return
+    }
+
+    classifications.value = []
+  } catch {
+    classifications.value = []
+    emit('error-occurred', {
+      findingId: props.findingId,
+      error: 'Fehler beim Laden der Klassifikationen',
+      selectedClassifications: 0
+    })
+  } finally {
+    loading.value = false
+  }
+}
 
 const updateChoice = (classificationId: number, event: Event) => {
-    const target = event.target as HTMLSelectElement;
-    const choiceId = target.value ? parseInt(target.value) : null;
+  const target = event.target as HTMLSelectElement
+  const choiceId = target.value ? Number.parseInt(target.value, 10) : null
 
-    // Animation für Update-Feedback
-    const classificationElement = target.closest('.classification-item');
-    if (classificationElement) {
-        classificationElement.classList.add('updated');
-        setTimeout(() => {
-            classificationElement.classList.remove('updated');
-        }, 500);
-    }
+  const classificationElement = target.closest('.classification-item')
+  if (classificationElement) {
+    classificationElement.classList.add('updated')
+    setTimeout(() => {
+      classificationElement.classList.remove('updated')
+    }, 500)
+  }
 
-    // Emit event mit zusätzlichen Informationen
-    emit('classification-updated', props.findingId, classificationId, choiceId);
-};
+  emit('classification-updated', props.findingId, classificationId, choiceId)
+}
 
-// Lifecycle
-onMounted(() => {
-    console.log('🚀 [FindingsDetail] Component mounted with props:', {
-        findingId: props.findingId,
-        patientExaminationId: props.patientExaminationId,
-        isAddedToExamination: props.isAddedToExamination,
-        findingStoreFindingsCount: findingStore.findings.length,
-        findingFromStore: findingStore.getFindingById(props.findingId)
-    });
-
-    safeLoadFindingsAndClassifications();
-});
-
-watch(() => props.findingId, (newVal, oldVal) => {
-    console.log('👀 [FindingsDetail] findingId changed:', { oldVal, newVal });
-    safeLoadFindingsAndClassifications();
-}, { immediate: true });
-
-// Watch for finding data availability in findingClassificationStore
-watch(() => findingClassificationStore.getFindingById(props.findingId), (newFinding: Finding | undefined, oldFinding: Finding | undefined) => {
-    if (newFinding) {
-        console.log('🔄 [FindingsDetail] Finding data now available in findingClassificationStore, loading classifications', { findingId: newFinding.id });
-        loadClassifications();
-    }
-}, { immediate: true });
-
-// Watch for finding data availability
-watch(() => findingStore.findings, (newVal, oldVal) => {
-    console.log('📊 [FindingsDetail] findingStore.findings changed:', { 
-        oldCount: oldVal?.length || 0, 
-        newCount: newVal?.length || 0,
-        findingId: props.findingId
-    });
-    
-    // Reload classifications when findings data is available
-    if (newVal && newVal.length > 0) {
-        console.log('🔄 [FindingsDetail] Reloading classifications due to findings data change');
-        safeLoadFindingsAndClassifications();
-    }
-}, { immediate: true });
+watch(
+  [
+    () => props.findingId,
+    () => findingClassificationStore.getFindingById(props.findingId),
+    () => findingStore.getFindingById(props.findingId)
+  ],
+  async () => {
+    await loadClassifications()
+  },
+  { immediate: true }
+)
 </script>
 
 <style scoped>

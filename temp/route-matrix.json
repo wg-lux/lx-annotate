@@ -1,25 +1,9 @@
 {
-  "effective_missing_backend": [
-    {
-      "backend_matches": [],
-      "frontend_path": "lookup/",
-      "key": "requirements.lookup",
-      "normalized_path": "lookup/",
-      "status": "missing_backend"
-    }
-  ],
-  "effective_missing_backend_count": 1,
-  "frontend_checked": 95,
-  "missing_backend": [
-    {
-      "backend_matches": [],
-      "frontend_path": "lookup/",
-      "key": "requirements.lookup",
-      "normalized_path": "lookup/",
-      "status": "missing_backend"
-    }
-  ],
-  "missing_backend_count": 1,
+  "effective_missing_backend": [],
+  "effective_missing_backend_count": 0,
+  "frontend_checked": 94,
+  "missing_backend": [],
+  "missing_backend_count": 0,
   "results": [
     {
       "backend_matches": [
@@ -720,13 +704,6 @@
       "key": "upload.uploadStatus",
       "normalized_path": "upload/{param}/status/",
       "status": "match"
-    },
-    {
-      "backend_matches": [],
-      "frontend_path": "lookup/",
-      "key": "requirements.lookup",
-      "normalized_path": "lookup/",
-      "status": "missing_backend"
     },
     {
       "backend_matches": [

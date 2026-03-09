@@ -1,6 +1,7 @@
 import { computed, onMounted, ref, watch } from 'vue';
 import { RouterLink, useRoute } from 'vue-router';
 import axiosInstance, { r } from '@/api/axiosInstance';
+import { findingsApi } from '@/api/findingsApi';
 import MedicalBlock from '@/components/AssistedReporting/MedicalBlock.vue';
 import IndicationsEditor from '@/components/Reporting/IndicationsEditor.vue';
 import LookupStatusPanel from '@/components/Reporting/LookupStatusPanel.vue';
@@ -465,14 +466,17 @@ async function fetchNormalizedFindingsPayload() {
     if (!flow.patientExaminationId)
         return [];
     try {
-        const res = await axiosInstance.get(r(`${endpoints.patient.patientFindings}?patient_examination=${flow.patientExaminationId}`));
-        const rows = (Array.isArray(res.data?.results) ? res.data.results : res.data);
+        const rows = (await findingsApi.listPatientFindings(flow.patientExaminationId));
         return (Array.isArray(rows) ? rows : [])
-            .filter((row) => row && row.finding && row.isActive !== false)
             .map((row) => ({
-            finding: row.finding,
-            classifications: mergeClassificationSelections(row.finding, row.classifications, {}),
-            interventions: normalizeInterventions(row.interventions)
+            row,
+            findingId: typeof row?.finding === 'number' ? row.finding : Number(row?.finding?.id ?? NaN)
+        }))
+            .filter(({ row, findingId }) => Number.isFinite(findingId) && row.isActive !== false && row.is_active !== false)
+            .map((row) => ({
+            finding: row.findingId,
+            classifications: mergeClassificationSelections(row.findingId, row.row.classifications, {}),
+            interventions: normalizeInterventions(row.row.interventions)
         }));
     }
     catch (e) {

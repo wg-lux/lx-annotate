@@ -161,360 +161,258 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue';
-import { type Finding, type FindingClassification } from '@/stores/findingStore';
-import { usePatientFindingStore } from '@/stores/patientFindingStore';
-import axiosInstance from '@/api/axiosInstance';
-import { usePatientExaminationStore } from '@/stores/patientExaminationStore';
-import { useExaminationStore } from '@/stores/examinationStore';
-import { useFindingClassificationStore } from '@/stores/findingClassificationStore';
+import { computed, ref, watch } from 'vue'
+import { parseFindingsApiError } from '@/api/findingsApi'
+import { useExaminationStore } from '@/stores/examinationStore'
+import { type Finding, type FindingClassification } from '@/stores/findingStore'
+import { useFindingClassificationStore } from '@/stores/findingClassificationStore'
+import { usePatientExaminationStore } from '@/stores/patientExaminationStore'
+import { usePatientFindingStore } from '@/stores/patientFindingStore'
 
-const patientExaminationStore = usePatientExaminationStore();
-const findingClassificationStore = useFindingClassificationStore();
-
+const patientExaminationStore = usePatientExaminationStore()
+const findingClassificationStore = useFindingClassificationStore()
+const patientFindingStore = usePatientFindingStore()
+const examinationStore = useExaminationStore()
 
 interface Props {
-    patientExaminationId?: number;
-    examinationId?: number;
+  patientExaminationId?: number
+  examinationId?: number
 }
 
 const props = withDefaults(defineProps<Props>(), {
-    patientExaminationId: undefined,
-    examinationId: undefined
-});
-
-watch(
-  () => patientExaminationStore.getCurrentPatientExaminationId(),
-  (newId) => {
-    if (newId && !props.patientExaminationId) {
-      console.warn('[AddableFindingsDetail] Syncing patientExaminationId...');
-      loadFindingsAndClassificationsNew();
-    }
-  },
-  { immediate: true }
-);
-
+  patientExaminationId: undefined,
+  examinationId: undefined
+})
 
 const emit = defineEmits<{
   'finding-added': [findingId: number, findingName: string]
   'finding-error': [error: string]
-}>();
+}>()
 
-const patientFindingStore = usePatientFindingStore();
-const examinationStore = useExaminationStore();
+const loading = ref(false)
+const activeTab = ref<'available' | 'added'>('available')
+const showFindingSelector = ref(false)
+const selectedFindingId = ref<number | null>(null)
+const findingClassifications = ref<FindingClassification[]>([])
+const selectedChoices = ref<Record<number, number>>({})
+const availableExaminationFindings = ref<Finding[]>([])
+const addedFindings = ref<Finding[]>([])
 
-// Component State
-const loading = ref(false);
-const activeTab = ref<'available' | 'added'>('available');
-const showFindingSelector = ref(false);
-const selectedFindingId = ref<number | null>(null);
-const findingClassifications = ref<FindingClassification[]>([]);
-const selectedChoices = ref<Record<number, number>>({});
-const availableExaminationFindings = ref<Finding[]>([]);
-const addedFindings = ref<Finding[]>([]);
-
-// Computed Properties
 const effectivePatientExaminationId = computed<number | null>(() => {
-    if (props.patientExaminationId) return props.patientExaminationId;
-    return patientExaminationStore.getCurrentPatientExaminationId();
-});
+  if (props.patientExaminationId) return props.patientExaminationId
+  return patientExaminationStore.getCurrentPatientExaminationId()
+})
 
 const availableFindings = computed(() => {
-    const addedIds = new Set(addedFindings.value.map((finding) => finding.id));
-    return availableExaminationFindings.value.filter((finding) => !addedIds.has(finding.id));
-});
+  const addedIds = new Set(addedFindings.value.map((finding) => finding.id))
+  return availableExaminationFindings.value.filter((finding) => !addedIds.has(finding.id))
+})
+
+const selectedFinding = computed((): Finding | undefined => {
+  if (!selectedFindingId.value) return undefined
+  return (
+    availableFindings.value.find((entry) => entry.id === selectedFindingId.value) ||
+    findingClassificationStore.getFindingById(selectedFindingId.value)
+  )
+})
+
+const hasAllRequiredClassifications = computed(() => {
+  if (!findingClassifications.value.length) return true
+  return findingClassifications.value
+    .filter((classification) => classification.required)
+    .every((classification) => selectedChoices.value[classification.id])
+})
+
+const canAddFinding = computed(() =>
+  Boolean(
+    selectedFindingId.value &&
+      hasAllRequiredClassifications.value &&
+      effectivePatientExaminationId.value &&
+      !loading.value
+  )
+)
+
+const classificationProgress = computed(() => {
+  const required = findingClassifications.value.filter((entry) => entry.required).length
+  const selected = findingClassifications.value.filter(
+    (entry) => entry.required && selectedChoices.value[entry.id]
+  ).length
+  return {
+    required,
+    selected,
+    complete: selected === required,
+    percentage: required > 0 ? Math.round((selected / required) * 100) : 100
+  }
+})
 
 function normalizeFindingsList(value: unknown): Finding[] {
-  if (!Array.isArray(value)) return [];
+  if (!Array.isArray(value)) return []
   return value.filter((entry): entry is Finding => {
-    if (!entry || typeof entry !== 'object') return false;
-    return Number.isFinite(Number((entry as any).id));
-  });
+    if (!entry || typeof entry !== 'object') return false
+    return Number.isFinite(Number((entry as any).id))
+  })
 }
 
 function dedupeFindings(findings: Finding[]): Finding[] {
-  return Array.from(new Map(findings.map((finding) => [finding.id, finding])).values());
+  return Array.from(new Map(findings.map((finding) => [finding.id, finding])).values())
 }
 
 function resolveFindingById(findingId: number): Finding | undefined {
   return (
-    availableExaminationFindings.value.find((finding) => finding.id === findingId) ||
+    availableExaminationFindings.value.find((entry) => entry.id === findingId) ||
     findingClassificationStore.getFindingById(findingId)
-  );
+  )
 }
 
 function normalizeAddedFinding(value: unknown): Finding | null {
   if (value && typeof value === 'object') {
-    const entry = value as Record<string, unknown>;
-    const id = Number(entry.id);
-    if (Number.isFinite(id)) {
-      return entry as Finding;
+    const entry = value as Record<string, unknown>
+    const nestedId = Number(entry.id)
+    if (Number.isFinite(nestedId)) {
+      return entry as unknown as Finding
     }
   }
-  const id = Number(value);
-  if (!Number.isFinite(id)) return null;
-  return resolveFindingById(id) ?? null;
+  const id = Number(value)
+  if (!Number.isFinite(id)) return null
+  return resolveFindingById(id) ?? null
 }
 
-function extractApiErrorMessage(error: any): string {
-  const data = error?.response?.data;
-  if (typeof data === 'string' && data.trim()) return data;
-  if (typeof data?.detail === 'string' && data.detail.trim()) return data.detail;
-  if (Array.isArray(data?.nonFieldErrors) && data.nonFieldErrors.length) {
-    return data.nonFieldErrors.join(', ');
-  }
-  if (Array.isArray(data?.non_field_errors) && data.non_field_errors.length) {
-    return data.non_field_errors.join(', ');
-  }
-  if (data && typeof data === 'object') {
-    for (const [field, value] of Object.entries(data)) {
-      if (Array.isArray(value) && value.length) {
-        return `${field}: ${value.join(', ')}`;
-      }
-      if (typeof value === 'string' && value.trim()) {
-        return `${field}: ${value}`;
-      }
-    }
-  }
-  return error?.message || 'Fehler beim Hinzufügen des Befunds';
+const selectFinding = async (findingId: number) => {
+  selectedFindingId.value = findingId
+  showFindingSelector.value = false
+  await loadFindingClassifications(findingId)
 }
 
-async function createPatientFindingWithFallback(payload: {
-  patient_examination: number
-  finding: number
-  classifications: Array<{ classification: number; choice: number }>
-}) {
-  const createAction = (patientFindingStore as any)?.createPatientFinding;
-  if (typeof createAction === 'function') {
-    return await createAction(payload);
+const clearSelection = () => {
+  selectedFindingId.value = null
+  findingClassifications.value = []
+  selectedChoices.value = {}
+}
+
+const updateChoice = (classificationId: number, event: Event) => {
+  const target = event.target as HTMLSelectElement
+  const choiceId = target.value ? Number.parseInt(target.value, 10) : undefined
+  if (choiceId) {
+    selectedChoices.value[classificationId] = choiceId
+    return
   }
-  const response = await axiosInstance.post('/api/patient-findings/', payload);
-  return response.data;
+  delete selectedChoices.value[classificationId]
+}
+
+const loadFindingClassifications = async (findingId: number) => {
+  try {
+    loading.value = true
+    const classifications = findingClassificationStore.getClassificationsForFinding(findingId)
+    findingClassifications.value = Array.isArray(classifications) ? classifications : []
+  } catch {
+    emit('finding-error', 'Fehler beim Laden der Klassifikationen')
+  } finally {
+    loading.value = false
+  }
 }
 
 async function loadAddedFindingsForCurrentExam() {
-  const id = effectivePatientExaminationId.value;
-  if (!id) {
-    addedFindings.value = [];
-    return;
+  const patientExaminationId = effectivePatientExaminationId.value
+  if (!patientExaminationId) {
+    addedFindings.value = []
+    return
   }
-  await patientFindingStore.fetchPatientFindings(id);
+
+  await patientFindingStore.fetchPatientFindings(patientExaminationId)
   const findings = patientFindingStore.patientFindings
-    .map((pf) => normalizeAddedFinding((pf as any)?.finding))
-    .filter((finding): finding is Finding => !!finding);
-  addedFindings.value = dedupeFindings(findings);
+    .map((row) => normalizeAddedFinding((row as any)?.finding))
+    .filter((entry): entry is Finding => !!entry)
+  addedFindings.value = dedupeFindings(findings)
 }
 
-watch(effectivePatientExaminationId, async (newId) => {
-  if (newId) {
-    await loadAddedFindingsForCurrentExam();
-  } else {
-    addedFindings.value = [];
+async function loadAvailableFindings() {
+  let examinationId = props.examinationId
+  if (!examinationId && effectivePatientExaminationId.value) {
+    const patientExamination = patientExaminationStore.getPatientExaminationById(
+      effectivePatientExaminationId.value
+    )
+    examinationId = patientExamination?.examination?.id
   }
-}, { immediate: true });
 
-const selectedFinding = computed((): Finding | undefined => {
-    if (!selectedFindingId.value) return undefined;
-    return availableFindings.value.find(f => f.id === selectedFindingId.value) || 
-           findingClassificationStore.getFindingById(selectedFindingId.value);
-});
+  if (!examinationId) {
+    availableExaminationFindings.value = []
+    return
+  }
 
-const hasAllRequiredClassifications = computed(() => {
-    if (!findingClassifications.value.length) return true;
+  const findings = normalizeFindingsList(
+    await examinationStore.loadFindingsForExamination(examinationId)
+  )
+  findingClassificationStore.setClassificationChoicesFromLookup(findings)
+  availableExaminationFindings.value = dedupeFindings(findings)
+}
 
-    return findingClassifications.value
-        .filter(classification => classification.required)
-        .every(classification => selectedChoices.value[classification.id]);
-});
-
-const canAddFinding = computed(() => {
-  return Boolean(
-         selectedFindingId.value &&
-         hasAllRequiredClassifications.value &&
-         effectivePatientExaminationId.value &&
-         !loading.value
-  );
-});
-
-const classificationProgress = computed(() => {
-    const required = findingClassifications.value.filter(c => c.required).length;
-    const selected = findingClassifications.value.filter(c =>
-        c.required && selectedChoices.value[c.id]
-    ).length;
-
-    return {
-        required,
-        selected,
-        complete: selected === required,
-        percentage: required > 0 ? Math.round((selected / required) * 100) : 100
-    };
-});
-
-// Methods
-const selectFinding = async (findingId: number) => {
-    selectedFindingId.value = findingId;
-    showFindingSelector.value = false;
-
-    // Load classifications for the selected finding
-    await loadFindingClassifications(findingId);
-};
-
-const clearSelection = () => {
-    selectedFindingId.value = null;
-    findingClassifications.value = [];
-    selectedChoices.value = {};
-};
-
-const loadFindingClassifications = async (findingId: number) => {
-    try {
-        loading.value = true;
-        const classifications = findingClassificationStore.getClassificationsForFinding(findingId);
-        findingClassifications.value = Array.isArray(classifications) ? classifications : [];
-    } catch (error) {
-        console.error('Error loading classifications:', error);
-        emit('finding-error', 'Fehler beim Laden der Klassifikationen');
-    } finally {
-        loading.value = false;
-    }
-};
-
-const updateChoice = (classificationId: number, event: Event) => {
-    const target = event.target as HTMLSelectElement;
-    const choiceId = target.value ? parseInt(target.value) : undefined;
-
-    if (choiceId) {
-        selectedChoices.value[classificationId] = choiceId;
-    } else {
-        delete selectedChoices.value[classificationId];
-    }
-};
+async function refreshFindingsContext() {
+  try {
+    loading.value = true
+    await loadAvailableFindings()
+    await loadAddedFindingsForCurrentExam()
+  } catch {
+    emit('finding-error', 'Fehler beim Laden der verfügbaren Befunde')
+  } finally {
+    loading.value = false
+  }
+}
 
 const addFindingToExamination = async () => {
-    if (!canAddFinding.value || !selectedFinding.value || !effectivePatientExaminationId.value || !selectedFindingId.value) {
-        
-        return;
-    }
-
-    try {
-        loading.value = true;
-
-        // Prepare the data for the patient finding store
-        const findingData = {
-            patient_examination: effectivePatientExaminationId.value,
-            finding: selectedFindingId.value,
-            classifications: Object.entries(selectedChoices.value).map(([classificationId, choiceId]) => ({
-                classification: parseInt(classificationId),
-                choice: choiceId
-            }))
-        };
-
-        const newPatientFinding = await createPatientFindingWithFallback(findingData);
-        const resolvedFindingId = Number(
-          newPatientFinding?.finding?.id ?? newPatientFinding?.finding ?? selectedFindingId.value
-        );
-        const findingId = Number.isFinite(resolvedFindingId) ? resolvedFindingId : selectedFindingId.value;
-        const createdFinding = findingClassificationStore.getFindingById(findingId) || selectedFinding.value;
-        if (createdFinding && !addedFindings.value.some((entry) => entry.id === createdFinding.id)) {
-            addedFindings.value.push(createdFinding);
-        }
-        await loadAddedFindingsForCurrentExam();
-        const findingName = selectedFinding.value.nameDe || selectedFinding.value.name;
-        emit('finding-added', findingId, findingName);
-
-        // Reset the component state
-        clearSelection();
-        showFindingSelector.value = false;
-
-    } catch (error: any) {
-        console.error('Error adding finding to examination:', error);
-        const errorMessage = patientFindingStore.error ||
-                           error.response?.data?.error ||
-                           extractApiErrorMessage(error);
-        emit('finding-error', errorMessage);
-    } finally {
-        loading.value = false;
-    }
-};
-
-const loadFindingsAndClassifications = async (examinationId: number) => {
-    try {
-        loading.value = true;
-        
-        // Load findings for the examination
-        if (findingClassificationStore.getAllFindings.length === 0) {
-            // Findings will be loaded from API below
-        }
-
-        // Load findings from the API
-        const response = await axiosInstance.get(`/api/examinations/${examinationId}/findings/`);
-        const findings = normalizeFindingsList(response.data);
-        findingClassificationStore.setClassificationChoicesFromLookup(findings);
-        availableExaminationFindings.value = dedupeFindings(findings);
-
-        console.log('Loaded findings for examination:', findings.length);
-        
-    } catch (error) {
-        console.error('Error loading examination data:', error);
-        emit('finding-error', 'Fehler beim Laden der Untersuchungsdaten');
-    } finally {
-        loading.value = false;
-    }
-};
-
-// Neue Methode: Lade Befunde basierend auf der PatientExamination
-const loadAvailableFindingsForPatientExamination = async () => {
-  try {
-    loading.value = true;
-    
-    // Priorisiere props.examinationId, falls verfügbar
-    let examId = props.examinationId;
-    if (!examId && effectivePatientExaminationId.value) {
-      // Hole Examination ID aus PatientExamination
-      const patientExamination = patientExaminationStore.getPatientExaminationById(effectivePatientExaminationId.value);
-      examId = patientExamination?.examination?.id;
-    }
-    
-    if (!examId) {
-      console.warn('Keine Examination ID verfügbar für Findings-Laden');
-      return;
-    }
-    
-    // Verwende den korrigierten Store-Aufruf
-    const findings = normalizeFindingsList(await examinationStore.loadFindingsForExamination(examId));
-    availableExaminationFindings.value = dedupeFindings(findings);
-    
-    console.log('📋 [AddableFindingsDetail] Loaded findings for examinationId:', examId, 'findings count:', findings.length);
-  } catch (error) {
-    console.error('Error loading available findings:', error);
-    emit('finding-error', 'Fehler beim Laden der verfügbaren Befunde');
-  } finally {
-    loading.value = false;
+  if (
+    !canAddFinding.value ||
+    !selectedFinding.value ||
+    !effectivePatientExaminationId.value ||
+    !selectedFindingId.value
+  ) {
+    return
   }
-};
 
-const loadFindingsAndClassificationsNew = async () => {
-    await loadAvailableFindingsForPatientExamination();
-    if (props.examinationId) {
-        await loadFindingsAndClassifications(props.examinationId);
+  try {
+    loading.value = true
+    const newPatientFinding = await patientFindingStore.createPatientFinding({
+      patientExamination: effectivePatientExaminationId.value,
+      finding: selectedFindingId.value,
+      classifications: Object.entries(selectedChoices.value).map(([classificationId, choiceId]) => ({
+        classification: Number.parseInt(classificationId, 10),
+        choice: choiceId
+      }))
+    })
+
+    const resolvedFindingId = Number(
+      (newPatientFinding as any)?.finding?.id ??
+        (newPatientFinding as any)?.finding ??
+        selectedFindingId.value
+    )
+    const findingId = Number.isFinite(resolvedFindingId)
+      ? resolvedFindingId
+      : selectedFindingId.value
+    const createdFinding = findingClassificationStore.getFindingById(findingId) || selectedFinding.value
+
+    if (createdFinding && !addedFindings.value.some((entry) => entry.id === createdFinding.id)) {
+      addedFindings.value.push(createdFinding)
     }
-    await loadAddedFindingsForCurrentExam();
-};
 
-// Watchers
-watch(() => props.patientExaminationId, async () => {
-    if (props.patientExaminationId) {
-        await loadFindingsAndClassificationsNew();
-    }
-}, { immediate: true });
+    await loadAddedFindingsForCurrentExam()
+    emit('finding-added', findingId, selectedFinding.value.nameDe || selectedFinding.value.name)
+    clearSelection()
+    showFindingSelector.value = false
+  } catch (error: any) {
+    const parsed = parseFindingsApiError(error)
+    emit(
+      'finding-error',
+      patientFindingStore.error || parsed.message || 'Fehler beim Hinzufügen des Befunds'
+    )
+  } finally {
+    loading.value = false
+  }
+}
 
-watch(() => props.examinationId, async () => {
-    if (props.examinationId) {
-        await loadAvailableFindingsForPatientExamination();
-    }
-}, { immediate: true });
-
-// Load initial data
-onMounted(async () => {
-    await loadFindingsAndClassificationsNew();
-});
+watch(
+  [effectivePatientExaminationId, () => props.examinationId],
+  async () => {
+    await refreshFindingsContext()
+  },
+  { immediate: true }
+)
 </script>

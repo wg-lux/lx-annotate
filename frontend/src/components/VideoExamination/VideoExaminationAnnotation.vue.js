@@ -43,7 +43,7 @@ function isAnnotationFinished(videoId) {
 const selectedVideoId = ref(initialVideoId);
 const currentTime = ref(0);
 const duration = ref(0);
-const fps = ref(50);
+const fps = computed(() => videoStore.effectiveFps);
 const isPlaying = ref(false); // ✅ NEW: Track video playing state
 const examinationMarkers = ref([]);
 const savedExaminations = ref([]);
@@ -367,8 +367,7 @@ const loadVideoDetail = async (videoId) => {
         console.log('Video detail response:', response.data);
         videoDetail.value = { video_url: response.data.video_url };
         videoMeta.value = {
-            duration: Number(response.data.duration ?? 0),
-            fps: Number(response.data.fps ?? 50)
+            duration: Number(response.data.duration ?? 0)
         };
         // Update MediaStore with the current video for consistent URL handling
         const currentVideo = selectableVideos.value.find(v => v.id === videoId);

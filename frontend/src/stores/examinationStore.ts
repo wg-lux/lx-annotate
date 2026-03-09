@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
-import { reactive, ref, computed, readonly } from 'vue'
-import axiosInstance, { r } from '@/api/axiosInstance'
+import axiosInstance from '@/api/axiosInstance'
 import type { Finding } from '@/stores/findingStore'
+import { findingsApi, parseFindingsApiError } from '@/api/findingsApi'
 import type {
   ClassificationChoiceCore,
   ClassificationCore,
@@ -128,12 +128,14 @@ export const useExaminationStore = defineStore('examination', {
       this.loading = true
       this.error = null
       try {
-        const res = await axiosInstance.get(`/api/examinations/${examId}/findings/`)
-        const findings: Finding[] = res.data
+        const findings: Finding[] = (await findingsApi.getExaminationFindings(
+          examId
+        )) as Finding[]
         this.findingsByExam.set(examId, findings)
         return findings
       } catch (e: any) {
-        this.error = e?.response?.data?.detail ?? e?.message ?? 'Unbekannter Fehler'
+        const parsed = parseFindingsApiError(e)
+        this.error = parsed.message
         return []
       } finally {
         this.loading = false
@@ -154,12 +156,24 @@ export const useExaminationStore = defineStore('examination', {
       this.loading = true
       this.error = null
       try {
-        const res = await axiosInstance.get(`/api/findings/${findingId}/classifications/`)
-        const payload: ClassifPayload = res.data
+        const classifications = await findingsApi.getFindingClassifications(findingId)
+        const payload: ClassifPayload = {
+          locationClassifications: Array.isArray(
+            (classifications as any)?.locationClassifications
+          )
+            ? ((classifications as any).locationClassifications as LocationClassification[])
+            : (classifications as LocationClassification[]),
+          morphologyClassifications: Array.isArray(
+            (classifications as any)?.morphologyClassifications
+          )
+            ? ((classifications as any).morphologyClassifications as MorphologyClassification[])
+            : []
+        }
         this.classificationsByFinding.set(findingId, payload)
         return payload
       } catch (e: any) {
-        this.error = e?.response?.data?.detail ?? e?.message ?? 'Unbekannter Fehler'
+        const parsed = parseFindingsApiError(e)
+        this.error = parsed.message
         return { locationClassifications: [], morphologyClassifications: [] }
       } finally {
         this.loading = false

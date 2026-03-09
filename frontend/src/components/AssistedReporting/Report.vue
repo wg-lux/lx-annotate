@@ -499,6 +499,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import axiosInstance, { r } from '@/api/axiosInstance';
+import { findingsApi } from '@/api/findingsApi';
 import { usePatientStore } from '@/stores/patientStore';
 import type { Patient } from '@/stores/patientStore';
 import { useExaminationStore } from '@/stores/examinationStore';
@@ -609,6 +610,7 @@ type PatientFindingApiRow = {
   id: number;
   finding: number | { id?: number | null };
   isActive?: boolean;
+  is_active?: boolean;
   classifications?: Array<number | PatientFindingApiClassification>;
   interventions?: Array<number | PatientFindingApiIntervention>;
 };
@@ -801,20 +803,8 @@ const fetchFindingClassificationsCached = async (
   const cached = findingClassificationsCache.value[findingId];
   if (cached) return cached;
 
-  let normalized: ApiFindingClassificationLite[] = [];
-  try {
-    const res = await axiosInstance.get(`/api/findings/${findingId}/classifications/`);
-    normalized = normalizeClassificationsPayload(res.data);
-  } catch {
-    const [locationRes, morphologyRes] = await Promise.all([
-      axiosInstance.get(`/api/findings/${findingId}/location_classifications/`).catch(() => ({ data: [] })),
-      axiosInstance.get(`/api/findings/${findingId}/morphology_classifications/`).catch(() => ({ data: [] }))
-    ]);
-    normalized = [
-      ...normalizeClassificationsPayload(locationRes.data),
-      ...normalizeClassificationsPayload(morphologyRes.data)
-    ];
-  }
+  const payload = await findingsApi.getFindingClassifications(findingId);
+  const normalized = normalizeClassificationsPayload(payload);
 
   findingClassificationsCache.value = {
     ...findingClassificationsCache.value,
@@ -938,12 +928,9 @@ const refreshTemplateFindingDetails = async (): Promise<void> => {
 
   templateDetailsLoading.value = true;
   try {
-    const findingsRes = await axiosInstance.get(
-      `/api/examinations/${selectedExaminationId.value}/findings/`
-    );
-    const examinationFindings = Array.isArray(findingsRes.data)
-      ? (findingsRes.data as ApiFindingLite[])
-      : [];
+    const examinationFindings = (await findingsApi.getExaminationFindings(
+      selectedExaminationId.value
+    )) as ApiFindingLite[];
 
     const byName = new Map<string, ApiFindingLite>();
     for (const finding of examinationFindings) {
@@ -1299,10 +1286,9 @@ const fetchNormalizedFindingsPayload = async (): Promise<SaveReportSubmissionReq
   if (!currentPatientExaminationId.value) return [];
 
   try {
-    const res = await axiosInstance.get(
-      `/api/patient-findings/?patient_examination=${currentPatientExaminationId.value}`
-    );
-    const rows = (Array.isArray(res.data?.results) ? res.data.results : res.data) as PatientFindingApiRow[];
+    const rows = (await findingsApi.listPatientFindings(
+      currentPatientExaminationId.value
+    )) as PatientFindingApiRow[];
     const normalizedRows: Array<SaveReportSubmissionRequest['findings'][number] | null> = (Array.isArray(rows) ? rows : [])
       .map((row) => {
         const findingId = extractFindingId(row?.finding);
