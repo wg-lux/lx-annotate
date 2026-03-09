@@ -71,8 +71,8 @@ export declare const useExaminationStore: import("pinia").StoreDefinition<"exami
                     name: string;
                 }[] | undefined;
                 required?: boolean | undefined;
-                name?: string | undefined;
                 description?: string | undefined;
+                name?: string | undefined;
             }[];
             findingTypes: string[];
             findingInterventions: string[];
@@ -141,8 +141,8 @@ export declare const useExaminationStore: import("pinia").StoreDefinition<"exami
                     name: string;
                 }[] | undefined;
                 required?: boolean | undefined;
-                name?: string | undefined;
                 description?: string | undefined;
+                name?: string | undefined;
             }[];
             findingTypes: string[];
             findingInterventions: string[];
@@ -215,8 +215,8 @@ export declare const useExaminationStore: import("pinia").StoreDefinition<"exami
                     name: string;
                 }[] | undefined;
                 required?: boolean | undefined;
-                name?: string | undefined;
                 description?: string | undefined;
+                name?: string | undefined;
             }[];
             findingTypes: string[];
             findingInterventions: string[];
@@ -285,8 +285,8 @@ export declare const useExaminationStore: import("pinia").StoreDefinition<"exami
                     name: string;
                 }[] | undefined;
                 required?: boolean | undefined;
-                name?: string | undefined;
                 description?: string | undefined;
+                name?: string | undefined;
             }[];
             findingTypes: string[];
             findingInterventions: string[];

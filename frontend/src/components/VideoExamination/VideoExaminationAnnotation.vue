@@ -605,7 +605,7 @@ function isAnnotationFinished(videoId: number): boolean {
 const selectedVideoId = ref<number | null>(initialVideoId)
 const currentTime = ref<number>(0)
 const duration = ref<number>(0)
-const fps = ref<number>(50)
+const fps = computed<number>(() => videoStore.effectiveFps)
 const isPlaying = ref<boolean>(false) // ✅ NEW: Track video playing state
 const examinationMarkers = ref<ExaminationMarker[]>([])
 const savedExaminations = ref<SavedExamination[]>([])
@@ -620,7 +620,7 @@ const lastValidationClickedVideoId = ref<number | null>(null)
 
 // Video detail and metadata like VideoClassificationComponent
 const videoDetail = ref<{ video_url: string } | null>(null)
-const videoMeta = ref<{ duration: number; fps: number } | null>(null)
+const videoMeta = ref<{ duration: number } | null>(null)
 
 // Error and success messages for Bootstrap alerts
 const errorMessage = ref<string>('')
@@ -976,8 +976,7 @@ const loadVideoDetail = async (videoId: number): Promise<void> => {
     
     videoDetail.value = { video_url: response.data.video_url }
     videoMeta.value = {
-      duration: Number(response.data.duration ?? 0),
-      fps: Number(response.data.fps ?? 50)
+      duration: Number(response.data.duration ?? 0)
     }
     
     // Update MediaStore with the current video for consistent URL handling

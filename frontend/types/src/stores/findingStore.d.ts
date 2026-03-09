@@ -34,8 +34,8 @@ export declare const useFindingStore: import("pinia").StoreDefinition<"finding",
                 readonly name: string;
             }[] | undefined;
             readonly required?: boolean | undefined;
-            readonly name?: string | undefined;
             readonly description?: string | undefined;
+            readonly name?: string | undefined;
         }[];
         readonly findingTypes: readonly string[];
         readonly findingInterventions: readonly string[];
@@ -54,8 +54,8 @@ export declare const useFindingStore: import("pinia").StoreDefinition<"finding",
                 readonly name: string;
             }[] | undefined;
             readonly required?: boolean | undefined;
-            readonly name?: string | undefined;
             readonly description?: string | undefined;
+            readonly name?: string | undefined;
         }[];
         readonly findingTypes: readonly string[];
         readonly findingInterventions: readonly string[];
@@ -69,8 +69,8 @@ export declare const useFindingStore: import("pinia").StoreDefinition<"finding",
             name: string;
         }[] | undefined;
         required?: boolean | undefined;
-        name?: string | undefined;
         description?: string | undefined;
+        name?: string | undefined;
     }[], FindingClassification[] | {
         id: number;
         classificationType?: string[] | undefined;
@@ -79,8 +79,8 @@ export declare const useFindingStore: import("pinia").StoreDefinition<"finding",
             name: string;
         }[] | undefined;
         required?: boolean | undefined;
-        name?: string | undefined;
         description?: string | undefined;
+        name?: string | undefined;
     }[]>;
     loading: Readonly<import("vue").Ref<boolean, boolean>>;
     error: Readonly<import("vue").Ref<string | null, string | null>>;
@@ -98,8 +98,8 @@ export declare const useFindingStore: import("pinia").StoreDefinition<"finding",
                 readonly name: string;
             }[] | undefined;
             readonly required?: boolean | undefined;
-            readonly name?: string | undefined;
             readonly description?: string | undefined;
+            readonly name?: string | undefined;
         }[];
         readonly findingTypes: readonly string[];
         readonly findingInterventions: readonly string[];
@@ -118,8 +118,8 @@ export declare const useFindingStore: import("pinia").StoreDefinition<"finding",
                 readonly name: string;
             }[] | undefined;
             readonly required?: boolean | undefined;
-            readonly name?: string | undefined;
             readonly description?: string | undefined;
+            readonly name?: string | undefined;
         }[];
         readonly findingTypes: readonly string[];
         readonly findingInterventions: readonly string[];
@@ -139,8 +139,8 @@ export declare const useFindingStore: import("pinia").StoreDefinition<"finding",
                 readonly name: string;
             }[] | undefined;
             readonly required?: boolean | undefined;
-            readonly name?: string | undefined;
             readonly description?: string | undefined;
+            readonly name?: string | undefined;
         }[];
         readonly findingTypes: readonly string[];
         readonly findingInterventions: readonly string[];
@@ -159,8 +159,8 @@ export declare const useFindingStore: import("pinia").StoreDefinition<"finding",
                 readonly name: string;
             }[] | undefined;
             readonly required?: boolean | undefined;
-            readonly name?: string | undefined;
             readonly description?: string | undefined;
+            readonly name?: string | undefined;
         }[];
         readonly findingTypes: readonly string[];
         readonly findingInterventions: readonly string[];
@@ -179,7 +179,7 @@ export declare const useFindingStore: import("pinia").StoreDefinition<"finding",
     isExaminationFindingsLoading: (examinationId: number) => boolean;
     clearExaminationFindingsCache: (examinationId?: number) => void;
     fetchFindingsByPatientExamination: (patientExaminationId: number | null) => Promise<Finding[]>;
-}, "loading" | "error" | "findings" | "FindingClassification" | "currentFinding" | "examinationFindings">, Pick<{
+}, "error" | "loading" | "findings" | "FindingClassification" | "currentFinding" | "examinationFindings">, Pick<{
     findings: Readonly<import("vue").Ref<readonly {
         readonly id: number;
         readonly description: string;
@@ -194,8 +194,8 @@ export declare const useFindingStore: import("pinia").StoreDefinition<"finding",
                 readonly name: string;
             }[] | undefined;
             readonly required?: boolean | undefined;
-            readonly name?: string | undefined;
             readonly description?: string | undefined;
+            readonly name?: string | undefined;
         }[];
         readonly findingTypes: readonly string[];
         readonly findingInterventions: readonly string[];
@@ -214,8 +214,8 @@ export declare const useFindingStore: import("pinia").StoreDefinition<"finding",
                 readonly name: string;
             }[] | undefined;
             readonly required?: boolean | undefined;
-            readonly name?: string | undefined;
             readonly description?: string | undefined;
+            readonly name?: string | undefined;
         }[];
         readonly findingTypes: readonly string[];
         readonly findingInterventions: readonly string[];
@@ -229,8 +229,8 @@ export declare const useFindingStore: import("pinia").StoreDefinition<"finding",
             name: string;
         }[] | undefined;
         required?: boolean | undefined;
-        name?: string | undefined;
         description?: string | undefined;
+        name?: string | undefined;
     }[], FindingClassification[] | {
         id: number;
         classificationType?: string[] | undefined;
@@ -239,8 +239,8 @@ export declare const useFindingStore: import("pinia").StoreDefinition<"finding",
             name: string;
         }[] | undefined;
         required?: boolean | undefined;
-        name?: string | undefined;
         description?: string | undefined;
+        name?: string | undefined;
     }[]>;
     loading: Readonly<import("vue").Ref<boolean, boolean>>;
     error: Readonly<import("vue").Ref<string | null, string | null>>;
@@ -258,8 +258,8 @@ export declare const useFindingStore: import("pinia").StoreDefinition<"finding",
                 readonly name: string;
             }[] | undefined;
             readonly required?: boolean | undefined;
-            readonly name?: string | undefined;
             readonly description?: string | undefined;
+            readonly name?: string | undefined;
         }[];
         readonly findingTypes: readonly string[];
         readonly findingInterventions: readonly string[];
@@ -278,8 +278,8 @@ export declare const useFindingStore: import("pinia").StoreDefinition<"finding",
                 readonly name: string;
             }[] | undefined;
             readonly required?: boolean | undefined;
-            readonly name?: string | undefined;
             readonly description?: string | undefined;
+            readonly name?: string | undefined;
         }[];
         readonly findingTypes: readonly string[];
         readonly findingInterventions: readonly string[];
@@ -299,8 +299,8 @@ export declare const useFindingStore: import("pinia").StoreDefinition<"finding",
                 readonly name: string;
             }[] | undefined;
             readonly required?: boolean | undefined;
-            readonly name?: string | undefined;
             readonly description?: string | undefined;
+            readonly name?: string | undefined;
         }[];
         readonly findingTypes: readonly string[];
         readonly findingInterventions: readonly string[];
@@ -319,8 +319,8 @@ export declare const useFindingStore: import("pinia").StoreDefinition<"finding",
                 readonly name: string;
             }[] | undefined;
             readonly required?: boolean | undefined;
-            readonly name?: string | undefined;
             readonly description?: string | undefined;
+            readonly name?: string | undefined;
         }[];
         readonly findingTypes: readonly string[];
         readonly findingInterventions: readonly string[];
@@ -354,8 +354,8 @@ export declare const useFindingStore: import("pinia").StoreDefinition<"finding",
                 readonly name: string;
             }[] | undefined;
             readonly required?: boolean | undefined;
-            readonly name?: string | undefined;
             readonly description?: string | undefined;
+            readonly name?: string | undefined;
         }[];
         readonly findingTypes: readonly string[];
         readonly findingInterventions: readonly string[];
@@ -374,8 +374,8 @@ export declare const useFindingStore: import("pinia").StoreDefinition<"finding",
                 readonly name: string;
             }[] | undefined;
             readonly required?: boolean | undefined;
-            readonly name?: string | undefined;
             readonly description?: string | undefined;
+            readonly name?: string | undefined;
         }[];
         readonly findingTypes: readonly string[];
         readonly findingInterventions: readonly string[];
@@ -389,8 +389,8 @@ export declare const useFindingStore: import("pinia").StoreDefinition<"finding",
             name: string;
         }[] | undefined;
         required?: boolean | undefined;
-        name?: string | undefined;
         description?: string | undefined;
+        name?: string | undefined;
     }[], FindingClassification[] | {
         id: number;
         classificationType?: string[] | undefined;
@@ -399,8 +399,8 @@ export declare const useFindingStore: import("pinia").StoreDefinition<"finding",
             name: string;
         }[] | undefined;
         required?: boolean | undefined;
-        name?: string | undefined;
         description?: string | undefined;
+        name?: string | undefined;
     }[]>;
     loading: Readonly<import("vue").Ref<boolean, boolean>>;
     error: Readonly<import("vue").Ref<string | null, string | null>>;
@@ -418,8 +418,8 @@ export declare const useFindingStore: import("pinia").StoreDefinition<"finding",
                 readonly name: string;
             }[] | undefined;
             readonly required?: boolean | undefined;
-            readonly name?: string | undefined;
             readonly description?: string | undefined;
+            readonly name?: string | undefined;
         }[];
         readonly findingTypes: readonly string[];
         readonly findingInterventions: readonly string[];
@@ -438,8 +438,8 @@ export declare const useFindingStore: import("pinia").StoreDefinition<"finding",
                 readonly name: string;
             }[] | undefined;
             readonly required?: boolean | undefined;
-            readonly name?: string | undefined;
             readonly description?: string | undefined;
+            readonly name?: string | undefined;
         }[];
         readonly findingTypes: readonly string[];
         readonly findingInterventions: readonly string[];
@@ -459,8 +459,8 @@ export declare const useFindingStore: import("pinia").StoreDefinition<"finding",
                 readonly name: string;
             }[] | undefined;
             readonly required?: boolean | undefined;
-            readonly name?: string | undefined;
             readonly description?: string | undefined;
+            readonly name?: string | undefined;
         }[];
         readonly findingTypes: readonly string[];
         readonly findingInterventions: readonly string[];
@@ -479,8 +479,8 @@ export declare const useFindingStore: import("pinia").StoreDefinition<"finding",
                 readonly name: string;
             }[] | undefined;
             readonly required?: boolean | undefined;
-            readonly name?: string | undefined;
             readonly description?: string | undefined;
+            readonly name?: string | undefined;
         }[];
         readonly findingTypes: readonly string[];
         readonly findingInterventions: readonly string[];

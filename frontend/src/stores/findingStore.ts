@@ -124,7 +124,7 @@ export const useFindingStore = defineStore('finding', () => {
   ): Promise<FindingClassification[]> => {
     try {
       const response = await axiosInstance.get(
-        `/api/examinations/${examinationId}/classifications/`
+        `/base_api/examinations/${examinationId}/classifications`
       )
       return response.data as FindingClassification[]
     } catch (err: any) {

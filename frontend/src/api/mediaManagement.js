@@ -51,8 +51,9 @@ export class MediaManagementAPI {
      * @param fileType - Optional file type filter ('video' or 'pdf')
      */
     static async clearProcessingLocks(fileType) {
-        const params = fileType ? `?type=${fileType}` : '';
-        const response = await api.delete(`/api/anonymization/clear-locks/${params}`);
+        const response = await api.delete('/api/anonymization/clear-locks/', {
+            params: fileType ? { type: fileType } : undefined
+        });
         return response.data;
     }
     /**

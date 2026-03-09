@@ -246,6 +246,53 @@ This reduces manual setup and makes training demos reliable.
 
 ---
 
+## Developer Mapping: Requirement Objects to `lx_dtypes` Validators
+
+The new `base_api` requirement routes are projected from `lx_dtypes` report templates and validator runtime execution.
+
+Source implementation:
+- `lx-data-models/lx_dtypes/django/api/main.py`
+
+### `GET /base_api/requirement-sets`
+
+Mapping:
+- One requirement set maps to one `report_template`.
+- `requirement_set.id` -> 1-based index over `sorted(kb.report_template.keys())`.
+- `requirement_set.name` / `template_name` -> `report_template.name`.
+- `requirement_set.type` -> `report_template.examination`.
+- `requirement_set.requirements[]` -> flattened validator references from:
+  1. `template.validators.findings_validators`
+  2. `template.validators.examination_validators`
+
+Nested requirement mapping:
+- `requirements[i].id` -> 1-based local index in the set.
+- `requirements[i].name` -> validator name.
+- `requirements[i].kind` -> `findings_validator` or `examination_validator`.
+
+### `POST /base_api/evaluate-requirement-set`
+
+Input selectors:
+- `requirement_set_id`
+- `requirement_set_ids`
+- `requirementSetIds` (legacy compatibility)
+
+Evaluation mapping:
+- For each selected requirement set/template:
+  - `kb.evaluate_report_template_validators(template_name, reported_findings=...)`
+- Per result row:
+  - `requirement_name` -> validator runtime `name`
+  - `met` -> validator runtime `ok`
+  - `status` -> `PASSED` / `FAILED`
+  - `details` -> summary from validator issue messages
+  - `validator_result` -> full validator runtime payload
+
+Compatibility notes:
+- `patient_examination_id` stays in request/response meta for frontend compatibility.
+- These requirement routes no longer depend on `endoreg_db` requirement models/services.
+- Projected IDs are not persisted DB IDs and can shift if template names/order change.
+
+---
+
 ## Common Problems and Practical Fixes
 
 ### Problem: "No templates found for colonoscopy"

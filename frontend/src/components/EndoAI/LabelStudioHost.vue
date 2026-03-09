@@ -37,12 +37,23 @@ const isLoading = ref(true)
 const currentTask = ref<AnnotationTask | null>(null)
 
 const LABEL_STUDIO_VERSION = '1.11.0'
-const LABEL_STUDIO_SCRIPT_SRC = `https://unpkg.com/@humansignal/label-studio@${LABEL_STUDIO_VERSION}/build/static/js/main.js`
-const LABEL_STUDIO_STYLE_HREF = `https://unpkg.com/@humansignal/label-studio@${LABEL_STUDIO_VERSION}/build/static/css/main.css`
+const FALLBACK_STATIC_BASE = '/static/'
+const LABEL_STUDIO_SCRIPT_PATH = `@humansignal/label-studio@${LABEL_STUDIO_VERSION}/build/static/js/main.js`
+const LABEL_STUDIO_STYLE_PATH = `@humansignal/label-studio@${LABEL_STUDIO_VERSION}/build/static/css/main.css`
+const LABEL_STUDIO_SCRIPT_SOURCES = [
+  `https://unpkg.com/${LABEL_STUDIO_SCRIPT_PATH}`,
+  `https://cdn.jsdelivr.net/npm/${LABEL_STUDIO_SCRIPT_PATH}`
+]
+const LABEL_STUDIO_STYLE_SOURCES = [
+  `https://unpkg.com/${LABEL_STUDIO_STYLE_PATH}`,
+  `https://cdn.jsdelivr.net/npm/${LABEL_STUDIO_STYLE_PATH}`
+]
 
 let lsInstance: any | null = null
 let initCycle = 0
 let labelStudioScriptPromise: Promise<void> | null = null
+let resolvedLabelStudioScriptSrc: string | null = null
+let resolvedLabelStudioStyleHref: string | null = null
 
 function hasNestedResultArray(value: unknown): value is { result: unknown[] } {
   return (
@@ -83,13 +94,36 @@ function destroyLabelStudio(invalidate = true): void {
   }
 }
 
-function loadStyle(href: string): void {
-  if (document.querySelector(`link[href="${href}"]`)) return
+function buildStaticAssetUrl(path: string): string {
+  const rawPrefix =
+    typeof window !== 'undefined' &&
+    typeof (window as Window & { STATIC_URL?: unknown }).STATIC_URL === 'string'
+      ? ((window as Window & { STATIC_URL?: string }).STATIC_URL as string)
+      : FALLBACK_STATIC_BASE
+  const normalizedPrefix = rawPrefix.endsWith('/') ? rawPrefix : `${rawPrefix}/`
+  return `${normalizedPrefix}${path}`
+}
 
-  const link = document.createElement('link')
-  link.rel = 'stylesheet'
-  link.href = href
-  document.head.appendChild(link)
+function getScriptSources(): string[] {
+  return [buildStaticAssetUrl(`vendor/label-studio/${LABEL_STUDIO_SCRIPT_PATH}`), ...LABEL_STUDIO_SCRIPT_SOURCES]
+}
+
+function getStyleSources(): string[] {
+  return [buildStaticAssetUrl(`vendor/label-studio/${LABEL_STUDIO_STYLE_PATH}`), ...LABEL_STUDIO_STYLE_SOURCES]
+}
+
+function loadStyle(href: string): Promise<void> {
+  const existing = document.querySelector(`link[href="${href}"]`) as HTMLLinkElement | null
+  if (existing) return Promise.resolve()
+
+  return new Promise((resolve, reject) => {
+    const link = document.createElement('link')
+    link.rel = 'stylesheet'
+    link.href = href
+    link.onload = () => resolve()
+    link.onerror = () => reject(new Error(`Failed to load stylesheet: ${href}`))
+    document.head.appendChild(link)
+  })
 }
 
 function loadScript(src: string): Promise<void> {
@@ -112,14 +146,48 @@ function loadScript(src: string): Promise<void> {
   })
 }
 
-async function loadLabelStudioCtor(): Promise<LabelStudioCtor> {
-  loadStyle(LABEL_STUDIO_STYLE_HREF)
-
-  if (!labelStudioScriptPromise) {
-    labelStudioScriptPromise = loadScript(LABEL_STUDIO_SCRIPT_SRC)
+async function loadLabelStudioAssets(): Promise<void> {
+  if (resolvedLabelStudioScriptSrc) {
+    if (resolvedLabelStudioStyleHref) {
+      await loadStyle(resolvedLabelStudioStyleHref)
+    }
+    await loadScript(resolvedLabelStudioScriptSrc)
+    return
   }
 
-  await labelStudioScriptPromise
+  const scriptSources = getScriptSources()
+  const styleSources = getStyleSources()
+  const errors: string[] = []
+
+  for (let idx = 0; idx < scriptSources.length; idx += 1) {
+    const scriptSrc = scriptSources[idx]
+    const styleHref = styleSources[idx] ?? styleSources[styleSources.length - 1]
+    try {
+      await loadStyle(styleHref)
+      await loadScript(scriptSrc)
+      resolvedLabelStudioStyleHref = styleHref
+      resolvedLabelStudioScriptSrc = scriptSrc
+      return
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      errors.push(`${scriptSrc} -> ${message}`)
+    }
+  }
+
+  throw new Error(`Failed to load Label Studio assets. Attempts: ${errors.join(' | ')}`)
+}
+
+async function loadLabelStudioCtor(): Promise<LabelStudioCtor> {
+  if (!labelStudioScriptPromise) {
+    labelStudioScriptPromise = loadLabelStudioAssets()
+  }
+
+  try {
+    await labelStudioScriptPromise
+  } catch (error) {
+    labelStudioScriptPromise = null
+    throw error
+  }
 
   const ctor = (window as Window & { LabelStudio?: LabelStudioCtor }).LabelStudio
   if (!ctor) {
@@ -128,11 +196,25 @@ async function loadLabelStudioCtor(): Promise<LabelStudioCtor> {
   return ctor
 }
 
+function escapeXml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;')
+}
+
 function generateXmlConfig(groupId: string): string {
+  const targetLabel = queueStore.targetLabelName?.trim() || `Group ${groupId} Label`
+  const safeTargetLabel = escapeXml(targetLabel)
+
   return `<View>
     <Image name="image" value="$image" />
-    <Choices name="choice" toName="image" showInline="true">
-      <Choice value="Example Label for Group ${groupId}" />
+    <Header value="Annotate '${safeTargetLabel}' for this frame" />
+    <Choices name="choice" toName="image" choice="single-radio" showInline="true">
+      <Choice value="${safeTargetLabel}: present" />
+      <Choice value="${safeTargetLabel}: absent" />
     </Choices>
   </View>`
 }
@@ -254,7 +336,7 @@ async function initializeLabelStudio(): Promise<void> {
 }
 
 watch(
-  () => queueStore.selectedLabelGroupId,
+  () => [queueStore.selectedLabelGroupId, queueStore.taskQuerySignature],
   async () => {
     queueStore.clearQueue()
     if (!queueStore.selectedLabelGroupId) {

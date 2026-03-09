@@ -1,6 +1,8 @@
 # Route Matrix Check
 
-- Frontend endpoints checked: `90`
-- Missing backend matches: `0`
+- Frontend endpoints checked: `95`
+- Missing backend matches: `1`
 
-No missing backend route matches.
+## Missing Backend Routes
+
+- `requirements.lookup` -> `lookup/` (normalized `lookup/`)

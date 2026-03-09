@@ -109,6 +109,7 @@ export const endpoints = {
         exportAnnotated: 'media/videos/export-annotated/',
         videoCorrection: (pk) => `media/videos/video-correction/${pk}`,
         videoMetadata: (pk) => `media/videos/${pk}/metadata/`,
+        videoFps: (pk) => `media/videos/${pk}/fps/`,
         videoApplyMask: (pk) => `media/videos/${pk}/apply-mask/`,
         videoRemoveFrames: (pk) => `media/videos/${pk}/remove-frames/`,
         videoLabelsList: 'media/videos/labels/list/',

@@ -20,6 +20,13 @@ This page is the central orientation for `lx-annotate` documentation.
 - `guides/pydantic-cheatsheet`: Data-modeling and validation patterns
 - `api/index`: API reference entry point
 
+To add documentation to the frontend run these commands:
+
+uv run --extra docs make -C docs html
+mkdir -p static/docs
+rsync -a --delete docs/_build/html/ static/docs/
+
+
 ## Recommended Reading Paths
 
 ### Clinical Documentation Path

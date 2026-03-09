@@ -68,7 +68,8 @@ const segmentUpdateQueue = [];
 let isProcessingSegmentQueue = false;
 let segmentQueueTimer = null;
 const defaultSegments = {};
-const MIN_SEGMENT_DURATION = 1 / 50; // Mindestlänge: 1 Frame bei 50 FPS
+const DEFAULT_FPS = 50;
+const MIN_SEGMENT_DURATION = 1 / DEFAULT_FPS; // Mindestlänge: 1 Frame bei 50 FPS
 const FIVE_SECOND_SEGMENT_DURATION = 5; // 5 Sekunden für Shift-Klick
 let nextDraftId = -1;
 // ===================================================================
@@ -84,6 +85,7 @@ export const useVideoStore = defineStore('video', () => {
     const segmentsByLabel = reactive({ ...defaultSegments });
     const videoList = ref({ videos: [], labels: [] });
     const videoMeta = ref(null);
+    const resolvedVideoFps = ref(null);
     const activeSegmentId = ref(null);
     const activeVideoId = ref(null);
     const _fetchToken = ref(0);
@@ -101,6 +103,10 @@ export const useVideoStore = defineStore('video', () => {
         const base = import.meta.env.VITE_API_BASE_URL || window.location.origin;
         return `${base}/api/media/videos/${id}/`;
     }
+    function normalizeFps(value) {
+        const parsed = Number(value);
+        return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+    }
     // ===================================================================
     // COMPUTED PROPERTIES
     // ===================================================================
@@ -113,9 +119,10 @@ export const useVideoStore = defineStore('video', () => {
         return 0;
     });
     const getEffectiveFps = () => {
-        const fps = videoMeta.value?.fps ?? currentVideo.value?.fps ?? 50;
-        return Number.isFinite(fps) && fps > 0 ? fps : 50;
+        const fps = resolvedVideoFps.value ?? videoMeta.value?.fps ?? currentVideo.value?.fps ?? DEFAULT_FPS;
+        return Number.isFinite(fps) && fps > 0 ? fps : DEFAULT_FPS;
     };
+    const effectiveFps = computed(() => getEffectiveFps());
     const getEffectiveFrameCount = () => {
         const frameCount = videoMeta.value?.frameCount ?? currentVideo.value?.frameCount;
         if (Number.isFinite(frameCount) && frameCount > 0) {
@@ -213,7 +220,7 @@ export const useVideoStore = defineStore('video', () => {
             return false;
         }
         try {
-            await axiosInstance.delete(`/api/media-management/${videoId}/force-remove/`);
+            await axiosInstance.delete(`/api/media-management/force-remove/${videoId}/`);
             return true;
         }
         catch (error) {
@@ -450,6 +457,7 @@ export const useVideoStore = defineStore('video', () => {
     function clearVideo() {
         currentVideo.value = null;
         videoMeta.value = null;
+        resolvedVideoFps.value = null;
         activeVideoId.value = null;
     }
     function setVideo(video) {
@@ -457,6 +465,7 @@ export const useVideoStore = defineStore('video', () => {
     }
     function setCurrentVideo(videoId) {
         activeVideoId.value = videoId;
+        resolvedVideoFps.value = null;
         const video = videoList.value.videos.find((v) => v.id === videoId) || null;
         if (video) {
             const cachedSegments = getCachedSegments(videoId);
@@ -469,7 +478,7 @@ export const useVideoStore = defineStore('video', () => {
                 status: video.status,
                 assignedUser: video.assignedUser || null,
                 duration: video.duration,
-                fps: video.fps,
+                fps: undefined,
                 frameCount: video.frameCount
             };
             if (cachedSegments !== null) {
@@ -493,6 +502,38 @@ export const useVideoStore = defineStore('video', () => {
         }
         return currentVideo.value;
     }
+    async function fetchVideoFps(videoId) {
+        const id = videoId || currentVideo.value?.id;
+        if (!id) {
+            console.warn('No video ID available for fetching FPS');
+            return null;
+        }
+        try {
+            const response = await axiosInstance.get(r(`media/videos/${id}/fps/`), { headers: { Accept: 'application/json' } });
+            const fps = normalizeFps(response.data?.fps);
+            if (fps === null) {
+                console.warn(`[VideoStore] Invalid FPS payload from endpoint for video ${id}:`, response.data);
+                return null;
+            }
+            resolvedVideoFps.value = fps;
+            if (videoMeta.value?.id === id) {
+                videoMeta.value.fps = fps;
+            }
+            if (currentVideo.value?.id === id) {
+                currentVideo.value.fps = fps;
+            }
+            const listVideo = videoList.value.videos.find((video) => video.id === id);
+            if (listVideo) {
+                listVideo.fps = fps;
+            }
+            return fps;
+        }
+        catch (error) {
+            const axiosError = error;
+            console.warn(`[VideoStore] FPS endpoint unavailable for video ${id}, falling back to metadata/default.`, axiosError.response?.status ?? axiosError.message);
+            return null;
+        }
+    }
     async function fetchVideoMetadata(videoId) {
         try {
             const id = videoId || currentVideo.value?.id;
@@ -512,7 +553,7 @@ export const useVideoStore = defineStore('video', () => {
                 assignedUser: meta.assignedUser === "BLANK" ? null : meta.assignedUser,
                 anonymized: Boolean(meta.anonymized ?? false),
                 duration: meta.duration !== undefined ? Number(meta.duration) : undefined,
-                fps: meta.fps !== undefined ? Number(meta.fps) : 50,
+                fps: meta.fps !== undefined ? Number(meta.fps) : undefined,
                 hasROI: Boolean(meta.hasROI ?? meta.has_roi ?? false),
                 outsideFrameCount: Number(meta.outsideFrameCount ?? meta.outside_frame_count ?? 0),
                 frameCount: meta.frameCount !== undefined
@@ -525,12 +566,17 @@ export const useVideoStore = defineStore('video', () => {
                 exportSegmentsByVideo: Boolean(meta.exportSegmentsByVideo ?? meta.export_segments_by_video ?? false)
             };
             videoMeta.value = normalizedMeta;
+            if (resolvedVideoFps.value !== null) {
+                videoMeta.value.fps = resolvedVideoFps.value;
+            }
             // Update currentVideo immediately if it exists
             if (currentVideo.value) {
                 if (normalizedMeta.duration !== undefined && normalizedMeta.duration > 0) {
                     currentVideo.value.duration = normalizedMeta.duration;
                 }
-                if (normalizedMeta.fps !== undefined && normalizedMeta.fps > 0) {
+                if (resolvedVideoFps.value === null &&
+                    normalizedMeta.fps !== undefined &&
+                    normalizedMeta.fps > 0) {
                     currentVideo.value.fps = normalizedMeta.fps;
                 }
                 if (normalizedMeta.frameCount !== undefined && normalizedMeta.frameCount > 0) {
@@ -559,10 +605,6 @@ export const useVideoStore = defineStore('video', () => {
                 // Only overwrite duration if metadata didn't provide it
                 if (response.data.duration && !videoMeta.value?.duration) {
                     currentVideo.value.duration = Number(response.data.duration);
-                }
-                // Only overwrite FPS if metadata didn't provide it
-                if (response.data.fps && !videoMeta.value?.fps) {
-                    currentVideo.value.fps = Number(response.data.fps);
                 }
             }
         }
@@ -1098,6 +1140,7 @@ export const useVideoStore = defineStore('video', () => {
                 `solange die Anonymisierung nicht abgeschlossen ist. (Status: ${videoItem.anonymizationStatus})`);
         }
         try {
+            resolvedVideoFps.value = null;
             // 2. Initialize Empty State
             currentVideo.value = {
                 id: videoId,
@@ -1108,12 +1151,13 @@ export const useVideoStore = defineStore('video', () => {
                 status: 'available',
                 assignedUser: null,
                 duration: 0,
-                fps: 50
+                fps: undefined
             };
             // 3. Parallel Fetching (Optimization)
             // We can fetch Metadata, URL, and Segments simultaneously to speed up loading
             await Promise.all([
-                fetchVideoMetadata(videoId), // Gets FPS, Duration, Status
+                fetchVideoMetadata(videoId), // Gets Duration, Status, FrameCount
+                fetchVideoFps(videoId), // Central FPS endpoint
                 fetchVideoUrl(videoId), // Gets Video URL
                 fetchAllSegments(videoId) // Gets Segments
             ]);
@@ -1171,6 +1215,7 @@ export const useVideoStore = defineStore('video', () => {
         draftSegment,
         activeSegment,
         duration,
+        effectiveFps,
         hasVideo,
         segments,
         labels,
@@ -1184,6 +1229,7 @@ export const useVideoStore = defineStore('video', () => {
         deleteVideo,
         setVideo,
         loadVideo, // Added missing loadVideo export
+        fetchVideoFps,
         fetchVideoUrl,
         fetchAllSegments,
         fetchAllVideos,

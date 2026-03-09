@@ -524,6 +524,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
     } | null>;
     activeSegment: ComputedRef<Segment | null>;
     duration: ComputedRef<number>;
+    effectiveFps: ComputedRef<number>;
     hasVideo: ComputedRef<boolean>;
     segments: ComputedRef<Segment[]>;
     labels: ComputedRef<LabelMeta[]>;
@@ -546,6 +547,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
     deleteVideo: (videoId: number | null) => Promise<boolean>;
     setVideo: (video: VideoAnnotation) => void;
     loadVideo: (videoId: number) => Promise<void>;
+    fetchVideoFps: (videoId?: number) => Promise<number | null>;
     fetchVideoUrl: (videoId?: number) => Promise<void>;
     fetchAllSegments: (id: number, forceRefresh?: boolean) => Promise<void>;
     fetchAllVideos: () => Promise<VideoList>;
@@ -905,6 +907,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
     } | null>;
     activeSegment: ComputedRef<Segment | null>;
     duration: ComputedRef<number>;
+    effectiveFps: ComputedRef<number>;
     hasVideo: ComputedRef<boolean>;
     segments: ComputedRef<Segment[]>;
     labels: ComputedRef<LabelMeta[]>;
@@ -927,6 +930,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
     deleteVideo: (videoId: number | null) => Promise<boolean>;
     setVideo: (video: VideoAnnotation) => void;
     loadVideo: (videoId: number) => Promise<void>;
+    fetchVideoFps: (videoId?: number) => Promise<number | null>;
     fetchVideoUrl: (videoId?: number) => Promise<void>;
     fetchAllSegments: (id: number, forceRefresh?: boolean) => Promise<void>;
     fetchAllVideos: () => Promise<VideoList>;
@@ -964,7 +968,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
     formatTime: (seconds: number) => string;
     getSegmentOptions: () => SegmentOption[];
     clearSegments: () => void;
-}, "segments" | "duration" | "labels" | "allSegments" | "activeSegment" | "hasVideo" | "videoStreamUrl" | "timelineSegments">, Pick<{
+}, "segments" | "duration" | "labels" | "allSegments" | "activeSegment" | "effectiveFps" | "hasVideo" | "videoStreamUrl" | "timelineSegments">, Pick<{
     currentVideo: Readonly<Ref<{
         readonly id: number;
         readonly isAnnotated: boolean;
@@ -1286,6 +1290,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
     } | null>;
     activeSegment: ComputedRef<Segment | null>;
     duration: ComputedRef<number>;
+    effectiveFps: ComputedRef<number>;
     hasVideo: ComputedRef<boolean>;
     segments: ComputedRef<Segment[]>;
     labels: ComputedRef<LabelMeta[]>;
@@ -1308,6 +1313,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
     deleteVideo: (videoId: number | null) => Promise<boolean>;
     setVideo: (video: VideoAnnotation) => void;
     loadVideo: (videoId: number) => Promise<void>;
+    fetchVideoFps: (videoId?: number) => Promise<number | null>;
     fetchVideoUrl: (videoId?: number) => Promise<void>;
     fetchAllSegments: (id: number, forceRefresh?: boolean) => Promise<void>;
     fetchAllVideos: () => Promise<VideoList>;
@@ -1345,4 +1351,4 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
     formatTime: (seconds: number) => string;
     getSegmentOptions: () => SegmentOption[];
     clearSegments: () => void;
-}, "buildVideoStreamUrl" | "setCurrentVideo" | "clearVideo" | "deleteVideo" | "setVideo" | "loadVideo" | "fetchVideoUrl" | "fetchAllSegments" | "fetchAllVideos" | "fetchLabels" | "fetchVideoSegments" | "fetchSegmentsByLabel" | "createSegment" | "updateSegmentAPI" | "setSegmentExportFlag" | "setVideoExportFlag" | "deleteSegment" | "removeSegment" | "saveAnnotations" | "getSegmentStyle" | "getColorForLabel" | "getTranslationForLabel" | "jumpToSegment" | "setActiveSegment" | "updateVideoStatus" | "assignUserToVideo" | "hasRawVideoFileFn" | "persistDirtySegments" | "updateSegmentInMemory" | "startDraft" | "updateDraftEnd" | "commitDraft" | "cancelDraft" | "createFiveSecondSegment" | "patchDraftSegment" | "patchSegmentLocally" | "backendSegmentToSegment" | "formatTime" | "getSegmentOptions" | "clearSegments">>;
+}, "buildVideoStreamUrl" | "setCurrentVideo" | "clearVideo" | "deleteVideo" | "setVideo" | "loadVideo" | "fetchVideoFps" | "fetchVideoUrl" | "fetchAllSegments" | "fetchAllVideos" | "fetchLabels" | "fetchVideoSegments" | "fetchSegmentsByLabel" | "createSegment" | "updateSegmentAPI" | "setSegmentExportFlag" | "setVideoExportFlag" | "deleteSegment" | "removeSegment" | "saveAnnotations" | "getSegmentStyle" | "getColorForLabel" | "getTranslationForLabel" | "jumpToSegment" | "setActiveSegment" | "updateVideoStatus" | "assignUserToVideo" | "hasRawVideoFileFn" | "persistDirtySegments" | "updateSegmentInMemory" | "startDraft" | "updateDraftEnd" | "commitDraft" | "cancelDraft" | "createFiveSecondSegment" | "patchDraftSegment" | "patchSegmentLocally" | "backendSegmentToSegment" | "formatTime" | "getSegmentOptions" | "clearSegments">>;

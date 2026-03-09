@@ -83,7 +83,7 @@ export const useFindingStore = defineStore('finding', () => {
     };
     const fetchExaminationClassifications = async (examinationId) => {
         try {
-            const response = await axiosInstance.get(`/api/examinations/${examinationId}/classifications/`);
+            const response = await axiosInstance.get(`/base_api/examinations/${examinationId}/classifications`);
             return response.data;
         }
         catch (err) {

@@ -1,7 +1,15 @@
 {
-  "effective_missing_backend": [],
-  "effective_missing_backend_count": 0,
-  "frontend_checked": 90,
+  "effective_missing_backend": [
+    {
+      "backend_matches": [],
+      "frontend_path": "lookup/",
+      "key": "requirements.lookup",
+      "normalized_path": "lookup/",
+      "status": "missing_backend"
+    }
+  ],
+  "effective_missing_backend_count": 1,
+  "frontend_checked": 95,
   "missing_backend": [
     {
       "backend_matches": [],
@@ -623,6 +631,66 @@
             "POST",
             "PUT"
           ],
+          "name": "frame-annotations-random-task",
+          "path": "api/media/annotations/frames/random-task/",
+          "source": "endoreg_db.views.video.ai.frame_annotations.FrameAnnotationRandomTaskView"
+        }
+      ],
+      "frontend_path": "media/annotations/frames/random-task/",
+      "key": "annotation.randomTask",
+      "normalized_path": "media/annotations/frames/random-task/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "DELETE",
+            "GET",
+            "PATCH",
+            "POST",
+            "PUT"
+          ],
+          "name": "frame-annotations-bulk-upsert",
+          "path": "api/media/annotations/frames/bulk-upsert/",
+          "source": "endoreg_db.views.video.ai.frame_annotations.FrameAnnotationBulkUpsertView"
+        }
+      ],
+      "frontend_path": "media/annotations/frames/bulk-upsert/",
+      "key": "annotation.bulkUpsert",
+      "normalized_path": "media/annotations/frames/bulk-upsert/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "DELETE",
+            "GET",
+            "PATCH",
+            "POST",
+            "PUT"
+          ],
+          "name": "frame-annotations-skip",
+          "path": "api/media/annotations/frames/skip/",
+          "source": "endoreg_db.views.video.ai.frame_annotations.FrameAnnotationSkipView"
+        }
+      ],
+      "frontend_path": "media/annotations/frames/skip/",
+      "key": "annotation.skip",
+      "normalized_path": "media/annotations/frames/skip/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "DELETE",
+            "GET",
+            "PATCH",
+            "POST",
+            "PUT"
+          ],
           "name": "video_upload",
           "path": "api/upload/",
           "source": "endoreg_db.views.misc.upload_views.UploadFileView"
@@ -871,6 +939,22 @@
       "frontend_path": "anonymization/items/overview/",
       "key": "anonymization.itemsOverview",
       "normalized_path": "anonymization/items/overview/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "GET"
+          ],
+          "name": "anonymization_document_types_dropdown",
+          "path": "api/anonymization/document-types/dropdown/",
+          "source": "endoreg_db.views.anonymization.validate.anonymization_document_types_dropdown"
+        }
+      ],
+      "frontend_path": "anonymization/document-types/dropdown/",
+      "key": "anonymization.documentTypesDropdown",
+      "normalized_path": "anonymization/document-types/dropdown/",
       "status": "match"
     },
     {
@@ -1253,6 +1337,26 @@
       "frontend_path": "media/videos/__ARG1__/metadata/",
       "key": "media.videoMetadata",
       "normalized_path": "media/videos/{param}/metadata/",
+      "status": "match"
+    },
+    {
+      "backend_matches": [
+        {
+          "methods": [
+            "DELETE",
+            "GET",
+            "PATCH",
+            "POST",
+            "PUT"
+          ],
+          "name": "video-fps",
+          "path": "api/media/videos/<int:pk>/fps/",
+          "source": "endoreg_db.views.video.video_fps.VideoFpsView"
+        }
+      ],
+      "frontend_path": "media/videos/__ARG1__/fps/",
+      "key": "media.videoFps",
+      "normalized_path": "media/videos/{param}/fps/",
       "status": "match"
     },
     {

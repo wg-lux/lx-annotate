@@ -12,7 +12,7 @@ export const useImageStore = defineStore('image', {
             this.loading = true;
             this.error = null;
             try {
-                const response = await axios.get('/api/images/');
+                const response = await axios.get('/base_api/images');
                 this.data = response.data.map((image) => ({
                     id: image.id,
                     imageUrl: image.image_url,

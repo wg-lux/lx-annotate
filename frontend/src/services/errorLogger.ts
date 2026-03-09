@@ -90,7 +90,7 @@ class ErrorLogger {
   private async sendErrorToBackend(errorData: ErrorData): Promise<void> {
     for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
       try {
-        const response = await fetch('/api/log-frontend-error', {
+        const response = await fetch('/base_api/log-frontend-error', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

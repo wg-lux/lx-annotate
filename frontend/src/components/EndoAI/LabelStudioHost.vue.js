@@ -10,11 +10,22 @@ const authStore = useAuthKcStore();
 const isLoading = ref(true);
 const currentTask = ref(null);
 const LABEL_STUDIO_VERSION = '1.11.0';
-const LABEL_STUDIO_SCRIPT_SRC = `https://unpkg.com/@humansignal/label-studio@${LABEL_STUDIO_VERSION}/build/static/js/main.js`;
-const LABEL_STUDIO_STYLE_HREF = `https://unpkg.com/@humansignal/label-studio@${LABEL_STUDIO_VERSION}/build/static/css/main.css`;
+const FALLBACK_STATIC_BASE = '/static/';
+const LABEL_STUDIO_SCRIPT_PATH = `@humansignal/label-studio@${LABEL_STUDIO_VERSION}/build/static/js/main.js`;
+const LABEL_STUDIO_STYLE_PATH = `@humansignal/label-studio@${LABEL_STUDIO_VERSION}/build/static/css/main.css`;
+const LABEL_STUDIO_SCRIPT_SOURCES = [
+    `https://unpkg.com/${LABEL_STUDIO_SCRIPT_PATH}`,
+    `https://cdn.jsdelivr.net/npm/${LABEL_STUDIO_SCRIPT_PATH}`
+];
+const LABEL_STUDIO_STYLE_SOURCES = [
+    `https://unpkg.com/${LABEL_STUDIO_STYLE_PATH}`,
+    `https://cdn.jsdelivr.net/npm/${LABEL_STUDIO_STYLE_PATH}`
+];
 let lsInstance = null;
 let initCycle = 0;
 let labelStudioScriptPromise = null;
+let resolvedLabelStudioScriptSrc = null;
+let resolvedLabelStudioStyleHref = null;
 function hasNestedResultArray(value) {
     return (!!value &&
         typeof value === 'object' &&
@@ -49,13 +60,32 @@ function destroyLabelStudio(invalidate = true) {
         lsRoot.value.innerHTML = '';
     }
 }
+function buildStaticAssetUrl(path) {
+    const rawPrefix = typeof window !== 'undefined' &&
+        typeof window.STATIC_URL === 'string'
+        ? window.STATIC_URL
+        : FALLBACK_STATIC_BASE;
+    const normalizedPrefix = rawPrefix.endsWith('/') ? rawPrefix : `${rawPrefix}/`;
+    return `${normalizedPrefix}${path}`;
+}
+function getScriptSources() {
+    return [buildStaticAssetUrl(`vendor/label-studio/${LABEL_STUDIO_SCRIPT_PATH}`), ...LABEL_STUDIO_SCRIPT_SOURCES];
+}
+function getStyleSources() {
+    return [buildStaticAssetUrl(`vendor/label-studio/${LABEL_STUDIO_STYLE_PATH}`), ...LABEL_STUDIO_STYLE_SOURCES];
+}
 function loadStyle(href) {
-    if (document.querySelector(`link[href="${href}"]`))
-        return;
-    const link = document.createElement('link');
-    link.rel = 'stylesheet';
-    link.href = href;
-    document.head.appendChild(link);
+    const existing = document.querySelector(`link[href="${href}"]`);
+    if (existing)
+        return Promise.resolve();
+    return new Promise((resolve, reject) => {
+        const link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = href;
+        link.onload = () => resolve();
+        link.onerror = () => reject(new Error(`Failed to load stylesheet: ${href}`));
+        document.head.appendChild(link);
+    });
 }
 function loadScript(src) {
     const existing = document.querySelector(`script[src="${src}"]`);
@@ -76,23 +106,68 @@ function loadScript(src) {
         document.head.appendChild(script);
     });
 }
-async function loadLabelStudioCtor() {
-    loadStyle(LABEL_STUDIO_STYLE_HREF);
-    if (!labelStudioScriptPromise) {
-        labelStudioScriptPromise = loadScript(LABEL_STUDIO_SCRIPT_SRC);
+async function loadLabelStudioAssets() {
+    if (resolvedLabelStudioScriptSrc) {
+        if (resolvedLabelStudioStyleHref) {
+            await loadStyle(resolvedLabelStudioStyleHref);
+        }
+        await loadScript(resolvedLabelStudioScriptSrc);
+        return;
     }
-    await labelStudioScriptPromise;
+    const scriptSources = getScriptSources();
+    const styleSources = getStyleSources();
+    const errors = [];
+    for (let idx = 0; idx < scriptSources.length; idx += 1) {
+        const scriptSrc = scriptSources[idx];
+        const styleHref = styleSources[idx] ?? styleSources[styleSources.length - 1];
+        try {
+            await loadStyle(styleHref);
+            await loadScript(scriptSrc);
+            resolvedLabelStudioStyleHref = styleHref;
+            resolvedLabelStudioScriptSrc = scriptSrc;
+            return;
+        }
+        catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            errors.push(`${scriptSrc} -> ${message}`);
+        }
+    }
+    throw new Error(`Failed to load Label Studio assets. Attempts: ${errors.join(' | ')}`);
+}
+async function loadLabelStudioCtor() {
+    if (!labelStudioScriptPromise) {
+        labelStudioScriptPromise = loadLabelStudioAssets();
+    }
+    try {
+        await labelStudioScriptPromise;
+    }
+    catch (error) {
+        labelStudioScriptPromise = null;
+        throw error;
+    }
     const ctor = window.LabelStudio;
     if (!ctor) {
         throw new Error('Label Studio global was not found on window after script load.');
     }
     return ctor;
 }
+function escapeXml(value) {
+    return value
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&apos;');
+}
 function generateXmlConfig(groupId) {
+    const targetLabel = queueStore.targetLabelName?.trim() || `Group ${groupId} Label`;
+    const safeTargetLabel = escapeXml(targetLabel);
     return `<View>
     <Image name="image" value="$image" />
-    <Choices name="choice" toName="image" showInline="true">
-      <Choice value="Example Label for Group ${groupId}" />
+    <Header value="Annotate '${safeTargetLabel}' for this frame" />
+    <Choices name="choice" toName="image" choice="single-radio" showInline="true">
+      <Choice value="${safeTargetLabel}: present" />
+      <Choice value="${safeTargetLabel}: absent" />
     </Choices>
   </View>`;
 }
@@ -194,7 +269,7 @@ async function initializeLabelStudio() {
         }
     }
 }
-watch(() => queueStore.selectedLabelGroupId, async () => {
+watch(() => [queueStore.selectedLabelGroupId, queueStore.taskQuerySignature], async () => {
     queueStore.clearQueue();
     if (!queueStore.selectedLabelGroupId) {
         destroyLabelStudio();

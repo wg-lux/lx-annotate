@@ -139,8 +139,9 @@ export class MediaManagementAPI {
     cleared_count: number
     file_type_filter?: string
   }> {
-    const params = fileType ? `?type=${fileType}` : ''
-    const response = await api.delete(`/api/anonymization/clear-locks/${params}`)
+    const response = await api.delete('/api/anonymization/clear-locks/', {
+      params: fileType ? { type: fileType } : undefined
+    })
     return response.data
   }
 

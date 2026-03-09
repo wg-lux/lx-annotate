@@ -557,7 +557,7 @@ const markSensitiveMetaComplete = async (meta) => {
   try {
     const endpoint = meta.content_type === 'video' 
       ? `/api/media/videos/`
-      : `/api/media/pdf/`;
+      : `/api/media/pdfs/`;
     
     await axiosInstance.patch(endpoint, { 
       sensitive_meta_id: meta.id,

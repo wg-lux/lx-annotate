@@ -103,6 +103,7 @@ export declare const endpoints: {
         readonly exportAnnotated: "media/videos/export-annotated/";
         readonly videoCorrection: (pk: Id) => string;
         readonly videoMetadata: (pk: Id) => string;
+        readonly videoFps: (pk: Id) => string;
         readonly videoApplyMask: (pk: Id) => string;
         readonly videoRemoveFrames: (pk: Id) => string;
         readonly videoLabelsList: "media/videos/labels/list/";

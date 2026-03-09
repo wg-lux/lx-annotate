@@ -160,6 +160,8 @@ in
           + ":/usr/lib"
           ;
     TESSDATA_PREFIX = "${myTesseract}/share/tessdata";
+    PYTORCH_ALLOC_CONF= "expandable_segments:True";
+
   };
 
   languages.python = {
@@ -217,20 +219,27 @@ in
 
 
   enterShell = lib.mkAfter ''
-    source .devenv/state/venv/bin/activate
+    # 1. Check if the venv interpreter actually exists
+    VENV_PATH=".devenv/state/venv"
+    if [ -d "$VENV_PATH" ]; then
+      if ! "$VENV_PATH/bin/python" --version >/dev/null 2>&1; then
+        echo "⚠️ Virtual env interpreter is broken. Removing..."
+        rm -rf "$VENV_PATH"
+      fi
+    fi
 
-    # Sync Python deps only when uv.lock changes to avoid slow shell startup.
+    source .devenv/state/venv/bin/activate 2>/dev/null || true
+
+    # 2. Refined Sync Logic
     SYNC_STAMP=".devenv/state/uv.syncstamp"
     LOCK_HASH="$(${pkgs.coreutils}/bin/sha256sum uv.lock 2>/dev/null | ${pkgs.gawk}/bin/awk '{print $1}')"
     PREV_LOCK_HASH="$(${pkgs.coreutils}/bin/cat "$SYNC_STAMP" 2>/dev/null || true)"
 
-    if [ -z "$LOCK_HASH" ] || [ "$LOCK_HASH" != "$PREV_LOCK_HASH" ]; then
-      echo "uv deps changed -> syncing..."
+    # Sync if lock changed OR if the venv was just deleted/missing
+    if [ ! -d "$VENV_PATH" ] || [ "$LOCK_HASH" != "$PREV_LOCK_HASH" ]; then
+      echo "uv deps changed or venv missing -> syncing..."
       $SYNC_CMD || echo "Warning: uv sync failed."
-      if [ -n "$LOCK_HASH" ]; then
-        ${pkgs.coreutils}/bin/mkdir -p "$(${pkgs.coreutils}/bin/dirname "$SYNC_STAMP")"
-        echo "$LOCK_HASH" > "$SYNC_STAMP"
-      fi
+      echo "$LOCK_HASH" > "$SYNC_STAMP"
     else
       echo "uv deps unchanged -> skipping sync."
     fi

@@ -42,8 +42,8 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
                     readonly name: string;
                 }[] | undefined;
                 readonly required?: boolean | undefined;
-                readonly name?: string | undefined;
                 readonly description?: string | undefined;
+                readonly name?: string | undefined;
             }[];
             readonly findingTypes: readonly string[];
             readonly findingInterventions: readonly string[];
@@ -79,8 +79,8 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
                     readonly name: string;
                 }[] | undefined;
                 readonly required?: boolean | undefined;
-                readonly name?: string | undefined;
                 readonly description?: string | undefined;
+                readonly name?: string | undefined;
             };
             readonly classification_choice: {
                 readonly id: number;
@@ -115,8 +115,8 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
                     readonly name: string;
                 }[] | undefined;
                 readonly required?: boolean | undefined;
-                readonly name?: string | undefined;
                 readonly description?: string | undefined;
+                readonly name?: string | undefined;
             }[];
             readonly findingTypes: readonly string[];
             readonly findingInterventions: readonly string[];
@@ -152,8 +152,8 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
                     readonly name: string;
                 }[] | undefined;
                 readonly required?: boolean | undefined;
-                readonly name?: string | undefined;
                 readonly description?: string | undefined;
+                readonly name?: string | undefined;
             };
             readonly classification_choice: {
                 readonly id: number;
@@ -189,8 +189,8 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
                     name: string;
                 }[] | undefined;
                 required?: boolean | undefined;
-                name?: string | undefined;
                 description?: string | undefined;
+                name?: string | undefined;
             }[];
             findingTypes: string[];
             findingInterventions: string[];
@@ -226,8 +226,8 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
                     name: string;
                 }[] | undefined;
                 required?: boolean | undefined;
-                name?: string | undefined;
                 description?: string | undefined;
+                name?: string | undefined;
             };
             classification_choice: {
                 id: number;
@@ -251,7 +251,7 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
     }) => Promise<PatientFinding>;
     updatePatientFinding: (id: number, updateData: Partial<PatientFinding>) => Promise<PatientFinding>;
     deletePatientFinding: (id: number) => Promise<void>;
-}, "loading" | "error" | "patientFindings">, Pick<{
+}, "error" | "loading" | "patientFindings">, Pick<{
     patientFindings: Readonly<import("vue").Ref<readonly {
         readonly id: number;
         readonly examination: string;
@@ -273,8 +273,8 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
                     readonly name: string;
                 }[] | undefined;
                 readonly required?: boolean | undefined;
-                readonly name?: string | undefined;
                 readonly description?: string | undefined;
+                readonly name?: string | undefined;
             }[];
             readonly findingTypes: readonly string[];
             readonly findingInterventions: readonly string[];
@@ -310,8 +310,8 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
                     readonly name: string;
                 }[] | undefined;
                 readonly required?: boolean | undefined;
-                readonly name?: string | undefined;
                 readonly description?: string | undefined;
+                readonly name?: string | undefined;
             };
             readonly classification_choice: {
                 readonly id: number;
@@ -346,8 +346,8 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
                     readonly name: string;
                 }[] | undefined;
                 readonly required?: boolean | undefined;
-                readonly name?: string | undefined;
                 readonly description?: string | undefined;
+                readonly name?: string | undefined;
             }[];
             readonly findingTypes: readonly string[];
             readonly findingInterventions: readonly string[];
@@ -383,8 +383,8 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
                     readonly name: string;
                 }[] | undefined;
                 readonly required?: boolean | undefined;
-                readonly name?: string | undefined;
                 readonly description?: string | undefined;
+                readonly name?: string | undefined;
             };
             readonly classification_choice: {
                 readonly id: number;
@@ -420,8 +420,8 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
                     name: string;
                 }[] | undefined;
                 required?: boolean | undefined;
-                name?: string | undefined;
                 description?: string | undefined;
+                name?: string | undefined;
             }[];
             findingTypes: string[];
             findingInterventions: string[];
@@ -457,8 +457,8 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
                     name: string;
                 }[] | undefined;
                 required?: boolean | undefined;
-                name?: string | undefined;
                 description?: string | undefined;
+                name?: string | undefined;
             };
             classification_choice: {
                 id: number;
@@ -504,8 +504,8 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
                     readonly name: string;
                 }[] | undefined;
                 readonly required?: boolean | undefined;
-                readonly name?: string | undefined;
                 readonly description?: string | undefined;
+                readonly name?: string | undefined;
             }[];
             readonly findingTypes: readonly string[];
             readonly findingInterventions: readonly string[];
@@ -541,8 +541,8 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
                     readonly name: string;
                 }[] | undefined;
                 readonly required?: boolean | undefined;
-                readonly name?: string | undefined;
                 readonly description?: string | undefined;
+                readonly name?: string | undefined;
             };
             readonly classification_choice: {
                 readonly id: number;
@@ -577,8 +577,8 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
                     readonly name: string;
                 }[] | undefined;
                 readonly required?: boolean | undefined;
-                readonly name?: string | undefined;
                 readonly description?: string | undefined;
+                readonly name?: string | undefined;
             }[];
             readonly findingTypes: readonly string[];
             readonly findingInterventions: readonly string[];
@@ -614,8 +614,8 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
                     readonly name: string;
                 }[] | undefined;
                 readonly required?: boolean | undefined;
-                readonly name?: string | undefined;
                 readonly description?: string | undefined;
+                readonly name?: string | undefined;
             };
             readonly classification_choice: {
                 readonly id: number;
@@ -651,8 +651,8 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
                     name: string;
                 }[] | undefined;
                 required?: boolean | undefined;
-                name?: string | undefined;
                 description?: string | undefined;
+                name?: string | undefined;
             }[];
             findingTypes: string[];
             findingInterventions: string[];
@@ -688,8 +688,8 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
                     name: string;
                 }[] | undefined;
                 required?: boolean | undefined;
-                name?: string | undefined;
                 description?: string | undefined;
+                name?: string | undefined;
             };
             classification_choice: {
                 id: number;

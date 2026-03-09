@@ -1,11 +1,18 @@
 import { defineStore } from 'pinia'
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import axiosInstance, { r } from '@/api/axiosInstance'
 import { endpoints } from '@/types/api/endpoints'
 
 const SELECTED_GROUP_STORAGE_KEY = 'annotationQueue.selectedLabelGroupId.v1'
+const TASK_MODE_STORAGE_KEY = 'annotationQueue.taskMode.v1'
+const TARGET_LABEL_STORAGE_KEY = 'annotationQueue.targetLabelName.v1'
+const FILTER_LABEL_STORAGE_KEY = 'annotationQueue.filterLabelName.v1'
+const RANDOM_FALLBACK_STORAGE_KEY = 'annotationQueue.allowRandomFallback.v1'
 const DEBUG_DUMMY_TASK_QUERY_KEY = 'ls_dummy_task'
 const DEBUG_DUMMY_TASK_GROUP_ID = '1'
+const DEFAULT_TARGET_LABEL_NAME = 'Target Label'
+
+export type AnnotationTaskMode = 'random' | 'filtered'
 
 function loadStoredGroupId(): string | null {
   try {
@@ -23,6 +30,55 @@ function persistGroupId(groupId: string | null): void {
     } else {
       localStorage.removeItem(SELECTED_GROUP_STORAGE_KEY)
     }
+  } catch {
+    // Persistence failure should not block annotation flow.
+  }
+}
+
+function loadStoredText(key: string): string | null {
+  try {
+    const raw = localStorage.getItem(key)
+    return raw && raw.trim() ? raw.trim() : null
+  } catch {
+    return null
+  }
+}
+
+function persistText(key: string, value: string | null): void {
+  try {
+    if (value) {
+      localStorage.setItem(key, value)
+    } else {
+      localStorage.removeItem(key)
+    }
+  } catch {
+    // Persistence failure should not block annotation flow.
+  }
+}
+
+function loadStoredTaskMode(): AnnotationTaskMode {
+  const raw = loadStoredText(TASK_MODE_STORAGE_KEY)
+  return raw === 'filtered' ? 'filtered' : 'random'
+}
+
+function normalizeLabelName(value: string | null): string {
+  const normalized = value?.trim() ?? ''
+  return normalized || DEFAULT_TARGET_LABEL_NAME
+}
+
+function loadStoredRandomFallback(): boolean {
+  try {
+    const raw = localStorage.getItem(RANDOM_FALLBACK_STORAGE_KEY)
+    if (raw === null) return true
+    return raw === '1' || raw.toLowerCase() === 'true'
+  } catch {
+    return true
+  }
+}
+
+function persistBoolean(key: string, value: boolean): void {
+  try {
+    localStorage.setItem(key, value ? '1' : '0')
   } catch {
     // Persistence failure should not block annotation flow.
   }
@@ -123,17 +179,87 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
   const selectedLabelGroupId = ref<string | null>(
     loadStoredGroupId() ?? (dummyTaskModeEnabled ? DEBUG_DUMMY_TASK_GROUP_ID : null)
   )
+  const taskMode = ref<AnnotationTaskMode>(loadStoredTaskMode())
+  const targetLabelName = ref<string>(normalizeLabelName(loadStoredText(TARGET_LABEL_STORAGE_KEY)))
+  const filterLabelName = ref<string | null>(loadStoredText(FILTER_LABEL_STORAGE_KEY))
+  const allowRandomFallback = ref<boolean>(loadStoredRandomFallback())
   const taskQueue = ref<AnnotationTask[]>([])
   const isInitialLoading = ref(false)
   const isPrefetching = ref(false)
   const lastError = ref<string | null>(null)
+  const taskQuerySignature = computed(
+    () =>
+      `${taskMode.value}|${targetLabelName.value}|${filterLabelName.value ?? ''}|${
+        allowRandomFallback.value ? '1' : '0'
+      }`
+  )
 
   watch(selectedLabelGroupId, (next) => {
     persistGroupId(next)
   })
+  watch(taskMode, (next) => {
+    persistText(TASK_MODE_STORAGE_KEY, next)
+  })
+  watch(targetLabelName, (next) => {
+    persistText(TARGET_LABEL_STORAGE_KEY, normalizeLabelName(next))
+  })
+  watch(filterLabelName, (next) => {
+    persistText(FILTER_LABEL_STORAGE_KEY, next)
+  })
+  watch(allowRandomFallback, (next) => {
+    persistBoolean(RANDOM_FALLBACK_STORAGE_KEY, next)
+  })
 
   function setSelectedLabelGroupId(groupId: string | null): void {
     selectedLabelGroupId.value = groupId && groupId.trim() ? groupId : null
+  }
+
+  function setTaskMode(mode: AnnotationTaskMode): void {
+    taskMode.value = mode === 'filtered' ? 'filtered' : 'random'
+  }
+
+  function setTargetLabelName(label: string | null): void {
+    targetLabelName.value = normalizeLabelName(label)
+  }
+
+  function setFilterLabelName(label: string | null): void {
+    filterLabelName.value = label && label.trim() ? label.trim() : null
+  }
+
+  function setAllowRandomFallback(enabled: boolean): void {
+    allowRandomFallback.value = !!enabled
+  }
+
+  function buildTaskRequestParams(
+    batchSize: number,
+    mode: AnnotationTaskMode
+  ): Record<string, string | number> {
+    const params: Record<string, string | number> = {
+      label_group_id: selectedLabelGroupId.value as string,
+      limit: batchSize
+    }
+
+    params.task_mode = mode
+    params.target_label = targetLabelName.value
+
+    if (mode === 'filtered' && filterLabelName.value) {
+      params.filter_label = filterLabelName.value
+      params.previous_label = filterLabelName.value
+    }
+
+    return params
+  }
+
+  async function fetchTaskBatchFromApi(
+    batchSize: number,
+    mode: AnnotationTaskMode
+  ): Promise<AnnotationTask[]> {
+    const res = await axiosInstance.get(r(endpoints.annotation.randomTask), {
+      params: buildTaskRequestParams(batchSize, mode)
+    })
+    return extractTaskList(res.data)
+      .map((raw) => coerceTask(raw))
+      .filter((task): task is AnnotationTask => task !== null)
   }
 
   async function fetchBatch(batchSize = 10): Promise<AnnotationTask[]> {
@@ -144,15 +270,16 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
 
     lastError.value = null
     try {
-      const res = await axiosInstance.get(r(endpoints.annotation.randomTask), {
-        params: {
-          label_group_id: selectedLabelGroupId.value,
-          limit: batchSize
-        }
-      })
-      const parsed = extractTaskList(res.data)
-        .map((raw) => coerceTask(raw))
-        .filter((task): task is AnnotationTask => task !== null)
+      let parsed = await fetchTaskBatchFromApi(batchSize, taskMode.value)
+
+      if (
+        taskMode.value === 'filtered' &&
+        allowRandomFallback.value &&
+        parsed.length === 0
+      ) {
+        parsed = await fetchTaskBatchFromApi(batchSize, 'random')
+      }
+
       taskQueue.value.push(...parsed)
       if (dummyTaskModeEnabled && parsed.length === 0 && taskQueue.value.length === 0) {
         const dummy = createDummyTask(selectedLabelGroupId.value)
@@ -161,6 +288,18 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
       }
       return parsed
     } catch (error: any) {
+      if (taskMode.value === 'filtered' && allowRandomFallback.value) {
+        try {
+          const fallbackParsed = await fetchTaskBatchFromApi(batchSize, 'random')
+          taskQueue.value.push(...fallbackParsed)
+          if (fallbackParsed.length > 0) {
+            return fallbackParsed
+          }
+        } catch {
+          // Ignore fallback error and expose the primary error below.
+        }
+      }
+
       lastError.value =
         error?.response?.data?.detail ||
         error?.response?.data?.error ||
@@ -210,11 +349,20 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
 
   return {
     selectedLabelGroupId,
+    taskMode,
+    targetLabelName,
+    filterLabelName,
+    allowRandomFallback,
+    taskQuerySignature,
     taskQueue,
     isInitialLoading,
     isPrefetching,
     lastError,
     setSelectedLabelGroupId,
+    setTaskMode,
+    setTargetLabelName,
+    setFilterLabelName,
+    setAllowRandomFallback,
     fetchBatch,
     prefetchIfNeeded,
     popNextTask,

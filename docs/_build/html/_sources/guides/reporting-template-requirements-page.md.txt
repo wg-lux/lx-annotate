@@ -237,6 +237,66 @@ This reduces manual setup and makes training demos reliable.
 
 ---
 
+## Developer Mapping: Requirement Objects to `lx_dtypes` Validators
+
+The new `base_api` requirement routes are derived from `lx_dtypes` report templates and validator runtime execution.
+
+Source implementation:
+- `lx-data-models/lx_dtypes/django/api/main.py`
+
+### 1. `GET /base_api/requirement-sets`
+
+Each returned requirement set maps to one `report_template`.
+
+Mapping:
+- `requirement_set.id` -> 1-based index over `sorted(kb.report_template.keys())`
+- `requirement_set.name` -> `report_template.name`
+- `requirement_set.template_name` -> `report_template.name`
+- `requirement_set.type` -> `report_template.examination`
+- `requirement_set.module_name` -> selected module (default `report_template_examples`)
+- `requirement_set.requirements[]` -> flattened validators attached to the template
+
+Nested requirement object mapping:
+- `requirements[i].id` -> 1-based local index within the requirement set
+- `requirements[i].name` -> validator name
+- `requirements[i].kind`:
+  - `findings_validator` if from `template.validators.findings_validators`
+  - `examination_validator` if from `template.validators.examination_validators`
+
+Important:
+- These IDs are API-generated projection IDs, not database IDs.
+- They are deterministic for a given module content/order, but can change if template names or validator ordering changes.
+
+### 2. `GET /base_api/requirement-sets/{id}`
+
+This returns the same projected object as above, selected by projected `id`.
+
+### 3. `POST /base_api/evaluate-requirement-set`
+
+Accepted selector fields:
+- `requirement_set_id`
+- `requirement_set_ids`
+- `requirementSetIds` (legacy camelCase compatibility)
+
+Evaluation input mapping:
+- `reported_findings` (or fallback `findings`) is passed to:
+  - `kb.evaluate_report_template_validators(template_name, reported_findings=...)`
+
+Output mapping per validator execution:
+- `result.requirement_set_id` -> projected requirement set id
+- `result.requirement_set_name` -> template name
+- `result.requirement_name` -> validator execution `name`
+- `result.met` -> validator execution `ok`
+- `result.status` -> `PASSED` / `FAILED`
+- `result.details` -> compact message from validator issues
+- `result.validator_result` -> full runtime validator execution object
+
+Compatibility notes:
+- `patient_examination_id` is retained in request/response meta for frontend compatibility.
+- Requirement evaluation for these `base_api` routes no longer depends on `endoreg_db` requirement models/services.
+
+---
+
 ## Common Problems and Practical Fixes
 
 ### Problem: "No templates found for colonoscopy"

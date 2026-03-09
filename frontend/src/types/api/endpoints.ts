@@ -132,6 +132,7 @@ export const endpoints = {
 
     videoCorrection: (pk: Id) => `media/videos/video-correction/${pk}`,
     videoMetadata: (pk: Id) => `media/videos/${pk}/metadata/`,
+    videoFps: (pk: Id) => `media/videos/${pk}/fps/`,
     videoApplyMask: (pk: Id) => `media/videos/${pk}/apply-mask/`,
     videoRemoveFrames: (pk: Id) => `media/videos/${pk}/remove-frames/`,
     videoLabelsList: 'media/videos/labels/list/',

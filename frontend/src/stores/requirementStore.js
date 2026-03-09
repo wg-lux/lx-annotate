@@ -56,7 +56,7 @@ export const useRequirementStore = defineStore('requirement', () => {
         try {
             loading.value = true;
             error.value = null;
-            const response = await axiosInstance.get('/api/requirement-sets/');
+            const response = await axiosInstance.get('/base_api/requirement-sets');
             requirementSets.value = response.data.results || response.data;
         }
         catch (err) {
@@ -70,7 +70,7 @@ export const useRequirementStore = defineStore('requirement', () => {
     };
     const fetchRequirementSet = async (id) => {
         try {
-            const response = await axiosInstance.get(`/api/requirement-sets/${id}/`);
+            const response = await axiosInstance.get(`/base_api/requirement-sets/${id}`);
             return response.data;
         }
         catch (err) {
@@ -173,7 +173,7 @@ export const useRequirementStore = defineStore('requirement', () => {
             if (patientExaminationId) {
                 payload.patient_examination_id = patientExaminationId;
             }
-            const response = await axiosInstance.post('/api/evaluate-requirement-set/', payload);
+            const response = await axiosInstance.post('/base_api/evaluate-requirement-set', payload);
             const results = response.data.results || [];
             // Update evaluation results for this set
             evaluationResults.value[requirementSetId] = results;
