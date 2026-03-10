@@ -18,7 +18,7 @@ in
   # =============================================================================
   # UNIFIED TASK DEFINITIONS
   # =============================================================================
-  
+  env.MODE = lib.fileContents ./.mode;
   tasks = {
     # Environment Management
     "env:setup" = {
@@ -29,7 +29,6 @@ in
         # Step 1: Ensure directories
         export WORKING_DIR="''${WORKING_DIR:-$(pwd)}"
         mkdir -p ${env.WORKING_DIR} staticfiles
-        mkdir -p ${env.WORKING_DIR}/{import,export,videos,frames,pdfs,model_weights,logs}
         
         
         # Step 3: Environment file setup
@@ -88,14 +87,7 @@ in
         echo "✅ static artifacts are up to date."
       '';
     };
-    "vue:build".exec = 
-      ''
-      cd frontend
-      direnv allow
-      npm install
-      npm run build
-    '';
-
+    "vue-build".exec = "devenv tasks run vue:build";
   };
 
   # =============================================================================
