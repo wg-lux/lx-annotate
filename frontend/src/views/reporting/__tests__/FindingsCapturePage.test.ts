@@ -7,7 +7,7 @@ import axiosInstance from '@/api/axiosInstance'
 
 const hoisted = vi.hoisted(() => ({
   flowRef: { current: null as any },
-  findingStoreRef: { current: null as any },
+  findingSelectorsRef: { current: null as any },
   patientExaminationStoreRef: { current: null as any },
   lookupActions: {
     fetchLookupAll: vi.fn(),
@@ -29,8 +29,8 @@ vi.mock('@/stores/reportingFlowStore', () => ({
   useReportingFlowStore: () => hoisted.flowRef.current
 }))
 
-vi.mock('@/stores/findingStore', () => ({
-  useFindingStore: () => hoisted.findingStoreRef.current
+vi.mock('@/composables/reporting/useFindingSelectors', () => ({
+  useFindingSelectors: () => hoisted.findingSelectorsRef.current
 }))
 
 vi.mock('@/stores/patientExaminationStore', () => ({
@@ -55,8 +55,11 @@ function buildFlowStore() {
     lastFindingsEvent: null as any,
     patchLookupSnapshot: vi.fn(),
     setSelectedRequirementSetIds: vi.fn(),
+    setLastTemplateValidation: vi.fn(),
     noteFindingAdded: vi.fn(),
     noteClassificationUpdated: vi.fn(),
+    selectedKbModule: 'report_template_examples',
+    selectedTemplateName: null as string | null,
     setSessionStatus: vi.fn((status: string) => {
       ;(flow as any).sessionStatus = status
     }),
@@ -75,6 +78,7 @@ function mountPage() {
     global: {
       stubs: {
         LookupStatusPanel: true,
+        ReportTemplateValidationPanel: true,
         AddableFindingsDetail: true,
         FindingsDetail: true
       }
@@ -91,12 +95,12 @@ describe('FindingsCapturePage lookup bootstrap', () => {
     vi.clearAllMocks()
 
     hoisted.flowRef.current = buildFlowStore()
-    hoisted.findingStoreRef.current = reactive({
-      findings: [] as Array<{ id: number; name: string }>,
+    hoisted.findingSelectorsRef.current = reactive({
       loading: false,
-      fetchFindings: vi.fn().mockResolvedValue(undefined),
-      getFindingIdsByPatientExaminationId: vi.fn().mockReturnValue([]),
-      getFindingById: vi.fn().mockReturnValue(null)
+      ensureCatalogLoaded: vi.fn().mockResolvedValue([]),
+      ensurePatientFindingsLoaded: vi.fn().mockResolvedValue([]),
+      getFindingById: vi.fn().mockReturnValue(null),
+      isFindingAttached: vi.fn().mockReturnValue(false)
     })
     hoisted.patientExaminationStoreRef.current = {
       setCurrentPatientExaminationId: vi.fn()

@@ -1,4 +1,16 @@
 import axiosInstance from '@/api/axiosInstance'
+import {
+  normalizeFindingChoice,
+  normalizeFindings,
+  normalizeFindingClassification,
+  normalizePatientFindingRow,
+  normalizePatientFindingRows,
+  type ClassificationSelection,
+  type Finding,
+  type FindingChoice,
+  type FindingClassification,
+  type PatientFindingRow
+} from '@/api/findings.contract'
 
 export type FindingsBackendMode = 'endoreg' | 'dtypes_read' | 'dtypes'
 
@@ -18,28 +30,6 @@ export interface FindingsApiError {
   details?: unknown
 }
 
-export interface ClassificationSelection {
-  classification: number
-  choice: number
-}
-
-export interface PatientFindingRow {
-  id: number
-  patientExamination: number
-  finding: number | { id: number }
-  isActive?: boolean
-  classifications?: Array<
-    | number
-    | {
-        id?: number
-        classification?: number
-        classificationChoice?: number
-        classificationId?: number
-        classificationChoiceId?: number
-      }
-  >
-}
-
 export interface CreatePatientFindingPayload {
   patientExamination: number
   finding: number
@@ -53,6 +43,7 @@ export interface UpdatePatientFindingPayload {
 }
 
 const ENDOREG_PATHS = {
+  findings: '/api/findings/',
   examinationFindings: (examinationId: number) => `/api/examinations/${examinationId}/findings/`,
   findingClassifications: (findingId: number) => `/api/findings/${findingId}/classifications/`,
   classificationChoices: (classificationId: number) =>
@@ -198,15 +189,6 @@ export function parseFindingsApiError(error: any): FindingsApiError {
   }
 }
 
-function normalizeRows(value: unknown): PatientFindingRow[] {
-  const rows = Array.isArray((value as any)?.results)
-    ? (value as any).results
-    : Array.isArray(value)
-      ? value
-      : []
-  return rows as PatientFindingRow[]
-}
-
 async function setClassificationsViaDtypes(
   patientFindingId: number,
   classifications: ClassificationSelection[]
@@ -222,33 +204,39 @@ export const findingsApi = {
     return getFindingsBackendMode()
   },
 
-  async getExaminationFindings(examinationId: number): Promise<any[]> {
+  async listFindings(): Promise<Finding[]> {
+    const response = await axiosInstance.get(ENDOREG_PATHS.findings)
+    return normalizeFindings(response.data)
+  },
+
+  async getExaminationFindings(examinationId: number): Promise<Finding[]> {
     const mode = getFindingsBackendMode()
     const path = useDtypesRead(mode)
       ? DTYPES_PATHS.examinationFindings(examinationId)
       : ENDOREG_PATHS.examinationFindings(examinationId)
     const response = await axiosInstance.get(path)
-    return Array.isArray(response.data) ? response.data : []
+    return normalizeFindings(response.data)
   },
 
-  async getFindingClassifications(findingId: number): Promise<any[]> {
+  async getFindingClassifications(findingId: number): Promise<FindingClassification[]> {
     const mode = getFindingsBackendMode()
     const path = useDtypesRead(mode)
       ? DTYPES_PATHS.findingClassifications(findingId)
       : ENDOREG_PATHS.findingClassifications(findingId)
     const response = await axiosInstance.get(path)
-    return Array.isArray(response.data) ? response.data : []
+    if (!Array.isArray(response.data)) return []
+    return response.data.map(normalizeFindingClassification)
   },
 
-  async getClassificationChoices(classificationId: number): Promise<any[]> {
+  async getClassificationChoices(classificationId: number): Promise<FindingChoice[]> {
     const mode = getFindingsBackendMode()
     const path = useDtypesRead(mode)
       ? DTYPES_PATHS.classificationChoices(classificationId)
       : ENDOREG_PATHS.classificationChoices(classificationId)
     const response = await axiosInstance.get(path)
     const payload = response.data
-    if (Array.isArray(payload)) return payload
-    return Array.isArray(payload?.choices) ? payload.choices : []
+    if (Array.isArray(payload)) return payload.map(normalizeFindingChoice)
+    return Array.isArray(payload?.choices) ? payload.choices.map(normalizeFindingChoice) : []
   },
 
   async listPatientFindings(patientExaminationId: number): Promise<PatientFindingRow[]> {
@@ -259,7 +247,7 @@ export const findingsApi = {
     const response = await axiosInstance.get(basePath, {
       params: { patient_examination: patientExaminationId }
     })
-    return normalizeRows(response.data)
+    return normalizePatientFindingRows(response.data)
   },
 
   async createPatientFinding(payload: CreatePatientFindingPayload): Promise<PatientFindingRow> {
@@ -270,11 +258,11 @@ export const findingsApi = {
 
     if (useDtypesWrite(mode)) {
       const response = await axiosInstance.post(DTYPES_PATHS.patientFindings, {
-        patientExamination: payload.patientExamination,
+        patient_examination: payload.patientExamination,
         finding: payload.finding,
         classifications
       })
-      return response.data as PatientFindingRow
+      return normalizePatientFindingRow(response.data)
     }
 
     // Endoreg-safe path:
@@ -284,7 +272,7 @@ export const findingsApi = {
       patientExamination: payload.patientExamination,
       finding: payload.finding
     })
-    const created = createRes.data as PatientFindingRow
+    const created = normalizePatientFindingRow(createRes.data)
     const createdId = Number(created?.id)
     if (Number.isFinite(createdId) && classifications.length > 0) {
       await setClassificationsViaDtypes(createdId, classifications)
@@ -306,11 +294,11 @@ export const findingsApi = {
         DTYPES_PATHS.patientFindingById(patientFindingId),
         {
           finding: payload.finding,
-          isActive: payload.isActive,
+          is_active: payload.isActive,
           classifications
         }
       )
-      return response.data as PatientFindingRow
+      return normalizePatientFindingRow(response.data)
     }
 
     const patchPayload: Record<string, unknown> = {}
@@ -323,7 +311,7 @@ export const findingsApi = {
     if (classifications) {
       await setClassificationsViaDtypes(patientFindingId, classifications)
     }
-    return response.data as PatientFindingRow
+    return normalizePatientFindingRow(response.data)
   },
 
   async deletePatientFinding(patientFindingId: number): Promise<void> {
@@ -344,7 +332,7 @@ export const findingsApi = {
         DTYPES_PATHS.patientFindingClassifications(patientFindingId),
         { replace: true, classifications }
       )
-      return response.data as PatientFindingRow
+      return normalizePatientFindingRow(response.data)
     }
     await setClassificationsViaDtypes(patientFindingId, classifications)
     return null

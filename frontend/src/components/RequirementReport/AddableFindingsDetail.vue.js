@@ -1,7 +1,8 @@
 import { computed, ref, watch } from 'vue';
+import { extractFindingId } from '@/api/findings.contract';
+import { useFindingSelectors } from '@/composables/reporting/useFindingSelectors';
 import { parseFindingsApiError } from '@/api/findingsApi';
 import { useExaminationStore } from '@/stores/examinationStore';
-import {} from '@/stores/findingStore';
 import { useFindingClassificationStore } from '@/stores/findingClassificationStore';
 import { usePatientExaminationStore } from '@/stores/patientExaminationStore';
 import { usePatientFindingStore } from '@/stores/patientFindingStore';
@@ -9,6 +10,7 @@ const patientExaminationStore = usePatientExaminationStore();
 const findingClassificationStore = useFindingClassificationStore();
 const patientFindingStore = usePatientFindingStore();
 const examinationStore = useExaminationStore();
+const { ensurePatientFindingsLoaded, getFindingById, getAttachedFindingIds } = useFindingSelectors();
 const props = withDefaults(defineProps(), {
     patientExaminationId: undefined,
     examinationId: undefined
@@ -72,20 +74,8 @@ function dedupeFindings(findings) {
 }
 function resolveFindingById(findingId) {
     return (availableExaminationFindings.value.find((entry) => entry.id === findingId) ||
-        findingClassificationStore.getFindingById(findingId));
-}
-function normalizeAddedFinding(value) {
-    if (value && typeof value === 'object') {
-        const entry = value;
-        const nestedId = Number(entry.id);
-        if (Number.isFinite(nestedId)) {
-            return entry;
-        }
-    }
-    const id = Number(value);
-    if (!Number.isFinite(id))
-        return null;
-    return resolveFindingById(id) ?? null;
+        findingClassificationStore.getFindingById(findingId) ||
+        getFindingById(findingId));
 }
 const selectFinding = async (findingId) => {
     selectedFindingId.value = findingId;
@@ -125,10 +115,10 @@ async function loadAddedFindingsForCurrentExam() {
         addedFindings.value = [];
         return;
     }
-    await patientFindingStore.fetchPatientFindings(patientExaminationId);
-    const findings = patientFindingStore.patientFindings
-        .map((row) => normalizeAddedFinding(row?.finding))
-        .filter((entry) => !!entry);
+    await ensurePatientFindingsLoaded(patientExaminationId);
+    const findings = getAttachedFindingIds(patientExaminationId)
+        .map((findingId) => resolveFindingById(findingId))
+        .filter((entry) => Boolean(entry));
     addedFindings.value = dedupeFindings(findings);
 }
 async function loadAvailableFindings() {
@@ -175,12 +165,7 @@ const addFindingToExamination = async () => {
                 choice: choiceId
             }))
         });
-        const resolvedFindingId = Number(newPatientFinding?.finding?.id ??
-            newPatientFinding?.finding ??
-            selectedFindingId.value);
-        const findingId = Number.isFinite(resolvedFindingId)
-            ? resolvedFindingId
-            : selectedFindingId.value;
+        const findingId = extractFindingId(newPatientFinding.finding) ?? selectedFindingId.value;
         const createdFinding = findingClassificationStore.getFindingById(findingId) || selectedFinding.value;
         if (createdFinding && !addedFindings.value.some((entry) => entry.id === createdFinding.id)) {
             addedFindings.value.push(createdFinding);

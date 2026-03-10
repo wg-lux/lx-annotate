@@ -74,4 +74,58 @@ describe('useReportTemplates', () => {
         expect(templates[0].validators.findingsValidators).toEqual([]);
         expect(catalog.sectionBlocks.value[0].requiredFindingsCount).toBe(0);
     });
+    it('derives validator descriptors with related sections', async () => {
+        vi.mocked(axiosInstance.get).mockResolvedValue({
+            data: {
+                name: 'star_upper_gi_main',
+                examination: 'star_upper_gi_endoscopy',
+                reportSections: [
+                    {
+                        name: 'examination_baseline',
+                        position: 0,
+                        findings: [
+                            {
+                                finding: 'esophagus_polyp',
+                                required: false,
+                                multipleAllowed: true,
+                                classifications: [{ classification: 'size_mm', required: true }]
+                            }
+                        ]
+                    }
+                ],
+                validators: {
+                    findingsValidators: [
+                        {
+                            name: 'polyp_has_lst_if_large',
+                            finding: 'esophagus_polyp',
+                            operator: 'conditional',
+                            query: {
+                                finding: 'esophagus_polyp',
+                                operator: 'conditional',
+                                condition: {
+                                    any: [{ classification: 'size_mm', comparator: 'gt', value: 10 }],
+                                    thenRequires: [{ classification: 'lst' }]
+                                }
+                            }
+                        }
+                    ],
+                    examinationValidators: [
+                        {
+                            name: 'gastroscopy_has_baseline_info',
+                            findingValidators: ['polyp_has_lst_if_large'],
+                            examinationValidators: []
+                        }
+                    ]
+                }
+            }
+        });
+        const catalog = useReportTemplates({
+            initialModuleName: 'report_template_examples',
+            initialTemplateName: null
+        });
+        await catalog.selectTemplateByName('star_upper_gi_main');
+        expect(catalog.validatorDescriptors.value).toHaveLength(2);
+        expect(catalog.validatorDescriptors.value[0].relatedSections).toEqual(['examination_baseline']);
+        expect(catalog.validatorDescriptors.value[1].relatedSections).toEqual(['examination_baseline']);
+    });
 });

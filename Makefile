@@ -102,7 +102,7 @@ load-base-data: check-repo check-tools ## Load baseline application data
 	cd "$(REPO_DIR)" && $(DEVENV_RUN) python manage.py load_base_db_data
 
 static: check-repo check-tools ## Collect static files
-	cd "$(REPO_DIR)" && $(DEVENV_RUN) python manage.py collectstatic --noinput --clear
+	cd "$(REPO_DIR)" && $(DEVENV_RUN) python manage.py collectstatic
 
 docs-build: check-repo check-tools ## Build Sphinx HTML docs
 	cd "$(REPO_DIR)" && $(DEVENV_RUN) uv run --extra docs make -C docs html

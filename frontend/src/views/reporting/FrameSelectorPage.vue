@@ -25,6 +25,27 @@
           :lookup-token="flow.lookupToken"
         />
 
+        <div class="card border mb-3">
+          <div class="card-header bg-light">
+            <h6 class="mb-0">Latest frames preload</h6>
+          </div>
+          <div class="card-body">
+            <div v-if="latest_frames.length" class="d-flex flex-wrap gap-2">
+              <button
+                v-for="frame in latest_frames"
+                :key="`${frame.videoId}-${frame.frameNumber}`"
+                class="btn btn-outline-secondary btn-sm"
+                @click="open_stream_url(frame.streamUrl)"
+              >
+                #{{ frame.frameNumber }} · {{ frame.category || 'fallback' }}
+              </button>
+            </div>
+            <div v-else class="small text-muted">
+              Keine vorab ausgewählten Frames verfügbar.
+            </div>
+          </div>
+        </div>
+
         <div v-if="!flow.patientExaminationId" class="alert alert-warning">
           Bitte zuerst das Fall-Setup abschließen.
         </div>
@@ -170,10 +191,11 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
+import type { Finding } from '@/api/findings.contract'
 import axiosInstance, { r } from '@/api/axiosInstance'
+import { useFindingSelectors } from '@/composables/reporting/useFindingSelectors'
 import LookupStatusPanel from '@/components/Reporting/LookupStatusPanel.vue'
 import { useReportingFlowStore } from '@/stores/reportingFlowStore'
-import { useFindingStore } from '@/stores/findingStore'
 import { endpoints } from '@/types/api/endpoints'
 
 type SegmentFrameItem = {
@@ -219,16 +241,13 @@ type SegmentFrameSelectorState = {
   results: SegmentFrameItem[]
 }
 
-type FindingOption = {
-  id: number
-  name?: string
-  nameDe?: string
-}
-
 const CLEAR_FINDING_SENTINEL = -1
 
 const flow = useReportingFlowStore()
-const findingStore = useFindingStore()
+const {
+  catalogFindings,
+  ensureCatalogLoaded
+} = useFindingSelectors()
 
 const loading = ref(false)
 const errorMessage = ref<string | null>(null)
@@ -239,7 +258,8 @@ const selectedSegmentId = ref<number | null>(null)
 const manualFrameNumber = ref<number | null>(null)
 const selectedFindingIdForSegment = ref<number | null>(null)
 
-const findings = computed<FindingOption[]>(() => (findingStore.findings as unknown as FindingOption[]) || [])
+const findings = computed<readonly Finding[]>(() => catalogFindings.value)
+const latest_frames = computed(() => flow.mediaPreload?.latestFrames || [])
 const segments = computed<SegmentFrameItem[]>(() => frameSelectorState.value?.results || [])
 const selectedSegment = computed<SegmentFrameItem | null>(
   () => segments.value.find((s) => s.segmentId === selectedSegmentId.value) || null
@@ -250,15 +270,17 @@ function clearMessages() {
   successMessage.value = null
 }
 
+function open_stream_url(url: string) {
+  window.open(url, '_blank', 'noopener,noreferrer')
+}
+
 function selectorUrl(): string | null {
   if (!flow.patientExaminationId) return null
   return r(endpoints.report.segmentFrameSelector(flow.patientExaminationId, flow.activeReportId ?? undefined))
 }
 
 async function ensureFindingsLoaded() {
-  if (!findingStore.findings.length) {
-    await findingStore.fetchFindings()
-  }
+  await ensureCatalogLoaded()
 }
 
 function syncSelectionDefaults() {
@@ -275,7 +297,10 @@ function syncSelectionDefaults() {
 
   const seg = selectedSegment.value
   if (!seg) return
-  manualFrameNumber.value = seg.selectedFrameNumber ?? seg.startFrameNumber
+  manualFrameNumber.value =
+    seg.selectedFrameNumber ??
+    latest_frames.value[0]?.frameNumber ??
+    seg.startFrameNumber
   selectedFindingIdForSegment.value = seg.attachedFinding?.findingId ?? null
 }
 

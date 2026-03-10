@@ -24,6 +24,7 @@
           :session-status="flow.sessionStatus"
           :findings-revision="flow.findingsRevision"
         />
+        <ReportingMediaPreviewCards class="mb-3" />
 
         <RequirementAdvisoryPanel
           :failed-requirement-sets="failedRequirementSets"
@@ -33,6 +34,14 @@
           :lookup-raw="lookupRaw"
           :requirement-guidance-raw="requirementGuidanceRaw"
         />
+
+        <div class="mt-3">
+          <ReportTemplateValidationPanel
+            :result="flow.lastTemplateValidation"
+            :loading="false"
+            :error-message="null"
+          />
+        </div>
       </div>
     </div>
   </div>
@@ -41,7 +50,9 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import LookupStatusPanel from '@/components/Reporting/LookupStatusPanel.vue'
+import ReportTemplateValidationPanel from '@/components/Reporting/ReportTemplateValidationPanel.vue'
 import RequirementAdvisoryPanel from '@/components/Reporting/RequirementAdvisoryPanel.vue'
+import ReportingMediaPreviewCards from '@/components/Reporting/ReportingMediaPreviewCards.vue'
 import { useLookupActions } from '@/composables/reporting/useLookupActions'
 import { useReportingFlowStore } from '@/stores/reportingFlowStore'
 

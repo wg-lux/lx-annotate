@@ -109,7 +109,7 @@ fi
 # Optional: collect static files (idempotent)
 if [ "${COLLECT_STATIC:-1}" = "1" ]; then
   echo "🗃️ Collecting static files..."
-  python manage.py collectstatic --noinput --clear || echo "⚠️ collectstatic failed"
+  python manage.py collectstatic --noinput || echo "⚠️ collectstatic failed"
 fi
 
 # Health check (non-fatal)

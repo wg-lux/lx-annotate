@@ -1,10 +1,9 @@
 import { defineStore } from 'pinia'
 import axiosInstance from '@/api/axiosInstance'
-import type { Finding } from '@/stores/findingStore'
 import { findingsApi, parseFindingsApiError } from '@/api/findingsApi'
+import type { Finding, FindingClassification } from '@/api/findings.contract'
 import type {
   ClassificationChoiceCore,
-  ClassificationCore,
   ExaminationCore
 } from '@/types/coreConcepts'
 
@@ -29,21 +28,8 @@ export interface MorphologyClassificationChoice extends Pick<ClassificationChoic
   name_de?: string
 }
 
-export interface LocationClassification extends Pick<ClassificationCore, 'name'> {
-  id: number
-  nameDe?: string
-  name_de?: string
-  choices: LocationClassificationChoice[]
-  required?: boolean
-}
-
-export interface MorphologyClassification extends Pick<ClassificationCore, 'name'> {
-  id: number
-  nameDe?: string
-  name_de?: string
-  choices: MorphologyClassificationChoice[]
-  required?: boolean
-}
+export type LocationClassification = FindingClassification
+export type MorphologyClassification = FindingClassification
 
 type ClassifPayload = {
   locationClassifications: LocationClassification[]
@@ -128,9 +114,7 @@ export const useExaminationStore = defineStore('examination', {
       this.loading = true
       this.error = null
       try {
-        const findings: Finding[] = (await findingsApi.getExaminationFindings(
-          examId
-        )) as Finding[]
+        const findings = await findingsApi.getExaminationFindings(examId)
         this.findingsByExam.set(examId, findings)
         return findings
       } catch (e: any) {
@@ -158,16 +142,12 @@ export const useExaminationStore = defineStore('examination', {
       try {
         const classifications = await findingsApi.getFindingClassifications(findingId)
         const payload: ClassifPayload = {
-          locationClassifications: Array.isArray(
-            (classifications as any)?.locationClassifications
+          locationClassifications: classifications.filter((classification) =>
+            classification.classificationTypes.includes('location')
+          ),
+          morphologyClassifications: classifications.filter((classification) =>
+            classification.classificationTypes.includes('morphology')
           )
-            ? ((classifications as any).locationClassifications as LocationClassification[])
-            : (classifications as LocationClassification[]),
-          morphologyClassifications: Array.isArray(
-            (classifications as any)?.morphologyClassifications
-          )
-            ? ((classifications as any).morphologyClassifications as MorphologyClassification[])
-            : []
         }
         this.classificationsByFinding.set(findingId, payload)
         return payload

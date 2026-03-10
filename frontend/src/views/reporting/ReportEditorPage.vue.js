@@ -520,8 +520,10 @@ function buildEditorPayload() {
     };
 }
 function buildRenderedText() {
+    const fallbackAnonymizedText = flow.mediaPreload?.latestReport?.anonymizedText?.trim() || '';
     const lines = [];
     lines.push(`# ${selectedTemplateName.value || 'Unbenanntes Template'}`);
+    let hasStructuredContent = false;
     for (const section of sectionBlocks.value) {
         const draft = getSectionDraft(section.name);
         const sectionLines = [];
@@ -537,9 +539,14 @@ function buildRenderedText() {
         }
         if (draft.note.trim())
             sectionLines.push(draft.note.trim());
+        if (sectionLines.length)
+            hasStructuredContent = true;
         lines.push(`## ${section.title}`);
         if (sectionLines.length)
             lines.push(sectionLines.join('\n'));
+    }
+    if (!hasStructuredContent && fallbackAnonymizedText) {
+        return fallbackAnonymizedText;
     }
     return lines.join('\n\n');
 }

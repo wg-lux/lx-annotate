@@ -1,21 +1,27 @@
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import axiosInstance, { r } from '@/api/axiosInstance';
+import { getFindingDisplayName } from '@/api/findings.contract';
+import { validatePatientFindingsAgainstTemplate } from '@/api/reportTemplatesApi';
 import AddableFindingsDetail from '@/components/RequirementReport/AddableFindingsDetail.vue';
 import FindingsDetail from '@/components/RequirementReport/FindingsDetail.vue';
+import { useFindingSelectors } from '@/composables/reporting/useFindingSelectors';
 import LookupStatusPanel from '@/components/Reporting/LookupStatusPanel.vue';
+import ReportTemplateValidationPanel from '@/components/Reporting/ReportTemplateValidationPanel.vue';
+import ReportingMediaPreviewCards from '@/components/Reporting/ReportingMediaPreviewCards.vue';
 import { useLookupActions } from '@/composables/reporting/useLookupActions';
 import { useReportingFlowStore } from '@/stores/reportingFlowStore';
-import { useFindingStore } from '@/stores/findingStore';
 import { usePatientExaminationStore } from '@/stores/patientExaminationStore';
 import { endpoints } from '@/types/api/endpoints';
 const flow = useReportingFlowStore();
-const findingStore = useFindingStore();
 const patientExaminationStore = usePatientExaminationStore();
+const { loading: findingSelectorsLoading, ensureCatalogLoaded, ensurePatientFindingsLoaded, getFindingById, isFindingAttached } = useFindingSelectors();
 const loading = ref(false);
 const errorMessage = ref(null);
 const successMessage = ref(null);
 const lookupState = ref(null);
 const lookupInitInFlight = ref(null);
+const templateValidationLoading = ref(false);
+const templateValidationError = ref(null);
 function normalizeIdArray(value) {
     if (!Array.isArray(value))
         return [];
@@ -112,8 +118,34 @@ const lookupActions = useLookupActions({
     clearMessages
 });
 async function loadFindingsCatalog() {
-    if (findingStore.findings.length === 0) {
-        await findingStore.fetchFindings();
+    await ensureCatalogLoaded();
+}
+async function refreshRuntimeValidation() {
+    const patientExaminationId = flow.patientExaminationId;
+    const templateName = flow.selectedTemplateName;
+    if (!patientExaminationId || !templateName) {
+        templateValidationError.value = null;
+        flow.setLastTemplateValidation(null);
+        return;
+    }
+    templateValidationLoading.value = true;
+    templateValidationError.value = null;
+    try {
+        await loadFindingsCatalog();
+        const result = await validatePatientFindingsAgainstTemplate({
+            moduleName: flow.selectedKbModule,
+            templateName,
+            patientExaminationId,
+            getFindingById
+        });
+        flow.setLastTemplateValidation(result);
+    }
+    catch (e) {
+        flow.setLastTemplateValidation(null);
+        templateValidationError.value = formatApiError(e, 'Template-Validierung konnte nicht ausgeführt werden.');
+    }
+    finally {
+        templateValidationLoading.value = false;
     }
 }
 async function fetchLookupAll() {
@@ -184,24 +216,22 @@ async function ensureLookupSession() {
     await ensureLookupSessionForCurrentPatientExamination();
 }
 function isFindingAddedToExamination(findingId) {
-    if (!flow.patientExaminationId)
-        return false;
-    const ids = findingStore.getFindingIdsByPatientExaminationId(flow.patientExaminationId);
-    return ids.includes(findingId);
+    return isFindingAttached(flow.patientExaminationId, findingId);
 }
 function onFindingAddedToExamination(findingIdOrData, findingName) {
     const findingId = typeof findingIdOrData === 'number' ? findingIdOrData : findingIdOrData.findingId;
-    const name = (typeof findingIdOrData === 'number' ? findingName : findingIdOrData.findingName) ||
-        findingStore.getFindingById(findingId)?.name ||
-        `Befund ${findingId}`;
+    const name = (typeof findingIdOrData === 'number' ? findingName : findingIdOrData.findingName) ??
+        getFindingDisplayName(getFindingById(findingId) ?? { id: findingId, name: `Befund ${findingId}` });
     flow.noteFindingAdded(findingId);
     successMessage.value = `Befund "${name}" wurde hinzugefügt.`;
     // Refresh lookup advisory state after changes
+    void ensurePatientFindingsLoaded(flow.patientExaminationId).then(() => refreshRuntimeValidation());
     void triggerRecompute();
 }
 function onClassificationUpdated(findingId, classificationId, choiceId) {
     flow.noteClassificationUpdated(findingId, classificationId, choiceId);
     successMessage.value = `Klassifikation für Befund ${findingId} aktualisiert.`;
+    void ensurePatientFindingsLoaded(flow.patientExaminationId).then(() => refreshRuntimeValidation());
     void triggerRecompute();
 }
 function onFindingError(message) {
@@ -219,11 +249,16 @@ function formatFindingsEvent(event) {
 onMounted(async () => {
     if (flow.patientExaminationId) {
         patientExaminationStore.setCurrentPatientExaminationId(flow.patientExaminationId);
+        await ensurePatientFindingsLoaded(flow.patientExaminationId);
     }
     await loadFindingsCatalog();
     if (flow.patientExaminationId) {
         await fetchLookupAll();
     }
+    await refreshRuntimeValidation();
+});
+watch(() => [flow.patientExaminationId, flow.selectedKbModule, flow.selectedTemplateName], async () => {
+    await refreshRuntimeValidation();
 });
 debugger; /* PartiallyEnd: #3632/scriptSetup.vue */
 const __VLS_ctx = {};
@@ -289,6 +324,14 @@ const __VLS_1 = __VLS_0({
     lookupToken: (__VLS_ctx.flow.lookupToken),
     findingsRevision: (__VLS_ctx.flow.findingsRevision),
 }, ...__VLS_functionalComponentArgsRest(__VLS_0));
+/** @type {[typeof ReportingMediaPreviewCards, ]} */ ;
+// @ts-ignore
+const __VLS_3 = __VLS_asFunctionalComponent(ReportingMediaPreviewCards, new ReportingMediaPreviewCards({
+    ...{ class: "mb-3" },
+}));
+const __VLS_4 = __VLS_3({
+    ...{ class: "mb-3" },
+}, ...__VLS_functionalComponentArgsRest(__VLS_3));
 if (!__VLS_ctx.flow.patientExaminationId || !__VLS_ctx.flow.selectedExaminationId) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "alert alert-warning" },
@@ -311,28 +354,28 @@ else {
     });
     /** @type {[typeof AddableFindingsDetail, ]} */ ;
     // @ts-ignore
-    const __VLS_3 = __VLS_asFunctionalComponent(AddableFindingsDetail, new AddableFindingsDetail({
+    const __VLS_6 = __VLS_asFunctionalComponent(AddableFindingsDetail, new AddableFindingsDetail({
         ...{ 'onFindingAdded': {} },
         ...{ 'onFindingError': {} },
         examinationId: (__VLS_ctx.flow.selectedExaminationId || undefined),
         patientExaminationId: (__VLS_ctx.flow.patientExaminationId || undefined),
     }));
-    const __VLS_4 = __VLS_3({
+    const __VLS_7 = __VLS_6({
         ...{ 'onFindingAdded': {} },
         ...{ 'onFindingError': {} },
         examinationId: (__VLS_ctx.flow.selectedExaminationId || undefined),
         patientExaminationId: (__VLS_ctx.flow.patientExaminationId || undefined),
-    }, ...__VLS_functionalComponentArgsRest(__VLS_3));
-    let __VLS_6;
-    let __VLS_7;
-    let __VLS_8;
-    const __VLS_9 = {
+    }, ...__VLS_functionalComponentArgsRest(__VLS_6));
+    let __VLS_9;
+    let __VLS_10;
+    let __VLS_11;
+    const __VLS_12 = {
         onFindingAdded: (__VLS_ctx.onFindingAddedToExamination)
     };
-    const __VLS_10 = {
+    const __VLS_13 = {
         onFindingError: (__VLS_ctx.onFindingError)
     };
-    var __VLS_5;
+    var __VLS_8;
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "card h-100" },
     });
@@ -354,7 +397,7 @@ else {
         ...{ class: "card-body" },
         ...{ style: {} },
     });
-    if (__VLS_ctx.findingStore.loading || __VLS_ctx.loading) {
+    if (__VLS_ctx.findingSelectorsLoading || __VLS_ctx.loading) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: "text-muted small" },
         });
@@ -366,7 +409,7 @@ else {
         for (const [findingId] of __VLS_getVForSourceType((__VLS_ctx.availableFindings))) {
             /** @type {[typeof FindingsDetail, ]} */ ;
             // @ts-ignore
-            const __VLS_11 = __VLS_asFunctionalComponent(FindingsDetail, new FindingsDetail({
+            const __VLS_14 = __VLS_asFunctionalComponent(FindingsDetail, new FindingsDetail({
                 ...{ 'onAddedToExamination': {} },
                 ...{ 'onClassificationUpdated': {} },
                 ...{ 'onErrorOccurred': {} },
@@ -375,7 +418,7 @@ else {
                 patientExaminationId: (__VLS_ctx.flow.patientExaminationId || undefined),
                 isAddedToExamination: (__VLS_ctx.isFindingAddedToExamination(findingId)),
             }));
-            const __VLS_12 = __VLS_11({
+            const __VLS_15 = __VLS_14({
                 ...{ 'onAddedToExamination': {} },
                 ...{ 'onClassificationUpdated': {} },
                 ...{ 'onErrorOccurred': {} },
@@ -383,20 +426,20 @@ else {
                 findingId: (findingId),
                 patientExaminationId: (__VLS_ctx.flow.patientExaminationId || undefined),
                 isAddedToExamination: (__VLS_ctx.isFindingAddedToExamination(findingId)),
-            }, ...__VLS_functionalComponentArgsRest(__VLS_11));
-            let __VLS_14;
-            let __VLS_15;
-            let __VLS_16;
-            const __VLS_17 = {
+            }, ...__VLS_functionalComponentArgsRest(__VLS_14));
+            let __VLS_17;
+            let __VLS_18;
+            let __VLS_19;
+            const __VLS_20 = {
                 onAddedToExamination: (__VLS_ctx.onFindingAddedToExamination)
             };
-            const __VLS_18 = {
+            const __VLS_21 = {
                 onClassificationUpdated: (__VLS_ctx.onClassificationUpdated)
             };
-            const __VLS_19 = {
+            const __VLS_22 = {
                 onErrorOccurred: (__VLS_ctx.onFindingDetailError)
             };
-            var __VLS_13;
+            var __VLS_16;
         }
     }
     else {
@@ -410,6 +453,21 @@ else {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
     __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
     (__VLS_ctx.flow.lastFindingsEvent ? __VLS_ctx.formatFindingsEvent(__VLS_ctx.flow.lastFindingsEvent) : 'keins');
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "mt-3" },
+    });
+    /** @type {[typeof ReportTemplateValidationPanel, ]} */ ;
+    // @ts-ignore
+    const __VLS_23 = __VLS_asFunctionalComponent(ReportTemplateValidationPanel, new ReportTemplateValidationPanel({
+        loading: (__VLS_ctx.templateValidationLoading),
+        errorMessage: (__VLS_ctx.templateValidationError),
+        result: (__VLS_ctx.flow.lastTemplateValidation),
+    }));
+    const __VLS_24 = __VLS_23({
+        loading: (__VLS_ctx.templateValidationLoading),
+        errorMessage: (__VLS_ctx.templateValidationError),
+        result: (__VLS_ctx.flow.lastTemplateValidation),
+    }, ...__VLS_functionalComponentArgsRest(__VLS_23));
 }
 /** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
 /** @type {__VLS_StyleScopedClasses['flex-column']} */ ;
@@ -437,6 +495,7 @@ else {
 /** @type {__VLS_StyleScopedClasses['alert']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert-success']} */ ;
 /** @type {__VLS_StyleScopedClasses['py-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert-warning']} */ ;
@@ -470,6 +529,7 @@ else {
 /** @type {__VLS_StyleScopedClasses['bg-light']} */ ;
 /** @type {__VLS_StyleScopedClasses['rounded']} */ ;
 /** @type {__VLS_StyleScopedClasses['small']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
 var __VLS_dollars;
 const __VLS_self = (await import('vue')).defineComponent({
     setup() {
@@ -477,11 +537,15 @@ const __VLS_self = (await import('vue')).defineComponent({
             AddableFindingsDetail: AddableFindingsDetail,
             FindingsDetail: FindingsDetail,
             LookupStatusPanel: LookupStatusPanel,
+            ReportTemplateValidationPanel: ReportTemplateValidationPanel,
+            ReportingMediaPreviewCards: ReportingMediaPreviewCards,
             flow: flow,
-            findingStore: findingStore,
+            findingSelectorsLoading: findingSelectorsLoading,
             loading: loading,
             errorMessage: errorMessage,
             successMessage: successMessage,
+            templateValidationLoading: templateValidationLoading,
+            templateValidationError: templateValidationError,
             availableFindings: availableFindings,
             canInitializeLookup: canInitializeLookup,
             fetchLookupAll: fetchLookupAll,

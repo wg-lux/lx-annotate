@@ -1,3 +1,4 @@
+import { type ClassificationSelection, type Finding, type FindingChoice, type FindingClassification, type PatientFindingRow } from '@/api/findings.contract';
 export type FindingsBackendMode = 'endoreg' | 'dtypes_read' | 'dtypes';
 export type FindingsApiErrorCode = 'required-finding' | 'duplicate-finding' | 'invalid-choice' | 'invalid-finding' | 'bad-request' | 'not-found' | 'unknown';
 export interface FindingsApiError {
@@ -5,25 +6,6 @@ export interface FindingsApiError {
     message: string;
     status?: number;
     details?: unknown;
-}
-export interface ClassificationSelection {
-    classification: number;
-    choice: number;
-}
-export interface PatientFindingRow {
-    id: number;
-    patientExamination: number;
-    finding: number | {
-        id: number;
-    };
-    isActive?: boolean;
-    classifications?: Array<number | {
-        id?: number;
-        classification?: number;
-        classificationChoice?: number;
-        classificationId?: number;
-        classificationChoiceId?: number;
-    }>;
 }
 export interface CreatePatientFindingPayload {
     patientExamination: number;
@@ -39,9 +21,10 @@ export declare function getFindingsBackendMode(): FindingsBackendMode;
 export declare function parseFindingsApiError(error: any): FindingsApiError;
 export declare const findingsApi: {
     getBackendMode(): FindingsBackendMode;
-    getExaminationFindings(examinationId: number): Promise<any[]>;
-    getFindingClassifications(findingId: number): Promise<any[]>;
-    getClassificationChoices(classificationId: number): Promise<any[]>;
+    listFindings(): Promise<Finding[]>;
+    getExaminationFindings(examinationId: number): Promise<Finding[]>;
+    getFindingClassifications(findingId: number): Promise<FindingClassification[]>;
+    getClassificationChoices(classificationId: number): Promise<FindingChoice[]>;
     listPatientFindings(patientExaminationId: number): Promise<PatientFindingRow[]>;
     createPatientFinding(payload: CreatePatientFindingPayload): Promise<PatientFindingRow>;
     updatePatientFinding(patientFindingId: number, payload: UpdatePatientFindingPayload): Promise<PatientFindingRow>;

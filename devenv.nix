@@ -61,6 +61,7 @@ let
     DJANGO_SETTINGS_MODULE_DEVELOPMENT = config.secretspec.secrets.DJANGO_SETTINGS_MODULE_DEVELOPMENT;
     DJANGO_ENV = config.secretspec.secrets.DJANGO_ENV;
     DJANGO_DEBUG = config.secretspec.secrets.DJANGO_DEBUG;
+    VITE_ENABLE_DEBUG = config.secretspec.secrets.VITE_ENABLE_DEBUG;
     TIME_ZONE = config.secretspec.secrets.TIME_ZONE;
     DEFAULT_CENTER = config.secretspec.secrets.CENTER_NAME;
 

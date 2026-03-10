@@ -1,8 +1,11 @@
 import { computed, ref, watch } from 'vue';
-import { useFindingStore } from '../../stores/findingStore';
+import { findingsApi } from '@/api/findingsApi';
+import { useFindingSelectors } from '@/composables/reporting/useFindingSelectors';
 import { useFindingClassificationStore } from '@/stores/findingClassificationStore';
-const findingStore = useFindingStore();
+import { useDebug } from '@/composables/useDebug';
 const findingClassificationStore = useFindingClassificationStore();
+const { getFindingById } = useFindingSelectors();
+const { isDebug } = useDebug();
 const props = withDefaults(defineProps(), {
     isAddedToExamination: false,
     patientExaminationId: undefined
@@ -16,7 +19,7 @@ const finding = computed(() => {
     if (findingFromClassificationStore) {
         return findingFromClassificationStore;
     }
-    return findingStore.getFindingById(props.findingId);
+    return getFindingById(props.findingId);
 });
 const requiredClassifications = computed(() => {
     return classifications.value.filter((classification) => classification.required);
@@ -24,11 +27,11 @@ const requiredClassifications = computed(() => {
 // Debug-Informationen
 const debugInfo = computed(() => {
     const findingFromClassificationStore = findingClassificationStore.getFindingById(props.findingId);
-    const findingFromFindingStore = findingStore.getFindingById(props.findingId);
+    const findingFromSelector = getFindingById(props.findingId);
     const dataSource = findingFromClassificationStore
         ? 'findingClassificationStore'
-        : findingFromFindingStore
-            ? 'findingStore'
+        : findingFromSelector
+            ? 'findingSelectors'
             : 'none';
     return {
         findingId: props.findingId,
@@ -41,11 +44,11 @@ const debugInfo = computed(() => {
 });
 const findingsInfo = computed(() => {
     const findingFromClassificationStore = findingClassificationStore.getFindingById(props.findingId);
-    const findingFromFindingStore = findingStore.getFindingById(props.findingId);
+    const findingFromSelector = getFindingById(props.findingId);
     const dataSource = findingFromClassificationStore
         ? 'findingClassificationStore'
-        : findingFromFindingStore
-            ? 'findingStore'
+        : findingFromSelector
+            ? 'findingSelectors'
             : 'none';
     return {
         findingId: props.findingId,
@@ -72,7 +75,7 @@ const loadClassifications = async () => {
             classifications.value = findingEntry.FindingClassifications;
             return;
         }
-        classifications.value = [];
+        classifications.value = await findingsApi.getFindingClassifications(props.findingId);
     }
     catch {
         classifications.value = [];
@@ -101,7 +104,7 @@ const updateChoice = (classificationId, event) => {
 watch([
     () => props.findingId,
     () => findingClassificationStore.getFindingById(props.findingId),
-    () => findingStore.getFindingById(props.findingId)
+    () => getFindingById(props.findingId)
 ], async () => {
     await loadClassifications();
 }, { immediate: true });
@@ -304,7 +307,7 @@ if (__VLS_ctx.requiredClassifications.length > 0) {
         });
     }
 }
-if (__VLS_ctx.debugInfo.findingId) {
+if (__VLS_ctx.isDebug && __VLS_ctx.debugInfo.findingId) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "mt-3 p-2 bg-light border rounded" },
     });
@@ -404,6 +407,7 @@ var __VLS_dollars;
 const __VLS_self = (await import('vue')).defineComponent({
     setup() {
         return {
+            isDebug: isDebug,
             loading: loading,
             finding: finding,
             requiredClassifications: requiredClassifications,

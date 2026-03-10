@@ -16,7 +16,7 @@ const lookup = ref(null);
 const loading = ref(false);
 const errorMessage = ref(null);
 const successMessage = ref(null);
-const { moduleName: selectedKbModule, selectedTemplateName, templateOptions, selectedTemplate, sectionBlocks, loading: templateLoading, errorMessage: templateErrorMessage, fetchTemplatesByExamination, selectTemplateByName, setModuleName } = useReportTemplates({
+const { moduleName: selectedKbModule, selectedTemplateName, templateOptions, selectedTemplate, sectionBlocks, validatorDescriptors, loading: templateLoading, errorMessage: templateErrorMessage, fetchTemplatesByExamination, selectTemplateByName, setModuleName } = useReportTemplates({
     initialModuleName: flow.selectedKbModule,
     initialTemplateName: flow.selectedTemplateName
 });
@@ -474,6 +474,46 @@ __VLS_2.slots.default;
             (section.requiredFindingsCount);
             (section.requiredClassificationsCount);
         }
+        if (__VLS_ctx.validatorDescriptors.length) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: "mt-3 border-top pt-3" },
+            });
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({
+                ...{ class: "mb-2" },
+            });
+            for (const [descriptor] of __VLS_getVForSourceType((__VLS_ctx.validatorDescriptors))) {
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                    key: (`${descriptor.kind}::${descriptor.name}`),
+                    ...{ class: "border rounded p-2 mb-2 small" },
+                });
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                    ...{ class: "d-flex justify-content-between align-items-center gap-2" },
+                });
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+                (descriptor.name);
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                    ...{ class: "badge" },
+                    ...{ class: (descriptor.kind === 'finding' ? 'bg-info' : 'bg-secondary') },
+                });
+                (descriptor.kind);
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                    ...{ class: "text-muted mt-1" },
+                });
+                (descriptor.summary);
+                if (descriptor.relatedSections.length) {
+                    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                        ...{ class: "mt-1" },
+                    });
+                    (descriptor.relatedSections.join(', '));
+                }
+                if (descriptor.relatedFindings.length) {
+                    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                        ...{ class: "mt-1" },
+                    });
+                    (descriptor.relatedFindings.join(', '));
+                }
+            }
+        }
     }
 }
 var __VLS_2;
@@ -662,6 +702,24 @@ else {
 /** @type {__VLS_StyleScopedClasses['fw-semibold']} */ ;
 /** @type {__VLS_StyleScopedClasses['small']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['border-top']} */ ;
+/** @type {__VLS_StyleScopedClasses['pt-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['border']} */ ;
+/** @type {__VLS_StyleScopedClasses['rounded']} */ ;
+/** @type {__VLS_StyleScopedClasses['p-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['small']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['justify-content-between']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['gap-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['card']} */ ;
 /** @type {__VLS_StyleScopedClasses['shadow-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-header']} */ ;
@@ -724,6 +782,7 @@ const __VLS_self = (await import('vue')).defineComponent({
             templateOptions: templateOptions,
             selectedTemplate: selectedTemplate,
             sectionBlocks: sectionBlocks,
+            validatorDescriptors: validatorDescriptors,
             templateLoading: templateLoading,
             templateErrorMessage: templateErrorMessage,
             selectedExaminationName: selectedExaminationName,

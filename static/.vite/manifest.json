@@ -22,10 +22,10 @@
     "name": "FindingsDetail",
     "imports": [
       "src/main.ts",
+      "_findingsApi.js",
+      "_useFindingSelectors.js",
       "_examinationStore.js",
-      "_patientStore.js",
-      "_patientExaminationStore.js",
-      "_findingStore.js"
+      "_patientExaminationStore.js"
     ],
     "css": [
       "FindingsDetail.css"
@@ -76,9 +76,9 @@
     "name": "RequirementGenerator",
     "imports": [
       "src/main.ts",
+      "_useFindingSelectors.js",
       "_patientStore.js",
       "_examinationStore.js",
-      "_findingStore.js",
       "_RequirementIssues.vue_vue_type_script_setup_true_lang.js",
       "_patientExaminationStore.js",
       "_PatientAdder2.js",
@@ -115,15 +115,15 @@
     "file": "examinationStore.js",
     "name": "examinationStore",
     "imports": [
-      "src/main.ts"
+      "src/main.ts",
+      "_findingsApi.js"
     ]
   },
-  "_findingStore.js": {
-    "file": "findingStore.js",
-    "name": "findingStore",
+  "_findingsApi.js": {
+    "file": "findingsApi.js",
+    "name": "findingsApi",
     "imports": [
-      "src/main.ts",
-      "_examinationStore.js"
+      "src/main.ts"
     ]
   },
   "_mediaTypeStore.js": {
@@ -161,6 +161,15 @@
   "_timeHelpers.js": {
     "file": "timeHelpers.js",
     "name": "timeHelpers"
+  },
+  "_useFindingSelectors.js": {
+    "file": "useFindingSelectors.js",
+    "name": "useFindingSelectors",
+    "imports": [
+      "_findingsApi.js",
+      "src/main.ts",
+      "_patientStore.js"
+    ]
   },
   "_useLookupActions.js": {
     "file": "useLookupActions.js",
@@ -375,9 +384,10 @@
     "imports": [
       "_RequirementGenerator.js",
       "src/main.ts",
+      "_useFindingSelectors.js",
+      "_findingsApi.js",
       "_patientStore.js",
       "_examinationStore.js",
-      "_findingStore.js",
       "_RequirementIssues.vue_vue_type_script_setup_true_lang.js",
       "_patientExaminationStore.js",
       "_PatientAdder2.js",
@@ -459,14 +469,15 @@
     "isDynamicEntry": true,
     "imports": [
       "src/main.ts",
+      "_findingsApi.js",
       "_patientStore.js",
       "_examinationStore.js",
-      "_findingStore.js",
       "_RequirementIssues.vue_vue_type_script_setup_true_lang.js",
       "_patientExaminationStore.js",
-      "_FindingsDetail.js",
+      "_useFindingSelectors.js",
       "_PatientAdder2.js",
       "_MedicalBlock.vue_vue_type_style_index_0_lang.js",
+      "_FindingsDetail.js",
       "_reportSubmissionUtils.js"
     ],
     "css": [
@@ -510,9 +521,10 @@
       "_mediaTypeStore.js",
       "_RequirementGenerator.js",
       "_Timeline.js",
+      "_useFindingSelectors.js",
+      "_findingsApi.js",
       "_patientStore.js",
       "_examinationStore.js",
-      "_findingStore.js",
       "_RequirementIssues.vue_vue_type_script_setup_true_lang.js",
       "_patientExaminationStore.js",
       "_PatientAdder2.js",
@@ -533,7 +545,8 @@
       "_reportingFlowStore.js",
       "_patientStore.js",
       "_examinationStore.js",
-      "_patientExaminationStore.js"
+      "_patientExaminationStore.js",
+      "_findingsApi.js"
     ]
   },
   "src/views/reporting/FinalizedResultPage.vue": {
@@ -553,11 +566,12 @@
     "isDynamicEntry": true,
     "imports": [
       "src/main.ts",
+      "_findingsApi.js",
       "_FindingsDetail.js",
+      "_useFindingSelectors.js",
       "_LookupStatusPanel.vue_vue_type_script_setup_true_lang.js",
       "_useLookupActions.js",
       "_reportingFlowStore.js",
-      "_findingStore.js",
       "_patientExaminationStore.js",
       "_examinationStore.js",
       "_patientStore.js"
@@ -570,10 +584,11 @@
     "isDynamicEntry": true,
     "imports": [
       "src/main.ts",
+      "_useFindingSelectors.js",
       "_LookupStatusPanel.vue_vue_type_script_setup_true_lang.js",
       "_reportingFlowStore.js",
-      "_findingStore.js",
-      "_examinationStore.js"
+      "_findingsApi.js",
+      "_patientStore.js"
     ],
     "css": [
       "FrameSelectorPage.css"
@@ -586,6 +601,7 @@
     "isDynamicEntry": true,
     "imports": [
       "src/main.ts",
+      "_findingsApi.js",
       "_MedicalBlock.vue_vue_type_style_index_0_lang.js",
       "_LookupStatusPanel.vue_vue_type_script_setup_true_lang.js",
       "_useReportTemplates.js",
@@ -640,7 +656,8 @@
       "_useLookupActions.js",
       "_useReportTemplates.js",
       "_examinationStore.js",
-      "_reportingFlowStore.js"
+      "_reportingFlowStore.js",
+      "_findingsApi.js"
     ]
   }
 }

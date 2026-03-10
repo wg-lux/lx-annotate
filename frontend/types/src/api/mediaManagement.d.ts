@@ -119,7 +119,7 @@ export declare class MediaManagementAPI {
      * Validate anonymization with coordination
      * @param fileId - ID of the file to validate
      */
-    static validateAnonymizationSafe(fileId: number): Promise<ProcessingResponse>;
+    static validateAnonymizationSafe(fileId: number, documentType?: string): Promise<ProcessingResponse>;
     /**
      * Re-import a video file to regenerate metadata
      * Uses the modern media framework endpoint aligned with PDF reimport
@@ -154,7 +154,7 @@ export declare function useMediaManagement(): {
     reimportPdf: (fileId: number) => Promise<ProcessingResponse | null>;
     getStatusSafe: (fileId: number, fileType?: 'video' | 'pdf') => Promise<AnonymizationStatusResponse | null>;
     startAnonymizationSafe: (fileId: number) => Promise<ProcessingResponse | null>;
-    validateAnonymizationSafe: (fileId: number) => Promise<ProcessingResponse | null>;
+    validateAnonymizationSafe: (fileId: number, documentType?: string) => Promise<ProcessingResponse | null>;
     getPollingInfo: () => Promise<PollingCoordinatorInfo | null>;
     clearAllLocks: (fileType?: 'video' | 'pdf') => Promise<{
         detail: string;

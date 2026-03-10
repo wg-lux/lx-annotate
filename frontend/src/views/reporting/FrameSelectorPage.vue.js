@@ -1,12 +1,12 @@
 import { computed, onMounted, ref, watch } from 'vue';
 import axiosInstance, { r } from '@/api/axiosInstance';
+import { useFindingSelectors } from '@/composables/reporting/useFindingSelectors';
 import LookupStatusPanel from '@/components/Reporting/LookupStatusPanel.vue';
 import { useReportingFlowStore } from '@/stores/reportingFlowStore';
-import { useFindingStore } from '@/stores/findingStore';
 import { endpoints } from '@/types/api/endpoints';
 const CLEAR_FINDING_SENTINEL = -1;
 const flow = useReportingFlowStore();
-const findingStore = useFindingStore();
+const { catalogFindings, ensureCatalogLoaded } = useFindingSelectors();
 const loading = ref(false);
 const errorMessage = ref(null);
 const successMessage = ref(null);
@@ -14,12 +14,16 @@ const frameSelectorState = ref(null);
 const selectedSegmentId = ref(null);
 const manualFrameNumber = ref(null);
 const selectedFindingIdForSegment = ref(null);
-const findings = computed(() => findingStore.findings || []);
+const findings = computed(() => catalogFindings.value);
+const latest_frames = computed(() => flow.mediaPreload?.latestFrames || []);
 const segments = computed(() => frameSelectorState.value?.results || []);
 const selectedSegment = computed(() => segments.value.find((s) => s.segmentId === selectedSegmentId.value) || null);
 function clearMessages() {
     errorMessage.value = null;
     successMessage.value = null;
+}
+function open_stream_url(url) {
+    window.open(url, '_blank', 'noopener,noreferrer');
 }
 function selectorUrl() {
     if (!flow.patientExaminationId)
@@ -27,9 +31,7 @@ function selectorUrl() {
     return r(endpoints.report.segmentFrameSelector(flow.patientExaminationId, flow.activeReportId ?? undefined));
 }
 async function ensureFindingsLoaded() {
-    if (!findingStore.findings.length) {
-        await findingStore.fetchFindings();
-    }
+    await ensureCatalogLoaded();
 }
 function syncSelectionDefaults() {
     if (!segments.value.length) {
@@ -44,7 +46,10 @@ function syncSelectionDefaults() {
     const seg = selectedSegment.value;
     if (!seg)
         return;
-    manualFrameNumber.value = seg.selectedFrameNumber ?? seg.startFrameNumber;
+    manualFrameNumber.value =
+        seg.selectedFrameNumber ??
+            latest_frames.value[0]?.frameNumber ??
+            seg.startFrameNumber;
     selectedFindingIdForSegment.value = seg.attachedFinding?.findingId ?? null;
 }
 async function loadFrameSelectorState() {
@@ -226,6 +231,41 @@ const __VLS_1 = __VLS_0({
     selectedExaminationId: (__VLS_ctx.flow.selectedExaminationId),
     lookupToken: (__VLS_ctx.flow.lookupToken),
 }, ...__VLS_functionalComponentArgsRest(__VLS_0));
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "card border mb-3" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "card-header bg-light" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({
+    ...{ class: "mb-0" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "card-body" },
+});
+if (__VLS_ctx.latest_frames.length) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "d-flex flex-wrap gap-2" },
+    });
+    for (const [frame] of __VLS_getVForSourceType((__VLS_ctx.latest_frames))) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+            ...{ onClick: (...[$event]) => {
+                    if (!(__VLS_ctx.latest_frames.length))
+                        return;
+                    __VLS_ctx.open_stream_url(frame.streamUrl);
+                } },
+            key: (`${frame.videoId}-${frame.frameNumber}`),
+            ...{ class: "btn btn-outline-secondary btn-sm" },
+        });
+        (frame.frameNumber);
+        (frame.category || 'fallback');
+    }
+}
+else {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "small text-muted" },
+    });
+}
 if (!__VLS_ctx.flow.patientExaminationId) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "alert alert-warning" },
@@ -483,6 +523,21 @@ else {
 /** @type {__VLS_StyleScopedClasses['alert-success']} */ ;
 /** @type {__VLS_StyleScopedClasses['py-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['card']} */ ;
+/** @type {__VLS_StyleScopedClasses['border']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['card-header']} */ ;
+/** @type {__VLS_StyleScopedClasses['bg-light']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['card-body']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['flex-wrap']} */ ;
+/** @type {__VLS_StyleScopedClasses['gap-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-secondary']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['small']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert-warning']} */ ;
 /** @type {__VLS_StyleScopedClasses['row']} */ ;
@@ -583,8 +638,10 @@ const __VLS_self = (await import('vue')).defineComponent({
             manualFrameNumber: manualFrameNumber,
             selectedFindingIdForSegment: selectedFindingIdForSegment,
             findings: findings,
+            latest_frames: latest_frames,
             segments: segments,
             selectedSegment: selectedSegment,
+            open_stream_url: open_stream_url,
             loadFrameSelectorState: loadFrameSelectorState,
             patchSegmentAction: patchSegmentAction,
             setFrameManual: setFrameManual,

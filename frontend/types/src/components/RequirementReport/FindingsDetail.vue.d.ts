@@ -7,8 +7,11 @@ declare const _default: import("vue").DefineComponent<Props, {}, {}, {}, {}, imp
     "added-to-examination": (data: {
         findingId: number;
         findingName?: string | undefined;
-        selectedClassifications: any[];
-        response: any;
+        selectedClassifications: {
+            classification: number;
+            choice: number | null;
+        }[];
+        response: unknown;
     }) => any;
     "classification-updated": (findingId: number, classificationId: number, choiceId: number | null) => any;
     "error-occurred": (data: {
@@ -20,8 +23,11 @@ declare const _default: import("vue").DefineComponent<Props, {}, {}, {}, {}, imp
     "onAdded-to-examination"?: ((data: {
         findingId: number;
         findingName?: string | undefined;
-        selectedClassifications: any[];
-        response: any;
+        selectedClassifications: {
+            classification: number;
+            choice: number | null;
+        }[];
+        response: unknown;
     }) => any) | undefined;
     "onClassification-updated"?: ((findingId: number, classificationId: number, choiceId: number | null) => any) | undefined;
     "onError-occurred"?: ((data: {

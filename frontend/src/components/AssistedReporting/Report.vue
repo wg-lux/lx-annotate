@@ -291,7 +291,7 @@
             </div>
           </div>
         </div>
-        <div v-if="lookup && debug" class="mt-3 border rounded p-3 bg-white">
+        <div v-if="lookup && isDebug" class="mt-3 border rounded p-3 bg-white">
           <p class="text-muted mb-1"><strong>Debug</strong></p>
           <p class="mb-1"><strong>Patient Examination ID:</strong> {{ lookup.patientExaminationId || 'n/a' }}</p>
           <p class="mb-1"><strong>Lookup Token:</strong> {{ lookupToken || 'n/a' }}</p>
@@ -306,7 +306,6 @@
       subtitle="Klinische Beobachtungen erfassen"
       icon="biotech"
       iconBgClass="bg-gradient-primary"
-      :store="findingStore"
       :isComplete="availableFindings.length > 0"
       :isActive="currentStep === 3"
       :extraParams="{ token: lookupToken }"
@@ -334,7 +333,7 @@
           </div>
         </div>
         <div class="card-body pre-scrollable" style="max-height: 55vh; overflow: auto;">
-          <div v-if="findingStore.loading" class="text-center py-4">
+          <div v-if="findingsSectionLoading" class="text-center py-4">
             <div class="spinner-border" role="status"></div>
             <p class="text-muted mt-2 mb-0">Lade Befunde...</p>
           </div>
@@ -503,10 +502,10 @@ import { findingsApi } from '@/api/findingsApi';
 import { usePatientStore } from '@/stores/patientStore';
 import type { Patient } from '@/stores/patientStore';
 import { useExaminationStore } from '@/stores/examinationStore';
-import { useFindingStore } from '@/stores/findingStore';
 import { useRequirementStore } from '@/stores/requirementStore';
 import { usePatientExaminationStore } from '@/stores/patientExaminationStore';
 import { usePatientFindingStore } from '@/stores/patientFindingStore';
+import { useFindingSelectors } from '@/composables/reporting/useFindingSelectors';
 import type { PatientExamination } from '@/stores/patientExaminationStore';
 import PatientAdder from '@/components/CaseGenerator/PatientAdder.vue';
 import MedicalBlock from './MedicalBlock.vue';
@@ -514,6 +513,7 @@ import FindingsDetail from '../RequirementReport/FindingsDetail.vue';
 import AddableFindingsDetail from '../RequirementReport/AddableFindingsDetail.vue';
 import RequirementIssues from '../RequirementReport/RequirementIssues.vue';
 import { endpoints } from '@/types/api/endpoints';
+import { useDebug } from '@/composables/useDebug';
 import type {
   ReportSubmissionStatus,
   SaveReportSubmissionRequest,
@@ -524,6 +524,14 @@ import {
   mergeClassificationSelections,
   normalizeInterventions
 } from './reportSubmissionUtils';
+import {
+  extractFindingId,
+  getClassificationDisplayName,
+  getFindingDisplayName,
+  type Finding as ApiFindingLite,
+  type FindingClassification as ApiFindingClassificationLite,
+  type PatientFindingRow as PatientFindingApiRow
+} from '@/api/findings.contract';
 import type {
   PatientFindingApiClassification,
   PatientFindingApiIntervention
@@ -576,21 +584,6 @@ type ReportTemplatePayload = {
   };
 };
 
-type ApiFindingLite = {
-  id: number;
-  name?: string;
-  nameDe?: string;
-  description?: string;
-};
-
-type ApiFindingClassificationLite = {
-  id?: number;
-  name?: string;
-  nameDe?: string;
-  required?: boolean;
-  choices?: Array<{ id?: number; name?: string; nameDe?: string }>;
-};
-
 type TemplateFindingDetail = {
   sectionName: string;
   templateFindingName: string;
@@ -604,15 +597,6 @@ type TemplateFindingDetail = {
     displayName: string;
     description?: string;
   } | null;
-};
-
-type PatientFindingApiRow = {
-  id: number;
-  finding: number | { id?: number | null };
-  isActive?: boolean;
-  is_active?: boolean;
-  classifications?: Array<number | PatientFindingApiClassification>;
-  interventions?: Array<number | PatientFindingApiIntervention>;
 };
 
 type TimelineItemRow = {
@@ -638,15 +622,23 @@ type PreviousReportTextEntry = {
 // --- Store ---
 const patientStore = usePatientStore();
 const examinationStore = useExaminationStore();
-const findingStore = useFindingStore();
 const requirementStore = useRequirementStore();
 const patientExaminationStore = usePatientExaminationStore();
 const patientFindingStore = usePatientFindingStore();
+const {
+  loading: findingSelectorsLoading,
+  ensureCatalogLoaded,
+  ensurePatientFindingsLoaded,
+  getFindingById,
+  getFindingNameById,
+  getAttachedFindingIds,
+  isFindingAttached
+} = useFindingSelectors();
 
 // --- API ---
 const LOOKUP_BASE = '/api/lookup';
 const REPORT_TEMPLATE_BASE = '/base_api/report-templates';
-const debug = ref<boolean>(false);
+const { isDebug } = useDebug();
 
 // --- Component State ---
 const selectedPatientId = ref<number | null>(null);
@@ -687,14 +679,6 @@ const goToStep = (step: number) => {
   currentStep.value = Math.min(Math.max(step, 1), 4);
 };
 
-if (error!==null) {
-  debug.value = true;
-}
-else
-{
-  debug.value = false;
-}
-
 // --- Computed from Store ---
 
 const patients = computed(() => {
@@ -722,6 +706,7 @@ const selectedRequirementSetIds = computed<number[]>({
 });
 const selectedRequirementSetIdSet = computed(() => new Set(selectedRequirementSetIds.value));
 const availableFindings = computed<number[]>(() => lookup.value?.availableFindings ?? []);
+const findingsSectionLoading = computed(() => findingSelectorsLoading.value || loading.value);
 const templateDetailSummary = computed(() => {
   const totalFindings = templateFindingDetails.value.length;
   const matchedFindings = templateFindingDetails.value.filter((d) => !!d.matchedFinding).length;
@@ -777,34 +762,13 @@ const normalizeKey = (value: string): string =>
     .replace(/\s+/g, '_')
     .replace(/-/g, '_');
 
-const normalizeClassificationsPayload = (payload: any): ApiFindingClassificationLite[] => {
-  if (Array.isArray(payload)) return payload as ApiFindingClassificationLite[];
-  if (payload && typeof payload === 'object') {
-    const location = Array.isArray(payload.locationClassifications)
-      ? payload.locationClassifications
-      : [];
-    const morphology = Array.isArray(payload.morphologyClassifications)
-      ? payload.morphologyClassifications
-      : [];
-    return [...location, ...morphology] as ApiFindingClassificationLite[];
-  }
-  return [];
-};
-
-const getFindingDisplayName = (finding: ApiFindingLite): string =>
-  finding.nameDe || finding.name || `Finding ${finding.id}`;
-
-const getClassificationDisplayName = (classification: ApiFindingClassificationLite): string =>
-  classification.nameDe || classification.name || 'unknown';
-
 const fetchFindingClassificationsCached = async (
   findingId: number
 ): Promise<ApiFindingClassificationLite[]> => {
   const cached = findingClassificationsCache.value[findingId];
   if (cached) return cached;
 
-  const payload = await findingsApi.getFindingClassifications(findingId);
-  const normalized = normalizeClassificationsPayload(payload);
+  const normalized = await findingsApi.getFindingClassifications(findingId);
 
   findingClassificationsCache.value = {
     ...findingClassificationsCache.value,
@@ -818,15 +782,6 @@ const resolvePatientExaminationId = (): number | null => {
   return currentPatientExaminationId.value;
 };
 
-const extractFindingId = (value: unknown): number | null => {
-  if (typeof value === 'number' && Number.isFinite(value)) return value;
-  if (value && typeof value === 'object') {
-    const nested = Number((value as { id?: number | null }).id);
-    if (Number.isFinite(nested)) return nested;
-  }
-  return null;
-};
-
 const refreshAddedFindingIds = async (): Promise<void> => {
   const patientExaminationId = resolvePatientExaminationId();
   if (!patientExaminationId) {
@@ -835,15 +790,8 @@ const refreshAddedFindingIds = async (): Promise<void> => {
   }
 
   try {
-    await patientFindingStore.fetchPatientFindings(patientExaminationId);
-    const ids = new Set<number>();
-    for (const row of patientFindingStore.patientFindings) {
-      const rowStatus = row as unknown as { isActive?: boolean; is_active?: boolean };
-      if (rowStatus.isActive === false || rowStatus.is_active === false) continue;
-      const findingId = extractFindingId(row?.finding);
-      if (findingId != null) ids.add(findingId);
-    }
-    addedFindingIds.value = ids;
+    await ensurePatientFindingsLoaded(patientExaminationId);
+    addedFindingIds.value = new Set<number>(getAttachedFindingIds(patientExaminationId));
   } catch (e) {
     console.warn('Failed to refresh added findings state:', axiosError(e));
   }
@@ -1076,10 +1024,7 @@ const applyTemplateToRequirementSelection = async (): Promise<void> => {
 // --- Finding Management Methods ---
 const isFindingAddedToExamination = (findingId: number): boolean => {
   if (addedFindingIds.value.has(findingId)) return true;
-  if (!lookup.value) return false;
-  const currentFindingIds = findingStore.getFindingIdsByPatientExaminationId(lookup.value.patientExaminationId);
-  if (currentFindingIds.includes(findingId)) return true;
-  return false;
+  return isFindingAttached(lookup.value?.patientExaminationId ?? null, findingId);
 };
 
 
@@ -1095,17 +1040,17 @@ const onFindingAddedToExamination = async (
   // Handle both old and new signatures
   let findingId: number;
   let name: string;
-  let selectedClassifications: any[] = [];
-  let response: any = null;
+  let selectedClassifications: Array<{ classification: number; choice: number | null }> = [];
+  let response: unknown = null;
 
   if (typeof findingIdOrData === 'number') {
     // Old signature: (findingId: number, findingName: string)
     findingId = findingIdOrData;
-    name = findingName || findingStore.getFindingById(findingId)?.name || `Befund ${findingId}`;
+    name = getFindingNameById(findingId, findingName);
   } else {
     // New signature: (data: { findingId, findingName?, selectedClassifications, response })
     findingId = findingIdOrData.findingId;
-    name = findingIdOrData.findingName || findingStore.getFindingById(findingId)?.name || `Befund ${findingId}`;
+    name = getFindingNameById(findingId, findingIdOrData.findingName);
     selectedClassifications = findingIdOrData.selectedClassifications || [];
     response = findingIdOrData.response;
   }
@@ -1157,8 +1102,7 @@ const onClassificationUpdated = (findingId: number, classificationId: number, ch
   localFindingClassificationSelections.value = next;
 
   // Get finding and classification names for better user feedback
-  const finding = findingStore.getFindingById(findingId);
-  const findingName = finding?.name || `Befund ${findingId}`;
+  const findingName = getFindingNameById(findingId);
 
   // Show success message
   const message = choiceId
@@ -1178,9 +1122,9 @@ const onClassificationUpdated = (findingId: number, classificationId: number, ch
 
 const loadFindingsData = async () => {
   // Load all findings data if not already loaded
-  if (findingStore.findings.length === 0) {
-    await findingStore.fetchFindings();
-  }
+  await ensureCatalogLoaded();
+  await ensurePatientFindingsLoaded(resolvePatientExaminationId());
+  await refreshAddedFindingIds();
 };
 
 // --- Requirement Evaluation Methods ---

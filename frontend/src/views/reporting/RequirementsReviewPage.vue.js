@@ -1,6 +1,8 @@
 import { computed, onMounted, ref } from 'vue';
 import LookupStatusPanel from '@/components/Reporting/LookupStatusPanel.vue';
+import ReportTemplateValidationPanel from '@/components/Reporting/ReportTemplateValidationPanel.vue';
 import RequirementAdvisoryPanel from '@/components/Reporting/RequirementAdvisoryPanel.vue';
+import ReportingMediaPreviewCards from '@/components/Reporting/ReportingMediaPreviewCards.vue';
 import { useLookupActions } from '@/composables/reporting/useLookupActions';
 import { useReportingFlowStore } from '@/stores/reportingFlowStore';
 const flow = useReportingFlowStore();
@@ -148,9 +150,17 @@ const __VLS_1 = __VLS_0({
     sessionStatus: (__VLS_ctx.flow.sessionStatus),
     findingsRevision: (__VLS_ctx.flow.findingsRevision),
 }, ...__VLS_functionalComponentArgsRest(__VLS_0));
+/** @type {[typeof ReportingMediaPreviewCards, ]} */ ;
+// @ts-ignore
+const __VLS_3 = __VLS_asFunctionalComponent(ReportingMediaPreviewCards, new ReportingMediaPreviewCards({
+    ...{ class: "mb-3" },
+}));
+const __VLS_4 = __VLS_3({
+    ...{ class: "mb-3" },
+}, ...__VLS_functionalComponentArgsRest(__VLS_3));
 /** @type {[typeof RequirementAdvisoryPanel, ]} */ ;
 // @ts-ignore
-const __VLS_3 = __VLS_asFunctionalComponent(RequirementAdvisoryPanel, new RequirementAdvisoryPanel({
+const __VLS_6 = __VLS_asFunctionalComponent(RequirementAdvisoryPanel, new RequirementAdvisoryPanel({
     failedRequirementSets: (__VLS_ctx.failedRequirementSets),
     failedRequirements: (__VLS_ctx.failedRequirements),
     suggestedActions: (__VLS_ctx.suggestedActions),
@@ -158,14 +168,29 @@ const __VLS_3 = __VLS_asFunctionalComponent(RequirementAdvisoryPanel, new Requir
     lookupRaw: (__VLS_ctx.lookupRaw),
     requirementGuidanceRaw: (__VLS_ctx.requirementGuidanceRaw),
 }));
-const __VLS_4 = __VLS_3({
+const __VLS_7 = __VLS_6({
     failedRequirementSets: (__VLS_ctx.failedRequirementSets),
     failedRequirements: (__VLS_ctx.failedRequirements),
     suggestedActions: (__VLS_ctx.suggestedActions),
     candidateConfidence: (__VLS_ctx.candidateConfidence),
     lookupRaw: (__VLS_ctx.lookupRaw),
     requirementGuidanceRaw: (__VLS_ctx.requirementGuidanceRaw),
-}, ...__VLS_functionalComponentArgsRest(__VLS_3));
+}, ...__VLS_functionalComponentArgsRest(__VLS_6));
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "mt-3" },
+});
+/** @type {[typeof ReportTemplateValidationPanel, ]} */ ;
+// @ts-ignore
+const __VLS_9 = __VLS_asFunctionalComponent(ReportTemplateValidationPanel, new ReportTemplateValidationPanel({
+    result: (__VLS_ctx.flow.lastTemplateValidation),
+    loading: (false),
+    errorMessage: (null),
+}));
+const __VLS_10 = __VLS_9({
+    result: (__VLS_ctx.flow.lastTemplateValidation),
+    loading: (false),
+    errorMessage: (null),
+}, ...__VLS_functionalComponentArgsRest(__VLS_9));
 /** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
 /** @type {__VLS_StyleScopedClasses['flex-column']} */ ;
 /** @type {__VLS_StyleScopedClasses['gap-3']} */ ;
@@ -193,12 +218,16 @@ const __VLS_4 = __VLS_3({
 /** @type {__VLS_StyleScopedClasses['alert-success']} */ ;
 /** @type {__VLS_StyleScopedClasses['py-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
 var __VLS_dollars;
 const __VLS_self = (await import('vue')).defineComponent({
     setup() {
         return {
             LookupStatusPanel: LookupStatusPanel,
+            ReportTemplateValidationPanel: ReportTemplateValidationPanel,
             RequirementAdvisoryPanel: RequirementAdvisoryPanel,
+            ReportingMediaPreviewCards: ReportingMediaPreviewCards,
             flow: flow,
             loading: loading,
             errorMessage: errorMessage,

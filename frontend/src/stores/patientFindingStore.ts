@@ -1,25 +1,20 @@
 import { defineStore } from 'pinia'
 import { ref, readonly, computed } from 'vue'
 import type {
+  ClassificationSelection,
   Finding,
-  FindingClassification,
-  FindingClassificationChoice
-} from '@/stores/findingStore'
+  PatientFindingRow
+} from '@/api/findings.contract'
 import type { Patient } from '@/stores/patientStore'
-import {
-  findingsApi,
-  parseFindingsApiError,
-  type ClassificationSelection,
-  type PatientFindingRow
-} from '@/api/findingsApi'
+import { findingsApi, parseFindingsApiError } from '@/api/findingsApi'
 
 import { usePatientStore } from '@/stores/patientStore'
 
 interface PatientFinding extends Partial<PatientFindingRow> {
   id: number
   examination?: string
-  createdAt?: number | string
-  updatedAt?: string
+  createdAt?: string | null
+  updatedAt?: string | null
   createdBy?: string // ISO date string
   updatedBy?: string
   finding: Finding | PatientFindingRow['finding']
@@ -29,16 +24,6 @@ interface PatientFinding extends Partial<PatientFindingRow> {
   patient_examination?: number
   isActive?: boolean
   is_active?: boolean
-}
-
-interface PatientFindingClassification {
-  id: number
-  finding: number // PatientFinding ID
-  classification: FindingClassification
-  classification_choice: FindingClassificationChoice
-  is_active: boolean
-  subcategories?: Record<string, any>
-  numerical_descriptors?: Record<string, any>
 }
 
 const usePatientFindingStore = defineStore('patientFinding', () => {
@@ -56,7 +41,7 @@ const usePatientFindingStore = defineStore('patientFinding', () => {
       loading.value = true
       error.value = null
       const payload = await findingsApi.listPatientFindings(patientExaminationId)
-      patientFindings.value = Array.isArray(payload) ? (payload as PatientFinding[]) : []
+      patientFindings.value = payload as PatientFinding[]
     } catch (err: any) {
       const parsed = parseFindingsApiError(err)
       error.value = `Fehler beim Laden der Patientenbefunde (${parsed.code}): ${parsed.message}`

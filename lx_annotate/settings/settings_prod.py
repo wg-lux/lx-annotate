@@ -39,6 +39,13 @@ config = cast(AppConfig, config)
 config = load_config()
 
 STATIC_ROOT = config.static_root
+static_root_path = Path(STATIC_ROOT).resolve(strict=False)
+vite_source_root = (BASE_DIR / "static").resolve(strict=False)
+if static_root_path == vite_source_root:
+    raise RuntimeError(
+        "🚨 PRODUCTION ERROR: DJANGO_STATIC_ROOT must not point to BASE_DIR/static "
+        "(Vite source assets). Use BASE_DIR/staticfiles as STATIC_ROOT."
+    )
 # 1. SECURITY
 DEBUG = False
 

@@ -1,23 +1,25 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import axiosInstance from '@/api/axiosInstance';
+import { getFindingDisplayName } from '@/api/findings.contract';
+import { useFindingSelectors } from '@/composables/reporting/useFindingSelectors';
 import { usePatientStore } from '@/stores/patientStore';
 import { useExaminationStore } from '@/stores/examinationStore';
-import { useFindingStore } from '@/stores/findingStore';
 import { useRequirementStore } from '@/stores/requirementStore';
 import { usePatientExaminationStore } from '@/stores/patientExaminationStore';
 import PatientAdder from '@/components/CaseGenerator/PatientAdder.vue';
 import FindingsDetail from './FindingsDetail.vue';
 import AddableFindingsDetail from './AddableFindingsDetail.vue';
 import RequirementIssues from './RequirementIssues.vue';
+import { useDebug } from '@/composables/useDebug';
 // --- Store ---
 const patientStore = usePatientStore();
 const examinationStore = useExaminationStore();
-const findingStore = useFindingStore();
 const requirementStore = useRequirementStore();
 const patientExaminationStore = usePatientExaminationStore();
+const { loading: findingSelectorsLoading, ensureCatalogLoaded, ensurePatientFindingsLoaded, getFindingById, getFindingNameById, isFindingAttached } = useFindingSelectors();
 // --- API ---
 const LOOKUP_BASE = '/api/lookup';
-const debug = ref(false);
+const { isDebug } = useDebug();
 // --- Component State ---
 const selectedPatientId = ref(null);
 const selectedExaminationId = ref(null);
@@ -29,12 +31,6 @@ const loading = ref(false);
 const showCreatePatientModal = ref(false);
 const successMessage = ref(null);
 const isRestarting = ref(false); // Prevent infinite restart loops
-if (error !== null) {
-    debug.value = true;
-}
-else {
-    debug.value = false;
-}
 // --- Computed from Store ---
 const patients = computed(() => {
     const result = patientStore.patientsWithDisplayName;
@@ -61,6 +57,7 @@ const selectedRequirementSetIds = computed({
 });
 const selectedRequirementSetIdSet = computed(() => new Set(selectedRequirementSetIds.value));
 const availableFindings = computed(() => lookup.value?.availableFindings ?? []);
+const findingsSectionLoading = computed(() => findingSelectorsLoading.value || loading.value);
 const watchingLookup = ref(false);
 watch(lookup, (newVal, oldVal) => {
     if (watchingLookup.value)
@@ -104,12 +101,7 @@ const selectionsPretty = computed(() => JSON.stringify({
 }, null, 2));
 // --- Finding Management Methods ---
 const isFindingAddedToExamination = (findingId) => {
-    if (!lookup.value)
-        return false;
-    const currentFindingIds = findingStore.getFindingIdsByPatientExaminationId(lookup.value.patientExaminationId);
-    if (currentFindingIds.includes(findingId))
-        return true;
-    return false;
+    return isFindingAttached(lookup.value?.patientExaminationId ?? null, findingId);
 };
 const onFindingAddedToExamination = (findingIdOrData, findingName) => {
     // Handle both old and new signatures
@@ -120,12 +112,12 @@ const onFindingAddedToExamination = (findingIdOrData, findingName) => {
     if (typeof findingIdOrData === 'number') {
         // Old signature: (findingId: number, findingName: string)
         findingId = findingIdOrData;
-        name = findingName || findingStore.getFindingById(findingId)?.name || `Befund ${findingId}`;
+        name = getFindingNameById(findingId, findingName);
     }
     else {
         // New signature: (data: { findingId, findingName?, selectedClassifications, response })
         findingId = findingIdOrData.findingId;
-        name = findingIdOrData.findingName || findingStore.getFindingById(findingId)?.name || `Befund ${findingId}`;
+        name = getFindingNameById(findingId, findingIdOrData.findingName);
         selectedClassifications = findingIdOrData.selectedClassifications || [];
         response = findingIdOrData.response;
     }
@@ -153,8 +145,7 @@ const onClassificationUpdated = (findingId, classificationId, choiceId) => {
     // Handle when a classification choice is updated
     console.log('Classification updated:', { findingId, classificationId, choiceId });
     // Get finding and classification names for better user feedback
-    const finding = findingStore.getFindingById(findingId);
-    const findingName = finding?.name || `Befund ${findingId}`;
+    const findingName = getFindingNameById(findingId);
     // Show success message
     const message = choiceId
         ? `Klassifikation für "${findingName}" wurde erfolgreich ausgewählt!`
@@ -170,9 +161,8 @@ const onClassificationUpdated = (findingId, classificationId, choiceId) => {
 };
 const loadFindingsData = async () => {
     // Load all findings data if not already loaded
-    if (findingStore.findings.length === 0) {
-        await findingStore.fetchFindings();
-    }
+    await ensureCatalogLoaded();
+    await ensurePatientFindingsLoaded(lookup.value?.patientExaminationId ?? currentPatientExaminationId.value);
 };
 // --- Requirement Evaluation Methods ---
 // Evaluate requirements when findings are added/removed
@@ -907,7 +897,7 @@ if (!__VLS_ctx.lookupToken) {
 else {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
 }
-if (__VLS_ctx.lookup && __VLS_ctx.debug) {
+if (__VLS_ctx.lookup && __VLS_ctx.isDebug) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "row g-3" },
     });
@@ -1076,7 +1066,7 @@ if (__VLS_ctx.lookup && __VLS_ctx.debug) {
         }
         __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
             ...{ onClick: (...[$event]) => {
-                    if (!(__VLS_ctx.lookup && __VLS_ctx.debug))
+                    if (!(__VLS_ctx.lookup && __VLS_ctx.isDebug))
                         return;
                     __VLS_ctx.evaluateRequirementSet(rs.id);
                 } },
@@ -1106,7 +1096,7 @@ if (__VLS_ctx.lookup && __VLS_ctx.debug) {
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
             ...{ onChange: (...[$event]) => {
-                    if (!(__VLS_ctx.lookup && __VLS_ctx.debug))
+                    if (!(__VLS_ctx.lookup && __VLS_ctx.isDebug))
                         return;
                     __VLS_ctx.toggleRequirementSet(rs.id, $event.target.checked);
                 } },
@@ -1209,7 +1199,7 @@ if (__VLS_ctx.lookup && __VLS_ctx.debug) {
         (__VLS_ctx.availableFindings.length);
         __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
             ...{ onClick: (...[$event]) => {
-                    if (!(__VLS_ctx.lookup && __VLS_ctx.debug))
+                    if (!(__VLS_ctx.lookup && __VLS_ctx.isDebug))
                         return;
                     if (!(__VLS_ctx.availableFindings.length > 0))
                         return;
@@ -1227,7 +1217,7 @@ if (__VLS_ctx.lookup && __VLS_ctx.debug) {
         ...{ class: "card-body pre-scrollable" },
         ...{ style: {} },
     });
-    if (__VLS_ctx.findingStore.loading) {
+    if (__VLS_ctx.findingsSectionLoading) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: "text-center py-4" },
         });
@@ -1583,8 +1573,7 @@ const __VLS_self = (await import('vue')).defineComponent({
             AddableFindingsDetail: AddableFindingsDetail,
             RequirementIssues: RequirementIssues,
             patientStore: patientStore,
-            findingStore: findingStore,
-            debug: debug,
+            isDebug: isDebug,
             selectedPatientId: selectedPatientId,
             selectedExaminationId: selectedExaminationId,
             currentPatientExaminationId: currentPatientExaminationId,
@@ -1602,6 +1591,7 @@ const __VLS_self = (await import('vue')).defineComponent({
             selectedRequirementSetIds: selectedRequirementSetIds,
             selectedRequirementSetIdSet: selectedRequirementSetIdSet,
             availableFindings: availableFindings,
+            findingsSectionLoading: findingsSectionLoading,
             isFindingAddedToExamination: isFindingAddedToExamination,
             onFindingAddedToExamination: onFindingAddedToExamination,
             onClassificationUpdated: onClassificationUpdated,

@@ -7,6 +7,25 @@
             <h6 class="mb-0">Berichts-Workflow</h6>
           </div>
           <div class="card-body p-2">
+            <h6 class="mb-0">Medien-Preload</h6>
+            <div class="small text-muted mt-2">
+              Status:
+              <strong>{{ flow.mediaPreloadStatus }}</strong>
+            </div>
+            <div v-if="flow.mediaPreloadError" class="alert alert-danger py-2 mt-2 mb-0">
+              {{ flow.mediaPreloadError }}
+            </div>
+            <div class="d-grid mt-2">
+              <button
+                class="btn btn-outline-secondary btn-sm"
+                :disabled="flow.mediaPreloadStatus === 'loading' || !flow.selectedPatientId"
+                @click="refreshMediaPreload"
+              >
+                Aktualisieren
+              </button>
+            </div>
+          </div>
+          <div class="card-body p-2">
             <div class="small text-muted px-2 mb-2">
               Status: <strong>{{ flow.sessionStatus }}</strong>
             </div>
@@ -29,6 +48,108 @@
       </div>
 
       <div class="col-lg-9">
+        <div v-if="flow.mediaPreload" class="card shadow-sm mb-3">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <h6 class="mb-0">Letzte Assets</h6>
+            <small class="text-muted">Patient {{ flow.mediaPreload.patient.id }}</small>
+          </div>
+          <div class="card-body">
+            <div class="row g-3">
+              <div class="col-md-4">
+                <div class="border rounded p-3 h-100">
+                  <div class="fw-semibold mb-1">Report</div>
+                  <div v-if="flow.mediaPreload.latestReport" class="small">
+                    <div>ID: {{ flow.mediaPreload.latestReport.id }}</div>
+                    <div>Typ: {{ flow.mediaPreload.latestReport.documentType || 'n/a' }}</div>
+                    <div class="mt-2 d-flex flex-wrap gap-2">
+                      <button
+                        v-for="option in flow.mediaPreload.latestReport.streamOptions"
+                        :key="`report-${option.type}`"
+                        class="btn btn-outline-secondary btn-sm"
+                        @click="openUrl(option.url)"
+                      >
+                        {{ option.type }}
+                      </button>
+                    </div>
+                    <div class="mt-2 d-grid gap-2">
+                      <button
+                        class="btn btn-outline-secondary btn-sm"
+                        :disabled="!preferredReportStream"
+                        @click="openUrl(preferredReportStream)"
+                      >
+                        Report streamen
+                      </button>
+                      <button
+                        class="btn btn-outline-secondary btn-sm"
+                        :disabled="!preferredReportDownload"
+                        @click="openUrl(preferredReportDownload)"
+                      >
+                        Report herunterladen
+                      </button>
+                    </div>
+                  </div>
+                  <div v-else class="small text-muted">Kein Report verfügbar.</div>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="border rounded p-3 h-100">
+                  <div class="fw-semibold mb-1">Video</div>
+                  <div v-if="flow.mediaPreload.latestVideo" class="small">
+                    <div>ID: {{ flow.mediaPreload.latestVideo.id }}</div>
+                    <div class="mt-2 d-flex flex-wrap gap-2">
+                      <button
+                        v-for="option in flow.mediaPreload.latestVideo.streamOptions"
+                        :key="`video-${option.type}`"
+                        class="btn btn-outline-secondary btn-sm"
+                        @click="selectVideoStream(option.url)"
+                      >
+                        {{ option.type }}
+                      </button>
+                    </div>
+                    <div class="mt-2 d-grid gap-2">
+                      <button
+                        class="btn btn-outline-secondary btn-sm"
+                        :disabled="!preferredVideoStream"
+                        @click="selectVideoStream(preferredVideoStream)"
+                      >
+                        Video streamen
+                      </button>
+                    </div>
+                    <video
+                      v-if="selectedVideoStreamUrl"
+                      class="w-100 mt-2 rounded border"
+                      controls
+                      :src="selectedVideoStreamUrl"
+                    />
+                  </div>
+                  <div v-else class="small text-muted">Kein Video verfügbar.</div>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="border rounded p-3 h-100">
+                  <div class="fw-semibold mb-1">Frames</div>
+                  <div v-if="flow.mediaPreload.latestFrames.length" class="small d-grid gap-2">
+                    <button
+                      v-for="frame in flow.mediaPreload.latestFrames"
+                      :key="`${frame.videoId}-${frame.frameNumber}`"
+                      class="btn btn-outline-secondary btn-sm text-start"
+                      @click="selectFrameStream(frame.streamUrl)"
+                    >
+                      #{{ frame.frameNumber }} · {{ frame.category || 'fallback' }}
+                    </button>
+                    <img
+                      v-if="selectedFrameStreamUrl"
+                      class="img-fluid rounded border mt-1"
+                      :src="selectedFrameStreamUrl"
+                      alt="Selected frame stream preview"
+                    />
+                  </div>
+                  <div v-else class="small text-muted">Keine Frames verfügbar.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
         <RouterView />
       </div>
     </div>
@@ -36,12 +157,20 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useReportingFlowStore } from '@/stores/reportingFlowStore'
+import { fetchPatientTimelineLatest, pickPreferredStream } from '@/api/reportingTimelineApi'
 
 const route = useRoute()
 const flow = useReportingFlowStore()
+const selectedVideoStreamUrl = ref<string | null>(null)
+const selectedFrameStreamUrl = ref<string | null>(null)
+const routePatientExaminationId = computed<number | null>(() => {
+  const parsed = Number(route.params.patient_examination_id)
+  if (!Number.isFinite(parsed)) return null
+  return parsed > 0 ? parsed : null
+})
 
 const pe = computed(() => flow.patientExaminationId || ':patient_examination_id')
 
@@ -56,9 +185,77 @@ const navItems = computed(() => [
   { label: 'Finalisierung', to: `/reporting/${pe.value}/finalized` }
 ])
 
+const preferredReportStream = computed(() =>
+  pickPreferredStream(flow.mediaPreload?.latestReport?.streamOptions || [])
+)
+
+const preferredReportDownload = computed(() =>
+  preferredReportStream.value ? `${preferredReportStream.value}${preferredReportStream.value.includes('?') ? '&' : '?'}download=1` : null
+)
+
+const preferredVideoStream = computed(() =>
+  pickPreferredStream(flow.mediaPreload?.latestVideo?.streamOptions || [])
+)
+
+function openUrl(url: string | null) {
+  if (!url) return
+  window.open(url, '_blank', 'noopener,noreferrer')
+}
+
+function selectVideoStream(url: string | null) {
+  selectedVideoStreamUrl.value = url
+}
+
+function selectFrameStream(url: string | null) {
+  selectedFrameStreamUrl.value = url
+}
+
+async function refreshMediaPreload() {
+  if (!flow.selectedPatientId) {
+    flow.clearMediaPreload()
+    return
+  }
+  const patientExaminationId = routePatientExaminationId.value || flow.patientExaminationId
+  flow.setMediaPreloadLoading()
+  try {
+    const payload = await fetchPatientTimelineLatest(
+      {
+        patientId: flow.selectedPatientId,
+        patientExaminationId
+      }
+    )
+    flow.setMediaPreload(payload)
+    selectedVideoStreamUrl.value = pickPreferredStream(payload.latestVideo?.streamOptions || [])
+    selectedFrameStreamUrl.value = payload.latestFrames[0]?.streamUrl || null
+  } catch (error: any) {
+    const status = error?.response?.status
+    const detail = error?.response?.data?.detail || error?.message
+    const message = status === 404
+      ? 'Patient wurde nicht gefunden (404). Bitte Fall-Setup prüfen.'
+      : status === 400
+        ? 'Ungültige patient_examination_id (400). Bitte Routing-Kontext prüfen.'
+        : status === 403
+          ? 'Zugriff auf Timeline verweigert (403). Berechtigungen prüfen.'
+          : `Fehler beim Laden des Medien-Preloads: ${detail || 'unbekannt'}`
+    flow.setMediaPreloadError(message)
+  }
+}
+
 function isActive(path: string): boolean {
   return route.path === path
 }
+
+watch(
+  [() => flow.selectedPatientId, () => flow.patientExaminationId, routePatientExaminationId],
+  async ([patientId]) => {
+    if (!patientId) {
+      flow.clearMediaPreload()
+      return
+    }
+    await refreshMediaPreload()
+  },
+  { immediate: true }
+)
 </script>
 
 <style scoped>

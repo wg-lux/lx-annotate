@@ -102,7 +102,8 @@
         </div>
 
         <!-- Debug Info -->
-        <div v-if="debugInfo.findingId" class="mt-3 p-2 bg-light border rounded">
+        
+        <div v-if="isDebug && debugInfo.findingId" class="mt-3 p-2 bg-light border rounded">
             <h6 class="mb-2">🐛 Debug Info:</h6>
             <small class="text-muted">
                 <div>Finding ID: {{ debugInfo.findingId }}</div>
@@ -117,11 +118,15 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { useFindingStore, type Finding, type FindingClassification } from '../../stores/findingStore'
+import type { Finding, FindingClassification } from '@/api/findings.contract'
+import { findingsApi } from '@/api/findingsApi'
+import { useFindingSelectors } from '@/composables/reporting/useFindingSelectors'
 import { useFindingClassificationStore } from '@/stores/findingClassificationStore'
+import { useDebug } from '@/composables/useDebug'
 
-const findingStore = useFindingStore()
 const findingClassificationStore = useFindingClassificationStore()
+const { getFindingById } = useFindingSelectors()
+const { isDebug } = useDebug()
 
 interface Props {
     findingId: number;
@@ -138,8 +143,8 @@ const emit = defineEmits<{
   'added-to-examination': [data: {
     findingId: number;
     findingName?: string;
-    selectedClassifications: any[];
-    response: any;
+    selectedClassifications: Array<{ classification: number; choice: number | null }>;
+    response: unknown;
   }];
   'classification-updated': [findingId: number, classificationId: number, choiceId: number | null];
   'error-occurred': [data: {
@@ -158,7 +163,7 @@ const finding = computed((): Finding | undefined => {
   if (findingFromClassificationStore) {
     return findingFromClassificationStore
   }
-  return findingStore.getFindingById(props.findingId)
+  return getFindingById(props.findingId)
 })
 
 
@@ -169,11 +174,11 @@ const requiredClassifications = computed(() => {
 // Debug-Informationen
 const debugInfo = computed(() => {
   const findingFromClassificationStore = findingClassificationStore.getFindingById(props.findingId)
-  const findingFromFindingStore = findingStore.getFindingById(props.findingId)
+  const findingFromSelector = getFindingById(props.findingId)
   const dataSource = findingFromClassificationStore
     ? 'findingClassificationStore'
-    : findingFromFindingStore
-      ? 'findingStore'
+    : findingFromSelector
+      ? 'findingSelectors'
       : 'none'
 
   return {
@@ -188,11 +193,11 @@ const debugInfo = computed(() => {
 
 const findingsInfo = computed(() => {
   const findingFromClassificationStore = findingClassificationStore.getFindingById(props.findingId)
-  const findingFromFindingStore = findingStore.getFindingById(props.findingId)
+  const findingFromSelector = getFindingById(props.findingId)
   const dataSource = findingFromClassificationStore
     ? 'findingClassificationStore'
-    : findingFromFindingStore
-      ? 'findingStore'
+    : findingFromSelector
+      ? 'findingSelectors'
       : 'none'
 
   return {
@@ -222,7 +227,7 @@ const loadClassifications = async () => {
       return
     }
 
-    classifications.value = []
+    classifications.value = await findingsApi.getFindingClassifications(props.findingId)
   } catch {
     classifications.value = []
     emit('error-occurred', {
@@ -254,7 +259,7 @@ watch(
   [
     () => props.findingId,
     () => findingClassificationStore.getFindingById(props.findingId),
-    () => findingStore.getFindingById(props.findingId)
+    () => getFindingById(props.findingId)
   ],
   async () => {
     await loadClassifications()

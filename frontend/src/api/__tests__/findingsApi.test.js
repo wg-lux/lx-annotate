@@ -59,7 +59,7 @@ describe('findingsApi backend mode routing', () => {
         });
         expect(hoisted.axios.post).toHaveBeenCalledTimes(1);
         expect(hoisted.axios.post).toHaveBeenCalledWith('/base_api/patient-findings/', {
-            patientExamination: 88,
+            patient_examination: 88,
             finding: 6,
             classifications: [{ classification: 5, choice: 9 }]
         });

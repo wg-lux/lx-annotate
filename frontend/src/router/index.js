@@ -2,6 +2,7 @@ import { useToastStore } from '@/stores/toastStore';
 import { createRouter, createWebHistory } from 'vue-router';
 import { useAnonymizationStore } from '@/stores/anonymizationStore';
 import { useAuthKcStore } from '@/stores/auth_kc';
+import { archivedLegacyRoutes } from '@/router/archivedRoutes';
 const router = createRouter({
     history: createWebHistory('/'),
     routes: [
@@ -87,14 +88,6 @@ const router = createRouter({
             }
         },
         {
-            path: '/ueber-uns',
-            name: 'Über Uns',
-            component: () => import('@/views/UeberUns.vue'),
-            meta: {
-                description: 'Hier finden Sie Informationen über uns.'
-            }
-        },
-        {
             path: '/uebersicht',
             name: 'Übersicht',
             component: () => import('@/views/PageOverview.vue'),
@@ -127,14 +120,6 @@ const router = createRouter({
             }
         },
         {
-            path: '/patient',
-            name: 'Patient hinzufügen',
-            component: () => import('@/views/PatientAdder.vue'),
-            meta: {
-                description: 'Hier können Sie Patienten hinzufügen.'
-            }
-        },
-        {
             path: '/patienten',
             name: 'Patienten',
             component: () => import('@/views/PatientOverview.vue'),
@@ -142,22 +127,6 @@ const router = createRouter({
                 description: 'Hier können Sie alle Patienten einsehen und verwalten.',
                 cap: 'page.patients.view', // <-- add: capability tag for UI checks
                 //hardProtect: true       // only add on routes you want to STRONGLY block
-            }
-        },
-        {
-            path: '/profil',
-            name: 'Profil',
-            component: () => import('@/views/Profil.vue'),
-            meta: {
-                description: 'Hier können Sie Ihr Profil einsehen und bearbeiten.'
-            }
-        },
-        {
-            path: '/anonymisierung',
-            name: 'Anonymisierung',
-            component: () => import('@/views/Anonymization.vue'),
-            meta: {
-                description: 'Hier können Sie Anonymisierungsprozesse durchführen.'
             }
         },
         {
@@ -189,14 +158,6 @@ const router = createRouter({
             props: (route) => ({ fileId: Number(route.params.fileId), mediaType: route.params.mediaType })
         },
         {
-            path: '/validierung',
-            name: 'Validierung',
-            component: () => import('@/views/Validierung.vue'),
-            meta: {
-                description: 'Hier können Sie Annotationen validieren.'
-            }
-        },
-        {
             path: '/report-generator',
             name: 'Report Generator',
             component: () => import('@/views/ReportGenerator.vue'),
@@ -204,6 +165,7 @@ const router = createRouter({
                 description: 'Hier können Sie Reports generieren.'
             }
         },
+        ...archivedLegacyRoutes,
         // Catch-all redirect to Dashboard for any unmatched route
         {
             path: '/:catchAll(.*)',

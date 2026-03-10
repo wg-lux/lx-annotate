@@ -196,7 +196,13 @@ in
 
         ensure_vite_manifest_runtime() {
           local static_root manifest entry_file asset_path
-          static_root="''${DJANGO_STATIC_ROOT:-$REPO_ROOT/static}"
+          static_root="''${DJANGO_STATIC_ROOT:-$REPO_ROOT/staticfiles}"
+          if [ "''${static_root%/}" = "$REPO_ROOT/static" ]; then
+            echo "❌ Misconfigured DJANGO_STATIC_ROOT: $static_root"
+            echo "   DJANGO_STATIC_ROOT must not point to $REPO_ROOT/static (Vite source assets)."
+            echo "   Use $REPO_ROOT/staticfiles as STATIC_ROOT and run collectstatic."
+            return 1
+          fi
           manifest="$static_root/.vite/manifest.json"
 
           if [ ! -f "$manifest" ]; then

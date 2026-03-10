@@ -54,7 +54,7 @@ class AppConfig(BaseSettings):
     db_host: str = os.getenv("DJANGO_DB_HOST", "localhost")
     db_port: str = os.getenv("DJANGO_DB_PORT", "5432")
     db_sslmode: str = "prefer"
-    static_root: Path = Path(os.getenv("DJANGO_STATIC_ROOT", "./static"))
+    static_root: Path = Path(os.getenv("DJANGO_STATIC_ROOT", "./staticfiles"))
 
     keycloak_server_url: str = "https://keycloak-endoreg.net"
     keycloak_client_id: str = "lx-frontend"

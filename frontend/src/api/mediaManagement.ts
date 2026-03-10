@@ -171,8 +171,13 @@ export class MediaManagementAPI {
    * Validate anonymization with coordination
    * @param fileId - ID of the file to validate
    */
-  static async validateAnonymizationSafe(fileId: number): Promise<ProcessingResponse> {
-    const response = await api.post(`/api/anonymization/${fileId}/validate/`)
+  static async validateAnonymizationSafe(
+    fileId: number,
+    documentType?: string
+  ): Promise<ProcessingResponse> {
+    const response = await api.post(`/api/anonymization/${fileId}/validate/`, {
+      ...(documentType ? { document_type: documentType } : {})
+    })
     return response.data
   }
 
@@ -271,8 +276,8 @@ export function useMediaManagement() {
       safeApiCall(() => MediaManagementAPI.getAnonymizationStatusSafe(fileId, fileType)),
     startAnonymizationSafe: (fileId: number) =>
       safeApiCall(() => MediaManagementAPI.startAnonymizationSafe(fileId)),
-    validateAnonymizationSafe: (fileId: number) =>
-      safeApiCall(() => MediaManagementAPI.validateAnonymizationSafe(fileId)),
+    validateAnonymizationSafe: (fileId: number, documentType?: string) =>
+      safeApiCall(() => MediaManagementAPI.validateAnonymizationSafe(fileId, documentType)),
 
     // Coordinator operations
     getPollingInfo: () => safeApiCall(() => MediaManagementAPI.getPollingCoordinatorInfo()),

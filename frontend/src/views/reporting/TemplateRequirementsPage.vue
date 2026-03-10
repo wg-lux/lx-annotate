@@ -75,6 +75,29 @@
               </div>
             </li>
           </ul>
+
+          <div v-if="validatorDescriptors.length" class="mt-3 border-top pt-3">
+            <h6 class="mb-2">Validator-Deskriptoren</h6>
+            <div
+              v-for="descriptor in validatorDescriptors"
+              :key="`${descriptor.kind}::${descriptor.name}`"
+              class="border rounded p-2 mb-2 small"
+            >
+              <div class="d-flex justify-content-between align-items-center gap-2">
+                <strong>{{ descriptor.name }}</strong>
+                <span class="badge" :class="descriptor.kind === 'finding' ? 'bg-info' : 'bg-secondary'">
+                  {{ descriptor.kind }}
+                </span>
+              </div>
+              <div class="text-muted mt-1">{{ descriptor.summary }}</div>
+              <div v-if="descriptor.relatedSections.length" class="mt-1">
+                Abschnitte: {{ descriptor.relatedSections.join(', ') }}
+              </div>
+              <div v-if="descriptor.relatedFindings.length" class="mt-1">
+                Befunde: {{ descriptor.relatedFindings.join(', ') }}
+              </div>
+            </div>
+          </div>
         </div>
       </template>
     </MedicalBlock>
@@ -192,6 +215,7 @@ const {
   templateOptions,
   selectedTemplate,
   sectionBlocks,
+  validatorDescriptors,
   loading: templateLoading,
   errorMessage: templateErrorMessage,
   fetchTemplatesByExamination,

@@ -887,8 +887,10 @@ function buildEditorPayload(): Record<string, unknown> {
 }
 
 function buildRenderedText(): string {
+  const fallbackAnonymizedText = flow.mediaPreload?.latestReport?.anonymizedText?.trim() || ''
   const lines: string[] = []
   lines.push(`# ${selectedTemplateName.value || 'Unbenanntes Template'}`)
+  let hasStructuredContent = false
   for (const section of sectionBlocks.value) {
     const draft = getSectionDraft(section.name)
     const sectionLines: string[] = []
@@ -901,9 +903,13 @@ function buildRenderedText(): string {
       if (examText) sectionLines.push(examText)
     }
     if (draft.note.trim()) sectionLines.push(draft.note.trim())
+    if (sectionLines.length) hasStructuredContent = true
 
     lines.push(`## ${section.title}`)
     if (sectionLines.length) lines.push(sectionLines.join('\n'))
+  }
+  if (!hasStructuredContent && fallbackAnonymizedText) {
+    return fallbackAnonymizedText
   }
   return lines.join('\n\n')
 }

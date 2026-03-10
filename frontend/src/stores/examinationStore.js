@@ -77,7 +77,7 @@ export const useExaminationStore = defineStore('examination', {
             this.loading = true;
             this.error = null;
             try {
-                const findings = (await findingsApi.getExaminationFindings(examId));
+                const findings = await findingsApi.getExaminationFindings(examId);
                 this.findingsByExam.set(examId, findings);
                 return findings;
             }
@@ -107,12 +107,8 @@ export const useExaminationStore = defineStore('examination', {
             try {
                 const classifications = await findingsApi.getFindingClassifications(findingId);
                 const payload = {
-                    locationClassifications: Array.isArray(classifications?.locationClassifications)
-                        ? classifications.locationClassifications
-                        : classifications,
-                    morphologyClassifications: Array.isArray(classifications?.morphologyClassifications)
-                        ? classifications.morphologyClassifications
-                        : []
+                    locationClassifications: classifications.filter((classification) => classification.classificationTypes.includes('location')),
+                    morphologyClassifications: classifications.filter((classification) => classification.classificationTypes.includes('morphology'))
                 };
                 this.classificationsByFinding.set(findingId, payload);
                 return payload;

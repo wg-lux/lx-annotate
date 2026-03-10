@@ -1,5 +1,7 @@
 import axiosInstance from '@/api/axiosInstance';
+import { normalizeFindingChoice, normalizeFindings, normalizeFindingClassification, normalizePatientFindingRow, normalizePatientFindingRows } from '@/api/findings.contract';
 const ENDOREG_PATHS = {
+    findings: '/api/findings/',
     examinationFindings: (examinationId) => `/api/examinations/${examinationId}/findings/`,
     findingClassifications: (findingId) => `/api/findings/${findingId}/classifications/`,
     classificationChoices: (classificationId) => `/api/classifications/${classificationId}/choices/`,
@@ -125,14 +127,6 @@ export function parseFindingsApiError(error) {
         details: data
     };
 }
-function normalizeRows(value) {
-    const rows = Array.isArray(value?.results)
-        ? value.results
-        : Array.isArray(value)
-            ? value
-            : [];
-    return rows;
-}
 async function setClassificationsViaDtypes(patientFindingId, classifications) {
     await axiosInstance.post(DTYPES_PATHS.patientFindingClassifications(patientFindingId), {
         replace: true,
@@ -143,13 +137,17 @@ export const findingsApi = {
     getBackendMode() {
         return getFindingsBackendMode();
     },
+    async listFindings() {
+        const response = await axiosInstance.get(ENDOREG_PATHS.findings);
+        return normalizeFindings(response.data);
+    },
     async getExaminationFindings(examinationId) {
         const mode = getFindingsBackendMode();
         const path = useDtypesRead(mode)
             ? DTYPES_PATHS.examinationFindings(examinationId)
             : ENDOREG_PATHS.examinationFindings(examinationId);
         const response = await axiosInstance.get(path);
-        return Array.isArray(response.data) ? response.data : [];
+        return normalizeFindings(response.data);
     },
     async getFindingClassifications(findingId) {
         const mode = getFindingsBackendMode();
@@ -157,7 +155,9 @@ export const findingsApi = {
             ? DTYPES_PATHS.findingClassifications(findingId)
             : ENDOREG_PATHS.findingClassifications(findingId);
         const response = await axiosInstance.get(path);
-        return Array.isArray(response.data) ? response.data : [];
+        if (!Array.isArray(response.data))
+            return [];
+        return response.data.map(normalizeFindingClassification);
     },
     async getClassificationChoices(classificationId) {
         const mode = getFindingsBackendMode();
@@ -167,8 +167,8 @@ export const findingsApi = {
         const response = await axiosInstance.get(path);
         const payload = response.data;
         if (Array.isArray(payload))
-            return payload;
-        return Array.isArray(payload?.choices) ? payload.choices : [];
+            return payload.map(normalizeFindingChoice);
+        return Array.isArray(payload?.choices) ? payload.choices.map(normalizeFindingChoice) : [];
     },
     async listPatientFindings(patientExaminationId) {
         const mode = getFindingsBackendMode();
@@ -178,7 +178,7 @@ export const findingsApi = {
         const response = await axiosInstance.get(basePath, {
             params: { patient_examination: patientExaminationId }
         });
-        return normalizeRows(response.data);
+        return normalizePatientFindingRows(response.data);
     },
     async createPatientFinding(payload) {
         const mode = getFindingsBackendMode();
@@ -187,11 +187,11 @@ export const findingsApi = {
             : [];
         if (useDtypesWrite(mode)) {
             const response = await axiosInstance.post(DTYPES_PATHS.patientFindings, {
-                patientExamination: payload.patientExamination,
+                patient_examination: payload.patientExamination,
                 finding: payload.finding,
                 classifications
             });
-            return response.data;
+            return normalizePatientFindingRow(response.data);
         }
         // Endoreg-safe path:
         // 1) create finding on /api
@@ -200,7 +200,7 @@ export const findingsApi = {
             patientExamination: payload.patientExamination,
             finding: payload.finding
         });
-        const created = createRes.data;
+        const created = normalizePatientFindingRow(createRes.data);
         const createdId = Number(created?.id);
         if (Number.isFinite(createdId) && classifications.length > 0) {
             await setClassificationsViaDtypes(createdId, classifications);
@@ -215,10 +215,10 @@ export const findingsApi = {
         if (useDtypesWrite(mode)) {
             const response = await axiosInstance.patch(DTYPES_PATHS.patientFindingById(patientFindingId), {
                 finding: payload.finding,
-                isActive: payload.isActive,
+                is_active: payload.isActive,
                 classifications
             });
-            return response.data;
+            return normalizePatientFindingRow(response.data);
         }
         const patchPayload = {};
         if (typeof payload.finding === 'number')
@@ -229,7 +229,7 @@ export const findingsApi = {
         if (classifications) {
             await setClassificationsViaDtypes(patientFindingId, classifications);
         }
-        return response.data;
+        return normalizePatientFindingRow(response.data);
     },
     async deletePatientFinding(patientFindingId) {
         const mode = getFindingsBackendMode();
@@ -242,7 +242,7 @@ export const findingsApi = {
         const mode = getFindingsBackendMode();
         if (useDtypesWrite(mode)) {
             const response = await axiosInstance.post(DTYPES_PATHS.patientFindingClassifications(patientFindingId), { replace: true, classifications });
-            return response.data;
+            return normalizePatientFindingRow(response.data);
         }
         await setClassificationsViaDtypes(patientFindingId, classifications);
         return null;

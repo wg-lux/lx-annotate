@@ -62,8 +62,12 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
     const indications = ref(persisted?.indications ?? [{ examinationIndicationId: null, indicationChoiceId: null }]);
     const lookupSnapshot = ref(null);
     const lastRequirementGuidance = ref(null);
+    const lastTemplateValidation = ref(null);
     const findingsRevision = ref(0);
     const lastFindingsEvent = ref(null);
+    const mediaPreload = ref(null);
+    const mediaPreloadStatus = ref('idle');
+    const mediaPreloadError = ref(null);
     const hasActiveCase = computed(() => !!patientExaminationId.value && !!selectedExaminationId.value && !!selectedPatientId.value);
     const canUseLookupPages = computed(() => !!patientExaminationId.value && !!lookupToken.value && sessionStatus.value !== 'expired');
     function setLookupSession(params) {
@@ -124,10 +128,14 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
         indications.value = [{ examinationIndicationId: null, indicationChoiceId: null }];
         lookupSnapshot.value = null;
         lastRequirementGuidance.value = null;
+        lastTemplateValidation.value = null;
         findingsRevision.value = 0;
         lastFindingsEvent.value = null;
         selectedTemplateName.value = null;
         templateSectionDrafts.value = {};
+        mediaPreload.value = null;
+        mediaPreloadStatus.value = 'idle';
+        mediaPreloadError.value = null;
     }
     function clearAll() {
         lookupToken.value = null;
@@ -140,11 +148,33 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
         indications.value = [{ examinationIndicationId: null, indicationChoiceId: null }];
         lookupSnapshot.value = null;
         lastRequirementGuidance.value = null;
+        lastTemplateValidation.value = null;
         findingsRevision.value = 0;
         lastFindingsEvent.value = null;
         selectedKbModule.value = 'report_template_examples';
         selectedTemplateName.value = null;
         templateSectionDrafts.value = {};
+        mediaPreload.value = null;
+        mediaPreloadStatus.value = 'idle';
+        mediaPreloadError.value = null;
+    }
+    function setMediaPreloadLoading() {
+        mediaPreloadStatus.value = 'loading';
+        mediaPreloadError.value = null;
+    }
+    function setMediaPreload(payload) {
+        mediaPreload.value = payload;
+        mediaPreloadStatus.value = payload ? 'ready' : 'idle';
+        mediaPreloadError.value = null;
+    }
+    function setMediaPreloadError(message) {
+        mediaPreloadStatus.value = 'error';
+        mediaPreloadError.value = message;
+    }
+    function clearMediaPreload() {
+        mediaPreload.value = null;
+        mediaPreloadStatus.value = 'idle';
+        mediaPreloadError.value = null;
     }
     function setIndications(rows) {
         indications.value = rows.length ? rows : [{ examinationIndicationId: null, indicationChoiceId: null }];
@@ -160,6 +190,9 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
     }
     function setLastRequirementGuidance(guidance) {
         lastRequirementGuidance.value = guidance;
+    }
+    function setLastTemplateValidation(validation) {
+        lastTemplateValidation.value = validation;
     }
     function noteFindingAdded(findingId) {
         findingsRevision.value += 1;
@@ -231,8 +264,12 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
         indications,
         lookupSnapshot,
         lastRequirementGuidance,
+        lastTemplateValidation,
         findingsRevision,
         lastFindingsEvent,
+        mediaPreload,
+        mediaPreloadStatus,
+        mediaPreloadError,
         hasActiveCase,
         canUseLookupPages,
         setLookupSession,
@@ -247,8 +284,13 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
         setLookupSnapshot,
         patchLookupSnapshot,
         setLastRequirementGuidance,
+        setLastTemplateValidation,
         noteFindingAdded,
         noteClassificationUpdated,
+        setMediaPreloadLoading,
+        setMediaPreload,
+        setMediaPreloadError,
+        clearMediaPreload,
         addIndicationRow,
         updateIndicationRow,
         removeIndicationRow,

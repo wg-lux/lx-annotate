@@ -1,7 +1,6 @@
 import { defineStore } from 'pinia'
 import { reactive, ref, computed, readonly } from 'vue'
 import axiosInstance, { r } from '@/api/axiosInstance'
-import type { Finding } from '@/stores/findingStore'
 import type { Patient } from '@/stores/patientStore'
 import type { Video } from '@/stores/videoStore'
 import type { Examination } from './examinationStore'

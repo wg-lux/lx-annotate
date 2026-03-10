@@ -26,6 +26,7 @@
           :lookup-token="flow.lookupToken"
           :findings-revision="flow.findingsRevision"
         />
+        <ReportingMediaPreviewCards class="mb-3" />
 
         <div v-if="!flow.patientExaminationId || !flow.selectedExaminationId" class="alert alert-warning">
           Bitte zuerst das Fall-Setup abschließen (Patient + Untersuchung + PatientExamination).
@@ -57,7 +58,7 @@
               <small class="text-muted">{{ availableFindings.length }} verfügbar</small>
             </div>
             <div class="card-body" style="max-height: 60vh; overflow: auto;">
-              <div v-if="findingStore.loading || loading" class="text-muted small">Lade Befunde...</div>
+              <div v-if="findingSelectorsLoading || loading" class="text-muted small">Lade Befunde...</div>
               <div v-else-if="availableFindings.length" class="d-flex flex-column gap-3">
                 <FindingsDetail
                   v-for="findingId in availableFindings"
@@ -79,6 +80,14 @@
           <div class="mt-3 p-3 bg-light rounded small">
             <div><strong>Letztes Befund-Ereignis:</strong> {{ flow.lastFindingsEvent ? formatFindingsEvent(flow.lastFindingsEvent) : 'keins' }}</div>
           </div>
+
+          <div class="mt-3">
+            <ReportTemplateValidationPanel
+              :loading="templateValidationLoading"
+              :error-message="templateValidationError"
+              :result="flow.lastTemplateValidation"
+            />
+          </div>
         </template>
       </div>
     </div>
@@ -86,14 +95,18 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import axiosInstance, { r } from '@/api/axiosInstance'
+import { getFindingDisplayName } from '@/api/findings.contract'
+import { validatePatientFindingsAgainstTemplate } from '@/api/reportTemplatesApi'
 import AddableFindingsDetail from '@/components/RequirementReport/AddableFindingsDetail.vue'
 import FindingsDetail from '@/components/RequirementReport/FindingsDetail.vue'
+import { useFindingSelectors } from '@/composables/reporting/useFindingSelectors'
 import LookupStatusPanel from '@/components/Reporting/LookupStatusPanel.vue'
+import ReportTemplateValidationPanel from '@/components/Reporting/ReportTemplateValidationPanel.vue'
+import ReportingMediaPreviewCards from '@/components/Reporting/ReportingMediaPreviewCards.vue'
 import { useLookupActions } from '@/composables/reporting/useLookupActions'
 import { useReportingFlowStore } from '@/stores/reportingFlowStore'
-import { useFindingStore } from '@/stores/findingStore'
 import { usePatientExaminationStore } from '@/stores/patientExaminationStore'
 import { endpoints } from '@/types/api/endpoints'
 
@@ -107,15 +120,32 @@ type LookupFindingsState = {
   selectedRequirementSetIds?: number[]
 }
 
+type FindingAddedEvent =
+  | number
+  | {
+      findingId: number
+      findingName?: string
+      selectedClassifications?: Array<{ classification: number; choice: number | null }>
+      response?: unknown
+    }
+
 const flow = useReportingFlowStore()
-const findingStore = useFindingStore()
 const patientExaminationStore = usePatientExaminationStore()
+const {
+  loading: findingSelectorsLoading,
+  ensureCatalogLoaded,
+  ensurePatientFindingsLoaded,
+  getFindingById,
+  isFindingAttached
+} = useFindingSelectors()
 
 const loading = ref(false)
 const errorMessage = ref<string | null>(null)
 const successMessage = ref<string | null>(null)
 const lookupState = ref<LookupFindingsState | null>(null)
 const lookupInitInFlight = ref<Promise<boolean> | null>(null)
+const templateValidationLoading = ref(false)
+const templateValidationError = ref<string | null>(null)
 
 function normalizeIdArray(value: unknown): number[] {
   if (!Array.isArray(value)) return []
@@ -227,8 +257,37 @@ const lookupActions = useLookupActions<LookupFindingsState>({
 })
 
 async function loadFindingsCatalog() {
-  if (findingStore.findings.length === 0) {
-    await findingStore.fetchFindings()
+  await ensureCatalogLoaded()
+}
+
+async function refreshRuntimeValidation() {
+  const patientExaminationId = flow.patientExaminationId
+  const templateName = flow.selectedTemplateName
+  if (!patientExaminationId || !templateName) {
+    templateValidationError.value = null
+    flow.setLastTemplateValidation(null)
+    return
+  }
+
+  templateValidationLoading.value = true
+  templateValidationError.value = null
+  try {
+    await loadFindingsCatalog()
+    const result = await validatePatientFindingsAgainstTemplate({
+      moduleName: flow.selectedKbModule,
+      templateName,
+      patientExaminationId,
+      getFindingById
+    })
+    flow.setLastTemplateValidation(result)
+  } catch (e: any) {
+    flow.setLastTemplateValidation(null)
+    templateValidationError.value = formatApiError(
+      e,
+      'Template-Validierung konnte nicht ausgeführt werden.'
+    )
+  } finally {
+    templateValidationLoading.value = false
   }
 }
 
@@ -304,31 +363,30 @@ async function ensureLookupSession() {
 }
 
 function isFindingAddedToExamination(findingId: number): boolean {
-  if (!flow.patientExaminationId) return false
-  const ids = findingStore.getFindingIdsByPatientExaminationId(flow.patientExaminationId)
-  return ids.includes(findingId)
+  return isFindingAttached(flow.patientExaminationId, findingId)
 }
 
 function onFindingAddedToExamination(
-  findingIdOrData: number | { findingId: number; findingName?: string; selectedClassifications?: any[]; response?: any },
+  findingIdOrData: FindingAddedEvent,
   findingName?: string
 ) {
   const findingId = typeof findingIdOrData === 'number' ? findingIdOrData : findingIdOrData.findingId
   const name =
-    (typeof findingIdOrData === 'number' ? findingName : findingIdOrData.findingName) ||
-    findingStore.getFindingById(findingId)?.name ||
-    `Befund ${findingId}`
+    (typeof findingIdOrData === 'number' ? findingName : findingIdOrData.findingName) ??
+    getFindingDisplayName(getFindingById(findingId) ?? { id: findingId, name: `Befund ${findingId}` })
 
   flow.noteFindingAdded(findingId)
   successMessage.value = `Befund "${name}" wurde hinzugefügt.`
 
   // Refresh lookup advisory state after changes
+  void ensurePatientFindingsLoaded(flow.patientExaminationId).then(() => refreshRuntimeValidation())
   void triggerRecompute()
 }
 
 function onClassificationUpdated(findingId: number, classificationId: number, choiceId: number | null) {
   flow.noteClassificationUpdated(findingId, classificationId, choiceId)
   successMessage.value = `Klassifikation für Befund ${findingId} aktualisiert.`
+  void ensurePatientFindingsLoaded(flow.patientExaminationId).then(() => refreshRuntimeValidation())
   void triggerRecompute()
 }
 
@@ -355,10 +413,19 @@ function formatFindingsEvent(event: {
 onMounted(async () => {
   if (flow.patientExaminationId) {
     patientExaminationStore.setCurrentPatientExaminationId(flow.patientExaminationId)
+    await ensurePatientFindingsLoaded(flow.patientExaminationId)
   }
   await loadFindingsCatalog()
   if (flow.patientExaminationId) {
     await fetchLookupAll()
   }
+  await refreshRuntimeValidation()
 })
+
+watch(
+  () => [flow.patientExaminationId, flow.selectedKbModule, flow.selectedTemplateName] as const,
+  async () => {
+    await refreshRuntimeValidation()
+  }
+)
 </script>

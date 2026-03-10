@@ -1,6 +1,8 @@
 import { defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'
 import type { ReportTemplateSectionDraft } from '@/types/reportTemplate'
+import type { ReportTemplateRuntimeValidationResult } from '@/types/reportTemplate'
+import type { TimelineLatestPayload } from '@/api/reportingTimelineApi'
 
 type SessionStatus = 'idle' | 'active' | 'expired' | 'restarting'
 
@@ -15,6 +17,7 @@ export type ReportingLookupSnapshot = {
 }
 
 export type ReportingRequirementGuidance = Record<string, unknown> | null
+export type ReportingTemplateValidation = ReportTemplateRuntimeValidationResult | null
 
 export type ReportingIndicationRow = {
   examinationIndicationId: number | null
@@ -111,6 +114,7 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
   )
   const lookupSnapshot = ref<ReportingLookupSnapshot | null>(null)
   const lastRequirementGuidance = ref<ReportingRequirementGuidance>(null)
+  const lastTemplateValidation = ref<ReportingTemplateValidation>(null)
   const findingsRevision = ref(0)
   const lastFindingsEvent = ref<{
     type: 'finding_added' | 'classification_updated'
@@ -119,6 +123,9 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
     classificationId?: number
     choiceId?: number | null
   } | null>(null)
+  const mediaPreload = ref<TimelineLatestPayload | null>(null)
+  const mediaPreloadStatus = ref<'idle' | 'loading' | 'ready' | 'error'>('idle')
+  const mediaPreloadError = ref<string | null>(null)
 
   const hasActiveCase = computed(
     () => !!patientExaminationId.value && !!selectedExaminationId.value && !!selectedPatientId.value
@@ -205,10 +212,14 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
     indications.value = [{ examinationIndicationId: null, indicationChoiceId: null }]
     lookupSnapshot.value = null
     lastRequirementGuidance.value = null
+    lastTemplateValidation.value = null
     findingsRevision.value = 0
     lastFindingsEvent.value = null
     selectedTemplateName.value = null
     templateSectionDrafts.value = {}
+    mediaPreload.value = null
+    mediaPreloadStatus.value = 'idle'
+    mediaPreloadError.value = null
   }
 
   function clearAll() {
@@ -222,11 +233,37 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
     indications.value = [{ examinationIndicationId: null, indicationChoiceId: null }]
     lookupSnapshot.value = null
     lastRequirementGuidance.value = null
+    lastTemplateValidation.value = null
     findingsRevision.value = 0
     lastFindingsEvent.value = null
     selectedKbModule.value = 'report_template_examples'
     selectedTemplateName.value = null
     templateSectionDrafts.value = {}
+    mediaPreload.value = null
+    mediaPreloadStatus.value = 'idle'
+    mediaPreloadError.value = null
+  }
+
+  function setMediaPreloadLoading() {
+    mediaPreloadStatus.value = 'loading'
+    mediaPreloadError.value = null
+  }
+
+  function setMediaPreload(payload: TimelineLatestPayload | null) {
+    mediaPreload.value = payload
+    mediaPreloadStatus.value = payload ? 'ready' : 'idle'
+    mediaPreloadError.value = null
+  }
+
+  function setMediaPreloadError(message: string) {
+    mediaPreloadStatus.value = 'error'
+    mediaPreloadError.value = message
+  }
+
+  function clearMediaPreload() {
+    mediaPreload.value = null
+    mediaPreloadStatus.value = 'idle'
+    mediaPreloadError.value = null
   }
 
   function setIndications(rows: ReportingIndicationRow[]) {
@@ -246,6 +283,10 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
 
   function setLastRequirementGuidance(guidance: ReportingRequirementGuidance) {
     lastRequirementGuidance.value = guidance
+  }
+
+  function setLastTemplateValidation(validation: ReportingTemplateValidation) {
+    lastTemplateValidation.value = validation
   }
 
   function noteFindingAdded(findingId: number) {
@@ -328,8 +369,12 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
     indications,
     lookupSnapshot,
     lastRequirementGuidance,
+    lastTemplateValidation,
     findingsRevision,
     lastFindingsEvent,
+    mediaPreload,
+    mediaPreloadStatus,
+    mediaPreloadError,
     hasActiveCase,
     canUseLookupPages,
     setLookupSession,
@@ -344,8 +389,13 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
     setLookupSnapshot,
     patchLookupSnapshot,
     setLastRequirementGuidance,
+    setLastTemplateValidation,
     noteFindingAdded,
     noteClassificationUpdated,
+    setMediaPreloadLoading,
+    setMediaPreload,
+    setMediaPreloadError,
+    clearMediaPreload,
     addIndicationRow,
     updateIndicationRow,
     removeIndicationRow,

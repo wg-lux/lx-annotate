@@ -77,8 +77,10 @@ export class MediaManagementAPI {
      * Validate anonymization with coordination
      * @param fileId - ID of the file to validate
      */
-    static async validateAnonymizationSafe(fileId) {
-        const response = await api.post(`/api/anonymization/${fileId}/validate/`);
+    static async validateAnonymizationSafe(fileId, documentType) {
+        const response = await api.post(`/api/anonymization/${fileId}/validate/`, {
+            ...(documentType ? { document_type: documentType } : {})
+        });
         return response.data;
     }
     /**
@@ -163,7 +165,7 @@ export function useMediaManagement() {
         // Safe anonymization operations
         getStatusSafe: (fileId, fileType) => safeApiCall(() => MediaManagementAPI.getAnonymizationStatusSafe(fileId, fileType)),
         startAnonymizationSafe: (fileId) => safeApiCall(() => MediaManagementAPI.startAnonymizationSafe(fileId)),
-        validateAnonymizationSafe: (fileId) => safeApiCall(() => MediaManagementAPI.validateAnonymizationSafe(fileId)),
+        validateAnonymizationSafe: (fileId, documentType) => safeApiCall(() => MediaManagementAPI.validateAnonymizationSafe(fileId, documentType)),
         // Coordinator operations
         getPollingInfo: () => safeApiCall(() => MediaManagementAPI.getPollingCoordinatorInfo()),
         clearAllLocks: (fileType) => safeApiCall(() => MediaManagementAPI.clearProcessingLocks(fileType))
