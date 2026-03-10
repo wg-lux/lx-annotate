@@ -18,7 +18,11 @@ FRONTEND_HASH_FILE ?= $(CACHE_DIR)/frontend-src.sha256
 MIGRATIONS_HASH_FILE ?= $(CACHE_DIR)/migrations.sha256
 
 # Helper: run commands inside the devenv environment
-DEVENV_RUN = $(DEVENV) shell --
+ifneq ($(DEVENV_PROFILE),)
+DEVENV_RUN ?=
+else
+DEVENV_RUN ?= $(DEVENV) shell --
+endif
 
 .PHONY: help doctor check-tools check-repo ensure-repo-dir ensure-git-repo \
 	setup bootstrap update submodules reset-branch migrate load-base-data static \
