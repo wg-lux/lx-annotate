@@ -59,18 +59,25 @@ def test_app_config_applies_secret_files_when_field_not_explicitly_set(
 ):
     monkeypatch.delenv("DJANGO_SECRET_KEY", raising=False)
     monkeypatch.delenv("DJANGO_DB_PASSWORD", raising=False)
+    monkeypatch.delenv("DJANGO_KEYCLOAK_CLIENT_SECRET", raising=False)
     secret_key_file = tmp_path / "secret.key"
     db_pwd_file = tmp_path / "db.pwd"
+    keycloak_secret_file = tmp_path / "keycloak.env"
     secret_key_file.write_text("s" * 64, encoding="utf-8")
     db_pwd_file.write_text("db-pass", encoding="utf-8")
+    keycloak_secret_file.write_text(
+        'OIDC_RP_CLIENT_SECRET="kc-secret"\n', encoding="utf-8"
+    )
 
     cfg = AppConfig(
         secret_key_file=secret_key_file,
         db_password_file=db_pwd_file,
+        keycloak_client_secret_file=keycloak_secret_file,
     )
 
     assert cfg.secret_key == "s" * 64
     assert cfg.db_password == "db-pass"
+    assert cfg.keycloak_client_secret == "kc-secret"
 
 
 def test_app_config_does_not_override_explicit_values_with_secret_files(tmp_path):

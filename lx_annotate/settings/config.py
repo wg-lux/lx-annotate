@@ -21,6 +21,34 @@ def _read_secret_file(path: Path, label: str) -> str:
     return value
 
 
+def _read_keycloak_secret_file(path: Path) -> str:
+    raw = _read_secret_file(path, "keycloak_client_secret")
+
+    for line in raw.splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        if stripped.startswith("export "):
+            stripped = stripped[len("export ") :].strip()
+        if "=" not in stripped:
+            continue
+        key, value = stripped.split("=", 1)
+        if key.strip() not in {
+            "DJANGO_KEYCLOAK_CLIENT_SECRET",
+            "KEYCLOAK_CLIENT_SECRET",
+            "OIDC_RP_CLIENT_SECRET",
+        }:
+            continue
+        secret = value.strip().strip("\"'")
+        if not secret:
+            raise ValueError(
+                f"Secret file {path} for keycloak_client_secret contains an empty value"
+            )
+        return secret
+
+    return raw
+
+
 class AppConfig(BaseSettings):
     """
     Typed, validated configuration input for django settings.
@@ -154,6 +182,9 @@ class AppConfig(BaseSettings):
     def apply_secret_files(self) -> "AppConfig":
         self._apply_secret_file("secret_key", self.secret_key_file)
         self._apply_secret_file("db_password", self.db_password_file)
+        self._apply_secret_file(
+            "keycloak_client_secret", self.keycloak_client_secret_file
+        )
         return self
 
     def _apply_secret_file(self, field_name: str, file_path: Path | None) -> None:
@@ -163,7 +194,10 @@ class AppConfig(BaseSettings):
         value_set = field_name in self.__pydantic_fields_set__
         if value_set and current_value:
             return
-        secret_value = _read_secret_file(file_path, field_name)
+        if field_name == "keycloak_client_secret":
+            secret_value = _read_keycloak_secret_file(file_path)
+        else:
+            secret_value = _read_secret_file(file_path, field_name)
         setattr(self, field_name, secret_value)
 
 
