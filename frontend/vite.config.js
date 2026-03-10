@@ -11,7 +11,7 @@ export default defineConfig({
     plugins: [vue(), vueJsx(), vueDevTools()],
     build: {
         manifest: true,
-        outDir: resolve(__dirname, '../static'),
+        outDir: resolve(__dirname, '../staticfiles'),
         // Keep non-Vite static assets (e.g. Django/admin/docs) intact.
         emptyOutDir: false,
         target: 'esnext',
