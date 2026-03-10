@@ -13,6 +13,36 @@ let
     : # GPU args placeholder
   '';
   pythonBin = "${pkgs.python3}/bin/python";
+  repoRootSetup = ''
+    REPO_ROOT="''${WORKING_DIR:-${env.WORKING_DIR}}"
+    cd "$REPO_ROOT"
+  '';
+  frontendBuildExec = ''
+    ${repoRootSetup}
+    cd frontend
+    npm install
+    npm run build
+  '';
+  verifyViteArtifactsExec = ''
+    set -euo pipefail
+    ${repoRootSetup}
+
+    if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+      echo "⚠️  Not a git checkout; skipping static drift check."
+      exit 0
+    fi
+
+    echo "🔎 Verifying Vite artifacts in static are up to date..."
+    ${frontendBuildExec}
+
+    if ! git diff --quiet -- static || ! git diff --cached --quiet -- static; then
+      echo "❌ static changed after vue:build. Commit updated frontend artifacts."
+      git --no-pager diff --name-only -- static || true
+      exit 1
+    fi
+
+    echo "✅ static artifacts are up to date."
+  '';
 in
 {
   # =============================================================================
@@ -56,7 +86,8 @@ in
       description = "Run migrations, load base data, and collect static files";
       exec = ''
         set -euo pipefail
-        devenv tasks run deploy:verify-vite-artifacts
+        ${verifyViteArtifactsExec}
+        ${repoRootSetup}
         ${pkgs.uv}/bin/uv run python manage.py migrate
         ${pkgs.uv}/bin/uv run python manage.py load_base_db_data || true
         ${pkgs.uv}/bin/uv run python manage.py collectstatic --noinput
@@ -65,27 +96,7 @@ in
     };
     "deploy:verify-vite-artifacts" = {
       description = "Run vue build and fail if committed static artifacts are stale";
-      exec = ''
-        set -euo pipefail
-        REPO_ROOT="${env.WORKING_DIR}"
-        cd "$REPO_ROOT"
-
-        if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-          echo "⚠️  Not a git checkout; skipping static drift check."
-          exit 0
-        fi
-
-        echo "🔎 Verifying Vite artifacts in static are up to date..."
-        devenv tasks run vue:build
-
-        if ! git diff --quiet -- static || ! git diff --cached --quiet -- static; then
-          echo "❌ static changed after vue:build. Commit updated frontend artifacts."
-          git --no-pager diff --name-only -- static || true
-          exit 1
-        fi
-
-        echo "✅ static artifacts are up to date."
-      '';
+      exec = verifyViteArtifactsExec;
     };
     "vue-build".exec = "devenv tasks run vue:build";
   };
@@ -158,11 +169,53 @@ in
     '';
 
     "vue-build".exec = ''
-      REPO_ROOT="${env.WORKING_DIR}"
-      cd "$REPO_ROOT"
-      cd frontend
-      npm install
-      npm run build
+      ${frontendBuildExec}
+    '';
+
+    "service-runtime".exec = ''
+      set -euo pipefail
+      ${repoRootSetup}
+
+      if [ "$#" -eq 0 ]; then
+        echo "Usage: service-runtime <frontend-build|verify-vite-artifacts|migrate|load-base-data|static|django-check|backend-server> [...]"
+        exit 1
+      fi
+
+      while [ "$#" -gt 0 ]; do
+        case "$1" in
+          frontend-build)
+            ${frontendBuildExec}
+            ;;
+          verify-vite-artifacts)
+            ${verifyViteArtifactsExec}
+            ;;
+          migrate)
+            ${repoRootSetup}
+            ${pkgs.uv}/bin/uv run python manage.py migrate --noinput
+            ;;
+          load-base-data)
+            ${repoRootSetup}
+            ${pkgs.uv}/bin/uv run python manage.py load_base_db_data
+            ;;
+          static)
+            ${repoRootSetup}
+            ${pkgs.uv}/bin/uv run python manage.py collectstatic --noinput --clear
+            ;;
+          django-check)
+            ${repoRootSetup}
+            ${pkgs.uv}/bin/uv run python manage.py check
+            ;;
+          backend-server)
+            ${repoRootSetup}
+            exec run-server
+            ;;
+          *)
+            echo "Unknown service-runtime step: $1"
+            exit 1
+            ;;
+        esac
+        shift
+      done
     '';
 
     "export-frames".exec = ''
