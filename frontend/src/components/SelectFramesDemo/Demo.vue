@@ -16,7 +16,7 @@
                 <tr>
                   <td>
                     <img 
-                      :src="staticUrl + '/img/frames_demo/frame1.jpg'" 
+                      :src="staticUrl + 'img/frames_demo/frame1.jpg'" 
                       class="img-fluid" 
                       alt="Frame 1">
                   </td>
@@ -31,7 +31,7 @@
                 <tr>
                   <td>
                     <img 
-                      :src="staticUrl + '/img/frames_demo/frame2.jpg'" 
+                      :src="staticUrl + 'img/frames_demo/frame2.jpg'" 
                       class="img-fluid" 
                       alt="Frame 2">
                   </td>
@@ -46,7 +46,7 @@
                 <tr>
                   <td>
                     <img 
-                      :src="staticUrl + '/img/frames_demo/frame3.jpg'" 
+                      :src="staticUrl + 'img/frames_demo/frame3.jpg'" 
                       class="img-fluid" 
                       alt="Frame 3">
                   </td>
@@ -61,7 +61,7 @@
                 <tr>
                   <td>
                     <img 
-                      :src="staticUrl + '/img/frames_demo/frame4.jpg'" 
+                      :src="staticUrl + 'img/frames_demo/frame4.jpg'" 
                       class="img-fluid" 
                       alt="Frame 4">
                   </td>
@@ -82,12 +82,13 @@
   </template>
   
 <script>
+import { getStaticUrl } from '@/utils/getStaticUrl'
 
 export default {
     name: 'Frames',
     data() {
         return {
-            staticUrl: window.STATIC_URL || '/static/',
+            staticUrl: getStaticUrl(),
             frames: []
         }
     },

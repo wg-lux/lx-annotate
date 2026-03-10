@@ -29,13 +29,10 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import { getStaticUrl } from '@/utils/getStaticUrl'
 
 const docsUrl = computed(() => {
-  const staticUrlRaw = (window as any).STATIC_URL || '/static/'
-  const staticUrl = String(staticUrlRaw).endsWith('/')
-    ? String(staticUrlRaw)
-    : `${String(staticUrlRaw)}/`
-  return `${staticUrl}docs/index.html`
+  return getStaticUrl('docs/index.html')
 })
 </script>
 

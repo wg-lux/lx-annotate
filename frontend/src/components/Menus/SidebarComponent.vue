@@ -234,17 +234,13 @@
 <script>
 import axiosInstance, { r } from '@/api/axiosInstance'
 import { endpoints } from '@/types/api/endpoints'
-
-function normalizeStaticUrl(value) {
-  const base = value || '/static/'
-  return base.endsWith('/') ? base : `${base}/`
-}
+import { getStaticUrl } from '@/utils/getStaticUrl'
 
 export default {
   name: 'SidebarComponent',
   data() {
     return {
-      staticUrl: normalizeStaticUrl(window.STATIC_URL),
+      staticUrl: getStaticUrl(),
       isSidebarOpen: false,
       pendingValidationCount: 0,
       processingCount: 0,

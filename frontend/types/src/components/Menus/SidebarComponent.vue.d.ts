@@ -1,5 +1,5 @@
 declare const _default: import("vue").DefineComponent<{}, {}, {
-    staticUrl: any;
+    staticUrl: string;
     isSidebarOpen: boolean;
     pendingValidationCount: number;
     processingCount: number;

@@ -52,19 +52,12 @@
       "MedicalBlock.css"
     ]
   },
-  "_PatientAdder.css": {
-    "file": "PatientAdder.css",
-    "src": "_PatientAdder.css"
-  },
-  "_PatientAdder2.js": {
-    "file": "PatientAdder2.js",
-    "name": "PatientAdder",
+  "_ReportingMediaPreviewCards.vue_vue_type_script_setup_true_lang.js": {
+    "file": "ReportingMediaPreviewCards.vue_vue_type_script_setup_true_lang.js",
+    "name": "ReportingMediaPreviewCards.vue_vue_type_script_setup_true_lang",
     "imports": [
       "src/main.ts",
-      "_patientStore.js"
-    ],
-    "css": [
-      "PatientAdder.css"
+      "_reportingFlowStore.js"
     ]
   },
   "_RequirementGenerator.css": {
@@ -81,18 +74,25 @@
       "_examinationStore.js",
       "_RequirementIssues.vue_vue_type_script_setup_true_lang.js",
       "_patientExaminationStore.js",
-      "_PatientAdder2.js",
       "_FindingsDetail.js"
     ],
     "css": [
       "RequirementGenerator.css"
     ]
   },
+  "_RequirementIssues.css": {
+    "file": "RequirementIssues.css",
+    "src": "_RequirementIssues.css"
+  },
   "_RequirementIssues.vue_vue_type_script_setup_true_lang.js": {
     "file": "RequirementIssues.vue_vue_type_script_setup_true_lang.js",
     "name": "RequirementIssues.vue_vue_type_script_setup_true_lang",
     "imports": [
-      "src/main.ts"
+      "src/main.ts",
+      "_patientStore.js"
+    ],
+    "css": [
+      "RequirementIssues.css"
     ]
   },
   "_Timeline.css": {
@@ -151,6 +151,14 @@
     "file": "reportSubmissionUtils.js",
     "name": "reportSubmissionUtils"
   },
+  "_reportTemplatesApi.js": {
+    "file": "reportTemplatesApi.js",
+    "name": "reportTemplatesApi",
+    "imports": [
+      "src/main.ts",
+      "_findingsApi.js"
+    ]
+  },
   "_reportingFlowStore.js": {
     "file": "reportingFlowStore.js",
     "name": "reportingFlowStore",
@@ -182,6 +190,7 @@
     "file": "useReportTemplates.js",
     "name": "useReportTemplates",
     "imports": [
+      "_reportTemplatesApi.js",
       "src/main.ts"
     ]
   },
@@ -290,19 +299,14 @@
       "src/views/VideoExamination.vue",
       "src/views/FrameAnnotation.vue",
       "src/views/Dashboard.vue",
-      "src/views/UeberUns.vue",
       "src/views/PageOverview.vue",
       "src/views/Documentation.vue",
       "src/views/Examination.vue",
       "src/views/Export.vue",
-      "src/views/PatientAdder.vue",
       "src/views/PatientOverview.vue",
-      "src/views/Profil.vue",
-      "src/views/Anonymization.vue",
       "src/views/AnonymizationOverview.vue",
       "src/components/Anonymizer/AnonymizationValidationComponent.vue",
       "src/components/Anonymizer/AnonymizationCorrectionComponent.vue",
-      "src/views/Validierung.vue",
       "src/views/ReportGenerator.vue"
     ],
     "css": [
@@ -324,20 +328,6 @@
     "imports": [
       "_AnnotationDashboard2.js",
       "src/main.ts"
-    ]
-  },
-  "src/views/Anonymization.vue": {
-    "file": "Anonymization.js",
-    "name": "Anonymization",
-    "src": "src/views/Anonymization.vue",
-    "isDynamicEntry": true,
-    "imports": [
-      "src/components/Anonymizer/AnonymizationValidationComponent.vue",
-      "src/main.ts",
-      "_videoStore.js",
-      "_mediaTypeStore.js",
-      "_Timeline.js",
-      "_timeHelpers.js"
     ]
   },
   "src/views/AnonymizationOverview.vue": {
@@ -390,7 +380,6 @@
       "_examinationStore.js",
       "_RequirementIssues.vue_vue_type_script_setup_true_lang.js",
       "_patientExaminationStore.js",
-      "_PatientAdder2.js",
       "_FindingsDetail.js"
     ]
   },
@@ -429,17 +418,6 @@
       "src/main.ts"
     ]
   },
-  "src/views/PatientAdder.vue": {
-    "file": "PatientAdder.js",
-    "name": "PatientAdder",
-    "src": "src/views/PatientAdder.vue",
-    "isDynamicEntry": true,
-    "imports": [
-      "_PatientAdder2.js",
-      "src/main.ts",
-      "_patientStore.js"
-    ]
-  },
   "src/views/PatientOverview.vue": {
     "file": "PatientOverview.js",
     "name": "PatientOverview",
@@ -451,15 +429,6 @@
     ],
     "css": [
       "PatientOverview.css"
-    ]
-  },
-  "src/views/Profil.vue": {
-    "file": "Profil.js",
-    "name": "Profil",
-    "src": "src/views/Profil.vue",
-    "isDynamicEntry": true,
-    "imports": [
-      "src/main.ts"
     ]
   },
   "src/views/ReportGenerator.vue": {
@@ -475,39 +444,12 @@
       "_RequirementIssues.vue_vue_type_script_setup_true_lang.js",
       "_patientExaminationStore.js",
       "_useFindingSelectors.js",
-      "_PatientAdder2.js",
       "_MedicalBlock.vue_vue_type_style_index_0_lang.js",
       "_FindingsDetail.js",
       "_reportSubmissionUtils.js"
     ],
     "css": [
       "ReportGenerator.css"
-    ]
-  },
-  "src/views/UeberUns.vue": {
-    "file": "UeberUns.js",
-    "name": "UeberUns",
-    "src": "src/views/UeberUns.vue",
-    "isDynamicEntry": true,
-    "imports": [
-      "src/main.ts"
-    ]
-  },
-  "src/views/Validierung.vue": {
-    "file": "Validierung.js",
-    "name": "Validierung",
-    "src": "src/views/Validierung.vue",
-    "isDynamicEntry": true,
-    "imports": [
-      "src/components/Anonymizer/AnonymizationValidationComponent.vue",
-      "src/main.ts",
-      "_videoStore.js",
-      "_mediaTypeStore.js",
-      "_Timeline.js",
-      "_timeHelpers.js"
-    ],
-    "css": [
-      "Validierung.css"
     ]
   },
   "src/views/VideoExamination.vue": {
@@ -527,7 +469,6 @@
       "_examinationStore.js",
       "_RequirementIssues.vue_vue_type_script_setup_true_lang.js",
       "_patientExaminationStore.js",
-      "_PatientAdder2.js",
       "_FindingsDetail.js",
       "_timeHelpers.js"
     ],
@@ -567,9 +508,11 @@
     "imports": [
       "src/main.ts",
       "_findingsApi.js",
+      "_reportTemplatesApi.js",
       "_FindingsDetail.js",
       "_useFindingSelectors.js",
       "_LookupStatusPanel.vue_vue_type_script_setup_true_lang.js",
+      "_ReportingMediaPreviewCards.vue_vue_type_script_setup_true_lang.js",
       "_useLookupActions.js",
       "_reportingFlowStore.js",
       "_patientExaminationStore.js",
@@ -608,7 +551,8 @@
       "_examinationStore.js",
       "_reportingFlowStore.js",
       "_reportSubmissionUtils.js",
-      "_patientStore.js"
+      "_patientStore.js",
+      "_reportTemplatesApi.js"
     ]
   },
   "src/views/reporting/ReportingShell.vue": {
@@ -640,6 +584,7 @@
     "isDynamicEntry": true,
     "imports": [
       "_LookupStatusPanel.vue_vue_type_script_setup_true_lang.js",
+      "_ReportingMediaPreviewCards.vue_vue_type_script_setup_true_lang.js",
       "src/main.ts",
       "_useLookupActions.js",
       "_reportingFlowStore.js"
@@ -657,6 +602,7 @@
       "_useReportTemplates.js",
       "_examinationStore.js",
       "_reportingFlowStore.js",
+      "_reportTemplatesApi.js",
       "_findingsApi.js"
     ]
   }

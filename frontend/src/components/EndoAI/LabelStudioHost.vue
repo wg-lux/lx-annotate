@@ -18,6 +18,7 @@ import { endpoints } from '@/types/api/endpoints'
 import { useAnnotationQueueStore, type AnnotationTask } from '@/stores/annotationQueue'
 import { useAuthKcStore } from '@/stores/auth_kc'
 import { resolveAnnotator, toBulkUpsertPayload } from '@/utils/annotationAdapter'
+import { getStaticUrl } from '@/utils/getStaticUrl'
 
 type LabelStudioCtor = new (
   root: string | HTMLElement,
@@ -37,7 +38,6 @@ const isLoading = ref(true)
 const currentTask = ref<AnnotationTask | null>(null)
 
 const LABEL_STUDIO_VERSION = '1.11.0'
-const FALLBACK_STATIC_BASE = '/static/'
 const LABEL_STUDIO_SCRIPT_PATH = `@humansignal/label-studio@${LABEL_STUDIO_VERSION}/build/static/js/main.js`
 const LABEL_STUDIO_STYLE_PATH = `@humansignal/label-studio@${LABEL_STUDIO_VERSION}/build/static/css/main.css`
 const LABEL_STUDIO_SCRIPT_SOURCES = [
@@ -95,13 +95,7 @@ function destroyLabelStudio(invalidate = true): void {
 }
 
 function buildStaticAssetUrl(path: string): string {
-  const rawPrefix =
-    typeof window !== 'undefined' &&
-    typeof (window as Window & { STATIC_URL?: unknown }).STATIC_URL === 'string'
-      ? ((window as Window & { STATIC_URL?: string }).STATIC_URL as string)
-      : FALLBACK_STATIC_BASE
-  const normalizedPrefix = rawPrefix.endsWith('/') ? rawPrefix : `${rawPrefix}/`
-  return `${normalizedPrefix}${path}`
+  return getStaticUrl(path)
 }
 
 function getScriptSources(): string[] {

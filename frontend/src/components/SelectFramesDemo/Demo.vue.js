@@ -1,8 +1,9 @@
+import { getStaticUrl } from '@/utils/getStaticUrl';
 export default (await import('vue')).defineComponent({
     name: 'Frames',
     data() {
         return {
-            staticUrl: window.STATIC_URL || '/static/',
+            staticUrl: getStaticUrl(),
             frames: []
         };
     },
@@ -38,7 +39,7 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.tbody, __VLS_intrinsicElements
 __VLS_asFunctionalElement(__VLS_intrinsicElements.tr, __VLS_intrinsicElements.tr)({});
 __VLS_asFunctionalElement(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
 __VLS_asFunctionalElement(__VLS_intrinsicElements.img, __VLS_intrinsicElements.img)({
-    src: (__VLS_ctx.staticUrl + '/img/frames_demo/frame1.jpg'),
+    src: (__VLS_ctx.staticUrl + 'img/frames_demo/frame1.jpg'),
     ...{ class: "img-fluid" },
     alt: "Frame 1",
 });
@@ -54,7 +55,7 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)(
 __VLS_asFunctionalElement(__VLS_intrinsicElements.tr, __VLS_intrinsicElements.tr)({});
 __VLS_asFunctionalElement(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
 __VLS_asFunctionalElement(__VLS_intrinsicElements.img, __VLS_intrinsicElements.img)({
-    src: (__VLS_ctx.staticUrl + '/img/frames_demo/frame2.jpg'),
+    src: (__VLS_ctx.staticUrl + 'img/frames_demo/frame2.jpg'),
     ...{ class: "img-fluid" },
     alt: "Frame 2",
 });
@@ -70,7 +71,7 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)(
 __VLS_asFunctionalElement(__VLS_intrinsicElements.tr, __VLS_intrinsicElements.tr)({});
 __VLS_asFunctionalElement(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
 __VLS_asFunctionalElement(__VLS_intrinsicElements.img, __VLS_intrinsicElements.img)({
-    src: (__VLS_ctx.staticUrl + '/img/frames_demo/frame3.jpg'),
+    src: (__VLS_ctx.staticUrl + 'img/frames_demo/frame3.jpg'),
     ...{ class: "img-fluid" },
     alt: "Frame 3",
 });
@@ -86,7 +87,7 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)(
 __VLS_asFunctionalElement(__VLS_intrinsicElements.tr, __VLS_intrinsicElements.tr)({});
 __VLS_asFunctionalElement(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
 __VLS_asFunctionalElement(__VLS_intrinsicElements.img, __VLS_intrinsicElements.img)({
-    src: (__VLS_ctx.staticUrl + '/img/frames_demo/frame4.jpg'),
+    src: (__VLS_ctx.staticUrl + 'img/frames_demo/frame4.jpg'),
     ...{ class: "img-fluid" },
     alt: "Frame 4",
 });

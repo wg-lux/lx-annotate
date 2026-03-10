@@ -4,13 +4,13 @@ import { endpoints } from '@/types/api/endpoints';
 import { useAnnotationQueueStore } from '@/stores/annotationQueue';
 import { useAuthKcStore } from '@/stores/auth_kc';
 import { resolveAnnotator, toBulkUpsertPayload } from '@/utils/annotationAdapter';
+import { getStaticUrl } from '@/utils/getStaticUrl';
 const lsRoot = ref(null);
 const queueStore = useAnnotationQueueStore();
 const authStore = useAuthKcStore();
 const isLoading = ref(true);
 const currentTask = ref(null);
 const LABEL_STUDIO_VERSION = '1.11.0';
-const FALLBACK_STATIC_BASE = '/static/';
 const LABEL_STUDIO_SCRIPT_PATH = `@humansignal/label-studio@${LABEL_STUDIO_VERSION}/build/static/js/main.js`;
 const LABEL_STUDIO_STYLE_PATH = `@humansignal/label-studio@${LABEL_STUDIO_VERSION}/build/static/css/main.css`;
 const LABEL_STUDIO_SCRIPT_SOURCES = [
@@ -61,12 +61,7 @@ function destroyLabelStudio(invalidate = true) {
     }
 }
 function buildStaticAssetUrl(path) {
-    const rawPrefix = typeof window !== 'undefined' &&
-        typeof window.STATIC_URL === 'string'
-        ? window.STATIC_URL
-        : FALLBACK_STATIC_BASE;
-    const normalizedPrefix = rawPrefix.endsWith('/') ? rawPrefix : `${rawPrefix}/`;
-    return `${normalizedPrefix}${path}`;
+    return getStaticUrl(path);
 }
 function getScriptSources() {
     return [buildStaticAssetUrl(`vendor/label-studio/${LABEL_STUDIO_SCRIPT_PATH}`), ...LABEL_STUDIO_SCRIPT_SOURCES];

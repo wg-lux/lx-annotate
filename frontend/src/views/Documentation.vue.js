@@ -1,10 +1,7 @@
 import { computed } from 'vue';
+import { getStaticUrl } from '@/utils/getStaticUrl';
 const docsUrl = computed(() => {
-    const staticUrlRaw = window.STATIC_URL || '/static/';
-    const staticUrl = String(staticUrlRaw).endsWith('/')
-        ? String(staticUrlRaw)
-        : `${String(staticUrlRaw)}/`;
-    return `${staticUrl}docs/index.html`;
+    return getStaticUrl('docs/index.html');
 });
 debugger; /* PartiallyEnd: #3632/scriptSetup.vue */
 const __VLS_ctx = {};

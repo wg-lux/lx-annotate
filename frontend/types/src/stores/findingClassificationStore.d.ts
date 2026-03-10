@@ -195,7 +195,7 @@ export declare const useFindingClassificationStore: import("pinia").StoreDefinit
     replaceFindings: (entries: Finding[]) => void;
     upsertFindings: (entries: Finding[]) => void;
     setClassificationChoicesFromLookup: (lookupFindings: unknown) => void;
-}, "error" | "loading" | "findings">, Pick<{
+}, "loading" | "error" | "findings">, Pick<{
     findings: Readonly<import("vue").Ref<{
         readonly [x: number]: {
             readonly id: number;
