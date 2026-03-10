@@ -9,7 +9,7 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 
 export default defineConfig({
-    base: '/static/',
+    base: '/',
     plugins: [vue(), vueJsx(), vueDevTools()],
 
     build: {

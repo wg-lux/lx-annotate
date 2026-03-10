@@ -11,7 +11,7 @@ def _read(path: str) -> str:
 def test_vite_config_uses_static_root_output_and_base_url():
     vite_cfg = _read("frontend/vite.config.ts")
 
-    assert "base: '/static/'" in vite_cfg
+    assert "base: '/'" in vite_cfg
     assert "outDir: resolve(__dirname, '../static')" in vite_cfg
     assert "emptyOutDir: false" in vite_cfg
 
