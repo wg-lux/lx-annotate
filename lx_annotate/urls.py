@@ -6,7 +6,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include, path, re_path
-from django.views.generic import TemplateView
+from django.views.generic import RedirectView, TemplateView
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +34,14 @@ urlpatterns = [
     path("api/", include(("endoreg_db.urls", "endoreg_db"), namespace="endoreg_db")),
     # ✅ ADD THIS: OIDC endpoints provided by mozilla-django-oidc
     path("oidc/", include("mozilla_django_oidc.urls")),
+    path(
+        "favicon.ico",
+        RedirectView.as_view(
+            url=f"{settings.STATIC_URL}img/favicon.png",
+            permanent=False,
+        ),
+        name="favicon",
+    ),
     # Vue SPA fallback – MUST be LAST to catch all non-API routes
     re_path(
         r"^(?!api/|base_api/|admin/|media/|oidc/).*$",

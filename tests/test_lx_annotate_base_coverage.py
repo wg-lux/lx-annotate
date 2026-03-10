@@ -8,8 +8,10 @@ from types import SimpleNamespace
 from unittest.mock import Mock
 
 import pytest
+from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
+from django.test import Client
 from django.urls import Resolver404, resolve
 from rest_framework.test import APIRequestFactory, force_authenticate
 
@@ -272,6 +274,13 @@ def test_vue_spa_fallback_route_resolves():
 def test_api_path_is_not_caught_by_vue_spa_fallback():
     with pytest.raises(Resolver404):
         resolve("/api/this-route-should-not-hit-vue-spa/")
+
+
+def test_favicon_route_redirects_to_static_asset():
+    response = Client().get("/favicon.ico")
+
+    assert response.status_code == 302
+    assert response["Location"] == f"{settings.STATIC_URL}img/favicon.png"
 
 
 def test_export_route_manifest_command_filters_and_writes_file(tmp_path, monkeypatch):
