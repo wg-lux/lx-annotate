@@ -14,6 +14,7 @@ from .settings_base import (
     TEMPLATES,
     ROOT_URLCONF,
     STATIC_URL,
+    STATICFILES_STORAGE,
     MEDIA_ROOT,
     MEDIA_URL,
     BASE_DIR,
@@ -30,6 +31,7 @@ MIGRATION_MODULES = cast(dict[str, str], MIGRATION_MODULES)
 TEMPLATES = cast(list[dict[str, Any]], TEMPLATES)
 ROOT_URLCONF = cast(str, ROOT_URLCONF)
 STATIC_URL = cast(str, STATIC_URL)
+STATICFILES_STORAGE = cast(str, STATICFILES_STORAGE)
 MEDIA_ROOT = cast(Path, MEDIA_ROOT)
 MEDIA_URL = cast(str, MEDIA_URL)
 config = cast(AppConfig, config)
@@ -63,6 +65,11 @@ DJANGO_VITE = {
         "manifest_path": os.path.join(STATIC_ROOT, ".vite", "manifest.json"),
     }
 }
+
+# Vite already owns the frontend asset graph and manifest.
+# ManifestStaticFilesStorage would rewrite `main.js` to an older hashed bundle
+# via Django's own manifest, which breaks route loading after deploy.
+STATICFILES_STORAGE = "whitenoise.storage.CompressedStaticFilesStorage"
 
 # 3. SECURITY HEADERS
 SECURE_SSL_REDIRECT = True

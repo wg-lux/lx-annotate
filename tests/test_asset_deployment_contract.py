@@ -29,6 +29,10 @@ def test_django_vite_manifest_paths_match_static_root_contract():
     assert '"static_url_prefix": ""' in prod_settings
     assert 'os.path.join(STATIC_ROOT, ".vite", "manifest.json")' in prod_settings
     assert "DJANGO_STATIC_ROOT must not point to BASE_DIR/static" in prod_settings
+    assert (
+        'STATICFILES_STORAGE = "whitenoise.storage.CompressedStaticFilesStorage"'
+        in prod_settings
+    )
     assert 'os.getenv("DJANGO_STATIC_ROOT", "./staticfiles")' in config_py
     assert (
         'DJANGO_STATIC_ROOT = { description = "Static root for django file serving", default = "staticfiles"}'
