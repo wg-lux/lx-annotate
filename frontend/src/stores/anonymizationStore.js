@@ -265,23 +265,16 @@ export const useAnonymizationStore = defineStore('anonymization', {
                     throw new Error(`Item with ID ${id} not found in overview`);
                 }
                 console.log('Found item for validation:', item);
-                const url = r(`media/sensitive-media-id/${id}/${mediaType}/`);
-                const smIdObj = await axiosInstance.get(url);
-                const smId = smIdObj.data.sm;
                 if (mediaType === 'video') {
-                    // For videos, use the ID to load the video data
-                    console.log(`Loading video data for sensitiveMetaId: ${item.id}`);
-                    const { data: sensitiveMeta } = await axiosInstance.get(r(`media/videos/${smId}/sensitive-metadata/`));
+                    console.log(`Loading video data for ID: ${item.id}`);
+                    const { data: sensitiveMeta } = await axiosInstance.get(r(`media/videos/${item.id}/sensitive-metadata/`));
                     console.log('Received video detail:', sensitiveMeta);
                     this.current = sensitiveMeta;
                     return this.current;
                 }
                 else if (mediaType === 'pdf') {
-                    // For PDFs, load both details and sensitive metadata
                     console.log(`Setting current PDF item for validation: ${id}`);
-                    console.log(`Fetching PDF details for sm ID: ${smId}`);
-                    // 2) Sensitive-Meta laden
-                    const metaUrl = r(`media/pdfs/${smId}/sensitive-metadata/`);
+                    const metaUrl = r(`media/pdfs/${item.id}/sensitive-metadata/`);
                     console.log(`Fetching sensitive meta from: ${metaUrl}`);
                     const { data: sensitiveMeta } = await axiosInstance.get(metaUrl);
                     console.log('Received sensitive meta response data:', sensitiveMeta);
@@ -289,7 +282,6 @@ export const useAnonymizationStore = defineStore('anonymization', {
                         console.error('Received invalid sensitive meta data structure:', sensitiveMeta);
                         throw new Error('Ungültige Metadaten vom Backend empfangen.');
                     }
-                    console.log('Merged validation data:', sensitiveMeta);
                     this.current = sensitiveMeta;
                     return sensitiveMeta;
                 }
