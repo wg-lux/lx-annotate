@@ -71,6 +71,12 @@ export interface SensitiveMeta {
   document_type?: string | null
   externalId?:string
   externalIdOrigin?:string
+  patientHashDisplay?: string | null
+  examinationHashDisplay?: string | null
+  pseudoPatientId?: number | null
+  pseudoExaminationId?: number | null
+  patientExaminationId?: number | null
+  patientId?: number | null
 }
 
 

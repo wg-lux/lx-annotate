@@ -27,6 +27,7 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
             readonly id: number;
             readonly description: string;
             readonly nameDe?: string | undefined;
+            readonly displayName?: string | undefined;
             readonly examinations: readonly string[];
             readonly patientExaminationId?: number | undefined;
             readonly classifications: readonly {
@@ -34,12 +35,14 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
                 readonly name: string;
                 readonly description?: string | undefined;
                 readonly nameDe?: string | undefined;
+                readonly displayName?: string | undefined;
                 readonly required: boolean;
                 readonly classificationTypes: readonly string[];
                 readonly choices: readonly {
                     readonly id: number;
                     readonly description?: string | undefined;
                     readonly nameDe?: string | undefined;
+                    readonly displayName?: string | undefined;
                     readonly subcategories: {
                         readonly [x: string]: Readonly<unknown>;
                     };
@@ -54,12 +57,14 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
                 readonly name: string;
                 readonly description?: string | undefined;
                 readonly nameDe?: string | undefined;
+                readonly displayName?: string | undefined;
                 readonly required: boolean;
                 readonly classificationTypes: readonly string[];
                 readonly choices: readonly {
                     readonly id: number;
                     readonly description?: string | undefined;
                     readonly nameDe?: string | undefined;
+                    readonly displayName?: string | undefined;
                     readonly subcategories: {
                         readonly [x: string]: Readonly<unknown>;
                     };
@@ -74,12 +79,14 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
                 readonly name: string;
                 readonly description?: string | undefined;
                 readonly nameDe?: string | undefined;
+                readonly displayName?: string | undefined;
                 readonly required: boolean;
                 readonly classificationTypes: readonly string[];
                 readonly choices: readonly {
                     readonly id: number;
                     readonly description?: string | undefined;
                     readonly nameDe?: string | undefined;
+                    readonly displayName?: string | undefined;
                     readonly subcategories: {
                         readonly [x: string]: Readonly<unknown>;
                     };
@@ -94,12 +101,14 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
                 readonly name: string;
                 readonly description?: string | undefined;
                 readonly nameDe?: string | undefined;
+                readonly displayName?: string | undefined;
                 readonly required: boolean;
                 readonly classificationTypes: readonly string[];
                 readonly choices: readonly {
                     readonly id: number;
                     readonly description?: string | undefined;
                     readonly nameDe?: string | undefined;
+                    readonly displayName?: string | undefined;
                     readonly subcategories: {
                         readonly [x: string]: Readonly<unknown>;
                     };
@@ -171,6 +180,7 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
             readonly id: number;
             readonly description: string;
             readonly nameDe?: string | undefined;
+            readonly displayName?: string | undefined;
             readonly examinations: readonly string[];
             readonly patientExaminationId?: number | undefined;
             readonly classifications: readonly {
@@ -178,12 +188,14 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
                 readonly name: string;
                 readonly description?: string | undefined;
                 readonly nameDe?: string | undefined;
+                readonly displayName?: string | undefined;
                 readonly required: boolean;
                 readonly classificationTypes: readonly string[];
                 readonly choices: readonly {
                     readonly id: number;
                     readonly description?: string | undefined;
                     readonly nameDe?: string | undefined;
+                    readonly displayName?: string | undefined;
                     readonly subcategories: {
                         readonly [x: string]: Readonly<unknown>;
                     };
@@ -198,12 +210,14 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
                 readonly name: string;
                 readonly description?: string | undefined;
                 readonly nameDe?: string | undefined;
+                readonly displayName?: string | undefined;
                 readonly required: boolean;
                 readonly classificationTypes: readonly string[];
                 readonly choices: readonly {
                     readonly id: number;
                     readonly description?: string | undefined;
                     readonly nameDe?: string | undefined;
+                    readonly displayName?: string | undefined;
                     readonly subcategories: {
                         readonly [x: string]: Readonly<unknown>;
                     };
@@ -218,12 +232,14 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
                 readonly name: string;
                 readonly description?: string | undefined;
                 readonly nameDe?: string | undefined;
+                readonly displayName?: string | undefined;
                 readonly required: boolean;
                 readonly classificationTypes: readonly string[];
                 readonly choices: readonly {
                     readonly id: number;
                     readonly description?: string | undefined;
                     readonly nameDe?: string | undefined;
+                    readonly displayName?: string | undefined;
                     readonly subcategories: {
                         readonly [x: string]: Readonly<unknown>;
                     };
@@ -238,12 +254,14 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
                 readonly name: string;
                 readonly description?: string | undefined;
                 readonly nameDe?: string | undefined;
+                readonly displayName?: string | undefined;
                 readonly required: boolean;
                 readonly classificationTypes: readonly string[];
                 readonly choices: readonly {
                     readonly id: number;
                     readonly description?: string | undefined;
                     readonly nameDe?: string | undefined;
+                    readonly displayName?: string | undefined;
                     readonly subcategories: {
                         readonly [x: string]: Readonly<unknown>;
                     };
@@ -316,6 +334,7 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
             id: number;
             description: string;
             nameDe?: string | undefined;
+            displayName?: string | undefined;
             examinations: string[];
             patientExaminationId?: number | undefined;
             classifications: {
@@ -323,12 +342,14 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
                 name: string;
                 description?: string | undefined;
                 nameDe?: string | undefined;
+                displayName?: string | undefined;
                 required: boolean;
                 classificationTypes: string[];
                 choices: {
                     id: number;
                     description?: string | undefined;
                     nameDe?: string | undefined;
+                    displayName?: string | undefined;
                     subcategories: import("@/api/findings.contract").JsonMap;
                     numericalDescriptors: import("@/api/findings.contract").JsonMap;
                     name: string;
@@ -339,12 +360,14 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
                 name: string;
                 description?: string | undefined;
                 nameDe?: string | undefined;
+                displayName?: string | undefined;
                 required: boolean;
                 classificationTypes: string[];
                 choices: {
                     id: number;
                     description?: string | undefined;
                     nameDe?: string | undefined;
+                    displayName?: string | undefined;
                     subcategories: import("@/api/findings.contract").JsonMap;
                     numericalDescriptors: import("@/api/findings.contract").JsonMap;
                     name: string;
@@ -355,12 +378,14 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
                 name: string;
                 description?: string | undefined;
                 nameDe?: string | undefined;
+                displayName?: string | undefined;
                 required: boolean;
                 classificationTypes: string[];
                 choices: {
                     id: number;
                     description?: string | undefined;
                     nameDe?: string | undefined;
+                    displayName?: string | undefined;
                     subcategories: import("@/api/findings.contract").JsonMap;
                     numericalDescriptors: import("@/api/findings.contract").JsonMap;
                     name: string;
@@ -371,12 +396,14 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
                 name: string;
                 description?: string | undefined;
                 nameDe?: string | undefined;
+                displayName?: string | undefined;
                 required: boolean;
                 classificationTypes: string[];
                 choices: {
                     id: number;
                     description?: string | undefined;
                     nameDe?: string | undefined;
+                    displayName?: string | undefined;
                     subcategories: import("@/api/findings.contract").JsonMap;
                     numericalDescriptors: import("@/api/findings.contract").JsonMap;
                     name: string;
@@ -453,6 +480,7 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
             readonly id: number;
             readonly description: string;
             readonly nameDe?: string | undefined;
+            readonly displayName?: string | undefined;
             readonly examinations: readonly string[];
             readonly patientExaminationId?: number | undefined;
             readonly classifications: readonly {
@@ -460,12 +488,14 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
                 readonly name: string;
                 readonly description?: string | undefined;
                 readonly nameDe?: string | undefined;
+                readonly displayName?: string | undefined;
                 readonly required: boolean;
                 readonly classificationTypes: readonly string[];
                 readonly choices: readonly {
                     readonly id: number;
                     readonly description?: string | undefined;
                     readonly nameDe?: string | undefined;
+                    readonly displayName?: string | undefined;
                     readonly subcategories: {
                         readonly [x: string]: Readonly<unknown>;
                     };
@@ -480,12 +510,14 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
                 readonly name: string;
                 readonly description?: string | undefined;
                 readonly nameDe?: string | undefined;
+                readonly displayName?: string | undefined;
                 readonly required: boolean;
                 readonly classificationTypes: readonly string[];
                 readonly choices: readonly {
                     readonly id: number;
                     readonly description?: string | undefined;
                     readonly nameDe?: string | undefined;
+                    readonly displayName?: string | undefined;
                     readonly subcategories: {
                         readonly [x: string]: Readonly<unknown>;
                     };
@@ -500,12 +532,14 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
                 readonly name: string;
                 readonly description?: string | undefined;
                 readonly nameDe?: string | undefined;
+                readonly displayName?: string | undefined;
                 readonly required: boolean;
                 readonly classificationTypes: readonly string[];
                 readonly choices: readonly {
                     readonly id: number;
                     readonly description?: string | undefined;
                     readonly nameDe?: string | undefined;
+                    readonly displayName?: string | undefined;
                     readonly subcategories: {
                         readonly [x: string]: Readonly<unknown>;
                     };
@@ -520,12 +554,14 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
                 readonly name: string;
                 readonly description?: string | undefined;
                 readonly nameDe?: string | undefined;
+                readonly displayName?: string | undefined;
                 readonly required: boolean;
                 readonly classificationTypes: readonly string[];
                 readonly choices: readonly {
                     readonly id: number;
                     readonly description?: string | undefined;
                     readonly nameDe?: string | undefined;
+                    readonly displayName?: string | undefined;
                     readonly subcategories: {
                         readonly [x: string]: Readonly<unknown>;
                     };
@@ -597,6 +633,7 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
             readonly id: number;
             readonly description: string;
             readonly nameDe?: string | undefined;
+            readonly displayName?: string | undefined;
             readonly examinations: readonly string[];
             readonly patientExaminationId?: number | undefined;
             readonly classifications: readonly {
@@ -604,12 +641,14 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
                 readonly name: string;
                 readonly description?: string | undefined;
                 readonly nameDe?: string | undefined;
+                readonly displayName?: string | undefined;
                 readonly required: boolean;
                 readonly classificationTypes: readonly string[];
                 readonly choices: readonly {
                     readonly id: number;
                     readonly description?: string | undefined;
                     readonly nameDe?: string | undefined;
+                    readonly displayName?: string | undefined;
                     readonly subcategories: {
                         readonly [x: string]: Readonly<unknown>;
                     };
@@ -624,12 +663,14 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
                 readonly name: string;
                 readonly description?: string | undefined;
                 readonly nameDe?: string | undefined;
+                readonly displayName?: string | undefined;
                 readonly required: boolean;
                 readonly classificationTypes: readonly string[];
                 readonly choices: readonly {
                     readonly id: number;
                     readonly description?: string | undefined;
                     readonly nameDe?: string | undefined;
+                    readonly displayName?: string | undefined;
                     readonly subcategories: {
                         readonly [x: string]: Readonly<unknown>;
                     };
@@ -644,12 +685,14 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
                 readonly name: string;
                 readonly description?: string | undefined;
                 readonly nameDe?: string | undefined;
+                readonly displayName?: string | undefined;
                 readonly required: boolean;
                 readonly classificationTypes: readonly string[];
                 readonly choices: readonly {
                     readonly id: number;
                     readonly description?: string | undefined;
                     readonly nameDe?: string | undefined;
+                    readonly displayName?: string | undefined;
                     readonly subcategories: {
                         readonly [x: string]: Readonly<unknown>;
                     };
@@ -664,12 +707,14 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
                 readonly name: string;
                 readonly description?: string | undefined;
                 readonly nameDe?: string | undefined;
+                readonly displayName?: string | undefined;
                 readonly required: boolean;
                 readonly classificationTypes: readonly string[];
                 readonly choices: readonly {
                     readonly id: number;
                     readonly description?: string | undefined;
                     readonly nameDe?: string | undefined;
+                    readonly displayName?: string | undefined;
                     readonly subcategories: {
                         readonly [x: string]: Readonly<unknown>;
                     };
@@ -742,6 +787,7 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
             id: number;
             description: string;
             nameDe?: string | undefined;
+            displayName?: string | undefined;
             examinations: string[];
             patientExaminationId?: number | undefined;
             classifications: {
@@ -749,12 +795,14 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
                 name: string;
                 description?: string | undefined;
                 nameDe?: string | undefined;
+                displayName?: string | undefined;
                 required: boolean;
                 classificationTypes: string[];
                 choices: {
                     id: number;
                     description?: string | undefined;
                     nameDe?: string | undefined;
+                    displayName?: string | undefined;
                     subcategories: import("@/api/findings.contract").JsonMap;
                     numericalDescriptors: import("@/api/findings.contract").JsonMap;
                     name: string;
@@ -765,12 +813,14 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
                 name: string;
                 description?: string | undefined;
                 nameDe?: string | undefined;
+                displayName?: string | undefined;
                 required: boolean;
                 classificationTypes: string[];
                 choices: {
                     id: number;
                     description?: string | undefined;
                     nameDe?: string | undefined;
+                    displayName?: string | undefined;
                     subcategories: import("@/api/findings.contract").JsonMap;
                     numericalDescriptors: import("@/api/findings.contract").JsonMap;
                     name: string;
@@ -781,12 +831,14 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
                 name: string;
                 description?: string | undefined;
                 nameDe?: string | undefined;
+                displayName?: string | undefined;
                 required: boolean;
                 classificationTypes: string[];
                 choices: {
                     id: number;
                     description?: string | undefined;
                     nameDe?: string | undefined;
+                    displayName?: string | undefined;
                     subcategories: import("@/api/findings.contract").JsonMap;
                     numericalDescriptors: import("@/api/findings.contract").JsonMap;
                     name: string;
@@ -797,12 +849,14 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
                 name: string;
                 description?: string | undefined;
                 nameDe?: string | undefined;
+                displayName?: string | undefined;
                 required: boolean;
                 classificationTypes: string[];
                 choices: {
                     id: number;
                     description?: string | undefined;
                     nameDe?: string | undefined;
+                    displayName?: string | undefined;
                     subcategories: import("@/api/findings.contract").JsonMap;
                     numericalDescriptors: import("@/api/findings.contract").JsonMap;
                     name: string;
@@ -879,6 +933,7 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
             readonly id: number;
             readonly description: string;
             readonly nameDe?: string | undefined;
+            readonly displayName?: string | undefined;
             readonly examinations: readonly string[];
             readonly patientExaminationId?: number | undefined;
             readonly classifications: readonly {
@@ -886,12 +941,14 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
                 readonly name: string;
                 readonly description?: string | undefined;
                 readonly nameDe?: string | undefined;
+                readonly displayName?: string | undefined;
                 readonly required: boolean;
                 readonly classificationTypes: readonly string[];
                 readonly choices: readonly {
                     readonly id: number;
                     readonly description?: string | undefined;
                     readonly nameDe?: string | undefined;
+                    readonly displayName?: string | undefined;
                     readonly subcategories: {
                         readonly [x: string]: Readonly<unknown>;
                     };
@@ -906,12 +963,14 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
                 readonly name: string;
                 readonly description?: string | undefined;
                 readonly nameDe?: string | undefined;
+                readonly displayName?: string | undefined;
                 readonly required: boolean;
                 readonly classificationTypes: readonly string[];
                 readonly choices: readonly {
                     readonly id: number;
                     readonly description?: string | undefined;
                     readonly nameDe?: string | undefined;
+                    readonly displayName?: string | undefined;
                     readonly subcategories: {
                         readonly [x: string]: Readonly<unknown>;
                     };
@@ -926,12 +985,14 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
                 readonly name: string;
                 readonly description?: string | undefined;
                 readonly nameDe?: string | undefined;
+                readonly displayName?: string | undefined;
                 readonly required: boolean;
                 readonly classificationTypes: readonly string[];
                 readonly choices: readonly {
                     readonly id: number;
                     readonly description?: string | undefined;
                     readonly nameDe?: string | undefined;
+                    readonly displayName?: string | undefined;
                     readonly subcategories: {
                         readonly [x: string]: Readonly<unknown>;
                     };
@@ -946,12 +1007,14 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
                 readonly name: string;
                 readonly description?: string | undefined;
                 readonly nameDe?: string | undefined;
+                readonly displayName?: string | undefined;
                 readonly required: boolean;
                 readonly classificationTypes: readonly string[];
                 readonly choices: readonly {
                     readonly id: number;
                     readonly description?: string | undefined;
                     readonly nameDe?: string | undefined;
+                    readonly displayName?: string | undefined;
                     readonly subcategories: {
                         readonly [x: string]: Readonly<unknown>;
                     };
@@ -1023,6 +1086,7 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
             readonly id: number;
             readonly description: string;
             readonly nameDe?: string | undefined;
+            readonly displayName?: string | undefined;
             readonly examinations: readonly string[];
             readonly patientExaminationId?: number | undefined;
             readonly classifications: readonly {
@@ -1030,12 +1094,14 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
                 readonly name: string;
                 readonly description?: string | undefined;
                 readonly nameDe?: string | undefined;
+                readonly displayName?: string | undefined;
                 readonly required: boolean;
                 readonly classificationTypes: readonly string[];
                 readonly choices: readonly {
                     readonly id: number;
                     readonly description?: string | undefined;
                     readonly nameDe?: string | undefined;
+                    readonly displayName?: string | undefined;
                     readonly subcategories: {
                         readonly [x: string]: Readonly<unknown>;
                     };
@@ -1050,12 +1116,14 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
                 readonly name: string;
                 readonly description?: string | undefined;
                 readonly nameDe?: string | undefined;
+                readonly displayName?: string | undefined;
                 readonly required: boolean;
                 readonly classificationTypes: readonly string[];
                 readonly choices: readonly {
                     readonly id: number;
                     readonly description?: string | undefined;
                     readonly nameDe?: string | undefined;
+                    readonly displayName?: string | undefined;
                     readonly subcategories: {
                         readonly [x: string]: Readonly<unknown>;
                     };
@@ -1070,12 +1138,14 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
                 readonly name: string;
                 readonly description?: string | undefined;
                 readonly nameDe?: string | undefined;
+                readonly displayName?: string | undefined;
                 readonly required: boolean;
                 readonly classificationTypes: readonly string[];
                 readonly choices: readonly {
                     readonly id: number;
                     readonly description?: string | undefined;
                     readonly nameDe?: string | undefined;
+                    readonly displayName?: string | undefined;
                     readonly subcategories: {
                         readonly [x: string]: Readonly<unknown>;
                     };
@@ -1090,12 +1160,14 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
                 readonly name: string;
                 readonly description?: string | undefined;
                 readonly nameDe?: string | undefined;
+                readonly displayName?: string | undefined;
                 readonly required: boolean;
                 readonly classificationTypes: readonly string[];
                 readonly choices: readonly {
                     readonly id: number;
                     readonly description?: string | undefined;
                     readonly nameDe?: string | undefined;
+                    readonly displayName?: string | undefined;
                     readonly subcategories: {
                         readonly [x: string]: Readonly<unknown>;
                     };
@@ -1168,6 +1240,7 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
             id: number;
             description: string;
             nameDe?: string | undefined;
+            displayName?: string | undefined;
             examinations: string[];
             patientExaminationId?: number | undefined;
             classifications: {
@@ -1175,12 +1248,14 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
                 name: string;
                 description?: string | undefined;
                 nameDe?: string | undefined;
+                displayName?: string | undefined;
                 required: boolean;
                 classificationTypes: string[];
                 choices: {
                     id: number;
                     description?: string | undefined;
                     nameDe?: string | undefined;
+                    displayName?: string | undefined;
                     subcategories: import("@/api/findings.contract").JsonMap;
                     numericalDescriptors: import("@/api/findings.contract").JsonMap;
                     name: string;
@@ -1191,12 +1266,14 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
                 name: string;
                 description?: string | undefined;
                 nameDe?: string | undefined;
+                displayName?: string | undefined;
                 required: boolean;
                 classificationTypes: string[];
                 choices: {
                     id: number;
                     description?: string | undefined;
                     nameDe?: string | undefined;
+                    displayName?: string | undefined;
                     subcategories: import("@/api/findings.contract").JsonMap;
                     numericalDescriptors: import("@/api/findings.contract").JsonMap;
                     name: string;
@@ -1207,12 +1284,14 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
                 name: string;
                 description?: string | undefined;
                 nameDe?: string | undefined;
+                displayName?: string | undefined;
                 required: boolean;
                 classificationTypes: string[];
                 choices: {
                     id: number;
                     description?: string | undefined;
                     nameDe?: string | undefined;
+                    displayName?: string | undefined;
                     subcategories: import("@/api/findings.contract").JsonMap;
                     numericalDescriptors: import("@/api/findings.contract").JsonMap;
                     name: string;
@@ -1223,12 +1302,14 @@ declare const usePatientFindingStore: import("pinia").StoreDefinition<"patientFi
                 name: string;
                 description?: string | undefined;
                 nameDe?: string | undefined;
+                displayName?: string | undefined;
                 required: boolean;
                 classificationTypes: string[];
                 choices: {
                     id: number;
                     description?: string | undefined;
                     nameDe?: string | undefined;
+                    displayName?: string | undefined;
                     subcategories: import("@/api/findings.contract").JsonMap;
                     numericalDescriptors: import("@/api/findings.contract").JsonMap;
                     name: string;

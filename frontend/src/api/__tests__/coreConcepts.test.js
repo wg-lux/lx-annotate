@@ -24,6 +24,7 @@ describe('normalizeCoreConceptCollection', () => {
             ]
         });
         expect(payload.moduleName).toBe('report_template_examples');
+        expect(payload.classification[0].displayName).toBe('classification_a');
         expect(payload.classification[0].classificationChoices).toEqual(['choice_1', 'choice_2']);
         expect(payload.classification[0].classificationTypes).toEqual(['type_1']);
         expect(payload.classification[0].tags).toEqual(['tag_a', 'tag_b']);
@@ -43,6 +44,7 @@ describe('normalizeCoreConceptCollection', () => {
             ]
         });
         expect(payload.moduleName).toBe('module_a');
+        expect(payload.finding[0].displayName).toBe('finding_a');
         expect(payload.finding[0].findingTypes).toEqual(['finding_type_1']);
         expect(payload.finding[0].classifications).toEqual(['classification_1']);
         expect(payload.finding[0].interventions).toEqual(['intervention_1']);

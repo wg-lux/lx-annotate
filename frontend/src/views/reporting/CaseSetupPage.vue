@@ -11,6 +11,11 @@
       <div v-if="successMessage" class="alert alert-success py-2">
         {{ successMessage }}
       </div>
+      <div v-if="returnToPath" class="alert alert-info py-2">
+        Für die Rückkehr zur Validierung koennen Sie nach dem Anlegen der Patientenuntersuchung direkt wieder
+        zur Anonymisierungsvalidierung wechseln. Eine minimale Untersuchung, zum Beispiel
+        <code>Koloskopie</code>, ist dafür ausreichend. Befunde koennen später ergänzt werden.
+      </div>
       <div v-if="errorMessage" class="alert alert-danger py-2">
         {{ errorMessage }}
       </div>
@@ -65,7 +70,7 @@
           @click="createPatientExaminationAndInitLookup"
         >
           <span v-if="loading" class="spinner-border spinner-border-sm me-1" />
-          Patientenuntersuchung + Lookup starten
+          Minimale Patientenuntersuchung + Lookup starten
         </button>
         <button
           class="btn btn-outline-secondary btn-sm"
@@ -80,6 +85,13 @@
         <button class="btn btn-outline-danger btn-sm" :disabled="loading" @click="clearFlow">
           Alles zurücksetzen
         </button>
+        <RouterLink
+          v-if="returnToPath"
+          class="btn btn-outline-secondary btn-sm"
+          :to="returnToPath"
+        >
+          Zurück zur Validierung
+        </RouterLink>
       </div>
 
       <div class="mt-4">
@@ -98,7 +110,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRoute } from 'vue-router'
 import axiosInstance, { r } from '@/api/axiosInstance'
 import { useReportingFlowStore } from '@/stores/reportingFlowStore'
 import { usePatientStore } from '@/stores/patientStore'
@@ -111,6 +123,7 @@ const flow = useReportingFlowStore()
 const patientStore = usePatientStore()
 const examinationStore = useExaminationStore()
 const patientExaminationStore = usePatientExaminationStore()
+const route = useRoute()
 
 const loading = ref(false)
 const errorMessage = ref<string | null>(null)
@@ -120,6 +133,10 @@ const patients = computed(() => patientStore.patientsWithDisplayName)
 const examinations = computed(() => examinationStore.examinationsDropdown)
 const patientsLoading = computed(() => patientStore.loading)
 const examinationsLoading = computed(() => examinationStore.loading)
+const returnToPath = computed(() => {
+  const raw = route.query.returnTo
+  return typeof raw === 'string' && raw.trim() ? raw : null
+})
 
 const nextRoute = computed(() =>
   flow.patientExaminationId
@@ -158,6 +175,18 @@ function clearMessages() {
   successMessage.value = null
 }
 
+function applyPreferredExaminationSelection() {
+  const preferredRaw = route.query.preferredExamination
+  if (typeof preferredRaw !== 'string' || !preferredRaw.trim()) return
+  if (flow.selectedExaminationId) return
+
+  const normalizedPreferred = preferredRaw.trim().toLowerCase()
+  const match = examinations.value.find((exam) => exam.name.trim().toLowerCase() === normalizedPreferred)
+  if (match) {
+    flow.setCaseSelection({ selectedExaminationId: match.id })
+  }
+}
+
 function onPatientChange(raw: string) {
   clearMessages()
   const id = parseOptionalInt(raw)
@@ -176,6 +205,7 @@ function onExaminationChange(raw: string) {
 async function reloadLists() {
   clearMessages()
   await Promise.all([patientStore.fetchPatients(), examinationStore.fetchExaminations()])
+  applyPreferredExaminationSelection()
 }
 
 function clearFlow() {
@@ -207,7 +237,7 @@ async function createPatientExaminationAndInitLookup() {
   clearMessages()
   try {
     const formattedDate = new Date().toISOString().split('T')[0]
-    const peRes = await axiosInstance.post(r(endpoints.router.patientExaminations), {
+    const peRes = await axiosInstance.post(r(endpoints.examination.patientExaminationCreate), {
       patient: selectedPatient.patientHash || `patient_${selectedPatient.id}`,
       examination: selectedExam.name,
       dateStart: formattedDate,
@@ -229,7 +259,9 @@ async function createPatientExaminationAndInitLookup() {
       status: 'active'
     })
 
-    successMessage.value = 'Lookup-Session wurde erfolgreich gestartet.'
+    successMessage.value = returnToPath.value
+      ? 'Lookup-Session wurde erfolgreich gestartet. Sie können jetzt zur Validierung zurückkehren oder mit der Befundung fortfahren.'
+      : 'Lookup-Session wurde erfolgreich gestartet.'
   } catch (e: any) {
     flow.setSessionStatus('idle')
     errorMessage.value =

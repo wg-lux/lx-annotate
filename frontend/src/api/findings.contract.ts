@@ -1,4 +1,9 @@
-import type { ClassificationChoiceCore, ClassificationCore, FindingCore } from '@/types/coreConcepts'
+import {
+  getCoreConceptDisplayName,
+  type ClassificationChoiceCore,
+  type ClassificationCore,
+  type FindingCore
+} from '@/types/coreConcepts'
 
 type UnknownRecord = Record<string, unknown>
 export type JsonMap = Record<string, unknown>
@@ -97,6 +102,7 @@ export interface FindingChoice extends Pick<ClassificationChoiceCore, 'name'> {
   id: number
   description?: string
   nameDe?: string
+  displayName?: string
   subcategories: JsonMap
   numericalDescriptors: JsonMap
 }
@@ -106,6 +112,7 @@ export interface FindingClassification extends Partial<Pick<ClassificationCore, 
   name: string
   description?: string
   nameDe?: string
+  displayName?: string
   required: boolean
   classificationTypes: string[]
   choices: FindingChoice[]
@@ -115,6 +122,7 @@ export interface Finding extends Pick<FindingCore, 'name'> {
   id: number
   description: string
   nameDe?: string
+  displayName?: string
   examinations: string[]
   patientExaminationId?: number
   classifications: FindingClassification[]
@@ -163,10 +171,13 @@ export interface ClassificationSelection {
 
 export const normalizeFindingChoice = (input: unknown): FindingChoice => {
   const source = asRecord(input)
+  const name = asString(readKey(source, 'name', 'name')) ?? 'unknown'
+  const nameDe = asString(readKey(source, 'nameDe', 'name_de'))
   return {
     id: asNumber(readKey(source, 'id', 'id')) ?? 0,
-    name: asString(readKey(source, 'name', 'name')) ?? 'unknown',
-    nameDe: asString(readKey(source, 'nameDe', 'name_de')),
+    name,
+    nameDe,
+    displayName: nameDe ?? name,
     description: asString(readKey(source, 'description', 'description')),
     subcategories: asJsonMap(readKey(source, 'subcategories', 'subcategories')),
     numericalDescriptors: asJsonMap(
@@ -178,10 +189,13 @@ export const normalizeFindingChoice = (input: unknown): FindingChoice => {
 export const normalizeFindingClassification = (input: unknown): FindingClassification => {
   const source = asRecord(input)
   const choicesRaw = readKey(source, 'choices', 'choices')
+  const name = asString(readKey(source, 'name', 'name')) ?? 'unknown'
+  const nameDe = asString(readKey(source, 'nameDe', 'name_de'))
   return {
     id: asNumber(readKey(source, 'id', 'id')) ?? 0,
-    name: asString(readKey(source, 'name', 'name')) ?? 'unknown',
-    nameDe: asString(readKey(source, 'nameDe', 'name_de')),
+    name,
+    nameDe,
+    displayName: nameDe ?? name,
     description: asString(readKey(source, 'description', 'description')),
     required: asBoolean(readKey(source, 'required', 'required')) ?? false,
     classificationTypes: asStringArray(
@@ -217,6 +231,8 @@ export const mergeFindingClassifications = (finding: Partial<Finding> | null | u
 
 export const normalizeFinding = (input: unknown): Finding => {
   const source = asRecord(input)
+  const name = asString(readKey(source, 'name', 'name')) ?? 'unknown'
+  const nameDe = asString(readKey(source, 'nameDe', 'name_de'))
   const classifications = normalizeFindingClassificationList(
     readKey(source, 'classifications', 'classifications')
   )
@@ -232,8 +248,9 @@ export const normalizeFinding = (input: unknown): Finding => {
 
   const finding: Finding = {
     id: asNumber(readKey(source, 'id', 'id')) ?? 0,
-    name: asString(readKey(source, 'name', 'name')) ?? 'unknown',
-    nameDe: asString(readKey(source, 'nameDe', 'name_de')),
+    name,
+    nameDe,
+    displayName: nameDe ?? name,
     description: asString(readKey(source, 'description', 'description')) ?? '',
     examinations: asStringArray(readKey(source, 'examinations', 'examinations')),
     patientExaminationId: asNumber(
@@ -330,12 +347,13 @@ export const normalizePatientFindingRows = (input: unknown): PatientFindingRow[]
 }
 
 export const getFindingDisplayName = (
-  finding: Pick<Finding, 'name' | 'nameDe' | 'id'> | null | undefined
-): string => finding?.nameDe || finding?.name || `Finding ${finding?.id ?? 'unknown'}`
+  finding: Pick<Finding, 'name' | 'nameDe' | 'displayName' | 'id'> | null | undefined
+): string =>
+  getCoreConceptDisplayName(finding, `Finding ${finding?.id ?? 'unknown'}`)
 
 export const getClassificationDisplayName = (
-  classification: Pick<FindingClassification, 'name' | 'nameDe'> | null | undefined
-): string => classification?.nameDe || classification?.name || 'unknown'
+  classification: Pick<FindingClassification, 'name' | 'nameDe' | 'displayName'> | null | undefined
+): string => getCoreConceptDisplayName(classification, 'unknown')
 
 export const extractFindingId = (value: unknown): number | null => {
   const directId = asNumber(value)

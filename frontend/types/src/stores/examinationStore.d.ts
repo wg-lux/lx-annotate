@@ -1,5 +1,5 @@
 import type { Finding, FindingClassification } from '@/api/findings.contract';
-import type { ClassificationChoiceCore, ExaminationCore } from '@/types/coreConcepts';
+import { type ClassificationChoiceCore, type ExaminationCore } from '@/types/coreConcepts';
 export interface Examination extends Pick<ExaminationCore, 'name'> {
     id: number;
     nameDe?: string;
@@ -12,11 +12,13 @@ export interface LocationClassificationChoice extends Pick<ClassificationChoiceC
     id: number;
     nameDe?: string;
     name_de?: string;
+    displayName?: string;
 }
 export interface MorphologyClassificationChoice extends Pick<ClassificationChoiceCore, 'name'> {
     id: number;
     nameDe?: string;
     name_de?: string;
+    displayName?: string;
 }
 export type LocationClassification = FindingClassification;
 export type MorphologyClassification = FindingClassification;
@@ -49,6 +51,7 @@ export declare const useExaminationStore: import("pinia").StoreDefinition<"exami
             id: number;
             description: string;
             nameDe?: string | undefined;
+            displayName?: string | undefined;
             examinations: string[];
             patientExaminationId?: number | undefined;
             classifications: {
@@ -56,12 +59,14 @@ export declare const useExaminationStore: import("pinia").StoreDefinition<"exami
                 name: string;
                 description?: string | undefined;
                 nameDe?: string | undefined;
+                displayName?: string | undefined;
                 required: boolean;
                 classificationTypes: string[];
                 choices: {
                     id: number;
                     description?: string | undefined;
                     nameDe?: string | undefined;
+                    displayName?: string | undefined;
                     subcategories: import("@/api/findings.contract").JsonMap;
                     numericalDescriptors: import("@/api/findings.contract").JsonMap;
                     name: string;
@@ -72,12 +77,14 @@ export declare const useExaminationStore: import("pinia").StoreDefinition<"exami
                 name: string;
                 description?: string | undefined;
                 nameDe?: string | undefined;
+                displayName?: string | undefined;
                 required: boolean;
                 classificationTypes: string[];
                 choices: {
                     id: number;
                     description?: string | undefined;
                     nameDe?: string | undefined;
+                    displayName?: string | undefined;
                     subcategories: import("@/api/findings.contract").JsonMap;
                     numericalDescriptors: import("@/api/findings.contract").JsonMap;
                     name: string;
@@ -88,12 +95,14 @@ export declare const useExaminationStore: import("pinia").StoreDefinition<"exami
                 name: string;
                 description?: string | undefined;
                 nameDe?: string | undefined;
+                displayName?: string | undefined;
                 required: boolean;
                 classificationTypes: string[];
                 choices: {
                     id: number;
                     description?: string | undefined;
                     nameDe?: string | undefined;
+                    displayName?: string | undefined;
                     subcategories: import("@/api/findings.contract").JsonMap;
                     numericalDescriptors: import("@/api/findings.contract").JsonMap;
                     name: string;
@@ -104,12 +113,14 @@ export declare const useExaminationStore: import("pinia").StoreDefinition<"exami
                 name: string;
                 description?: string | undefined;
                 nameDe?: string | undefined;
+                displayName?: string | undefined;
                 required: boolean;
                 classificationTypes: string[];
                 choices: {
                     id: number;
                     description?: string | undefined;
                     nameDe?: string | undefined;
+                    displayName?: string | undefined;
                     subcategories: import("@/api/findings.contract").JsonMap;
                     numericalDescriptors: import("@/api/findings.contract").JsonMap;
                     name: string;
@@ -125,12 +136,14 @@ export declare const useExaminationStore: import("pinia").StoreDefinition<"exami
                 name: string;
                 description?: string | undefined;
                 nameDe?: string | undefined;
+                displayName?: string | undefined;
                 required: boolean;
                 classificationTypes: string[];
                 choices: {
                     id: number;
                     description?: string | undefined;
                     nameDe?: string | undefined;
+                    displayName?: string | undefined;
                     subcategories: import("@/api/findings.contract").JsonMap;
                     numericalDescriptors: import("@/api/findings.contract").JsonMap;
                     name: string;
@@ -141,12 +154,14 @@ export declare const useExaminationStore: import("pinia").StoreDefinition<"exami
                 name: string;
                 description?: string | undefined;
                 nameDe?: string | undefined;
+                displayName?: string | undefined;
                 required: boolean;
                 classificationTypes: string[];
                 choices: {
                     id: number;
                     description?: string | undefined;
                     nameDe?: string | undefined;
+                    displayName?: string | undefined;
                     subcategories: import("@/api/findings.contract").JsonMap;
                     numericalDescriptors: import("@/api/findings.contract").JsonMap;
                     name: string;
@@ -178,6 +193,7 @@ export declare const useExaminationStore: import("pinia").StoreDefinition<"exami
             id: number;
             description: string;
             nameDe?: string | undefined;
+            displayName?: string | undefined;
             examinations: string[];
             patientExaminationId?: number | undefined;
             classifications: {
@@ -185,12 +201,14 @@ export declare const useExaminationStore: import("pinia").StoreDefinition<"exami
                 name: string;
                 description?: string | undefined;
                 nameDe?: string | undefined;
+                displayName?: string | undefined;
                 required: boolean;
                 classificationTypes: string[];
                 choices: {
                     id: number;
                     description?: string | undefined;
                     nameDe?: string | undefined;
+                    displayName?: string | undefined;
                     subcategories: import("@/api/findings.contract").JsonMap;
                     numericalDescriptors: import("@/api/findings.contract").JsonMap;
                     name: string;
@@ -201,12 +219,14 @@ export declare const useExaminationStore: import("pinia").StoreDefinition<"exami
                 name: string;
                 description?: string | undefined;
                 nameDe?: string | undefined;
+                displayName?: string | undefined;
                 required: boolean;
                 classificationTypes: string[];
                 choices: {
                     id: number;
                     description?: string | undefined;
                     nameDe?: string | undefined;
+                    displayName?: string | undefined;
                     subcategories: import("@/api/findings.contract").JsonMap;
                     numericalDescriptors: import("@/api/findings.contract").JsonMap;
                     name: string;
@@ -217,12 +237,14 @@ export declare const useExaminationStore: import("pinia").StoreDefinition<"exami
                 name: string;
                 description?: string | undefined;
                 nameDe?: string | undefined;
+                displayName?: string | undefined;
                 required: boolean;
                 classificationTypes: string[];
                 choices: {
                     id: number;
                     description?: string | undefined;
                     nameDe?: string | undefined;
+                    displayName?: string | undefined;
                     subcategories: import("@/api/findings.contract").JsonMap;
                     numericalDescriptors: import("@/api/findings.contract").JsonMap;
                     name: string;
@@ -233,12 +255,14 @@ export declare const useExaminationStore: import("pinia").StoreDefinition<"exami
                 name: string;
                 description?: string | undefined;
                 nameDe?: string | undefined;
+                displayName?: string | undefined;
                 required: boolean;
                 classificationTypes: string[];
                 choices: {
                     id: number;
                     description?: string | undefined;
                     nameDe?: string | undefined;
+                    displayName?: string | undefined;
                     subcategories: import("@/api/findings.contract").JsonMap;
                     numericalDescriptors: import("@/api/findings.contract").JsonMap;
                     name: string;
@@ -254,12 +278,14 @@ export declare const useExaminationStore: import("pinia").StoreDefinition<"exami
                 name: string;
                 description?: string | undefined;
                 nameDe?: string | undefined;
+                displayName?: string | undefined;
                 required: boolean;
                 classificationTypes: string[];
                 choices: {
                     id: number;
                     description?: string | undefined;
                     nameDe?: string | undefined;
+                    displayName?: string | undefined;
                     subcategories: import("@/api/findings.contract").JsonMap;
                     numericalDescriptors: import("@/api/findings.contract").JsonMap;
                     name: string;
@@ -270,12 +296,14 @@ export declare const useExaminationStore: import("pinia").StoreDefinition<"exami
                 name: string;
                 description?: string | undefined;
                 nameDe?: string | undefined;
+                displayName?: string | undefined;
                 required: boolean;
                 classificationTypes: string[];
                 choices: {
                     id: number;
                     description?: string | undefined;
                     nameDe?: string | undefined;
+                    displayName?: string | undefined;
                     subcategories: import("@/api/findings.contract").JsonMap;
                     numericalDescriptors: import("@/api/findings.contract").JsonMap;
                     name: string;
@@ -311,6 +339,7 @@ export declare const useExaminationStore: import("pinia").StoreDefinition<"exami
             id: number;
             description: string;
             nameDe?: string | undefined;
+            displayName?: string | undefined;
             examinations: string[];
             patientExaminationId?: number | undefined;
             classifications: {
@@ -318,12 +347,14 @@ export declare const useExaminationStore: import("pinia").StoreDefinition<"exami
                 name: string;
                 description?: string | undefined;
                 nameDe?: string | undefined;
+                displayName?: string | undefined;
                 required: boolean;
                 classificationTypes: string[];
                 choices: {
                     id: number;
                     description?: string | undefined;
                     nameDe?: string | undefined;
+                    displayName?: string | undefined;
                     subcategories: import("@/api/findings.contract").JsonMap;
                     numericalDescriptors: import("@/api/findings.contract").JsonMap;
                     name: string;
@@ -334,12 +365,14 @@ export declare const useExaminationStore: import("pinia").StoreDefinition<"exami
                 name: string;
                 description?: string | undefined;
                 nameDe?: string | undefined;
+                displayName?: string | undefined;
                 required: boolean;
                 classificationTypes: string[];
                 choices: {
                     id: number;
                     description?: string | undefined;
                     nameDe?: string | undefined;
+                    displayName?: string | undefined;
                     subcategories: import("@/api/findings.contract").JsonMap;
                     numericalDescriptors: import("@/api/findings.contract").JsonMap;
                     name: string;
@@ -350,12 +383,14 @@ export declare const useExaminationStore: import("pinia").StoreDefinition<"exami
                 name: string;
                 description?: string | undefined;
                 nameDe?: string | undefined;
+                displayName?: string | undefined;
                 required: boolean;
                 classificationTypes: string[];
                 choices: {
                     id: number;
                     description?: string | undefined;
                     nameDe?: string | undefined;
+                    displayName?: string | undefined;
                     subcategories: import("@/api/findings.contract").JsonMap;
                     numericalDescriptors: import("@/api/findings.contract").JsonMap;
                     name: string;
@@ -366,12 +401,14 @@ export declare const useExaminationStore: import("pinia").StoreDefinition<"exami
                 name: string;
                 description?: string | undefined;
                 nameDe?: string | undefined;
+                displayName?: string | undefined;
                 required: boolean;
                 classificationTypes: string[];
                 choices: {
                     id: number;
                     description?: string | undefined;
                     nameDe?: string | undefined;
+                    displayName?: string | undefined;
                     subcategories: import("@/api/findings.contract").JsonMap;
                     numericalDescriptors: import("@/api/findings.contract").JsonMap;
                     name: string;
@@ -387,12 +424,14 @@ export declare const useExaminationStore: import("pinia").StoreDefinition<"exami
                 name: string;
                 description?: string | undefined;
                 nameDe?: string | undefined;
+                displayName?: string | undefined;
                 required: boolean;
                 classificationTypes: string[];
                 choices: {
                     id: number;
                     description?: string | undefined;
                     nameDe?: string | undefined;
+                    displayName?: string | undefined;
                     subcategories: import("@/api/findings.contract").JsonMap;
                     numericalDescriptors: import("@/api/findings.contract").JsonMap;
                     name: string;
@@ -403,12 +442,14 @@ export declare const useExaminationStore: import("pinia").StoreDefinition<"exami
                 name: string;
                 description?: string | undefined;
                 nameDe?: string | undefined;
+                displayName?: string | undefined;
                 required: boolean;
                 classificationTypes: string[];
                 choices: {
                     id: number;
                     description?: string | undefined;
                     nameDe?: string | undefined;
+                    displayName?: string | undefined;
                     subcategories: import("@/api/findings.contract").JsonMap;
                     numericalDescriptors: import("@/api/findings.contract").JsonMap;
                     name: string;
@@ -440,6 +481,7 @@ export declare const useExaminationStore: import("pinia").StoreDefinition<"exami
             id: number;
             description: string;
             nameDe?: string | undefined;
+            displayName?: string | undefined;
             examinations: string[];
             patientExaminationId?: number | undefined;
             classifications: {
@@ -447,12 +489,14 @@ export declare const useExaminationStore: import("pinia").StoreDefinition<"exami
                 name: string;
                 description?: string | undefined;
                 nameDe?: string | undefined;
+                displayName?: string | undefined;
                 required: boolean;
                 classificationTypes: string[];
                 choices: {
                     id: number;
                     description?: string | undefined;
                     nameDe?: string | undefined;
+                    displayName?: string | undefined;
                     subcategories: import("@/api/findings.contract").JsonMap;
                     numericalDescriptors: import("@/api/findings.contract").JsonMap;
                     name: string;
@@ -463,12 +507,14 @@ export declare const useExaminationStore: import("pinia").StoreDefinition<"exami
                 name: string;
                 description?: string | undefined;
                 nameDe?: string | undefined;
+                displayName?: string | undefined;
                 required: boolean;
                 classificationTypes: string[];
                 choices: {
                     id: number;
                     description?: string | undefined;
                     nameDe?: string | undefined;
+                    displayName?: string | undefined;
                     subcategories: import("@/api/findings.contract").JsonMap;
                     numericalDescriptors: import("@/api/findings.contract").JsonMap;
                     name: string;
@@ -479,12 +525,14 @@ export declare const useExaminationStore: import("pinia").StoreDefinition<"exami
                 name: string;
                 description?: string | undefined;
                 nameDe?: string | undefined;
+                displayName?: string | undefined;
                 required: boolean;
                 classificationTypes: string[];
                 choices: {
                     id: number;
                     description?: string | undefined;
                     nameDe?: string | undefined;
+                    displayName?: string | undefined;
                     subcategories: import("@/api/findings.contract").JsonMap;
                     numericalDescriptors: import("@/api/findings.contract").JsonMap;
                     name: string;
@@ -495,12 +543,14 @@ export declare const useExaminationStore: import("pinia").StoreDefinition<"exami
                 name: string;
                 description?: string | undefined;
                 nameDe?: string | undefined;
+                displayName?: string | undefined;
                 required: boolean;
                 classificationTypes: string[];
                 choices: {
                     id: number;
                     description?: string | undefined;
                     nameDe?: string | undefined;
+                    displayName?: string | undefined;
                     subcategories: import("@/api/findings.contract").JsonMap;
                     numericalDescriptors: import("@/api/findings.contract").JsonMap;
                     name: string;
@@ -516,12 +566,14 @@ export declare const useExaminationStore: import("pinia").StoreDefinition<"exami
                 name: string;
                 description?: string | undefined;
                 nameDe?: string | undefined;
+                displayName?: string | undefined;
                 required: boolean;
                 classificationTypes: string[];
                 choices: {
                     id: number;
                     description?: string | undefined;
                     nameDe?: string | undefined;
+                    displayName?: string | undefined;
                     subcategories: import("@/api/findings.contract").JsonMap;
                     numericalDescriptors: import("@/api/findings.contract").JsonMap;
                     name: string;
@@ -532,12 +584,14 @@ export declare const useExaminationStore: import("pinia").StoreDefinition<"exami
                 name: string;
                 description?: string | undefined;
                 nameDe?: string | undefined;
+                displayName?: string | undefined;
                 required: boolean;
                 classificationTypes: string[];
                 choices: {
                     id: number;
                     description?: string | undefined;
                     nameDe?: string | undefined;
+                    displayName?: string | undefined;
                     subcategories: import("@/api/findings.contract").JsonMap;
                     numericalDescriptors: import("@/api/findings.contract").JsonMap;
                     name: string;

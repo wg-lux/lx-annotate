@@ -1,3 +1,4 @@
+import { getCoreConceptDisplayName } from '@/types/coreConcepts';
 const asRecord = (input) => input && typeof input === 'object' ? input : {};
 const readKey = (input, camel, snake) => {
     const camelValue = input[camel];
@@ -31,10 +32,13 @@ const asJsonMap = (value) => {
 };
 export const normalizeFindingChoice = (input) => {
     const source = asRecord(input);
+    const name = asString(readKey(source, 'name', 'name')) ?? 'unknown';
+    const nameDe = asString(readKey(source, 'nameDe', 'name_de'));
     return {
         id: asNumber(readKey(source, 'id', 'id')) ?? 0,
-        name: asString(readKey(source, 'name', 'name')) ?? 'unknown',
-        nameDe: asString(readKey(source, 'nameDe', 'name_de')),
+        name,
+        nameDe,
+        displayName: nameDe ?? name,
         description: asString(readKey(source, 'description', 'description')),
         subcategories: asJsonMap(readKey(source, 'subcategories', 'subcategories')),
         numericalDescriptors: asJsonMap(readKey(source, 'numericalDescriptors', 'numerical_descriptors'))
@@ -43,10 +47,13 @@ export const normalizeFindingChoice = (input) => {
 export const normalizeFindingClassification = (input) => {
     const source = asRecord(input);
     const choicesRaw = readKey(source, 'choices', 'choices');
+    const name = asString(readKey(source, 'name', 'name')) ?? 'unknown';
+    const nameDe = asString(readKey(source, 'nameDe', 'name_de'));
     return {
         id: asNumber(readKey(source, 'id', 'id')) ?? 0,
-        name: asString(readKey(source, 'name', 'name')) ?? 'unknown',
-        nameDe: asString(readKey(source, 'nameDe', 'name_de')),
+        name,
+        nameDe,
+        displayName: nameDe ?? name,
         description: asString(readKey(source, 'description', 'description')),
         required: asBoolean(readKey(source, 'required', 'required')) ?? false,
         classificationTypes: asStringArray(readKey(source, 'classificationTypes', 'classification_types')),
@@ -80,14 +87,17 @@ export const mergeFindingClassifications = (finding) => {
 };
 export const normalizeFinding = (input) => {
     const source = asRecord(input);
+    const name = asString(readKey(source, 'name', 'name')) ?? 'unknown';
+    const nameDe = asString(readKey(source, 'nameDe', 'name_de'));
     const classifications = normalizeFindingClassificationList(readKey(source, 'classifications', 'classifications'));
     const locationClassifications = normalizeFindingClassificationList(readKey(source, 'locationClassifications', 'location_classifications'));
     const morphologyClassifications = normalizeFindingClassificationList(readKey(source, 'morphologyClassifications', 'morphology_classifications'));
     const legacyFindingClassifications = normalizeFindingClassificationList(readKey(source, 'FindingClassifications', 'FindingClassifications'));
     const finding = {
         id: asNumber(readKey(source, 'id', 'id')) ?? 0,
-        name: asString(readKey(source, 'name', 'name')) ?? 'unknown',
-        nameDe: asString(readKey(source, 'nameDe', 'name_de')),
+        name,
+        nameDe,
+        displayName: nameDe ?? name,
         description: asString(readKey(source, 'description', 'description')) ?? '',
         examinations: asStringArray(readKey(source, 'examinations', 'examinations')),
         patientExaminationId: asNumber(readKey(source, 'patientExaminationId', 'patient_examination_id') ??
@@ -158,8 +168,8 @@ export const normalizePatientFindingRows = (input) => {
         .map(normalizePatientFindingRow)
         .filter((row) => Number.isFinite(row.id) && row.id > 0);
 };
-export const getFindingDisplayName = (finding) => finding?.nameDe || finding?.name || `Finding ${finding?.id ?? 'unknown'}`;
-export const getClassificationDisplayName = (classification) => classification?.nameDe || classification?.name || 'unknown';
+export const getFindingDisplayName = (finding) => getCoreConceptDisplayName(finding, `Finding ${finding?.id ?? 'unknown'}`);
+export const getClassificationDisplayName = (classification) => getCoreConceptDisplayName(classification, 'unknown');
 export const extractFindingId = (value) => {
     const directId = asNumber(value);
     if (directId !== undefined)

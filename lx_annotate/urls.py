@@ -17,18 +17,23 @@ if submodule_root.exists():
     if submodule_path not in sys.path:
         sys.path.insert(0, submodule_path)
 
-lx_dtypes_api = None
+lx_dtypes_api_urls = None
 try:
     from lx_dtypes.django.api.main import api as _lx_dtypes_api
 
-    lx_dtypes_api = _lx_dtypes_api
+    # Cache the resolved URL tuple once; NinjaAPI.urls is not idempotent.
+    lx_dtypes_api_urls = _lx_dtypes_api.urls
 except Exception as exc:  # pragma: no cover - optional integration
     logger.warning("lx_dtypes base_api is not available: %s", exc)
 
 urlpatterns = [
     path("admin/", admin.site.urls),
     # Mount lx-data-models Ninja API when lx-data-models submodule is available.
-    *([path("base_api/", lx_dtypes_api.urls)] if lx_dtypes_api is not None else []),
+    *(
+        [path("base_api/", lx_dtypes_api_urls)]
+        if lx_dtypes_api_urls is not None
+        else []
+    ),
     # Include endoreg_db URLs WITH 'api/' prefix
     # This prevents endoreg_db routes from overriding the Vue SPA fallback
     path("api/", include(("endoreg_db.urls", "endoreg_db"), namespace="endoreg_db")),

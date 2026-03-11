@@ -327,9 +327,10 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
-import axiosInstance from '@/api/axiosInstance';
+import axiosInstance, { r } from '@/api/axiosInstance';
 import { getFindingDisplayName } from '@/api/findings.contract';
 import { useFindingSelectors } from '@/composables/reporting/useFindingSelectors';
+import { endpoints } from '@/types/api/endpoints';
 import { usePatientStore } from '@/stores/patientStore';
 import type { Patient } from '@/stores/patientStore';
 import { useExaminationStore } from '@/stores/examinationStore';
@@ -697,7 +698,7 @@ async function createPatientExaminationAndInitLookup() {
       ? new Date(selectedPatient.dob).toISOString().split('T')[0] 
       : null;
     
-    const peRes = await axiosInstance.post('/api/patient-examinations/', {
+    const peRes = await axiosInstance.post(r(endpoints.examination.patientExaminationCreate), {
       patient: selectedPatient.patientHash || `patient_${selectedPatient.id}`,
       examination: selectedExam.name,
       date_start: formattedDate, // Fixed field name

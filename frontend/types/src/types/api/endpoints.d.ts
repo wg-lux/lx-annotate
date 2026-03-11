@@ -117,8 +117,10 @@ export declare const endpoints: {
         readonly ensureSegmentAnnotationsBulk: "media/videos/ensure-segment-annotations/";
         readonly videoSensitiveMetadata: (pk: Id) => string;
         readonly videoSensitiveMetadataVerify: (pk: Id) => string;
+        readonly videoCaseResolution: (pk: Id) => string;
         readonly pdfSensitiveMetadata: (pk: Id) => string;
         readonly pdfSensitiveMetadataVerify: (pk: Id) => string;
+        readonly pdfCaseResolution: (pk: Id) => string;
         readonly sensitiveMetadataList: "media/sensitive-metadata/";
         readonly pdfSensitiveMetadataList: "media/pdfs/sensitive-metadata/";
         readonly pdfs: "media/pdfs/";

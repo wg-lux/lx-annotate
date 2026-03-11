@@ -19,6 +19,11 @@ const router = createRouter({
           component: () => import('@/views/reporting/ReportingWorklistPage.vue')
         },
         {
+          path: 'case-resolution',
+          name: 'Reporting Fallauflösung',
+          component: () => import('@/views/reporting/CaseResolutionPage.vue')
+        },
+        {
           path: 'case-setup',
           name: 'Reporting Fall-Setup',
           component: () => import('@/views/reporting/CaseSetupPage.vue')

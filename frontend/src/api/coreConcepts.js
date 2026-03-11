@@ -57,15 +57,19 @@ const asNumberRecord = (value) => {
 };
 const normalizeBase = (raw) => {
     const source = asRecord(raw);
+    const name = asString(readKey(source, 'name', 'name')) ?? 'unknown';
+    const nameDe = asString(readKey(source, 'nameDe', 'name_de'));
+    const nameEn = asString(readKey(source, 'nameEn', 'name_en'));
     return {
         id: asNumber(readKey(source, 'id', 'id')),
-        name: asString(readKey(source, 'name', 'name')) ?? 'unknown',
-        nameDe: asString(readKey(source, 'nameDe', 'name_de')),
-        nameEn: asString(readKey(source, 'nameEn', 'name_en')),
+        name,
+        nameDe,
+        nameEn,
         description: asString(readKey(source, 'description', 'description')),
         uuid: asString(readKey(source, 'uuid', 'uuid')),
         tags: asStringArray(readKey(source, 'tags', 'tags')),
-        kbModuleName: asString(readKey(source, 'kbModuleName', 'kb_module_name'))
+        kbModuleName: asString(readKey(source, 'kbModuleName', 'kb_module_name')),
+        displayName: nameDe ?? nameEn ?? name
     };
 };
 const normalizeClassification = (raw) => {

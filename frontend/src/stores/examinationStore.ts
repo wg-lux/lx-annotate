@@ -2,9 +2,10 @@ import { defineStore } from 'pinia'
 import axiosInstance from '@/api/axiosInstance'
 import { findingsApi, parseFindingsApiError } from '@/api/findingsApi'
 import type { Finding, FindingClassification } from '@/api/findings.contract'
-import type {
-  ClassificationChoiceCore,
-  ExaminationCore
+import {
+  getCoreConceptDisplayName,
+  type ClassificationChoiceCore,
+  type ExaminationCore
 } from '@/types/coreConcepts'
 
 // --- Interfaces ---
@@ -21,11 +22,13 @@ export interface LocationClassificationChoice extends Pick<ClassificationChoiceC
   id: number
   nameDe?: string
   name_de?: string
+  displayName?: string
 }
 export interface MorphologyClassificationChoice extends Pick<ClassificationChoiceCore, 'name'> {
   id: number
   nameDe?: string
   name_de?: string
+  displayName?: string
 }
 
 export type LocationClassification = FindingClassification
@@ -56,7 +59,7 @@ export const useExaminationStore = defineStore('examination', {
       return state.exams.map((e) => ({
         id: e.id,
         name: e.name,
-        displayName: e.displayName ?? e.nameDe ?? e.name_de ?? e.name
+        displayName: getCoreConceptDisplayName(e, e.name)
       }))
     },
     selectedExamination(state): Examination | null {
@@ -95,8 +98,15 @@ export const useExaminationStore = defineStore('examination', {
           nameEn: e.nameEn ?? e.name_en,
           name_de: e.name_de ?? e.nameDe,
           name_en: e.name_en ?? e.nameEn,
-          displayName:
-            e.displayName ?? e.nameDe ?? e.name_de ?? e.nameEn ?? e.name_en ?? e.name
+          displayName: getCoreConceptDisplayName(
+            {
+              name: e.name,
+              nameDe: e.nameDe ?? e.name_de,
+              nameEn: e.nameEn ?? e.name_en,
+              displayName: e.displayName
+            },
+            e.name
+          )
         }))
       } catch (e: any) {
         this.error = e?.response?.data?.detail ?? e?.message ?? 'Unbekannter Fehler'

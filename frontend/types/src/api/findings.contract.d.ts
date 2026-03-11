@@ -1,4 +1,4 @@
-import type { ClassificationChoiceCore, ClassificationCore, FindingCore } from '@/types/coreConcepts';
+import { type ClassificationChoiceCore, type ClassificationCore, type FindingCore } from '@/types/coreConcepts';
 export type JsonMap = Record<string, unknown>;
 export interface FindingChoiceDto {
     id: number;
@@ -56,6 +56,7 @@ export interface FindingChoice extends Pick<ClassificationChoiceCore, 'name'> {
     id: number;
     description?: string;
     nameDe?: string;
+    displayName?: string;
     subcategories: JsonMap;
     numericalDescriptors: JsonMap;
 }
@@ -64,6 +65,7 @@ export interface FindingClassification extends Partial<Pick<ClassificationCore, 
     name: string;
     description?: string;
     nameDe?: string;
+    displayName?: string;
     required: boolean;
     classificationTypes: string[];
     choices: FindingChoice[];
@@ -72,6 +74,7 @@ export interface Finding extends Pick<FindingCore, 'name'> {
     id: number;
     description: string;
     nameDe?: string;
+    displayName?: string;
     examinations: string[];
     patientExaminationId?: number;
     classifications: FindingClassification[];
@@ -123,6 +126,6 @@ export declare const normalizeFindings: (input: unknown) => Finding[];
 export declare const normalizePatientFindingClassification: (input: unknown) => PatientFindingClassification;
 export declare const normalizePatientFindingRow: (input: unknown) => PatientFindingRow;
 export declare const normalizePatientFindingRows: (input: unknown) => PatientFindingRow[];
-export declare const getFindingDisplayName: (finding: Pick<Finding, 'name' | 'nameDe' | 'id'> | null | undefined) => string;
-export declare const getClassificationDisplayName: (classification: Pick<FindingClassification, 'name' | 'nameDe'> | null | undefined) => string;
+export declare const getFindingDisplayName: (finding: Pick<Finding, 'name' | 'nameDe' | 'displayName' | 'id'> | null | undefined) => string;
+export declare const getClassificationDisplayName: (classification: Pick<FindingClassification, 'name' | 'nameDe' | 'displayName'> | null | undefined) => string;
 export declare const extractFindingId: (value: unknown) => number | null;

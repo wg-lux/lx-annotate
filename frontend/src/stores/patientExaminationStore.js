@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 import { reactive, ref, computed, readonly } from 'vue';
 import axiosInstance, { r } from '@/api/axiosInstance';
+import { endpoints } from '@/types/api/endpoints';
 export const usePatientExaminationStore = defineStore('patientExamination', {
     state: () => ({
         loading: false,
@@ -47,7 +48,7 @@ export const usePatientExaminationStore = defineStore('patientExamination', {
                     this.patientExaminations = [];
                     return;
                 }
-                const response = await axiosInstance.get(`/api/patient-examinations/?patient_id=${patientId}`);
+                const response = await axiosInstance.get(r(endpoints.examination.patientExaminationList), { params: { patient_id: patientId } });
                 this.patientExaminations = response.data.results || response.data;
             }
             catch (err) {

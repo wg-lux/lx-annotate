@@ -2,22 +2,21 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAnonymizationStore } from '@/stores/anonymizationStore';
 import { useVideoStore } from '@/stores/videoStore';
-import { usePatientStore } from '@/stores/patientStore';
 import { useToastStore } from '@/stores/toastStore';
-import { usePdfStore } from '@/stores/pdfStore';
 import { useMediaTypeStore } from '@/stores/mediaTypeStore';
 import OutsideTimelineComponent from '@/components/Anonymizer/OutsideSegmentComponent.vue';
 import { DateConverter, DateValidator } from '@/utils/dateHelpers';
 import { useRoute } from 'vue-router';
+import { useDebug } from '@/composables/useDebug';
 // @ts-ignore
 import axiosInstance, { r } from '@/api/axiosInstance';
 import { endpoints } from '@/types/api/endpoints';
 const toast = useToastStore();
 const router = useRouter();
+const { isDebug } = useDebug();
 // Store references
 const anonymizationStore = useAnonymizationStore();
 const videoStore = useVideoStore();
-// const patientStore = usePatientStore();
 // const pdfStore = usePdfStore();
 const mediaStore = useMediaTypeStore();
 const route = useRoute();
@@ -73,6 +72,7 @@ watch(mediaInferral, (val) => {
 const editedAnonymizedText = ref('');
 const examinationDate = ref('');
 const noMoreNames = ref(false);
+const caseResolution = ref(null);
 const documentTypeOptions = ref([]);
 const selectedDocumentType = ref('');
 const isLoadingDocumentTypes = ref(false);
@@ -272,36 +272,194 @@ const validationProgressPercent = computed(() => {
 // ============================================================================
 // Computed
 const currentItem = computed(() => anonymizationStore.current);
+const patientHashDisplay = computed(() => caseResolution.value?.patientHashDisplay ?? currentItem.value?.patientHashDisplay ?? null);
+const examinationHashDisplay = computed(() => caseResolution.value?.examinationHashDisplay ?? currentItem.value?.examinationHashDisplay ?? null);
+const pseudoPatientId = computed(() => {
+    const value = caseResolution.value?.pseudoPatient?.id ??
+        currentItem.value?.pseudoPatientId ??
+        currentItem.value?.patientId ??
+        null;
+    return typeof value === 'number' && value > 0 ? value : null;
+});
+const linkedPatientExaminationId = computed(() => {
+    const value = caseResolution.value?.pseudoExamination?.linkedPatientExaminationId ??
+        currentItem.value?.patientExaminationId ??
+        caseResolution.value?.recommendedPatientExaminationId ??
+        currentItem.value?.pseudoExaminationId ??
+        null;
+    return typeof value === 'number' && value > 0 ? value : null;
+});
+const linkageStatus = computed(() => {
+    if (caseResolution.value?.matchStatus === 'linked') {
+        return 'linked';
+    }
+    if (caseResolution.value?.matchStatus === 'deferred') {
+        return 'deferred';
+    }
+    if (caseResolution.value?.matchStatus === 'suggested') {
+        return 'suggested';
+    }
+    if (caseResolution.value?.matchStatus === 'unresolved') {
+        return 'not_linked';
+    }
+    if (caseResolution.value?.pseudoExamination?.linkedPatientExaminationId ||
+        currentItem.value?.patientExaminationId) {
+        return 'linked';
+    }
+    if (patientHashDisplay.value || examinationHashDisplay.value || pseudoPatientId.value !== null) {
+        return 'suggested';
+    }
+    return 'not_linked';
+});
+const linkageStatusLabel = computed(() => {
+    const labels = {
+        not_linked: 'Nicht verknuepft',
+        suggested: 'Vorgeschlagen',
+        linked: 'Verknuepft',
+        deferred: 'Zurueckgestellt'
+    };
+    return labels[linkageStatus.value];
+});
+const linkageStatusDescription = computed(() => {
+    if (linkageStatus.value === 'linked') {
+        return 'Eine bestehende Fallverknuepfung ist bereits vorhanden.';
+    }
+    if (linkageStatus.value === 'deferred') {
+        return 'Die Fallzuordnung wurde bewusst vertagt und kann spaeter abgeschlossen werden.';
+    }
+    if (caseResolution.value?.matchStatus === 'suggested' &&
+        (caseResolution.value?.suggestedMatchCount ?? 0) > 1) {
+        return 'Mehrere passende PatientExaminations wurden gefunden. Eine explizite Auswahl ist spaeter erforderlich.';
+    }
+    if (caseResolution.value?.matchStatus === 'suggested' &&
+        (caseResolution.value?.suggestedMatchCount ?? 0) === 1) {
+        return 'Eine passende PatientExamination wurde vorgeschlagen, ist aber noch nicht final bestaetigt.';
+    }
+    if (linkageStatus.value === 'suggested') {
+        return 'Hash- oder Pseudo-Patient-Hinweise sind vorhanden, die Zuordnung ist aber noch nicht final.';
+    }
+    return 'Derzeit liegt noch keine erkennbare Fallverknuepfung vor.';
+});
+const linkageStatusBadgeClass = computed(() => {
+    const classes = {
+        not_linked: 'bg-secondary',
+        suggested: 'bg-warning text-dark',
+        linked: 'bg-success',
+        deferred: 'bg-info text-dark'
+    };
+    return classes[linkageStatus.value];
+});
+const pseudoPatientDisplay = computed(() => {
+    if (pseudoPatientId.value !== null) {
+        const matchCount = caseResolution.value?.pseudoPatient?.matchCount;
+        return typeof matchCount === 'number' && matchCount > 0
+            ? `#${pseudoPatientId.value} (${matchCount} Treffer)`
+            : `#${pseudoPatientId.value}`;
+    }
+    return 'Nicht verknuepft';
+});
+const patientExaminationDisplay = computed(() => {
+    if (linkedPatientExaminationId.value !== null) {
+        return `#${linkedPatientExaminationId.value}`;
+    }
+    const suggestedId = caseResolution.value?.recommendedPatientExaminationId;
+    if (typeof suggestedId === 'number' && suggestedId > 0) {
+        return `Vorschlag: #${suggestedId}`;
+    }
+    return 'Noch keine Zuordnung';
+});
+const caseResolutionRoute = computed(() => {
+    const targetFileId = resolveFileIdFromContext();
+    const targetScope = sourceMediaScope.value;
+    const query = {
+        preferredExamination: 'colonoscopy'
+    };
+    if (targetFileId !== null && targetScope) {
+        query.returnTo = `/anonymisierung/validierung?fileId=${targetFileId}&mediaType=${targetScope}`;
+    }
+    else {
+        query.returnTo = '/anonymisierung/validierung';
+    }
+    return {
+        path: '/reporting/case-resolution',
+        query
+    };
+});
+async function fetchCaseResolution() {
+    const targetFileId = resolveFileIdFromContext();
+    const targetScope = sourceMediaScope.value;
+    caseResolution.value = null;
+    if (targetFileId === null || !targetScope) {
+        return;
+    }
+    const endpoint = targetScope === 'pdf'
+        ? endpoints.media.pdfCaseResolution(targetFileId)
+        : endpoints.media.videoCaseResolution(targetFileId);
+    try {
+        const { data } = await axiosInstance.get(r(endpoint));
+        caseResolution.value = data;
+    }
+    catch (error) {
+        console.warn('Case resolution lookup failed; falling back to sensitive metadata payload.', error);
+    }
+}
+async function initializeCurrentItemFromRouteContext() {
+    const targetFileId = resolveFileIdFromContext();
+    const targetScope = sourceMediaScope.value;
+    if (targetFileId === null || !targetScope) {
+        return false;
+    }
+    if (!anonymizationStore.overview.length) {
+        await anonymizationStore.fetchOverview();
+    }
+    const loaded = await anonymizationStore.setCurrentForValidation(targetFileId, targetScope);
+    return !!loaded;
+}
+function buildMediaUrl(path, query) {
+    const url = new URL(r(path), window.location.origin);
+    if (query) {
+        for (const [key, value] of Object.entries(query)) {
+            url.searchParams.set(key, value);
+        }
+    }
+    return url.toString();
+}
 // ✅ NEW: Raw video URL (original unprocessed video)
 const rawVideoSrc = computed(() => {
     if (!isVideo.value || !currentItem.value)
         return undefined;
-    // Build raw video URL with explicit raw parameter
-    const base = import.meta.env.VITE_API_BASE_URL || window.location.origin;
-    return `${base}/api/media/videos/${fileId}/?type=raw`;
+    return buildMediaUrl(endpoints.media.videoDetailStream(fileId), { type: 'raw' });
 });
 // ✅ NEW: Anonymized video URL (processed/anonymized video)
 const anonymizedVideoSrc = computed(() => {
     if (!isVideo.value || !currentItem.value)
         return undefined;
-    const base = import.meta.env.VITE_API_BASE_URL || window.location.origin;
-    return `${base}/api/media/videos/${fileId}/?type=processed`;
+    return buildMediaUrl(endpoints.media.videoDetailStream(fileId), { type: 'processed' });
 });
 // ✅ NEW: Raw PDF URL (original unprocessed PDF)
 const rawPdfSrc = computed(() => {
     if (!isPdf.value || !currentItem.value)
         return undefined;
-    // Build raw PDF URL with explicit raw parameter
-    const base = import.meta.env.VITE_API_BASE_URL || window.location.origin;
-    return `${base}/api/media/pdfs/${fileId}/stream/?type=raw`;
+    return buildMediaUrl(endpoints.media.pdfStream(fileId), { type: 'raw' });
 });
 // ✅ NEW: Anonymized PDF URL (processed/anonymized PDF)
 const anonymizedPdfSrc = computed(() => {
     if (!isPdf.value || !currentItem.value)
         return undefined;
-    // Build anonymized PDF URL with explicit processed parameter
-    const base = import.meta.env.VITE_API_BASE_URL || window.location.origin;
-    return `${base}/api/media/pdfs/${fileId}/stream/?type=processed`;
+    return buildMediaUrl(endpoints.media.pdfStream(fileId), { type: 'processed' });
+});
+const rawPdfDownloadSrc = computed(() => {
+    if (!isPdf.value || !currentItem.value)
+        return undefined;
+    return buildMediaUrl(endpoints.media.pdfStream(fileId), { type: 'raw', download: '1' });
+});
+const anonymizedPdfDownloadSrc = computed(() => {
+    if (!isPdf.value || !currentItem.value)
+        return undefined;
+    return buildMediaUrl(endpoints.media.pdfStream(fileId), {
+        type: 'processed',
+        download: '1'
+    });
 });
 // ✅ NEW: Refs for dual video elements
 const rawVideoElement = ref(null);
@@ -357,21 +515,20 @@ const pauseAllVideos = () => {
     console.log('All videos paused');
 };
 const downloadRawPdf = () => {
-    if (!rawPdfSrc.value) {
+    if (!rawPdfDownloadSrc.value) {
         toast.warning({ text: 'Original-PDF nicht verfügbar.' });
         return;
     }
-    // Open PDF in new tab for download
-    window.open(rawPdfSrc.value, '_blank');
-    console.log('Downloading raw PDF:', rawPdfSrc.value);
+    window.open(rawPdfDownloadSrc.value, '_blank');
+    console.log('Downloading raw PDF:', rawPdfDownloadSrc.value);
 };
 const downloadAnonymizedPdf = () => {
-    if (!anonymizedPdfSrc.value) {
+    if (!anonymizedPdfDownloadSrc.value) {
         toast.warning({ text: 'Anonymisiertes PDF nicht verfügbar.' });
         return;
     }
-    window.open(anonymizedPdfSrc.value, '_blank');
-    console.log('Downloading anonymized PDF:', anonymizedPdfSrc.value);
+    window.open(anonymizedPdfDownloadSrc.value, '_blank');
+    console.log('Downloading anonymized PDF:', anonymizedPdfDownloadSrc.value);
 };
 const validateVideoForSegmentAnnotation = async () => {
     if (!currentItem.value || !isVideo.value) {
@@ -607,7 +764,7 @@ async function fetchPatientExaminationOptions() {
         }
         const patientId = extractPatientId(pdfDetail) ?? extractPatientId(currentItem.value);
         if (patientId !== null) {
-            const peResponse = await axiosInstance.get(r(endpoints.router.patientExaminations), { params: { patient_id: patientId } });
+            const peResponse = await axiosInstance.get(r(endpoints.examination.patientExaminationList), { params: { patient_id: patientId } });
             const rows = Array.isArray(peResponse.data?.results)
                 ? peResponse.data.results
                 : Array.isArray(peResponse.data)
@@ -697,6 +854,7 @@ watch(currentItem, async (newItem) => {
     if (!newItem)
         return;
     loadCurrentItemData(newItem);
+    await fetchCaseResolution();
     if (isPdf.value) {
         await fetchPatientExaminationOptions();
     }
@@ -711,6 +869,7 @@ watch(isPdf, async (pdfMode) => {
     if (documentTypeOptions.value.length === 0) {
         await fetchDocumentTypeOptions();
     }
+    await fetchCaseResolution();
     await fetchPatientExaminationOptions();
 });
 const fetchNextItem = async () => {
@@ -979,21 +1138,9 @@ const navigateAfterApproval = async (mediaKind, validateResponseData) => {
         });
         return;
     }
-    const pdfFileId = resolveFileIdFromContext();
-    if (pdfFileId !== null) {
-        const patientExaminationId = await resolvePatientExaminationIdForPdf(pdfFileId, validateResponseData);
-        if (patientExaminationId !== null) {
-            sessionStorage.setItem('last:patientExaminationId', String(patientExaminationId));
-            await router.push(`/reporting/${patientExaminationId}/report-editor`);
-            toast.info({
-                text: `PDF validiert. Direkt zur Befundung für Fall ${patientExaminationId} geöffnet.`,
-            });
-            return;
-        }
-    }
-    await router.push('/reporting/case-setup');
+    void validateResponseData;
     toast.info({
-        text: 'PDF validiert. Keine patient_examination_id gefunden, daher Fall-Setup geöffnet.',
+        text: 'PDF validiert. Es wurde noch kein Patientenfall explizit zugeordnet.',
     });
 };
 const approveItem = async () => {
@@ -1170,11 +1317,13 @@ onMounted(async () => {
     if (Number.isFinite(fileId) && scope) {
         mediaStore.setCurrentByKey(scope, fileId);
     }
-    if (!anonymizationStore.current) {
+    const initializedFromRoute = await initializeCurrentItemFromRouteContext();
+    if (!initializedFromRoute && !anonymizationStore.current) {
         await fetchNextItem();
     }
-    else {
+    else if (anonymizationStore.current) {
         loadCurrentItemData(anonymizationStore.current);
+        await fetchCaseResolution();
     }
 });
 onUnmounted(() => {
@@ -1324,6 +1473,128 @@ if (__VLS_ctx.currentItem) {
             ...{ class: "fas fa-tools me-1" },
         });
         (__VLS_ctx.isVideo ? 'Video-Korrektur verfügbar' : 'Text-Korrektur verfügbar');
+    }
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "row mb-4" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "col-12" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "card border-light-subtle shadow-sm" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "card-body" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({
+        ...{ class: "card-title mb-1" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+        ...{ class: "badge" },
+        ...{ class: (__VLS_ctx.linkageStatusBadgeClass) },
+    });
+    (__VLS_ctx.linkageStatusLabel);
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "row g-3" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "col-md-6" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "linkage-meta-box" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "linkage-meta-label" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "linkage-meta-value" },
+    });
+    (__VLS_ctx.pseudoPatientDisplay);
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "col-md-6" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "linkage-meta-box" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "linkage-meta-label" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "linkage-meta-value" },
+    });
+    (__VLS_ctx.patientExaminationDisplay);
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "col-md-6" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "linkage-meta-box" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "linkage-meta-label" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "linkage-meta-value" },
+    });
+    (__VLS_ctx.linkageStatusDescription);
+    if (__VLS_ctx.isDebug) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "col-md-3" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "linkage-meta-box" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "linkage-meta-label" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "linkage-meta-value" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.code, __VLS_intrinsicElements.code)({});
+        (__VLS_ctx.patientHashDisplay || 'Nicht verfuegbar');
+    }
+    if (__VLS_ctx.isDebug) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "col-md-3" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "linkage-meta-box" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "linkage-meta-label" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "linkage-meta-value" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.code, __VLS_intrinsicElements.code)({});
+        (__VLS_ctx.examinationHashDisplay || 'Nicht verfuegbar');
+    }
+    if (__VLS_ctx.linkageStatus !== 'linked') {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "alert alert-secondary mt-3 mb-0" },
+            role: "alert",
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.code, __VLS_intrinsicElements.code)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "mt-2 d-flex flex-wrap gap-2" },
+        });
+        const __VLS_4 = {}.RouterLink;
+        /** @type {[typeof __VLS_components.RouterLink, typeof __VLS_components.RouterLink, ]} */ ;
+        // @ts-ignore
+        const __VLS_5 = __VLS_asFunctionalComponent(__VLS_4, new __VLS_4({
+            ...{ class: "btn btn-outline-secondary btn-sm" },
+            to: (__VLS_ctx.caseResolutionRoute),
+        }));
+        const __VLS_6 = __VLS_5({
+            ...{ class: "btn btn-outline-secondary btn-sm" },
+            to: (__VLS_ctx.caseResolutionRoute),
+        }, ...__VLS_functionalComponentArgsRest(__VLS_5));
+        __VLS_7.slots.default;
+        var __VLS_7;
     }
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "row mb-4" },
@@ -1614,19 +1885,6 @@ if (__VLS_ctx.currentItem) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
             ...{ class: "form-text text-muted d-block mt-1" },
         });
-        const __VLS_4 = {}.RouterLink;
-        /** @type {[typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, ]} */ ;
-        // @ts-ignore
-        const __VLS_5 = __VLS_asFunctionalComponent(__VLS_4, new __VLS_4({
-            to: "/reporting/case-setup",
-            ...{ class: "btn btn-outline-secondary btn-sm mt-2" },
-        }));
-        const __VLS_6 = __VLS_5({
-            to: "/reporting/case-setup",
-            ...{ class: "btn btn-outline-secondary btn-sm mt-2" },
-        }, ...__VLS_functionalComponentArgsRest(__VLS_5));
-        __VLS_7.slots.default;
-        var __VLS_7;
     }
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "mb-3" },
@@ -2168,6 +2426,55 @@ if (__VLS_ctx.currentItem) {
 /** @type {__VLS_StyleScopedClasses['row']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-4']} */ ;
 /** @type {__VLS_StyleScopedClasses['col-12']} */ ;
+/** @type {__VLS_StyleScopedClasses['card']} */ ;
+/** @type {__VLS_StyleScopedClasses['border-light-subtle']} */ ;
+/** @type {__VLS_StyleScopedClasses['shadow-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['card-body']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['justify-content-between']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-start']} */ ;
+/** @type {__VLS_StyleScopedClasses['flex-wrap']} */ ;
+/** @type {__VLS_StyleScopedClasses['gap-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['card-title']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['row']} */ ;
+/** @type {__VLS_StyleScopedClasses['g-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-md-6']} */ ;
+/** @type {__VLS_StyleScopedClasses['linkage-meta-box']} */ ;
+/** @type {__VLS_StyleScopedClasses['linkage-meta-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['linkage-meta-value']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-md-6']} */ ;
+/** @type {__VLS_StyleScopedClasses['linkage-meta-box']} */ ;
+/** @type {__VLS_StyleScopedClasses['linkage-meta-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['linkage-meta-value']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-md-6']} */ ;
+/** @type {__VLS_StyleScopedClasses['linkage-meta-box']} */ ;
+/** @type {__VLS_StyleScopedClasses['linkage-meta-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['linkage-meta-value']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-md-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['linkage-meta-box']} */ ;
+/** @type {__VLS_StyleScopedClasses['linkage-meta-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['linkage-meta-value']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-md-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['linkage-meta-box']} */ ;
+/** @type {__VLS_StyleScopedClasses['linkage-meta-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['linkage-meta-value']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert-secondary']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['flex-wrap']} */ ;
+/** @type {__VLS_StyleScopedClasses['gap-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-secondary']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['row']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-4']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-12']} */ ;
 /** @type {__VLS_StyleScopedClasses['form-check']} */ ;
 /** @type {__VLS_StyleScopedClasses['form-check-input']} */ ;
 /** @type {__VLS_StyleScopedClasses['form-check-label']} */ ;
@@ -2257,10 +2564,6 @@ if (__VLS_ctx.currentItem) {
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['d-block']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-1']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn-outline-secondary']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
-/** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['form-label']} */ ;
 /** @type {__VLS_StyleScopedClasses['form-control']} */ ;
@@ -2474,6 +2777,7 @@ const __VLS_self = (await import('vue')).defineComponent({
     setup() {
         return {
             OutsideTimelineComponent: OutsideTimelineComponent,
+            isDebug: isDebug,
             anonymizationStore: anonymizationStore,
             mediaStore: mediaStore,
             isPdf: isPdf,
@@ -2518,6 +2822,15 @@ const __VLS_self = (await import('vue')).defineComponent({
             approvalBlockReason: approvalBlockReason,
             validationProgressPercent: validationProgressPercent,
             currentItem: currentItem,
+            patientHashDisplay: patientHashDisplay,
+            examinationHashDisplay: examinationHashDisplay,
+            linkageStatus: linkageStatus,
+            linkageStatusLabel: linkageStatusLabel,
+            linkageStatusDescription: linkageStatusDescription,
+            linkageStatusBadgeClass: linkageStatusBadgeClass,
+            pseudoPatientDisplay: pseudoPatientDisplay,
+            patientExaminationDisplay: patientExaminationDisplay,
+            caseResolutionRoute: caseResolutionRoute,
             rawVideoSrc: rawVideoSrc,
             anonymizedVideoSrc: anonymizedVideoSrc,
             rawPdfSrc: rawPdfSrc,

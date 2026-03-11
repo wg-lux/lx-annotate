@@ -1,5 +1,5 @@
 import { computed, onMounted, ref } from 'vue';
-import { RouterLink } from 'vue-router';
+import { RouterLink, useRoute } from 'vue-router';
 import axiosInstance, { r } from '@/api/axiosInstance';
 import { useReportingFlowStore } from '@/stores/reportingFlowStore';
 import { usePatientStore } from '@/stores/patientStore';
@@ -10,6 +10,7 @@ const flow = useReportingFlowStore();
 const patientStore = usePatientStore();
 const examinationStore = useExaminationStore();
 const patientExaminationStore = usePatientExaminationStore();
+const route = useRoute();
 const loading = ref(false);
 const errorMessage = ref(null);
 const successMessage = ref(null);
@@ -17,6 +18,10 @@ const patients = computed(() => patientStore.patientsWithDisplayName);
 const examinations = computed(() => examinationStore.examinationsDropdown);
 const patientsLoading = computed(() => patientStore.loading);
 const examinationsLoading = computed(() => examinationStore.loading);
+const returnToPath = computed(() => {
+    const raw = route.query.returnTo;
+    return typeof raw === 'string' && raw.trim() ? raw : null;
+});
 const nextRoute = computed(() => flow.patientExaminationId
     ? `/reporting/${flow.patientExaminationId}/template-requirements`
     : '/reporting/case-setup');
@@ -48,6 +53,18 @@ function clearMessages() {
     errorMessage.value = null;
     successMessage.value = null;
 }
+function applyPreferredExaminationSelection() {
+    const preferredRaw = route.query.preferredExamination;
+    if (typeof preferredRaw !== 'string' || !preferredRaw.trim())
+        return;
+    if (flow.selectedExaminationId)
+        return;
+    const normalizedPreferred = preferredRaw.trim().toLowerCase();
+    const match = examinations.value.find((exam) => exam.name.trim().toLowerCase() === normalizedPreferred);
+    if (match) {
+        flow.setCaseSelection({ selectedExaminationId: match.id });
+    }
+}
 function onPatientChange(raw) {
     clearMessages();
     const id = parseOptionalInt(raw);
@@ -64,6 +81,7 @@ function onExaminationChange(raw) {
 async function reloadLists() {
     clearMessages();
     await Promise.all([patientStore.fetchPatients(), examinationStore.fetchExaminations()]);
+    applyPreferredExaminationSelection();
 }
 function clearFlow() {
     clearMessages();
@@ -92,7 +110,7 @@ async function createPatientExaminationAndInitLookup() {
     clearMessages();
     try {
         const formattedDate = new Date().toISOString().split('T')[0];
-        const peRes = await axiosInstance.post(r(endpoints.router.patientExaminations), {
+        const peRes = await axiosInstance.post(r(endpoints.examination.patientExaminationCreate), {
             patient: selectedPatient.patientHash || `patient_${selectedPatient.id}`,
             examination: selectedExam.name,
             dateStart: formattedDate,
@@ -110,7 +128,9 @@ async function createPatientExaminationAndInitLookup() {
             lookupToken: initRes.data.token,
             status: 'active'
         });
-        successMessage.value = 'Lookup-Session wurde erfolgreich gestartet.';
+        successMessage.value = returnToPath.value
+            ? 'Lookup-Session wurde erfolgreich gestartet. Sie können jetzt zur Validierung zurückkehren oder mit der Befundung fortfahren.'
+            : 'Lookup-Session wurde erfolgreich gestartet.';
     }
     catch (e) {
         flow.setSessionStatus('idle');
@@ -189,6 +209,12 @@ if (__VLS_ctx.successMessage) {
         ...{ class: "alert alert-success py-2" },
     });
     (__VLS_ctx.successMessage);
+}
+if (__VLS_ctx.returnToPath) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "alert alert-info py-2" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.code, __VLS_intrinsicElements.code)({});
 }
 if (__VLS_ctx.errorMessage) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -302,27 +328,42 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElement
     ...{ class: "btn btn-outline-danger btn-sm" },
     disabled: (__VLS_ctx.loading),
 });
+if (__VLS_ctx.returnToPath) {
+    const __VLS_0 = {}.RouterLink;
+    /** @type {[typeof __VLS_components.RouterLink, typeof __VLS_components.RouterLink, ]} */ ;
+    // @ts-ignore
+    const __VLS_1 = __VLS_asFunctionalComponent(__VLS_0, new __VLS_0({
+        ...{ class: "btn btn-outline-secondary btn-sm" },
+        to: (__VLS_ctx.returnToPath),
+    }));
+    const __VLS_2 = __VLS_1({
+        ...{ class: "btn btn-outline-secondary btn-sm" },
+        to: (__VLS_ctx.returnToPath),
+    }, ...__VLS_functionalComponentArgsRest(__VLS_1));
+    __VLS_3.slots.default;
+    var __VLS_3;
+}
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "mt-4" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({
     ...{ class: "mb-2" },
 });
-const __VLS_0 = {}.RouterLink;
+const __VLS_4 = {}.RouterLink;
 /** @type {[typeof __VLS_components.RouterLink, typeof __VLS_components.RouterLink, ]} */ ;
 // @ts-ignore
-const __VLS_1 = __VLS_asFunctionalComponent(__VLS_0, new __VLS_0({
+const __VLS_5 = __VLS_asFunctionalComponent(__VLS_4, new __VLS_4({
     ...{ class: "btn btn-dark btn-sm" },
     ...{ class: ({ disabled: !__VLS_ctx.flow.patientExaminationId }) },
     to: (__VLS_ctx.nextRoute),
 }));
-const __VLS_2 = __VLS_1({
+const __VLS_6 = __VLS_5({
     ...{ class: "btn btn-dark btn-sm" },
     ...{ class: ({ disabled: !__VLS_ctx.flow.patientExaminationId }) },
     to: (__VLS_ctx.nextRoute),
-}, ...__VLS_functionalComponentArgsRest(__VLS_1));
-__VLS_3.slots.default;
-var __VLS_3;
+}, ...__VLS_functionalComponentArgsRest(__VLS_5));
+__VLS_7.slots.default;
+var __VLS_7;
 /** @type {__VLS_StyleScopedClasses['card']} */ ;
 /** @type {__VLS_StyleScopedClasses['shadow-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-header']} */ ;
@@ -335,6 +376,9 @@ var __VLS_3;
 /** @type {__VLS_StyleScopedClasses['card-body']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert-success']} */ ;
+/** @type {__VLS_StyleScopedClasses['py-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert-info']} */ ;
 /** @type {__VLS_StyleScopedClasses['py-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert-danger']} */ ;
@@ -372,6 +416,9 @@ var __VLS_3;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-danger']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-secondary']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-4']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
@@ -391,6 +438,7 @@ const __VLS_self = (await import('vue')).defineComponent({
             examinations: examinations,
             patientsLoading: patientsLoading,
             examinationsLoading: examinationsLoading,
+            returnToPath: returnToPath,
             nextRoute: nextRoute,
             sessionBadgeLabel: sessionBadgeLabel,
             sessionBadgeClass: sessionBadgeClass,

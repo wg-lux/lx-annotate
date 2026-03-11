@@ -23,6 +23,8 @@ export const endpoints = {
     findings: 'findings/',
     classifications: 'classifications/',
     patientFindings: 'patient-findings/',
+    // Legacy placeholder kept for existing callers. Current endoreg_db exposes
+    // create/list/detail under `examination.patientExamination*`.
     patientExaminations: 'patient-examinations/',
     patientExaminationReports: 'patient-examination-reports/'
   },
@@ -152,9 +154,11 @@ export const endpoints = {
 
     videoSensitiveMetadata: (pk: Id) => `media/videos/${pk}/sensitive-metadata/`,
     videoSensitiveMetadataVerify: (pk: Id) => `media/videos/${pk}/sensitive-metadata/verify/`,
+    videoCaseResolution: (pk: Id) => `media/videos/${pk}/case-resolution/`,
 
     pdfSensitiveMetadata: (pk: Id) => `media/pdfs/${pk}/sensitive-metadata/`,
     pdfSensitiveMetadataVerify: (pk: Id) => `media/pdfs/${pk}/sensitive-metadata/verify/`,
+    pdfCaseResolution: (pk: Id) => `media/pdfs/${pk}/case-resolution/`,
     sensitiveMetadataList: 'media/sensitive-metadata/',
     pdfSensitiveMetadataList: 'media/pdfs/sensitive-metadata/',
 

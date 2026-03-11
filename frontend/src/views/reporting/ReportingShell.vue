@@ -176,6 +176,7 @@ const pe = computed(() => flow.patientExaminationId || ':patient_examination_id'
 
 const navItems = computed(() => [
   { label: 'Arbeitsliste', to: '/reporting' },
+  { label: 'Fallauflösung', to: '/reporting/case-resolution' },
   { label: 'Fall-Setup', to: '/reporting/case-setup' },
   { label: 'Template & Anforderungen', to: `/reporting/${pe.value}/template-requirements` },
   { label: 'Befunde', to: `/reporting/${pe.value}/findings` },

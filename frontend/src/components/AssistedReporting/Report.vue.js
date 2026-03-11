@@ -556,7 +556,7 @@ const fetchNormalizedFindingsPayload = async () => {
         console.warn('Failed to fetch patient-findings for report save, falling back to examination findings:', axiosError(e));
     }
     try {
-        const res = await axiosInstance.get(`/api/patient-examinations/${currentPatientExaminationId.value}/findings/`);
+        const res = await axiosInstance.get(r(endpoints.examination.patientExaminationFindings(currentPatientExaminationId.value)));
         const rows = (Array.isArray(res.data?.results) ? res.data.results : res.data);
         return (Array.isArray(rows) ? rows : [])
             .map((row) => Number(row?.id))
@@ -755,7 +755,7 @@ async function createPatientExaminationAndInitLookup() {
         const formattedBirthDate = selectedPatient.dob
             ? new Date(selectedPatient.dob).toISOString().split('T')[0]
             : null;
-        const peRes = await axiosInstance.post('/api/patient-examinations/', {
+        const peRes = await axiosInstance.post(r(endpoints.examination.patientExaminationCreate), {
             patient: selectedPatient.patientHash || `patient_${selectedPatient.id}`,
             examination: selectedExam.name,
             date_start: formattedDate, // Fixed field name

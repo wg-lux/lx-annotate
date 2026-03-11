@@ -35,7 +35,10 @@ describe('findings contract normalization', () => {
     })
 
     expect(finding.nameDe).toBe('Kolonpolyp')
+    expect(finding.displayName).toBe('Kolonpolyp')
     expect(finding.classifications[0].classificationTypes).toEqual(['morphology'])
+    expect(finding.classifications[0].displayName).toBe('size')
+    expect(finding.classifications[0].choices[0].displayName).toBe('small')
     expect(finding.classifications[0].choices[0].numericalDescriptors).toEqual({ size_mm: 5 })
     expect(mergeFindingClassifications(finding).map((entry) => entry.id)).toEqual([10, 11])
     expect(finding.FindingClassifications.map((entry) => entry.id)).toEqual([10])

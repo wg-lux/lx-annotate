@@ -6,6 +6,7 @@ export declare const useFindingClassificationStore: import("pinia").StoreDefinit
             readonly id: number;
             readonly description: string;
             readonly nameDe?: string | undefined;
+            readonly displayName?: string | undefined;
             readonly examinations: readonly string[];
             readonly patientExaminationId?: number | undefined;
             readonly classifications: readonly {
@@ -13,12 +14,14 @@ export declare const useFindingClassificationStore: import("pinia").StoreDefinit
                 readonly name: string;
                 readonly description?: string | undefined;
                 readonly nameDe?: string | undefined;
+                readonly displayName?: string | undefined;
                 readonly required: boolean;
                 readonly classificationTypes: readonly string[];
                 readonly choices: readonly {
                     readonly id: number;
                     readonly description?: string | undefined;
                     readonly nameDe?: string | undefined;
+                    readonly displayName?: string | undefined;
                     readonly subcategories: {
                         readonly [x: string]: Readonly<unknown>;
                     };
@@ -33,12 +36,14 @@ export declare const useFindingClassificationStore: import("pinia").StoreDefinit
                 readonly name: string;
                 readonly description?: string | undefined;
                 readonly nameDe?: string | undefined;
+                readonly displayName?: string | undefined;
                 readonly required: boolean;
                 readonly classificationTypes: readonly string[];
                 readonly choices: readonly {
                     readonly id: number;
                     readonly description?: string | undefined;
                     readonly nameDe?: string | undefined;
+                    readonly displayName?: string | undefined;
                     readonly subcategories: {
                         readonly [x: string]: Readonly<unknown>;
                     };
@@ -53,12 +58,14 @@ export declare const useFindingClassificationStore: import("pinia").StoreDefinit
                 readonly name: string;
                 readonly description?: string | undefined;
                 readonly nameDe?: string | undefined;
+                readonly displayName?: string | undefined;
                 readonly required: boolean;
                 readonly classificationTypes: readonly string[];
                 readonly choices: readonly {
                     readonly id: number;
                     readonly description?: string | undefined;
                     readonly nameDe?: string | undefined;
+                    readonly displayName?: string | undefined;
                     readonly subcategories: {
                         readonly [x: string]: Readonly<unknown>;
                     };
@@ -73,12 +80,14 @@ export declare const useFindingClassificationStore: import("pinia").StoreDefinit
                 readonly name: string;
                 readonly description?: string | undefined;
                 readonly nameDe?: string | undefined;
+                readonly displayName?: string | undefined;
                 readonly required: boolean;
                 readonly classificationTypes: readonly string[];
                 readonly choices: readonly {
                     readonly id: number;
                     readonly description?: string | undefined;
                     readonly nameDe?: string | undefined;
+                    readonly displayName?: string | undefined;
                     readonly subcategories: {
                         readonly [x: string]: Readonly<unknown>;
                     };
@@ -97,6 +106,7 @@ export declare const useFindingClassificationStore: import("pinia").StoreDefinit
             readonly id: number;
             readonly description: string;
             readonly nameDe?: string | undefined;
+            readonly displayName?: string | undefined;
             readonly examinations: readonly string[];
             readonly patientExaminationId?: number | undefined;
             readonly classifications: readonly {
@@ -104,12 +114,14 @@ export declare const useFindingClassificationStore: import("pinia").StoreDefinit
                 readonly name: string;
                 readonly description?: string | undefined;
                 readonly nameDe?: string | undefined;
+                readonly displayName?: string | undefined;
                 readonly required: boolean;
                 readonly classificationTypes: readonly string[];
                 readonly choices: readonly {
                     readonly id: number;
                     readonly description?: string | undefined;
                     readonly nameDe?: string | undefined;
+                    readonly displayName?: string | undefined;
                     readonly subcategories: {
                         readonly [x: string]: Readonly<unknown>;
                     };
@@ -124,12 +136,14 @@ export declare const useFindingClassificationStore: import("pinia").StoreDefinit
                 readonly name: string;
                 readonly description?: string | undefined;
                 readonly nameDe?: string | undefined;
+                readonly displayName?: string | undefined;
                 readonly required: boolean;
                 readonly classificationTypes: readonly string[];
                 readonly choices: readonly {
                     readonly id: number;
                     readonly description?: string | undefined;
                     readonly nameDe?: string | undefined;
+                    readonly displayName?: string | undefined;
                     readonly subcategories: {
                         readonly [x: string]: Readonly<unknown>;
                     };
@@ -144,12 +158,14 @@ export declare const useFindingClassificationStore: import("pinia").StoreDefinit
                 readonly name: string;
                 readonly description?: string | undefined;
                 readonly nameDe?: string | undefined;
+                readonly displayName?: string | undefined;
                 readonly required: boolean;
                 readonly classificationTypes: readonly string[];
                 readonly choices: readonly {
                     readonly id: number;
                     readonly description?: string | undefined;
                     readonly nameDe?: string | undefined;
+                    readonly displayName?: string | undefined;
                     readonly subcategories: {
                         readonly [x: string]: Readonly<unknown>;
                     };
@@ -164,12 +180,14 @@ export declare const useFindingClassificationStore: import("pinia").StoreDefinit
                 readonly name: string;
                 readonly description?: string | undefined;
                 readonly nameDe?: string | undefined;
+                readonly displayName?: string | undefined;
                 readonly required: boolean;
                 readonly classificationTypes: readonly string[];
                 readonly choices: readonly {
                     readonly id: number;
                     readonly description?: string | undefined;
                     readonly nameDe?: string | undefined;
+                    readonly displayName?: string | undefined;
                     readonly subcategories: {
                         readonly [x: string]: Readonly<unknown>;
                     };
@@ -201,6 +219,7 @@ export declare const useFindingClassificationStore: import("pinia").StoreDefinit
             readonly id: number;
             readonly description: string;
             readonly nameDe?: string | undefined;
+            readonly displayName?: string | undefined;
             readonly examinations: readonly string[];
             readonly patientExaminationId?: number | undefined;
             readonly classifications: readonly {
@@ -208,12 +227,14 @@ export declare const useFindingClassificationStore: import("pinia").StoreDefinit
                 readonly name: string;
                 readonly description?: string | undefined;
                 readonly nameDe?: string | undefined;
+                readonly displayName?: string | undefined;
                 readonly required: boolean;
                 readonly classificationTypes: readonly string[];
                 readonly choices: readonly {
                     readonly id: number;
                     readonly description?: string | undefined;
                     readonly nameDe?: string | undefined;
+                    readonly displayName?: string | undefined;
                     readonly subcategories: {
                         readonly [x: string]: Readonly<unknown>;
                     };
@@ -228,12 +249,14 @@ export declare const useFindingClassificationStore: import("pinia").StoreDefinit
                 readonly name: string;
                 readonly description?: string | undefined;
                 readonly nameDe?: string | undefined;
+                readonly displayName?: string | undefined;
                 readonly required: boolean;
                 readonly classificationTypes: readonly string[];
                 readonly choices: readonly {
                     readonly id: number;
                     readonly description?: string | undefined;
                     readonly nameDe?: string | undefined;
+                    readonly displayName?: string | undefined;
                     readonly subcategories: {
                         readonly [x: string]: Readonly<unknown>;
                     };
@@ -248,12 +271,14 @@ export declare const useFindingClassificationStore: import("pinia").StoreDefinit
                 readonly name: string;
                 readonly description?: string | undefined;
                 readonly nameDe?: string | undefined;
+                readonly displayName?: string | undefined;
                 readonly required: boolean;
                 readonly classificationTypes: readonly string[];
                 readonly choices: readonly {
                     readonly id: number;
                     readonly description?: string | undefined;
                     readonly nameDe?: string | undefined;
+                    readonly displayName?: string | undefined;
                     readonly subcategories: {
                         readonly [x: string]: Readonly<unknown>;
                     };
@@ -268,12 +293,14 @@ export declare const useFindingClassificationStore: import("pinia").StoreDefinit
                 readonly name: string;
                 readonly description?: string | undefined;
                 readonly nameDe?: string | undefined;
+                readonly displayName?: string | undefined;
                 readonly required: boolean;
                 readonly classificationTypes: readonly string[];
                 readonly choices: readonly {
                     readonly id: number;
                     readonly description?: string | undefined;
                     readonly nameDe?: string | undefined;
+                    readonly displayName?: string | undefined;
                     readonly subcategories: {
                         readonly [x: string]: Readonly<unknown>;
                     };
@@ -292,6 +319,7 @@ export declare const useFindingClassificationStore: import("pinia").StoreDefinit
             readonly id: number;
             readonly description: string;
             readonly nameDe?: string | undefined;
+            readonly displayName?: string | undefined;
             readonly examinations: readonly string[];
             readonly patientExaminationId?: number | undefined;
             readonly classifications: readonly {
@@ -299,12 +327,14 @@ export declare const useFindingClassificationStore: import("pinia").StoreDefinit
                 readonly name: string;
                 readonly description?: string | undefined;
                 readonly nameDe?: string | undefined;
+                readonly displayName?: string | undefined;
                 readonly required: boolean;
                 readonly classificationTypes: readonly string[];
                 readonly choices: readonly {
                     readonly id: number;
                     readonly description?: string | undefined;
                     readonly nameDe?: string | undefined;
+                    readonly displayName?: string | undefined;
                     readonly subcategories: {
                         readonly [x: string]: Readonly<unknown>;
                     };
@@ -319,12 +349,14 @@ export declare const useFindingClassificationStore: import("pinia").StoreDefinit
                 readonly name: string;
                 readonly description?: string | undefined;
                 readonly nameDe?: string | undefined;
+                readonly displayName?: string | undefined;
                 readonly required: boolean;
                 readonly classificationTypes: readonly string[];
                 readonly choices: readonly {
                     readonly id: number;
                     readonly description?: string | undefined;
                     readonly nameDe?: string | undefined;
+                    readonly displayName?: string | undefined;
                     readonly subcategories: {
                         readonly [x: string]: Readonly<unknown>;
                     };
@@ -339,12 +371,14 @@ export declare const useFindingClassificationStore: import("pinia").StoreDefinit
                 readonly name: string;
                 readonly description?: string | undefined;
                 readonly nameDe?: string | undefined;
+                readonly displayName?: string | undefined;
                 readonly required: boolean;
                 readonly classificationTypes: readonly string[];
                 readonly choices: readonly {
                     readonly id: number;
                     readonly description?: string | undefined;
                     readonly nameDe?: string | undefined;
+                    readonly displayName?: string | undefined;
                     readonly subcategories: {
                         readonly [x: string]: Readonly<unknown>;
                     };
@@ -359,12 +393,14 @@ export declare const useFindingClassificationStore: import("pinia").StoreDefinit
                 readonly name: string;
                 readonly description?: string | undefined;
                 readonly nameDe?: string | undefined;
+                readonly displayName?: string | undefined;
                 readonly required: boolean;
                 readonly classificationTypes: readonly string[];
                 readonly choices: readonly {
                     readonly id: number;
                     readonly description?: string | undefined;
                     readonly nameDe?: string | undefined;
+                    readonly displayName?: string | undefined;
                     readonly subcategories: {
                         readonly [x: string]: Readonly<unknown>;
                     };
@@ -396,6 +432,7 @@ export declare const useFindingClassificationStore: import("pinia").StoreDefinit
             readonly id: number;
             readonly description: string;
             readonly nameDe?: string | undefined;
+            readonly displayName?: string | undefined;
             readonly examinations: readonly string[];
             readonly patientExaminationId?: number | undefined;
             readonly classifications: readonly {
@@ -403,12 +440,14 @@ export declare const useFindingClassificationStore: import("pinia").StoreDefinit
                 readonly name: string;
                 readonly description?: string | undefined;
                 readonly nameDe?: string | undefined;
+                readonly displayName?: string | undefined;
                 readonly required: boolean;
                 readonly classificationTypes: readonly string[];
                 readonly choices: readonly {
                     readonly id: number;
                     readonly description?: string | undefined;
                     readonly nameDe?: string | undefined;
+                    readonly displayName?: string | undefined;
                     readonly subcategories: {
                         readonly [x: string]: Readonly<unknown>;
                     };
@@ -423,12 +462,14 @@ export declare const useFindingClassificationStore: import("pinia").StoreDefinit
                 readonly name: string;
                 readonly description?: string | undefined;
                 readonly nameDe?: string | undefined;
+                readonly displayName?: string | undefined;
                 readonly required: boolean;
                 readonly classificationTypes: readonly string[];
                 readonly choices: readonly {
                     readonly id: number;
                     readonly description?: string | undefined;
                     readonly nameDe?: string | undefined;
+                    readonly displayName?: string | undefined;
                     readonly subcategories: {
                         readonly [x: string]: Readonly<unknown>;
                     };
@@ -443,12 +484,14 @@ export declare const useFindingClassificationStore: import("pinia").StoreDefinit
                 readonly name: string;
                 readonly description?: string | undefined;
                 readonly nameDe?: string | undefined;
+                readonly displayName?: string | undefined;
                 readonly required: boolean;
                 readonly classificationTypes: readonly string[];
                 readonly choices: readonly {
                     readonly id: number;
                     readonly description?: string | undefined;
                     readonly nameDe?: string | undefined;
+                    readonly displayName?: string | undefined;
                     readonly subcategories: {
                         readonly [x: string]: Readonly<unknown>;
                     };
@@ -463,12 +506,14 @@ export declare const useFindingClassificationStore: import("pinia").StoreDefinit
                 readonly name: string;
                 readonly description?: string | undefined;
                 readonly nameDe?: string | undefined;
+                readonly displayName?: string | undefined;
                 readonly required: boolean;
                 readonly classificationTypes: readonly string[];
                 readonly choices: readonly {
                     readonly id: number;
                     readonly description?: string | undefined;
                     readonly nameDe?: string | undefined;
+                    readonly displayName?: string | undefined;
                     readonly subcategories: {
                         readonly [x: string]: Readonly<unknown>;
                     };
@@ -487,6 +532,7 @@ export declare const useFindingClassificationStore: import("pinia").StoreDefinit
             readonly id: number;
             readonly description: string;
             readonly nameDe?: string | undefined;
+            readonly displayName?: string | undefined;
             readonly examinations: readonly string[];
             readonly patientExaminationId?: number | undefined;
             readonly classifications: readonly {
@@ -494,12 +540,14 @@ export declare const useFindingClassificationStore: import("pinia").StoreDefinit
                 readonly name: string;
                 readonly description?: string | undefined;
                 readonly nameDe?: string | undefined;
+                readonly displayName?: string | undefined;
                 readonly required: boolean;
                 readonly classificationTypes: readonly string[];
                 readonly choices: readonly {
                     readonly id: number;
                     readonly description?: string | undefined;
                     readonly nameDe?: string | undefined;
+                    readonly displayName?: string | undefined;
                     readonly subcategories: {
                         readonly [x: string]: Readonly<unknown>;
                     };
@@ -514,12 +562,14 @@ export declare const useFindingClassificationStore: import("pinia").StoreDefinit
                 readonly name: string;
                 readonly description?: string | undefined;
                 readonly nameDe?: string | undefined;
+                readonly displayName?: string | undefined;
                 readonly required: boolean;
                 readonly classificationTypes: readonly string[];
                 readonly choices: readonly {
                     readonly id: number;
                     readonly description?: string | undefined;
                     readonly nameDe?: string | undefined;
+                    readonly displayName?: string | undefined;
                     readonly subcategories: {
                         readonly [x: string]: Readonly<unknown>;
                     };
@@ -534,12 +584,14 @@ export declare const useFindingClassificationStore: import("pinia").StoreDefinit
                 readonly name: string;
                 readonly description?: string | undefined;
                 readonly nameDe?: string | undefined;
+                readonly displayName?: string | undefined;
                 readonly required: boolean;
                 readonly classificationTypes: readonly string[];
                 readonly choices: readonly {
                     readonly id: number;
                     readonly description?: string | undefined;
                     readonly nameDe?: string | undefined;
+                    readonly displayName?: string | undefined;
                     readonly subcategories: {
                         readonly [x: string]: Readonly<unknown>;
                     };
@@ -554,12 +606,14 @@ export declare const useFindingClassificationStore: import("pinia").StoreDefinit
                 readonly name: string;
                 readonly description?: string | undefined;
                 readonly nameDe?: string | undefined;
+                readonly displayName?: string | undefined;
                 readonly required: boolean;
                 readonly classificationTypes: readonly string[];
                 readonly choices: readonly {
                     readonly id: number;
                     readonly description?: string | undefined;
                     readonly nameDe?: string | undefined;
+                    readonly displayName?: string | undefined;
                     readonly subcategories: {
                         readonly [x: string]: Readonly<unknown>;
                     };

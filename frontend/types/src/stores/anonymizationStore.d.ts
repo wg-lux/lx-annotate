@@ -46,6 +46,12 @@ export interface SensitiveMeta {
     document_type?: string | null;
     externalId?: string;
     externalIdOrigin?: string;
+    patientHashDisplay?: string | null;
+    examinationHashDisplay?: string | null;
+    pseudoPatientId?: number | null;
+    pseudoExaminationId?: number | null;
+    patientExaminationId?: number | null;
+    patientId?: number | null;
 }
 export declare const availableFiles: import("vue").Ref<{
     id: number;
@@ -99,6 +105,12 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
             document_type?: string | null | undefined;
             externalId?: string | undefined;
             externalIdOrigin?: string | undefined;
+            patientHashDisplay?: string | null | undefined;
+            examinationHashDisplay?: string | null | undefined;
+            pseudoPatientId?: number | null | undefined;
+            pseudoExaminationId?: number | null | undefined;
+            patientExaminationId?: number | null | undefined;
+            patientId?: number | null | undefined;
         } | null;
         overview: {
             id: number;
@@ -151,6 +163,12 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
         document_type?: string | null | undefined;
         externalId?: string | undefined;
         externalIdOrigin?: string | undefined;
+        patientHashDisplay?: string | null | undefined;
+        examinationHashDisplay?: string | null | undefined;
+        pseudoPatientId?: number | null | undefined;
+        pseudoExaminationId?: number | null | undefined;
+        patientExaminationId?: number | null | undefined;
+        patientId?: number | null | undefined;
     } | null;
     isAnyFileProcessing: (state: {
         anonymizationStatus: string;
@@ -180,6 +198,12 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
             document_type?: string | null | undefined;
             externalId?: string | undefined;
             externalIdOrigin?: string | undefined;
+            patientHashDisplay?: string | null | undefined;
+            examinationHashDisplay?: string | null | undefined;
+            pseudoPatientId?: number | null | undefined;
+            pseudoExaminationId?: number | null | undefined;
+            patientExaminationId?: number | null | undefined;
+            patientId?: number | null | undefined;
         } | null;
         overview: {
             id: number;
@@ -238,6 +262,12 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
             document_type?: string | null | undefined;
             externalId?: string | undefined;
             externalIdOrigin?: string | undefined;
+            patientHashDisplay?: string | null | undefined;
+            examinationHashDisplay?: string | null | undefined;
+            pseudoPatientId?: number | null | undefined;
+            pseudoExaminationId?: number | null | undefined;
+            patientExaminationId?: number | null | undefined;
+            patientId?: number | null | undefined;
         } | null;
         overview: {
             id: number;
@@ -307,6 +337,12 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
             document_type?: string | null | undefined;
             externalId?: string | undefined;
             externalIdOrigin?: string | undefined;
+            patientHashDisplay?: string | null | undefined;
+            examinationHashDisplay?: string | null | undefined;
+            pseudoPatientId?: number | null | undefined;
+            pseudoExaminationId?: number | null | undefined;
+            patientExaminationId?: number | null | undefined;
+            patientId?: number | null | undefined;
         } | null;
         overview: {
             id: number;
@@ -364,6 +400,12 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
             document_type?: string | null | undefined;
             externalId?: string | undefined;
             externalIdOrigin?: string | undefined;
+            patientHashDisplay?: string | null | undefined;
+            examinationHashDisplay?: string | null | undefined;
+            pseudoPatientId?: number | null | undefined;
+            pseudoExaminationId?: number | null | undefined;
+            patientExaminationId?: number | null | undefined;
+            patientId?: number | null | undefined;
         } | null;
         overview: {
             id: number;

@@ -59,6 +59,86 @@
           </div>
 
           <div class="row mb-4">
+            <div class="col-12">
+              <div class="card border-light-subtle shadow-sm">
+                <div class="card-body">
+                  <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+                    <div>
+                      <h6 class="card-title mb-1">Fallzuordnung</h6>
+                    </div>
+                    <span class="badge" :class="linkageStatusBadgeClass">
+                      {{ linkageStatusLabel }}
+                    </span>
+                  </div>
+
+                  <div class="row g-3">
+                    <div class="col-md-6">
+                      <div class="linkage-meta-box">
+                        <div class="linkage-meta-label">Pseudo-Patient</div>
+                        <div class="linkage-meta-value">
+                          {{ pseudoPatientDisplay }}
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-md-6">
+                      <div class="linkage-meta-box">
+                        <div class="linkage-meta-label">PatientExamination</div>
+                        <div class="linkage-meta-value">
+                          {{ patientExaminationDisplay }}
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-md-6">
+                      <div class="linkage-meta-box">
+                        <div class="linkage-meta-label">Medienstatus</div>
+                        <div class="linkage-meta-value">
+                          {{ linkageStatusDescription }}
+                        </div>
+                      </div>
+                    </div>
+                    <div v-if="isDebug" class="col-md-3">
+                      <div class="linkage-meta-box">
+                        <div class="linkage-meta-label">Patient Hash</div>
+                        <div class="linkage-meta-value">
+                          <code>{{ patientHashDisplay || 'Nicht verfuegbar' }}</code>
+                        </div>
+                      </div>
+                    </div>
+                    <div v-if="isDebug" class="col-md-3">
+                      <div class="linkage-meta-box">
+                        <div class="linkage-meta-label">Untersuchungs Hash</div>
+                        <div class="linkage-meta-value">
+                          <code>{{ examinationHashDisplay || 'Nicht verfuegbar' }}</code>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div
+                    v-if="linkageStatus !== 'linked'"
+                    class="alert alert-secondary mt-3 mb-0"
+                    role="alert"
+                  >
+                    <strong>Hinweis zur Fallzuordnung:</strong>
+                    Diese Validierung kann auch ohne sofortige Fallzuordnung abgeschlossen werden.
+                    Wenn Sie bereits jetzt eine minimale Untersuchung anlegen moechten, reicht in der Regel
+                    eine Untersuchung wie <code>Koloskopie</code>. Befunde und weitere Details koennen spaeter
+                    in der Befundung ergaenzt werden.
+                    <div class="mt-2 d-flex flex-wrap gap-2">
+                      <RouterLink
+                        class="btn btn-outline-secondary btn-sm"
+                        :to="caseResolutionRoute"
+                      >
+                        Fallauflösung öffnen
+                      </RouterLink>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="row mb-4">
             <!--Checkbox indicating if there are no more names present in the video or pdf-->
             <div class="col-12">
               <div class="form-check">
@@ -213,7 +293,7 @@
                   <div v-if="isPdf" class="mb-3">
                     <label class="form-label">Befund-Fall (PatientExamination):</label>
                     <select class="form-select" v-model="selectedPatientExaminationOption">
-                      <option value="">Automatisch bestimmen</option>
+                      <option value="">Über Reporting-Fallauflösung bestimmen</option>
                       <option
                         v-for="option in patientExaminationOptions"
                         :key="option.id"
@@ -239,11 +319,8 @@
                       {{ patientExaminationLoadError }}
                     </small>
                     <small class="form-text text-muted d-block mt-1">
-                      Wenn hier eine Untersuchung ausgewählt wird, öffnet "Bestätigen" direkt den Berichtseditor dieser Untersuchung.
+                      Diese Auswahl ist optional. Die eigentliche Fallauflösung erfolgt über den Reporting-Bereich.
                     </small>
-                    <router-link to="/reporting/case-setup" class="btn btn-outline-secondary btn-sm mt-2">
-                      Neue Untersuchung im Fall-Setup anlegen
-                    </router-link>
                   </div>
                   <div class="mb-3">
                     <label class="form-label">Anonymisierter Text:</label>
@@ -483,7 +560,7 @@
                       </button>
                     </div>
                     
-                    <!-- ✅ NEW: Outside Timeline Component for Segment Validation -->
+                    <!-- Outside Timeline Component for Segment Validation -->
                     <div v-if="shouldShowOutsideTimeline && currentItem" class="outside-timeline-container mt-4">
                       <div class="card border-warning">
                         <div class="card-header bg-warning bg-opacity-10">
@@ -622,14 +699,13 @@
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAnonymizationStore, type SensitiveMeta } from '@/stores/anonymizationStore';
-import {useVideoStore, type Video} from '@/stores/videoStore';
-import { usePatientStore } from '@/stores/patientStore';
+import {useVideoStore} from '@/stores/videoStore';
 import { useToastStore } from '@/stores/toastStore';
-import { usePdfStore } from '@/stores/pdfStore';
 import { useMediaTypeStore, type MediaScope } from '@/stores/mediaTypeStore';
 import OutsideTimelineComponent from '@/components/Anonymizer/OutsideSegmentComponent.vue';
 import { DateConverter, DateValidator } from '@/utils/dateHelpers';
 import {useRoute} from 'vue-router';
+import { useDebug } from '@/composables/useDebug';
 
 // @ts-ignore
 import axiosInstance, { r } from '@/api/axiosInstance';
@@ -638,11 +714,11 @@ import { endpoints } from '@/types/api/endpoints';
 
 const toast = useToastStore();
 const router = useRouter();
+const { isDebug } = useDebug();
 
 // Store references
 const anonymizationStore = useAnonymizationStore();
 const videoStore = useVideoStore();
-// const patientStore = usePatientStore();
 // const pdfStore = usePdfStore();
 const mediaStore = useMediaTypeStore();
 
@@ -721,10 +797,41 @@ type PatientExaminationOption = {
   label: string;
 };
 
+type CaseResolutionMatch = {
+  id: number;
+  patientId?: number | null;
+  examinationName?: string | null;
+  dateStart?: string | null;
+  dateEnd?: string | null;
+  hash?: string | null;
+};
+
+type CaseResolutionPayload = {
+  mediaType: 'pdf' | 'video';
+  mediaId: number;
+  sensitiveMetaId: number;
+  linkedPatientExaminationId?: number | null;
+  patientHashDisplay?: string | null;
+  examinationHashDisplay?: string | null;
+  pseudoPatient?: {
+    id?: number | null;
+    matchCount?: number | null;
+  } | null;
+  pseudoExamination?: {
+    id?: number | null;
+    linkedPatientExaminationId?: number | null;
+  } | null;
+  matchStatus?: 'linked' | 'deferred' | 'suggested' | 'unresolved' | string | null;
+  suggestedMatchCount?: number | null;
+  recommendedPatientExaminationId?: number | null;
+  patientExaminationMatches?: CaseResolutionMatch[];
+};
+
 // Local state
 const editedAnonymizedText = ref('');
 const examinationDate = ref('');
 const noMoreNames = ref(false);
+const caseResolution = ref<CaseResolutionPayload | null>(null);
 const documentTypeOptions = ref<DocumentTypeOption[]>([]);
 const selectedDocumentType = ref('');
 const isLoadingDocumentTypes = ref(false);
@@ -896,7 +1003,6 @@ const hasValidPatientExaminationSelection = computed(() => {
   return selectedPatientExaminationIdForRouting.value !== null;
 });
 
-
 const canSubmit = computed(() => {
   // For annotation saving, we need both uploaded images AND valid patient data
   return dataOk.value;
@@ -975,40 +1081,222 @@ const validationProgressPercent = computed(() => {
 // Computed
 const currentItem = computed(() => anonymizationStore.current);
 
+const patientHashDisplay = computed(
+  () => caseResolution.value?.patientHashDisplay ?? currentItem.value?.patientHashDisplay ?? null
+);
+const examinationHashDisplay = computed(
+  () => caseResolution.value?.examinationHashDisplay ?? currentItem.value?.examinationHashDisplay ?? null
+);
+const pseudoPatientId = computed(() => {
+  const value =
+    caseResolution.value?.pseudoPatient?.id ??
+    currentItem.value?.pseudoPatientId ??
+    currentItem.value?.patientId ??
+    null;
+  return typeof value === 'number' && value > 0 ? value : null;
+});
+const linkedPatientExaminationId = computed(() => {
+  const value =
+    caseResolution.value?.pseudoExamination?.linkedPatientExaminationId ??
+    currentItem.value?.patientExaminationId ??
+    caseResolution.value?.recommendedPatientExaminationId ??
+    currentItem.value?.pseudoExaminationId ??
+    null;
+  return typeof value === 'number' && value > 0 ? value : null;
+});
+const linkageStatus = computed<'not_linked' | 'suggested' | 'linked' | 'deferred'>(() => {
+  if (caseResolution.value?.matchStatus === 'linked') {
+    return 'linked';
+  }
+  if (caseResolution.value?.matchStatus === 'deferred') {
+    return 'deferred';
+  }
+  if (caseResolution.value?.matchStatus === 'suggested') {
+    return 'suggested';
+  }
+  if (caseResolution.value?.matchStatus === 'unresolved') {
+    return 'not_linked';
+  }
+  if (
+    caseResolution.value?.pseudoExamination?.linkedPatientExaminationId ||
+    currentItem.value?.patientExaminationId
+  ) {
+    return 'linked';
+  }
+  if (patientHashDisplay.value || examinationHashDisplay.value || pseudoPatientId.value !== null) {
+    return 'suggested';
+  }
+  return 'not_linked';
+});
+const linkageStatusLabel = computed(() => {
+  const labels = {
+    not_linked: 'Nicht verknuepft',
+    suggested: 'Vorgeschlagen',
+    linked: 'Verknuepft',
+    deferred: 'Zurueckgestellt'
+  } as const;
+  return labels[linkageStatus.value];
+});
+const linkageStatusDescription = computed(() => {
+  if (linkageStatus.value === 'linked') {
+    return 'Eine bestehende Fallverknuepfung ist bereits vorhanden.';
+  }
+  if (linkageStatus.value === 'deferred') {
+    return 'Die Fallzuordnung wurde bewusst vertagt und kann spaeter abgeschlossen werden.';
+  }
+  if (
+    caseResolution.value?.matchStatus === 'suggested' &&
+    (caseResolution.value?.suggestedMatchCount ?? 0) > 1
+  ) {
+    return 'Mehrere passende PatientExaminations wurden gefunden. Eine explizite Auswahl ist spaeter erforderlich.';
+  }
+  if (
+    caseResolution.value?.matchStatus === 'suggested' &&
+    (caseResolution.value?.suggestedMatchCount ?? 0) === 1
+  ) {
+    return 'Eine passende PatientExamination wurde vorgeschlagen, ist aber noch nicht final bestaetigt.';
+  }
+  if (linkageStatus.value === 'suggested') {
+    return 'Hash- oder Pseudo-Patient-Hinweise sind vorhanden, die Zuordnung ist aber noch nicht final.';
+  }
+  return 'Derzeit liegt noch keine erkennbare Fallverknuepfung vor.';
+});
+const linkageStatusBadgeClass = computed(() => {
+  const classes = {
+    not_linked: 'bg-secondary',
+    suggested: 'bg-warning text-dark',
+    linked: 'bg-success',
+    deferred: 'bg-info text-dark'
+  } as const;
+  return classes[linkageStatus.value];
+});
+const pseudoPatientDisplay = computed(() => {
+  if (pseudoPatientId.value !== null) {
+    const matchCount = caseResolution.value?.pseudoPatient?.matchCount;
+    return typeof matchCount === 'number' && matchCount > 0
+      ? `#${pseudoPatientId.value} (${matchCount} Treffer)`
+      : `#${pseudoPatientId.value}`;
+  }
+  return 'Nicht verknuepft';
+});
+const patientExaminationDisplay = computed(() => {
+  if (linkedPatientExaminationId.value !== null) {
+    return `#${linkedPatientExaminationId.value}`;
+  }
+  const suggestedId = caseResolution.value?.recommendedPatientExaminationId;
+  if (typeof suggestedId === 'number' && suggestedId > 0) {
+    return `Vorschlag: #${suggestedId}`;
+  }
+  return 'Noch keine Zuordnung';
+});
+const caseResolutionRoute = computed(() => {
+  const targetFileId = resolveFileIdFromContext();
+  const targetScope = sourceMediaScope.value;
+  const query: Record<string, string> = {
+    preferredExamination: 'colonoscopy'
+  };
+
+  if (targetFileId !== null && targetScope) {
+    query.returnTo = `/anonymisierung/validierung?fileId=${targetFileId}&mediaType=${targetScope}`;
+  } else {
+    query.returnTo = '/anonymisierung/validierung';
+  }
+
+  return {
+    path: '/reporting/case-resolution',
+    query
+  };
+});
+
+async function fetchCaseResolution(): Promise<void> {
+  const targetFileId = resolveFileIdFromContext();
+  const targetScope = sourceMediaScope.value;
+
+  caseResolution.value = null;
+  if (targetFileId === null || !targetScope) {
+    return;
+  }
+
+  const endpoint =
+    targetScope === 'pdf'
+      ? endpoints.media.pdfCaseResolution(targetFileId)
+      : endpoints.media.videoCaseResolution(targetFileId);
+
+  try {
+    const { data } = await axiosInstance.get<CaseResolutionPayload>(r(endpoint));
+    caseResolution.value = data;
+  } catch (error) {
+    console.warn('Case resolution lookup failed; falling back to sensitive metadata payload.', error);
+  }
+}
+
+async function initializeCurrentItemFromRouteContext(): Promise<boolean> {
+  const targetFileId = resolveFileIdFromContext();
+  const targetScope = sourceMediaScope.value;
+
+  if (targetFileId === null || !targetScope) {
+    return false;
+  }
+
+  if (!anonymizationStore.overview.length) {
+    await anonymizationStore.fetchOverview();
+  }
+
+  const loaded = await anonymizationStore.setCurrentForValidation(
+    targetFileId,
+    targetScope
+  );
+
+  return !!loaded;
+}
+
+function buildMediaUrl(path: string, query?: Record<string, string>): string {
+  const url = new URL(r(path), window.location.origin);
+  if (query) {
+    for (const [key, value] of Object.entries(query)) {
+      url.searchParams.set(key, value);
+    }
+  }
+  return url.toString();
+}
+
 
 
 // ✅ NEW: Raw video URL (original unprocessed video)
 const rawVideoSrc = computed(() => {
   if (!isVideo.value || !currentItem.value) return undefined;
-  
-  // Build raw video URL with explicit raw parameter
-  const base = import.meta.env.VITE_API_BASE_URL || window.location.origin;
-  return `${base}/api/media/videos/${fileId}/?type=raw`;
+  return buildMediaUrl(endpoints.media.videoDetailStream(fileId), { type: 'raw' });
 });
 
 // ✅ NEW: Anonymized video URL (processed/anonymized video)
 const anonymizedVideoSrc = computed(() => {
   if (!isVideo.value || !currentItem.value) return undefined;
-  const base = import.meta.env.VITE_API_BASE_URL || window.location.origin;
-  return `${base}/api/media/videos/${fileId}/?type=processed`;
+  return buildMediaUrl(endpoints.media.videoDetailStream(fileId), { type: 'processed' });
 });
 
 // ✅ NEW: Raw PDF URL (original unprocessed PDF)
 const rawPdfSrc = computed(() => {
   if (!isPdf.value || !currentItem.value) return undefined;
-  
-  // Build raw PDF URL with explicit raw parameter
-  const base = import.meta.env.VITE_API_BASE_URL || window.location.origin;
-  return `${base}/api/media/pdfs/${fileId}/stream/?type=raw`;
+  return buildMediaUrl(endpoints.media.pdfStream(fileId), { type: 'raw' });
 });
 
 // ✅ NEW: Anonymized PDF URL (processed/anonymized PDF)
 const anonymizedPdfSrc = computed(() => {
   if (!isPdf.value || !currentItem.value) return undefined;
-  
-  // Build anonymized PDF URL with explicit processed parameter
-  const base = import.meta.env.VITE_API_BASE_URL || window.location.origin;
-  return `${base}/api/media/pdfs/${fileId}/stream/?type=processed`;
+  return buildMediaUrl(endpoints.media.pdfStream(fileId), { type: 'processed' });
+});
+
+const rawPdfDownloadSrc = computed(() => {
+  if (!isPdf.value || !currentItem.value) return undefined;
+  return buildMediaUrl(endpoints.media.pdfStream(fileId), { type: 'raw', download: '1' });
+});
+
+const anonymizedPdfDownloadSrc = computed(() => {
+  if (!isPdf.value || !currentItem.value) return undefined;
+  return buildMediaUrl(endpoints.media.pdfStream(fileId), {
+    type: 'processed',
+    download: '1'
+  });
 });
 
 
@@ -1076,24 +1364,23 @@ const pauseAllVideos = () => {
 };
 
 const downloadRawPdf = () => {
-  if (!rawPdfSrc.value) {
+  if (!rawPdfDownloadSrc.value) {
     toast.warning({ text: 'Original-PDF nicht verfügbar.' });
     return;
   }
-  
-  // Open PDF in new tab for download
-  window.open(rawPdfSrc.value, '_blank');
-  console.log('Downloading raw PDF:', rawPdfSrc.value);
+
+  window.open(rawPdfDownloadSrc.value, '_blank');
+  console.log('Downloading raw PDF:', rawPdfDownloadSrc.value);
 };
 
 const downloadAnonymizedPdf = () => {
-  if (!anonymizedPdfSrc.value) {
+  if (!anonymizedPdfDownloadSrc.value) {
     toast.warning({ text: 'Anonymisiertes PDF nicht verfügbar.' });
     return;
   }
-  
-  window.open(anonymizedPdfSrc.value, '_blank');
-  console.log('Downloading anonymized PDF:', anonymizedPdfSrc.value);
+
+  window.open(anonymizedPdfDownloadSrc.value, '_blank');
+  console.log('Downloading anonymized PDF:', anonymizedPdfDownloadSrc.value);
 };
 
 const validateVideoForSegmentAnnotation = async () => {
@@ -1354,7 +1641,7 @@ async function fetchPatientExaminationOptions(): Promise<void> {
     const patientId = extractPatientId(pdfDetail) ?? extractPatientId(currentItem.value);
     if (patientId !== null) {
       const peResponse = await axiosInstance.get(
-        r(endpoints.router.patientExaminations),
+        r(endpoints.examination.patientExaminationList),
         { params: { patient_id: patientId } }
       );
       const rows = Array.isArray(peResponse.data?.results)
@@ -1456,6 +1743,7 @@ function loadCurrentItemData(item: SensitiveMeta) {
 watch(currentItem, async (newItem) => {
   if (!newItem) return;
   loadCurrentItemData(newItem);
+  await fetchCaseResolution();
   if (isPdf.value) {
     await fetchPatientExaminationOptions();
   }
@@ -1472,6 +1760,7 @@ watch(isPdf, async (pdfMode) => {
   if (documentTypeOptions.value.length === 0) {
     await fetchDocumentTypeOptions();
   }
+  await fetchCaseResolution();
   await fetchPatientExaminationOptions();
 });
 
@@ -1817,29 +2106,9 @@ const navigateAfterApproval = async (
     return;
   }
 
-  const pdfFileId = resolveFileIdFromContext();
-  if (pdfFileId !== null) {
-    const patientExaminationId = await resolvePatientExaminationIdForPdf(
-      pdfFileId,
-      validateResponseData
-    );
-
-    if (patientExaminationId !== null) {
-      sessionStorage.setItem(
-        'last:patientExaminationId',
-        String(patientExaminationId)
-      );
-      await router.push(`/reporting/${patientExaminationId}/report-editor`);
-      toast.info({
-        text: `PDF validiert. Direkt zur Befundung für Fall ${patientExaminationId} geöffnet.`,
-      });
-      return;
-    }
-  }
-
-  await router.push('/reporting/case-setup');
+  void validateResponseData;
   toast.info({
-    text: 'PDF validiert. Keine patient_examination_id gefunden, daher Fall-Setup geöffnet.',
+    text: 'PDF validiert. Es wurde noch kein Patientenfall explizit zugeordnet.',
   });
 };
 
@@ -2038,10 +2307,13 @@ onMounted(async () => {
     mediaStore.setCurrentByKey(scope, fileId);
   }
 
-  if (!anonymizationStore.current) {
+  const initializedFromRoute = await initializeCurrentItemFromRouteContext();
+
+  if (!initializedFromRoute && !anonymizationStore.current) {
     await fetchNextItem();
-  } else {
+  } else if (anonymizationStore.current) {
     loadCurrentItemData(anonymizationStore.current);
+    await fetchCaseResolution();
   }
 });
 
@@ -2169,4 +2441,28 @@ pre {
   width: 0.875rem;
   height: 0.875rem;
 }
+
+.linkage-meta-box {
+  height: 100%;
+  padding: 0.75rem 0.875rem;
+  border: 1px solid #e9ecef;
+  border-radius: 0.5rem;
+  background: #f8f9fa;
+}
+
+.linkage-meta-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #6c757d;
+  margin-bottom: 0.35rem;
+}
+
+.linkage-meta-value {
+  font-size: 0.95rem;
+  color: #212529;
+  word-break: break-word;
+}
+
 </style>

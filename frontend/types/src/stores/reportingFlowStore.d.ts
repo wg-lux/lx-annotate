@@ -296,7 +296,7 @@ export declare const useReportingFlowStore: import("pinia").StoreDefinition<"rep
     removeIndicationRow: (index: number) => void;
     resetForPatientSwitch: () => void;
     clearAll: () => void;
-}, "lookupToken" | "patientExaminationId" | "selectedPatientId" | "selectedExaminationId" | "selectedRequirementSetIds" | "activeReportId" | "indications" | "selectedKbModule" | "selectedTemplateName" | "templateSectionDrafts" | "sessionStatus" | "lookupSnapshot" | "lastRequirementGuidance" | "lastTemplateValidation" | "findingsRevision" | "lastFindingsEvent" | "mediaPreload" | "mediaPreloadStatus" | "mediaPreloadError">, Pick<{
+}, "patientExaminationId" | "lookupToken" | "selectedPatientId" | "selectedExaminationId" | "selectedRequirementSetIds" | "activeReportId" | "indications" | "selectedKbModule" | "selectedTemplateName" | "templateSectionDrafts" | "sessionStatus" | "lookupSnapshot" | "lastRequirementGuidance" | "lastTemplateValidation" | "findingsRevision" | "lastFindingsEvent" | "mediaPreload" | "mediaPreloadStatus" | "mediaPreloadError">, Pick<{
     sessionStatus: import("vue").Ref<SessionStatus, SessionStatus>;
     lookupToken: import("vue").Ref<string | null, string | null>;
     patientExaminationId: import("vue").Ref<number | null, number | null>;
