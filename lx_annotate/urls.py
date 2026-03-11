@@ -1,4 +1,5 @@
 import logging
+import os
 import sys
 from pathlib import Path
 
@@ -10,21 +11,23 @@ from django.views.generic import RedirectView, TemplateView
 
 logger = logging.getLogger(__name__)
 
-# Make lx-data-models submodule importable when present.
-submodule_root = Path(settings.BASE_DIR) / "lx-data-models"
-if submodule_root.exists():
-    submodule_path = str(submodule_root)
-    if submodule_path not in sys.path:
-        sys.path.insert(0, submodule_path)
-
 lx_dtypes_api_urls = None
-try:
-    from lx_dtypes.django.api.main import api as _lx_dtypes_api
+enable_base_api = os.getenv("LX_ENABLE_BASE_API", "0") == "1"
+if enable_base_api:
+    # Only override import resolution when the optional base API was explicitly enabled.
+    submodule_root = Path(settings.BASE_DIR) / "lx-data-models"
+    if submodule_root.exists():
+        submodule_path = str(submodule_root)
+        if submodule_path not in sys.path:
+            sys.path.insert(0, submodule_path)
 
-    # Cache the resolved URL tuple once; NinjaAPI.urls is not idempotent.
-    lx_dtypes_api_urls = _lx_dtypes_api.urls
-except Exception as exc:  # pragma: no cover - optional integration
-    logger.warning("lx_dtypes base_api is not available: %s", exc)
+    try:
+        from lx_dtypes.django.api.main import api as _lx_dtypes_api
+
+        # Cache the resolved URL tuple once; NinjaAPI.urls is not idempotent.
+        lx_dtypes_api_urls = _lx_dtypes_api.urls
+    except Exception as exc:  # pragma: no cover - optional integration
+        logger.warning("lx_dtypes base_api is not available: %s", exc)
 
 urlpatterns = [
     path("admin/", admin.site.urls),
