@@ -32,6 +32,35 @@
             <div class="small text-muted px-2 mb-3">
               PE: {{ flow.patientExaminationId || 'n/a' }} · Token: {{ flow.lookupToken ? 'ja' : 'nein' }}
             </div>
+            <div class="px-2 mb-3">
+              <label class="form-label form-label-sm mb-1">Patientenuntersuchung wählen</label>
+              <select
+                class="form-select form-select-sm"
+                :value="selectedPatientExaminationId"
+                :disabled="patientExaminationOptionsLoading || !patientExaminationOptions.length"
+                @change="onPatientExaminationSelect(($event.target as HTMLSelectElement).value)"
+              >
+                <option value="">
+                  {{
+                    patientExaminationOptionsLoading
+                      ? 'Patientenuntersuchungen werden geladen...'
+                      : patientExaminationOptions.length
+                        ? 'Bitte Patientenuntersuchung wählen'
+                        : 'Keine Patientenuntersuchungen verfügbar'
+                  }}
+                </option>
+                <option
+                  v-for="option in patientExaminationOptions"
+                  :key="option.id"
+                  :value="option.id"
+                >
+                  {{ option.label }}
+                </option>
+              </select>
+              <div v-if="patientExaminationOptionsError" class="small text-danger mt-1">
+                {{ patientExaminationOptionsError }}
+              </div>
+            </div>
             <nav class="nav flex-column gap-1">
               <RouterLink
                 v-for="item in navItems"
@@ -158,19 +187,35 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
+import axiosInstance, { r } from '@/api/axiosInstance'
+import { endpoints } from '@/types/api/endpoints'
 import { useReportingFlowStore } from '@/stores/reportingFlowStore'
 import { fetchPatientTimelineLatest, pickPreferredStream } from '@/api/reportingTimelineApi'
 
 const route = useRoute()
+const router = useRouter()
 const flow = useReportingFlowStore()
 const selectedVideoStreamUrl = ref<string | null>(null)
 const selectedFrameStreamUrl = ref<string | null>(null)
+type PatientExaminationOption = {
+  id: number
+  label: string
+  patientId: number | null
+  examinationId: number | null
+}
+
+const patientExaminationOptions = ref<PatientExaminationOption[]>([])
+const patientExaminationOptionsLoading = ref(false)
+const patientExaminationOptionsError = ref<string | null>(null)
 const routePatientExaminationId = computed<number | null>(() => {
   const parsed = Number(route.params.patient_examination_id)
   if (!Number.isFinite(parsed)) return null
   return parsed > 0 ? parsed : null
 })
+const selectedPatientExaminationId = computed(() =>
+  routePatientExaminationId.value ?? flow.patientExaminationId ?? ''
+)
 
 const pe = computed(() => flow.patientExaminationId || ':patient_examination_id')
 
@@ -211,6 +256,121 @@ function selectFrameStream(url: string | null) {
   selectedFrameStreamUrl.value = url
 }
 
+function toPositiveInteger(value: unknown): number | null {
+  const parsed = Number(value)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null
+}
+
+function normalizePatientExaminationOption(raw: unknown) {
+  if (!raw || typeof raw !== 'object') return null
+  const row = raw as Record<string, any>
+  const id = toPositiveInteger(row.id)
+  if (id === null) return null
+  const examinationName =
+    (typeof row.examination_name === 'string' && row.examination_name.trim()) ||
+    (typeof row.examination?.name === 'string' && row.examination.name.trim()) ||
+    (typeof row.examination === 'string' && row.examination.trim()) ||
+    'Untersuchung'
+  const dateStartRaw =
+    typeof row.date_start === 'string'
+      ? row.date_start
+      : typeof row.dateStart === 'string'
+        ? row.dateStart
+        : ''
+  const dateLabel = dateStartRaw ? new Date(dateStartRaw).toLocaleDateString('de-DE') : ''
+  return {
+    id,
+    label: dateLabel ? `#${id} · ${examinationName} · ${dateLabel}` : `#${id} · ${examinationName}`,
+    patientId: toPositiveInteger(row.patient?.id ?? row.patient_id ?? row.patientId),
+    examinationId: toPositiveInteger(row.examination?.id ?? row.examination_id ?? row.examinationId)
+  }
+}
+
+function upsertPatientExaminationOption(option: {
+  id: number
+  label: string
+  patientId: number | null
+  examinationId: number | null
+}) {
+  const next = patientExaminationOptions.value.slice()
+  const index = next.findIndex((entry) => entry.id === option.id)
+  if (index >= 0) next[index] = option
+  else next.push(option)
+  patientExaminationOptions.value = next.sort(
+    (left: PatientExaminationOption, right: PatientExaminationOption) => right.id - left.id
+  )
+}
+
+async function fetchPatientExaminationOptions(patientId: number) {
+  patientExaminationOptionsLoading.value = true
+  patientExaminationOptionsError.value = null
+  try {
+    const response = await axiosInstance.get(r(endpoints.examination.patientExaminationList), {
+      params: { patient_id: patientId }
+    })
+    const rows = Array.isArray(response.data?.results)
+      ? response.data.results
+      : Array.isArray(response.data)
+        ? response.data
+        : []
+    patientExaminationOptions.value = rows
+      .map(normalizePatientExaminationOption)
+      .filter(
+        (
+          option: ReturnType<typeof normalizePatientExaminationOption>
+        ): option is PatientExaminationOption => option !== null
+      )
+      .sort(
+        (left: PatientExaminationOption, right: PatientExaminationOption) => right.id - left.id
+      )
+  } catch (error: any) {
+    patientExaminationOptions.value = []
+    patientExaminationOptionsError.value =
+      error?.response?.data?.detail || error?.message || 'Patientenuntersuchungen konnten nicht geladen werden.'
+  } finally {
+    patientExaminationOptionsLoading.value = false
+  }
+}
+
+async function ensureCurrentPatientExaminationOption(patientExaminationId: number) {
+  const exists = patientExaminationOptions.value.some((entry) => entry.id === patientExaminationId)
+  if (exists) return
+  try {
+    const response = await axiosInstance.get(
+      r(endpoints.examination.patientExaminationDetail(patientExaminationId))
+    )
+    const option = normalizePatientExaminationOption(response.data)
+    if (option) upsertPatientExaminationOption(option)
+  } catch {
+    // Keep the selector usable even if detail hydration fails.
+  }
+}
+
+function getNavigationTargetForPatientExamination(patientExaminationId: number): string {
+  const match = route.path.match(/^\/reporting\/[^/]+\/(.+)$/)
+  return match
+    ? `/reporting/${patientExaminationId}/${match[1]}`
+    : `/reporting/${patientExaminationId}/template-requirements`
+}
+
+async function onPatientExaminationSelect(rawValue: string) {
+  const patientExaminationId = toPositiveInteger(rawValue)
+  if (patientExaminationId === null) return
+  const selectedOption = patientExaminationOptions.value.find((entry) => entry.id === patientExaminationId) ?? null
+
+  flow.setCaseSelection({
+    selectedPatientId: selectedOption?.patientId ?? flow.selectedPatientId,
+    selectedExaminationId: selectedOption?.examinationId ?? flow.selectedExaminationId
+  })
+  flow.setLookupSession({
+    patientExaminationId,
+    lookupToken: null,
+    status: 'idle'
+  })
+
+  await router.push(getNavigationTargetForPatientExamination(patientExaminationId))
+}
+
 async function refreshMediaPreload() {
   if (!flow.selectedPatientId) {
     flow.clearMediaPreload()
@@ -245,6 +405,23 @@ async function refreshMediaPreload() {
 function isActive(path: string): boolean {
   return route.path === path
 }
+
+watch(
+  [() => flow.selectedPatientId, routePatientExaminationId],
+  async ([patientId, patientExaminationId]) => {
+    if (patientId) {
+      await fetchPatientExaminationOptions(patientId)
+    } else {
+      patientExaminationOptions.value = []
+      patientExaminationOptionsError.value = null
+    }
+
+    if (patientExaminationId) {
+      await ensureCurrentPatientExaminationOption(patientExaminationId)
+    }
+  },
+  { immediate: true }
+)
 
 watch(
   [() => flow.selectedPatientId, () => flow.patientExaminationId, routePatientExaminationId],

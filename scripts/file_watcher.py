@@ -19,6 +19,7 @@ import logging
 import os
 import shutil
 import sys
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -151,6 +152,8 @@ class AutoProcessingHandler(FileSystemEventHandler):
     def __init__(self):
         super().__init__()
         self.processed_files: Set[str] = set()
+        self.in_flight_files: Set[str] = set()
+        self.files_lock = threading.Lock()
         self.video_extensions = {'.mp4', '.avi', '.mov', '.mkv', '.webm', '.m4v'}
         self.report_extensions = {'.pdf'}
         
@@ -198,14 +201,44 @@ class AutoProcessingHandler(FileSystemEventHandler):
     def on_created(self, event):
         """Handle file creation events."""
         if isinstance(event, FileCreatedEvent) and not event.is_directory:
-            # Offload to thread pool instead of blocking the inotify thread.
-            self.executor.submit(self._process_file, str(event.src_path))
+            self._submit_file(str(event.src_path))
 
     def on_moved(self, event) -> None:
         """Handle file move events (useful for files moved into watched directories)."""
         if isinstance(event, FileMovedEvent) and not event.is_directory:
-            # Offload to thread pool instead of blocking the inotify thread.
-            self.executor.submit(self._process_file, str(event.dest_path))
+            self._submit_file(str(event.dest_path))
+
+    def _ensure_processing_slot(self, file_path: str) -> bool:
+        """
+        Reserve a path before enqueue/processing to prevent duplicate work
+        across noisy create/move event bursts.
+        """
+        with self.files_lock:
+            if file_path in self.processed_files:
+                return False
+            if file_path in self.in_flight_files:
+                return False
+            self.in_flight_files.add(file_path)
+            return True
+
+    def _release_processing_slot(self, file_path: str) -> None:
+        with self.files_lock:
+            self.in_flight_files.discard(file_path)
+
+    def _mark_processed(self, file_path: str) -> None:
+        with self.files_lock:
+            self.processed_files.add(file_path)
+
+    def _unmark_processed(self, file_path: str) -> None:
+        with self.files_lock:
+            self.processed_files.discard(file_path)
+
+    def _submit_file(self, file_path: str) -> None:
+        """Reserve and enqueue a path exactly once."""
+        if not self._ensure_processing_slot(file_path):
+            logger.debug(f"Skipping duplicate file event: {file_path}")
+            return
+        self.executor.submit(self._process_file, file_path)
 
     def _process_file(self, file_path: str):
         """
@@ -214,17 +247,21 @@ class AutoProcessingHandler(FileSystemEventHandler):
         Args:
             file_path: Absolute path to the file
         """
+        path_key = str(Path(file_path))
+        path = Path(file_path)
+
         try:
-            path = Path(file_path)
+            # process_existing_files can call this directly; reserve if needed.
+            with self.files_lock:
+                if path_key in self.processed_files:
+                    logger.debug(f"File already processed: {path_key}")
+                    return
+                if path_key not in self.in_flight_files:
+                    self.in_flight_files.add(path_key)
             
             # NEW: Ignore internal or quarantine files early
             if should_ignore_file(path):
                 logger.debug(f"Skipping ignored file: {path}")
-                return
-            
-            # Skip if already processed
-            if str(path) in self.processed_files:
-                logger.debug(f"File already processed: {path}")
                 return
             
             # Skip temporary or hidden files
@@ -252,6 +289,8 @@ class AutoProcessingHandler(FileSystemEventHandler):
                 
         except Exception as e:
             logger.error(f"Error processing file {file_path}: {str(e)}", exc_info=True)
+        finally:
+            self._release_processing_slot(path_key)
 
     def _wait_for_file_stable(self, path: Path, timeout: int = 30) -> bool:
         """
@@ -309,7 +348,7 @@ class AutoProcessingHandler(FileSystemEventHandler):
             video_file = None
             
             # Mark as processed to avoid duplicate processing
-            self.processed_files.add(str(video_path))
+            self._mark_processed(str(video_path))
             
             # Early storage capacity check
             try:
@@ -322,7 +361,7 @@ class AutoProcessingHandler(FileSystemEventHandler):
             except InsufficientStorageError as storage_error:
                 logger.error(f"Insufficient storage space for {video_path}: {storage_error}")
                 # Don't mark as processed - allow retry when space is available
-                self.processed_files.discard(str(video_path))
+                self._unmark_processed(str(video_path))
                 # Set status to indicate storage issue
                 return
             except Exception as storage_error:
@@ -355,14 +394,14 @@ class AutoProcessingHandler(FileSystemEventHandler):
                 # Handle specific error types
                 if "Insufficient storage" in error_msg or "No space left on device" in error_msg:
                     logger.error(f"Storage error during import for {video_path}: {import_error}")
-                    self.processed_files.discard(str(video_path))
+                    self._unmark_processed(str(video_path))
                     return
                 elif "already exists" in error_msg:
                     logger.info(f"Video {video_path} already exists in database, skipping")
                     return
                 else:
                     logger.error(f"Import failed for {video_path}: {import_error}")
-                    self.processed_files.discard(str(video_path))
+                    self._unmark_processed(str(video_path))
                     return
             
             # Run segmentation if video was imported successfully
@@ -396,13 +435,13 @@ class AutoProcessingHandler(FileSystemEventHandler):
             if any(phrase in error_msg.lower() for phrase in ["insufficient storage", "no space left", "disk full"]):
                 logger.warning(f"Storage error for {video_path}, will retry when space is available")
                 # Don't mark as processed - allow retry
-                self.processed_files.discard(str(video_path))
+                self._unmark_processed(str(video_path))
                 # TODO: Implement exponential backoff retry mechanism
                 return
             else:
                 # For other errors, remove from processed set to allow retry
                 logger.warning(f"Removing {video_path} from processed set due to error")
-                self.processed_files.discard(str(video_path))
+                self._unmark_processed(str(video_path))
                 return
     
     def _process_report(self, report_path: Path):
@@ -416,7 +455,7 @@ class AutoProcessingHandler(FileSystemEventHandler):
             logger.info(f"Starting report processing: {report_path}")
             
             # Mark as processed to avoid duplicate processing
-            self.processed_files.add(str(report_path))
+            self._mark_processed(str(report_path))
             
             
             # Early storage capacity check
@@ -451,22 +490,22 @@ class AutoProcessingHandler(FileSystemEventHandler):
                 else:
                     logger.info(f"report import skipped (already being processed): {report_path}")
                     # Remove from our local processed set since it was handled elsewhere
-                    self.processed_files.discard(str(report_path))
+                    self._unmark_processed(str(report_path))
                     return
                 
             except InsufficientStorageError as storage_error:
                 logger.error(f"Insufficient storage space for {report_path}: {storage_error}")
                 # Don't mark as processed - allow retry when space is available
-                self.processed_files.discard(str(report_path))
+                self._unmark_processed(str(report_path))
                 return
             except Exception as import_error:
                 logger.error(f"report import failed for {report_path}: {import_error}")
-                self.processed_files.discard(str(report_path))
+                self._unmark_processed(str(report_path))
                 return
             
         except Exception as e:
             logger.error(f"Error processing report {report_path}: {str(e)}", exc_info=True)
-            self.processed_files.discard(str(report_path))
+            self._unmark_processed(str(report_path))
             return
                 
     def shutdown(self):

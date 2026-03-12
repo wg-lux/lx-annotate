@@ -1,17 +1,24 @@
 import { computed, ref, watch } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
+import axiosInstance, { r } from '@/api/axiosInstance';
+import { endpoints } from '@/types/api/endpoints';
 import { useReportingFlowStore } from '@/stores/reportingFlowStore';
 import { fetchPatientTimelineLatest, pickPreferredStream } from '@/api/reportingTimelineApi';
 const route = useRoute();
+const router = useRouter();
 const flow = useReportingFlowStore();
 const selectedVideoStreamUrl = ref(null);
 const selectedFrameStreamUrl = ref(null);
+const patientExaminationOptions = ref([]);
+const patientExaminationOptionsLoading = ref(false);
+const patientExaminationOptionsError = ref(null);
 const routePatientExaminationId = computed(() => {
     const parsed = Number(route.params.patient_examination_id);
     if (!Number.isFinite(parsed))
         return null;
     return parsed > 0 ? parsed : null;
 });
+const selectedPatientExaminationId = computed(() => routePatientExaminationId.value ?? flow.patientExaminationId ?? '');
 const pe = computed(() => flow.patientExaminationId || ':patient_examination_id');
 const navItems = computed(() => [
     { label: 'Arbeitsliste', to: '/reporting' },
@@ -37,6 +44,105 @@ function selectVideoStream(url) {
 }
 function selectFrameStream(url) {
     selectedFrameStreamUrl.value = url;
+}
+function toPositiveInteger(value) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+function normalizePatientExaminationOption(raw) {
+    if (!raw || typeof raw !== 'object')
+        return null;
+    const row = raw;
+    const id = toPositiveInteger(row.id);
+    if (id === null)
+        return null;
+    const examinationName = (typeof row.examination_name === 'string' && row.examination_name.trim()) ||
+        (typeof row.examination?.name === 'string' && row.examination.name.trim()) ||
+        (typeof row.examination === 'string' && row.examination.trim()) ||
+        'Untersuchung';
+    const dateStartRaw = typeof row.date_start === 'string'
+        ? row.date_start
+        : typeof row.dateStart === 'string'
+            ? row.dateStart
+            : '';
+    const dateLabel = dateStartRaw ? new Date(dateStartRaw).toLocaleDateString('de-DE') : '';
+    return {
+        id,
+        label: dateLabel ? `#${id} · ${examinationName} · ${dateLabel}` : `#${id} · ${examinationName}`,
+        patientId: toPositiveInteger(row.patient?.id ?? row.patient_id ?? row.patientId),
+        examinationId: toPositiveInteger(row.examination?.id ?? row.examination_id ?? row.examinationId)
+    };
+}
+function upsertPatientExaminationOption(option) {
+    const next = patientExaminationOptions.value.slice();
+    const index = next.findIndex((entry) => entry.id === option.id);
+    if (index >= 0)
+        next[index] = option;
+    else
+        next.push(option);
+    patientExaminationOptions.value = next.sort((left, right) => right.id - left.id);
+}
+async function fetchPatientExaminationOptions(patientId) {
+    patientExaminationOptionsLoading.value = true;
+    patientExaminationOptionsError.value = null;
+    try {
+        const response = await axiosInstance.get(r(endpoints.examination.patientExaminationList), {
+            params: { patient_id: patientId }
+        });
+        const rows = Array.isArray(response.data?.results)
+            ? response.data.results
+            : Array.isArray(response.data)
+                ? response.data
+                : [];
+        patientExaminationOptions.value = rows
+            .map(normalizePatientExaminationOption)
+            .filter((option) => option !== null)
+            .sort((left, right) => right.id - left.id);
+    }
+    catch (error) {
+        patientExaminationOptions.value = [];
+        patientExaminationOptionsError.value =
+            error?.response?.data?.detail || error?.message || 'Patientenuntersuchungen konnten nicht geladen werden.';
+    }
+    finally {
+        patientExaminationOptionsLoading.value = false;
+    }
+}
+async function ensureCurrentPatientExaminationOption(patientExaminationId) {
+    const exists = patientExaminationOptions.value.some((entry) => entry.id === patientExaminationId);
+    if (exists)
+        return;
+    try {
+        const response = await axiosInstance.get(r(endpoints.examination.patientExaminationDetail(patientExaminationId)));
+        const option = normalizePatientExaminationOption(response.data);
+        if (option)
+            upsertPatientExaminationOption(option);
+    }
+    catch {
+        // Keep the selector usable even if detail hydration fails.
+    }
+}
+function getNavigationTargetForPatientExamination(patientExaminationId) {
+    const match = route.path.match(/^\/reporting\/[^/]+\/(.+)$/);
+    return match
+        ? `/reporting/${patientExaminationId}/${match[1]}`
+        : `/reporting/${patientExaminationId}/template-requirements`;
+}
+async function onPatientExaminationSelect(rawValue) {
+    const patientExaminationId = toPositiveInteger(rawValue);
+    if (patientExaminationId === null)
+        return;
+    const selectedOption = patientExaminationOptions.value.find((entry) => entry.id === patientExaminationId) ?? null;
+    flow.setCaseSelection({
+        selectedPatientId: selectedOption?.patientId ?? flow.selectedPatientId,
+        selectedExaminationId: selectedOption?.examinationId ?? flow.selectedExaminationId
+    });
+    flow.setLookupSession({
+        patientExaminationId,
+        lookupToken: null,
+        status: 'idle'
+    });
+    await router.push(getNavigationTargetForPatientExamination(patientExaminationId));
 }
 async function refreshMediaPreload() {
     if (!flow.selectedPatientId) {
@@ -70,6 +176,18 @@ async function refreshMediaPreload() {
 function isActive(path) {
     return route.path === path;
 }
+watch([() => flow.selectedPatientId, routePatientExaminationId], async ([patientId, patientExaminationId]) => {
+    if (patientId) {
+        await fetchPatientExaminationOptions(patientId);
+    }
+    else {
+        patientExaminationOptions.value = [];
+        patientExaminationOptionsError.value = null;
+    }
+    if (patientExaminationId) {
+        await ensureCurrentPatientExaminationOption(patientExaminationId);
+    }
+}, { immediate: true });
 watch([() => flow.selectedPatientId, () => flow.patientExaminationId, routePatientExaminationId], async ([patientId]) => {
     if (!patientId) {
         flow.clearMediaPreload();
@@ -158,6 +276,41 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.d
 });
 (__VLS_ctx.flow.patientExaminationId || 'n/a');
 (__VLS_ctx.flow.lookupToken ? 'ja' : 'nein');
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "px-2 mb-3" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+    ...{ class: "form-label form-label-sm mb-1" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
+    ...{ onChange: (...[$event]) => {
+            __VLS_ctx.onPatientExaminationSelect($event.target.value);
+        } },
+    ...{ class: "form-select form-select-sm" },
+    value: (__VLS_ctx.selectedPatientExaminationId),
+    disabled: (__VLS_ctx.patientExaminationOptionsLoading || !__VLS_ctx.patientExaminationOptions.length),
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+    value: "",
+});
+(__VLS_ctx.patientExaminationOptionsLoading
+    ? 'Patientenuntersuchungen werden geladen...'
+    : __VLS_ctx.patientExaminationOptions.length
+        ? 'Bitte Patientenuntersuchung wählen'
+        : 'Keine Patientenuntersuchungen verfügbar');
+for (const [option] of __VLS_getVForSourceType((__VLS_ctx.patientExaminationOptions))) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+        key: (option.id),
+        value: (option.id),
+    });
+    (option.label);
+}
+if (__VLS_ctx.patientExaminationOptionsError) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "small text-danger mt-1" },
+    });
+    (__VLS_ctx.patientExaminationOptionsError);
+}
 __VLS_asFunctionalElement(__VLS_intrinsicElements.nav, __VLS_intrinsicElements.nav)({
     ...{ class: "nav flex-column gap-1" },
 });
@@ -411,6 +564,16 @@ const __VLS_6 = __VLS_5({}, ...__VLS_functionalComponentArgsRest(__VLS_5));
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['px-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['px-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-label-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-select']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-select-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['small']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-danger']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['nav']} */ ;
 /** @type {__VLS_StyleScopedClasses['flex-column']} */ ;
 /** @type {__VLS_StyleScopedClasses['gap-1']} */ ;
@@ -511,6 +674,10 @@ const __VLS_self = (await import('vue')).defineComponent({
             flow: flow,
             selectedVideoStreamUrl: selectedVideoStreamUrl,
             selectedFrameStreamUrl: selectedFrameStreamUrl,
+            patientExaminationOptions: patientExaminationOptions,
+            patientExaminationOptionsLoading: patientExaminationOptionsLoading,
+            patientExaminationOptionsError: patientExaminationOptionsError,
+            selectedPatientExaminationId: selectedPatientExaminationId,
             navItems: navItems,
             preferredReportStream: preferredReportStream,
             preferredReportDownload: preferredReportDownload,
@@ -518,6 +685,7 @@ const __VLS_self = (await import('vue')).defineComponent({
             openUrl: openUrl,
             selectVideoStream: selectVideoStream,
             selectFrameStream: selectFrameStream,
+            onPatientExaminationSelect: onPatientExaminationSelect,
             refreshMediaPreload: refreshMediaPreload,
             isActive: isActive,
         };

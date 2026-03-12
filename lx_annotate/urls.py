@@ -13,6 +13,16 @@ from django.views.generic import RedirectView, TemplateView
 logger = logging.getLogger(__name__)
 
 DEFAULT_BASE_API_EXPECTED_VERSION = "0.1.1"
+REQUIRED_BASE_API_CONTRACT_EXPORTS = (
+    "PdfRedactionRequest",
+    "PdfRedactionResponse",
+    "CaseResolutionRequest",
+    "CaseResolutionResponse",
+    "RequirementEvaluationRequest",
+    "RequirementEvaluationResponse",
+    "DocumentType",
+    "ReportContext",
+)
 
 
 def _read_project_version(pyproject_path: Path) -> str | None:
@@ -26,6 +36,36 @@ def _read_project_version(pyproject_path: Path) -> str | None:
         return None
     version = project.get("version")
     return str(version) if version else None
+
+
+def _has_required_base_api_contracts(submodule_root: Path) -> bool:
+    contracts_init = (
+        submodule_root / "lx_dtypes" / "models" / "contracts" / "__init__.py"
+    )
+    if not contracts_init.exists():
+        logger.warning(
+            "Skipping lx_dtypes base_api mount: contracts file missing at %s",
+            contracts_init,
+        )
+        return False
+    try:
+        exports_text = contracts_init.read_text(encoding="utf-8")
+    except Exception:
+        logger.exception("Failed reading contracts exports from %s", contracts_init)
+        return False
+
+    missing_exports = [
+        export
+        for export in REQUIRED_BASE_API_CONTRACT_EXPORTS
+        if export not in exports_text
+    ]
+    if missing_exports:
+        logger.warning(
+            "Skipping lx_dtypes base_api mount: submodule contracts are missing required exports: %s",
+            ", ".join(missing_exports),
+        )
+        return False
+    return True
 
 
 lx_dtypes_api_urls = None
@@ -49,6 +89,8 @@ if enable_base_api:
             expected_base_api_version,
             submodule_version or "<unknown>",
         )
+    elif not _has_required_base_api_contracts(submodule_root):
+        pass
     else:
         submodule_path = str(submodule_root)
         if submodule_path not in sys.path:

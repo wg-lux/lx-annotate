@@ -11,6 +11,14 @@ const hoisted = vi.hoisted(() => ({
       params: { patient_examination_id: '314' }
     }
   },
+  routerRef: {
+    current: {
+      push: vi.fn()
+    }
+  },
+  axiosApi: {
+    get: vi.fn()
+  },
   timelineApi: {
     fetchPatientTimelineLatest: vi.fn(),
     pickPreferredStream: vi.fn((options: Array<{ type: string; url: string }>) => {
@@ -27,9 +35,17 @@ vi.mock('vue-router', async () => {
   const actual = await vi.importActual<any>('vue-router')
   return {
     ...actual,
-    useRoute: () => hoisted.routeRef.current
+    useRoute: () => hoisted.routeRef.current,
+    useRouter: () => hoisted.routerRef.current
   }
 })
+
+vi.mock('@/api/axiosInstance', () => ({
+  default: {
+    get: hoisted.axiosApi.get
+  },
+  r: (value: string) => value
+}))
 
 vi.mock('@/api/reportingTimelineApi', () => ({
   fetchPatientTimelineLatest: hoisted.timelineApi.fetchPatientTimelineLatest,
@@ -42,9 +58,16 @@ function buildFlowStore() {
     lookupToken: 'tok',
     patientExaminationId: 314,
     selectedPatientId: 42,
+    selectedExaminationId: 9,
     mediaPreload: null as any,
     mediaPreloadStatus: 'idle',
     mediaPreloadError: null as string | null,
+    setCaseSelection: vi.fn(),
+    setLookupSession: vi.fn(function (this: any, payload: any) {
+      this.patientExaminationId = payload.patientExaminationId
+      this.lookupToken = payload.lookupToken
+      this.sessionStatus = payload.status
+    }),
     setMediaPreloadLoading: vi.fn(function (this: any) {
       this.mediaPreloadStatus = 'loading'
       this.mediaPreloadError = null
@@ -81,6 +104,41 @@ describe('ReportingShell media preload', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     hoisted.flowRef.current = buildFlowStore()
+    hoisted.axiosApi.get.mockImplementation((url: string) => {
+      if (url === 'patient-examinations/314/') {
+        return Promise.resolve({
+          data: {
+            id: 314,
+            examination: { id: 9, name: 'colonoscopy' },
+            patient: { id: 42 },
+            date_start: '2026-03-10'
+          }
+        })
+      }
+
+      if (url === 'patient-examinations/list/') {
+        return Promise.resolve({
+          data: {
+            results: [
+              {
+                id: 314,
+                examination: { id: 9, name: 'colonoscopy' },
+                patient: { id: 42 },
+                date_start: '2026-03-10'
+              },
+              {
+                id: 315,
+                examination: { id: 10, name: 'gastroscopy' },
+                patient: { id: 42 },
+                date_start: '2026-03-11'
+              }
+            ]
+          }
+        })
+      }
+
+      return Promise.resolve({ data: { results: [] } })
+    })
   })
 
   it('loads timeline latest payload on mount/watch with expected params', async () => {
@@ -112,5 +170,33 @@ describe('ReportingShell media preload', () => {
     expect(hoisted.flowRef.current.setMediaPreloadError).toHaveBeenCalledWith(
       expect.stringContaining('404')
     )
+  })
+
+  it('shows patient examination options and navigates on selection', async () => {
+    hoisted.timelineApi.fetchPatientTimelineLatest.mockResolvedValue({
+      patient: { id: 42 },
+      latestReport: null,
+      latestVideo: null,
+      latestFrames: []
+    })
+
+    const wrapper = mountShell()
+    await flushPromises()
+
+    const select = wrapper.find('select.form-select.form-select-sm')
+    const optionTexts = select.findAll('option').map((option) => option.text())
+
+    expect(optionTexts).toContain('#314 · colonoscopy · 10.3.2026')
+    expect(optionTexts).toContain('#315 · gastroscopy · 11.3.2026')
+
+    await select.setValue('315')
+    await flushPromises()
+
+    expect(hoisted.flowRef.current.setLookupSession).toHaveBeenCalledWith({
+      patientExaminationId: 315,
+      lookupToken: null,
+      status: 'idle'
+    })
+    expect(hoisted.routerRef.current.push).toHaveBeenCalledWith('/reporting/315/findings')
   })
 })

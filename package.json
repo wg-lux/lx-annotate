@@ -8,7 +8,9 @@
     "test": "tests"
   },
   "scripts": {
-    "test": "npm run test:unit"
+    "test": "npm --prefix frontend run test:unit",
+    "test:frontend": "npm --prefix frontend run test:unit",
+    "type-check:frontend": "npm --prefix frontend run type-check"
   },
   "repository": {
     "type": "git",

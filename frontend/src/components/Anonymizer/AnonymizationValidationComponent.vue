@@ -58,85 +58,6 @@
             </div>
           </div>
 
-          <div class="row mb-4">
-            <div class="col-12">
-              <div class="card border-light-subtle shadow-sm">
-                <div class="card-body">
-                  <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
-                    <div>
-                      <h6 class="card-title mb-1">Fallzuordnung</h6>
-                    </div>
-                    <span class="badge" :class="linkageStatusBadgeClass">
-                      {{ linkageStatusLabel }}
-                    </span>
-                  </div>
-
-                  <div class="row g-3">
-                    <div class="col-md-6">
-                      <div class="linkage-meta-box">
-                        <div class="linkage-meta-label">Pseudo-Patient</div>
-                        <div class="linkage-meta-value">
-                          {{ pseudoPatientDisplay }}
-                        </div>
-                      </div>
-                    </div>
-                    <div class="col-md-6">
-                      <div class="linkage-meta-box">
-                        <div class="linkage-meta-label">PatientExamination</div>
-                        <div class="linkage-meta-value">
-                          {{ patientExaminationDisplay }}
-                        </div>
-                      </div>
-                    </div>
-                    <div class="col-md-6">
-                      <div class="linkage-meta-box">
-                        <div class="linkage-meta-label">Medienstatus</div>
-                        <div class="linkage-meta-value">
-                          {{ linkageStatusDescription }}
-                        </div>
-                      </div>
-                    </div>
-                    <div v-if="isDebug" class="col-md-3">
-                      <div class="linkage-meta-box">
-                        <div class="linkage-meta-label">Patient Hash</div>
-                        <div class="linkage-meta-value">
-                          <code>{{ patientHashDisplay || 'Nicht verfuegbar' }}</code>
-                        </div>
-                      </div>
-                    </div>
-                    <div v-if="isDebug" class="col-md-3">
-                      <div class="linkage-meta-box">
-                        <div class="linkage-meta-label">Untersuchungs Hash</div>
-                        <div class="linkage-meta-value">
-                          <code>{{ examinationHashDisplay || 'Nicht verfuegbar' }}</code>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div
-                    v-if="linkageStatus !== 'linked'"
-                    class="alert alert-secondary mt-3 mb-0"
-                    role="alert"
-                  >
-                    <strong>Hinweis zur Fallzuordnung:</strong>
-                    Diese Validierung kann auch ohne sofortige Fallzuordnung abgeschlossen werden.
-                    Wenn Sie bereits jetzt eine minimale Untersuchung anlegen moechten, reicht in der Regel
-                    eine Untersuchung wie <code>Koloskopie</code>. Befunde und weitere Details koennen spaeter
-                    in der Befundung ergaenzt werden.
-                    <div class="mt-2 d-flex flex-wrap gap-2">
-                      <RouterLink
-                        class="btn btn-outline-secondary btn-sm"
-                        :to="caseResolutionRoute"
-                      >
-                        Fallauflösung öffnen
-                      </RouterLink>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
 
           <div class="row mb-4">
             <!--Checkbox indicating if there are no more names present in the video or pdf-->
@@ -685,6 +606,85 @@
                 <div v-if="!canApprove && approvalBlockReason" class="alert alert-warning mt-2 mb-0">
                   <i class="fas fa-exclamation-triangle me-2"></i>
                   <strong>Bestätigung blockiert:</strong> {{ approvalBlockReason }}
+                </div>
+              </div>
+            </div>
+          </div>
+                    <div class="row mb-4">
+            <div class="col-12">
+              <div class="card border-light-subtle shadow-sm">
+                <div class="card-body">
+                  <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+                    <div>
+                      <h6 class="card-title mb-1">Fallzuordnung</h6>
+                    </div>
+                    <span class="badge" :class="linkageStatusBadgeClass">
+                      {{ linkageStatusLabel }}
+                    </span>
+                  </div>
+
+                  <div class="row g-3">
+                    <div class="col-md-6">
+                      <div class="linkage-meta-box">
+                        <div class="linkage-meta-label">Pseudo-Patient</div>
+                        <div class="linkage-meta-value">
+                          {{ pseudoPatientDisplay }}
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-md-6">
+                      <div class="linkage-meta-box">
+                        <div class="linkage-meta-label">PatientExamination</div>
+                        <div class="linkage-meta-value">
+                          {{ patientExaminationDisplay }}
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-md-6">
+                      <div class="linkage-meta-box">
+                        <div class="linkage-meta-label">Medienstatus</div>
+                        <div class="linkage-meta-value">
+                          {{ linkageStatusDescription }}
+                        </div>
+                      </div>
+                    </div>
+                    <div v-if="isDebug" class="col-md-3">
+                      <div class="linkage-meta-box">
+                        <div class="linkage-meta-label">Patient Hash</div>
+                        <div class="linkage-meta-value">
+                          <code>{{ patientHashDisplay || 'Nicht verfuegbar' }}</code>
+                        </div>
+                      </div>
+                    </div>
+                    <div v-if="isDebug" class="col-md-3">
+                      <div class="linkage-meta-box">
+                        <div class="linkage-meta-label">Untersuchungs Hash</div>
+                        <div class="linkage-meta-value">
+                          <code>{{ examinationHashDisplay || 'Nicht verfuegbar' }}</code>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div
+                    v-if="linkageStatus !== 'linked'"
+                    class="alert alert-secondary mt-3 mb-0"
+                    role="alert"
+                  >
+                    <strong>Hinweis zur Fallzuordnung:</strong>
+                    Diese Validierung kann auch ohne sofortige Fallzuordnung abgeschlossen werden.
+                    Wenn Sie bereits jetzt eine minimale Untersuchung anlegen moechten, reicht in der Regel
+                    eine Untersuchung wie <code>Koloskopie</code>. Befunde und weitere Details koennen spaeter
+                    in der Befundung ergaenzt werden.
+                    <div class="mt-2 d-flex flex-wrap gap-2">
+                      <RouterLink
+                        class="btn btn-outline-secondary btn-sm"
+                        :to="caseResolutionRoute"
+                      >
+                        Fallauflösung öffnen
+                      </RouterLink>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

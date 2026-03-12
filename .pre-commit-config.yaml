@@ -24,3 +24,23 @@ repos:
         pass_filenames: false
         env:
           UV_PROJECT_ENVIRONMENT: .devenv/state/venv
+      - id: mypy
+        name: mypy type check
+        entry: ./.devenv/profile/bin/uv run mypy lx_annotate
+        language: system
+        pass_filenames: false
+        env:
+          UV_PROJECT_ENVIRONMENT: .devenv/state/venv
+
+      - id: frontend-vitest
+        name: frontend vitest
+        entry: bash -lc 'cd frontend && npm run test:unit -- --run'
+        language: system
+        pass_filenames: false
+
+      - id: frontend-typecheck
+        name: frontend type-check
+        entry: bash -lc 'cd frontend && npm run type-check'
+        language: system
+        pass_filenames: false
+

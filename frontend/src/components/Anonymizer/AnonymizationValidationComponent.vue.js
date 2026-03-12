@@ -1481,128 +1481,6 @@ if (__VLS_ctx.currentItem) {
         ...{ class: "col-12" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "card border-light-subtle shadow-sm" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "card-body" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({
-        ...{ class: "card-title mb-1" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-        ...{ class: "badge" },
-        ...{ class: (__VLS_ctx.linkageStatusBadgeClass) },
-    });
-    (__VLS_ctx.linkageStatusLabel);
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "row g-3" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "col-md-6" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "linkage-meta-box" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "linkage-meta-label" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "linkage-meta-value" },
-    });
-    (__VLS_ctx.pseudoPatientDisplay);
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "col-md-6" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "linkage-meta-box" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "linkage-meta-label" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "linkage-meta-value" },
-    });
-    (__VLS_ctx.patientExaminationDisplay);
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "col-md-6" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "linkage-meta-box" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "linkage-meta-label" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "linkage-meta-value" },
-    });
-    (__VLS_ctx.linkageStatusDescription);
-    if (__VLS_ctx.isDebug) {
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: "col-md-3" },
-        });
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: "linkage-meta-box" },
-        });
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: "linkage-meta-label" },
-        });
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: "linkage-meta-value" },
-        });
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.code, __VLS_intrinsicElements.code)({});
-        (__VLS_ctx.patientHashDisplay || 'Nicht verfuegbar');
-    }
-    if (__VLS_ctx.isDebug) {
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: "col-md-3" },
-        });
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: "linkage-meta-box" },
-        });
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: "linkage-meta-label" },
-        });
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: "linkage-meta-value" },
-        });
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.code, __VLS_intrinsicElements.code)({});
-        (__VLS_ctx.examinationHashDisplay || 'Nicht verfuegbar');
-    }
-    if (__VLS_ctx.linkageStatus !== 'linked') {
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: "alert alert-secondary mt-3 mb-0" },
-            role: "alert",
-        });
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.code, __VLS_intrinsicElements.code)({});
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: "mt-2 d-flex flex-wrap gap-2" },
-        });
-        const __VLS_4 = {}.RouterLink;
-        /** @type {[typeof __VLS_components.RouterLink, typeof __VLS_components.RouterLink, ]} */ ;
-        // @ts-ignore
-        const __VLS_5 = __VLS_asFunctionalComponent(__VLS_4, new __VLS_4({
-            ...{ class: "btn btn-outline-secondary btn-sm" },
-            to: (__VLS_ctx.caseResolutionRoute),
-        }));
-        const __VLS_6 = __VLS_5({
-            ...{ class: "btn btn-outline-secondary btn-sm" },
-            to: (__VLS_ctx.caseResolutionRoute),
-        }, ...__VLS_functionalComponentArgsRest(__VLS_5));
-        __VLS_7.slots.default;
-        var __VLS_7;
-    }
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "row mb-4" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "col-12" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "form-check" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.input, __VLS_intrinsicElements.input)({
@@ -2238,26 +2116,26 @@ if (__VLS_ctx.currentItem) {
             });
             /** @type {[typeof OutsideTimelineComponent, ]} */ ;
             // @ts-ignore
-            const __VLS_8 = __VLS_asFunctionalComponent(OutsideTimelineComponent, new OutsideTimelineComponent({
+            const __VLS_4 = __VLS_asFunctionalComponent(OutsideTimelineComponent, new OutsideTimelineComponent({
                 ...{ 'onSegmentValidated': {} },
                 ...{ 'onValidationComplete': {} },
                 videoId: (__VLS_ctx.currentItem.id),
             }));
-            const __VLS_9 = __VLS_8({
+            const __VLS_5 = __VLS_4({
                 ...{ 'onSegmentValidated': {} },
                 ...{ 'onValidationComplete': {} },
                 videoId: (__VLS_ctx.currentItem.id),
-            }, ...__VLS_functionalComponentArgsRest(__VLS_8));
-            let __VLS_11;
-            let __VLS_12;
-            let __VLS_13;
-            const __VLS_14 = {
+            }, ...__VLS_functionalComponentArgsRest(__VLS_4));
+            let __VLS_7;
+            let __VLS_8;
+            let __VLS_9;
+            const __VLS_10 = {
                 onSegmentValidated: (__VLS_ctx.onSegmentValidated)
             };
-            const __VLS_15 = {
+            const __VLS_11 = {
                 onValidationComplete: (__VLS_ctx.onOutsideValidationComplete)
             };
-            var __VLS_10;
+            var __VLS_6;
         }
         if (__VLS_ctx.videoValidationStatus) {
             __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -2376,6 +2254,128 @@ if (__VLS_ctx.currentItem) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
         (__VLS_ctx.approvalBlockReason);
     }
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "row mb-4" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "col-12" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "card border-light-subtle shadow-sm" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "card-body" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({
+        ...{ class: "card-title mb-1" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+        ...{ class: "badge" },
+        ...{ class: (__VLS_ctx.linkageStatusBadgeClass) },
+    });
+    (__VLS_ctx.linkageStatusLabel);
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "row g-3" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "col-md-6" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "linkage-meta-box" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "linkage-meta-label" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "linkage-meta-value" },
+    });
+    (__VLS_ctx.pseudoPatientDisplay);
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "col-md-6" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "linkage-meta-box" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "linkage-meta-label" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "linkage-meta-value" },
+    });
+    (__VLS_ctx.patientExaminationDisplay);
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "col-md-6" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "linkage-meta-box" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "linkage-meta-label" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "linkage-meta-value" },
+    });
+    (__VLS_ctx.linkageStatusDescription);
+    if (__VLS_ctx.isDebug) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "col-md-3" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "linkage-meta-box" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "linkage-meta-label" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "linkage-meta-value" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.code, __VLS_intrinsicElements.code)({});
+        (__VLS_ctx.patientHashDisplay || 'Nicht verfuegbar');
+    }
+    if (__VLS_ctx.isDebug) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "col-md-3" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "linkage-meta-box" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "linkage-meta-label" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "linkage-meta-value" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.code, __VLS_intrinsicElements.code)({});
+        (__VLS_ctx.examinationHashDisplay || 'Nicht verfuegbar');
+    }
+    if (__VLS_ctx.linkageStatus !== 'linked') {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "alert alert-secondary mt-3 mb-0" },
+            role: "alert",
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.code, __VLS_intrinsicElements.code)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "mt-2 d-flex flex-wrap gap-2" },
+        });
+        const __VLS_12 = {}.RouterLink;
+        /** @type {[typeof __VLS_components.RouterLink, typeof __VLS_components.RouterLink, ]} */ ;
+        // @ts-ignore
+        const __VLS_13 = __VLS_asFunctionalComponent(__VLS_12, new __VLS_12({
+            ...{ class: "btn btn-outline-secondary btn-sm" },
+            to: (__VLS_ctx.caseResolutionRoute),
+        }));
+        const __VLS_14 = __VLS_13({
+            ...{ class: "btn btn-outline-secondary btn-sm" },
+            to: (__VLS_ctx.caseResolutionRoute),
+        }, ...__VLS_functionalComponentArgsRest(__VLS_13));
+        __VLS_15.slots.default;
+        var __VLS_15;
+    }
 }
 /** @type {__VLS_StyleScopedClasses['container-fluid']} */ ;
 /** @type {__VLS_StyleScopedClasses['py-4']} */ ;
@@ -2423,55 +2423,6 @@ if (__VLS_ctx.currentItem) {
 /** @type {__VLS_StyleScopedClasses['fas']} */ ;
 /** @type {__VLS_StyleScopedClasses['fa-tools']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
-/** @type {__VLS_StyleScopedClasses['row']} */ ;
-/** @type {__VLS_StyleScopedClasses['mb-4']} */ ;
-/** @type {__VLS_StyleScopedClasses['col-12']} */ ;
-/** @type {__VLS_StyleScopedClasses['card']} */ ;
-/** @type {__VLS_StyleScopedClasses['border-light-subtle']} */ ;
-/** @type {__VLS_StyleScopedClasses['shadow-sm']} */ ;
-/** @type {__VLS_StyleScopedClasses['card-body']} */ ;
-/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
-/** @type {__VLS_StyleScopedClasses['justify-content-between']} */ ;
-/** @type {__VLS_StyleScopedClasses['align-items-start']} */ ;
-/** @type {__VLS_StyleScopedClasses['flex-wrap']} */ ;
-/** @type {__VLS_StyleScopedClasses['gap-2']} */ ;
-/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
-/** @type {__VLS_StyleScopedClasses['card-title']} */ ;
-/** @type {__VLS_StyleScopedClasses['mb-1']} */ ;
-/** @type {__VLS_StyleScopedClasses['badge']} */ ;
-/** @type {__VLS_StyleScopedClasses['row']} */ ;
-/** @type {__VLS_StyleScopedClasses['g-3']} */ ;
-/** @type {__VLS_StyleScopedClasses['col-md-6']} */ ;
-/** @type {__VLS_StyleScopedClasses['linkage-meta-box']} */ ;
-/** @type {__VLS_StyleScopedClasses['linkage-meta-label']} */ ;
-/** @type {__VLS_StyleScopedClasses['linkage-meta-value']} */ ;
-/** @type {__VLS_StyleScopedClasses['col-md-6']} */ ;
-/** @type {__VLS_StyleScopedClasses['linkage-meta-box']} */ ;
-/** @type {__VLS_StyleScopedClasses['linkage-meta-label']} */ ;
-/** @type {__VLS_StyleScopedClasses['linkage-meta-value']} */ ;
-/** @type {__VLS_StyleScopedClasses['col-md-6']} */ ;
-/** @type {__VLS_StyleScopedClasses['linkage-meta-box']} */ ;
-/** @type {__VLS_StyleScopedClasses['linkage-meta-label']} */ ;
-/** @type {__VLS_StyleScopedClasses['linkage-meta-value']} */ ;
-/** @type {__VLS_StyleScopedClasses['col-md-3']} */ ;
-/** @type {__VLS_StyleScopedClasses['linkage-meta-box']} */ ;
-/** @type {__VLS_StyleScopedClasses['linkage-meta-label']} */ ;
-/** @type {__VLS_StyleScopedClasses['linkage-meta-value']} */ ;
-/** @type {__VLS_StyleScopedClasses['col-md-3']} */ ;
-/** @type {__VLS_StyleScopedClasses['linkage-meta-box']} */ ;
-/** @type {__VLS_StyleScopedClasses['linkage-meta-label']} */ ;
-/** @type {__VLS_StyleScopedClasses['linkage-meta-value']} */ ;
-/** @type {__VLS_StyleScopedClasses['alert']} */ ;
-/** @type {__VLS_StyleScopedClasses['alert-secondary']} */ ;
-/** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
-/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
-/** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
-/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
-/** @type {__VLS_StyleScopedClasses['flex-wrap']} */ ;
-/** @type {__VLS_StyleScopedClasses['gap-2']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn-outline-secondary']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['row']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-4']} */ ;
 /** @type {__VLS_StyleScopedClasses['col-12']} */ ;
@@ -2772,6 +2723,55 @@ if (__VLS_ctx.currentItem) {
 /** @type {__VLS_StyleScopedClasses['fas']} */ ;
 /** @type {__VLS_StyleScopedClasses['fa-exclamation-triangle']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['row']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-4']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-12']} */ ;
+/** @type {__VLS_StyleScopedClasses['card']} */ ;
+/** @type {__VLS_StyleScopedClasses['border-light-subtle']} */ ;
+/** @type {__VLS_StyleScopedClasses['shadow-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['card-body']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['justify-content-between']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-start']} */ ;
+/** @type {__VLS_StyleScopedClasses['flex-wrap']} */ ;
+/** @type {__VLS_StyleScopedClasses['gap-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['card-title']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['row']} */ ;
+/** @type {__VLS_StyleScopedClasses['g-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-md-6']} */ ;
+/** @type {__VLS_StyleScopedClasses['linkage-meta-box']} */ ;
+/** @type {__VLS_StyleScopedClasses['linkage-meta-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['linkage-meta-value']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-md-6']} */ ;
+/** @type {__VLS_StyleScopedClasses['linkage-meta-box']} */ ;
+/** @type {__VLS_StyleScopedClasses['linkage-meta-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['linkage-meta-value']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-md-6']} */ ;
+/** @type {__VLS_StyleScopedClasses['linkage-meta-box']} */ ;
+/** @type {__VLS_StyleScopedClasses['linkage-meta-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['linkage-meta-value']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-md-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['linkage-meta-box']} */ ;
+/** @type {__VLS_StyleScopedClasses['linkage-meta-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['linkage-meta-value']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-md-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['linkage-meta-box']} */ ;
+/** @type {__VLS_StyleScopedClasses['linkage-meta-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['linkage-meta-value']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert-secondary']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['flex-wrap']} */ ;
+/** @type {__VLS_StyleScopedClasses['gap-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-secondary']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
 var __VLS_dollars;
 const __VLS_self = (await import('vue')).defineComponent({
     setup() {
