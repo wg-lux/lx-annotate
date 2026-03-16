@@ -24,6 +24,13 @@ repos:
         pass_filenames: false
         env:
           UV_PROJECT_ENVIRONMENT: .devenv/state/venv
+      - id: deployment-contracts
+        name: deployment contract tests
+        entry: ./.devenv/profile/bin/uv run pytest tests/test_asset_deployment_contract.py tests/test_focused_coverage.py -q
+        language: system
+        pass_filenames: false
+        env:
+          UV_PROJECT_ENVIRONMENT: .devenv/state/venv
       - id: mypy
         name: mypy type check
         entry: ./.devenv/profile/bin/uv run mypy lx_annotate
@@ -43,4 +50,3 @@ repos:
         entry: bash -lc 'cd frontend && npm run type-check'
         language: system
         pass_filenames: false
-

@@ -19,6 +19,7 @@ import AuthCheck from '@/components/Authentification/AuthCheck.vue'
 import { initHttpKC } from '@/utils/http_kc'
 import canKc from '@/directives/can_kc'
 import { useAuthKcStore } from '@/stores/auth_kc'
+import { useReportingFlowStore } from '@/stores/reportingFlowStore'
 
 // 1. Axios / auth plumbing
 initHttpKC()
@@ -32,7 +33,10 @@ app.use(pinia)
 
 // 4. Global auth bootstrap (THIS WAS MISSING)
 const authStore = useAuthKcStore()
-authStore.loadBootstrap()
+const reportingFlowStore = useReportingFlowStore()
+void authStore.loadBootstrap().finally(() => {
+  reportingFlowStore.bindAuthSubject(authStore.user?.sub ?? null)
+})
 
 // 5. Directives & global components
 app.directive('can', canKc)

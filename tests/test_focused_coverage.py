@@ -261,6 +261,55 @@ def test_settings_prod_import_uses_static_vite_manifest(monkeypatch, tmp_path):
     assert module.CORS_ALLOWED_ORIGINS == ["https://frontend.example.com"]
 
 
+def test_settings_prod_import_reads_luxnix_style_service_environment(
+    monkeypatch, tmp_path
+):
+    app_data_dir = tmp_path / "lx-annotate-data"
+    app_data_dir.mkdir(parents=True, exist_ok=True)
+    static_root = tmp_path / "static-root"
+    monkeypatch.setenv("LX_ANNOTATE_DATA_DIR", str(app_data_dir))
+    monkeypatch.setenv("DJANGO_SETTINGS_MODULE", "lx_annotate.settings.settings_prod")
+    monkeypatch.setenv("ENFORCE_AUTH", "0")
+    monkeypatch.setenv("DJANGO_SECRET_KEY", "p" * 64)
+    monkeypatch.setenv("DJANGO_ALLOWED_HOSTS", "annotate.example.test,localhost")
+    monkeypatch.setenv("DJANGO_CSRF_TRUSTED_ORIGINS", "https://annotate.example.test")
+    monkeypatch.setenv("DJANGO_CORS_ALLOWED_ORIGINS", "https://frontend.example.test")
+    monkeypatch.setenv("DJANGO_STATIC_ROOT", str(static_root))
+    monkeypatch.setenv("DJANGO_DB_NAME", "lxAnnotateLocal")
+    monkeypatch.setenv("DJANGO_DB_USER", "lxAnnotateLocal")
+    monkeypatch.setenv("DJANGO_DB_PASSWORD", "super-secret-db-password")
+    monkeypatch.setenv("DJANGO_DB_HOST", "postgres.internal")
+    monkeypatch.setenv("DJANGO_DB_PORT", "5434")
+    monkeypatch.setenv("DJANGO_DB_SSLMODE", "require")
+    monkeypatch.setenv("OIDC_RP_CLIENT_SECRET", "oidc-secret-from-service")
+    monkeypatch.setenv("DJANGO_DEBUG", "False")
+
+    sys.modules.pop("endoreg_db.config.settings.keycloak", None)
+    sys.modules.pop("lx_annotate.settings.settings_prod", None)
+    sys.modules.pop("lx_annotate.settings.settings_base", None)
+    module = importlib.import_module("lx_annotate.settings.settings_prod")
+
+    assert Path(module.STATIC_ROOT) == static_root
+    assert module.ALLOWED_HOSTS == ["annotate.example.test", "localhost"]
+    assert module.CSRF_TRUSTED_ORIGINS == ["https://annotate.example.test"]
+    assert module.CORS_ALLOWED_ORIGINS == ["https://frontend.example.test"]
+    assert module.DATABASES["default"] == {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": "lxAnnotateLocal",
+        "USER": "lxAnnotateLocal",
+        "PASSWORD": "super-secret-db-password",
+        "HOST": "postgres.internal",
+        "PORT": "5434",
+        "CONN_MAX_AGE": 60,
+        "OPTIONS": {
+            "sslmode": "require",
+        },
+    }
+    assert module.config.keycloak_client_secret == "oidc-secret-from-service"
+    assert bool(module.OIDC_RP_CLIENT_SECRET)
+    assert module.DEBUG is False
+
+
 def test_wsgi_module_import_sets_default_settings_module(monkeypatch):
     import django.core.wsgi as django_wsgi
 

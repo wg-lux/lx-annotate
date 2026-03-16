@@ -1,65 +1,90 @@
 import { defineStore } from 'pinia';
 import { computed, ref, watch } from 'vue';
-const STORAGE_KEY = 'reportingFlowState.v1';
-function loadPersistedState() {
+const STORAGE_KEY = 'reportingFlowState.v2';
+const LEGACY_STORAGE_KEY = 'reportingFlowState.v1';
+const STORAGE_TTL_MS = 30 * 60 * 1000;
+function clearPersistedState() {
     try {
-        const raw = localStorage.getItem(STORAGE_KEY);
+        sessionStorage.removeItem(STORAGE_KEY);
+        localStorage.removeItem(LEGACY_STORAGE_KEY);
+    }
+    catch { }
+}
+function normalizePersistedState(parsed) {
+    return {
+        lookupToken: typeof parsed.lookupToken === 'string' ? parsed.lookupToken : null,
+        patientExaminationId: typeof parsed.patientExaminationId === 'number' ? parsed.patientExaminationId : null,
+        selectedPatientId: typeof parsed.selectedPatientId === 'number' ? parsed.selectedPatientId : null,
+        selectedExaminationId: typeof parsed.selectedExaminationId === 'number' ? parsed.selectedExaminationId : null,
+        selectedRequirementSetIds: Array.isArray(parsed.selectedRequirementSetIds)
+            ? parsed.selectedRequirementSetIds.filter((v) => typeof v === 'number')
+            : [],
+        activeReportId: typeof parsed.activeReportId === 'number' ? parsed.activeReportId : null,
+        indications: Array.isArray(parsed.indications)
+            ? parsed.indications.map((row) => ({
+                examinationIndicationId: typeof row?.examinationIndicationId === 'number' ? row.examinationIndicationId : null,
+                indicationChoiceId: typeof row?.indicationChoiceId === 'number' ? row.indicationChoiceId : null
+            }))
+            : [],
+        selectedKbModule: typeof parsed.selectedKbModule === 'string' && parsed.selectedKbModule.trim()
+            ? parsed.selectedKbModule
+            : 'report_template_examples',
+        selectedTemplateName: typeof parsed.selectedTemplateName === 'string' && parsed.selectedTemplateName.trim()
+            ? parsed.selectedTemplateName
+            : null,
+        templateSectionDrafts: parsed.templateSectionDrafts && typeof parsed.templateSectionDrafts === 'object'
+            ? Object.fromEntries(Object.entries(parsed.templateSectionDrafts).map(([key, value]) => {
+                const draft = value;
+                return [
+                    key,
+                    {
+                        note: typeof draft?.note === 'string' ? draft.note : '',
+                        includePatientData: !!draft?.includePatientData,
+                        includeExaminationData: !!draft?.includeExaminationData
+                    }
+                ];
+            }))
+            : {}
+    };
+}
+function loadPersistedState(ownerSub) {
+    try {
+        const raw = sessionStorage.getItem(STORAGE_KEY);
         if (!raw)
             return null;
         const parsed = JSON.parse(raw);
-        return {
-            lookupToken: typeof parsed.lookupToken === 'string' ? parsed.lookupToken : null,
-            patientExaminationId: typeof parsed.patientExaminationId === 'number' ? parsed.patientExaminationId : null,
-            selectedPatientId: typeof parsed.selectedPatientId === 'number' ? parsed.selectedPatientId : null,
-            selectedExaminationId: typeof parsed.selectedExaminationId === 'number' ? parsed.selectedExaminationId : null,
-            selectedRequirementSetIds: Array.isArray(parsed.selectedRequirementSetIds)
-                ? parsed.selectedRequirementSetIds.filter((v) => typeof v === 'number')
-                : [],
-            activeReportId: typeof parsed.activeReportId === 'number' ? parsed.activeReportId : null,
-            indications: Array.isArray(parsed.indications)
-                ? parsed.indications.map((row) => ({
-                    examinationIndicationId: typeof row?.examinationIndicationId === 'number' ? row.examinationIndicationId : null,
-                    indicationChoiceId: typeof row?.indicationChoiceId === 'number' ? row.indicationChoiceId : null
-                }))
-                : [],
-            selectedKbModule: typeof parsed.selectedKbModule === 'string' && parsed.selectedKbModule.trim()
-                ? parsed.selectedKbModule
-                : 'report_template_examples',
-            selectedTemplateName: typeof parsed.selectedTemplateName === 'string' && parsed.selectedTemplateName.trim()
-                ? parsed.selectedTemplateName
-                : null,
-            templateSectionDrafts: parsed.templateSectionDrafts && typeof parsed.templateSectionDrafts === 'object'
-                ? Object.fromEntries(Object.entries(parsed.templateSectionDrafts).map(([key, value]) => {
-                    const draft = value;
-                    return [
-                        key,
-                        {
-                            note: typeof draft?.note === 'string' ? draft.note : '',
-                            includePatientData: !!draft?.includePatientData,
-                            includeExaminationData: !!draft?.includeExaminationData
-                        }
-                    ];
-                }))
-                : {}
-        };
+        if (!parsed || typeof parsed !== 'object') {
+            clearPersistedState();
+            return null;
+        }
+        if (typeof parsed.expiresAt !== 'number' ||
+            parsed.expiresAt <= Date.now() ||
+            parsed.ownerSub !== ownerSub ||
+            !parsed.state ||
+            typeof parsed.state !== 'object') {
+            clearPersistedState();
+            return null;
+        }
+        return normalizePersistedState(parsed.state);
     }
     catch {
+        clearPersistedState();
         return null;
     }
 }
 export const useReportingFlowStore = defineStore('reportingFlow', () => {
-    const persisted = loadPersistedState();
+    const authSubject = ref(null);
     const sessionStatus = ref('idle');
-    const lookupToken = ref(persisted?.lookupToken ?? null);
-    const patientExaminationId = ref(persisted?.patientExaminationId ?? null);
-    const selectedPatientId = ref(persisted?.selectedPatientId ?? null);
-    const selectedExaminationId = ref(persisted?.selectedExaminationId ?? null);
-    const selectedRequirementSetIds = ref(persisted?.selectedRequirementSetIds ?? []);
-    const activeReportId = ref(persisted?.activeReportId ?? null);
-    const selectedKbModule = ref(persisted?.selectedKbModule ?? 'report_template_examples');
-    const selectedTemplateName = ref(persisted?.selectedTemplateName ?? null);
-    const templateSectionDrafts = ref(persisted?.templateSectionDrafts ?? {});
-    const indications = ref(persisted?.indications ?? [{ examinationIndicationId: null, indicationChoiceId: null }]);
+    const lookupToken = ref(null);
+    const patientExaminationId = ref(null);
+    const selectedPatientId = ref(null);
+    const selectedExaminationId = ref(null);
+    const selectedRequirementSetIds = ref([]);
+    const activeReportId = ref(null);
+    const selectedKbModule = ref('report_template_examples');
+    const selectedTemplateName = ref(null);
+    const templateSectionDrafts = ref({});
+    const indications = ref([{ examinationIndicationId: null, indicationChoiceId: null }]);
     const lookupSnapshot = ref(null);
     const lastRequirementGuidance = ref(null);
     const lastTemplateValidation = ref(null);
@@ -117,6 +142,33 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
     }
     function clearTemplateSectionDrafts() {
         templateSectionDrafts.value = {};
+    }
+    function applyPersistedState(persisted) {
+        lookupToken.value = persisted?.lookupToken ?? null;
+        patientExaminationId.value = persisted?.patientExaminationId ?? null;
+        selectedPatientId.value = persisted?.selectedPatientId ?? null;
+        selectedExaminationId.value = persisted?.selectedExaminationId ?? null;
+        selectedRequirementSetIds.value = persisted?.selectedRequirementSetIds ?? [];
+        activeReportId.value = persisted?.activeReportId ?? null;
+        indications.value =
+            persisted?.indications?.length
+                ? persisted.indications
+                : [{ examinationIndicationId: null, indicationChoiceId: null }];
+        selectedKbModule.value = persisted?.selectedKbModule ?? 'report_template_examples';
+        selectedTemplateName.value = persisted?.selectedTemplateName ?? null;
+        templateSectionDrafts.value = persisted?.templateSectionDrafts ?? {};
+    }
+    function bindAuthSubject(subject) {
+        const normalized = typeof subject === 'string' && subject.trim() ? subject.trim() : null;
+        if (authSubject.value === normalized)
+            return;
+        authSubject.value = normalized;
+        clearAll();
+        if (!normalized) {
+            clearPersistedState();
+            return;
+        }
+        applyPersistedState(loadPersistedState(normalized));
     }
     function resetForPatientSwitch() {
         lookupToken.value = null;
@@ -248,9 +300,20 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
         templateSectionDrafts: templateSectionDrafts.value
     }));
     watch(persistable, (state) => {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        if (!authSubject.value) {
+            clearPersistedState();
+            return;
+        }
+        const envelope = {
+            ownerSub: authSubject.value,
+            expiresAt: Date.now() + STORAGE_TTL_MS,
+            state
+        };
+        sessionStorage.setItem(STORAGE_KEY, JSON.stringify(envelope));
+        localStorage.removeItem(LEGACY_STORAGE_KEY);
     }, { deep: true });
     return {
+        authSubject,
         sessionStatus,
         lookupToken,
         patientExaminationId,
@@ -280,6 +343,7 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
         setTemplateSelection,
         setTemplateSectionDraft,
         clearTemplateSectionDrafts,
+        bindAuthSubject,
         setIndications,
         setLookupSnapshot,
         patchLookupSnapshot,

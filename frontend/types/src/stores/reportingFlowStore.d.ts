@@ -27,6 +27,7 @@ export type ReportingIndicationRow = {
     indicationChoiceId: number | null;
 };
 export declare const useReportingFlowStore: import("pinia").StoreDefinition<"reportingFlow", Pick<{
+    authSubject: import("vue").Ref<string | null, string | null>;
     sessionStatus: import("vue").Ref<SessionStatus, SessionStatus>;
     lookupToken: import("vue").Ref<string | null, string | null>;
     patientExaminationId: import("vue").Ref<number | null, number | null>;
@@ -296,6 +297,7 @@ export declare const useReportingFlowStore: import("pinia").StoreDefinition<"rep
     }) => void;
     setTemplateSectionDraft: (sectionName: string, patch: Partial<ReportTemplateSectionDraft>) => void;
     clearTemplateSectionDrafts: () => void;
+    bindAuthSubject: (subject: string | null | undefined) => void;
     setIndications: (rows: ReportingIndicationRow[]) => void;
     setLookupSnapshot: (snapshot: ReportingLookupSnapshot | null) => void;
     patchLookupSnapshot: (partial: Partial<ReportingLookupSnapshot>) => void;
@@ -312,7 +314,8 @@ export declare const useReportingFlowStore: import("pinia").StoreDefinition<"rep
     removeIndicationRow: (index: number) => void;
     resetForPatientSwitch: () => void;
     clearAll: () => void;
-}, "patientExaminationId" | "lookupToken" | "selectedPatientId" | "selectedExaminationId" | "selectedRequirementSetIds" | "activeReportId" | "indications" | "selectedKbModule" | "selectedTemplateName" | "templateSectionDrafts" | "sessionStatus" | "lookupSnapshot" | "lastRequirementGuidance" | "lastTemplateValidation" | "findingsRevision" | "lastFindingsEvent" | "mediaPreload" | "mediaPreloadStatus" | "mediaPreloadError">, Pick<{
+}, "lookupToken" | "patientExaminationId" | "selectedPatientId" | "selectedExaminationId" | "selectedRequirementSetIds" | "activeReportId" | "indications" | "selectedKbModule" | "selectedTemplateName" | "templateSectionDrafts" | "authSubject" | "sessionStatus" | "lookupSnapshot" | "lastRequirementGuidance" | "lastTemplateValidation" | "findingsRevision" | "lastFindingsEvent" | "mediaPreload" | "mediaPreloadStatus" | "mediaPreloadError">, Pick<{
+    authSubject: import("vue").Ref<string | null, string | null>;
     sessionStatus: import("vue").Ref<SessionStatus, SessionStatus>;
     lookupToken: import("vue").Ref<string | null, string | null>;
     patientExaminationId: import("vue").Ref<number | null, number | null>;
@@ -582,6 +585,7 @@ export declare const useReportingFlowStore: import("pinia").StoreDefinition<"rep
     }) => void;
     setTemplateSectionDraft: (sectionName: string, patch: Partial<ReportTemplateSectionDraft>) => void;
     clearTemplateSectionDrafts: () => void;
+    bindAuthSubject: (subject: string | null | undefined) => void;
     setIndications: (rows: ReportingIndicationRow[]) => void;
     setLookupSnapshot: (snapshot: ReportingLookupSnapshot | null) => void;
     patchLookupSnapshot: (partial: Partial<ReportingLookupSnapshot>) => void;
@@ -599,6 +603,7 @@ export declare const useReportingFlowStore: import("pinia").StoreDefinition<"rep
     resetForPatientSwitch: () => void;
     clearAll: () => void;
 }, "hasActiveCase" | "canUseLookupPages">, Pick<{
+    authSubject: import("vue").Ref<string | null, string | null>;
     sessionStatus: import("vue").Ref<SessionStatus, SessionStatus>;
     lookupToken: import("vue").Ref<string | null, string | null>;
     patientExaminationId: import("vue").Ref<number | null, number | null>;
@@ -868,6 +873,7 @@ export declare const useReportingFlowStore: import("pinia").StoreDefinition<"rep
     }) => void;
     setTemplateSectionDraft: (sectionName: string, patch: Partial<ReportTemplateSectionDraft>) => void;
     clearTemplateSectionDrafts: () => void;
+    bindAuthSubject: (subject: string | null | undefined) => void;
     setIndications: (rows: ReportingIndicationRow[]) => void;
     setLookupSnapshot: (snapshot: ReportingLookupSnapshot | null) => void;
     patchLookupSnapshot: (partial: Partial<ReportingLookupSnapshot>) => void;
@@ -884,5 +890,5 @@ export declare const useReportingFlowStore: import("pinia").StoreDefinition<"rep
     removeIndicationRow: (index: number) => void;
     resetForPatientSwitch: () => void;
     clearAll: () => void;
-}, "setLookupSession" | "setCaseSelection" | "setSelectedRequirementSetIds" | "setActiveReportId" | "setSessionStatus" | "setTemplateSelection" | "setTemplateSectionDraft" | "clearTemplateSectionDrafts" | "setIndications" | "setLookupSnapshot" | "patchLookupSnapshot" | "setLastRequirementGuidance" | "setLastTemplateValidation" | "noteFindingAdded" | "noteClassificationUpdated" | "setMediaPreloadLoading" | "setMediaPreload" | "setMediaPreloadError" | "clearMediaPreload" | "addIndicationRow" | "updateIndicationRow" | "removeIndicationRow" | "resetForPatientSwitch" | "clearAll">>;
+}, "setLookupSession" | "setCaseSelection" | "setSelectedRequirementSetIds" | "setActiveReportId" | "setSessionStatus" | "setTemplateSelection" | "setTemplateSectionDraft" | "clearTemplateSectionDrafts" | "bindAuthSubject" | "setIndications" | "setLookupSnapshot" | "patchLookupSnapshot" | "setLastRequirementGuidance" | "setLastTemplateValidation" | "noteFindingAdded" | "noteClassificationUpdated" | "setMediaPreloadLoading" | "setMediaPreload" | "setMediaPreloadError" | "clearMediaPreload" | "addIndicationRow" | "updateIndicationRow" | "removeIndicationRow" | "resetForPatientSwitch" | "clearAll">>;
 export {};

@@ -44,80 +44,113 @@ type PersistedReportingFlowState = {
   templateSectionDrafts: Record<string, ReportTemplateSectionDraft>
 }
 
-const STORAGE_KEY = 'reportingFlowState.v1'
+type PersistedReportingFlowEnvelope = {
+  ownerSub: string | null
+  expiresAt: number
+  state: PersistedReportingFlowState
+}
 
-function loadPersistedState(): PersistedReportingFlowState | null {
+const STORAGE_KEY = 'reportingFlowState.v2'
+const LEGACY_STORAGE_KEY = 'reportingFlowState.v1'
+const STORAGE_TTL_MS = 30 * 60 * 1000
+
+function clearPersistedState() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
+    sessionStorage.removeItem(STORAGE_KEY)
+    localStorage.removeItem(LEGACY_STORAGE_KEY)
+  } catch {}
+}
+
+function normalizePersistedState(
+  parsed: Partial<PersistedReportingFlowState>
+): PersistedReportingFlowState {
+  return {
+    lookupToken: typeof parsed.lookupToken === 'string' ? parsed.lookupToken : null,
+    patientExaminationId:
+      typeof parsed.patientExaminationId === 'number' ? parsed.patientExaminationId : null,
+    selectedPatientId:
+      typeof parsed.selectedPatientId === 'number' ? parsed.selectedPatientId : null,
+    selectedExaminationId:
+      typeof parsed.selectedExaminationId === 'number' ? parsed.selectedExaminationId : null,
+    selectedRequirementSetIds: Array.isArray(parsed.selectedRequirementSetIds)
+      ? parsed.selectedRequirementSetIds.filter((v): v is number => typeof v === 'number')
+      : [],
+    activeReportId: typeof parsed.activeReportId === 'number' ? parsed.activeReportId : null,
+    indications: Array.isArray(parsed.indications)
+      ? parsed.indications.map((row) => ({
+          examinationIndicationId:
+            typeof row?.examinationIndicationId === 'number' ? row.examinationIndicationId : null,
+          indicationChoiceId:
+            typeof row?.indicationChoiceId === 'number' ? row.indicationChoiceId : null
+        }))
+      : [],
+    selectedKbModule:
+      typeof parsed.selectedKbModule === 'string' && parsed.selectedKbModule.trim()
+        ? parsed.selectedKbModule
+        : 'report_template_examples',
+    selectedTemplateName:
+      typeof parsed.selectedTemplateName === 'string' && parsed.selectedTemplateName.trim()
+        ? parsed.selectedTemplateName
+        : null,
+    templateSectionDrafts:
+      parsed.templateSectionDrafts && typeof parsed.templateSectionDrafts === 'object'
+        ? Object.fromEntries(
+            Object.entries(parsed.templateSectionDrafts).map(([key, value]) => {
+              const draft = value as Partial<ReportTemplateSectionDraft> | undefined
+              return [
+                key,
+                {
+                  note: typeof draft?.note === 'string' ? draft.note : '',
+                  includePatientData: !!draft?.includePatientData,
+                  includeExaminationData: !!draft?.includeExaminationData
+                }
+              ]
+            })
+          )
+        : {}
+  }
+}
+
+function loadPersistedState(ownerSub: string | null): PersistedReportingFlowState | null {
+  try {
+    const raw = sessionStorage.getItem(STORAGE_KEY)
     if (!raw) return null
-    const parsed = JSON.parse(raw) as Partial<PersistedReportingFlowState>
-    return {
-      lookupToken: typeof parsed.lookupToken === 'string' ? parsed.lookupToken : null,
-      patientExaminationId:
-        typeof parsed.patientExaminationId === 'number' ? parsed.patientExaminationId : null,
-      selectedPatientId:
-        typeof parsed.selectedPatientId === 'number' ? parsed.selectedPatientId : null,
-      selectedExaminationId:
-        typeof parsed.selectedExaminationId === 'number' ? parsed.selectedExaminationId : null,
-      selectedRequirementSetIds: Array.isArray(parsed.selectedRequirementSetIds)
-        ? parsed.selectedRequirementSetIds.filter((v): v is number => typeof v === 'number')
-        : [],
-      activeReportId: typeof parsed.activeReportId === 'number' ? parsed.activeReportId : null,
-      indications: Array.isArray(parsed.indications)
-        ? parsed.indications.map((row) => ({
-            examinationIndicationId:
-              typeof row?.examinationIndicationId === 'number' ? row.examinationIndicationId : null,
-            indicationChoiceId:
-              typeof row?.indicationChoiceId === 'number' ? row.indicationChoiceId : null
-          }))
-        : [],
-      selectedKbModule:
-        typeof parsed.selectedKbModule === 'string' && parsed.selectedKbModule.trim()
-          ? parsed.selectedKbModule
-          : 'report_template_examples',
-      selectedTemplateName:
-        typeof parsed.selectedTemplateName === 'string' && parsed.selectedTemplateName.trim()
-          ? parsed.selectedTemplateName
-          : null,
-      templateSectionDrafts:
-        parsed.templateSectionDrafts && typeof parsed.templateSectionDrafts === 'object'
-          ? Object.fromEntries(
-              Object.entries(parsed.templateSectionDrafts).map(([key, value]) => {
-                const draft = value as Partial<ReportTemplateSectionDraft> | undefined
-                return [
-                  key,
-                  {
-                    note: typeof draft?.note === 'string' ? draft.note : '',
-                    includePatientData: !!draft?.includePatientData,
-                    includeExaminationData: !!draft?.includeExaminationData
-                  }
-                ]
-              })
-            )
-          : {}
+    const parsed = JSON.parse(raw) as Partial<PersistedReportingFlowEnvelope>
+    if (!parsed || typeof parsed !== 'object') {
+      clearPersistedState()
+      return null
     }
+    if (
+      typeof parsed.expiresAt !== 'number' ||
+      parsed.expiresAt <= Date.now() ||
+      parsed.ownerSub !== ownerSub ||
+      !parsed.state ||
+      typeof parsed.state !== 'object'
+    ) {
+      clearPersistedState()
+      return null
+    }
+    return normalizePersistedState(parsed.state)
   } catch {
+    clearPersistedState()
     return null
   }
 }
 
 export const useReportingFlowStore = defineStore('reportingFlow', () => {
-  const persisted = loadPersistedState()
-
+  const authSubject = ref<string | null>(null)
   const sessionStatus = ref<SessionStatus>('idle')
-  const lookupToken = ref<string | null>(persisted?.lookupToken ?? null)
-  const patientExaminationId = ref<number | null>(persisted?.patientExaminationId ?? null)
-  const selectedPatientId = ref<number | null>(persisted?.selectedPatientId ?? null)
-  const selectedExaminationId = ref<number | null>(persisted?.selectedExaminationId ?? null)
-  const selectedRequirementSetIds = ref<number[]>(persisted?.selectedRequirementSetIds ?? [])
-  const activeReportId = ref<number | null>(persisted?.activeReportId ?? null)
-  const selectedKbModule = ref<string>(persisted?.selectedKbModule ?? 'report_template_examples')
-  const selectedTemplateName = ref<string | null>(persisted?.selectedTemplateName ?? null)
-  const templateSectionDrafts = ref<Record<string, ReportTemplateSectionDraft>>(
-    persisted?.templateSectionDrafts ?? {}
-  )
+  const lookupToken = ref<string | null>(null)
+  const patientExaminationId = ref<number | null>(null)
+  const selectedPatientId = ref<number | null>(null)
+  const selectedExaminationId = ref<number | null>(null)
+  const selectedRequirementSetIds = ref<number[]>([])
+  const activeReportId = ref<number | null>(null)
+  const selectedKbModule = ref<string>('report_template_examples')
+  const selectedTemplateName = ref<string | null>(null)
+  const templateSectionDrafts = ref<Record<string, ReportTemplateSectionDraft>>({})
   const indications = ref<ReportingIndicationRow[]>(
-    persisted?.indications ?? [{ examinationIndicationId: null, indicationChoiceId: null }]
+    [{ examinationIndicationId: null, indicationChoiceId: null }]
   )
   const lookupSnapshot = ref<ReportingLookupSnapshot | null>(null)
   const lastRequirementGuidance = ref<ReportingRequirementGuidance>(null)
@@ -207,6 +240,34 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
 
   function clearTemplateSectionDrafts() {
     templateSectionDrafts.value = {}
+  }
+
+  function applyPersistedState(persisted: PersistedReportingFlowState | null) {
+    lookupToken.value = persisted?.lookupToken ?? null
+    patientExaminationId.value = persisted?.patientExaminationId ?? null
+    selectedPatientId.value = persisted?.selectedPatientId ?? null
+    selectedExaminationId.value = persisted?.selectedExaminationId ?? null
+    selectedRequirementSetIds.value = persisted?.selectedRequirementSetIds ?? []
+    activeReportId.value = persisted?.activeReportId ?? null
+    indications.value =
+      persisted?.indications?.length
+        ? persisted.indications
+        : [{ examinationIndicationId: null, indicationChoiceId: null }]
+    selectedKbModule.value = persisted?.selectedKbModule ?? 'report_template_examples'
+    selectedTemplateName.value = persisted?.selectedTemplateName ?? null
+    templateSectionDrafts.value = persisted?.templateSectionDrafts ?? {}
+  }
+
+  function bindAuthSubject(subject: string | null | undefined) {
+    const normalized = typeof subject === 'string' && subject.trim() ? subject.trim() : null
+    if (authSubject.value === normalized) return
+    authSubject.value = normalized
+    clearAll()
+    if (!normalized) {
+      clearPersistedState()
+      return
+    }
+    applyPersistedState(loadPersistedState(normalized))
   }
 
   function resetForPatientSwitch() {
@@ -357,12 +418,23 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
   watch(
     persistable,
     (state) => {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
+      if (!authSubject.value) {
+        clearPersistedState()
+        return
+      }
+      const envelope: PersistedReportingFlowEnvelope = {
+        ownerSub: authSubject.value,
+        expiresAt: Date.now() + STORAGE_TTL_MS,
+        state
+      }
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(envelope))
+      localStorage.removeItem(LEGACY_STORAGE_KEY)
     },
     { deep: true }
   )
 
   return {
+    authSubject,
     sessionStatus,
     lookupToken,
     patientExaminationId,
@@ -392,6 +464,7 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
     setTemplateSelection,
     setTemplateSectionDraft,
     clearTemplateSectionDrafts,
+    bindAuthSubject,
     setIndications,
     setLookupSnapshot,
     patchLookupSnapshot,

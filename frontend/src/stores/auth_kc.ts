@@ -2,6 +2,22 @@
 import { defineStore } from 'pinia'
 import axios from 'axios'
 
+const REPORTING_STORAGE_KEYS = [
+  'reportingFlowState.v1',
+  'reportingFlowState.v2',
+  'lookupToken',
+  'currentPatientExaminationId'
+]
+
+function clearReportingSessionArtifacts() {
+  try {
+    for (const key of REPORTING_STORAGE_KEYS) {
+      localStorage.removeItem(key)
+      sessionStorage.removeItem(key)
+    }
+  } catch {}
+}
+
 /**
  * We support two backend shapes for capabilities:
  *  A) Boolean map:        { "page.patients.view": true, "api.patients:GET": false, ... }
@@ -137,6 +153,7 @@ export const useAuthKcStore = defineStore('auth_kc', {
     },
 
     login() {
+      clearReportingSessionArtifacts()
       // Explicit login button (usually not needed because backend redirects,
       // but nice to have)
       const next = encodeURIComponent(
@@ -146,6 +163,7 @@ export const useAuthKcStore = defineStore('auth_kc', {
      },
 
     logout() {
+      clearReportingSessionArtifacts()
       // Clear local state (not strictly needed because we reload the page, but harmless)
       this.user = null
       this.roles = []

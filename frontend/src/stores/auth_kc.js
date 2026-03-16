@@ -1,6 +1,21 @@
 // frontend/src/stores/auth_kc.ts
 import { defineStore } from 'pinia';
 import axios from 'axios';
+const REPORTING_STORAGE_KEYS = [
+    'reportingFlowState.v1',
+    'reportingFlowState.v2',
+    'lookupToken',
+    'currentPatientExaminationId'
+];
+function clearReportingSessionArtifacts() {
+    try {
+        for (const key of REPORTING_STORAGE_KEYS) {
+            localStorage.removeItem(key);
+            sessionStorage.removeItem(key);
+        }
+    }
+    catch { }
+}
 /** Normalize arbitrary capability payloads into a simple boolean map. */
 function normalizeCaps(raw) {
     const out = {};
@@ -104,12 +119,14 @@ export const useAuthKcStore = defineStore('auth_kc', {
             return false;
         },
         login() {
+            clearReportingSessionArtifacts();
             // Explicit login button (usually not needed because backend redirects,
             // but nice to have)
             const next = encodeURIComponent(window.location.pathname + window.location.search + window.location.hash);
             window.location.href = `/oidc/authenticate/?next=${next}`;
         },
         logout() {
+            clearReportingSessionArtifacts();
             // Clear local state (not strictly needed because we reload the page, but harmless)
             this.user = null;
             this.roles = [];
