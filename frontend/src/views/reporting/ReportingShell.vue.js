@@ -22,11 +22,8 @@ const selectedPatientExaminationId = computed(() => routePatientExaminationId.va
 const pe = computed(() => flow.patientExaminationId || ':patient_examination_id');
 const navItems = computed(() => [
     { label: 'Arbeitsliste', to: '/reporting' },
-    { label: 'Fallauflösung', to: '/reporting/case-resolution' },
     { label: 'Fall-Setup', to: '/reporting/case-setup' },
-    { label: 'Template & Anforderungen', to: `/reporting/${pe.value}/template-requirements` },
-    { label: 'Befunde', to: `/reporting/${pe.value}/findings` },
-    { label: 'Anforderungsprüfung', to: `/reporting/${pe.value}/requirements-review` },
+    { label: 'Klinische Dokumentation', to: `/reporting/${pe.value}/findings` },
     { label: 'Berichtseditor', to: `/reporting/${pe.value}/report-editor` },
     { label: 'Frame-Auswahl', to: `/reporting/${pe.value}/frame-selector` },
     { label: 'Finalisierung', to: `/reporting/${pe.value}/finalized` }
@@ -126,7 +123,7 @@ function getNavigationTargetForPatientExamination(patientExaminationId) {
     const match = route.path.match(/^\/reporting\/[^/]+\/(.+)$/);
     return match
         ? `/reporting/${patientExaminationId}/${match[1]}`
-        : `/reporting/${patientExaminationId}/template-requirements`;
+        : `/reporting/${patientExaminationId}/findings`;
 }
 async function onPatientExaminationSelect(rawValue) {
     const patientExaminationId = toPositiveInteger(rawValue);

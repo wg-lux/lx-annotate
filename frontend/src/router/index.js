@@ -31,17 +31,12 @@ const router = createRouter({
                 {
                     path: ':patient_examination_id/template-requirements',
                     name: 'Reporting Template und Anforderungssets',
-                    component: () => import('@/views/reporting/TemplateRequirementsPage.vue')
+                    redirect: (to) => `/reporting/${to.params.patient_examination_id}/findings`
                 },
                 {
                     path: ':patient_examination_id/findings',
                     name: 'Reporting Befunderfassung',
                     component: () => import('@/views/reporting/FindingsCapturePage.vue')
-                },
-                {
-                    path: ':patient_examination_id/requirements-review',
-                    name: 'Reporting Anforderungsprüfung',
-                    component: () => import('@/views/reporting/RequirementsReviewPage.vue')
                 },
                 {
                     path: ':patient_examination_id/report-editor',

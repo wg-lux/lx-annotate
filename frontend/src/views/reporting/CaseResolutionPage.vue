@@ -190,7 +190,7 @@
 
       <div class="mt-3 d-flex flex-wrap gap-2">
         <RouterLink class="btn btn-outline-secondary btn-sm" :to="caseSetupRoute">
-          Im Fall-Setup Lookup starten
+          Im Fall-Setup Fallkontext starten
         </RouterLink>
         <RouterLink
           v-if="returnToPath"
@@ -204,7 +204,7 @@
           class="btn btn-dark btn-sm"
           :to="nextRoute"
         >
-          Weiter im Reporting
+          Zur klinischen Dokumentation
         </RouterLink>
       </div>
     </div>
@@ -435,7 +435,7 @@ const caseSetupRoute = computed(() => ({
 }))
 const nextRoute = computed(() =>
   flow.patientExaminationId
-    ? `/reporting/${flow.patientExaminationId}/template-requirements`
+    ? `/reporting/${flow.patientExaminationId}/findings`
     : '/reporting/case-setup'
 )
 

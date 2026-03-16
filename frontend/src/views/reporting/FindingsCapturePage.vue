@@ -1,17 +1,120 @@
 <template>
   <div class="d-flex flex-column gap-3">
+    <MedicalBlock
+      title="Template & Dokumentationsregeln"
+      subtitle="Template wählen, Regelsätze aktivieren und die Wissensbasis für diesen Fall vorbereiten"
+      icon="description"
+      icon-bg-class="bg-gradient-primary"
+      :is-complete="!!selectedTemplateName"
+      :is-active="true"
+      :show-action="false"
+      :loading="loading || templateLoading"
+    >
+      <template #default>
+        <div class="row g-3 mb-3">
+          <div class="col-md-4">
+            <label class="form-label">KB-Modul</label>
+            <input
+              class="form-control"
+              :value="selectedKbModule"
+              :disabled="loading || templateLoading"
+              @change="onModuleChange(($event.target as HTMLInputElement).value)"
+            />
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Untersuchung</label>
+            <input class="form-control" :value="selectedExaminationDisplayName || ''" readonly />
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Template</label>
+            <select
+              class="form-select"
+              :value="selectedTemplateName || ''"
+              :disabled="loading || templateLoading || !templateOptions.length"
+              @change="onTemplateSelectionChange(($event.target as HTMLSelectElement).value)"
+            >
+              <option value="" disabled>
+                {{ templateLoading ? 'Templates laden...' : 'Template wählen' }}
+              </option>
+              <option v-for="template in templateOptions" :key="template.name" :value="template.name">
+                {{ template.name }}
+              </option>
+            </select>
+          </div>
+        </div>
+
+        <div class="d-flex flex-wrap gap-2 mb-3">
+          <button
+            class="btn btn-outline-secondary btn-sm"
+            :disabled="loading || templateLoading || !selectedExaminationName"
+            @click="refreshTemplatesForExamination"
+          >
+            Templates für Untersuchung laden
+          </button>
+          <button
+            class="btn btn-outline-secondary btn-sm"
+            :disabled="loading || !canInitializeLookup"
+            @click="fetchLookupAll"
+          >
+            Fallstand laden
+          </button>
+          <button
+            class="btn btn-primary btn-sm"
+            :disabled="loading || !canInitializeLookup"
+            @click="triggerRecompute"
+          >
+            Wissensbasis neu prüfen
+          </button>
+        </div>
+
+        <div v-if="templateErrorMessage" class="alert alert-danger py-2 mb-2">
+          {{ templateErrorMessage }}
+        </div>
+        <div v-if="templateStatusMessage" class="alert alert-success py-2 mb-2">
+          {{ templateStatusMessage }}
+        </div>
+
+        <div v-if="selectedTemplate" class="small text-muted mb-3">
+          Abschnitte: {{ sectionBlocks.length }} · Validierungen:
+          {{ selectedTemplateValidatorCounts.examination }} auf Untersuchungsebene,
+          {{ selectedTemplateValidatorCounts.findings }} auf Befundebene
+        </div>
+
+        <RequirementSetSelectionList
+          v-if="flow.lookupToken"
+          :items="requirementSets"
+          :selected-id-set="selectedRequirementSetIdSet"
+          :loading="loading"
+          :requirement-set-status="lookupRequirementSetStatus"
+          @toggle="toggleRequirementSet"
+        />
+
+        <div
+          v-if="!flow.lookupToken"
+          class="alert alert-warning mb-0"
+        >
+          Kein aktiver Fallstand vorhanden. Bitte zuerst den Fall anlegen oder neu öffnen.
+        </div>
+
+        <div v-if="hasSuggestedActions" class="mt-3">
+          <h6 class="mb-2">Empfohlene Aktionen</h6>
+          <pre class="small bg-light rounded p-2 mb-0">{{ prettySuggestedActions }}</pre>
+        </div>
+      </template>
+    </MedicalBlock>
+
     <div class="card shadow-sm">
       <div class="card-header d-flex justify-content-between align-items-center">
         <div>
           <h5 class="mb-0">Befunderfassung</h5>
-          <small class="text-muted">Befunde hinzufügen, Klassifikationen setzen, Lookup-Hinweise aktualisieren</small>
+          <small class="text-muted">Befunde hinzufügen, Klassifikationen setzen und gegen die Wissensbasis prüfen</small>
         </div>
         <div class="d-flex gap-2">
           <button class="btn btn-outline-secondary btn-sm" :disabled="loading || !canInitializeLookup" @click="fetchLookupAll">
-            Lookup laden
+            Fallstand laden
           </button>
           <button class="btn btn-primary btn-sm" :disabled="loading || !canInitializeLookup" @click="triggerRecompute">
-            Lookup neu berechnen
+            Wissensbasis neu prüfen
           </button>
         </div>
       </div>
@@ -34,9 +137,9 @@
 
         <template v-else>
           <div v-if="!flow.lookupToken" class="alert alert-info d-flex justify-content-between align-items-center">
-            <span>Keine aktive Lookup-Session. Initialisieren Sie die Session für diese Untersuchung.</span>
+            <span>Kein aktiver Fallstand vorhanden. Initialisieren Sie den Fallkontext für diese Untersuchung.</span>
             <button class="btn btn-sm btn-outline-primary" :disabled="loading || !canInitializeLookup" @click="ensureLookupSession">
-              Lookup initialisieren
+              Fallstand initialisieren
             </button>
           </div>
 
@@ -52,8 +155,8 @@
           <div class="card h-100">
             <div class="card-header d-flex justify-content-between align-items-center">
               <div>
-                <h6 class="mb-0">Verfügbare Befunde (Lookup)</h6>
-                <small class="text-muted">Befunde aus der aktiven Lookup-Session</small>
+                <h6 class="mb-0">Verfügbare Befunde</h6>
+                <small class="text-muted">Befunde aus dem aktiven Fallkontext</small>
               </div>
               <small class="text-muted">{{ availableFindings.length }} verfügbar</small>
             </div>
@@ -72,7 +175,7 @@
                 />
               </div>
               <div v-else class="text-muted">
-                Keine Lookup-Befunde geladen. Bitte Lookup laden oder neu berechnen.
+                Keine Befunde geladen. Bitte Fallstand laden oder die Wissensbasis neu prüfen.
               </div>
             </div>
           </div>
@@ -99,6 +202,8 @@ import { computed, onMounted, ref, watch } from 'vue'
 import axiosInstance, { r } from '@/api/axiosInstance'
 import { getFindingDisplayName } from '@/api/findings.contract'
 import { validatePatientFindingsAgainstTemplate } from '@/api/reportTemplatesApi'
+import MedicalBlock from '@/components/AssistedReporting/MedicalBlock.vue'
+import RequirementSetSelectionList from '@/components/Reporting/RequirementSetSelectionList.vue'
 import AddableFindingsDetail from '@/components/RequirementReport/AddableFindingsDetail.vue'
 import FindingsDetail from '@/components/RequirementReport/FindingsDetail.vue'
 import { useFindingSelectors } from '@/composables/reporting/useFindingSelectors'
@@ -106,6 +211,8 @@ import LookupStatusPanel from '@/components/Reporting/LookupStatusPanel.vue'
 import ReportTemplateValidationPanel from '@/components/Reporting/ReportTemplateValidationPanel.vue'
 import ReportingMediaPreviewCards from '@/components/Reporting/ReportingMediaPreviewCards.vue'
 import { useLookupActions } from '@/composables/reporting/useLookupActions'
+import { useReportTemplates } from '@/composables/reporting/useReportTemplates'
+import { useExaminationStore } from '@/stores/examinationStore'
 import { useReportingFlowStore } from '@/stores/reportingFlowStore'
 import { usePatientExaminationStore } from '@/stores/patientExaminationStore'
 import { endpoints } from '@/types/api/endpoints'
@@ -118,6 +225,7 @@ type LookupFindingsState = {
   suggestedActions?: Record<string, any[]>
   requirementsBySet?: Record<string, Array<{ id: number; name: string }>>
   selectedRequirementSetIds?: number[]
+  requirementSets?: Array<{ id: number; name: string; type: string }>
 }
 
 type FindingAddedEvent =
@@ -130,6 +238,7 @@ type FindingAddedEvent =
     }
 
 const flow = useReportingFlowStore()
+const examinationStore = useExaminationStore()
 const patientExaminationStore = usePatientExaminationStore()
 const {
   loading: findingSelectorsLoading,
@@ -146,6 +255,23 @@ const lookupState = ref<LookupFindingsState | null>(null)
 const lookupInitInFlight = ref<Promise<boolean> | null>(null)
 const templateValidationLoading = ref(false)
 const templateValidationError = ref<string | null>(null)
+const templateStatusMessage = ref<string | null>(null)
+
+const {
+  moduleName: selectedKbModule,
+  selectedTemplateName,
+  templateOptions,
+  selectedTemplate,
+  sectionBlocks,
+  loading: templateLoading,
+  errorMessage: templateErrorMessage,
+  fetchTemplatesByExamination,
+  selectTemplateByName,
+  setModuleName
+} = useReportTemplates({
+  initialModuleName: flow.selectedKbModule,
+  initialTemplateName: flow.selectedTemplateName
+})
 
 function normalizeIdArray(value: unknown): number[] {
   if (!Array.isArray(value)) return []
@@ -161,6 +287,24 @@ function normalizeBooleanRecord(value: unknown): Record<string, boolean> {
   return Object.fromEntries(
     Object.entries(value).map(([key, entry]) => [String(key), !!entry])
   )
+}
+
+function normalizeRequirementSets(
+  value: unknown
+): Array<{ id: number; name: string; type: string }> {
+  if (!Array.isArray(value)) return []
+  return value
+    .map((entry) => {
+      if (!entry || typeof entry !== 'object') return null
+      const id = Number((entry as any).id)
+      if (!Number.isFinite(id)) return null
+      return {
+        id,
+        name: String((entry as any).name || ''),
+        type: String((entry as any).type || '')
+      }
+    })
+    .filter((entry): entry is { id: number; name: string; type: string } => !!entry)
 }
 
 function normalizeSuggestedActions(value: unknown): Record<string, any[]> {
@@ -215,13 +359,47 @@ function normalizeLookupPartial(partial: Partial<LookupFindingsState>): Partial<
   if ('requirementsBySet' in partial) {
     normalized.requirementsBySet = normalizeRequirementsBySet(partial.requirementsBySet)
   }
+  if ('requirementSets' in partial) {
+    normalized.requirementSets = normalizeRequirementSets(partial.requirementSets)
+  }
   return normalized
 }
 
 const availableFindings = computed<number[]>(() =>
   normalizeIdArray(lookupState.value?.availableFindings)
 )
+const requirementSets = computed(() => normalizeRequirementSets(lookupState.value?.requirementSets))
+const selectedRequirementSetIds = computed(() => normalizeIdArray(flow.selectedRequirementSetIds))
+const selectedRequirementSetIdSet = computed(() => new Set(selectedRequirementSetIds.value))
+const lookupRequirementSetStatus = computed(() =>
+  normalizeBooleanRecord(lookupState.value?.requirementSetStatus)
+)
+const hasSuggestedActions = computed(
+  () => Object.keys(normalizeSuggestedActions(lookupState.value?.suggestedActions)).length > 0
+)
+const prettySuggestedActions = computed(() =>
+  JSON.stringify(normalizeSuggestedActions(lookupState.value?.suggestedActions), null, 2)
+)
 const canInitializeLookup = computed(() => !!flow.patientExaminationId)
+const selectedExamination = computed(
+  () =>
+    examinationStore.examinationsDropdown.find((item) => item.id === flow.selectedExaminationId) || null
+)
+const selectedExaminationName = computed(() => selectedExamination.value?.name || null)
+const selectedExaminationDisplayName = computed(
+  () => selectedExamination.value?.displayName || selectedExaminationName.value || null
+)
+const selectedTemplateValidatorCounts = computed(() => {
+  const validators = selectedTemplate.value?.validators
+  return {
+    examination: Array.isArray(validators?.examinationValidators)
+      ? validators.examinationValidators.length
+      : 0,
+    findings: Array.isArray(validators?.findingsValidators)
+      ? validators.findingsValidators.length
+      : 0
+  }
+})
 
 function clearMessages() {
   errorMessage.value = null
@@ -240,7 +418,8 @@ function applyLookup(partial: Partial<LookupFindingsState>) {
     requirementSetStatus: normalizedPartial.requirementSetStatus as any,
     suggestedActions: normalizedPartial.suggestedActions as any,
     requirementsBySet: normalizedPartial.requirementsBySet as any,
-    selectedRequirementSetIds: normalizedPartial.selectedRequirementSetIds
+    selectedRequirementSetIds: normalizedPartial.selectedRequirementSetIds,
+    requirementSets: normalizedPartial.requirementSets as any
   })
   if (Array.isArray(normalizedPartial.selectedRequirementSetIds)) {
     flow.setSelectedRequirementSetIds(normalizedPartial.selectedRequirementSetIds)
@@ -255,6 +434,59 @@ const lookupActions = useLookupActions<LookupFindingsState>({
   applyLookup,
   clearMessages
 })
+
+watch([selectedKbModule, selectedTemplateName], ([moduleName, templateName]) => {
+  flow.setTemplateSelection({
+    moduleName,
+    templateName
+  })
+})
+
+async function refreshTemplatesForExamination() {
+  templateStatusMessage.value = null
+  const examName = selectedExaminationName.value
+  if (!examName) return
+  const templates = await fetchTemplatesByExamination(examName)
+  if (templates.length) {
+    templateStatusMessage.value = `${templates.length} Template(s) für "${examName}" geladen.`
+  } else {
+    templateStatusMessage.value = `Keine Templates für "${examName}" gefunden.`
+  }
+}
+
+function onModuleChange(next: string) {
+  setModuleName(next.trim() || 'report_template_examples')
+  void refreshTemplatesForExamination()
+}
+
+function onTemplateSelectionChange(name: string) {
+  void selectTemplateByName(name || null)
+}
+
+async function toggleRequirementSet(id: number, checked: boolean) {
+  if (loading.value) return
+  clearMessages()
+  const next = new Set(selectedRequirementSetIds.value)
+  if (checked) next.add(id)
+  else next.delete(id)
+  const ids = Array.from(next)
+
+  try {
+    const patchResult = await lookupActions.patchLookupParts(
+      { selectedRequirementSetIds: ids },
+      { fallbackErrorMessage: 'Fehler beim Speichern der Dokumentationsregeln.' }
+    )
+    if (!patchResult.ok) return
+    flow.setSelectedRequirementSetIds(ids)
+    if (lookupState.value) {
+      lookupState.value = { ...lookupState.value, selectedRequirementSetIds: ids }
+    }
+    successMessage.value = 'Dokumentationsregeln gespeichert.'
+  } catch (e: any) {
+    errorMessage.value =
+      e?.response?.data?.detail || e?.message || 'Fehler beim Speichern der Dokumentationsregeln.'
+  }
+}
 
 async function loadFindingsCatalog() {
   await ensureCatalogLoaded()
@@ -295,7 +527,7 @@ async function fetchLookupAll() {
   const ensured = await ensureLookupSessionForCurrentPatientExamination()
   if (!ensured) return
   await lookupActions.fetchLookupAll({
-    fallbackErrorMessage: 'Fehler beim Laden des Lookup-Zustands.'
+    fallbackErrorMessage: 'Fehler beim Laden des Fallstands.'
   })
 }
 
@@ -305,10 +537,10 @@ async function triggerRecompute() {
   const result = await lookupActions.recomputeLookup({
     applyUpdates: true,
     refreshAfter: true,
-    fallbackErrorMessage: 'Fehler bei der Lookup-Neuberechnung.'
+    fallbackErrorMessage: 'Fehler bei der Wissensbasis-Prüfung.'
   })
   if (result.ok) {
-    successMessage.value = 'Lookup wurde nach Befundänderungen neu berechnet.'
+    successMessage.value = 'Die Wissensbasis wurde nach den Befundänderungen neu geprüft.'
   }
 }
 
@@ -333,7 +565,7 @@ async function ensureLookupSessionForCurrentPatientExamination(): Promise<boolea
       })
       const token = String(initRes.data?.token || '')
       if (!token) {
-        throw new Error('Lookup-Init lieferte kein Token.')
+        throw new Error('Initialisierung lieferte keinen Fallstand.')
       }
       flow.setLookupSession({
         patientExaminationId,
@@ -345,7 +577,7 @@ async function ensureLookupSessionForCurrentPatientExamination(): Promise<boolea
       flow.setSessionStatus('expired')
       errorMessage.value = formatApiError(
         e,
-        'Lookup-Session konnte nicht initialisiert werden.'
+        'Der Fallkontext konnte nicht initialisiert werden.'
       )
       return false
     } finally {
@@ -411,11 +643,17 @@ function formatFindingsEvent(event: {
 }
 
 onMounted(async () => {
+  if (!examinationStore.exams.length) {
+    await examinationStore.fetchExaminations()
+  }
   if (flow.patientExaminationId) {
     patientExaminationStore.setCurrentPatientExaminationId(flow.patientExaminationId)
     await ensurePatientFindingsLoaded(flow.patientExaminationId)
   }
   await loadFindingsCatalog()
+  if (selectedExaminationName.value) {
+    await refreshTemplatesForExamination()
+  }
   if (flow.patientExaminationId) {
     await fetchLookupAll()
   }
@@ -426,6 +664,14 @@ watch(
   () => [flow.patientExaminationId, flow.selectedKbModule, flow.selectedTemplateName] as const,
   async () => {
     await refreshRuntimeValidation()
+  }
+)
+
+watch(
+  selectedExaminationName,
+  async (newName, oldName) => {
+    if (!newName || newName === oldName) return
+    await refreshTemplatesForExamination()
   }
 )
 </script>

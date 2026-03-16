@@ -6,11 +6,18 @@ import type { TimelineLatestPayload } from '@/api/reportingTimelineApi'
 
 type SessionStatus = 'idle' | 'active' | 'expired' | 'restarting'
 
+type ReportingRequirementSetLite = {
+  id: number
+  name: string
+  type: string
+}
+
 export type ReportingLookupSnapshot = {
   requirementStatus?: Record<string, boolean>
   requirementSetStatus?: Record<string, boolean>
   suggestedActions?: Record<string, any[]>
   requirementsBySet?: Record<string, Array<{ id: number; name: string }>>
+  requirementSets?: ReportingRequirementSetLite[]
   selectedRequirementSetIds?: number[]
   candidateRequirementSetIds?: number[]
   candidateRequirementSetConfidence?: number | null
@@ -274,7 +281,7 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
     lookupSnapshot.value = snapshot
   }
 
-  function patchLookupSnapshot(partial: ReportingLookupSnapshot) {
+  function patchLookupSnapshot(partial: Partial<ReportingLookupSnapshot>) {
     lookupSnapshot.value = {
       ...(lookupSnapshot.value || {}),
       ...partial

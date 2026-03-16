@@ -13,7 +13,11 @@ function normalizeLookupPayload(payload) {
     return payload;
 }
 function getErrorText(e, fallback) {
-    return e?.response?.data?.detail || e?.message || fallback;
+    const responseData = e?.response?.data;
+    if (Array.isArray(responseData?.errors) && responseData.errors.length > 0) {
+        return responseData.errors.join(' | ');
+    }
+    return responseData?.detail || e?.message || fallback;
 }
 export function useLookupActions(params) {
     const { flow, loading, errorMessage, applyLookup } = params;
@@ -28,7 +32,7 @@ export function useLookupActions(params) {
     }
     function requireToken() {
         if (!flow.lookupToken) {
-            errorMessage.value = 'Keine Lookup-Session vorhanden.';
+            errorMessage.value = 'Kein aktiver Fallkontext vorhanden.';
             return null;
         }
         return flow.lookupToken;
@@ -36,7 +40,7 @@ export function useLookupActions(params) {
     function handleLookupError(e, fallbackMessage) {
         if (e?.response?.status === 404) {
             flow.setSessionStatus('expired');
-            errorMessage.value = 'Lookup-Session ist abgelaufen. Bitte im Fall-Setup neu initialisieren.';
+            errorMessage.value = 'Der Fallkontext ist abgelaufen. Bitte im Fall-Setup neu initialisieren.';
             return { ok: false, expired: true };
         }
         errorMessage.value = getErrorText(e, fallbackMessage);
@@ -56,7 +60,7 @@ export function useLookupActions(params) {
             return { ok: true };
         }
         catch (e) {
-            return handleLookupError(e, opts?.fallbackErrorMessage || 'Fehler beim Laden der Lookup-Daten.');
+            return handleLookupError(e, opts?.fallbackErrorMessage || 'Fehler beim Laden des Fallstands.');
         }
         finally {
             loading.value = false;
@@ -77,7 +81,7 @@ export function useLookupActions(params) {
             return { ok: true };
         }
         catch (e) {
-            return handleLookupError(e, opts?.fallbackErrorMessage || 'Fehler beim Laden von Lookup-Teildaten.');
+            return handleLookupError(e, opts?.fallbackErrorMessage || 'Fehler beim Laden von Befundteilenn des Fallkontexts.');
         }
         finally {
             loading.value = false;
@@ -95,7 +99,7 @@ export function useLookupActions(params) {
             return { ok: true };
         }
         catch (e) {
-            return handleLookupError(e, opts?.fallbackErrorMessage || 'Fehler beim Speichern von Lookup-Teildaten.');
+            return handleLookupError(e, opts?.fallbackErrorMessage || 'Fehler beim Speichern von Befundteilenn des Fallkontexts.');
         }
         finally {
             loading.value = false;
@@ -116,7 +120,7 @@ export function useLookupActions(params) {
             loading.value = false;
             if (opts?.refreshAfter ?? true) {
                 return await fetchLookupAll({
-                    fallbackErrorMessage: opts?.fallbackErrorMessage || 'Fehler beim Laden der Lookup-Daten.'
+                    fallbackErrorMessage: opts?.fallbackErrorMessage || 'Fehler beim Laden des Fallstands.'
                 });
             }
             return { ok: true };

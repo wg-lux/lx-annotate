@@ -80,14 +80,16 @@ UI requirements:
 - Session status badge (active/expired/restarting)
 - Store token + `patient_examination_id` in local storage (resume support)
 
-### 3. Template & Requirement Set Selection Page
-Route suggestion: `/reporting/:patient_examination_id/template-requirements`
+### 3. Clinical Documentation Page
+Route suggestion: `/reporting/:patient_examination_id/findings`
 
 Purpose:
 - Inspect report template
 - Match template findings to backend findings/classifications
 - Select requirement sets for lookup recomputation
 - Recompute and review requirement-set completeness
+- Add findings to patient examination
+- Set/update classifications
 
 Backend endpoints:
 - `GET /api/lookup/{token}/all/`
@@ -97,71 +99,23 @@ Backend endpoints:
 - `GET /api/examinations/{examination_id}/findings/`
 - `GET /api/findings/{finding_id}/classifications/`
 - KB template endpoints (non-`endoreg_db`, current frontend uses `/base_api/report-templates/...`)
+- Existing patient-finding endpoints (router + create/update paths used by current components)
 
 Key UI panels:
 - Template selector and template metadata
 - Template-to-API matching diagnostics
 - Requirement set checklist
 - Requirement evaluation summary (set-level)
-- Session controls (refresh, recompute, renew, reset)
-
-Design note:
-- Keep "template diagnostics" collapsible and secondary to the main clinical task.
-
-### 4. Findings Capture Page
-Route suggestion: `/reporting/:patient_examination_id/findings`
-
-Purpose:
-- Add findings to patient examination
-- Set/update classifications
-- Re-evaluate requirement guidance after changes
-
-Backend endpoints:
-- `GET /api/patient-examinations/{patient_examination_id}/findings/`
-- `GET /api/findings/`
-- `GET /api/findings/{finding_id}/classifications/`
-- `GET /api/classifications/{classification_id}/choices/`
-- Existing patient-finding endpoints (router + create/update paths used by current components)
-- `POST /api/lookup/{token}/recompute/` (or patch+recompute workflow)
-
-UI modules:
 - Addable findings catalog
 - Selected findings list (for current examination)
 - Classification editor per finding
 - Inline advisory badges ("required by selected requirement set", "missing classification")
+- Fallkontext-Steuerung (refresh, recompute, reset)
 
 Design note:
 - Avoid long nested cards for every finding by default; use summary rows + expandable detail.
 
-### 5. Requirement Guidance Review Page (Advisory)
-Route suggestion: `/reporting/:patient_examination_id/requirements-review`
-
-Purpose:
-- Present unmet requirements and suggested actions clearly
-- Separate clinical data entry from guidance review
-
-Backend endpoints:
-- `GET /api/lookup/{token}/all/` or targeted `parts`
-- `POST /api/lookup/{token}/recompute/`
-- `POST /api/evaluate-requirements/` (optional/advanced path if used directly)
-
-Required fields (from lookup or `requirement_guidance`):
-- `requirement_status`
-- `requirement_set_status`
-- `suggested_actions`
-- `candidate_requirement_set_ids`
-- `candidate_requirement_set_confidence`
-
-UI modules:
-- Failed requirement sets list
-- Failed requirements grouped by set
-- Suggested actions panel (unknown action types shown generically)
-- Confidence notice for low-confidence candidate hints (`< 0.35`)
-
-UX rule:
-- This page must never present unmet requirements as a blocking validation error.
-
-### 6. Report Editor & Save Page
+### 4. Report Editor & Save Page
 Route suggestion: `/reporting/:patient_examination_id/report-editor`
 
 Purpose:
@@ -228,7 +182,7 @@ Expected response usage:
 Design note:
 - Show "Guideline deviation detected (advisory)" banner on save if warnings exist.
 
-### 7. Segment Frame Selector Page (Media-Assisted Reporting)
+### 5. Segment Frame Selector Page (Media-Assisted Reporting)
 Route suggestion: `/reporting/:patient_examination_id/frame-selector`
 
 Purpose:
@@ -257,7 +211,7 @@ UI modules:
 Design note:
 - This should be a dedicated page, not embedded in the generic findings page.
 
-### 8. Finalization Result / Artifacts Page
+### 6. Finalization Result / Artifacts Page
 Route suggestion: `/reporting/:patient_examination_id/finalized`
 
 Purpose:
@@ -299,19 +253,16 @@ Behavior:
 Primary path:
 1. Worklist
 2. Case Setup
-3. Template & Requirement Sets
-4. Findings Capture
-5. Requirement Guidance Review
-6. Report Editor & Save
-7. Frame Selector (optional, can occur before final save)
-8. Finalization Result / Artifacts
+3. Clinical Documentation
+4. Report Editor & Save
+5. Frame Selector (optional, can occur before final save)
+6. Finalization Result / Artifacts
 
 Fast path (experienced user):
 1. Worklist
 2. Resume existing draft
 3. Report Editor & Save
-4. Requirement Guidance Review (if warnings shown)
-5. Finalization Result / Artifacts
+4. Finalization Result / Artifacts
 
 ## Migration Plan From Current Monolithic Component
 

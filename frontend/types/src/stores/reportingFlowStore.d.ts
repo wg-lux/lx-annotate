@@ -2,6 +2,11 @@ import type { ReportTemplateSectionDraft } from '@/types/reportTemplate';
 import type { ReportTemplateRuntimeValidationResult } from '@/types/reportTemplate';
 import type { TimelineLatestPayload } from '@/api/reportingTimelineApi';
 type SessionStatus = 'idle' | 'active' | 'expired' | 'restarting';
+type ReportingRequirementSetLite = {
+    id: number;
+    name: string;
+    type: string;
+};
 export type ReportingLookupSnapshot = {
     requirementStatus?: Record<string, boolean>;
     requirementSetStatus?: Record<string, boolean>;
@@ -10,6 +15,7 @@ export type ReportingLookupSnapshot = {
         id: number;
         name: string;
     }>>;
+    requirementSets?: ReportingRequirementSetLite[];
     selectedRequirementSetIds?: number[];
     candidateRequirementSetIds?: number[];
     candidateRequirementSetConfidence?: number | null;
@@ -46,6 +52,11 @@ export declare const useReportingFlowStore: import("pinia").StoreDefinition<"rep
             id: number;
             name: string;
         }[]> | undefined;
+        requirementSets?: {
+            id: number;
+            name: string;
+            type: string;
+        }[] | undefined;
         selectedRequirementSetIds?: number[] | undefined;
         candidateRequirementSetIds?: number[] | undefined;
         candidateRequirementSetConfidence?: number | null | undefined;
@@ -57,6 +68,11 @@ export declare const useReportingFlowStore: import("pinia").StoreDefinition<"rep
             id: number;
             name: string;
         }[]> | undefined;
+        requirementSets?: {
+            id: number;
+            name: string;
+            type: string;
+        }[] | undefined;
         selectedRequirementSetIds?: number[] | undefined;
         candidateRequirementSetIds?: number[] | undefined;
         candidateRequirementSetConfidence?: number | null | undefined;
@@ -282,7 +298,7 @@ export declare const useReportingFlowStore: import("pinia").StoreDefinition<"rep
     clearTemplateSectionDrafts: () => void;
     setIndications: (rows: ReportingIndicationRow[]) => void;
     setLookupSnapshot: (snapshot: ReportingLookupSnapshot | null) => void;
-    patchLookupSnapshot: (partial: ReportingLookupSnapshot) => void;
+    patchLookupSnapshot: (partial: Partial<ReportingLookupSnapshot>) => void;
     setLastRequirementGuidance: (guidance: ReportingRequirementGuidance) => void;
     setLastTemplateValidation: (validation: ReportingTemplateValidation) => void;
     noteFindingAdded: (findingId: number) => void;
@@ -322,6 +338,11 @@ export declare const useReportingFlowStore: import("pinia").StoreDefinition<"rep
             id: number;
             name: string;
         }[]> | undefined;
+        requirementSets?: {
+            id: number;
+            name: string;
+            type: string;
+        }[] | undefined;
         selectedRequirementSetIds?: number[] | undefined;
         candidateRequirementSetIds?: number[] | undefined;
         candidateRequirementSetConfidence?: number | null | undefined;
@@ -333,6 +354,11 @@ export declare const useReportingFlowStore: import("pinia").StoreDefinition<"rep
             id: number;
             name: string;
         }[]> | undefined;
+        requirementSets?: {
+            id: number;
+            name: string;
+            type: string;
+        }[] | undefined;
         selectedRequirementSetIds?: number[] | undefined;
         candidateRequirementSetIds?: number[] | undefined;
         candidateRequirementSetConfidence?: number | null | undefined;
@@ -558,7 +584,7 @@ export declare const useReportingFlowStore: import("pinia").StoreDefinition<"rep
     clearTemplateSectionDrafts: () => void;
     setIndications: (rows: ReportingIndicationRow[]) => void;
     setLookupSnapshot: (snapshot: ReportingLookupSnapshot | null) => void;
-    patchLookupSnapshot: (partial: ReportingLookupSnapshot) => void;
+    patchLookupSnapshot: (partial: Partial<ReportingLookupSnapshot>) => void;
     setLastRequirementGuidance: (guidance: ReportingRequirementGuidance) => void;
     setLastTemplateValidation: (validation: ReportingTemplateValidation) => void;
     noteFindingAdded: (findingId: number) => void;
@@ -598,6 +624,11 @@ export declare const useReportingFlowStore: import("pinia").StoreDefinition<"rep
             id: number;
             name: string;
         }[]> | undefined;
+        requirementSets?: {
+            id: number;
+            name: string;
+            type: string;
+        }[] | undefined;
         selectedRequirementSetIds?: number[] | undefined;
         candidateRequirementSetIds?: number[] | undefined;
         candidateRequirementSetConfidence?: number | null | undefined;
@@ -609,6 +640,11 @@ export declare const useReportingFlowStore: import("pinia").StoreDefinition<"rep
             id: number;
             name: string;
         }[]> | undefined;
+        requirementSets?: {
+            id: number;
+            name: string;
+            type: string;
+        }[] | undefined;
         selectedRequirementSetIds?: number[] | undefined;
         candidateRequirementSetIds?: number[] | undefined;
         candidateRequirementSetConfidence?: number | null | undefined;
@@ -834,7 +870,7 @@ export declare const useReportingFlowStore: import("pinia").StoreDefinition<"rep
     clearTemplateSectionDrafts: () => void;
     setIndications: (rows: ReportingIndicationRow[]) => void;
     setLookupSnapshot: (snapshot: ReportingLookupSnapshot | null) => void;
-    patchLookupSnapshot: (partial: ReportingLookupSnapshot) => void;
+    patchLookupSnapshot: (partial: Partial<ReportingLookupSnapshot>) => void;
     setLastRequirementGuidance: (guidance: ReportingRequirementGuidance) => void;
     setLastTemplateValidation: (validation: ReportingTemplateValidation) => void;
     noteFindingAdded: (findingId: number) => void;

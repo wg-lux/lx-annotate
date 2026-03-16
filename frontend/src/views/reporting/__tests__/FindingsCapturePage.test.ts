@@ -46,6 +46,29 @@ vi.mock('@/composables/reporting/useLookupActions', () => ({
   })
 }))
 
+vi.mock('@/composables/reporting/useReportTemplates', () => ({
+  useReportTemplates: () => ({
+    moduleName: 'report_template_examples',
+    selectedTemplateName: null,
+    templateOptions: [],
+    selectedTemplate: null,
+    sectionBlocks: [],
+    loading: false,
+    errorMessage: null,
+    fetchTemplatesByExamination: vi.fn().mockResolvedValue([]),
+    selectTemplateByName: vi.fn().mockResolvedValue(undefined),
+    setModuleName: vi.fn()
+  })
+}))
+
+vi.mock('@/stores/examinationStore', () => ({
+  useExaminationStore: () => ({
+    exams: [{ id: 7, name: 'gastroscopy', displayName: 'Gastroskopie' }],
+    examinationsDropdown: [{ id: 7, name: 'gastroscopy', displayName: 'Gastroskopie' }],
+    fetchExaminations: vi.fn().mockResolvedValue(undefined)
+  })
+}))
+
 function buildFlowStore() {
   const flow = reactive({
     lookupToken: null as string | null,
@@ -55,6 +78,7 @@ function buildFlowStore() {
     lastFindingsEvent: null as any,
     patchLookupSnapshot: vi.fn(),
     setSelectedRequirementSetIds: vi.fn(),
+    setTemplateSelection: vi.fn(),
     setLastTemplateValidation: vi.fn(),
     noteFindingAdded: vi.fn(),
     noteClassificationUpdated: vi.fn(),
@@ -77,6 +101,8 @@ function mountPage() {
   return mount(FindingsCapturePage, {
     global: {
       stubs: {
+        MedicalBlock: true,
+        RequirementSetSelectionList: true,
         LookupStatusPanel: true,
         ReportTemplateValidationPanel: true,
         AddableFindingsDetail: true,
@@ -120,7 +146,7 @@ describe('FindingsCapturePage lookup bootstrap', () => {
     hoisted.flowRef.current.patientExaminationId = 42
     await wrapper.vm.$nextTick()
 
-    const recomputeButton = findButtonByText(wrapper, 'Lookup neu berechnen')
+    const recomputeButton = findButtonByText(wrapper, 'Wissensbasis neu prüfen')
     expect(recomputeButton).toBeTruthy()
 
     await recomputeButton!.trigger('click')

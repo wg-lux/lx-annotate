@@ -27,10 +27,10 @@
           </div>
           <div class="card-body p-2">
             <div class="small text-muted px-2 mb-2">
-              Status: <strong>{{ flow.sessionStatus }}</strong>
+              Fallkontext: <strong>{{ flow.sessionStatus }}</strong>
             </div>
             <div class="small text-muted px-2 mb-3">
-              PE: {{ flow.patientExaminationId || 'n/a' }} · Token: {{ flow.lookupToken ? 'ja' : 'nein' }}
+              PE: {{ flow.patientExaminationId || 'n/a' }} · aktiv: {{ flow.lookupToken ? 'ja' : 'nein' }}
             </div>
             <div class="px-2 mb-3">
               <label class="form-label form-label-sm mb-1">Patientenuntersuchung wählen</label>
@@ -221,11 +221,8 @@ const pe = computed(() => flow.patientExaminationId || ':patient_examination_id'
 
 const navItems = computed(() => [
   { label: 'Arbeitsliste', to: '/reporting' },
-  { label: 'Fallauflösung', to: '/reporting/case-resolution' },
   { label: 'Fall-Setup', to: '/reporting/case-setup' },
-  { label: 'Template & Anforderungen', to: `/reporting/${pe.value}/template-requirements` },
-  { label: 'Befunde', to: `/reporting/${pe.value}/findings` },
-  { label: 'Anforderungsprüfung', to: `/reporting/${pe.value}/requirements-review` },
+  { label: 'Klinische Dokumentation', to: `/reporting/${pe.value}/findings` },
   { label: 'Berichtseditor', to: `/reporting/${pe.value}/report-editor` },
   { label: 'Frame-Auswahl', to: `/reporting/${pe.value}/frame-selector` },
   { label: 'Finalisierung', to: `/reporting/${pe.value}/finalized` }
@@ -350,7 +347,7 @@ function getNavigationTargetForPatientExamination(patientExaminationId: number):
   const match = route.path.match(/^\/reporting\/[^/]+\/(.+)$/)
   return match
     ? `/reporting/${patientExaminationId}/${match[1]}`
-    : `/reporting/${patientExaminationId}/template-requirements`
+    : `/reporting/${patientExaminationId}/findings`
 }
 
 async function onPatientExaminationSelect(rawValue: string) {

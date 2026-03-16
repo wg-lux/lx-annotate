@@ -86,6 +86,13 @@ if (__VLS_ctx.visible) {
             'aria-hidden': "true",
         });
     }
+    else if (__VLS_ctx.error) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "alert alert-danger" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+        (__VLS_ctx.error);
+    }
     else if (__VLS_ctx.hasIssues) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: "alert alert-warning" },
@@ -141,6 +148,8 @@ if (__VLS_ctx.visible) {
 /** @type {__VLS_StyleScopedClasses['spinner-border-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert-danger']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert-warning']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-1']} */ ;
@@ -159,6 +168,7 @@ const __VLS_self = (await import('vue')).defineComponent({
     setup() {
         return {
             loading: loading,
+            error: error,
             visible: visible,
             hasIssues: hasIssues,
             groupedIssues: groupedIssues,

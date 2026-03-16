@@ -5,6 +5,9 @@
       Anforderungen werden geprüft...
     </div>
 
+    <div v-else-if="error" class="alert alert-danger">
+      <strong>Fehler bei der Anforderungsprüfung:</strong> {{ error }}
+    </div>
 
     <div v-else-if="hasIssues" class="alert alert-warning">
       <strong>Um den Report abzuschließen, müssen die folgenden Voraussetzungen erfüllt sein:</strong>

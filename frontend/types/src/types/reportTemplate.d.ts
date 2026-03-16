@@ -14,7 +14,7 @@ export type ReportTemplateSection = {
     types: string[];
     findings: ReportTemplateFinding[];
 };
-export type FindingsValidatorOperator = 'exists' | 'missing' | 'conditional';
+export type FindingsValidatorOperator = 'exists' | 'missing' | 'condition';
 export type FindingsValidatorComparator = 'eq' | 'ne' | 'gt' | 'gte' | 'lt' | 'lte' | 'in' | 'not_in';
 export type FindingsValidatorConditionClause = {
     classification: string;

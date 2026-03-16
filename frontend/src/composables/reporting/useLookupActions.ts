@@ -36,7 +36,11 @@ function normalizeLookupPayload<TLookup>(payload: unknown): Partial<TLookup> {
 }
 
 function getErrorText(e: any, fallback: string): string {
-  return e?.response?.data?.detail || e?.message || fallback
+  const responseData = e?.response?.data
+  if (Array.isArray(responseData?.errors) && responseData.errors.length > 0) {
+    return responseData.errors.join(' | ')
+  }
+  return responseData?.detail || e?.message || fallback
 }
 
 export function useLookupActions<TLookup>(params: UseLookupActionsParams<TLookup>) {
@@ -53,7 +57,7 @@ export function useLookupActions<TLookup>(params: UseLookupActionsParams<TLookup
 
   function requireToken(): string | null {
     if (!flow.lookupToken) {
-      errorMessage.value = 'Keine Lookup-Session vorhanden.'
+      errorMessage.value = 'Kein aktiver Fallkontext vorhanden.'
       return null
     }
     return flow.lookupToken
@@ -62,7 +66,7 @@ export function useLookupActions<TLookup>(params: UseLookupActionsParams<TLookup
   function handleLookupError(e: any, fallbackMessage: string): LookupActionResult {
     if (e?.response?.status === 404) {
       flow.setSessionStatus('expired')
-      errorMessage.value = 'Lookup-Session ist abgelaufen. Bitte im Fall-Setup neu initialisieren.'
+      errorMessage.value = 'Der Fallkontext ist abgelaufen. Bitte im Fall-Setup neu initialisieren.'
       return { ok: false, expired: true }
     }
     errorMessage.value = getErrorText(e, fallbackMessage)
@@ -87,7 +91,7 @@ export function useLookupActions<TLookup>(params: UseLookupActionsParams<TLookup
       flow.setSessionStatus('active')
       return { ok: true }
     } catch (e: any) {
-      return handleLookupError(e, opts?.fallbackErrorMessage || 'Fehler beim Laden der Lookup-Daten.')
+      return handleLookupError(e, opts?.fallbackErrorMessage || 'Fehler beim Laden des Fallstands.')
     } finally {
       loading.value = false
     }
@@ -111,7 +115,7 @@ export function useLookupActions<TLookup>(params: UseLookupActionsParams<TLookup
     } catch (e: any) {
       return handleLookupError(
         e,
-        opts?.fallbackErrorMessage || 'Fehler beim Laden von Lookup-Teildaten.'
+        opts?.fallbackErrorMessage || 'Fehler beim Laden von Befundteilenn des Fallkontexts.'
       )
     } finally {
       loading.value = false
@@ -134,7 +138,7 @@ export function useLookupActions<TLookup>(params: UseLookupActionsParams<TLookup
     } catch (e: any) {
       return handleLookupError(
         e,
-        opts?.fallbackErrorMessage || 'Fehler beim Speichern von Lookup-Teildaten.'
+        opts?.fallbackErrorMessage || 'Fehler beim Speichern von Befundteilenn des Fallkontexts.'
       )
     } finally {
       loading.value = false
@@ -161,7 +165,7 @@ export function useLookupActions<TLookup>(params: UseLookupActionsParams<TLookup
 
       if (opts?.refreshAfter ?? true) {
         return await fetchLookupAll({
-          fallbackErrorMessage: opts?.fallbackErrorMessage || 'Fehler beim Laden der Lookup-Daten.'
+          fallbackErrorMessage: opts?.fallbackErrorMessage || 'Fehler beim Laden des Fallstands.'
         })
       }
       return { ok: true }

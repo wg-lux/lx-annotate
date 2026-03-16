@@ -3,7 +3,7 @@
     <div class="card-header d-flex justify-content-between align-items-center">
       <div>
         <h5 class="mb-0">Fall-Setup</h5>
-        <small class="text-muted">Patient auswählen, Untersuchung wählen, Lookup-Session starten</small>
+        <small class="text-muted">Patient auswählen, Untersuchung wählen und Fallkontext starten</small>
       </div>
       <span class="badge" :class="sessionBadgeClass">{{ sessionBadgeLabel }}</span>
     </div>
@@ -58,8 +58,8 @@
           <input class="form-control" type="number" :value="flow.patientExaminationId ?? ''" readonly />
         </div>
         <div class="col-md-6">
-          <label class="form-label">Lookup-Token</label>
-          <input class="form-control" :value="flow.lookupToken ?? ''" readonly />
+          <label class="form-label">Fallkontext</label>
+          <input class="form-control" :value="flow.lookupToken ? 'aktiv' : 'inaktiv'" readonly />
         </div>
       </div>
 
@@ -70,14 +70,14 @@
           @click="createPatientExaminationAndInitLookup"
         >
           <span v-if="loading" class="spinner-border spinner-border-sm me-1" />
-          Minimale Patientenuntersuchung + Lookup starten
+          Patientenuntersuchung anlegen und Fallkontext starten
         </button>
         <button
           class="btn btn-outline-secondary btn-sm"
           :disabled="loading || !flow.patientExaminationId"
           @click="reinitLookup"
         >
-          Lookup neu initialisieren
+          Fallkontext neu initialisieren
         </button>
         <button class="btn btn-outline-secondary btn-sm" :disabled="loading" @click="reloadLists">
           Neu laden
@@ -101,7 +101,7 @@
           :class="{ disabled: !flow.patientExaminationId }"
           :to="nextRoute"
         >
-          Zu Template & Requirement Sets
+          Zur klinischen Dokumentation
         </RouterLink>
       </div>
     </div>
@@ -140,20 +140,20 @@ const returnToPath = computed(() => {
 
 const nextRoute = computed(() =>
   flow.patientExaminationId
-    ? `/reporting/${flow.patientExaminationId}/template-requirements`
+    ? `/reporting/${flow.patientExaminationId}/findings`
     : '/reporting/case-setup'
 )
 
 const sessionBadgeLabel = computed(() => {
   switch (flow.sessionStatus) {
     case 'active':
-      return 'Lookup aktiv'
+      return 'Fallkontext aktiv'
     case 'expired':
-      return 'Lookup abgelaufen'
+      return 'Fallkontext abgelaufen'
     case 'restarting':
-      return 'Lookup wird neu gestartet'
+      return 'Fallkontext wird neu gestartet'
     default:
-      return 'Keine Session'
+      return 'Kein Fallkontext'
   }
 })
 
@@ -260,15 +260,15 @@ async function createPatientExaminationAndInitLookup() {
     })
 
     successMessage.value = returnToPath.value
-      ? 'Lookup-Session wurde erfolgreich gestartet. Sie können jetzt zur Validierung zurückkehren oder mit der Befundung fortfahren.'
-      : 'Lookup-Session wurde erfolgreich gestartet.'
+      ? 'Der Fallkontext wurde erfolgreich gestartet. Sie können jetzt zur Validierung zurückkehren oder mit der Befundung fortfahren.'
+      : 'Der Fallkontext wurde erfolgreich gestartet.'
   } catch (e: any) {
     flow.setSessionStatus('idle')
     errorMessage.value =
       e?.response?.data?.detail ||
       e?.response?.data?.error ||
       e?.message ||
-      'Fehler beim Erstellen der Patientenuntersuchung oder Starten der Lookup-Session.'
+      'Fehler beim Erstellen der Patientenuntersuchung oder Starten des Fallkontexts.'
   } finally {
     loading.value = false
   }
@@ -292,11 +292,11 @@ async function reinitLookup() {
       lookupToken: initRes.data.token,
       status: 'active'
     })
-    successMessage.value = 'Lookup-Session wurde neu initialisiert.'
+    successMessage.value = 'Der Fallkontext wurde neu initialisiert.'
   } catch (e: any) {
     flow.setSessionStatus('expired')
     errorMessage.value =
-      e?.response?.data?.detail || e?.message || 'Fehler beim Neuinitialisieren der Lookup-Session.'
+      e?.response?.data?.detail || e?.message || 'Fehler beim Neuinitialisieren des Fallkontexts.'
   } finally {
     loading.value = false
   }

@@ -184,7 +184,7 @@ const caseSetupRoute = computed(() => ({
     }
 }));
 const nextRoute = computed(() => flow.patientExaminationId
-    ? `/reporting/${flow.patientExaminationId}/template-requirements`
+    ? `/reporting/${flow.patientExaminationId}/findings`
     : '/reporting/case-setup');
 function toPositiveInteger(value) {
     const parsed = Number(value);

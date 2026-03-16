@@ -2,84 +2,32 @@
   <div class="requirement-generator container-fluid py-4">
 
 
-    <!-- Patient and Examination Selection -->
-    <div class="card mb-3">
-      <div class="card-header">
-        <h2 class="h5 mb-0">1. Patient und Untersuchung auswählen</h2>
-      </div>
-      <div class="card-body">
-        <div class="row align-items-end">
-          <!-- Patient Selection -->
-          <div class="col-md-6">
-            <div class="form-group">
-              <div class="d-flex justify-content-between align-items-center mb-2">
-                <label for="patient-select">Patient auswählen</label>
-              </div>
-              <select
-                id="patient-select"
-                v-model="selectedPatientId"
-                class="form-control"
-                :disabled="isLoadingPatients || loading"
-              >
-                <option :value="null" disabled>
-                  {{ isLoadingPatients ? 'Lade Patienten...' : 'Bitte wählen Sie einen Patienten' }}
-                </option>
-                <option v-for="patient in patients" :key="patient.id" :value="patient.id">
-                  {{ patient.displayName }}
-                </option>
-              </select>
-              <div v-if="selectedPatientId" class="mt-2">
-                <small class="text-muted">
-                  <i class="fas fa-info-circle"></i>
-                  Bei Patientenwechsel wird automatisch eine neue Übersicht generiert.
-                </small>
-              </div>
-            </div>
-          </div>
-          <!-- Examination Selection -->
-          <div class="col-md-6">
-            <div class="form-group">
-              <label for="examination-select">Untersuchung auswählen</label>
-              <select
-                id="examination-select"
-                v-model="selectedExaminationId"
-                class="form-control"
-                :disabled="isLoadingExaminations || !selectedPatientId || loading"
-              >
-                <option :value="null" disabled>
-                  {{ isLoadingExaminations ? 'Lade Untersuchungen...' : 'Bitte wählen Sie eine Untersuchung' }}
-                </option>
-                <option v-for="exam in examinationsDropdown" :key="exam.id" :value="exam.id">
-                  {{ exam.displayName }}
-                </option>
-              </select>
-            </div>
-          </div>
-        </div>
-        <div class="row mt-3">
-            <div class="col-12">
-                 <button
-                    class="btn btn-primary"
-                    :disabled="!selectedPatientId || !selectedExaminationId || loading || !!lookupToken"
-                    @click="createPatientExaminationAndInitLookup"
-                  >
-                    <span v-if="loading" class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                    <span v-if="!lookupToken">2. Anforderungsbericht erstellen</span>
-                    <span v-else>Anforderungsbericht bereits aktiv</span>
-                  </button>
-            </div>
-        </div>
-      </div>
-    </div>
-    <!-- under "Available Findings" card or wherever it fits best -->
+    <CaseSetupPanel
+      :selected-patient-id="selectedPatientId"
+      :selected-examination-id="selectedExaminationId"
+      :selected-patient-display-name="selectedPatientDisplayName"
+      :selected-examination-display-name="selectedExaminationDisplayName"
+      :patients="patients"
+      :examinations-dropdown="examinationsDropdown"
+      :is-loading-patients="isLoadingPatients"
+      :is-loading-examinations="isLoadingExaminations"
+      :loading="loading"
+      :has-active-session="!!lookupToken"
+      @update:selected-patient-id="selectedPatientId = $event"
+      @update:selected-examination-id="selectedExaminationId = $event"
+      @create-case="createPatientExaminationAndInitLookup"
+    />
 
-    <!-- Lookup Data Display -->
-    <div v-if="lookup && isDebug" class="row g-3">
-      <!-- Debug Info -->
-      <div class="col-12">
+    <div v-if="error" class="alert alert-danger alert-dismissible">
+      <strong>Fehler:</strong> {{ error }}
+      <button type="button" class="btn-close" @click="error = null"></button>
+    </div>
+
+    <div v-if="lookup" class="row g-3">
+      <div v-if="lookup && isDebug" class="col-12">
         <div class="card">
           <div class="card-header">
-            <h2 class="h6 mb-0">Debug: Aktuelle Lookup-Daten</h2>
+            <h2 class="h6 mb-0">Debug: Technische Falldaten</h2>
           </div>
           <div class="card-body">
             <div class="row">
@@ -105,183 +53,81 @@
         </div>
       </div>
 
-      <!-- Requirement Sets -->
-      <div class="col-12 col-xl-6">
-        <div class="card h-100">
-          <div class="card-header d-flex justify-content-between align-items-center">
-            <div>
-              <h2 class="h5 mb-0">3. Requirement Sets anpassen</h2>
-              <small class="text-muted">Token: {{ lookupToken }}</small>
-            </div>
-            <div class="d-flex gap-2">
-              <button class="btn btn-sm btn-outline-secondary" @click="fetchLookupAll" :disabled="loading">
-                Aktualisieren
-              </button>
-              <button class="btn btn-sm btn-outline-info" @click="triggerRecompute" :disabled="loading || !lookupToken">
-                Neu berechnen
-              </button>
-              <button class="btn btn-sm btn-outline-info" @click="manualRenewSession" :disabled="loading || !lookupToken">
-                Session erneuern
-              </button>
-              <button class="btn btn-sm btn-outline-danger" @click="resetLookupSession" :disabled="loading || !lookupToken">
-                Session zurücksetzen
-              </button>
-            </div>
-          </div>
-          <div v-if="lookup" class="row g-3 mt-3 card-body pre-scrollable" style="max-height: 70vh; overflow: auto;">
-            <div class="col-12">
-                <div class="card">
-                    <div class="card-header">
-                        <h2 class="h5 mb-0">Befunde in der aktuellen Untersuchung</h2>
-                    </div>
-                    <div class="card-body">
-                      <!-- AddableFindingsDetail Component für CRUD-Funktionalität -->
-                      <AddableFindingsDetail
-                          :examination-id="selectedExaminationId || undefined"
-                          :patient-examination-id="currentPatientExaminationId || undefined"
-                          @finding-added="onFindingAddedToExamination"
-                          @finding-error="(errorMsg) => error = errorMsg"
-                      />
-                    </div>
-                </div>
-            </div>
-        </div>
+      <RequirementSelectionPanel
+        :loading="loading"
+        :case-active="!!lookupToken"
+        :selected-patient-display-name="selectedPatientDisplayName"
+        :selected-examination-display-name="selectedExaminationDisplayName"
+        :selected-requirement-set-ids="selectedRequirementSetIds"
+        :selected-requirement-set-id-set="selectedRequirementSetIdSet"
+        :requirement-sets="requirementSets"
+        :unmet-requirement-count="unmetRequirementCount"
+        :suggested-action-count="suggestedActionCount"
+        :next-step-message="nextStepMessage"
+        :candidate-requirement-set-ids="candidateRequirementSetIds"
+        :candidate-requirement-set-confidence="candidateRequirementSetConfidence"
+        :suggested-action-entries="suggestedActionEntries"
+        :evaluation-summary="evaluationSummary"
+        :requirement-set-status="requirementSetEvaluationMap"
+        @refresh="fetchLookupAll"
+        @recompute="triggerRecompute"
+        @reset-session="resetLookupSession"
+        @apply-recommended="applyRecommendedRequirementSets"
+        @select-all="selectAllRequirementSets"
+        @clear-selection="clearRequirementSetSelection"
+        @evaluate-all="evaluateRequirementsOnChange"
+        @evaluate-set="evaluateRequirementSet"
+        @toggle-set="toggleRequirementSet"
+      />
 
-            <ul class="list-group list-group-flush">
-              <li v-for="rs in requirementSets" :key="rs.id" class="list-group-item d-flex justify-content-between align-items-center">
-                <div class="flex-grow-1">
-                  <div class="d-flex justify-content-between align-items-center">
-                    <span class="fw-semibold">{{ rs.name }}</span>
-                    <div class="d-flex align-items-center gap-2">
-                      <!-- Evaluation Status Badge -->
-                      <template v-if="getRequirementSetEvaluationStatus(rs.id)">
-                        <span
-                          class="badge"
-                          :class="getRequirementSetEvaluationStatus(rs.id)!.met ? 'bg-success' : 'bg-warning'"
-                        >
-                          <i class="fas" :class="getRequirementSetEvaluationStatus(rs.id)!.met ? 'fa-check' : 'fa-exclamation-triangle'"></i>
-                          {{ getRequirementSetEvaluationStatus(rs.id)!.met ? 'Erfüllt' : 'Nicht erfüllt' }}
-                        </span>
-                      </template>
-                      <!-- Evaluate Button -->
-                      <button
-                        class="btn btn-sm btn-outline-info"
-                        @click="evaluateRequirementSet(rs.id)"
-                        :disabled="loading"
-                        title="Anforderungsset evaluieren"
-                      >
-                        <i class="fas fa-calculator"></i>
-                      </button>
-                    </div>
-                  </div>
-                  <small class="text-muted d-block">type: {{ rs.type }}</small>
-                  <!-- Evaluation Details -->
-                  <div v-if="getRequirementSetEvaluationStatus(rs.id)" class="mt-2">
-                    <small class="text-muted">
-                      Erfüllte Anforderungen: {{ getRequirementSetEvaluationStatus(rs.id)?.metRequirementsCount }} /
-                      {{ getRequirementSetEvaluationStatus(rs.id)?.totalRequirementsCount }}
-                    </small>
-                  </div>
-                </div>
-                <div class="form-check form-switch ms-3">
-                  <input class="form-check-input" type="checkbox"
-                         :checked="selectedRequirementSetIdSet.has(rs.id)"
-                         @change="toggleRequirementSet(rs.id, ($event.target as HTMLInputElement).checked)" />
-                </div>
-              </li>
-              <li v-if="!requirementSets.length" class="list-group-item text-muted">Keine Sets gefunden.</li>
-            </ul>
-
-            <!-- Evaluation Summary -->
-            <div v-if="evaluationSummary && evaluationSummary.totalSets > 0" class="mt-3 p-3 bg-light rounded">
-              <h6 class="mb-2">Evaluierungsübersicht</h6>
-              <div class="progress mb-2" style="height: 10px;">
-                <div
-                  class="progress-bar"
-                  :class="evaluationSummary.completionPercentage === 100 ? 'bg-success' : 'bg-info'"
-                  :style="{ width: evaluationSummary.completionPercentage + '%' }"
-                ></div>
-              </div>
-              <small class="text-muted">
-                {{ evaluationSummary.evaluatedSets }} von {{ evaluationSummary.totalSets }} Sets evaluiert
-                ({{ evaluationSummary.completionPercentage }}%)
-              </small>
-              <div class="mt-2">
-                <button
-                  class="btn btn-sm btn-primary"
-                  @click="evaluateRequirementsOnChange"
-                  :disabled="loading"
-                >
-                  <i class="fas fa-sync"></i>
-                  Alle evaluieren
-                </button>
-              </div>
-            </div>
+      <KnowledgeBaseValidationPanel
+        :loading="loading"
+        :findings-section-loading="findingsSectionLoading"
+        :available-findings="availableFindings"
+        :is-debug="isDebug"
+        @refresh-findings="loadFindingsData"
+      >
+        <template #adder>
+          <AddableFindingsDetail
+            :examination-id="selectedExaminationId || undefined"
+            :patient-examination-id="currentPatientExaminationId || undefined"
+            @finding-added="onFindingAddedToExamination"
+            @finding-error="(errorMsg) => error = errorMsg"
+          />
+        </template>
+        <template #findings>
+          <FindingsDetail
+            v-for="findingId in availableFindings"
+            :key="findingId"
+            :finding-id="findingId"
+            :is-added-to-examination="isFindingAddedToExamination(findingId)"
+            :patient-examination-id="lookup?.patientExaminationId || undefined"
+            @added-to-examination="onFindingAddedToExamination"
+            @classification-updated="onClassificationUpdated"
+          />
+        </template>
+        <template #issues>
           <RequirementIssues
             v-if="lookup"
             :patient-examination-id="lookup.patientExaminationId || null"
             :requirement-set-ids="selectedRequirementSetIds"
             :show-only-unmet="true"
           />
-
-          <div class="card-body">
-            <!-- Debug output -->
-            <div class="mb-3" v-if="lookup">
+        </template>
+        <template #debug>
+          <div class="card">
+            <div class="card-header">
+              <h2 class="h6 mb-0">Debug: Technische Falldaten</h2>
+            </div>
+            <div class="card-body">
               <strong>Debug Info:</strong><br>
-              Lookup exists: {{ !!lookup }}<br>
+              Daten geladen: {{ !!lookup }}<br>
               Requirement sets count: {{ requirementSets.length }}<br>
-              Raw lookup data: <pre>{{ JSON.stringify(lookup, null, 2) }}</pre>
+              Rohdaten: <pre>{{ JSON.stringify(lookup, null, 2) }}</pre>
             </div>
-            
-
           </div>
-        </div>
-      </div>
-
-      <!-- Available Findings -->
-      <div class="col-12 col-xl-6">
-        <div class="card h-100">
-           <div class="card-header d-flex justify-content-between align-items-center">
-                <h2 class="h5 mb-0">Um die Untersuchung abzuschließen, müssen die folgenden Befunde vorhanden sein.</h2>
-                <p class="text-muted mb-0">Hinweis: Ändern Sie die Klassifikationen auf ihr bevorzugtes Format.</p>
-                <div v-if="availableFindings.length > 0" class="d-flex align-items-center gap-2">
-                  <small class="text-muted">{{ availableFindings.length }} verfügbar</small>
-                  <button
-                    class="btn btn-sm btn-outline-info"
-                    @click="loadFindingsData()"
-                    :disabled="loading"
-                    title="Befunde aktualisieren"
-                  >
-                    <i class="fas fa-sync-alt"></i>
-                  </button>
-                </div>
-            </div>
-            <div class="card-body pre-scrollable" style="max-height: 70vh; overflow: auto;">
-                <div v-if="findingsSectionLoading" class="text-center py-4">
-                    <div class="spinner-border" role="status">
-                        <span class="visually-hidden">Loading...</span>
-                    </div>
-                    <p class="mt-2 text-muted">Lade Befunde...</p>
-                </div>
-                <div v-else-if="availableFindings.length" class="findings-container">
-                    <FindingsDetail
-                        v-for="findingId in availableFindings"
-                        :key="findingId"
-                        :finding-id="findingId"
-                        :is-added-to-examination="isFindingAddedToExamination(findingId)"
-                        :patient-examination-id="lookup?.patientExaminationId || undefined"
-                        @added-to-examination="onFindingAddedToExamination"
-                        @classification-updated="onClassificationUpdated"
-                    />
-                </div>
-                <div v-else class="text-center py-4">
-                  <i class="fas fa-info-circle fa-2x text-muted mb-3"></i>
-                  <p class="text-muted">Keine Befunde verfügbar für die Auswahl.</p>
-                  <small class="text-muted">Wählen Sie eine Untersuchung aus, um verfügbare Befunde zu laden.</small>
-                </div>
-            </div>
-        </div>alert
-      </div>
+        </template>
+      </KnowledgeBaseValidationPanel>
     </div>
 
 
@@ -290,57 +136,25 @@
       <strong>Erfolg:</strong> {{ successMessage }}
       <button type="button" class="btn-close" @click="successMessage = null"></button>
     </div>
-
-    <!-- Patient Creation Modal -->
-    <div v-if="showCreatePatientModal" class="modal-overlay" @click="closeCreatePatientModal">
-      <div class="modal-dialog" @click.stop>
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title">Neuen Patienten erstellen</h5>
-            <button type="button" class="btn-close" @click="closeCreatePatientModal"></button>
-          </div>
-          <div class="modal-body">
-            <PatientAdder 
-              @patient-created="onPatientCreated" 
-              @cancel="closeCreatePatientModal"
-            />
-          </div>
-        </div>
-      </div>
-    </div>
-                    <div v-if="selectedPatientId" class="d-flex align-items-center gap-2">
-                  <span class="badge bg-info">
-                    <i class="fas fa-user"></i> Aktiv
-                  </span>
-                  <strong>Zurücksetzen:</strong>
-                  <button
-                    type="button"
-                    class="btn btn-sm btn-outline-secondary"
-                    @click="patientStore.clearCurrentPatient()"
-                    title="Patientenauswahl zurücksetzen"
-                  >
-                    <i class="fas fa-times"></i>
-                  </button>
-                </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import axiosInstance, { r } from '@/api/axiosInstance';
-import { getFindingDisplayName } from '@/api/findings.contract';
 import { useFindingSelectors } from '@/composables/reporting/useFindingSelectors';
 import { endpoints } from '@/types/api/endpoints';
 import { usePatientStore } from '@/stores/patientStore';
-import type { Patient } from '@/stores/patientStore';
 import { useExaminationStore } from '@/stores/examinationStore';
 import { useRequirementStore } from '@/stores/requirementStore';
 import { usePatientExaminationStore } from '@/stores/patientExaminationStore';
 import type { PatientExamination } from '@/stores/patientExaminationStore';
-import PatientAdder from '@/components/CaseGenerator/PatientAdder.vue';
+import CaseSetupPanel from './CaseSetupPanel.vue';
 import FindingsDetail from './FindingsDetail.vue';
 import AddableFindingsDetail from './AddableFindingsDetail.vue';
-import RequirementIssues from './RequirementIssues.vue'
+import RequirementIssues from './RequirementIssues.vue';
+import RequirementSelectionPanel from './RequirementSelectionPanel.vue';
+import KnowledgeBaseValidationPanel from './KnowledgeBaseValidationPanel.vue';
 import { useDebug } from '@/composables/useDebug';
 
 // --- Types ---
@@ -357,6 +171,8 @@ type LookupDict = {
   requirementStatus: Record<string, boolean>;            // NEW
   requirementSetStatus: Record<string, boolean>;         // NEW
   suggestedActions: Record<string, any[]>;               // NEW
+  candidateRequirementSetIds?: number[];
+  candidateRequirementSetConfidence?: number | null;
   selectedRequirementSetIds?: number[];
   selectedChoices?: Record<string, any>;
 };
@@ -379,6 +195,19 @@ const {
 const LOOKUP_BASE = '/api/lookup';
 const { isDebug } = useDebug();
 
+function debugLog(...args: unknown[]) {
+  if (isDebug) {
+    console.log(...args);
+  }
+}
+
+function extractIsoDate(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  return trimmed.split('T')[0];
+}
+
 // --- Component State ---
 const selectedPatientId = ref<number | null>(null);
 const selectedExaminationId = ref<number | null>(null);
@@ -387,29 +216,47 @@ const lookupToken = ref<string | null>(null);
 const lookup = ref<LookupDict | null>(null);
 const error = ref<string | null>(null);
 const loading = ref(false);
-const showCreatePatientModal = ref(false);
 const successMessage = ref<string | null>(null);
 const isRestarting = ref(false); // Prevent infinite restart loops
 
 // --- Computed from Store ---
 
 const patients = computed(() => {
-  const result = patientStore.patientsWithDisplayName;
-  console.log('Patients with displayName:', result); // Zum Debuggen
+  const result = patientStore.patientsWithDisplayName
+    .filter(
+      (
+        entry
+      ): entry is typeof entry & {
+        id: number;
+      } => typeof entry.id === 'number'
+    )
+    .map((entry) => ({
+      id: entry.id,
+      displayName: entry.displayName
+    }));
+  debugLog('Patients with displayName:', result);
   return result;
 });
 const isLoadingPatients = computed(() => patientStore.loading);
 const examinationsDropdown = computed(() => {
   const result = examinationStore.examinationsDropdown;
-  console.log('Examinations dropdown:', result); // Debug: Check available examinations
+  debugLog('Examinations dropdown:', result);
   return result;
 });
 const isLoadingExaminations = computed(() => examinationStore.loading);
+const selectedPatientDisplayName = computed(() => {
+  const patient = patients.value.find((entry) => entry.id === selectedPatientId.value);
+  return patient?.displayName || 'Nicht ausgewählt';
+});
+const selectedExaminationDisplayName = computed(() => {
+  const exam = examinationsDropdown.value.find((entry) => entry.id === selectedExaminationId.value);
+  return exam?.displayName || 'Nicht ausgewählt';
+});
 
 // --- Computed from Local State ---
 const requirementSets = computed<RequirementSetLite[]>(() => {
   const sets = lookup.value?.requirementSets ?? [];
-  console.log('Computing requirementSets:', sets); // Debug log
+  debugLog('Computing requirementSets:', sets);
   return sets;
 });
 const selectedRequirementSetIds = computed<number[]>({
@@ -419,15 +266,62 @@ const selectedRequirementSetIds = computed<number[]>({
 const selectedRequirementSetIdSet = computed(() => new Set(selectedRequirementSetIds.value));
 const availableFindings = computed<number[]>(() => lookup.value?.availableFindings ?? []);
 const findingsSectionLoading = computed(() => findingSelectorsLoading.value || loading.value);
+const candidateRequirementSetIds = computed<number[]>(() => lookup.value?.candidateRequirementSetIds ?? []);
+const candidateRequirementSetConfidence = computed<number | null>(() =>
+  typeof lookup.value?.candidateRequirementSetConfidence === 'number'
+    ? lookup.value.candidateRequirementSetConfidence
+    : null
+);
+const unmetRequirementCount = computed(() => {
+  const status = lookup.value?.requirementStatus ?? {};
+  return Object.values(status).filter((entry) => entry === false).length;
+});
+const suggestedActionEntries = computed(() => {
+  if (!lookup.value?.suggestedActions) return [];
+  return Object.entries(lookup.value.suggestedActions).map(([requirementId, actions]) => {
+    const firstAction = Array.isArray(actions) ? actions[0] : null;
+    const requirementLabel =
+      Object.values(lookup.value?.requirementsBySet ?? {})
+        .flat()
+        .find((item) => String(item.id) === requirementId)?.name || `Requirement ${requirementId}`;
+    return {
+      requirementId,
+      requirementLabel,
+      summary:
+        firstAction?.note ||
+        firstAction?.reason ||
+        firstAction?.finding_name ||
+        'Weitere Eingaben erforderlich'
+    };
+  });
+});
+const suggestedActionCount = computed(() => suggestedActionEntries.value.length);
+const nextStepMessage = computed(() => {
+  if (!selectedPatientId.value || !selectedExaminationId.value) {
+    return 'Patient und Untersuchung auswählen, dann den Fall anlegen.';
+  }
+  if (!lookup.value) {
+    return 'Anforderungsbericht erstellen, damit die Wissensbasis die Falldaten prüfen kann.';
+  }
+  if (!selectedRequirementSetIds.value.length) {
+    return candidateRequirementSetIds.value.length
+      ? 'Empfohlene Requirement-Sets aus der Knowledge Base übernehmen oder gezielt auswählen.'
+      : 'Requirement-Sets auswählen, um die KB-Validierung zu starten.';
+  }
+  if (unmetRequirementCount.value > 0) {
+    return 'Offene KB-Anforderungen abarbeiten oder die Validierung erneut ausführen.';
+  }
+  return 'Alle aktuell ausgewählten Anforderungen sind erfüllt. Befunde können weiter ergänzt oder der Report abgeschlossen werden.';
+});
 
 const watchingLookup = ref(false);
 watch(lookup, (newVal, oldVal) => {
   if (watchingLookup.value) return; // Prevent recursive calls
   watchingLookup.value = true;
-  console.log('Lookup changed:', { newVal, oldVal });
+  debugLog('Lookup changed:', { newVal, oldVal });
   if (newVal && newVal.patientExaminationId !== currentPatientExaminationId.value) {
     currentPatientExaminationId.value = newVal.patientExaminationId;
-    console.log('Updated currentPatientExaminationId to:', currentPatientExaminationId.value);
+    debugLog('Updated currentPatientExaminationId to:', currentPatientExaminationId.value);
   }
   watchingLookup.value = false;
 }, { deep: true });
@@ -436,7 +330,7 @@ const watchingRequirementSetIds = ref(false);
 watch(selectedRequirementSetIds, (newVal, oldVal) => {
   if (watchingRequirementSetIds.value) return; // Prevent recursive calls
   watchingRequirementSetIds.value = true;
-  console.log('Selected Requirement Set IDs changed:', { newVal, oldVal });
+  debugLog('Selected Requirement Set IDs changed:', { newVal, oldVal });
   if (newVal !== oldVal) {
     // Trigger evaluation when selected sets change
     requirementStore.setCurrentRequirementSetIds(newVal);
@@ -449,18 +343,13 @@ const watchingPatientExaminationIds = ref(false);
 watch(currentPatientExaminationId, (newVal, oldVal) => {
   if (watchingPatientExaminationIds.value) return; // Prevent recursive calls
   watchingPatientExaminationIds.value = true;
-  console.log('Current Examination ID changed:', { newVal, oldVal });
+  debugLog('Current Examination ID changed:', { newVal, oldVal });
   if (newVal !== oldVal) {
     // Trigger evaluation when examination changes
     patientExaminationStore.setCurrentPatientExaminationId(newVal);
   }
   watchingPatientExaminationIds.value = false;
 });
-
-const selectionsPretty = computed(() => JSON.stringify({
-  token: lookupToken.value,
-  selectedRequirementSetIds: selectedRequirementSetIds.value,
-}, null, 2));
 
 
 
@@ -497,7 +386,7 @@ const onFindingAddedToExamination = (
     response = findingIdOrData.response;
   }
 
-  console.log('Finding added to examination:', {
+  debugLog('Finding added to examination:', {
     findingId,
     name,
     selectedClassifications: selectedClassifications.length,
@@ -523,7 +412,7 @@ const onFindingAddedToExamination = (
 
 const onClassificationUpdated = (findingId: number, classificationId: number, choiceId: number | null) => {
   // Handle when a classification choice is updated
-  console.log('Classification updated:', { findingId, classificationId, choiceId });
+  debugLog('Classification updated:', { findingId, classificationId, choiceId });
 
   // Get finding and classification names for better user feedback
   const findingName = getFindingNameById(findingId);
@@ -555,23 +444,23 @@ const loadFindingsData = async () => {
 // Evaluate requirements when findings are added/removed
 const evaluateRequirementsOnChange = async () => {
   if (!lookup.value || !lookupToken.value) {
-    console.log('Skipping evaluation: lookup or token not available');
+    debugLog('Skipping evaluation: case data or token not available');
     return;
   }
 
   if (!lookup.value.patientExaminationId) {
-    console.log('Skipping evaluation: patientExaminationId not available in lookup', lookup.value);
+    debugLog('Skipping evaluation: patientExaminationId not available in case data', lookup.value);
     return;
   }
 
   try {
-    console.log('Evaluating requirements based on current lookup data...');
+    debugLog('Evaluating requirements based on current case data...');
 
     // Use the requirement store to evaluate from lookup data
     await requirementStore.evaluateFromLookupData(lookup.value);
 
     // Update UI with evaluation results
-    console.log('Requirements evaluated successfully');
+    debugLog('Requirements evaluated successfully');
 
     // Show success message
     successMessage.value = 'Anforderungen wurden erfolgreich evaluiert!';
@@ -590,12 +479,12 @@ const evaluateRequirementSet = async (requirementSetId: number) => {
   if (!lookup.value || !lookupToken.value) return;
 
   try {
-    console.log('Evaluating requirement set:', requirementSetId);
+    debugLog('Evaluating requirement set:', requirementSetId);
 
     // Use the requirement store to evaluate specific requirement set
     await requirementStore.evaluateRequirementSet(requirementSetId, lookup.value.patientExaminationId);
 
-    console.log('Requirement set evaluated successfully');
+    debugLog('Requirement set evaluated successfully');
 
   } catch (err) {
     console.error('Error evaluating requirement set:', err);
@@ -606,11 +495,6 @@ const evaluateRequirementSet = async (requirementSetId: number) => {
 // Get evaluation status for a requirement set
 const getRequirementSetEvaluationStatus = (requirementSetId: number) => {
   return requirementStore.getRequirementSetEvaluationStatus(requirementSetId);
-};
-
-// Get evaluation status for a specific requirement
-const getRequirementEvaluationStatus = (requirementId: number) => {
-  return requirementStore.getRequirementEvaluationStatus(requirementId);
 };
 
 // Computed properties for evaluation status
@@ -628,6 +512,11 @@ const evaluationSummary = computed(() => {
     completionPercentage: totalSets > 0 ? Math.round((evaluatedSets / totalSets) * 100) : 0
   };
 });
+const requirementSetEvaluationMap = computed(() =>
+  Object.fromEntries(
+    requirementSets.value.map((rs) => [rs.id, getRequirementSetEvaluationStatus(rs.id)])
+  ) as Record<number, { met: boolean; metRequirementsCount: number; totalRequirementsCount: number } | null>
+);
 
 // --- Methods ---
 function axiosError(e: any): string {
@@ -646,7 +535,7 @@ function applyLookup(partial: Partial<LookupDict>) {
 
 async function createPatientExaminationAndInitLookup() {
   if (isRestarting.value) {
-    console.log('Restart already in progress, skipping createPatientExaminationAndInitLookup...');
+    debugLog('Restart already in progress, skipping createPatientExaminationAndInitLookup...');
     return;
   }
   
@@ -669,7 +558,7 @@ async function createPatientExaminationAndInitLookup() {
     return;
   }
 
-  console.log('Creating PatientExamination with:', {
+  debugLog('Creating PatientExamination with:', {
     patientId: selectedPatientId.value,
     examinationName: selectedExam.name,
     examinationId: selectedExam.id
@@ -694,9 +583,7 @@ async function createPatientExaminationAndInitLookup() {
     }
     
     // Format patient birth date for backend (ISO date format)
-    const formattedBirthDate = selectedPatient.dob 
-      ? new Date(selectedPatient.dob).toISOString().split('T')[0] 
-      : null;
+    const formattedBirthDate = extractIsoDate(selectedPatient.dob);
     
     const peRes = await axiosInstance.post(r(endpoints.examination.patientExaminationCreate), {
       patient: selectedPatient.patientHash || `patient_${selectedPatient.id}`,
@@ -709,7 +596,7 @@ async function createPatientExaminationAndInitLookup() {
 
     patientExaminationStore.addPatientExamination(peRes.data as PatientExamination);
 
-    console.log('PatientExamination created:', peRes.data);
+    debugLog('PatientExamination created:', peRes.data);
     currentPatientExaminationId.value = peRes.data.id;
 
     // Step 2: Init lookup with the new PatientExamination ID
@@ -718,7 +605,7 @@ async function createPatientExaminationAndInitLookup() {
     });
     lookupToken.value = initRes.data.token;
     
-    console.log('Lookup initialized with token:', lookupToken.value);
+    debugLog('Lookup initialized with token:', lookupToken.value);
     
     // Start heartbeat for token renewal
     startHeartbeat();
@@ -743,12 +630,12 @@ async function fetchLookupAll() {
   loading.value = true;
   try {
     const res = await axiosInstance.get(`${LOOKUP_BASE}/${lookupToken.value}/all/?skip_recompute=true`);
-    console.log('Lookup API response:', res.data); // Debug log
+    debugLog('Lookup API response:', res.data);
     applyLookup(res.data);
   } catch (e: any) {
     // Handle token expiration
     if (e?.response?.status === 404) {
-      error.value = 'Lookup-Sitzung ist abgelaufen. Starte neu...';
+      error.value = 'Der technische Fallkontext ist abgelaufen. Ein neuer Stand wird vorbereitet...';
       lookupToken.value = null;
       lookup.value = null;
       stopHeartbeat();
@@ -758,7 +645,7 @@ async function fetchLookupAll() {
       // Try to automatically restart the session
       const restarted = await restartLookupSession();
       if (!restarted) {
-        error.value = 'Lookup-Sitzung ist abgelaufen. Bitte starten Sie manuell neu.';
+        error.value = 'Der Fallkontext ist abgelaufen. Bitte den Fall erneut starten.';
       }
     } else {
       error.value = axiosError(e);
@@ -779,7 +666,7 @@ async function fetchLookupParts(keys: string[]) {
   } catch (e: any) {
     // Handle token expiration
     if (e?.response?.status === 404) {
-      error.value = 'Lookup-Sitzung ist abgelaufen. Starte neu...';
+      error.value = 'Der technische Fallkontext ist abgelaufen. Ein neuer Stand wird vorbereitet...';
       lookupToken.value = null;
       lookup.value = null;
       stopHeartbeat();
@@ -789,7 +676,7 @@ async function fetchLookupParts(keys: string[]) {
       // Try to automatically restart the session
       const restarted = await restartLookupSession();
       if (!restarted) {
-        error.value = 'Lookup-Sitzung ist abgelaufen. Bitte starten Sie manuell neu.';
+        error.value = 'Der Fallkontext ist abgelaufen. Bitte den Fall erneut starten.';
       }
     } else {
       error.value = axiosError(e);
@@ -807,7 +694,7 @@ async function patchLookup(updates: Record<string, any>) {
   } catch (e: any) {
     // Handle token expiration
     if (e?.response?.status === 404) {
-      error.value = 'Lookup-Sitzung ist abgelaufen. Bitte starten Sie erneut.';
+      error.value = 'Der Fallkontext ist abgelaufen. Bitte den Fall erneut starten.';
       lookupToken.value = null;
       lookup.value = null;
       stopHeartbeat();
@@ -832,6 +719,28 @@ function toggleRequirementSet(id: number, on: boolean) {
   }
 }
 
+function updateRequirementSelection(ids: number[]) {
+  selectedRequirementSetIds.value = Array.from(new Set(ids));
+  patchLookup({ selectedRequirementSetIds: selectedRequirementSetIds.value });
+  requirementStore.setCurrentRequirementSetIds(selectedRequirementSetIds.value);
+  if (lookupToken.value) {
+    triggerRecompute();
+  }
+}
+
+function applyRecommendedRequirementSets() {
+  if (!candidateRequirementSetIds.value.length) return;
+  updateRequirementSelection(candidateRequirementSetIds.value);
+}
+
+function selectAllRequirementSets() {
+  updateRequirementSelection(requirementSets.value.map((set) => set.id));
+}
+
+function clearRequirementSetSelection() {
+  updateRequirementSelection([]);
+}
+
 async function triggerRecompute() {
   if (patientStore.currentPatient && patientStore.currentPatient.id !== selectedPatientId.value) {
     console.warn('Selected patient ID does not match patient store name. Reloading...');
@@ -840,9 +749,9 @@ async function triggerRecompute() {
   if (!lookupToken.value) return;
 
   try {
-    console.log('Triggering recomputation for selected requirement sets:', selectedRequirementSetIds.value);
+    debugLog('Triggering recomputation for selected requirement sets:', selectedRequirementSetIds.value);
     const res = await axiosInstance.post(`${LOOKUP_BASE}/${lookupToken.value}/recompute/`);
-    console.log('Recompute response:', res.data);
+    debugLog('Recompute response:', res.data);
 
     // Update local lookup data with recomputed results
     if (res.data.updates) {
@@ -862,31 +771,6 @@ async function triggerRecompute() {
   }
 }
 
-function closeCreatePatientModal() {
-  showCreatePatientModal.value = false;
-  // Store-Fehler löschen beim Schließen
-  patientStore.clearError();
-}
-
-function onPatientCreated(patient: Patient) {
-  // Patient wurde erfolgreich erstellt - automatisch auswählen
-  selectedPatientId.value = patient.id || null;
-  
-  // Modal schließen
-  showCreatePatientModal.value = false;
-  
-  // Store-Fehler löschen (falls vorhanden)
-  patientStore.clearError();
-  
-  // Erfolgsmeldung anzeigen
-  successMessage.value = `Patient "${patient.firstName} ${patient.lastName}" wurde erfolgreich erstellt und ausgewählt!`;
-  
-  // Nach 5 Sekunden ausblenden
-  setTimeout(() => {
-    successMessage.value = null;
-  }, 5000);
-}
-
 async function validateToken(): Promise<boolean> {
   if (!lookupToken.value) return false;
   
@@ -897,63 +781,20 @@ async function validateToken(): Promise<boolean> {
   } catch (e: any) {
     if (e?.response?.status === 404) {
       // Token expired - trigger restart
-      console.log('Token validation failed with 404, attempting restart...');
+      debugLog('Token validation failed with 404, attempting restart...');
       lookupToken.value = null;
       lookup.value = null;
-      error.value = 'Lookup-Sitzung ist abgelaufen. Starte neu...';
+      error.value = 'Der technische Fallkontext ist abgelaufen. Ein neuer Stand wird vorbereitet...';
       
       // Try to restart the session
       const restarted = await restartLookupSession();
       if (!restarted) {
-        error.value = 'Lookup-Sitzung ist abgelaufen. Bitte starten Sie manuell neu.';
+        error.value = 'Der Fallkontext ist abgelaufen. Bitte den Fall erneut starten.';
       }
       return false;
     }
     return false;
   }
-}
-
-async function renewLookupSession() {
-  if (!lookupToken.value || !currentPatientExaminationId.value) return;
-  
-  try {
-    // Renew the token by updating it with current data
-    const currentData = lookup.value;
-    if (currentData) {
-      await axiosInstance.patch(`${LOOKUP_BASE}/${lookupToken.value}/parts/`, { 
-        updates: currentData 
-      });
-    }
-  } catch (e: any) {
-    console.warn('Failed to renew lookup sitzung:', e);
-    // Don't show error to user, just log it
-  }
-}
-
-function manualRenewSession() {
-  if (!lookupToken.value) return;
-  loading.value = true;
-  error.value = null;
-  axiosInstance.get(`${LOOKUP_BASE}/${lookupToken.value}/parts/?keys=patientExaminationId`)
-    .then(() => {
-      return axiosInstance.patch(`${LOOKUP_BASE}/${lookupToken.value}/parts/`, { updates: {} });
-    })
-    .then(() => {
-      fetchLookupAll();
-    })
-    .catch((e: any) => {
-      error.value = axiosError(e);
-      if (e?.response?.status === 404) {
-        // Token expired
-        lookupToken.value = null;
-        lookup.value = null;
-        error.value = 'Lookup-Session ist abgelaufen. Bitte starten Sie erneut.';
-        stopHeartbeat();
-      }
-    })
-    .finally(() => {
-      loading.value = false;
-    });
 }
 
 function resetLookupSession() {
@@ -970,7 +811,7 @@ function resetLookupSession() {
 }
 
 async function resetSessionForNewPatient(): Promise<void> {
-  console.log('Resetting session for new patient...');
+  debugLog('Resetting session for new patient...');
 
   // Clear current session state
   lookupToken.value = null;
@@ -987,16 +828,16 @@ async function resetSessionForNewPatient(): Promise<void> {
   // Clear requirement store state
   requirementStore.reset();
 
-  console.log('Session reset complete for new patient');
+  debugLog('Session reset complete for new patient');
 }
 
 async function restartLookupSession(): Promise<boolean> {
   if (isRestarting.value) {
-    console.log('Restart already in progress, skipping...');
+    debugLog('Restart already in progress, skipping...');
     return false;
   }
   
-  console.log('Attempting to restart lookup session...');
+  debugLog('Attempting to restart lookup session...');
   isRestarting.value = true;
   
   try {
@@ -1012,9 +853,9 @@ async function restartLookupSession(): Promise<boolean> {
     // Check if we have an existing patient examination
     if (currentPatientExaminationId.value && selectedPatientId.value && selectedExaminationId.value) {
       // Reuse existing patient examination - just reinitialize lookup
-      console.log('Reusing existing patient examination:', currentPatientExaminationId.value);
-      console.log('selectedPatientId:', selectedPatientId.value);
-      console.log('selectedExaminationId:', selectedExaminationId.value);
+      debugLog('Reusing existing patient examination:', currentPatientExaminationId.value);
+      debugLog('selectedPatientId:', selectedPatientId.value);
+      debugLog('selectedExaminationId:', selectedExaminationId.value);
       
       const initRes = await axiosInstance.post(`${LOOKUP_BASE}/init/`, {
         patientExaminationId: currentPatientExaminationId.value
@@ -1027,7 +868,7 @@ async function restartLookupSession(): Promise<boolean> {
       // Fetch all lookup data
       await fetchLookupAll();
       
-      successMessage.value = 'Lookup-Session wurde erfolgreich neu gestartet!';
+      successMessage.value = 'Der Fallkontext wurde erfolgreich neu aufgebaut.';
       setTimeout(() => {
         successMessage.value = null;
       }, 3000);
@@ -1035,13 +876,13 @@ async function restartLookupSession(): Promise<boolean> {
       return true;
     } else {
       // No existing patient examination, create new one
-      console.log('No existing patient examination, creating new one');
-      console.log('currentPatientExaminationId:', currentPatientExaminationId.value);
-      console.log('selectedPatientId:', selectedPatientId.value);
-      console.log('selectedExaminationId:', selectedExaminationId.value);
+      debugLog('No existing patient examination, creating new one');
+      debugLog('currentPatientExaminationId:', currentPatientExaminationId.value);
+      debugLog('selectedPatientId:', selectedPatientId.value);
+      debugLog('selectedExaminationId:', selectedExaminationId.value);
       
       if (!selectedPatientId.value || !selectedExaminationId.value) {
-        error.value = 'Kann Session nicht automatisch neu starten: Patient oder Untersuchung fehlt.';
+        error.value = 'Der Fallkontext konnte nicht automatisch neu aufgebaut werden: Patient oder Untersuchung fehlt.';
         return false;
       }
       
@@ -1050,7 +891,7 @@ async function restartLookupSession(): Promise<boolean> {
     }
   } catch (e: any) {
     console.error('Failed to restart lookup session:', e);
-    error.value = 'Fehler beim Neustart der Lookup-Session: ' + axiosError(e);
+    error.value = 'Fehler beim Neuaufbau des Fallkontexts: ' + axiosError(e);
     return false;
   } finally {
     isRestarting.value = false;
@@ -1076,24 +917,6 @@ function stopHeartbeat() {
   if (heartbeatInterval) {
     clearInterval(heartbeatInterval);
     heartbeatInterval = null;
-  }
-}
-
-// --- Session management ---
-const sessionWarningShown = ref(false);
-
-function showSessionExpiryWarning() {
-  if (!sessionWarningShown.value && lookupToken.value) {
-    error.value = 'Hinweis: Ihre Lookup-Session läuft bald ab. Speichern Sie Ihre Arbeit.';
-    sessionWarningShown.value = true;
-    
-    // Clear warning after 10 seconds
-    setTimeout(() => {
-      if (error.value === 'Hinweis: Ihre Lookup-Session läuft bald ab. Speichern Sie Ihre Arbeit.') {
-        error.value = null;
-      }
-      sessionWarningShown.value = false;
-    }, 10000);
   }
 }
 
@@ -1131,7 +954,7 @@ watch(currentPatientExaminationId, (newId) => {
 
 // --- Watchers ---
 watch(selectedExaminationId, (newId) => {
-  console.log('Examination selection changed:', {
+  debugLog('Examination selection changed:', {
     newId,
     selectedPatientId: selectedPatientId.value,
     availableExams: examinationsDropdown.value.map(e => ({ id: e.id, name: e.name }))
@@ -1143,7 +966,7 @@ watch(selectedExaminationId, (newId) => {
 });
 
 watch(selectedPatientId, async (newPatientId, oldPatientId) => {
-  console.log('Patient selection changed:', {
+  debugLog('Patient selection changed:', {
     oldPatientId,
     newPatientId,
     currentExaminationsCount: examinationsDropdown.value.length
@@ -1154,7 +977,7 @@ watch(selectedPatientId, async (newPatientId, oldPatientId) => {
 
   // If patient actually changed (not just initialized), reset the session
   if (oldPatientId && newPatientId !== oldPatientId) {
-    console.log('Patient changed, resetting session for new overview...');
+    debugLog('Patient changed, resetting session for new overview...');
     await resetSessionForNewPatient();
   }
 });
@@ -1162,7 +985,7 @@ watch(selectedPatientId, async (newPatientId, oldPatientId) => {
 // Watch for changes in selected requirement sets to trigger evaluation
 watch(selectedRequirementSetIds, async (newIds, oldIds) => {
   if (newIds.length !== oldIds.length && lookup.value) {
-    console.log('Requirement set selection changed, triggering evaluation...');
+    debugLog('Requirement set selection changed, triggering evaluation...');
     await evaluateRequirementsOnChange();
   }
 }, { deep: true });
@@ -1170,7 +993,7 @@ watch(selectedRequirementSetIds, async (newIds, oldIds) => {
 // Watch for lookup data changes to trigger evaluation
 watch(lookup, async (newLookup, oldLookup) => {
   if (newLookup && newLookup !== oldLookup && selectedRequirementSetIds.value.length > 0) {
-    console.log('Lookup data changed, triggering evaluation...');
+    debugLog('Lookup data changed, triggering evaluation...');
     // Debounce evaluation to avoid excessive API calls
     setTimeout(() => {
       evaluateRequirementsOnChange();
@@ -1181,49 +1004,54 @@ watch(lookup, async (newLookup, oldLookup) => {
 // Watch for lookup data changes to load requirement sets
 watch(lookup, (newLookup) => {
   if (newLookup && newLookup.requirementsBySet) {
-    console.log('Loading requirement sets from lookup data...');
+    debugLog('Loading requirement sets from lookup data...');
     requirementStore.loadRequirementSetsFromLookup(newLookup);
   }
 }, { immediate: true });
 
 // --- Lifecycle ---
 onMounted(async () => {
-  console.log('Component mounted, starting data loading...');
-  
-  // Patienten und Untersuchungen laden
-  await Promise.all([
-    patientStore.fetchPatients(),
-    examinationStore.fetchExaminations()
-  ]);
-  
-  console.log('Data loading completed:', {
-    patientsCount: patients.value.length,
-    examinationsCount: examinationsDropdown.value.length
-  });
-  
-  // Nachschlagedaten für Patientenerstellung laden
-  await patientStore.initializeLookupData();
-  
-  // Validate existing token if present (e.g., after page reload)
-  if (lookupToken.value) {
-    console.log('Validating existing token:', lookupToken.value);
-    const isValid = await validateToken();
-    if (!isValid) {
-      lookupToken.value = null;
-      lookup.value = null;
-      currentPatientExaminationId.value = null; // Clear this too
-      stopHeartbeat();
-      localStorage.removeItem(TOKEN_STORAGE_KEY);
-      localStorage.removeItem(PATIENT_EXAM_STORAGE_KEY);
-    } else {
-      // Token is valid, fetch current data and start heartbeat
-      await fetchLookupAll();
-      startHeartbeat();
-    }
-  }
+  debugLog('Component mounted, starting data loading...');
 
-  // Load findings data on component mount
-  await loadFindingsData();
+  try {
+    // Patienten und Untersuchungen laden
+    await Promise.all([
+      patientStore.fetchPatients(),
+      examinationStore.fetchExaminations()
+    ]);
+
+    debugLog('Data loading completed:', {
+      patientsCount: patients.value.length,
+      examinationsCount: examinationsDropdown.value.length
+    });
+
+    // Nachschlagedaten für Patientenerstellung laden
+    await patientStore.initializeLookupData();
+
+    // Validate existing token if present (e.g., after page reload)
+    if (lookupToken.value) {
+      debugLog('Validating existing token:', lookupToken.value);
+      const isValid = await validateToken();
+      if (!isValid) {
+        lookupToken.value = null;
+        lookup.value = null;
+        currentPatientExaminationId.value = null; // Clear this too
+        stopHeartbeat();
+        localStorage.removeItem(TOKEN_STORAGE_KEY);
+        localStorage.removeItem(PATIENT_EXAM_STORAGE_KEY);
+      } else {
+        // Token is valid, fetch current data and start heartbeat
+        await fetchLookupAll();
+        startHeartbeat();
+      }
+    }
+
+    // Load findings data on component mount
+    await loadFindingsData();
+  } catch (e) {
+    console.error('Error during initial reporting setup:', e);
+    error.value = 'Fehler beim Laden der Falldaten: ' + axiosError(e);
+  }
 });
 
 onUnmounted(() => {
@@ -1323,6 +1151,37 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+}
+
+.workflow-stat {
+  height: 100%;
+  padding: 0.9rem 1rem;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 0.75rem;
+  background: linear-gradient(180deg, rgba(248, 249, 250, 0.95), rgba(255, 255, 255, 1));
+}
+
+.workflow-stat__label {
+  margin-bottom: 0.35rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #6c757d;
+}
+
+.workflow-stat__value {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #212529;
+}
+
+.workflow-callout {
+  padding: 0.9rem 1rem;
+  border-left: 4px solid #0d6efd;
+  border-radius: 0.5rem;
+  background: rgba(13, 110, 253, 0.08);
+  color: #183153;
 }
 
 /* Enhanced animations and transitions */

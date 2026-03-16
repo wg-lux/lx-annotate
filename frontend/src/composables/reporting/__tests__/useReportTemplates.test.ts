@@ -118,10 +118,10 @@ describe('useReportTemplates', () => {
             {
               name: 'polyp_has_lst_if_large',
               finding: 'esophagus_polyp',
-              operator: 'conditional',
+              operator: 'condition',
               query: {
                 finding: 'esophagus_polyp',
-                operator: 'conditional',
+                operator: 'condition',
                 condition: {
                   any: [{ classification: 'size_mm', comparator: 'gt', value: 10 }],
                   thenRequires: [{ classification: 'lst' }]

@@ -17,7 +17,7 @@ export type ReportTemplateSection = {
   findings: ReportTemplateFinding[]
 }
 
-export type FindingsValidatorOperator = 'exists' | 'missing' | 'conditional'
+export type FindingsValidatorOperator = 'exists' | 'missing' | 'condition'
 
 export type FindingsValidatorComparator =
   | 'eq'

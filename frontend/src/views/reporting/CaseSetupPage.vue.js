@@ -23,18 +23,18 @@ const returnToPath = computed(() => {
     return typeof raw === 'string' && raw.trim() ? raw : null;
 });
 const nextRoute = computed(() => flow.patientExaminationId
-    ? `/reporting/${flow.patientExaminationId}/template-requirements`
+    ? `/reporting/${flow.patientExaminationId}/findings`
     : '/reporting/case-setup');
 const sessionBadgeLabel = computed(() => {
     switch (flow.sessionStatus) {
         case 'active':
-            return 'Lookup aktiv';
+            return 'Fallkontext aktiv';
         case 'expired':
-            return 'Lookup abgelaufen';
+            return 'Fallkontext abgelaufen';
         case 'restarting':
-            return 'Lookup wird neu gestartet';
+            return 'Fallkontext wird neu gestartet';
         default:
-            return 'Keine Session';
+            return 'Kein Fallkontext';
     }
 });
 const sessionBadgeClass = computed(() => {
@@ -129,8 +129,8 @@ async function createPatientExaminationAndInitLookup() {
             status: 'active'
         });
         successMessage.value = returnToPath.value
-            ? 'Lookup-Session wurde erfolgreich gestartet. Sie können jetzt zur Validierung zurückkehren oder mit der Befundung fortfahren.'
-            : 'Lookup-Session wurde erfolgreich gestartet.';
+            ? 'Der Fallkontext wurde erfolgreich gestartet. Sie können jetzt zur Validierung zurückkehren oder mit der Befundung fortfahren.'
+            : 'Der Fallkontext wurde erfolgreich gestartet.';
     }
     catch (e) {
         flow.setSessionStatus('idle');
@@ -138,7 +138,7 @@ async function createPatientExaminationAndInitLookup() {
             e?.response?.data?.detail ||
                 e?.response?.data?.error ||
                 e?.message ||
-                'Fehler beim Erstellen der Patientenuntersuchung oder Starten der Lookup-Session.';
+                'Fehler beim Erstellen der Patientenuntersuchung oder Starten des Fallkontexts.';
     }
     finally {
         loading.value = false;
@@ -161,12 +161,12 @@ async function reinitLookup() {
             lookupToken: initRes.data.token,
             status: 'active'
         });
-        successMessage.value = 'Lookup-Session wurde neu initialisiert.';
+        successMessage.value = 'Der Fallkontext wurde neu initialisiert.';
     }
     catch (e) {
         flow.setSessionStatus('expired');
         errorMessage.value =
-            e?.response?.data?.detail || e?.message || 'Fehler beim Neuinitialisieren der Lookup-Session.';
+            e?.response?.data?.detail || e?.message || 'Fehler beim Neuinitialisieren des Fallkontexts.';
     }
     finally {
         loading.value = false;
@@ -297,7 +297,7 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
     ...{ class: "form-control" },
-    value: (__VLS_ctx.flow.lookupToken ?? ''),
+    value: (__VLS_ctx.flow.lookupToken ? 'aktiv' : 'inaktiv'),
     readonly: true,
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({

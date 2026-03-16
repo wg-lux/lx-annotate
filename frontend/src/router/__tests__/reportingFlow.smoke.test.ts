@@ -13,9 +13,8 @@ function buildReportingRouter() {
         children: [
           { path: '', component: Stub },
           { path: 'case-setup', component: Stub },
-          { path: ':patient_examination_id/template-requirements', component: Stub },
+          { path: ':patient_examination_id/template-requirements', redirect: (to: any) => `/reporting/${to.params.patient_examination_id}/findings` },
           { path: ':patient_examination_id/findings', component: Stub },
-          { path: ':patient_examination_id/requirements-review', component: Stub },
           { path: ':patient_examination_id/report-editor', component: Stub },
           { path: ':patient_examination_id/frame-selector', component: Stub },
           { path: ':patient_examination_id/finalized', component: Stub }
@@ -58,5 +57,10 @@ describe('reporting flow smoke routes', () => {
   it('redirects placeholder patient_examination route param to case-setup', async () => {
     await router.push('/reporting/:patient_examination_id/findings')
     expect(router.currentRoute.value.path).toBe('/reporting/case-setup')
+  })
+
+  it('redirects legacy template route to findings', async () => {
+    await router.push('/reporting/123/template-requirements')
+    expect(router.currentRoute.value.path).toBe('/reporting/123/findings')
   })
 })

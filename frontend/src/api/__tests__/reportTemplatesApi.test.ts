@@ -38,10 +38,10 @@ describe('reportTemplatesApi', () => {
           {
             name: 'polyp_has_lst_if_large',
             finding: 'esophagus_polyp',
-            operator: 'conditional',
+            operator: 'condition',
             query: {
               finding: 'esophagus_polyp',
-              operator: 'conditional',
+              operator: 'condition',
               condition: {
                 any: [{ classification: 'size_mm', comparator: 'gt', value: 10 }],
                 thenRequires: [{ classification: 'lst' }]
@@ -79,7 +79,7 @@ describe('reportTemplatesApi', () => {
           {
             name: 'polyp_has_lst_if_large',
             ok: false,
-            operator: 'conditional',
+            operator: 'condition',
             finding: 'esophagus_polyp',
             matchedOccurrences: 1,
             triggeredOccurrences: 1,

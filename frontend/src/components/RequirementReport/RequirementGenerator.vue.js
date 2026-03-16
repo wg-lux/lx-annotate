@@ -1,16 +1,17 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import axiosInstance, { r } from '@/api/axiosInstance';
-import { getFindingDisplayName } from '@/api/findings.contract';
 import { useFindingSelectors } from '@/composables/reporting/useFindingSelectors';
 import { endpoints } from '@/types/api/endpoints';
 import { usePatientStore } from '@/stores/patientStore';
 import { useExaminationStore } from '@/stores/examinationStore';
 import { useRequirementStore } from '@/stores/requirementStore';
 import { usePatientExaminationStore } from '@/stores/patientExaminationStore';
-import PatientAdder from '@/components/CaseGenerator/PatientAdder.vue';
+import CaseSetupPanel from './CaseSetupPanel.vue';
 import FindingsDetail from './FindingsDetail.vue';
 import AddableFindingsDetail from './AddableFindingsDetail.vue';
 import RequirementIssues from './RequirementIssues.vue';
+import RequirementSelectionPanel from './RequirementSelectionPanel.vue';
+import KnowledgeBaseValidationPanel from './KnowledgeBaseValidationPanel.vue';
 import { useDebug } from '@/composables/useDebug';
 // --- Store ---
 const patientStore = usePatientStore();
@@ -21,6 +22,19 @@ const { loading: findingSelectorsLoading, ensureCatalogLoaded, ensurePatientFind
 // --- API ---
 const LOOKUP_BASE = '/api/lookup';
 const { isDebug } = useDebug();
+function debugLog(...args) {
+    if (isDebug) {
+        console.log(...args);
+    }
+}
+function extractIsoDate(value) {
+    if (!value)
+        return null;
+    const trimmed = value.trim();
+    if (!trimmed)
+        return null;
+    return trimmed.split('T')[0];
+}
 // --- Component State ---
 const selectedPatientId = ref(null);
 const selectedExaminationId = ref(null);
@@ -29,26 +43,38 @@ const lookupToken = ref(null);
 const lookup = ref(null);
 const error = ref(null);
 const loading = ref(false);
-const showCreatePatientModal = ref(false);
 const successMessage = ref(null);
 const isRestarting = ref(false); // Prevent infinite restart loops
 // --- Computed from Store ---
 const patients = computed(() => {
-    const result = patientStore.patientsWithDisplayName;
-    console.log('Patients with displayName:', result); // Zum Debuggen
+    const result = patientStore.patientsWithDisplayName
+        .filter((entry) => typeof entry.id === 'number')
+        .map((entry) => ({
+        id: entry.id,
+        displayName: entry.displayName
+    }));
+    debugLog('Patients with displayName:', result);
     return result;
 });
 const isLoadingPatients = computed(() => patientStore.loading);
 const examinationsDropdown = computed(() => {
     const result = examinationStore.examinationsDropdown;
-    console.log('Examinations dropdown:', result); // Debug: Check available examinations
+    debugLog('Examinations dropdown:', result);
     return result;
 });
 const isLoadingExaminations = computed(() => examinationStore.loading);
+const selectedPatientDisplayName = computed(() => {
+    const patient = patients.value.find((entry) => entry.id === selectedPatientId.value);
+    return patient?.displayName || 'Nicht ausgewählt';
+});
+const selectedExaminationDisplayName = computed(() => {
+    const exam = examinationsDropdown.value.find((entry) => entry.id === selectedExaminationId.value);
+    return exam?.displayName || 'Nicht ausgewählt';
+});
 // --- Computed from Local State ---
 const requirementSets = computed(() => {
     const sets = lookup.value?.requirementSets ?? [];
-    console.log('Computing requirementSets:', sets); // Debug log
+    debugLog('Computing requirementSets:', sets);
     return sets;
 });
 const selectedRequirementSetIds = computed({
@@ -59,15 +85,59 @@ const selectedRequirementSetIds = computed({
 const selectedRequirementSetIdSet = computed(() => new Set(selectedRequirementSetIds.value));
 const availableFindings = computed(() => lookup.value?.availableFindings ?? []);
 const findingsSectionLoading = computed(() => findingSelectorsLoading.value || loading.value);
+const candidateRequirementSetIds = computed(() => lookup.value?.candidateRequirementSetIds ?? []);
+const candidateRequirementSetConfidence = computed(() => typeof lookup.value?.candidateRequirementSetConfidence === 'number'
+    ? lookup.value.candidateRequirementSetConfidence
+    : null);
+const unmetRequirementCount = computed(() => {
+    const status = lookup.value?.requirementStatus ?? {};
+    return Object.values(status).filter((entry) => entry === false).length;
+});
+const suggestedActionEntries = computed(() => {
+    if (!lookup.value?.suggestedActions)
+        return [];
+    return Object.entries(lookup.value.suggestedActions).map(([requirementId, actions]) => {
+        const firstAction = Array.isArray(actions) ? actions[0] : null;
+        const requirementLabel = Object.values(lookup.value?.requirementsBySet ?? {})
+            .flat()
+            .find((item) => String(item.id) === requirementId)?.name || `Requirement ${requirementId}`;
+        return {
+            requirementId,
+            requirementLabel,
+            summary: firstAction?.note ||
+                firstAction?.reason ||
+                firstAction?.finding_name ||
+                'Weitere Eingaben erforderlich'
+        };
+    });
+});
+const suggestedActionCount = computed(() => suggestedActionEntries.value.length);
+const nextStepMessage = computed(() => {
+    if (!selectedPatientId.value || !selectedExaminationId.value) {
+        return 'Patient und Untersuchung auswählen, dann den Fall anlegen.';
+    }
+    if (!lookup.value) {
+        return 'Anforderungsbericht erstellen, damit die Wissensbasis die Falldaten prüfen kann.';
+    }
+    if (!selectedRequirementSetIds.value.length) {
+        return candidateRequirementSetIds.value.length
+            ? 'Empfohlene Requirement-Sets aus der Knowledge Base übernehmen oder gezielt auswählen.'
+            : 'Requirement-Sets auswählen, um die KB-Validierung zu starten.';
+    }
+    if (unmetRequirementCount.value > 0) {
+        return 'Offene KB-Anforderungen abarbeiten oder die Validierung erneut ausführen.';
+    }
+    return 'Alle aktuell ausgewählten Anforderungen sind erfüllt. Befunde können weiter ergänzt oder der Report abgeschlossen werden.';
+});
 const watchingLookup = ref(false);
 watch(lookup, (newVal, oldVal) => {
     if (watchingLookup.value)
         return; // Prevent recursive calls
     watchingLookup.value = true;
-    console.log('Lookup changed:', { newVal, oldVal });
+    debugLog('Lookup changed:', { newVal, oldVal });
     if (newVal && newVal.patientExaminationId !== currentPatientExaminationId.value) {
         currentPatientExaminationId.value = newVal.patientExaminationId;
-        console.log('Updated currentPatientExaminationId to:', currentPatientExaminationId.value);
+        debugLog('Updated currentPatientExaminationId to:', currentPatientExaminationId.value);
     }
     watchingLookup.value = false;
 }, { deep: true });
@@ -76,7 +146,7 @@ watch(selectedRequirementSetIds, (newVal, oldVal) => {
     if (watchingRequirementSetIds.value)
         return; // Prevent recursive calls
     watchingRequirementSetIds.value = true;
-    console.log('Selected Requirement Set IDs changed:', { newVal, oldVal });
+    debugLog('Selected Requirement Set IDs changed:', { newVal, oldVal });
     if (newVal !== oldVal) {
         // Trigger evaluation when selected sets change
         requirementStore.setCurrentRequirementSetIds(newVal);
@@ -89,17 +159,13 @@ watch(currentPatientExaminationId, (newVal, oldVal) => {
     if (watchingPatientExaminationIds.value)
         return; // Prevent recursive calls
     watchingPatientExaminationIds.value = true;
-    console.log('Current Examination ID changed:', { newVal, oldVal });
+    debugLog('Current Examination ID changed:', { newVal, oldVal });
     if (newVal !== oldVal) {
         // Trigger evaluation when examination changes
         patientExaminationStore.setCurrentPatientExaminationId(newVal);
     }
     watchingPatientExaminationIds.value = false;
 });
-const selectionsPretty = computed(() => JSON.stringify({
-    token: lookupToken.value,
-    selectedRequirementSetIds: selectedRequirementSetIds.value,
-}, null, 2));
 // --- Finding Management Methods ---
 const isFindingAddedToExamination = (findingId) => {
     return isFindingAttached(lookup.value?.patientExaminationId ?? null, findingId);
@@ -122,7 +188,7 @@ const onFindingAddedToExamination = (findingIdOrData, findingName) => {
         selectedClassifications = findingIdOrData.selectedClassifications || [];
         response = findingIdOrData.response;
     }
-    console.log('Finding added to examination:', {
+    debugLog('Finding added to examination:', {
         findingId,
         name,
         selectedClassifications: selectedClassifications.length,
@@ -144,7 +210,7 @@ const onFindingAddedToExamination = (findingIdOrData, findingName) => {
 };
 const onClassificationUpdated = (findingId, classificationId, choiceId) => {
     // Handle when a classification choice is updated
-    console.log('Classification updated:', { findingId, classificationId, choiceId });
+    debugLog('Classification updated:', { findingId, classificationId, choiceId });
     // Get finding and classification names for better user feedback
     const findingName = getFindingNameById(findingId);
     // Show success message
@@ -169,19 +235,19 @@ const loadFindingsData = async () => {
 // Evaluate requirements when findings are added/removed
 const evaluateRequirementsOnChange = async () => {
     if (!lookup.value || !lookupToken.value) {
-        console.log('Skipping evaluation: lookup or token not available');
+        debugLog('Skipping evaluation: case data or token not available');
         return;
     }
     if (!lookup.value.patientExaminationId) {
-        console.log('Skipping evaluation: patientExaminationId not available in lookup', lookup.value);
+        debugLog('Skipping evaluation: patientExaminationId not available in case data', lookup.value);
         return;
     }
     try {
-        console.log('Evaluating requirements based on current lookup data...');
+        debugLog('Evaluating requirements based on current case data...');
         // Use the requirement store to evaluate from lookup data
         await requirementStore.evaluateFromLookupData(lookup.value);
         // Update UI with evaluation results
-        console.log('Requirements evaluated successfully');
+        debugLog('Requirements evaluated successfully');
         // Show success message
         successMessage.value = 'Anforderungen wurden erfolgreich evaluiert!';
         setTimeout(() => {
@@ -198,10 +264,10 @@ const evaluateRequirementSet = async (requirementSetId) => {
     if (!lookup.value || !lookupToken.value)
         return;
     try {
-        console.log('Evaluating requirement set:', requirementSetId);
+        debugLog('Evaluating requirement set:', requirementSetId);
         // Use the requirement store to evaluate specific requirement set
         await requirementStore.evaluateRequirementSet(requirementSetId, lookup.value.patientExaminationId);
-        console.log('Requirement set evaluated successfully');
+        debugLog('Requirement set evaluated successfully');
     }
     catch (err) {
         console.error('Error evaluating requirement set:', err);
@@ -211,10 +277,6 @@ const evaluateRequirementSet = async (requirementSetId) => {
 // Get evaluation status for a requirement set
 const getRequirementSetEvaluationStatus = (requirementSetId) => {
     return requirementStore.getRequirementSetEvaluationStatus(requirementSetId);
-};
-// Get evaluation status for a specific requirement
-const getRequirementEvaluationStatus = (requirementId) => {
-    return requirementStore.getRequirementEvaluationStatus(requirementId);
 };
 // Computed properties for evaluation status
 const evaluationSummary = computed(() => {
@@ -228,6 +290,7 @@ const evaluationSummary = computed(() => {
         completionPercentage: totalSets > 0 ? Math.round((evaluatedSets / totalSets) * 100) : 0
     };
 });
+const requirementSetEvaluationMap = computed(() => Object.fromEntries(requirementSets.value.map((rs) => [rs.id, getRequirementSetEvaluationStatus(rs.id)])));
 // --- Methods ---
 function axiosError(e) {
     if (e?.response?.data?.detail)
@@ -246,7 +309,7 @@ function applyLookup(partial) {
 }
 async function createPatientExaminationAndInitLookup() {
     if (isRestarting.value) {
-        console.log('Restart already in progress, skipping createPatientExaminationAndInitLookup...');
+        debugLog('Restart already in progress, skipping createPatientExaminationAndInitLookup...');
         return;
     }
     if (!selectedPatientId.value || !selectedExaminationId.value) {
@@ -266,7 +329,7 @@ async function createPatientExaminationAndInitLookup() {
         error.value = "Ausgewählte Untersuchung nicht gefunden.";
         return;
     }
-    console.log('Creating PatientExamination with:', {
+    debugLog('Creating PatientExamination with:', {
         patientId: selectedPatientId.value,
         examinationName: selectedExam.name,
         examinationId: selectedExam.id
@@ -287,9 +350,7 @@ async function createPatientExaminationAndInitLookup() {
             throw new Error('Selected examination not found');
         }
         // Format patient birth date for backend (ISO date format)
-        const formattedBirthDate = selectedPatient.dob
-            ? new Date(selectedPatient.dob).toISOString().split('T')[0]
-            : null;
+        const formattedBirthDate = extractIsoDate(selectedPatient.dob);
         const peRes = await axiosInstance.post(r(endpoints.examination.patientExaminationCreate), {
             patient: selectedPatient.patientHash || `patient_${selectedPatient.id}`,
             examination: selectedExam.name,
@@ -299,14 +360,14 @@ async function createPatientExaminationAndInitLookup() {
             patient_gender: selectedPatient.gender || null,
         });
         patientExaminationStore.addPatientExamination(peRes.data);
-        console.log('PatientExamination created:', peRes.data);
+        debugLog('PatientExamination created:', peRes.data);
         currentPatientExaminationId.value = peRes.data.id;
         // Step 2: Init lookup with the new PatientExamination ID
         const initRes = await axiosInstance.post(`${LOOKUP_BASE}/init/`, {
             patientExaminationId: currentPatientExaminationId.value
         });
         lookupToken.value = initRes.data.token;
-        console.log('Lookup initialized with token:', lookupToken.value);
+        debugLog('Lookup initialized with token:', lookupToken.value);
         // Start heartbeat for token renewal
         startHeartbeat();
         // Step 3: Load findings data
@@ -329,13 +390,13 @@ async function fetchLookupAll() {
     loading.value = true;
     try {
         const res = await axiosInstance.get(`${LOOKUP_BASE}/${lookupToken.value}/all/?skip_recompute=true`);
-        console.log('Lookup API response:', res.data); // Debug log
+        debugLog('Lookup API response:', res.data);
         applyLookup(res.data);
     }
     catch (e) {
         // Handle token expiration
         if (e?.response?.status === 404) {
-            error.value = 'Lookup-Sitzung ist abgelaufen. Starte neu...';
+            error.value = 'Der technische Fallkontext ist abgelaufen. Ein neuer Stand wird vorbereitet...';
             lookupToken.value = null;
             lookup.value = null;
             stopHeartbeat();
@@ -344,7 +405,7 @@ async function fetchLookupAll() {
             // Try to automatically restart the session
             const restarted = await restartLookupSession();
             if (!restarted) {
-                error.value = 'Lookup-Sitzung ist abgelaufen. Bitte starten Sie manuell neu.';
+                error.value = 'Der Fallkontext ist abgelaufen. Bitte den Fall erneut starten.';
             }
         }
         else {
@@ -368,7 +429,7 @@ async function fetchLookupParts(keys) {
     catch (e) {
         // Handle token expiration
         if (e?.response?.status === 404) {
-            error.value = 'Lookup-Sitzung ist abgelaufen. Starte neu...';
+            error.value = 'Der technische Fallkontext ist abgelaufen. Ein neuer Stand wird vorbereitet...';
             lookupToken.value = null;
             lookup.value = null;
             stopHeartbeat();
@@ -377,7 +438,7 @@ async function fetchLookupParts(keys) {
             // Try to automatically restart the session
             const restarted = await restartLookupSession();
             if (!restarted) {
-                error.value = 'Lookup-Sitzung ist abgelaufen. Bitte starten Sie manuell neu.';
+                error.value = 'Der Fallkontext ist abgelaufen. Bitte den Fall erneut starten.';
             }
         }
         else {
@@ -398,7 +459,7 @@ async function patchLookup(updates) {
     catch (e) {
         // Handle token expiration
         if (e?.response?.status === 404) {
-            error.value = 'Lookup-Sitzung ist abgelaufen. Bitte starten Sie erneut.';
+            error.value = 'Der Fallkontext ist abgelaufen. Bitte den Fall erneut starten.';
             lookupToken.value = null;
             lookup.value = null;
             stopHeartbeat();
@@ -424,6 +485,25 @@ function toggleRequirementSet(id, on) {
         triggerRecompute();
     }
 }
+function updateRequirementSelection(ids) {
+    selectedRequirementSetIds.value = Array.from(new Set(ids));
+    patchLookup({ selectedRequirementSetIds: selectedRequirementSetIds.value });
+    requirementStore.setCurrentRequirementSetIds(selectedRequirementSetIds.value);
+    if (lookupToken.value) {
+        triggerRecompute();
+    }
+}
+function applyRecommendedRequirementSets() {
+    if (!candidateRequirementSetIds.value.length)
+        return;
+    updateRequirementSelection(candidateRequirementSetIds.value);
+}
+function selectAllRequirementSets() {
+    updateRequirementSelection(requirementSets.value.map((set) => set.id));
+}
+function clearRequirementSetSelection() {
+    updateRequirementSelection([]);
+}
 async function triggerRecompute() {
     if (patientStore.currentPatient && patientStore.currentPatient.id !== selectedPatientId.value) {
         console.warn('Selected patient ID does not match patient store name. Reloading...');
@@ -432,9 +512,9 @@ async function triggerRecompute() {
     if (!lookupToken.value)
         return;
     try {
-        console.log('Triggering recomputation for selected requirement sets:', selectedRequirementSetIds.value);
+        debugLog('Triggering recomputation for selected requirement sets:', selectedRequirementSetIds.value);
         const res = await axiosInstance.post(`${LOOKUP_BASE}/${lookupToken.value}/recompute/`);
-        console.log('Recompute response:', res.data);
+        debugLog('Recompute response:', res.data);
         // Update local lookup data with recomputed results
         if (res.data.updates) {
             applyLookup(res.data.updates);
@@ -451,25 +531,6 @@ async function triggerRecompute() {
         error.value = 'Fehler bei der Neuberechnung: ' + axiosError(e);
     }
 }
-function closeCreatePatientModal() {
-    showCreatePatientModal.value = false;
-    // Store-Fehler löschen beim Schließen
-    patientStore.clearError();
-}
-function onPatientCreated(patient) {
-    // Patient wurde erfolgreich erstellt - automatisch auswählen
-    selectedPatientId.value = patient.id || null;
-    // Modal schließen
-    showCreatePatientModal.value = false;
-    // Store-Fehler löschen (falls vorhanden)
-    patientStore.clearError();
-    // Erfolgsmeldung anzeigen
-    successMessage.value = `Patient "${patient.firstName} ${patient.lastName}" wurde erfolgreich erstellt und ausgewählt!`;
-    // Nach 5 Sekunden ausblenden
-    setTimeout(() => {
-        successMessage.value = null;
-    }, 5000);
-}
 async function validateToken() {
     if (!lookupToken.value)
         return false;
@@ -481,62 +542,19 @@ async function validateToken() {
     catch (e) {
         if (e?.response?.status === 404) {
             // Token expired - trigger restart
-            console.log('Token validation failed with 404, attempting restart...');
+            debugLog('Token validation failed with 404, attempting restart...');
             lookupToken.value = null;
             lookup.value = null;
-            error.value = 'Lookup-Sitzung ist abgelaufen. Starte neu...';
+            error.value = 'Der technische Fallkontext ist abgelaufen. Ein neuer Stand wird vorbereitet...';
             // Try to restart the session
             const restarted = await restartLookupSession();
             if (!restarted) {
-                error.value = 'Lookup-Sitzung ist abgelaufen. Bitte starten Sie manuell neu.';
+                error.value = 'Der Fallkontext ist abgelaufen. Bitte den Fall erneut starten.';
             }
             return false;
         }
         return false;
     }
-}
-async function renewLookupSession() {
-    if (!lookupToken.value || !currentPatientExaminationId.value)
-        return;
-    try {
-        // Renew the token by updating it with current data
-        const currentData = lookup.value;
-        if (currentData) {
-            await axiosInstance.patch(`${LOOKUP_BASE}/${lookupToken.value}/parts/`, {
-                updates: currentData
-            });
-        }
-    }
-    catch (e) {
-        console.warn('Failed to renew lookup sitzung:', e);
-        // Don't show error to user, just log it
-    }
-}
-function manualRenewSession() {
-    if (!lookupToken.value)
-        return;
-    loading.value = true;
-    error.value = null;
-    axiosInstance.get(`${LOOKUP_BASE}/${lookupToken.value}/parts/?keys=patientExaminationId`)
-        .then(() => {
-        return axiosInstance.patch(`${LOOKUP_BASE}/${lookupToken.value}/parts/`, { updates: {} });
-    })
-        .then(() => {
-        fetchLookupAll();
-    })
-        .catch((e) => {
-        error.value = axiosError(e);
-        if (e?.response?.status === 404) {
-            // Token expired
-            lookupToken.value = null;
-            lookup.value = null;
-            error.value = 'Lookup-Session ist abgelaufen. Bitte starten Sie erneut.';
-            stopHeartbeat();
-        }
-    })
-        .finally(() => {
-        loading.value = false;
-    });
 }
 function resetLookupSession() {
     lookupToken.value = null;
@@ -550,7 +568,7 @@ function resetLookupSession() {
     localStorage.removeItem(PATIENT_EXAM_STORAGE_KEY);
 }
 async function resetSessionForNewPatient() {
-    console.log('Resetting session for new patient...');
+    debugLog('Resetting session for new patient...');
     // Clear current session state
     lookupToken.value = null;
     lookup.value = null;
@@ -563,14 +581,14 @@ async function resetSessionForNewPatient() {
     localStorage.removeItem(PATIENT_EXAM_STORAGE_KEY);
     // Clear requirement store state
     requirementStore.reset();
-    console.log('Session reset complete for new patient');
+    debugLog('Session reset complete for new patient');
 }
 async function restartLookupSession() {
     if (isRestarting.value) {
-        console.log('Restart already in progress, skipping...');
+        debugLog('Restart already in progress, skipping...');
         return false;
     }
-    console.log('Attempting to restart lookup session...');
+    debugLog('Attempting to restart lookup session...');
     isRestarting.value = true;
     try {
         // Reset current session state
@@ -583,9 +601,9 @@ async function restartLookupSession() {
         // Check if we have an existing patient examination
         if (currentPatientExaminationId.value && selectedPatientId.value && selectedExaminationId.value) {
             // Reuse existing patient examination - just reinitialize lookup
-            console.log('Reusing existing patient examination:', currentPatientExaminationId.value);
-            console.log('selectedPatientId:', selectedPatientId.value);
-            console.log('selectedExaminationId:', selectedExaminationId.value);
+            debugLog('Reusing existing patient examination:', currentPatientExaminationId.value);
+            debugLog('selectedPatientId:', selectedPatientId.value);
+            debugLog('selectedExaminationId:', selectedExaminationId.value);
             const initRes = await axiosInstance.post(`${LOOKUP_BASE}/init/`, {
                 patientExaminationId: currentPatientExaminationId.value
             });
@@ -594,7 +612,7 @@ async function restartLookupSession() {
             startHeartbeat();
             // Fetch all lookup data
             await fetchLookupAll();
-            successMessage.value = 'Lookup-Session wurde erfolgreich neu gestartet!';
+            successMessage.value = 'Der Fallkontext wurde erfolgreich neu aufgebaut.';
             setTimeout(() => {
                 successMessage.value = null;
             }, 3000);
@@ -602,12 +620,12 @@ async function restartLookupSession() {
         }
         else {
             // No existing patient examination, create new one
-            console.log('No existing patient examination, creating new one');
-            console.log('currentPatientExaminationId:', currentPatientExaminationId.value);
-            console.log('selectedPatientId:', selectedPatientId.value);
-            console.log('selectedExaminationId:', selectedExaminationId.value);
+            debugLog('No existing patient examination, creating new one');
+            debugLog('currentPatientExaminationId:', currentPatientExaminationId.value);
+            debugLog('selectedPatientId:', selectedPatientId.value);
+            debugLog('selectedExaminationId:', selectedExaminationId.value);
             if (!selectedPatientId.value || !selectedExaminationId.value) {
-                error.value = 'Kann Session nicht automatisch neu starten: Patient oder Untersuchung fehlt.';
+                error.value = 'Der Fallkontext konnte nicht automatisch neu aufgebaut werden: Patient oder Untersuchung fehlt.';
                 return false;
             }
             await createPatientExaminationAndInitLookup();
@@ -616,7 +634,7 @@ async function restartLookupSession() {
     }
     catch (e) {
         console.error('Failed to restart lookup session:', e);
-        error.value = 'Fehler beim Neustart der Lookup-Session: ' + axiosError(e);
+        error.value = 'Fehler beim Neuaufbau des Fallkontexts: ' + axiosError(e);
         return false;
     }
     finally {
@@ -640,21 +658,6 @@ function stopHeartbeat() {
     if (heartbeatInterval) {
         clearInterval(heartbeatInterval);
         heartbeatInterval = null;
-    }
-}
-// --- Session management ---
-const sessionWarningShown = ref(false);
-function showSessionExpiryWarning() {
-    if (!sessionWarningShown.value && lookupToken.value) {
-        error.value = 'Hinweis: Ihre Lookup-Session läuft bald ab. Speichern Sie Ihre Arbeit.';
-        sessionWarningShown.value = true;
-        // Clear warning after 10 seconds
-        setTimeout(() => {
-            if (error.value === 'Hinweis: Ihre Lookup-Session läuft bald ab. Speichern Sie Ihre Arbeit.') {
-                error.value = null;
-            }
-            sessionWarningShown.value = false;
-        }, 10000);
     }
 }
 // --- Token persistence ---
@@ -688,7 +691,7 @@ watch(currentPatientExaminationId, (newId) => {
 });
 // --- Watchers ---
 watch(selectedExaminationId, (newId) => {
-    console.log('Examination selection changed:', {
+    debugLog('Examination selection changed:', {
         newId,
         selectedPatientId: selectedPatientId.value,
         availableExams: examinationsDropdown.value.map(e => ({ id: e.id, name: e.name }))
@@ -699,7 +702,7 @@ watch(selectedExaminationId, (newId) => {
     }
 });
 watch(selectedPatientId, async (newPatientId, oldPatientId) => {
-    console.log('Patient selection changed:', {
+    debugLog('Patient selection changed:', {
         oldPatientId,
         newPatientId,
         currentExaminationsCount: examinationsDropdown.value.length
@@ -708,21 +711,21 @@ watch(selectedPatientId, async (newPatientId, oldPatientId) => {
     selectedExaminationId.value = null;
     // If patient actually changed (not just initialized), reset the session
     if (oldPatientId && newPatientId !== oldPatientId) {
-        console.log('Patient changed, resetting session for new overview...');
+        debugLog('Patient changed, resetting session for new overview...');
         await resetSessionForNewPatient();
     }
 });
 // Watch for changes in selected requirement sets to trigger evaluation
 watch(selectedRequirementSetIds, async (newIds, oldIds) => {
     if (newIds.length !== oldIds.length && lookup.value) {
-        console.log('Requirement set selection changed, triggering evaluation...');
+        debugLog('Requirement set selection changed, triggering evaluation...');
         await evaluateRequirementsOnChange();
     }
 }, { deep: true });
 // Watch for lookup data changes to trigger evaluation
 watch(lookup, async (newLookup, oldLookup) => {
     if (newLookup && newLookup !== oldLookup && selectedRequirementSetIds.value.length > 0) {
-        console.log('Lookup data changed, triggering evaluation...');
+        debugLog('Lookup data changed, triggering evaluation...');
         // Debounce evaluation to avoid excessive API calls
         setTimeout(() => {
             evaluateRequirementsOnChange();
@@ -732,44 +735,50 @@ watch(lookup, async (newLookup, oldLookup) => {
 // Watch for lookup data changes to load requirement sets
 watch(lookup, (newLookup) => {
     if (newLookup && newLookup.requirementsBySet) {
-        console.log('Loading requirement sets from lookup data...');
+        debugLog('Loading requirement sets from lookup data...');
         requirementStore.loadRequirementSetsFromLookup(newLookup);
     }
 }, { immediate: true });
 // --- Lifecycle ---
 onMounted(async () => {
-    console.log('Component mounted, starting data loading...');
-    // Patienten und Untersuchungen laden
-    await Promise.all([
-        patientStore.fetchPatients(),
-        examinationStore.fetchExaminations()
-    ]);
-    console.log('Data loading completed:', {
-        patientsCount: patients.value.length,
-        examinationsCount: examinationsDropdown.value.length
-    });
-    // Nachschlagedaten für Patientenerstellung laden
-    await patientStore.initializeLookupData();
-    // Validate existing token if present (e.g., after page reload)
-    if (lookupToken.value) {
-        console.log('Validating existing token:', lookupToken.value);
-        const isValid = await validateToken();
-        if (!isValid) {
-            lookupToken.value = null;
-            lookup.value = null;
-            currentPatientExaminationId.value = null; // Clear this too
-            stopHeartbeat();
-            localStorage.removeItem(TOKEN_STORAGE_KEY);
-            localStorage.removeItem(PATIENT_EXAM_STORAGE_KEY);
+    debugLog('Component mounted, starting data loading...');
+    try {
+        // Patienten und Untersuchungen laden
+        await Promise.all([
+            patientStore.fetchPatients(),
+            examinationStore.fetchExaminations()
+        ]);
+        debugLog('Data loading completed:', {
+            patientsCount: patients.value.length,
+            examinationsCount: examinationsDropdown.value.length
+        });
+        // Nachschlagedaten für Patientenerstellung laden
+        await patientStore.initializeLookupData();
+        // Validate existing token if present (e.g., after page reload)
+        if (lookupToken.value) {
+            debugLog('Validating existing token:', lookupToken.value);
+            const isValid = await validateToken();
+            if (!isValid) {
+                lookupToken.value = null;
+                lookup.value = null;
+                currentPatientExaminationId.value = null; // Clear this too
+                stopHeartbeat();
+                localStorage.removeItem(TOKEN_STORAGE_KEY);
+                localStorage.removeItem(PATIENT_EXAM_STORAGE_KEY);
+            }
+            else {
+                // Token is valid, fetch current data and start heartbeat
+                await fetchLookupAll();
+                startHeartbeat();
+            }
         }
-        else {
-            // Token is valid, fetch current data and start heartbeat
-            await fetchLookupAll();
-            startHeartbeat();
-        }
+        // Load findings data on component mount
+        await loadFindingsData();
     }
-    // Load findings data on component mount
-    await loadFindingsData();
+    catch (e) {
+        console.error('Error during initial reporting setup:', e);
+        error.value = 'Fehler beim Laden der Falldaten: ' + axiosError(e);
+    }
 });
 onUnmounted(() => {
     stopHeartbeat();
@@ -791,208 +800,76 @@ let __VLS_directives;
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "requirement-generator container-fluid py-4" },
 });
-__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "card mb-3" },
-});
-__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "card-header" },
-});
-__VLS_asFunctionalElement(__VLS_intrinsicElements.h2, __VLS_intrinsicElements.h2)({
-    ...{ class: "h5 mb-0" },
-});
-__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "card-body" },
-});
-__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "row align-items-end" },
-});
-__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "col-md-6" },
-});
-__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "form-group" },
-});
-__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "d-flex justify-content-between align-items-center mb-2" },
-});
-__VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
-    for: "patient-select",
-});
-__VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
-    id: "patient-select",
-    value: (__VLS_ctx.selectedPatientId),
-    ...{ class: "form-control" },
-    disabled: (__VLS_ctx.isLoadingPatients || __VLS_ctx.loading),
-});
-__VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-    value: (null),
-    disabled: true,
-});
-(__VLS_ctx.isLoadingPatients ? 'Lade Patienten...' : 'Bitte wählen Sie einen Patienten');
-for (const [patient] of __VLS_getVForSourceType((__VLS_ctx.patients))) {
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-        key: (patient.id),
-        value: (patient.id),
-    });
-    (patient.displayName);
-}
-if (__VLS_ctx.selectedPatientId) {
+/** @type {[typeof CaseSetupPanel, ]} */ ;
+// @ts-ignore
+const __VLS_0 = __VLS_asFunctionalComponent(CaseSetupPanel, new CaseSetupPanel({
+    ...{ 'onUpdate:selectedPatientId': {} },
+    ...{ 'onUpdate:selectedExaminationId': {} },
+    ...{ 'onCreateCase': {} },
+    selectedPatientId: (__VLS_ctx.selectedPatientId),
+    selectedExaminationId: (__VLS_ctx.selectedExaminationId),
+    selectedPatientDisplayName: (__VLS_ctx.selectedPatientDisplayName),
+    selectedExaminationDisplayName: (__VLS_ctx.selectedExaminationDisplayName),
+    patients: (__VLS_ctx.patients),
+    examinationsDropdown: (__VLS_ctx.examinationsDropdown),
+    isLoadingPatients: (__VLS_ctx.isLoadingPatients),
+    isLoadingExaminations: (__VLS_ctx.isLoadingExaminations),
+    loading: (__VLS_ctx.loading),
+    hasActiveSession: (!!__VLS_ctx.lookupToken),
+}));
+const __VLS_1 = __VLS_0({
+    ...{ 'onUpdate:selectedPatientId': {} },
+    ...{ 'onUpdate:selectedExaminationId': {} },
+    ...{ 'onCreateCase': {} },
+    selectedPatientId: (__VLS_ctx.selectedPatientId),
+    selectedExaminationId: (__VLS_ctx.selectedExaminationId),
+    selectedPatientDisplayName: (__VLS_ctx.selectedPatientDisplayName),
+    selectedExaminationDisplayName: (__VLS_ctx.selectedExaminationDisplayName),
+    patients: (__VLS_ctx.patients),
+    examinationsDropdown: (__VLS_ctx.examinationsDropdown),
+    isLoadingPatients: (__VLS_ctx.isLoadingPatients),
+    isLoadingExaminations: (__VLS_ctx.isLoadingExaminations),
+    loading: (__VLS_ctx.loading),
+    hasActiveSession: (!!__VLS_ctx.lookupToken),
+}, ...__VLS_functionalComponentArgsRest(__VLS_0));
+let __VLS_3;
+let __VLS_4;
+let __VLS_5;
+const __VLS_6 = {
+    'onUpdate:selectedPatientId': (...[$event]) => {
+        __VLS_ctx.selectedPatientId = $event;
+    }
+};
+const __VLS_7 = {
+    'onUpdate:selectedExaminationId': (...[$event]) => {
+        __VLS_ctx.selectedExaminationId = $event;
+    }
+};
+const __VLS_8 = {
+    onCreateCase: (__VLS_ctx.createPatientExaminationAndInitLookup)
+};
+var __VLS_2;
+if (__VLS_ctx.error) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "mt-2" },
+        ...{ class: "alert alert-danger alert-dismissible" },
     });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
-        ...{ class: "text-muted" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-info-circle" },
-    });
-}
-__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "col-md-6" },
-});
-__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "form-group" },
-});
-__VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
-    for: "examination-select",
-});
-__VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
-    id: "examination-select",
-    value: (__VLS_ctx.selectedExaminationId),
-    ...{ class: "form-control" },
-    disabled: (__VLS_ctx.isLoadingExaminations || !__VLS_ctx.selectedPatientId || __VLS_ctx.loading),
-});
-__VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-    value: (null),
-    disabled: true,
-});
-(__VLS_ctx.isLoadingExaminations ? 'Lade Untersuchungen...' : 'Bitte wählen Sie eine Untersuchung');
-for (const [exam] of __VLS_getVForSourceType((__VLS_ctx.examinationsDropdown))) {
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-        key: (exam.id),
-        value: (exam.id),
-    });
-    (exam.displayName);
-}
-__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "row mt-3" },
-});
-__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "col-12" },
-});
-__VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-    ...{ onClick: (__VLS_ctx.createPatientExaminationAndInitLookup) },
-    ...{ class: "btn btn-primary" },
-    disabled: (!__VLS_ctx.selectedPatientId || !__VLS_ctx.selectedExaminationId || __VLS_ctx.loading || !!__VLS_ctx.lookupToken),
-});
-if (__VLS_ctx.loading) {
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-        ...{ class: "spinner-border spinner-border-sm" },
-        role: "status",
-        'aria-hidden': "true",
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+    (__VLS_ctx.error);
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+        ...{ onClick: (...[$event]) => {
+                if (!(__VLS_ctx.error))
+                    return;
+                __VLS_ctx.error = null;
+            } },
+        type: "button",
+        ...{ class: "btn-close" },
     });
 }
-if (!__VLS_ctx.lookupToken) {
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
-}
-else {
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
-}
-if (__VLS_ctx.lookup && __VLS_ctx.isDebug) {
+if (__VLS_ctx.lookup) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "row g-3" },
     });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "col-12" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "card" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "card-header" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.h2, __VLS_intrinsicElements.h2)({
-        ...{ class: "h6 mb-0" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "card-body" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "row" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "col-md-4" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
-    (__VLS_ctx.lookup.patientExaminationId || 'Nicht verfügbar');
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "col-md-4" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
-    (__VLS_ctx.lookupToken);
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "col-md-4" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
-    (__VLS_ctx.requirementSets.length);
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "row mt-2" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "col-md-6" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
-    (__VLS_ctx.selectedRequirementSetIds.join(', ') || 'Keine');
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "col-md-6" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
-    (__VLS_ctx.availableFindings.length);
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "col-12 col-xl-6" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "card h-100" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "card-header d-flex justify-content-between align-items-center" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.h2, __VLS_intrinsicElements.h2)({
-        ...{ class: "h5 mb-0" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
-        ...{ class: "text-muted" },
-    });
-    (__VLS_ctx.lookupToken);
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "d-flex gap-2" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-        ...{ onClick: (__VLS_ctx.fetchLookupAll) },
-        ...{ class: "btn btn-sm btn-outline-secondary" },
-        disabled: (__VLS_ctx.loading),
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-        ...{ onClick: (__VLS_ctx.triggerRecompute) },
-        ...{ class: "btn btn-sm btn-outline-info" },
-        disabled: (__VLS_ctx.loading || !__VLS_ctx.lookupToken),
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-        ...{ onClick: (__VLS_ctx.manualRenewSession) },
-        ...{ class: "btn btn-sm btn-outline-info" },
-        disabled: (__VLS_ctx.loading || !__VLS_ctx.lookupToken),
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-        ...{ onClick: (__VLS_ctx.resetLookupSession) },
-        ...{ class: "btn btn-sm btn-outline-danger" },
-        disabled: (__VLS_ctx.loading || !__VLS_ctx.lookupToken),
-    });
-    if (__VLS_ctx.lookup) {
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: "row g-3 mt-3 card-body pre-scrollable" },
-            ...{ style: {} },
-        });
+    if (__VLS_ctx.lookup && __VLS_ctx.isDebug) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: "col-12" },
         });
@@ -1003,168 +880,241 @@ if (__VLS_ctx.lookup && __VLS_ctx.isDebug) {
             ...{ class: "card-header" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.h2, __VLS_intrinsicElements.h2)({
-            ...{ class: "h5 mb-0" },
+            ...{ class: "h6 mb-0" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: "card-body" },
         });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "row" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "col-md-4" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+        (__VLS_ctx.lookup.patientExaminationId || 'Nicht verfügbar');
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "col-md-4" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+        (__VLS_ctx.lookupToken);
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "col-md-4" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+        (__VLS_ctx.requirementSets.length);
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "row mt-2" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "col-md-6" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+        (__VLS_ctx.selectedRequirementSetIds.join(', ') || 'Keine');
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "col-md-6" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+        (__VLS_ctx.availableFindings.length);
+    }
+    /** @type {[typeof RequirementSelectionPanel, ]} */ ;
+    // @ts-ignore
+    const __VLS_9 = __VLS_asFunctionalComponent(RequirementSelectionPanel, new RequirementSelectionPanel({
+        ...{ 'onRefresh': {} },
+        ...{ 'onRecompute': {} },
+        ...{ 'onResetSession': {} },
+        ...{ 'onApplyRecommended': {} },
+        ...{ 'onSelectAll': {} },
+        ...{ 'onClearSelection': {} },
+        ...{ 'onEvaluateAll': {} },
+        ...{ 'onEvaluateSet': {} },
+        ...{ 'onToggleSet': {} },
+        loading: (__VLS_ctx.loading),
+        caseActive: (!!__VLS_ctx.lookupToken),
+        selectedPatientDisplayName: (__VLS_ctx.selectedPatientDisplayName),
+        selectedExaminationDisplayName: (__VLS_ctx.selectedExaminationDisplayName),
+        selectedRequirementSetIds: (__VLS_ctx.selectedRequirementSetIds),
+        selectedRequirementSetIdSet: (__VLS_ctx.selectedRequirementSetIdSet),
+        requirementSets: (__VLS_ctx.requirementSets),
+        unmetRequirementCount: (__VLS_ctx.unmetRequirementCount),
+        suggestedActionCount: (__VLS_ctx.suggestedActionCount),
+        nextStepMessage: (__VLS_ctx.nextStepMessage),
+        candidateRequirementSetIds: (__VLS_ctx.candidateRequirementSetIds),
+        candidateRequirementSetConfidence: (__VLS_ctx.candidateRequirementSetConfidence),
+        suggestedActionEntries: (__VLS_ctx.suggestedActionEntries),
+        evaluationSummary: (__VLS_ctx.evaluationSummary),
+        requirementSetStatus: (__VLS_ctx.requirementSetEvaluationMap),
+    }));
+    const __VLS_10 = __VLS_9({
+        ...{ 'onRefresh': {} },
+        ...{ 'onRecompute': {} },
+        ...{ 'onResetSession': {} },
+        ...{ 'onApplyRecommended': {} },
+        ...{ 'onSelectAll': {} },
+        ...{ 'onClearSelection': {} },
+        ...{ 'onEvaluateAll': {} },
+        ...{ 'onEvaluateSet': {} },
+        ...{ 'onToggleSet': {} },
+        loading: (__VLS_ctx.loading),
+        caseActive: (!!__VLS_ctx.lookupToken),
+        selectedPatientDisplayName: (__VLS_ctx.selectedPatientDisplayName),
+        selectedExaminationDisplayName: (__VLS_ctx.selectedExaminationDisplayName),
+        selectedRequirementSetIds: (__VLS_ctx.selectedRequirementSetIds),
+        selectedRequirementSetIdSet: (__VLS_ctx.selectedRequirementSetIdSet),
+        requirementSets: (__VLS_ctx.requirementSets),
+        unmetRequirementCount: (__VLS_ctx.unmetRequirementCount),
+        suggestedActionCount: (__VLS_ctx.suggestedActionCount),
+        nextStepMessage: (__VLS_ctx.nextStepMessage),
+        candidateRequirementSetIds: (__VLS_ctx.candidateRequirementSetIds),
+        candidateRequirementSetConfidence: (__VLS_ctx.candidateRequirementSetConfidence),
+        suggestedActionEntries: (__VLS_ctx.suggestedActionEntries),
+        evaluationSummary: (__VLS_ctx.evaluationSummary),
+        requirementSetStatus: (__VLS_ctx.requirementSetEvaluationMap),
+    }, ...__VLS_functionalComponentArgsRest(__VLS_9));
+    let __VLS_12;
+    let __VLS_13;
+    let __VLS_14;
+    const __VLS_15 = {
+        onRefresh: (__VLS_ctx.fetchLookupAll)
+    };
+    const __VLS_16 = {
+        onRecompute: (__VLS_ctx.triggerRecompute)
+    };
+    const __VLS_17 = {
+        onResetSession: (__VLS_ctx.resetLookupSession)
+    };
+    const __VLS_18 = {
+        onApplyRecommended: (__VLS_ctx.applyRecommendedRequirementSets)
+    };
+    const __VLS_19 = {
+        onSelectAll: (__VLS_ctx.selectAllRequirementSets)
+    };
+    const __VLS_20 = {
+        onClearSelection: (__VLS_ctx.clearRequirementSetSelection)
+    };
+    const __VLS_21 = {
+        onEvaluateAll: (__VLS_ctx.evaluateRequirementsOnChange)
+    };
+    const __VLS_22 = {
+        onEvaluateSet: (__VLS_ctx.evaluateRequirementSet)
+    };
+    const __VLS_23 = {
+        onToggleSet: (__VLS_ctx.toggleRequirementSet)
+    };
+    var __VLS_11;
+    /** @type {[typeof KnowledgeBaseValidationPanel, typeof KnowledgeBaseValidationPanel, ]} */ ;
+    // @ts-ignore
+    const __VLS_24 = __VLS_asFunctionalComponent(KnowledgeBaseValidationPanel, new KnowledgeBaseValidationPanel({
+        ...{ 'onRefreshFindings': {} },
+        loading: (__VLS_ctx.loading),
+        findingsSectionLoading: (__VLS_ctx.findingsSectionLoading),
+        availableFindings: (__VLS_ctx.availableFindings),
+        isDebug: (__VLS_ctx.isDebug),
+    }));
+    const __VLS_25 = __VLS_24({
+        ...{ 'onRefreshFindings': {} },
+        loading: (__VLS_ctx.loading),
+        findingsSectionLoading: (__VLS_ctx.findingsSectionLoading),
+        availableFindings: (__VLS_ctx.availableFindings),
+        isDebug: (__VLS_ctx.isDebug),
+    }, ...__VLS_functionalComponentArgsRest(__VLS_24));
+    let __VLS_27;
+    let __VLS_28;
+    let __VLS_29;
+    const __VLS_30 = {
+        onRefreshFindings: (__VLS_ctx.loadFindingsData)
+    };
+    __VLS_26.slots.default;
+    {
+        const { adder: __VLS_thisSlot } = __VLS_26.slots;
         /** @type {[typeof AddableFindingsDetail, ]} */ ;
         // @ts-ignore
-        const __VLS_0 = __VLS_asFunctionalComponent(AddableFindingsDetail, new AddableFindingsDetail({
+        const __VLS_31 = __VLS_asFunctionalComponent(AddableFindingsDetail, new AddableFindingsDetail({
             ...{ 'onFindingAdded': {} },
             ...{ 'onFindingError': {} },
             examinationId: (__VLS_ctx.selectedExaminationId || undefined),
             patientExaminationId: (__VLS_ctx.currentPatientExaminationId || undefined),
         }));
-        const __VLS_1 = __VLS_0({
+        const __VLS_32 = __VLS_31({
             ...{ 'onFindingAdded': {} },
             ...{ 'onFindingError': {} },
             examinationId: (__VLS_ctx.selectedExaminationId || undefined),
             patientExaminationId: (__VLS_ctx.currentPatientExaminationId || undefined),
-        }, ...__VLS_functionalComponentArgsRest(__VLS_0));
-        let __VLS_3;
-        let __VLS_4;
-        let __VLS_5;
-        const __VLS_6 = {
+        }, ...__VLS_functionalComponentArgsRest(__VLS_31));
+        let __VLS_34;
+        let __VLS_35;
+        let __VLS_36;
+        const __VLS_37 = {
             onFindingAdded: (__VLS_ctx.onFindingAddedToExamination)
         };
-        const __VLS_7 = {
+        const __VLS_38 = {
             onFindingError: ((errorMsg) => __VLS_ctx.error = errorMsg)
         };
-        var __VLS_2;
+        var __VLS_33;
     }
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.ul, __VLS_intrinsicElements.ul)({
-        ...{ class: "list-group list-group-flush" },
-    });
-    for (const [rs] of __VLS_getVForSourceType((__VLS_ctx.requirementSets))) {
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({
-            key: (rs.id),
-            ...{ class: "list-group-item d-flex justify-content-between align-items-center" },
-        });
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: "flex-grow-1" },
-        });
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: "d-flex justify-content-between align-items-center" },
-        });
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-            ...{ class: "fw-semibold" },
-        });
-        (rs.name);
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: "d-flex align-items-center gap-2" },
-        });
-        if (__VLS_ctx.getRequirementSetEvaluationStatus(rs.id)) {
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-                ...{ class: "badge" },
-                ...{ class: (__VLS_ctx.getRequirementSetEvaluationStatus(rs.id).met ? 'bg-success' : 'bg-warning') },
-            });
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: "fas" },
-                ...{ class: (__VLS_ctx.getRequirementSetEvaluationStatus(rs.id).met ? 'fa-check' : 'fa-exclamation-triangle') },
-            });
-            (__VLS_ctx.getRequirementSetEvaluationStatus(rs.id).met ? 'Erfüllt' : 'Nicht erfüllt');
+    {
+        const { findings: __VLS_thisSlot } = __VLS_26.slots;
+        for (const [findingId] of __VLS_getVForSourceType((__VLS_ctx.availableFindings))) {
+            /** @type {[typeof FindingsDetail, ]} */ ;
+            // @ts-ignore
+            const __VLS_39 = __VLS_asFunctionalComponent(FindingsDetail, new FindingsDetail({
+                ...{ 'onAddedToExamination': {} },
+                ...{ 'onClassificationUpdated': {} },
+                key: (findingId),
+                findingId: (findingId),
+                isAddedToExamination: (__VLS_ctx.isFindingAddedToExamination(findingId)),
+                patientExaminationId: (__VLS_ctx.lookup?.patientExaminationId || undefined),
+            }));
+            const __VLS_40 = __VLS_39({
+                ...{ 'onAddedToExamination': {} },
+                ...{ 'onClassificationUpdated': {} },
+                key: (findingId),
+                findingId: (findingId),
+                isAddedToExamination: (__VLS_ctx.isFindingAddedToExamination(findingId)),
+                patientExaminationId: (__VLS_ctx.lookup?.patientExaminationId || undefined),
+            }, ...__VLS_functionalComponentArgsRest(__VLS_39));
+            let __VLS_42;
+            let __VLS_43;
+            let __VLS_44;
+            const __VLS_45 = {
+                onAddedToExamination: (__VLS_ctx.onFindingAddedToExamination)
+            };
+            const __VLS_46 = {
+                onClassificationUpdated: (__VLS_ctx.onClassificationUpdated)
+            };
+            var __VLS_41;
         }
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-            ...{ onClick: (...[$event]) => {
-                    if (!(__VLS_ctx.lookup && __VLS_ctx.isDebug))
-                        return;
-                    __VLS_ctx.evaluateRequirementSet(rs.id);
-                } },
-            ...{ class: "btn btn-sm btn-outline-info" },
-            disabled: (__VLS_ctx.loading),
-            title: "Anforderungsset evaluieren",
-        });
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "fas fa-calculator" },
-        });
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
-            ...{ class: "text-muted d-block" },
-        });
-        (rs.type);
-        if (__VLS_ctx.getRequirementSetEvaluationStatus(rs.id)) {
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: "mt-2" },
-            });
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
-                ...{ class: "text-muted" },
-            });
-            (__VLS_ctx.getRequirementSetEvaluationStatus(rs.id)?.metRequirementsCount);
-            (__VLS_ctx.getRequirementSetEvaluationStatus(rs.id)?.totalRequirementsCount);
+    }
+    {
+        const { issues: __VLS_thisSlot } = __VLS_26.slots;
+        if (__VLS_ctx.lookup) {
+            /** @type {[typeof RequirementIssues, ]} */ ;
+            // @ts-ignore
+            const __VLS_47 = __VLS_asFunctionalComponent(RequirementIssues, new RequirementIssues({
+                patientExaminationId: (__VLS_ctx.lookup.patientExaminationId || null),
+                requirementSetIds: (__VLS_ctx.selectedRequirementSetIds),
+                showOnlyUnmet: (true),
+            }));
+            const __VLS_48 = __VLS_47({
+                patientExaminationId: (__VLS_ctx.lookup.patientExaminationId || null),
+                requirementSetIds: (__VLS_ctx.selectedRequirementSetIds),
+                showOnlyUnmet: (true),
+            }, ...__VLS_functionalComponentArgsRest(__VLS_47));
         }
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: "form-check form-switch ms-3" },
-        });
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
-            ...{ onChange: (...[$event]) => {
-                    if (!(__VLS_ctx.lookup && __VLS_ctx.isDebug))
-                        return;
-                    __VLS_ctx.toggleRequirementSet(rs.id, $event.target.checked);
-                } },
-            ...{ class: "form-check-input" },
-            type: "checkbox",
-            checked: (__VLS_ctx.selectedRequirementSetIdSet.has(rs.id)),
-        });
     }
-    if (!__VLS_ctx.requirementSets.length) {
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({
-            ...{ class: "list-group-item text-muted" },
-        });
-    }
-    if (__VLS_ctx.evaluationSummary && __VLS_ctx.evaluationSummary.totalSets > 0) {
+    {
+        const { debug: __VLS_thisSlot } = __VLS_26.slots;
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: "mt-3 p-3 bg-light rounded" },
-        });
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({
-            ...{ class: "mb-2" },
+            ...{ class: "card" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: "progress mb-2" },
-            ...{ style: {} },
+            ...{ class: "card-header" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.h2, __VLS_intrinsicElements.h2)({
+            ...{ class: "h6 mb-0" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: "progress-bar" },
-            ...{ class: (__VLS_ctx.evaluationSummary.completionPercentage === 100 ? 'bg-success' : 'bg-info') },
-            ...{ style: ({ width: __VLS_ctx.evaluationSummary.completionPercentage + '%' }) },
-        });
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
-            ...{ class: "text-muted" },
-        });
-        (__VLS_ctx.evaluationSummary.evaluatedSets);
-        (__VLS_ctx.evaluationSummary.totalSets);
-        (__VLS_ctx.evaluationSummary.completionPercentage);
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: "mt-2" },
-        });
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-            ...{ onClick: (__VLS_ctx.evaluateRequirementsOnChange) },
-            ...{ class: "btn btn-sm btn-primary" },
-            disabled: (__VLS_ctx.loading),
-        });
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "fas fa-sync" },
-        });
-    }
-    if (__VLS_ctx.lookup) {
-        /** @type {[typeof RequirementIssues, ]} */ ;
-        // @ts-ignore
-        const __VLS_8 = __VLS_asFunctionalComponent(RequirementIssues, new RequirementIssues({
-            patientExaminationId: (__VLS_ctx.lookup.patientExaminationId || null),
-            requirementSetIds: (__VLS_ctx.selectedRequirementSetIds),
-            showOnlyUnmet: (true),
-        }));
-        const __VLS_9 = __VLS_8({
-            patientExaminationId: (__VLS_ctx.lookup.patientExaminationId || null),
-            requirementSetIds: (__VLS_ctx.selectedRequirementSetIds),
-            showOnlyUnmet: (true),
-        }, ...__VLS_functionalComponentArgsRest(__VLS_8));
-    }
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "card-body" },
-    });
-    if (__VLS_ctx.lookup) {
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: "mb-3" },
+            ...{ class: "card-body" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
         __VLS_asFunctionalElement(__VLS_intrinsicElements.br, __VLS_intrinsicElements.br)({});
@@ -1175,113 +1125,7 @@ if (__VLS_ctx.lookup && __VLS_ctx.isDebug) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.pre, __VLS_intrinsicElements.pre)({});
         (JSON.stringify(__VLS_ctx.lookup, null, 2));
     }
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "col-12 col-xl-6" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "card h-100" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "card-header d-flex justify-content-between align-items-center" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.h2, __VLS_intrinsicElements.h2)({
-        ...{ class: "h5 mb-0" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
-        ...{ class: "text-muted mb-0" },
-    });
-    if (__VLS_ctx.availableFindings.length > 0) {
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: "d-flex align-items-center gap-2" },
-        });
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
-            ...{ class: "text-muted" },
-        });
-        (__VLS_ctx.availableFindings.length);
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-            ...{ onClick: (...[$event]) => {
-                    if (!(__VLS_ctx.lookup && __VLS_ctx.isDebug))
-                        return;
-                    if (!(__VLS_ctx.availableFindings.length > 0))
-                        return;
-                    __VLS_ctx.loadFindingsData();
-                } },
-            ...{ class: "btn btn-sm btn-outline-info" },
-            disabled: (__VLS_ctx.loading),
-            title: "Befunde aktualisieren",
-        });
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "fas fa-sync-alt" },
-        });
-    }
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "card-body pre-scrollable" },
-        ...{ style: {} },
-    });
-    if (__VLS_ctx.findingsSectionLoading) {
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: "text-center py-4" },
-        });
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: "spinner-border" },
-            role: "status",
-        });
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-            ...{ class: "visually-hidden" },
-        });
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
-            ...{ class: "mt-2 text-muted" },
-        });
-    }
-    else if (__VLS_ctx.availableFindings.length) {
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: "findings-container" },
-        });
-        for (const [findingId] of __VLS_getVForSourceType((__VLS_ctx.availableFindings))) {
-            /** @type {[typeof FindingsDetail, ]} */ ;
-            // @ts-ignore
-            const __VLS_11 = __VLS_asFunctionalComponent(FindingsDetail, new FindingsDetail({
-                ...{ 'onAddedToExamination': {} },
-                ...{ 'onClassificationUpdated': {} },
-                key: (findingId),
-                findingId: (findingId),
-                isAddedToExamination: (__VLS_ctx.isFindingAddedToExamination(findingId)),
-                patientExaminationId: (__VLS_ctx.lookup?.patientExaminationId || undefined),
-            }));
-            const __VLS_12 = __VLS_11({
-                ...{ 'onAddedToExamination': {} },
-                ...{ 'onClassificationUpdated': {} },
-                key: (findingId),
-                findingId: (findingId),
-                isAddedToExamination: (__VLS_ctx.isFindingAddedToExamination(findingId)),
-                patientExaminationId: (__VLS_ctx.lookup?.patientExaminationId || undefined),
-            }, ...__VLS_functionalComponentArgsRest(__VLS_11));
-            let __VLS_14;
-            let __VLS_15;
-            let __VLS_16;
-            const __VLS_17 = {
-                onAddedToExamination: (__VLS_ctx.onFindingAddedToExamination)
-            };
-            const __VLS_18 = {
-                onClassificationUpdated: (__VLS_ctx.onClassificationUpdated)
-            };
-            var __VLS_13;
-        }
-    }
-    else {
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: "text-center py-4" },
-        });
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "fas fa-info-circle fa-2x text-muted mb-3" },
-        });
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
-            ...{ class: "text-muted" },
-        });
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
-            ...{ class: "text-muted" },
-        });
-    }
+    var __VLS_26;
 }
 if (__VLS_ctx.successMessage) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -1299,110 +1143,13 @@ if (__VLS_ctx.successMessage) {
         ...{ class: "btn-close" },
     });
 }
-if (__VLS_ctx.showCreatePatientModal) {
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ onClick: (__VLS_ctx.closeCreatePatientModal) },
-        ...{ class: "modal-overlay" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ onClick: () => { } },
-        ...{ class: "modal-dialog" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "modal-content" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "modal-header" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.h5, __VLS_intrinsicElements.h5)({
-        ...{ class: "modal-title" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-        ...{ onClick: (__VLS_ctx.closeCreatePatientModal) },
-        type: "button",
-        ...{ class: "btn-close" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "modal-body" },
-    });
-    /** @type {[typeof PatientAdder, ]} */ ;
-    // @ts-ignore
-    const __VLS_19 = __VLS_asFunctionalComponent(PatientAdder, new PatientAdder({
-        ...{ 'onPatientCreated': {} },
-        ...{ 'onCancel': {} },
-    }));
-    const __VLS_20 = __VLS_19({
-        ...{ 'onPatientCreated': {} },
-        ...{ 'onCancel': {} },
-    }, ...__VLS_functionalComponentArgsRest(__VLS_19));
-    let __VLS_22;
-    let __VLS_23;
-    let __VLS_24;
-    const __VLS_25 = {
-        onPatientCreated: (__VLS_ctx.onPatientCreated)
-    };
-    const __VLS_26 = {
-        onCancel: (__VLS_ctx.closeCreatePatientModal)
-    };
-    var __VLS_21;
-}
-if (__VLS_ctx.selectedPatientId) {
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "d-flex align-items-center gap-2" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-        ...{ class: "badge bg-info" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-user" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-        ...{ onClick: (...[$event]) => {
-                if (!(__VLS_ctx.selectedPatientId))
-                    return;
-                __VLS_ctx.patientStore.clearCurrentPatient();
-            } },
-        type: "button",
-        ...{ class: "btn btn-sm btn-outline-secondary" },
-        title: "Patientenauswahl zurücksetzen",
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-times" },
-    });
-}
 /** @type {__VLS_StyleScopedClasses['requirement-generator']} */ ;
 /** @type {__VLS_StyleScopedClasses['container-fluid']} */ ;
 /** @type {__VLS_StyleScopedClasses['py-4']} */ ;
-/** @type {__VLS_StyleScopedClasses['card']} */ ;
-/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
-/** @type {__VLS_StyleScopedClasses['card-header']} */ ;
-/** @type {__VLS_StyleScopedClasses['h5']} */ ;
-/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
-/** @type {__VLS_StyleScopedClasses['card-body']} */ ;
-/** @type {__VLS_StyleScopedClasses['row']} */ ;
-/** @type {__VLS_StyleScopedClasses['align-items-end']} */ ;
-/** @type {__VLS_StyleScopedClasses['col-md-6']} */ ;
-/** @type {__VLS_StyleScopedClasses['form-group']} */ ;
-/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
-/** @type {__VLS_StyleScopedClasses['justify-content-between']} */ ;
-/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
-/** @type {__VLS_StyleScopedClasses['mb-2']} */ ;
-/** @type {__VLS_StyleScopedClasses['form-control']} */ ;
-/** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
-/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-info-circle']} */ ;
-/** @type {__VLS_StyleScopedClasses['col-md-6']} */ ;
-/** @type {__VLS_StyleScopedClasses['form-group']} */ ;
-/** @type {__VLS_StyleScopedClasses['form-control']} */ ;
-/** @type {__VLS_StyleScopedClasses['row']} */ ;
-/** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
-/** @type {__VLS_StyleScopedClasses['col-12']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn-primary']} */ ;
-/** @type {__VLS_StyleScopedClasses['spinner-border']} */ ;
-/** @type {__VLS_StyleScopedClasses['spinner-border-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert-danger']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert-dismissible']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-close']} */ ;
 /** @type {__VLS_StyleScopedClasses['row']} */ ;
 /** @type {__VLS_StyleScopedClasses['g-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['col-12']} */ ;
@@ -1419,161 +1166,25 @@ if (__VLS_ctx.selectedPatientId) {
 /** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['col-md-6']} */ ;
 /** @type {__VLS_StyleScopedClasses['col-md-6']} */ ;
-/** @type {__VLS_StyleScopedClasses['col-12']} */ ;
-/** @type {__VLS_StyleScopedClasses['col-xl-6']} */ ;
-/** @type {__VLS_StyleScopedClasses['card']} */ ;
-/** @type {__VLS_StyleScopedClasses['h-100']} */ ;
-/** @type {__VLS_StyleScopedClasses['card-header']} */ ;
-/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
-/** @type {__VLS_StyleScopedClasses['justify-content-between']} */ ;
-/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
-/** @type {__VLS_StyleScopedClasses['h5']} */ ;
-/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
-/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
-/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
-/** @type {__VLS_StyleScopedClasses['gap-2']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn-outline-secondary']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn-outline-info']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn-outline-info']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn-outline-danger']} */ ;
-/** @type {__VLS_StyleScopedClasses['row']} */ ;
-/** @type {__VLS_StyleScopedClasses['g-3']} */ ;
-/** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
-/** @type {__VLS_StyleScopedClasses['card-body']} */ ;
-/** @type {__VLS_StyleScopedClasses['pre-scrollable']} */ ;
-/** @type {__VLS_StyleScopedClasses['col-12']} */ ;
 /** @type {__VLS_StyleScopedClasses['card']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-header']} */ ;
-/** @type {__VLS_StyleScopedClasses['h5']} */ ;
+/** @type {__VLS_StyleScopedClasses['h6']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-body']} */ ;
-/** @type {__VLS_StyleScopedClasses['list-group']} */ ;
-/** @type {__VLS_StyleScopedClasses['list-group-flush']} */ ;
-/** @type {__VLS_StyleScopedClasses['list-group-item']} */ ;
-/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
-/** @type {__VLS_StyleScopedClasses['justify-content-between']} */ ;
-/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
-/** @type {__VLS_StyleScopedClasses['flex-grow-1']} */ ;
-/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
-/** @type {__VLS_StyleScopedClasses['justify-content-between']} */ ;
-/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
-/** @type {__VLS_StyleScopedClasses['fw-semibold']} */ ;
-/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
-/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
-/** @type {__VLS_StyleScopedClasses['gap-2']} */ ;
-/** @type {__VLS_StyleScopedClasses['badge']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn-outline-info']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-calculator']} */ ;
-/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
-/** @type {__VLS_StyleScopedClasses['d-block']} */ ;
-/** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
-/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
-/** @type {__VLS_StyleScopedClasses['form-check']} */ ;
-/** @type {__VLS_StyleScopedClasses['form-switch']} */ ;
-/** @type {__VLS_StyleScopedClasses['ms-3']} */ ;
-/** @type {__VLS_StyleScopedClasses['form-check-input']} */ ;
-/** @type {__VLS_StyleScopedClasses['list-group-item']} */ ;
-/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
-/** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
-/** @type {__VLS_StyleScopedClasses['p-3']} */ ;
-/** @type {__VLS_StyleScopedClasses['bg-light']} */ ;
-/** @type {__VLS_StyleScopedClasses['rounded']} */ ;
-/** @type {__VLS_StyleScopedClasses['mb-2']} */ ;
-/** @type {__VLS_StyleScopedClasses['progress']} */ ;
-/** @type {__VLS_StyleScopedClasses['mb-2']} */ ;
-/** @type {__VLS_StyleScopedClasses['progress-bar']} */ ;
-/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
-/** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn-primary']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-sync']} */ ;
-/** @type {__VLS_StyleScopedClasses['card-body']} */ ;
-/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
-/** @type {__VLS_StyleScopedClasses['col-12']} */ ;
-/** @type {__VLS_StyleScopedClasses['col-xl-6']} */ ;
-/** @type {__VLS_StyleScopedClasses['card']} */ ;
-/** @type {__VLS_StyleScopedClasses['h-100']} */ ;
-/** @type {__VLS_StyleScopedClasses['card-header']} */ ;
-/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
-/** @type {__VLS_StyleScopedClasses['justify-content-between']} */ ;
-/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
-/** @type {__VLS_StyleScopedClasses['h5']} */ ;
-/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
-/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
-/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
-/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
-/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
-/** @type {__VLS_StyleScopedClasses['gap-2']} */ ;
-/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn-outline-info']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-sync-alt']} */ ;
-/** @type {__VLS_StyleScopedClasses['card-body']} */ ;
-/** @type {__VLS_StyleScopedClasses['pre-scrollable']} */ ;
-/** @type {__VLS_StyleScopedClasses['text-center']} */ ;
-/** @type {__VLS_StyleScopedClasses['py-4']} */ ;
-/** @type {__VLS_StyleScopedClasses['spinner-border']} */ ;
-/** @type {__VLS_StyleScopedClasses['visually-hidden']} */ ;
-/** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
-/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
-/** @type {__VLS_StyleScopedClasses['findings-container']} */ ;
-/** @type {__VLS_StyleScopedClasses['text-center']} */ ;
-/** @type {__VLS_StyleScopedClasses['py-4']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-info-circle']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-2x']} */ ;
-/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
-/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
-/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
-/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert-success']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert-dismissible']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-close']} */ ;
-/** @type {__VLS_StyleScopedClasses['modal-overlay']} */ ;
-/** @type {__VLS_StyleScopedClasses['modal-dialog']} */ ;
-/** @type {__VLS_StyleScopedClasses['modal-content']} */ ;
-/** @type {__VLS_StyleScopedClasses['modal-header']} */ ;
-/** @type {__VLS_StyleScopedClasses['modal-title']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn-close']} */ ;
-/** @type {__VLS_StyleScopedClasses['modal-body']} */ ;
-/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
-/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
-/** @type {__VLS_StyleScopedClasses['gap-2']} */ ;
-/** @type {__VLS_StyleScopedClasses['badge']} */ ;
-/** @type {__VLS_StyleScopedClasses['bg-info']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-user']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn-outline-secondary']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-times']} */ ;
 var __VLS_dollars;
 const __VLS_self = (await import('vue')).defineComponent({
     setup() {
         return {
-            PatientAdder: PatientAdder,
+            CaseSetupPanel: CaseSetupPanel,
             FindingsDetail: FindingsDetail,
             AddableFindingsDetail: AddableFindingsDetail,
             RequirementIssues: RequirementIssues,
-            patientStore: patientStore,
+            RequirementSelectionPanel: RequirementSelectionPanel,
+            KnowledgeBaseValidationPanel: KnowledgeBaseValidationPanel,
             isDebug: isDebug,
             selectedPatientId: selectedPatientId,
             selectedExaminationId: selectedExaminationId,
@@ -1582,32 +1193,39 @@ const __VLS_self = (await import('vue')).defineComponent({
             lookup: lookup,
             error: error,
             loading: loading,
-            showCreatePatientModal: showCreatePatientModal,
             successMessage: successMessage,
             patients: patients,
             isLoadingPatients: isLoadingPatients,
             examinationsDropdown: examinationsDropdown,
             isLoadingExaminations: isLoadingExaminations,
+            selectedPatientDisplayName: selectedPatientDisplayName,
+            selectedExaminationDisplayName: selectedExaminationDisplayName,
             requirementSets: requirementSets,
             selectedRequirementSetIds: selectedRequirementSetIds,
             selectedRequirementSetIdSet: selectedRequirementSetIdSet,
             availableFindings: availableFindings,
             findingsSectionLoading: findingsSectionLoading,
+            candidateRequirementSetIds: candidateRequirementSetIds,
+            candidateRequirementSetConfidence: candidateRequirementSetConfidence,
+            unmetRequirementCount: unmetRequirementCount,
+            suggestedActionEntries: suggestedActionEntries,
+            suggestedActionCount: suggestedActionCount,
+            nextStepMessage: nextStepMessage,
             isFindingAddedToExamination: isFindingAddedToExamination,
             onFindingAddedToExamination: onFindingAddedToExamination,
             onClassificationUpdated: onClassificationUpdated,
             loadFindingsData: loadFindingsData,
             evaluateRequirementsOnChange: evaluateRequirementsOnChange,
             evaluateRequirementSet: evaluateRequirementSet,
-            getRequirementSetEvaluationStatus: getRequirementSetEvaluationStatus,
             evaluationSummary: evaluationSummary,
+            requirementSetEvaluationMap: requirementSetEvaluationMap,
             createPatientExaminationAndInitLookup: createPatientExaminationAndInitLookup,
             fetchLookupAll: fetchLookupAll,
             toggleRequirementSet: toggleRequirementSet,
+            applyRecommendedRequirementSets: applyRecommendedRequirementSets,
+            selectAllRequirementSets: selectAllRequirementSets,
+            clearRequirementSetSelection: clearRequirementSetSelection,
             triggerRecompute: triggerRecompute,
-            closeCreatePatientModal: closeCreatePatientModal,
-            onPatientCreated: onPatientCreated,
-            manualRenewSession: manualRenewSession,
             resetLookupSession: resetLookupSession,
         };
     },
