@@ -22,6 +22,11 @@ axiosInstance.interceptors.response.use((r) => r, (err) => {
     const auth = useAuthKcStore();
     const status = err?.response?.status;
     const url = err?.config?.url || '';
+    const suppressErrorToast = err?.config?.suppressErrorToast === true ||
+        url.includes('/lookup/') ||
+        url.includes('/base_api/') ||
+        url.includes('/media/patients/') ||
+        url.includes('/evaluate-requirements/');
     // Skip spam for polling/status requests
     const isPollingRequest = url.includes('/status/') || url.includes('/polling-info/');
     // 🔒 If backend says "unauthenticated", send user to Keycloak login
@@ -31,7 +36,7 @@ axiosInstance.interceptors.response.use((r) => r, (err) => {
         return Promise.reject(err);
     }
     // All other errors → show toast (except polling)
-    if (!isPollingRequest) {
+    if (!isPollingRequest && !suppressErrorToast) {
         const msg = err?.response?.data?.detail ||
             err?.response?.data?.error ||
             err?.message ||
@@ -47,6 +52,12 @@ export function r(path) {
 // Helper zur Erzeugung des API-Pfads für PDF-Endpunkte
 export function a(path) {
     return r(`pdf/${path}`);
+}
+export function silentRequestConfig(config) {
+    return {
+        ...(config || {}),
+        suppressErrorToast: true
+    };
 }
 axiosInstance.interceptors.request.use((config) => {
     const csrftoken = Cookies.get('csrftoken');

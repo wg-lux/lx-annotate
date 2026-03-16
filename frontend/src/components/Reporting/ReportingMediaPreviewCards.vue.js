@@ -34,7 +34,7 @@ if (__VLS_ctx.flow.mediaPreloadStatus === 'loading') {
 }
 else if (__VLS_ctx.flow.mediaPreloadStatus === 'error') {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "alert alert-danger py-2 mb-0" },
+        ...{ class: "alert alert-warning py-2 mb-0" },
     });
     (__VLS_ctx.flow.mediaPreloadError || 'Media preload failed.');
 }
@@ -148,7 +148,7 @@ else {
 /** @type {__VLS_StyleScopedClasses['small']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert']} */ ;
-/** @type {__VLS_StyleScopedClasses['alert-danger']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert-warning']} */ ;
 /** @type {__VLS_StyleScopedClasses['py-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
 /** @type {__VLS_StyleScopedClasses['small']} */ ;

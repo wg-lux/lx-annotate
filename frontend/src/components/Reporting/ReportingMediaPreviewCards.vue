@@ -11,7 +11,7 @@
       <div v-if="flow.mediaPreloadStatus === 'loading'" class="small text-muted">
         Loading latest media...
       </div>
-      <div v-else-if="flow.mediaPreloadStatus === 'error'" class="alert alert-danger py-2 mb-0">
+      <div v-else-if="flow.mediaPreloadStatus === 'error'" class="alert alert-warning py-2 mb-0">
         {{ flow.mediaPreloadError || 'Media preload failed.' }}
       </div>
       <div v-else-if="!flow.mediaPreload" class="small text-muted">
@@ -71,4 +71,3 @@ function open_url(url: string) {
   window.open(url, '_blank', 'noopener,noreferrer')
 }
 </script>
-

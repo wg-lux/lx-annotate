@@ -71,4 +71,3 @@ export async function fetchPatientTimelineLatest(params: {
 
   return response.data as TimelineLatestPayload
 }
-

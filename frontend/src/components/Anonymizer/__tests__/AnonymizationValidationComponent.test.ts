@@ -34,7 +34,8 @@ vi.mock('@/stores/toastStore', () => ({
 
 vi.mock('@/stores/videoStore', () => ({
   useVideoStore: () => ({
-    fetchAllSegments: vi.fn().mockResolvedValue(undefined)
+    fetchAllSegments: vi.fn().mockResolvedValue(undefined),
+    allSegments: []
   })
 }))
 
@@ -189,7 +190,10 @@ describe('AnonymizationValidationComponent', () => {
   it('submits the normalized pdf validation payload and shows success toasts', async () => {
     vi.mocked(axiosInstance.post).mockResolvedValue({
       data: {
-        report_file: null
+        report_file: null,
+        case_resolution: {
+          patient_examination_id: 42
+        }
       }
     } as any)
 
@@ -211,7 +215,8 @@ describe('AnonymizationValidationComponent', () => {
       text: 'Dokument bestätigt und Anonymisierung validiert'
     })
     expect(hoisted.toastStoreRef.current.info).toHaveBeenCalledWith({
-      text: 'PDF validiert. Es wurde noch kein Patientenfall explizit zugeordnet.'
+      text: 'PDF validiert. Patientenfall 42 wurde automatisch zugeordnet und im Berichtseditor geöffnet.'
     })
+    expect(hoisted.routerPush).toHaveBeenCalledWith('/reporting/42/report-editor')
   })
 })

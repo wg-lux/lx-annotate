@@ -1,5 +1,6 @@
 import { ref, computed, watch, onMounted } from 'vue';
-import axiosInstance from '@/api/axiosInstance';
+import axiosInstance, { r } from '@/api/axiosInstance';
+import { endpoints } from '@/types/api/endpoints';
 import { useVideoStore } from '@/stores/videoStore';
 import Timeline from '@/components/VideoExamination/Timeline.vue';
 const props = defineProps();
@@ -21,6 +22,7 @@ const videoStore = useVideoStore();
  */
 const validatedSegments = ref(new Set());
 const isValidating = ref(false);
+const validationError = ref('');
 /**
  * Fetch backend detail to get canonical video_url + duration (don't reconstruct in client)
  */
@@ -63,20 +65,24 @@ async function validateSegment(segment) {
     if (validatedSegments.value.has(segment.id) || isValidating.value)
         return;
     isValidating.value = true;
+    validationError.value = '';
     try {
-        // Emit validation event to parent
+        await axiosInstance.post(r(endpoints.media.videoSegmentValidate(props.videoId, segment.id)), {
+            isValidated: true,
+            informationSourceName: 'manual_annotation',
+            startTime: segment.startTime,
+            endTime: segment.endTime
+        });
         validatedSegments.value.add(segment.id);
         emit('segment-validated', segment.id);
-        console.log(`✅ Segment ${segment.id} validated`);
-        // Check if all segments are now validated
         if (allSegmentsValidated.value) {
             emit('validation-complete');
-            console.log('🎉 All outside segments validated!');
         }
     }
     catch (error) {
         console.error('Error validating segment:', error);
         validatedSegments.value.delete(segment.id);
+        validationError.value = 'Segmentvalidierung fehlgeschlagen. Bitte erneut versuchen.';
     }
     finally {
         isValidating.value = false;
@@ -168,6 +174,15 @@ if (__VLS_ctx.outsideSegments.length > 0) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "validation-status mb-3" },
     });
+    if (__VLS_ctx.validationError) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "alert alert-danger mb-3" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: "fas fa-exclamation-triangle me-2" },
+        });
+        (__VLS_ctx.validationError);
+    }
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "row align-items-center" },
     });
@@ -354,6 +369,12 @@ if (__VLS_ctx.outsideSegments.length > 0) {
 /** @type {__VLS_StyleScopedClasses['video-with-outside-timeline']} */ ;
 /** @type {__VLS_StyleScopedClasses['validation-status']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert-danger']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-exclamation-triangle']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['row']} */ ;
 /** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['col-md-8']} */ ;
@@ -426,6 +447,7 @@ const __VLS_self = (await import('vue')).defineComponent({
             isPlaying: isPlaying,
             validatedSegments: validatedSegments,
             isValidating: isValidating,
+            validationError: validationError,
             outsideSegments: outsideSegments,
             allSegmentsValidated: allSegmentsValidated,
             validateSegment: validateSegment,

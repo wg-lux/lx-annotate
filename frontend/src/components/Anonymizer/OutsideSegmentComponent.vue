@@ -1,7 +1,8 @@
 <!-- src/components/Anonymizer/OutsideSegmentComponent.vue -->
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
-import axiosInstance from '@/api/axiosInstance'
+import axiosInstance, { r } from '@/api/axiosInstance'
+import { endpoints } from '@/types/api/endpoints'
 import { useVideoStore, type Segment } from '@/stores/videoStore'
 import Timeline from '@/components/VideoExamination/Timeline.vue'
 
@@ -39,6 +40,7 @@ const videoStore = useVideoStore()
  */
 const validatedSegments = ref<Set<string | number>>(new Set())
 const isValidating = ref<boolean>(false)
+const validationError = ref<string>('')
 
 /**
  * Fetch backend detail to get canonical video_url + duration (don't reconstruct in client)
@@ -87,23 +89,29 @@ async function validateSegment(segment: Segment) {
   if (validatedSegments.value.has(segment.id) || isValidating.value) return
   
   isValidating.value = true
+  validationError.value = ''
   
   try {
-    // Emit validation event to parent
+    await axiosInstance.post(
+      r(endpoints.media.videoSegmentValidate(props.videoId, segment.id)),
+      {
+        isValidated: true,
+        informationSourceName: 'manual_annotation',
+        startTime: segment.startTime,
+        endTime: segment.endTime
+      }
+    )
+
     validatedSegments.value.add(segment.id)
     emit('segment-validated', segment.id)
-    
-    console.log(`✅ Segment ${segment.id} validated`)
-    
-    // Check if all segments are now validated
+
     if (allSegmentsValidated.value) {
       emit('validation-complete')
-      console.log('🎉 All outside segments validated!')
     }
-    
   } catch (error) {
     console.error('Error validating segment:', error)
     validatedSegments.value.delete(segment.id)
+    validationError.value = 'Segmentvalidierung fehlgeschlagen. Bitte erneut versuchen.'
   } finally {
     isValidating.value = false
   }
@@ -188,6 +196,10 @@ function onSegmentDelete() {}
   <div class="video-with-outside-timeline">
     <!-- Validation Status -->
     <div v-if="outsideSegments.length > 0" class="validation-status mb-3">
+      <div v-if="validationError" class="alert alert-danger mb-3">
+        <i class="fas fa-exclamation-triangle me-2"></i>
+        {{ validationError }}
+      </div>
       <div class="row align-items-center">
         <div class="col-md-8">
           <div class="progress">

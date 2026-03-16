@@ -322,6 +322,9 @@ const linkageStatusLabel = computed(() => {
 });
 const linkageStatusDescription = computed(() => {
     if (linkageStatus.value === 'linked') {
+        if (caseResolution.value?.isAutoResolved) {
+            return 'Der Patientenfall wurde automatisch aus den validierten Metadaten zugeordnet.';
+        }
         return 'Eine bestehende Fallverknuepfung ist bereits vorhanden.';
     }
     if (linkageStatus.value === 'deferred') {
@@ -539,85 +542,41 @@ const validateVideoForSegmentAnnotation = async () => {
     shouldShowOutsideTimeline.value = false;
     videoValidationStatus.value = null;
     try {
-        // Check if video is eligible for segment annotation
         console.log(`🔍 Validating video ${currentItem.value.id} for segment annotation...`);
-        const response = await axiosInstance.get(r(`media/videos/${currentItem.value.id}/validation/segments/`));
-        const validation = response.data;
-        console.log('Video validation response:', validation);
-        if (validation.eligible) {
-            // Video is eligible - check for outside segments
-            const outsideSegmentsResponse = await axiosInstance.get(r(`media/videos/${currentItem.value.id}/segments/?label=outside`));
-            const outsideSegments = outsideSegmentsResponse.data;
-            totalOutsideSegments.value = outsideSegments.length;
-            outsideSegmentsValidated.value = 0;
-            if (outsideSegments.length > 0) {
-                shouldShowOutsideTimeline.value = true;
-                videoValidationStatus.value = {
-                    class: 'alert-warning',
-                    icon: 'fas fa-exclamation-triangle',
-                    title: 'Segmentvalidierung erforderlich',
-                    message: `${outsideSegments.length} "Outside"-Segmente gefunden, die validiert werden müssen.`,
-                    details: 'Verwenden Sie die Timeline unten, um die Segmente zu überprüfen und zu bestätigen.'
-                };
-            }
-            else {
-                videoValidationStatus.value = {
-                    class: 'alert-success',
-                    icon: 'fas fa-check-circle',
-                    title: 'Video bereit für Annotation',
-                    message: 'Keine "Outside"-Segmente gefunden. Video ist bereit für die Segment-Annotation.',
-                    details: `Video ID: ${currentItem.value.id} - Alle Validierungen bestanden.`
-                };
-            }
+        await videoStore.fetchAllSegments(currentItem.value.id, true);
+        const outsideSegments = videoStore.allSegments.filter((segment) => segment.videoID === currentItem.value?.id && segment.label === 'outside');
+        totalOutsideSegments.value = outsideSegments.length;
+        outsideSegmentsValidated.value = 0;
+        if (outsideSegments.length > 0) {
+            shouldShowOutsideTimeline.value = true;
+            videoValidationStatus.value = {
+                class: 'alert-warning',
+                icon: 'fas fa-exclamation-triangle',
+                title: 'Segmentvalidierung erforderlich',
+                message: `${outsideSegments.length} "Outside"-Segmente gefunden, die validiert werden müssen.`,
+                details: 'Verwenden Sie die Timeline unten, um die Segmente zu überprüfen und zu bestätigen.'
+            };
         }
         else {
             videoValidationStatus.value = {
-                class: 'alert-danger',
-                icon: 'fas fa-times-circle',
-                title: 'Video nicht bereit',
-                message: validation.reasons?.join(', ') || 'Video ist nicht für Segment-Annotation geeignet.',
-                details: 'Überprüfen Sie die Video-Verarbeitung und Metadaten-Extraktion.'
+                class: 'alert-success',
+                icon: 'fas fa-check-circle',
+                title: 'Video bereit für Annotation',
+                message: 'Keine "Outside"-Segmente gefunden. Video ist bereit für die Segment-Annotation.',
+                details: `Video ID: ${currentItem.value.id} - Alle Validierungen bestanden.`
             };
         }
         toast.info({ text: `Video ${currentItem.value.id} validiert` });
     }
     catch (error) {
         console.error('Error validating video for segment annotation:', error);
-        // Fallback validation using video store if API endpoint doesn't exist
-        try {
-            await videoStore.fetchAllSegments(currentItem.value.id);
-            const outsideSegments = videoStore.allSegments.filter(s => s.label === 'outside');
-            totalOutsideSegments.value = outsideSegments.length;
-            outsideSegmentsValidated.value = 0;
-            if (outsideSegments.length > 0) {
-                shouldShowOutsideTimeline.value = true;
-                videoValidationStatus.value = {
-                    class: 'alert-warning',
-                    icon: 'fas fa-exclamation-triangle',
-                    title: 'Outside-Segmente gefunden (Fallback)',
-                    message: `${outsideSegments.length} "Outside"-Segmente zur Validierung gefunden.`,
-                    details: 'Fallback-Validierung über VideoStore. API-Endpoint nicht verfügbar.'
-                };
-            }
-            else {
-                videoValidationStatus.value = {
-                    class: 'alert-info',
-                    icon: 'fas fa-info-circle',
-                    title: 'Fallback-Validierung',
-                    message: 'Keine "Outside"-Segmente gefunden (über VideoStore).',
-                    details: 'API-Validierung fehlgeschlagen, Fallback verwendet.'
-                };
-            }
-        }
-        catch (fallbackError) {
-            videoValidationStatus.value = {
-                class: 'alert-danger',
-                icon: 'fas fa-times-circle',
-                title: 'Validierung fehlgeschlagen',
-                message: 'Video konnte nicht für Segment-Annotation validiert werden.',
-                details: error?.response?.data?.detail || error?.message || 'Unbekannter Fehler'
-            };
-        }
+        videoValidationStatus.value = {
+            class: 'alert-danger',
+            icon: 'fas fa-times-circle',
+            title: 'Validierung fehlgeschlagen',
+            message: 'Video konnte nicht für Segment-Annotation validiert werden.',
+            details: error?.response?.data?.detail || error?.message || 'Unbekannter Fehler'
+        };
     }
     finally {
         isValidatingVideo.value = false;
@@ -1065,6 +1024,13 @@ function extractPatientExaminationId(payload) {
             return nestedId;
         }
     }
+    const caseResolution = obj.case_resolution;
+    if (caseResolution && typeof caseResolution === 'object') {
+        const nestedId = extractPatientExaminationId(caseResolution);
+        if (nestedId !== null) {
+            return nestedId;
+        }
+    }
     return null;
 }
 function extractPatientId(payload) {
@@ -1138,9 +1104,19 @@ const navigateAfterApproval = async (mediaKind, validateResponseData) => {
         });
         return;
     }
-    void validateResponseData;
-    toast.info({
-        text: 'PDF validiert. Es wurde noch kein Patientenfall explizit zugeordnet.',
+    const resolvedPatientExaminationId = await resolvePatientExaminationIdForPdf(resolveFileIdFromContext() ?? 0, validateResponseData);
+    if (resolvedPatientExaminationId !== null) {
+        sessionStorage.setItem('last:patientExaminationId', String(resolvedPatientExaminationId));
+        await router.push(`/reporting/${resolvedPatientExaminationId}/report-editor`);
+        toast.info({
+            text: `PDF validiert. Patientenfall ${resolvedPatientExaminationId} wurde automatisch zugeordnet und im Berichtseditor geöffnet.`,
+        });
+        return;
+    }
+    await fetchCaseResolution();
+    await router.push(caseResolutionRoute.value);
+    toast.warning({
+        text: 'Die automatische Fallzuordnung war nicht eindeutig. Bitte pruefen Sie den Ausnahmefall.',
     });
 };
 const approveItem = async () => {

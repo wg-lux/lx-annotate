@@ -12,7 +12,7 @@
               Status:
               <strong>{{ flow.mediaPreloadStatus }}</strong>
             </div>
-            <div v-if="flow.mediaPreloadError" class="alert alert-danger py-2 mt-2 mb-0">
+            <div v-if="flow.mediaPreloadError" class="alert alert-warning py-2 mt-2 mb-0">
               {{ flow.mediaPreloadError }}
             </div>
             <div class="d-grid mt-2">

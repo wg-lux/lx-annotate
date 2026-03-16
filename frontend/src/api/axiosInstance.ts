@@ -28,6 +28,12 @@ axiosInstance.interceptors.response.use(
 
     const status = err?.response?.status
     const url = err?.config?.url || ''
+    const suppressErrorToast =
+      err?.config?.suppressErrorToast === true ||
+      url.includes('/lookup/') ||
+      url.includes('/base_api/') ||
+      url.includes('/media/patients/') ||
+      url.includes('/evaluate-requirements/')
 
     // Skip spam for polling/status requests
     const isPollingRequest = url.includes('/status/') || url.includes('/polling-info/')
@@ -40,7 +46,7 @@ axiosInstance.interceptors.response.use(
     }
 
     // All other errors → show toast (except polling)
-    if (!isPollingRequest) {
+    if (!isPollingRequest && !suppressErrorToast) {
       const msg =
         err?.response?.data?.detail ||
         err?.response?.data?.error ||
@@ -63,6 +69,15 @@ export function r(path: string): string {
 // Helper zur Erzeugung des API-Pfads für PDF-Endpunkte
 export function a(path: string): string {
   return r(`pdf/${path}`)
+}
+
+export function silentRequestConfig<T extends Record<string, unknown>>(config?: T): T & {
+  suppressErrorToast: true
+} {
+  return {
+    ...(config || ({} as T)),
+    suppressErrorToast: true
+  } as T & { suppressErrorToast: true }
 }
 
 import type { InternalAxiosRequestConfig } from 'axios'
