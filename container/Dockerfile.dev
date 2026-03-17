@@ -24,13 +24,14 @@ COPY libs/ /app/libs/
 
 # Copy metadata and install with dev extras if any (Requires README.md)
 COPY pyproject.toml uv.lock* README.md ./
+ENV UV_PROJECT_ENVIRONMENT=/app/.devenv/state/venv
 RUN uv sync --dev --frozen && \
-    . .venv/bin/activate && python --version
+    . .devenv/state/venv/bin/activate && python --version
 
 # Copy source
 COPY . /app
 
-ENV PATH="/app/.venv/bin:$PATH" \
+ENV PATH="/app/.devenv/state/venv/bin:$PATH" \
     DJANGO_SETTINGS_MODULE=lx_annotate.settings.settings_dev \
     DJANGO_HOST=0.0.0.0 \
     DJANGO_PORT=8117 \

@@ -1,7 +1,12 @@
 from pathlib import Path
 
+import pytest
+
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+LUXNIX_SERVICE_MODULE = Path(
+    "/home/admin/luxnix/modules/nixos/services/lx-annotate-local/default.nix"
+)
 
 
 def _read(path: str) -> str:
@@ -57,6 +62,41 @@ def test_runtime_guard_checks_manifest_and_entry_file_in_static_root():
     assert "DJANGO_STATIC_ROOT must not point to $REPO_ROOT/static" in management_nix
     assert 'manifest="$static_root/.vite/manifest.json"' in management_nix
     assert 'asset_path="$static_root/$entry_file"' in management_nix
+
+
+def test_devenv_shell_pins_uv_to_devenv_state_venv():
+    devenv_nix = _read("devenv.nix")
+
+    assert 'UV_PROJECT_ENVIRONMENT = lib.mkForce ".devenv/state/venv";' in devenv_nix
+    assert 'VENV_PATH=".devenv/state/venv"' in devenv_nix
+
+
+def test_dockerfiles_use_devenv_state_venv_consistently():
+    dockerfile_prod = _read("container/Dockerfile.prod")
+    dockerfile_dev = _read("container/Dockerfile.dev")
+
+    assert "UV_PROJECT_ENVIRONMENT=/app/.devenv/state/venv" in dockerfile_prod
+    assert ". .devenv/state/venv/bin/activate && python --version" in dockerfile_prod
+    assert 'PATH="/app/.devenv/state/venv/bin:$PATH"' in dockerfile_prod
+    assert "/app/.venv/bin" not in dockerfile_prod
+
+    assert "UV_PROJECT_ENVIRONMENT=/app/.devenv/state/venv" in dockerfile_dev
+    assert ". .devenv/state/venv/bin/activate && python --version" in dockerfile_dev
+    assert 'PATH="/app/.devenv/state/venv/bin:$PATH"' in dockerfile_dev
+    assert "/app/.venv/bin" not in dockerfile_dev
+
+
+@pytest.mark.skipif(
+    not LUXNIX_SERVICE_MODULE.exists(),
+    reason="local luxnix service module not available in this environment",
+)
+def test_local_luxnix_service_uses_single_devenv_environment():
+    service_nix = LUXNIX_SERVICE_MODULE.read_text(encoding="utf-8")
+
+    assert 'export UV_PROJECT_ENVIRONMENT=".devenv/state/venv"' in service_nix
+    assert 'export SYNC_CMD="uv sync --extra dev --extra docs"' in service_nix
+    assert "source .devenv/state/venv/bin/activate" in service_nix
+    assert "source .venv/bin/activate" not in service_nix
 
 
 def test_base_template_has_single_vite_asset_tag_and_no_global_labelstudio_script():

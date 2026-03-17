@@ -25,14 +25,15 @@ COPY libs/ /app/libs/
 
 # Copy project metadata for lockfile install and create venv (Requires README.md)
 COPY pyproject.toml uv.lock* README.md ./
+ENV UV_PROJECT_ENVIRONMENT=/app/.devenv/state/venv
 RUN uv sync --frozen --no-dev && \
-    . .venv/bin/activate && python --version
+    . .devenv/state/venv/bin/activate && python --version
 
 # Copy application code
 COPY . /app
 
 # Runtime environment defaults
-ENV PATH="/app/.venv/bin:$PATH" \
+ENV PATH="/app/.devenv/state/venv/bin:$PATH" \
     DJANGO_SETTINGS_MODULE=lx_annotate.settings.settings_prod \
     DJANGO_HOST=0.0.0.0 \
     DJANGO_PORT=8117 \

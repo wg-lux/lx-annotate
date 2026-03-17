@@ -153,6 +153,7 @@ in
 
 
   env = baseEnv // {
+    UV_PROJECT_ENVIRONMENT = lib.mkForce ".devenv/state/venv";
     LD_LIBRARY_PATH =
           lib.makeLibraryPath (runtimePackages)
           + ":/run/opengl-driver/lib:/run/opengl-driver-32/lib"
