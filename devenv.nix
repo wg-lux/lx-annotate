@@ -127,7 +127,7 @@ let
   enableOllama = builtins.getEnv "DEVENV_ENABLE_OLLAMA" == "1";
 
   runtimePackages = with pkgs; [
-    stdenv.cc.cc
+    stdenv.cc.cc.lib
     ffmpeg-headless.bin
     uvPackage
     libglvnd # Add libglvnd for libGL.so.1
@@ -138,6 +138,13 @@ let
     secretspec
     libxcb
   ] ++ lib.optionals enableOllama [ ollama.out ];
+
+  runtimeLibraryPath =
+    lib.makeLibraryPath runtimePackages
+    + ":/run/opengl-driver/lib:/run/opengl-driver-32/lib"
+    + ":/usr/lib/wsl/lib"
+    + ":/usr/lib/x86_64-linux-gnu"
+    + ":/usr/lib";
 
   _module.args.buildInputs = baseBuildInputs;
 
@@ -154,13 +161,7 @@ in
 
   env = baseEnv // {
     UV_PROJECT_ENVIRONMENT = lib.mkForce ".devenv/state/venv";
-    LD_LIBRARY_PATH =
-          lib.makeLibraryPath (runtimePackages)
-          + ":/run/opengl-driver/lib:/run/opengl-driver-32/lib"
-          + ":/usr/lib/wsl/lib"
-          + ":/usr/lib/x86_64-linux-gnu"
-          + ":/usr/lib"
-          ;
+    LD_LIBRARY_PATH = runtimeLibraryPath;
     TESSDATA_PREFIX = "${myTesseract}/share/tessdata";
     PYTORCH_ALLOC_CONF= "expandable_segments:True";
   };
@@ -196,9 +197,7 @@ in
 
     env-setup.exec = ''
       # Ensure runtimePackages are included in the library path here too
-      export LD_LIBRARY_PATH="${
-        with pkgs; lib.makeLibraryPath (runtimePackages)
-      }:/run/opengl-driver/lib:/run/opengl-driver-32/lib"
+      export LD_LIBRARY_PATH="${runtimeLibraryPath}"
       which tesseract
     '';
 
