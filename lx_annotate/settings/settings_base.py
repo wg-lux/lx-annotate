@@ -197,7 +197,7 @@ STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 # Media (User Uploads)
 MEDIA_URL = "/media/"
-MEDIA_ROOT = BASE_DIR / "data"
+MEDIA_ROOT = APP_DATA_DIR
 MEDIA_ROOT.mkdir(parents=True, exist_ok=True)
 
 # -----------------------------------------------------------------------------

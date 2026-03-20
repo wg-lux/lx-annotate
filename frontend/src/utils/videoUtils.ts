@@ -42,10 +42,16 @@ export function getColorForLabel(label: string): string {
   return colourMap[label] ?? '#95a5a6'
 }
 
-export const formatTime = (seconds: number): string => {
-  if (!seconds || seconds < 0) return '00:00'
+const TWO_DIGIT_STRINGS = Array.from({ length: 60 }, (_, index) =>
+  index < 10 ? `0${index}` : String(index)
+)
 
-  const mins = Math.floor(seconds / 60)
-  const secs = Math.floor(seconds % 60)
-  return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+export const formatTime = (seconds: number): string => {
+  if (!Number.isFinite(seconds) || seconds <= 0) return '00:00'
+
+  const wholeSeconds = Math.floor(seconds)
+  const mins = Math.floor(wholeSeconds / 60)
+  const secs = wholeSeconds - mins * 60
+  const minsText = mins < 10 ? `0${mins}` : String(mins)
+  return `${minsText}:${TWO_DIGIT_STRINGS[secs]}`
 }

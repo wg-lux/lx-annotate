@@ -37,10 +37,13 @@ const colourMap = {
 export function getColorForLabel(label) {
     return colourMap[label] ?? '#95a5a6';
 }
+const TWO_DIGIT_STRINGS = Array.from({ length: 60 }, (_, index) => index < 10 ? `0${index}` : String(index));
 export const formatTime = (seconds) => {
-    if (!seconds || seconds < 0)
+    if (!Number.isFinite(seconds) || seconds <= 0)
         return '00:00';
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    const wholeSeconds = Math.floor(seconds);
+    const mins = Math.floor(wholeSeconds / 60);
+    const secs = wholeSeconds - mins * 60;
+    const minsText = mins < 10 ? `0${mins}` : String(mins);
+    return `${minsText}:${TWO_DIGIT_STRINGS[secs]}`;
 };
