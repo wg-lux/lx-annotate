@@ -931,7 +931,7 @@ sdist = { url = "https://files.pythonhosted.org/packages/62/59/e47bbd0542d0e6f4c
 
 [[package]]
 name = "endoreg-db"
-version = "0.9.1.5"
+version = "0.9.1.6"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "agl-report-reader" },
@@ -990,9 +990,8 @@ dependencies = [
     { name = "vocos" },
     { name = "whitenoise" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/6e/99/177264614bf37582f9378ccccace2263e248323c20384b80c30399cfae83/endoreg_db-0.9.1.5.tar.gz", hash = "sha256:cac5ffa7d73be3258f83174a97bd227ae4e7d8fca43d0520f25a474f48321605", size = 13763713, upload-time = "2026-03-19T13:54:25.838Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/17/ab/9f9e6f9c8fcd645f678666054505ada8d1827a3bcc3a31431eff63740d46/endoreg_db-0.9.1.5-py3-none-any.whl", hash = "sha256:bf5405762799d153712d513a70876e0c348429ae315869e8db0465c49b8b1d80", size = 993184, upload-time = "2026-03-19T13:54:14.899Z" },
+    { url = "https://files.pythonhosted.org/packages/f8/ff/4d7af5fa0726bc51e6953e4183d3bec2282b0344696129d249192a0d7f04/endoreg_db-0.9.1.6-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:0649be1dcdcbf2a4d79f6dc15c6b771a4943e16ab5be7f59bd31897ba4ecf93d", size = 1227495, upload-time = "2026-03-20T12:35:10.915Z" },
 ]
 
 [[package]]
@@ -1695,7 +1694,7 @@ requires-dist = [
     { name = "django-webpack-loader", specifier = ">=0.7.0" },
     { name = "djangorestframework", specifier = ">=3.12.4" },
     { name = "drf-spectacular", specifier = ">=0.28.0" },
-    { name = "endoreg-db", specifier = "==0.9.1.5" },
+    { name = "endoreg-db", specifier = "==0.9.1.6" },
     { name = "flake8", marker = "extra == 'dev'", specifier = ">=7.3.0" },
     { name = "furo", marker = "extra == 'dev'", specifier = ">=2025.9.25" },
     { name = "furo", marker = "extra == 'docs'", specifier = ">=2025.9.25" },
