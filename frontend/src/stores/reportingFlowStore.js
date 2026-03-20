@@ -1,8 +1,47 @@
 import { defineStore } from 'pinia';
 import { computed, ref, watch } from 'vue';
+import { savePatientExaminationDraft } from '@/api/reportDraftApi';
 const STORAGE_KEY = 'reportingFlowState.v2';
 const LEGACY_STORAGE_KEY = 'reportingFlowState.v1';
 const STORAGE_TTL_MS = 30 * 60 * 1000;
+const DRAFT_AUTOSAVE_DEBOUNCE_MS = 1500;
+let runtimeDraftEntityCounter = 0;
+function nextRuntimeDraftEntityId(prefix) {
+    runtimeDraftEntityCounter += 1;
+    return `${prefix}_${runtimeDraftEntityCounter}`;
+}
+function normalizeRuntimeDescriptors(descriptors) {
+    if (!Array.isArray(descriptors))
+        return [];
+    return descriptors.map((descriptor) => ({
+        ...descriptor,
+        localId: descriptor.localId || nextRuntimeDraftEntityId('descriptor')
+    }));
+}
+function normalizeRuntimeClassificationChoices(classificationChoices) {
+    if (!Array.isArray(classificationChoices))
+        return [];
+    return classificationChoices.map((classificationChoice) => ({
+        ...classificationChoice,
+        localId: classificationChoice.localId || nextRuntimeDraftEntityId('classification'),
+        descriptors: normalizeRuntimeDescriptors(classificationChoice.descriptors)
+    }));
+}
+function normalizeRuntimePatientFindings(patientFindings) {
+    if (!Array.isArray(patientFindings))
+        return [];
+    return patientFindings.map((patientFinding) => ({
+        ...patientFinding,
+        localId: patientFinding.localId || nextRuntimeDraftEntityId('finding'),
+        classificationChoices: normalizeRuntimeClassificationChoices(patientFinding.classificationChoices)
+    }));
+}
+function normalizeRuntimePayloadIds(payload) {
+    return {
+        ...payload,
+        patientFindings: normalizeRuntimePatientFindings(payload.patientFindings)
+    };
+}
 function clearPersistedState() {
     try {
         sessionStorage.removeItem(STORAGE_KEY);
@@ -11,6 +50,18 @@ function clearPersistedState() {
     catch { }
 }
 function normalizePersistedState(parsed) {
+    const runtimeDraftsByPatientExaminationId = parsed.runtimeDraftsByPatientExaminationId &&
+        typeof parsed.runtimeDraftsByPatientExaminationId === 'object'
+        ? Object.fromEntries(Object.entries(parsed.runtimeDraftsByPatientExaminationId).filter(([, value]) => {
+            if (!value || typeof value !== 'object')
+                return false;
+            const draft = value;
+            return (typeof draft.draftId === 'string' &&
+                typeof draft.patientExaminationId === 'number' &&
+                !!draft.payload &&
+                typeof draft.payload === 'object');
+        }))
+        : {};
     return {
         lookupToken: typeof parsed.lookupToken === 'string' ? parsed.lookupToken : null,
         patientExaminationId: typeof parsed.patientExaminationId === 'number' ? parsed.patientExaminationId : null,
@@ -44,7 +95,8 @@ function normalizePersistedState(parsed) {
                     }
                 ];
             }))
-            : {}
+            : {},
+        runtimeDraftsByPatientExaminationId: runtimeDraftsByPatientExaminationId
     };
 }
 function loadPersistedState(ownerSub) {
@@ -93,12 +145,250 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
     const mediaPreload = ref(null);
     const mediaPreloadStatus = ref('idle');
     const mediaPreloadError = ref(null);
+    const runtimeDraftsByPatientExaminationId = ref({});
+    const draftPersistenceStatus = ref('idle');
+    const draftPersistenceError = ref(null);
+    const lastPersistedDraftAt = ref(null);
+    const draftAutosaveTimer = ref(null);
+    const draftAutosaveSignature = ref(null);
+    const draftPersistencePromise = ref(null);
+    const savingFinalReport = ref(false);
     const hasActiveCase = computed(() => !!patientExaminationId.value && !!selectedExaminationId.value && !!selectedPatientId.value);
+    const currentRuntimeDraft = computed(() => {
+        if (!patientExaminationId.value)
+            return null;
+        return runtimeDraftsByPatientExaminationId.value[String(patientExaminationId.value)] || null;
+    });
+    const hasDraftContent = computed(() => {
+        const hasNonDefaultIndications = indications.value.length > 1 ||
+            indications.value.some((row) => row.examinationIndicationId !== null || row.indicationChoiceId !== null);
+        return !!(patientExaminationId.value &&
+            (activeReportId.value ||
+                currentRuntimeDraft.value ||
+                selectedTemplateName.value ||
+                selectedRequirementSetIds.value.length ||
+                Object.keys(templateSectionDrafts.value).length ||
+                hasNonDefaultIndications ||
+                findingsRevision.value > 0));
+    });
     const canUseLookupPages = computed(() => !!patientExaminationId.value && !!lookupToken.value && sessionStatus.value !== 'expired');
     function setLookupSession(params) {
         lookupToken.value = params.lookupToken;
         patientExaminationId.value = params.patientExaminationId;
         sessionStatus.value = params.status ?? (params.lookupToken ? 'active' : 'idle');
+    }
+    function setPatientExaminationContext(params) {
+        patientExaminationId.value = params.patientExaminationId;
+        if (params.selectedPatientId !== undefined) {
+            selectedPatientId.value = params.selectedPatientId;
+        }
+        if (params.selectedExaminationId !== undefined) {
+            selectedExaminationId.value = params.selectedExaminationId;
+        }
+        lookupToken.value = null;
+        sessionStatus.value = 'idle';
+        selectedRequirementSetIds.value = [];
+        activeReportId.value = null;
+        indications.value = [{ examinationIndicationId: null, indicationChoiceId: null }];
+        lookupSnapshot.value = null;
+        lastRequirementGuidance.value = null;
+        lastTemplateValidation.value = null;
+        findingsRevision.value = 0;
+        lastFindingsEvent.value = null;
+        if (!(params.preserveTemplateSelection ?? false)) {
+            selectedTemplateName.value = null;
+            templateSectionDrafts.value = {};
+        }
+        else {
+            templateSectionDrafts.value = {};
+        }
+    }
+    function setRuntimeDraft(draft) {
+        runtimeDraftsByPatientExaminationId.value = {
+            ...runtimeDraftsByPatientExaminationId.value,
+            [String(draft.patientExaminationId)]: {
+                ...draft,
+                payload: normalizeRuntimePayloadIds(draft.payload)
+            }
+        };
+    }
+    function markDraftPersistenceHydrated(updatedAt) {
+        draftPersistenceStatus.value = updatedAt ? 'saved' : 'idle';
+        draftPersistenceError.value = null;
+        lastPersistedDraftAt.value = updatedAt;
+        draftAutosaveSignature.value = currentDraftPersistenceSignature.value;
+    }
+    function updateCurrentRuntimeDraft(updater) {
+        const currentDraft = currentRuntimeDraft.value;
+        if (!currentDraft)
+            return null;
+        const nextDraft = updater(currentDraft);
+        if (!nextDraft)
+            return null;
+        setRuntimeDraft({
+            ...nextDraft,
+            updatedAt: new Date().toISOString()
+        });
+        return runtimeDraftsByPatientExaminationId.value[String(nextDraft.patientExaminationId)] || null;
+    }
+    function addFinding(params) {
+        if (!params.findingName.trim())
+            return null;
+        const findingLocalId = nextRuntimeDraftEntityId('finding');
+        const updated = updateCurrentRuntimeDraft((draft) => ({
+            ...draft,
+            payload: {
+                ...draft.payload,
+                patientFindings: [
+                    ...draft.payload.patientFindings,
+                    {
+                        localId: findingLocalId,
+                        finding: params.findingName.trim(),
+                        classificationChoices: []
+                    }
+                ]
+            }
+        }));
+        return updated ? findingLocalId : null;
+    }
+    function removeFinding(findingLocalId) {
+        if (!findingLocalId)
+            return;
+        updateCurrentRuntimeDraft((draft) => ({
+            ...draft,
+            payload: {
+                ...draft.payload,
+                patientFindings: draft.payload.patientFindings.filter((finding) => finding.localId !== findingLocalId)
+            }
+        }));
+    }
+    function updateClassificationValue(params) {
+        if (!params.findingLocalId || !params.classificationName.trim())
+            return;
+        updateCurrentRuntimeDraft((draft) => ({
+            ...draft,
+            payload: {
+                ...draft.payload,
+                patientFindings: draft.payload.patientFindings.map((finding) => {
+                    if (finding.localId !== params.findingLocalId)
+                        return finding;
+                    const classificationKey = params.classificationName.trim();
+                    const remainingChoices = finding.classificationChoices.filter((choice) => choice.classification !== classificationKey);
+                    if (!params.classificationChoice) {
+                        return {
+                            ...finding,
+                            classificationChoices: remainingChoices
+                        };
+                    }
+                    const existingChoice = finding.classificationChoices.find((choice) => choice.classification === classificationKey);
+                    const nextChoice = {
+                        localId: existingChoice?.localId || nextRuntimeDraftEntityId('classification'),
+                        classification: classificationKey,
+                        classificationChoice: params.classificationChoice,
+                        descriptors: normalizeRuntimeDescriptors(params.descriptors)
+                    };
+                    return {
+                        ...finding,
+                        classificationChoices: [...remainingChoices, nextChoice]
+                    };
+                })
+            }
+        }));
+    }
+    function clearRuntimeDraft(targetPatientExaminationId) {
+        if (targetPatientExaminationId == null) {
+            runtimeDraftsByPatientExaminationId.value = {};
+            return;
+        }
+        const next = { ...runtimeDraftsByPatientExaminationId.value };
+        delete next[String(targetPatientExaminationId)];
+        runtimeDraftsByPatientExaminationId.value = next;
+    }
+    const currentDraftPersistencePayload = computed(() => {
+        const draft = currentRuntimeDraft.value;
+        if (!draft || !draft.patientExaminationId)
+            return null;
+        return {
+            patientExaminationId: draft.patientExaminationId,
+            moduleName: draft.moduleName,
+            templateName: draft.templateName,
+            payload: draft.payload
+        };
+    });
+    const currentDraftPersistenceSignature = computed(() => {
+        if (!currentDraftPersistencePayload.value)
+            return null;
+        return JSON.stringify(currentDraftPersistencePayload.value);
+    });
+    const hasUnpersistedDraftChanges = computed(() => {
+        if (!currentRuntimeDraft.value)
+            return false;
+        if (draftPersistenceStatus.value === 'saving')
+            return true;
+        const currentSignature = currentDraftPersistenceSignature.value;
+        if (!currentSignature)
+            return false;
+        return currentSignature !== draftAutosaveSignature.value;
+    });
+    async function persistCurrentRuntimeDraft() {
+        const draft = currentRuntimeDraft.value;
+        if (!draft?.patientExaminationId)
+            return;
+        if (draftPersistencePromise.value) {
+            return draftPersistencePromise.value;
+        }
+        const signatureToPersist = currentDraftPersistenceSignature.value;
+        draftPersistenceStatus.value = 'saving';
+        draftPersistenceError.value = null;
+        const request = (async () => {
+            try {
+                const response = await savePatientExaminationDraft({
+                    patientExaminationId: draft.patientExaminationId,
+                    moduleName: draft.moduleName,
+                    templateName: draft.templateName,
+                    payload: draft.payload
+                });
+                draftPersistenceStatus.value = 'saved';
+                lastPersistedDraftAt.value = response.updated_at;
+                draftAutosaveSignature.value = signatureToPersist;
+            }
+            catch (error) {
+                draftPersistenceStatus.value = 'error';
+                draftPersistenceError.value =
+                    error?.response?.data?.detail ||
+                        error?.message ||
+                        'Der Reporting-Entwurf konnte nicht gespeichert werden.';
+                throw error;
+            }
+            finally {
+                draftPersistencePromise.value = null;
+            }
+        })();
+        draftPersistencePromise.value = request;
+        return request;
+    }
+    function scheduleDraftAutosave() {
+        if (draftAutosaveTimer.value) {
+            clearTimeout(draftAutosaveTimer.value);
+        }
+        draftAutosaveTimer.value = setTimeout(() => {
+            draftAutosaveTimer.value = null;
+            void persistCurrentRuntimeDraft();
+        }, DRAFT_AUTOSAVE_DEBOUNCE_MS);
+    }
+    async function flushDraftAutosave() {
+        if (draftAutosaveTimer.value) {
+            clearTimeout(draftAutosaveTimer.value);
+            draftAutosaveTimer.value = null;
+        }
+        if (!currentRuntimeDraft.value)
+            return;
+        if (!hasUnpersistedDraftChanges.value && !draftPersistencePromise.value)
+            return;
+        await persistCurrentRuntimeDraft();
+    }
+    function setSavingFinalReport(value) {
+        savingFinalReport.value = value;
     }
     function setCaseSelection(params) {
         if (params.selectedPatientId !== undefined)
@@ -157,6 +447,8 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
         selectedKbModule.value = persisted?.selectedKbModule ?? 'report_template_examples';
         selectedTemplateName.value = persisted?.selectedTemplateName ?? null;
         templateSectionDrafts.value = persisted?.templateSectionDrafts ?? {};
+        runtimeDraftsByPatientExaminationId.value =
+            persisted?.runtimeDraftsByPatientExaminationId ?? {};
     }
     function bindAuthSubject(subject) {
         const normalized = typeof subject === 'string' && subject.trim() ? subject.trim() : null;
@@ -171,6 +463,10 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
         applyPersistedState(loadPersistedState(normalized));
     }
     function resetForPatientSwitch() {
+        if (draftAutosaveTimer.value) {
+            clearTimeout(draftAutosaveTimer.value);
+            draftAutosaveTimer.value = null;
+        }
         lookupToken.value = null;
         patientExaminationId.value = null;
         selectedExaminationId.value = null;
@@ -185,11 +481,22 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
         lastFindingsEvent.value = null;
         selectedTemplateName.value = null;
         templateSectionDrafts.value = {};
+        runtimeDraftsByPatientExaminationId.value = {};
         mediaPreload.value = null;
         mediaPreloadStatus.value = 'idle';
         mediaPreloadError.value = null;
+        draftPersistenceStatus.value = 'idle';
+        draftPersistenceError.value = null;
+        lastPersistedDraftAt.value = null;
+        draftAutosaveSignature.value = null;
+        draftPersistencePromise.value = null;
+        savingFinalReport.value = false;
     }
     function clearAll() {
+        if (draftAutosaveTimer.value) {
+            clearTimeout(draftAutosaveTimer.value);
+            draftAutosaveTimer.value = null;
+        }
         lookupToken.value = null;
         patientExaminationId.value = null;
         selectedPatientId.value = null;
@@ -206,9 +513,16 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
         selectedKbModule.value = 'report_template_examples';
         selectedTemplateName.value = null;
         templateSectionDrafts.value = {};
+        runtimeDraftsByPatientExaminationId.value = {};
         mediaPreload.value = null;
         mediaPreloadStatus.value = 'idle';
         mediaPreloadError.value = null;
+        draftPersistenceStatus.value = 'idle';
+        draftPersistenceError.value = null;
+        lastPersistedDraftAt.value = null;
+        draftAutosaveSignature.value = null;
+        draftPersistencePromise.value = null;
+        savingFinalReport.value = false;
     }
     function setMediaPreloadLoading() {
         mediaPreloadStatus.value = 'loading';
@@ -297,7 +611,8 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
         indications: indications.value,
         selectedKbModule: selectedKbModule.value,
         selectedTemplateName: selectedTemplateName.value,
-        templateSectionDrafts: templateSectionDrafts.value
+        templateSectionDrafts: templateSectionDrafts.value,
+        runtimeDraftsByPatientExaminationId: runtimeDraftsByPatientExaminationId.value
     }));
     watch(persistable, (state) => {
         if (!authSubject.value) {
@@ -312,6 +627,13 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
         sessionStorage.setItem(STORAGE_KEY, JSON.stringify(envelope));
         localStorage.removeItem(LEGACY_STORAGE_KEY);
     }, { deep: true });
+    watch(currentDraftPersistenceSignature, (signature) => {
+        if (!signature)
+            return;
+        if (signature === draftAutosaveSignature.value)
+            return;
+        scheduleDraftAutosave();
+    });
     return {
         authSubject,
         sessionStatus,
@@ -324,6 +646,8 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
         selectedKbModule,
         selectedTemplateName,
         templateSectionDrafts,
+        runtimeDraftsByPatientExaminationId,
+        currentRuntimeDraft,
         indications,
         lookupSnapshot,
         lastRequirementGuidance,
@@ -333,9 +657,25 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
         mediaPreload,
         mediaPreloadStatus,
         mediaPreloadError,
+        draftPersistenceStatus,
+        draftPersistenceError,
+        lastPersistedDraftAt,
+        hasUnpersistedDraftChanges,
+        savingFinalReport,
         hasActiveCase,
+        hasDraftContent,
         canUseLookupPages,
         setLookupSession,
+        setPatientExaminationContext,
+        setRuntimeDraft,
+        markDraftPersistenceHydrated,
+        persistCurrentRuntimeDraft,
+        flushDraftAutosave,
+        setSavingFinalReport,
+        clearRuntimeDraft,
+        addFinding,
+        removeFinding,
+        updateClassificationValue,
         setCaseSelection,
         setSelectedRequirementSetIds,
         setActiveReportId,

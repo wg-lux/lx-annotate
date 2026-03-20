@@ -9,7 +9,7 @@ buildNpmPackage rec {
 
   src = ./.;
 
-  npmDepsHash = "sha256-glmUjCW1e/BPNFJLbF10rSXc0vc4jbYDZhPH8GlBLks=";
+  npmDepsHash = "sha256-wrYMfJNxP7ejE9eLE9dzZBEafT5DIFKU81nPD8TJT/I=";
 
   npmBuildScript = "build";
   doCheck = false;
@@ -17,15 +17,15 @@ buildNpmPackage rec {
   installPhase = ''
     runHook preInstall
 
-    mkdir -p "$out"
+    mkdir -p "$out/dist"
 
-    # Vite is configured to emit to ../static relative to ./frontend.
-    if [ -d ../static ]; then
-      cp -r ../static "$out/dist"
-    elif [ -d static ]; then
-      cp -r static "$out/dist"
+    # Vite is configured to emit to ../staticfiles relative to ./frontend.
+    if [ -d ../staticfiles ]; then
+      cp -r ../staticfiles/. "$out/dist/"
+    elif [ -d staticfiles ]; then
+      cp -r staticfiles/. "$out/dist/"
     else
-      echo "Expected frontend build output in ../static or static" >&2
+      echo "Expected frontend build output in ../staticfiles or staticfiles" >&2
       exit 1
     fi
 

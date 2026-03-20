@@ -38,6 +38,7 @@ export declare const endpoints: {
         readonly classificationChoices: (classificationId: Id) => string;
         readonly patientExaminationCreate: "patient-examinations/create/";
         readonly patientExaminationDetail: (id: Id) => string;
+        readonly patientExaminationDraft: (id: Id) => string;
         readonly patientExaminationList: "patient-examinations/list/";
         readonly patientExaminationClassifications: (examId: Id) => string;
         readonly patientExaminationFindings: (examinationId: Id) => string;

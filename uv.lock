@@ -931,12 +931,13 @@ sdist = { url = "https://files.pythonhosted.org/packages/62/59/e47bbd0542d0e6f4c
 
 [[package]]
 name = "endoreg-db"
-version = "0.9.1.1"
+version = "0.9.1.5"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "agl-report-reader" },
     { name = "celery" },
     { name = "cryptography" },
+    { name = "de-core-news-lg" },
     { name = "decord" },
     { name = "django" },
     { name = "django-bootstrap5" },
@@ -989,9 +990,9 @@ dependencies = [
     { name = "vocos" },
     { name = "whitenoise" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ea/fc/4d03621a67cbf231b8ee748ba7c86c689071d9353268480b42dfeac47fb4/endoreg_db-0.9.1.1.tar.gz", hash = "sha256:9fd3185fe5d60e531ffd0025cbd762a6d5c141fe4db19670340180ebacfbd2ba", size = 13591628, upload-time = "2026-03-12T15:43:36.244Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/6e/99/177264614bf37582f9378ccccace2263e248323c20384b80c30399cfae83/endoreg_db-0.9.1.5.tar.gz", hash = "sha256:cac5ffa7d73be3258f83174a97bd227ae4e7d8fca43d0520f25a474f48321605", size = 13763713, upload-time = "2026-03-19T13:54:25.838Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/6a/3b/7c531d9d521ef3241a7bc606f0296192b75684599901681d5d72b70dc1c3/endoreg_db-0.9.1.1-py3-none-any.whl", hash = "sha256:01aa6704d6d6f246ab97b71206531131f56ed39a52f2597dcc184dc5c1686797", size = 978597, upload-time = "2026-03-12T15:43:32.303Z" },
+    { url = "https://files.pythonhosted.org/packages/17/ab/9f9e6f9c8fcd645f678666054505ada8d1827a3bcc3a31431eff63740d46/endoreg_db-0.9.1.5-py3-none-any.whl", hash = "sha256:bf5405762799d153712d513a70876e0c348429ae315869e8db0465c49b8b1d80", size = 993184, upload-time = "2026-03-19T13:54:14.899Z" },
 ]
 
 [[package]]
@@ -1694,7 +1695,7 @@ requires-dist = [
     { name = "django-webpack-loader", specifier = ">=0.7.0" },
     { name = "djangorestframework", specifier = ">=3.12.4" },
     { name = "drf-spectacular", specifier = ">=0.28.0" },
-    { name = "endoreg-db", specifier = "==0.9.1.1" },
+    { name = "endoreg-db", specifier = "==0.9.1.5" },
     { name = "flake8", marker = "extra == 'dev'", specifier = ">=7.3.0" },
     { name = "furo", marker = "extra == 'dev'", specifier = ">=2025.9.25" },
     { name = "furo", marker = "extra == 'docs'", specifier = ">=2025.9.25" },

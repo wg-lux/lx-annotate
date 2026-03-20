@@ -2,13 +2,13 @@
   <div class="d-flex flex-column gap-3">
     <MedicalBlock
       title="Template & Dokumentationsregeln"
-      subtitle="Template wählen, Regelsätze aktivieren und die Wissensbasis für diesen Fall vorbereiten"
+      subtitle="Template wählen, Abschnitte prüfen und den lokalen Befund-Entwurf gegen die Wissensbasis validieren"
       icon="description"
       icon-bg-class="bg-gradient-primary"
-      :is-complete="!!selectedTemplateName"
+      :is-complete="!!selectedTemplateName && !!currentRuntimeDraft"
       :is-active="true"
       :show-action="false"
-      :loading="loading || templateLoading"
+      :loading="templateLoading || findingSelectorsLoading || templateValidationLoading"
     >
       <template #default>
         <div class="row g-3 mb-3">
@@ -17,7 +17,7 @@
             <input
               class="form-control"
               :value="selectedKbModule"
-              :disabled="loading || templateLoading"
+              :disabled="templateLoading"
               @change="onModuleChange(($event.target as HTMLInputElement).value)"
             />
           </div>
@@ -30,7 +30,7 @@
             <select
               class="form-select"
               :value="selectedTemplateName || ''"
-              :disabled="loading || templateLoading || !templateOptions.length"
+              :disabled="templateLoading || !templateOptions.length"
               @change="onTemplateSelectionChange(($event.target as HTMLSelectElement).value)"
             >
               <option value="" disabled>
@@ -46,24 +46,17 @@
         <div class="d-flex flex-wrap gap-2 mb-3">
           <button
             class="btn btn-outline-secondary btn-sm"
-            :disabled="loading || templateLoading || !selectedExaminationName"
+            :disabled="templateLoading || !selectedExaminationName"
             @click="refreshTemplatesForExamination"
           >
             Templates für Untersuchung laden
           </button>
           <button
-            class="btn btn-outline-secondary btn-sm"
-            :disabled="loading || !canInitializeLookup"
-            @click="fetchLookupAll"
-          >
-            Fallstand laden
-          </button>
-          <button
             class="btn btn-primary btn-sm"
-            :disabled="loading || !canInitializeLookup"
-            @click="triggerRecompute"
+            :disabled="templateValidationLoading || !canValidateDraft"
+            @click="runRuntimeValidation(true)"
           >
-            Wissensbasis neu prüfen
+            Bericht prüfen
           </button>
         </div>
 
@@ -74,31 +67,16 @@
           {{ templateStatusMessage }}
         </div>
 
-        <div v-if="selectedTemplate" class="small text-muted mb-3">
+        <div v-if="selectedTemplate" class="small text-muted mb-2">
           Abschnitte: {{ sectionBlocks.length }} · Validierungen:
           {{ selectedTemplateValidatorCounts.examination }} auf Untersuchungsebene,
           {{ selectedTemplateValidatorCounts.findings }} auf Befundebene
         </div>
-
-        <RequirementSetSelectionList
-          v-if="flow.lookupToken"
-          :items="requirementSets"
-          :selected-id-set="selectedRequirementSetIdSet"
-          :loading="loading"
-          :requirement-set-status="lookupRequirementSetStatus"
-          @toggle="toggleRequirementSet"
-        />
-
-        <div
-          v-if="!flow.lookupToken"
-          class="alert alert-warning mb-0"
-        >
-          Kein aktiver Fallstand vorhanden. Bitte zuerst den Fall anlegen oder neu öffnen.
-        </div>
-
-        <div v-if="hasSuggestedActions" class="mt-3">
-          <h6 class="mb-2">Empfohlene Aktionen</h6>
-          <pre class="small bg-light rounded p-2 mb-0">{{ prettySuggestedActions }}</pre>
+        <div v-if="currentRuntimeDraft" class="small text-muted">
+          Entwurf:
+          {{ currentRuntimeDraft.hydratedFrom === 'session_storage' || currentRuntimeDraft.hydratedFrom === 'draft_api' ? 'wiederhergestellt' : 'initialisiert' }}
+          · Befunde: {{ currentPayload?.patientFindings.length || 0 }}
+          · Aktualisiert: {{ new Date(currentRuntimeDraft.updatedAt).toLocaleTimeString('de-DE') }}
         </div>
       </template>
     </MedicalBlock>
@@ -107,75 +85,174 @@
       <div class="card-header d-flex justify-content-between align-items-center">
         <div>
           <h5 class="mb-0">Befunderfassung</h5>
-          <small class="text-muted">Befunde hinzufügen, Klassifikationen setzen und gegen die Wissensbasis prüfen</small>
+          <small class="text-muted">Frontend-eigene Befundgraphen pflegen und gegen das Template validieren</small>
         </div>
-        <div class="d-flex gap-2">
-          <button class="btn btn-outline-secondary btn-sm" :disabled="loading || !canInitializeLookup" @click="fetchLookupAll">
-            Fallstand laden
-          </button>
-          <button class="btn btn-primary btn-sm" :disabled="loading || !canInitializeLookup" @click="triggerRecompute">
-            Wissensbasis neu prüfen
-          </button>
+        <div class="small text-muted">
+          {{ currentPayload?.patientFindings.length || 0 }} Befundinstanz(en)
         </div>
       </div>
       <div class="card-body">
         <div v-if="errorMessage" class="alert alert-danger py-2">{{ errorMessage }}</div>
         <div v-if="successMessage" class="alert alert-success py-2">{{ successMessage }}</div>
 
-        <LookupStatusPanel
-          class="mb-3"
-          :patient-examination-id="flow.patientExaminationId"
-          :selected-examination-id="flow.selectedExaminationId"
-          :lookup-token="flow.lookupToken"
-          :findings-revision="flow.findingsRevision"
-        />
         <ReportingMediaPreviewCards class="mb-3" />
 
         <div v-if="!flow.patientExaminationId || !flow.selectedExaminationId" class="alert alert-warning">
           Bitte zuerst das Fall-Setup abschließen (Patient + Untersuchung + PatientExamination).
         </div>
+        <div v-else-if="!currentRuntimeDraft || !currentPayload" class="alert alert-warning">
+          Kein lokaler Reporting-Entwurf vorhanden. Bitte den Reporting-Shell-Kontext erneut laden.
+        </div>
+        <div v-else-if="!selectedTemplate" class="alert alert-info">
+          Bitte zuerst ein Template wählen, damit die Befunde abschnittsweise gerendert werden können.
+        </div>
 
         <template v-else>
-          <div v-if="!flow.lookupToken" class="alert alert-info d-flex justify-content-between align-items-center">
-            <span>Kein aktiver Fallstand vorhanden. Initialisieren Sie den Fallkontext für diese Untersuchung.</span>
-            <button class="btn btn-sm btn-outline-primary" :disabled="loading || !canInitializeLookup" @click="ensureLookupSession">
-              Fallstand initialisieren
-            </button>
-          </div>
-
-          <div class="mb-3">
-            <AddableFindingsDetail
-              :examination-id="flow.selectedExaminationId || undefined"
-              :patient-examination-id="flow.patientExaminationId || undefined"
-              @finding-added="onFindingAddedToExamination"
-              @finding-error="onFindingError"
-            />
-          </div>
-
-          <div class="card h-100">
-            <div class="card-header d-flex justify-content-between align-items-center">
-              <div>
-                <h6 class="mb-0">Verfügbare Befunde</h6>
-                <small class="text-muted">Befunde aus dem aktiven Fallkontext</small>
+          <div
+            v-for="section in sectionBlocks"
+            :key="section.name"
+            class="card border mb-3"
+          >
+            <div class="card-header bg-light">
+              <div class="d-flex justify-content-between align-items-center gap-3">
+                <div>
+                  <h6 class="mb-0">{{ section.title }}</h6>
+                  <small class="text-muted">{{ section.subtitle }}</small>
+                </div>
+                <small class="text-muted">
+                  {{ section.findings.length }} Befunddefinition(en)
+                </small>
               </div>
-              <small class="text-muted">{{ availableFindings.length }} verfügbar</small>
             </div>
-            <div class="card-body" style="max-height: 60vh; overflow: auto;">
-              <div v-if="findingSelectorsLoading || loading" class="text-muted small">Lade Befunde...</div>
-              <div v-else-if="availableFindings.length" class="d-flex flex-column gap-3">
-                <FindingsDetail
-                  v-for="findingId in availableFindings"
-                  :key="findingId"
-                  :finding-id="findingId"
-                  :patient-examination-id="flow.patientExaminationId || undefined"
-                  :is-added-to-examination="isFindingAddedToExamination(findingId)"
-                  @added-to-examination="onFindingAddedToExamination"
-                  @classification-updated="onClassificationUpdated"
-                  @error-occurred="onFindingDetailError"
-                />
-              </div>
-              <div v-else class="text-muted">
-                Keine Befunde geladen. Bitte Fallstand laden oder die Wissensbasis neu prüfen.
+
+            <div class="card-body d-flex flex-column gap-3">
+              <div
+                v-for="templateFinding in section.findings"
+                :key="`${section.name}:${templateFinding.finding}`"
+                class="border rounded p-3"
+              >
+                <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+                  <div>
+                    <div class="fw-semibold">{{ getFindingLabel(templateFinding.finding) }}</div>
+                    <div class="small text-muted">
+                      {{ templateFinding.multipleAllowed ? 'Mehrfach erlaubt' : 'Einmalig' }}
+                      · {{ templateFinding.required ? 'erforderlich' : 'optional' }}
+                    </div>
+                  </div>
+                  <button
+                    class="btn btn-outline-primary btn-sm"
+                    :disabled="!canAddFinding(templateFinding)"
+                    @click="onAddFinding(templateFinding.finding)"
+                  >
+                    {{ instancesForFinding(templateFinding.finding).length ? 'Weitere Instanz hinzufügen' : 'Befund hinzufügen' }}
+                  </button>
+                </div>
+
+                <div
+                  v-if="findingLevelMessages(templateFinding.finding).length"
+                  class="alert alert-warning py-2 small"
+                >
+                  <div
+                    v-for="message in findingLevelMessages(templateFinding.finding)"
+                    :key="message"
+                  >
+                    {{ message }}
+                  </div>
+                </div>
+
+                <div
+                  v-if="instancesForFinding(templateFinding.finding).length"
+                  class="d-flex flex-column gap-3"
+                >
+                  <div
+                    v-for="instance in instancesForFinding(templateFinding.finding)"
+                    :key="instance.localId || instance.finding"
+                    class="runtime-finding-instance border rounded p-3"
+                  >
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                      <div class="small text-muted">
+                        Instanz {{ instance.localId || instance.finding }}
+                      </div>
+                      <button
+                        class="btn btn-outline-danger btn-sm"
+                        @click="onRemoveFinding(instance.localId || '')"
+                      >
+                        Entfernen
+                      </button>
+                    </div>
+
+                    <div class="row g-3">
+                      <div
+                        v-for="classification in visibleClassificationsForFinding(templateFinding.finding)"
+                        :key="`${instance.localId}:${classification.name}`"
+                        class="col-md-6"
+                      >
+                        <label class="form-label">
+                          {{ classification.displayName || classification.name }}
+                          <span v-if="isClassificationRequired(templateFinding.finding, classification.name)" class="text-danger">*</span>
+                        </label>
+                        <select
+                          class="form-select"
+                          :class="{ 'is-invalid': hasFieldError(instance, templateFinding.finding, classification.name) }"
+                          :value="classificationChoiceName(instance, classification.name)"
+                          @change="onClassificationChoiceChange(
+                            instance.localId || '',
+                            classification.name,
+                            ($event.target as HTMLSelectElement).value
+                          )"
+                        >
+                          <option value="">
+                            Auswahl treffen
+                          </option>
+                          <option
+                            v-for="choice in classification.choices"
+                            :key="choice.id"
+                            :value="choice.name"
+                          >
+                            {{ choice.displayName || choice.name }}
+                          </option>
+                        </select>
+
+                        <div
+                          v-for="descriptorKey in descriptorKeysForField(templateFinding.finding, classification.name, instance)"
+                          :key="`${instance.localId}:${classification.name}:${descriptorKey}`"
+                          class="mt-2"
+                        >
+                          <label class="form-label form-label-sm">
+                            {{ descriptorLabel(descriptorKey) }}
+                          </label>
+                          <input
+                            class="form-control form-control-sm"
+                            :type="descriptorInputType(descriptorKey)"
+                            :value="descriptorValue(instance, classification.name, descriptorKey)"
+                            @input="onDescriptorInput(
+                              instance.localId || '',
+                              classification.name,
+                              descriptorKey,
+                              ($event.target as HTMLInputElement).value
+                            )"
+                          />
+                        </div>
+
+                        <div
+                          v-if="fieldMessages(instance, templateFinding.finding, classification.name).length"
+                          class="invalid-feedback d-block"
+                        >
+                          <div
+                            v-for="message in fieldMessages(instance, templateFinding.finding, classification.name)"
+                            :key="message"
+                          >
+                            {{ message }}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div v-else class="small text-muted">
+                  Noch keine Instanz dieses Befunds im lokalen Entwurf.
+                </div>
               </div>
             </div>
           </div>
@@ -198,64 +275,48 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
-import axiosInstance, { r } from '@/api/axiosInstance'
-import { getFindingDisplayName } from '@/api/findings.contract'
-import { validatePatientFindingsAgainstTemplate } from '@/api/reportTemplatesApi'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import {
+  getClassificationDisplayName,
+  getFindingDisplayName,
+  mergeFindingClassifications,
+  type Finding,
+  type FindingClassification,
+  type FindingChoice
+} from '@/api/findings.contract'
+import { validateReportTemplateRuntime } from '@/api/reportTemplatesApi'
+import type {
+  ReportTemplateFinding,
+  ReportTemplateRuntimeClassificationChoiceInput,
+  ReportTemplateRuntimeDescriptorInput,
+  ReportTemplateRuntimePatientFindingInput
+} from '@/types/reportTemplate'
 import MedicalBlock from '@/components/AssistedReporting/MedicalBlock.vue'
-import RequirementSetSelectionList from '@/components/Reporting/RequirementSetSelectionList.vue'
-import AddableFindingsDetail from '@/components/RequirementReport/AddableFindingsDetail.vue'
-import FindingsDetail from '@/components/RequirementReport/FindingsDetail.vue'
-import { useFindingSelectors } from '@/composables/reporting/useFindingSelectors'
-import LookupStatusPanel from '@/components/Reporting/LookupStatusPanel.vue'
 import ReportTemplateValidationPanel from '@/components/Reporting/ReportTemplateValidationPanel.vue'
 import ReportingMediaPreviewCards from '@/components/Reporting/ReportingMediaPreviewCards.vue'
-import { useLookupActions } from '@/composables/reporting/useLookupActions'
+import { useFindingSelectors } from '@/composables/reporting/useFindingSelectors'
 import { useReportTemplates } from '@/composables/reporting/useReportTemplates'
 import { useExaminationStore } from '@/stores/examinationStore'
 import { useReportingFlowStore } from '@/stores/reportingFlowStore'
-import { usePatientExaminationStore } from '@/stores/patientExaminationStore'
-import { endpoints } from '@/types/api/endpoints'
-
-type LookupFindingsState = {
-  availableFindings?: number[]
-  requiredFindings?: number[]
-  requirementStatus?: Record<string, boolean>
-  requirementSetStatus?: Record<string, boolean>
-  suggestedActions?: Record<string, any[]>
-  requirementsBySet?: Record<string, Array<{ id: number; name: string }>>
-  selectedRequirementSetIds?: number[]
-  requirementSets?: Array<{ id: number; name: string; type: string }>
-}
-
-type FindingAddedEvent =
-  | number
-  | {
-      findingId: number
-      findingName?: string
-      selectedClassifications?: Array<{ classification: number; choice: number | null }>
-      response?: unknown
-    }
 
 const flow = useReportingFlowStore()
 const examinationStore = useExaminationStore()
-const patientExaminationStore = usePatientExaminationStore()
 const {
+  catalogFindings,
   loading: findingSelectorsLoading,
   ensureCatalogLoaded,
-  ensurePatientFindingsLoaded,
-  getFindingById,
-  isFindingAttached
+  getFindingById
 } = useFindingSelectors()
 
-const loading = ref(false)
 const errorMessage = ref<string | null>(null)
 const successMessage = ref<string | null>(null)
-const lookupState = ref<LookupFindingsState | null>(null)
-const lookupInitInFlight = ref<Promise<boolean> | null>(null)
 const templateValidationLoading = ref(false)
 const templateValidationError = ref<string | null>(null)
 const templateStatusMessage = ref<string | null>(null)
+const touchedFields = ref<Record<string, boolean>>({})
+const showValidationFeedback = ref(false)
+const dirtySinceMount = ref(false)
+let validationTimer: ReturnType<typeof setTimeout> | null = null
 
 const {
   moduleName: selectedKbModule,
@@ -273,114 +334,11 @@ const {
   initialTemplateName: flow.selectedTemplateName
 })
 
-function normalizeIdArray(value: unknown): number[] {
-  if (!Array.isArray(value)) return []
-  const ids = value
-    .map((entry) => Number(entry))
-    .filter((entry) => Number.isFinite(entry))
-    .map((entry) => Math.trunc(entry))
-  return Array.from(new Set(ids))
-}
-
-function normalizeBooleanRecord(value: unknown): Record<string, boolean> {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
-  return Object.fromEntries(
-    Object.entries(value).map(([key, entry]) => [String(key), !!entry])
-  )
-}
-
-function normalizeRequirementSets(
-  value: unknown
-): Array<{ id: number; name: string; type: string }> {
-  if (!Array.isArray(value)) return []
-  return value
-    .map((entry) => {
-      if (!entry || typeof entry !== 'object') return null
-      const id = Number((entry as any).id)
-      if (!Number.isFinite(id)) return null
-      return {
-        id,
-        name: String((entry as any).name || ''),
-        type: String((entry as any).type || '')
-      }
-    })
-    .filter((entry): entry is { id: number; name: string; type: string } => !!entry)
-}
-
-function normalizeSuggestedActions(value: unknown): Record<string, any[]> {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
-  return Object.fromEntries(
-    Object.entries(value).map(([key, entry]) => [String(key), Array.isArray(entry) ? entry : []])
-  )
-}
-
-function normalizeRequirementsBySet(
-  value: unknown
-): Record<string, Array<{ id: number; name: string }>> {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
-  return Object.fromEntries(
-    Object.entries(value).map(([key, entry]) => {
-      const requirements = Array.isArray(entry)
-        ? entry
-            .map((requirement) => {
-              if (!requirement || typeof requirement !== 'object') return null
-              const id = Number((requirement as any).id)
-              const name = String((requirement as any).name || '')
-              if (!Number.isFinite(id) || !name) return null
-              return { id, name }
-            })
-            .filter((requirement): requirement is { id: number; name: string } => !!requirement)
-        : []
-      return [String(key), requirements]
-    })
-  )
-}
-
-function normalizeLookupPartial(partial: Partial<LookupFindingsState>): Partial<LookupFindingsState> {
-  const normalized: Partial<LookupFindingsState> = { ...partial }
-  if ('availableFindings' in partial) {
-    normalized.availableFindings = normalizeIdArray(partial.availableFindings)
-  }
-  if ('requiredFindings' in partial) {
-    normalized.requiredFindings = normalizeIdArray(partial.requiredFindings)
-  }
-  if ('selectedRequirementSetIds' in partial) {
-    normalized.selectedRequirementSetIds = normalizeIdArray(partial.selectedRequirementSetIds)
-  }
-  if ('requirementStatus' in partial) {
-    normalized.requirementStatus = normalizeBooleanRecord(partial.requirementStatus)
-  }
-  if ('requirementSetStatus' in partial) {
-    normalized.requirementSetStatus = normalizeBooleanRecord(partial.requirementSetStatus)
-  }
-  if ('suggestedActions' in partial) {
-    normalized.suggestedActions = normalizeSuggestedActions(partial.suggestedActions)
-  }
-  if ('requirementsBySet' in partial) {
-    normalized.requirementsBySet = normalizeRequirementsBySet(partial.requirementsBySet)
-  }
-  if ('requirementSets' in partial) {
-    normalized.requirementSets = normalizeRequirementSets(partial.requirementSets)
-  }
-  return normalized
-}
-
-const availableFindings = computed<number[]>(() =>
-  normalizeIdArray(lookupState.value?.availableFindings)
+const currentRuntimeDraft = computed(() => flow.currentRuntimeDraft)
+const currentPayload = computed(() => currentRuntimeDraft.value?.payload || null)
+const canValidateDraft = computed(
+  () => !!selectedTemplateName.value && !!currentPayload.value
 )
-const requirementSets = computed(() => normalizeRequirementSets(lookupState.value?.requirementSets))
-const selectedRequirementSetIds = computed(() => normalizeIdArray(flow.selectedRequirementSetIds))
-const selectedRequirementSetIdSet = computed(() => new Set(selectedRequirementSetIds.value))
-const lookupRequirementSetStatus = computed(() =>
-  normalizeBooleanRecord(lookupState.value?.requirementSetStatus)
-)
-const hasSuggestedActions = computed(
-  () => Object.keys(normalizeSuggestedActions(lookupState.value?.suggestedActions)).length > 0
-)
-const prettySuggestedActions = computed(() =>
-  JSON.stringify(normalizeSuggestedActions(lookupState.value?.suggestedActions), null, 2)
-)
-const canInitializeLookup = computed(() => !!flow.patientExaminationId)
 const selectedExamination = computed(
   () =>
     examinationStore.examinationsDropdown.find((item) => item.id === flow.selectedExaminationId) || null
@@ -401,6 +359,31 @@ const selectedTemplateValidatorCounts = computed(() => {
   }
 })
 
+const catalogFindingsByNormalizedName = computed(() => {
+  const entries = catalogFindings.value.map((finding) => [normalizeKey(finding.name), finding] as const)
+  return new Map<string, Finding>(entries)
+})
+
+const backendMissingClassificationsByFinding = computed<Record<string, string[]>>(() => {
+  const entries = (flow.lastTemplateValidation?.findingsValidators || []).flatMap((validator) => {
+    if (!validator.missingRequiredClassifications.length) return []
+    return [[normalizeKey(validator.finding), validator.missingRequiredClassifications] as const]
+  })
+  return Object.fromEntries(entries)
+})
+
+const backendMessagesByFinding = computed<Record<string, string[]>>(() => {
+  const entries = (flow.lastTemplateValidation?.findingsValidators || []).map((validator) => [
+    normalizeKey(validator.finding),
+    validator.issues.map((issue) => issue.message)
+  ] as const)
+  return Object.fromEntries(entries)
+})
+
+function normalizeKey(value: string): string {
+  return value.trim().toLowerCase().replace(/\s+/g, '_').replace(/-/g, '_')
+}
+
 function clearMessages() {
   errorMessage.value = null
   successMessage.value = null
@@ -410,37 +393,272 @@ function formatApiError(e: any, fallback: string): string {
   return e?.response?.data?.detail || e?.response?.data?.error || e?.message || fallback
 }
 
-function applyLookup(partial: Partial<LookupFindingsState>) {
-  const normalizedPartial = normalizeLookupPartial(partial)
-  lookupState.value = { ...(lookupState.value || {}), ...normalizedPartial }
-  flow.patchLookupSnapshot({
-    requirementStatus: normalizedPartial.requirementStatus as any,
-    requirementSetStatus: normalizedPartial.requirementSetStatus as any,
-    suggestedActions: normalizedPartial.suggestedActions as any,
-    requirementsBySet: normalizedPartial.requirementsBySet as any,
-    selectedRequirementSetIds: normalizedPartial.selectedRequirementSetIds,
-    requirementSets: normalizedPartial.requirementSets as any
-  })
-  if (Array.isArray(normalizedPartial.selectedRequirementSetIds)) {
-    flow.setSelectedRequirementSetIds(normalizedPartial.selectedRequirementSetIds)
+function formatFindingsEvent(event: NonNullable<typeof flow.lastFindingsEvent>) {
+  const time = new Date(event.at).toLocaleTimeString('de-DE')
+  if (event.type === 'finding_added') {
+    return `${time}: Befund ${event.findingId} hinzugefügt`
+  }
+  return `${time}: Klassifikation ${event.classificationId} für Befund ${event.findingId} aktualisiert`
+}
+
+function fieldKey(findingLocalId: string, classificationName: string): string {
+  return `${findingLocalId}:${normalizeKey(classificationName)}`
+}
+
+function markFieldTouched(findingLocalId: string, classificationName: string) {
+  touchedFields.value = {
+    ...touchedFields.value,
+    [fieldKey(findingLocalId, classificationName)]: true
   }
 }
 
-const lookupActions = useLookupActions<LookupFindingsState>({
-  flow,
-  loading,
-  errorMessage,
-  successMessage,
-  applyLookup,
-  clearMessages
-})
+function resetTouchedState() {
+  touchedFields.value = {}
+  showValidationFeedback.value = false
+  dirtySinceMount.value = false
+}
 
-watch([selectedKbModule, selectedTemplateName], ([moduleName, templateName]) => {
-  flow.setTemplateSelection({
-    moduleName,
-    templateName
-  })
-})
+function getFindingDefinitionByName(findingName: string): Finding | null {
+  return catalogFindingsByNormalizedName.value.get(normalizeKey(findingName)) || null
+}
+
+function getFindingLabel(findingName: string): string {
+  return getFindingDisplayName(
+    getFindingDefinitionByName(findingName) ?? { id: 0, name: findingName }
+  )
+}
+
+function allDefinitionClassificationsForFinding(findingName: string): FindingClassification[] {
+  const finding = getFindingDefinitionByName(findingName)
+  return mergeFindingClassifications(finding)
+}
+
+function visibleClassificationsForFinding(findingName: string): FindingClassification[] {
+  const definitions = allDefinitionClassificationsForFinding(findingName)
+  const extraRequired = backendMissingClassificationsByFinding.value[normalizeKey(findingName)] || []
+  const byKey = new Map<string, FindingClassification>()
+
+  for (const classification of definitions) {
+    byKey.set(normalizeKey(classification.name), classification)
+  }
+
+  for (const missing of extraRequired) {
+    const existing = byKey.get(normalizeKey(missing))
+    if (existing) continue
+    byKey.set(normalizeKey(missing), {
+      id: 0,
+      name: missing,
+      displayName: missing,
+      required: true,
+      classificationTypes: [],
+      choices: []
+    })
+  }
+
+  return Array.from(byKey.values())
+}
+
+function instancesForFinding(findingName: string): ReportTemplateRuntimePatientFindingInput[] {
+  const key = normalizeKey(findingName)
+  return (currentPayload.value?.patientFindings || []).filter(
+    (finding) => normalizeKey(finding.finding) === key
+  )
+}
+
+function canAddFinding(templateFinding: ReportTemplateFinding): boolean {
+  if (!currentPayload.value) return false
+  if (templateFinding.multipleAllowed) return true
+  return instancesForFinding(templateFinding.finding).length === 0
+}
+
+function isClassificationRequired(findingName: string, classificationName: string): boolean {
+  const fromTemplate =
+    sectionBlocks.value
+      .flatMap((section) => section.findings)
+      .find((finding) => normalizeKey(finding.finding) === normalizeKey(findingName))
+      ?.classifications.find(
+        (classification) => normalizeKey(classification.classification) === normalizeKey(classificationName)
+      )?.required || false
+
+  const fromValidation =
+    (backendMissingClassificationsByFinding.value[normalizeKey(findingName)] || []).some(
+      (classification) => normalizeKey(classification) === normalizeKey(classificationName)
+    )
+
+  return fromTemplate || fromValidation
+}
+
+function classificationChoiceState(
+  instance: ReportTemplateRuntimePatientFindingInput,
+  classificationName: string
+): ReportTemplateRuntimeClassificationChoiceInput | null {
+  return (
+    instance.classificationChoices.find(
+      (choice) => normalizeKey(choice.classification) === normalizeKey(classificationName)
+    ) || null
+  )
+}
+
+function classificationChoiceName(
+  instance: ReportTemplateRuntimePatientFindingInput,
+  classificationName: string
+): string {
+  return classificationChoiceState(instance, classificationName)?.classificationChoice || ''
+}
+
+function selectedChoiceDefinition(
+  findingName: string,
+  classificationName: string,
+  instance: ReportTemplateRuntimePatientFindingInput
+): FindingChoice | null {
+  const classification = visibleClassificationsForFinding(findingName).find(
+    (entry) => normalizeKey(entry.name) === normalizeKey(classificationName)
+  )
+  const choiceName = classificationChoiceName(instance, classificationName)
+  if (!classification || !choiceName) return null
+  return (
+    classification.choices.find((choice) => normalizeKey(choice.name) === normalizeKey(choiceName)) || null
+  )
+}
+
+function descriptorKeysForField(
+  findingName: string,
+  classificationName: string,
+  instance: ReportTemplateRuntimePatientFindingInput
+): string[] {
+  const selectedChoice = selectedChoiceDefinition(findingName, classificationName, instance)
+  const descriptorKeys = Object.keys(selectedChoice?.numericalDescriptors || {})
+  if (descriptorKeys.length) return descriptorKeys
+
+  const existingChoice = classificationChoiceState(instance, classificationName)
+  if (existingChoice?.descriptors.length) {
+    return existingChoice.descriptors.map((descriptor) => descriptor.classificationChoiceDescriptor)
+  }
+
+  const normalizedClassification = normalizeKey(classificationName)
+  if (
+    normalizedClassification.includes('mm') ||
+    normalizedClassification.includes('size') ||
+    normalizedClassification.includes('length') ||
+    normalizedClassification.includes('distance')
+  ) {
+    return [`${normalizedClassification}_descriptor`]
+  }
+
+  return []
+}
+
+function descriptorValue(
+  instance: ReportTemplateRuntimePatientFindingInput,
+  classificationName: string,
+  descriptorKey: string
+): string {
+  const descriptor =
+    classificationChoiceState(instance, classificationName)?.descriptors.find(
+      (entry) => entry.classificationChoiceDescriptor === descriptorKey
+    ) || null
+  return descriptor?.descriptorValue == null ? '' : String(descriptor.descriptorValue)
+}
+
+function descriptorLabel(descriptorKey: string): string {
+  return descriptorKey
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (char) => char.toUpperCase())
+}
+
+function descriptorInputType(descriptorKey: string): 'number' | 'text' {
+  return /(mm|cm|length|size|distance|count|number)/i.test(descriptorKey) ? 'number' : 'text'
+}
+
+function buildDescriptors(
+  instance: ReportTemplateRuntimePatientFindingInput,
+  classificationName: string,
+  nextChoiceName: string,
+  patch?: { descriptorKey?: string; descriptorValue?: string }
+): ReportTemplateRuntimeDescriptorInput[] {
+  const existingDescriptors = classificationChoiceState(instance, classificationName)?.descriptors || []
+  const descriptorKeys = descriptorKeysForField(instance.finding, classificationName, instance)
+  const byKey = new Map<string, ReportTemplateRuntimeDescriptorInput>(
+    existingDescriptors.map((descriptor) => [descriptor.classificationChoiceDescriptor, descriptor])
+  )
+
+  if (patch?.descriptorKey) {
+    if (patch.descriptorValue == null || patch.descriptorValue === '') {
+      byKey.delete(patch.descriptorKey)
+    } else {
+      const existing = byKey.get(patch.descriptorKey)
+      byKey.set(patch.descriptorKey, {
+        localId: existing?.localId,
+        classificationChoiceDescriptor: patch.descriptorKey,
+        descriptorValue:
+          descriptorInputType(patch.descriptorKey) === 'number'
+            ? Number(patch.descriptorValue)
+            : patch.descriptorValue
+      })
+    }
+  }
+
+  return (descriptorKeys.length ? descriptorKeys : Array.from(byKey.keys()))
+    .map((descriptorKey) => byKey.get(descriptorKey) || null)
+    .filter((descriptor): descriptor is ReportTemplateRuntimeDescriptorInput => descriptor !== null)
+}
+
+function hasFieldError(
+  instance: ReportTemplateRuntimePatientFindingInput,
+  findingName: string,
+  classificationName: string
+): boolean {
+  const choiceValue = classificationChoiceName(instance, classificationName)
+  const isMissingRequired =
+    isClassificationRequired(findingName, classificationName) &&
+    !choiceValue.trim() &&
+    (
+      showValidationFeedback.value ||
+      touchedFields.value[fieldKey(instance.localId || '', classificationName)]
+    )
+
+  const hasBackendMissing =
+    (backendMissingClassificationsByFinding.value[normalizeKey(findingName)] || []).some(
+      (classification) => normalizeKey(classification) === normalizeKey(classificationName)
+    ) &&
+    (
+      showValidationFeedback.value ||
+      touchedFields.value[fieldKey(instance.localId || '', classificationName)]
+    )
+
+  return isMissingRequired || hasBackendMissing
+}
+
+function fieldMessages(
+  instance: ReportTemplateRuntimePatientFindingInput,
+  findingName: string,
+  classificationName: string
+): string[] {
+  if (!hasFieldError(instance, findingName, classificationName)) return []
+
+  const messages: string[] = []
+  if (
+    isClassificationRequired(findingName, classificationName) &&
+    !classificationChoiceName(instance, classificationName)
+  ) {
+    messages.push('Dieses Feld ist fuer den aktuellen Entwurfszustand erforderlich.')
+  }
+
+  if (
+    (backendMissingClassificationsByFinding.value[normalizeKey(findingName)] || []).some(
+      (classification) => normalizeKey(classification) === normalizeKey(classificationName)
+    )
+  ) {
+    messages.push('Die Validierung verlangt diese Klassifikation fuer den aktuellen Befund.')
+  }
+
+  return Array.from(new Set(messages))
+}
+
+function findingLevelMessages(findingName: string): string[] {
+  const messages = backendMessagesByFinding.value[normalizeKey(findingName)] || []
+  return Array.from(new Set(messages.filter(Boolean)))
+}
 
 async function refreshTemplatesForExamination() {
   templateStatusMessage.value = null
@@ -448,9 +666,9 @@ async function refreshTemplatesForExamination() {
   if (!examName) return
   const templates = await fetchTemplatesByExamination(examName)
   if (templates.length) {
-    templateStatusMessage.value = `${templates.length} Template(s) für "${examName}" geladen.`
+    templateStatusMessage.value = `${templates.length} Template(s) fuer "${examName}" geladen.`
   } else {
-    templateStatusMessage.value = `Keine Templates für "${examName}" gefunden.`
+    templateStatusMessage.value = `Keine Templates fuer "${examName}" gefunden.`
   }
 }
 
@@ -461,217 +679,194 @@ function onModuleChange(next: string) {
 
 function onTemplateSelectionChange(name: string) {
   void selectTemplateByName(name || null)
+  showValidationFeedback.value = false
 }
 
-async function toggleRequirementSet(id: number, checked: boolean) {
-  if (loading.value) return
+function onAddFinding(findingName: string) {
   clearMessages()
-  const next = new Set(selectedRequirementSetIds.value)
-  if (checked) next.add(id)
-  else next.delete(id)
-  const ids = Array.from(next)
-
-  try {
-    const patchResult = await lookupActions.patchLookupParts(
-      { selectedRequirementSetIds: ids },
-      { fallbackErrorMessage: 'Fehler beim Speichern der Dokumentationsregeln.' }
-    )
-    if (!patchResult.ok) return
-    flow.setSelectedRequirementSetIds(ids)
-    if (lookupState.value) {
-      lookupState.value = { ...lookupState.value, selectedRequirementSetIds: ids }
-    }
-    successMessage.value = 'Dokumentationsregeln gespeichert.'
-  } catch (e: any) {
-    errorMessage.value =
-      e?.response?.data?.detail || e?.message || 'Fehler beim Speichern der Dokumentationsregeln.'
+  const localId = flow.addFinding({ findingName })
+  if (!localId) {
+    errorMessage.value = 'Der Befund konnte dem lokalen Entwurf nicht hinzugefuegt werden.'
+    return
   }
+  dirtySinceMount.value = true
+  flow.noteFindingAdded(getFindingDefinitionByName(findingName)?.id || 0)
+  successMessage.value = `Befund "${getFindingLabel(findingName)}" wurde dem lokalen Entwurf hinzugefuegt.`
 }
 
-async function loadFindingsCatalog() {
-  await ensureCatalogLoaded()
+function onRemoveFinding(findingLocalId: string) {
+  clearMessages()
+  if (!findingLocalId) return
+  flow.removeFinding(findingLocalId)
+  dirtySinceMount.value = true
+  successMessage.value = 'Befundinstanz aus dem lokalen Entwurf entfernt.'
 }
 
-async function refreshRuntimeValidation() {
-  const patientExaminationId = flow.patientExaminationId
-  const templateName = flow.selectedTemplateName
-  if (!patientExaminationId || !templateName) {
+function onClassificationChoiceChange(
+  findingLocalId: string,
+  classificationName: string,
+  nextChoice: string
+) {
+  clearMessages()
+  markFieldTouched(findingLocalId, classificationName)
+  dirtySinceMount.value = true
+
+  const instance = (currentPayload.value?.patientFindings || []).find(
+    (finding) => finding.localId === findingLocalId
+  )
+  if (!instance) return
+
+  flow.updateClassificationValue({
+    findingLocalId,
+    classificationName,
+    classificationChoice: nextChoice || null,
+    descriptors: nextChoice
+      ? buildDescriptors(instance, classificationName, nextChoice)
+      : []
+  })
+  flow.noteClassificationUpdated(
+    getFindingDefinitionByName(instance.finding)?.id || 0,
+    0,
+    null
+  )
+}
+
+function onDescriptorInput(
+  findingLocalId: string,
+  classificationName: string,
+  descriptorKey: string,
+  nextValue: string
+) {
+  markFieldTouched(findingLocalId, classificationName)
+  dirtySinceMount.value = true
+  const instance = (currentPayload.value?.patientFindings || []).find(
+    (finding) => finding.localId === findingLocalId
+  )
+  if (!instance) return
+  const currentChoice = classificationChoiceName(instance, classificationName)
+  if (!currentChoice) return
+
+  flow.updateClassificationValue({
+    findingLocalId,
+    classificationName,
+    classificationChoice: currentChoice,
+    descriptors: buildDescriptors(instance, classificationName, currentChoice, {
+      descriptorKey,
+      descriptorValue: nextValue
+    })
+  })
+}
+
+async function runRuntimeValidation(forceFeedback = false) {
+  const draft = currentRuntimeDraft.value
+  const templateName = selectedTemplateName.value
+  if (!draft || !templateName) {
     templateValidationError.value = null
     flow.setLastTemplateValidation(null)
     return
   }
 
+  if (forceFeedback) {
+    showValidationFeedback.value = true
+  }
+
   templateValidationLoading.value = true
   templateValidationError.value = null
   try {
-    await loadFindingsCatalog()
-    const result = await validatePatientFindingsAgainstTemplate({
-      moduleName: flow.selectedKbModule,
+    const result = await validateReportTemplateRuntime(
+      flow.selectedKbModule,
       templateName,
-      patientExaminationId,
-      getFindingById
-    })
+      draft.payload
+    )
     flow.setLastTemplateValidation(result)
   } catch (e: any) {
     flow.setLastTemplateValidation(null)
     templateValidationError.value = formatApiError(
       e,
-      'Template-Validierung konnte nicht ausgeführt werden.'
+      'Template-Validierung konnte nicht ausgefuehrt werden.'
     )
   } finally {
     templateValidationLoading.value = false
   }
 }
 
-async function fetchLookupAll() {
-  const ensured = await ensureLookupSessionForCurrentPatientExamination()
-  if (!ensured) return
-  await lookupActions.fetchLookupAll({
-    fallbackErrorMessage: 'Fehler beim Laden des Fallstands.'
-  })
+function scheduleRuntimeValidation() {
+  if (validationTimer) {
+    clearTimeout(validationTimer)
+  }
+  validationTimer = setTimeout(() => {
+    void runRuntimeValidation(false)
+  }, 350)
 }
 
-async function triggerRecompute() {
-  const ensured = await ensureLookupSessionForCurrentPatientExamination()
-  if (!ensured) return
-  const result = await lookupActions.recomputeLookup({
-    applyUpdates: true,
-    refreshAfter: true,
-    fallbackErrorMessage: 'Fehler bei der Wissensbasis-Prüfung.'
-  })
-  if (result.ok) {
-    successMessage.value = 'Die Wissensbasis wurde nach den Befundänderungen neu geprüft.'
-  }
+function handleBeforeUnload(event: BeforeUnloadEvent) {
+  if (!dirtySinceMount.value) return
+  event.preventDefault()
+  event.returnValue = ''
 }
 
-async function ensureLookupSessionForCurrentPatientExamination(): Promise<boolean> {
-  if (flow.lookupToken) return true
-  const patientExaminationId = flow.patientExaminationId
-  if (!patientExaminationId) {
-    errorMessage.value = 'Keine Patientenuntersuchung vorhanden. Bitte zuerst im Fall-Setup initialisieren.'
-    return false
+watch(
+  [selectedKbModule, selectedTemplateName],
+  ([moduleName, templateName]) => {
+    flow.setTemplateSelection({
+      moduleName,
+      templateName
+    })
   }
-  if (lookupInitInFlight.value) {
-    return await lookupInitInFlight.value
-  }
+)
 
-  const initPromise = (async () => {
-    loading.value = true
-    errorMessage.value = null
-    flow.setSessionStatus('restarting')
-    try {
-      const initRes = await axiosInstance.post(r(endpoints.requirements.lookupInit), {
-        patientExaminationId
-      })
-      const token = String(initRes.data?.token || '')
-      if (!token) {
-        throw new Error('Initialisierung lieferte keinen Fallstand.')
-      }
-      flow.setLookupSession({
-        patientExaminationId,
-        lookupToken: token,
-        status: 'active'
-      })
-      return true
-    } catch (e: any) {
-      flow.setSessionStatus('expired')
-      errorMessage.value = formatApiError(
-        e,
-        'Der Fallkontext konnte nicht initialisiert werden.'
-      )
-      return false
-    } finally {
-      loading.value = false
-      lookupInitInFlight.value = null
+watch(
+  () => flow.patientExaminationId,
+  () => {
+    resetTouchedState()
+    templateValidationError.value = null
+    flow.setLastTemplateValidation(null)
+  }
+)
+
+watch(
+  () => currentPayload.value?.patientFindings,
+  () => {
+    if (!selectedTemplateName.value || !currentPayload.value) return
+    scheduleRuntimeValidation()
+  },
+  { deep: true }
+)
+
+watch(
+  () => selectedTemplateName.value,
+  () => {
+    if (!selectedTemplateName.value) {
+      flow.setLastTemplateValidation(null)
+      templateValidationError.value = null
+      return
     }
-  })()
-
-  lookupInitInFlight.value = initPromise
-  return await initPromise
-}
-
-async function ensureLookupSession() {
-  await ensureLookupSessionForCurrentPatientExamination()
-}
-
-function isFindingAddedToExamination(findingId: number): boolean {
-  return isFindingAttached(flow.patientExaminationId, findingId)
-}
-
-function onFindingAddedToExamination(
-  findingIdOrData: FindingAddedEvent,
-  findingName?: string
-) {
-  const findingId = typeof findingIdOrData === 'number' ? findingIdOrData : findingIdOrData.findingId
-  const name =
-    (typeof findingIdOrData === 'number' ? findingName : findingIdOrData.findingName) ??
-    getFindingDisplayName(getFindingById(findingId) ?? { id: findingId, name: `Befund ${findingId}` })
-
-  flow.noteFindingAdded(findingId)
-  successMessage.value = `Befund "${name}" wurde hinzugefügt.`
-
-  // Refresh lookup advisory state after changes
-  void ensurePatientFindingsLoaded(flow.patientExaminationId).then(() => refreshRuntimeValidation())
-  void triggerRecompute()
-}
-
-function onClassificationUpdated(findingId: number, classificationId: number, choiceId: number | null) {
-  flow.noteClassificationUpdated(findingId, classificationId, choiceId)
-  successMessage.value = `Klassifikation für Befund ${findingId} aktualisiert.`
-  void ensurePatientFindingsLoaded(flow.patientExaminationId).then(() => refreshRuntimeValidation())
-  void triggerRecompute()
-}
-
-function onFindingError(message: string) {
-  errorMessage.value = message
-}
-
-function onFindingDetailError(data: { error: string }) {
-  errorMessage.value = data.error
-}
-
-function formatFindingsEvent(event: {
-  type: 'finding_added' | 'classification_updated'
-  at: string
-  findingId: number
-  classificationId?: number
-  choiceId?: number | null
-}) {
-  const e = event
-  if (e.type === 'finding_added') return `Befund ${e.findingId} hinzugefügt (${e.at})`
-  return `Klassifikation geändert: Befund ${e.findingId}, Klassifikation ${e.classificationId}, Wahl ${e.choiceId ?? 'leer'} (${e.at})`
-}
+    scheduleRuntimeValidation()
+  }
+)
 
 onMounted(async () => {
-  if (!examinationStore.exams.length) {
-    await examinationStore.fetchExaminations()
-  }
-  if (flow.patientExaminationId) {
-    patientExaminationStore.setCurrentPatientExaminationId(flow.patientExaminationId)
-    await ensurePatientFindingsLoaded(flow.patientExaminationId)
-  }
-  await loadFindingsCatalog()
+  window.addEventListener('beforeunload', handleBeforeUnload)
+  await ensureCatalogLoaded()
   if (selectedExaminationName.value) {
     await refreshTemplatesForExamination()
   }
-  if (flow.patientExaminationId) {
-    await fetchLookupAll()
+  if (canValidateDraft.value) {
+    scheduleRuntimeValidation()
   }
-  await refreshRuntimeValidation()
 })
 
-watch(
-  () => [flow.patientExaminationId, flow.selectedKbModule, flow.selectedTemplateName] as const,
-  async () => {
-    await refreshRuntimeValidation()
+onBeforeUnmount(() => {
+  window.removeEventListener('beforeunload', handleBeforeUnload)
+  if (validationTimer) {
+    clearTimeout(validationTimer)
+    validationTimer = null
   }
-)
-
-watch(
-  selectedExaminationName,
-  async (newName, oldName) => {
-    if (!newName || newName === oldName) return
-    await refreshTemplatesForExamination()
-  }
-)
+})
 </script>
+
+<style scoped>
+.runtime-finding-instance {
+  background: #fbfcfe;
+}
+</style>

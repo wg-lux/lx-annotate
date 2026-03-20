@@ -3,7 +3,7 @@
     <div class="card-header d-flex justify-content-between align-items-center">
       <div>
         <h5 class="mb-0">Fall-Setup</h5>
-        <small class="text-muted">Patient auswählen, Untersuchung wählen und Fallkontext starten</small>
+        <small class="text-muted">Patient auswählen, Untersuchung wählen und Reporting-Entwurf vorbereiten</small>
       </div>
       <span class="badge" :class="sessionBadgeClass">{{ sessionBadgeLabel }}</span>
     </div>
@@ -58,8 +58,8 @@
           <input class="form-control" type="number" :value="flow.patientExaminationId ?? ''" readonly />
         </div>
         <div class="col-md-6">
-          <label class="form-label">Fallkontext</label>
-          <input class="form-control" :value="flow.lookupToken ? 'aktiv' : 'inaktiv'" readonly />
+          <label class="form-label">Reporting-Status</label>
+          <input class="form-control" :value="flow.currentRuntimeDraft ? 'Entwurf geladen' : 'Noch kein Entwurf geladen'" readonly />
         </div>
       </div>
 
@@ -67,17 +67,10 @@
         <button
           class="btn btn-primary btn-sm"
           :disabled="loading || !flow.selectedPatientId || !flow.selectedExaminationId"
-          @click="createPatientExaminationAndInitLookup"
+          @click="createPatientExaminationContext"
         >
           <span v-if="loading" class="spinner-border spinner-border-sm me-1" />
-          Patientenuntersuchung anlegen und Fallkontext starten
-        </button>
-        <button
-          class="btn btn-outline-secondary btn-sm"
-          :disabled="loading || !flow.patientExaminationId"
-          @click="reinitLookup"
-        >
-          Fallkontext neu initialisieren
+          Patientenuntersuchung anlegen
         </button>
         <button class="btn btn-outline-secondary btn-sm" :disabled="loading" @click="reloadLists">
           Neu laden
@@ -145,29 +138,11 @@ const nextRoute = computed(() =>
 )
 
 const sessionBadgeLabel = computed(() => {
-  switch (flow.sessionStatus) {
-    case 'active':
-      return 'Fallkontext aktiv'
-    case 'expired':
-      return 'Fallkontext abgelaufen'
-    case 'restarting':
-      return 'Fallkontext wird neu gestartet'
-    default:
-      return 'Kein Fallkontext'
-  }
+  return flow.patientExaminationId ? 'Patientenuntersuchung gewählt' : 'Kein Kontext'
 })
 
 const sessionBadgeClass = computed(() => {
-  switch (flow.sessionStatus) {
-    case 'active':
-      return 'bg-success'
-    case 'expired':
-      return 'bg-danger'
-    case 'restarting':
-      return 'bg-warning text-dark'
-    default:
-      return 'bg-secondary'
-  }
+  return flow.patientExaminationId ? 'bg-success' : 'bg-secondary'
 })
 
 function clearMessages() {
@@ -220,7 +195,7 @@ function formatDateOnly(value?: string | null): string | null {
   return d.toISOString().split('T')[0] || null
 }
 
-async function createPatientExaminationAndInitLookup() {
+async function createPatientExaminationContext() {
   if (!flow.selectedPatientId || !flow.selectedExaminationId) {
     errorMessage.value = 'Bitte wählen Sie zuerst Patient und Untersuchung aus.'
     return
@@ -248,55 +223,22 @@ async function createPatientExaminationAndInitLookup() {
     const pe = peRes.data as PatientExamination
     patientExaminationStore.addPatientExamination(pe)
     patientExaminationStore.setCurrentPatientExaminationId(pe.id)
-
-    const initRes = await axiosInstance.post(r(endpoints.requirements.lookupInit), {
-      patientExaminationId: pe.id
-    })
-
-    flow.setLookupSession({
+    flow.setPatientExaminationContext({
       patientExaminationId: pe.id,
-      lookupToken: initRes.data.token,
-      status: 'active'
+      selectedPatientId: flow.selectedPatientId,
+      selectedExaminationId: flow.selectedExaminationId,
+      preserveTemplateSelection: true
     })
 
     successMessage.value = returnToPath.value
-      ? 'Der Fallkontext wurde erfolgreich gestartet. Sie können jetzt zur Validierung zurückkehren oder mit der Befundung fortfahren.'
-      : 'Der Fallkontext wurde erfolgreich gestartet.'
+      ? 'Die Patientenuntersuchung wurde angelegt. Sie können jetzt zur Validierung zurückkehren oder mit der Befundung fortfahren.'
+      : 'Die Patientenuntersuchung wurde erfolgreich angelegt.'
   } catch (e: any) {
-    flow.setSessionStatus('idle')
     errorMessage.value =
       e?.response?.data?.detail ||
       e?.response?.data?.error ||
       e?.message ||
-      'Fehler beim Erstellen der Patientenuntersuchung oder Starten des Fallkontexts.'
-  } finally {
-    loading.value = false
-  }
-}
-
-async function reinitLookup() {
-  if (!flow.patientExaminationId) {
-    errorMessage.value = 'Keine Patientenuntersuchung vorhanden.'
-    return
-  }
-
-  loading.value = true
-  clearMessages()
-  flow.setSessionStatus('restarting')
-  try {
-    const initRes = await axiosInstance.post(r(endpoints.requirements.lookupInit), {
-      patientExaminationId: flow.patientExaminationId
-    })
-    flow.setLookupSession({
-      patientExaminationId: flow.patientExaminationId,
-      lookupToken: initRes.data.token,
-      status: 'active'
-    })
-    successMessage.value = 'Der Fallkontext wurde neu initialisiert.'
-  } catch (e: any) {
-    flow.setSessionStatus('expired')
-    errorMessage.value =
-      e?.response?.data?.detail || e?.message || 'Fehler beim Neuinitialisieren des Fallkontexts.'
+      'Fehler beim Erstellen der Patientenuntersuchung.'
   } finally {
     loading.value = false
   }

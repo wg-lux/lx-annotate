@@ -2,7 +2,6 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useVideoStore } from '@/stores/videoStore';
 import { useAnonymizationStore } from '@/stores/anonymizationStore';
 import { useMediaTypeStore } from '@/stores/mediaTypeStore';
-import RequirementGenerator from '@/components/RequirementReport/RequirementGenerator.vue';
 import axiosInstance, { r } from '@/api/axiosInstance';
 import Timeline from '@/components/VideoExamination/Timeline.vue';
 import { storeToRefs } from 'pinia';
@@ -247,9 +246,6 @@ watch(selectableVideos, (videos) => {
         return;
     loadSensitiveMetaForVideos(videos.map(v => v.id));
 }, { immediate: true });
-const showExaminationForm = computed(() => {
-    return selectedVideoId.value !== null && anonymizedVideoSrc.value !== undefined;
-});
 // Video streaming URL using MediaStore logic like AnonymizationValidationComponent
 const anonymizedVideoSrc = computed(() => {
     if (!selectedVideoId.value)
@@ -961,18 +957,6 @@ let __VLS_directives;
 /** @type {__VLS_StyleScopedClasses['fullscreen-toggle']} */ ;
 /** @type {__VLS_StyleScopedClasses['examination-marker']} */ ;
 /** @type {__VLS_StyleScopedClasses['list-group-item']} */ ;
-/** @type {__VLS_StyleScopedClasses['requirement-generator-embedded']} */ ;
-/** @type {__VLS_StyleScopedClasses['requirement-generator-embedded']} */ ;
-/** @type {__VLS_StyleScopedClasses['requirement-generator-embedded']} */ ;
-/** @type {__VLS_StyleScopedClasses['requirement-generator-embedded']} */ ;
-/** @type {__VLS_StyleScopedClasses['requirement-generator-embedded']} */ ;
-/** @type {__VLS_StyleScopedClasses['requirement-generator-embedded']} */ ;
-/** @type {__VLS_StyleScopedClasses['requirement-generator-embedded']} */ ;
-/** @type {__VLS_StyleScopedClasses['requirement-generator-embedded']} */ ;
-/** @type {__VLS_StyleScopedClasses['requirement-generator-embedded']} */ ;
-/** @type {__VLS_StyleScopedClasses['requirement-generator-embedded']} */ ;
-/** @type {__VLS_StyleScopedClasses['requirement-generator-embedded']} */ ;
-/** @type {__VLS_StyleScopedClasses['requirement-generator-embedded']} */ ;
 /** @type {__VLS_StyleScopedClasses['status-badge-container']} */ ;
 /** @type {__VLS_StyleScopedClasses['video-dropdown-trigger']} */ ;
 /** @type {__VLS_StyleScopedClasses['video-dropdown-item']} */ ;
@@ -1711,36 +1695,34 @@ if (__VLS_ctx.selectedVideoId) {
     (__VLS_ctx.selectedVideoId);
 }
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "card-body p-0" },
-    ...{ style: {} },
+    ...{ class: "card-body" },
 });
-if (__VLS_ctx.showExaminationForm) {
-    /** @type {[typeof RequirementGenerator, ]} */ ;
-    // @ts-ignore
-    const __VLS_14 = __VLS_asFunctionalComponent(RequirementGenerator, new RequirementGenerator({
-        ...{ class: "requirement-generator-embedded" },
-        dataCy: "requirement-generator",
-    }));
-    const __VLS_15 = __VLS_14({
-        ...{ class: "requirement-generator-embedded" },
-        dataCy: "requirement-generator",
-    }, ...__VLS_functionalComponentArgsRest(__VLS_14));
-}
-else {
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "text-center text-muted py-5 px-3" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-video fa-3x mb-3 text-muted" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({});
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
-        ...{ class: "mb-0" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
-        ...{ class: "text-muted" },
-    });
-}
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "text-center text-muted py-5 px-3" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+    ...{ class: "fas fa-route fa-3x mb-3 text-muted" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
+    ...{ class: "mb-3" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
+    ...{ class: "small text-muted mb-4" },
+});
+const __VLS_14 = {}.RouterLink;
+/** @type {[typeof __VLS_components.RouterLink, typeof __VLS_components.RouterLink, ]} */ ;
+// @ts-ignore
+const __VLS_15 = __VLS_asFunctionalComponent(__VLS_14, new __VLS_14({
+    ...{ class: "btn btn-primary" },
+    to: "/reporting/case-setup",
+}));
+const __VLS_16 = __VLS_15({
+    ...{ class: "btn btn-primary" },
+    to: "/reporting/case-setup",
+}, ...__VLS_functionalComponentArgsRest(__VLS_15));
+__VLS_17.slots.default;
+var __VLS_17;
 if (__VLS_ctx.savedExaminations.length > 0) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "card mt-3" },
@@ -2053,19 +2035,21 @@ if (__VLS_ctx.savedExaminations.length > 0) {
 /** @type {__VLS_StyleScopedClasses['fa-info-circle']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-body']} */ ;
-/** @type {__VLS_StyleScopedClasses['p-0']} */ ;
-/** @type {__VLS_StyleScopedClasses['requirement-generator-embedded']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['py-5']} */ ;
 /** @type {__VLS_StyleScopedClasses['px-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-video']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-route']} */ ;
 /** @type {__VLS_StyleScopedClasses['fa-3x']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
-/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['small']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-4']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-primary']} */ ;
 /** @type {__VLS_StyleScopedClasses['card']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-header']} */ ;
@@ -2093,7 +2077,6 @@ var __VLS_dollars;
 const __VLS_self = (await import('vue')).defineComponent({
     setup() {
         return {
-            RequirementGenerator: RequirementGenerator,
             Timeline: Timeline,
             formatTime: formatTime,
             getTranslationForLabel: getTranslationForLabel,
@@ -2133,7 +2116,6 @@ const __VLS_self = (await import('vue')).defineComponent({
             selectableVideos: selectableVideos,
             annotatableVideos: annotatableVideos,
             selectedVideoLabel: selectedVideoLabel,
-            showExaminationForm: showExaminationForm,
             anonymizedVideoSrc: anonymizedVideoSrc,
             hasVideos: hasVideos,
             noVideosMessage: noVideosMessage,

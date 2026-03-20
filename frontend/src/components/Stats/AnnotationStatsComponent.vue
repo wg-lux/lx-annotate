@@ -325,8 +325,8 @@
                       <i class="fas fa-plus"></i>
                     </div>
                     <div class="action-content">
-                      <h6>Neue Untersuchung</h6>
-                      <small class="text-muted">Untersuchung erstellen</small>
+                      <h6>Neue Befundung</h6>
+                      <small class="text-muted">Reporting-Fall-Setup oeffnen</small>
                     </div>
                   </div>
                 </div>

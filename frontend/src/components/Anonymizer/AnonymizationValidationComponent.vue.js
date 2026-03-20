@@ -738,7 +738,7 @@ async function fetchPatientExaminationOptions() {
         }
         else if (suggestedPatientExaminationId === null) {
             patientExaminationLoadError.value =
-                'Keine bestehende Untersuchung automatisch gefunden. Bitte wählen Sie eine ID manuell oder legen Sie eine neue Untersuchung im Fall-Setup an.';
+                'Keine bestehende Untersuchung automatisch gefunden. Es wird eine neue Untersuchung angelegt.';
         }
         patientExaminationOptions.value = options.sort((a, b) => b.id - a.id);
     }

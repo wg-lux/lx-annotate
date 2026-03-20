@@ -1,130 +1,32 @@
-import { computed, onMounted, ref, watch } from 'vue';
-import axiosInstance, { r } from '@/api/axiosInstance';
-import { getFindingDisplayName } from '@/api/findings.contract';
-import { validatePatientFindingsAgainstTemplate } from '@/api/reportTemplatesApi';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { getClassificationDisplayName, getFindingDisplayName, mergeFindingClassifications } from '@/api/findings.contract';
+import { validateReportTemplateRuntime } from '@/api/reportTemplatesApi';
 import MedicalBlock from '@/components/AssistedReporting/MedicalBlock.vue';
-import RequirementSetSelectionList from '@/components/Reporting/RequirementSetSelectionList.vue';
-import AddableFindingsDetail from '@/components/RequirementReport/AddableFindingsDetail.vue';
-import FindingsDetail from '@/components/RequirementReport/FindingsDetail.vue';
-import { useFindingSelectors } from '@/composables/reporting/useFindingSelectors';
-import LookupStatusPanel from '@/components/Reporting/LookupStatusPanel.vue';
 import ReportTemplateValidationPanel from '@/components/Reporting/ReportTemplateValidationPanel.vue';
 import ReportingMediaPreviewCards from '@/components/Reporting/ReportingMediaPreviewCards.vue';
-import { useLookupActions } from '@/composables/reporting/useLookupActions';
+import { useFindingSelectors } from '@/composables/reporting/useFindingSelectors';
 import { useReportTemplates } from '@/composables/reporting/useReportTemplates';
 import { useExaminationStore } from '@/stores/examinationStore';
 import { useReportingFlowStore } from '@/stores/reportingFlowStore';
-import { usePatientExaminationStore } from '@/stores/patientExaminationStore';
-import { endpoints } from '@/types/api/endpoints';
 const flow = useReportingFlowStore();
 const examinationStore = useExaminationStore();
-const patientExaminationStore = usePatientExaminationStore();
-const { loading: findingSelectorsLoading, ensureCatalogLoaded, ensurePatientFindingsLoaded, getFindingById, isFindingAttached } = useFindingSelectors();
-const loading = ref(false);
+const { catalogFindings, loading: findingSelectorsLoading, ensureCatalogLoaded, getFindingById } = useFindingSelectors();
 const errorMessage = ref(null);
 const successMessage = ref(null);
-const lookupState = ref(null);
-const lookupInitInFlight = ref(null);
 const templateValidationLoading = ref(false);
 const templateValidationError = ref(null);
 const templateStatusMessage = ref(null);
+const touchedFields = ref({});
+const showValidationFeedback = ref(false);
+const dirtySinceMount = ref(false);
+let validationTimer = null;
 const { moduleName: selectedKbModule, selectedTemplateName, templateOptions, selectedTemplate, sectionBlocks, loading: templateLoading, errorMessage: templateErrorMessage, fetchTemplatesByExamination, selectTemplateByName, setModuleName } = useReportTemplates({
     initialModuleName: flow.selectedKbModule,
     initialTemplateName: flow.selectedTemplateName
 });
-function normalizeIdArray(value) {
-    if (!Array.isArray(value))
-        return [];
-    const ids = value
-        .map((entry) => Number(entry))
-        .filter((entry) => Number.isFinite(entry))
-        .map((entry) => Math.trunc(entry));
-    return Array.from(new Set(ids));
-}
-function normalizeBooleanRecord(value) {
-    if (!value || typeof value !== 'object' || Array.isArray(value))
-        return {};
-    return Object.fromEntries(Object.entries(value).map(([key, entry]) => [String(key), !!entry]));
-}
-function normalizeRequirementSets(value) {
-    if (!Array.isArray(value))
-        return [];
-    return value
-        .map((entry) => {
-        if (!entry || typeof entry !== 'object')
-            return null;
-        const id = Number(entry.id);
-        if (!Number.isFinite(id))
-            return null;
-        return {
-            id,
-            name: String(entry.name || ''),
-            type: String(entry.type || '')
-        };
-    })
-        .filter((entry) => !!entry);
-}
-function normalizeSuggestedActions(value) {
-    if (!value || typeof value !== 'object' || Array.isArray(value))
-        return {};
-    return Object.fromEntries(Object.entries(value).map(([key, entry]) => [String(key), Array.isArray(entry) ? entry : []]));
-}
-function normalizeRequirementsBySet(value) {
-    if (!value || typeof value !== 'object' || Array.isArray(value))
-        return {};
-    return Object.fromEntries(Object.entries(value).map(([key, entry]) => {
-        const requirements = Array.isArray(entry)
-            ? entry
-                .map((requirement) => {
-                if (!requirement || typeof requirement !== 'object')
-                    return null;
-                const id = Number(requirement.id);
-                const name = String(requirement.name || '');
-                if (!Number.isFinite(id) || !name)
-                    return null;
-                return { id, name };
-            })
-                .filter((requirement) => !!requirement)
-            : [];
-        return [String(key), requirements];
-    }));
-}
-function normalizeLookupPartial(partial) {
-    const normalized = { ...partial };
-    if ('availableFindings' in partial) {
-        normalized.availableFindings = normalizeIdArray(partial.availableFindings);
-    }
-    if ('requiredFindings' in partial) {
-        normalized.requiredFindings = normalizeIdArray(partial.requiredFindings);
-    }
-    if ('selectedRequirementSetIds' in partial) {
-        normalized.selectedRequirementSetIds = normalizeIdArray(partial.selectedRequirementSetIds);
-    }
-    if ('requirementStatus' in partial) {
-        normalized.requirementStatus = normalizeBooleanRecord(partial.requirementStatus);
-    }
-    if ('requirementSetStatus' in partial) {
-        normalized.requirementSetStatus = normalizeBooleanRecord(partial.requirementSetStatus);
-    }
-    if ('suggestedActions' in partial) {
-        normalized.suggestedActions = normalizeSuggestedActions(partial.suggestedActions);
-    }
-    if ('requirementsBySet' in partial) {
-        normalized.requirementsBySet = normalizeRequirementsBySet(partial.requirementsBySet);
-    }
-    if ('requirementSets' in partial) {
-        normalized.requirementSets = normalizeRequirementSets(partial.requirementSets);
-    }
-    return normalized;
-}
-const availableFindings = computed(() => normalizeIdArray(lookupState.value?.availableFindings));
-const requirementSets = computed(() => normalizeRequirementSets(lookupState.value?.requirementSets));
-const selectedRequirementSetIds = computed(() => normalizeIdArray(flow.selectedRequirementSetIds));
-const selectedRequirementSetIdSet = computed(() => new Set(selectedRequirementSetIds.value));
-const lookupRequirementSetStatus = computed(() => normalizeBooleanRecord(lookupState.value?.requirementSetStatus));
-const hasSuggestedActions = computed(() => Object.keys(normalizeSuggestedActions(lookupState.value?.suggestedActions)).length > 0);
-const prettySuggestedActions = computed(() => JSON.stringify(normalizeSuggestedActions(lookupState.value?.suggestedActions), null, 2));
-const canInitializeLookup = computed(() => !!flow.patientExaminationId);
+const currentRuntimeDraft = computed(() => flow.currentRuntimeDraft);
+const currentPayload = computed(() => currentRuntimeDraft.value?.payload || null);
+const canValidateDraft = computed(() => !!selectedTemplateName.value && !!currentPayload.value);
 const selectedExamination = computed(() => examinationStore.examinationsDropdown.find((item) => item.id === flow.selectedExaminationId) || null);
 const selectedExaminationName = computed(() => selectedExamination.value?.name || null);
 const selectedExaminationDisplayName = computed(() => selectedExamination.value?.displayName || selectedExaminationName.value || null);
@@ -139,6 +41,28 @@ const selectedTemplateValidatorCounts = computed(() => {
             : 0
     };
 });
+const catalogFindingsByNormalizedName = computed(() => {
+    const entries = catalogFindings.value.map((finding) => [normalizeKey(finding.name), finding]);
+    return new Map(entries);
+});
+const backendMissingClassificationsByFinding = computed(() => {
+    const entries = (flow.lastTemplateValidation?.findingsValidators || []).flatMap((validator) => {
+        if (!validator.missingRequiredClassifications.length)
+            return [];
+        return [[normalizeKey(validator.finding), validator.missingRequiredClassifications]];
+    });
+    return Object.fromEntries(entries);
+});
+const backendMessagesByFinding = computed(() => {
+    const entries = (flow.lastTemplateValidation?.findingsValidators || []).map((validator) => [
+        normalizeKey(validator.finding),
+        validator.issues.map((issue) => issue.message)
+    ]);
+    return Object.fromEntries(entries);
+});
+function normalizeKey(value) {
+    return value.trim().toLowerCase().replace(/\s+/g, '_').replace(/-/g, '_');
+}
 function clearMessages() {
     errorMessage.value = null;
     successMessage.value = null;
@@ -146,35 +70,172 @@ function clearMessages() {
 function formatApiError(e, fallback) {
     return e?.response?.data?.detail || e?.response?.data?.error || e?.message || fallback;
 }
-function applyLookup(partial) {
-    const normalizedPartial = normalizeLookupPartial(partial);
-    lookupState.value = { ...(lookupState.value || {}), ...normalizedPartial };
-    flow.patchLookupSnapshot({
-        requirementStatus: normalizedPartial.requirementStatus,
-        requirementSetStatus: normalizedPartial.requirementSetStatus,
-        suggestedActions: normalizedPartial.suggestedActions,
-        requirementsBySet: normalizedPartial.requirementsBySet,
-        selectedRequirementSetIds: normalizedPartial.selectedRequirementSetIds,
-        requirementSets: normalizedPartial.requirementSets
-    });
-    if (Array.isArray(normalizedPartial.selectedRequirementSetIds)) {
-        flow.setSelectedRequirementSetIds(normalizedPartial.selectedRequirementSetIds);
+function formatFindingsEvent(event) {
+    const time = new Date(event.at).toLocaleTimeString('de-DE');
+    if (event.type === 'finding_added') {
+        return `${time}: Befund ${event.findingId} hinzugefügt`;
     }
+    return `${time}: Klassifikation ${event.classificationId} für Befund ${event.findingId} aktualisiert`;
 }
-const lookupActions = useLookupActions({
-    flow,
-    loading,
-    errorMessage,
-    successMessage,
-    applyLookup,
-    clearMessages
-});
-watch([selectedKbModule, selectedTemplateName], ([moduleName, templateName]) => {
-    flow.setTemplateSelection({
-        moduleName,
-        templateName
-    });
-});
+function fieldKey(findingLocalId, classificationName) {
+    return `${findingLocalId}:${normalizeKey(classificationName)}`;
+}
+function markFieldTouched(findingLocalId, classificationName) {
+    touchedFields.value = {
+        ...touchedFields.value,
+        [fieldKey(findingLocalId, classificationName)]: true
+    };
+}
+function resetTouchedState() {
+    touchedFields.value = {};
+    showValidationFeedback.value = false;
+    dirtySinceMount.value = false;
+}
+function getFindingDefinitionByName(findingName) {
+    return catalogFindingsByNormalizedName.value.get(normalizeKey(findingName)) || null;
+}
+function getFindingLabel(findingName) {
+    return getFindingDisplayName(getFindingDefinitionByName(findingName) ?? { id: 0, name: findingName });
+}
+function allDefinitionClassificationsForFinding(findingName) {
+    const finding = getFindingDefinitionByName(findingName);
+    return mergeFindingClassifications(finding);
+}
+function visibleClassificationsForFinding(findingName) {
+    const definitions = allDefinitionClassificationsForFinding(findingName);
+    const extraRequired = backendMissingClassificationsByFinding.value[normalizeKey(findingName)] || [];
+    const byKey = new Map();
+    for (const classification of definitions) {
+        byKey.set(normalizeKey(classification.name), classification);
+    }
+    for (const missing of extraRequired) {
+        const existing = byKey.get(normalizeKey(missing));
+        if (existing)
+            continue;
+        byKey.set(normalizeKey(missing), {
+            id: 0,
+            name: missing,
+            displayName: missing,
+            required: true,
+            classificationTypes: [],
+            choices: []
+        });
+    }
+    return Array.from(byKey.values());
+}
+function instancesForFinding(findingName) {
+    const key = normalizeKey(findingName);
+    return (currentPayload.value?.patientFindings || []).filter((finding) => normalizeKey(finding.finding) === key);
+}
+function canAddFinding(templateFinding) {
+    if (!currentPayload.value)
+        return false;
+    if (templateFinding.multipleAllowed)
+        return true;
+    return instancesForFinding(templateFinding.finding).length === 0;
+}
+function isClassificationRequired(findingName, classificationName) {
+    const fromTemplate = sectionBlocks.value
+        .flatMap((section) => section.findings)
+        .find((finding) => normalizeKey(finding.finding) === normalizeKey(findingName))
+        ?.classifications.find((classification) => normalizeKey(classification.classification) === normalizeKey(classificationName))?.required || false;
+    const fromValidation = (backendMissingClassificationsByFinding.value[normalizeKey(findingName)] || []).some((classification) => normalizeKey(classification) === normalizeKey(classificationName));
+    return fromTemplate || fromValidation;
+}
+function classificationChoiceState(instance, classificationName) {
+    return (instance.classificationChoices.find((choice) => normalizeKey(choice.classification) === normalizeKey(classificationName)) || null);
+}
+function classificationChoiceName(instance, classificationName) {
+    return classificationChoiceState(instance, classificationName)?.classificationChoice || '';
+}
+function selectedChoiceDefinition(findingName, classificationName, instance) {
+    const classification = visibleClassificationsForFinding(findingName).find((entry) => normalizeKey(entry.name) === normalizeKey(classificationName));
+    const choiceName = classificationChoiceName(instance, classificationName);
+    if (!classification || !choiceName)
+        return null;
+    return (classification.choices.find((choice) => normalizeKey(choice.name) === normalizeKey(choiceName)) || null);
+}
+function descriptorKeysForField(findingName, classificationName, instance) {
+    const selectedChoice = selectedChoiceDefinition(findingName, classificationName, instance);
+    const descriptorKeys = Object.keys(selectedChoice?.numericalDescriptors || {});
+    if (descriptorKeys.length)
+        return descriptorKeys;
+    const existingChoice = classificationChoiceState(instance, classificationName);
+    if (existingChoice?.descriptors.length) {
+        return existingChoice.descriptors.map((descriptor) => descriptor.classificationChoiceDescriptor);
+    }
+    const normalizedClassification = normalizeKey(classificationName);
+    if (normalizedClassification.includes('mm') ||
+        normalizedClassification.includes('size') ||
+        normalizedClassification.includes('length') ||
+        normalizedClassification.includes('distance')) {
+        return [`${normalizedClassification}_descriptor`];
+    }
+    return [];
+}
+function descriptorValue(instance, classificationName, descriptorKey) {
+    const descriptor = classificationChoiceState(instance, classificationName)?.descriptors.find((entry) => entry.classificationChoiceDescriptor === descriptorKey) || null;
+    return descriptor?.descriptorValue == null ? '' : String(descriptor.descriptorValue);
+}
+function descriptorLabel(descriptorKey) {
+    return descriptorKey
+        .replace(/_/g, ' ')
+        .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+function descriptorInputType(descriptorKey) {
+    return /(mm|cm|length|size|distance|count|number)/i.test(descriptorKey) ? 'number' : 'text';
+}
+function buildDescriptors(instance, classificationName, nextChoiceName, patch) {
+    const existingDescriptors = classificationChoiceState(instance, classificationName)?.descriptors || [];
+    const descriptorKeys = descriptorKeysForField(instance.finding, classificationName, instance);
+    const byKey = new Map(existingDescriptors.map((descriptor) => [descriptor.classificationChoiceDescriptor, descriptor]));
+    if (patch?.descriptorKey) {
+        if (patch.descriptorValue == null || patch.descriptorValue === '') {
+            byKey.delete(patch.descriptorKey);
+        }
+        else {
+            const existing = byKey.get(patch.descriptorKey);
+            byKey.set(patch.descriptorKey, {
+                localId: existing?.localId,
+                classificationChoiceDescriptor: patch.descriptorKey,
+                descriptorValue: descriptorInputType(patch.descriptorKey) === 'number'
+                    ? Number(patch.descriptorValue)
+                    : patch.descriptorValue
+            });
+        }
+    }
+    return (descriptorKeys.length ? descriptorKeys : Array.from(byKey.keys()))
+        .map((descriptorKey) => byKey.get(descriptorKey) || null)
+        .filter((descriptor) => descriptor !== null);
+}
+function hasFieldError(instance, findingName, classificationName) {
+    const choiceValue = classificationChoiceName(instance, classificationName);
+    const isMissingRequired = isClassificationRequired(findingName, classificationName) &&
+        !choiceValue.trim() &&
+        (showValidationFeedback.value ||
+            touchedFields.value[fieldKey(instance.localId || '', classificationName)]);
+    const hasBackendMissing = (backendMissingClassificationsByFinding.value[normalizeKey(findingName)] || []).some((classification) => normalizeKey(classification) === normalizeKey(classificationName)) &&
+        (showValidationFeedback.value ||
+            touchedFields.value[fieldKey(instance.localId || '', classificationName)]);
+    return isMissingRequired || hasBackendMissing;
+}
+function fieldMessages(instance, findingName, classificationName) {
+    if (!hasFieldError(instance, findingName, classificationName))
+        return [];
+    const messages = [];
+    if (isClassificationRequired(findingName, classificationName) &&
+        !classificationChoiceName(instance, classificationName)) {
+        messages.push('Dieses Feld ist fuer den aktuellen Entwurfszustand erforderlich.');
+    }
+    if ((backendMissingClassificationsByFinding.value[normalizeKey(findingName)] || []).some((classification) => normalizeKey(classification) === normalizeKey(classificationName))) {
+        messages.push('Die Validierung verlangt diese Klassifikation fuer den aktuellen Befund.');
+    }
+    return Array.from(new Set(messages));
+}
+function findingLevelMessages(findingName) {
+    const messages = backendMessagesByFinding.value[normalizeKey(findingName)] || [];
+    return Array.from(new Set(messages.filter(Boolean)));
+}
 async function refreshTemplatesForExamination() {
     templateStatusMessage.value = null;
     const examName = selectedExaminationName.value;
@@ -182,10 +243,10 @@ async function refreshTemplatesForExamination() {
         return;
     const templates = await fetchTemplatesByExamination(examName);
     if (templates.length) {
-        templateStatusMessage.value = `${templates.length} Template(s) für "${examName}" geladen.`;
+        templateStatusMessage.value = `${templates.length} Template(s) fuer "${examName}" geladen.`;
     }
     else {
-        templateStatusMessage.value = `Keine Templates für "${examName}" gefunden.`;
+        templateStatusMessage.value = `Keine Templates fuer "${examName}" gefunden.`;
     }
 }
 function onModuleChange(next) {
@@ -194,190 +255,149 @@ function onModuleChange(next) {
 }
 function onTemplateSelectionChange(name) {
     void selectTemplateByName(name || null);
+    showValidationFeedback.value = false;
 }
-async function toggleRequirementSet(id, checked) {
-    if (loading.value)
-        return;
+function onAddFinding(findingName) {
     clearMessages();
-    const next = new Set(selectedRequirementSetIds.value);
-    if (checked)
-        next.add(id);
-    else
-        next.delete(id);
-    const ids = Array.from(next);
-    try {
-        const patchResult = await lookupActions.patchLookupParts({ selectedRequirementSetIds: ids }, { fallbackErrorMessage: 'Fehler beim Speichern der Dokumentationsregeln.' });
-        if (!patchResult.ok)
-            return;
-        flow.setSelectedRequirementSetIds(ids);
-        if (lookupState.value) {
-            lookupState.value = { ...lookupState.value, selectedRequirementSetIds: ids };
-        }
-        successMessage.value = 'Dokumentationsregeln gespeichert.';
+    const localId = flow.addFinding({ findingName });
+    if (!localId) {
+        errorMessage.value = 'Der Befund konnte dem lokalen Entwurf nicht hinzugefuegt werden.';
+        return;
     }
-    catch (e) {
-        errorMessage.value =
-            e?.response?.data?.detail || e?.message || 'Fehler beim Speichern der Dokumentationsregeln.';
-    }
+    dirtySinceMount.value = true;
+    flow.noteFindingAdded(getFindingDefinitionByName(findingName)?.id || 0);
+    successMessage.value = `Befund "${getFindingLabel(findingName)}" wurde dem lokalen Entwurf hinzugefuegt.`;
 }
-async function loadFindingsCatalog() {
-    await ensureCatalogLoaded();
+function onRemoveFinding(findingLocalId) {
+    clearMessages();
+    if (!findingLocalId)
+        return;
+    flow.removeFinding(findingLocalId);
+    dirtySinceMount.value = true;
+    successMessage.value = 'Befundinstanz aus dem lokalen Entwurf entfernt.';
 }
-async function refreshRuntimeValidation() {
-    const patientExaminationId = flow.patientExaminationId;
-    const templateName = flow.selectedTemplateName;
-    if (!patientExaminationId || !templateName) {
+function onClassificationChoiceChange(findingLocalId, classificationName, nextChoice) {
+    clearMessages();
+    markFieldTouched(findingLocalId, classificationName);
+    dirtySinceMount.value = true;
+    const instance = (currentPayload.value?.patientFindings || []).find((finding) => finding.localId === findingLocalId);
+    if (!instance)
+        return;
+    flow.updateClassificationValue({
+        findingLocalId,
+        classificationName,
+        classificationChoice: nextChoice || null,
+        descriptors: nextChoice
+            ? buildDescriptors(instance, classificationName, nextChoice)
+            : []
+    });
+    flow.noteClassificationUpdated(getFindingDefinitionByName(instance.finding)?.id || 0, 0, null);
+}
+function onDescriptorInput(findingLocalId, classificationName, descriptorKey, nextValue) {
+    markFieldTouched(findingLocalId, classificationName);
+    dirtySinceMount.value = true;
+    const instance = (currentPayload.value?.patientFindings || []).find((finding) => finding.localId === findingLocalId);
+    if (!instance)
+        return;
+    const currentChoice = classificationChoiceName(instance, classificationName);
+    if (!currentChoice)
+        return;
+    flow.updateClassificationValue({
+        findingLocalId,
+        classificationName,
+        classificationChoice: currentChoice,
+        descriptors: buildDescriptors(instance, classificationName, currentChoice, {
+            descriptorKey,
+            descriptorValue: nextValue
+        })
+    });
+}
+async function runRuntimeValidation(forceFeedback = false) {
+    const draft = currentRuntimeDraft.value;
+    const templateName = selectedTemplateName.value;
+    if (!draft || !templateName) {
         templateValidationError.value = null;
         flow.setLastTemplateValidation(null);
         return;
     }
+    if (forceFeedback) {
+        showValidationFeedback.value = true;
+    }
     templateValidationLoading.value = true;
     templateValidationError.value = null;
     try {
-        await loadFindingsCatalog();
-        const result = await validatePatientFindingsAgainstTemplate({
-            moduleName: flow.selectedKbModule,
-            templateName,
-            patientExaminationId,
-            getFindingById
-        });
+        const result = await validateReportTemplateRuntime(flow.selectedKbModule, templateName, draft.payload);
         flow.setLastTemplateValidation(result);
     }
     catch (e) {
         flow.setLastTemplateValidation(null);
-        templateValidationError.value = formatApiError(e, 'Template-Validierung konnte nicht ausgeführt werden.');
+        templateValidationError.value = formatApiError(e, 'Template-Validierung konnte nicht ausgefuehrt werden.');
     }
     finally {
         templateValidationLoading.value = false;
     }
 }
-async function fetchLookupAll() {
-    const ensured = await ensureLookupSessionForCurrentPatientExamination();
-    if (!ensured)
+function scheduleRuntimeValidation() {
+    if (validationTimer) {
+        clearTimeout(validationTimer);
+    }
+    validationTimer = setTimeout(() => {
+        void runRuntimeValidation(false);
+    }, 350);
+}
+function handleBeforeUnload(event) {
+    if (!dirtySinceMount.value)
         return;
-    await lookupActions.fetchLookupAll({
-        fallbackErrorMessage: 'Fehler beim Laden des Fallstands.'
-    });
+    event.preventDefault();
+    event.returnValue = '';
 }
-async function triggerRecompute() {
-    const ensured = await ensureLookupSessionForCurrentPatientExamination();
-    if (!ensured)
+watch([selectedKbModule, selectedTemplateName], ([moduleName, templateName]) => {
+    flow.setTemplateSelection({
+        moduleName,
+        templateName
+    });
+});
+watch(() => flow.patientExaminationId, () => {
+    resetTouchedState();
+    templateValidationError.value = null;
+    flow.setLastTemplateValidation(null);
+});
+watch(() => currentPayload.value?.patientFindings, () => {
+    if (!selectedTemplateName.value || !currentPayload.value)
         return;
-    const result = await lookupActions.recomputeLookup({
-        applyUpdates: true,
-        refreshAfter: true,
-        fallbackErrorMessage: 'Fehler bei der Wissensbasis-Prüfung.'
-    });
-    if (result.ok) {
-        successMessage.value = 'Die Wissensbasis wurde nach den Befundänderungen neu geprüft.';
+    scheduleRuntimeValidation();
+}, { deep: true });
+watch(() => selectedTemplateName.value, () => {
+    if (!selectedTemplateName.value) {
+        flow.setLastTemplateValidation(null);
+        templateValidationError.value = null;
+        return;
     }
-}
-async function ensureLookupSessionForCurrentPatientExamination() {
-    if (flow.lookupToken)
-        return true;
-    const patientExaminationId = flow.patientExaminationId;
-    if (!patientExaminationId) {
-        errorMessage.value = 'Keine Patientenuntersuchung vorhanden. Bitte zuerst im Fall-Setup initialisieren.';
-        return false;
-    }
-    if (lookupInitInFlight.value) {
-        return await lookupInitInFlight.value;
-    }
-    const initPromise = (async () => {
-        loading.value = true;
-        errorMessage.value = null;
-        flow.setSessionStatus('restarting');
-        try {
-            const initRes = await axiosInstance.post(r(endpoints.requirements.lookupInit), {
-                patientExaminationId
-            });
-            const token = String(initRes.data?.token || '');
-            if (!token) {
-                throw new Error('Initialisierung lieferte keinen Fallstand.');
-            }
-            flow.setLookupSession({
-                patientExaminationId,
-                lookupToken: token,
-                status: 'active'
-            });
-            return true;
-        }
-        catch (e) {
-            flow.setSessionStatus('expired');
-            errorMessage.value = formatApiError(e, 'Der Fallkontext konnte nicht initialisiert werden.');
-            return false;
-        }
-        finally {
-            loading.value = false;
-            lookupInitInFlight.value = null;
-        }
-    })();
-    lookupInitInFlight.value = initPromise;
-    return await initPromise;
-}
-async function ensureLookupSession() {
-    await ensureLookupSessionForCurrentPatientExamination();
-}
-function isFindingAddedToExamination(findingId) {
-    return isFindingAttached(flow.patientExaminationId, findingId);
-}
-function onFindingAddedToExamination(findingIdOrData, findingName) {
-    const findingId = typeof findingIdOrData === 'number' ? findingIdOrData : findingIdOrData.findingId;
-    const name = (typeof findingIdOrData === 'number' ? findingName : findingIdOrData.findingName) ??
-        getFindingDisplayName(getFindingById(findingId) ?? { id: findingId, name: `Befund ${findingId}` });
-    flow.noteFindingAdded(findingId);
-    successMessage.value = `Befund "${name}" wurde hinzugefügt.`;
-    // Refresh lookup advisory state after changes
-    void ensurePatientFindingsLoaded(flow.patientExaminationId).then(() => refreshRuntimeValidation());
-    void triggerRecompute();
-}
-function onClassificationUpdated(findingId, classificationId, choiceId) {
-    flow.noteClassificationUpdated(findingId, classificationId, choiceId);
-    successMessage.value = `Klassifikation für Befund ${findingId} aktualisiert.`;
-    void ensurePatientFindingsLoaded(flow.patientExaminationId).then(() => refreshRuntimeValidation());
-    void triggerRecompute();
-}
-function onFindingError(message) {
-    errorMessage.value = message;
-}
-function onFindingDetailError(data) {
-    errorMessage.value = data.error;
-}
-function formatFindingsEvent(event) {
-    const e = event;
-    if (e.type === 'finding_added')
-        return `Befund ${e.findingId} hinzugefügt (${e.at})`;
-    return `Klassifikation geändert: Befund ${e.findingId}, Klassifikation ${e.classificationId}, Wahl ${e.choiceId ?? 'leer'} (${e.at})`;
-}
+    scheduleRuntimeValidation();
+});
 onMounted(async () => {
-    if (!examinationStore.exams.length) {
-        await examinationStore.fetchExaminations();
-    }
-    if (flow.patientExaminationId) {
-        patientExaminationStore.setCurrentPatientExaminationId(flow.patientExaminationId);
-        await ensurePatientFindingsLoaded(flow.patientExaminationId);
-    }
-    await loadFindingsCatalog();
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    await ensureCatalogLoaded();
     if (selectedExaminationName.value) {
         await refreshTemplatesForExamination();
     }
-    if (flow.patientExaminationId) {
-        await fetchLookupAll();
+    if (canValidateDraft.value) {
+        scheduleRuntimeValidation();
     }
-    await refreshRuntimeValidation();
 });
-watch(() => [flow.patientExaminationId, flow.selectedKbModule, flow.selectedTemplateName], async () => {
-    await refreshRuntimeValidation();
-});
-watch(selectedExaminationName, async (newName, oldName) => {
-    if (!newName || newName === oldName)
-        return;
-    await refreshTemplatesForExamination();
+onBeforeUnmount(() => {
+    window.removeEventListener('beforeunload', handleBeforeUnload);
+    if (validationTimer) {
+        clearTimeout(validationTimer);
+        validationTimer = null;
+    }
 });
 debugger; /* PartiallyEnd: #3632/scriptSetup.vue */
 const __VLS_ctx = {};
 let __VLS_components;
 let __VLS_directives;
+// CSS variable injection 
+// CSS variable injection end 
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "d-flex flex-column gap-3" },
 });
@@ -385,23 +405,23 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.d
 // @ts-ignore
 const __VLS_0 = __VLS_asFunctionalComponent(MedicalBlock, new MedicalBlock({
     title: "Template & Dokumentationsregeln",
-    subtitle: "Template wählen, Regelsätze aktivieren und die Wissensbasis für diesen Fall vorbereiten",
+    subtitle: "Template wählen, Abschnitte prüfen und den lokalen Befund-Entwurf gegen die Wissensbasis validieren",
     icon: "description",
     iconBgClass: "bg-gradient-primary",
-    isComplete: (!!__VLS_ctx.selectedTemplateName),
+    isComplete: (!!__VLS_ctx.selectedTemplateName && !!__VLS_ctx.currentRuntimeDraft),
     isActive: (true),
     showAction: (false),
-    loading: (__VLS_ctx.loading || __VLS_ctx.templateLoading),
+    loading: (__VLS_ctx.templateLoading || __VLS_ctx.findingSelectorsLoading || __VLS_ctx.templateValidationLoading),
 }));
 const __VLS_1 = __VLS_0({
     title: "Template & Dokumentationsregeln",
-    subtitle: "Template wählen, Regelsätze aktivieren und die Wissensbasis für diesen Fall vorbereiten",
+    subtitle: "Template wählen, Abschnitte prüfen und den lokalen Befund-Entwurf gegen die Wissensbasis validieren",
     icon: "description",
     iconBgClass: "bg-gradient-primary",
-    isComplete: (!!__VLS_ctx.selectedTemplateName),
+    isComplete: (!!__VLS_ctx.selectedTemplateName && !!__VLS_ctx.currentRuntimeDraft),
     isActive: (true),
     showAction: (false),
-    loading: (__VLS_ctx.loading || __VLS_ctx.templateLoading),
+    loading: (__VLS_ctx.templateLoading || __VLS_ctx.findingSelectorsLoading || __VLS_ctx.templateValidationLoading),
 }, ...__VLS_functionalComponentArgsRest(__VLS_0));
 __VLS_2.slots.default;
 {
@@ -421,7 +441,7 @@ __VLS_2.slots.default;
             } },
         ...{ class: "form-control" },
         value: (__VLS_ctx.selectedKbModule),
-        disabled: (__VLS_ctx.loading || __VLS_ctx.templateLoading),
+        disabled: (__VLS_ctx.templateLoading),
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "col-md-4" },
@@ -446,7 +466,7 @@ __VLS_2.slots.default;
             } },
         ...{ class: "form-select" },
         value: (__VLS_ctx.selectedTemplateName || ''),
-        disabled: (__VLS_ctx.loading || __VLS_ctx.templateLoading || !__VLS_ctx.templateOptions.length),
+        disabled: (__VLS_ctx.templateLoading || !__VLS_ctx.templateOptions.length),
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
         value: "",
@@ -466,17 +486,14 @@ __VLS_2.slots.default;
     __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
         ...{ onClick: (__VLS_ctx.refreshTemplatesForExamination) },
         ...{ class: "btn btn-outline-secondary btn-sm" },
-        disabled: (__VLS_ctx.loading || __VLS_ctx.templateLoading || !__VLS_ctx.selectedExaminationName),
+        disabled: (__VLS_ctx.templateLoading || !__VLS_ctx.selectedExaminationName),
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-        ...{ onClick: (__VLS_ctx.fetchLookupAll) },
-        ...{ class: "btn btn-outline-secondary btn-sm" },
-        disabled: (__VLS_ctx.loading || !__VLS_ctx.canInitializeLookup),
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-        ...{ onClick: (__VLS_ctx.triggerRecompute) },
+        ...{ onClick: (...[$event]) => {
+                __VLS_ctx.runRuntimeValidation(true);
+            } },
         ...{ class: "btn btn-primary btn-sm" },
-        disabled: (__VLS_ctx.loading || !__VLS_ctx.canInitializeLookup),
+        disabled: (__VLS_ctx.templateValidationLoading || !__VLS_ctx.canValidateDraft),
     });
     if (__VLS_ctx.templateErrorMessage) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -492,53 +509,19 @@ __VLS_2.slots.default;
     }
     if (__VLS_ctx.selectedTemplate) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: "small text-muted mb-3" },
+            ...{ class: "small text-muted mb-2" },
         });
         (__VLS_ctx.sectionBlocks.length);
         (__VLS_ctx.selectedTemplateValidatorCounts.examination);
         (__VLS_ctx.selectedTemplateValidatorCounts.findings);
     }
-    if (__VLS_ctx.flow.lookupToken) {
-        /** @type {[typeof RequirementSetSelectionList, ]} */ ;
-        // @ts-ignore
-        const __VLS_3 = __VLS_asFunctionalComponent(RequirementSetSelectionList, new RequirementSetSelectionList({
-            ...{ 'onToggle': {} },
-            items: (__VLS_ctx.requirementSets),
-            selectedIdSet: (__VLS_ctx.selectedRequirementSetIdSet),
-            loading: (__VLS_ctx.loading),
-            requirementSetStatus: (__VLS_ctx.lookupRequirementSetStatus),
-        }));
-        const __VLS_4 = __VLS_3({
-            ...{ 'onToggle': {} },
-            items: (__VLS_ctx.requirementSets),
-            selectedIdSet: (__VLS_ctx.selectedRequirementSetIdSet),
-            loading: (__VLS_ctx.loading),
-            requirementSetStatus: (__VLS_ctx.lookupRequirementSetStatus),
-        }, ...__VLS_functionalComponentArgsRest(__VLS_3));
-        let __VLS_6;
-        let __VLS_7;
-        let __VLS_8;
-        const __VLS_9 = {
-            onToggle: (__VLS_ctx.toggleRequirementSet)
-        };
-        var __VLS_5;
-    }
-    if (!__VLS_ctx.flow.lookupToken) {
+    if (__VLS_ctx.currentRuntimeDraft) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: "alert alert-warning mb-0" },
+            ...{ class: "small text-muted" },
         });
-    }
-    if (__VLS_ctx.hasSuggestedActions) {
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: "mt-3" },
-        });
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({
-            ...{ class: "mb-2" },
-        });
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.pre, __VLS_intrinsicElements.pre)({
-            ...{ class: "small bg-light rounded p-2 mb-0" },
-        });
-        (__VLS_ctx.prettySuggestedActions);
+        (__VLS_ctx.currentRuntimeDraft.hydratedFrom === 'session_storage' || __VLS_ctx.currentRuntimeDraft.hydratedFrom === 'draft_api' ? 'wiederhergestellt' : 'initialisiert');
+        (__VLS_ctx.currentPayload?.patientFindings.length || 0);
+        (new Date(__VLS_ctx.currentRuntimeDraft.updatedAt).toLocaleTimeString('de-DE'));
     }
 }
 var __VLS_2;
@@ -556,18 +539,9 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements
     ...{ class: "text-muted" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "d-flex gap-2" },
+    ...{ class: "small text-muted" },
 });
-__VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-    ...{ onClick: (__VLS_ctx.fetchLookupAll) },
-    ...{ class: "btn btn-outline-secondary btn-sm" },
-    disabled: (__VLS_ctx.loading || !__VLS_ctx.canInitializeLookup),
-});
-__VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-    ...{ onClick: (__VLS_ctx.triggerRecompute) },
-    ...{ class: "btn btn-primary btn-sm" },
-    disabled: (__VLS_ctx.loading || !__VLS_ctx.canInitializeLookup),
-});
+(__VLS_ctx.currentPayload?.patientFindings.length || 0);
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "card-body" },
 });
@@ -583,144 +557,219 @@ if (__VLS_ctx.successMessage) {
     });
     (__VLS_ctx.successMessage);
 }
-/** @type {[typeof LookupStatusPanel, ]} */ ;
-// @ts-ignore
-const __VLS_10 = __VLS_asFunctionalComponent(LookupStatusPanel, new LookupStatusPanel({
-    ...{ class: "mb-3" },
-    patientExaminationId: (__VLS_ctx.flow.patientExaminationId),
-    selectedExaminationId: (__VLS_ctx.flow.selectedExaminationId),
-    lookupToken: (__VLS_ctx.flow.lookupToken),
-    findingsRevision: (__VLS_ctx.flow.findingsRevision),
-}));
-const __VLS_11 = __VLS_10({
-    ...{ class: "mb-3" },
-    patientExaminationId: (__VLS_ctx.flow.patientExaminationId),
-    selectedExaminationId: (__VLS_ctx.flow.selectedExaminationId),
-    lookupToken: (__VLS_ctx.flow.lookupToken),
-    findingsRevision: (__VLS_ctx.flow.findingsRevision),
-}, ...__VLS_functionalComponentArgsRest(__VLS_10));
 /** @type {[typeof ReportingMediaPreviewCards, ]} */ ;
 // @ts-ignore
-const __VLS_13 = __VLS_asFunctionalComponent(ReportingMediaPreviewCards, new ReportingMediaPreviewCards({
+const __VLS_3 = __VLS_asFunctionalComponent(ReportingMediaPreviewCards, new ReportingMediaPreviewCards({
     ...{ class: "mb-3" },
 }));
-const __VLS_14 = __VLS_13({
+const __VLS_4 = __VLS_3({
     ...{ class: "mb-3" },
-}, ...__VLS_functionalComponentArgsRest(__VLS_13));
+}, ...__VLS_functionalComponentArgsRest(__VLS_3));
 if (!__VLS_ctx.flow.patientExaminationId || !__VLS_ctx.flow.selectedExaminationId) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "alert alert-warning" },
     });
 }
+else if (!__VLS_ctx.currentRuntimeDraft || !__VLS_ctx.currentPayload) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "alert alert-warning" },
+    });
+}
+else if (!__VLS_ctx.selectedTemplate) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "alert alert-info" },
+    });
+}
 else {
-    if (!__VLS_ctx.flow.lookupToken) {
+    for (const [section] of __VLS_getVForSourceType((__VLS_ctx.sectionBlocks))) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: "alert alert-info d-flex justify-content-between align-items-center" },
+            key: (section.name),
+            ...{ class: "card border mb-3" },
         });
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-            ...{ onClick: (__VLS_ctx.ensureLookupSession) },
-            ...{ class: "btn btn-sm btn-outline-primary" },
-            disabled: (__VLS_ctx.loading || !__VLS_ctx.canInitializeLookup),
-        });
-    }
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "mb-3" },
-    });
-    /** @type {[typeof AddableFindingsDetail, ]} */ ;
-    // @ts-ignore
-    const __VLS_16 = __VLS_asFunctionalComponent(AddableFindingsDetail, new AddableFindingsDetail({
-        ...{ 'onFindingAdded': {} },
-        ...{ 'onFindingError': {} },
-        examinationId: (__VLS_ctx.flow.selectedExaminationId || undefined),
-        patientExaminationId: (__VLS_ctx.flow.patientExaminationId || undefined),
-    }));
-    const __VLS_17 = __VLS_16({
-        ...{ 'onFindingAdded': {} },
-        ...{ 'onFindingError': {} },
-        examinationId: (__VLS_ctx.flow.selectedExaminationId || undefined),
-        patientExaminationId: (__VLS_ctx.flow.patientExaminationId || undefined),
-    }, ...__VLS_functionalComponentArgsRest(__VLS_16));
-    let __VLS_19;
-    let __VLS_20;
-    let __VLS_21;
-    const __VLS_22 = {
-        onFindingAdded: (__VLS_ctx.onFindingAddedToExamination)
-    };
-    const __VLS_23 = {
-        onFindingError: (__VLS_ctx.onFindingError)
-    };
-    var __VLS_18;
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "card h-100" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "card-header d-flex justify-content-between align-items-center" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({
-        ...{ class: "mb-0" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
-        ...{ class: "text-muted" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
-        ...{ class: "text-muted" },
-    });
-    (__VLS_ctx.availableFindings.length);
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "card-body" },
-        ...{ style: {} },
-    });
-    if (__VLS_ctx.findingSelectorsLoading || __VLS_ctx.loading) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: "text-muted small" },
+            ...{ class: "card-header bg-light" },
         });
-    }
-    else if (__VLS_ctx.availableFindings.length) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: "d-flex flex-column gap-3" },
+            ...{ class: "d-flex justify-content-between align-items-center gap-3" },
         });
-        for (const [findingId] of __VLS_getVForSourceType((__VLS_ctx.availableFindings))) {
-            /** @type {[typeof FindingsDetail, ]} */ ;
-            // @ts-ignore
-            const __VLS_24 = __VLS_asFunctionalComponent(FindingsDetail, new FindingsDetail({
-                ...{ 'onAddedToExamination': {} },
-                ...{ 'onClassificationUpdated': {} },
-                ...{ 'onErrorOccurred': {} },
-                key: (findingId),
-                findingId: (findingId),
-                patientExaminationId: (__VLS_ctx.flow.patientExaminationId || undefined),
-                isAddedToExamination: (__VLS_ctx.isFindingAddedToExamination(findingId)),
-            }));
-            const __VLS_25 = __VLS_24({
-                ...{ 'onAddedToExamination': {} },
-                ...{ 'onClassificationUpdated': {} },
-                ...{ 'onErrorOccurred': {} },
-                key: (findingId),
-                findingId: (findingId),
-                patientExaminationId: (__VLS_ctx.flow.patientExaminationId || undefined),
-                isAddedToExamination: (__VLS_ctx.isFindingAddedToExamination(findingId)),
-            }, ...__VLS_functionalComponentArgsRest(__VLS_24));
-            let __VLS_27;
-            let __VLS_28;
-            let __VLS_29;
-            const __VLS_30 = {
-                onAddedToExamination: (__VLS_ctx.onFindingAddedToExamination)
-            };
-            const __VLS_31 = {
-                onClassificationUpdated: (__VLS_ctx.onClassificationUpdated)
-            };
-            const __VLS_32 = {
-                onErrorOccurred: (__VLS_ctx.onFindingDetailError)
-            };
-            var __VLS_26;
-        }
-    }
-    else {
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({
+            ...{ class: "mb-0" },
+        });
+        (section.title);
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
             ...{ class: "text-muted" },
         });
+        (section.subtitle);
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+            ...{ class: "text-muted" },
+        });
+        (section.findings.length);
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "card-body d-flex flex-column gap-3" },
+        });
+        for (const [templateFinding] of __VLS_getVForSourceType((section.findings))) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                key: (`${section.name}:${templateFinding.finding}`),
+                ...{ class: "border rounded p-3" },
+            });
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: "d-flex justify-content-between align-items-start gap-3 mb-3" },
+            });
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: "fw-semibold" },
+            });
+            (__VLS_ctx.getFindingLabel(templateFinding.finding));
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: "small text-muted" },
+            });
+            (templateFinding.multipleAllowed ? 'Mehrfach erlaubt' : 'Einmalig');
+            (templateFinding.required ? 'erforderlich' : 'optional');
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+                ...{ onClick: (...[$event]) => {
+                        if (!!(!__VLS_ctx.flow.patientExaminationId || !__VLS_ctx.flow.selectedExaminationId))
+                            return;
+                        if (!!(!__VLS_ctx.currentRuntimeDraft || !__VLS_ctx.currentPayload))
+                            return;
+                        if (!!(!__VLS_ctx.selectedTemplate))
+                            return;
+                        __VLS_ctx.onAddFinding(templateFinding.finding);
+                    } },
+                ...{ class: "btn btn-outline-primary btn-sm" },
+                disabled: (!__VLS_ctx.canAddFinding(templateFinding)),
+            });
+            (__VLS_ctx.instancesForFinding(templateFinding.finding).length ? 'Weitere Instanz hinzufügen' : 'Befund hinzufügen');
+            if (__VLS_ctx.findingLevelMessages(templateFinding.finding).length) {
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                    ...{ class: "alert alert-warning py-2 small" },
+                });
+                for (const [message] of __VLS_getVForSourceType((__VLS_ctx.findingLevelMessages(templateFinding.finding)))) {
+                    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                        key: (message),
+                    });
+                    (message);
+                }
+            }
+            if (__VLS_ctx.instancesForFinding(templateFinding.finding).length) {
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                    ...{ class: "d-flex flex-column gap-3" },
+                });
+                for (const [instance] of __VLS_getVForSourceType((__VLS_ctx.instancesForFinding(templateFinding.finding)))) {
+                    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                        key: (instance.localId || instance.finding),
+                        ...{ class: "runtime-finding-instance border rounded p-3" },
+                    });
+                    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                        ...{ class: "d-flex justify-content-between align-items-center mb-3" },
+                    });
+                    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                        ...{ class: "small text-muted" },
+                    });
+                    (instance.localId || instance.finding);
+                    __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+                        ...{ onClick: (...[$event]) => {
+                                if (!!(!__VLS_ctx.flow.patientExaminationId || !__VLS_ctx.flow.selectedExaminationId))
+                                    return;
+                                if (!!(!__VLS_ctx.currentRuntimeDraft || !__VLS_ctx.currentPayload))
+                                    return;
+                                if (!!(!__VLS_ctx.selectedTemplate))
+                                    return;
+                                if (!(__VLS_ctx.instancesForFinding(templateFinding.finding).length))
+                                    return;
+                                __VLS_ctx.onRemoveFinding(instance.localId || '');
+                            } },
+                        ...{ class: "btn btn-outline-danger btn-sm" },
+                    });
+                    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                        ...{ class: "row g-3" },
+                    });
+                    for (const [classification] of __VLS_getVForSourceType((__VLS_ctx.visibleClassificationsForFinding(templateFinding.finding)))) {
+                        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                            key: (`${instance.localId}:${classification.name}`),
+                            ...{ class: "col-md-6" },
+                        });
+                        __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+                            ...{ class: "form-label" },
+                        });
+                        (classification.displayName || classification.name);
+                        if (__VLS_ctx.isClassificationRequired(templateFinding.finding, classification.name)) {
+                            __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                                ...{ class: "text-danger" },
+                            });
+                        }
+                        __VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
+                            ...{ onChange: (...[$event]) => {
+                                    if (!!(!__VLS_ctx.flow.patientExaminationId || !__VLS_ctx.flow.selectedExaminationId))
+                                        return;
+                                    if (!!(!__VLS_ctx.currentRuntimeDraft || !__VLS_ctx.currentPayload))
+                                        return;
+                                    if (!!(!__VLS_ctx.selectedTemplate))
+                                        return;
+                                    if (!(__VLS_ctx.instancesForFinding(templateFinding.finding).length))
+                                        return;
+                                    __VLS_ctx.onClassificationChoiceChange(instance.localId || '', classification.name, $event.target.value);
+                                } },
+                            ...{ class: "form-select" },
+                            ...{ class: ({ 'is-invalid': __VLS_ctx.hasFieldError(instance, templateFinding.finding, classification.name) }) },
+                            value: (__VLS_ctx.classificationChoiceName(instance, classification.name)),
+                        });
+                        __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+                            value: "",
+                        });
+                        for (const [choice] of __VLS_getVForSourceType((classification.choices))) {
+                            __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+                                key: (choice.id),
+                                value: (choice.name),
+                            });
+                            (choice.displayName || choice.name);
+                        }
+                        for (const [descriptorKey] of __VLS_getVForSourceType((__VLS_ctx.descriptorKeysForField(templateFinding.finding, classification.name, instance)))) {
+                            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                                key: (`${instance.localId}:${classification.name}:${descriptorKey}`),
+                                ...{ class: "mt-2" },
+                            });
+                            __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+                                ...{ class: "form-label form-label-sm" },
+                            });
+                            (__VLS_ctx.descriptorLabel(descriptorKey));
+                            __VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
+                                ...{ onInput: (...[$event]) => {
+                                        if (!!(!__VLS_ctx.flow.patientExaminationId || !__VLS_ctx.flow.selectedExaminationId))
+                                            return;
+                                        if (!!(!__VLS_ctx.currentRuntimeDraft || !__VLS_ctx.currentPayload))
+                                            return;
+                                        if (!!(!__VLS_ctx.selectedTemplate))
+                                            return;
+                                        if (!(__VLS_ctx.instancesForFinding(templateFinding.finding).length))
+                                            return;
+                                        __VLS_ctx.onDescriptorInput(instance.localId || '', classification.name, descriptorKey, $event.target.value);
+                                    } },
+                                ...{ class: "form-control form-control-sm" },
+                                type: (__VLS_ctx.descriptorInputType(descriptorKey)),
+                                value: (__VLS_ctx.descriptorValue(instance, classification.name, descriptorKey)),
+                            });
+                        }
+                        if (__VLS_ctx.fieldMessages(instance, templateFinding.finding, classification.name).length) {
+                            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                                ...{ class: "invalid-feedback d-block" },
+                            });
+                            for (const [message] of __VLS_getVForSourceType((__VLS_ctx.fieldMessages(instance, templateFinding.finding, classification.name)))) {
+                                __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                                    key: (message),
+                                });
+                                (message);
+                            }
+                        }
+                    }
+                }
+            }
+            else {
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                    ...{ class: "small text-muted" },
+                });
+            }
+        }
     }
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "mt-3 p-3 bg-light rounded small" },
@@ -733,16 +782,16 @@ else {
     });
     /** @type {[typeof ReportTemplateValidationPanel, ]} */ ;
     // @ts-ignore
-    const __VLS_33 = __VLS_asFunctionalComponent(ReportTemplateValidationPanel, new ReportTemplateValidationPanel({
+    const __VLS_6 = __VLS_asFunctionalComponent(ReportTemplateValidationPanel, new ReportTemplateValidationPanel({
         loading: (__VLS_ctx.templateValidationLoading),
         errorMessage: (__VLS_ctx.templateValidationError),
         result: (__VLS_ctx.flow.lastTemplateValidation),
     }));
-    const __VLS_34 = __VLS_33({
+    const __VLS_7 = __VLS_6({
         loading: (__VLS_ctx.templateValidationLoading),
         errorMessage: (__VLS_ctx.templateValidationError),
         result: (__VLS_ctx.flow.lastTemplateValidation),
-    }, ...__VLS_functionalComponentArgsRest(__VLS_33));
+    }, ...__VLS_functionalComponentArgsRest(__VLS_6));
 }
 /** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
 /** @type {__VLS_StyleScopedClasses['flex-column']} */ ;
@@ -767,9 +816,6 @@ else {
 /** @type {__VLS_StyleScopedClasses['btn-outline-secondary']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn-outline-secondary']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-primary']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert']} */ ;
@@ -782,17 +828,9 @@ else {
 /** @type {__VLS_StyleScopedClasses['mb-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['small']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
-/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
-/** @type {__VLS_StyleScopedClasses['alert']} */ ;
-/** @type {__VLS_StyleScopedClasses['alert-warning']} */ ;
-/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
-/** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['small']} */ ;
-/** @type {__VLS_StyleScopedClasses['bg-light']} */ ;
-/** @type {__VLS_StyleScopedClasses['rounded']} */ ;
-/** @type {__VLS_StyleScopedClasses['p-2']} */ ;
-/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['card']} */ ;
 /** @type {__VLS_StyleScopedClasses['shadow-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-header']} */ ;
@@ -801,14 +839,8 @@ else {
 /** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
-/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
-/** @type {__VLS_StyleScopedClasses['gap-2']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn-outline-secondary']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn-primary']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['small']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-body']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert-danger']} */ ;
@@ -817,33 +849,77 @@ else {
 /** @type {__VLS_StyleScopedClasses['alert-success']} */ ;
 /** @type {__VLS_StyleScopedClasses['py-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
-/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert-warning']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert-warning']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert-info']} */ ;
-/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
-/** @type {__VLS_StyleScopedClasses['justify-content-between']} */ ;
-/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn-outline-primary']} */ ;
-/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['card']} */ ;
-/** @type {__VLS_StyleScopedClasses['h-100']} */ ;
+/** @type {__VLS_StyleScopedClasses['border']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-header']} */ ;
+/** @type {__VLS_StyleScopedClasses['bg-light']} */ ;
 /** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
 /** @type {__VLS_StyleScopedClasses['justify-content-between']} */ ;
 /** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['gap-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-body']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['flex-column']} */ ;
+/** @type {__VLS_StyleScopedClasses['gap-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['border']} */ ;
+/** @type {__VLS_StyleScopedClasses['rounded']} */ ;
+/** @type {__VLS_StyleScopedClasses['p-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['justify-content-between']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-start']} */ ;
+/** @type {__VLS_StyleScopedClasses['gap-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['fw-semibold']} */ ;
+/** @type {__VLS_StyleScopedClasses['small']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-primary']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert-warning']} */ ;
+/** @type {__VLS_StyleScopedClasses['py-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['small']} */ ;
 /** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
 /** @type {__VLS_StyleScopedClasses['flex-column']} */ ;
 /** @type {__VLS_StyleScopedClasses['gap-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['runtime-finding-instance']} */ ;
+/** @type {__VLS_StyleScopedClasses['border']} */ ;
+/** @type {__VLS_StyleScopedClasses['rounded']} */ ;
+/** @type {__VLS_StyleScopedClasses['p-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['justify-content-between']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['small']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-danger']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['row']} */ ;
+/** @type {__VLS_StyleScopedClasses['g-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-md-6']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-danger']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-select']} */ ;
+/** @type {__VLS_StyleScopedClasses['is-invalid']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-label-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-control']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-control-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['invalid-feedback']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-block']} */ ;
+/** @type {__VLS_StyleScopedClasses['small']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['p-3']} */ ;
@@ -856,15 +932,10 @@ const __VLS_self = (await import('vue')).defineComponent({
     setup() {
         return {
             MedicalBlock: MedicalBlock,
-            RequirementSetSelectionList: RequirementSetSelectionList,
-            AddableFindingsDetail: AddableFindingsDetail,
-            FindingsDetail: FindingsDetail,
-            LookupStatusPanel: LookupStatusPanel,
             ReportTemplateValidationPanel: ReportTemplateValidationPanel,
             ReportingMediaPreviewCards: ReportingMediaPreviewCards,
             flow: flow,
             findingSelectorsLoading: findingSelectorsLoading,
-            loading: loading,
             errorMessage: errorMessage,
             successMessage: successMessage,
             templateValidationLoading: templateValidationLoading,
@@ -877,29 +948,34 @@ const __VLS_self = (await import('vue')).defineComponent({
             sectionBlocks: sectionBlocks,
             templateLoading: templateLoading,
             templateErrorMessage: templateErrorMessage,
-            availableFindings: availableFindings,
-            requirementSets: requirementSets,
-            selectedRequirementSetIdSet: selectedRequirementSetIdSet,
-            lookupRequirementSetStatus: lookupRequirementSetStatus,
-            hasSuggestedActions: hasSuggestedActions,
-            prettySuggestedActions: prettySuggestedActions,
-            canInitializeLookup: canInitializeLookup,
+            currentRuntimeDraft: currentRuntimeDraft,
+            currentPayload: currentPayload,
+            canValidateDraft: canValidateDraft,
             selectedExaminationName: selectedExaminationName,
             selectedExaminationDisplayName: selectedExaminationDisplayName,
             selectedTemplateValidatorCounts: selectedTemplateValidatorCounts,
+            formatFindingsEvent: formatFindingsEvent,
+            getFindingLabel: getFindingLabel,
+            visibleClassificationsForFinding: visibleClassificationsForFinding,
+            instancesForFinding: instancesForFinding,
+            canAddFinding: canAddFinding,
+            isClassificationRequired: isClassificationRequired,
+            classificationChoiceName: classificationChoiceName,
+            descriptorKeysForField: descriptorKeysForField,
+            descriptorValue: descriptorValue,
+            descriptorLabel: descriptorLabel,
+            descriptorInputType: descriptorInputType,
+            hasFieldError: hasFieldError,
+            fieldMessages: fieldMessages,
+            findingLevelMessages: findingLevelMessages,
             refreshTemplatesForExamination: refreshTemplatesForExamination,
             onModuleChange: onModuleChange,
             onTemplateSelectionChange: onTemplateSelectionChange,
-            toggleRequirementSet: toggleRequirementSet,
-            fetchLookupAll: fetchLookupAll,
-            triggerRecompute: triggerRecompute,
-            ensureLookupSession: ensureLookupSession,
-            isFindingAddedToExamination: isFindingAddedToExamination,
-            onFindingAddedToExamination: onFindingAddedToExamination,
-            onClassificationUpdated: onClassificationUpdated,
-            onFindingError: onFindingError,
-            onFindingDetailError: onFindingDetailError,
-            formatFindingsEvent: formatFindingsEvent,
+            onAddFinding: onAddFinding,
+            onRemoveFinding: onRemoveFinding,
+            onClassificationChoiceChange: onClassificationChoiceChange,
+            onDescriptorInput: onDescriptorInput,
+            runRuntimeValidation: runRuntimeValidation,
         };
     },
 });

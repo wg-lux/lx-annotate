@@ -25,6 +25,7 @@ let
 
   # 1. DEFINE STATIC ENV VARS HERE
   baseEnv = {
+
     # --- Directories & Paths ---
     containerHost = "None";
     containerMode = false;
@@ -34,6 +35,7 @@ let
     HOME_DIR = config.secretspec.secrets.HOME_DIR;
     WORKING_DIR = config.secretspec.secrets.WORKING_DIR;
     DJANGO_STATIC_ROOT = config.secretspec.secrets.DJANGO_STATIC_ROOT;
+
     # --- Network & Server ---
     HTTP_PROTOCOL = config.secretspec.secrets.HTTP_PROTOCOL;
     DJANGO_HOST = config.secretspec.secrets.DJANGO_HOST;
@@ -105,6 +107,7 @@ let
     isDev = isDev;
     env = baseEnv;
   };
+
   commonShellHook = ''
     export PATH="$PATH:$(yarn global bin)"
   '';
@@ -119,8 +122,8 @@ let
     enableLanguages = [ "eng" "deu" ];
   };
 
-  # Ollama currently pulls CUDA-linked dependencies in this nixpkgs snapshot.
-  # Keep it opt-in so shell evaluation remains reliable on non-CUDA setups.
+  # Ollama pulls CUDA-linked dependencies in this nixpkgs snapshot.
+  # We keep it opt-in so shell evaluation remains reliable on non-CUDA setups.
   enableOllama = builtins.getEnv "DEVENV_ENABLE_OLLAMA" == "1";
 
   runtimePackages = with pkgs; [
@@ -136,10 +139,9 @@ let
     libxcb
   ] ++ lib.optionals enableOllama [ ollama.out ];
 
-
   _module.args.buildInputs = baseBuildInputs;
 
-  SYNC_CMD = "uv sync --extra dev --extra docs";
+  SYNC_CMD = "uv sync --active --extra dev --extra docs";
   nixpkgs.config.allowUnfree = true;
 
 in
@@ -149,8 +151,6 @@ in
   dotenv.enable = false;
   dotenv.disableHint = true;
   packages = lib.unique (devenv_utils.buildInputs ++ runtimePackages);
-
-
 
   env = baseEnv // {
     UV_PROJECT_ENVIRONMENT = lib.mkForce ".devenv/state/venv";
@@ -163,25 +163,23 @@ in
           ;
     TESSDATA_PREFIX = "${myTesseract}/share/tessdata";
     PYTORCH_ALLOC_CONF= "expandable_segments:True";
-
   };
 
   languages.python = {
     enable = true;
-    package = pkgs.python312;
+    package = lib.mkForce pkgs.python312;
     uv = {
       enable = true;
       package = uvPackage;
       sync.enable = true;
     };
   };
+
   languages.javascript = {
     enable = true;
     package = pkgs.nodejs_22; 
     npm.install.enable = false;
   };
-
-
 
   processes = devenv_utils.processes;
   containers = devenv_utils.containers;
@@ -217,8 +215,6 @@ in
     '';
 
   } // devenv_utils.scripts;
-
-
 
   enterShell = lib.mkAfter ''
     # 1. Check if the venv interpreter actually exists

@@ -22,6 +22,7 @@ Features:
 
 - Python 3.12 slim base
 - `uv` dependency installation from lockfile
+- Virtualenv path pinned to `/app/.devenv/state/venv`
 - FFmpeg preinstalled
 - Source mounted workflow support
 
@@ -32,6 +33,12 @@ docker build -f container/Dockerfile.dev -t lx-annotate-dev .
 docker run --rm -p 8117:8117 -v "$(pwd)/data:/app/data" lx-annotate-dev
 ```
 
+Inspect the active Python inside the container:
+
+```bash
+docker run --rm lx-annotate-dev python -c "import sys; print(sys.executable)"
+```
+
 ## Production Container (`Dockerfile.prod`)
 
 Purpose: optimized production runtime.
@@ -39,6 +46,7 @@ Purpose: optimized production runtime.
 Features:
 
 - Locked dependency install (`uv sync --frozen --no-dev`)
+- Virtualenv path pinned to `/app/.devenv/state/venv`
 - Runtime checks for required settings
 - Database readiness + migrations on start
 
@@ -53,6 +61,12 @@ docker run --rm -p 8117:8117 \
   -e DJANGO_CORS_ALLOWED_ORIGINS="https://example.com" \
   -v "$(pwd)/data:/app/data" \
   lx-annotate-prod
+```
+
+Inspect the active Python inside the container:
+
+```bash
+docker run --rm lx-annotate-prod python -c "import sys; print(sys.executable)"
 ```
 
 ## Environment Variables
@@ -71,6 +85,10 @@ Notes:
   `lx_annotate.settings.settings_dev`.
 - In production images, default is `lx_annotate.settings.settings_prod`.
 - `CENTRAL_NODE=true` switches to central-mode logic in entrypoints.
+- Containers do not run the full Nix/`devenv` shell; they only reuse the same
+  virtualenv path convention as the repository.
+- If you need to override the environment location during image build, use
+  `UV_PROJECT_ENVIRONMENT`, but keep `PATH` aligned with that value.
 
 ## Volumes
 

@@ -176,14 +176,6 @@
                                     -->
 
             <li class="nav-item">
-              <router-link to="/untersuchung" class="nav-link" :class="{ active: $route.path === '/untersuchung' }">
-                <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
-                  <i class="material-icons opacity-10">check_circle</i>
-                </div>
-                <span class="nav-link-text ms-1">Untersuchung</span>
-              </router-link>
-            </li>
-            <li class="nav-item">
               <router-link to="/export" class="nav-link" :class="{ active: $route.path === '/export' }">
                 <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
                   <i class="material-icons opacity-10">arrow</i>
@@ -209,11 +201,11 @@
               </router-link>
             </li>
             <li class="nav-item">
-              <router-link to="/profil" class="nav-link" :class="{ active: $route.path === '/profil' }">
+              <router-link to="/profile" class="nav-link" :class="{ active: $route.path === '/profile' }">
                 <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
                   <i class="material-icons opacity-10">person</i>
                 </div>
-                <span class="nav-link-text ms-1">Profil</span>
+                <span class="nav-link-text ms-1">Profile</span>
               </router-link>
             </li>
             <li class="nav-item">

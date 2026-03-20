@@ -1,26 +1,22 @@
 <template>
-    <div class="container-fluid py-4">
-  
-      <div class="row">
-          <div class="col-12">       
-              <h1>Neue Untersuchung</h1>
+  <div class="container-fluid py-4">
+    <div class="row justify-content-center">
+      <div class="col-lg-7">
+        <div class="card shadow-sm">
+          <div class="card-body text-center py-5">
+            <h1 class="h4 mb-3">Reporting-Flow wird vorbereitet</h1>
+            <p class="text-muted mb-4">
+              Die legacy Untersuchungsansicht wurde in das zentrale Reporting-Fall-Setup ueberfuehrt.
+            </p>
+            <RouterLink class="btn btn-primary" to="/reporting/case-setup">
+              Zum Reporting-Fall-Setup
+            </RouterLink>
           </div>
-          </div>
-          <ExaminationGenerator />
+        </div>
       </div>
-    </template>
-  
-  <script>
-    import ExaminationGenerator from '@/components/RequirementReport/RequirementGenerator.vue';
+    </div>
+  </div>
+</template>
 
-    export default {
-      name: 'Befund',
-      components: {
-          ExaminationGenerator
-      },
-    };
-    </script>
-    
-    <style>
-    </style>
-    
+<script setup lang="ts">
+</script>

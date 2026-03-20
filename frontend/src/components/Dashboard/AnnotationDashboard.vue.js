@@ -187,8 +187,8 @@ const markSegmentComplete = async (segment) => {
 };
 const editExamination = (examination) => {
     router.push({
-        name: 'Untersuchung',
-        query: { examinationId: examination.id }
+        path: '/reporting/case-setup',
+        query: { legacyExaminationId: String(examination.id) }
     });
 };
 const markExaminationComplete = async (examination) => {
@@ -450,11 +450,11 @@ const __VLS_7 = {}.RouterLink;
 /** @type {[typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, ]} */ ;
 // @ts-ignore
 const __VLS_8 = __VLS_asFunctionalComponent(__VLS_7, new __VLS_7({
-    to: "/untersuchung",
+    to: "/reporting/case-setup",
     ...{ class: "btn btn-success btn-sm" },
 }));
 const __VLS_9 = __VLS_8({
-    to: "/untersuchung",
+    to: "/reporting/case-setup",
     ...{ class: "btn btn-success btn-sm" },
 }, ...__VLS_functionalComponentArgsRest(__VLS_8));
 __VLS_10.slots.default;

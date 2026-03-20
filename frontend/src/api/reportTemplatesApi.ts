@@ -2,6 +2,7 @@ import axiosInstance from '@/api/axiosInstance'
 import { extractFindingId, type Finding, type FindingClassification, type JsonMap } from '@/api/findings.contract'
 import { findingsApi } from '@/api/findingsApi'
 import type {
+  ReportTemplateDefinitionValidationResult,
   ExaminationValidatorExecution,
   FindingsValidatorComparator,
   FindingsValidatorCondition,
@@ -14,8 +15,16 @@ import type {
   ReportTemplateFindingValidator,
   ReportTemplatePayload,
   ReportTemplateRuntimeValidationClassificationInput,
+  ReportTemplateRuntimeClassificationChoiceInput,
+  ReportTemplateRuntimeDescriptorInput,
+  ReportTemplateRuntimePayload,
+  ReportTemplateRuntimePatientFindingInput,
   ReportTemplateRuntimeValidationFindingInput,
   ReportTemplateRuntimeValidationResult,
+  ReportTemplateGraphEdge,
+  ReportTemplateGraphNode,
+  ReportTemplateStructureGraph,
+  ReportTemplateStructureIssue,
   ReportTemplateSection,
   ReportTemplateValidators,
   RuntimeValidationIssue,
@@ -393,6 +402,104 @@ export async function fetchReportTemplatesByExamination(
     .filter((entry): entry is ReportTemplatePayload => entry !== null)
 }
 
+function normalizeStructureIssue(input: unknown): ReportTemplateStructureIssue | null {
+  if (!isRecordLike(input)) return null
+  const code = asString(input.code)
+  const message = asString(input.message)
+  if (!code || !message) return null
+  return {
+    code,
+    message,
+    level: asString(input.level) === 'warning' ? 'warning' : 'error',
+    nodeId: asString(input.nodeId ?? input.node_id) || null
+  }
+}
+
+function normalizeGraphNode(input: unknown): ReportTemplateGraphNode | null {
+  if (!isRecordLike(input)) return null
+  const nodeId = asString(input.nodeId ?? input.node_id)
+  const name = asString(input.name)
+  const nodeType = asString(input.nodeType ?? input.node_type) as ReportTemplateGraphNode['nodeType'] | null
+  if (!nodeId || !name || !nodeType) return null
+  return {
+    nodeId,
+    name,
+    nodeType,
+    tokens: asStringArray(input.tokens)
+  }
+}
+
+function normalizeGraphEdge(input: unknown): ReportTemplateGraphEdge | null {
+  if (!isRecordLike(input)) return null
+  const sourceNodeId = asString(input.sourceNodeId ?? input.source_node_id)
+  const targetNodeId = asString(input.targetNodeId ?? input.target_node_id)
+  const edgeType = asString(input.edgeType ?? input.edge_type) as ReportTemplateGraphEdge['edgeType'] | null
+  if (!sourceNodeId || !targetNodeId || !edgeType) return null
+  return {
+    sourceNodeId,
+    targetNodeId,
+    edgeType,
+    weight: asNumber(input.weight) ?? 0
+  }
+}
+
+function normalizeStructureGraph(input: unknown): ReportTemplateStructureGraph | null {
+  if (!isRecordLike(input)) return null
+  const templateName = asString(input.templateName ?? input.template_name)
+  if (!templateName) return null
+  return {
+    templateName,
+    examination: asString(input.examination) || '',
+    startNodeId: asString(input.startNodeId ?? input.start_node_id) || '',
+    orderedSectionNodeIds: asStringArray(
+      input.orderedSectionNodeIds ?? input.ordered_section_node_ids
+    ),
+    nodes: Array.isArray(input.nodes)
+      ? input.nodes
+          .map((entry) => normalizeGraphNode(entry))
+          .filter((entry): entry is ReportTemplateGraphNode => entry !== null)
+      : [],
+    edges: Array.isArray(input.edges)
+      ? input.edges
+          .map((entry) => normalizeGraphEdge(entry))
+          .filter((entry): entry is ReportTemplateGraphEdge => entry !== null)
+      : []
+  }
+}
+
+export function normalizeDefinitionValidationResult(
+  payload: unknown
+): ReportTemplateDefinitionValidationResult | null {
+  if (!isRecordLike(payload)) return null
+  const templateName = asString(payload.templateName ?? payload.template_name)
+  const graph = normalizeStructureGraph(payload.graph)
+  if (!templateName || !graph) return null
+  return {
+    templateName,
+    ok: asBoolean(payload.ok),
+    graph,
+    issues: Array.isArray(payload.issues)
+      ? payload.issues
+          .map((entry) => normalizeStructureIssue(entry))
+          .filter((entry): entry is ReportTemplateStructureIssue => entry !== null)
+      : []
+  }
+}
+
+export async function validateReportTemplateDefinition(
+  moduleName: string,
+  templateName: string
+): Promise<ReportTemplateDefinitionValidationResult> {
+  const response = await axiosInstance.get(
+    `${REPORT_TEMPLATE_BASE}/${encodeURIComponent(moduleName)}/${encodeURIComponent(templateName)}/validate-definition`
+  )
+  const normalized = normalizeDefinitionValidationResult(response.data)
+  if (!normalized) {
+    throw new Error('Ungueltiges Struktur-Validierungsergebnis.')
+  }
+  return normalized
+}
+
 function normalizeRuntimeIssue(input: unknown): RuntimeValidationIssue | null {
   if (!isRecordLike(input)) return null
   const code = asString(input.code)
@@ -502,11 +609,11 @@ export function normalizeRuntimeValidationResult(
 export async function validateReportTemplateRuntime(
   moduleName: string,
   templateName: string,
-  findings: ReportTemplateRuntimeValidationFindingInput[]
+  payload: ReportTemplateRuntimePayload
 ): Promise<ReportTemplateRuntimeValidationResult> {
   const response = await axiosInstance.post(
     `${REPORT_TEMPLATE_BASE}/${encodeURIComponent(moduleName)}/${encodeURIComponent(templateName)}/validate`,
-    { findings }
+    serializeRuntimePayload(payload)
   )
   const normalized = normalizeRuntimeValidationResult(response.data)
   if (!normalized) {
@@ -556,10 +663,92 @@ function extractNumericalValue(
   )
 }
 
+function descriptorFromEntry(
+  entry: [string, unknown]
+): ReportTemplateRuntimeDescriptorInput | null {
+  const [classificationChoiceDescriptor, descriptorValue] = entry
+  if (!classificationChoiceDescriptor.trim()) return null
+  return {
+    classificationChoiceDescriptor,
+    descriptorValue
+  }
+}
+
+function serializeRuntimeDescriptors(
+  descriptors: ReportTemplateRuntimeDescriptorInput[],
+  choiceKey: string
+) {
+  return descriptors.map((descriptor, descriptorIndex) => ({
+    descriptor_value: descriptor.descriptorValue,
+    classification_choice_descriptor: descriptor.classificationChoiceDescriptor,
+    patient_finding_classification_choice: `${choiceKey}_descriptor_parent`,
+    uuid: descriptor.localId || `${choiceKey}_descriptor_${descriptorIndex + 1}`
+  }))
+}
+
+function serializeRuntimeClassificationChoices(
+  classificationChoices: ReportTemplateRuntimeClassificationChoiceInput[],
+  classificationsKey: string
+) {
+  return classificationChoices.map((classificationChoice, choiceIndex) => {
+    const choiceKey = classificationChoice.localId || `${classificationsKey}_choice_${choiceIndex + 1}`
+    return {
+      classification: classificationChoice.classification,
+      classification_choice: classificationChoice.classificationChoice,
+      patient_finding_classifications: classificationsKey,
+      patient_finding_classification_choice_descriptors: serializeRuntimeDescriptors(
+        classificationChoice.descriptors,
+        choiceKey
+      ),
+      uuid: choiceKey
+    }
+  })
+}
+
+function serializeRuntimePatientFindings(
+  patientFindings: ReportTemplateRuntimePatientFindingInput[]
+) {
+  const patientExaminationKey = 'frontend_runtime_exam'
+  return patientFindings.map((patientFinding, findingIndex) => {
+    const findingKey = patientFinding.localId || `${patientExaminationKey}_finding_${findingIndex + 1}`
+    const classificationsKey = `${findingKey}_classifications_1`
+    return {
+      finding: patientFinding.finding,
+      patient_examination: patientExaminationKey,
+      patient_finding_classifications: [
+        {
+          patient_finding: findingKey,
+          patient_finding_classification_choices: serializeRuntimeClassificationChoices(
+            patientFinding.classificationChoices,
+            classificationsKey
+          ),
+          uuid: classificationsKey
+        }
+      ],
+      patient_finding_interventions: [],
+      uuid: findingKey
+    }
+  })
+}
+
+function serializeRuntimePayload(payload: ReportTemplateRuntimePayload) {
+  return {
+    patient: payload.patient,
+    examiners: payload.examiners,
+    ...(payload.date ? { date: payload.date } : {}),
+    examination: payload.examination,
+    ...(payload.knowledgeBaseModule ? { knowledge_base_module: payload.knowledgeBaseModule } : {}),
+    ...(payload.knowledgeBaseVersion
+      ? { knowledge_base_version: payload.knowledgeBaseVersion }
+      : {}),
+    patient_findings: serializeRuntimePatientFindings(payload.patientFindings)
+  }
+}
+
 async function buildRuntimeValidationFindings(
   patientExaminationId: number,
   getFindingById?: (findingId: number) => Finding | undefined
-): Promise<ReportTemplateRuntimeValidationFindingInput[]> {
+): Promise<ReportTemplateRuntimePatientFindingInput[]> {
   const rows = await findingsApi.listPatientFindings(patientExaminationId)
   const findingClassificationsCache = new Map<number, readonly FindingClassification[]>()
 
@@ -571,7 +760,7 @@ async function buildRuntimeValidationFindings(
     return loaded
   }
 
-  const findingsPayload: ReportTemplateRuntimeValidationFindingInput[] = []
+  const findingsPayload: ReportTemplateRuntimePatientFindingInput[] = []
 
   for (const row of rows) {
     if (row.isActive === false) continue
@@ -582,7 +771,7 @@ async function buildRuntimeValidationFindings(
     if (!finding?.name) continue
 
     const findingDefinitions = await getFindingDefinitions(findingId)
-    const classifications: ReportTemplateRuntimeValidationClassificationInput[] = row.classifications
+    const classificationChoices: ReportTemplateRuntimeClassificationChoiceInput[] = row.classifications
       .filter((classification) => classification.isActive !== false)
       .map((classification) => {
         const classificationName =
@@ -595,6 +784,9 @@ async function buildRuntimeValidationFindings(
           classificationName,
           classification.numericalDescriptors
         )
+        const descriptors = Object.entries(classification.numericalDescriptors || {})
+          .map((entry) => descriptorFromEntry(entry))
+          .filter((entry): entry is ReportTemplateRuntimeDescriptorInput => entry !== null)
         const choiceName =
           classification.classificationChoiceName ||
           findChoiceName(
@@ -606,21 +798,30 @@ async function buildRuntimeValidationFindings(
 
         return {
           classification: classificationName,
-          ...(Array.isArray(derivedValue) ? { values: derivedValue } : {}),
-          ...(!Array.isArray(derivedValue) && derivedValue !== undefined ? { value: derivedValue } : {}),
-          ...(choiceName ? { classificationChoice: choiceName } : {})
+          classificationChoice: choiceName || classificationName,
+          descriptors:
+            descriptors.length > 0
+              ? descriptors
+              : derivedValue !== undefined && !Array.isArray(derivedValue)
+                ? [
+                    {
+                      classificationChoiceDescriptor: `${normalizeKey(classificationName)}_descriptor`,
+                      descriptorValue: derivedValue
+                    }
+                  ]
+                : []
         }
       })
       .filter(
         (
           classification
-        ): classification is ReportTemplateRuntimeValidationClassificationInput =>
+        ): classification is ReportTemplateRuntimeClassificationChoiceInput =>
           classification !== null
       )
 
     findingsPayload.push({
       finding: finding.name,
-      classifications
+      classificationChoices
     })
   }
 
@@ -633,11 +834,43 @@ export async function validatePatientFindingsAgainstTemplate(params: {
   patientExaminationId: number
   getFindingById?: (findingId: number) => Finding | undefined
 }): Promise<ReportTemplateRuntimeValidationResult> {
-  const findings = await buildRuntimeValidationFindings(
+  const template = await fetchReportTemplateByName(params.moduleName, params.templateName)
+  const patientFindings = await buildRuntimeValidationFindings(
     params.patientExaminationId,
     params.getFindingById
   )
-  return validateReportTemplateRuntime(params.moduleName, params.templateName, findings)
+  return validateReportTemplateRuntime(params.moduleName, params.templateName, {
+    patient: `patient_examination_${params.patientExaminationId}`,
+    examiners: [],
+    examination: template?.examination || '',
+    knowledgeBaseModule: params.moduleName,
+    patientFindings
+  })
+}
+
+export async function buildReportTemplateRuntimePayload(params: {
+  moduleName: string
+  patientExaminationId: number
+  examination: string
+  patient?: string
+  examiners?: string[]
+  knowledgeBaseVersion?: string | null
+  getFindingById?: (findingId: number) => Finding | undefined
+}): Promise<ReportTemplateRuntimePayload> {
+  const patientFindings = await buildRuntimeValidationFindings(
+    params.patientExaminationId,
+    params.getFindingById
+  )
+
+  return {
+    patient:
+      params.patient?.trim() || `patient_examination_${params.patientExaminationId}`,
+    examiners: Array.isArray(params.examiners) ? params.examiners.filter(Boolean) : [],
+    examination: params.examination,
+    knowledgeBaseModule: params.moduleName,
+    knowledgeBaseVersion: params.knowledgeBaseVersion || null,
+    patientFindings
+  }
 }
 
 export function describeSectionTitle(sectionName: string): string {

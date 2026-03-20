@@ -38,6 +38,7 @@ export const endpoints = {
         classificationChoices: (classificationId) => `classifications/${classificationId}/choices/`,
         patientExaminationCreate: 'patient-examinations/create/',
         patientExaminationDetail: (id) => `patient-examinations/${id}/`,
+        patientExaminationDraft: (id) => `patient-examinations/${id}/draft/`,
         patientExaminationList: 'patient-examinations/list/',
         patientExaminationClassifications: (examId) => `patient-examinations/${examId}/classifications/`,
         patientExaminationFindings: (examinationId) => `patient-examinations/${examinationId}/findings/`
