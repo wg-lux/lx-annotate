@@ -8,7 +8,7 @@
 
 
 export default {
-  name: 'UeberUns',
+  name: 'AboutUs',
   components: {
   },
 };

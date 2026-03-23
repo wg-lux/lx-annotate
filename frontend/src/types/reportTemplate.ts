@@ -118,6 +118,57 @@ export type RuntimeValidatorDependencyStatus = {
   ok: boolean
 }
 
+export type ReportTemplateGraphNode = {
+  nodeId: string
+  nodeType:
+    | 'template'
+    | 'section'
+    | 'finding'
+    | 'classification'
+    | 'validator'
+    | 'patient_field'
+    | 'history_field'
+  name: string
+  tokens: string[]
+}
+
+export type ReportTemplateGraphEdge = {
+  sourceNodeId: string
+  targetNodeId: string
+  edgeType:
+    | 'template_to_section'
+    | 'section_sequence'
+    | 'section_to_finding'
+    | 'section_to_patient_field'
+    | 'section_to_history_field'
+    | 'finding_to_classification'
+    | 'template_to_validator'
+  weight: number
+}
+
+export type ReportTemplateStructureGraph = {
+  templateName: string
+  examination: string
+  startNodeId: string
+  orderedSectionNodeIds: string[]
+  nodes: ReportTemplateGraphNode[]
+  edges: ReportTemplateGraphEdge[]
+}
+
+export type ReportTemplateStructureIssue = {
+  code: string
+  message: string
+  level: 'error' | 'warning'
+  nodeId: string | null
+}
+
+export type ReportTemplateDefinitionValidationResult = {
+  templateName: string
+  ok: boolean
+  graph: ReportTemplateStructureGraph
+  issues: ReportTemplateStructureIssue[]
+}
+
 export type FindingsValidatorExecution = {
   name: string
   ok: boolean
@@ -157,4 +208,33 @@ export type ReportTemplateRuntimeValidationClassificationInput = {
 export type ReportTemplateRuntimeValidationFindingInput = {
   finding: string
   classifications: ReportTemplateRuntimeValidationClassificationInput[]
+}
+
+export type ReportTemplateRuntimeDescriptorInput = {
+  localId?: string
+  classificationChoiceDescriptor: string
+  descriptorValue: unknown
+}
+
+export type ReportTemplateRuntimeClassificationChoiceInput = {
+  localId?: string
+  classification: string
+  classificationChoice: string
+  descriptors: ReportTemplateRuntimeDescriptorInput[]
+}
+
+export type ReportTemplateRuntimePatientFindingInput = {
+  localId?: string
+  finding: string
+  classificationChoices: ReportTemplateRuntimeClassificationChoiceInput[]
+}
+
+export type ReportTemplateRuntimePayload = {
+  patient: string
+  examiners: string[]
+  date?: string | null
+  examination: string
+  knowledgeBaseModule?: string | null
+  knowledgeBaseVersion?: string | null
+  patientFindings: ReportTemplateRuntimePatientFindingInput[]
 }

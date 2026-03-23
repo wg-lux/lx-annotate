@@ -68,11 +68,18 @@ def _has_required_base_api_contracts(submodule_root: Path) -> bool:
     return True
 
 
+def _resolve_lx_data_models_root() -> Path:
+    configured_root = os.getenv("LX_DATA_MODELS_ROOT", "").strip()
+    if configured_root:
+        return Path(configured_root).expanduser().resolve()
+    return Path(settings.BASE_DIR) / "lx-data-models"
+
+
 lx_dtypes_api_urls = None
 enable_base_api = os.getenv("LX_ENABLE_BASE_API", "0") == "1"
 if enable_base_api:
     # Only override import resolution when the optional base API was explicitly enabled.
-    submodule_root = Path(settings.BASE_DIR) / "lx-data-models"
+    submodule_root = _resolve_lx_data_models_root()
     expected_base_api_version = os.getenv(
         "LX_BASE_API_EXPECTED_VERSION", DEFAULT_BASE_API_EXPECTED_VERSION
     )

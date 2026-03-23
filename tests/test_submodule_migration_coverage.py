@@ -37,6 +37,16 @@ def test_read_project_version_and_contract_exports(tmp_path):
     assert urls._has_required_base_api_contracts(submodule_root) is True
 
 
+def test_resolve_lx_data_models_root_prefers_env(monkeypatch, settings, tmp_path):
+    from lx_annotate import urls
+
+    env_root = tmp_path / "nix-provided-lx-data-models"
+    monkeypatch.setenv("LX_DATA_MODELS_ROOT", str(env_root))
+    monkeypatch.setattr(settings, "BASE_DIR", tmp_path / "ignored-base-dir")
+
+    assert urls._resolve_lx_data_models_root() == env_root.resolve()
+
+
 def test_urls_import_mounts_base_api_when_submodule_contracts_match(
     monkeypatch, settings, tmp_path
 ):

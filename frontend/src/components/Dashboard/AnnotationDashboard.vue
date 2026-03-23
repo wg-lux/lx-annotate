@@ -122,11 +122,11 @@
                 Aktualisieren
               </button>
               <router-link 
-                to="/untersuchung" 
+                to="/reporting/case-setup" 
                 class="btn btn-success btn-sm"
               >
                 <i class="fas fa-plus me-1"></i>
-                Neue Untersuchung
+                Neue Befundung
               </router-link>
             </div>
           </div>
@@ -530,8 +530,8 @@ const markSegmentComplete = async (segment) => {
 
 const editExamination = (examination) => {
   router.push({
-    name: 'Untersuchung',
-    query: { examinationId: examination.id }
+    path: '/reporting/case-setup',
+    query: { legacyExaminationId: String(examination.id) }
   });
 };
 

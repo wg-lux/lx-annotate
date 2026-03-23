@@ -559,10 +559,10 @@ function applySelectedPatientExamination(patientExaminationId: number): void {
     }
   addOrReplacePatientExaminationOption(casePatientExaminationOptions.value, option)
   selectedExistingPatientExaminationId.value = String(normalizedId)
-  flow.setLookupSession({
+  flow.setPatientExaminationContext({
     patientExaminationId: normalizedId,
-    lookupToken: null,
-    status: 'idle'
+    selectedPatientId: selectedCasePatientIdNumber.value,
+    preserveTemplateSelection: true
   })
   patientExaminationStore.setCurrentPatientExaminationId(normalizedId)
 }

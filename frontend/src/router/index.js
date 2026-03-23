@@ -2,6 +2,7 @@ import { useToastStore } from '@/stores/toastStore';
 import { createRouter, createWebHistory } from 'vue-router';
 import { useAnonymizationStore } from '@/stores/anonymizationStore';
 import { useAuthKcStore } from '@/stores/auth_kc';
+import { useReportingFlowStore } from '@/stores/reportingFlowStore';
 import { archivedLegacyRoutes } from '@/router/archivedRoutes';
 const router = createRouter({
     history: createWebHistory('/'),
@@ -17,6 +18,11 @@ const router = createRouter({
                     path: '',
                     name: 'Reporting Arbeitsliste',
                     component: () => import('@/views/reporting/ReportingWorklistPage.vue')
+                },
+                {
+                    path: 'template-builder',
+                    name: 'Reporting Template Builder',
+                    component: () => import('@/views/reporting/ReportTemplateBuilderPage.vue')
                 },
                 {
                     path: 'case-resolution',
@@ -106,9 +112,9 @@ const router = createRouter({
         {
             path: '/untersuchung',
             name: 'Untersuchung',
-            component: () => import('@/views/Examination.vue'),
+            redirect: '/reporting/case-setup',
             meta: {
-                description: 'Hier können Sie Befunde erstellen.'
+                description: 'Legacy route redirected to the centralized reporting setup.'
             }
         },
         {
@@ -160,9 +166,25 @@ const router = createRouter({
         {
             path: '/report-generator',
             name: 'Report Generator',
-            component: () => import('@/views/ReportGenerator.vue'),
+            redirect: '/reporting/case-setup',
             meta: {
-                description: 'Hier können Sie Reports generieren.'
+                description: 'Legacy route redirected to the centralized reporting setup.'
+            }
+        },
+        {
+            path: '/profile',
+            name: 'Profile',
+            component: () => import('@/views/Profile.vue'),
+            meta: {
+                description: 'User profile settings.'
+            }
+        },
+        {
+            path: '/about-us',
+            name: 'About Us',
+            component: () => import('@/views/AboutUs.vue'),
+            meta: {
+                description: 'About the project.'
             }
         },
         ...archivedLegacyRoutes,
@@ -247,5 +269,45 @@ router.beforeEach((to, _from, next) => {
         return next('/reporting/case-setup');
     }
     next();
+});
+function reportingPatientExaminationId(route) {
+    if (!route.path.startsWith('/reporting/'))
+        return null;
+    const raw = route.params.patient_examination_id;
+    if (typeof raw === 'string' && raw.trim())
+        return raw;
+    if (typeof raw === 'number' && Number.isFinite(raw))
+        return String(raw);
+    return null;
+}
+router.beforeEach(async (to, from, next) => {
+    const flow = useReportingFlowStore();
+    const fromIsReporting = from.path.startsWith('/reporting/');
+    if (!fromIsReporting)
+        return next();
+    if (flow.savingFinalReport)
+        return next();
+    const fromPeId = reportingPatientExaminationId(from);
+    const toPeId = reportingPatientExaminationId(to);
+    const stayingWithinSameReportingDraft = !!fromPeId &&
+        !!toPeId &&
+        fromPeId === toPeId;
+    if (stayingWithinSameReportingDraft) {
+        return next();
+    }
+    if (!flow.hasUnpersistedDraftChanges) {
+        return next();
+    }
+    try {
+        await flow.flushDraftAutosave();
+        return next();
+    }
+    catch {
+        const toast = useToastStore();
+        toast.error({
+            text: 'Der Reporting-Entwurf konnte vor dem Verlassen nicht gespeichert werden.'
+        });
+        return next(false);
+    }
 });
 export default router;

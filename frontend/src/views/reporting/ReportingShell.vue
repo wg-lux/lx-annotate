@@ -27,10 +27,14 @@
           </div>
           <div class="card-body p-2">
             <div class="small text-muted px-2 mb-2">
-              Fallkontext: <strong>{{ flow.sessionStatus }}</strong>
+              Entwurfsmodus:
             </div>
             <div class="small text-muted px-2 mb-3">
-              PE: {{ flow.patientExaminationId || 'n/a' }} · aktiv: {{ flow.lookupToken ? 'ja' : 'nein' }}
+              PE: {{ flow.patientExaminationId || 'n/a' }} · Entwurf:
+              {{ draftSummaryLabel }}
+            </div>
+            <div v-if="draftBootstrapError" class="alert alert-warning py-2 mx-2 mb-3">
+              {{ draftBootstrapError }}
             </div>
             <div class="px-2 mb-3">
               <label class="form-label form-label-sm mb-1">Patientenuntersuchung wählen</label>
@@ -79,7 +83,7 @@
       <div class="col-lg-9">
         <div v-if="flow.mediaPreload" class="card shadow-sm mb-3">
           <div class="card-header d-flex justify-content-between align-items-center">
-            <h6 class="mb-0">Letzte Assets</h6>
+            <h6 class="mb-0">Letzte Dokumente</h6>
             <small class="text-muted">Patient {{ flow.mediaPreload.patient.id }}</small>
           </div>
           <div class="card-body">
@@ -189,6 +193,11 @@
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import axiosInstance, { r } from '@/api/axiosInstance'
+import { findingsApi } from '@/api/findingsApi'
+import { fetchPatientExaminationDraft } from '@/api/reportDraftApi'
+import { buildReportTemplateRuntimePayload, fetchReportTemplatesByExamination } from '@/api/reportTemplatesApi'
+import type { Finding } from '@/api/findings.contract'
+import type { ReportTemplateRuntimePayload } from '@/types/reportTemplate'
 import { endpoints } from '@/types/api/endpoints'
 import { useReportingFlowStore } from '@/stores/reportingFlowStore'
 import { fetchPatientTimelineLatest, pickPreferredStream } from '@/api/reportingTimelineApi'
@@ -208,6 +217,8 @@ type PatientExaminationOption = {
 const patientExaminationOptions = ref<PatientExaminationOption[]>([])
 const patientExaminationOptionsLoading = ref(false)
 const patientExaminationOptionsError = ref<string | null>(null)
+const draftBootstrapInFlight = ref<Promise<void> | null>(null)
+const draftBootstrapError = ref<string | null>(null)
 const routePatientExaminationId = computed<number | null>(() => {
   const parsed = Number(route.params.patient_examination_id)
   if (!Number.isFinite(parsed)) return null
@@ -221,6 +232,7 @@ const pe = computed(() => flow.patientExaminationId || ':patient_examination_id'
 
 const navItems = computed(() => [
   { label: 'Arbeitsliste', to: '/reporting' },
+  { label: 'Template Builder', to: '/reporting/template-builder' },
   { label: 'Fall-Setup', to: '/reporting/case-setup' },
   { label: 'Klinische Dokumentation', to: `/reporting/${pe.value}/findings` },
   { label: 'Berichtseditor', to: `/reporting/${pe.value}/report-editor` },
@@ -240,6 +252,14 @@ const preferredVideoStream = computed(() =>
   pickPreferredStream(flow.mediaPreload?.latestVideo?.streamOptions || [])
 )
 
+const draftSummaryLabel = computed(() => {
+  const draft = flow.currentRuntimeDraft
+  if (!draft) return 'leer'
+  return draft.hydratedFrom === 'session_storage' || draft.hydratedFrom === 'draft_api'
+    ? 'wiederhergestellt'
+    : 'initialisiert'
+})
+
 function openUrl(url: string | null) {
   if (!url) return
   window.open(url, '_blank', 'noopener,noreferrer')
@@ -256,6 +276,172 @@ function selectFrameStream(url: string | null) {
 function toPositiveInteger(value: unknown): number | null {
   const parsed = Number(value)
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null
+}
+
+function resolvePatientKey(raw: Record<string, any>, patientExaminationId: number): string {
+  const patient = raw.patient && typeof raw.patient === 'object' ? raw.patient : null
+  const patientHash =
+    (typeof patient?.patient_hash === 'string' && patient.patient_hash.trim()) ||
+    (typeof patient?.patientHash === 'string' && patient.patientHash.trim()) ||
+    (typeof raw.patient_hash === 'string' && raw.patient_hash.trim()) ||
+    (typeof raw.patientHash === 'string' && raw.patientHash.trim())
+  if (patientHash) return patientHash
+  const patientId = toPositiveInteger(patient?.id ?? raw.patient_id ?? raw.patientId)
+  return patientId ? `patient_${patientId}` : `patient_examination_${patientExaminationId}`
+}
+
+function extractExaminers(raw: Record<string, any>): string[] {
+  const candidates = [
+    raw.examiners,
+    raw.examiner_names,
+    raw.examinerNames,
+    raw.examination?.examiners,
+    raw.examination?.examiner_names,
+    raw.examination?.examinerNames
+  ]
+
+  const values = candidates.flatMap((candidate) => {
+    if (!Array.isArray(candidate)) return []
+    return candidate
+      .map((entry) => {
+        if (typeof entry === 'string') {
+          const normalized = entry.trim()
+          return normalized || null
+        }
+
+        if (!entry || typeof entry !== 'object') return null
+        const row = entry as Record<string, unknown>
+        const examinerKey =
+          (typeof row.examiner_hash === 'string' && row.examiner_hash.trim()) ||
+          (typeof row.examinerHash === 'string' && row.examinerHash.trim()) ||
+          (typeof row.username === 'string' && row.username.trim()) ||
+          (typeof row.email === 'string' && row.email.trim()) ||
+          (typeof row.display_name === 'string' && row.display_name.trim()) ||
+          (typeof row.displayName === 'string' && row.displayName.trim()) ||
+          (typeof row.full_name === 'string' && row.full_name.trim()) ||
+          (typeof row.fullName === 'string' && row.fullName.trim()) ||
+          (typeof row.name === 'string' && row.name.trim())
+        if (examinerKey) return examinerKey
+
+        const firstName =
+          (typeof row.first_name === 'string' && row.first_name.trim()) ||
+          (typeof row.firstName === 'string' && row.firstName.trim()) ||
+          ''
+        const lastName =
+          (typeof row.last_name === 'string' && row.last_name.trim()) ||
+          (typeof row.lastName === 'string' && row.lastName.trim()) ||
+          ''
+        const fullName = `${firstName} ${lastName}`.trim()
+        if (fullName) return fullName
+
+        const examinerId = toPositiveInteger(row.id)
+        return examinerId ? `examiner_${examinerId}` : null
+      })
+      .filter((value): value is string => Boolean(value))
+  })
+
+  return Array.from(new Set(values))
+}
+
+function extractExaminationName(raw: Record<string, any>): string {
+  return (
+    (typeof raw.examination?.name === 'string' && raw.examination.name.trim()) ||
+    (typeof raw.examination_name === 'string' && raw.examination_name.trim()) ||
+    (typeof raw.examination === 'string' && raw.examination.trim()) ||
+    ''
+  )
+}
+
+function extractPatientId(raw: Record<string, any>): number | null {
+  return toPositiveInteger(raw.patient?.id ?? raw.patient_id ?? raw.patientId)
+}
+
+function extractExaminationId(raw: Record<string, any>): number | null {
+  return toPositiveInteger(raw.examination?.id ?? raw.examination_id ?? raw.examinationId)
+}
+
+function extractDraftDate(raw: Record<string, any>): string | null {
+  const value =
+    (typeof raw.date_start === 'string' && raw.date_start) ||
+    (typeof raw.dateStart === 'string' && raw.dateStart) ||
+    (typeof raw.date === 'string' && raw.date) ||
+    null
+  if (!value) return null
+  const parsed = new Date(value)
+  return Number.isNaN(parsed.getTime()) ? value : parsed.toISOString()
+}
+
+function extractIndicationRows(raw: Record<string, any>) {
+  const nestedExamination =
+    raw.examination && typeof raw.examination === 'object'
+      ? (raw.examination as Record<string, unknown>)
+      : null
+
+  const candidates = [
+    raw.indications,
+    raw.examination_indications,
+    raw.examinationIndications,
+    nestedExamination?.indications,
+    nestedExamination?.examination_indications,
+    nestedExamination?.examinationIndications
+  ]
+
+  const rows = candidates.flatMap((candidate) => {
+    if (!Array.isArray(candidate)) return []
+    return candidate
+      .map((entry) => {
+        if (!entry || typeof entry !== 'object') return null
+        const row = entry as Record<string, unknown>
+        const examinationIndicationId = toPositiveInteger(
+          row.examinationIndicationId ??
+            row.examination_indication_id ??
+            row.indicationId ??
+            row.indication_id ??
+            row.id
+        )
+        const indicationChoiceId = toPositiveInteger(
+          row.indicationChoiceId ??
+            row.indication_choice_id ??
+            row.choiceId ??
+            row.choice_id ??
+            (row.choice as Record<string, unknown> | undefined)?.id
+        )
+        if (examinationIndicationId == null) return null
+        return {
+          examinationIndicationId,
+          indicationChoiceId
+        }
+      })
+      .filter(
+        (
+          row
+        ): row is { examinationIndicationId: number; indicationChoiceId: number | null } =>
+          row !== null
+      )
+  })
+
+  if (!rows.length) {
+    return [{ examinationIndicationId: null, indicationChoiceId: null }]
+  }
+
+  const seen = new Set<string>()
+  return rows.filter((row) => {
+    const key = `${row.examinationIndicationId}:${row.indicationChoiceId ?? 'null'}`
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
+}
+
+function isRuntimePayload(value: unknown): value is ReportTemplateRuntimePayload {
+  if (!value || typeof value !== 'object') return false
+  const payload = value as Record<string, unknown>
+  return (
+    typeof payload.patient === 'string' &&
+    Array.isArray(payload.examiners) &&
+    typeof payload.examination === 'string' &&
+    Array.isArray(payload.patientFindings)
+  )
 }
 
 function normalizePatientExaminationOption(raw: unknown) {
@@ -355,17 +541,214 @@ async function onPatientExaminationSelect(rawValue: string) {
   if (patientExaminationId === null) return
   const selectedOption = patientExaminationOptions.value.find((entry) => entry.id === patientExaminationId) ?? null
 
-  flow.setCaseSelection({
+  flow.setPatientExaminationContext({
+    patientExaminationId,
     selectedPatientId: selectedOption?.patientId ?? flow.selectedPatientId,
     selectedExaminationId: selectedOption?.examinationId ?? flow.selectedExaminationId
   })
-  flow.setLookupSession({
-    patientExaminationId,
-    lookupToken: null,
-    status: 'idle'
-  })
 
   await router.push(getNavigationTargetForPatientExamination(patientExaminationId))
+}
+
+async function bootstrapRuntimeDraft(
+  patientExaminationId: number,
+  option: PatientExaminationOption | null
+) {
+  const detailResponse = await axiosInstance.get(
+    r(endpoints.examination.patientExaminationDetail(patientExaminationId))
+  )
+  const detail =
+    detailResponse.data && typeof detailResponse.data === 'object'
+      ? (detailResponse.data as Record<string, any>)
+      : {}
+
+  const detailPatientId = extractPatientId(detail)
+  const detailExaminationId = extractExaminationId(detail)
+  flow.setCaseSelection({
+    selectedPatientId: option?.patientId ?? detailPatientId ?? flow.selectedPatientId,
+    selectedExaminationId: option?.examinationId ?? detailExaminationId ?? flow.selectedExaminationId
+  })
+
+  const examinationName = extractExaminationName(detail)
+  const templates = examinationName
+    ? await fetchReportTemplatesByExamination(flow.selectedKbModule, examinationName)
+    : []
+  const selectedTemplate =
+    (flow.selectedTemplateName &&
+      templates.find((template) => template.name === flow.selectedTemplateName)) ||
+    templates[0] ||
+    null
+
+  const selectedExaminationId =
+    option?.examinationId ??
+    detailExaminationId
+  const findingCatalog = selectedExaminationId
+    ? await findingsApi.getExaminationFindings(selectedExaminationId)
+    : []
+  const findingsById = new Map<number, Finding>(
+    (Array.isArray(findingCatalog) ? findingCatalog : []).map((finding) => [finding.id, finding])
+  )
+
+  const payload = await buildReportTemplateRuntimePayload({
+    moduleName: flow.selectedKbModule,
+    patientExaminationId,
+    patient: resolvePatientKey(detail, patientExaminationId),
+    examiners: extractExaminers(detail),
+    examination: selectedTemplate?.examination || examinationName,
+    getFindingById: (findingId) => findingsById.get(findingId)
+  })
+
+  flow.setTemplateSelection({
+    moduleName: flow.selectedKbModule,
+    templateName: selectedTemplate?.name || null
+  })
+  flow.setIndications(extractIndicationRows(detail))
+  flow.setRuntimeDraft({
+    draftId: `draft_${patientExaminationId}`,
+    patientExaminationId,
+    moduleName: flow.selectedKbModule,
+    templateName: selectedTemplate?.name || null,
+    payload: {
+      ...payload,
+      ...(extractDraftDate(detail) ? { date: extractDraftDate(detail) } : {})
+    },
+    hydratedFrom: 'backend_context',
+    updatedAt: new Date().toISOString()
+  })
+}
+
+async function hydrateRuntimeDraftFromDraftApi(
+  patientExaminationId: number
+): Promise<boolean> {
+  const response = await fetchPatientExaminationDraft(patientExaminationId)
+  const draft = response?.draft && typeof response.draft === 'object'
+    ? response.draft
+    : {}
+  if (!isRuntimePayload(draft.payload)) {
+    flow.markDraftPersistenceHydrated(response?.updated_at ?? null)
+    return false
+  }
+
+  flow.setTemplateSelection({
+    moduleName:
+      typeof draft.module_name === 'string' && draft.module_name.trim()
+        ? draft.module_name
+        : flow.selectedKbModule,
+    templateName:
+      typeof draft.template_name === 'string' && draft.template_name.trim()
+        ? draft.template_name
+        : null
+  })
+  flow.setRuntimeDraft({
+    draftId: `draft_${patientExaminationId}`,
+    patientExaminationId,
+    moduleName:
+      typeof draft.module_name === 'string' && draft.module_name.trim()
+        ? draft.module_name
+        : flow.selectedKbModule,
+    templateName:
+      typeof draft.template_name === 'string' && draft.template_name.trim()
+        ? draft.template_name
+        : null,
+    payload: draft.payload,
+    hydratedFrom: 'draft_api',
+    updatedAt: response?.updated_at || new Date().toISOString()
+  })
+  flow.markDraftPersistenceHydrated(response?.updated_at ?? null)
+  return true
+}
+
+async function ensureRuntimeDraft(patientExaminationId: number) {
+  const existingDraft =
+    flow.runtimeDraftsByPatientExaminationId[String(patientExaminationId)] || null
+  if (existingDraft) {
+    try {
+      const detailResponse = await axiosInstance.get(
+        r(endpoints.examination.patientExaminationDetail(patientExaminationId))
+      )
+      const detail =
+        detailResponse.data && typeof detailResponse.data === 'object'
+          ? (detailResponse.data as Record<string, any>)
+          : {}
+      flow.setCaseSelection({
+        selectedPatientId: extractPatientId(detail) ?? flow.selectedPatientId,
+        selectedExaminationId: extractExaminationId(detail) ?? flow.selectedExaminationId
+      })
+      flow.setIndications(extractIndicationRows(detail))
+    } catch {
+      // Keep the local draft usable even if detail hydration fails.
+    }
+    flow.setTemplateSelection({
+      moduleName: existingDraft.moduleName,
+      templateName: existingDraft.templateName
+    })
+    return
+  }
+
+  const restoredFromDraftApi = await hydrateRuntimeDraftFromDraftApi(patientExaminationId)
+  if (restoredFromDraftApi) {
+    try {
+      const detailResponse = await axiosInstance.get(
+        r(endpoints.examination.patientExaminationDetail(patientExaminationId))
+      )
+      const detail =
+        detailResponse.data && typeof detailResponse.data === 'object'
+          ? (detailResponse.data as Record<string, any>)
+          : {}
+      flow.setCaseSelection({
+        selectedPatientId: extractPatientId(detail) ?? flow.selectedPatientId,
+        selectedExaminationId: extractExaminationId(detail) ?? flow.selectedExaminationId
+      })
+      flow.setIndications(extractIndicationRows(detail))
+    } catch {
+      // Keep persisted draft usable even if detail hydration fails.
+    }
+    return
+  }
+
+  const option =
+    patientExaminationOptions.value.find((entry) => entry.id === patientExaminationId) || null
+  await bootstrapRuntimeDraft(patientExaminationId, option)
+  flow.markDraftPersistenceHydrated(null)
+}
+
+async function hydrateDraftForRoutePatientExamination(patientExaminationId: number) {
+  if (draftBootstrapInFlight.value) {
+    await draftBootstrapInFlight.value
+    return
+  }
+
+  const option =
+    patientExaminationOptions.value.find((entry) => entry.id === patientExaminationId) || null
+  if (
+    flow.patientExaminationId !== patientExaminationId ||
+    (option?.patientId ?? flow.selectedPatientId) !== flow.selectedPatientId ||
+    (option?.examinationId ?? flow.selectedExaminationId) !== flow.selectedExaminationId
+  ) {
+    flow.setPatientExaminationContext({
+      patientExaminationId,
+      selectedPatientId: option?.patientId ?? flow.selectedPatientId,
+      selectedExaminationId: option?.examinationId ?? flow.selectedExaminationId,
+      preserveTemplateSelection: true
+    })
+  }
+
+  const task = (async () => {
+    draftBootstrapError.value = null
+    try {
+      await ensureRuntimeDraft(patientExaminationId)
+    } catch (error: any) {
+      draftBootstrapError.value =
+        error?.response?.data?.detail ||
+        error?.message ||
+        'Der lokale Reporting-Entwurf konnte nicht initialisiert werden.'
+    } finally {
+      draftBootstrapInFlight.value = null
+    }
+  })()
+
+  draftBootstrapInFlight.value = task
+  await task
 }
 
 async function refreshMediaPreload() {
@@ -415,6 +798,7 @@ watch(
 
     if (patientExaminationId) {
       await ensureCurrentPatientExaminationOption(patientExaminationId)
+      await hydrateDraftForRoutePatientExamination(patientExaminationId)
     }
   },
   { immediate: true }

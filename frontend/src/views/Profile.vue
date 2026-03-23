@@ -8,7 +8,7 @@
   
   
   export default {
-    name: 'Profil',
+    name: 'Profile',
     components: {
     },
   };

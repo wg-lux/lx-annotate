@@ -25,6 +25,7 @@ let
 
   # 1. DEFINE STATIC ENV VARS HERE
   baseEnv = {
+
     # --- Directories & Paths ---
     containerHost = "None";
     containerMode = false;
@@ -34,6 +35,7 @@ let
     HOME_DIR = config.secretspec.secrets.HOME_DIR;
     WORKING_DIR = config.secretspec.secrets.WORKING_DIR;
     DJANGO_STATIC_ROOT = config.secretspec.secrets.DJANGO_STATIC_ROOT;
+
     # --- Network & Server ---
     HTTP_PROTOCOL = config.secretspec.secrets.HTTP_PROTOCOL;
     DJANGO_HOST = config.secretspec.secrets.DJANGO_HOST;
@@ -105,6 +107,7 @@ let
     isDev = isDev;
     env = baseEnv;
   };
+
   commonShellHook = ''
     export PATH="$PATH:$(yarn global bin)"
   '';
@@ -119,12 +122,12 @@ let
     enableLanguages = [ "eng" "deu" ];
   };
 
-  # Ollama currently pulls CUDA-linked dependencies in this nixpkgs snapshot.
-  # Keep it opt-in so shell evaluation remains reliable on non-CUDA setups.
+  # Ollama pulls CUDA-linked dependencies in this nixpkgs snapshot.
+  # We keep it opt-in so shell evaluation remains reliable on non-CUDA setups.
   enableOllama = builtins.getEnv "DEVENV_ENABLE_OLLAMA" == "1";
 
   runtimePackages = with pkgs; [
-    stdenv.cc.cc
+    stdenv.cc.cc.lib
     ffmpeg-headless.bin
     uvPackage
     libglvnd # Add libglvnd for libGL.so.1
@@ -136,10 +139,16 @@ let
     libxcb
   ] ++ lib.optionals enableOllama [ ollama.out ];
 
+  runtimeLibraryPath =
+    lib.makeLibraryPath runtimePackages
+    + ":/run/opengl-driver/lib:/run/opengl-driver-32/lib"
+    + ":/usr/lib/wsl/lib"
+    + ":/usr/lib/x86_64-linux-gnu"
+    + ":/usr/lib";
 
   _module.args.buildInputs = baseBuildInputs;
 
-  SYNC_CMD = "uv sync --extra dev --extra docs";
+  SYNC_CMD = "uv sync --active --extra dev --extra docs";
   nixpkgs.config.allowUnfree = true;
 
 in
@@ -150,38 +159,28 @@ in
   dotenv.disableHint = true;
   packages = lib.unique (devenv_utils.buildInputs ++ runtimePackages);
 
-
-
   env = baseEnv // {
     UV_PROJECT_ENVIRONMENT = lib.mkForce ".devenv/state/venv";
-    LD_LIBRARY_PATH =
-          lib.makeLibraryPath (runtimePackages)
-          + ":/run/opengl-driver/lib:/run/opengl-driver-32/lib"
-          + ":/usr/lib/wsl/lib"
-          + ":/usr/lib/x86_64-linux-gnu"
-          + ":/usr/lib"
-          ;
+    LD_LIBRARY_PATH = runtimeLibraryPath;
     TESSDATA_PREFIX = "${myTesseract}/share/tessdata";
     PYTORCH_ALLOC_CONF= "expandable_segments:True";
-
   };
 
   languages.python = {
     enable = true;
-    package = pkgs.python312;
+    package = lib.mkForce pkgs.python312;
     uv = {
       enable = true;
       package = uvPackage;
       sync.enable = true;
     };
   };
+
   languages.javascript = {
     enable = true;
     package = pkgs.nodejs_22; 
     npm.install.enable = false;
   };
-
-
 
   processes = devenv_utils.processes;
   containers = devenv_utils.containers;
@@ -198,9 +197,7 @@ in
 
     env-setup.exec = ''
       # Ensure runtimePackages are included in the library path here too
-      export LD_LIBRARY_PATH="${
-        with pkgs; lib.makeLibraryPath (runtimePackages)
-      }:/run/opengl-driver/lib:/run/opengl-driver-32/lib"
+      export LD_LIBRARY_PATH="${runtimeLibraryPath}"
       which tesseract
     '';
 
@@ -218,8 +215,6 @@ in
 
   } // devenv_utils.scripts;
 
-
-
   enterShell = lib.mkAfter ''
     # 1. Check if the venv interpreter actually exists
     VENV_PATH=".devenv/state/venv"
@@ -232,16 +227,32 @@ in
 
     source .devenv/state/venv/bin/activate 2>/dev/null || true
 
+    validate_python_env() {
+      [ -x "$VENV_PATH/bin/python" ] || return 1
+      "$VENV_PATH/bin/python" -c 'import pydantic, pydantic_settings' >/dev/null 2>&1
+    }
+
     # 2. Refined Sync Logic
     SYNC_STAMP=".devenv/state/uv.syncstamp"
-    LOCK_HASH="$(${pkgs.coreutils}/bin/sha256sum uv.lock 2>/dev/null | ${pkgs.gawk}/bin/awk '{print $1}')"
+    if [ -f "uv.lock" ] && [ -f "pyproject.toml" ]; then
+      LOCK_HASH="$(${pkgs.coreutils}/bin/sha256sum uv.lock pyproject.toml 2>/dev/null | ${pkgs.coreutils}/bin/sha256sum | ${pkgs.gawk}/bin/awk '{print $1}')"
+    else
+      LOCK_HASH=""
+    fi
     PREV_LOCK_HASH="$(${pkgs.coreutils}/bin/cat "$SYNC_STAMP" 2>/dev/null || true)"
 
-    # Sync if lock changed OR if the venv was just deleted/missing
-    if [ ! -d "$VENV_PATH" ] || [ "$LOCK_HASH" != "$PREV_LOCK_HASH" ]; then
-      echo "uv deps changed or venv missing -> syncing..."
-      $SYNC_CMD || echo "Warning: uv sync failed."
-      echo "$LOCK_HASH" > "$SYNC_STAMP"
+    # Sync if the lock changed OR if the venv is missing or unhealthy.
+    if [ ! -d "$VENV_PATH" ] || [ "$LOCK_HASH" != "$PREV_LOCK_HASH" ] || ! validate_python_env; then
+      echo "uv deps changed, venv missing, or venv validation failed -> syncing..."
+      if $SYNC_CMD; then
+        if validate_python_env; then
+          echo "$LOCK_HASH" > "$SYNC_STAMP"
+        else
+          echo "Warning: uv sync completed but required Python packages are still missing."
+        fi
+      else
+        echo "Warning: uv sync failed."
+      fi
     else
       echo "uv deps unchanged -> skipping sync."
     fi

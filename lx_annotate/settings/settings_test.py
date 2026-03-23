@@ -22,11 +22,13 @@ from . import settings_base as base
 # -----------------------------------------------------------------------------
 # Deep copy mutable defaults from base so we don't accidentally modify them
 INSTALLED_APPS = deepcopy(base.INSTALLED_APPS)
+MIDDLEWARE = deepcopy(base.MIDDLEWARE)
 REST_FRAMEWORK = deepcopy(base.REST_FRAMEWORK)
 LOGGING = deepcopy(base.LOGGING)
 
 # Help mypy
 INSTALLED_APPS = cast(list[str], INSTALLED_APPS)
+MIDDLEWARE = cast(list[str], MIDDLEWARE)
 REST_FRAMEWORK = cast(dict[str, Any], REST_FRAMEWORK)
 LOGGING = cast(dict[str, Any], LOGGING)
 

@@ -440,13 +440,13 @@
 
 
 
-      <!-- Advanced Requirement Generator Section -->
+      <!-- Centralized reporting handoff -->
       <div class="col-lg-12">
         <div class="card">
           <div class="card-header pb-0">
             <h5 class="mb-0">
               <i class="fas fa-clipboard-list me-2"></i>
-              Anforderungsbasierte Annotation
+              Klinische Befundung
             </h5>
             <small class="text-muted" v-if="currentMarker">
               Zeitpunkt: {{ formatTime(currentMarker.timestamp) }}
@@ -455,24 +455,24 @@
               <div class="alert alert-info alert-sm mb-0">
                 <i class="fas fa-info-circle me-1"></i>
                 <strong>Video {{ selectedVideoId }}:</strong> 
-                Erweiterte Untersuchungsannotation mit Anforderungssets und Befunden
+                Die eigentliche Befundung laeuft jetzt zentral ueber den Reporting-Flow.
               </div>
             </div>
           </div>
-          <div class="card-body p-0" style="max-height: 80vh; overflow-y: auto;">
-            <!-- ✅ ENHANCED: Integrated RequirementGenerator instead of simple form -->
-            <RequirementGenerator 
-              v-if="showExaminationForm"
-              class="requirement-generator-embedded"
-              data-cy="requirement-generator"
-            />
-            <div v-else class="text-center text-muted py-5 px-3">
-              <i class="fas fa-video fa-3x mb-3 text-muted"></i>
-              <h6>Video-Untersuchung</h6>
-              <p class="mb-0">Wählen Sie ein Video aus, um mit der erweiterten Annotation zu beginnen</p>
-              <small class="text-muted">
-                Anforderungssets, Befunde und Klassifikationen werden automatisch geladen
-              </small>
+          <div class="card-body">
+            <div class="text-center text-muted py-5 px-3">
+              <i class="fas fa-route fa-3x mb-3 text-muted"></i>
+              <h6>Zentraler Reporting-Einstieg</h6>
+              <p class="mb-3">
+                Um doppelte Entwuerfe zu vermeiden, startet die Untersuchungsdokumentation nicht mehr eingebettet in
+                der Video-Ansicht.
+              </p>
+              <p class="small text-muted mb-4">
+                Waehlen Sie den Patientenfall im Reporting-Fall-Setup und setzen Sie die Befundung dort fort.
+              </p>
+              <RouterLink class="btn btn-primary" to="/reporting/case-setup">
+                Zur Befundung wechseln
+              </RouterLink>
             </div>
           </div>
         </div>
@@ -522,7 +522,6 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useVideoStore, type Segment, type Video } from '@/stores/videoStore'
 import { useAnonymizationStore } from '@/stores/anonymizationStore'
 import { useMediaTypeStore } from '@/stores/mediaTypeStore'
-import RequirementGenerator from '@/components/RequirementReport/RequirementGenerator.vue'
 import axiosInstance, { r } from '@/api/axiosInstance'
 import Timeline from '@/components/VideoExamination/Timeline.vue'
 import { storeToRefs } from 'pinia'
@@ -839,10 +838,6 @@ watch(
   { immediate: true }
 )
 
-
-const showExaminationForm = computed(() => {
-  return selectedVideoId.value !== null && anonymizedVideoSrc.value !== undefined
-})
 
 // Video streaming URL using MediaStore logic like AnonymizationValidationComponent
 const anonymizedVideoSrc = computed(() => {
@@ -1769,62 +1764,6 @@ const isVideoValidated = (videoId: number): boolean => {
   border-bottom: none;
 }
 
-/* ✅ NEW: Embedded RequirementGenerator Styles */
-.requirement-generator-embedded {
-  /* Remove container padding for embedded use */
-  padding: 0 !important;
-}
-
-.requirement-generator-embedded .container-fluid {
-  padding: 0 !important;
-}
-
-.requirement-generator-embedded .card {
-  border: none !important;
-  box-shadow: none !important;
-  margin-bottom: 1rem !important;
-}
-
-.requirement-generator-embedded .card-header {
-  background: transparent !important;
-  border-bottom: 1px solid #e9ecef !important;
-  padding: 0.75rem !important;
-}
-
-.requirement-generator-embedded .card-body {
-  padding: 0.75rem !important;
-}
-
-/* Compact alert styles for embedded view */
-.requirement-generator-embedded .alert {
-  padding: 0.5rem 0.75rem !important;
-  margin-bottom: 0.75rem !important;
-  font-size: 0.875rem !important;
-}
-
-/* Compact form controls */
-.requirement-generator-embedded .form-control,
-.requirement-generator-embedded .form-select {
-  padding: 0.375rem 0.75rem !important;
-  font-size: 0.875rem !important;
-}
-
-/* Compact buttons */
-.requirement-generator-embedded .btn {
-  padding: 0.375rem 0.75rem !important;
-  font-size: 0.875rem !important;
-}
-
-/* Reduce spacing for embedded layout */
-.requirement-generator-embedded .row {
-  margin: 0 -0.5rem !important;
-}
-
-.requirement-generator-embedded .col-12,
-.requirement-generator-embedded .col-md-6,
-.requirement-generator-embedded .col-xl-6 {
-  padding: 0 0.5rem !important;
-}
 
 /* ✅ NEW: Status display enhancements */
 .video-status-card {

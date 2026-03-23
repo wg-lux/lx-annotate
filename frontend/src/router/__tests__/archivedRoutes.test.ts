@@ -12,7 +12,7 @@ function buildRouter() {
       { path: '/', component: Stub },
       { path: '/patienten', component: Stub },
       { path: '/anonymisierung/uebersicht', component: Stub },
-      { path: '/untersuchung', component: Stub },
+      { path: '/reporting/case-setup', component: Stub },
       { path: '/annotationen', component: Stub },
       { path: '/reporting', component: Stub },
       ...archivedLegacyRoutes
@@ -40,7 +40,7 @@ describe('archived legacy routes', () => {
 
   it('redirects legacy aliases used by old dashboard widgets', async () => {
     await router.push('/examination')
-    expect(router.currentRoute.value.fullPath).toBe('/untersuchung')
+    expect(router.currentRoute.value.fullPath).toBe('/reporting/case-setup')
 
     await router.push('/segments')
     expect(router.currentRoute.value.fullPath).toBe('/annotationen')

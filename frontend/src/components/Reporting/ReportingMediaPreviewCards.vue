@@ -20,7 +20,7 @@
       <div v-else class="row g-3">
         <div class="col-md-6">
           <div class="border rounded p-3 h-100">
-            <div class="fw-semibold mb-2">Latest report</div>
+            <div class="fw-semibold mb-2">Letzter Befund</div>
             <div v-if="flow.mediaPreload.latestReport" class="small">
               <div>ID: {{ flow.mediaPreload.latestReport.id }}</div>
               <div>document_type: {{ flow.mediaPreload.latestReport.documentType || 'n/a' }}</div>
@@ -40,7 +40,7 @@
         </div>
         <div class="col-md-6">
           <div class="border rounded p-3 h-100">
-            <div class="fw-semibold mb-2">Latest video</div>
+            <div class="fw-semibold mb-2">Letztes Video</div>
             <div v-if="flow.mediaPreload.latestVideo" class="small">
               <div>ID: {{ flow.mediaPreload.latestVideo.id }}</div>
               <div class="d-flex flex-wrap gap-2 mt-2">

@@ -8,12 +8,12 @@ type __VLS_Props = {
 };
 declare const _default: import("vue").DefineComponent<__VLS_Props, {}, {}, {}, {}, import("vue").ComponentOptionsMixin, import("vue").ComponentOptionsMixin, {
     refresh: () => any;
-    recompute: () => any;
     "load-parts": () => any;
+    recompute: () => any;
 }, string, import("vue").PublicProps, Readonly<__VLS_Props> & Readonly<{
     onRefresh?: (() => any) | undefined;
-    onRecompute?: (() => any) | undefined;
     "onLoad-parts"?: (() => any) | undefined;
+    onRecompute?: (() => any) | undefined;
 }>, {
     loading: boolean;
     showParts: boolean;

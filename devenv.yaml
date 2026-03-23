@@ -5,6 +5,10 @@ inputs:
     url: github:NixOS/nixpkgs/nixpkgs-unstable
   mk-shell-bin:
     url: github:rrbutani/nix-mk-shell-bin
+  lx-anonymizer:
+    url: github:wg-lux/lx-anonymizer
+  lx-data-models:
+    url: github:wg-lux/lx-data-models/report_template
 allowUnfree: true
 secretspec:
   enable: true

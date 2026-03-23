@@ -19,9 +19,9 @@ let
   '';
   frontendBuildExec = ''
     ${repoRootSetup}
-    cd frontend
-    npm install
-    npm run build
+    BUILD_PATH="$(${pkgs.nix}/bin/nix build ./frontend#frontend --no-link --print-out-paths)"
+    mkdir -p staticfiles
+    cp -r "$BUILD_PATH/dist/." staticfiles/
   '';
   verifyViteArtifactsExec = ''
     set -euo pipefail

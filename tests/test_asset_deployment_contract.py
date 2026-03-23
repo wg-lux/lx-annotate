@@ -95,8 +95,9 @@ def test_local_luxnix_service_uses_single_devenv_environment():
 
     assert 'export UV_PROJECT_ENVIRONMENT=".devenv/state/venv"' in service_nix
     assert 'export SYNC_CMD="uv sync --extra dev --extra docs"' in service_nix
-    assert "source .devenv/state/venv/bin/activate" in service_nix
+    assert "devenv shell" in service_nix
     assert "source .venv/bin/activate" not in service_nix
+    assert '".venv/bin/python"' not in service_nix
 
 
 def test_base_template_has_single_vite_asset_tag_and_no_global_labelstudio_script():

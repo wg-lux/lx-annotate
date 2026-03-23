@@ -1,16 +1,14 @@
 import { computed, onMounted, ref, watch } from 'vue';
 import { RouterLink, useRoute } from 'vue-router';
 import axiosInstance, { r } from '@/api/axiosInstance';
-import { findingsApi } from '@/api/findingsApi';
 import MedicalBlock from '@/components/AssistedReporting/MedicalBlock.vue';
 import IndicationsEditor from '@/components/Reporting/IndicationsEditor.vue';
-import LookupStatusPanel from '@/components/Reporting/LookupStatusPanel.vue';
 import ReportArtifactsPanel from '@/components/Reporting/ReportArtifactsPanel.vue';
 import { useReportTemplates } from '@/composables/reporting/useReportTemplates';
 import { useExaminationStore } from '@/stores/examinationStore';
 import { useReportingFlowStore } from '@/stores/reportingFlowStore';
 import { endpoints } from '@/types/api/endpoints';
-import { formatDateOnly, mergeClassificationSelections, normalizeInterventions } from '@/components/AssistedReporting/reportSubmissionUtils';
+import { formatDateOnly } from '@/components/AssistedReporting/reportSubmissionUtils';
 import { usePatientStore } from '@/stores/patientStore';
 const flow = useReportingFlowStore();
 const patientStore = usePatientStore();
@@ -39,6 +37,8 @@ const selectedExaminationDisplayName = computed(() => selectedExamination.value?
 const selectedPatient = computed(() => flow.selectedPatientId ? patientStore.getPatientById(flow.selectedPatientId) : null);
 const templateStatusMessage = ref(null);
 const canSave = computed(() => !!flow.patientExaminationId && !!selectedTemplateName.value);
+const currentRuntimeDraft = computed(() => flow.currentRuntimeDraft);
+const currentPayload = computed(() => currentRuntimeDraft.value?.payload || null);
 const normalizedIndications = computed(() => flow.indications
     .filter((row) => row.examinationIndicationId != null)
     .map((row) => ({
@@ -109,6 +109,7 @@ const indicationOptionsForEditor = computed(() => {
         .sort((a, b) => a.label.localeCompare(b.label, 'de', { numeric: true }));
 });
 const sectionDraftPreview = computed(() => JSON.stringify(flow.templateSectionDrafts || {}, null, 2));
+const runtimeFindingsPreview = computed(() => JSON.stringify(currentPayload.value?.patientFindings || [], null, 2));
 watch([selectedKbModule, selectedTemplateName], ([moduleName, templateName], [, previousTemplateName]) => {
     flow.setTemplateSelection({
         moduleName,
@@ -432,6 +433,34 @@ function buildExaminationContextText() {
         return '';
     return `Untersuchung: ${selectedExaminationDisplayName.value}`;
 }
+function formatRuntimeFindingSummary(finding) {
+    const classifications = finding.classificationChoices
+        .map((choice) => {
+        const descriptorText = choice.descriptors.length
+            ? ` (${choice.descriptors
+                .map((descriptor) => `${descriptor.classificationChoiceDescriptor}: ${String(descriptor.descriptorValue)}`)
+                .join(', ')})`
+            : '';
+        return `${choice.classification}: ${choice.classificationChoice}${descriptorText}`;
+    })
+        .join(' · ');
+    return classifications ? `${finding.finding} -> ${classifications}` : finding.finding;
+}
+function getSectionDraftFindings(sectionName) {
+    const section = sectionBlocks.value.find((entry) => entry.name === sectionName);
+    const payload = currentPayload.value;
+    if (!section || !payload)
+        return [];
+    const allowedFindings = new Set(section.findings.map((finding) => finding.finding));
+    return payload.patientFindings.filter((finding) => allowedFindings.has(finding.finding));
+}
+function getSectionPreview(sectionName) {
+    const findings = getSectionDraftFindings(sectionName);
+    return {
+        findings,
+        findingSummaries: findings.map(formatRuntimeFindingSummary)
+    };
+}
 async function ensurePatientsLoaded() {
     if (!patientStore.patients.length) {
         await patientStore.fetchPatients();
@@ -447,7 +476,7 @@ async function refreshTemplatesForExamination() {
     const examName = selectedExaminationName.value;
     if (!examName)
         return;
-    const templates = await fetchTemplatesByExamination(examName);
+    const templates = (await fetchTemplatesByExamination(examName)) || [];
     if (templates.length) {
         templateStatusMessage.value = `${templates.length} Template(s) für "${examName}" geladen.`;
     }
@@ -462,49 +491,23 @@ function onModuleChange(next) {
 function onTemplateSelectionChange(name) {
     void selectTemplateByName(name || null);
 }
-async function fetchNormalizedFindingsPayload() {
-    if (!flow.patientExaminationId)
+function buildDraftFindingsPayload() {
+    const payload = currentPayload.value;
+    if (!payload)
         return [];
-    try {
-        const rows = (await findingsApi.listPatientFindings(flow.patientExaminationId));
-        return (Array.isArray(rows) ? rows : [])
-            .map((row) => ({
-            row,
-            findingId: typeof row?.finding === 'number' ? row.finding : Number(row?.finding?.id ?? NaN)
-        }))
-            .filter(({ row, findingId }) => Number.isFinite(findingId) && row.isActive !== false && row.is_active !== false)
-            .map((row) => ({
-            finding: row.findingId,
-            classifications: mergeClassificationSelections(row.findingId, row.row.classifications, {}),
-            interventions: normalizeInterventions(row.row.interventions)
-        }));
-    }
-    catch (e) {
-        console.warn('Konnte patient-findings nicht laden, verwende Fallback:', e?.message || e);
-    }
-    try {
-        const res = await axiosInstance.get(r(endpoints.examination.patientExaminationFindings(flow.patientExaminationId)));
-        const rows = (Array.isArray(res.data?.results) ? res.data.results : res.data);
-        return (Array.isArray(rows) ? rows : [])
-            .map((row) => Number(row?.id))
-            .filter((id) => Number.isFinite(id))
-            .map((findingId) => ({
-            finding: findingId,
-            classifications: [],
-            interventions: []
-        }));
-    }
-    catch (e) {
-        console.warn('Fallback für Befunde fehlgeschlagen:', e?.message || e);
-        return [];
-    }
+    return payload.patientFindings.map((finding) => ({
+        finding: finding.finding,
+        classifications: finding.classificationChoices.map((choice) => ({
+            classification: choice.classification,
+            classificationChoice: choice.classificationChoice
+        })),
+        interventions: []
+    }));
 }
 function buildEditorPayload() {
     return {
         source: 'reporting_route_report_editor',
         routePatientExaminationId: route.params.patient_examination_id ?? null,
-        lookupToken: flow.lookupToken,
-        selectedRequirementSetIds: flow.selectedRequirementSetIds,
         indications: normalizedIndications.value,
         template: {
             moduleName: selectedKbModule.value,
@@ -513,9 +516,11 @@ function buildEditorPayload() {
                 name: section.name,
                 title: section.title,
                 subtitle: section.subtitle,
-                draft: getSectionDraft(section.name)
+                draft: getSectionDraft(section.name),
+                findings: getSectionPreview(section.name).findings
             }))
         },
+        runtimeDraftPayload: currentPayload.value,
         savedAt: new Date().toISOString()
     };
 }
@@ -526,6 +531,7 @@ function buildRenderedText() {
     let hasStructuredContent = false;
     for (const section of sectionBlocks.value) {
         const draft = getSectionDraft(section.name);
+        const sectionPreview = getSectionPreview(section.name);
         const sectionLines = [];
         if (draft.includePatientData) {
             const patientText = buildPatientContextText();
@@ -539,6 +545,9 @@ function buildRenderedText() {
         }
         if (draft.note.trim())
             sectionLines.push(draft.note.trim());
+        if (sectionPreview.findingSummaries.length) {
+            sectionLines.push(...sectionPreview.findingSummaries.map((summary) => `- ${summary}`));
+        }
         if (sectionLines.length)
             hasStructuredContent = true;
         lines.push(`## ${section.title}`);
@@ -595,9 +604,10 @@ async function saveReportSubmission(status) {
     pendingSaveStatus.value = status;
     loading.value = true;
     clearMessages();
+    flow.setSavingFinalReport(status === 'final');
     try {
         await ensurePatientsLoaded();
-        const findings = await fetchNormalizedFindingsPayload();
+        const findings = buildDraftFindingsPayload();
         const payload = {
             ...(flow.activeReportId ? { reportId: flow.activeReportId } : {}),
             ...(currentReportVersion.value ? { expectedVersion: currentReportVersion.value } : {}),
@@ -646,6 +656,7 @@ async function saveReportSubmission(status) {
         }
     }
     finally {
+        flow.setSavingFinalReport(false);
         loading.value = false;
         pendingSaveStatus.value = null;
     }
@@ -653,6 +664,10 @@ async function saveReportSubmission(status) {
 onMounted(async () => {
     if (!flow.patientExaminationId) {
         errorMessage.value = 'Bitte zuerst das Fall-Setup abschließen.';
+        return;
+    }
+    if (!flow.currentRuntimeDraft) {
+        errorMessage.value = 'Kein Reporting-Entwurf geladen. Bitte zuerst die klinische Dokumentation öffnen.';
         return;
     }
     await Promise.all([ensurePatientsLoaded(), ensureExaminationsLoaded()]);
@@ -685,11 +700,11 @@ const __VLS_0 = {}.RouterLink;
 // @ts-ignore
 const __VLS_1 = __VLS_asFunctionalComponent(__VLS_0, new __VLS_0({
     ...{ class: "btn btn-outline-secondary btn-sm" },
-    to: "/report-generator",
+    to: "/reporting/case-setup",
 }));
 const __VLS_2 = __VLS_1({
     ...{ class: "btn btn-outline-secondary btn-sm" },
-    to: "/report-generator",
+    to: "/reporting/case-setup",
 }, ...__VLS_functionalComponentArgsRest(__VLS_1));
 __VLS_3.slots.default;
 var __VLS_3;
@@ -708,18 +723,6 @@ if (__VLS_ctx.successMessage) {
     });
     (__VLS_ctx.successMessage);
 }
-/** @type {[typeof LookupStatusPanel, ]} */ ;
-// @ts-ignore
-const __VLS_4 = __VLS_asFunctionalComponent(LookupStatusPanel, new LookupStatusPanel({
-    ...{ class: "mb-3" },
-    patientExaminationId: (__VLS_ctx.flow.patientExaminationId),
-    lookupToken: (__VLS_ctx.flow.lookupToken),
-}));
-const __VLS_5 = __VLS_4({
-    ...{ class: "mb-3" },
-    patientExaminationId: (__VLS_ctx.flow.patientExaminationId),
-    lookupToken: (__VLS_ctx.flow.lookupToken),
-}, ...__VLS_functionalComponentArgsRest(__VLS_4));
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "row g-3 mb-3" },
 });
@@ -756,9 +759,24 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
     value: (__VLS_ctx.lastSaveStatus ?? ''),
     readonly: true,
 });
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "small text-muted mb-3" },
+});
+(__VLS_ctx.currentRuntimeDraft?.hydratedFrom === 'session_storage' || __VLS_ctx.currentRuntimeDraft?.hydratedFrom === 'draft_api' ? 'wiederhergestellt' : __VLS_ctx.currentRuntimeDraft ? 'initialisiert' : 'leer');
+(__VLS_ctx.flow.draftPersistenceStatus);
+if (__VLS_ctx.flow.lastPersistedDraftAt) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+    (new Date(__VLS_ctx.flow.lastPersistedDraftAt).toLocaleTimeString('de-DE'));
+}
+if (__VLS_ctx.flow.draftPersistenceError) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "alert alert-warning py-2" },
+    });
+    (__VLS_ctx.flow.draftPersistenceError);
+}
 /** @type {[typeof MedicalBlock, typeof MedicalBlock, ]} */ ;
 // @ts-ignore
-const __VLS_7 = __VLS_asFunctionalComponent(MedicalBlock, new MedicalBlock({
+const __VLS_4 = __VLS_asFunctionalComponent(MedicalBlock, new MedicalBlock({
     title: "Template-Kontext",
     subtitle: "Templates per Untersuchung laden und für den Bericht aktivieren",
     icon: "description",
@@ -768,7 +786,7 @@ const __VLS_7 = __VLS_asFunctionalComponent(MedicalBlock, new MedicalBlock({
     showAction: (false),
     loading: (__VLS_ctx.loading || __VLS_ctx.templateLoading),
 }));
-const __VLS_8 = __VLS_7({
+const __VLS_5 = __VLS_4({
     title: "Template-Kontext",
     subtitle: "Templates per Untersuchung laden und für den Bericht aktivieren",
     icon: "description",
@@ -777,10 +795,10 @@ const __VLS_8 = __VLS_7({
     isActive: (true),
     showAction: (false),
     loading: (__VLS_ctx.loading || __VLS_ctx.templateLoading),
-}, ...__VLS_functionalComponentArgsRest(__VLS_7));
-__VLS_9.slots.default;
+}, ...__VLS_functionalComponentArgsRest(__VLS_4));
+__VLS_6.slots.default;
 {
-    const { default: __VLS_thisSlot } = __VLS_9.slots;
+    const { default: __VLS_thisSlot } = __VLS_6.slots;
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "row g-3 mb-3" },
     });
@@ -861,16 +879,21 @@ __VLS_9.slots.default;
         (__VLS_ctx.templateStatusMessage);
     }
 }
-var __VLS_9;
+var __VLS_6;
 if (!__VLS_ctx.sectionBlocks.length) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "alert alert-info" },
     });
 }
+else if (!__VLS_ctx.currentRuntimeDraft || !__VLS_ctx.currentPayload) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "alert alert-warning" },
+    });
+}
 for (const [section] of __VLS_getVForSourceType((__VLS_ctx.sectionBlocks))) {
     /** @type {[typeof MedicalBlock, typeof MedicalBlock, ]} */ ;
     // @ts-ignore
-    const __VLS_10 = __VLS_asFunctionalComponent(MedicalBlock, new MedicalBlock({
+    const __VLS_7 = __VLS_asFunctionalComponent(MedicalBlock, new MedicalBlock({
         key: (section.name),
         title: (section.title),
         subtitle: (section.subtitle),
@@ -881,7 +904,7 @@ for (const [section] of __VLS_getVForSourceType((__VLS_ctx.sectionBlocks))) {
         showAction: (false),
         loading: (__VLS_ctx.loading),
     }));
-    const __VLS_11 = __VLS_10({
+    const __VLS_8 = __VLS_7({
         key: (section.name),
         title: (section.title),
         subtitle: (section.subtitle),
@@ -891,16 +914,39 @@ for (const [section] of __VLS_getVForSourceType((__VLS_ctx.sectionBlocks))) {
         isActive: (section.position === 0),
         showAction: (false),
         loading: (__VLS_ctx.loading),
-    }, ...__VLS_functionalComponentArgsRest(__VLS_10));
-    __VLS_12.slots.default;
+    }, ...__VLS_functionalComponentArgsRest(__VLS_7));
+    __VLS_9.slots.default;
     {
-        const { default: __VLS_thisSlot } = __VLS_12.slots;
+        const { default: __VLS_thisSlot } = __VLS_9.slots;
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: "small text-muted mb-2" },
         });
         (section.findings.length);
         (section.requiredFindingsCount);
         (section.requiredClassificationsCount);
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "mb-3" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "fw-semibold small mb-1" },
+        });
+        if (__VLS_ctx.getSectionPreview(section.name).findingSummaries.length) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: "border rounded bg-light p-2 small" },
+            });
+            for (const [summary] of __VLS_getVForSourceType((__VLS_ctx.getSectionPreview(section.name).findingSummaries))) {
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                    key: (summary),
+                    ...{ class: "mb-1" },
+                });
+                (summary);
+            }
+        }
+        else {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: "small text-muted" },
+            });
+        }
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: "d-flex flex-wrap gap-3 mb-3" },
         });
@@ -947,11 +993,11 @@ for (const [section] of __VLS_getVForSourceType((__VLS_ctx.sectionBlocks))) {
             value: (__VLS_ctx.getSectionDraft(section.name).note),
         });
     }
-    var __VLS_12;
+    var __VLS_9;
 }
 /** @type {[typeof IndicationsEditor, ]} */ ;
 // @ts-ignore
-const __VLS_13 = __VLS_asFunctionalComponent(IndicationsEditor, new IndicationsEditor({
+const __VLS_10 = __VLS_asFunctionalComponent(IndicationsEditor, new IndicationsEditor({
     ...{ 'onUpdateRow': {} },
     ...{ 'onAddRow': {} },
     ...{ 'onRemoveRow': {} },
@@ -964,7 +1010,7 @@ const __VLS_13 = __VLS_asFunctionalComponent(IndicationsEditor, new IndicationsE
     optionsError: (__VLS_ctx.indicationOptionsError),
     description: "Dieser Status wird direkt auf &lt;code&gt;save-submission.indications&lt;/code&gt; gemappt. Leere Liste &lt;code&gt;[]&lt;/code&gt; löscht bestehende Indikationen auf dem Backend.",
 }));
-const __VLS_14 = __VLS_13({
+const __VLS_11 = __VLS_10({
     ...{ 'onUpdateRow': {} },
     ...{ 'onAddRow': {} },
     ...{ 'onRemoveRow': {} },
@@ -976,25 +1022,25 @@ const __VLS_14 = __VLS_13({
     optionsLoading: (__VLS_ctx.indicationOptionsLoading),
     optionsError: (__VLS_ctx.indicationOptionsError),
     description: "Dieser Status wird direkt auf &lt;code&gt;save-submission.indications&lt;/code&gt; gemappt. Leere Liste &lt;code&gt;[]&lt;/code&gt; löscht bestehende Indikationen auf dem Backend.",
-}, ...__VLS_functionalComponentArgsRest(__VLS_13));
-let __VLS_16;
-let __VLS_17;
-let __VLS_18;
-const __VLS_19 = {
+}, ...__VLS_functionalComponentArgsRest(__VLS_10));
+let __VLS_13;
+let __VLS_14;
+let __VLS_15;
+const __VLS_16 = {
     onUpdateRow: ((idx, patch) => __VLS_ctx.flow.updateIndicationRow(idx, patch))
 };
-const __VLS_20 = {
+const __VLS_17 = {
     onAddRow: (...[$event]) => {
         __VLS_ctx.flow.addIndicationRow();
     }
 };
-const __VLS_21 = {
+const __VLS_18 = {
     onRemoveRow: ((idx) => __VLS_ctx.flow.removeIndicationRow(idx))
 };
-const __VLS_22 = {
+const __VLS_19 = {
     onRefreshOptions: (__VLS_ctx.loadIndicationCatalog)
 };
-var __VLS_15;
+var __VLS_12;
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "d-flex flex-wrap gap-2" },
 });
@@ -1047,12 +1093,12 @@ if (__VLS_ctx.saveWarnings.length) {
 }
 /** @type {[typeof ReportArtifactsPanel, ]} */ ;
 // @ts-ignore
-const __VLS_23 = __VLS_asFunctionalComponent(ReportArtifactsPanel, new ReportArtifactsPanel({
+const __VLS_20 = __VLS_asFunctionalComponent(ReportArtifactsPanel, new ReportArtifactsPanel({
     artifacts: (__VLS_ctx.persistedArtifacts),
 }));
-const __VLS_24 = __VLS_23({
+const __VLS_21 = __VLS_20({
     artifacts: (__VLS_ctx.persistedArtifacts),
-}, ...__VLS_functionalComponentArgsRest(__VLS_23));
+}, ...__VLS_functionalComponentArgsRest(__VLS_20));
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "card shadow-sm" },
 });
@@ -1065,6 +1111,14 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "card-body d-flex flex-column gap-3" },
 });
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "small text-muted mb-1" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.pre, __VLS_intrinsicElements.pre)({
+    ...{ class: "small mb-0 bg-light p-2 rounded" },
+});
+(__VLS_ctx.runtimeFindingsPreview);
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "small text-muted mb-1" },
@@ -1102,7 +1156,6 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.pre, __VLS_intrinsicElements.p
 /** @type {__VLS_StyleScopedClasses['alert']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert-success']} */ ;
 /** @type {__VLS_StyleScopedClasses['py-2']} */ ;
-/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['row']} */ ;
 /** @type {__VLS_StyleScopedClasses['g-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
@@ -1115,6 +1168,12 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.pre, __VLS_intrinsicElements.p
 /** @type {__VLS_StyleScopedClasses['col-md-4']} */ ;
 /** @type {__VLS_StyleScopedClasses['form-label']} */ ;
 /** @type {__VLS_StyleScopedClasses['form-control']} */ ;
+/** @type {__VLS_StyleScopedClasses['small']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert-warning']} */ ;
+/** @type {__VLS_StyleScopedClasses['py-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['row']} */ ;
 /** @type {__VLS_StyleScopedClasses['g-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
@@ -1148,9 +1207,23 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.pre, __VLS_intrinsicElements.p
 /** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert-info']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert-warning']} */ ;
 /** @type {__VLS_StyleScopedClasses['small']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['fw-semibold']} */ ;
+/** @type {__VLS_StyleScopedClasses['small']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['border']} */ ;
+/** @type {__VLS_StyleScopedClasses['rounded']} */ ;
+/** @type {__VLS_StyleScopedClasses['bg-light']} */ ;
+/** @type {__VLS_StyleScopedClasses['p-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['small']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['small']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
 /** @type {__VLS_StyleScopedClasses['flex-wrap']} */ ;
 /** @type {__VLS_StyleScopedClasses['gap-3']} */ ;
@@ -1207,6 +1280,14 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.pre, __VLS_intrinsicElements.p
 /** @type {__VLS_StyleScopedClasses['bg-light']} */ ;
 /** @type {__VLS_StyleScopedClasses['p-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['rounded']} */ ;
+/** @type {__VLS_StyleScopedClasses['small']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['small']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['bg-light']} */ ;
+/** @type {__VLS_StyleScopedClasses['p-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['rounded']} */ ;
 var __VLS_dollars;
 const __VLS_self = (await import('vue')).defineComponent({
     setup() {
@@ -1214,7 +1295,6 @@ const __VLS_self = (await import('vue')).defineComponent({
             RouterLink: RouterLink,
             MedicalBlock: MedicalBlock,
             IndicationsEditor: IndicationsEditor,
-            LookupStatusPanel: LookupStatusPanel,
             ReportArtifactsPanel: ReportArtifactsPanel,
             flow: flow,
             loading: loading,
@@ -1237,14 +1317,18 @@ const __VLS_self = (await import('vue')).defineComponent({
             selectedExaminationDisplayName: selectedExaminationDisplayName,
             templateStatusMessage: templateStatusMessage,
             canSave: canSave,
+            currentRuntimeDraft: currentRuntimeDraft,
+            currentPayload: currentPayload,
             normalizedIndicationsPreview: normalizedIndicationsPreview,
             indicationOptionsForEditor: indicationOptionsForEditor,
             sectionDraftPreview: sectionDraftPreview,
+            runtimeFindingsPreview: runtimeFindingsPreview,
             loadIndicationCatalog: loadIndicationCatalog,
             getSectionDraft: getSectionDraft,
             onSectionDraftNote: onSectionDraftNote,
             onSectionDraftToggle: onSectionDraftToggle,
             isSectionConfigured: isSectionConfigured,
+            getSectionPreview: getSectionPreview,
             refreshTemplatesForExamination: refreshTemplatesForExamination,
             onModuleChange: onModuleChange,
             onTemplateSelectionChange: onTemplateSelectionChange,

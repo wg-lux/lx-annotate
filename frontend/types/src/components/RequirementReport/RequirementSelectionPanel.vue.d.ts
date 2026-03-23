@@ -35,8 +35,8 @@ type __VLS_Props = {
     requirementSetStatus: Record<number, RequirementStatusSummary | null>;
 };
 declare const _default: import("vue").DefineComponent<__VLS_Props, {}, {}, {}, {}, import("vue").ComponentOptionsMixin, import("vue").ComponentOptionsMixin, {
-    clearSelection: () => any;
     refresh: () => any;
+    clearSelection: () => any;
     recompute: () => any;
     resetSession: () => any;
     applyRecommended: () => any;
@@ -45,8 +45,8 @@ declare const _default: import("vue").DefineComponent<__VLS_Props, {}, {}, {}, {
     evaluateSet: (id: number) => any;
     toggleSet: (id: number, checked: boolean) => any;
 }, string, import("vue").PublicProps, Readonly<__VLS_Props> & Readonly<{
-    onClearSelection?: (() => any) | undefined;
     onRefresh?: (() => any) | undefined;
+    onClearSelection?: (() => any) | undefined;
     onRecompute?: (() => any) | undefined;
     onResetSession?: (() => any) | undefined;
     onApplyRecommended?: (() => any) | undefined;

@@ -9,13 +9,11 @@ const archivedRedirects: ArchivedRedirect[] = [
   // Legacy top-level pages replaced by current sidebar destinations.
   { path: '/anonymisierung', redirect: '/anonymisierung/uebersicht' },
   { path: '/patient', redirect: '/patienten' },
-  { path: '/profil', redirect: '/' },
-  { path: '/ueber-uns', redirect: '/' },
   { path: '/validierung', redirect: '/anonymisierung/uebersicht' },
 
   // Legacy aliases still referenced by older dashboard/stats code.
   { path: '/validation', redirect: '/anonymisierung/uebersicht' },
-  { path: '/examination', redirect: '/untersuchung' },
+  { path: '/examination', redirect: '/reporting/case-setup' },
   { path: '/video-meta-annotation', redirect: '/anonymisierung/uebersicht' },
   { path: '/pdf-meta-annotation', redirect: '/anonymisierung/uebersicht' },
   { path: '/frame-selection', redirect: '/reporting' },

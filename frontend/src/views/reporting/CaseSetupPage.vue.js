@@ -26,28 +26,10 @@ const nextRoute = computed(() => flow.patientExaminationId
     ? `/reporting/${flow.patientExaminationId}/findings`
     : '/reporting/case-setup');
 const sessionBadgeLabel = computed(() => {
-    switch (flow.sessionStatus) {
-        case 'active':
-            return 'Fallkontext aktiv';
-        case 'expired':
-            return 'Fallkontext abgelaufen';
-        case 'restarting':
-            return 'Fallkontext wird neu gestartet';
-        default:
-            return 'Kein Fallkontext';
-    }
+    return flow.patientExaminationId ? 'Patientenuntersuchung gewählt' : 'Kein Kontext';
 });
 const sessionBadgeClass = computed(() => {
-    switch (flow.sessionStatus) {
-        case 'active':
-            return 'bg-success';
-        case 'expired':
-            return 'bg-danger';
-        case 'restarting':
-            return 'bg-warning text-dark';
-        default:
-            return 'bg-secondary';
-    }
+    return flow.patientExaminationId ? 'bg-success' : 'bg-secondary';
 });
 function clearMessages() {
     errorMessage.value = null;
@@ -95,7 +77,7 @@ function formatDateOnly(value) {
         return null;
     return d.toISOString().split('T')[0] || null;
 }
-async function createPatientExaminationAndInitLookup() {
+async function createPatientExaminationContext() {
     if (!flow.selectedPatientId || !flow.selectedExaminationId) {
         errorMessage.value = 'Bitte wählen Sie zuerst Patient und Untersuchung aus.';
         return;
@@ -120,53 +102,22 @@ async function createPatientExaminationAndInitLookup() {
         const pe = peRes.data;
         patientExaminationStore.addPatientExamination(pe);
         patientExaminationStore.setCurrentPatientExaminationId(pe.id);
-        const initRes = await axiosInstance.post(r(endpoints.requirements.lookupInit), {
-            patientExaminationId: pe.id
-        });
-        flow.setLookupSession({
+        flow.setPatientExaminationContext({
             patientExaminationId: pe.id,
-            lookupToken: initRes.data.token,
-            status: 'active'
+            selectedPatientId: flow.selectedPatientId,
+            selectedExaminationId: flow.selectedExaminationId,
+            preserveTemplateSelection: true
         });
         successMessage.value = returnToPath.value
-            ? 'Der Fallkontext wurde erfolgreich gestartet. Sie können jetzt zur Validierung zurückkehren oder mit der Befundung fortfahren.'
-            : 'Der Fallkontext wurde erfolgreich gestartet.';
+            ? 'Die Patientenuntersuchung wurde angelegt. Sie können jetzt zur Validierung zurückkehren oder mit der Befundung fortfahren.'
+            : 'Die Patientenuntersuchung wurde erfolgreich angelegt.';
     }
     catch (e) {
-        flow.setSessionStatus('idle');
         errorMessage.value =
             e?.response?.data?.detail ||
                 e?.response?.data?.error ||
                 e?.message ||
-                'Fehler beim Erstellen der Patientenuntersuchung oder Starten des Fallkontexts.';
-    }
-    finally {
-        loading.value = false;
-    }
-}
-async function reinitLookup() {
-    if (!flow.patientExaminationId) {
-        errorMessage.value = 'Keine Patientenuntersuchung vorhanden.';
-        return;
-    }
-    loading.value = true;
-    clearMessages();
-    flow.setSessionStatus('restarting');
-    try {
-        const initRes = await axiosInstance.post(r(endpoints.requirements.lookupInit), {
-            patientExaminationId: flow.patientExaminationId
-        });
-        flow.setLookupSession({
-            patientExaminationId: flow.patientExaminationId,
-            lookupToken: initRes.data.token,
-            status: 'active'
-        });
-        successMessage.value = 'Der Fallkontext wurde neu initialisiert.';
-    }
-    catch (e) {
-        flow.setSessionStatus('expired');
-        errorMessage.value =
-            e?.response?.data?.detail || e?.message || 'Fehler beim Neuinitialisieren des Fallkontexts.';
+                'Fehler beim Erstellen der Patientenuntersuchung.';
     }
     finally {
         loading.value = false;
@@ -297,14 +248,14 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
     ...{ class: "form-control" },
-    value: (__VLS_ctx.flow.lookupToken ? 'aktiv' : 'inaktiv'),
+    value: (__VLS_ctx.flow.currentRuntimeDraft ? 'Entwurf geladen' : 'Noch kein Entwurf geladen'),
     readonly: true,
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "mt-3 d-flex flex-wrap gap-2" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-    ...{ onClick: (__VLS_ctx.createPatientExaminationAndInitLookup) },
+    ...{ onClick: (__VLS_ctx.createPatientExaminationContext) },
     ...{ class: "btn btn-primary btn-sm" },
     disabled: (__VLS_ctx.loading || !__VLS_ctx.flow.selectedPatientId || !__VLS_ctx.flow.selectedExaminationId),
 });
@@ -313,11 +264,6 @@ if (__VLS_ctx.loading) {
         ...{ class: "spinner-border spinner-border-sm me-1" },
     });
 }
-__VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-    ...{ onClick: (__VLS_ctx.reinitLookup) },
-    ...{ class: "btn btn-outline-secondary btn-sm" },
-    disabled: (__VLS_ctx.loading || !__VLS_ctx.flow.patientExaminationId),
-});
 __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
     ...{ onClick: (__VLS_ctx.reloadLists) },
     ...{ class: "btn btn-outline-secondary btn-sm" },
@@ -411,9 +357,6 @@ var __VLS_7;
 /** @type {__VLS_StyleScopedClasses['btn-outline-secondary']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn-outline-secondary']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-danger']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
@@ -446,8 +389,7 @@ const __VLS_self = (await import('vue')).defineComponent({
             onExaminationChange: onExaminationChange,
             reloadLists: reloadLists,
             clearFlow: clearFlow,
-            createPatientExaminationAndInitLookup: createPatientExaminationAndInitLookup,
-            reinitLookup: reinitLookup,
+            createPatientExaminationContext: createPatientExaminationContext,
         };
     },
 });

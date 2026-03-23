@@ -47,6 +47,7 @@ export const endpoints = {
 
     patientExaminationCreate: 'patient-examinations/create/',
     patientExaminationDetail: (id: Id) => `patient-examinations/${id}/`,
+    patientExaminationDraft: (id: Id) => `patient-examinations/${id}/draft/`,
     patientExaminationList: 'patient-examinations/list/',
     patientExaminationClassifications: (examId: Id) =>
       `patient-examinations/${examId}/classifications/`,

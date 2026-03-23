@@ -110,6 +110,13 @@ nix build .#file-watcher
 
 ## Containers
 
+Docker images now install Python packages into `/app/.devenv/state/venv` so the
+container path matches the repository's preferred virtualenv layout.
+
+This does **not** mean Docker runs the full Nix/`devenv` shell. Inside the
+container, `uv` creates and manages the environment at that path, and the image
+`PATH` is configured to use `/app/.devenv/state/venv/bin`.
+
 See `container/README.md` for development and production Docker usage.
 
 ## Tests

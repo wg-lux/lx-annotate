@@ -26,5 +26,8 @@
   "bugs": {
     "url": "https://github.com/wg-lux/lx-annotate/issues"
   },
-  "homepage": "https://github.com/wg-lux/lx-annotate#readme"
+  "homepage": "https://github.com/wg-lux/lx-annotate#readme",
+  "dependencies": {
+    "@google/gemini-cli": "^0.34.0"
+  }
 }

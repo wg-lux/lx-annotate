@@ -6,19 +6,14 @@
           <h5 class="mb-0">Berichtseditor & Speichern</h5>
           <small class="text-muted">Template-gesteuerte Abschnitte mit wiederverwendbaren MedicalBlocks.</small>
         </div>
-        <RouterLink class="btn btn-outline-secondary btn-sm" to="/report-generator">
-          Aktuellen monolithischen Workflow öffnen
+        <RouterLink class="btn btn-outline-secondary btn-sm" to="/reporting/case-setup">
+          Weiteren Fall im Reporting anlegen
         </RouterLink>
       </div>
       <div class="card-body">
         <div v-if="errorMessage" class="alert alert-danger py-2">{{ errorMessage }}</div>
         <div v-if="successMessage" class="alert alert-success py-2">{{ successMessage }}</div>
 
-        <LookupStatusPanel
-          class="mb-3"
-          :patient-examination-id="flow.patientExaminationId"
-          :lookup-token="flow.lookupToken"
-        />
         <div class="row g-3 mb-3">
           <div class="col-md-4">
             <label class="form-label">Aktive Report-ID</label>
@@ -32,6 +27,17 @@
             <label class="form-label">Status letzter Save</label>
             <input class="form-control" :value="lastSaveStatus ?? ''" readonly />
           </div>
+        </div>
+        <div class="small text-muted mb-3">
+          Entwurf:
+          {{ currentRuntimeDraft?.hydratedFrom === 'session_storage' || currentRuntimeDraft?.hydratedFrom === 'draft_api' ? 'wiederhergestellt' : currentRuntimeDraft ? 'initialisiert' : 'leer' }}
+          · Persistenz: {{ flow.draftPersistenceStatus }}
+          <span v-if="flow.lastPersistedDraftAt">
+            · Gespeichert: {{ new Date(flow.lastPersistedDraftAt).toLocaleTimeString('de-DE') }}
+          </span>
+        </div>
+        <div v-if="flow.draftPersistenceError" class="alert alert-warning py-2">
+          {{ flow.draftPersistenceError }}
         </div>
 
         <MedicalBlock
@@ -101,6 +107,9 @@
         <div v-if="!sectionBlocks.length" class="alert alert-info">
           Keine Template-Abschnitte geladen. Bitte zunächst ein Template auswählen.
         </div>
+        <div v-else-if="!currentRuntimeDraft || !currentPayload" class="alert alert-warning">
+          Kein aktiver Reporting-Entwurf geladen. Bitte zuerst zur klinischen Dokumentation wechseln.
+        </div>
 
         <MedicalBlock
           v-for="section in sectionBlocks"
@@ -118,6 +127,24 @@
             <div class="small text-muted mb-2">
               {{ section.findings.length }} Befunde · {{ section.requiredFindingsCount }} erforderlich ·
               {{ section.requiredClassificationsCount }} Pflicht-Klassifikationen
+            </div>
+            <div class="mb-3">
+              <div class="fw-semibold small mb-1">Live-Vorschau aus Entwurf</div>
+              <div
+                v-if="getSectionPreview(section.name).findingSummaries.length"
+                class="border rounded bg-light p-2 small"
+              >
+                <div
+                  v-for="summary in getSectionPreview(section.name).findingSummaries"
+                  :key="summary"
+                  class="mb-1"
+                >
+                  {{ summary }}
+                </div>
+              </div>
+              <div v-else class="small text-muted">
+                Für diesen Abschnitt liegen im aktuellen Entwurf noch keine Befunde vor.
+              </div>
             </div>
 
             <div class="d-flex flex-wrap gap-3 mb-3">
@@ -208,6 +235,10 @@
       </div>
       <div class="card-body d-flex flex-column gap-3">
         <div>
+          <div class="small text-muted mb-1">Entwurfs-Befunde</div>
+          <pre class="small mb-0 bg-light p-2 rounded">{{ runtimeFindingsPreview }}</pre>
+        </div>
+        <div>
           <div class="small text-muted mb-1">Indikationen</div>
           <pre class="small mb-0 bg-light p-2 rounded">{{ normalizedIndicationsPreview }}</pre>
         </div>
@@ -224,10 +255,8 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import axiosInstance, { r } from '@/api/axiosInstance'
-import { findingsApi } from '@/api/findingsApi'
 import MedicalBlock from '@/components/AssistedReporting/MedicalBlock.vue'
 import IndicationsEditor from '@/components/Reporting/IndicationsEditor.vue'
-import LookupStatusPanel from '@/components/Reporting/LookupStatusPanel.vue'
 import ReportArtifactsPanel from '@/components/Reporting/ReportArtifactsPanel.vue'
 import { useReportTemplates } from '@/composables/reporting/useReportTemplates'
 import { useExaminationStore } from '@/stores/examinationStore'
@@ -238,26 +267,12 @@ import type {
   SaveReportSubmissionRequest,
   SaveReportSubmissionResponse
 } from '@/types/api/reportSubmission'
-import {
-  formatDateOnly,
-  mergeClassificationSelections,
-  normalizeInterventions
-} from '@/components/AssistedReporting/reportSubmissionUtils'
-import type {
-  PatientFindingApiClassification,
-  PatientFindingApiIntervention
-} from '@/components/AssistedReporting/reportSubmissionUtils'
+import { formatDateOnly } from '@/components/AssistedReporting/reportSubmissionUtils'
 import { usePatientStore } from '@/stores/patientStore'
-import type { ReportTemplateSectionDraft } from '@/types/reportTemplate'
-
-type PatientFindingApiRow = {
-  id: number
-  finding: number | { id?: number | null }
-  isActive?: boolean
-  is_active?: boolean
-  classifications?: Array<number | PatientFindingApiClassification>
-  interventions?: Array<number | PatientFindingApiIntervention>
-}
+import type {
+  ReportTemplateRuntimePatientFindingInput,
+  ReportTemplateSectionDraft
+} from '@/types/reportTemplate'
 
 type PatientExaminationReportListItem = {
   id: number
@@ -328,6 +343,8 @@ const selectedPatient = computed(() =>
 const templateStatusMessage = ref<string | null>(null)
 
 const canSave = computed(() => !!flow.patientExaminationId && !!selectedTemplateName.value)
+const currentRuntimeDraft = computed(() => flow.currentRuntimeDraft)
+const currentPayload = computed(() => currentRuntimeDraft.value?.payload || null)
 
 const normalizedIndications = computed<SaveReportSubmissionRequest['indications']>(() =>
   flow.indications
@@ -407,6 +424,9 @@ const indicationOptionsForEditor = computed<IndicationOption[]>(() => {
 })
 
 const sectionDraftPreview = computed(() => JSON.stringify(flow.templateSectionDrafts || {}, null, 2))
+const runtimeFindingsPreview = computed(() =>
+  JSON.stringify(currentPayload.value?.patientFindings || [], null, 2)
+)
 
 watch(
   [selectedKbModule, selectedTemplateName],
@@ -787,6 +807,40 @@ function buildExaminationContextText(): string {
   return `Untersuchung: ${selectedExaminationDisplayName.value}`
 }
 
+function formatRuntimeFindingSummary(finding: ReportTemplateRuntimePatientFindingInput): string {
+  const classifications = finding.classificationChoices
+    .map((choice) => {
+      const descriptorText = choice.descriptors.length
+        ? ` (${choice.descriptors
+            .map(
+              (descriptor) =>
+                `${descriptor.classificationChoiceDescriptor}: ${String(descriptor.descriptorValue)}`
+            )
+            .join(', ')})`
+        : ''
+      return `${choice.classification}: ${choice.classificationChoice}${descriptorText}`
+    })
+    .join(' · ')
+
+  return classifications ? `${finding.finding} -> ${classifications}` : finding.finding
+}
+
+function getSectionDraftFindings(sectionName: string): ReportTemplateRuntimePatientFindingInput[] {
+  const section = sectionBlocks.value.find((entry) => entry.name === sectionName)
+  const payload = currentPayload.value
+  if (!section || !payload) return []
+  const allowedFindings = new Set(section.findings.map((finding) => finding.finding))
+  return payload.patientFindings.filter((finding) => allowedFindings.has(finding.finding))
+}
+
+function getSectionPreview(sectionName: string) {
+  const findings = getSectionDraftFindings(sectionName)
+  return {
+    findings,
+    findingSummaries: findings.map(formatRuntimeFindingSummary)
+  }
+}
+
 async function ensurePatientsLoaded() {
   if (!patientStore.patients.length) {
     await patientStore.fetchPatients()
@@ -803,7 +857,7 @@ async function refreshTemplatesForExamination() {
   templateStatusMessage.value = null
   const examName = selectedExaminationName.value
   if (!examName) return
-  const templates = await fetchTemplatesByExamination(examName)
+  const templates = (await fetchTemplatesByExamination(examName)) || []
   if (templates.length) {
     templateStatusMessage.value = `${templates.length} Template(s) für "${examName}" geladen.`
   } else {
@@ -820,57 +874,23 @@ function onTemplateSelectionChange(name: string) {
   void selectTemplateByName(name || null)
 }
 
-async function fetchNormalizedFindingsPayload(): Promise<SaveReportSubmissionRequest['findings']> {
-  if (!flow.patientExaminationId) return []
-
-  try {
-    const rows = (await findingsApi.listPatientFindings(
-      flow.patientExaminationId
-    )) as PatientFindingApiRow[]
-    return (Array.isArray(rows) ? rows : [])
-      .map((row) => ({
-        row,
-        findingId:
-          typeof row?.finding === 'number' ? row.finding : Number((row?.finding as any)?.id ?? NaN)
-      }))
-      .filter(
-        ({ row, findingId }) =>
-          Number.isFinite(findingId) && row.isActive !== false && row.is_active !== false
-      )
-      .map((row) => ({
-        finding: row.findingId,
-        classifications: mergeClassificationSelections(row.findingId, row.row.classifications, {}),
-        interventions: normalizeInterventions(row.row.interventions)
-      }))
-  } catch (e: any) {
-    console.warn('Konnte patient-findings nicht laden, verwende Fallback:', e?.message || e)
-  }
-
-  try {
-    const res = await axiosInstance.get(
-      r(endpoints.examination.patientExaminationFindings(flow.patientExaminationId))
-    )
-    const rows = (Array.isArray(res.data?.results) ? res.data.results : res.data) as Array<{ id?: number }>
-    return (Array.isArray(rows) ? rows : [])
-      .map((row) => Number(row?.id))
-      .filter((id) => Number.isFinite(id))
-      .map((findingId) => ({
-        finding: findingId,
-        classifications: [],
-        interventions: []
-      }))
-  } catch (e: any) {
-    console.warn('Fallback für Befunde fehlgeschlagen:', e?.message || e)
-    return []
-  }
+function buildDraftFindingsPayload(): SaveReportSubmissionRequest['findings'] {
+  const payload = currentPayload.value
+  if (!payload) return []
+  return payload.patientFindings.map((finding) => ({
+    finding: finding.finding,
+    classifications: finding.classificationChoices.map((choice) => ({
+      classification: choice.classification,
+      classificationChoice: choice.classificationChoice
+    })),
+    interventions: []
+  }))
 }
 
 function buildEditorPayload(): Record<string, unknown> {
   return {
     source: 'reporting_route_report_editor',
     routePatientExaminationId: route.params.patient_examination_id ?? null,
-    lookupToken: flow.lookupToken,
-    selectedRequirementSetIds: flow.selectedRequirementSetIds,
     indications: normalizedIndications.value,
     template: {
       moduleName: selectedKbModule.value,
@@ -879,9 +899,11 @@ function buildEditorPayload(): Record<string, unknown> {
         name: section.name,
         title: section.title,
         subtitle: section.subtitle,
-        draft: getSectionDraft(section.name)
+        draft: getSectionDraft(section.name),
+        findings: getSectionPreview(section.name).findings
       }))
     },
+    runtimeDraftPayload: currentPayload.value,
     savedAt: new Date().toISOString()
   }
 }
@@ -893,6 +915,7 @@ function buildRenderedText(): string {
   let hasStructuredContent = false
   for (const section of sectionBlocks.value) {
     const draft = getSectionDraft(section.name)
+    const sectionPreview = getSectionPreview(section.name)
     const sectionLines: string[] = []
     if (draft.includePatientData) {
       const patientText = buildPatientContextText()
@@ -903,6 +926,9 @@ function buildRenderedText(): string {
       if (examText) sectionLines.push(examText)
     }
     if (draft.note.trim()) sectionLines.push(draft.note.trim())
+    if (sectionPreview.findingSummaries.length) {
+      sectionLines.push(...sectionPreview.findingSummaries.map((summary) => `- ${summary}`))
+    }
     if (sectionLines.length) hasStructuredContent = true
 
     lines.push(`## ${section.title}`)
@@ -961,10 +987,11 @@ async function saveReportSubmission(status: ReportSubmissionStatus) {
   pendingSaveStatus.value = status
   loading.value = true
   clearMessages()
+  flow.setSavingFinalReport(status === 'final')
 
   try {
     await ensurePatientsLoaded()
-    const findings = await fetchNormalizedFindingsPayload()
+    const findings = buildDraftFindingsPayload()
 
     const payload: SaveReportSubmissionRequest = {
       ...(flow.activeReportId ? { reportId: flow.activeReportId } : {}),
@@ -1017,6 +1044,7 @@ async function saveReportSubmission(status: ReportSubmissionStatus) {
         e?.response?.data?.detail || e?.message || 'Fehler beim Speichern des Berichts.'
     }
   } finally {
+    flow.setSavingFinalReport(false)
     loading.value = false
     pendingSaveStatus.value = null
   }
@@ -1025,6 +1053,10 @@ async function saveReportSubmission(status: ReportSubmissionStatus) {
 onMounted(async () => {
   if (!flow.patientExaminationId) {
     errorMessage.value = 'Bitte zuerst das Fall-Setup abschließen.'
+    return
+  }
+  if (!flow.currentRuntimeDraft) {
+    errorMessage.value = 'Kein Reporting-Entwurf geladen. Bitte zuerst die klinische Dokumentation öffnen.'
     return
   }
   await Promise.all([ensurePatientsLoaded(), ensureExaminationsLoaded()])
