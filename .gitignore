@@ -168,5 +168,5 @@ Thumbs.db
 
 secret.key
 
-*./lx-terminology-editor
-*./lx-report-generator
+./lx-terminology-editor
+./lx-report-generator
