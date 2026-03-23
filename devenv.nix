@@ -227,16 +227,32 @@ in
 
     source .devenv/state/venv/bin/activate 2>/dev/null || true
 
+    validate_python_env() {
+      [ -x "$VENV_PATH/bin/python" ] || return 1
+      "$VENV_PATH/bin/python" -c 'import pydantic, pydantic_settings' >/dev/null 2>&1
+    }
+
     # 2. Refined Sync Logic
     SYNC_STAMP=".devenv/state/uv.syncstamp"
-    LOCK_HASH="$(${pkgs.coreutils}/bin/sha256sum uv.lock 2>/dev/null | ${pkgs.gawk}/bin/awk '{print $1}')"
+    if [ -f "uv.lock" ] && [ -f "pyproject.toml" ]; then
+      LOCK_HASH="$(${pkgs.coreutils}/bin/sha256sum uv.lock pyproject.toml 2>/dev/null | ${pkgs.coreutils}/bin/sha256sum | ${pkgs.gawk}/bin/awk '{print $1}')"
+    else
+      LOCK_HASH=""
+    fi
     PREV_LOCK_HASH="$(${pkgs.coreutils}/bin/cat "$SYNC_STAMP" 2>/dev/null || true)"
 
-    # Sync if lock changed OR if the venv was just deleted/missing
-    if [ ! -d "$VENV_PATH" ] || [ "$LOCK_HASH" != "$PREV_LOCK_HASH" ]; then
-      echo "uv deps changed or venv missing -> syncing..."
-      $SYNC_CMD || echo "Warning: uv sync failed."
-      echo "$LOCK_HASH" > "$SYNC_STAMP"
+    # Sync if the lock changed OR if the venv is missing or unhealthy.
+    if [ ! -d "$VENV_PATH" ] || [ "$LOCK_HASH" != "$PREV_LOCK_HASH" ] || ! validate_python_env; then
+      echo "uv deps changed, venv missing, or venv validation failed -> syncing..."
+      if $SYNC_CMD; then
+        if validate_python_env; then
+          echo "$LOCK_HASH" > "$SYNC_STAMP"
+        else
+          echo "Warning: uv sync completed but required Python packages are still missing."
+        fi
+      else
+        echo "Warning: uv sync failed."
+      fi
     else
       echo "uv deps unchanged -> skipping sync."
     fi
