@@ -340,8 +340,19 @@
                             frameborder="0"
                             title="Original PDF Vorschau"
                           >
-                            Ihr Browser unterstützt keine eingebetteten PDFs. Sie können die Datei <a :href="rawPdfSrc">hier herunterladen</a>.
+                            Ihr Browser unterstützt keine eingebetteten PDFs.
                           </iframe>
+                          <div class="mt-2 text-center">
+                            <a
+                              v-if="rawPdfSrc"
+                              class="btn btn-outline-danger btn-sm"
+                              :href="rawPdfSrc"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              Original-PDF öffnen
+                            </a>
+                          </div>
                           <div class="mt-2 text-center">
                             <small class="text-muted">
                               URL: {{ rawPdfSrc || 'Nicht verfügbar' }}
@@ -364,8 +375,19 @@
                             frameborder="0"
                             title="Anonymisiertes PDF Vorschau"
                           >
-                            Ihr Browser unterstützt keine eingebetteten PDFs. Sie können die Datei <a :href="anonymizedPdfSrc">hier herunterladen</a>.
+                            Ihr Browser unterstützt keine eingebetteten PDFs.
                           </iframe>
+                          <div class="mt-2 text-center">
+                            <a
+                              v-if="anonymizedPdfSrc"
+                              class="btn btn-outline-success btn-sm"
+                              :href="anonymizedPdfSrc"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              Anonymisiertes PDF öffnen
+                            </a>
+                          </div>
                           <div class="mt-2 text-center">
                             <small class="text-muted">
                               URL: {{ anonymizedPdfSrc || 'Nicht verfügbar' }}
@@ -394,7 +416,7 @@
                     </div>
                   </div>
                   
-                                    <!-- ✅ ENHANCED: Dual Video Viewer for Raw vs Anonymized Comparison -->
+                  <!-- ✅ ENHANCED: Dual Video Viewer for Raw vs Anonymized Comparison -->
                   <div v-else-if="isVideo" class="dual-video-container">
                     <div class="row">
                       <!-- Raw Video (Original) -->

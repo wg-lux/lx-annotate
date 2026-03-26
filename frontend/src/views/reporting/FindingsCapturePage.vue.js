@@ -1,6 +1,6 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { getClassificationDisplayName, getFindingDisplayName, mergeFindingClassifications } from '@/api/findings.contract';
-import { validateReportTemplateRuntime } from '@/api/reportTemplatesApi';
+import { validatePatientFindingsAgainstTemplate } from '@/api/reportTemplatesApi';
 import MedicalBlock from '@/components/AssistedReporting/MedicalBlock.vue';
 import ReportTemplateValidationPanel from '@/components/Reporting/ReportTemplateValidationPanel.vue';
 import ReportingMediaPreviewCards from '@/components/Reporting/ReportingMediaPreviewCards.vue';
@@ -315,7 +315,8 @@ function onDescriptorInput(findingLocalId, classificationName, descriptorKey, ne
 async function runRuntimeValidation(forceFeedback = false) {
     const draft = currentRuntimeDraft.value;
     const templateName = selectedTemplateName.value;
-    if (!draft || !templateName) {
+    const patientExaminationId = flow.patientExaminationId;
+    if (!draft || !templateName || !patientExaminationId) {
         templateValidationError.value = null;
         flow.setLastTemplateValidation(null);
         return;
@@ -326,7 +327,12 @@ async function runRuntimeValidation(forceFeedback = false) {
     templateValidationLoading.value = true;
     templateValidationError.value = null;
     try {
-        const result = await validateReportTemplateRuntime(flow.selectedKbModule, templateName, draft.payload);
+        const result = await validatePatientFindingsAgainstTemplate({
+            moduleName: flow.selectedKbModule,
+            templateName,
+            patientExaminationId,
+            getFindingById
+        });
         flow.setLastTemplateValidation(result);
     }
     catch (e) {

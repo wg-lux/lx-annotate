@@ -47,6 +47,25 @@ def test_vue_spa_fallback_excludes_reserved_prefixes():
     assert admin_match.url_name is None
 
 
+@pytest.mark.parametrize(
+    "spa_path",
+    (
+        "/anonymisierung/validierung",
+        "/video-untersuchung",
+        "/reporting/case-resolution",
+        "/reporting/case-setup",
+        "/reporting/42/findings",
+        "/reporting/42/report-editor",
+        "/reporting/42/frame-selector",
+        "/reporting/42/finalized",
+        "/einstellungen",
+    ),
+)
+@override_settings(ROOT_URLCONF="lx_annotate.urls")
+def test_reporting_workflow_paths_resolve_to_vue_spa(spa_path: str):
+    assert resolve(spa_path).url_name == "vue_spa"
+
+
 def test_base_api_mount_requires_explicit_enable_flag(monkeypatch):
     monkeypatch.delenv("LX_ENABLE_BASE_API", raising=False)
     module_without_flag = _fresh_urls_module()

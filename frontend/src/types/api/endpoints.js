@@ -65,17 +65,6 @@ export const endpoints = {
         upload: 'upload/',
         uploadStatus: (id) => `upload/${id}/status/`
     },
-    requirements: {
-        lookupInit: 'lookup/init/',
-        lookupAll: (token) => `lookup/${token}/all/`,
-        lookupParts: (token, keys) => {
-            if (!keys?.length)
-                return `lookup/${token}/parts/`;
-            return `lookup/${token}/parts/?keys=${encodeURIComponent(keys.join(','))}`;
-        },
-        lookupRecompute: (token) => `lookup/${token}/recompute/`,
-        evaluateRequirements: 'evaluate-requirements/'
-    },
     stats: {
         examinations: 'examinations/stats/',
         videoSegment: 'video-segment/stats/',

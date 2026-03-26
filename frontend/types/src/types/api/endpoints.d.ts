@@ -61,13 +61,6 @@ export declare const endpoints: {
         readonly upload: "upload/";
         readonly uploadStatus: (id: UUID) => string;
     };
-    readonly requirements: {
-        readonly lookupInit: "lookup/init/";
-        readonly lookupAll: (token: Id) => string;
-        readonly lookupParts: (token: Id, keys?: string[]) => string;
-        readonly lookupRecompute: (token: Id) => string;
-        readonly evaluateRequirements: "evaluate-requirements/";
-    };
     readonly stats: {
         readonly examinations: "examinations/stats/";
         readonly videoSegment: "video-segment/stats/";

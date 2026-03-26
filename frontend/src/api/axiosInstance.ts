@@ -32,8 +32,7 @@ axiosInstance.interceptors.response.use(
       err?.config?.suppressErrorToast === true ||
       url.includes('/lookup/') ||
       url.includes('/base_api/') ||
-      url.includes('/media/patients/') ||
-      url.includes('/evaluate-requirements/')
+      url.includes('/media/patients/')
 
     // Skip spam for polling/status requests
     const isPollingRequest = url.includes('/status/') || url.includes('/polling-info/')

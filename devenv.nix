@@ -66,6 +66,7 @@ let
     VITE_ENABLE_DEBUG = config.secretspec.secrets.VITE_ENABLE_DEBUG;
     TIME_ZONE = config.secretspec.secrets.TIME_ZONE;
     DEFAULT_CENTER = config.secretspec.secrets.CENTER_NAME;
+    LX_DTYPES_HOST_MODELS_MODULE = "endoreg_db.integrations.lx_dtypes_host_models";
 
     # --- Authentication & Secrets ---
     DJANGO_SECRET_KEY = config.secretspec.secrets.DJANGO_SECRET_KEY;
@@ -244,7 +245,7 @@ in
     # Sync if the lock changed OR if the venv is missing or unhealthy.
     if [ ! -d "$VENV_PATH" ] || [ "$LOCK_HASH" != "$PREV_LOCK_HASH" ] || ! validate_python_env; then
       echo "uv deps changed, venv missing, or venv validation failed -> syncing..."
-      if $SYNC_CMD; then
+      if ${SYNC_CMD}; then
         if validate_python_env; then
           echo "$LOCK_HASH" > "$SYNC_STAMP"
         else
@@ -255,7 +256,7 @@ in
       fi
     else
       echo "uv deps unchanged -> skipping sync."
-    fi
+    fi;
 
     mkdir -p "${config.secretspec.secrets.STORAGE_DIR}"
     mkdir -p "${config.secretspec.secrets.ASSET_DIR}"

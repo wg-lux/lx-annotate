@@ -36,7 +36,6 @@ export type SaveReportSubmissionRequest = {
     patientData: ReportSubmissionPatientData;
     indications: ReportSubmissionIndication[];
     findings: ReportSubmissionFinding[];
-    selectedRequirementSetIds: number[];
     expectedVersion?: number;
 };
 export type SaveReportSubmissionResponse = {
@@ -48,7 +47,6 @@ export type SaveReportSubmissionResponse = {
     created: boolean;
     warnings: string[];
     historyContext: Record<string, unknown> | null;
-    requirementGuidance: Record<string, unknown> | null;
     persistedReportArtifactId?: number | null;
     persistedPdfArtifactId?: number | null;
     persistedArtifacts: {

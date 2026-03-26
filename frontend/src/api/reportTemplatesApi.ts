@@ -622,6 +622,21 @@ export async function validateReportTemplateRuntime(
   return normalized
 }
 
+export async function validateReportTemplateRuntimeFromLedger(
+  moduleName: string,
+  templateName: string,
+  patientExaminationId: number
+): Promise<ReportTemplateRuntimeValidationResult> {
+  const response = await axiosInstance.post(
+    `${REPORT_TEMPLATE_BASE}/${encodeURIComponent(moduleName)}/${encodeURIComponent(templateName)}/validate-from-ledger/${encodeURIComponent(String(patientExaminationId))}`
+  )
+  const normalized = normalizeRuntimeValidationResult(response.data)
+  if (!normalized) {
+    throw new Error('Ungültiges Runtime-Validierungsergebnis.')
+  }
+  return normalized
+}
+
 function findClassificationDefinition(
   findingClassifications: readonly FindingClassification[],
   classificationId: number
@@ -834,6 +849,24 @@ export async function validatePatientFindingsAgainstTemplate(params: {
   patientExaminationId: number
   getFindingById?: (findingId: number) => Finding | undefined
 }): Promise<ReportTemplateRuntimeValidationResult> {
+  try {
+    return await validateReportTemplateRuntimeFromLedger(
+      params.moduleName,
+      params.templateName,
+      params.patientExaminationId
+    )
+  } catch (error: any) {
+    const status = Number(error?.response?.status || 0)
+    const detail = String(error?.response?.data?.detail || '')
+      .trim()
+      .toLowerCase()
+    const isGenericNotFound = status === 404 && (!detail || detail === 'not found' || detail === 'not found.')
+    const fallbackAllowed = isGenericNotFound || status === 405 || status === 501 || status >= 500
+    if (!fallbackAllowed) {
+      throw error
+    }
+  }
+
   const template = await fetchReportTemplateByName(params.moduleName, params.templateName)
   const patientFindings = await buildRuntimeValidationFindings(
     params.patientExaminationId,

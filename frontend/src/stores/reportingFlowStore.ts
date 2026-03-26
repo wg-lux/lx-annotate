@@ -13,24 +13,7 @@ import type { TimelineLatestPayload } from '@/api/reportingTimelineApi'
 
 type SessionStatus = 'idle' | 'active' | 'expired' | 'restarting'
 
-type ReportingRequirementSetLite = {
-  id: number
-  name: string
-  type: string
-}
-
-export type ReportingLookupSnapshot = {
-  requirementStatus?: Record<string, boolean>
-  requirementSetStatus?: Record<string, boolean>
-  suggestedActions?: Record<string, any[]>
-  requirementsBySet?: Record<string, Array<{ id: number; name: string }>>
-  requirementSets?: ReportingRequirementSetLite[]
-  selectedRequirementSetIds?: number[]
-  candidateRequirementSetIds?: number[]
-  candidateRequirementSetConfidence?: number | null
-}
-
-export type ReportingRequirementGuidance = Record<string, unknown> | null
+export type ReportingLookupSnapshot = Record<string, unknown>
 export type ReportingTemplateValidation = ReportTemplateRuntimeValidationResult | null
 
 export type ReportingIndicationRow = {
@@ -53,7 +36,6 @@ type PersistedReportingFlowState = {
   patientExaminationId: number | null
   selectedPatientId: number | null
   selectedExaminationId: number | null
-  selectedRequirementSetIds: number[]
   activeReportId: number | null
   indications: ReportingIndicationRow[]
   selectedKbModule: string
@@ -153,9 +135,6 @@ function normalizePersistedState(
       typeof parsed.selectedPatientId === 'number' ? parsed.selectedPatientId : null,
     selectedExaminationId:
       typeof parsed.selectedExaminationId === 'number' ? parsed.selectedExaminationId : null,
-    selectedRequirementSetIds: Array.isArray(parsed.selectedRequirementSetIds)
-      ? parsed.selectedRequirementSetIds.filter((v): v is number => typeof v === 'number')
-      : [],
     activeReportId: typeof parsed.activeReportId === 'number' ? parsed.activeReportId : null,
     indications: Array.isArray(parsed.indications)
       ? parsed.indications.map((row) => ({
@@ -227,7 +206,6 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
   const patientExaminationId = ref<number | null>(null)
   const selectedPatientId = ref<number | null>(null)
   const selectedExaminationId = ref<number | null>(null)
-  const selectedRequirementSetIds = ref<number[]>([])
   const activeReportId = ref<number | null>(null)
   const selectedKbModule = ref<string>('report_template_examples')
   const selectedTemplateName = ref<string | null>(null)
@@ -236,7 +214,6 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
     [{ examinationIndicationId: null, indicationChoiceId: null }]
   )
   const lookupSnapshot = ref<ReportingLookupSnapshot | null>(null)
-  const lastRequirementGuidance = ref<ReportingRequirementGuidance>(null)
   const lastTemplateValidation = ref<ReportingTemplateValidation>(null)
   const findingsRevision = ref(0)
   const lastFindingsEvent = ref<{
@@ -280,7 +257,6 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
         activeReportId.value ||
         currentRuntimeDraft.value ||
         selectedTemplateName.value ||
-        selectedRequirementSetIds.value.length ||
         Object.keys(templateSectionDrafts.value).length ||
         hasNonDefaultIndications ||
         findingsRevision.value > 0
@@ -318,11 +294,9 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
 
     lookupToken.value = null
     sessionStatus.value = 'idle'
-    selectedRequirementSetIds.value = []
     activeReportId.value = null
     indications.value = [{ examinationIndicationId: null, indicationChoiceId: null }]
     lookupSnapshot.value = null
-    lastRequirementGuidance.value = null
     lastTemplateValidation.value = null
     findingsRevision.value = 0
     lastFindingsEvent.value = null
@@ -548,10 +522,6 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
     if (params.selectedExaminationId !== undefined) selectedExaminationId.value = params.selectedExaminationId
   }
 
-  function setSelectedRequirementSetIds(ids: number[]) {
-    selectedRequirementSetIds.value = Array.from(new Set(ids.filter((v) => Number.isFinite(v))))
-  }
-
   function setActiveReportId(id: number | null) {
     activeReportId.value = id
   }
@@ -602,7 +572,6 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
     patientExaminationId.value = persisted?.patientExaminationId ?? null
     selectedPatientId.value = persisted?.selectedPatientId ?? null
     selectedExaminationId.value = persisted?.selectedExaminationId ?? null
-    selectedRequirementSetIds.value = persisted?.selectedRequirementSetIds ?? []
     activeReportId.value = persisted?.activeReportId ?? null
     indications.value =
       persisted?.indications?.length
@@ -635,12 +604,10 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
     lookupToken.value = null
     patientExaminationId.value = null
     selectedExaminationId.value = null
-    selectedRequirementSetIds.value = []
     activeReportId.value = null
     sessionStatus.value = 'idle'
     indications.value = [{ examinationIndicationId: null, indicationChoiceId: null }]
     lookupSnapshot.value = null
-    lastRequirementGuidance.value = null
     lastTemplateValidation.value = null
     findingsRevision.value = 0
     lastFindingsEvent.value = null
@@ -667,12 +634,10 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
     patientExaminationId.value = null
     selectedPatientId.value = null
     selectedExaminationId.value = null
-    selectedRequirementSetIds.value = []
     activeReportId.value = null
     sessionStatus.value = 'idle'
     indications.value = [{ examinationIndicationId: null, indicationChoiceId: null }]
     lookupSnapshot.value = null
-    lastRequirementGuidance.value = null
     lastTemplateValidation.value = null
     findingsRevision.value = 0
     lastFindingsEvent.value = null
@@ -726,10 +691,6 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
       ...(lookupSnapshot.value || {}),
       ...partial
     }
-  }
-
-  function setLastRequirementGuidance(guidance: ReportingRequirementGuidance) {
-    lastRequirementGuidance.value = guidance
   }
 
   function setLastTemplateValidation(validation: ReportingTemplateValidation) {
@@ -786,7 +747,6 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
     patientExaminationId: patientExaminationId.value,
     selectedPatientId: selectedPatientId.value,
     selectedExaminationId: selectedExaminationId.value,
-    selectedRequirementSetIds: selectedRequirementSetIds.value,
     activeReportId: activeReportId.value,
     indications: indications.value,
     selectedKbModule: selectedKbModule.value,
@@ -829,7 +789,6 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
     patientExaminationId,
     selectedPatientId,
     selectedExaminationId,
-    selectedRequirementSetIds,
     activeReportId,
     selectedKbModule,
     selectedTemplateName,
@@ -838,7 +797,6 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
     currentRuntimeDraft,
     indications,
     lookupSnapshot,
-    lastRequirementGuidance,
     lastTemplateValidation,
     findingsRevision,
     lastFindingsEvent,
@@ -865,7 +823,6 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
     removeFinding,
     updateClassificationValue,
     setCaseSelection,
-    setSelectedRequirementSetIds,
     setActiveReportId,
     setSessionStatus,
     setTemplateSelection,
@@ -875,7 +832,6 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
     setIndications,
     setLookupSnapshot,
     patchLookupSnapshot,
-    setLastRequirementGuidance,
     setLastTemplateValidation,
     noteFindingAdded,
     noteClassificationUpdated,

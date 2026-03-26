@@ -7,6 +7,9 @@ import { dirname, resolve } from 'node:path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 export default defineConfig({
+    define: {
+        'import.meta.env.DEBUG': JSON.stringify(process.env.DEBUG ?? '')
+    },
     base: '/static/', //needs to be here for correct nginx serving!
     plugins: [vue(), vueJsx(), vueDevTools()],
     build: {
@@ -28,7 +31,7 @@ export default defineConfig({
                 assetFileNames: '[name].[ext]',
                 format: 'es'
             },
-            external: ['fsevents', 'LabelStudio']
+            external: ['fsevents']
         }
     },
     esbuild: {

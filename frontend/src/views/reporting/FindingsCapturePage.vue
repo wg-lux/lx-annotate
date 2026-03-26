@@ -284,7 +284,7 @@ import {
   type FindingClassification,
   type FindingChoice
 } from '@/api/findings.contract'
-import { validateReportTemplateRuntime } from '@/api/reportTemplatesApi'
+import { validatePatientFindingsAgainstTemplate } from '@/api/reportTemplatesApi'
 import type {
   ReportTemplateFinding,
   ReportTemplateRuntimeClassificationChoiceInput,
@@ -760,7 +760,8 @@ function onDescriptorInput(
 async function runRuntimeValidation(forceFeedback = false) {
   const draft = currentRuntimeDraft.value
   const templateName = selectedTemplateName.value
-  if (!draft || !templateName) {
+  const patientExaminationId = flow.patientExaminationId
+  if (!draft || !templateName || !patientExaminationId) {
     templateValidationError.value = null
     flow.setLastTemplateValidation(null)
     return
@@ -773,11 +774,12 @@ async function runRuntimeValidation(forceFeedback = false) {
   templateValidationLoading.value = true
   templateValidationError.value = null
   try {
-    const result = await validateReportTemplateRuntime(
-      flow.selectedKbModule,
+    const result = await validatePatientFindingsAgainstTemplate({
+      moduleName: flow.selectedKbModule,
       templateName,
-      draft.payload
-    )
+      patientExaminationId,
+      getFindingById
+    })
     flow.setLastTemplateValidation(result)
   } catch (e: any) {
     flow.setLastTemplateValidation(null)

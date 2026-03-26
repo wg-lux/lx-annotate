@@ -4,6 +4,7 @@ import axiosInstance, { r } from '@/api/axiosInstance';
 import MedicalBlock from '@/components/AssistedReporting/MedicalBlock.vue';
 import IndicationsEditor from '@/components/Reporting/IndicationsEditor.vue';
 import ReportArtifactsPanel from '@/components/Reporting/ReportArtifactsPanel.vue';
+import { useDebug } from '@/composables/useDebug';
 import { useReportTemplates } from '@/composables/reporting/useReportTemplates';
 import { useExaminationStore } from '@/stores/examinationStore';
 import { useReportingFlowStore } from '@/stores/reportingFlowStore';
@@ -14,6 +15,7 @@ const flow = useReportingFlowStore();
 const patientStore = usePatientStore();
 const examinationStore = useExaminationStore();
 const route = useRoute();
+const { isDebug } = useDebug();
 const loading = ref(false);
 const errorMessage = ref(null);
 const successMessage = ref(null);
@@ -23,7 +25,6 @@ const pendingSaveStatus = ref(null);
 const currentReportVersion = ref(null);
 const persistedArtifacts = ref(null);
 const historyContext = ref(null);
-const requirementGuidance = ref(null);
 const indicationOptions = ref([]);
 const indicationOptionsLoading = ref(false);
 const indicationOptionsError = ref(null);
@@ -110,6 +111,42 @@ const indicationOptionsForEditor = computed(() => {
 });
 const sectionDraftPreview = computed(() => JSON.stringify(flow.templateSectionDrafts || {}, null, 2));
 const runtimeFindingsPreview = computed(() => JSON.stringify(currentPayload.value?.patientFindings || [], null, 2));
+const sectionCompletionSummary = computed(() => {
+    const sections = sectionBlocks.value.map((section) => {
+        const sectionFindings = getSectionDraftFindings(section.name);
+        const missingFindings = section.findings
+            .filter((definition) => definition.required)
+            .filter((definition) => !sectionFindings.some((entry) => entry.finding === definition.finding))
+            .map((definition) => definition.finding);
+        const missingClassificationSet = new Set();
+        for (const definition of section.findings) {
+            const matchingFindings = sectionFindings.filter((entry) => entry.finding === definition.finding);
+            if (!matchingFindings.length)
+                continue;
+            for (const classification of definition.classifications.filter((entry) => entry.required)) {
+                const presentInAnyFinding = matchingFindings.some((entry) => entry.classificationChoices.some((choice) => choice.classification === classification.classification));
+                if (!presentInAnyFinding) {
+                    missingClassificationSet.add(`${definition.finding}: ${classification.classification}`);
+                }
+            }
+        }
+        const missingClassifications = Array.from(missingClassificationSet.values());
+        return {
+            name: section.name,
+            title: section.title,
+            missingFindings,
+            missingClassifications,
+            isComplete: !missingFindings.length && !missingClassifications.length
+        };
+    });
+    return {
+        totalSections: sections.length,
+        completedSections: sections.filter((section) => section.isComplete).length,
+        totalMissingFindings: sections.reduce((sum, section) => sum + section.missingFindings.length, 0),
+        totalMissingClassifications: sections.reduce((sum, section) => sum + section.missingClassifications.length, 0),
+        incompleteSections: sections.filter((section) => !section.isComplete)
+    };
+});
 watch([selectedKbModule, selectedTemplateName], ([moduleName, templateName], [, previousTemplateName]) => {
     flow.setTemplateSelection({
         moduleName,
@@ -618,8 +655,7 @@ async function saveReportSubmission(status) {
             renderedText: buildRenderedText(),
             patientData: buildPatientDataPayload(),
             indications: normalizedIndications.value,
-            findings,
-            selectedRequirementSetIds: flow.selectedRequirementSetIds
+            findings
         };
         const res = await axiosInstance.post(r(endpoints.report.saveReportSubmission), payload);
         const data = res.data;
@@ -628,18 +664,6 @@ async function saveReportSubmission(status) {
         lastSaveStatus.value = data.report.status || status;
         saveWarnings.value = Array.isArray(data.warnings) ? data.warnings : [];
         historyContext.value = (data.historyContext || null);
-        requirementGuidance.value = (data.requirementGuidance || null);
-        flow.setLastRequirementGuidance(requirementGuidance.value);
-        if (requirementGuidance.value && typeof requirementGuidance.value === 'object') {
-            const rg = requirementGuidance.value;
-            flow.patchLookupSnapshot({
-                requirementStatus: rg.requirementStatus,
-                requirementSetStatus: rg.requirementSetStatus,
-                suggestedActions: rg.suggestedActions,
-                candidateRequirementSetIds: rg.candidateRequirementSetIds,
-                candidateRequirementSetConfidence: rg.candidateRequirementSetConfidence
-            });
-        }
         persistedArtifacts.value = data.persistedArtifacts || null;
         successMessage.value = data.created
             ? `Bericht wurde erstellt (ID ${data.report.id}, Version ${data.report.version}).`
@@ -722,57 +746,6 @@ if (__VLS_ctx.successMessage) {
         ...{ class: "alert alert-success py-2" },
     });
     (__VLS_ctx.successMessage);
-}
-__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "row g-3 mb-3" },
-});
-__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "col-md-4" },
-});
-__VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
-    ...{ class: "form-label" },
-});
-__VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
-    ...{ class: "form-control" },
-    value: (__VLS_ctx.flow.activeReportId ?? ''),
-    readonly: true,
-});
-__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "col-md-4" },
-});
-__VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
-    ...{ class: "form-label" },
-});
-__VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
-    ...{ class: "form-control" },
-    value: (__VLS_ctx.currentReportVersion ?? ''),
-    readonly: true,
-});
-__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "col-md-4" },
-});
-__VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
-    ...{ class: "form-label" },
-});
-__VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
-    ...{ class: "form-control" },
-    value: (__VLS_ctx.lastSaveStatus ?? ''),
-    readonly: true,
-});
-__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "small text-muted mb-3" },
-});
-(__VLS_ctx.currentRuntimeDraft?.hydratedFrom === 'session_storage' || __VLS_ctx.currentRuntimeDraft?.hydratedFrom === 'draft_api' ? 'wiederhergestellt' : __VLS_ctx.currentRuntimeDraft ? 'initialisiert' : 'leer');
-(__VLS_ctx.flow.draftPersistenceStatus);
-if (__VLS_ctx.flow.lastPersistedDraftAt) {
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
-    (new Date(__VLS_ctx.flow.lastPersistedDraftAt).toLocaleTimeString('de-DE'));
-}
-if (__VLS_ctx.flow.draftPersistenceError) {
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "alert alert-warning py-2" },
-    });
-    (__VLS_ctx.flow.draftPersistenceError);
 }
 /** @type {[typeof MedicalBlock, typeof MedicalBlock, ]} */ ;
 // @ts-ignore
@@ -1041,6 +1014,46 @@ const __VLS_19 = {
     onRefreshOptions: (__VLS_ctx.loadIndicationCatalog)
 };
 var __VLS_12;
+if (__VLS_ctx.sectionCompletionSummary.totalSections) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "alert alert-info py-3" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "fw-semibold mb-1" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "small mb-2" },
+    });
+    (__VLS_ctx.sectionCompletionSummary.completedSections);
+    (__VLS_ctx.sectionCompletionSummary.totalSections);
+    (__VLS_ctx.sectionCompletionSummary.totalMissingFindings);
+    (__VLS_ctx.sectionCompletionSummary.totalMissingClassifications);
+    if (!__VLS_ctx.sectionCompletionSummary.incompleteSections.length) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "small text-success" },
+        });
+    }
+    else {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.ul, __VLS_intrinsicElements.ul)({
+            ...{ class: "small mb-0 ps-3" },
+        });
+        for (const [section] of __VLS_getVForSourceType((__VLS_ctx.sectionCompletionSummary.incompleteSections))) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({
+                key: (section.name),
+            });
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+            (section.title);
+            if (section.missingFindings.length) {
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+                (section.missingFindings.join(', '));
+            }
+            if (section.missingClassifications.length) {
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+                (section.missingClassifications.join(', '));
+            }
+        }
+    }
+}
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "d-flex flex-wrap gap-2" },
 });
@@ -1099,42 +1112,101 @@ const __VLS_20 = __VLS_asFunctionalComponent(ReportArtifactsPanel, new ReportArt
 const __VLS_21 = __VLS_20({
     artifacts: (__VLS_ctx.persistedArtifacts),
 }, ...__VLS_functionalComponentArgsRest(__VLS_20));
-__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "card shadow-sm" },
-});
-__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "card-header" },
-});
-__VLS_asFunctionalElement(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({
-    ...{ class: "mb-0" },
-});
-__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "card-body d-flex flex-column gap-3" },
-});
-__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
-__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "small text-muted mb-1" },
-});
-__VLS_asFunctionalElement(__VLS_intrinsicElements.pre, __VLS_intrinsicElements.pre)({
-    ...{ class: "small mb-0 bg-light p-2 rounded" },
-});
-(__VLS_ctx.runtimeFindingsPreview);
-__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
-__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "small text-muted mb-1" },
-});
-__VLS_asFunctionalElement(__VLS_intrinsicElements.pre, __VLS_intrinsicElements.pre)({
-    ...{ class: "small mb-0 bg-light p-2 rounded" },
-});
-(__VLS_ctx.normalizedIndicationsPreview);
-__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
-__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "small text-muted mb-1" },
-});
-__VLS_asFunctionalElement(__VLS_intrinsicElements.pre, __VLS_intrinsicElements.pre)({
-    ...{ class: "small mb-0 bg-light p-2 rounded" },
-});
-(__VLS_ctx.sectionDraftPreview);
+if (__VLS_ctx.isDebug) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.details, __VLS_intrinsicElements.details)({
+        ...{ class: "card shadow-sm" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.summary, __VLS_intrinsicElements.summary)({
+        ...{ class: "card-header" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "d-flex justify-content-between align-items-center gap-2" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+        ...{ class: "fw-semibold" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+        ...{ class: "text-muted" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "card-body d-flex flex-column gap-3" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "row g-3" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "col-md-4" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+        ...{ class: "form-label" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
+        ...{ class: "form-control" },
+        value: (__VLS_ctx.flow.activeReportId ?? ''),
+        readonly: true,
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "col-md-4" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+        ...{ class: "form-label" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
+        ...{ class: "form-control" },
+        value: (__VLS_ctx.currentReportVersion ?? ''),
+        readonly: true,
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "col-md-4" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+        ...{ class: "form-label" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
+        ...{ class: "form-control" },
+        value: (__VLS_ctx.lastSaveStatus ?? ''),
+        readonly: true,
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "small text-muted" },
+    });
+    (__VLS_ctx.currentRuntimeDraft?.hydratedFrom === 'session_storage' || __VLS_ctx.currentRuntimeDraft?.hydratedFrom === 'draft_api' ? 'wiederhergestellt' : __VLS_ctx.currentRuntimeDraft ? 'initialisiert' : 'leer');
+    (__VLS_ctx.flow.draftPersistenceStatus);
+    if (__VLS_ctx.flow.lastPersistedDraftAt) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+        (new Date(__VLS_ctx.flow.lastPersistedDraftAt).toLocaleTimeString('de-DE'));
+    }
+    if (__VLS_ctx.flow.draftPersistenceError) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "alert alert-warning py-2 mb-0" },
+        });
+        (__VLS_ctx.flow.draftPersistenceError);
+    }
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "small text-muted mb-1" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.pre, __VLS_intrinsicElements.pre)({
+        ...{ class: "small mb-0 bg-light p-2 rounded" },
+    });
+    (__VLS_ctx.runtimeFindingsPreview);
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "small text-muted mb-1" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.pre, __VLS_intrinsicElements.pre)({
+        ...{ class: "small mb-0 bg-light p-2 rounded" },
+    });
+    (__VLS_ctx.normalizedIndicationsPreview);
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "small text-muted mb-1" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.pre, __VLS_intrinsicElements.pre)({
+        ...{ class: "small mb-0 bg-light p-2 rounded" },
+    });
+    (__VLS_ctx.sectionDraftPreview);
+}
 /** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
 /** @type {__VLS_StyleScopedClasses['flex-column']} */ ;
 /** @type {__VLS_StyleScopedClasses['gap-3']} */ ;
@@ -1155,24 +1227,6 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.pre, __VLS_intrinsicElements.p
 /** @type {__VLS_StyleScopedClasses['py-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert-success']} */ ;
-/** @type {__VLS_StyleScopedClasses['py-2']} */ ;
-/** @type {__VLS_StyleScopedClasses['row']} */ ;
-/** @type {__VLS_StyleScopedClasses['g-3']} */ ;
-/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
-/** @type {__VLS_StyleScopedClasses['col-md-4']} */ ;
-/** @type {__VLS_StyleScopedClasses['form-label']} */ ;
-/** @type {__VLS_StyleScopedClasses['form-control']} */ ;
-/** @type {__VLS_StyleScopedClasses['col-md-4']} */ ;
-/** @type {__VLS_StyleScopedClasses['form-label']} */ ;
-/** @type {__VLS_StyleScopedClasses['form-control']} */ ;
-/** @type {__VLS_StyleScopedClasses['col-md-4']} */ ;
-/** @type {__VLS_StyleScopedClasses['form-label']} */ ;
-/** @type {__VLS_StyleScopedClasses['form-control']} */ ;
-/** @type {__VLS_StyleScopedClasses['small']} */ ;
-/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
-/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
-/** @type {__VLS_StyleScopedClasses['alert']} */ ;
-/** @type {__VLS_StyleScopedClasses['alert-warning']} */ ;
 /** @type {__VLS_StyleScopedClasses['py-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['row']} */ ;
 /** @type {__VLS_StyleScopedClasses['g-3']} */ ;
@@ -1237,6 +1291,18 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.pre, __VLS_intrinsicElements.p
 /** @type {__VLS_StyleScopedClasses['form-label']} */ ;
 /** @type {__VLS_StyleScopedClasses['form-control']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-4']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert-info']} */ ;
+/** @type {__VLS_StyleScopedClasses['py-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['fw-semibold']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['small']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['small']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-success']} */ ;
+/** @type {__VLS_StyleScopedClasses['small']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['ps-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
 /** @type {__VLS_StyleScopedClasses['flex-wrap']} */ ;
 /** @type {__VLS_StyleScopedClasses['gap-2']} */ ;
@@ -1259,11 +1325,33 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.pre, __VLS_intrinsicElements.p
 /** @type {__VLS_StyleScopedClasses['card']} */ ;
 /** @type {__VLS_StyleScopedClasses['shadow-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-header']} */ ;
-/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['justify-content-between']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['gap-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['fw-semibold']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-body']} */ ;
 /** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
 /** @type {__VLS_StyleScopedClasses['flex-column']} */ ;
 /** @type {__VLS_StyleScopedClasses['gap-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['row']} */ ;
+/** @type {__VLS_StyleScopedClasses['g-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-md-4']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-control']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-md-4']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-control']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-md-4']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-control']} */ ;
+/** @type {__VLS_StyleScopedClasses['small']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert-warning']} */ ;
+/** @type {__VLS_StyleScopedClasses['py-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
 /** @type {__VLS_StyleScopedClasses['small']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-1']} */ ;
@@ -1297,6 +1385,7 @@ const __VLS_self = (await import('vue')).defineComponent({
             IndicationsEditor: IndicationsEditor,
             ReportArtifactsPanel: ReportArtifactsPanel,
             flow: flow,
+            isDebug: isDebug,
             loading: loading,
             errorMessage: errorMessage,
             successMessage: successMessage,
@@ -1323,6 +1412,7 @@ const __VLS_self = (await import('vue')).defineComponent({
             indicationOptionsForEditor: indicationOptionsForEditor,
             sectionDraftPreview: sectionDraftPreview,
             runtimeFindingsPreview: runtimeFindingsPreview,
+            sectionCompletionSummary: sectionCompletionSummary,
             loadIndicationCatalog: loadIndicationCatalog,
             getSectionDraft: getSectionDraft,
             onSectionDraftNote: onSectionDraftNote,

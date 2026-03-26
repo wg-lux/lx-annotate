@@ -60,8 +60,9 @@ entry = m['src/main.ts']['file']
 print(entry, (Path('static') / entry).exists())
 PY`
 
-## Label Studio Integration Note
+## Frame Annotation Integration Note
 
-Label Studio is loaded by the Vue wrapper component
-`frontend/src/components/EndoAI/LabelStudioHost.vue` via CDN at runtime.
-Do not duplicate a global Label Studio script include in `lx_annotate/templates/base.html`.
+Frame annotation is rendered directly by
+`frontend/src/views/FrameAnnotation.vue` without third-party runtime widget
+scripts. Keep `lx_annotate/templates/base.html` free of ad-hoc global script
+includes.

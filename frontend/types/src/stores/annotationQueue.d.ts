@@ -13,6 +13,7 @@ export declare const useAnnotationQueueStore: import("pinia").StoreDefinition<"a
     targetLabelName: import("vue").Ref<string, string>;
     filterLabelName: import("vue").Ref<string | null, string | null>;
     allowRandomFallback: import("vue").Ref<boolean, boolean>;
+    informationSource: import("vue").Ref<string, string>;
     taskQuerySignature: import("vue").ComputedRef<string>;
     taskQueue: import("vue").Ref<{
         id: string;
@@ -37,17 +38,19 @@ export declare const useAnnotationQueueStore: import("pinia").StoreDefinition<"a
     setTargetLabelName: (label: string | null) => void;
     setFilterLabelName: (label: string | null) => void;
     setAllowRandomFallback: (enabled: boolean) => void;
+    setInformationSource: (source: string | null) => void;
     fetchBatch: (batchSize?: number) => Promise<AnnotationTask[]>;
     prefetchIfNeeded: () => Promise<void>;
     popNextTask: () => AnnotationTask | undefined;
     clearQueue: () => void;
     primeQueue: (batchSize?: number) => Promise<void>;
-}, "selectedLabelGroupId" | "taskMode" | "targetLabelName" | "filterLabelName" | "allowRandomFallback" | "taskQueue" | "isInitialLoading" | "isPrefetching" | "lastError">, Pick<{
+}, "informationSource" | "selectedLabelGroupId" | "taskMode" | "targetLabelName" | "filterLabelName" | "allowRandomFallback" | "taskQueue" | "isInitialLoading" | "isPrefetching" | "lastError">, Pick<{
     selectedLabelGroupId: import("vue").Ref<string | null, string | null>;
     taskMode: import("vue").Ref<AnnotationTaskMode, AnnotationTaskMode>;
     targetLabelName: import("vue").Ref<string, string>;
     filterLabelName: import("vue").Ref<string | null, string | null>;
     allowRandomFallback: import("vue").Ref<boolean, boolean>;
+    informationSource: import("vue").Ref<string, string>;
     taskQuerySignature: import("vue").ComputedRef<string>;
     taskQueue: import("vue").Ref<{
         id: string;
@@ -72,6 +75,7 @@ export declare const useAnnotationQueueStore: import("pinia").StoreDefinition<"a
     setTargetLabelName: (label: string | null) => void;
     setFilterLabelName: (label: string | null) => void;
     setAllowRandomFallback: (enabled: boolean) => void;
+    setInformationSource: (source: string | null) => void;
     fetchBatch: (batchSize?: number) => Promise<AnnotationTask[]>;
     prefetchIfNeeded: () => Promise<void>;
     popNextTask: () => AnnotationTask | undefined;
@@ -83,6 +87,7 @@ export declare const useAnnotationQueueStore: import("pinia").StoreDefinition<"a
     targetLabelName: import("vue").Ref<string, string>;
     filterLabelName: import("vue").Ref<string | null, string | null>;
     allowRandomFallback: import("vue").Ref<boolean, boolean>;
+    informationSource: import("vue").Ref<string, string>;
     taskQuerySignature: import("vue").ComputedRef<string>;
     taskQueue: import("vue").Ref<{
         id: string;
@@ -107,9 +112,10 @@ export declare const useAnnotationQueueStore: import("pinia").StoreDefinition<"a
     setTargetLabelName: (label: string | null) => void;
     setFilterLabelName: (label: string | null) => void;
     setAllowRandomFallback: (enabled: boolean) => void;
+    setInformationSource: (source: string | null) => void;
     fetchBatch: (batchSize?: number) => Promise<AnnotationTask[]>;
     prefetchIfNeeded: () => Promise<void>;
     popNextTask: () => AnnotationTask | undefined;
     clearQueue: () => void;
     primeQueue: (batchSize?: number) => Promise<void>;
-}, "setSelectedLabelGroupId" | "setTaskMode" | "setTargetLabelName" | "setFilterLabelName" | "setAllowRandomFallback" | "fetchBatch" | "prefetchIfNeeded" | "popNextTask" | "clearQueue" | "primeQueue">>;
+}, "setSelectedLabelGroupId" | "setTaskMode" | "setTargetLabelName" | "setFilterLabelName" | "setAllowRandomFallback" | "setInformationSource" | "fetchBatch" | "prefetchIfNeeded" | "popNextTask" | "clearQueue" | "primeQueue">>;

@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import ReportEditorPage from '../ReportEditorPage.vue';
 const hoisted = vi.hoisted(() => ({
     flowRef: { current: null },
+    debugRef: { current: false },
     axiosApi: {
         get: vi.fn(),
         post: vi.fn()
@@ -22,6 +23,11 @@ vi.mock('vue-router', () => ({
         params: {
             patient_examination_id: '42'
         }
+    })
+}));
+vi.mock('@/composables/useDebug', () => ({
+    useDebug: () => ({
+        isDebug: hoisted.debugRef.current
     })
 }));
 vi.mock('@/api/axiosInstance', () => ({
@@ -100,7 +106,6 @@ function buildFlowStore() {
         selectedExaminationId: 9,
         selectedKbModule: 'report_template_examples',
         selectedTemplateName: 'star_upper_gi_main',
-        selectedRequirementSetIds: [],
         activeReportId: null,
         indications: [{ examinationIndicationId: null, indicationChoiceId: null }],
         templateSectionDrafts: {
@@ -150,7 +155,6 @@ function buildFlowStore() {
         lastPersistedDraftAt: '2026-03-19T15:01:00.000Z',
         savingFinalReport: false,
         mediaPreload: null,
-        lastRequirementGuidance: null,
         patchLookupSnapshot: vi.fn(),
         setTemplateSelection: vi.fn(),
         clearTemplateSectionDrafts: vi.fn(),
@@ -166,11 +170,21 @@ function buildFlowStore() {
         setActiveReportId: vi.fn((id) => {
             flow.activeReportId = id;
         }),
-        setLastRequirementGuidance: vi.fn(),
         setSavingFinalReport: vi.fn((value) => {
             flow.savingFinalReport = value;
         })
     });
+    return flow;
+}
+function buildFlowStoreWithMissingRequiredClassification() {
+    const flow = buildFlowStore();
+    flow.currentRuntimeDraft.payload.patientFindings = [
+        {
+            localId: 'finding_1',
+            finding: 'esophagus_polyp',
+            classificationChoices: []
+        }
+    ];
     return flow;
 }
 function mountPage() {
@@ -189,6 +203,7 @@ function mountPage() {
 describe('ReportEditorPage draft-driven workflow', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        hoisted.debugRef.current = false;
         hoisted.flowRef.current = buildFlowStore();
         hoisted.axiosApi.get.mockImplementation((url) => {
             if (url === 'patient-examinations/42/') {
@@ -214,7 +229,6 @@ describe('ReportEditorPage draft-driven workflow', () => {
                 created: true,
                 warnings: [],
                 historyContext: null,
-                requirementGuidance: null,
                 persistedArtifacts: null
             }
         });
@@ -223,7 +237,10 @@ describe('ReportEditorPage draft-driven workflow', () => {
         const wrapper = mountPage();
         await flushPromises();
         expect(wrapper.text()).toContain('esophagus_polyp -> size_mm: size_mm (length_mm_descriptor: 12)');
-        expect(wrapper.text()).toContain('Visible note');
+        expect(wrapper.find('textarea').element.value).toBe('Visible note');
+        expect(wrapper.text()).toContain('Vollständigkeitsübersicht');
+        expect(wrapper.text()).toContain('1 von 1 Abschnitten vollständig');
+        expect(wrapper.text()).toContain('Keine fehlenden Pflichtbefunde oder Pflicht-Klassifikationen im aktuellen Entwurf.');
         const buttons = wrapper.findAll('button');
         const draftSaveButton = buttons.find((button) => button.text().includes('Entwurf speichern'));
         expect(draftSaveButton).toBeTruthy();
@@ -246,5 +263,33 @@ describe('ReportEditorPage draft-driven workflow', () => {
             ],
             renderedText: expect.stringContaining('esophagus_polyp -> size_mm: size_mm')
         }));
+    });
+    it('shows missing required classifications as advisory hints without blocking save', async () => {
+        hoisted.flowRef.current = buildFlowStoreWithMissingRequiredClassification();
+        const wrapper = mountPage();
+        await flushPromises();
+        expect(wrapper.text()).toContain('0 von 1 Abschnitten vollständig');
+        expect(wrapper.text()).toContain('0 fehlende Pflichtbefunde');
+        expect(wrapper.text()).toContain('1 fehlende Pflicht-Klassifikationen');
+        expect(wrapper.text()).toContain('Examination Baseline');
+        expect(wrapper.text()).toContain('Klassifikationen fehlen: esophagus_polyp: size_mm');
+        const finalSaveButton = wrapper
+            .findAll('button')
+            .find((button) => button.text().includes('Final speichern'));
+        expect(finalSaveButton).toBeTruthy();
+        expect(finalSaveButton.attributes('disabled')).toBeUndefined();
+    });
+    it('shows technical metadata only inside the debug details panel', async () => {
+        const hiddenWrapper = mountPage();
+        await flushPromises();
+        expect(hiddenWrapper.text()).not.toContain('Technische Details');
+        expect(hiddenWrapper.text()).not.toContain('Aktive Report-ID');
+        hoisted.debugRef.current = true;
+        const wrapper = mountPage();
+        await flushPromises();
+        expect(wrapper.text()).toContain('Technische Details');
+        expect(wrapper.text()).toContain('Aktive Report-ID');
+        expect(wrapper.text()).toContain('Entwurfs-Befunde');
+        expect(wrapper.text()).toContain('Abschnitts-Entwürfe');
     });
 });

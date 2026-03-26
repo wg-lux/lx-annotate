@@ -7,9 +7,11 @@ const TASK_MODE_STORAGE_KEY = 'annotationQueue.taskMode.v1';
 const TARGET_LABEL_STORAGE_KEY = 'annotationQueue.targetLabelName.v1';
 const FILTER_LABEL_STORAGE_KEY = 'annotationQueue.filterLabelName.v1';
 const RANDOM_FALLBACK_STORAGE_KEY = 'annotationQueue.allowRandomFallback.v1';
+const INFORMATION_SOURCE_STORAGE_KEY = 'annotationQueue.informationSource.v1';
 const DEBUG_DUMMY_TASK_QUERY_KEY = 'ls_dummy_task';
 const DEBUG_DUMMY_TASK_GROUP_ID = '1';
 const DEFAULT_TARGET_LABEL_NAME = 'Target Label';
+const DEFAULT_INFORMATION_SOURCE = 'frame_annotation_frontend';
 function loadStoredGroupId() {
     try {
         const raw = localStorage.getItem(SELECTED_GROUP_STORAGE_KEY);
@@ -158,11 +160,12 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
     const targetLabelName = ref(normalizeLabelName(loadStoredText(TARGET_LABEL_STORAGE_KEY)));
     const filterLabelName = ref(loadStoredText(FILTER_LABEL_STORAGE_KEY));
     const allowRandomFallback = ref(loadStoredRandomFallback());
+    const informationSource = ref(loadStoredText(INFORMATION_SOURCE_STORAGE_KEY) ?? DEFAULT_INFORMATION_SOURCE);
     const taskQueue = ref([]);
     const isInitialLoading = ref(false);
     const isPrefetching = ref(false);
     const lastError = ref(null);
-    const taskQuerySignature = computed(() => `${taskMode.value}|${targetLabelName.value}|${filterLabelName.value ?? ''}|${allowRandomFallback.value ? '1' : '0'}`);
+    const taskQuerySignature = computed(() => `${taskMode.value}|${targetLabelName.value}|${filterLabelName.value ?? ''}|${informationSource.value}|${allowRandomFallback.value ? '1' : '0'}`);
     watch(selectedLabelGroupId, (next) => {
         persistGroupId(next);
     });
@@ -177,6 +180,9 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
     });
     watch(allowRandomFallback, (next) => {
         persistBoolean(RANDOM_FALLBACK_STORAGE_KEY, next);
+    });
+    watch(informationSource, (next) => {
+        persistText(INFORMATION_SOURCE_STORAGE_KEY, next);
     });
     function setSelectedLabelGroupId(groupId) {
         selectedLabelGroupId.value = groupId && groupId.trim() ? groupId : null;
@@ -193,6 +199,10 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
     function setAllowRandomFallback(enabled) {
         allowRandomFallback.value = !!enabled;
     }
+    function setInformationSource(source) {
+        const normalized = source?.trim() ?? '';
+        informationSource.value = normalized || DEFAULT_INFORMATION_SOURCE;
+    }
     function buildTaskRequestParams(batchSize, mode) {
         const params = {
             label_group_id: selectedLabelGroupId.value,
@@ -200,6 +210,8 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
         };
         params.task_mode = mode;
         params.target_label = targetLabelName.value;
+        params.information_source = informationSource.value;
+        params.information_source_name = informationSource.value;
         if (mode === 'filtered' && filterLabelName.value) {
             params.filter_label = filterLabelName.value;
             params.previous_label = filterLabelName.value;
@@ -301,6 +313,7 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
         targetLabelName,
         filterLabelName,
         allowRandomFallback,
+        informationSource,
         taskQuerySignature,
         taskQueue,
         isInitialLoading,
@@ -311,6 +324,7 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
         setTargetLabelName,
         setFilterLabelName,
         setAllowRandomFallback,
+        setInformationSource,
         fetchBatch,
         prefetchIfNeeded,
         popNextTask,

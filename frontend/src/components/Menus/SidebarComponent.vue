@@ -52,6 +52,14 @@
               <span class="nav-link-text ms-1">Dokumentation</span>
             </router-link>
           </li>
+          <li class="nav-item">
+            <router-link to="/einstellungen" class="nav-link" :class="{ active: $route.path === '/einstellungen' }">
+              <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
+                <i class="material-icons opacity-10">tune</i>
+              </div>
+              <span class="nav-link-text ms-1">Einstellungen</span>
+            </router-link>
+          </li>
           <li class="nav-item" v-can="'page.patients.view:GET'">
             <router-link to="/patienten" class="nav-link" :class="{ active: $route.path === '/patienten' }">
               <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
@@ -117,7 +125,7 @@
                 <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
                   <i class="material-icons opacity-10">note_add</i>
                 </div>
-                <span class="nav-link-text ms-1">2b. Label Studio</span>
+                <span class="nav-link-text ms-1">2b. Frame Annotation</span>
               </router-link>
             </li>
 
@@ -421,9 +429,9 @@ export default {
 
 .nav-link {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 0.5rem;
-  white-space: nowrap;
+  white-space: normal;
   min-height: 2.25rem;
   padding: 0.5rem 0.65rem;
   color: #f5f8ff !important;
@@ -472,13 +480,19 @@ export default {
 }
 
 .nav-link-text {
+  flex: 1 1 auto;
+  min-width: 0;
   font-size: 0.875rem;
   font-weight: 500;
+  line-height: 1.3;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .nav-link-text-with-badge {
-  display: inline-flex;
+  display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 0.4rem;
 }
 
@@ -486,6 +500,7 @@ export default {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  flex: 0 0 auto;
   min-width: 1.35rem;
   height: 1.35rem;
   padding: 0 0.35rem;

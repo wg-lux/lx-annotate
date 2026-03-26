@@ -14,32 +14,6 @@
         <div v-if="errorMessage" class="alert alert-danger py-2">{{ errorMessage }}</div>
         <div v-if="successMessage" class="alert alert-success py-2">{{ successMessage }}</div>
 
-        <div class="row g-3 mb-3">
-          <div class="col-md-4">
-            <label class="form-label">Aktive Report-ID</label>
-            <input class="form-control" :value="flow.activeReportId ?? ''" readonly />
-          </div>
-          <div class="col-md-4">
-            <label class="form-label">Report-Version</label>
-            <input class="form-control" :value="currentReportVersion ?? ''" readonly />
-          </div>
-          <div class="col-md-4">
-            <label class="form-label">Status letzter Save</label>
-            <input class="form-control" :value="lastSaveStatus ?? ''" readonly />
-          </div>
-        </div>
-        <div class="small text-muted mb-3">
-          Entwurf:
-          {{ currentRuntimeDraft?.hydratedFrom === 'session_storage' || currentRuntimeDraft?.hydratedFrom === 'draft_api' ? 'wiederhergestellt' : currentRuntimeDraft ? 'initialisiert' : 'leer' }}
-          · Persistenz: {{ flow.draftPersistenceStatus }}
-          <span v-if="flow.lastPersistedDraftAt">
-            · Gespeichert: {{ new Date(flow.lastPersistedDraftAt).toLocaleTimeString('de-DE') }}
-          </span>
-        </div>
-        <div v-if="flow.draftPersistenceError" class="alert alert-warning py-2">
-          {{ flow.draftPersistenceError }}
-        </div>
-
         <MedicalBlock
           title="Template-Kontext"
           subtitle="Templates per Untersuchung laden und für den Bericht aktivieren"
@@ -195,6 +169,37 @@
           @refresh-options="loadIndicationCatalog"
         />
 
+        <div v-if="sectionCompletionSummary.totalSections" class="alert alert-info py-3">
+          <div class="fw-semibold mb-1">Vollständigkeitsübersicht</div>
+          <div class="small mb-2">
+            {{ sectionCompletionSummary.completedSections }} von
+            {{ sectionCompletionSummary.totalSections }} Abschnitten vollständig
+            · {{ sectionCompletionSummary.totalMissingFindings }} fehlende Pflichtbefunde
+            · {{ sectionCompletionSummary.totalMissingClassifications }} fehlende Pflicht-Klassifikationen
+          </div>
+          <div
+            v-if="!sectionCompletionSummary.incompleteSections.length"
+            class="small text-success"
+          >
+            Keine fehlenden Pflichtbefunde oder Pflicht-Klassifikationen im aktuellen Entwurf.
+          </div>
+          <ul v-else class="small mb-0 ps-3">
+            <li
+              v-for="section in sectionCompletionSummary.incompleteSections"
+              :key="section.name"
+            >
+              <strong>{{ section.title }}</strong>
+              <span v-if="section.missingFindings.length">
+                · Befunde fehlen: {{ section.missingFindings.join(', ') }}
+              </span>
+              <span v-if="section.missingClassifications.length">
+                · Klassifikationen fehlen:
+                {{ section.missingClassifications.join(', ') }}
+              </span>
+            </li>
+          </ul>
+        </div>
+
         <div class="d-flex flex-wrap gap-2">
           <button
             class="btn btn-outline-primary"
@@ -229,11 +234,39 @@
 
     <ReportArtifactsPanel :artifacts="persistedArtifacts" />
 
-    <div class="card shadow-sm">
-      <div class="card-header">
-        <h6 class="mb-0">Vorschau Payload</h6>
-      </div>
+    <details v-if="isDebug" class="card shadow-sm">
+      <summary class="card-header">
+        <div class="d-flex justify-content-between align-items-center gap-2">
+          <span class="fw-semibold">Technische Details</span>
+          <small class="text-muted">Metadaten und Payload</small>
+        </div>
+      </summary>
       <div class="card-body d-flex flex-column gap-3">
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label class="form-label">Aktive Report-ID</label>
+            <input class="form-control" :value="flow.activeReportId ?? ''" readonly />
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Report-Version</label>
+            <input class="form-control" :value="currentReportVersion ?? ''" readonly />
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Status letzter Save</label>
+            <input class="form-control" :value="lastSaveStatus ?? ''" readonly />
+          </div>
+        </div>
+        <div class="small text-muted">
+          Entwurf:
+          {{ currentRuntimeDraft?.hydratedFrom === 'session_storage' || currentRuntimeDraft?.hydratedFrom === 'draft_api' ? 'wiederhergestellt' : currentRuntimeDraft ? 'initialisiert' : 'leer' }}
+          · Persistenz: {{ flow.draftPersistenceStatus }}
+          <span v-if="flow.lastPersistedDraftAt">
+            · Gespeichert: {{ new Date(flow.lastPersistedDraftAt).toLocaleTimeString('de-DE') }}
+          </span>
+        </div>
+        <div v-if="flow.draftPersistenceError" class="alert alert-warning py-2 mb-0">
+          {{ flow.draftPersistenceError }}
+        </div>
         <div>
           <div class="small text-muted mb-1">Entwurfs-Befunde</div>
           <pre class="small mb-0 bg-light p-2 rounded">{{ runtimeFindingsPreview }}</pre>
@@ -247,7 +280,7 @@
           <pre class="small mb-0 bg-light p-2 rounded">{{ sectionDraftPreview }}</pre>
         </div>
       </div>
-    </div>
+    </details>
   </div>
 </template>
 
@@ -258,6 +291,7 @@ import axiosInstance, { r } from '@/api/axiosInstance'
 import MedicalBlock from '@/components/AssistedReporting/MedicalBlock.vue'
 import IndicationsEditor from '@/components/Reporting/IndicationsEditor.vue'
 import ReportArtifactsPanel from '@/components/Reporting/ReportArtifactsPanel.vue'
+import { useDebug } from '@/composables/useDebug'
 import { useReportTemplates } from '@/composables/reporting/useReportTemplates'
 import { useExaminationStore } from '@/stores/examinationStore'
 import { useReportingFlowStore } from '@/stores/reportingFlowStore'
@@ -297,6 +331,7 @@ const flow = useReportingFlowStore()
 const patientStore = usePatientStore()
 const examinationStore = useExaminationStore()
 const route = useRoute()
+const { isDebug } = useDebug()
 
 const loading = ref(false)
 const errorMessage = ref<string | null>(null)
@@ -307,7 +342,6 @@ const pendingSaveStatus = ref<ReportSubmissionStatus | null>(null)
 const currentReportVersion = ref<number | null>(null)
 const persistedArtifacts = ref<SaveReportSubmissionResponse['persistedArtifacts']>(null)
 const historyContext = ref<Record<string, unknown> | null>(null)
-const requirementGuidance = ref<Record<string, unknown> | null>(null)
 const indicationOptions = ref<IndicationOption[]>([])
 const indicationOptionsLoading = ref(false)
 const indicationOptionsError = ref<string | null>(null)
@@ -427,6 +461,64 @@ const sectionDraftPreview = computed(() => JSON.stringify(flow.templateSectionDr
 const runtimeFindingsPreview = computed(() =>
   JSON.stringify(currentPayload.value?.patientFindings || [], null, 2)
 )
+
+const sectionCompletionSummary = computed(() => {
+  const sections = sectionBlocks.value.map((section) => {
+    const sectionFindings = getSectionDraftFindings(section.name)
+    const missingFindings = section.findings
+      .filter((definition) => definition.required)
+      .filter(
+        (definition) =>
+          !sectionFindings.some((entry) => entry.finding === definition.finding)
+      )
+      .map((definition) => definition.finding)
+
+    const missingClassificationSet = new Set<string>()
+    for (const definition of section.findings) {
+      const matchingFindings = sectionFindings.filter(
+        (entry) => entry.finding === definition.finding
+      )
+      if (!matchingFindings.length) continue
+
+      for (const classification of definition.classifications.filter((entry) => entry.required)) {
+        const presentInAnyFinding = matchingFindings.some((entry) =>
+          entry.classificationChoices.some(
+            (choice) => choice.classification === classification.classification
+          )
+        )
+        if (!presentInAnyFinding) {
+          missingClassificationSet.add(
+            `${definition.finding}: ${classification.classification}`
+          )
+        }
+      }
+    }
+
+    const missingClassifications = Array.from(missingClassificationSet.values())
+
+    return {
+      name: section.name,
+      title: section.title,
+      missingFindings,
+      missingClassifications,
+      isComplete: !missingFindings.length && !missingClassifications.length
+    }
+  })
+
+  return {
+    totalSections: sections.length,
+    completedSections: sections.filter((section) => section.isComplete).length,
+    totalMissingFindings: sections.reduce(
+      (sum, section) => sum + section.missingFindings.length,
+      0
+    ),
+    totalMissingClassifications: sections.reduce(
+      (sum, section) => sum + section.missingClassifications.length,
+      0
+    ),
+    incompleteSections: sections.filter((section) => !section.isComplete)
+  }
+})
 
 watch(
   [selectedKbModule, selectedTemplateName],
@@ -1003,8 +1095,7 @@ async function saveReportSubmission(status: ReportSubmissionStatus) {
       renderedText: buildRenderedText(),
       patientData: buildPatientDataPayload(),
       indications: normalizedIndications.value,
-      findings,
-      selectedRequirementSetIds: flow.selectedRequirementSetIds
+      findings
     }
 
     const res = await axiosInstance.post<SaveReportSubmissionResponse>(
@@ -1018,18 +1109,6 @@ async function saveReportSubmission(status: ReportSubmissionStatus) {
     lastSaveStatus.value = (data.report.status as ReportSubmissionStatus) || status
     saveWarnings.value = Array.isArray(data.warnings) ? data.warnings : []
     historyContext.value = (data.historyContext || null) as Record<string, unknown> | null
-    requirementGuidance.value = (data.requirementGuidance || null) as Record<string, unknown> | null
-    flow.setLastRequirementGuidance(requirementGuidance.value)
-    if (requirementGuidance.value && typeof requirementGuidance.value === 'object') {
-      const rg = requirementGuidance.value as Record<string, any>
-      flow.patchLookupSnapshot({
-        requirementStatus: rg.requirementStatus,
-        requirementSetStatus: rg.requirementSetStatus,
-        suggestedActions: rg.suggestedActions,
-        candidateRequirementSetIds: rg.candidateRequirementSetIds,
-        candidateRequirementSetConfidence: rg.candidateRequirementSetConfidence
-      })
-    }
     persistedArtifacts.value = data.persistedArtifacts || null
 
     successMessage.value = data.created

@@ -4,6 +4,7 @@ import importlib
 import json
 import sys
 
+import pytest
 from django.test import Client, override_settings
 from django.urls import clear_url_caches, set_urlconf
 
@@ -101,6 +102,26 @@ def test_repo_urls_expose_live_report_template_generation_routes(monkeypatch):
     core_concepts_payload = core_concepts_res.json()
     assert "examination" in core_concepts_payload
     assert "finding" in core_concepts_payload
+
+
+@override_settings(
+    ROOT_URLCONF="lx_annotate.urls",
+    ALLOWED_HOSTS=["testserver", "localhost", "127.0.0.1"],
+)
+@pytest.mark.django_db
+def test_repo_urls_expose_validate_from_ledger_route(monkeypatch):
+    _reload_urls_with_base_api(monkeypatch)
+    client = Client()
+
+    response = client.post(
+        "/base_api/report-templates/report_template_examples/colonoscopy_training_basic/validate-from-ledger/999999",
+        secure=True,
+    )
+
+    assert response.status_code == 404, response.content.decode()
+    payload = response.json()
+    assert "detail" in payload
+    assert "PatientExamination" in payload["detail"]
 
 
 @override_settings(

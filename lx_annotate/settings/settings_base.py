@@ -4,7 +4,10 @@ Base Django settings.
 
 from typing import Any, cast
 import os
+from importlib.util import find_spec
 from pathlib import Path
+
+from django.db import models
 
 from lx_annotate.settings.config import load_config
 from logging import getLogger
@@ -41,6 +44,35 @@ else:
         _env_path = APP_DATA_DIR / ".env"
 
 config = load_config(env_file=Path(_env_path))
+
+
+def _module_available(module_path: str) -> bool:
+    try:
+        return find_spec(module_path) is not None
+    except Exception:
+        return False
+
+
+_default_lx_dtypes_host_models_module = "endoreg_db.models"
+if _module_available("endoreg_db.integrations.lx_dtypes_host_models"):
+    _default_lx_dtypes_host_models_module = (
+        "endoreg_db.integrations.lx_dtypes_host_models"
+    )
+
+_configured_lx_dtypes_host_models_module = os.getenv("LX_DTYPES_HOST_MODELS_MODULE", "")
+if _configured_lx_dtypes_host_models_module:
+    if not _module_available(_configured_lx_dtypes_host_models_module):
+        logger.warning(
+            "Configured LX_DTYPES_HOST_MODELS_MODULE '%s' could not be resolved. "
+            "Falling back to '%s'.",
+            _configured_lx_dtypes_host_models_module,
+            _default_lx_dtypes_host_models_module,
+        )
+        LX_DTYPES_HOST_MODELS_MODULE = _default_lx_dtypes_host_models_module
+    else:
+        LX_DTYPES_HOST_MODELS_MODULE = _configured_lx_dtypes_host_models_module
+else:
+    LX_DTYPES_HOST_MODELS_MODULE = _default_lx_dtypes_host_models_module
 
 # --- DEBUG / LOG GUARD ---
 SECRET_KEY = config.secret_key
@@ -109,6 +141,7 @@ INSTALLED_APPS = [
     "django_vite",
     "lx_annotate",
     "endoreg_db",
+    "lx_dtypes.django",
     "rest_framework",
     "django_extensions",
     "corsheaders",
@@ -117,6 +150,14 @@ INSTALLED_APPS = [
     "drf_spectacular",
     "modeltranslation",
 ]
+
+# lx_dtypes may evaluate parameterized field hints at runtime
+# (e.g. models.ManyToManyField[T, U]). Django field classes are not
+# subscriptable by default, so provide a minimal compatibility shim.
+for _field_cls in (models.ManyToManyField, models.ForeignKey, models.OneToOneField):
+    field_cls: Any = _field_cls
+    if not hasattr(field_cls, "__class_getitem__"):
+        field_cls.__class_getitem__ = classmethod(lambda cls, item: cls)  # type: ignore[attr-defined]
 
 # Override a broken upstream migration transaction boundary:
 # endoreg_db.0008 performs deletes and then adds a constraint on PostgreSQL.
@@ -135,6 +176,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "lx_annotate.middleware.lookup_tracker.KnowledgeBaseLookupTrackerLoggingMiddleware",
     "lx_annotate.middleware.PdfStreamFrameOptionsMiddleware",
 ]
 

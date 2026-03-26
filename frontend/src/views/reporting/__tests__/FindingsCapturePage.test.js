@@ -5,7 +5,7 @@ import FindingsCapturePage from '../FindingsCapturePage.vue';
 const hoisted = vi.hoisted(() => ({
     flowRef: { current: null },
     findingSelectorsRef: { current: null },
-    validateRuntime: vi.fn(),
+    validateFromLedger: vi.fn(),
     templateControls: {
         setModuleName: vi.fn(),
         selectTemplateByName: vi.fn().mockResolvedValue(undefined),
@@ -19,7 +19,7 @@ vi.mock('@/composables/reporting/useFindingSelectors', () => ({
     useFindingSelectors: () => hoisted.findingSelectorsRef.current
 }));
 vi.mock('@/api/reportTemplatesApi', () => ({
-    validateReportTemplateRuntime: hoisted.validateRuntime
+    validatePatientFindingsAgainstTemplate: hoisted.validateFromLedger
 }));
 vi.mock('@/composables/reporting/useReportTemplates', () => ({
     useReportTemplates: () => ({
@@ -230,7 +230,7 @@ describe('FindingsCapturePage runtime draft flow', () => {
                 }
                 : null)
         };
-        hoisted.validateRuntime.mockResolvedValue({
+        hoisted.validateFromLedger.mockResolvedValue({
             templateName: 'star_upper_gi_main',
             ok: true,
             evaluatedFindingsCount: 1,
@@ -256,7 +256,12 @@ describe('FindingsCapturePage runtime draft flow', () => {
         expect(hoisted.flowRef.current.currentRuntimeDraft.payload.patientFindings).toHaveLength(1);
         vi.advanceTimersByTime(400);
         await flushPromises();
-        expect(hoisted.validateRuntime).toHaveBeenCalledWith('report_template_examples', 'star_upper_gi_main', hoisted.flowRef.current.currentRuntimeDraft.payload);
+        expect(hoisted.validateFromLedger).toHaveBeenCalledWith({
+            moduleName: 'report_template_examples',
+            templateName: 'star_upper_gi_main',
+            patientExaminationId: 42,
+            getFindingById: expect.any(Function)
+        });
     });
     it('updates classification values on the local draft and validates them', async () => {
         hoisted.flowRef.current.currentRuntimeDraft.payload.patientFindings = [
@@ -280,6 +285,11 @@ describe('FindingsCapturePage runtime draft flow', () => {
         });
         vi.advanceTimersByTime(400);
         await flushPromises();
-        expect(hoisted.validateRuntime).toHaveBeenCalledWith('report_template_examples', 'star_upper_gi_main', hoisted.flowRef.current.currentRuntimeDraft.payload);
+        expect(hoisted.validateFromLedger).toHaveBeenCalledWith({
+            moduleName: 'report_template_examples',
+            templateName: 'star_upper_gi_main',
+            patientExaminationId: 42,
+            getFindingById: expect.any(Function)
+        });
     });
 });

@@ -82,7 +82,7 @@ const router = createRouter({
       name: 'Frame Annotation',
       component: () => import('@/views/FrameAnnotation.vue'),
       meta: {
-        description: 'Annotieren Sie zufällige Frames in Label Studio.'
+        description: 'Annotieren Sie zufällige Frames direkt in der Anwendung.'
       }
     },
     {
@@ -107,6 +107,14 @@ const router = createRouter({
       component: () => import('@/views/Documentation.vue'),
       meta: {
         description: 'Sphinx-Dokumentation innerhalb der Anwendung.'
+      }
+    },
+    {
+      path: '/einstellungen',
+      name: 'Einstellungen',
+      component: () => import('@/views/ApplicationSettingsPage.vue'),
+      meta: {
+        description: 'Standardwerte für Zentrum, Prozessor und Berichtsvorlagen verwalten.'
       }
     },
     {

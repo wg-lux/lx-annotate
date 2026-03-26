@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import axiosInstance from '@/api/axiosInstance';
-import { normalizeDefinitionValidationResult, normalizeTemplatePayload, validateReportTemplateRuntime } from '@/api/reportTemplatesApi';
+import { findingsApi } from '@/api/findingsApi';
+import { fetchReportTemplatesByExamination, normalizeDefinitionValidationResult, normalizeTemplatePayload, validatePatientFindingsAgainstTemplate, validateReportTemplateRuntimeFromLedger, validateReportTemplateRuntime } from '@/api/reportTemplatesApi';
 vi.mock('@/api/axiosInstance', () => ({
     default: {
         get: vi.fn(),
@@ -62,6 +63,63 @@ describe('reportTemplatesApi', () => {
         expect(payload?.validators.examinationValidators[0].relatedSections).toEqual([
             'examination_baseline'
         ]);
+    });
+    it('normalizes snake_case template payloads', () => {
+        const payload = normalizeTemplatePayload({
+            name: 'snake_template',
+            examination: 'snake_exam',
+            report_sections: [
+                {
+                    name: 'section_a',
+                    position: '2',
+                    findings: [
+                        {
+                            finding: 'f1',
+                            required: true,
+                            multiple_allowed: true,
+                            classifications: [{ classification: 'c1', required: true }]
+                        }
+                    ]
+                },
+                {
+                    name: 'section_b',
+                    position: 1,
+                    findings: ['f2']
+                }
+            ],
+            validators: {
+                findings_validators: [
+                    {
+                        name: 'v1',
+                        finding: 'f1',
+                        operator: 'condition',
+                        query: {
+                            finding: 'f1',
+                            operator: 'condition',
+                            condition: {
+                                any: [{ classification: 'size_mm', comparator: 'gt', value: 10 }],
+                                then_requires: [{ classification: 'c1' }]
+                            }
+                        }
+                    }
+                ],
+                examination_validators: [
+                    {
+                        name: 'ev1',
+                        finding_validators: ['v1'],
+                        examination_validators: []
+                    }
+                ]
+            }
+        });
+        expect(payload).not.toBeNull();
+        expect(payload?.reportSections.map((section) => section.name)).toEqual([
+            'section_b',
+            'section_a'
+        ]);
+        expect(payload?.reportSections[1].findings[0].multipleAllowed).toBe(true);
+        expect(payload?.validators.findingsValidators[0].requiredClassifications).toEqual(['c1']);
+        expect(payload?.validators.examinationValidators[0].findingValidators).toEqual(['v1']);
     });
     it('normalizes runtime validation responses', async () => {
         vi.mocked(axiosInstance.post).mockResolvedValue({
@@ -163,6 +221,125 @@ describe('reportTemplatesApi', () => {
         expect(result.templateName).toBe('star_upper_gi_main');
         expect(result.findingsValidators[0].missingRequiredClassifications).toEqual(['lst']);
         expect(result.issues[0].code).toBe('missing_required_classification');
+    });
+    it('calls validate-from-ledger endpoint for runtime validation', async () => {
+        vi.mocked(axiosInstance.post).mockResolvedValue({
+            data: {
+                templateName: 'star_upper_gi_main',
+                ok: true,
+                evaluatedFindingsCount: 0,
+                findingsValidators: [],
+                examinationValidators: [],
+                issues: []
+            }
+        });
+        const result = await validateReportTemplateRuntimeFromLedger('report_template_examples', 'star_upper_gi_main', 42);
+        expect(axiosInstance.post).toHaveBeenCalledWith('/base_api/report-templates/report_template_examples/star_upper_gi_main/validate-from-ledger/42');
+        expect(result.templateName).toBe('star_upper_gi_main');
+        expect(result.ok).toBe(true);
+    });
+    it('throws on invalid runtime validation payloads', async () => {
+        vi.mocked(axiosInstance.post).mockResolvedValue({
+            data: {
+                ok: true
+            }
+        });
+        await expect(validateReportTemplateRuntime('report_template_examples', 'star_upper_gi_main', {
+            patient: 'test_patient',
+            examiners: [],
+            examination: 'star_upper_gi_endoscopy',
+            knowledgeBaseModule: 'report_template_examples',
+            patientFindings: []
+        })).rejects.toThrow('Ungültiges Runtime-Validierungsergebnis.');
+    });
+    it('falls back to payload validation on generic ledger endpoint not-found', async () => {
+        vi.spyOn(findingsApi, 'listPatientFindings').mockResolvedValue([
+            {
+                id: 10,
+                finding: 11,
+                patientExamination: 42,
+                isActive: true,
+                classifications: [
+                    {
+                        classification: 101,
+                        classificationChoice: 1001,
+                        classificationName: 'size_mm',
+                        classificationChoiceName: 'size_mm',
+                        numericalDescriptors: {},
+                        isActive: true
+                    }
+                ]
+            }
+        ]);
+        vi.spyOn(findingsApi, 'getFindingClassifications').mockResolvedValue([
+            {
+                id: 101,
+                name: 'size_mm',
+                choices: [{ id: 1001, name: 'size_mm' }]
+            }
+        ]);
+        vi.mocked(axiosInstance.post)
+            .mockRejectedValueOnce({
+            response: {
+                status: 404,
+                data: { detail: 'Not Found' }
+            }
+        })
+            .mockResolvedValueOnce({
+            data: {
+                templateName: 'star_upper_gi_main',
+                ok: true,
+                evaluatedFindingsCount: 1,
+                findingsValidators: [],
+                examinationValidators: [],
+                issues: []
+            }
+        });
+        vi.mocked(axiosInstance.get).mockResolvedValueOnce({
+            data: {
+                name: 'star_upper_gi_main',
+                examination: 'star_upper_gi_endoscopy'
+            }
+        });
+        const result = await validatePatientFindingsAgainstTemplate({
+            moduleName: 'report_template_examples',
+            templateName: 'star_upper_gi_main',
+            patientExaminationId: 42,
+            getFindingById: () => ({
+                id: 11,
+                name: 'esophagus_polyp'
+            })
+        });
+        expect(axiosInstance.post).toHaveBeenNthCalledWith(1, '/base_api/report-templates/report_template_examples/star_upper_gi_main/validate-from-ledger/42');
+        expect(axiosInstance.post).toHaveBeenNthCalledWith(2, '/base_api/report-templates/report_template_examples/star_upper_gi_main/validate', expect.objectContaining({
+            patient: 'patient_examination_42',
+            examination: 'star_upper_gi_endoscopy'
+        }));
+        expect(result.ok).toBe(true);
+    });
+    it('does not fallback for non-generic not-found details', async () => {
+        vi.mocked(axiosInstance.post).mockRejectedValueOnce({
+            response: {
+                status: 404,
+                data: { detail: 'Template not found for module' }
+            }
+        });
+        await expect(validatePatientFindingsAgainstTemplate({
+            moduleName: 'report_template_examples',
+            templateName: 'star_upper_gi_main',
+            patientExaminationId: 42
+        })).rejects.toMatchObject({
+            response: {
+                status: 404
+            }
+        });
+    });
+    it('fetchReportTemplatesByExamination returns empty array for non-array payloads', async () => {
+        vi.mocked(axiosInstance.get).mockResolvedValue({
+            data: { results: [] }
+        });
+        const result = await fetchReportTemplatesByExamination('report_template_examples', 'star_upper_gi_endoscopy');
+        expect(result).toEqual([]);
     });
     it('normalizes structure validation responses', () => {
         const result = normalizeDefinitionValidationResult({

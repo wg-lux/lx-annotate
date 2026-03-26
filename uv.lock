@@ -7,6 +7,12 @@ resolution-markers = [
     "sys_platform != 'emscripten' and sys_platform != 'win32'",
 ]
 
+[manifest]
+members = [
+    "lx-annotate",
+    "lx-dtypes",
+]
+
 [[package]]
 name = "accessible-pygments"
 version = "0.0.5"
@@ -674,16 +680,16 @@ wheels = [
 
 [[package]]
 name = "django"
-version = "6.0.1"
+version = "6.0.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "asgiref" },
     { name = "sqlparse" },
     { name = "tzdata", marker = "sys_platform == 'win32'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/b5/9b/016f7e55e855ee738a352b05139d4f8b278d0b451bd01ebef07456ef3b0e/django-6.0.1.tar.gz", hash = "sha256:ed76a7af4da21551573b3d9dfc1f53e20dd2e6c7d70a3adc93eedb6338130a5f", size = 11069565, upload-time = "2026-01-06T18:55:53.069Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/80/e1/894115c6bd70e2c8b66b0c40a3c367d83a5a48c034a4d904d31b62f7c53a/django-6.0.3.tar.gz", hash = "sha256:90be765ee756af8a6cbd6693e56452404b5ad15294f4d5e40c0a55a0f4870fe1", size = 10872701, upload-time = "2026-03-03T13:55:15.026Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/95/b5/814ed98bd21235c116fd3436a7ed44d47560329a6d694ec8aac2982dbb93/django-6.0.1-py3-none-any.whl", hash = "sha256:a92a4ff14f664a896f9849009cb8afaca7abe0d6fc53325f3d1895a15253433d", size = 8338791, upload-time = "2026-01-06T18:55:46.175Z" },
+    { url = "https://files.pythonhosted.org/packages/72/b1/23f2556967c45e34d3d3cf032eb1bd3ef925ee458667fb99052a0b3ea3a6/django-6.0.3-py3-none-any.whl", hash = "sha256:2e5974441491ddb34c3f13d5e7a9f97b07ba03bf70234c0a9c68b79bbb235bc3", size = 8358527, upload-time = "2026-03-03T13:55:10.552Z" },
 ]
 
 [[package]]
@@ -931,7 +937,7 @@ sdist = { url = "https://files.pythonhosted.org/packages/62/59/e47bbd0542d0e6f4c
 
 [[package]]
 name = "endoreg-db"
-version = "0.9.1.6"
+version = "0.9.2.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "agl-report-reader" },
@@ -957,6 +963,7 @@ dependencies = [
     { name = "lx-dtypes" },
     { name = "moviepy" },
     { name = "mozilla-django-oidc" },
+    { name = "numba" },
     { name = "numpy" },
     { name = "opencv-python" },
     { name = "openpyxl" },
@@ -989,9 +996,11 @@ dependencies = [
     { name = "vector-quantize-pytorch" },
     { name = "vocos" },
     { name = "whitenoise" },
+    { name = "ziglang" },
 ]
+sdist = { url = "https://files.pythonhosted.org/packages/2d/f1/129ef86b43cb2c86872b1de11788dfe402c5053b019e15912eaba9360f93/endoreg_db-0.9.2.2.tar.gz", hash = "sha256:231240686c768e8528acd84c1a4c89c8b0b1299097514c79f65b540f886bc7fc", size = 627598, upload-time = "2026-03-26T16:53:14.619Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/f8/ff/4d7af5fa0726bc51e6953e4183d3bec2282b0344696129d249192a0d7f04/endoreg_db-0.9.1.6-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:0649be1dcdcbf2a4d79f6dc15c6b771a4943e16ab5be7f59bd31897ba4ecf93d", size = 1227495, upload-time = "2026-03-20T12:35:10.915Z" },
+    { url = "https://files.pythonhosted.org/packages/86/eb/b2a664adfcc8bee24c3480c16f33105556776088a1210297020131188b7a/endoreg_db-0.9.2.2-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:11954bbc56a21c414f0bd21f9d4fb1e1ce649df0c11aab02adccdcaf9c05936f", size = 1193402, upload-time = "2026-03-26T16:53:12.826Z" },
 ]
 
 [[package]]
@@ -1623,6 +1632,7 @@ dependencies = [
     { name = "endoreg-db" },
     { name = "gunicorn" },
     { name = "lx-anonymizer" },
+    { name = "lx-dtypes" },
     { name = "mozilla-django-oidc" },
     { name = "mypy" },
     { name = "numpy" },
@@ -1632,6 +1642,7 @@ dependencies = [
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "pytest" },
+    { name = "pytest-cov" },
     { name = "pytest-django" },
     { name = "python-dotenv" },
     { name = "python-environ" },
@@ -1682,19 +1693,19 @@ requires-dist = [
     { name = "celery", specifier = ">=5.5.3" },
     { name = "daphne", specifier = ">=4.2.1" },
     { name = "de-core-news-lg", url = "https://github.com/explosion/spacy-models/releases/download/de_core_news_lg-3.8.0/de_core_news_lg-3.8.0-py3-none-any.whl" },
-    { name = "django", specifier = ">=5.1.1" },
+    { name = "django", specifier = "==6.0.3" },
     { name = "django-cors-headers", specifier = ">=4.0.0" },
     { name = "django-environ", specifier = ">=0.12.0" },
     { name = "django-extensions", specifier = ">=3.2.3" },
     { name = "django-modeltranslation", specifier = ">=0.19.16" },
-    { name = "django-ninja", specifier = ">=1.3.0" },
+    { name = "django-ninja", specifier = "==1.5.3" },
     { name = "django-rest-framework", specifier = ">=0.1.0" },
     { name = "django-stubs", specifier = ">=5.2.8" },
     { name = "django-vite", specifier = ">=3.0.6" },
     { name = "django-webpack-loader", specifier = ">=0.7.0" },
     { name = "djangorestframework", specifier = ">=3.12.4" },
     { name = "drf-spectacular", specifier = ">=0.28.0" },
-    { name = "endoreg-db", specifier = "==0.9.1.6" },
+    { name = "endoreg-db", specifier = "==0.9.2.2" },
     { name = "flake8", marker = "extra == 'dev'", specifier = ">=7.3.0" },
     { name = "furo", marker = "extra == 'dev'", specifier = ">=2025.9.25" },
     { name = "furo", marker = "extra == 'docs'", specifier = ">=2025.9.25" },
@@ -1702,6 +1713,7 @@ requires-dist = [
     { name = "linkify-it-py", marker = "extra == 'dev'", specifier = ">=2.0.3" },
     { name = "linkify-it-py", marker = "extra == 'docs'", specifier = ">=2.0.3" },
     { name = "lx-anonymizer", specifier = "==0.9.0.5" },
+    { name = "lx-dtypes", editable = "lx-data-models" },
     { name = "mozilla-django-oidc", specifier = ">=4.0.1" },
     { name = "mypy", specifier = ">=1.18.2" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.16.0" },
@@ -1717,6 +1729,7 @@ requires-dist = [
     { name = "pydantic-settings", specifier = ">=2.12.0" },
     { name = "pytest", specifier = ">=8.3.5" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=9.0.2" },
+    { name = "pytest-cov", specifier = ">=7.0.0" },
     { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=6.1.1" },
     { name = "pytest-django", specifier = ">=4.11.1" },
     { name = "pytest-env", marker = "extra == 'dev'", specifier = ">=1.1.5" },
@@ -1792,7 +1805,7 @@ ocr = [
 [[package]]
 name = "lx-dtypes"
 version = "0.1.1"
-source = { registry = "https://pypi.org/simple" }
+source = { editable = "lx-data-models" }
 dependencies = [
     { name = "bibtexparser" },
     { name = "django" },
@@ -1815,10 +1828,87 @@ dependencies = [
     { name = "scipy" },
     { name = "types-pyyaml" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/03/17/712455c68279cc644f8ca10540ed60b57eddb398ff37e2ce1ce915be0692/lx_dtypes-0.1.1.tar.gz", hash = "sha256:a44e8e1dad958c70340fe38e9e17afb01b56320145616736c267cc2c0a9ac310", size = 1013288, upload-time = "2026-01-23T15:28:28.973Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/1e/e6/01434a8d0466b51c8cb54952daf1645a6d87b8bbfead6eed1a5a3a83ed28/lx_dtypes-0.1.1-py3-none-any.whl", hash = "sha256:5b3ced59355103d757c50f7f88a32b60e03460569a8cca441806d29582bd90a9", size = 371651, upload-time = "2026-01-23T15:28:26.835Z" },
+
+[package.optional-dependencies]
+dev = [
+    { name = "build" },
+    { name = "flake8" },
+    { name = "furo" },
+    { name = "linkify-it-py" },
+    { name = "mypy" },
+    { name = "myst-parser" },
+    { name = "pip" },
+    { name = "pre-commit" },
+    { name = "pytest" },
+    { name = "pytest-cov" },
+    { name = "pytest-django" },
+    { name = "pytest-env" },
+    { name = "pytest-mypy-plugins" },
+    { name = "pytest-xdist" },
+    { name = "ruff" },
+    { name = "sphinx" },
+    { name = "sphinx-autodoc-typehints" },
+    { name = "sphinx-copybutton" },
+    { name = "twine" },
 ]
+docs = [
+    { name = "furo" },
+    { name = "linkify-it-py" },
+    { name = "myst-parser" },
+    { name = "sphinx" },
+    { name = "sphinx-autodoc-typehints" },
+    { name = "sphinx-copybutton" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "bibtexparser", specifier = ">=1.4.0" },
+    { name = "build", marker = "extra == 'dev'", specifier = ">=1.3.0" },
+    { name = "django", specifier = ">=6.0" },
+    { name = "django-ninja", specifier = ">=1.5.1" },
+    { name = "django-stubs", extras = ["compatible-mypy"], specifier = ">=5.2.8" },
+    { name = "django-stubs-ext", specifier = ">=5.2.8" },
+    { name = "flake8", marker = "extra == 'dev'", specifier = ">=7.3.0" },
+    { name = "furo", marker = "extra == 'dev'", specifier = ">=2025.9.25" },
+    { name = "furo", marker = "extra == 'docs'", specifier = ">=2025.9.25" },
+    { name = "icecream", specifier = ">=2.1.4" },
+    { name = "linkify-it-py", marker = "extra == 'dev'", specifier = ">=2.0.3" },
+    { name = "linkify-it-py", marker = "extra == 'docs'", specifier = ">=2.0.3" },
+    { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.16.0" },
+    { name = "myst-parser", marker = "extra == 'dev'", specifier = ">=4.0.1" },
+    { name = "myst-parser", marker = "extra == 'docs'", specifier = ">=4.0.1" },
+    { name = "numpy", specifier = ">=2.2.3" },
+    { name = "opencv-python", specifier = ">=4.12.0.88" },
+    { name = "openpyxl", specifier = ">=3.1.5" },
+    { name = "pandas", specifier = ">=2.2.3" },
+    { name = "pandas-stubs", specifier = ">=2.3.3.251201" },
+    { name = "pandera", extras = ["pandas", "io", "mypy"], specifier = ">=0.27.0" },
+    { name = "pillow", specifier = ">=11.3.0" },
+    { name = "pip", marker = "extra == 'dev'", specifier = ">=25.2" },
+    { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=4.5.0" },
+    { name = "pydantic", specifier = ">=2.10.6" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=9.0.2" },
+    { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=6.1.1" },
+    { name = "pytest-django", marker = "extra == 'dev'", specifier = ">=4.11.1" },
+    { name = "pytest-env", marker = "extra == 'dev'", specifier = ">=1.1.5" },
+    { name = "pytest-mypy-plugins", marker = "extra == 'dev'", specifier = ">=3.2.0" },
+    { name = "pytest-xdist", marker = "extra == 'dev'", specifier = ">=3.8.0" },
+    { name = "python-ffmpeg", specifier = ">=2.0.12" },
+    { name = "pyyaml", specifier = ">=6.0.2" },
+    { name = "requests", specifier = ">=2.32.3" },
+    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.14.8" },
+    { name = "scikit-learn", specifier = ">=1.8.0" },
+    { name = "scipy", specifier = ">=1.16.1" },
+    { name = "sphinx", marker = "extra == 'dev'", specifier = ">=8.2.3,<9.0" },
+    { name = "sphinx", marker = "extra == 'docs'", specifier = ">=8.2.3,<9.0" },
+    { name = "sphinx-autodoc-typehints", marker = "extra == 'dev'", specifier = ">=3.5.2" },
+    { name = "sphinx-autodoc-typehints", marker = "extra == 'docs'", specifier = ">=3.5.2" },
+    { name = "sphinx-copybutton", marker = "extra == 'dev'", specifier = ">=0.5.2" },
+    { name = "sphinx-copybutton", marker = "extra == 'docs'", specifier = ">=0.5.2" },
+    { name = "twine", marker = "extra == 'dev'", specifier = ">=6.2.0" },
+    { name = "types-pyyaml", specifier = ">=6.0.12.20250915" },
+]
+provides-extras = ["dev", "docs"]
 
 [[package]]
 name = "markdown-it-py"
@@ -4474,6 +4564,25 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/c8/9a/6ad1a9b37c2f72874f93e691b2e7ecb6137fb2b899983125db4204e47575/yarl-1.22.0-cp312-cp312-win_amd64.whl", hash = "sha256:8884d8b332a5e9b88e23f60bb166890009429391864c685e17bd73a9eda9105c", size = 87213, upload-time = "2025-10-06T14:10:11.369Z" },
     { url = "https://files.pythonhosted.org/packages/44/c5/c21b562d1680a77634d748e30c653c3ca918beb35555cff24986fff54598/yarl-1.22.0-cp312-cp312-win_arm64.whl", hash = "sha256:ea70f61a47f3cc93bdf8b2f368ed359ef02a01ca6393916bc8ff877427181e74", size = 81330, upload-time = "2025-10-06T14:10:13.112Z" },
     { url = "https://files.pythonhosted.org/packages/73/ae/b48f95715333080afb75a4504487cbe142cae1268afc482d06692d605ae6/yarl-1.22.0-py3-none-any.whl", hash = "sha256:1380560bdba02b6b6c90de54133c81c9f2a453dee9912fe58c1dcced1edb7cff", size = 46814, upload-time = "2025-10-06T14:12:53.872Z" },
+]
+
+[[package]]
+name = "ziglang"
+version = "0.15.2"
+source = { registry = "https://pypi.org/simple" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d7/2e/42c49a5b539a595ff5f2293de0bd339636875e44b4c69f51470bdf1d599d/ziglang-0.15.2-py3-none-macosx_12_0_arm64.whl", hash = "sha256:acae2a9ce67ed249ad68d42c21bc73b5f9d51a33ba5ea42f609f78683e8d9bb7", size = 92993702, upload-time = "2025-11-10T06:23:24.805Z" },
+    { url = "https://files.pythonhosted.org/packages/c4/c7/151df628321266a38da133d481c5e929bd36d9d0424e8c2b7a9c4964c172/ziglang-0.15.2-py3-none-macosx_12_0_x86_64.whl", hash = "sha256:47af4f85e3e59bd672126cc026d3a01b516cad24b9a9ea075abfe8532f4c6bc1", size = 97049112, upload-time = "2026-01-29T09:44:04.612Z" },
+    { url = "https://files.pythonhosted.org/packages/0a/13/006c26f2dc7510385dc549eb44983402e4539519d48567d9a6b0ae71adc7/ziglang-0.15.2-py3-none-manylinux_2_12_i686.manylinux2010_i686.musllinux_1_1_i686.whl", hash = "sha256:04eb9c4135ef431487b920c73312cd3a5e754019839024eeed3521772d1585a2", size = 97299386, upload-time = "2026-01-29T09:44:21.973Z" },
+    { url = "https://files.pythonhosted.org/packages/db/81/f9f5c7fd68d80b8edff2a641a1c95ac4125356387d298374227040b8e1e8/ziglang-0.15.2-py3-none-manylinux_2_12_x86_64.manylinux2010_x86_64.musllinux_1_1_x86_64.whl", hash = "sha256:806316453d1ede7174ed3fefb8e5348154629089c3bb5fe812dfd0e172fac130", size = 93508126, upload-time = "2026-01-29T09:44:41.936Z" },
+    { url = "https://files.pythonhosted.org/packages/53/7d/8c277208250ffa72f12a10f52dfc1d45850f08244093065b40c5f4628260/ziglang-0.15.2-py3-none-manylinux_2_17_aarch64.manylinux2014_aarch64.musllinux_1_1_aarch64.whl", hash = "sha256:edc0aa60ec964a4cf462d40f68d7de242ddf37fd9a80f2afaee6397059463230", size = 90542084, upload-time = "2026-01-29T09:45:00.806Z" },
+    { url = "https://files.pythonhosted.org/packages/cf/ba/b85879ff883f152e2278852d3f8af37924badefaabb38d89e62a5d066b40/ziglang-0.15.2-py3-none-manylinux_2_17_armv7l.manylinux2014_armv7l.musllinux_1_1_armv7l.whl", hash = "sha256:ad43a4692311512ab55cc918596c814ff44fb811b1299fa9a57cc4e2bf315c6b", size = 91550707, upload-time = "2026-01-29T09:45:22.725Z" },
+    { url = "https://files.pythonhosted.org/packages/57/ef/09d2baf722521d3878b8e17d3ee6271f02c7ef7ec398bbd059fa6466a5e6/ziglang-0.15.2-py3-none-manylinux_2_17_ppc64le.manylinux2014_ppc64le.musllinux_1_1_ppc64le.whl", hash = "sha256:85faefbd4cfe420de92aaa8f8300bec2b9afe8d1f1d8c5abf71bf92754682536", size = 99943068, upload-time = "2026-01-29T09:45:42.651Z" },
+    { url = "https://files.pythonhosted.org/packages/7b/5d/5690870969ed52501deaa4c722c476279a00d2c034ef7f82cf778507c3fd/ziglang-0.15.2-py3-none-manylinux_2_17_s390x.manylinux2014_s390x.musllinux_1_1_s390x.whl", hash = "sha256:978ebcc3c6c9624cbc999dd8dcb65427e7474650d9709a889aace8e325705ce2", size = 99561757, upload-time = "2026-01-29T09:46:03.149Z" },
+    { url = "https://files.pythonhosted.org/packages/b5/da/2e6655300a3174bd6299c06da577b0cb14685058d9b00b61042cf9d9e38b/ziglang-0.15.2-py3-none-manylinux_2_31_riscv64.musllinux_1_1_riscv64.whl", hash = "sha256:d3fe40825e18238e986b305cbf3a4d93a50461b893339e31c81b0d6c73f33937", size = 94112157, upload-time = "2026-01-29T09:46:24.268Z" },
+    { url = "https://files.pythonhosted.org/packages/57/04/e54964be82dce7b9a5708a8a5f345d373bc78c558c0712e6e356593292ec/ziglang-0.15.2-py3-none-win32.whl", hash = "sha256:b174f7ebb9d1f2210d32d1420333120f6117ebee3de8b3e221e6ebb0c3beec4b", size = 96136271, upload-time = "2026-01-29T09:46:47.975Z" },
+    { url = "https://files.pythonhosted.org/packages/b9/6b/8ab0853a312108b4089747486366b824b5da89773cb56f661f9994de17db/ziglang-0.15.2-py3-none-win_amd64.whl", hash = "sha256:ca80dc9c70dbdfdd9ee51d000de3501a95d33d9782ab9ab9b56f700484ebcd83", size = 94052409, upload-time = "2026-01-29T09:47:02.419Z" },
+    { url = "https://files.pythonhosted.org/packages/1e/b4/dec7e1b867ce3640f9bba9204f8ea658f6ca5161350e92b76bf17aeffb9b/ziglang-0.15.2-py3-none-win_arm64.whl", hash = "sha256:a81ebfc61e1b7aa43a33add23f93b98954d757434f894eb21bd40b176b6688aa", size = 89688080, upload-time = "2026-01-29T09:47:20.903Z" },
 ]
 
 [[package]]

@@ -97,7 +97,11 @@ function mountComponent() {
     },
     global: {
       stubs: {
-        RouterLink: { template: '<a><slot /></a>' },
+        RouterLink: {
+          props: ['to'],
+          template:
+            '<a :data-to="typeof to === \'string\' ? to : JSON.stringify(to)"><slot /></a>'
+        },
         OutsideTimelineComponent: true
       }
     }
@@ -218,5 +222,22 @@ describe('AnonymizationValidationComponent', () => {
       text: 'PDF validiert. Patientenfall 42 wurde automatisch zugeordnet und im Berichtseditor geöffnet.'
     })
     expect(hoisted.routerPush).toHaveBeenCalledWith('/reporting/42/report-editor')
+  })
+
+  it('links unresolved validation into case resolution with a return path to validation', async () => {
+    const wrapper = mountComponent()
+    await flushPromises()
+
+    const resolutionLink = wrapper
+      .findAll('a')
+      .find((link) => link.text().includes('Fallauflösung öffnen'))
+    expect(resolutionLink).toBeTruthy()
+    expect(JSON.parse(resolutionLink!.attributes('data-to')!)).toEqual({
+      path: '/reporting/case-resolution',
+      query: {
+        preferredExamination: 'colonoscopy',
+        returnTo: '/anonymisierung/validierung?fileId=5&mediaType=pdf'
+      }
+    })
   })
 })

@@ -500,6 +500,14 @@ export async function validateReportTemplateRuntime(moduleName, templateName, pa
     }
     return normalized;
 }
+export async function validateReportTemplateRuntimeFromLedger(moduleName, templateName, patientExaminationId) {
+    const response = await axiosInstance.post(`${REPORT_TEMPLATE_BASE}/${encodeURIComponent(moduleName)}/${encodeURIComponent(templateName)}/validate-from-ledger/${encodeURIComponent(String(patientExaminationId))}`);
+    const normalized = normalizeRuntimeValidationResult(response.data);
+    if (!normalized) {
+        throw new Error('Ungültiges Runtime-Validierungsergebnis.');
+    }
+    return normalized;
+}
 function findClassificationDefinition(findingClassifications, classificationId) {
     return findingClassifications.find((entry) => entry.id === classificationId) || null;
 }
@@ -644,6 +652,20 @@ async function buildRuntimeValidationFindings(patientExaminationId, getFindingBy
     return findingsPayload;
 }
 export async function validatePatientFindingsAgainstTemplate(params) {
+    try {
+        return await validateReportTemplateRuntimeFromLedger(params.moduleName, params.templateName, params.patientExaminationId);
+    }
+    catch (error) {
+        const status = Number(error?.response?.status || 0);
+        const detail = String(error?.response?.data?.detail || '')
+            .trim()
+            .toLowerCase();
+        const isGenericNotFound = status === 404 && (!detail || detail === 'not found' || detail === 'not found.');
+        const fallbackAllowed = isGenericNotFound || status === 405 || status === 501 || status >= 500;
+        if (!fallbackAllowed) {
+            throw error;
+        }
+    }
     const template = await fetchReportTemplateByName(params.moduleName, params.templateName);
     const patientFindings = await buildRuntimeValidationFindings(params.patientExaminationId, params.getFindingById);
     return validateReportTemplateRuntime(params.moduleName, params.templateName, {

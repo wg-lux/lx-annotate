@@ -221,9 +221,8 @@ def test_settings_dev_import_uses_static_vite_manifest_and_allow_any(monkeypatch
     monkeypatch.setenv("ENFORCE_AUTH", "0")
     module = _fresh_import("lx_annotate.settings.settings_dev")
 
-    assert module.DJANGO_VITE["default"]["manifest_path"].endswith(
-        os.path.join("static", ".vite", "manifest.json")
-    )
+    manifest_path = Path(module.DJANGO_VITE["default"]["manifest_path"])
+    assert manifest_path == Path(module.STATIC_ROOT) / ".vite" / "manifest.json"
     assert module.REST_FRAMEWORK["DEFAULT_PERMISSION_CLASSES"] == [
         "rest_framework.permissions.AllowAny"
     ]

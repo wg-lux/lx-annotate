@@ -16,17 +16,17 @@
 
     <div class="row">
       <div class="col-12">
-        <h1>Video-Untersuchung Annotation</h1>
-        <p>Annotieren Sie Untersuchungen während der Videobetrachtung</p>
+        <h1>Video-Untersuchung</h1>
+        <p>Wählen Sie ein Video aus, prüfen Sie die Segmente und setzen Sie die Befundung im nächsten Schritt fort.</p>
       </div>
     </div>
 
     <div class="row">
       <!-- Video Player Section -->
       <div class="col-lg-12">
-        <div class="card">
+          <div class="card">
           <div class="card-header pb-0">
-            <h5 class="mb-0">Video Player</h5>
+            <h5 class="mb-0">Videoansicht</h5>
           </div>
           <div class="card-body">
             <!-- Video Selection -->
@@ -65,13 +65,12 @@
                         :class="video.segmentAnnotationsValidated ? 'badge-validated' : 'badge-pending'"
                       >
                         <i class="fas me-1" :class="video.segmentAnnotationsValidated ? 'fa-check-double' : 'fa-hourglass-half'"></i>
-                        {{ video.segmentAnnotationsValidated ? 'Validiert (Outside entfernt)' : 'Validierung offen' }}
+                        {{ video.segmentAnnotationsValidated ? 'Validiert' : 'Validierung offen' }}
                       </span>
                     </div>
                     <div class="video-dropdown-meta">
                       <span>{{ getVideoStatusIndicator(video.id) }}</span>
                       <span>| Center: {{ video.centerName || 'Unbekannt' }}</span>
-                      <span>| Processor: {{ video.processorName || 'Unbekannt' }}</span>
                       <span>| Geschlecht: {{ getVideoPatientGender(video.id) }}</span>
                       <span>| Alter: {{ getVideoPatientAgeLabel(video.id) }}</span>
                     </div>
@@ -124,9 +123,7 @@
                   <i class="fas fa-info-circle me-2"></i>
                   <div class="text-start">
                     <strong>Video {{ selectedVideoId }}:</strong> {{ getVideoStatusIndicator(selectedVideoId) }}<br>
-                    <small class="text-muted">
-                      Stream-URL: {{ anonymizedVideoSrc || 'Wird geladen...' }}
-                    </small>
+                    <small class="text-muted">Die Ansicht wird vorbereitet.</small>
                   </div>
                 </div>
               </div>
@@ -222,7 +219,6 @@
                   </div>
                   <div class="col-md-4 text-md-end">
                     <small class="text-muted d-block">Center: {{ annotatableVideos.find(v => v.id === selectedVideoId)?.centerName || 'Unbekannt' }}</small>
-                    <small class="text-muted d-block">Processor: {{ annotatableVideos.find(v => v.id === selectedVideoId)?.processorName || 'Unbekannt' }}</small>
                     <small class="text-muted d-block">Dauer: {{ formatTime(duration) }}</small>
                   </div>
                 </div>
@@ -311,17 +307,6 @@
                 >
                 </div>
               </div>
-            </div>
-
-            <!-- Debug-Info für Timeline -->
-            <div v-if="duration > 0" class="debug-info mt-2">
-              <small class="text-muted">
-                Timeline Debug: {{ timelineSegmentsForSelectedVideo.length }} video-spezifische Segmente | 
-                {{ rawSegments.length }} total Segmente | 
-                Duration: {{ formatTime(duration) }} | 
-                Playing: {{ isPlaying }} |
-                Store: {{ Object.keys(groupedSegments).length }} Labels
-              </small>
             </div>
 
             <!-- Timeline Controls -->
@@ -454,21 +439,20 @@
             <div class="mt-2" v-if="selectedVideoId">
               <div class="alert alert-info alert-sm mb-0">
                 <i class="fas fa-info-circle me-1"></i>
-                <strong>Video {{ selectedVideoId }}:</strong> 
-                Die eigentliche Befundung laeuft jetzt zentral ueber den Reporting-Flow.
+                <strong>Video {{ selectedVideoId }}:</strong>
+                Die klinische Befundung erfolgt im nächsten Schritt.
               </div>
             </div>
           </div>
           <div class="card-body">
             <div class="text-center text-muted py-5 px-3">
               <i class="fas fa-route fa-3x mb-3 text-muted"></i>
-              <h6>Zentraler Reporting-Einstieg</h6>
+              <h6>Befundung fortsetzen</h6>
               <p class="mb-3">
-                Um doppelte Entwuerfe zu vermeiden, startet die Untersuchungsdokumentation nicht mehr eingebettet in
-                der Video-Ansicht.
+                Wechseln Sie zur Befundung, um den Fall weiter zu bearbeiten und den Bericht zu vervollständigen.
               </p>
               <p class="small text-muted mb-4">
-                Waehlen Sie den Patientenfall im Reporting-Fall-Setup und setzen Sie die Befundung dort fort.
+                Öffnen Sie dort den passenden Patientenfall und führen Sie die Dokumentation weiter.
               </p>
               <RouterLink class="btn btn-primary" to="/reporting/case-setup">
                 Zur Befundung wechseln
@@ -868,11 +852,6 @@ const timelineSegmentsForSelectedVideo = computed<Segment[]>(() => {
 
   return rawSegments.value
     .filter(s => s.videoID === selectedVideoId.value)
-})
-
-
-const groupedSegments = computed(() => {
-  return videoStore.segmentsByLabel
 })
 
 const canStartLabeling = computed(() => {
@@ -1745,14 +1724,6 @@ const isVideoValidated = (videoId: number): boolean => {
 
 .control-button {
   min-width: 140px;
-}
-
-.debug-info {
-  font-family: 'Courier New', monospace;
-  background: #f8f9fa;
-  padding: 8px;
-  border-radius: 4px;
-  border: 1px solid #e9ecef;
 }
 
 .list-group-item {

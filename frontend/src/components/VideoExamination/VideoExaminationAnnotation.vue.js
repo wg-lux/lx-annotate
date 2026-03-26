@@ -275,9 +275,6 @@ const timelineSegmentsForSelectedVideo = computed(() => {
     return rawSegments.value
         .filter(s => s.videoID === selectedVideoId.value);
 });
-const groupedSegments = computed(() => {
-    return videoStore.segmentsByLabel;
-});
 const canStartLabeling = computed(() => {
     return selectedVideoId.value &&
         (videoDetail.value?.video_url || anonymizedVideoSrc.value) &&
@@ -1097,7 +1094,7 @@ if (__VLS_ctx.isVideoDropdownOpen && __VLS_ctx.hasVideos) {
             ...{ class: "fas me-1" },
             ...{ class: (video.segmentAnnotationsValidated ? 'fa-check-double' : 'fa-hourglass-half') },
         });
-        (video.segmentAnnotationsValidated ? 'Validiert (Outside entfernt)' : 'Validierung offen');
+        (video.segmentAnnotationsValidated ? 'Validiert' : 'Validierung offen');
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: "video-dropdown-meta" },
         });
@@ -1105,8 +1102,6 @@ if (__VLS_ctx.isVideoDropdownOpen && __VLS_ctx.hasVideos) {
         (__VLS_ctx.getVideoStatusIndicator(video.id));
         __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
         (video.centerName || 'Unbekannt');
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
-        (video.processorName || 'Unbekannt');
         __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
         (__VLS_ctx.getVideoPatientGender(video.id));
         __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
@@ -1195,7 +1190,6 @@ if (!__VLS_ctx.anonymizedVideoSrc && __VLS_ctx.hasVideos) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
             ...{ class: "text-muted" },
         });
-        (__VLS_ctx.anonymizedVideoSrc || 'Wird geladen...');
     }
 }
 if (!__VLS_ctx.hasVideos) {
@@ -1334,10 +1328,6 @@ if (__VLS_ctx.anonymizedVideoSrc) {
             ...{ class: "text-muted d-block" },
         });
         (__VLS_ctx.annotatableVideos.find(v => v.id === __VLS_ctx.selectedVideoId)?.centerName || 'Unbekannt');
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
-            ...{ class: "text-muted d-block" },
-        });
-        (__VLS_ctx.annotatableVideos.find(v => v.id === __VLS_ctx.selectedVideoId)?.processorName || 'Unbekannt');
         __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
             ...{ class: "text-muted d-block" },
         });
@@ -1483,19 +1473,6 @@ if (__VLS_ctx.duration > 0) {
                 title: (`Untersuchung bei ${__VLS_ctx.formatTime(marker.timestamp)}`),
             });
         }
-    }
-    if (__VLS_ctx.duration > 0) {
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: "debug-info mt-2" },
-        });
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
-            ...{ class: "text-muted" },
-        });
-        (__VLS_ctx.timelineSegmentsForSelectedVideo.length);
-        (__VLS_ctx.rawSegments.length);
-        (__VLS_ctx.formatTime(__VLS_ctx.duration));
-        (__VLS_ctx.isPlaying);
-        (Object.keys(__VLS_ctx.groupedSegments).length);
     }
     if (__VLS_ctx.selectedVideoId) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -1919,8 +1896,6 @@ if (__VLS_ctx.savedExaminations.length > 0) {
 /** @type {__VLS_StyleScopedClasses['d-block']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['d-block']} */ ;
-/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
-/** @type {__VLS_StyleScopedClasses['d-block']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-primary']} */ ;
 /** @type {__VLS_StyleScopedClasses['timeline-wrapper']} */ ;
@@ -1942,9 +1917,6 @@ if (__VLS_ctx.savedExaminations.length > 0) {
 /** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['progress-bar']} */ ;
 /** @type {__VLS_StyleScopedClasses['examination-marker']} */ ;
-/** @type {__VLS_StyleScopedClasses['debug-info']} */ ;
-/** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
-/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['timeline-controls']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-4']} */ ;
 /** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
@@ -2082,7 +2054,6 @@ const __VLS_self = (await import('vue')).defineComponent({
             getTranslationForLabel: getTranslationForLabel,
             videoStore: videoStore,
             videos: videos,
-            rawSegments: rawSegments,
             overview: overview,
             timelineLabels: timelineLabels,
             isAnnotationFinished: isAnnotationFinished,
@@ -2120,7 +2091,6 @@ const __VLS_self = (await import('vue')).defineComponent({
             hasVideos: hasVideos,
             noVideosMessage: noVideosMessage,
             timelineSegmentsForSelectedVideo: timelineSegmentsForSelectedVideo,
-            groupedSegments: groupedSegments,
             canStartLabeling: canStartLabeling,
             clearErrorMessage: clearErrorMessage,
             clearSuccessMessage: clearSuccessMessage,
