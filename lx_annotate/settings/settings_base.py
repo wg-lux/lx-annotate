@@ -149,6 +149,7 @@ INSTALLED_APPS = [
     "whitenoise",
     "drf_spectacular",
     "modeltranslation",
+    "ninja",
 ]
 
 # lx_dtypes may evaluate parameterized field hints at runtime

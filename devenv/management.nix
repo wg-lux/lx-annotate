@@ -21,6 +21,7 @@ let
     ${repoRootSetup}
     BUILD_PATH="$(${pkgs.nix}/bin/nix build ./frontend#frontend --no-link --print-out-paths)"
     mkdir -p staticfiles
+    chmod -r 700 staticfiles/
     cp -r "$BUILD_PATH/dist/." staticfiles/
   '';
   verifyViteArtifactsExec = ''

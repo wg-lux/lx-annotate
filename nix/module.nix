@@ -86,7 +86,6 @@ in
           DJANGO_SETTINGS_MODULE = cfg.settingsModule;
           LX_ANNOTATE_DATA_DIR = cfg.dataDir;
           XDG_DATA_HOME = cfg.dataDir;
-          WORKING_DIR = cfg.dataDir;
           ENFORCE_AUTH = "0";
         }
         // cfg.extraEnv;
