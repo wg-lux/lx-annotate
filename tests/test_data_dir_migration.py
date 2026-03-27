@@ -105,6 +105,51 @@ def test_migrate_data_dir_refuses_split_state_by_default(tmp_path):
     assert "both source and target contain data" in result.stderr
 
 
+def test_migrate_data_dir_allows_dedicated_data_target_under_nonempty_state_root(
+    tmp_path,
+):
+    repo_root = tmp_path / "repo"
+    source_data = repo_root / "data"
+    state_root = tmp_path / "var" / "lib" / "lx-annotate"
+    target_data = state_root / "data"
+
+    source_data.mkdir(parents=True)
+    (source_data / "reports").mkdir()
+    (source_data / "reports" / "example.txt").write_text("payload", encoding="utf-8")
+
+    # Mirror deployment layout where /var/lib/lx-annotate already contains
+    # runtime state that is not part of the data migration target.
+    (state_root / "staticfiles" / ".vite").mkdir(parents=True)
+    (state_root / "ssl").mkdir(parents=True)
+    (state_root / ".env.systemd").write_text(
+        "DJANGO_ENV=production\n", encoding="utf-8"
+    )
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT_PATH),
+            "--repo-root",
+            str(repo_root),
+            "--target",
+            str(target_data),
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert (target_data / "reports" / "example.txt").read_text(
+        encoding="utf-8"
+    ) == "payload"
+    assert (state_root / "staticfiles" / ".vite").is_dir()
+    assert (state_root / "ssl").is_dir()
+    assert (repo_root / "data").exists() is False
+    backup_dirs = sorted(repo_root.glob("data.migration-backup-*"))
+    assert len(backup_dirs) == 1
+
+
 def test_migrate_data_dir_fails_when_target_has_insufficient_space(
     tmp_path, monkeypatch
 ):

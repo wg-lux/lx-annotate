@@ -123,6 +123,23 @@ def test_local_luxnix_service_uses_single_devenv_environment():
     assert "source .venv/bin/activate" in service_nix
 
 
+@pytest.mark.skipif(
+    not LUXNIX_SERVICE_MODULE.exists(),
+    reason="local luxnix service module not available in this environment",
+)
+def test_local_luxnix_service_keeps_repo_visible_static_root_and_var_lib_runtime_state():
+    service_nix = LUXNIX_SERVICE_MODULE.read_text(encoding="utf-8")
+
+    assert 'runtimeDataRootPath = "/var/lib/lx-annotate/data";' in service_nix
+    assert 'runtimeStaticRootPath = "/var/lib/lx-annotate/staticfiles";' in service_nix
+    assert "djangoStaticRootPath = repoStaticRootPath;" in service_nix
+    assert "envDataDir = runtimeDataRootPath;" in service_nix
+    assert 'StateDirectory = "lx-annotate";' in service_nix
+    assert "DJANGO_STATIC_ROOT=${djangoStaticRootPath}" in service_nix
+    assert "ln -sfn ${staticRootPath} ${repoStaticRootPath}" in service_nix
+    assert 'alias = "${djangoStaticRootPath}/";' in service_nix
+
+
 def test_base_template_has_single_vite_asset_tag_and_no_global_labelstudio_script():
     template = _read("lx_annotate/templates/base.html")
 
