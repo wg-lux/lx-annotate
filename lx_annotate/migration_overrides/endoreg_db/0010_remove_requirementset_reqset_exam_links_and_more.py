@@ -6,11 +6,41 @@ from django.db import migrations, models
 from django.utils.text import slugify
 
 
-def populate_center_keys(apps, schema_editor) -> None:
+def _add_center_key_if_missing(apps, schema_editor) -> None:
+    Center = apps.get_model("endoreg_db", "Center")
+    table_name = Center._meta.db_table
+
+    with schema_editor.connection.cursor() as cursor:
+        columns = {
+            column.name
+            for column in schema_editor.connection.introspection.get_table_description(
+                cursor, table_name
+            )
+        }
+
+    if "center_key" in columns:
+        return
+
+    field = models.CharField(blank=True, default="", max_length=255)  # type: ignore
+    field.set_attributes_from_name("center_key")
+    field.model = Center
+    schema_editor.add_field(Center, field)
+
+
+def populate_missing_center_keys(apps, schema_editor) -> None:
     Center = apps.get_model("endoreg_db", "Center")
     used_keys: set[str] = set()
 
     for center in Center.objects.all().order_by("pk"):
+        existing_key = (getattr(center, "center_key", "") or "").strip()
+        if existing_key:
+            used_keys.add(existing_key)
+
+    for center in Center.objects.all().order_by("pk"):
+        existing_key = (getattr(center, "center_key", "") or "").strip()
+        if existing_key:
+            continue
+
         base = slugify(center.display_name or center.name or "") or "center"
         candidate = base
         suffix = 2
@@ -29,13 +59,23 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.AddField(
-            model_name="center",
-            name="center_key",
-            field=models.CharField(blank=True, default="", max_length=255),
-            preserve_default=False,
+        migrations.SeparateDatabaseAndState(
+            database_operations=[
+                migrations.RunPython(
+                    _add_center_key_if_missing,
+                    reverse_code=migrations.RunPython.noop,
+                ),
+            ],
+            state_operations=[
+                migrations.AddField(
+                    model_name="center",
+                    name="center_key",
+                    field=models.CharField(blank=True, default="", max_length=255),
+                    preserve_default=False,
+                ),
+            ],
         ),
-        migrations.RunPython(populate_center_keys, migrations.RunPython.noop),
+        migrations.RunPython(populate_missing_center_keys, migrations.RunPython.noop),
         migrations.AlterField(
             model_name="center",
             name="center_key",
