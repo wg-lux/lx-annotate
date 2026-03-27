@@ -6,6 +6,7 @@ import pytest
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+# Optionally read values froma ctual luxnix on luxnix machines
 LUXNIX_SERVICE_MODULE = Path(
     "/home/admin/luxnix/modules/nixos/services/lx-annotate-local/default.nix"
 )
