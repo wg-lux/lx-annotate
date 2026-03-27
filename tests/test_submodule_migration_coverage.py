@@ -110,10 +110,6 @@ def test_urls_import_mounts_base_api_when_submodule_contracts_match(
             "endoreg_db.migrations.0007_pdfprocessinghistory",
         ),
         (
-            "0011_hub_ingest_metadata.py",
-            "endoreg_db.migrations.0011_hub_ingest_metadata",
-        ),
-        (
             "0012_networknode_transferjob.py",
             "endoreg_db.migrations.0012_networknode_transferjob",
         ),
