@@ -53,6 +53,7 @@ django.setup()
 
 # Import Django models and services after setup
 from endoreg_db.models import Center, EndoscopyProcessor
+from endoreg_db.services.hub import process_preanonymized_watcher_file
 from endoreg_db.services.report_import import ReportImportService
 from endoreg_db.services.video_import import VideoImportService
 from endoreg_db.utils.paths import data_paths
@@ -156,16 +157,20 @@ class AutoProcessingHandler(FileSystemEventHandler):
         self.files_lock = threading.Lock()
         self.video_extensions = {'.mp4', '.avi', '.mov', '.mkv', '.webm', '.m4v'}
         self.report_extensions = {'.pdf'}
+        self.pseudonymized_extensions = {'.pdf', '.mp4'}
         
         self.default_center = "university_hospital_wuerzburg"
         self.default_processor = "olympus_cv_1500"
         self.default_model = "image_multilabel_classification_colonoscopy_default"
         
         self.executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="FileProcessor")
+        self.pseudonymized_dir = data_paths["import_preanonymized"].resolve()
         
         logger.info("AutoProcessingHandler initialized")
         logger.info(f"Monitoring video extensions: {self.video_extensions}")
         logger.info(f"Monitoring report extensions: {self.report_extensions}")
+        logger.info(f"Monitoring pseudonymized extensions: {self.pseudonymized_extensions}")
+        logger.info(f"Pseudonymized intake directory: {self.pseudonymized_dir}")
 
     def dispatch(self, event):
         """Filter out noisy events to reduce CPU load."""
@@ -284,6 +289,9 @@ class AutoProcessingHandler(FileSystemEventHandler):
             elif parent_dir == data_paths["import_report"].resolve() and file_extension in self.report_extensions:
                 logger.info(f"New report detected: {path}")
                 self._process_report(path)
+            elif parent_dir == self.pseudonymized_dir and file_extension in self.pseudonymized_extensions:
+                logger.info(f"New pseudonymized file detected: {path}")
+                self._process_pseudonymized(path)
             else:
                 logger.debug(f"Ignoring file (wrong type/location): {path}")
                 
@@ -507,6 +515,26 @@ class AutoProcessingHandler(FileSystemEventHandler):
             logger.error(f"Error processing report {report_path}: {str(e)}", exc_info=True)
             self._unmark_processed(str(report_path))
             return
+
+    def _process_pseudonymized(self, file_path: Path):
+        """
+        Process a pre-anonymized file via the shared hub ingest path.
+
+        Args:
+            file_path: Path to the pseudonymized pdf or video file
+        """
+        try:
+            logger.info(f"Starting pseudonymized processing: {file_path}")
+            self._mark_processed(str(file_path))
+            process_preanonymized_watcher_file(file_path=file_path)
+            logger.info(f"Pseudonymized processing completed: {file_path}")
+        except Exception as e:
+            logger.error(
+                f"Error processing pseudonymized file {file_path}: {str(e)}",
+                exc_info=True,
+            )
+            self._unmark_processed(str(file_path))
+            return
                 
     def shutdown(self):
         """Shutdown the thread pool executor."""
@@ -527,13 +555,16 @@ class FileWatcherService:
         # Define watched directories
         self.video_dir = data_paths["import_video"].resolve()
         self.report_dir = data_paths["import_report"].resolve()
+        self.pseudonymized_dir = self.handler.pseudonymized_dir
         
         # Ensure directories exist
         self.video_dir.mkdir(parents=True, exist_ok=True)
         self.report_dir.mkdir(parents=True, exist_ok=True)
+        self.pseudonymized_dir.mkdir(parents=True, exist_ok=True)
         
         logger.info(f"Video directory: {self.video_dir}")
         logger.info(f"report directory: {self.report_dir}")
+        logger.info(f"Pseudonymized directory: {self.pseudonymized_dir}")
         logger.info(f"Using observer: {type(self.observer).__name__}")
 
     def start(self):
@@ -554,12 +585,19 @@ class FileWatcherService:
                 str(self.report_dir),
                 recursive=False
             )
+
+            self.observer.schedule(
+                self.handler,
+                str(self.pseudonymized_dir),
+                recursive=False
+            )
             
             # Start observer
             self.observer.start()
             logger.info("File watcher service started successfully")
             logger.info(f"Monitoring: {self.video_dir}")
             logger.info(f"Monitoring: {self.report_dir}")
+            logger.info(f"Monitoring: {self.pseudonymized_dir}")
             
             # Process any existing files on startup (in background)
             self.handler.executor.submit(self._process_existing_files)
@@ -620,6 +658,15 @@ class FileWatcherService:
             if report_file.is_file() and report_file.suffix.lower() in self.handler.report_extensions:
                 logger.info(f"Processing existing report: {report_file}")
                 self.handler._process_file(str(report_file))
+
+        # Process existing pseudonymized files
+        for pseudonymized_file in self.pseudonymized_dir.glob('*'):
+            if (
+                pseudonymized_file.is_file()
+                and pseudonymized_file.suffix.lower() in self.handler.pseudonymized_extensions
+            ):
+                logger.info(f"Processing existing pseudonymized file: {pseudonymized_file}")
+                self.handler._process_file(str(pseudonymized_file))
         
         logger.info("Existing files processing completed")
 
@@ -637,6 +684,11 @@ class FileWatcherService:
             self.observer.schedule(
                 self.handler,
                 str(self.report_dir),
+                recursive=False
+            )
+            self.observer.schedule(
+                self.handler,
+                str(self.pseudonymized_dir),
                 recursive=False
             )
             self.observer.start()

@@ -33,6 +33,46 @@ print_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
+bootstrap_path_env() {
+    export DATA_DIR="${DATA_DIR:-${LX_ANNOTATE_DATA_DIR:-$HOME_DIR/data}}"
+    export STORAGE_DIR="${STORAGE_DIR:-$DATA_DIR}"
+    export IO_DIR="${IO_DIR:-$DATA_DIR}"
+}
+
+bootstrap_pythonpath() {
+    export PYTHONPATH="$HOME_DIR/libs/endoreg-db:$HOME_DIR${PYTHONPATH:+:$PYTHONPATH}"
+}
+
+resolve_ingest_directories() {
+    if python - <<'PY' >/dev/null 2>&1
+from endoreg_db.utils.paths import IMPORT_PREANONYMIZED_DIR
+PY
+    then
+        python - <<'PY'
+from endoreg_db.utils.paths import (
+    IMPORT_PREANONYMIZED_DIR,
+    IMPORT_REPORT_DIR,
+    IMPORT_VIDEO_DIR,
+)
+
+for path in (IMPORT_VIDEO_DIR, IMPORT_REPORT_DIR, IMPORT_PREANONYMIZED_DIR):
+    print(path)
+PY
+        return
+    fi
+
+    python manage.py shell -c '
+from endoreg_db.utils.paths import (
+    IMPORT_PREANONYMIZED_DIR,
+    IMPORT_REPORT_DIR,
+    IMPORT_VIDEO_DIR,
+)
+
+for path in (IMPORT_VIDEO_DIR, IMPORT_REPORT_DIR, IMPORT_PREANONYMIZED_DIR):
+    print(path)
+'
+}
+
 # Check if running as root for service installation
 check_root() {
     if [[ $EUID -eq 0 ]]; then
@@ -61,14 +101,23 @@ install_dependencies() {
 
 # Create required directories
 create_directories() {
-    print_status "Creating required directories..."
-    mkdir -p "$HOME_DIR/data/import/video_import"
-    mkdir -p "$HOME_DIR/data/import/report_import"
+    print_status "Creating required directories from endoreg_db.utils.paths..."
+    bootstrap_path_env
+    bootstrap_pythonpath
+
+    mapfile -t ingest_dirs < <(
+        resolve_ingest_directories
+    )
+
+    for ingest_dir in "${ingest_dirs[@]}"; do
+        mkdir -p "$ingest_dir"
+    done
     mkdir -p "$HOME_DIR/logs"
     
     print_status "Directories created:"
-    echo "  - $HOME_DIR/data/import/video_import"
-    echo "  - $HOME_DIR/data/import/report_import"
+    for ingest_dir in "${ingest_dirs[@]}"; do
+        echo "  - $ingest_dir"
+    done
     echo "  - $HOME_DIR/logs"
 }
 
@@ -76,9 +125,8 @@ create_directories() {
 test_watcher() {
     print_status "Testing file watcher..."
     cd "$HOME_DIR"
-    
-    # Set environment variables
-    export PYTHONPATH="$HOME_DIR"
+    bootstrap_path_env
+    bootstrap_pythonpath
     
     # Test import by running the file watcher with test mode
     python scripts/file_watcher.py --help > /dev/null 2>&1
@@ -138,7 +186,8 @@ start_dev() {
 
     export DJANGO_SETTINGS_MODULE=lx_annotate.settings.settings_dev
     export WATCHER_LOG_LEVEL=DEBUG
-    export PYTHONPATH="$HOME_DIR"
+    bootstrap_path_env
+    bootstrap_pythonpath
 
     print_status "Starting internal file watcher..."
     python scripts/file_watcher.py
