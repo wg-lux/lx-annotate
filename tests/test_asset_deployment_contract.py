@@ -75,6 +75,7 @@ def test_django_vite_manifest_paths_match_static_root_contract(monkeypatch):
 
 def test_runtime_guard_checks_manifest_and_entry_file_in_static_root():
     management_nix = _read("devenv/management.nix")
+    vue_tasks = _read("devenv/devTasks/vue.nix")
 
     assert (
         "static_root=\"''${DJANGO_STATIC_ROOT:-$REPO_ROOT/staticfiles}\""
@@ -83,6 +84,15 @@ def test_runtime_guard_checks_manifest_and_entry_file_in_static_root():
     assert "DJANGO_STATIC_ROOT must not point to $REPO_ROOT/static" in management_nix
     assert 'manifest="$static_root/.vite/manifest.json"' in management_nix
     assert 'asset_path="$static_root/$entry_file"' in management_nix
+    assert "devenv tasks run vue:build" in management_nix
+    assert 'if [ -L "$static_root" ]; then' in vue_tasks
+    assert 'static_root="$(readlink -f "$static_root")"' in vue_tasks
+    assert 'if [ -L "$static_root" ]; then' in management_nix
+    assert (
+        'staged_static_root="$(mktemp -d "$static_root_parent/.lx-annotate-static.XXXXXX")"'
+        in vue_tasks
+    )
+    assert 'mv "$staged_static_root" "$static_root"' in vue_tasks
 
 
 def test_devenv_shell_pins_uv_to_devenv_state_venv():

@@ -4,11 +4,35 @@ let
       set -euo pipefail
       REPO_ROOT="''${WORKING_DIR:-$(pwd)}"
       cd "$REPO_ROOT"
+      static_root="''${DJANGO_STATIC_ROOT:-$REPO_ROOT/staticfiles}"
+      if [ "''${static_root%/}" = "$REPO_ROOT/static" ]; then
+        echo "Misconfigured DJANGO_STATIC_ROOT: $static_root" >&2
+        echo "DJANGO_STATIC_ROOT must not point to $REPO_ROOT/static (Vite source assets)." >&2
+        exit 1
+      fi
+      if [ -L "$static_root" ]; then
+        static_root="$(readlink -f "$static_root")"
+      fi
+      static_root_parent="$(dirname "$static_root")"
+      mkdir -p "$static_root_parent"
 
       BUILD_PATH="$(${pkgs.nix}/bin/nix build ./frontend#frontend --no-link --print-out-paths)"
+      staged_static_root="$(mktemp -d "$static_root_parent/.lx-annotate-static.XXXXXX")"
+      trap 'rm -rf "$staged_static_root"' EXIT
+      cp -r "$BUILD_PATH/dist/." "$staged_static_root/"
 
-      mkdir -p staticfiles
-      cp -r "$BUILD_PATH/dist/." staticfiles/
+      if [ -e "$static_root" ] && [ ! -L "$static_root" ]; then
+        previous_static_root="$static_root.previous"
+        rm -rf "$previous_static_root"
+        mv "$static_root" "$previous_static_root"
+        mv "$staged_static_root" "$static_root"
+        rm -rf "$previous_static_root"
+      else
+        rm -rf "$static_root"
+        mv "$staged_static_root" "$static_root"
+      fi
+
+      trap - EXIT
       '';
   frontendHashScript = ''
       set -euo pipefail
@@ -73,7 +97,13 @@ let
       '';
       status = ''
         set -euo pipefail
-        [ -f "staticfiles/.vite/manifest.json" ] || exit 1
+        REPO_ROOT="''${WORKING_DIR:-$(pwd)}"
+        cd "$REPO_ROOT"
+        static_root="''${DJANGO_STATIC_ROOT:-$REPO_ROOT/staticfiles}"
+        if [ -L "$static_root" ]; then
+          static_root="$(readlink -f "$static_root")"
+        fi
+        [ -f "$static_root/.vite/manifest.json" ] || exit 1
         [ -f ".devenv/state/vue.build.stamp" ] || exit 1
 
         CURRENT_HASH="$(${frontendHashScript})"
