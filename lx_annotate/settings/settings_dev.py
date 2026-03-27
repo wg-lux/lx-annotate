@@ -9,7 +9,6 @@ from .settings_base import (
     MIDDLEWARE,
     LOGGING,
     REST_FRAMEWORK,
-    MIGRATION_MODULES,
     SECRET_KEY,
     TEMPLATES,
     ROOT_URLCONF,
@@ -29,7 +28,6 @@ import os
 
 LOGGING = cast(dict[str, Any], LOGGING)
 REST_FRAMEWORK = cast(dict[str, Any], REST_FRAMEWORK)
-MIGRATION_MODULES = cast(dict[str, str], MIGRATION_MODULES)
 TEMPLATES = cast(list[dict[str, Any]], TEMPLATES)
 ROOT_URLCONF = cast(str, ROOT_URLCONF)
 STATIC_URL = cast(str, STATIC_URL)

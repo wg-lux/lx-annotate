@@ -159,12 +159,6 @@ for _field_cls in (models.ManyToManyField, models.ForeignKey, models.OneToOneFie
     if not hasattr(field_cls, "__class_getitem__"):
         field_cls.__class_getitem__ = classmethod(lambda cls, item: cls)  # type: ignore[attr-defined]
 
-# Override a broken upstream migration transaction boundary:
-# endoreg_db.0008 performs deletes and then adds a constraint on PostgreSQL.
-# Running it non-atomically avoids "pending trigger events" on ALTER TABLE.
-MIGRATION_MODULES = {
-    "endoreg_db": "lx_annotate.migration_overrides.endoreg_db",
-}
 
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
