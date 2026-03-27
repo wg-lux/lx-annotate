@@ -92,7 +92,9 @@ def test_runtime_guard_checks_manifest_and_entry_file_in_static_root():
         'staged_static_root="$(mktemp -d "$static_root_parent/.lx-annotate-static.XXXXXX")"'
         in vue_tasks
     )
-    assert 'mv "$staged_static_root" "$static_root"' in vue_tasks
+    assert 'find "$static_root" -mindepth 1 -maxdepth 1 -exec rm -rf {} +' in vue_tasks
+    assert 'cp -r "$staged_static_root/." "$static_root/"' in vue_tasks
+    assert 'chmod -R u+w "$staged_static_root"' in vue_tasks
 
 
 def test_devenv_shell_pins_uv_to_devenv_state_venv():

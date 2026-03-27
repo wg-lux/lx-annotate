@@ -20,17 +20,13 @@ let
       staged_static_root="$(mktemp -d "$static_root_parent/.lx-annotate-static.XXXXXX")"
       trap 'rm -rf "$staged_static_root"' EXIT
       cp -r "$BUILD_PATH/dist/." "$staged_static_root/"
+      chmod -R u+w "$staged_static_root"
 
-      if [ -e "$static_root" ] && [ ! -L "$static_root" ]; then
-        previous_static_root="$static_root.previous"
-        rm -rf "$previous_static_root"
-        mv "$static_root" "$previous_static_root"
-        mv "$staged_static_root" "$static_root"
-        rm -rf "$previous_static_root"
-      else
-        rm -rf "$static_root"
-        mv "$staged_static_root" "$static_root"
-      fi
+      mkdir -p "$static_root"
+      chmod -R u+w "$static_root" 2>/dev/null || true
+      find "$static_root" -mindepth 1 -maxdepth 1 -exec rm -rf {} +
+      cp -r "$staged_static_root/." "$static_root/"
+      chmod -R u+w "$static_root" 2>/dev/null || true
 
       trap - EXIT
       '';
@@ -86,31 +82,7 @@ let
       "frontend/devenv.yaml"
     ];
 
-    "vue:build-on-enter-shell" = {
-      before = [ "devenv:enterShell" ];
-      after = [ "uv:sync" ];
-      exec = ''
-        ${vueBuildExec}
-        mkdir -p .devenv/state
-        FRONTEND_HASH="$(${frontendHashScript})"
-        echo "$FRONTEND_HASH" > .devenv/state/vue.build.stamp
-      '';
-      status = ''
-        set -euo pipefail
-        REPO_ROOT="''${WORKING_DIR:-$(pwd)}"
-        cd "$REPO_ROOT"
-        static_root="''${DJANGO_STATIC_ROOT:-$REPO_ROOT/staticfiles}"
-        if [ -L "$static_root" ]; then
-          static_root="$(readlink -f "$static_root")"
-        fi
-        [ -f "$static_root/.vite/manifest.json" ] || exit 1
-        [ -f ".devenv/state/vue.build.stamp" ] || exit 1
 
-        CURRENT_HASH="$(${frontendHashScript})"
-        PREV_HASH="$(cat .devenv/state/vue.build.stamp)"
-        [ "$CURRENT_HASH" = "$PREV_HASH" ]
-      '';
-    };
   };
 
 in customTasks
