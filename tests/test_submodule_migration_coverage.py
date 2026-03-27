@@ -109,6 +109,18 @@ def test_urls_import_mounts_base_api_when_submodule_contracts_match(
             "0007_pdfprocessinghistory.py",
             "endoreg_db.migrations.0007_pdfprocessinghistory",
         ),
+        (
+            "0011_hub_ingest_metadata.py",
+            "endoreg_db.migrations.0011_hub_ingest_metadata",
+        ),
+        (
+            "0012_networknode_transferjob.py",
+            "endoreg_db.migrations.0012_networknode_transferjob",
+        ),
+        (
+            "0013_remove_legacy_requirement_models.py",
+            "endoreg_db.migrations.0013_remove_legacy_requirement_models",
+        ),
     ],
 )
 def test_proxy_migration_modules_delegate_to_upstream(monkeypatch, filename, target):
