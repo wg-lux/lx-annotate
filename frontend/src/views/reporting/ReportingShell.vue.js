@@ -12,6 +12,7 @@ const router = useRouter();
 const flow = useReportingFlowStore();
 const selectedVideoStreamUrl = ref(null);
 const selectedFrameStreamUrl = ref(null);
+const isContextPanelOpen = ref(true);
 const patientExaminationOptions = ref([]);
 const patientExaminationOptionsLoading = ref(false);
 const patientExaminationOptionsError = ref(null);
@@ -26,13 +27,13 @@ const routePatientExaminationId = computed(() => {
 const selectedPatientExaminationId = computed(() => routePatientExaminationId.value ?? flow.patientExaminationId ?? '');
 const pe = computed(() => flow.patientExaminationId || ':patient_examination_id');
 const navItems = computed(() => [
-    { label: 'Arbeitsliste', to: '/reporting' },
-    { label: 'Template Builder', to: '/reporting/template-builder' },
-    { label: 'Fall-Setup', to: '/reporting/case-setup' },
-    { label: 'Klinische Dokumentation', to: `/reporting/${pe.value}/findings` },
-    { label: 'Berichtseditor', to: `/reporting/${pe.value}/report-editor` },
-    { label: 'Frame-Auswahl', to: `/reporting/${pe.value}/frame-selector` },
-    { label: 'Finalisierung', to: `/reporting/${pe.value}/finalized` }
+    { label: 'Berichtsvorlagen', to: '/reporting/template-builder', requiresPatientExamination: false },
+    { label: 'Arbeitsliste', to: '/reporting', requiresPatientExamination: false },
+    { label: 'Falldaten', to: '/reporting/case-setup', requiresPatientExamination: false },
+    { label: 'Befunde', to: `/reporting/${pe.value}/findings`, requiresPatientExamination: true },
+    { label: 'Bericht schreiben', to: `/reporting/${pe.value}/report-editor`, requiresPatientExamination: true },
+    { label: 'Bilder auswählen', to: `/reporting/${pe.value}/frame-selector`, requiresPatientExamination: true },
+    { label: 'Abschluss', to: `/reporting/${pe.value}/finalized`, requiresPatientExamination: true }
 ]);
 const preferredReportStream = computed(() => pickPreferredStream(flow.mediaPreload?.latestReport?.streamOptions || []));
 const preferredReportDownload = computed(() => preferredReportStream.value ? `${preferredReportStream.value}${preferredReportStream.value.includes('?') ? '&' : '?'}download=1` : null);
@@ -44,6 +45,50 @@ const draftSummaryLabel = computed(() => {
     return draft.hydratedFrom === 'session_storage' || draft.hydratedFrom === 'draft_api'
         ? 'wiederhergestellt'
         : 'initialisiert';
+});
+const draftSummaryLongLabel = computed(() => {
+    if (!flow.currentRuntimeDraft)
+        return 'Noch kein Entwurf geladen';
+    return draftSummaryLabel.value === 'wiederhergestellt'
+        ? 'Entwurf wurde aus einem vorhandenen Stand wiederhergestellt'
+        : 'Entwurf wurde für den aktuellen Fall vorbereitet';
+});
+const selectedPatientExaminationLabel = computed(() => {
+    const selected = patientExaminationOptions.value.find((entry) => entry.id === routePatientExaminationId.value)
+        || patientExaminationOptions.value.find((entry) => entry.id === flow.patientExaminationId)
+        || null;
+    if (selected)
+        return selected.label;
+    return flow.patientExaminationId ? `#${flow.patientExaminationId}` : 'Noch nicht gewählt';
+});
+const selectedTemplateLabel = computed(() => flow.selectedTemplateName || 'Noch keine Vorlage gewählt');
+const currentStepLabel = computed(() => {
+    const current = navItems.value.find((item) => isActive(item.to));
+    return current?.label || 'Arbeitsbereich';
+});
+const mediaPreloadLabel = computed(() => {
+    if (flow.mediaPreloadStatus === 'idle')
+        return 'nicht geladen';
+    if (flow.mediaPreloadStatus === 'loading')
+        return 'wird geladen';
+    if (flow.mediaPreloadStatus === 'error')
+        return 'Fehler';
+    return 'bereit';
+});
+const nextStepHint = computed(() => {
+    if (!flow.patientExaminationId) {
+        return 'Wählen Sie zuerst eine Patientenuntersuchung, um Befunde und Bericht zu bearbeiten.';
+    }
+    if (!flow.currentRuntimeDraft) {
+        return 'Der Entwurf wird vorbereitet. Danach können Sie direkt mit den Befunden starten.';
+    }
+    if (route.path.includes('/report-editor')) {
+        return 'Bericht prüfen, Text ergänzen und anschließend zum Abschluss wechseln.';
+    }
+    if (route.path.includes('/frame-selector')) {
+        return 'Passende Bilder auswählen und danach den Bericht abschließen.';
+    }
+    return 'Beginnen Sie mit den Befunden und arbeiten Sie sich dann zum Bericht vor.';
 });
 function openUrl(url) {
     if (!url)
@@ -487,6 +532,18 @@ async function refreshMediaPreload() {
 function isActive(path) {
     return route.path === path;
 }
+function isStepDisabled(item) {
+    return Boolean(item.requiresPatientExamination && !flow.patientExaminationId);
+}
+function stepStatusLabel(item) {
+    if (isActive(item.to))
+        return 'Aktuell';
+    if (isStepDisabled(item))
+        return 'Fall wählen';
+    if (item.requiresPatientExamination)
+        return 'Bereit';
+    return 'Verfügbar';
+}
 watch([() => flow.selectedPatientId, routePatientExaminationId], async ([patientId, patientExaminationId]) => {
     if (patientId) {
         await fetchPatientExaminationOptions(patientId);
@@ -515,6 +572,7 @@ let __VLS_directives;
 /** @type {__VLS_StyleScopedClasses['reporting-shell']} */ ;
 /** @type {__VLS_StyleScopedClasses['reporting-shell']} */ ;
 /** @type {__VLS_StyleScopedClasses['reporting-shell']} */ ;
+/** @type {__VLS_StyleScopedClasses['card-body']} */ ;
 /** @type {__VLS_StyleScopedClasses['reporting-shell']} */ ;
 /** @type {__VLS_StyleScopedClasses['reporting-shell']} */ ;
 /** @type {__VLS_StyleScopedClasses['reporting-shell']} */ ;
@@ -525,6 +583,8 @@ let __VLS_directives;
 /** @type {__VLS_StyleScopedClasses['reporting-shell']} */ ;
 /** @type {__VLS_StyleScopedClasses['workflow-step-btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['is-inactive']} */ ;
+/** @type {__VLS_StyleScopedClasses['reporting-shell']} */ ;
+/** @type {__VLS_StyleScopedClasses['workflow-step-btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['reporting-shell']} */ ;
 /** @type {__VLS_StyleScopedClasses['workflow-step-btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['reporting-shell']} */ ;
@@ -536,64 +596,69 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.d
     ...{ class: "reporting-shell container-fluid py-4" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "row g-3" },
+    ...{ class: "card shadow-sm mb-3 reporting-context-card" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "col-lg-3" },
+    ...{ class: "card-body" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "card shadow-sm" },
+    ...{ class: "d-flex flex-column flex-xl-row align-items-xl-start justify-content-between gap-3" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "card-header" },
-});
-__VLS_asFunctionalElement(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({
-    ...{ class: "mb-0" },
+    ...{ class: "reporting-context-main" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "card-body p-2" },
+    ...{ class: "small text-uppercase text-muted fw-semibold tracking-label" },
 });
-__VLS_asFunctionalElement(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({
-    ...{ class: "mb-0" },
+__VLS_asFunctionalElement(__VLS_intrinsicElements.h4, __VLS_intrinsicElements.h4)({
+    ...{ class: "mb-2" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
+    ...{ class: "text-muted mb-0" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "small text-muted mt-2" },
+    ...{ class: "reporting-context-summary" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "context-summary-grid" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "context-summary-item" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+    ...{ class: "context-summary-label" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
-(__VLS_ctx.flow.mediaPreloadStatus);
-if (__VLS_ctx.flow.mediaPreloadError) {
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "alert alert-warning py-2 mt-2 mb-0" },
-    });
-    (__VLS_ctx.flow.mediaPreloadError);
-}
+(__VLS_ctx.currentStepLabel);
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "d-grid mt-2" },
+    ...{ class: "context-summary-item" },
 });
-__VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-    ...{ onClick: (__VLS_ctx.refreshMediaPreload) },
-    ...{ class: "btn btn-outline-secondary btn-sm" },
-    disabled: (__VLS_ctx.flow.mediaPreloadStatus === 'loading' || !__VLS_ctx.flow.selectedPatientId),
+__VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+    ...{ class: "context-summary-label" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+(__VLS_ctx.selectedPatientExaminationLabel);
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "context-summary-item" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+    ...{ class: "context-summary-label" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+(__VLS_ctx.selectedTemplateLabel);
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "context-summary-item" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+    ...{ class: "context-summary-label" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+(__VLS_ctx.draftSummaryLongLabel);
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "d-flex flex-column flex-lg-row align-items-lg-end justify-content-between gap-3 mt-3" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "card-body p-2" },
-});
-__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "small text-muted px-2 mb-2" },
-});
-__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "small text-muted px-2 mb-3" },
-});
-(__VLS_ctx.flow.patientExaminationId || 'n/a');
-(__VLS_ctx.draftSummaryLabel);
-if (__VLS_ctx.draftBootstrapError) {
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "alert alert-warning py-2 mx-2 mb-3" },
-    });
-    (__VLS_ctx.draftBootstrapError);
-}
-__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "px-2 mb-3" },
+    ...{ class: "context-case-select" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
     ...{ class: "form-label form-label-sm mb-1" },
@@ -602,7 +667,8 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElement
     ...{ onChange: (...[$event]) => {
             __VLS_ctx.onPatientExaminationSelect($event.target.value);
         } },
-    ...{ class: "form-select form-select-sm" },
+    ...{ class: "form-select" },
+    'data-testid': "patient-examination-select",
     value: (__VLS_ctx.selectedPatientExaminationId),
     disabled: (__VLS_ctx.patientExaminationOptionsLoading || !__VLS_ctx.patientExaminationOptions.length),
 });
@@ -627,51 +693,116 @@ if (__VLS_ctx.patientExaminationOptionsError) {
     });
     (__VLS_ctx.patientExaminationOptionsError);
 }
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "d-flex flex-wrap gap-2" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+    ...{ onClick: (__VLS_ctx.refreshMediaPreload) },
+    ...{ class: "btn btn-outline-secondary" },
+    disabled: (__VLS_ctx.flow.mediaPreloadStatus === 'loading' || !__VLS_ctx.flow.selectedPatientId),
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+    ...{ onClick: (...[$event]) => {
+            __VLS_ctx.isContextPanelOpen = !__VLS_ctx.isContextPanelOpen;
+        } },
+    ...{ class: "btn btn-outline-secondary" },
+    type: "button",
+});
+(__VLS_ctx.isContextPanelOpen ? 'Arbeitskontext ausblenden' : 'Arbeitskontext einblenden');
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "row g-3" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "col-lg-3" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "card shadow-sm" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "card-header" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({
+    ...{ class: "mb-0" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "card-body p-3" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
+    ...{ class: "small text-muted mb-3" },
+});
+if (__VLS_ctx.draftBootstrapError) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "alert alert-warning py-2 mb-3" },
+    });
+    (__VLS_ctx.draftBootstrapError);
+}
 __VLS_asFunctionalElement(__VLS_intrinsicElements.nav, __VLS_intrinsicElements.nav)({
     ...{ class: "nav flex-column gap-1" },
 });
 for (const [item] of __VLS_getVForSourceType((__VLS_ctx.navItems))) {
-    const __VLS_0 = {}.RouterLink;
-    /** @type {[typeof __VLS_components.RouterLink, typeof __VLS_components.RouterLink, ]} */ ;
-    // @ts-ignore
-    const __VLS_1 = __VLS_asFunctionalComponent(__VLS_0, new __VLS_0({
-        key: (item.to),
-        to: (item.to),
-        ...{ class: "workflow-step-btn btn btn-sm text-start" },
-        ...{ class: (__VLS_ctx.isActive(item.to) ? 'btn-dark is-active' : 'btn-outline-secondary is-inactive') },
-    }));
-    const __VLS_2 = __VLS_1({
-        key: (item.to),
-        to: (item.to),
-        ...{ class: "workflow-step-btn btn btn-sm text-start" },
-        ...{ class: (__VLS_ctx.isActive(item.to) ? 'btn-dark is-active' : 'btn-outline-secondary is-inactive') },
-    }, ...__VLS_functionalComponentArgsRest(__VLS_1));
-    __VLS_3.slots.default;
-    (item.label);
-    var __VLS_3;
+    (item.to);
+    if (!__VLS_ctx.isStepDisabled(item)) {
+        const __VLS_0 = {}.RouterLink;
+        /** @type {[typeof __VLS_components.RouterLink, typeof __VLS_components.RouterLink, ]} */ ;
+        // @ts-ignore
+        const __VLS_1 = __VLS_asFunctionalComponent(__VLS_0, new __VLS_0({
+            to: (item.to),
+            ...{ class: "workflow-step-btn btn btn-sm text-start" },
+            ...{ class: (__VLS_ctx.isActive(item.to) ? 'btn-dark is-active' : 'btn-outline-secondary is-inactive') },
+        }));
+        const __VLS_2 = __VLS_1({
+            to: (item.to),
+            ...{ class: "workflow-step-btn btn btn-sm text-start" },
+            ...{ class: (__VLS_ctx.isActive(item.to) ? 'btn-dark is-active' : 'btn-outline-secondary is-inactive') },
+        }, ...__VLS_functionalComponentArgsRest(__VLS_1));
+        __VLS_3.slots.default;
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+        (item.label);
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+            ...{ class: "workflow-step-meta" },
+        });
+        (__VLS_ctx.stepStatusLabel(item));
+        var __VLS_3;
+    }
+    else {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "workflow-step-btn btn btn-sm text-start is-disabled" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+        (item.label);
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+            ...{ class: "workflow-step-meta" },
+        });
+        (__VLS_ctx.stepStatusLabel(item));
+    }
 }
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "col-lg-9" },
 });
-if (__VLS_ctx.flow.mediaPreload) {
+if (__VLS_ctx.isContextPanelOpen) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "card shadow-sm mb-3" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "card-header d-flex justify-content-between align-items-center" },
     });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
     __VLS_asFunctionalElement(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({
         ...{ class: "mb-0" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
         ...{ class: "text-muted" },
     });
-    (__VLS_ctx.flow.mediaPreload.patient.id);
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+        ...{ class: "text-muted" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+    (__VLS_ctx.mediaPreloadLabel);
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "card-body" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "row g-3" },
+        ...{ class: "row g-3 mb-3" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "col-md-4" },
@@ -682,154 +813,241 @@ if (__VLS_ctx.flow.mediaPreload) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "fw-semibold mb-1" },
     });
-    if (__VLS_ctx.flow.mediaPreload.latestReport) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "small text-muted" },
+    });
+    (__VLS_ctx.draftSummaryLongLabel);
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "small text-muted mt-1" },
+    });
+    (__VLS_ctx.selectedPatientExaminationLabel);
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "small text-muted mt-1" },
+    });
+    (__VLS_ctx.selectedTemplateLabel);
+    if (__VLS_ctx.draftBootstrapError) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: "small" },
+            ...{ class: "alert alert-warning py-2 mt-2 mb-0" },
         });
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
-        (__VLS_ctx.flow.mediaPreload.latestReport.id);
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
-        (__VLS_ctx.flow.mediaPreload.latestReport.documentType || 'n/a');
+        (__VLS_ctx.draftBootstrapError);
+    }
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "col-md-4" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "border rounded p-3 h-100" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "fw-semibold mb-1" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "small text-muted" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+    (__VLS_ctx.mediaPreloadLabel);
+    if (__VLS_ctx.flow.mediaPreloadError) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: "mt-2 d-flex flex-wrap gap-2" },
+            ...{ class: "alert alert-warning py-2 mt-2 mb-0" },
         });
-        for (const [option] of __VLS_getVForSourceType((__VLS_ctx.flow.mediaPreload.latestReport.streamOptions))) {
+        (__VLS_ctx.flow.mediaPreloadError);
+    }
+    else {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "small text-muted mt-2" },
+        });
+    }
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "col-md-4" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "border rounded p-3 h-100" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "fw-semibold mb-1" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "small text-muted" },
+    });
+    (__VLS_ctx.nextStepHint);
+    if (__VLS_ctx.flow.mediaPreload) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "row g-3" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "col-md-4" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "border rounded p-3 h-100" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "fw-semibold mb-1" },
+        });
+        if (__VLS_ctx.flow.mediaPreload.latestReport) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: "small" },
+            });
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
+            (__VLS_ctx.flow.mediaPreload.latestReport.id);
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
+            (__VLS_ctx.flow.mediaPreload.latestReport.documentType || 'n/a');
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: "mt-2 d-flex flex-wrap gap-2" },
+            });
+            for (const [option] of __VLS_getVForSourceType((__VLS_ctx.flow.mediaPreload.latestReport.streamOptions))) {
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+                    ...{ onClick: (...[$event]) => {
+                            if (!(__VLS_ctx.isContextPanelOpen))
+                                return;
+                            if (!(__VLS_ctx.flow.mediaPreload))
+                                return;
+                            if (!(__VLS_ctx.flow.mediaPreload.latestReport))
+                                return;
+                            __VLS_ctx.openUrl(option.url);
+                        } },
+                    key: (`report-${option.type}`),
+                    ...{ class: "btn btn-outline-secondary btn-sm" },
+                });
+                (option.type);
+            }
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: "mt-2 d-grid gap-2" },
+            });
             __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
                 ...{ onClick: (...[$event]) => {
+                        if (!(__VLS_ctx.isContextPanelOpen))
+                            return;
                         if (!(__VLS_ctx.flow.mediaPreload))
                             return;
                         if (!(__VLS_ctx.flow.mediaPreload.latestReport))
                             return;
-                        __VLS_ctx.openUrl(option.url);
+                        __VLS_ctx.openUrl(__VLS_ctx.preferredReportStream);
                     } },
-                key: (`report-${option.type}`),
                 ...{ class: "btn btn-outline-secondary btn-sm" },
+                disabled: (!__VLS_ctx.preferredReportStream),
             });
-            (option.type);
-        }
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: "mt-2 d-grid gap-2" },
-        });
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-            ...{ onClick: (...[$event]) => {
-                    if (!(__VLS_ctx.flow.mediaPreload))
-                        return;
-                    if (!(__VLS_ctx.flow.mediaPreload.latestReport))
-                        return;
-                    __VLS_ctx.openUrl(__VLS_ctx.preferredReportStream);
-                } },
-            ...{ class: "btn btn-outline-secondary btn-sm" },
-            disabled: (!__VLS_ctx.preferredReportStream),
-        });
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-            ...{ onClick: (...[$event]) => {
-                    if (!(__VLS_ctx.flow.mediaPreload))
-                        return;
-                    if (!(__VLS_ctx.flow.mediaPreload.latestReport))
-                        return;
-                    __VLS_ctx.openUrl(__VLS_ctx.preferredReportDownload);
-                } },
-            ...{ class: "btn btn-outline-secondary btn-sm" },
-            disabled: (!__VLS_ctx.preferredReportDownload),
-        });
-    }
-    else {
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: "small text-muted" },
-        });
-    }
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "col-md-4" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "border rounded p-3 h-100" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "fw-semibold mb-1" },
-    });
-    if (__VLS_ctx.flow.mediaPreload.latestVideo) {
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: "small" },
-        });
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
-        (__VLS_ctx.flow.mediaPreload.latestVideo.id);
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: "mt-2 d-flex flex-wrap gap-2" },
-        });
-        for (const [option] of __VLS_getVForSourceType((__VLS_ctx.flow.mediaPreload.latestVideo.streamOptions))) {
             __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
                 ...{ onClick: (...[$event]) => {
+                        if (!(__VLS_ctx.isContextPanelOpen))
+                            return;
+                        if (!(__VLS_ctx.flow.mediaPreload))
+                            return;
+                        if (!(__VLS_ctx.flow.mediaPreload.latestReport))
+                            return;
+                        __VLS_ctx.openUrl(__VLS_ctx.preferredReportDownload);
+                    } },
+                ...{ class: "btn btn-outline-secondary btn-sm" },
+                disabled: (!__VLS_ctx.preferredReportDownload),
+            });
+        }
+        else {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: "small text-muted" },
+            });
+        }
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "col-md-4" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "border rounded p-3 h-100" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "fw-semibold mb-1" },
+        });
+        if (__VLS_ctx.flow.mediaPreload.latestVideo) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: "small" },
+            });
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
+            (__VLS_ctx.flow.mediaPreload.latestVideo.id);
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: "mt-2 d-flex flex-wrap gap-2" },
+            });
+            for (const [option] of __VLS_getVForSourceType((__VLS_ctx.flow.mediaPreload.latestVideo.streamOptions))) {
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+                    ...{ onClick: (...[$event]) => {
+                            if (!(__VLS_ctx.isContextPanelOpen))
+                                return;
+                            if (!(__VLS_ctx.flow.mediaPreload))
+                                return;
+                            if (!(__VLS_ctx.flow.mediaPreload.latestVideo))
+                                return;
+                            __VLS_ctx.selectVideoStream(option.url);
+                        } },
+                    key: (`video-${option.type}`),
+                    ...{ class: "btn btn-outline-secondary btn-sm" },
+                });
+                (option.type);
+            }
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: "mt-2 d-grid gap-2" },
+            });
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+                ...{ onClick: (...[$event]) => {
+                        if (!(__VLS_ctx.isContextPanelOpen))
+                            return;
                         if (!(__VLS_ctx.flow.mediaPreload))
                             return;
                         if (!(__VLS_ctx.flow.mediaPreload.latestVideo))
                             return;
-                        __VLS_ctx.selectVideoStream(option.url);
+                        __VLS_ctx.selectVideoStream(__VLS_ctx.preferredVideoStream);
                     } },
-                key: (`video-${option.type}`),
                 ...{ class: "btn btn-outline-secondary btn-sm" },
+                disabled: (!__VLS_ctx.preferredVideoStream),
             });
-            (option.type);
+            if (__VLS_ctx.selectedVideoStreamUrl) {
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.video)({
+                    ...{ class: "w-100 mt-2 rounded border" },
+                    controls: true,
+                    src: (__VLS_ctx.selectedVideoStreamUrl),
+                });
+            }
         }
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: "mt-2 d-grid gap-2" },
-        });
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-            ...{ onClick: (...[$event]) => {
-                    if (!(__VLS_ctx.flow.mediaPreload))
-                        return;
-                    if (!(__VLS_ctx.flow.mediaPreload.latestVideo))
-                        return;
-                    __VLS_ctx.selectVideoStream(__VLS_ctx.preferredVideoStream);
-                } },
-            ...{ class: "btn btn-outline-secondary btn-sm" },
-            disabled: (!__VLS_ctx.preferredVideoStream),
-        });
-        if (__VLS_ctx.selectedVideoStreamUrl) {
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.video)({
-                ...{ class: "w-100 mt-2 rounded border" },
-                controls: true,
-                src: (__VLS_ctx.selectedVideoStreamUrl),
+        else {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: "small text-muted" },
             });
         }
-    }
-    else {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: "small text-muted" },
+            ...{ class: "col-md-4" },
         });
-    }
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "col-md-4" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "border rounded p-3 h-100" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "fw-semibold mb-1" },
-    });
-    if (__VLS_ctx.flow.mediaPreload.latestFrames.length) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: "small d-grid gap-2" },
+            ...{ class: "border rounded p-3 h-100" },
         });
-        for (const [frame] of __VLS_getVForSourceType((__VLS_ctx.flow.mediaPreload.latestFrames))) {
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-                ...{ onClick: (...[$event]) => {
-                        if (!(__VLS_ctx.flow.mediaPreload))
-                            return;
-                        if (!(__VLS_ctx.flow.mediaPreload.latestFrames.length))
-                            return;
-                        __VLS_ctx.selectFrameStream(frame.streamUrl);
-                    } },
-                key: (`${frame.videoId}-${frame.frameNumber}`),
-                ...{ class: "btn btn-outline-secondary btn-sm text-start" },
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "fw-semibold mb-1" },
+        });
+        if (__VLS_ctx.flow.mediaPreload.latestFrames.length) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: "small d-grid gap-2" },
             });
-            (frame.frameNumber);
-            (frame.category || 'fallback');
+            for (const [frame] of __VLS_getVForSourceType((__VLS_ctx.flow.mediaPreload.latestFrames))) {
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+                    ...{ onClick: (...[$event]) => {
+                            if (!(__VLS_ctx.isContextPanelOpen))
+                                return;
+                            if (!(__VLS_ctx.flow.mediaPreload))
+                                return;
+                            if (!(__VLS_ctx.flow.mediaPreload.latestFrames.length))
+                                return;
+                            __VLS_ctx.selectFrameStream(frame.streamUrl);
+                        } },
+                    key: (`${frame.videoId}-${frame.frameNumber}`),
+                    ...{ class: "btn btn-outline-secondary btn-sm text-start" },
+                });
+                (frame.frameNumber);
+                (frame.category || 'fallback');
+            }
+            if (__VLS_ctx.selectedFrameStreamUrl) {
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.img)({
+                    ...{ class: "img-fluid rounded border mt-1" },
+                    src: (__VLS_ctx.selectedFrameStreamUrl),
+                    alt: "Selected frame stream preview",
+                });
+            }
         }
-        if (__VLS_ctx.selectedFrameStreamUrl) {
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.img)({
-                ...{ class: "img-fluid rounded border mt-1" },
-                src: (__VLS_ctx.selectedFrameStreamUrl),
-                alt: "Selected frame stream preview",
+        else {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: "small text-muted" },
             });
         }
     }
@@ -847,6 +1065,58 @@ const __VLS_6 = __VLS_5({}, ...__VLS_functionalComponentArgsRest(__VLS_5));
 /** @type {__VLS_StyleScopedClasses['reporting-shell']} */ ;
 /** @type {__VLS_StyleScopedClasses['container-fluid']} */ ;
 /** @type {__VLS_StyleScopedClasses['py-4']} */ ;
+/** @type {__VLS_StyleScopedClasses['card']} */ ;
+/** @type {__VLS_StyleScopedClasses['shadow-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['reporting-context-card']} */ ;
+/** @type {__VLS_StyleScopedClasses['card-body']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['flex-column']} */ ;
+/** @type {__VLS_StyleScopedClasses['flex-xl-row']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-xl-start']} */ ;
+/** @type {__VLS_StyleScopedClasses['justify-content-between']} */ ;
+/** @type {__VLS_StyleScopedClasses['gap-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['reporting-context-main']} */ ;
+/** @type {__VLS_StyleScopedClasses['small']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-uppercase']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['fw-semibold']} */ ;
+/** @type {__VLS_StyleScopedClasses['tracking-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['reporting-context-summary']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-summary-grid']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-summary-item']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-summary-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-summary-item']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-summary-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-summary-item']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-summary-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-summary-item']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-summary-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['flex-column']} */ ;
+/** @type {__VLS_StyleScopedClasses['flex-lg-row']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-lg-end']} */ ;
+/** @type {__VLS_StyleScopedClasses['justify-content-between']} */ ;
+/** @type {__VLS_StyleScopedClasses['gap-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-case-select']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-label-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-select']} */ ;
+/** @type {__VLS_StyleScopedClasses['small']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-danger']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['flex-wrap']} */ ;
+/** @type {__VLS_StyleScopedClasses['gap-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-secondary']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-secondary']} */ ;
 /** @type {__VLS_StyleScopedClasses['row']} */ ;
 /** @type {__VLS_StyleScopedClasses['g-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['col-lg-3']} */ ;
@@ -855,46 +1125,14 @@ const __VLS_6 = __VLS_5({}, ...__VLS_functionalComponentArgsRest(__VLS_5));
 /** @type {__VLS_StyleScopedClasses['card-header']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-body']} */ ;
-/** @type {__VLS_StyleScopedClasses['p-2']} */ ;
-/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['p-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['small']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
-/** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
-/** @type {__VLS_StyleScopedClasses['alert']} */ ;
-/** @type {__VLS_StyleScopedClasses['alert-warning']} */ ;
-/** @type {__VLS_StyleScopedClasses['py-2']} */ ;
-/** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
-/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
-/** @type {__VLS_StyleScopedClasses['d-grid']} */ ;
-/** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn-outline-secondary']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
-/** @type {__VLS_StyleScopedClasses['card-body']} */ ;
-/** @type {__VLS_StyleScopedClasses['p-2']} */ ;
-/** @type {__VLS_StyleScopedClasses['small']} */ ;
-/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
-/** @type {__VLS_StyleScopedClasses['px-2']} */ ;
-/** @type {__VLS_StyleScopedClasses['mb-2']} */ ;
-/** @type {__VLS_StyleScopedClasses['small']} */ ;
-/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
-/** @type {__VLS_StyleScopedClasses['px-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert-warning']} */ ;
 /** @type {__VLS_StyleScopedClasses['py-2']} */ ;
-/** @type {__VLS_StyleScopedClasses['mx-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
-/** @type {__VLS_StyleScopedClasses['px-2']} */ ;
-/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
-/** @type {__VLS_StyleScopedClasses['form-label']} */ ;
-/** @type {__VLS_StyleScopedClasses['form-label-sm']} */ ;
-/** @type {__VLS_StyleScopedClasses['mb-1']} */ ;
-/** @type {__VLS_StyleScopedClasses['form-select']} */ ;
-/** @type {__VLS_StyleScopedClasses['form-select-sm']} */ ;
-/** @type {__VLS_StyleScopedClasses['small']} */ ;
-/** @type {__VLS_StyleScopedClasses['text-danger']} */ ;
-/** @type {__VLS_StyleScopedClasses['mt-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['nav']} */ ;
 /** @type {__VLS_StyleScopedClasses['flex-column']} */ ;
 /** @type {__VLS_StyleScopedClasses['gap-1']} */ ;
@@ -902,6 +1140,13 @@ const __VLS_6 = __VLS_5({}, ...__VLS_functionalComponentArgsRest(__VLS_5));
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-start']} */ ;
+/** @type {__VLS_StyleScopedClasses['workflow-step-meta']} */ ;
+/** @type {__VLS_StyleScopedClasses['workflow-step-btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-start']} */ ;
+/** @type {__VLS_StyleScopedClasses['is-disabled']} */ ;
+/** @type {__VLS_StyleScopedClasses['workflow-step-meta']} */ ;
 /** @type {__VLS_StyleScopedClasses['col-lg-9']} */ ;
 /** @type {__VLS_StyleScopedClasses['card']} */ ;
 /** @type {__VLS_StyleScopedClasses['shadow-sm']} */ ;
@@ -912,7 +1157,57 @@ const __VLS_6 = __VLS_5({}, ...__VLS_functionalComponentArgsRest(__VLS_5));
 /** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-body']} */ ;
+/** @type {__VLS_StyleScopedClasses['row']} */ ;
+/** @type {__VLS_StyleScopedClasses['g-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-md-4']} */ ;
+/** @type {__VLS_StyleScopedClasses['border']} */ ;
+/** @type {__VLS_StyleScopedClasses['rounded']} */ ;
+/** @type {__VLS_StyleScopedClasses['p-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['h-100']} */ ;
+/** @type {__VLS_StyleScopedClasses['fw-semibold']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['small']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['small']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['small']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert-warning']} */ ;
+/** @type {__VLS_StyleScopedClasses['py-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-md-4']} */ ;
+/** @type {__VLS_StyleScopedClasses['border']} */ ;
+/** @type {__VLS_StyleScopedClasses['rounded']} */ ;
+/** @type {__VLS_StyleScopedClasses['p-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['h-100']} */ ;
+/** @type {__VLS_StyleScopedClasses['fw-semibold']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['small']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert-warning']} */ ;
+/** @type {__VLS_StyleScopedClasses['py-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['small']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-md-4']} */ ;
+/** @type {__VLS_StyleScopedClasses['border']} */ ;
+/** @type {__VLS_StyleScopedClasses['rounded']} */ ;
+/** @type {__VLS_StyleScopedClasses['p-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['h-100']} */ ;
+/** @type {__VLS_StyleScopedClasses['fw-semibold']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['small']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['row']} */ ;
 /** @type {__VLS_StyleScopedClasses['g-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['col-md-4']} */ ;
@@ -988,6 +1283,8 @@ const __VLS_6 = __VLS_5({}, ...__VLS_functionalComponentArgsRest(__VLS_5));
 /** @type {__VLS_StyleScopedClasses['mt-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['small']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['small']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 var __VLS_dollars;
 const __VLS_self = (await import('vue')).defineComponent({
     setup() {
@@ -995,6 +1292,7 @@ const __VLS_self = (await import('vue')).defineComponent({
             flow: flow,
             selectedVideoStreamUrl: selectedVideoStreamUrl,
             selectedFrameStreamUrl: selectedFrameStreamUrl,
+            isContextPanelOpen: isContextPanelOpen,
             patientExaminationOptions: patientExaminationOptions,
             patientExaminationOptionsLoading: patientExaminationOptionsLoading,
             patientExaminationOptionsError: patientExaminationOptionsError,
@@ -1004,13 +1302,20 @@ const __VLS_self = (await import('vue')).defineComponent({
             preferredReportStream: preferredReportStream,
             preferredReportDownload: preferredReportDownload,
             preferredVideoStream: preferredVideoStream,
-            draftSummaryLabel: draftSummaryLabel,
+            draftSummaryLongLabel: draftSummaryLongLabel,
+            selectedPatientExaminationLabel: selectedPatientExaminationLabel,
+            selectedTemplateLabel: selectedTemplateLabel,
+            currentStepLabel: currentStepLabel,
+            mediaPreloadLabel: mediaPreloadLabel,
+            nextStepHint: nextStepHint,
             openUrl: openUrl,
             selectVideoStream: selectVideoStream,
             selectFrameStream: selectFrameStream,
             onPatientExaminationSelect: onPatientExaminationSelect,
             refreshMediaPreload: refreshMediaPreload,
             isActive: isActive,
+            isStepDisabled: isStepDisabled,
+            stepStatusLabel: stepStatusLabel,
         };
     },
 });

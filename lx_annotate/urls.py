@@ -76,40 +76,36 @@ def _resolve_lx_data_models_root() -> Path:
 
 
 lx_dtypes_api_urls = None
-enable_base_api = os.getenv("LX_ENABLE_BASE_API", "0") == "1"
-if enable_base_api:
-    # Only override import resolution when the optional base API was explicitly enabled.
-    submodule_root = _resolve_lx_data_models_root()
-    expected_base_api_version = os.getenv(
-        "LX_BASE_API_EXPECTED_VERSION", DEFAULT_BASE_API_EXPECTED_VERSION
+submodule_root = _resolve_lx_data_models_root()
+expected_base_api_version = os.getenv(
+    "LX_BASE_API_EXPECTED_VERSION", DEFAULT_BASE_API_EXPECTED_VERSION
+)
+submodule_version = _read_project_version(submodule_root / "pyproject.toml")
+
+if not submodule_root.exists():
+    logger.warning(
+        "Skipping lx_dtypes base_api mount: checkout missing at %s", submodule_root
     )
-    submodule_version = _read_project_version(submodule_root / "pyproject.toml")
+elif submodule_version != expected_base_api_version:
+    logger.warning(
+        "Skipping lx_dtypes base_api mount: expected lx-data-models version %s, found %s",
+        expected_base_api_version,
+        submodule_version or "<unknown>",
+    )
+elif not _has_required_base_api_contracts(submodule_root):
+    pass
+else:
+    submodule_path = str(submodule_root)
+    if submodule_path not in sys.path:
+        sys.path.insert(0, submodule_path)
 
-    if not submodule_root.exists():
-        logger.warning(
-            "LX_ENABLE_BASE_API=1 but lx-data-models checkout is missing at %s",
-            submodule_root,
-        )
-    elif submodule_version != expected_base_api_version:
-        logger.warning(
-            "Skipping lx_dtypes base_api mount: expected lx-data-models version %s, found %s",
-            expected_base_api_version,
-            submodule_version or "<unknown>",
-        )
-    elif not _has_required_base_api_contracts(submodule_root):
-        pass
-    else:
-        submodule_path = str(submodule_root)
-        if submodule_path not in sys.path:
-            sys.path.insert(0, submodule_path)
+    try:
+        from lx_dtypes.django.api.main import api as _lx_dtypes_api
 
-        try:
-            from lx_dtypes.django.api.main import api as _lx_dtypes_api
-
-            # Cache the resolved URL tuple once; NinjaAPI.urls is not idempotent.
-            lx_dtypes_api_urls = _lx_dtypes_api.urls
-        except Exception as exc:  # pragma: no cover - optional integration
-            logger.warning("lx_dtypes base_api is not available: %s", exc)
+        # Cache the resolved URL tuple once; NinjaAPI.urls is not idempotent.
+        lx_dtypes_api_urls = _lx_dtypes_api.urls
+    except Exception as exc:  # pragma: no cover - optional integration
+        logger.warning("lx_dtypes base_api is not available: %s", exc)
 
 urlpatterns = [
     path("admin/", admin.site.urls),

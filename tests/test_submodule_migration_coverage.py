@@ -73,7 +73,6 @@ def test_urls_import_mounts_base_api_when_submodule_contracts_match(
     )
 
     fake_api = SimpleNamespace(urls=("base-api-patterns", "base-api-app", "base-api"))
-    monkeypatch.setenv("LX_ENABLE_BASE_API", "1")
     monkeypatch.setenv("LX_BASE_API_EXPECTED_VERSION", "0.1.1")
     monkeypatch.setattr(settings, "BASE_DIR", tmp_path)
     monkeypatch.setitem(

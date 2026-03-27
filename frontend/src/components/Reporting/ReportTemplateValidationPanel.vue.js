@@ -1,14 +1,14 @@
 const __VLS_props = withDefaults(defineProps(), {
-    title: 'Template Runtime Validation',
-    subtitle: 'Auswertung der lx_dtypes-Validatoren für die aktuelle Befundlage',
+    title: 'Prüfung der Berichtsvorlage',
+    subtitle: 'Auswertung der Vorlagenregeln für die aktuelle Befundlage',
     loading: false,
     errorMessage: null,
     result: null
 });
 debugger; /* PartiallyEnd: #3632/scriptSetup.vue */
 const __VLS_withDefaultsArg = (function (t) { return t; })({
-    title: 'Template Runtime Validation',
-    subtitle: 'Auswertung der lx_dtypes-Validatoren für die aktuelle Befundlage',
+    title: 'Prüfung der Berichtsvorlage',
+    subtitle: 'Auswertung der Vorlagenregeln für die aktuelle Befundlage',
     loading: false,
     errorMessage: null,
     result: null
@@ -36,7 +36,7 @@ if (__VLS_ctx.result) {
         ...{ class: "badge" },
         ...{ class: (__VLS_ctx.result.ok ? 'bg-success' : 'bg-warning text-dark') },
     });
-    (__VLS_ctx.result.ok ? 'Validatoren ok' : 'Prüfung mit Hinweisen');
+    (__VLS_ctx.result.ok ? 'Regeln erfüllt' : 'Prüfung mit Hinweisen');
 }
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "card-body" },
@@ -85,7 +85,7 @@ else {
                 ...{ class: "badge" },
                 ...{ class: (issue.level === 'warning' ? 'bg-warning text-dark' : 'bg-danger') },
             });
-            (issue.level);
+            (issue.level === 'warning' ? 'Warnung' : 'Fehler');
             __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
                 ...{ class: "small" },
             });
@@ -94,7 +94,7 @@ else {
                 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
                     ...{ class: "small text-muted" },
                 });
-                (issue.validatorKind || 'validator');
+                (issue.validatorKind === 'template' ? 'Vorlage' : issue.validatorKind === 'examination_validator' ? 'Untersuchungsregel' : 'Befundregel');
                 (issue.validatorName);
             }
         }
@@ -126,7 +126,7 @@ else {
                 ...{ class: "badge" },
                 ...{ class: (validator.ok ? 'bg-success' : 'bg-warning text-dark') },
             });
-            (validator.ok ? 'ok' : 'offen');
+            (validator.ok ? 'OK' : 'Offen');
             __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
                 ...{ class: "small mt-1" },
             });
@@ -159,13 +159,13 @@ else {
                 ...{ class: "badge" },
                 ...{ class: (validator.ok ? 'bg-success' : 'bg-warning text-dark') },
             });
-            (validator.ok ? 'ok' : 'offen');
+            (validator.ok ? 'OK' : 'Offen');
             if (validator.findingValidatorStatus.length) {
                 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
                     ...{ class: "small mt-1" },
                 });
                 (validator.findingValidatorStatus
-                    .map((entry) => `${entry.name} (${entry.ok ? 'ok' : 'fail'})`)
+                    .map((entry) => `${entry.name} (${entry.ok ? 'OK' : 'Fehler'})`)
                     .join(', '));
             }
             if (validator.examinationValidatorStatus.length) {
@@ -173,7 +173,7 @@ else {
                     ...{ class: "small mt-1" },
                 });
                 (validator.examinationValidatorStatus
-                    .map((entry) => `${entry.name} (${entry.ok ? 'ok' : 'fail'})`)
+                    .map((entry) => `${entry.name} (${entry.ok ? 'OK' : 'Fehler'})`)
                     .join(', '));
             }
         }

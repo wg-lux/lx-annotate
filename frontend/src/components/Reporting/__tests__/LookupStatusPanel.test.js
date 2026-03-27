@@ -10,7 +10,7 @@ describe('LookupStatusPanel', () => {
                 sessionStatus: 'active'
             }
         });
-        expect(wrapper.text()).toContain('PE #42');
+        expect(wrapper.text()).toContain('Fall #42');
         expect(wrapper.find('[data-testid="lookup-status-details"]').exists()).toBe(false);
         await wrapper.get('[data-testid="lookup-status-toggle"]').trigger('click');
         expect(wrapper.find('[data-testid="lookup-status-details"]').exists()).toBe(true);

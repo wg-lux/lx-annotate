@@ -230,7 +230,7 @@ describe('ReportingShell media preload', () => {
         });
         const wrapper = mountShell();
         await flushPromises();
-        const select = wrapper.find('select.form-select.form-select-sm');
+        const select = wrapper.get('[data-testid="patient-examination-select"]');
         const optionTexts = select.findAll('option').map((option) => option.text());
         expect(optionTexts).toContain('#314 · colonoscopy · 10.3.2026');
         expect(optionTexts).toContain('#315 · gastroscopy · 11.3.2026');

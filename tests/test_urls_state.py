@@ -4,18 +4,31 @@ import importlib
 import sys
 
 import pytest
-from django.test import override_settings
+from django.test import Client, override_settings
 from django.urls import Resolver404, clear_url_caches, resolve, set_urlconf
+from ninja.main import NinjaAPI
 
 
-def _fresh_urls_module():
+LX_DATA_MODELS_ROOT = "/home/admin/dev/lx-annotate/lx-data-models"
+
+
+def _fresh_urls_module(monkeypatch=None):
+    if monkeypatch is not None:
+        monkeypatch.setenv("LX_BASE_API_EXPECTED_VERSION", "0.1.1")
+        monkeypatch.setenv("LX_DATA_MODELS_ROOT", LX_DATA_MODELS_ROOT)
+
     sys.modules.pop("lx_annotate.urls", None)
+    sys.modules.pop("lx_dtypes.django.api.main", None)
+    sys.modules.pop("lx_dtypes.django.api.report_template_builder", None)
+    NinjaAPI._registry = []
+
+    clear_url_caches()
+    set_urlconf(None)
     return importlib.import_module("lx_annotate.urls")
 
 
-def test_root_urlpatterns_state_without_base_api(monkeypatch):
-    monkeypatch.delenv("LX_ENABLE_BASE_API", raising=False)
-    module = _fresh_urls_module()
+def test_root_urlpatterns_state_with_base_api(monkeypatch):
+    module = _fresh_urls_module(monkeypatch)
 
     top_level_patterns = [str(pattern.pattern) for pattern in module.urlpatterns]
 
@@ -23,7 +36,7 @@ def test_root_urlpatterns_state_without_base_api(monkeypatch):
     assert "api/" in top_level_patterns
     assert "oidc/" in top_level_patterns
     assert "favicon.ico" in top_level_patterns
-    assert "base_api/" not in top_level_patterns
+    assert "base_api/" in top_level_patterns
     assert top_level_patterns.index("api/") < top_level_patterns.index(
         "^(?!api/|base_api/|admin/|media/|oidc/).*$"
     )
@@ -66,13 +79,9 @@ def test_reporting_workflow_paths_resolve_to_vue_spa(spa_path: str):
     assert resolve(spa_path).url_name == "vue_spa"
 
 
-def test_base_api_mount_requires_explicit_enable_flag(monkeypatch):
-    monkeypatch.delenv("LX_ENABLE_BASE_API", raising=False)
-    module_without_flag = _fresh_urls_module()
-    assert module_without_flag.lx_dtypes_api_urls is None
-
-    monkeypatch.setenv("LX_ENABLE_BASE_API", "1")
+def test_base_api_mount_skips_on_version_mismatch(monkeypatch):
     monkeypatch.setenv("LX_BASE_API_EXPECTED_VERSION", "999.999.999")
+    monkeypatch.setenv("LX_DATA_MODELS_ROOT", LX_DATA_MODELS_ROOT)
     module_with_bad_version = _fresh_urls_module()
 
     assert module_with_bad_version.lx_dtypes_api_urls is None
@@ -83,3 +92,23 @@ def test_base_api_mount_requires_explicit_enable_flag(monkeypatch):
 
     clear_url_caches()
     set_urlconf(None)
+
+
+@override_settings(
+    ROOT_URLCONF="lx_annotate.urls",
+    ALLOWED_HOSTS=["testserver", "localhost", "127.0.0.1"],
+)
+def test_api_and_base_api_urls_are_both_reachable(monkeypatch):
+    _fresh_urls_module(monkeypatch)
+    clear_url_caches()
+    set_urlconf("lx_annotate.urls")
+    client = Client()
+
+    base_api_response = client.get(
+        "/base_api/core-concepts/report_template_examples",
+        secure=True,
+    )
+    api_response = client.get("/api/conf/", secure=True)
+
+    assert base_api_response.status_code != 404
+    assert api_response.status_code != 404

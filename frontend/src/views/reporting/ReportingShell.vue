@@ -1,93 +1,180 @@
 <template>
   <div class="reporting-shell container-fluid py-4">
+    <div class="card shadow-sm mb-3 reporting-context-card">
+      <div class="card-body">
+        <div class="d-flex flex-column flex-xl-row align-items-xl-start justify-content-between gap-3">
+          <div class="reporting-context-main">
+            <div class="small text-uppercase text-muted fw-semibold tracking-label">Berichtsarbeitsplatz</div>
+            <h4 class="mb-2">Fallkontext und Arbeitsbereich</h4>
+            <p class="text-muted mb-0">
+              Wählen Sie zuerst eine Patientenuntersuchung. Danach führen die Arbeitsschritte von
+              den Befunden bis zum fertigen Bericht.
+            </p>
+          </div>
+          <div class="reporting-context-summary">
+            <div class="context-summary-grid">
+              <div class="context-summary-item">
+                <span class="context-summary-label">Aktueller Schritt</span>
+                <strong>{{ currentStepLabel }}</strong>
+              </div>
+              <div class="context-summary-item">
+                <span class="context-summary-label">Patientenuntersuchung</span>
+                <strong>{{ selectedPatientExaminationLabel }}</strong>
+              </div>
+              <div class="context-summary-item">
+                <span class="context-summary-label">Berichtsvorlage</span>
+                <strong>{{ selectedTemplateLabel }}</strong>
+              </div>
+              <div class="context-summary-item">
+                <span class="context-summary-label">Entwurfsstatus</span>
+                <strong>{{ draftSummaryLongLabel }}</strong>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="d-flex flex-column flex-lg-row align-items-lg-end justify-content-between gap-3 mt-3">
+          <div class="context-case-select">
+            <label class="form-label form-label-sm mb-1">Patientenuntersuchung wählen</label>
+            <select
+              class="form-select"
+              data-testid="patient-examination-select"
+              :value="selectedPatientExaminationId"
+              :disabled="patientExaminationOptionsLoading || !patientExaminationOptions.length"
+              @change="onPatientExaminationSelect(($event.target as HTMLSelectElement).value)"
+            >
+              <option value="">
+                {{
+                  patientExaminationOptionsLoading
+                    ? 'Patientenuntersuchungen werden geladen...'
+                    : patientExaminationOptions.length
+                      ? 'Bitte Patientenuntersuchung wählen'
+                      : 'Keine Patientenuntersuchungen verfügbar'
+                }}
+              </option>
+              <option
+                v-for="option in patientExaminationOptions"
+                :key="option.id"
+                :value="option.id"
+              >
+                {{ option.label }}
+              </option>
+            </select>
+            <div v-if="patientExaminationOptionsError" class="small text-danger mt-1">
+              {{ patientExaminationOptionsError }}
+            </div>
+          </div>
+          <div class="d-flex flex-wrap gap-2">
+            <button
+              class="btn btn-outline-secondary"
+              :disabled="flow.mediaPreloadStatus === 'loading' || !flow.selectedPatientId"
+              @click="refreshMediaPreload"
+            >
+              Medien aktualisieren
+            </button>
+            <button
+              class="btn btn-outline-secondary"
+              type="button"
+              @click="isContextPanelOpen = !isContextPanelOpen"
+            >
+              {{ isContextPanelOpen ? 'Arbeitskontext ausblenden' : 'Arbeitskontext einblenden' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="row g-3">
       <div class="col-lg-3">
         <div class="card shadow-sm">
           <div class="card-header">
-            <h6 class="mb-0">Berichts-Workflow</h6>
+            <h6 class="mb-0">Arbeitsschritte</h6>
           </div>
-          <div class="card-body p-2">
-            <h6 class="mb-0">Medien-Preload</h6>
-            <div class="small text-muted mt-2">
-              Status:
-              <strong>{{ flow.mediaPreloadStatus }}</strong>
-            </div>
-            <div v-if="flow.mediaPreloadError" class="alert alert-warning py-2 mt-2 mb-0">
-              {{ flow.mediaPreloadError }}
-            </div>
-            <div class="d-grid mt-2">
-              <button
-                class="btn btn-outline-secondary btn-sm"
-                :disabled="flow.mediaPreloadStatus === 'loading' || !flow.selectedPatientId"
-                @click="refreshMediaPreload"
-              >
-                Aktualisieren
-              </button>
-            </div>
-          </div>
-          <div class="card-body p-2">
-            <div class="small text-muted px-2 mb-2">
-              Entwurfsmodus:
-            </div>
-            <div class="small text-muted px-2 mb-3">
-              PE: {{ flow.patientExaminationId || 'n/a' }} · Entwurf:
-              {{ draftSummaryLabel }}
-            </div>
-            <div v-if="draftBootstrapError" class="alert alert-warning py-2 mx-2 mb-3">
+          <div class="card-body p-3">
+            <p class="small text-muted mb-3">
+              Folgen Sie dem Ablauf von der Falldatenpflege bis zum Abschluss. Nicht verfügbare
+              Schritte werden erst nach Auswahl einer Patientenuntersuchung freigeschaltet.
+            </p>
+            <div v-if="draftBootstrapError" class="alert alert-warning py-2 mb-3">
               {{ draftBootstrapError }}
             </div>
-            <div class="px-2 mb-3">
-              <label class="form-label form-label-sm mb-1">Patientenuntersuchung wählen</label>
-              <select
-                class="form-select form-select-sm"
-                :value="selectedPatientExaminationId"
-                :disabled="patientExaminationOptionsLoading || !patientExaminationOptions.length"
-                @change="onPatientExaminationSelect(($event.target as HTMLSelectElement).value)"
-              >
-                <option value="">
-                  {{
-                    patientExaminationOptionsLoading
-                      ? 'Patientenuntersuchungen werden geladen...'
-                      : patientExaminationOptions.length
-                        ? 'Bitte Patientenuntersuchung wählen'
-                        : 'Keine Patientenuntersuchungen verfügbar'
-                  }}
-                </option>
-                <option
-                  v-for="option in patientExaminationOptions"
-                  :key="option.id"
-                  :value="option.id"
-                >
-                  {{ option.label }}
-                </option>
-              </select>
-              <div v-if="patientExaminationOptionsError" class="small text-danger mt-1">
-                {{ patientExaminationOptionsError }}
-              </div>
-            </div>
             <nav class="nav flex-column gap-1">
-              <RouterLink
-                v-for="item in navItems"
-                :key="item.to"
-                :to="item.to"
-                class="workflow-step-btn btn btn-sm text-start"
-                :class="isActive(item.to) ? 'btn-dark is-active' : 'btn-outline-secondary is-inactive'"
-              >
-                {{ item.label }}
-              </RouterLink>
+              <template v-for="item in navItems" :key="item.to">
+                <RouterLink
+                  v-if="!isStepDisabled(item)"
+                  :to="item.to"
+                  class="workflow-step-btn btn btn-sm text-start"
+                  :class="isActive(item.to) ? 'btn-dark is-active' : 'btn-outline-secondary is-inactive'"
+                >
+                  <span>{{ item.label }}</span>
+                  <span class="workflow-step-meta">{{ stepStatusLabel(item) }}</span>
+                </RouterLink>
+                <div
+                  v-else
+                  class="workflow-step-btn btn btn-sm text-start is-disabled"
+                >
+                  <span>{{ item.label }}</span>
+                  <span class="workflow-step-meta">{{ stepStatusLabel(item) }}</span>
+                </div>
+              </template>
             </nav>
           </div>
         </div>
       </div>
 
       <div class="col-lg-9">
-        <div v-if="flow.mediaPreload" class="card shadow-sm mb-3">
+        <div v-if="isContextPanelOpen" class="card shadow-sm mb-3">
           <div class="card-header d-flex justify-content-between align-items-center">
-            <h6 class="mb-0">Letzte Dokumente</h6>
-            <small class="text-muted">Patient {{ flow.mediaPreload.patient.id }}</small>
+            <div>
+              <h6 class="mb-0">Arbeitskontext</h6>
+              <small class="text-muted">Medien, Entwurfsstatus und letzte Dokumente</small>
+            </div>
+            <small class="text-muted">
+              Medienstatus: <strong>{{ mediaPreloadLabel }}</strong>
+            </small>
           </div>
           <div class="card-body">
-            <div class="row g-3">
+            <div class="row g-3 mb-3">
+              <div class="col-md-4">
+                <div class="border rounded p-3 h-100">
+                  <div class="fw-semibold mb-1">Entwurf</div>
+                  <div class="small text-muted">
+                    {{ draftSummaryLongLabel }}
+                  </div>
+                  <div class="small text-muted mt-1">
+                    Patientenuntersuchung: {{ selectedPatientExaminationLabel }}
+                  </div>
+                  <div class="small text-muted mt-1">
+                    Berichtsvorlage: {{ selectedTemplateLabel }}
+                  </div>
+                  <div v-if="draftBootstrapError" class="alert alert-warning py-2 mt-2 mb-0">
+                    {{ draftBootstrapError }}
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="border rounded p-3 h-100">
+                  <div class="fw-semibold mb-1">Medien-Preload</div>
+                  <div class="small text-muted">
+                    Status: <strong>{{ mediaPreloadLabel }}</strong>
+                  </div>
+                  <div v-if="flow.mediaPreloadError" class="alert alert-warning py-2 mt-2 mb-0">
+                    {{ flow.mediaPreloadError }}
+                  </div>
+                  <div v-else class="small text-muted mt-2">
+                    Letzte Medien und Dokumente helfen beim Arbeiten im Befund- und Berichtsschritt.
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="border rounded p-3 h-100">
+                  <div class="fw-semibold mb-1">Nächster Schritt</div>
+                  <div class="small text-muted">
+                    {{ nextStepHint }}
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div v-if="flow.mediaPreload" class="row g-3">
               <div class="col-md-4">
                 <div class="border rounded p-3 h-100">
                   <div class="fw-semibold mb-1">Report</div>
@@ -181,6 +268,9 @@
                 </div>
               </div>
             </div>
+            <div v-else class="small text-muted">
+              Noch keine zuletzt geladenen Medien verfügbar.
+            </div>
           </div>
         </div>
         <RouterView />
@@ -207,6 +297,7 @@ const router = useRouter()
 const flow = useReportingFlowStore()
 const selectedVideoStreamUrl = ref<string | null>(null)
 const selectedFrameStreamUrl = ref<string | null>(null)
+const isContextPanelOpen = ref(true)
 type PatientExaminationOption = {
   id: number
   label: string
@@ -231,13 +322,13 @@ const selectedPatientExaminationId = computed(() =>
 const pe = computed(() => flow.patientExaminationId || ':patient_examination_id')
 
 const navItems = computed(() => [
-  { label: 'Arbeitsliste', to: '/reporting' },
-  { label: 'Template Builder', to: '/reporting/template-builder' },
-  { label: 'Fall-Setup', to: '/reporting/case-setup' },
-  { label: 'Klinische Dokumentation', to: `/reporting/${pe.value}/findings` },
-  { label: 'Berichtseditor', to: `/reporting/${pe.value}/report-editor` },
-  { label: 'Frame-Auswahl', to: `/reporting/${pe.value}/frame-selector` },
-  { label: 'Finalisierung', to: `/reporting/${pe.value}/finalized` }
+  { label: 'Berichtsvorlagen', to: '/reporting/template-builder', requiresPatientExamination: false },
+  { label: 'Arbeitsliste', to: '/reporting', requiresPatientExamination: false },
+  { label: 'Falldaten', to: '/reporting/case-setup', requiresPatientExamination: false },
+  { label: 'Befunde', to: `/reporting/${pe.value}/findings`, requiresPatientExamination: true },
+  { label: 'Bericht schreiben', to: `/reporting/${pe.value}/report-editor`, requiresPatientExamination: true },
+  { label: 'Bilder auswählen', to: `/reporting/${pe.value}/frame-selector`, requiresPatientExamination: true },
+  { label: 'Abschluss', to: `/reporting/${pe.value}/finalized`, requiresPatientExamination: true }
 ])
 
 const preferredReportStream = computed(() =>
@@ -258,6 +349,53 @@ const draftSummaryLabel = computed(() => {
   return draft.hydratedFrom === 'session_storage' || draft.hydratedFrom === 'draft_api'
     ? 'wiederhergestellt'
     : 'initialisiert'
+})
+
+const draftSummaryLongLabel = computed(() => {
+  if (!flow.currentRuntimeDraft) return 'Noch kein Entwurf geladen'
+  return draftSummaryLabel.value === 'wiederhergestellt'
+    ? 'Entwurf wurde aus einem vorhandenen Stand wiederhergestellt'
+    : 'Entwurf wurde für den aktuellen Fall vorbereitet'
+})
+
+const selectedPatientExaminationLabel = computed(() => {
+  const selected = patientExaminationOptions.value.find((entry) => entry.id === routePatientExaminationId.value)
+    || patientExaminationOptions.value.find((entry) => entry.id === flow.patientExaminationId)
+    || null
+  if (selected) return selected.label
+  return flow.patientExaminationId ? `#${flow.patientExaminationId}` : 'Noch nicht gewählt'
+})
+
+const selectedTemplateLabel = computed(() =>
+  flow.selectedTemplateName || 'Noch keine Vorlage gewählt'
+)
+
+const currentStepLabel = computed(() => {
+  const current = navItems.value.find((item) => isActive(item.to))
+  return current?.label || 'Arbeitsbereich'
+})
+
+const mediaPreloadLabel = computed(() => {
+  if (flow.mediaPreloadStatus === 'idle') return 'nicht geladen'
+  if (flow.mediaPreloadStatus === 'loading') return 'wird geladen'
+  if (flow.mediaPreloadStatus === 'error') return 'Fehler'
+  return 'bereit'
+})
+
+const nextStepHint = computed(() => {
+  if (!flow.patientExaminationId) {
+    return 'Wählen Sie zuerst eine Patientenuntersuchung, um Befunde und Bericht zu bearbeiten.'
+  }
+  if (!flow.currentRuntimeDraft) {
+    return 'Der Entwurf wird vorbereitet. Danach können Sie direkt mit den Befunden starten.'
+  }
+  if (route.path.includes('/report-editor')) {
+    return 'Bericht prüfen, Text ergänzen und anschließend zum Abschluss wechseln.'
+  }
+  if (route.path.includes('/frame-selector')) {
+    return 'Passende Bilder auswählen und danach den Bericht abschließen.'
+  }
+  return 'Beginnen Sie mit den Befunden und arbeiten Sie sich dann zum Bericht vor.'
 })
 
 function openUrl(url: string | null) {
@@ -786,6 +924,17 @@ function isActive(path: string): boolean {
   return route.path === path
 }
 
+function isStepDisabled(item: { requiresPatientExamination?: boolean }) {
+  return Boolean(item.requiresPatientExamination && !flow.patientExaminationId)
+}
+
+function stepStatusLabel(item: { to: string; requiresPatientExamination?: boolean }) {
+  if (isActive(item.to)) return 'Aktuell'
+  if (isStepDisabled(item)) return 'Fall wählen'
+  if (item.requiresPatientExamination) return 'Bereit'
+  return 'Verfügbar'
+}
+
 watch(
   [() => flow.selectedPatientId, routePatientExaminationId],
   async ([patientId, patientExaminationId]) => {
@@ -844,6 +993,48 @@ watch(
   color: #1f2a37;
 }
 
+.reporting-context-card .card-body {
+  padding: 1.25rem;
+}
+
+.tracking-label {
+  letter-spacing: 0.08em;
+}
+
+.reporting-context-main {
+  max-width: 38rem;
+}
+
+.reporting-context-summary {
+  min-width: min(100%, 36rem);
+}
+
+.context-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: 0.75rem;
+}
+
+.context-summary-item {
+  padding: 0.8rem 0.9rem;
+  border: 1px solid #d6dce7;
+  border-radius: 0.75rem;
+  background: #f9fbff;
+}
+
+.context-summary-label {
+  display: block;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #617086;
+  margin-bottom: 0.25rem;
+}
+
+.context-case-select {
+  width: min(100%, 28rem);
+}
+
 .reporting-shell .text-muted {
   color: #4b5565 !important;
 }
@@ -857,6 +1048,10 @@ watch(
   line-height: 1.3;
   border-width: 1px;
   border-style: solid;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
 }
 
 .reporting-shell .workflow-step-btn.is-inactive {
@@ -877,6 +1072,22 @@ watch(
   background-color: #243247 !important;
   border-color: #243247 !important;
   box-shadow: 0 6px 14px rgba(16, 24, 40, 0.24);
+}
+
+.reporting-shell .workflow-step-btn.is-disabled {
+  color: #7b8796 !important;
+  background-color: #f4f6f9 !important;
+  border-color: #d6dce7 !important;
+  cursor: not-allowed;
+}
+
+.workflow-step-meta {
+  flex-shrink: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  opacity: 0.82;
 }
 
 .reporting-shell .workflow-step-btn:focus-visible {

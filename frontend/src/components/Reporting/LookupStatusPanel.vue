@@ -5,7 +5,7 @@
         <div>
           <div class="fw-semibold small">{{ title }}</div>
           <div class="small text-muted">
-            PE #{{ patientExaminationId ?? 'n/a' }} · Lookup {{ lookupToken ? 'aktiv' : 'kein Token' }}
+            Fall #{{ patientExaminationId ?? 'k. A.' }} · Abfrage {{ lookupToken ? 'aktiv' : 'nicht verbunden' }}
             <template v-if="sessionStatus"> · Status {{ sessionStatus }}</template>
           </div>
         </div>
@@ -22,7 +22,7 @@
 
       <div v-if="!collapsed" data-testid="lookup-status-details" class="row g-3 mt-1">
         <div class="col-md-4">
-          <label class="form-label">PatientExamination-ID</label>
+          <label class="form-label">Fall-ID</label>
           <input class="form-control" :value="patientExaminationId ?? ''" readonly />
         </div>
         <div v-if="selectedExaminationId !== undefined" class="col-md-4">
@@ -30,7 +30,7 @@
           <input class="form-control" :value="selectedExaminationId ?? ''" readonly />
         </div>
         <div v-if="sessionStatus !== undefined" class="col-md-4">
-          <label class="form-label">Lookup-Status</label>
+          <label class="form-label">Abfragestatus</label>
           <input class="form-control" :value="sessionStatus" readonly />
         </div>
         <div v-if="findingsRevision !== undefined" class="col-md-4">
@@ -55,7 +55,7 @@ const props = withDefaults(defineProps<{
   collapsible?: boolean
   initiallyCollapsed?: boolean
 }>(), {
-  title: 'Technische Diagnostik',
+  title: 'Status',
   collapsible: true,
   initiallyCollapsed: true
 })
