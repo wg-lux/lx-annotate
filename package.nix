@@ -84,7 +84,8 @@ stdenvNoCC.mkDerivation {
 
     export HOME="$TMPDIR/home"
     export XDG_DATA_HOME="$TMPDIR/xdg"
-    export LX_ANNOTATE_DATA_DIR="$TMPDIR/app-data"
+    export LX_ANNOTATE_ENCRYPTED_DATA_DIR="$TMPDIR/app-data"
+    export LX_ANNOTATE_DATA_DIR="$LX_ANNOTATE_ENCRYPTED_DATA_DIR"
     export DJANGO_STATIC_ROOT="$static_root"
     export DJANGO_SETTINGS_MODULE="lx_annotate.settings.settings_prod"
     export DJANGO_SECRET_KEY="nix-build-secret-key-00000000000000000000000000000000"
@@ -103,7 +104,7 @@ stdenvNoCC.mkDerivation {
     export LD_LIBRARY_PATH="${runtimeLibraryPath}"
     export TESSDATA_PREFIX="${tesseract}/share/tessdata"
 
-    mkdir -p "$HOME" "$XDG_DATA_HOME" "$LX_ANNOTATE_DATA_DIR"
+    mkdir -p "$HOME" "$XDG_DATA_HOME" "$LX_ANNOTATE_ENCRYPTED_DATA_DIR"
     chmod -R u+w "$app_dir"
     ${python.interpreter} "$app_dir/manage.py" collectstatic --noinput --clear
 
@@ -126,8 +127,9 @@ EOF
     makeWrapper "$out/libexec/lx-annotate-server" "$out/bin/lx-annotate-server" \
       --set-default DJANGO_SETTINGS_MODULE "lx_annotate.settings.settings_prod" \
       --set-default DJANGO_STATIC_ROOT "$static_root" \
-      --set-default LX_ANNOTATE_DATA_DIR "/var/lib/lx-annotate" \
-      --set-default XDG_DATA_HOME "/var/lib" \
+      --set-default LX_ANNOTATE_ENCRYPTED_DATA_DIR "/var/lib/lx-annotate/data" \
+      --set-default LX_ANNOTATE_DATA_DIR "/var/lib/lx-annotate/data" \
+      --set-default XDG_DATA_HOME "/var/lib/lx-annotate" \
       --set-default TESSDATA_PREFIX "${tesseract}/share/tessdata" \
       --prefix PATH : "${lib.makeBinPath [ ffmpeg-headless ]}" \
       --prefix LD_LIBRARY_PATH : "${runtimeLibraryPath}" \
@@ -136,8 +138,9 @@ EOF
     makeWrapper "$out/libexec/lx-annotate-manage" "$out/bin/lx-annotate-manage" \
       --set-default DJANGO_SETTINGS_MODULE "lx_annotate.settings.settings_prod" \
       --set-default DJANGO_STATIC_ROOT "$static_root" \
-      --set-default LX_ANNOTATE_DATA_DIR "/var/lib/lx-annotate" \
-      --set-default XDG_DATA_HOME "/var/lib" \
+      --set-default LX_ANNOTATE_ENCRYPTED_DATA_DIR "/var/lib/lx-annotate/data" \
+      --set-default LX_ANNOTATE_DATA_DIR "/var/lib/lx-annotate/data" \
+      --set-default XDG_DATA_HOME "/var/lib/lx-annotate" \
       --set-default TESSDATA_PREFIX "${tesseract}/share/tessdata" \
       --prefix PATH : "${lib.makeBinPath [ ffmpeg-headless ]}" \
       --prefix LD_LIBRARY_PATH : "${runtimeLibraryPath}" \

@@ -10,19 +10,44 @@ def _read(rel_path: str) -> str:
     return (REPO_ROOT / rel_path).read_text(encoding="utf-8")
 
 
-def test_wheel_runtime_keeps_state_under_var_lib_not_inside_venv():
+def test_wheel_runtime_splits_code_and_data_roots():
     deploy_sh = _read("deploy/deploy.sh")
     service_unit = _read("deploy/lx-annotate.service")
 
-    assert 'APP_DIR="${APP_DIR:-/var/lib/lx-annotate}"' in deploy_sh
+    assert 'APP_DIR="${APP_DIR:-/home/lx-annotate/lx-annotate-wheel}"' in deploy_sh
+    assert 'DATA_DIR="${DATA_DIR:-/var/lib/lx-annotate/data}"' in deploy_sh
+    assert 'STATE_DIR="${STATE_DIR:-/var/lib/lx-annotate}"' in deploy_sh
     assert 'VENV_DIR="${VENV_DIR:-$APP_DIR/.venv}"' in deploy_sh
-    assert 'ENV_FILE="${ENV_FILE:-$APP_DIR/.env.systemd}"' in deploy_sh
+    assert 'ENV_FILE="${ENV_FILE:-$STATE_DIR/.env.systemd}"' in deploy_sh
+    assert 'DJANGO_STATIC_ROOT="${DJANGO_STATIC_ROOT:-$STATIC_ROOT}"' in deploy_sh
     assert (
-        'DJANGO_STATIC_ROOT="${DJANGO_STATIC_ROOT:-$APP_DIR/staticfiles}"' in deploy_sh
+        'LX_ANNOTATE_ENCRYPTED_DATA_DIR="${LX_ANNOTATE_ENCRYPTED_DATA_DIR:-$DATA_DIR}"'
+        in deploy_sh
     )
-    assert 'LX_ANNOTATE_DATA_DIR="${LX_ANNOTATE_DATA_DIR:-$APP_DIR/data}"' in deploy_sh
+    assert (
+        'LX_ANNOTATE_DATA_DIR="${LX_ANNOTATE_DATA_DIR:-$LX_ANNOTATE_ENCRYPTED_DATA_DIR}"'
+        in deploy_sh
+    )
     assert "EnvironmentFile=/var/lib/lx-annotate/.env.systemd" in service_unit
-    assert "ExecStart=/var/lib/lx-annotate/.venv/bin/daphne" in service_unit
+    assert "WorkingDirectory=/home/lx-annotate/lx-annotate-wheel" in service_unit
+    assert (
+        "ExecStart=/home/lx-annotate/lx-annotate-wheel/.venv/bin/daphne" in service_unit
+    )
+
+
+def test_wheel_runtime_documents_encrypted_data_boundary():
+    readme = _read("README.md")
+    guide = _read("docs/guides/deployment-strategy.md")
+    wheel_guide = _read("docs/guides/wheel-deployment.md")
+
+    assert "encrypting the data path" in readme
+    assert "`LX_ANNOTATE_ENCRYPTED_DATA_DIR`" in readme
+    assert "code and virtualenv under the service user home" in guide
+    assert (
+        "data, staticfiles, and `.env.systemd` under `/var/lib/lx-annotate`"
+        in wheel_guide
+    )
+    assert "should not generate or manage encryption keys itself" in wheel_guide
 
 
 def test_deploy_script_disables_pip_cache_growth():
@@ -60,8 +85,9 @@ def test_watcher_runs_as_separate_systemd_unit():
     guide = _read("docs/guides/wheel-deployment.md")
 
     assert "Description=lx-annotate file watcher" in watcher_unit
+    assert "WorkingDirectory=/home/lx-annotate/lx-annotate-wheel" in watcher_unit
     assert (
-        "ExecStart=/var/lib/lx-annotate/.venv/bin/django-admin run_filewatcher"
+        "ExecStart=/home/lx-annotate/lx-annotate-wheel/.venv/bin/django-admin run_filewatcher"
         in watcher_unit
     )
     assert "PartOf=lx-annotate.service" in watcher_unit

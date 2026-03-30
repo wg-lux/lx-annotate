@@ -27,7 +27,7 @@ const validationError = ref('');
  * Fetch backend detail to get canonical video_url + duration (don't reconstruct in client)
  */
 async function loadVideoDetail(videoId) {
-    const { data } = await axiosInstance.get(`/api/media/videos/${videoId}/`);
+    const { data } = await axiosInstance.get(`/${r(endpoints.media.videoDetail(videoId))}`);
     videoUrl.value = data.video_url;
     duration.value = Number(data.duration ?? 0);
 }

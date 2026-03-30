@@ -25,12 +25,14 @@ INSTALLED_APPS = deepcopy(base.INSTALLED_APPS)
 MIDDLEWARE = deepcopy(base.MIDDLEWARE)
 REST_FRAMEWORK = deepcopy(base.REST_FRAMEWORK)
 LOGGING = deepcopy(base.LOGGING)
+STORAGES = deepcopy(base.STORAGES)
 
 # Help mypy
 INSTALLED_APPS = cast(list[str], INSTALLED_APPS)
 MIDDLEWARE = cast(list[str], MIDDLEWARE)
 REST_FRAMEWORK = cast(dict[str, Any], REST_FRAMEWORK)
 LOGGING = cast(dict[str, Any], LOGGING)
+STORAGES = cast(dict[str, Any], STORAGES)
 
 # -----------------------------------------------------------------------------
 # 2. CORE TEST OVERRIDES
@@ -142,6 +144,12 @@ CACHES = {
 }
 
 STATICFILES_STORAGE = "django.contrib.staticfiles.storage.StaticFilesStorage"
+STORAGES["default"] = {
+    "BACKEND": "django.core.files.storage.FileSystemStorage",
+}
+STORAGES["staticfiles"] = {
+    "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+}
 
 # -----------------------------------------------------------------------------
 # 8. TEST FLAGS

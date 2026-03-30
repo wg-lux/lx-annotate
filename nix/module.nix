@@ -7,6 +7,11 @@
 
 let
   cfg = config.services.lx-annotate;
+  effectiveEncryptedDataDir =
+    if cfg.encryptedDataDir != "/var/lib/lx-annotate/data" then
+      cfg.encryptedDataDir
+    else
+      cfg.dataDir;
 in
 {
   options.services.lx-annotate = {
@@ -37,9 +42,15 @@ in
       default = 8000;
     };
 
+    encryptedDataDir = lib.mkOption {
+      type = lib.types.path;
+      default = "/var/lib/lx-annotate/data";
+    };
+
     dataDir = lib.mkOption {
       type = lib.types.path;
-      default = "/var/lib/lx-annotate";
+      default = "/var/lib/lx-annotate/data";
+      description = "Legacy alias for encryptedDataDir.";
     };
 
     settingsModule = lib.mkOption {
@@ -64,14 +75,15 @@ in
     users.users.${cfg.user} = {
       isSystemUser = true;
       group = cfg.group;
-      home = cfg.dataDir;
+      home = "/var/lib/lx-annotate";
       createHome = true;
     };
 
     systemd.tmpfiles.rules = [
-      "d ${cfg.dataDir} 0750 ${cfg.user} ${cfg.group} - -"
-      "d ${cfg.dataDir}/logs 0750 ${cfg.user} ${cfg.group} - -"
-      "d ${cfg.dataDir}/media 0750 ${cfg.user} ${cfg.group} - -"
+      "d /var/lib/lx-annotate 0750 ${cfg.user} ${cfg.group} - -"
+      "d ${effectiveEncryptedDataDir} 0750 ${cfg.user} ${cfg.group} - -"
+      "d ${effectiveEncryptedDataDir}/logs 0750 ${cfg.user} ${cfg.group} - -"
+      "d ${effectiveEncryptedDataDir}/media 0750 ${cfg.user} ${cfg.group} - -"
     ];
 
     systemd.services.lx-annotate = {
@@ -84,8 +96,9 @@ in
           DJANGO_HOST = cfg.host;
           DJANGO_PORT = toString cfg.port;
           DJANGO_SETTINGS_MODULE = cfg.settingsModule;
-          LX_ANNOTATE_DATA_DIR = cfg.dataDir;
-          XDG_DATA_HOME = cfg.dataDir;
+          LX_ANNOTATE_ENCRYPTED_DATA_DIR = toString effectiveEncryptedDataDir;
+          LX_ANNOTATE_DATA_DIR = toString effectiveEncryptedDataDir;
+          XDG_DATA_HOME = "/var/lib/lx-annotate";
           ENFORCE_AUTH = "0";
         }
         // cfg.extraEnv;

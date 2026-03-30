@@ -1291,13 +1291,13 @@ function buildMediaUrl(path: string, query?: Record<string, string>): string {
 // ✅ NEW: Raw video URL (original unprocessed video)
 const rawVideoSrc = computed(() => {
   if (!isVideo.value || !currentItem.value) return undefined;
-  return buildMediaUrl(endpoints.media.videoDetailStream(fileId), { type: 'raw' });
+  return buildMediaUrl(endpoints.media.videoStream(fileId), { type: 'raw' });
 });
 
 // ✅ NEW: Anonymized video URL (processed/anonymized video)
 const anonymizedVideoSrc = computed(() => {
   if (!isVideo.value || !currentItem.value) return undefined;
-  return buildMediaUrl(endpoints.media.videoDetailStream(fileId), { type: 'processed' });
+  return buildMediaUrl(endpoints.media.videoStream(fileId), { type: 'processed' });
 });
 
 // ✅ NEW: Raw PDF URL (original unprocessed PDF)

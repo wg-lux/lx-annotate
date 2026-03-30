@@ -1,4 +1,4 @@
-import { fetchApplicationSettings, fetchApplicationSettingsDropdowns, updateApplicationSettings } from '@/api/applicationSettingsApi';
+import { fetchApplicationSettings, fetchApplicationSettingsDropdowns, triggerApplicationBackup, updateApplicationSettings } from '@/api/applicationSettingsApi';
 import { useToastStore } from '@/stores/toastStore';
 import { computed, onMounted, reactive, ref } from 'vue';
 const EMPTY_OPTION = '';
@@ -7,14 +7,20 @@ const loading = ref(true);
 const saving = ref(false);
 const errorMessage = ref('');
 const currentSettings = ref(null);
+const backupInProgress = ref(false);
+const backupTargetPath = ref('');
+const backupResult = ref(null);
+const backupError = ref('');
 const dropdowns = reactive({
     centers: [],
     processors: [],
+    annotators: [],
     reportTemplates: []
 });
 const form = reactive({
     centerId: EMPTY_OPTION,
     processorId: EMPTY_OPTION,
+    annotatorName: EMPTY_OPTION,
     reportTemplateName: EMPTY_OPTION
 });
 const updatedAtLabel = computed(() => {
@@ -33,9 +39,25 @@ const selectedProcessorLabel = computed(() => {
     const match = dropdowns.processors.find((option) => String(option.id) === form.processorId);
     return match?.name ?? 'Kein Standardprozessor';
 });
+const selectedAnnotatorLabel = computed(() => {
+    const match = dropdowns.annotators.find((option) => option.value === form.annotatorName);
+    return match?.label ?? 'Kein Standard-Annotator';
+});
 const selectedReportTemplateLabel = computed(() => {
     const match = dropdowns.reportTemplates.find((option) => option.value === form.reportTemplateName);
     return match?.label ?? 'Keine Standardvorlage';
+});
+const backupReady = computed(() => currentSettings.value?.backupStatus.ready ?? false);
+const backupMissingPaths = computed(() => currentSettings.value?.backupStatus.missingPaths ?? []);
+const backupSourceRoots = computed(() => currentSettings.value?.backupStatus.sourceRoots ?? []);
+const backupRequiredPaths = computed(() => currentSettings.value?.backupStatus.requiredPathCount ?? 0);
+const backupAvailablePaths = computed(() => currentSettings.value?.backupStatus.availablePathCount ?? 0);
+const backupMessage = computed(() => {
+    if (backupError.value)
+        return backupError.value;
+    if (backupResult.value)
+        return `Backup erstellt: ${backupResult.value.targetRoot}`;
+    return '';
 });
 const isDirty = computed(() => {
     if (!currentSettings.value)
@@ -45,12 +67,14 @@ const isDirty = computed(() => {
         (currentSettings.value.processorId === null
             ? EMPTY_OPTION
             : String(currentSettings.value.processorId)) !== form.processorId ||
+        (currentSettings.value.annotatorName ?? EMPTY_OPTION) !== form.annotatorName ||
         (currentSettings.value.reportTemplateName ?? EMPTY_OPTION) !== form.reportTemplateName);
 });
 function applySettings(settings) {
     currentSettings.value = settings;
     form.centerId = settings.centerId === null ? EMPTY_OPTION : String(settings.centerId);
     form.processorId = settings.processorId === null ? EMPTY_OPTION : String(settings.processorId);
+    form.annotatorName = settings.annotatorName ?? EMPTY_OPTION;
     form.reportTemplateName = settings.reportTemplateName ?? EMPTY_OPTION;
 }
 function resetForm() {
@@ -68,8 +92,11 @@ async function loadSettings() {
         ]);
         dropdowns.centers = nextDropdowns.centers;
         dropdowns.processors = nextDropdowns.processors;
+        dropdowns.annotators = nextDropdowns.annotators;
         dropdowns.reportTemplates = nextDropdowns.reportTemplates;
         applySettings(settings);
+        backupResult.value = null;
+        backupError.value = '';
     }
     catch (error) {
         console.error('Failed to load application settings:', error);
@@ -86,6 +113,7 @@ async function saveSettings() {
         const updated = await updateApplicationSettings({
             centerId: form.centerId ? Number(form.centerId) : null,
             processorId: form.processorId ? Number(form.processorId) : null,
+            annotatorName: form.annotatorName || null,
             reportTemplateName: form.reportTemplateName || null
         });
         applySettings(updated);
@@ -96,6 +124,29 @@ async function saveSettings() {
     }
     finally {
         saving.value = false;
+    }
+}
+async function runBackup() {
+    backupInProgress.value = true;
+    backupError.value = '';
+    backupResult.value = null;
+    try {
+        const result = await triggerApplicationBackup({
+            targetPath: backupTargetPath.value.trim()
+        });
+        await loadSettings();
+        backupResult.value = result;
+        toast.success({ text: 'Backup erfolgreich erstellt.' });
+    }
+    catch (error) {
+        backupError.value =
+            error?.response?.data?.detail ||
+                error?.response?.data?.errors?.targetPath ||
+                'Backup konnte nicht gestartet werden.';
+        console.error('Failed to run application backup:', error);
+    }
+    finally {
+        backupInProgress.value = false;
     }
 }
 onMounted(() => {
@@ -115,6 +166,10 @@ let __VLS_directives;
 /** @type {__VLS_StyleScopedClasses['settings-summary']} */ ;
 /** @type {__VLS_StyleScopedClasses['summary-note']} */ ;
 /** @type {__VLS_StyleScopedClasses['summary-note']} */ ;
+/** @type {__VLS_StyleScopedClasses['backup-stat']} */ ;
+/** @type {__VLS_StyleScopedClasses['backup-stat']} */ ;
+/** @type {__VLS_StyleScopedClasses['backup-root-header']} */ ;
+/** @type {__VLS_StyleScopedClasses['backup-root']} */ ;
 /** @type {__VLS_StyleScopedClasses['settings-hero']} */ ;
 /** @type {__VLS_StyleScopedClasses['settings-status']} */ ;
 /** @type {__VLS_StyleScopedClasses['status-updated']} */ ;
@@ -243,6 +298,26 @@ else {
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
     __VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
+        value: (__VLS_ctx.form.annotatorName),
+        ...{ class: "form-select" },
+        'data-test': "annotator-select",
+        disabled: (__VLS_ctx.saving),
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+        value: (__VLS_ctx.EMPTY_OPTION),
+    });
+    for (const [annotator] of __VLS_getVForSourceType((__VLS_ctx.dropdowns.annotators))) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+            key: (annotator.value),
+            value: (annotator.value),
+        });
+        (annotator.label);
+    }
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+        ...{ class: "settings-field" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
         value: (__VLS_ctx.form.reportTemplateName),
         ...{ class: "form-select" },
         'data-test': "report-template-select",
@@ -262,7 +337,8 @@ else {
         ...{ class: "actions-row" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-        type: "submit",
+        ...{ onClick: (__VLS_ctx.saveSettings) },
+        type: "button",
         ...{ class: "btn btn-light" },
         'data-test': "save-settings",
         disabled: (__VLS_ctx.saving || __VLS_ctx.loading || !__VLS_ctx.isDirty),
@@ -302,6 +378,12 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.dd, __VLS_intrinsicElements.dd
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
 __VLS_asFunctionalElement(__VLS_intrinsicElements.dt, __VLS_intrinsicElements.dt)({});
 __VLS_asFunctionalElement(__VLS_intrinsicElements.dd, __VLS_intrinsicElements.dd)({
+    'data-test': "summary-annotator",
+});
+(__VLS_ctx.selectedAnnotatorLabel);
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.dt, __VLS_intrinsicElements.dt)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.dd, __VLS_intrinsicElements.dd)({
     'data-test': "summary-report-template",
 });
 (__VLS_ctx.selectedReportTemplateLabel);
@@ -310,6 +392,94 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.d
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
 __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.aside, __VLS_intrinsicElements.aside)({
+    ...{ class: "settings-card mt-4" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "card-header-row" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.h2, __VLS_intrinsicElements.h2)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+    ...{ class: "backup-chip" },
+    ...{ class: ({ 'backup-chip-ready': __VLS_ctx.backupReady, 'backup-chip-blocked': !__VLS_ctx.backupReady }) },
+});
+(__VLS_ctx.backupReady ? 'Backup bereit' : 'Pfadprüfung fehlgeschlagen');
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "backup-summary" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "backup-stat" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+(__VLS_ctx.backupAvailablePaths);
+(__VLS_ctx.backupRequiredPaths);
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "backup-stat" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+(__VLS_ctx.backupSourceRoots.length);
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "backup-roots" },
+});
+for (const [root] of __VLS_getVForSourceType((__VLS_ctx.backupSourceRoots))) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        key: (root.path),
+        ...{ class: "backup-root" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "backup-root-header" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+    (root.label);
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+        ...{ class: "backup-root-count" },
+    });
+    (root.fileCount);
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.code, __VLS_intrinsicElements.code)({});
+    (root.path);
+}
+if (__VLS_ctx.backupMissingPaths.length) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "alert alert-warning mt-3 mb-0" },
+        role: "alert",
+    });
+    (__VLS_ctx.backupMissingPaths.join(', '));
+}
+__VLS_asFunctionalElement(__VLS_intrinsicElements.form, __VLS_intrinsicElements.form)({
+    ...{ onSubmit: (__VLS_ctx.runBackup) },
+    ...{ class: "backup-form" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+    ...{ class: "settings-field" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
+    value: (__VLS_ctx.backupTargetPath),
+    type: "text",
+    ...{ class: "form-control" },
+    'data-test': "backup-target-path",
+    disabled: (__VLS_ctx.backupInProgress),
+    placeholder: "/mnt/external-drive",
+});
+if (__VLS_ctx.backupMessage) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "alert alert-info mb-0" },
+        role: "alert",
+    });
+    (__VLS_ctx.backupMessage);
+}
+__VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+    ...{ onClick: (__VLS_ctx.runBackup) },
+    type: "button",
+    ...{ class: "btn btn-dark" },
+    'data-test': "run-backup",
+    disabled: (__VLS_ctx.backupInProgress || !__VLS_ctx.backupReady || !__VLS_ctx.backupTargetPath.trim()),
+});
+(__VLS_ctx.backupInProgress ? 'Backup läuft…' : 'Backup auf Laufwerk starten');
 /** @type {__VLS_StyleScopedClasses['settings-page']} */ ;
 /** @type {__VLS_StyleScopedClasses['container-fluid']} */ ;
 /** @type {__VLS_StyleScopedClasses['py-4']} */ ;
@@ -348,6 +518,8 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)(
 /** @type {__VLS_StyleScopedClasses['form-select']} */ ;
 /** @type {__VLS_StyleScopedClasses['settings-field']} */ ;
 /** @type {__VLS_StyleScopedClasses['form-select']} */ ;
+/** @type {__VLS_StyleScopedClasses['settings-field']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-select']} */ ;
 /** @type {__VLS_StyleScopedClasses['actions-row']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-light']} */ ;
@@ -360,6 +532,31 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)(
 /** @type {__VLS_StyleScopedClasses['summary-intro']} */ ;
 /** @type {__VLS_StyleScopedClasses['settings-summary']} */ ;
 /** @type {__VLS_StyleScopedClasses['summary-note']} */ ;
+/** @type {__VLS_StyleScopedClasses['settings-card']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-4']} */ ;
+/** @type {__VLS_StyleScopedClasses['card-header-row']} */ ;
+/** @type {__VLS_StyleScopedClasses['backup-chip']} */ ;
+/** @type {__VLS_StyleScopedClasses['backup-chip-ready']} */ ;
+/** @type {__VLS_StyleScopedClasses['backup-chip-blocked']} */ ;
+/** @type {__VLS_StyleScopedClasses['backup-summary']} */ ;
+/** @type {__VLS_StyleScopedClasses['backup-stat']} */ ;
+/** @type {__VLS_StyleScopedClasses['backup-stat']} */ ;
+/** @type {__VLS_StyleScopedClasses['backup-roots']} */ ;
+/** @type {__VLS_StyleScopedClasses['backup-root']} */ ;
+/** @type {__VLS_StyleScopedClasses['backup-root-header']} */ ;
+/** @type {__VLS_StyleScopedClasses['backup-root-count']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert-warning']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['backup-form']} */ ;
+/** @type {__VLS_StyleScopedClasses['settings-field']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-control']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert-info']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-dark']} */ ;
 var __VLS_dollars;
 const __VLS_self = (await import('vue')).defineComponent({
     setup() {
@@ -368,16 +565,26 @@ const __VLS_self = (await import('vue')).defineComponent({
             loading: loading,
             saving: saving,
             errorMessage: errorMessage,
+            backupInProgress: backupInProgress,
+            backupTargetPath: backupTargetPath,
             dropdowns: dropdowns,
             form: form,
             updatedAtLabel: updatedAtLabel,
             selectedCenterLabel: selectedCenterLabel,
             selectedProcessorLabel: selectedProcessorLabel,
+            selectedAnnotatorLabel: selectedAnnotatorLabel,
             selectedReportTemplateLabel: selectedReportTemplateLabel,
+            backupReady: backupReady,
+            backupMissingPaths: backupMissingPaths,
+            backupSourceRoots: backupSourceRoots,
+            backupRequiredPaths: backupRequiredPaths,
+            backupAvailablePaths: backupAvailablePaths,
+            backupMessage: backupMessage,
             isDirty: isDirty,
             resetForm: resetForm,
             loadSettings: loadSettings,
             saveSettings: saveSettings,
+            runBackup: runBackup,
         };
     },
 });

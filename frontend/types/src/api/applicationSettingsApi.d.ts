@@ -7,10 +7,23 @@ export interface ApplicationSettingsRecord {
     annotatorName: string | null;
     reportTemplateName: string | null;
     updatedAt: string | null;
+    backupStatus: {
+        ready: boolean;
+        missingPaths: string[];
+        requiredPathCount: number;
+        availablePathCount: number;
+        sourceRoots: Array<{
+            label: string;
+            path: string;
+            exists: boolean;
+            fileCount: number;
+        }>;
+    };
 }
 export interface ApplicationSettingsUpdatePayload {
     centerId?: number | null;
     processorId?: number | null;
+    annotatorName?: string | null;
     reportTemplateName?: string | null;
 }
 export interface NamedDropdownOption {
@@ -24,8 +37,22 @@ export interface ValueLabelOption {
 export interface ApplicationSettingsDropdowns {
     centers: NamedDropdownOption[];
     processors: NamedDropdownOption[];
+    annotators: ValueLabelOption[];
     reportTemplates: ValueLabelOption[];
+}
+export interface ApplicationBackupPayload {
+    targetPath: string;
+}
+export interface ApplicationBackupResult {
+    targetRoot: string;
+    copiedRoots: Array<{
+        label: string;
+        sourcePath: string;
+        destinationPath: string;
+        fileCount: number;
+    }>;
 }
 export declare function fetchApplicationSettings(): Promise<ApplicationSettingsRecord>;
 export declare function updateApplicationSettings(payload: ApplicationSettingsUpdatePayload): Promise<ApplicationSettingsRecord>;
 export declare function fetchApplicationSettingsDropdowns(): Promise<ApplicationSettingsDropdowns>;
+export declare function triggerApplicationBackup(payload: ApplicationBackupPayload): Promise<ApplicationBackupResult>;

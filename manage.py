@@ -46,7 +46,11 @@ os.environ["DJANGO_SETTINGS_MODULE"] = _select_settings_module(sys.argv)
 
 from lx_annotate.settings.settings_base import BASE_DIR
 
-default_data_dir = os.environ.get("LX_ANNOTATE_DATA_DIR", str(Path(BASE_DIR) / "data"))
+default_data_dir = os.environ.get(
+    "LX_ANNOTATE_ENCRYPTED_DATA_DIR",
+    os.environ.get("LX_ANNOTATE_DATA_DIR", str(Path(BASE_DIR) / "data")),
+)
+os.environ.setdefault("LX_ANNOTATE_ENCRYPTED_DATA_DIR", default_data_dir)
 os.environ.setdefault("DATA_DIR", default_data_dir)
 os.environ.setdefault("STORAGE_DIR", default_data_dir)
 os.environ.setdefault("IO_DIR", default_data_dir)

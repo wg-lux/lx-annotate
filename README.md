@@ -114,6 +114,46 @@ The CI pipeline can now build a production wheel with frontend staticfiles
 included via `hatchling`. Production runtime no longer needs Node.js or the
 full `devenv` shell.
 
+The current deployment strategy is:
+
+- CI builds frontend assets and packages the app as a wheel
+- production installs that wheel into a Python virtualenv
+- host packages provide FFmpeg, Tesseract, and shared libraries
+- `systemd` runs Daphne and the file watcher as separate services
+- Nginx serves static/media files directly
+
+Runtime layout is intentionally split:
+
+- runtime code and the Python virtualenv live under the service user home
+- runtime data, media, staticfiles, and `.env.systemd` live under `/var/lib/lx-annotate`
+
+This split is required for the next hardening step: encrypting the data path and
+restricting access to the `endoreg-service-user` while keeping application code
+and deployment mechanics separate from protected patient data.
+
+The runtime variable for this boundary is `LX_ANNOTATE_ENCRYPTED_DATA_DIR`. The
+app and service layer may continue to export `LX_ANNOTATE_DATA_DIR` as a
+compatibility alias, but the encrypted-data path is now the canonical runtime
+contract.
+
+For application-layer envelope encryption, `lx_annotate` also ships an opt-in
+Django storage backend at `lx_annotate.storage.encrypted.EncryptedStorage`.
+Enable it with `LX_ANNOTATE_USE_ENCRYPTED_STORAGE=1` and provide
+`LX_ANNOTATE_MASTER_KEY` or `LX_ANNOTATE_MASTER_KEY_FILE`. The backend generates
+a per-file DEK, wraps it with the service-level KEK, writes ciphertext only
+under `LX_ANNOTATE_ENCRYPTED_DATA_DIR`, and encrypts/decrypts in chunks so large
+video uploads do not have to fit into memory. The KEK is intentionally
+service-scoped rather than tied to a Keycloak session so background workers such
+as `manage.py run_filewatcher` can still process stored files.
+
+Encryption itself should not be implemented by generating random keys inside the
+application process. The app only consumes the mounted/unlocked path. Key
+management and unlock policy belong in a dedicated LuxNix service or external
+secrets/KMS layer.
+
+For the architecture and mode selection details, see
+`docs/guides/deployment-strategy.md`.
+
 Deployment assets live in `deploy/`:
 
 - `deploy/bootstrap-host.sh`

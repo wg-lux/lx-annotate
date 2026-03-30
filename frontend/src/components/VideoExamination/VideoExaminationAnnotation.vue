@@ -507,6 +507,7 @@ import { useVideoStore, type Segment, type Video } from '@/stores/videoStore'
 import { useAnonymizationStore } from '@/stores/anonymizationStore'
 import { useMediaTypeStore } from '@/stores/mediaTypeStore'
 import axiosInstance, { r } from '@/api/axiosInstance'
+import { endpoints } from '@/types/api/endpoints'
 import Timeline from '@/components/VideoExamination/Timeline.vue'
 import { storeToRefs } from 'pinia'
 import { useToastStore } from '@/stores/toastStore'
@@ -945,7 +946,7 @@ const loadVideoDetail = async (videoId: number): Promise<void> => {
   
   try {
     console.log('Loading video detail for ID:', videoId)
-    const response = await axiosInstance.get(r(`media/videos/${videoId}/`))
+    const response = await axiosInstance.get(r(endpoints.media.videoDetail(videoId)))
     console.log('Video detail response:', response.data)
     
     videoDetail.value = { video_url: response.data.video_url }

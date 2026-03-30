@@ -51,6 +51,22 @@ Keep these runtime values explicitly defined:
 Keep secret-bearing values in `.env.systemd` only. Do not add shell tracing
 such as `set -x` to deployment scripts or service wrappers, and restrict `journalctl` access to trusted operators on the host.
 
+The runtime layout is intentionally split:
+
+- code and virtualenv under the service user home
+- data, staticfiles, and `.env.systemd` under `/var/lib/lx-annotate`
+
+This split is required for encrypted data storage and tighter filesystem access
+control around patient data.
+
+Use `LX_ANNOTATE_ENCRYPTED_DATA_DIR` as the canonical runtime variable for the
+protected data mount. Keep `LX_ANNOTATE_DATA_DIR` only as a compatibility alias
+for older code paths.
+
+The application should not generate or manage encryption keys itself. A
+dedicated LuxNix service or external KMS/secrets system should own key
+management and unlock policy.
+
 ## Deployment
 
 1. Copy the built wheel from CI to the server.

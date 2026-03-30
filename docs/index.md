@@ -11,6 +11,7 @@ used throughout the project.
 :caption: Guides
 
 guides/general-documentation
+guides/deployment-strategy
 guides/asset-deployment
 guides/wheel-deployment
 assisted-reporting-report

@@ -5,6 +5,7 @@ import { AxiosError } from 'axios';
 import { formatTime, getTranslationForLabel, getColorForLabel } from '@/utils/videoUtils';
 import { useAnonymizationStore } from './anonymizationStore';
 import { useToastStore } from './toastStore';
+import { endpoints } from '@/types/api/endpoints';
 function normalizeSegmentList(data) {
     if (Array.isArray(data)) {
         return data;
@@ -101,7 +102,7 @@ export const useVideoStore = defineStore('video', () => {
     }
     function buildVideoStreamUrl(id) {
         const base = import.meta.env.VITE_API_BASE_URL || window.location.origin;
-        return `${base}/api/media/videos/${id}/`;
+        return `${base}/api/${r(endpoints.media.videoStream(id))}`;
     }
     function normalizeFps(value) {
         const parsed = Number(value);
@@ -595,7 +596,7 @@ export const useVideoStore = defineStore('video', () => {
             const id = videoId || currentVideo.value?.id;
             if (!id)
                 return;
-            const response = await axiosInstance.get(r(`media/videos/${id}/`), {
+            const response = await axiosInstance.get(r(endpoints.media.videoDetail(id)), {
                 headers: { Accept: 'application/json' }
             });
             if (response.data.video_url) {

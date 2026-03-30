@@ -8,13 +8,14 @@ StartLimitBurst=5
 Type=simple
 User=lx-annotate
 Group=lx-annotate
-WorkingDirectory=/var/lib/lx-annotate
+WorkingDirectory=/home/lx-annotate/lx-annotate-wheel
 EnvironmentFile=/var/lib/lx-annotate/.env.systemd
-ExecStart=/var/lib/lx-annotate/.venv/bin/daphne -b ${DJANGO_HOST} -p ${DJANGO_PORT} lx_annotate.asgi:application
+ExecStart=/home/lx-annotate/lx-annotate-wheel/.venv/bin/daphne -b ${DJANGO_HOST} -p ${DJANGO_PORT} lx_annotate.asgi:application
 Restart=on-failure
 RestartSec=5
 PrivateTmp=true
 ProtectSystem=full
+ReadWritePaths=/home/lx-annotate/lx-annotate-wheel /var/lib/lx-annotate
 
 [Install]
 WantedBy=multi-user.target

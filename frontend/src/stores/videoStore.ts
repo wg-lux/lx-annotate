@@ -5,6 +5,7 @@ import { AxiosError, type AxiosResponse } from 'axios'
 import { formatTime, getTranslationForLabel, getColorForLabel } from '@/utils/videoUtils'
 import { useAnonymizationStore, type FileItem } from './anonymizationStore'
 import { useToastStore } from './toastStore'
+import { endpoints } from '@/types/api/endpoints'
 
 // ===================================================================
 // TYPE DEFINITIONS
@@ -371,7 +372,7 @@ export const useVideoStore = defineStore('video', () => {
 
   function buildVideoStreamUrl(id: string | number) {
     const base = import.meta.env.VITE_API_BASE_URL || window.location.origin
-    return `${base}/api/media/videos/${id}/`
+    return `${base}/api/${r(endpoints.media.videoStream(id))}`
   }
 
   function normalizeFps(value: unknown): number | null {
@@ -979,7 +980,7 @@ export const useVideoStore = defineStore('video', () => {
       const id = videoId || currentVideo.value?.id
       if (!id) return
 
-      const response: AxiosResponse = await axiosInstance.get(r(`media/videos/${id}/`), {
+      const response: AxiosResponse = await axiosInstance.get(r(endpoints.media.videoDetail(id)), {
         headers: { Accept: 'application/json' }
       })
 

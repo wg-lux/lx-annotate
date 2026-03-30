@@ -115,7 +115,6 @@ export const endpoints = {
     sensitiveMediaId: (pk: Id, mediaType: string) => `media/sensitive-media-id/${pk}/${mediaType}/`,
 
     videos: 'media/videos/',
-    videoDetailStream: (pk: Id) => `media/videos/${pk}/`,
     videoDetail: (pk: Id) => `media/videos/${pk}/details/`,
     videoStream: (pk: Id) => `media/videos/${pk}/stream/`,
     videoReimport: (pk: Id) => `media/videos/${pk}/reimport/`,

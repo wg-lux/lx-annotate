@@ -89,7 +89,6 @@ export declare const endpoints: {
         readonly patientTimeline: (patientId: Id) => string;
         readonly sensitiveMediaId: (pk: Id, mediaType: string) => string;
         readonly videos: "media/videos/";
-        readonly videoDetailStream: (pk: Id) => string;
         readonly videoDetail: (pk: Id) => string;
         readonly videoStream: (pk: Id) => string;
         readonly videoReimport: (pk: Id) => string;

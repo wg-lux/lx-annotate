@@ -475,7 +475,6 @@ export const endpoints = {
     sensitiveMediaId: (pk: Id, mediaType: string) => `media/sensitive-media-id/${pk}/${mediaType}/`,
 
     videos: 'media/videos/',
-    videoDetailStream: (pk: Id) => `media/videos/${pk}/`,
     videoDetail: (pk: Id) => `media/videos/${pk}/details/`,
     videoStream: (pk: Id) => `media/videos/${pk}/stream/`,
     videoReimport: (pk: Id) => `media/videos/${pk}/reimport/`,
@@ -824,4 +823,3 @@ Fast path (experienced user):
 - Final save can succeed even with unmet requirements (warnings only).
 - Segment frame selections persist and reload via `segment-frame-selector`.
 - PDF preview/download and patient timeline links work after finalization.
-

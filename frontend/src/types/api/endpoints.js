@@ -93,7 +93,6 @@ export const endpoints = {
         patientTimeline: (patientId) => `media/patients/${patientId}/timeline/`,
         sensitiveMediaId: (pk, mediaType) => `media/sensitive-media-id/${pk}/${mediaType}/`,
         videos: 'media/videos/',
-        videoDetailStream: (pk) => `media/videos/${pk}/`,
         videoDetail: (pk) => `media/videos/${pk}/details/`,
         videoStream: (pk) => `media/videos/${pk}/stream/`,
         videoReimport: (pk) => `media/videos/${pk}/reimport/`,

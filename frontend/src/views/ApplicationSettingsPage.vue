@@ -88,6 +88,25 @@
               </label>
 
               <label class="settings-field">
+                <span>Standard-Annotator</span>
+                <select
+                  v-model="form.annotatorName"
+                  class="form-select"
+                  data-test="annotator-select"
+                  :disabled="saving"
+                >
+                  <option :value="EMPTY_OPTION">Kein Standard-Annotator</option>
+                  <option
+                    v-for="annotator in dropdowns.annotators"
+                    :key="annotator.value"
+                    :value="annotator.value"
+                  >
+                    {{ annotator.label }}
+                  </option>
+                </select>
+              </label>
+
+              <label class="settings-field">
                 <span>Berichtsvorlage</span>
                 <select
                   v-model="form.reportTemplateName"
@@ -108,10 +127,11 @@
 
               <div class="actions-row">
                 <button
-                  type="submit"
+                  type="button"
                   class="btn btn-light"
                   data-test="save-settings"
                   :disabled="saving || loading || !isDirty"
+                  @click="saveSettings"
                 >
                   Einstellungen speichern
                 </button>
@@ -146,6 +166,10 @@
               <dd data-test="summary-processor">{{ selectedProcessorLabel }}</dd>
             </div>
             <div>
+              <dt>Annotator</dt>
+              <dd data-test="summary-annotator">{{ selectedAnnotatorLabel }}</dd>
+            </div>
+            <div>
               <dt>Berichtsvorlage</dt>
               <dd data-test="summary-report-template">{{ selectedReportTemplateLabel }}</dd>
             </div>
@@ -159,6 +183,74 @@
             </p>
           </div>
         </aside>
+
+        <aside class="settings-card mt-4">
+          <div class="card-header-row">
+            <div>
+              <h2>Backup & Datenintegrität</h2>
+              <p>
+                Ein Backup auf ein eingebundenes Laufwerk wird nur freigeschaltet, wenn alle
+                benötigten Datenpfade vorhanden sind.
+              </p>
+            </div>
+            <span class="backup-chip" :class="{ 'backup-chip-ready': backupReady, 'backup-chip-blocked': !backupReady }">
+              {{ backupReady ? 'Backup bereit' : 'Pfadprüfung fehlgeschlagen' }}
+            </span>
+          </div>
+
+          <div class="backup-summary">
+            <div class="backup-stat">
+              <span>Verfügbare Pfade</span>
+              <strong>{{ backupAvailablePaths }} / {{ backupRequiredPaths }}</strong>
+            </div>
+            <div class="backup-stat">
+              <span>Quelle</span>
+              <strong>{{ backupSourceRoots.length }}</strong>
+            </div>
+          </div>
+
+          <div class="backup-roots">
+            <div v-for="root in backupSourceRoots" :key="root.path" class="backup-root">
+              <div class="backup-root-header">
+                <strong>{{ root.label }}</strong>
+                <span class="backup-root-count">{{ root.fileCount }} Dateien</span>
+              </div>
+              <code>{{ root.path }}</code>
+            </div>
+          </div>
+
+          <div v-if="backupMissingPaths.length" class="alert alert-warning mt-3 mb-0" role="alert">
+            Fehlende Pfade: {{ backupMissingPaths.join(', ') }}
+          </div>
+
+          <form class="backup-form" @submit.prevent="runBackup">
+            <label class="settings-field">
+              <span>Backup-Zielpfad</span>
+              <input
+                v-model="backupTargetPath"
+                type="text"
+                class="form-control"
+                data-test="backup-target-path"
+                :disabled="backupInProgress"
+                placeholder="/mnt/external-drive"
+              />
+            </label>
+
+            <div v-if="backupMessage" class="alert alert-info mb-0" role="alert">
+              {{ backupMessage }}
+            </div>
+
+            <button
+              type="button"
+              class="btn btn-dark"
+              data-test="run-backup"
+              :disabled="backupInProgress || !backupReady || !backupTargetPath.trim()"
+              @click="runBackup"
+            >
+              {{ backupInProgress ? 'Backup läuft…' : 'Backup auf Laufwerk starten' }}
+            </button>
+          </form>
+        </aside>
       </div>
     </div>
   </div>
@@ -168,7 +260,9 @@
 import {
   fetchApplicationSettings,
   fetchApplicationSettingsDropdowns,
+  triggerApplicationBackup,
   updateApplicationSettings,
+  type ApplicationBackupResult,
   type ApplicationSettingsDropdowns,
   type ApplicationSettingsRecord
 } from '@/api/applicationSettingsApi'
@@ -183,16 +277,22 @@ const loading = ref(true)
 const saving = ref(false)
 const errorMessage = ref('')
 const currentSettings = ref<ApplicationSettingsRecord | null>(null)
+const backupInProgress = ref(false)
+const backupTargetPath = ref('')
+const backupResult = ref<ApplicationBackupResult | null>(null)
+const backupError = ref('')
 
 const dropdowns = reactive<ApplicationSettingsDropdowns>({
   centers: [],
   processors: [],
+  annotators: [],
   reportTemplates: []
 })
 
 const form = reactive({
   centerId: EMPTY_OPTION,
   processorId: EMPTY_OPTION,
+  annotatorName: EMPTY_OPTION,
   reportTemplateName: EMPTY_OPTION
 })
 
@@ -215,9 +315,25 @@ const selectedProcessorLabel = computed(() => {
   return match?.name ?? 'Kein Standardprozessor'
 })
 
+const selectedAnnotatorLabel = computed(() => {
+  const match = dropdowns.annotators.find((option) => option.value === form.annotatorName)
+  return match?.label ?? 'Kein Standard-Annotator'
+})
+
 const selectedReportTemplateLabel = computed(() => {
   const match = dropdowns.reportTemplates.find((option) => option.value === form.reportTemplateName)
   return match?.label ?? 'Keine Standardvorlage'
+})
+
+const backupReady = computed(() => currentSettings.value?.backupStatus.ready ?? false)
+const backupMissingPaths = computed(() => currentSettings.value?.backupStatus.missingPaths ?? [])
+const backupSourceRoots = computed(() => currentSettings.value?.backupStatus.sourceRoots ?? [])
+const backupRequiredPaths = computed(() => currentSettings.value?.backupStatus.requiredPathCount ?? 0)
+const backupAvailablePaths = computed(() => currentSettings.value?.backupStatus.availablePathCount ?? 0)
+const backupMessage = computed(() => {
+  if (backupError.value) return backupError.value
+  if (backupResult.value) return `Backup erstellt: ${backupResult.value.targetRoot}`
+  return ''
 })
 
 const isDirty = computed(() => {
@@ -229,6 +345,7 @@ const isDirty = computed(() => {
     (currentSettings.value.processorId === null
       ? EMPTY_OPTION
       : String(currentSettings.value.processorId)) !== form.processorId ||
+    (currentSettings.value.annotatorName ?? EMPTY_OPTION) !== form.annotatorName ||
     (currentSettings.value.reportTemplateName ?? EMPTY_OPTION) !== form.reportTemplateName
   )
 })
@@ -237,6 +354,7 @@ function applySettings(settings: ApplicationSettingsRecord) {
   currentSettings.value = settings
   form.centerId = settings.centerId === null ? EMPTY_OPTION : String(settings.centerId)
   form.processorId = settings.processorId === null ? EMPTY_OPTION : String(settings.processorId)
+  form.annotatorName = settings.annotatorName ?? EMPTY_OPTION
   form.reportTemplateName = settings.reportTemplateName ?? EMPTY_OPTION
 }
 
@@ -257,8 +375,11 @@ async function loadSettings() {
 
     dropdowns.centers = nextDropdowns.centers
     dropdowns.processors = nextDropdowns.processors
+    dropdowns.annotators = nextDropdowns.annotators
     dropdowns.reportTemplates = nextDropdowns.reportTemplates
     applySettings(settings)
+    backupResult.value = null
+    backupError.value = ''
   } catch (error) {
     console.error('Failed to load application settings:', error)
     errorMessage.value =
@@ -275,6 +396,7 @@ async function saveSettings() {
     const updated = await updateApplicationSettings({
       centerId: form.centerId ? Number(form.centerId) : null,
       processorId: form.processorId ? Number(form.processorId) : null,
+      annotatorName: form.annotatorName || null,
       reportTemplateName: form.reportTemplateName || null
     })
 
@@ -284,6 +406,29 @@ async function saveSettings() {
     console.error('Failed to save application settings:', error)
   } finally {
     saving.value = false
+  }
+}
+
+async function runBackup() {
+  backupInProgress.value = true
+  backupError.value = ''
+  backupResult.value = null
+
+  try {
+    const result = await triggerApplicationBackup({
+      targetPath: backupTargetPath.value.trim()
+    })
+    await loadSettings()
+    backupResult.value = result
+    toast.success({ text: 'Backup erfolgreich erstellt.' })
+  } catch (error: any) {
+    backupError.value =
+      error?.response?.data?.detail ||
+      error?.response?.data?.errors?.targetPath ||
+      'Backup konnte nicht gestartet werden.'
+    console.error('Failed to run application backup:', error)
+  } finally {
+    backupInProgress.value = false
   }
 }
 
@@ -507,6 +652,81 @@ onMounted(() => {
 .summary-note p {
   margin: 0;
   line-height: 1.55;
+}
+
+.backup-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.4rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.backup-chip-ready {
+  background: rgba(38, 164, 103, 0.12);
+  color: #16643e;
+}
+
+.backup-chip-blocked {
+  background: rgba(212, 91, 69, 0.12);
+  color: #9e2b1f;
+}
+
+.backup-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.backup-stat,
+.backup-root {
+  padding: 0.95rem 1rem;
+  border-radius: 0.95rem;
+  background: rgba(247, 250, 252, 0.95);
+  border: 1px solid rgba(18, 52, 77, 0.08);
+}
+
+.backup-stat span,
+.backup-root-count {
+  display: block;
+  font-size: 0.78rem;
+  color: #688095;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.backup-stat strong,
+.backup-root-header strong {
+  color: #16324a;
+}
+
+.backup-roots {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.backup-root-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.35rem;
+}
+
+.backup-root code {
+  display: block;
+  white-space: normal;
+  word-break: break-all;
+  color: #23435b;
+}
+
+.backup-form {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1rem;
 }
 
 @keyframes shimmer {

@@ -40,6 +40,7 @@ def test_migrate_data_dir_moves_repo_data_and_copies_env_file(tmp_path):
     ) == "payload"
     assert (target_data.parent / ".env.systemd").read_text(encoding="utf-8") == (
         f"DATA_DIR={target_data}\n"
+        f"LX_ANNOTATE_ENCRYPTED_DATA_DIR={target_data}\n"
         f"LX_ANNOTATE_DATA_DIR={target_data}\n"
         f"STORAGE_DIR={target_data}\n"
         f"IO_DIR={target_data}\n"

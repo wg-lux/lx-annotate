@@ -21,9 +21,32 @@ logger = getLogger(__name__)
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 BASE_DIR = REPO_ROOT
 
+
+def _resolve_runtime_data_dir() -> Path:
+    encrypted_dir = os.getenv("LX_ANNOTATE_ENCRYPTED_DATA_DIR", "").strip()
+    legacy_dir = os.getenv("LX_ANNOTATE_DATA_DIR", "").strip()
+    xdg_home = Path(os.getenv("XDG_DATA_HOME", Path.home() / ".local" / "share"))
+    candidate = Path(encrypted_dir or legacy_dir or (xdg_home / "lx-annotate"))
+    candidate = candidate.expanduser().resolve()
+
+    # The encrypted data root must remain outside the application/repository tree.
+    if encrypted_dir:
+        try:
+            candidate.relative_to(REPO_ROOT)
+        except ValueError:
+            pass
+        else:
+            raise RuntimeError(
+                "LX_ANNOTATE_ENCRYPTED_DATA_DIR must not point inside the repo/app path. "
+                f"Got: {candidate}"
+            )
+
+    return candidate
+
+
 # XDG Data Logic -> Root Data Directory support
 XDG_DATA_HOME = Path(os.getenv("XDG_DATA_HOME", Path.home() / ".local" / "share"))
-APP_DATA_DIR = Path(os.getenv("LX_ANNOTATE_DATA_DIR", XDG_DATA_HOME / "lx-annotate"))
+APP_DATA_DIR = _resolve_runtime_data_dir()
 APP_DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 # Config Loading Strategy:
@@ -242,6 +265,23 @@ STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 MEDIA_URL = "/media/"
 MEDIA_ROOT = APP_DATA_DIR
 MEDIA_ROOT.mkdir(parents=True, exist_ok=True)
+USE_ENCRYPTED_STORAGE = os.getenv("LX_ANNOTATE_USE_ENCRYPTED_STORAGE", "").lower() in {
+    "1",
+    "true",
+    "yes",
+}
+DEFAULT_STORAGE_BACKEND = "django.core.files.storage.FileSystemStorage"
+if USE_ENCRYPTED_STORAGE:
+    DEFAULT_STORAGE_BACKEND = "lx_annotate.storage.encrypted.EncryptedStorage"
+
+STORAGES = {
+    "default": {
+        "BACKEND": DEFAULT_STORAGE_BACKEND,
+    },
+    "staticfiles": {
+        "BACKEND": STATICFILES_STORAGE,
+    },
+}
 
 # -----------------------------------------------------------------------------
 # 6. LOGGING & APP PATHS

@@ -10,6 +10,7 @@ sudo apt-get update
 sudo apt-get install -y \
   python3 \
   python3-venv \
+  rsync \
   ffmpeg \
   tesseract-ocr \
   tesseract-ocr-eng \

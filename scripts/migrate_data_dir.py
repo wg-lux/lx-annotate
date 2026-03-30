@@ -11,6 +11,7 @@ from pathlib import Path
 
 DEFAULT_TARGET_DATA_DIR = Path("/var/lib/lx-annotate/data")
 DATA_DIR_ENV_KEYS = (
+    "LX_ANNOTATE_ENCRYPTED_DATA_DIR",
     "DATA_DIR",
     "LX_ANNOTATE_DATA_DIR",
     "STORAGE_DIR",
@@ -23,7 +24,12 @@ def default_repo_root() -> Path:
 
 
 def resolve_target_data_dir(raw_target: str | None) -> Path:
-    target = raw_target or os.getenv("LX_ANNOTATE_DATA_DIR") or os.getenv("DATA_DIR")
+    target = (
+        raw_target
+        or os.getenv("LX_ANNOTATE_ENCRYPTED_DATA_DIR")
+        or os.getenv("LX_ANNOTATE_DATA_DIR")
+        or os.getenv("DATA_DIR")
+    )
     if not target:
         return DEFAULT_TARGET_DATA_DIR
     return Path(target).expanduser().resolve()

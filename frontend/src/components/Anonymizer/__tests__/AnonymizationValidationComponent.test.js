@@ -54,7 +54,7 @@ vi.mock('@/types/api/endpoints', () => ({
             pdfDetail: (fileId) => `media/pdfs/${fileId}/`,
             patientTimeline: (patientId) => `media/patients/${patientId}/timeline/`,
             pdfStream: (fileId) => `media/pdfs/${fileId}/stream/`,
-            videoDetailStream: (fileId) => `media/videos/${fileId}/stream/`
+            videoStream: (fileId) => `media/videos/${fileId}/stream/`
         },
         examination: {
             patientExaminationList: 'examination/patient-examinations/'

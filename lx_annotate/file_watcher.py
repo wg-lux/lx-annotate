@@ -10,9 +10,10 @@ import os
 import shutil
 import threading
 import time
+from contextlib import contextmanager
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import Set
+from typing import Iterator, Set
 
 import requests
 from watchdog.events import FileCreatedEvent, FileMovedEvent, FileSystemEventHandler
@@ -23,6 +24,7 @@ from endoreg_db.services.hub import process_preanonymized_watcher_file
 from endoreg_db.services.report_import import ReportImportService
 from endoreg_db.services.video_import import VideoImportService
 from endoreg_db.utils.paths import data_paths
+from endoreg_db.utils.storage import ensure_local_file
 
 try:
     from endoreg_db.utils import data_paths as root_data_paths
@@ -33,7 +35,12 @@ except (ImportError, ModuleNotFoundError, KeyError):
 
 PROJECT_ROOT = Path(project_root)
 RUNTIME_DATA_DIR = Path(
-    os.getenv("LX_ANNOTATE_DATA_DIR", os.getenv("DATA_DIR", str(PROJECT_ROOT / "data")))
+    os.getenv(
+        "LX_ANNOTATE_ENCRYPTED_DATA_DIR",
+        os.getenv(
+            "LX_ANNOTATE_DATA_DIR", os.getenv("DATA_DIR", str(PROJECT_ROOT / "data"))
+        ),
+    )
 )
 LOG_DIR = RUNTIME_DATA_DIR / "logs"
 LOG_DIR.mkdir(parents=True, exist_ok=True)
@@ -80,6 +87,124 @@ logger = logging.getLogger(__name__)
 
 video_import_service = VideoImportService()
 report_import_service = ReportImportService()
+
+INTAKE_VIDEO_DIR = data_paths["import_video"].resolve()
+INTAKE_REPORT_DIR = data_paths["import_report"].resolve()
+INTAKE_PREANONYMIZED_DIR = data_paths["import_preanonymized"].resolve()
+MANAGED_VAULT_ROOT = RUNTIME_DATA_DIR.resolve()
+
+
+def _is_relative_to(path: Path, root: Path) -> bool:
+    try:
+        path.resolve().relative_to(root.resolve())
+    except ValueError:
+        return False
+    return True
+
+
+def is_intake_path(path: str | Path) -> bool:
+    candidate = Path(path).resolve()
+    return any(
+        _is_relative_to(candidate, root)
+        for root in (
+            INTAKE_VIDEO_DIR,
+            INTAKE_REPORT_DIR,
+            INTAKE_PREANONYMIZED_DIR,
+        )
+    )
+
+
+def is_managed_vault_path(path: str | Path) -> bool:
+    return _is_relative_to(Path(path).resolve(), MANAGED_VAULT_ROOT)
+
+
+def iter_storage_chunks(
+    field_file, *, chunk_size: int = 1024 * 1024
+) -> Iterator[bytes]:
+    """
+    Yield managed-media bytes through Django's storage API.
+
+    This must be used for vault media instead of raw ``open()`` so encrypted
+    storage backends can transparently decrypt.
+    """
+    field_file.open("rb")
+    try:
+        for chunk in field_file.chunks(chunk_size=chunk_size):
+            yield chunk
+    finally:
+        field_file.close()
+
+
+@contextmanager
+def managed_media_temp_path(field_file, *, suffix: str | None = None) -> Iterator[Path]:
+    """
+    Materialize managed media into a short-lived plaintext temp file.
+
+    Use this only for legacy binaries that require an on-disk path. The source
+    bytes are read via the storage backend, not with raw filesystem I/O.
+    """
+    with ensure_local_file(field_file, suffix=suffix) as local_path:
+        yield local_path
+
+
+class IntakeVideoImportService:
+    """
+    Bridge from plaintext intake into the managed vault.
+
+    Intake files are allowed to be addressed by path because they are not yet
+    part of managed encrypted storage. As soon as the Django model is created,
+    all further managed-media access must go through storage-backed FieldFiles.
+    """
+
+    def __init__(self, service: VideoImportService):
+        self.service = service
+
+    def import_from_intake(
+        self,
+        *,
+        file_path: Path,
+        center_name: str,
+        processor_name: str,
+        retry: bool = False,
+    ):
+        if not is_intake_path(file_path):
+            raise ValueError(f"Refusing to import non-intake video path: {file_path}")
+        return self.service.import_and_anonymize(
+            file_path=file_path,
+            center_name=center_name,
+            processor_name=processor_name,
+            retry=retry,
+            delete_source=False,
+        )
+
+
+class IntakeReportImportService:
+    """
+    Bridge from plaintext report intake into the managed vault.
+    """
+
+    def __init__(self, service: ReportImportService):
+        self.service = service
+
+    def import_from_intake(
+        self,
+        *,
+        file_path: Path,
+        center_name: str,
+        retry: bool = False,
+    ):
+        if not is_intake_path(file_path):
+            raise ValueError(f"Refusing to import non-intake report path: {file_path}")
+        return self.service.import_and_anonymize(
+            file_path=file_path,
+            center_name=center_name,
+            retry=retry,
+            delete_source=False,
+        )
+
+
+intake_video_import_service = IntakeVideoImportService(video_import_service)
+intake_report_import_service = IntakeReportImportService(report_import_service)
 
 
 def unload_ollama_model(model_name: str = "llama3.2:1b") -> None:
@@ -128,7 +253,7 @@ class AutoProcessingHandler(FileSystemEventHandler):
         self.executor = ThreadPoolExecutor(
             max_workers=2, thread_name_prefix="FileProcessor"
         )
-        self.pseudonymized_dir = data_paths["import_preanonymized"].resolve()
+        self.pseudonymized_dir = INTAKE_PREANONYMIZED_DIR
 
         logger.info("AutoProcessingHandler initialized")
         logger.info("Monitoring video extensions: %s", self.video_extensions)
@@ -221,12 +346,13 @@ class AutoProcessingHandler(FileSystemEventHandler):
 
             if (
                 parent_dir == data_paths["import_video"].resolve()
+                and parent_dir == INTAKE_VIDEO_DIR
                 and file_extension in self.video_extensions
             ):
                 logger.info("New video detected: %s", path)
                 self._process_video(path)
             elif (
-                parent_dir == data_paths["import_report"].resolve()
+                parent_dir == INTAKE_REPORT_DIR
                 and file_extension in self.report_extensions
             ):
                 logger.info("New report detected: %s", path)
@@ -276,6 +402,10 @@ class AutoProcessingHandler(FileSystemEventHandler):
             logger.info("Starting video processing: %s", video_path)
             video_file = None
             self._mark_processed(str(video_path))
+            if not is_intake_path(video_path):
+                raise ValueError(
+                    f"Video path is outside plaintext intake zone: {video_path}"
+                )
 
             try:
                 from endoreg_db.exceptions import InsufficientStorageError
@@ -301,12 +431,11 @@ class AutoProcessingHandler(FileSystemEventHandler):
                 )
 
             try:
-                video_file = video_import_service.import_and_anonymize(
+                video_file = intake_video_import_service.import_from_intake(
                     file_path=video_path,
                     center_name=self.default_center,
                     processor_name=self.default_processor,
                     retry=False,
-                    delete_source=False,
                 )
                 if video_file is None:
                     logger.info(
@@ -344,9 +473,21 @@ class AutoProcessingHandler(FileSystemEventHandler):
             if video_file and getattr(video_file, "pk", None):
                 try:
                     unload_ollama_model(model_name=self.default_model)
-                    success = video_file.pipe_1(
-                        model_name=self.default_model, delete_frames_after=True
-                    )
+                    active_file = getattr(video_file, "active_raw_file", None)
+                    if active_file is not None:
+                        with managed_media_temp_path(active_file) as _local_media_path:
+                            logger.debug(
+                                "Managed video staged to local temp path for legacy path-based tooling: %s",
+                                _local_media_path,
+                            )
+                            success = video_file.pipe_1(
+                                model_name=self.default_model,
+                                delete_frames_after=True,
+                            )
+                    else:
+                        success = video_file.pipe_1(
+                            model_name=self.default_model, delete_frames_after=True
+                        )
                     if success:
                         logger.info(
                             "Video segmentation completed: %s", video_file.video_hash
@@ -386,6 +527,10 @@ class AutoProcessingHandler(FileSystemEventHandler):
         try:
             logger.info("Starting report processing: %s", report_path)
             self._mark_processed(str(report_path))
+            if not is_intake_path(report_path):
+                raise ValueError(
+                    f"Report path is outside plaintext intake zone: {report_path}"
+                )
 
             try:
                 from endoreg_db.exceptions import InsufficientStorageError
@@ -402,10 +547,9 @@ class AutoProcessingHandler(FileSystemEventHandler):
                         f"Storage root does not exist: {storage_root_path}"
                     )
 
-                raw_report = report_import_service.import_and_anonymize(
+                raw_report = intake_report_import_service.import_from_intake(
                     file_path=report_path,
                     center_name=self.default_center,
-                    delete_source=False,
                 )
                 if raw_report:
                     logger.info("report imported successfully: %s", raw_report.pdf_hash)
@@ -442,6 +586,10 @@ class AutoProcessingHandler(FileSystemEventHandler):
         try:
             logger.info("Starting pseudonymized processing: %s", file_path)
             self._mark_processed(str(file_path))
+            if not is_intake_path(file_path):
+                raise ValueError(
+                    f"Pseudonymized path is outside plaintext intake zone: {file_path}"
+                )
             process_preanonymized_watcher_file(file_path=file_path)
             logger.info("Pseudonymized processing completed: %s", file_path)
         except Exception as exc:
@@ -465,8 +613,8 @@ class FileWatcherService:
     def __init__(self) -> None:
         self.observer = Observer()
         self.handler = AutoProcessingHandler()
-        self.video_dir = data_paths["import_video"].resolve()
-        self.report_dir = data_paths["import_report"].resolve()
+        self.video_dir = INTAKE_VIDEO_DIR
+        self.report_dir = INTAKE_REPORT_DIR
         self.pseudonymized_dir = self.handler.pseudonymized_dir
 
         self.video_dir.mkdir(parents=True, exist_ok=True)

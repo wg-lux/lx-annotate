@@ -143,13 +143,17 @@ def test_local_luxnix_service_uses_single_devenv_environment():
 def test_local_luxnix_service_keeps_repo_visible_static_root_and_var_lib_runtime_state():
     service_nix = LUXNIX_SERVICE_MODULE.read_text(encoding="utf-8")
 
-    assert 'runtimeDataRootPath = "/var/lib/lx-annotate/data";' in service_nix
+    assert "runtimeDataRootPath = cfg.runtime.encryptedDataDir;" in service_nix
+    assert "encryptedDataDir = mkOption {" in service_nix
     assert 'runtimeStaticRootPath = "/var/lib/lx-annotate/staticfiles";' in service_nix
-    assert "djangoStaticRootPath = repoStaticRootPath;" in service_nix
+    assert (
+        'djangoStaticRootPath = if useWheelRuntime then "${runtimeWheelRootPath}/staticfiles" else repoStaticRootPath;'
+        in service_nix
+    )
     assert "envDataDir = runtimeDataRootPath;" in service_nix
     assert 'StateDirectory = "lx-annotate";' in service_nix
     assert "DJANGO_STATIC_ROOT=${djangoStaticRootPath}" in service_nix
-    assert "ln -sfn ${staticRootPath} ${repoStaticRootPath}" in service_nix
+    assert "ln -sfn ${runtimeStaticRootPath} ${djangoStaticRootPath}" in service_nix
     assert 'alias = "${djangoStaticRootPath}/";' in service_nix
 
 
