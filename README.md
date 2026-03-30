@@ -108,6 +108,22 @@ nix build .#file-watcher
 ./result/bin/run-file-watcher
 ```
 
+## Wheel Deployment
+
+The CI pipeline can now build a production wheel with frontend staticfiles
+included via `hatchling`. Production runtime no longer needs Node.js or the
+full `devenv` shell.
+
+Deployment assets live in `deploy/`:
+
+- `deploy/bootstrap-host.sh`
+- `deploy/deploy.sh`
+- `deploy/lx-annotate.service`
+- `deploy/.env.systemd.example`
+
+See `docs/guides/wheel-deployment.md` for the full host bootstrap and `systemd`
+flow.
+
 ## Containers
 
 Docker images now install Python packages into `/app/.devenv/state/venv` so the

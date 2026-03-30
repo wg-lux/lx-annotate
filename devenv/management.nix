@@ -340,7 +340,7 @@ PY
           esac
         fi
 
-        secretspec run --provider env $VENV_PYTHON scripts/file_watcher.py
+        secretspec run --provider env $VENV_PYTHON manage.py run_filewatcher
     '';
 
   };

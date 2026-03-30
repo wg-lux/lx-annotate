@@ -1,3 +1,7 @@
+[build-system]
+requires = ["hatchling>=1.29.0"]
+build-backend = "hatchling.build"
+
 [project]
 name = "lx-annotate"
 
@@ -85,6 +89,34 @@ lx-dtypes = { workspace = true, editable = true }
 members = [
     "lx-data-models",
 ]
+
+[tool.hatch.build]
+include = [
+  "/README.md",
+  "/manage.py",
+  "/lx_annotate/**/*.py",
+  "/lx_annotate/templates/**/*.html",
+  "/lx_annotate/static/**/*",
+  "/lx_annotate/staticfiles/**/*",
+  "/staticfiles/**/*",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["lx_annotate"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"staticfiles" = "lx_annotate/staticfiles"
+
+[tool.hatch.build.targets.sdist]
+include = [
+  "/README.md",
+  "/manage.py",
+  "/lx_annotate",
+  "/staticfiles",
+]
+
+[tool.hatch.build.targets.sdist.force-include]
+"staticfiles" = "staticfiles"
 
 [project.optional-dependencies]
 dev = [

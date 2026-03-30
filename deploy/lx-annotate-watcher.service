@@ -1,0 +1,20 @@
+[Unit]
+Description=lx-annotate file watcher
+After=network.target lx-annotate.service
+Requires=lx-annotate.service
+PartOf=lx-annotate.service
+
+[Service]
+Type=simple
+User=lx-annotate
+Group=lx-annotate
+WorkingDirectory=/var/lib/lx-annotate
+EnvironmentFile=/var/lib/lx-annotate/.env.systemd
+ExecStart=/var/lib/lx-annotate/.venv/bin/django-admin run_filewatcher
+Restart=on-failure
+RestartSec=10
+PrivateTmp=true
+ProtectSystem=full
+
+[Install]
+WantedBy=multi-user.target

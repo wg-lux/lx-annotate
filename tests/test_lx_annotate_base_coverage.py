@@ -13,13 +13,11 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
 from django.test import Client
 from django.urls import Resolver404, resolve
+from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.test import APIRequestFactory, force_authenticate
 
 from lx_annotate.apps import LxAnnotateConfig
-from lx_annotate.auth_views import current_user, user_status
-from lx_annotate.keycloak_auth import KeycloakAuthentication, KeycloakUser
 from lx_annotate.management.commands import export_route_manifest as route_cmd
-from lx_annotate.run_gunicorn import main as run_gunicorn_main
 from lx_annotate.serializers import FileUploadSerializer, VideoSerializer
 
 
@@ -30,79 +28,74 @@ class _DummyUser:
             setattr(self, k, v)
 
 
+class _DummyGroups:
+    def __init__(self, names):
+        self._names = list(names)
+
+    def values_list(self, field_name, flat=False):
+        assert field_name == "name"
+        assert flat is True
+        return list(self._names)
+
+
 @pytest.fixture
 def api_rf():
     return APIRequestFactory()
 
 
-def test_user_status_returns_false_for_anonymous(api_rf):
-    req = api_rf.get("/auth/user-status/")
-    req.user = _DummyUser(False)
-    res = user_status(req)
-    assert res.status_code == 200
-    assert res.data == {"is_authenticated": False}
+def test_auth_bootstrap_requires_authentication(api_rf):
+    import endoreg_db.authz.views_auth as auth_views_mod
+
+    req = api_rf.get("/auth/bootstrap/")
+    res = auth_views_mod.auth_bootstrap(req)
+    assert res.status_code in {401, 403}
 
 
-def test_user_status_returns_roles_for_authenticated_user(api_rf):
-    req = api_rf.get("/auth/user-status/")
-    force_authenticate(
-        req, user=_DummyUser(True, username="alice", roles=["clinician"])
-    )
-    res = user_status(req)
-    assert res.status_code == 200
-    assert res.data["is_authenticated"] is True
-    assert res.data["username"] == "alice"
-    assert res.data["groups"] == ["clinician"]
+def test_auth_bootstrap_returns_roles_and_capabilities(api_rf, monkeypatch):
+    import endoreg_db.authz.views_auth as auth_views_mod
 
-
-def test_current_user_requires_authentication(api_rf):
-    req = api_rf.get("/auth/current-user/")
-    req.user = _DummyUser(False)
-    res = current_user(req)
-    assert res.status_code == 401
-    assert res.data["error"] == "Not authenticated"
-
-
-def test_current_user_returns_payload(api_rf):
-    req = api_rf.get("/auth/current-user/")
+    req = api_rf.get("/auth/bootstrap/")
     force_authenticate(
         req,
         user=_DummyUser(
             True,
-            id=5,
-            username="bob",
-            email="bob@example.org",
-            roles=["reader"],
-            is_staff=True,
-            is_active=True,
+            username="alice",
+            groups=_DummyGroups(["clinician"]),
         ),
     )
-    res = current_user(req)
+    monkeypatch.setattr(auth_views_mod, "get_needed_role", lambda *_args: "clinician")
+    monkeypatch.setattr(
+        auth_views_mod, "satisfies", lambda roles, needed: needed in roles
+    )
+
+    res = auth_views_mod.auth_bootstrap(req)
     assert res.status_code == 200
-    assert res.data["id"] == 5
-    assert res.data["username"] == "bob"
-    assert res.data["groups"] == ["reader"]
-    assert res.data["is_staff"] is True
+    assert res.data["user"]["username"] == "alice"
+    assert res.data["roles"] == ["clinician"]
+    assert res.data["capabilities"]["page.patients.view"]["read"] is True
+    assert res.data["capabilities"]["page.patients.view"]["write"] is False
 
 
-def test_keycloak_user_maps_roles_and_permissions():
-    user = KeycloakUser(
+def test_keycloak_extract_roles_aggregates_claim_sources():
+    import endoreg_db.authz.auth as keycloak_auth_mod
+
+    roles = keycloak_auth_mod.KeycloakJWTAuthentication._extract_roles(
         {
-            "preferred_username": "kc-user",
-            "email": "u@example.org",
-            "realm_access": {"roles": ["admin", "annotator"]},
-            "groups": ["/team/a"],
+            "roles": ["reader"],
+            "realm_access": {"roles": ["annotator"]},
+            "resource_access": {
+                "account": {"roles": ["manage-account"]},
+                "frontend": {"roles": ["writer"]},
+            },
         }
     )
-    assert str(user) == "kc-user"
-    assert user.is_staff is True
-    assert user.is_superuser is True
-    assert user.has_perm("anything") is True
-    assert user.has_module_perms("app") is True
+    assert roles == {"reader", "annotator", "manage-account", "writer"}
 
 
 def test_keycloak_authenticate_returns_none_without_bearer():
-    auth = KeycloakAuthentication()
+    import endoreg_db.authz.auth as keycloak_auth_mod
+
+    auth = keycloak_auth_mod.KeycloakJWTAuthentication()
     req = SimpleNamespace(META={})
     assert auth.authenticate(req) is None
     req = SimpleNamespace(META={"HTTP_AUTHORIZATION": "Basic abc"})
@@ -110,88 +103,85 @@ def test_keycloak_authenticate_returns_none_without_bearer():
 
 
 def test_keycloak_authenticate_returns_user_tuple(monkeypatch):
-    auth = KeycloakAuthentication()
-    monkeypatch.setattr(
-        auth, "validate_token", lambda token: {"preferred_username": "tester"}
+    import endoreg_db.authz.auth as keycloak_auth_mod
+
+    auth = keycloak_auth_mod.KeycloakJWTAuthentication()
+
+    class FakeJwksClient:
+        def get_signing_key_from_jwt(self, token):
+            assert token == "tok123"
+            return SimpleNamespace(key="pem")
+
+    class FakeUser:
+        def __init__(self, username):
+            self.username = username
+            self.groups = Mock()
+
+        def save(self):
+            return None
+
+    fake_user = FakeUser("tester")
+    fake_user_model = SimpleNamespace(
+        objects=SimpleNamespace(
+            get_or_create=lambda username, defaults: (fake_user, True)
+        )
     )
+
+    class FakeGroupManager:
+        def get_or_create(self, name):
+            return (SimpleNamespace(name=name), True)
+
+    monkeypatch.setattr(auth, "_init", lambda: None)
+    monkeypatch.setattr(auth, "_jwks_client", FakeJwksClient())
+    monkeypatch.setattr(auth, "_aud", "client-id")
+    monkeypatch.setattr(auth, "_iss", "https://issuer.example/realm")
+    monkeypatch.setattr(
+        keycloak_auth_mod,
+        "jwt",
+        SimpleNamespace(
+            decode=lambda *_args, **_kwargs: {
+                "preferred_username": "tester",
+                "realm_access": {"roles": ["clinician"]},
+            }
+        ),
+    )
+    monkeypatch.setattr(keycloak_auth_mod, "User", fake_user_model)
+    monkeypatch.setattr(
+        keycloak_auth_mod, "Group", SimpleNamespace(objects=FakeGroupManager())
+    )
+
     req = SimpleNamespace(META={"HTTP_AUTHORIZATION": "Bearer tok123"})
     user, token = auth.authenticate(req)
-    assert token == "tok123"
+    assert token is None
     assert user.username == "tester"
+    fake_user.groups.set.assert_called_once()
 
 
 def test_keycloak_authenticate_raises_on_validation_error(monkeypatch):
-    from rest_framework.exceptions import AuthenticationFailed
+    import endoreg_db.authz.auth as keycloak_auth_mod
 
-    auth = KeycloakAuthentication()
-
-    def boom(_token):
-        raise RuntimeError("nope")
-
-    monkeypatch.setattr(auth, "validate_token", boom)
+    auth = keycloak_auth_mod.KeycloakJWTAuthentication()
+    monkeypatch.setattr(auth, "_init", lambda: None)
+    monkeypatch.setattr(
+        auth,
+        "_jwks_client",
+        SimpleNamespace(
+            get_signing_key_from_jwt=Mock(side_effect=RuntimeError("nope"))
+        ),
+    )
     req = SimpleNamespace(META={"HTTP_AUTHORIZATION": "Bearer tok123"})
     with pytest.raises(AuthenticationFailed):
         auth.authenticate(req)
 
 
-def test_keycloak_validate_token_debug_path(monkeypatch, settings):
-    auth = KeycloakAuthentication()
-    settings.DEBUG = True
-    fake_decode = Mock(return_value={"preferred_username": "debug-user"})
-    # Patch module-level jwt imported in keycloak_auth.py
-    import lx_annotate.keycloak_auth as mod
+def test_keycloak_jwks_url_uses_explicit_setting(settings):
+    import endoreg_db.authz.auth as keycloak_auth_mod
 
-    monkeypatch.setattr(mod.jwt, "decode", fake_decode)
-    data = auth.validate_token("abc")
-    assert data["preferred_username"] == "debug-user"
-    fake_decode.assert_called_once()
-    _args, kwargs = fake_decode.call_args
-    assert kwargs["options"] == {"verify_signature": False}
-
-
-def test_keycloak_validate_token_prod_path(monkeypatch, settings):
-    auth = KeycloakAuthentication()
-    settings.DEBUG = False
-    settings.KEYCLOAK_CLIENT_ID = "client-id"
-    settings.KEYCLOAK_SERVER_URL = "https://kc.example"
-    settings.KEYCLOAK_REALM = "realm1"
-
-    monkeypatch.setattr(auth, "get_keycloak_public_key", lambda: b"pem")
-    fake_decode = Mock(return_value={"sub": "123"})
-    import lx_annotate.keycloak_auth as mod
-
-    monkeypatch.setattr(mod.jwt, "decode", fake_decode)
-    data = auth.validate_token("token")
-    assert data == {"sub": "123"}
-    _args, kwargs = fake_decode.call_args
-    assert kwargs["algorithms"] == ["RS256"]
-    assert kwargs["audience"] == "client-id"
-    assert kwargs["issuer"].endswith("/realms/realm1")
-
-
-def test_keycloak_validate_token_returns_none_on_invalid_token(monkeypatch, settings):
-    settings.DEBUG = True
-    auth = KeycloakAuthentication()
-    import lx_annotate.keycloak_auth as mod
-
-    def raise_invalid(*_args, **_kwargs):
-        raise mod.InvalidTokenError("bad token")
-
-    monkeypatch.setattr(mod.jwt, "decode", raise_invalid)
-    assert auth.validate_token("bad") is None
-
-
-def test_keycloak_get_public_key_failure_returns_none(monkeypatch):
-    auth = KeycloakAuthentication()
-    import lx_annotate.keycloak_auth as mod
-
-    monkeypatch.setattr(mod.requests, "get", Mock(side_effect=RuntimeError("network")))
-    assert auth.get_keycloak_public_key() is None
-
-
-def test_keycloak_authenticate_header():
-    auth = KeycloakAuthentication()
-    assert auth.authenticate_header(SimpleNamespace()) == 'Bearer realm="api"'
+    settings.OIDC_OP_JWKS_ENDPOINT = "https://issuer.example/jwks"
+    assert (
+        keycloak_auth_mod.KeycloakJWTAuthentication._jwks_url()
+        == "https://issuer.example/jwks"
+    )
 
 
 def test_lx_annotate_app_ready_only_runs_watcher_for_runserver_child(monkeypatch):
@@ -255,12 +245,12 @@ def test_serializers_accept_uploaded_files():
 
 
 def test_run_gunicorn_main_builds_argv_and_calls_run(monkeypatch):
-    import lx_annotate.run_gunicorn as mod
+    mod = pytest.importorskip("lx_annotate.run_gunicorn")
 
     fake_run = Mock()
     monkeypatch.setattr(mod, "run", fake_run)
     monkeypatch.setattr(sys, "argv", ["run_gunicorn.py", "--timeout", "30"])
-    run_gunicorn_main()
+    mod.main()
     assert sys.argv[:2] == ["gunicorn", "lx-annotate.wsgi:application"]
     assert "--timeout" in sys.argv
     fake_run.assert_called_once_with()

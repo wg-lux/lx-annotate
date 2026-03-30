@@ -9,6 +9,14 @@ import sys
 import time
 from pathlib import Path
 
+DEFAULT_TARGET_DATA_DIR = Path("/var/lib/lx-annotate/data")
+DATA_DIR_ENV_KEYS = (
+    "DATA_DIR",
+    "LX_ANNOTATE_DATA_DIR",
+    "STORAGE_DIR",
+    "IO_DIR",
+)
+
 
 def default_repo_root() -> Path:
     return Path(__file__).resolve().parents[1]
@@ -17,9 +25,7 @@ def default_repo_root() -> Path:
 def resolve_target_data_dir(raw_target: str | None) -> Path:
     target = raw_target or os.getenv("LX_ANNOTATE_DATA_DIR") or os.getenv("DATA_DIR")
     if not target:
-        raise ValueError(
-            "Target data directory is required. Set LX_ANNOTATE_DATA_DIR or pass --target."
-        )
+        return DEFAULT_TARGET_DATA_DIR
     return Path(target).expanduser().resolve()
 
 
@@ -122,19 +128,46 @@ def backup_source_dir(source_dir: Path) -> Path:
     return backup_dir
 
 
-def sync_env_file(source_env_file: Path, target_env_file: Path) -> list[str]:
+def render_target_env_text(source_text: str, target_data_dir: Path) -> str:
+    updated: list[str] = []
+    seen: set[str] = set()
+
+    for line in source_text.splitlines():
+        key, sep, _value = line.partition("=")
+        if sep and key in DATA_DIR_ENV_KEYS:
+            updated.append(f"{key}={target_data_dir}")
+            seen.add(key)
+        else:
+            updated.append(line)
+
+    for key in DATA_DIR_ENV_KEYS:
+        if key not in seen:
+            updated.append(f"{key}={target_data_dir}")
+
+    return "\n".join(updated) + "\n"
+
+
+def sync_env_file(source_env_file: Path, target_env_file: Path, target_data_dir: Path) -> list[str]:
     actions: list[str] = []
-    if not source_env_file.exists():
-        actions.append(f"source env file does not exist: {source_env_file}")
-        return actions
+    target_env_file.parent.mkdir(parents=True, exist_ok=True)
     if target_env_file.exists():
         actions.append(
             f"target env file already exists, leaving as source of truth: {target_env_file}"
         )
         return actions
-    shutil.copy2(source_env_file, target_env_file)
+
+    if source_env_file.exists():
+        rendered = render_target_env_text(
+            source_env_file.read_text(encoding="utf-8"), target_data_dir
+        )
+        actions.append(f"copied env file {source_env_file} -> {target_env_file}")
+    else:
+        rendered = "".join(f"{key}={target_data_dir}\n" for key in DATA_DIR_ENV_KEYS)
+        actions.append(f"source env file does not exist: {source_env_file}")
+        actions.append(f"created minimal env file at: {target_env_file}")
+
+    target_env_file.write_text(rendered, encoding="utf-8")
     fsync_file(target_env_file)
-    actions.append(f"copied env file {source_env_file} -> {target_env_file}")
     return actions
 
 
@@ -148,7 +181,7 @@ def migrate_repo_data(
     actions: list[str] = []
     source_dir = (repo_root / "data").resolve()
     source_env_file = (repo_root / ".env.systemd").resolve()
-    target_env_file = target_dir / ".env.systemd"
+    target_env_file = target_dir.parent / ".env.systemd"
 
     if source_dir == target_dir:
         actions.append(f"source and target are identical: {source_dir}")
@@ -173,13 +206,25 @@ def migrate_repo_data(
     if not source_exists:
         actions.append(f"source data directory does not exist: {source_dir}")
         if not dry_run:
-            actions.extend(sync_env_file(source_env_file, target_env_file))
+            actions.extend(
+                sync_env_file(
+                    source_env_file,
+                    target_env_file,
+                    target_dir,
+                )
+            )
         return actions
 
     if not source_entries:
         actions.append(f"source data directory is empty: {source_dir}")
         if not dry_run:
-            actions.extend(sync_env_file(source_env_file, target_env_file))
+            actions.extend(
+                sync_env_file(
+                    source_env_file,
+                    target_env_file,
+                    target_dir,
+                )
+            )
             try:
                 source_dir.rmdir()
                 actions.append(f"removed empty source directory: {source_dir}")
@@ -211,7 +256,13 @@ def migrate_repo_data(
                     fsync_file(destination)
         if not dry_run:
             fsync_directory(target_dir)
-            actions.extend(sync_env_file(source_env_file, target_env_file))
+            actions.extend(
+                sync_env_file(
+                    source_env_file,
+                    target_env_file,
+                    target_dir,
+                )
+            )
         return actions
 
     same_fs = is_same_filesystem(source_dir.parent, target_dir.parent)
@@ -228,7 +279,14 @@ def migrate_repo_data(
         if not dry_run:
             target_dir.mkdir(parents=True, exist_ok=True)
             actions.extend(copy_tree_preserving_source(backup_dir, target_dir))
-            actions.extend(sync_env_file(source_env_file, target_env_file))
+            actions.extend(
+                sync_env_file(
+                    source_env_file,
+                    target_env_file,
+                    target_dir,
+                )
+            )
+            os.sync()
             marker_path = target_dir / ".migration-complete"
             marker_path.write_text(
                 f"source_backup={backup_dir}\nsource_repo={repo_root}\n",
@@ -247,6 +305,16 @@ def migrate_repo_data(
         if not dry_run and source_dir.exists():
             raise
         if not dry_run and not source_dir.exists() and backup_dir.exists():
+            if target_dir.exists():
+                failed_target = target_dir.with_name(
+                    f"{target_dir.name}.failed-migration-{time.strftime('%Y%m%d-%H%M%S')}"
+                )
+                if failed_target.exists():
+                    raise RuntimeError(
+                        f"Failed migration target already exists: {failed_target}"
+                    )
+                target_dir.rename(failed_target)
+                fsync_directory(failed_target.parent)
             backup_dir.rename(source_dir)
             fsync_directory(source_dir.parent)
         raise
@@ -268,7 +336,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--target",
         default=None,
-        help="Destination data directory. Defaults to LX_ANNOTATE_DATA_DIR or DATA_DIR.",
+        help=(
+            "Destination data directory. Defaults to LX_ANNOTATE_DATA_DIR, DATA_DIR, "
+            "or /var/lib/lx-annotate/data."
+        ),
     )
     parser.add_argument(
         "--dry-run",

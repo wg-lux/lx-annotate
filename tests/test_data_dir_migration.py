@@ -12,7 +12,7 @@ SCRIPT_PATH = REPO_ROOT / "scripts" / "migrate_data_dir.py"
 def test_migrate_data_dir_moves_repo_data_and_copies_env_file(tmp_path):
     repo_root = tmp_path / "repo"
     source_data = repo_root / "data"
-    target_data = tmp_path / "var" / "lib" / "lx-annotate"
+    target_data = tmp_path / "var" / "lib" / "lx-annotate" / "data"
     source_data.mkdir(parents=True)
     (source_data / "reports").mkdir()
     (source_data / "reports" / "example.txt").write_text("payload", encoding="utf-8")
@@ -38,9 +38,12 @@ def test_migrate_data_dir_moves_repo_data_and_copies_env_file(tmp_path):
     assert (target_data / "reports" / "example.txt").read_text(
         encoding="utf-8"
     ) == "payload"
-    assert (target_data / ".env.systemd").read_text(
-        encoding="utf-8"
-    ) == "DATA_DIR=/old/repo/data\n"
+    assert (target_data.parent / ".env.systemd").read_text(encoding="utf-8") == (
+        f"DATA_DIR={target_data}\n"
+        f"LX_ANNOTATE_DATA_DIR={target_data}\n"
+        f"STORAGE_DIR={target_data}\n"
+        f"IO_DIR={target_data}\n"
+    )
     backup_dirs = sorted(repo_root.glob("data.migration-backup-*"))
     assert len(backup_dirs) == 1
     assert (backup_dirs[0] / "reports" / "example.txt").read_text(
@@ -54,7 +57,7 @@ def test_migrate_data_dir_moves_repo_data_and_copies_env_file(tmp_path):
 def test_migrate_data_dir_dry_run_leaves_source_untouched(tmp_path):
     repo_root = tmp_path / "repo"
     source_data = repo_root / "data"
-    target_data = tmp_path / "var" / "lib" / "lx-annotate"
+    target_data = tmp_path / "var" / "lib" / "lx-annotate" / "data"
     source_data.mkdir(parents=True)
     (source_data / "video.bin").write_bytes(b"abc")
 
@@ -81,7 +84,7 @@ def test_migrate_data_dir_dry_run_leaves_source_untouched(tmp_path):
 def test_migrate_data_dir_refuses_split_state_by_default(tmp_path):
     repo_root = tmp_path / "repo"
     source_data = repo_root / "data"
-    target_data = tmp_path / "var" / "lib" / "lx-annotate"
+    target_data = tmp_path / "var" / "lib" / "lx-annotate" / "data"
     source_data.mkdir(parents=True)
     target_data.mkdir(parents=True)
     (source_data / "source.bin").write_bytes(b"src")
@@ -145,6 +148,9 @@ def test_migrate_data_dir_allows_dedicated_data_target_under_nonempty_state_root
     ) == "payload"
     assert (state_root / "staticfiles" / ".vite").is_dir()
     assert (state_root / "ssl").is_dir()
+    assert (state_root / ".env.systemd").read_text(
+        encoding="utf-8"
+    ) == "DJANGO_ENV=production\n"
     assert (repo_root / "data").exists() is False
     backup_dirs = sorted(repo_root.glob("data.migration-backup-*"))
     assert len(backup_dirs) == 1
@@ -155,7 +161,7 @@ def test_migrate_data_dir_fails_when_target_has_insufficient_space(
 ):
     repo_root = tmp_path / "repo"
     source_data = repo_root / "data"
-    target_data = tmp_path / "var" / "lib" / "lx-annotate"
+    target_data = tmp_path / "var" / "lib" / "lx-annotate" / "data"
     source_data.mkdir(parents=True)
     target_data.mkdir(parents=True)
     (source_data / "big.bin").write_bytes(b"0123456789")
@@ -174,3 +180,51 @@ def test_migrate_data_dir_fails_when_target_has_insufficient_space(
             repo_root=repo_root,
             target_dir=target_data,
         )
+
+
+def test_migrate_data_dir_defaults_to_var_lib_target(tmp_path, monkeypatch):
+    monkeypatch.delenv("LX_ANNOTATE_DATA_DIR", raising=False)
+    monkeypatch.delenv("DATA_DIR", raising=False)
+
+    import scripts.migrate_data_dir as migrate_mod
+
+    assert migrate_mod.resolve_target_data_dir(None) == Path(
+        "/var/lib/lx-annotate/data"
+    )
+
+
+def test_migrate_data_dir_rolls_back_source_and_quarantines_partial_target(
+    tmp_path, monkeypatch
+):
+    repo_root = tmp_path / "repo"
+    source_data = repo_root / "data"
+    target_data = tmp_path / "var" / "lib" / "lx-annotate" / "data"
+    source_data.mkdir(parents=True)
+    (source_data / "reports").mkdir()
+    (source_data / "reports" / "example.txt").write_text("payload", encoding="utf-8")
+
+    import scripts.migrate_data_dir as migrate_mod
+    import pytest
+
+    original_copy_tree = migrate_mod.copy_tree_preserving_source
+
+    def broken_copy_tree(source_dir, target_dir):
+        actions = original_copy_tree(source_dir, target_dir)
+        raise RuntimeError(f"simulated copy failure {actions}")
+
+    monkeypatch.setattr(migrate_mod, "copy_tree_preserving_source", broken_copy_tree)
+
+    with pytest.raises(RuntimeError, match="simulated copy failure"):
+        migrate_mod.migrate_repo_data(
+            repo_root=repo_root,
+            target_dir=target_data,
+        )
+
+    assert (source_data / "reports" / "example.txt").read_text(
+        encoding="utf-8"
+    ) == "payload"
+    failed_targets = sorted(target_data.parent.glob("data.failed-migration-*"))
+    assert len(failed_targets) == 1
+    assert (failed_targets[0] / "reports" / "example.txt").read_text(
+        encoding="utf-8"
+    ) == "payload"

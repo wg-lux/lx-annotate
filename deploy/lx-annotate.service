@@ -1,0 +1,20 @@
+[Unit]
+Description=lx-annotate ASGI service
+After=network.target
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=lx-annotate
+Group=lx-annotate
+WorkingDirectory=/var/lib/lx-annotate
+EnvironmentFile=/var/lib/lx-annotate/.env.systemd
+ExecStart=/var/lib/lx-annotate/.venv/bin/daphne -b ${DJANGO_HOST} -p ${DJANGO_PORT} lx_annotate.asgi:application
+Restart=on-failure
+RestartSec=5
+PrivateTmp=true
+ProtectSystem=full
+
+[Install]
+WantedBy=multi-user.target

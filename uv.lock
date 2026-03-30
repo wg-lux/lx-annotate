@@ -1611,7 +1611,7 @@ wheels = [
 [[package]]
 name = "lx-annotate"
 version = "0.0.1"
-source = { virtual = "." }
+source = { editable = "." }
 dependencies = [
     { name = "black" },
     { name = "celery" },

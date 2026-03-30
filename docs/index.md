@@ -12,6 +12,7 @@ used throughout the project.
 
 guides/general-documentation
 guides/asset-deployment
+guides/wheel-deployment
 assisted-reporting-report
 guides/segment-annotation-workflow
 guides/anonymization-validation-correction-workflow
