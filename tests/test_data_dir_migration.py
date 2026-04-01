@@ -1,8 +1,13 @@
 from __future__ import annotations
 
+import base64
+import os
 import subprocess
 import sys
+from io import BytesIO
 from pathlib import Path
+
+from lx_annotate.storage.encryption import iter_decrypted_chunks
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -229,3 +234,43 @@ def test_migrate_data_dir_rolls_back_source_and_quarantines_partial_target(
     assert (failed_targets[0] / "reports" / "example.txt").read_text(
         encoding="utf-8"
     ) == "payload"
+
+
+def test_migrate_data_dir_encrypts_managed_video_payloads(tmp_path, monkeypatch):
+    repo_root = tmp_path / "repo"
+    source_data = repo_root / "data"
+    target_data = tmp_path / "var" / "lib" / "lx-annotate" / "data"
+    sensitive_videos = source_data / "sensitive_videos"
+    sensitive_videos.mkdir(parents=True)
+    plaintext = b"legacy-video-payload"
+    (sensitive_videos / "clip.mp4").write_bytes(plaintext)
+    monkeypatch.setenv(
+        "LX_ANNOTATE_MASTER_KEY",
+        base64.urlsafe_b64encode(os.urandom(32)).decode("ascii"),
+    )
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT_PATH),
+            "--repo-root",
+            str(repo_root),
+            "--target",
+            str(target_data),
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+    migrated_file = target_data / "sensitive_videos" / "clip.mp4"
+    ciphertext = migrated_file.read_bytes()
+    assert plaintext not in ciphertext
+    decrypted = b"".join(
+        iter_decrypted_chunks(
+            BytesIO(ciphertext),
+            master_key=base64.urlsafe_b64decode(os.environ["LX_ANNOTATE_MASTER_KEY"]),
+        )
+    )
+    assert decrypted == plaintext

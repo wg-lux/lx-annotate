@@ -9,6 +9,8 @@ import sys
 import time
 from pathlib import Path
 
+from lx_annotate.storage.encryption import MAGIC, encrypt_stream, load_master_key
+
 DEFAULT_TARGET_DATA_DIR = Path("/var/lib/lx-annotate/data")
 DATA_DIR_ENV_KEYS = (
     "LX_ANNOTATE_ENCRYPTED_DATA_DIR",
@@ -17,6 +19,15 @@ DATA_DIR_ENV_KEYS = (
     "STORAGE_DIR",
     "IO_DIR",
 )
+MANAGED_ENCRYPTED_ROOTS = {
+    "documents",
+    "model_weights",
+    "processed_reports_final",
+    "processed_videos_final",
+    "sensitive_reports",
+    "sensitive_videos",
+    "uploads",
+}
 
 
 def default_repo_root() -> Path:
@@ -76,6 +87,24 @@ def atomic_copy2(source: Path | str, destination: Path | str) -> Path:
     return destination
 
 
+def atomic_encrypt_copy(source: Path | str, destination: Path | str, *, master_key: bytes) -> Path:
+    source = Path(source)
+    destination = Path(destination)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    temp_destination = destination.with_name(
+        f".{destination.name}.lx-annotate-part-{os.getpid()}"
+    )
+    if temp_destination.exists():
+        temp_destination.unlink()
+    with source.open("rb") as source_handle, temp_destination.open("wb") as dest_handle:
+        encrypt_stream(source_handle, dest_handle, master_key=master_key)
+        dest_handle.flush()
+        os.fsync(dest_handle.fileno())
+    os.replace(temp_destination, destination)
+    fsync_directory(destination.parent)
+    return destination
+
+
 def atomic_write_text(path: Path, content: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     temp_path = path.with_name(f".{path.name}.lx-annotate-part-{os.getpid()}")
@@ -89,6 +118,15 @@ def atomic_write_text(path: Path, content: str) -> None:
 
 def is_same_filesystem(left: Path, right: Path) -> bool:
     return left.stat().st_dev == right.stat().st_dev
+
+
+def is_managed_encrypted_relative_path(relative_path: Path) -> bool:
+    return bool(relative_path.parts) and relative_path.parts[0] in MANAGED_ENCRYPTED_ROOTS
+
+
+def is_already_encrypted(path: Path) -> bool:
+    with path.open("rb") as handle:
+        return handle.read(len(MAGIC)) == MAGIC
 
 
 def list_entries(path: Path) -> list[Path]:
@@ -134,13 +172,33 @@ def validate_target_capacity(*, source_dir: Path, target_dir: Path) -> int:
 
 def copy_tree_preserving_source(source_dir: Path, target_dir: Path) -> list[str]:
     actions: list[str] = []
-    for entry in list_entries(source_dir):
-        destination = target_dir / entry.name
-        actions.append(f"copying {entry} -> {destination}")
-        if entry.is_dir():
-            shutil.copytree(entry, destination, copy_function=atomic_copy2)
-        else:
-            atomic_copy2(entry, destination)
+    master_key: bytes | None = None
+    target_dir.mkdir(parents=True, exist_ok=True)
+    for root, dir_names, file_names in os.walk(source_dir):
+        dir_names.sort()
+        file_names.sort()
+        root_path = Path(root)
+        relative_root = root_path.relative_to(source_dir)
+        destination_root = target_dir / relative_root
+        destination_root.mkdir(parents=True, exist_ok=True)
+        for dir_name in dir_names:
+            (destination_root / dir_name).mkdir(parents=True, exist_ok=True)
+        for file_name in file_names:
+            source_file = root_path / file_name
+            relative_path = source_file.relative_to(source_dir)
+            destination = target_dir / relative_path
+            if is_managed_encrypted_relative_path(relative_path):
+                if is_already_encrypted(source_file):
+                    actions.append(f"copying already-encrypted managed file {source_file} -> {destination}")
+                    atomic_copy2(source_file, destination)
+                else:
+                    if master_key is None:
+                        master_key = load_master_key()
+                    actions.append(f"encrypting managed file {source_file} -> {destination}")
+                    atomic_encrypt_copy(source_file, destination, master_key=master_key)
+            else:
+                actions.append(f"copying {source_file} -> {destination}")
+                atomic_copy2(source_file, destination)
     fsync_directory(target_dir)
     return actions
 
