@@ -40,6 +40,7 @@ let
         ];
         ignoredPrefixes = [
           "data/"
+          "lx-data-models/"
           "logs/"
           "media/"
           "staticfiles/"

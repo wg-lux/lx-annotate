@@ -86,6 +86,7 @@ MIGRATION_MODULES = cast(Any, DisableMigrations())
 # Use temp directories for Media/Static so we don't pollute the real user data dir
 MEDIA_ROOT = Path(tempfile.mkdtemp(prefix="lx_test_media_"))
 STATIC_ROOT = str(tempfile.mkdtemp(prefix="lx_test_static_"))
+os.environ["LX_ANNOTATE_ENCRYPTED_DATA_DIR"] = str(base.APP_DATA_DIR)
 
 # Test Assets (Videos/JSONs) should live in the CODE repository, not the data dir.
 # BASE_DIR from settings_base now correctly points to the repo root.

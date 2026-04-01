@@ -279,6 +279,61 @@
                       v-model="editedPatient.centerName"
                     >
                     </textarea>
+                  </div>
+                  <div class="mb-3">
+                    <label class="form-label">Validierungs-Tags:</label>
+                    <div class="d-flex flex-wrap gap-2 mb-2">
+                      <button
+                        v-for="tag in presetValidationTags"
+                        :key="tag"
+                        type="button"
+                        class="btn btn-sm"
+                        :class="selectedTags.includes(tag) ? 'btn-primary' : 'btn-outline-primary'"
+                        @click="toggleValidationTag(tag)"
+                      >
+                        {{ tag }}
+                      </button>
+                    </div>
+                    <div class="input-group mb-2">
+                      <input
+                        v-model="customTagInput"
+                        type="text"
+                        class="form-control"
+                        placeholder="Eigenen Tag eingeben"
+                        @keyup.enter="addCustomValidationTag"
+                      >
+                      <button
+                        type="button"
+                        class="btn btn-outline-secondary"
+                        @click="addCustomValidationTag"
+                      >
+                        Tag hinzufügen
+                      </button>
+                    </div>
+                    <div v-if="selectedTags.length" class="d-flex flex-wrap gap-2">
+                      <span
+                        v-for="tag in selectedTags"
+                        :key="tag"
+                        class="badge bg-secondary d-inline-flex align-items-center gap-1"
+                      >
+                        {{ tag }}
+                        <button
+                          type="button"
+                          class="btn-close btn-close-white btn-close-sm"
+                          aria-label="Tag entfernen"
+                          @click="removeValidationTag(tag)"
+                        ></button>
+                      </span>
+                    </div>
+                  </div>
+                  <div class="mb-3">
+                    <label class="form-label">Validierungsnotiz:</label>
+                    <textarea
+                      class="form-control"
+                      rows="3"
+                      v-model="validationComment"
+                      placeholder="Freitext für Hinweise wie Nachkontrolle oder Ausschluss"
+                    ></textarea>
                 </div>
               </div>
 
@@ -854,6 +909,10 @@ type CaseResolutionPayload = {
 const editedAnonymizedText = ref('');
 const examinationDate = ref('');
 const noMoreNames = ref(false);
+const presetValidationTags = ['Nochmal Überprüfen', 'Ausgeschlossen'];
+const selectedTags = ref<string[]>([]);
+const customTagInput = ref('');
+const validationComment = ref('');
 const caseResolution = ref<CaseResolutionPayload | null>(null);
 const documentTypeOptions = ref<DocumentTypeOption[]>([]);
 const selectedDocumentType = ref('');
@@ -928,10 +987,14 @@ type Editable = {
 const original = ref<{
   anonymizedText: string;
   examinationDate: string; // raw as shown in UI
+  tags: string[];
+  validationComment: string;
   patient: Editable;
 }>({
   anonymizedText: '',
   examinationDate: '',
+  tags: [],
+  validationComment: '',
   patient: {
     patientFirstName: '',
     patientLastName: '',
@@ -948,6 +1011,48 @@ function shallowEqual(a: Editable, b: Editable): boolean {
          a.patientGenderName === b.patientGenderName &&
          a.patientDob === b.patientDob &&
          a.casenumber === b.casenumber;
+}
+
+function normalizeValidationTag(tag: string): string {
+  return tag.trim().replace(/\s+/g, ' ');
+}
+
+function areSortedStringArraysEqual(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false;
+  return a.every((value, index) => value === b[index]);
+}
+
+function addValidationTag(tag: string): void {
+  const normalizedTag = normalizeValidationTag(tag);
+  if (!normalizedTag) return;
+  const hasTag = selectedTags.value.some(
+    (entry) => entry.localeCompare(normalizedTag, undefined, { sensitivity: 'base' }) === 0
+  );
+  if (hasTag) return;
+  selectedTags.value = [...selectedTags.value, normalizedTag].sort((a, b) => a.localeCompare(b));
+}
+
+function toggleValidationTag(tag: string): void {
+  const normalizedTag = normalizeValidationTag(tag);
+  const existingIndex = selectedTags.value.findIndex(
+    (entry) => entry.localeCompare(normalizedTag, undefined, { sensitivity: 'base' }) === 0
+  );
+  if (existingIndex >= 0) {
+    selectedTags.value = selectedTags.value.filter((_, index) => index !== existingIndex);
+    return;
+  }
+  addValidationTag(normalizedTag);
+}
+
+function removeValidationTag(tag: string): void {
+  selectedTags.value = selectedTags.value.filter(
+    (entry) => entry.localeCompare(tag, undefined, { sensitivity: 'base' }) !== 0
+  );
+}
+
+function addCustomValidationTag(): void {
+  addValidationTag(customTagInput.value);
+  customTagInput.value = '';
 }
 
 // --- add below your imports/locals ---
@@ -1668,6 +1773,7 @@ function loadCurrentItemData(item: SensitiveMeta) {
   documentTypeTouched.value = false;
   patientExaminationLoadError.value = '';
   manualPatientExaminationId.value = '';
+  customTagInput.value = '';
 
   // dates
   const rawExam = item.examinationDate || '';
@@ -1694,6 +1800,13 @@ function loadCurrentItemData(item: SensitiveMeta) {
     item.anonymizedText ?? editedPatient.value.anonymizedText ?? item.text ?? '';
   editedAnonymizedText.value = normalizedAnonymizedText;
   editedPatient.value.anonymizedText = normalizedAnonymizedText;
+  selectedTags.value = Array.isArray(item.tags)
+    ? [...item.tags].map((tag) => normalizeValidationTag(tag)).filter(Boolean).sort((a, b) => a.localeCompare(b))
+    : [];
+  validationComment.value =
+    item.validationComment ??
+    item.validation_comment ??
+    '';
 
   const backendDocumentType =
     (item as SensitiveMeta & { documentType?: string | null }).documentType ??
@@ -1708,6 +1821,8 @@ function loadCurrentItemData(item: SensitiveMeta) {
   original.value = {
     anonymizedText: editedAnonymizedText.value,
     examinationDate: examinationDate.value,
+    tags: [...selectedTags.value],
+    validationComment: validationComment.value,
     patient: { ...editedPatient.value },
   };
 
@@ -1760,6 +1875,8 @@ const fetchNextItem = async () => {
 const dirty = computed(() =>
   editedAnonymizedText.value !== original.value.anonymizedText ||
   examinationDate.value      !== original.value.examinationDate ||
+  validationComment.value    !== original.value.validationComment ||
+  !areSortedStringArraysEqual(selectedTags.value, original.value.tags) ||
   !shallowEqual(editedPatient.value, original.value.patient)
 );
 
@@ -2179,6 +2296,8 @@ const approveItem = async () => {
     center_name:        editedPatient.value.centerName || '',
     external_id:        editedPatient.value.externalId || '',
     external_id_origin: editedPatient.value.externalIdOrigin || '',
+    tags:               selectedTags.value,
+    validation_comment: validationComment.value || '',
   };
 
   if (isPdf.value) {

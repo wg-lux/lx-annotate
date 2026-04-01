@@ -46,6 +46,9 @@ export interface SensitiveMeta {
     document_type?: string | null;
     externalId?: string;
     externalIdOrigin?: string;
+    tags?: string[];
+    validationComment?: string | null;
+    validation_comment?: string | null;
     patientHashDisplay?: string | null;
     examinationHashDisplay?: string | null;
     pseudoPatientId?: number | null;
@@ -105,6 +108,9 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
             document_type?: string | null | undefined;
             externalId?: string | undefined;
             externalIdOrigin?: string | undefined;
+            tags?: string[] | undefined;
+            validationComment?: string | null | undefined;
+            validation_comment?: string | null | undefined;
             patientHashDisplay?: string | null | undefined;
             examinationHashDisplay?: string | null | undefined;
             pseudoPatientId?: number | null | undefined;
@@ -163,6 +169,9 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
         document_type?: string | null | undefined;
         externalId?: string | undefined;
         externalIdOrigin?: string | undefined;
+        tags?: string[] | undefined;
+        validationComment?: string | null | undefined;
+        validation_comment?: string | null | undefined;
         patientHashDisplay?: string | null | undefined;
         examinationHashDisplay?: string | null | undefined;
         pseudoPatientId?: number | null | undefined;
@@ -198,6 +207,9 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
             document_type?: string | null | undefined;
             externalId?: string | undefined;
             externalIdOrigin?: string | undefined;
+            tags?: string[] | undefined;
+            validationComment?: string | null | undefined;
+            validation_comment?: string | null | undefined;
             patientHashDisplay?: string | null | undefined;
             examinationHashDisplay?: string | null | undefined;
             pseudoPatientId?: number | null | undefined;
@@ -262,6 +274,9 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
             document_type?: string | null | undefined;
             externalId?: string | undefined;
             externalIdOrigin?: string | undefined;
+            tags?: string[] | undefined;
+            validationComment?: string | null | undefined;
+            validation_comment?: string | null | undefined;
             patientHashDisplay?: string | null | undefined;
             examinationHashDisplay?: string | null | undefined;
             pseudoPatientId?: number | null | undefined;
@@ -337,6 +352,9 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
             document_type?: string | null | undefined;
             externalId?: string | undefined;
             externalIdOrigin?: string | undefined;
+            tags?: string[] | undefined;
+            validationComment?: string | null | undefined;
+            validation_comment?: string | null | undefined;
             patientHashDisplay?: string | null | undefined;
             examinationHashDisplay?: string | null | undefined;
             pseudoPatientId?: number | null | undefined;
@@ -400,6 +418,9 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
             document_type?: string | null | undefined;
             externalId?: string | undefined;
             externalIdOrigin?: string | undefined;
+            tags?: string[] | undefined;
+            validationComment?: string | null | undefined;
+            validation_comment?: string | null | undefined;
             patientHashDisplay?: string | null | undefined;
             examinationHashDisplay?: string | null | undefined;
             pseudoPatientId?: number | null | undefined;

@@ -171,3 +171,4 @@ secret.key
 ./lx-terminology-editor
 ./lx-report-generator
 study_data/*.csv
+dist/*

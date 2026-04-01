@@ -11,8 +11,9 @@ from django.urls import clear_url_caches, set_urlconf
 
 def _reload_urls_with_base_api(monkeypatch):
     monkeypatch.setenv("LX_BASE_API_EXPECTED_VERSION", "0.1.1")
-    monkeypatch.setenv(
-        "LX_DATA_MODELS_ROOT", "/home/admin/dev/lx-annotate/lx-data-models"
+    monkeypatch.setattr(
+        "importlib.metadata.version",
+        lambda name: "0.1.1" if name == "lx-dtypes" else None,
     )
 
     sys.modules.pop("lx_annotate.urls", None)

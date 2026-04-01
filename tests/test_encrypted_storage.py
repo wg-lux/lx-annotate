@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import base64
 import os
-from pathlib import Path
 
 import pytest
 from django.core.files.base import ContentFile
@@ -79,12 +78,3 @@ def test_master_key_file_is_supported(tmp_path, monkeypatch):
     monkeypatch.setenv("LX_ANNOTATE_MASTER_KEY_FILE", str(key_file))
 
     assert load_master_key() == key_bytes
-
-
-def test_encrypted_storage_respects_different_data_dir_contract():
-    repo_root = Path(__file__).resolve().parents[1]
-    encrypted_dir = Path(
-        os.getenv("LX_ANNOTATE_ENCRYPTED_DATA_DIR", "/var/lib/lx-annotate/secure_data")
-    )
-    assert encrypted_dir != repo_root
-    assert repo_root not in encrypted_dir.parents

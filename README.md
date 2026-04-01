@@ -108,6 +108,17 @@ nix build .#file-watcher
 ./result/bin/run-file-watcher
 ```
 
+The repository flake also exposes the existing `devenv` environment as a Nix
+dev shell:
+
+```bash
+nix develop --no-pure-eval
+```
+
+This evaluates [`devenv.nix`](/home/admin/dev/lx-annotate/devenv.nix) through
+the top-level `flake.nix`, so the same shell can be entered either with
+`devenv`/`direnv` or directly through `nix develop`.
+
 ## Wheel Deployment
 
 The CI pipeline can now build a production wheel with frontend staticfiles
@@ -120,6 +131,9 @@ The current deployment strategy is:
 - production installs that wheel into a Python virtualenv
 - host packages provide FFmpeg, Tesseract, and shared libraries
 - `systemd` runs Daphne and the file watcher as separate services
+- LuxNix deployments can also run a SAP IS-H import path/unit pair that converts
+  dropped SAP zip exports into watcher-ready preanonymized files
+- some legacy-to-runtime cutovers also run a one-shot data recovery service
 - Nginx serves static/media files directly
 
 Runtime layout is intentionally split:
@@ -131,10 +145,10 @@ This split is required for the next hardening step: encrypting the data path and
 restricting access to the `endoreg-service-user` while keeping application code
 and deployment mechanics separate from protected patient data.
 
-The runtime variable for this boundary is `LX_ANNOTATE_ENCRYPTED_DATA_DIR`. The
-app and service layer may continue to export `LX_ANNOTATE_DATA_DIR` as a
-compatibility alias, but the encrypted-data path is now the canonical runtime
-contract.
+The canonical runtime variable for this boundary is
+`LX_ANNOTATE_ENCRYPTED_DATA_DIR`. The app and current service wrappers still
+export `LX_ANNOTATE_DATA_DIR` as a compatibility alias in some places, so the
+environment is functional but not fully cleaned up yet.
 
 For application-layer envelope encryption, `lx_annotate` also ships an opt-in
 Django storage backend at `lx_annotate.storage.encrypted.EncryptedStorage`.
@@ -163,6 +177,10 @@ Deployment assets live in `deploy/`:
 
 See `docs/guides/wheel-deployment.md` for the full host bootstrap and `systemd`
 flow.
+
+For the current production-style service environment, including the
+repo-local-data to `/var/lib/lx-annotate/data` recovery flow and the SAP IS-H
+drop-to-watcher import path, see `docs/guides/deployment-strategy.md`.
 
 ## Containers
 

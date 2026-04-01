@@ -38,7 +38,8 @@ RUNTIME_DATA_DIR = Path(
     os.getenv(
         "LX_ANNOTATE_ENCRYPTED_DATA_DIR",
         os.getenv(
-            "LX_ANNOTATE_DATA_DIR", os.getenv("DATA_DIR", str(PROJECT_ROOT / "data"))
+            "LX_ANNOTATE_DATA_DIR",
+            os.getenv("DATA_DIR", "/var/lib/lx-annotate/data"),
         ),
     )
 )
@@ -115,7 +116,10 @@ def is_intake_path(path: str | Path) -> bool:
 
 
 def is_managed_vault_path(path: str | Path) -> bool:
-    return _is_relative_to(Path(path).resolve(), MANAGED_VAULT_ROOT)
+    candidate = Path(path).resolve()
+    if is_intake_path(candidate):
+        return False
+    return _is_relative_to(candidate, MANAGED_VAULT_ROOT)
 
 
 def iter_storage_chunks(

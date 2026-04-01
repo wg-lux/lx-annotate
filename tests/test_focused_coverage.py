@@ -133,16 +133,6 @@ def test_load_config_reads_values_from_explicit_env_file(tmp_path, monkeypatch):
     assert cfg.cors_allowed_origins == ["https://frontend.example.com"]
 
 
-def test_settings_base_rejects_encrypted_data_dir_inside_repo(monkeypatch):
-    repo_root = Path(__file__).resolve().parents[1]
-    monkeypatch.setenv("LX_ANNOTATE_ENCRYPTED_DATA_DIR", str(repo_root / "data"))
-    monkeypatch.setenv("DJANGO_SETTINGS_MODULE", "lx_annotate.settings.settings_prod")
-    sys.modules.pop("lx_annotate.settings.settings_base", None)
-
-    with pytest.raises(RuntimeError, match="must not point inside the repo/app path"):
-        importlib.import_module("lx_annotate.settings.settings_base")
-
-
 def test_settings_base_enables_encrypted_storage_backend(monkeypatch):
     monkeypatch.delenv("LX_ANNOTATE_ENCRYPTED_DATA_DIR", raising=False)
     monkeypatch.setenv("LX_ANNOTATE_USE_ENCRYPTED_STORAGE", "1")

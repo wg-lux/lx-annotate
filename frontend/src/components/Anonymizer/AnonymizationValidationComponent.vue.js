@@ -72,6 +72,10 @@ watch(mediaInferral, (val) => {
 const editedAnonymizedText = ref('');
 const examinationDate = ref('');
 const noMoreNames = ref(false);
+const presetValidationTags = ['Nochmal Überprüfen', 'Ausgeschlossen'];
+const selectedTags = ref([]);
+const customTagInput = ref('');
+const validationComment = ref('');
 const caseResolution = ref(null);
 const documentTypeOptions = ref([]);
 const selectedDocumentType = ref('');
@@ -117,6 +121,8 @@ const hasSuccessfulUpload = ref(false);
 const original = ref({
     anonymizedText: '',
     examinationDate: '',
+    tags: [],
+    validationComment: '',
     patient: {
         patientFirstName: '',
         patientLastName: '',
@@ -131,6 +137,39 @@ function shallowEqual(a, b) {
         a.patientGenderName === b.patientGenderName &&
         a.patientDob === b.patientDob &&
         a.casenumber === b.casenumber;
+}
+function normalizeValidationTag(tag) {
+    return tag.trim().replace(/\s+/g, ' ');
+}
+function areSortedStringArraysEqual(a, b) {
+    if (a.length !== b.length)
+        return false;
+    return a.every((value, index) => value === b[index]);
+}
+function addValidationTag(tag) {
+    const normalizedTag = normalizeValidationTag(tag);
+    if (!normalizedTag)
+        return;
+    const hasTag = selectedTags.value.some((entry) => entry.localeCompare(normalizedTag, undefined, { sensitivity: 'base' }) === 0);
+    if (hasTag)
+        return;
+    selectedTags.value = [...selectedTags.value, normalizedTag].sort((a, b) => a.localeCompare(b));
+}
+function toggleValidationTag(tag) {
+    const normalizedTag = normalizeValidationTag(tag);
+    const existingIndex = selectedTags.value.findIndex((entry) => entry.localeCompare(normalizedTag, undefined, { sensitivity: 'base' }) === 0);
+    if (existingIndex >= 0) {
+        selectedTags.value = selectedTags.value.filter((_, index) => index !== existingIndex);
+        return;
+    }
+    addValidationTag(normalizedTag);
+}
+function removeValidationTag(tag) {
+    selectedTags.value = selectedTags.value.filter((entry) => entry.localeCompare(tag, undefined, { sensitivity: 'base' }) !== 0);
+}
+function addCustomValidationTag() {
+    addValidationTag(customTagInput.value);
+    customTagInput.value = '';
 }
 // --- add below your imports/locals ---
 // ============================================================================
@@ -767,6 +806,7 @@ function loadCurrentItemData(item) {
     documentTypeTouched.value = false;
     patientExaminationLoadError.value = '';
     manualPatientExaminationId.value = '';
+    customTagInput.value = '';
     // dates
     const rawExam = item.examinationDate || '';
     const rawDob = item.patientDobDisplay || item.patientDob;
@@ -789,6 +829,13 @@ function loadCurrentItemData(item) {
     const normalizedAnonymizedText = item.anonymizedText ?? editedPatient.value.anonymizedText ?? item.text ?? '';
     editedAnonymizedText.value = normalizedAnonymizedText;
     editedPatient.value.anonymizedText = normalizedAnonymizedText;
+    selectedTags.value = Array.isArray(item.tags)
+        ? [...item.tags].map((tag) => normalizeValidationTag(tag)).filter(Boolean).sort((a, b) => a.localeCompare(b))
+        : [];
+    validationComment.value =
+        item.validationComment ??
+            item.validation_comment ??
+            '';
     const backendDocumentType = item.documentType ??
         item.document_type ??
         '';
@@ -799,6 +846,8 @@ function loadCurrentItemData(item) {
     original.value = {
         anonymizedText: editedAnonymizedText.value,
         examinationDate: examinationDate.value,
+        tags: [...selectedTags.value],
+        validationComment: validationComment.value,
         patient: { ...editedPatient.value },
     };
     validateAllDates();
@@ -841,6 +890,8 @@ const fetchNextItem = async () => {
 };
 const dirty = computed(() => editedAnonymizedText.value !== original.value.anonymizedText ||
     examinationDate.value !== original.value.examinationDate ||
+    validationComment.value !== original.value.validationComment ||
+    !areSortedStringArraysEqual(selectedTags.value, original.value.tags) ||
     !shallowEqual(editedPatient.value, original.value.patient));
 // ✅ NEW: Can save computed property
 const canSave = computed(() => {
@@ -1170,6 +1221,8 @@ const approveItem = async () => {
         center_name: editedPatient.value.centerName || '',
         external_id: editedPatient.value.externalId || '',
         external_id_origin: editedPatient.value.externalIdOrigin || '',
+        tags: selectedTags.value,
+        validation_comment: validationComment.value || '',
     };
     if (isPdf.value) {
         validationPayload.document_type = selectedDocumentType.value;
@@ -1790,6 +1843,80 @@ if (__VLS_ctx.currentItem) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.textarea, __VLS_intrinsicElements.textarea)({
         ...{ class: "form-control" },
         value: (__VLS_ctx.editedPatient.centerName),
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "mb-3" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+        ...{ class: "form-label" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "d-flex flex-wrap gap-2 mb-2" },
+    });
+    for (const [tag] of __VLS_getVForSourceType((__VLS_ctx.presetValidationTags))) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+            ...{ onClick: (...[$event]) => {
+                    if (!(__VLS_ctx.currentItem))
+                        return;
+                    __VLS_ctx.toggleValidationTag(tag);
+                } },
+            key: (tag),
+            type: "button",
+            ...{ class: "btn btn-sm" },
+            ...{ class: (__VLS_ctx.selectedTags.includes(tag) ? 'btn-primary' : 'btn-outline-primary') },
+        });
+        (tag);
+    }
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "input-group mb-2" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.input, __VLS_intrinsicElements.input)({
+        ...{ onKeyup: (__VLS_ctx.addCustomValidationTag) },
+        value: (__VLS_ctx.customTagInput),
+        type: "text",
+        ...{ class: "form-control" },
+        placeholder: "Eigenen Tag eingeben",
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+        ...{ onClick: (__VLS_ctx.addCustomValidationTag) },
+        type: "button",
+        ...{ class: "btn btn-outline-secondary" },
+    });
+    if (__VLS_ctx.selectedTags.length) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "d-flex flex-wrap gap-2" },
+        });
+        for (const [tag] of __VLS_getVForSourceType((__VLS_ctx.selectedTags))) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                key: (tag),
+                ...{ class: "badge bg-secondary d-inline-flex align-items-center gap-1" },
+            });
+            (tag);
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+                ...{ onClick: (...[$event]) => {
+                        if (!(__VLS_ctx.currentItem))
+                            return;
+                        if (!(__VLS_ctx.selectedTags.length))
+                            return;
+                        __VLS_ctx.removeValidationTag(tag);
+                    } },
+                type: "button",
+                ...{ class: "btn-close btn-close-white btn-close-sm" },
+                'aria-label': "Tag entfernen",
+            });
+        }
+    }
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "mb-3" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+        ...{ class: "form-label" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.textarea, __VLS_intrinsicElements.textarea)({
+        ...{ class: "form-control" },
+        rows: "3",
+        value: (__VLS_ctx.validationComment),
+        placeholder: "Freitext für Hinweise wie Nachkontrolle oder Ausschluss",
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "card bg-light" },
@@ -2522,6 +2649,33 @@ if (__VLS_ctx.currentItem) {
 /** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['form-label']} */ ;
 /** @type {__VLS_StyleScopedClasses['form-control']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['flex-wrap']} */ ;
+/** @type {__VLS_StyleScopedClasses['gap-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['input-group']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-control']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-secondary']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['flex-wrap']} */ ;
+/** @type {__VLS_StyleScopedClasses['gap-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['bg-secondary']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-inline-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['gap-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-close']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-close-white']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-close-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-control']} */ ;
 /** @type {__VLS_StyleScopedClasses['card']} */ ;
 /** @type {__VLS_StyleScopedClasses['bg-light']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-body']} */ ;
@@ -2790,6 +2944,10 @@ const __VLS_self = (await import('vue')).defineComponent({
             editedAnonymizedText: editedAnonymizedText,
             examinationDate: examinationDate,
             noMoreNames: noMoreNames,
+            presetValidationTags: presetValidationTags,
+            selectedTags: selectedTags,
+            customTagInput: customTagInput,
+            validationComment: validationComment,
             documentTypeOptions: documentTypeOptions,
             selectedDocumentType: selectedDocumentType,
             isLoadingDocumentTypes: isLoadingDocumentTypes,
@@ -2814,6 +2972,9 @@ const __VLS_self = (await import('vue')).defineComponent({
             originalUrl: originalUrl,
             processedUrl: processedUrl,
             showOriginal: showOriginal,
+            toggleValidationTag: toggleValidationTag,
+            removeValidationTag: removeValidationTag,
+            addCustomValidationTag: addCustomValidationTag,
             firstNameOk: firstNameOk,
             lastNameOk: lastNameOk,
             validationErrorSummary: validationErrorSummary,

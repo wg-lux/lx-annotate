@@ -24,15 +24,9 @@ def default_repo_root() -> Path:
 
 
 def resolve_target_data_dir(raw_target: str | None) -> Path:
-    target = (
-        raw_target
-        or os.getenv("LX_ANNOTATE_ENCRYPTED_DATA_DIR")
-        or os.getenv("LX_ANNOTATE_DATA_DIR")
-        or os.getenv("DATA_DIR")
-    )
-    if not target:
+    if not raw_target:
         return DEFAULT_TARGET_DATA_DIR
-    return Path(target).expanduser().resolve()
+    return Path(raw_target).expanduser().resolve()
 
 
 def require_writable_directory(path: Path, *, create: bool) -> None:
@@ -52,7 +46,8 @@ def require_writable_directory(path: Path, *, create: bool) -> None:
         raise PermissionError(f"Directory is not writable: {directory}") from exc
 
 
-def fsync_file(path: Path) -> None:
+def fsync_file(path: Path | str) -> None:
+    path = Path(path)
     with path.open("rb") as handle:
         os.fsync(handle.fileno())
 
@@ -63,6 +58,33 @@ def fsync_directory(path: Path) -> None:
         os.fsync(fd)
     finally:
         os.close(fd)
+
+
+def atomic_copy2(source: Path | str, destination: Path | str) -> Path:
+    source = Path(source)
+    destination = Path(destination)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    temp_destination = destination.with_name(
+        f".{destination.name}.lx-annotate-part-{os.getpid()}"
+    )
+    if temp_destination.exists():
+        temp_destination.unlink()
+    shutil.copy2(source, temp_destination)
+    fsync_file(temp_destination)
+    os.replace(temp_destination, destination)
+    fsync_directory(destination.parent)
+    return destination
+
+
+def atomic_write_text(path: Path, content: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temp_path = path.with_name(f".{path.name}.lx-annotate-part-{os.getpid()}")
+    if temp_path.exists():
+        temp_path.unlink()
+    temp_path.write_text(content, encoding="utf-8")
+    fsync_file(temp_path)
+    os.replace(temp_path, path)
+    fsync_directory(path.parent)
 
 
 def is_same_filesystem(left: Path, right: Path) -> bool:
@@ -116,10 +138,9 @@ def copy_tree_preserving_source(source_dir: Path, target_dir: Path) -> list[str]
         destination = target_dir / entry.name
         actions.append(f"copying {entry} -> {destination}")
         if entry.is_dir():
-            shutil.copytree(entry, destination, copy_function=shutil.copy2)
+            shutil.copytree(entry, destination, copy_function=atomic_copy2)
         else:
-            shutil.copy2(entry, destination)
-            fsync_file(destination)
+            atomic_copy2(entry, destination)
     fsync_directory(target_dir)
     return actions
 
@@ -172,8 +193,7 @@ def sync_env_file(source_env_file: Path, target_env_file: Path, target_data_dir:
         actions.append(f"source env file does not exist: {source_env_file}")
         actions.append(f"created minimal env file at: {target_env_file}")
 
-    target_env_file.write_text(rendered, encoding="utf-8")
-    fsync_file(target_env_file)
+    atomic_write_text(target_env_file, rendered)
     return actions
 
 
@@ -256,10 +276,9 @@ def migrate_repo_data(
             actions.append(f"copying {entry} -> {destination}")
             if not dry_run:
                 if entry.is_dir():
-                    shutil.copytree(entry, destination, copy_function=shutil.copy2)
+                    shutil.copytree(entry, destination, copy_function=atomic_copy2)
                 else:
-                    shutil.copy2(entry, destination)
-                    fsync_file(destination)
+                    atomic_copy2(entry, destination)
         if not dry_run:
             fsync_directory(target_dir)
             actions.extend(

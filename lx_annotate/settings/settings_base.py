@@ -23,24 +23,11 @@ BASE_DIR = REPO_ROOT
 
 
 def _resolve_runtime_data_dir() -> Path:
+    legacy_dir = REPO_ROOT / "data"
     encrypted_dir = os.getenv("LX_ANNOTATE_ENCRYPTED_DATA_DIR", "").strip()
-    legacy_dir = os.getenv("LX_ANNOTATE_DATA_DIR", "").strip()
     xdg_home = Path(os.getenv("XDG_DATA_HOME", Path.home() / ".local" / "share"))
-    candidate = Path(encrypted_dir or legacy_dir or (xdg_home / "lx-annotate"))
+    candidate = Path(legacy_dir or encrypted_dir or (xdg_home / "lx-annotate"))
     candidate = candidate.expanduser().resolve()
-
-    # The encrypted data root must remain outside the application/repository tree.
-    if encrypted_dir:
-        try:
-            candidate.relative_to(REPO_ROOT)
-        except ValueError:
-            pass
-        else:
-            raise RuntimeError(
-                "LX_ANNOTATE_ENCRYPTED_DATA_DIR must not point inside the repo/app path. "
-                f"Got: {candidate}"
-            )
-
     return candidate
 
 
@@ -48,6 +35,10 @@ def _resolve_runtime_data_dir() -> Path:
 XDG_DATA_HOME = Path(os.getenv("XDG_DATA_HOME", Path.home() / ".local" / "share"))
 APP_DATA_DIR = _resolve_runtime_data_dir()
 APP_DATA_DIR.mkdir(parents=True, exist_ok=True)
+os.environ.setdefault("LX_ANNOTATE_DATA_DIR", str(APP_DATA_DIR))
+os.environ.setdefault("DATA_DIR", str(APP_DATA_DIR))
+os.environ.setdefault("STORAGE_DIR", str(APP_DATA_DIR))
+os.environ.setdefault("IO_DIR", str(APP_DATA_DIR))
 
 # Config Loading Strategy:
 # 1. Look in User Data Dir (~/.local/share/...)

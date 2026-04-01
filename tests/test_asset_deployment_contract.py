@@ -10,6 +10,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 LUXNIX_SERVICE_MODULE = Path(
     "/home/admin/luxnix/modules/nixos/services/lx-annotate-local/default.nix"
 )
+LUXNIX_SERVICE_MODULE_DIR = LUXNIX_SERVICE_MODULE.parent
 
 
 def _read(path: str) -> str:
@@ -19,6 +20,13 @@ def _read(path: str) -> str:
 def _fresh_import(module_name: str):
     sys.modules.pop(module_name, None)
     return importlib.import_module(module_name)
+
+
+def _read_luxnix_service_tree() -> str:
+    return "\n".join(
+        path.read_text(encoding="utf-8")
+        for path in sorted(LUXNIX_SERVICE_MODULE_DIR.glob("*.nix"))
+    )
 
 
 def test_vite_config_uses_static_root_output_and_base_url():
@@ -68,9 +76,7 @@ def test_django_vite_manifest_paths_match_static_root_contract(monkeypatch):
         'VITE_ENABLE_DEBUG = { description = "Frontend debug panels", default = "false" }'
         in secretspec
     )
-    assert (
-        "VITE_ENABLE_DEBUG = config.secretspec.secrets.VITE_ENABLE_DEBUG;" in devenv_nix
-    )
+    assert 'VITE_ENABLE_DEBUG = secret "VITE_ENABLE_DEBUG" "false";' in devenv_nix
 
 
 def test_runtime_guard_checks_manifest_and_entry_file_in_static_root():
@@ -124,11 +130,11 @@ def test_dockerfiles_use_devenv_state_venv_consistently():
     reason="local luxnix service module not available in this environment",
 )
 def test_local_luxnix_service_uses_single_devenv_environment():
-    service_nix = LUXNIX_SERVICE_MODULE.read_text(encoding="utf-8")
+    service_nix = _read_luxnix_service_tree()
 
     assert 'export SYNC_CMD="uv sync --active --extra dev --extra docs"' in service_nix
     assert ".devenv/state/venv/bin/activate" in service_nix
-    assert '".devenv/state/venv/bin/python"' in service_nix
+    assert ".devenv/state/venv/bin/python" in service_nix
     assert "devenv shell" in service_nix
     assert 'if [ -f ".devenv/state/venv/bin/activate" ]; then' in service_nix
     assert "source .devenv/state/venv/bin/activate" in service_nix
@@ -141,20 +147,53 @@ def test_local_luxnix_service_uses_single_devenv_environment():
     reason="local luxnix service module not available in this environment",
 )
 def test_local_luxnix_service_keeps_repo_visible_static_root_and_var_lib_runtime_state():
-    service_nix = LUXNIX_SERVICE_MODULE.read_text(encoding="utf-8")
+    service_nix = _read_luxnix_service_tree()
 
     assert "runtimeDataRootPath = cfg.runtime.encryptedDataDir;" in service_nix
     assert "encryptedDataDir = mkOption {" in service_nix
     assert 'runtimeStaticRootPath = "/var/lib/lx-annotate/staticfiles";' in service_nix
-    assert (
-        'djangoStaticRootPath = if useWheelRuntime then "${runtimeWheelRootPath}/staticfiles" else repoStaticRootPath;'
-        in service_nix
-    )
+    assert 'repoStaticRootPath = "${repoDir}/staticfiles";' in service_nix
+    assert '"${runtimeWheelRootPath}/staticfiles"' in service_nix
+    assert "repoStaticRootPath;" in service_nix
     assert "envDataDir = runtimeDataRootPath;" in service_nix
     assert 'StateDirectory = "lx-annotate";' in service_nix
     assert "DJANGO_STATIC_ROOT=${djangoStaticRootPath}" in service_nix
-    assert "ln -sfn ${runtimeStaticRootPath} ${djangoStaticRootPath}" in service_nix
+    assert "ln -sfn ${runtimeStaticRootPath}" in service_nix
     assert 'alias = "${djangoStaticRootPath}/";' in service_nix
+
+
+@pytest.mark.skipif(
+    not LUXNIX_SERVICE_MODULE.exists(),
+    reason="local luxnix service module not available in this environment",
+)
+def test_local_luxnix_service_exposes_central_hub_backup_groundwork():
+    service_nix = _read_luxnix_service_tree()
+
+    assert 'hubRootPath = "${runtimeDataRootPath}/hub";' in service_nix
+    assert 'hubBackupRootPath = "${hubRootPath}/backup";' in service_nix
+    assert 'hubBackupIncomingPath = "${hubBackupRootPath}/incoming";' in service_nix
+    assert 'hubBackupSnapshotPath = "${hubBackupRootPath}/snapshots";' in service_nix
+    assert 'hubBackupManifestPath = "${hubBackupRootPath}/manifests";' in service_nix
+    assert (
+        "services.luxnix.lxAnnotateLocal.django.extraSettings.IS_CENTRAL_NODE ="
+        in service_nix
+    )
+    assert "mkIf cfg.hub.enable (mkDefault true);" in service_nix
+    assert (
+        "systemd.services.lx-annotate-hub-backup = mkIf cfg.hub.backup.enable {"
+        in service_nix
+    )
+    assert (
+        "systemd.timers.lx-annotate-hub-backup = mkIf cfg.hub.backup.enable {"
+        in service_nix
+    )
+    assert (
+        'ExecStart = "${runLocalHubBackupScript}/bin/runLxAnnotateHubBackup";'
+        in service_nix
+    )
+    assert "default = hubBackupIncomingPath;" in service_nix
+    assert "default = hubBackupSnapshotPath;" in service_nix
+    assert "default = hubBackupManifestPath;" in service_nix
 
 
 def test_base_template_has_single_vite_asset_tag_and_no_global_labelstudio_script():

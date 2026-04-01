@@ -8,6 +8,7 @@
   ... }:
 let
   appName = "lx_annotate";
+  secret = name: default: config.secretspec.secrets.${name} or default;
 
   DEPLOYMENT_MODE = "prod";
 
@@ -63,7 +64,7 @@ let
     DJANGO_SETTINGS_MODULE_DEVELOPMENT = config.secretspec.secrets.DJANGO_SETTINGS_MODULE_DEVELOPMENT;
     DJANGO_ENV = config.secretspec.secrets.DJANGO_ENV;
     DJANGO_DEBUG = config.secretspec.secrets.DJANGO_DEBUG;
-    VITE_ENABLE_DEBUG = config.secretspec.secrets.VITE_ENABLE_DEBUG;
+    VITE_ENABLE_DEBUG = secret "VITE_ENABLE_DEBUG" "false";
     TIME_ZONE = config.secretspec.secrets.TIME_ZONE;
     DEFAULT_CENTER = config.secretspec.secrets.CENTER_NAME;
     LX_DTYPES_HOST_MODELS_MODULE = "endoreg_db.integrations.lx_dtypes_host_models";
@@ -173,7 +174,7 @@ in
     uv = {
       enable = true;
       package = uvPackage;
-      sync.enable = true;
+      sync.enable = false;
     };
   };
 
@@ -217,7 +218,6 @@ in
   } // devenv_utils.scripts;
 
   enterShell = lib.mkAfter ''
-    # 1. Check if the venv interpreter actually exists
     VENV_PATH=".devenv/state/venv"
     if [ -d "$VENV_PATH" ]; then
       if ! "$VENV_PATH/bin/python" --version >/dev/null 2>&1; then
@@ -233,30 +233,9 @@ in
       "$VENV_PATH/bin/python" -c 'import pydantic, pydantic_settings' >/dev/null 2>&1
     }
 
-    # 2. Refined Sync Logic
-    SYNC_STAMP=".devenv/state/uv.syncstamp"
-    if [ -f "uv.lock" ] && [ -f "pyproject.toml" ]; then
-      LOCK_HASH="$(${pkgs.coreutils}/bin/sha256sum uv.lock pyproject.toml 2>/dev/null | ${pkgs.coreutils}/bin/sha256sum | ${pkgs.gawk}/bin/awk '{print $1}')"
-    else
-      LOCK_HASH=""
+    if [ ! -d "$VENV_PATH" ] || ! validate_python_env; then
+      echo "Python venv is missing or incomplete. Run: ${SYNC_CMD}"
     fi
-    PREV_LOCK_HASH="$(${pkgs.coreutils}/bin/cat "$SYNC_STAMP" 2>/dev/null || true)"
-
-    # Sync if the lock changed OR if the venv is missing or unhealthy.
-    if [ ! -d "$VENV_PATH" ] || [ "$LOCK_HASH" != "$PREV_LOCK_HASH" ] || ! validate_python_env; then
-      echo "uv deps changed, venv missing, or venv validation failed -> syncing..."
-      if ${SYNC_CMD}; then
-        if validate_python_env; then
-          echo "$LOCK_HASH" > "$SYNC_STAMP"
-        else
-          echo "Warning: uv sync completed but required Python packages are still missing."
-        fi
-      else
-        echo "Warning: uv sync failed."
-      fi
-    else
-      echo "uv deps unchanged -> skipping sync."
-    fi;
 
     mkdir -p "${config.secretspec.secrets.STORAGE_DIR}"
     mkdir -p "${config.secretspec.secrets.ASSET_DIR}"

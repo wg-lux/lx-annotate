@@ -1,7 +1,7 @@
 import logging
 import os
-import sys
 import tomllib
+from importlib import import_module, metadata
 from pathlib import Path
 
 from django.conf import settings
@@ -38,30 +38,33 @@ def _read_project_version(pyproject_path: Path) -> str | None:
     return str(version) if version else None
 
 
-def _has_required_base_api_contracts(submodule_root: Path) -> bool:
-    contracts_init = (
-        submodule_root / "lx_dtypes" / "models" / "contracts" / "__init__.py"
-    )
-    if not contracts_init.exists():
-        logger.warning(
-            "Skipping lx_dtypes base_api mount: contracts file missing at %s",
-            contracts_init,
-        )
-        return False
+def _read_installed_distribution_version(distribution_name: str) -> str | None:
     try:
-        exports_text = contracts_init.read_text(encoding="utf-8")
+        return metadata.version(distribution_name)
+    except metadata.PackageNotFoundError:
+        return None
     except Exception:
-        logger.exception("Failed reading contracts exports from %s", contracts_init)
+        logger.exception("Failed reading installed version for %s", distribution_name)
+        return None
+
+
+def _has_required_base_api_contracts() -> bool:
+    try:
+        contracts_module = import_module("lx_dtypes.models.contracts")
+    except Exception:
+        logger.warning(
+            "Skipping lx_dtypes base_api mount: contracts module is not importable",
+        )
         return False
 
     missing_exports = [
         export
         for export in REQUIRED_BASE_API_CONTRACT_EXPORTS
-        if export not in exports_text
+        if not hasattr(contracts_module, export)
     ]
     if missing_exports:
         logger.warning(
-            "Skipping lx_dtypes base_api mount: submodule contracts are missing required exports: %s",
+            "Skipping lx_dtypes base_api mount: installed contracts are missing required exports: %s",
             ", ".join(missing_exports),
         )
         return False
@@ -76,29 +79,24 @@ def _resolve_lx_data_models_root() -> Path:
 
 
 lx_dtypes_api_urls = None
-submodule_root = _resolve_lx_data_models_root()
 expected_base_api_version = os.getenv(
     "LX_BASE_API_EXPECTED_VERSION", DEFAULT_BASE_API_EXPECTED_VERSION
 )
-submodule_version = _read_project_version(submodule_root / "pyproject.toml")
+installed_lx_dtypes_version = _read_installed_distribution_version("lx-dtypes")
 
-if not submodule_root.exists():
+if installed_lx_dtypes_version is None:
     logger.warning(
-        "Skipping lx_dtypes base_api mount: checkout missing at %s", submodule_root
+        "Skipping lx_dtypes base_api mount: installed lx-dtypes distribution is unavailable"
     )
-elif submodule_version != expected_base_api_version:
+elif installed_lx_dtypes_version != expected_base_api_version:
     logger.warning(
-        "Skipping lx_dtypes base_api mount: expected lx-data-models version %s, found %s",
+        "Skipping lx_dtypes base_api mount: expected lx-dtypes version %s, found %s",
         expected_base_api_version,
-        submodule_version or "<unknown>",
+        installed_lx_dtypes_version,
     )
-elif not _has_required_base_api_contracts(submodule_root):
+elif not _has_required_base_api_contracts():
     pass
 else:
-    submodule_path = str(submodule_root)
-    if submodule_path not in sys.path:
-        sys.path.insert(0, submodule_path)
-
     try:
         from lx_dtypes.django.api.main import api as _lx_dtypes_api
 
@@ -109,7 +107,7 @@ else:
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    # Mount lx-data-models Ninja API when lx-data-models submodule is available.
+    # Mount lx_dtypes Ninja API when the installed package contract matches.
     *(
         [path("base_api/", lx_dtypes_api_urls)]
         if lx_dtypes_api_urls is not None
