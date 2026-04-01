@@ -9,6 +9,12 @@ import sys
 import time
 from pathlib import Path
 
+# Allow direct execution via `python scripts/migrate_data_dir.py` by making the
+# repository root importable before importing app modules.
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
 from lx_annotate.storage.encryption import MAGIC, encrypt_stream, load_master_key
 
 DEFAULT_TARGET_DATA_DIR = Path("/var/lib/lx-annotate/data")
@@ -31,7 +37,7 @@ MANAGED_ENCRYPTED_ROOTS = {
 
 
 def default_repo_root() -> Path:
-    return Path(__file__).resolve().parents[1]
+    return REPO_ROOT
 
 
 def resolve_target_data_dir(raw_target: str | None) -> Path:
