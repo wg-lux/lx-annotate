@@ -81,7 +81,7 @@ class AppConfig(BaseSettings):
     db_password_file: Path | None = None
     db_host: str = os.getenv("DJANGO_DB_HOST", "localhost")
     db_port: str = os.getenv("DJANGO_DB_PORT", "5432")
-    db_sslmode: str = "prefer"
+    db_sslmode: str = "require"
     static_root: Path = Path(os.getenv("DJANGO_STATIC_ROOT", "./staticfiles"))
 
     keycloak_server_url: str = "https://keycloak-endoreg.net"

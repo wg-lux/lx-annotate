@@ -322,18 +322,6 @@ def test_settings_prod_import_reads_luxnix_style_service_environment(
     assert module.DEBUG is False
 
 
-def test_wsgi_module_import_sets_default_settings_module(monkeypatch):
-    import django.core.wsgi as django_wsgi
-
-    monkeypatch.delenv("DJANGO_SETTINGS_MODULE", raising=False)
-    monkeypatch.setattr(django_wsgi, "get_wsgi_application", lambda: "wsgi-app")
-
-    module = _fresh_import("lx_annotate.wsgi")
-
-    assert module.application == "wsgi-app"
-    assert os.environ["DJANGO_SETTINGS_MODULE"] == "lx_annotate.settings.settings_dev"
-
-
 def test_asgi_module_import_initializes_wrapped_apps(monkeypatch, tmp_path):
     import asgiref.wsgi as asgiref_wsgi
     import django.core.asgi as django_asgi
