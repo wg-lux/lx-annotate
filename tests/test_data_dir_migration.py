@@ -274,3 +274,84 @@ def test_migrate_data_dir_encrypts_managed_video_payloads(tmp_path, monkeypatch)
         )
     )
     assert decrypted == plaintext
+
+
+def test_migrate_data_dir_allow_merge_populates_existing_empty_directories(
+    tmp_path, monkeypatch
+):
+    repo_root = tmp_path / "repo"
+    source_data = repo_root / "data"
+    target_data = tmp_path / "var" / "lib" / "lx-annotate" / "data"
+    target_data.mkdir(parents=True)
+
+    sensitive_videos = source_data / "sensitive_videos"
+    sensitive_videos.mkdir(parents=True)
+    plaintext = b"legacy-video-payload"
+    (sensitive_videos / "clip.mp4").write_bytes(plaintext)
+
+    # Existing empty managed directory should not block recursive merge.
+    (target_data / "sensitive_videos").mkdir(parents=True)
+
+    monkeypatch.setenv(
+        "LX_ANNOTATE_MASTER_KEY",
+        base64.urlsafe_b64encode(os.urandom(32)).decode("ascii"),
+    )
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT_PATH),
+            "--repo-root",
+            str(repo_root),
+            "--target",
+            str(target_data),
+            "--allow-merge",
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+    migrated_file = target_data / "sensitive_videos" / "clip.mp4"
+    assert migrated_file.read_bytes() == plaintext
+
+
+def test_migrate_data_dir_allow_merge_skips_existing_files_but_copies_missing_ones(
+    tmp_path,
+):
+    repo_root = tmp_path / "repo"
+    source_data = repo_root / "data"
+    target_data = tmp_path / "var" / "lib" / "lx-annotate" / "data"
+
+    reports_dir = source_data / "reports"
+    reports_dir.mkdir(parents=True)
+    (reports_dir / "existing.txt").write_text("source-existing", encoding="utf-8")
+    (reports_dir / "missing.txt").write_text("source-missing", encoding="utf-8")
+
+    target_reports = target_data / "reports"
+    target_reports.mkdir(parents=True)
+    (target_reports / "existing.txt").write_text("target-existing", encoding="utf-8")
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT_PATH),
+            "--repo-root",
+            str(repo_root),
+            "--target",
+            str(target_data),
+            "--allow-merge",
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert (target_reports / "existing.txt").read_text(
+        encoding="utf-8"
+    ) == "target-existing"
+    assert (target_reports / "missing.txt").read_text(
+        encoding="utf-8"
+    ) == "source-missing"

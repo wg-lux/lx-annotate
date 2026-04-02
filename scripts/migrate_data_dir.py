@@ -209,6 +209,42 @@ def copy_tree_preserving_source(source_dir: Path, target_dir: Path) -> list[str]
     return actions
 
 
+def merge_tree_preserving_source(source_dir: Path, target_dir: Path) -> list[str]:
+    actions: list[str] = []
+    master_key: bytes | None = None
+    target_dir.mkdir(parents=True, exist_ok=True)
+    for root, dir_names, file_names in os.walk(source_dir):
+        dir_names.sort()
+        file_names.sort()
+        root_path = Path(root)
+        relative_root = root_path.relative_to(source_dir)
+        destination_root = target_dir / relative_root
+        destination_root.mkdir(parents=True, exist_ok=True)
+        for dir_name in dir_names:
+            (destination_root / dir_name).mkdir(parents=True, exist_ok=True)
+        for file_name in file_names:
+            source_file = root_path / file_name
+            relative_path = source_file.relative_to(source_dir)
+            destination = target_dir / relative_path
+            if destination.exists():
+                actions.append(f"WARNING: destination already exists, skipping: {destination}")
+                continue
+            if is_managed_encrypted_relative_path(relative_path):
+                if is_already_encrypted(source_file):
+                    actions.append(f"copying already-encrypted managed file {source_file} -> {destination}")
+                    atomic_copy2(source_file, destination)
+                else:
+                    if master_key is None:
+                        master_key = load_master_key()
+                    actions.append(f"encrypting managed file {source_file} -> {destination}")
+                    atomic_encrypt_copy(source_file, destination, master_key=master_key)
+            else:
+                actions.append(f"copying {source_file} -> {destination}")
+                atomic_copy2(source_file, destination)
+    fsync_directory(target_dir)
+    return actions
+
+
 def backup_source_dir(source_dir: Path) -> Path:
     timestamp = time.strftime("%Y%m%d-%H%M%S")
     backup_dir = source_dir.with_name(f"{source_dir.name}.migration-backup-{timestamp}")
@@ -334,14 +370,30 @@ def migrate_repo_data(
         )
         for entry in source_entries:
             destination = target_dir / entry.name
-            if destination.exists():
-                actions.append(f"WARNING: destination already exists, skipping: {destination}")
-                continue
-            actions.append(f"copying {entry} -> {destination}")
-            if not dry_run:
-                if entry.is_dir():
-                    shutil.copytree(entry, destination, copy_function=atomic_copy2)
+            if dry_run:
+                if destination.exists():
+                    actions.append(f"WARNING: destination already exists, skipping: {destination}")
                 else:
+                    actions.append(f"would copy {entry} -> {destination}")
+                continue
+            if entry.is_dir():
+                actions.extend(merge_tree_preserving_source(entry, destination))
+            elif destination.exists():
+                actions.append(f"WARNING: destination already exists, skipping: {destination}")
+            else:
+                if is_managed_encrypted_relative_path(Path(entry.name)):
+                    if is_already_encrypted(entry):
+                        actions.append(f"copying already-encrypted managed file {entry} -> {destination}")
+                        atomic_copy2(entry, destination)
+                    else:
+                        actions.append(f"encrypting managed file {entry} -> {destination}")
+                        atomic_encrypt_copy(
+                            entry,
+                            destination,
+                            master_key=load_master_key(),
+                        )
+                else:
+                    actions.append(f"copying {entry} -> {destination}")
                     atomic_copy2(entry, destination)
         if not dry_run:
             fsync_directory(target_dir)
