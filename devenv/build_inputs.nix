@@ -12,6 +12,13 @@ let
     protobuf
     libglvnd
     zlib
+    xorg.libxcb
+    xorg.libX11
+    xorg.libXext
+    xorg.libICE
+    xorg.libSM
+    glib
+    libGL
   ];
 
 in buildInputs
