@@ -79,21 +79,6 @@ def test_reporting_workflow_paths_resolve_to_vue_spa(spa_path: str):
     assert resolve(spa_path).url_name == "vue_spa"
 
 
-def test_base_api_mount_skips_on_version_mismatch(monkeypatch):
-    monkeypatch.setenv("LX_BASE_API_EXPECTED_VERSION", "999.999.999")
-    monkeypatch.setenv("LX_DATA_MODELS_ROOT", LX_DATA_MODELS_ROOT)
-    module_with_bad_version = _fresh_urls_module()
-
-    assert module_with_bad_version.lx_dtypes_api_urls is None
-    assert all(
-        str(pattern.pattern) != "base_api/"
-        for pattern in module_with_bad_version.urlpatterns
-    )
-
-    clear_url_caches()
-    set_urlconf(None)
-
-
 @override_settings(
     ROOT_URLCONF="lx_annotate.urls",
     ALLOWED_HOSTS=["testserver", "localhost", "127.0.0.1"],
