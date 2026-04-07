@@ -164,6 +164,7 @@ INSTALLED_APPS = [
     "drf_spectacular",
     "modeltranslation",
     "ninja",
+    "django_linear_migrations",
 ]
 
 # lx_dtypes may evaluate parameterized field hints at runtime

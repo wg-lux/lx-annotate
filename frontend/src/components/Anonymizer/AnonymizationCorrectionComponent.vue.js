@@ -725,12 +725,11 @@ const seekVideo = (seconds) => {
         videoElement.value.currentTime += seconds;
     }
 };
-const downloadResult = async (outputPath) => {
+const downloadResult = async (historyId) => {
     if (!currentVideo.value)
         return;
     try {
-        const response = await axiosInstance.get(r(`video-download-processed/${currentVideo.value.id}/`), {
-            params: { path: outputPath },
+        const response = await axiosInstance.get(`/api/media/processed-videos/${currentVideo.value.id}/${historyId}/`, {
             responseType: 'blob'
         });
         // Create download link
@@ -1865,7 +1864,7 @@ else {
                                     return;
                                 if (!(entry.status === 'success' && entry.outputPath))
                                     return;
-                                __VLS_ctx.downloadResult(entry.outputPath);
+                                __VLS_ctx.downloadResult(entry.id);
                             } },
                         ...{ class: "btn btn-outline-primary btn-sm" },
                     });

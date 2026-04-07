@@ -12,11 +12,11 @@ let
     protobuf
     libglvnd
     zlib
-    xorg.libxcb
-    xorg.libX11
-    xorg.libXext
-    xorg.libICE
-    xorg.libSM
+    libxcb
+    libx11
+    libxext
+    libice
+    libsm
     glib
     libGL
   ];

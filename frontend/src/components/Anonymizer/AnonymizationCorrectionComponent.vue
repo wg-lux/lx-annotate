@@ -636,7 +636,7 @@
                             <button 
                               v-if="entry.status === 'success' && entry.outputPath"
                               class="btn btn-outline-primary btn-sm"
-                              @click="downloadResult(entry.outputPath)"
+                              @click="downloadResult(entry.id)"
                             >
                               <i class="fas fa-download"></i>
                             </button>
@@ -1492,14 +1492,13 @@ const seekVideo = (seconds: number) => {
   }
 };
 
-const downloadResult = async (outputPath: string) => {
+const downloadResult = async (historyId: number) => {
   if (!currentVideo.value) return;
   
   try {
     const response = await axiosInstance.get(
-      r(`video-download-processed/${currentVideo.value.id}/`),
-      { 
-        params: { path: outputPath },
+      `/api/media/processed-videos/${currentVideo.value.id}/${historyId}/`,
+      {
         responseType: 'blob'
       }
     );

@@ -71,6 +71,7 @@ dependencies = [
     "django-ninja==1.5.3",
     "pytest-cov>=7.0.0",
     "cryptography>=45.0.0",
+    "django-linear-migrations>=2.19.0",
 ]
 
 [tool.pytest.ini_options]
