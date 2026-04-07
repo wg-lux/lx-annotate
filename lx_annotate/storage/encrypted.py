@@ -15,6 +15,7 @@ from .encryption import (
     DecryptedStream,
     EncryptedChunkIndexEntry,
     EncryptedFileHeader,
+    MAGIC,
     build_chunk_index,
     encrypt_stream,
     iter_decrypted_byte_range,
@@ -80,6 +81,10 @@ class EncryptedStorage(FileSystemStorage):
     def open_encrypted(self, name: str):
         full_path = Path(self.path(name))
         return open(full_path, "rb")
+
+    def is_encrypted(self, name: str) -> bool:
+        with self.open_encrypted(name) as source:
+            return source.read(len(MAGIC)) == MAGIC
 
     def _get_cached_index(self, name: str) -> IndexCacheValue:
         full_path = Path(self.path(name))
@@ -151,3 +156,44 @@ class EncryptedStorage(FileSystemStorage):
             raise
 
         return str(Path(clean_name).as_posix())
+
+    def repair_plaintext_file(self, name: str) -> bool:
+        """
+        Re-encrypt a raw plaintext file in managed storage in place.
+
+        Returns True when a plaintext file was rewritten, False when the file
+        already appeared to be encrypted.
+        """
+
+        if self.is_encrypted(name):
+            return False
+
+        full_path = Path(self.path(name))
+        original_stat = full_path.stat()
+        fd, tmp_path_str = tempfile.mkstemp(
+            prefix=f".{full_path.name}.",
+            suffix=".tmp",
+            dir=str(full_path.parent),
+        )
+        tmp_path = Path(tmp_path_str)
+
+        try:
+            with open(full_path, "rb") as source, os.fdopen(fd, "wb") as destination:
+                encrypt_stream(
+                    source,
+                    destination,
+                    master_key=self._master_key,
+                    chunk_size=self.chunk_size,
+                )
+                destination.flush()
+                os.fsync(destination.fileno())
+
+            os.chmod(tmp_path, original_stat.st_mode)
+            os.replace(tmp_path, full_path)
+            _fsync_directory(full_path.parent)
+            self._index_cache.clear()
+        except Exception:
+            tmp_path.unlink(missing_ok=True)
+            raise
+
+        return True

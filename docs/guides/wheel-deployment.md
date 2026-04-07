@@ -64,6 +64,20 @@ protected data mount. The current code and LuxNix wrappers still export
 `LX_ANNOTATE_DATA_DIR` as a compatibility alias for older code paths, so treat
 the environment as transitional rather than fully cleaned up.
 
+The path-variable contract is:
+
+- `LX_ANNOTATE_ENCRYPTED_DATA_DIR`: canonical protected runtime root.
+- `LX_ANNOTATE_DATA_DIR`: compatibility alias for the same root.
+- `DATA_DIR`: legacy compatibility alias for the same root.
+- `STORAGE_DIR`: managed storage subtree, normally
+  `${LX_ANNOTATE_ENCRYPTED_DATA_DIR}/storage`.
+- `IO_DIR`: import/export/workflow subtree root. In the current deployment
+  model it remains inside `LX_ANNOTATE_ENCRYPTED_DATA_DIR`, not as a second
+  independent runtime root.
+
+For new deployment code and operator docs, prefer
+`LX_ANNOTATE_ENCRYPTED_DATA_DIR` and describe the others relative to it.
+
 The application should not generate or manage encryption keys itself. A
 dedicated LuxNix service or external KMS/secrets system should own key
 management and unlock policy.

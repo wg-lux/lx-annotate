@@ -150,6 +150,18 @@ The canonical runtime variable for this boundary is
 export `LX_ANNOTATE_DATA_DIR` as a compatibility alias in some places, so the
 environment is functional but not fully cleaned up yet.
 
+Current runtime path roles:
+
+- `LX_ANNOTATE_ENCRYPTED_DATA_DIR`: canonical protected runtime root
+- `LX_ANNOTATE_DATA_DIR`: compatibility alias for the same root
+- `DATA_DIR`: legacy compatibility alias for the same root
+- `STORAGE_DIR`: managed storage subtree, usually `${LX_ANNOTATE_ENCRYPTED_DATA_DIR}/storage`
+- `IO_DIR`: import/export/workflow subtree root, currently still inside the protected root
+
+New deployment code should anchor path derivation on
+`LX_ANNOTATE_ENCRYPTED_DATA_DIR` and treat the other variables as derived paths
+or compatibility aliases rather than separate roots.
+
 For application-layer envelope encryption, `lx_annotate` also ships an opt-in
 Django storage backend at `lx_annotate.storage.encrypted.EncryptedStorage`.
 Enable it with `LX_ANNOTATE_USE_ENCRYPTED_STORAGE=1` and provide

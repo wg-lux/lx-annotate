@@ -23,22 +23,29 @@ BASE_DIR = REPO_ROOT
 
 
 def _resolve_runtime_data_dir() -> Path:
-    legacy_dir = REPO_ROOT / "data"
     encrypted_dir = os.getenv("LX_ANNOTATE_ENCRYPTED_DATA_DIR", "").strip()
+    logical_data_dir = os.getenv("LX_ANNOTATE_DATA_DIR", "").strip()
+    legacy_data_dir = os.getenv("DATA_DIR", "").strip()
     xdg_home = Path(os.getenv("XDG_DATA_HOME", Path.home() / ".local" / "share"))
-    candidate = Path(legacy_dir or encrypted_dir or (xdg_home / "lx-annotate"))
-    candidate = candidate.expanduser().resolve()
-    return candidate
+    for raw_candidate in (encrypted_dir, logical_data_dir, legacy_data_dir):
+        if raw_candidate:
+            return Path(raw_candidate).expanduser().resolve()
+    return (xdg_home / "lx-annotate").expanduser().resolve()
 
 
 # XDG Data Logic -> Root Data Directory support
 XDG_DATA_HOME = Path(os.getenv("XDG_DATA_HOME", Path.home() / ".local" / "share"))
 APP_DATA_DIR = _resolve_runtime_data_dir()
 APP_DATA_DIR.mkdir(parents=True, exist_ok=True)
+APP_STORAGE_DIR = APP_DATA_DIR / "storage"
+APP_IO_DIR = APP_DATA_DIR
+APP_STORAGE_DIR.mkdir(parents=True, exist_ok=True)
+# Defaults for safe dev settings and fallback in case of non expected service deployment
 os.environ.setdefault("LX_ANNOTATE_DATA_DIR", str(APP_DATA_DIR))
 os.environ.setdefault("DATA_DIR", str(APP_DATA_DIR))
-os.environ.setdefault("STORAGE_DIR", str(APP_DATA_DIR))
-os.environ.setdefault("IO_DIR", str(APP_DATA_DIR))
+os.environ.setdefault("LX_ANNOTATE_ENCRYPTED_DATA_DIR", str(APP_DATA_DIR))
+os.environ.setdefault("STORAGE_DIR", str(APP_STORAGE_DIR))
+os.environ.setdefault("IO_DIR", str(APP_IO_DIR))
 
 # Config Loading Strategy:
 # 1. Look in User Data Dir (~/.local/share/...)

@@ -96,6 +96,25 @@ The canonical runtime variable for that boundary is
 current code and service wrappers as a compatibility alias for older code
 paths, so this part of the runtime contract remains transitional.
 
+The runtime path variables currently mean:
+
+- `LX_ANNOTATE_ENCRYPTED_DATA_DIR`: canonical protected runtime root. This is
+  the primary path boundary for patient data and service-managed runtime state.
+- `LX_ANNOTATE_DATA_DIR`: compatibility alias for the same protected runtime
+  root. Prefer `LX_ANNOTATE_ENCRYPTED_DATA_DIR` in new code and deployment
+  configuration.
+- `DATA_DIR`: legacy compatibility alias for the protected runtime root. New
+  deployment code should not treat it as a separate concept.
+- `STORAGE_DIR`: managed storage subtree under the protected runtime root,
+  typically `${LX_ANNOTATE_ENCRYPTED_DATA_DIR}/storage`.
+- `IO_DIR`: runtime intake and workflow subtree root. In the current LuxNix
+  topology it still resolves inside the protected runtime root rather than to a
+  separate external mount.
+
+When documenting or wiring new deployment code, treat
+`LX_ANNOTATE_ENCRYPTED_DATA_DIR` as authoritative and derive `STORAGE_DIR` and
+`IO_DIR` from it instead of inventing independent roots.
+
 Do not treat app-generated random keys as a valid encryption design. The Django
 app should consume an already-mounted or already-unlocked data path. Encryption
 keys and unlock policy belong in a dedicated LuxNix service or external
