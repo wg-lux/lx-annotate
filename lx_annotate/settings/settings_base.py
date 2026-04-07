@@ -264,7 +264,7 @@ STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 MEDIA_URL = "/media/"
 MEDIA_ROOT = APP_DATA_DIR
 MEDIA_ROOT.mkdir(parents=True, exist_ok=True)
-USE_ENCRYPTED_STORAGE = os.getenv("LX_ANNOTATE_USE_ENCRYPTED_STORAGE", "").lower() in {
+USE_ENCRYPTED_STORAGE = os.getenv("LX_ANNOTATE_USE_ENCRYPTED_STORAGE", "1").lower() in {
     "1",
     "true",
     "yes",

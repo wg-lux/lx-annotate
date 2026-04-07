@@ -1,10 +1,6 @@
 class ErrorLogger {
-    baseUrl;
     maxRetries = 3;
     retryDelay = 1000;
-    constructor() {
-        this.baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
-    }
     /**
      * Logs error to Django backend with retry mechanism
      */

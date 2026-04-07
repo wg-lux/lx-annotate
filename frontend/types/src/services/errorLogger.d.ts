@@ -5,10 +5,8 @@ interface ErrorContext {
     cookies?: string;
 }
 declare class ErrorLogger {
-    private baseUrl;
     private maxRetries;
     private retryDelay;
-    constructor();
     /**
      * Logs error to Django backend with retry mechanism
      */

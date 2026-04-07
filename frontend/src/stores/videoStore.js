@@ -101,7 +101,7 @@ export const useVideoStore = defineStore('video', () => {
         return null;
     }
     function buildVideoStreamUrl(id) {
-        const base = import.meta.env.VITE_API_BASE_URL || window.location.origin;
+        const base = (import.meta.env.VITE_API_BASE_URL || window.location.origin).replace(/\/$/, '');
         return `${base}/api/${r(endpoints.media.videoStream(id))}`;
     }
     function normalizeFps(value) {

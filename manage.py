@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 """Django's command-line utility for administrative tasks."""
+import importlib.util
 import os
 import sys
 from pathlib import Path
-
-sys.path.insert(0, "/home/admin/dev/lx-annotate/libs/endoreg-db")
 
 DEV_SETTINGS_MODULE = "lx_annotate.settings.settings_dev"
 PROD_SETTINGS_MODULE = "lx_annotate.settings.settings_prod"
@@ -42,6 +41,15 @@ def _select_settings_module(argv: list[str]) -> str:
     return PROD_SETTINGS_MODULE
 
 
+def _ensure_required_runtime_packages() -> None:
+    if importlib.util.find_spec("endoreg_db") is None:
+        raise ImportError(
+            "Required package 'endoreg_db' is not installed in the active Python "
+            "environment. Install the packaged dependency instead of relying on a "
+            "repo-local libs/endoreg-db checkout."
+        )
+
+
 os.environ["DJANGO_SETTINGS_MODULE"] = _select_settings_module(sys.argv)
 
 from lx_annotate.settings.settings_base import BASE_DIR
@@ -64,13 +72,14 @@ os.environ.setdefault("IO_DIR", default_io_dir)
 def main():
     """Run administrative tasks."""
     try:
+        _ensure_required_runtime_packages()
         from django.core.management import execute_from_command_line
 
     except ImportError as exc:
         raise ImportError(
-            "Couldn't import Django. Are you sure it's installed and "
-            "available on your PYTHONPATH environment variable? Did you "
-            "forget to activate a virtual environment?"
+            "Failed to start management command because a required runtime "
+            "dependency is missing. Ensure Django and endoreg_db are installed "
+            "in the active environment rather than imported from a repo-local checkout."
         ) from exc
     execute_from_command_line(sys.argv)
 

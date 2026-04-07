@@ -49,6 +49,24 @@ def _read_keycloak_secret_file(path: Path) -> str:
     return raw
 
 
+def _default_static_root() -> Path:
+    configured = os.getenv("DJANGO_STATIC_ROOT", "").strip()
+    if configured:
+        return Path(configured)
+
+    runtime_data_dir = (
+        os.getenv("LX_ANNOTATE_DATA_DIR", "").strip()
+        or os.getenv("LX_ANNOTATE_ENCRYPTED_DATA_DIR", "").strip()
+        or os.getenv("DATA_DIR", "").strip()
+    )
+    if runtime_data_dir:
+        data_path = Path(runtime_data_dir).expanduser()
+        runtime_root = data_path.parent if data_path.name == "data" else data_path
+        return runtime_root / "staticfiles"
+
+    return Path("./staticfiles")
+
+
 class AppConfig(BaseSettings):
     """
     Typed, validated configuration input for django settings.
@@ -82,7 +100,7 @@ class AppConfig(BaseSettings):
     db_host: str = os.getenv("DJANGO_DB_HOST", "localhost")
     db_port: str = os.getenv("DJANGO_DB_PORT", "5432")
     db_sslmode: str = "require"
-    static_root: Path = Path(os.getenv("DJANGO_STATIC_ROOT", "./staticfiles"))
+    static_root: Path = Field(default_factory=_default_static_root)
 
     keycloak_server_url: str = "https://keycloak-endoreg.net"
     keycloak_client_id: str = "lx-frontend"

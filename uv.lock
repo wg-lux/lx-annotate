@@ -949,7 +949,7 @@ sdist = { url = "https://files.pythonhosted.org/packages/62/59/e47bbd0542d0e6f4c
 
 [[package]]
 name = "endoreg-db"
-version = "0.9.2.8"
+version = "0.9.3.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "celery" },
@@ -1009,9 +1009,9 @@ dependencies = [
     { name = "whitenoise" },
     { name = "ziglang" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/57/2c/3ca7e30d1823dc80ba40a5f0d94306e1ba91166943c434ff60e71d202c76/endoreg_db-0.9.2.8.tar.gz", hash = "sha256:f2c4f5d5b598676fd030baa867e56d98e2ac23d58cd873306d5c1190c0319561", size = 647806, upload-time = "2026-04-01T15:52:09.353Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/c6/38/ae99b314ee801979fd8bb736ac0ccfc4c24d5501d22fcb6522f6fd8433fa/endoreg_db-0.9.3.0.tar.gz", hash = "sha256:f9e3e9a53a1f138c7136fd29c62dc86bacf1bbd01485b281dc3a32e86b5b7926", size = 645521, upload-time = "2026-04-07T11:27:19.24Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/75/d9/931dbcb6bd0ecd5e6eb9b8cfa97d83e8bbe572eb38caae96636f99efad4b/endoreg_db-0.9.2.8-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:b7b450cb34b9205172e53dc992e72a8b77ff17688c12e16824475ebf0de50f25", size = 1219217, upload-time = "2026-04-01T15:52:07.152Z" },
+    { url = "https://files.pythonhosted.org/packages/2e/8b/72b1763c2ff58b30aa280bd2bc889f5f93e08f17aa6bcdfdb480bd53594b/endoreg_db-0.9.3.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:4ce4ddfa993e7f8388b753041676e7ec1e84136bee323989bc5a71d6757991e6", size = 1212457, upload-time = "2026-04-07T11:27:17.28Z" },
 ]
 
 [[package]]
@@ -1623,10 +1623,11 @@ wheels = [
 
 [[package]]
 name = "lx-annotate"
-version = "0.0.3"
+version = "0.0.5"
 source = { editable = "." }
 dependencies = [
     { name = "black" },
+    { name = "build" },
     { name = "celery" },
     { name = "cryptography" },
     { name = "daphne" },
@@ -1703,6 +1704,7 @@ docs = [
 [package.metadata]
 requires-dist = [
     { name = "black", specifier = ">=25.12.0" },
+    { name = "build", specifier = ">=1.4.2" },
     { name = "build", marker = "extra == 'dev'", specifier = ">=1.3.0" },
     { name = "celery", specifier = ">=5.5.3" },
     { name = "cryptography", specifier = ">=45.0.0" },
@@ -1720,7 +1722,7 @@ requires-dist = [
     { name = "django-webpack-loader", specifier = ">=0.7.0" },
     { name = "djangorestframework", specifier = ">=3.12.4" },
     { name = "drf-spectacular", specifier = ">=0.28.0" },
-    { name = "endoreg-db", specifier = "==0.9.2.8" },
+    { name = "endoreg-db", specifier = "==0.9.3.0" },
     { name = "flake8", marker = "extra == 'dev'", specifier = ">=7.3.0" },
     { name = "furo", marker = "extra == 'dev'", specifier = ">=2025.9.25" },
     { name = "furo", marker = "extra == 'docs'", specifier = ">=2025.9.25" },
@@ -1819,7 +1821,7 @@ ocr = [
 
 [[package]]
 name = "lx-dtypes"
-version = "0.1.2"
+version = "0.1.3"
 source = { editable = "lx-data-models" }
 dependencies = [
     { name = "bibtexparser" },

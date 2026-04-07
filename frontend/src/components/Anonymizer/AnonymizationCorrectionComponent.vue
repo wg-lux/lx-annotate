@@ -1469,7 +1469,7 @@ const reprocessVideo = async () => {
 const getVideoUrl = () => {
   if (!currentVideo.value) return '';
   
-  const base = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+  const base = (import.meta.env.VITE_API_BASE_URL || window.location.origin).replace(/\/$/, '');
   
   if (previewMode.value === 'processed' && hasProcessedVersion.value) {
     // Get the latest processed version

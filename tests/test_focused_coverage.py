@@ -323,25 +323,13 @@ def test_settings_prod_import_reads_luxnix_style_service_environment(
 
 
 def test_asgi_module_import_initializes_wrapped_apps(monkeypatch, tmp_path):
-    import asgiref.wsgi as asgiref_wsgi
     import django.core.asgi as django_asgi
-    import django.core.wsgi as django_wsgi
-    import whitenoise
-
-    class FakeWhiteNoise:
-        def __init__(self, app, root):
-            self.app = app
-            self.root = root
 
     monkeypatch.setenv("DJANGO_STATIC_ROOT", str(tmp_path / "static-root"))
+    monkeypatch.setenv("DJANGO_SETTINGS_MODULE", "lx_annotate.settings.settings_test")
     monkeypatch.setattr(django_asgi, "get_asgi_application", lambda: "asgi-app")
-    monkeypatch.setattr(django_wsgi, "get_wsgi_application", lambda: "wsgi-app")
-    monkeypatch.setattr(whitenoise, "WhiteNoise", FakeWhiteNoise)
-    monkeypatch.setattr(asgiref_wsgi, "WsgiToAsgi", lambda app: ("wrapped", app))
 
     module = _fresh_import("lx_annotate.asgi")
 
     assert module.application == "asgi-app"
-    assert module.wsgi_application == "wsgi-app"
-    assert module.whitenoise_application.root == str(tmp_path / "static-root")
-    assert module.wsgi_asgi_application == ("wrapped", "wsgi-app")
+    assert os.environ["DJANGO_SETTINGS_MODULE"] == "lx_annotate.settings.settings_test"

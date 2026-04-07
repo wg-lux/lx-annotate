@@ -67,7 +67,8 @@ def test_django_vite_manifest_paths_match_static_root_contract(monkeypatch):
         'STATICFILES_STORAGE = "whitenoise.storage.CompressedStaticFilesStorage"'
         in prod_settings
     )
-    assert 'os.getenv("DJANGO_STATIC_ROOT", "./staticfiles")' in config_py
+    assert "def _default_static_root() -> Path:" in config_py
+    assert 'return runtime_root / "staticfiles"' in config_py
     assert (
         'DJANGO_STATIC_ROOT = { description = "Static root for django file serving", default = "staticfiles"}'
         in secretspec
@@ -202,6 +203,23 @@ def test_base_template_has_single_vite_asset_tag_and_no_global_labelstudio_scrip
     assert template.count("{% vite_asset 'src/main.ts' %}") == 1
     assert "label-studio@latest" not in template
     assert "window.LabelStudio" not in template
+
+
+def test_frontend_defaults_to_same_origin_api_contract():
+    config_ts = _read("frontend/src/config/index.ts")
+    axios_ts = _read("frontend/src/api/axiosInstance.ts")
+    video_axios_ts = _read("frontend/src/api/videoAxiosInstance.ts")
+    correction_vue = _read(
+        "frontend/src/components/Anonymizer/AnonymizationCorrectionComponent.vue"
+    )
+    error_logger = _read("frontend/src/services/errorLogger.ts")
+
+    assert "baseURL: import.meta.env.VITE_API_BASE_URL || '/'" in config_ts
+    assert "baseURL: '/'," in axios_ts
+    assert ": '/api/media/videos/'" in video_axios_ts
+    assert "window.location.origin" in correction_vue
+    assert "http://localhost:8000" not in correction_vue
+    assert "http://localhost:8000" not in error_logger
 
 
 def test_debug_surfaces_use_global_vite_debug_flag():
