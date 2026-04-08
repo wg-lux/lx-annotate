@@ -11,6 +11,7 @@ from .settings_base import (
     LOGGING,
     REST_FRAMEWORK,
     MIGRATION_MODULES,
+    STORAGES,
     TEMPLATES,
     ROOT_URLCONF,
     STATIC_URL,
@@ -28,6 +29,7 @@ from typing import Any, cast
 LOGGING = cast(dict[str, Any], LOGGING)
 REST_FRAMEWORK = cast(dict[str, Any], REST_FRAMEWORK)
 MIGRATION_MODULES = cast(dict[str, str], MIGRATION_MODULES)
+STORAGES = cast(dict[str, dict[str, str]], STORAGES)
 TEMPLATES = cast(list[dict[str, Any]], TEMPLATES)
 ROOT_URLCONF = cast(str, ROOT_URLCONF)
 STATIC_URL = cast(str, STATIC_URL)
@@ -70,6 +72,7 @@ DJANGO_VITE = {
 # ManifestStaticFilesStorage would rewrite `main.js` to an older hashed bundle
 # via Django's own manifest, which breaks route loading after deploy.
 STATICFILES_STORAGE = "whitenoise.storage.CompressedStaticFilesStorage"
+STORAGES["staticfiles"] = {"BACKEND": STATICFILES_STORAGE}
 
 # 3. SECURITY HEADERS
 SECURE_SSL_REDIRECT = True

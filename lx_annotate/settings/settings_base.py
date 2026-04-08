@@ -56,9 +56,19 @@ os.environ.setdefault("IO_DIR", str(APP_IO_DIR))
 _settings_module = os.getenv("DJANGO_SETTINGS_MODULE", "")
 _is_dev_settings = _settings_module.endswith("settings_dev")
 if not _is_dev_settings:
-    _env_path = APP_DATA_DIR / ".env.systemd"
-    if not _env_path.exists():
-        _env_path = BASE_DIR / ".env.systemd"
+    _env_candidates = []
+    if APP_DATA_DIR.name == "data":
+        _env_candidates.append(APP_DATA_DIR.parent / ".env.systemd")
+    _env_candidates.extend(
+        [
+            APP_DATA_DIR / ".env.systemd",
+            BASE_DIR / ".env.systemd",
+        ]
+    )
+    _env_path = next(
+        (candidate for candidate in _env_candidates if candidate.exists()),
+        _env_candidates[0],
+    )
 else:
     _env_path = BASE_DIR / ".env"
     if not _env_path.exists():

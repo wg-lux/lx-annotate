@@ -5,12 +5,12 @@ build-backend = "hatchling.build"
 [project]
 name = "lx-annotate"
 
-version = "0.0.5"
-description = "This webapp provides a frontend interface for annotating AI generated output."
+version = "0.0.7"
+description = "This webapp provides a frontend interface for pseudonymizing and annotating data and applying AI predictions."
 authors = [
+    { name = "Hamza Zahid" },
     { name = "Max Hild", email = "maxhild10@gmail.com"},
     { name = "Thomas J. Lux", email = "lux_t1@ukw.de" },
-    { name = "Hamza Zahid" },
 ]
 classifiers = [
   "Development Status :: 3 - Alpha",

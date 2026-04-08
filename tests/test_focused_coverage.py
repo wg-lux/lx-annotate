@@ -302,6 +302,14 @@ def test_settings_prod_import_reads_luxnix_style_service_environment(
     module = importlib.import_module("lx_annotate.settings.settings_prod")
 
     assert Path(module.STATIC_ROOT) == static_root
+    assert (
+        module.STORAGES["default"]["BACKEND"]
+        == "lx_annotate.storage.encrypted.EncryptedStorage"
+    )
+    assert (
+        module.STORAGES["staticfiles"]["BACKEND"]
+        == "whitenoise.storage.CompressedStaticFilesStorage"
+    )
     assert module.ALLOWED_HOSTS == ["annotate.example.test", "localhost"]
     assert module.CSRF_TRUSTED_ORIGINS == ["https://annotate.example.test"]
     assert module.CORS_ALLOWED_ORIGINS == ["https://frontend.example.test"]
