@@ -243,6 +243,61 @@ In LuxNix wheel mode, the split is:
 - app root and wheel virtualenv under the service user home
 - runtime data and staticfiles under `/var/lib/lx-annotate`
 
+### LuxNix Wheel Auxiliary Units
+
+In the current LuxNix topology, the watcher and frame-export services are
+conditional in wheel mode. They are only instantiated when explicit wheel-mode
+commands are configured for them.
+
+The current endoreg-client role now wires those commands by default:
+
+- `runtime.commands.fileWatcher = "python manage.py start_filewatcher"`
+- `runtime.commands.exportFrames = "export-frames"`
+
+Without those command values, these wheel-mode artifacts drop out of the
+evaluated system configuration:
+
+- `runLocalFileWatcher`
+- `unit-lx-annotate-filewatcher.service`
+- `runLocalExportFrames`
+- `unit-lx-annotate-export-frames.service`
+
+SAP import is different in the current LuxNix module. Its wheel-mode helper and
+units are unconditional, so `lx-annotate-sap-import.service` and
+`lx-annotate-sap-import.path` still evaluate even when watcher and export
+commands are unset.
+
+### LuxNix Master Key Permissions
+
+Wheel mode uses encrypted Django storage during boot-time repair and runtime
+storage initialization. That means the application service user must be able to
+read the configured master key file.
+
+In the current LuxNix deployment model:
+
+- the service user is `endoreg-service-user`
+- the service user is a member of the sensitive secrets group
+- `/etc/secrets/vault` is group-readable/traversable for that sensitive group
+
+Because of that, the lx-annotate application master key must not be provisioned
+as `root:root 0400`. That mode causes wheel-mode repair commands such as
+`repair_managed_payloads` to fail with `PermissionError` when Django tries to
+initialize `EncryptedStorage`.
+
+The required LuxNix ownership model for the application master key is:
+
+- owner: `root`
+- group: sensitive secrets group, for example `sensitiveServices`
+- mode: `0640`
+
+This applies to both:
+
+- auto-generated local master keys
+- Vault-managed lx-annotate application master keys
+
+The LUKS unlock key and LUKS UUID are different. Those are still intended for
+the root-managed encrypted-data mount service and can remain root-only.
+
 ## Current Limits
 
 - Some Keycloak integration still depends on repo-aware settings paths.
