@@ -1,3 +1,9 @@
+# Agent Notice
+
+For Codex-style repository-level instructions, prefer
+[AGENTS.md](/home/admin/dev/lx-annotate/AGENTS.md). This lowercase file is kept
+for local compatibility and historical tooling.
+
 # Node Environment
 
 Inside of the folder frontend, the flake.nix provides a node js / npm development environment.

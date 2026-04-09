@@ -3,6 +3,7 @@ import { useRouter, useRoute } from 'vue-router';
 import { useAnonymizationStore } from '@/stores/anonymizationStore';
 import { useMediaTypeStore } from '@/stores/mediaTypeStore';
 import axiosInstance, { r } from '@/api/axiosInstance';
+import { endpoints } from '@/types/api/endpoints';
 // Composables
 const router = useRouter();
 const route = useRoute();
@@ -708,17 +709,10 @@ const getVideoUrl = () => {
     if (!currentVideo.value)
         return '';
     const base = (import.meta.env.VITE_API_BASE_URL || window.location.origin).replace(/\/$/, '');
-    if (previewMode.value === 'processed' && hasProcessedVersion.value) {
-        // Get the latest processed version
-        const latestProcessed = processingHistory.value
-            .filter(entry => entry.status === 'success' && entry.outputPath)
-            .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0];
-        if (latestProcessed) {
-            return `${base}/api/media/videos/processed-videos/${currentVideo.value.id}/${latestProcessed.id}/`;
-        }
-    }
-    // Default to original
-    return `${base}/api/media/videos/${currentVideo.value.id}/`;
+    const fileType = previewMode.value === 'processed' && hasProcessedVersion.value
+        ? 'processed'
+        : 'raw';
+    return `${base}/api/${endpoints.media.videoStream(currentVideo.value.id)}?type=${fileType}`;
 };
 const seekVideo = (seconds) => {
     if (videoElement.value) {

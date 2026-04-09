@@ -161,5 +161,4 @@ RUN_AI_TESTS = os.getenv("RUN_AI_TESTS", "0") == "1"
 RUN_INTEGRATION_TESTS = os.getenv("RUN_INTEGRATION_TESTS", "1") == "1"
 
 print("🧪 TEST MODE ACTIVE: In-memory DB, No Auth, Temp Media Root")
-print(f"📂 Test Assets: {TEST_ASSET_DIR}")
 print(f"🎬 Video Tests: {'ENABLED' if RUN_VIDEO_TESTS else 'DISABLED'}")

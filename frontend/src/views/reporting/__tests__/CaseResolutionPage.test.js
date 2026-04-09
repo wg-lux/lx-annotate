@@ -79,6 +79,7 @@ describe('CaseResolutionPage workflow linking', () => {
         hoisted.flowRef.current = buildFlowStore();
         hoisted.patientStoreRef.current = {
             loading: false,
+            centers: [{ id: 3, centerKey: 'center-a', name: 'Center A', nameDe: 'Center A' }],
             patientsWithDisplayName: [{ id: 7, displayName: 'Jane Doe' }],
             getPatientById: (id) => id === 7
                 ? {
@@ -91,6 +92,7 @@ describe('CaseResolutionPage workflow linking', () => {
                 }
                 : null,
             fetchPatients: vi.fn().mockResolvedValue(undefined),
+            fetchCenters: vi.fn().mockResolvedValue(undefined),
             createPatient: vi.fn()
         };
         hoisted.examinationStoreRef.current = {
@@ -146,5 +148,38 @@ describe('CaseResolutionPage workflow linking', () => {
             .find((link) => link.text().includes('Zur klinischen Dokumentation'));
         expect(nextLink).toBeTruthy();
         expect(nextLink.attributes('data-to')).toBe('/reporting/314/findings');
+    });
+    it('resolves center names to center keys before creating a patient from metadata', async () => {
+        hoisted.anonymizationStoreRef.current.current = {
+            id: 5,
+            patientFirstName: 'Clara',
+            patientLastName: 'Keyed',
+            patientDob: '1992-07-12',
+            patientGenderName: 'female',
+            centerName: 'Center A'
+        };
+        const createdPatient = { id: 12, firstName: 'Clara', lastName: 'Keyed' };
+        hoisted.patientStoreRef.current.createPatient.mockResolvedValue(createdPatient);
+        const wrapper = mount(CaseResolutionPage);
+        await flushPromises();
+        const createButton = wrapper
+            .findAll('button')
+            .find((button) => button.text().includes('Patienten aus Metadaten anlegen'));
+        expect(createButton).toBeTruthy();
+        await createButton.trigger('click');
+        await flushPromises();
+        expect(hoisted.patientStoreRef.current.fetchCenters).toHaveBeenCalledTimes(1);
+        expect(hoisted.patientStoreRef.current.createPatient).toHaveBeenCalledWith({
+            firstName: 'Clara',
+            lastName: 'Keyed',
+            dob: '1992-07-12',
+            gender: 'female',
+            centerKey: 'center-a',
+            email: '',
+            phone: '',
+            patientHash: '',
+            comments: '',
+            isRealPerson: true
+        });
     });
 });

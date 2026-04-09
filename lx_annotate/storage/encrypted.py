@@ -10,6 +10,8 @@ from django.core.exceptions import ImproperlyConfigured
 from django.core.files.base import File
 from django.core.files.storage import FileSystemStorage
 
+from endoreg_db.utils.file_operations import atomic_move_file, safe_unlink_file
+
 from .encryption import (
     DEFAULT_CHUNK_SIZE,
     DecryptedStream,
@@ -21,14 +23,6 @@ from .encryption import (
     iter_decrypted_byte_range,
     load_master_key,
 )
-
-
-def _fsync_directory(path: Path) -> None:
-    fd = os.open(path, os.O_RDONLY)
-    try:
-        os.fsync(fd)
-    finally:
-        os.close(fd)
 
 
 IndexCacheKey: TypeAlias = tuple[str, int, int]
@@ -149,10 +143,9 @@ class EncryptedStorage(FileSystemStorage):
                 tmp_handle.flush()
                 os.fsync(tmp_handle.fileno())
 
-            os.replace(tmp_path, full_path)
-            _fsync_directory(full_path.parent)
+            atomic_move_file(source=tmp_path, destination=full_path)
         except Exception:
-            tmp_path.unlink(missing_ok=True)
+            safe_unlink_file(tmp_path, missing_ok=True)
             raise
 
         return str(Path(clean_name).as_posix())
@@ -189,11 +182,10 @@ class EncryptedStorage(FileSystemStorage):
                 os.fsync(destination.fileno())
 
             os.chmod(tmp_path, original_stat.st_mode)
-            os.replace(tmp_path, full_path)
-            _fsync_directory(full_path.parent)
+            atomic_move_file(source=tmp_path, destination=full_path)
             self._index_cache.clear()
         except Exception:
-            tmp_path.unlink(missing_ok=True)
+            safe_unlink_file(tmp_path, missing_ok=True)
             raise
 
         return True

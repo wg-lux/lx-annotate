@@ -47,6 +47,10 @@ let
     DJANGO_CSRF_TRUSTED_ORIGINS = config.secretspec.secrets.DJANGO_CSRF_TRUSTED_ORIGINS;
     STATIC_URL = config.secretspec.secrets.STATIC_URL;
     MEDIA_URL = config.secretspec.secrets.MEDIA_URL;
+    PROTECTED_MEDIA_ROOT = config.secretspec.secrets.PROTECTED_MEDIA_ROOT;
+    LX_ANNOTATE_STREAMABLE_VIDEO_ROOT = config.secretspec.secrets.LX_ANNOTATE_STREAMABLE_VIDEO_ROOT;
+    LX_ANNOTATE_STREAMABLE_VIDEO_RAW_ROOT = config.secretspec.secrets.LX_ANNOTATE_STREAMABLE_VIDEO_RAW_ROOT;
+    LX_ANNOTATE_STREAMABLE_VIDEO_PROCESSED_ROOT = config.secretspec.secrets.LX_ANNOTATE_STREAMABLE_VIDEO_PROCESSED_ROOT;
     EXEMPT_URLS = config.secretspec.secrets.EXEMPT_URLS;
     LOGIN_URL = config.secretspec.secrets.LOGIN_URL;
 

@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 APP_DIR="${APP_DIR:-/home/lx-annotate/lx-annotate-wheel}"
 DATA_DIR="${DATA_DIR:-/var/lib/lx-annotate/data}"
 STATIC_ROOT="${STATIC_ROOT:-/var/lib/lx-annotate/staticfiles}"
@@ -8,6 +10,7 @@ STATE_DIR="${STATE_DIR:-/var/lib/lx-annotate}"
 VENV_DIR="${VENV_DIR:-$APP_DIR/.venv}"
 ENV_FILE="${ENV_FILE:-$STATE_DIR/.env.systemd}"
 SERVICE_NAME="${SERVICE_NAME:-lx-annotate.service}"
+RUN_POST_DEPLOY_ACCEPTANCE="${RUN_POST_DEPLOY_ACCEPTANCE:-1}"
 WHEEL_FILE="${1:-}"
 export PIP_NO_CACHE_DIR=1
 export PIP_DISABLE_PIP_VERSION_CHECK=1
@@ -73,6 +76,10 @@ if command -v systemctl >/dev/null 2>&1; then
   sudo systemctl restart "$SERVICE_NAME"
 else
   echo "systemctl not found; skipping service restart." >&2
+fi
+
+if [[ "$RUN_POST_DEPLOY_ACCEPTANCE" == "1" ]]; then
+  "$SCRIPT_DIR/acceptance-smoke.sh"
 fi
 
 echo "Deployment complete."

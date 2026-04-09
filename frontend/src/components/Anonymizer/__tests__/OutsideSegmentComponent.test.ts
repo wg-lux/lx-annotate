@@ -21,6 +21,7 @@ vi.mock('@/types/api/endpoints', () => ({
   endpoints: {
     media: {
       videoDetail: (videoId: number) => `media/videos/${videoId}/details/`,
+      videoStream: (videoId: number) => `media/videos/${videoId}/stream/`,
       videoSegmentValidate: (videoId: number, segmentId: number) =>
         `media/videos/${videoId}/segments/${segmentId}/validate/`
     }

@@ -5,6 +5,7 @@ import { getTranslationForLabel, getColorForLabel } from '@/utils/videoUtils';
  */
 export interface Video {
     id: number;
+    center_key?: string;
     center_name?: string;
     processor_name?: string;
     original_file_name?: string;
@@ -133,6 +134,7 @@ export interface VideoMeta {
     hasROI?: boolean;
     outsideFrameCount?: number;
     frameCount?: number;
+    centerKey?: string;
     centerName: string;
     processorName: string;
     segments?: Segment[];
@@ -302,6 +304,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
             readonly hasROI?: boolean | undefined;
             readonly outsideFrameCount?: number | undefined;
             readonly frameCount?: number | undefined;
+            readonly centerKey?: string | undefined;
             readonly centerName: string;
             readonly processorName: string;
             readonly segments?: readonly {
@@ -355,6 +358,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
             readonly hasROI?: boolean | undefined;
             readonly outsideFrameCount?: number | undefined;
             readonly frameCount?: number | undefined;
+            readonly centerKey?: string | undefined;
             readonly centerName: string;
             readonly processorName: string;
             readonly segments?: readonly {
@@ -408,6 +412,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
         readonly hasROI?: boolean | undefined;
         readonly outsideFrameCount?: number | undefined;
         readonly frameCount?: number | undefined;
+        readonly centerKey?: string | undefined;
         readonly centerName: string;
         readonly processorName: string;
         readonly segments?: readonly {
@@ -454,6 +459,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
         readonly hasROI?: boolean | undefined;
         readonly outsideFrameCount?: number | undefined;
         readonly frameCount?: number | undefined;
+        readonly centerKey?: string | undefined;
         readonly centerName: string;
         readonly processorName: string;
         readonly segments?: readonly {
@@ -492,6 +498,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
     videos: Ref<{
         [x: string]: any;
         id: number;
+        center_key?: string | undefined;
         center_name?: string | undefined;
         processor_name?: string | undefined;
         original_file_name?: string | undefined;
@@ -502,6 +509,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
     }[], Video[] | {
         [x: string]: any;
         id: number;
+        center_key?: string | undefined;
         center_name?: string | undefined;
         processor_name?: string | undefined;
         original_file_name?: string | undefined;
@@ -685,6 +693,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
             readonly hasROI?: boolean | undefined;
             readonly outsideFrameCount?: number | undefined;
             readonly frameCount?: number | undefined;
+            readonly centerKey?: string | undefined;
             readonly centerName: string;
             readonly processorName: string;
             readonly segments?: readonly {
@@ -738,6 +747,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
             readonly hasROI?: boolean | undefined;
             readonly outsideFrameCount?: number | undefined;
             readonly frameCount?: number | undefined;
+            readonly centerKey?: string | undefined;
             readonly centerName: string;
             readonly processorName: string;
             readonly segments?: readonly {
@@ -791,6 +801,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
         readonly hasROI?: boolean | undefined;
         readonly outsideFrameCount?: number | undefined;
         readonly frameCount?: number | undefined;
+        readonly centerKey?: string | undefined;
         readonly centerName: string;
         readonly processorName: string;
         readonly segments?: readonly {
@@ -837,6 +848,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
         readonly hasROI?: boolean | undefined;
         readonly outsideFrameCount?: number | undefined;
         readonly frameCount?: number | undefined;
+        readonly centerKey?: string | undefined;
         readonly centerName: string;
         readonly processorName: string;
         readonly segments?: readonly {
@@ -875,6 +887,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
     videos: Ref<{
         [x: string]: any;
         id: number;
+        center_key?: string | undefined;
         center_name?: string | undefined;
         processor_name?: string | undefined;
         original_file_name?: string | undefined;
@@ -885,6 +898,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
     }[], Video[] | {
         [x: string]: any;
         id: number;
+        center_key?: string | undefined;
         center_name?: string | undefined;
         processor_name?: string | undefined;
         original_file_name?: string | undefined;
@@ -1068,6 +1082,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
             readonly hasROI?: boolean | undefined;
             readonly outsideFrameCount?: number | undefined;
             readonly frameCount?: number | undefined;
+            readonly centerKey?: string | undefined;
             readonly centerName: string;
             readonly processorName: string;
             readonly segments?: readonly {
@@ -1121,6 +1136,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
             readonly hasROI?: boolean | undefined;
             readonly outsideFrameCount?: number | undefined;
             readonly frameCount?: number | undefined;
+            readonly centerKey?: string | undefined;
             readonly centerName: string;
             readonly processorName: string;
             readonly segments?: readonly {
@@ -1174,6 +1190,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
         readonly hasROI?: boolean | undefined;
         readonly outsideFrameCount?: number | undefined;
         readonly frameCount?: number | undefined;
+        readonly centerKey?: string | undefined;
         readonly centerName: string;
         readonly processorName: string;
         readonly segments?: readonly {
@@ -1220,6 +1237,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
         readonly hasROI?: boolean | undefined;
         readonly outsideFrameCount?: number | undefined;
         readonly frameCount?: number | undefined;
+        readonly centerKey?: string | undefined;
         readonly centerName: string;
         readonly processorName: string;
         readonly segments?: readonly {
@@ -1258,6 +1276,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
     videos: Ref<{
         [x: string]: any;
         id: number;
+        center_key?: string | undefined;
         center_name?: string | undefined;
         processor_name?: string | undefined;
         original_file_name?: string | undefined;
@@ -1268,6 +1287,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
     }[], Video[] | {
         [x: string]: any;
         id: number;
+        center_key?: string | undefined;
         center_name?: string | undefined;
         processor_name?: string | undefined;
         original_file_name?: string | undefined;

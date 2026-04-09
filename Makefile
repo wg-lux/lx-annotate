@@ -28,7 +28,7 @@ endif
 	setup bootstrap update submodules reset-branch migrate load-base-data static \
 	deploy-prod deploy start-app start-watcher start-export shell django-check \
 	test lint frontend-build frontend-build-force backend-server docs-build docs-publish \
-	migrate-force verify-vite-artifacts
+	migrate-force verify-vite-artifacts verify-vite-manifest package
 
 help: ## Show available targets
 	@awk 'BEGIN {FS = ":.*## "}; /^[a-zA-Z0-9_.-]+:.*## / {printf "%-20s %s\n", $$1, $$2}' $(MAKEFILE_LIST) | sort
@@ -115,13 +115,19 @@ docs-publish: docs-build ## Publish docs to static/docs for the /documentation a
 	cd "$(REPO_DIR)" && $(MKDIR_P) static/docs
 	cd "$(REPO_DIR)" && rsync -a --delete docs/_build/html/ static/docs/
 
-verify-vite-artifacts: check-repo check-tools frontend-build-force ## Fail if frontend build changes committed static artifacts
+verify-vite-artifacts: check-repo check-tools frontend-build-force ## Fail if frontend build changes committed staticfiles artifacts
 	@set -e; \
-	if ! cd "$(REPO_DIR)" && "$(GIT)" diff --quiet -- static; then \
-		echo "static changed after vue-build. Commit updated frontend artifacts."; \
-		cd "$(REPO_DIR)" && "$(GIT)" diff --name-only -- static; \
+	if ! cd "$(REPO_DIR)" && "$(GIT)" diff --quiet -- staticfiles; then \
+		echo "staticfiles changed after vue-build. Commit updated frontend artifacts."; \
+		cd "$(REPO_DIR)" && "$(GIT)" diff --name-only -- staticfiles; \
 		exit 1; \
 	fi
+
+verify-vite-manifest: check-repo check-tools frontend-build-force ## Fail if the built Vite manifest is empty, invalid, or missing src/main.ts
+	@cd "$(REPO_DIR)" && $(DEVENV_RUN) python -c 'import json; from pathlib import Path; fail=lambda msg: (_ for _ in ()).throw(SystemExit(msg)); static_root=Path("staticfiles"); manifest_path=static_root/".vite"/"manifest.json"; manifest_path.exists() or fail(f"missing Vite manifest: {manifest_path}"); raw=manifest_path.read_text(encoding="utf-8"); raw.strip() or fail(f"empty Vite manifest: {manifest_path}"); manifest=json.loads(raw); entry=manifest.get("src/main.ts"); isinstance(entry, dict) or fail("Vite manifest is missing the src/main.ts entry required by {% vite_asset '\''src/main.ts'\'' %}"); entry_file=entry.get("file"); entry_file or fail("Vite manifest src/main.ts entry is missing its file mapping"); entry_path=static_root/entry_file; entry_path.exists() or fail(f"Vite manifest src/main.ts points to a missing asset: {entry_path}"); print(f"verified Vite manifest: src/main.ts -> {entry_file}")'
+
+package: verify-vite-artifacts verify-vite-manifest ## Build sdist and wheel only after frontend artifacts are valid
+	cd "$(REPO_DIR)" && $(DEVENV_RUN) python -m build
 
 deploy-prod: update submodules verify-vite-artifacts migrate load-base-data static ## Update code and prepare prod assets
 	@echo "Production deploy steps completed."
@@ -164,6 +170,9 @@ shell: check-repo check-tools ## Open interactive devenv shell in repo
 
 test: check-repo check-tools ## Run backend tests (pytest)
 	cd "$(REPO_DIR)" && $(DEVENV_RUN) pytest
+
+test-real: check-repo check-tools ## Run backend tests through devenv print-dev-env and the repo venv
+	cd "$(REPO_DIR)" && ./scripts/run-backend-checks.sh
 
 lint: check-repo check-tools ## Run frontend lint (best-effort if configured)
 	cd "$(REPO_DIR)/frontend" && $(DEVENV_RUN) npm run lint

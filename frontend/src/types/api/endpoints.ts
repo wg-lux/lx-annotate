@@ -12,6 +12,7 @@ export type UUID = string
 export const endpoints = {
   auth: {
     bootstrap: 'auth/bootstrap',
+    context: 'auth/context',
     publicHome: 'endoreg_db/',
     login: 'login/',
     loginCallback: 'login/callback/',
@@ -20,6 +21,7 @@ export const endpoints = {
 
   router: {
     examinations: 'examinations/',
+    examinationById: (id: Id) => `examinations/${id}/`,
     findings: 'findings/',
     classifications: 'classifications/',
     patientFindings: 'patient-findings/',
@@ -33,9 +35,11 @@ export const endpoints = {
     patients: 'patients/',
     patientById: (id: Id) => `patients/${id}/`,
     patientPseudonym: (id: Id) => `patients/${id}/pseudonym/`,
+    patientDeletionSafety: (id: Id) => `patients/${id}/check_deletion_safety/`,
     centers: 'centers/',
     genders: 'genders/',
     patientFindings: 'patient-findings/',
+    patientFindingById: (id: Id) => `patient-findings/${id}/`,
     checkPatientExaminationExists: (id: Id) => `check_pe_exist/${id}/`
   },
 
@@ -89,6 +93,12 @@ export const endpoints = {
     videoSegments: 'video-segments/stats/',
     sensitiveMeta: 'video/sensitivemeta/stats/',
     general: 'stats/'
+  },
+
+  hubExport: {
+    overview: 'hub-export/overview/',
+    mark: 'hub-export/mark/',
+    unmark: 'hub-export/unmark/'
   },
 
   anonymization: {

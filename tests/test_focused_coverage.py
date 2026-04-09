@@ -135,7 +135,6 @@ def test_load_config_reads_values_from_explicit_env_file(tmp_path, monkeypatch):
 
 def test_settings_base_enables_encrypted_storage_backend(monkeypatch):
     monkeypatch.delenv("LX_ANNOTATE_ENCRYPTED_DATA_DIR", raising=False)
-    monkeypatch.setenv("LX_ANNOTATE_USE_ENCRYPTED_STORAGE", "1")
     monkeypatch.setenv("DJANGO_SETTINGS_MODULE", "lx_annotate.settings.settings_prod")
     sys.modules.pop("lx_annotate.settings.settings_base", None)
 
@@ -144,6 +143,53 @@ def test_settings_base_enables_encrypted_storage_backend(monkeypatch):
     assert settings_base.STORAGES["default"]["BACKEND"] == (
         "lx_annotate.storage.encrypted.EncryptedStorage"
     )
+
+
+def test_settings_base_requires_explicit_runtime_contract_in_hub_mode(monkeypatch):
+    monkeypatch.setenv("DJANGO_SETTINGS_MODULE", "lx_annotate.settings.settings_prod")
+    monkeypatch.setenv("ENDOREG_HUB_MODE", "1")
+    monkeypatch.delenv("DJANGO_DB_NAME", raising=False)
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    sys.modules.pop("lx_annotate.settings.settings_base", None)
+
+    with pytest.raises(
+        RuntimeError,
+        match="DJANGO_DB_NAME or DATABASE_URL must be set when ENDOREG_HUB_MODE is enabled",
+    ):
+        importlib.import_module("lx_annotate.settings.settings_base")
+
+
+def test_settings_base_requires_mtls_meta_contract_for_transfer_api(monkeypatch):
+    monkeypatch.setenv("DJANGO_SETTINGS_MODULE", "lx_annotate.settings.settings_prod")
+    monkeypatch.setenv("ENDOREG_ENABLE_HUB_TRANSFERS", "1")
+    monkeypatch.setenv("ENDOREG_HUB_TRANSFER_REQUIRE_SECURE_TRANSPORT", "1")
+    monkeypatch.setenv("ENDOREG_HUB_TRANSFER_REQUIRE_MTLS", "1")
+    monkeypatch.delenv("ENDOREG_HUB_TRANSFER_MTLS_META_KEY", raising=False)
+    monkeypatch.delenv("ENDOREG_HUB_TRANSFER_MTLS_META_VALUE", raising=False)
+    sys.modules.pop("lx_annotate.settings.settings_base", None)
+
+    with pytest.raises(
+        RuntimeError,
+        match=(
+            "ENDOREG_HUB_TRANSFER_MTLS_META_KEY and "
+            "ENDOREG_HUB_TRANSFER_MTLS_META_VALUE must be set"
+        ),
+    ):
+        importlib.import_module("lx_annotate.settings.settings_base")
+
+
+def test_settings_base_requires_secure_transport_for_transfer_api(monkeypatch):
+    monkeypatch.setenv("DJANGO_SETTINGS_MODULE", "lx_annotate.settings.settings_prod")
+    monkeypatch.setenv("ENDOREG_ENABLE_HUB_TRANSFERS", "1")
+    monkeypatch.setenv("ENDOREG_HUB_TRANSFER_REQUIRE_SECURE_TRANSPORT", "0")
+    monkeypatch.delenv("ENDOREG_HUB_TRANSFER_REQUIRE_MTLS", raising=False)
+    sys.modules.pop("lx_annotate.settings.settings_base", None)
+
+    with pytest.raises(
+        RuntimeError,
+        match="ENDOREG_HUB_TRANSFER_REQUIRE_SECURE_TRANSPORT must be enabled",
+    ):
+        importlib.import_module("lx_annotate.settings.settings_base")
 
 
 def test_get_or_create_secret_key_returns_empty_when_secret_file_env_is_set(

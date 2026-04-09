@@ -37,6 +37,22 @@ with a media ingestion pipeline for videos and PDFs. This project was created by
 
 Open `http://127.0.0.1:8000/`.
 
+## Backend Test Execution
+
+If native Python dependencies such as NumPy fail to import because the shell is
+missing Nix runtime libraries, run backend tests through the repo wrapper so
+`devenv` exports the expected environment first:
+
+```bash
+./scripts/run-backend-checks.sh
+```
+
+Equivalent Make target:
+
+```bash
+make test-real
+```
+
 ## Environment Variables and Secrets
 
 Production secrets are typically injected by the host system.
@@ -85,8 +101,42 @@ The file watcher ingests media placed in:
 ```bash
 ./scripts/start_filewatcher.sh dev
 # or
-python scripts/file_watcher.py
+python manage.py start_filewatcher
 ```
+
+## Ingress Modes
+
+`lx-annotate` supports two first-class ingest boundaries:
+
+- `watcher`: trusted local drop-folder ingestion for files written into the
+  runtime import directories
+- `api`: authenticated web/API upload ingestion for remote clients and hub-style
+  integrations
+
+These are parallel ingress modes, not competing ones. The contract for new
+development is:
+
+- both ingress modes remain supported
+- both ingress modes create `UploadJob` records
+- both ingress modes converge on the shared ingest and managed-storage services
+  after boundary-specific checks
+
+The watcher remains the right boundary for local system dropoff and SAP-style
+handoff flows. The API remains the right boundary for authenticated remote
+uploads and future hub integrations.
+
+## Hub Export
+
+Outbound hub transfer is tracked as a separate sender workflow from ingest.
+
+- only anonymized resources are eligible for outbound transfer
+- the sender exports processed media only
+- resources must be explicitly marked for upload before they are queued
+- the export UI is planned as a new workflow page derived from the
+  anonymization overview, not from the legacy annotation segment export screen
+
+The sender-side workflow contract is documented in
+[docs/guides/hub-export-workflow.md](/home/admin/dev/lx-annotate/docs/guides/hub-export-workflow.md).
 
 ## Configuration
 
@@ -131,10 +181,17 @@ The current deployment strategy is:
 - production installs that wheel into a Python virtualenv
 - host packages provide FFmpeg, Tesseract, and shared libraries
 - `systemd` runs Daphne and the file watcher as separate services
+- the web app and watcher remain parallel supported ingress boundaries, both
+  feeding the same upload-job-driven ingest core
 - LuxNix deployments can also run a SAP IS-H import path/unit pair that converts
   dropped SAP zip exports into watcher-ready preanonymized files
 - some legacy-to-runtime cutovers also run a one-shot data recovery service
 - Nginx serves static/media files directly
+
+Use `make package` to build release artifacts locally. That target rebuilds the
+frontend, verifies that `staticfiles/.vite/manifest.json` is valid and contains
+the required `src/main.ts` mapping, and only then runs `python -m build` for
+the wheel and sdist.
 
 Runtime layout is intentionally split:
 
@@ -162,13 +219,13 @@ New deployment code should anchor path derivation on
 `LX_ANNOTATE_ENCRYPTED_DATA_DIR` and treat the other variables as derived paths
 or compatibility aliases rather than separate roots.
 
-For application-layer envelope encryption, `lx_annotate` also ships an opt-in
-Django storage backend at `lx_annotate.storage.encrypted.EncryptedStorage`.
-Enable it with `LX_ANNOTATE_USE_ENCRYPTED_STORAGE=1` and provide
-`LX_ANNOTATE_MASTER_KEY` or `LX_ANNOTATE_MASTER_KEY_FILE`. The backend generates
-a per-file DEK, wraps it with the service-level KEK, writes ciphertext only
-under `LX_ANNOTATE_ENCRYPTED_DATA_DIR`, and encrypts/decrypts in chunks so large
-video uploads do not have to fit into memory. The KEK is intentionally
+For application-layer envelope encryption, `lx_annotate` uses
+`lx_annotate.storage.encrypted.EncryptedStorage` as the default Django storage
+backend. Runtime deployments must provide `LX_ANNOTATE_MASTER_KEY` or
+`LX_ANNOTATE_MASTER_KEY_FILE`. The backend generates a per-file DEK, wraps it
+with the service-level KEK, writes ciphertext only under
+`LX_ANNOTATE_ENCRYPTED_DATA_DIR`, and encrypts/decrypts in chunks so large
+uploads do not have to fit into memory. The KEK is intentionally
 service-scoped rather than tied to a Keycloak session so background workers such
 as `manage.py run_filewatcher` can still process stored files.
 

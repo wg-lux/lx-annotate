@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed, reactive, readonly, type Ref, type ComputedRef } from 'vue'
-import axiosInstance, { a, r } from '../api/axiosInstance'
+import axiosInstance, { r } from '../api/axiosInstance'
 import { AxiosError, type AxiosResponse } from 'axios'
 import { formatTime, getTranslationForLabel, getColorForLabel } from '@/utils/videoUtils'
 import { useAnonymizationStore, type FileItem } from './anonymizationStore'
@@ -16,6 +16,7 @@ import { endpoints } from '@/types/api/endpoints'
  */
 export interface Video {
   id: number
+  center_key?: string
   center_name?: string
   processor_name?: string
   original_file_name?: string
@@ -171,6 +172,7 @@ export interface VideoMeta {
   hasROI?: boolean
   outsideFrameCount?: number
   frameCount?: number
+  centerKey?: string
   centerName: string
   processorName: string
   segments?: Segment[]
@@ -372,7 +374,7 @@ export const useVideoStore = defineStore('video', () => {
 
   function buildVideoStreamUrl(id: string | number) {
     const base = (import.meta.env.VITE_API_BASE_URL || window.location.origin).replace(/\/$/, '')
-    return `${base}/api/${r(endpoints.media.videoStream(id))}`
+    return `${base}/api/${endpoints.media.videoStream(id)}`
   }
 
   function normalizeFps(value: unknown): number | null {
@@ -522,7 +524,7 @@ export const useVideoStore = defineStore('video', () => {
       return false
     }
     try {
-      await axiosInstance.delete(`/api/media-management/force-remove/${videoId}/`)
+      await axiosInstance.delete(`/api/${endpoints.mediaManagement.forceRemove(videoId)}`)
       return true
     } catch (error) {
       console.error(`Failed to delete video ${videoId}:`, error)
@@ -723,7 +725,7 @@ export const useVideoStore = defineStore('video', () => {
     try {
       // 🔹 NEW: use media/labels/ instead of deprecated videos/
       const response: AxiosResponse<any[]> = await axiosInstance.get(
-        r('media/videos/labels/list/')
+        r(endpoints.media.videoLabelsList)
       )
 
       const processedLabels: LabelMeta[] = response.data.map((label: any) => ({
@@ -749,7 +751,7 @@ export const useVideoStore = defineStore('video', () => {
       // ✅ PRIORITY: Fetch labels first before processing videos
       await fetchLabels()
       
-      const response: AxiosResponse<any> = await axiosInstance.get(r('media/videos/'))
+      const response: AxiosResponse<any> = await axiosInstance.get(r(endpoints.media.videos))
       console.log('API Response:', response.data) //#TODO Add newly created assigned user from keycloak
       const rawVideos: any[] = Array.isArray(response.data?.results)
         ? response.data.results
@@ -874,7 +876,7 @@ export const useVideoStore = defineStore('video', () => {
 
     try {
       const response: AxiosResponse<VideoFpsResponse> = await axiosInstance.get(
-        r(`media/videos/${id}/fps/`),
+        r(endpoints.media.videoFps(id)),
         { headers: { Accept: 'application/json' } }
       )
       const fps = normalizeFps(response.data?.fps)
@@ -913,7 +915,7 @@ export const useVideoStore = defineStore('video', () => {
         return
       }
 
-      const response: AxiosResponse = await axiosInstance.get(r(`media/videos/${id}/metadata/`), {
+      const response: AxiosResponse = await axiosInstance.get(r(endpoints.media.videoMetadata(id)), {
         headers: { Accept: 'application/json' }
       })
 
@@ -1011,7 +1013,7 @@ export const useVideoStore = defineStore('video', () => {
 
     const videoId = currentVideo.value.id
     axiosInstance
-      .get(r(`anonymization/${videoId}/has-raw/`))
+      .get(r(endpoints.anonymization.hasRaw(videoId)))
       .then((response) => {
         hasRawVideoFile.value = response.data.has_raw_file
         console.log(`Raw video file for ID ${videoId}:`, hasRawVideoFile.value)
@@ -1025,7 +1027,7 @@ export const useVideoStore = defineStore('video', () => {
   async function fetchSegmentsByLabel(id: number, label = 'outside'): Promise<void> {
     try {
       const response: AxiosResponse<SegmentListResponse> = await axiosInstance.get(
-        r(`media/videos/${id}/segments/`),
+        r(endpoints.media.videoSegments(id)),
         {
           headers: { Accept: 'application/json' },
           params: { label }, // backend expects ?label=<label_name>
@@ -1065,7 +1067,7 @@ export const useVideoStore = defineStore('video', () => {
       controller = new AbortController()
       fetchSegmentsController = controller
       const response: AxiosResponse<SegmentListResponse> = await axiosInstance.get(
-        r(`media/videos/${videoId}/segments/`),
+        r(endpoints.media.videoSegments(videoId)),
         { headers: { Accept: 'application/json' }, signal: controller.signal }
       )
 
@@ -1153,7 +1155,7 @@ export const useVideoStore = defineStore('video', () => {
       }
 
       const response: AxiosResponse<BackendSegment> = await axiosInstance.post(
-        r(`media/videos/${videoId}/segments/`),
+        r(endpoints.media.videoSegments(videoId)),
         segmentData
       )
 
@@ -1268,7 +1270,7 @@ export const useVideoStore = defineStore('video', () => {
     payload: SegmentUpdatePayload,
     options: { updateLocal?: boolean } = {}
   ): Promise<BackendSegment> {
-    const url = r(`media/videos/${videoId}/segments/${segmentId}/`)
+    const url = r(endpoints.media.videoSegmentDetail(videoId, segmentId))
     const response: AxiosResponse<BackendSegment> = await axiosInstance.patch(url, payload)
 
     if (options.updateLocal !== false && currentVideo.value?.id === videoId) {
@@ -1362,7 +1364,7 @@ export const useVideoStore = defineStore('video', () => {
   ): Promise<boolean> {
     try {
       const response: AxiosResponse = await axiosInstance.patch(
-        r(`media/videos/${videoId}/details/`),
+        r(endpoints.media.videoDetail(videoId)),
         { export_segments_by_video: exportSegmentsByVideo }
       )
       const updatedValue =
@@ -1397,7 +1399,7 @@ export const useVideoStore = defineStore('video', () => {
         return false
       }
 
-      const url = r(`media/videos/${videoId}/segments/${segmentId}/`)
+      const url = r(endpoints.media.videoSegmentDetail(videoId, segmentId))
       await axiosInstance.delete(url)
 
       for (const label in segmentsByLabel) {
@@ -1527,7 +1529,7 @@ export const useVideoStore = defineStore('video', () => {
       }
 
       const response: AxiosResponse<CreateSegmentResponse> = await axiosInstance.post(
-        r(`media/videos/${videoId}/segments/`),
+        r(endpoints.media.videoSegments(videoId)),
         payload
       )
       console.log('[Draft] API response:', response.data)

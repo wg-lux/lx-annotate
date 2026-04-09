@@ -1,4 +1,5 @@
 import axiosInstance from '@/api/axiosInstance'
+import { endpoints } from '@/types/api/endpoints'
 import {
   normalizeFindingChoice,
   normalizeFindings,
@@ -43,13 +44,16 @@ export interface UpdatePatientFindingPayload {
 }
 
 const ENDOREG_PATHS = {
-  findings: '/api/findings/',
-  examinationFindings: (examinationId: number) => `/api/examinations/${examinationId}/findings/`,
-  findingClassifications: (findingId: number) => `/api/findings/${findingId}/classifications/`,
+  findings: `/api/${endpoints.router.findings}`,
+  examinationFindings: (examinationId: number) =>
+    `/api/${endpoints.examination.examinationFindings(examinationId)}`,
+  findingClassifications: (findingId: number) =>
+    `/api/${endpoints.examination.findingClassifications(findingId)}`,
   classificationChoices: (classificationId: number) =>
-    `/api/classifications/${classificationId}/choices/`,
-  patientFindings: '/api/patient-findings/',
-  patientFindingById: (patientFindingId: number) => `/api/patient-findings/${patientFindingId}/`
+    `/api/${endpoints.examination.classificationChoices(classificationId)}`,
+  patientFindings: `/api/${endpoints.patient.patientFindings}`,
+  patientFindingById: (patientFindingId: number) =>
+    `/api/${endpoints.patient.patientFindingById(patientFindingId)}`
 }
 
 const DTYPES_PATHS = {

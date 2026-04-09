@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { endpoints } from '@/types/api/endpoints'
 
 const hoisted = vi.hoisted(() => ({
   axios: {
@@ -32,7 +33,9 @@ describe('findingsApi backend mode routing', () => {
 
     vi.stubEnv('VITE_FINDINGS_BACKEND', 'endoreg')
     await findingsApi.getExaminationFindings(12)
-    expect(hoisted.axios.get).toHaveBeenLastCalledWith('/api/examinations/12/findings/')
+    expect(hoisted.axios.get).toHaveBeenLastCalledWith(
+      `/api/${endpoints.examination.examinationFindings(12)}`
+    )
 
     vi.stubEnv('VITE_FINDINGS_BACKEND', 'dtypes_read')
     await findingsApi.getExaminationFindings(12)
@@ -51,7 +54,7 @@ describe('findingsApi backend mode routing', () => {
       classifications: [{ classification: 11, choice: 44 }]
     })
 
-    expect(hoisted.axios.post).toHaveBeenNthCalledWith(1, '/api/patient-findings/', {
+    expect(hoisted.axios.post).toHaveBeenNthCalledWith(1, `/api/${endpoints.patient.patientFindings}`, {
       patientExamination: 35,
       finding: 7
     })

@@ -4,7 +4,6 @@ Development settings.
 
 from typing import Any, cast
 from .settings_base import (
-    APP_DATA_DIR,
     INSTALLED_APPS,
     MIDDLEWARE,
     LOGGING,
@@ -118,4 +117,4 @@ else:
         "rest_framework.permissions.AllowAny"
     ]
 
-print(f"🚀 DEV SETTINGS LOADED. Data Dir: {APP_DATA_DIR}")
+print("🚀 DEV SETTINGS LOADED")

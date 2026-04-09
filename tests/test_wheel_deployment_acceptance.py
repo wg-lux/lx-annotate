@@ -58,6 +58,29 @@ def test_deploy_script_disables_pip_cache_growth():
     assert "install --no-cache-dir --upgrade --force-reinstall" in deploy_sh
 
 
+def test_post_deploy_acceptance_smoke_is_wired():
+    deploy_sh = _read("deploy/deploy.sh")
+    smoke_sh = _read("deploy/acceptance-smoke.sh")
+    guide = _read("docs/guides/wheel-deployment.md")
+
+    assert 'RUN_POST_DEPLOY_ACCEPTANCE="${RUN_POST_DEPLOY_ACCEPTANCE:-1}"' in deploy_sh
+    assert '"$SCRIPT_DIR/acceptance-smoke.sh"' in deploy_sh
+    assert "verify_encrypted_storage" in smoke_sh
+    assert "check --settings" in smoke_sh
+    assert (
+        'NGINX_PROTECTED_MEDIA_URL="${NGINX_PROTECTED_MEDIA_URL:-/protected_media/}"'
+        in smoke_sh
+    )
+    assert 'MEDIA_URL="${MEDIA_URL:-$NGINX_PROTECTED_MEDIA_URL}"' in smoke_sh
+    assert 'PROTECTED_MEDIA_ROOT="${PROTECTED_MEDIA_ROOT:-$STORAGE_DIR}"' in smoke_sh
+    assert (
+        'LX_ANNOTATE_STREAMABLE_VIDEO_ROOT="${LX_ANNOTATE_STREAMABLE_VIDEO_ROOT:-$STORAGE_DIR/streamable_videos}"'
+        in smoke_sh
+    )
+    assert "/static/.vite/manifest.json" in smoke_sh
+    assert "acceptance-smoke.sh" in guide
+
+
 def test_wheel_deployment_guide_documents_manual_migration_recovery():
     guide = _read("docs/guides/wheel-deployment.md")
 
@@ -92,6 +115,29 @@ def test_watcher_runs_as_separate_systemd_unit():
     )
     assert "PartOf=lx-annotate.service" in watcher_unit
     assert "## Service Isolation" in guide
+    assert "same upstream hub ingest contract" in guide
+
+
+def test_wheel_deployment_guide_documents_dual_ingress_hub_contract():
+    guide = _read("docs/guides/wheel-deployment.md")
+
+    assert "## Ingress Contract" in guide
+    assert "`watcher`: trusted local filesystem intake" in guide
+    assert "`api`: authenticated remote upload intake" in guide
+    assert (
+        "Both boundaries now converge on the shared `endoreg_db.services.hub` ingest services"
+        in guide
+    )
+
+
+def test_wheel_deployment_guide_documents_hub_database_and_storage_requirements():
+    guide = _read("docs/guides/wheel-deployment.md")
+
+    assert "## Hub Deployment Profile" in guide
+    assert "PostgreSQL or another durable multi-user production database" in guide
+    assert "SQLite is not an acceptable hub database" in guide
+    assert "durable shared or object-backed storage semantics" in guide
+    assert "encrypted managed storage enabled" in guide
 
 
 def test_static_and_media_handoff_is_pinned_to_nginx_contract():

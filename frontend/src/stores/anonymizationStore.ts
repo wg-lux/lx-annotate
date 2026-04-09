@@ -1,8 +1,9 @@
 /* @stores/anonymizationStore.ts */
 import { defineStore } from 'pinia'
-import axiosInstance, { a, r } from '@/api/axiosInstance'
+import axiosInstance, { r } from '@/api/axiosInstance'
 import axios from 'axios'
 import { ref, computed } from 'vue';
+import { endpoints } from '@/types/api/endpoints'
 
 /* ------------------------------------------------------------------ */
 /* Typen                                                               */
@@ -181,7 +182,7 @@ export const useAnonymizationStore = defineStore('anonymization', {
       const { id, ...updateData } = payload
 
       // Use Modern Media Framework endpoint
-      return axiosInstance.patch(r(`media/pdfs/${id}/sensitive-metadata/`), updateData)
+      return axiosInstance.patch(r(endpoints.media.pdfSensitiveMetadata(id)), updateData)
     },
 
     async patchVideo(payload: { id: number; [key: string]: any }): Promise<any> {
@@ -194,7 +195,7 @@ export const useAnonymizationStore = defineStore('anonymization', {
       const { id, ...updateData } = payload
 
       // Use Modern Media Framework endpoint
-      return axiosInstance.patch(r(`media/videos/${id}/sensitive-metadata/`), updateData)
+      return axiosInstance.patch(r(endpoints.media.videoSensitiveMetadata(id)), updateData)
     },
     fetchPendingAnonymizations() {
       return this.pending
@@ -209,7 +210,7 @@ export const useAnonymizationStore = defineStore('anonymization', {
 
       try {
         console.log('Fetching file overview...')
-        const { data } = await axiosInstance.get<FileItem[]>(r('anonymization/items/overview/'))
+        const { data } = await axiosInstance.get<FileItem[]>(r(endpoints.anonymization.itemsOverview))
         console.log('Received overview data:', data)
 
         // Update overview and available files
@@ -276,7 +277,7 @@ export const useAnonymizationStore = defineStore('anonymization', {
         file.anonymizationStatus = 'processing_anonymization'
 
         // Trigger anonymization
-        await axiosInstance.post(r(`anonymization/${id}/start/`))
+        await axiosInstance.post(r(endpoints.anonymization.start(id)))
         console.log(`Anonymization started for file ${id}`)
 
         // Start polling
@@ -325,7 +326,7 @@ startPolling(id: number) {
           const kindParam = file.mediaType === 'pdf' ? 'report' : 'video'
           
           const { data } = await axiosInstance.get(
-            r(`anonymization/${id}/status/`), 
+            r(endpoints.anonymization.status(id)), 
             { params: { kind: kindParam } } 
           )
 
@@ -395,7 +396,7 @@ startPolling(id: number) {
         if (mediaType === 'video') {
           console.log(`Loading video data for ID: ${item.id}`)
           const { data: sensitiveMeta } = await axiosInstance.get<SensitiveMeta>(
-            r(`media/videos/${item.id}/sensitive-metadata/`)
+            r(endpoints.media.videoSensitiveMetadata(item.id))
           )
           console.log('Received video detail:', sensitiveMeta)
 
@@ -404,7 +405,7 @@ startPolling(id: number) {
         } else if (mediaType === 'pdf') {
           console.log(`Setting current PDF item for validation: ${id}`)
 
-          const metaUrl = r(`media/pdfs/${item.id}/sensitive-metadata/`)
+          const metaUrl = r(endpoints.media.pdfSensitiveMetadata(item.id))
           console.log(`Fetching sensitive meta from: ${metaUrl}`)
           const { data: sensitiveMeta } = await axiosInstance.get<SensitiveMeta>(metaUrl)
           console.log('Received sensitive meta response data:', sensitiveMeta)
@@ -457,7 +458,7 @@ startPolling(id: number) {
         file.metadataImported = false
 
         // Trigger re-import via backend
-        const response = await axiosInstance.post(r(`media/videos/${fileId}/reimport/`))
+        const response = await axiosInstance.post(r(endpoints.media.videoReimport(fileId)))
         console.log(`Video re-import response:`, response.data)
 
         console.log(`Starting polling for re-imported video ${fileId}`)
@@ -512,7 +513,7 @@ startPolling(id: number) {
         file.metadataImported = false
 
         // Trigger re-import via backend using media framework endpoint
-        const response = await axiosInstance.post(r(`media/pdfs/${fileId}/reimport/`))
+        const response = await axiosInstance.post(r(endpoints.media.pdfReimport(fileId)))
         console.log(`PDF re-import response:`, response.data)
 
         console.log(`Starting polling for re-imported PDF ${fileId}`)

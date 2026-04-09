@@ -148,7 +148,7 @@
             <div class="form-group">
               <label for="center">Zentrum</label>
               <select 
-                v-model="form.center"
+                v-model="form.centerKey"
                 id="center"
                 class="form-control"
                 :class="{ 'is-invalid': errors.center }"
@@ -157,7 +157,7 @@
                 <option 
                   v-for="center in centers" 
                   :key="center.id" 
-                  :value="center.name"
+                  :value="center.centerKey || center.name"
                 >
                   {{ center.nameDe || center.name }}
                 </option>
@@ -221,6 +221,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { usePatientStore, type Patient, type PatientFormData, type Gender, type Center } from '@/stores/patientStore'
 import { patientService } from '@/api/patientService'
+import { endpoints } from '@/types/api/endpoints'
 
 // Emits
 const emit = defineEmits<{
@@ -244,6 +245,7 @@ const form = ref<PatientFormData>({
   phone: '',
   gender: null,
   center: null,
+  centerKey: null,
   patientHash: '',
   comments: '',
   isRealPerson: true
@@ -334,9 +336,10 @@ const handleSubmit = async () => {
     console.log('📋 Formatierte Daten für API:', formattedData)
     
     // Log the exact URL that will be called
+    const patientCreatePath = `/api/${endpoints.patient.patients}`
     console.log('🌐 API-Aufruf wird gestartet...')
-    console.log('URL:', `/api/patients/`)
-    console.log('Full URL wird zu:', `${window.location.origin}/api/patients/`)
+    console.log('URL:', patientCreatePath)
+    console.log('Full URL wird zu:', `${window.location.origin}${patientCreatePath}`)
     
     // Use patientStore instead of patientService for consistency
     const newPatient = await patientStore.createPatient(formattedData)
@@ -352,6 +355,7 @@ const handleSubmit = async () => {
       phone: '',
       gender: null,
       center: null,
+      centerKey: null,
       patientHash: '',
       comments: '',
       isRealPerson: true

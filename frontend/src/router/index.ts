@@ -125,12 +125,20 @@ const router = createRouter({
         description: 'Legacy route redirected to the centralized reporting setup.'
       }
     },
-        {
+    {
       path: '/export',
       name: 'Export',
       component: () => import('@/views/Export.vue'),
       meta: {
         description: 'Hier können Sie Annotationen exportieren.'
+      }
+    },
+    {
+      path: '/hub-export',
+      name: 'Hub Export',
+      component: () => import('@/views/HubExport.vue'),
+      meta: {
+        description: 'Anonymisierte Ressourcen für den Transfer zum Hub markieren.'
       }
     },
     {

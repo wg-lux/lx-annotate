@@ -3,6 +3,11 @@ from watchdog.events import FileCreatedEvent, FileMovedEvent
 import scripts.file_watcher as file_watcher
 import tempfile
 from pathlib import Path
+from types import SimpleNamespace
+
+import pytest
+from endoreg_db.models import Center, UploadJob
+from endoreg_db.services.hub.ingest import process_watcher_file
 
 
 class RecordingExecutor:
@@ -141,7 +146,7 @@ def test_intake_import_services_reject_non_intake_paths(tmp_path):
         try:
             file_watcher.intake_video_import_service.import_from_intake(
                 file_path=outside_path,
-                center_name="center",
+                center_key="center",
                 processor_name="processor",
             )
         except ValueError as exc:
@@ -152,9 +157,224 @@ def test_intake_import_services_reject_non_intake_paths(tmp_path):
         try:
             file_watcher.intake_report_import_service.import_from_intake(
                 file_path=outside_path.with_suffix(".pdf"),
-                center_name="center",
+                center_key="center",
             )
         except ValueError as exc:
             assert "non-intake report path" in str(exc)
         else:
             raise AssertionError("expected intake report import to reject outside path")
+
+
+def test_handler_process_report_delegates_to_shared_hub_ingest(monkeypatch, tmp_path):
+    handler = file_watcher.AutoProcessingHandler()
+    report_path = file_watcher.INTAKE_REPORT_DIR / "delegated-report.pdf"
+    report_path.write_bytes(b"%PDF-1.4 delegated report")
+
+    center = SimpleNamespace(center_key=handler.default_center_key)
+    upload_job = SimpleNamespace(is_successful=True, id="job-1")
+
+    monkeypatch.setattr(file_watcher, "_resolve_center_by_key", lambda key: center)
+    monkeypatch.setattr(
+        file_watcher,
+        "process_watcher_file",
+        lambda **kwargs: (
+            kwargs["file_path"] == report_path
+            and kwargs["file_type"] == "report"
+            and kwargs["center"] is center
+            and kwargs["source_system"] == "watcher"
+            and upload_job
+        ),
+    )
+
+    try:
+        handler._process_report(report_path)
+    finally:
+        report_path.unlink(missing_ok=True)
+
+
+def test_handler_process_video_delegates_to_shared_hub_ingest(monkeypatch, tmp_path):
+    handler = file_watcher.AutoProcessingHandler()
+    video_path = file_watcher.INTAKE_VIDEO_DIR / "delegated-video.mp4"
+    video_path.write_bytes(b"video-bytes")
+
+    center = SimpleNamespace(center_key=handler.default_center_key)
+    upload_job = SimpleNamespace(
+        content_hash="video-hash",
+        processing_provenance={"content_hash": "video-hash"},
+    )
+    video_file = SimpleNamespace(
+        video_hash="video-hash",
+        sensitive_meta=None,
+        active_raw_file=None,
+        pipe_1=lambda **kwargs: True,
+    )
+
+    monkeypatch.setattr(file_watcher, "_resolve_center_by_key", lambda key: center)
+    monkeypatch.setattr(
+        file_watcher,
+        "process_watcher_file",
+        lambda **kwargs: (
+            kwargs["file_path"] == video_path
+            and kwargs["file_type"] == "video"
+            and kwargs["center"] is center
+            and kwargs["processor_name"] == handler.default_processor
+            and kwargs["source_system"] == "watcher"
+            and upload_job
+        ),
+    )
+    monkeypatch.setattr(
+        file_watcher.VideoFile.objects,
+        "filter",
+        lambda **kwargs: SimpleNamespace(first=lambda: video_file),
+    )
+    monkeypatch.setattr(file_watcher, "unload_ollama_model", lambda model_name: None)
+
+    try:
+        handler._process_video(video_path)
+    finally:
+        video_path.unlink(missing_ok=True)
+
+
+@pytest.mark.django_db
+def test_process_watcher_file_creates_upload_job_for_report(monkeypatch, tmp_path):
+    center = Center.objects.create(name="Watcher Test Center")
+    report_path = tmp_path / "watcher-report.pdf"
+    report_path.write_bytes(b"%PDF-1.4 watcher report")
+
+    created_report = SimpleNamespace(sensitive_meta=None)
+
+    class _StubReportImportService:
+        def import_and_anonymize(
+            self,
+            *,
+            file_path,
+            center_name,
+            retry,
+        ):
+            assert Path(file_path) == report_path
+            assert center_name == center.name
+            assert retry is False
+            return created_report
+
+    monkeypatch.setattr(
+        "endoreg_db.services.hub.ingest.ReportImportService",
+        _StubReportImportService,
+    )
+
+    upload_job = process_watcher_file(
+        file_path=report_path,
+        file_type="report",
+        center=center,
+    )
+
+    db_job = UploadJob.objects.get(id=upload_job.id)
+    assert db_job.source_center_id == center.id
+    assert db_job.ingest_mode == UploadJob.IngestMode.WATCHER
+    assert db_job.source_system == "watcher"
+    assert db_job.storage_tier == UploadJob.StorageTier.UPLOAD_WATCHER
+    assert db_job.status == UploadJob.Status.ANONYMIZED
+    assert db_job.processing_provenance["entrypoint"] == "watcher"
+    assert db_job.processing_provenance["file_type"] == "report"
+    assert db_job.processing_provenance["watcher_processing_path"] == str(report_path)
+
+
+@pytest.mark.django_db
+def test_watcher_and_api_upload_jobs_share_core_ingest_expectations(
+    monkeypatch, tmp_path
+):
+    center = Center.objects.create(name="Shared Center")
+    report_path = tmp_path / "shared-report.pdf"
+    report_path.write_bytes(b"%PDF-1.4 watcher shared report")
+
+    class _StubReportImportService:
+        def import_and_anonymize(
+            self,
+            *,
+            file_path,
+            center_name,
+            retry,
+        ):
+            return SimpleNamespace(sensitive_meta=None)
+
+    monkeypatch.setattr(
+        "endoreg_db.services.hub.ingest.ReportImportService",
+        _StubReportImportService,
+    )
+
+    watcher_job = process_watcher_file(
+        file_path=report_path,
+        file_type="report",
+        center=center,
+    )
+
+    api_job = UploadJob.objects.create(
+        file="upload_api/test.pdf",
+        content_type="application/pdf",
+        source_center=center,
+        source_system="api-test",
+        ingest_mode=UploadJob.IngestMode.API,
+        storage_class=UploadJob.StorageClass.INGEST,
+        storage_tier=UploadJob.StorageTier.UPLOAD_API,
+        retention_policy=UploadJob.RetentionPolicy.PRESERVE_SOURCE,
+        processing_provenance={"entrypoint": "api"},
+    )
+
+    assert watcher_job.source_center_id == api_job.source_center_id
+    assert (
+        watcher_job.storage_class
+        == api_job.storage_class
+        == UploadJob.StorageClass.INGEST
+    )
+    assert watcher_job.source_center.center_key == api_job.source_center.center_key
+    assert watcher_job.processing_provenance["entrypoint"] == "watcher"
+    assert api_job.processing_provenance["entrypoint"] == "api"
+
+
+@pytest.mark.django_db
+def test_process_watcher_file_reuses_completed_job_for_same_video_content(
+    monkeypatch, tmp_path
+):
+    center = Center.objects.create(name="Dedup Center")
+    first_path = tmp_path / "first.mp4"
+    second_path = tmp_path / "renamed.mp4"
+    payload = b"same-video-content"
+    first_path.write_bytes(payload)
+    second_path.write_bytes(payload)
+
+    created_video = SimpleNamespace(sensitive_meta=None)
+
+    class _StubVideoImportService:
+        def import_and_anonymize(
+            self,
+            *,
+            file_path,
+            center_name,
+            processor_name,
+            retry,
+        ):
+            assert Path(file_path) == first_path
+            assert center_name == center.name
+            assert retry is False
+            return created_video
+
+    monkeypatch.setattr(
+        "endoreg_db.services.hub.ingest.VideoImportService",
+        _StubVideoImportService,
+    )
+
+    first_job = process_watcher_file(
+        file_path=first_path,
+        file_type="video",
+        center=center,
+        processor_name="processor",
+    )
+    second_job = process_watcher_file(
+        file_path=second_path,
+        file_type="video",
+        center=center,
+        processor_name="processor",
+    )
+
+    assert first_job.id == second_job.id
+    assert UploadJob.objects.count() == 1
+    assert second_path.exists() is False

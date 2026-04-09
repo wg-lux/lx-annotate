@@ -134,6 +134,14 @@ const router = createRouter({
             }
         },
         {
+            path: '/hub-export',
+            name: 'Hub Export',
+            component: () => import('@/views/HubExport.vue'),
+            meta: {
+                description: 'Anonymisierte Ressourcen für den Transfer zum Hub markieren.'
+            }
+        },
+        {
             path: '/patienten',
             name: 'Patienten',
             component: () => import('@/views/PatientOverview.vue'),

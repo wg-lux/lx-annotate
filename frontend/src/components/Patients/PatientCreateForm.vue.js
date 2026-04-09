@@ -1,6 +1,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { usePatientStore } from '@/stores/patientStore';
 import { patientService } from '@/api/patientService';
+import { endpoints } from '@/types/api/endpoints';
 const emit = defineEmits();
 // Composables
 const patientStore = usePatientStore();
@@ -16,6 +17,7 @@ const form = ref({
     phone: '',
     gender: null,
     center: null,
+    centerKey: null,
     patientHash: '',
     comments: '',
     isRealPerson: true
@@ -89,9 +91,10 @@ const handleSubmit = async () => {
         formattedData = patientStore.formatPatientForSubmission(form.value);
         console.log('📋 Formatierte Daten für API:', formattedData);
         // Log the exact URL that will be called
+        const patientCreatePath = `/api/${endpoints.patient.patients}`;
         console.log('🌐 API-Aufruf wird gestartet...');
-        console.log('URL:', `/api/patients/`);
-        console.log('Full URL wird zu:', `${window.location.origin}/api/patients/`);
+        console.log('URL:', patientCreatePath);
+        console.log('Full URL wird zu:', `${window.location.origin}${patientCreatePath}`);
         // Use patientStore instead of patientService for consistency
         const newPatient = await patientStore.createPatient(formattedData);
         console.log('🎉 Patient erfolgreich erstellt:', newPatient);
@@ -105,6 +108,7 @@ const handleSubmit = async () => {
             phone: '',
             gender: null,
             center: null,
+            centerKey: null,
             patientHash: '',
             comments: '',
             isRealPerson: true
@@ -391,7 +395,7 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements
     for: "center",
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
-    value: (__VLS_ctx.form.center),
+    value: (__VLS_ctx.form.centerKey),
     id: "center",
     ...{ class: "form-control" },
     ...{ class: ({ 'is-invalid': __VLS_ctx.errors.center }) },
@@ -402,7 +406,7 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElement
 for (const [center] of __VLS_getVForSourceType((__VLS_ctx.centers))) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
         key: (center.id),
-        value: (center.name),
+        value: (center.centerKey || center.name),
     });
     (center.nameDe || center.name);
 }

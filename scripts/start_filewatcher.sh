@@ -40,7 +40,7 @@ bootstrap_path_env() {
 }
 
 bootstrap_pythonpath() {
-    export PYTHONPATH="$HOME_DIR/libs/endoreg-db:$HOME_DIR${PYTHONPATH:+:$PYTHONPATH}"
+    export PYTHONPATH="$HOME_DIR${PYTHONPATH:+:$PYTHONPATH}"
 }
 
 resolve_ingest_directories() {
@@ -128,8 +128,8 @@ test_watcher() {
     bootstrap_path_env
     bootstrap_pythonpath
     
-    # Test import by running the file watcher with test mode
-    python scripts/file_watcher.py --help > /dev/null 2>&1
+    # Test packaged watcher command path
+    python manage.py start_filewatcher --test --log-level INFO > /dev/null 2>&1
     local exit_code=$?
     
     if [ $exit_code -eq 0 ]; then
@@ -189,8 +189,8 @@ start_dev() {
     bootstrap_path_env
     bootstrap_pythonpath
 
-    print_status "Starting internal file watcher..."
-    python scripts/file_watcher.py
+    print_status "Starting packaged file watcher command..."
+    python manage.py start_filewatcher --log-level DEBUG
 }
 
 

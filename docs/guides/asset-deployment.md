@@ -6,14 +6,14 @@ This guide defines the deployment contract for Vite assets in `lx-annotate`.
 
 1. Build output directory:
 `frontend/vite.config.ts` writes compiled assets to:
-`<repo>/static`
+`<repo>/staticfiles`
 
 2. Manifest location:
 Vite manifest must exist at:
-`static/.vite/manifest.json`
+`staticfiles/.vite/manifest.json`
 
 3. Django Vite config:
-- Dev: `lx_annotate/settings/settings_dev.py` reads `BASE_DIR/static/.vite/manifest.json`
+- Dev: `lx_annotate/settings/settings_dev.py` reads `BASE_DIR/staticfiles/.vite/manifest.json`
 - Prod: `lx_annotate/settings/settings_prod.py` reads `STATIC_ROOT/.vite/manifest.json`
 
 4. Runtime startup guard:
@@ -26,18 +26,21 @@ Vite manifest must exist at:
 1. Build frontend:
 `devenv shell -- vue-build`
 
-2. Verify committed artifacts:
-`devenv tasks run deploy:verify-vite-artifacts --no-tui`
+2. Verify manifest contract:
+`make verify-vite-manifest`
 
-3. Apply Django migration/static pipeline:
-`devenv tasks run deploy:full --no-tui`
+3. Build distributable artifacts:
+`make package`
 
-The verification task fails if building the frontend changes tracked files under `static/`.
-This prevents stale or missing frontend artifacts from reaching runtime.
+`make package` forces a frontend rebuild, checks that committed frontend artifacts
+did not drift, and then fails if `staticfiles/.vite/manifest.json` is empty,
+invalid JSON, missing the `src/main.ts` entry, or points at a missing asset.
+This prevents stale or broken frontend artifacts from reaching wheel or sdist
+packaging.
 
 ## Why `emptyOutDir` Is Disabled
 
-`vite.config.ts` uses `emptyOutDir: false` because `static/` is a mixed directory
+`vite.config.ts` uses `emptyOutDir: false` because `staticfiles/` is a mixed directory
 containing both Vite output and non-Vite assets (for example, framework/static content).
 Auto-emptying this directory would risk deleting non-Vite files.
 
@@ -46,18 +49,18 @@ Auto-emptying this directory would risk deleting non-Vite files.
 Run these checks after deployment changes:
 
 1. Manifest exists:
-`ls -l static/.vite/manifest.json`
+`ls -l staticfiles/.vite/manifest.json`
 
 2. Legacy folder is gone:
-`test ! -d static/dist`
+`test ! -d staticfiles/dist`
 
 3. Entry mapping is valid:
 `python - <<'PY'
 import json
 from pathlib import Path
-m = json.loads(Path('static/.vite/manifest.json').read_text())
+m = json.loads(Path('staticfiles/.vite/manifest.json').read_text())
 entry = m['src/main.ts']['file']
-print(entry, (Path('static') / entry).exists())
+print(entry, (Path('staticfiles') / entry).exists())
 PY`
 
 ## Frame Annotation Integration Note

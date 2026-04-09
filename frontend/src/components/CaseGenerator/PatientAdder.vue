@@ -58,9 +58,9 @@
 
         <div>
           <label for="centerSelect">Zentrum:</label>
-          <select v-model="formData.center" id="centerSelect">
+          <select v-model="formData.centerKey" id="centerSelect">
             <option value="">Bitte wählen</option>
-            <option v-for="center in centers" :key="center.id" :value="center.name">
+            <option v-for="center in centers" :key="center.id" :value="center.centerKey || center.name">
               {{ center.nameDe || center.name }}
             </option>
           </select>
@@ -120,6 +120,7 @@ const formData = ref<PatientFormData>({
   phone: '',
   gender: null,
   center: null,
+  centerKey: null,
   patientHash: '',
   comments: '',
   isRealPerson: true
@@ -139,6 +140,7 @@ const resetForm = () => {
     phone: '',
     gender: null,
     center: null,
+    centerKey: null,
     patientHash: '',
     comments: '',
     isRealPerson: true

@@ -3,6 +3,7 @@
 
 import { ref } from 'vue'
 import axios from 'axios' // Using axios directly - adjust to your setup
+import { endpoints } from '@/types/api/endpoints'
 
 interface PseudonymResponse {
   patient_id: number
@@ -35,7 +36,7 @@ async function generatePseudonym(patientId: number): Promise<string | null> {
 
   try {
     const response = await axios.post<PseudonymResponse>(
-      `/api/patients/${patientId}/pseudonym/`
+      `/api/${endpoints.patient.patientPseudonym(patientId)}`
     )
 
     const { patient_hash, persisted, message } = response.data

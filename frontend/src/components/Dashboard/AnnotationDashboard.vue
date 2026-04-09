@@ -323,6 +323,7 @@ import { useAnnotationStatsStore } from '@/stores/annotationStats';
 import AnnotationStatsComponent from '@/components/Stats/AnnotationStatsComponent.vue';
 import { useToastStore } from '@/stores/toastStore'; // Assuming you have a toast store for notifications
 import axiosInstance, { r } from '@/api/axiosInstance';
+import { endpoints } from '@/types/api/endpoints';
 
 
 const toast = useToastStore(); // Use your notification system here
@@ -353,7 +354,7 @@ const showError = (message) => {
 const refreshSegments = async () => {
   loadingSegments.value = true;
   try {
-    const videosResponse = await axiosInstance.get(r('media/videos/'));
+    const videosResponse = await axiosInstance.get(r(endpoints.media.videos));
     const videos =
       videosResponse.data?.results ||
       videosResponse.data?.videos ||
@@ -369,7 +370,7 @@ const refreshSegments = async () => {
       videoIds.map(async (videoId) => {
         try {
           const response = await axiosInstance.get(
-            r(`media/videos/${videoId}/segments/`)
+            r(endpoints.media.videoSegments(videoId))
           );
           const videoSegments = response.data?.results || response.data || [];
           return videoSegments.map((segment) => ({
@@ -394,7 +395,7 @@ const refreshSegments = async () => {
 const refreshExaminations = async () => {
   loadingExaminations.value = true;
   try {
-    const response = await axiosInstance.get('/api/examinations/');
+    const response = await axiosInstance.get(`/api/${endpoints.router.examinations}`);
     examinations.value = response.data.results || response.data || [];
   } catch (error) {
     console.error('Fehler beim Laden der Untersuchungen:', error);
@@ -409,8 +410,8 @@ const refreshSensitiveMeta = async () => {
   try {
     // Combine video and PDF sensitive meta data using Modern Media Framework
     const [videoResponse, pdfResponse] = await Promise.all([
-      axiosInstance.get(r('media/videos/')).catch(() => ({ data: [] })),
-      axiosInstance.get(r('media/pdfs/sensitive-metadata/')).catch(() => ({ data: { results: [] } }))
+      axiosInstance.get(r(endpoints.media.videos)).catch(() => ({ data: [] })),
+      axiosInstance.get(r(endpoints.media.pdfSensitiveMetadataList)).catch(() => ({ data: { results: [] } }))
     ]);
 
     // Extract data from responses
@@ -518,7 +519,7 @@ const markSegmentComplete = async (segment) => {
       return;
     }
     await axiosInstance.patch(
-      `/api/media/videos/${videoId}/segments/${segment.id}/`,
+      `/api/${endpoints.media.videoSegmentDetail(videoId, segment.id)}`,
       { status: 'completed' }
     );
     annotationStatsStore.updateAnnotationStatus('segment', 'in_progress', 'completed');
@@ -537,7 +538,7 @@ const editExamination = (examination) => {
 
 const markExaminationComplete = async (examination) => {
   try {
-    await axiosInstance.patch(`/api/examinations/${examination.id}/`, { status: 'completed' });
+    await axiosInstance.patch(`/api/${endpoints.router.examinationById(examination.id)}`, { status: 'completed' });
     annotationStatsStore.updateAnnotationStatus('examination', 'in_progress', 'completed');
     await refreshExaminations();
   } catch (error) {
@@ -556,8 +557,8 @@ const validateSensitiveMeta = (meta) => {
 const markSensitiveMetaComplete = async (meta) => {
   try {
     const endpoint = meta.content_type === 'video' 
-      ? `/api/media/videos/`
-      : `/api/media/pdfs/`;
+      ? `/api/${endpoints.media.videos}`
+      : `/api/${endpoints.media.pdfs}`;
     
     await axiosInstance.patch(endpoint, { 
       sensitive_meta_id: meta.id,

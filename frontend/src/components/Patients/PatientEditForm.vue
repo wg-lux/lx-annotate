@@ -138,7 +138,7 @@
             </label>
             <select
               id="center"
-              v-model="form.center"
+              v-model="form.centerKey"
               class="form-select"
               :class="{ 'is-invalid': errors.center }"
             >
@@ -146,7 +146,7 @@
               <option
                 v-for="center in centers"
                 :key="center.id"
-                :value="center.name"
+                :value="center.centerKey || center.name"
               >
                 {{ center.nameDe || center.name }}
               </option>
@@ -290,6 +290,7 @@
 import { ref, computed, reactive, onMounted } from 'vue'
 import { usePatientStore, type Patient, type Gender, type Center } from '@/stores/patientStore'
 import { patientService, type PatientFormData } from '@/api/patientService'
+import { endpoints } from '@/types/api/endpoints'
 
 // Props
 interface Props {
@@ -323,6 +324,7 @@ const form = reactive<PatientFormData>({
   dob: props.patient.dob ? props.patient.dob.split('T')[0] : null,
   gender: props.patient.gender || null,
   center: props.patient.center || null,
+  centerKey: props.patient.centerKey || props.patient.center || null,
   email: props.patient.email || '',
   phone: props.patient.phone || '',
   patientHash: props.patient.patientHash || '',
@@ -452,7 +454,7 @@ const confirmDelete = async () => {
 const loadDeletionInfo = async () => {
   try {
     // This would call the safety check endpoint to get deletion impact
-    const response = await fetch(`/api/patients/${props.patient.id}/check_deletion_safety/`)
+    const response = await fetch(`/api/${endpoints.patient.patientDeletionSafety(props.patient.id!)}`)
     if (response.ok) {
       const data = await response.json()
       deletionInfo.value = data.related_objects

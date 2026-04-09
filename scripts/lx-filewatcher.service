@@ -25,8 +25,9 @@ ExecStart=/bin/bash -c ' \
     done; \
     # 3. Fallback or Execute \
     if [ -z "$ROOT" ]; then echo "Repo not found"; exit 1; fi; \
-    # 4. Run the app using the discovered root \
-    exec "$ROOT/.devenv/state/venv/bin/python" "$ROOT/scripts/file_watcher.py" \
+    # 4. Run the packaged watcher command using the discovered root \
+    cd "$ROOT"; \
+    exec "$ROOT/.devenv/state/venv/bin/python" "$ROOT/manage.py" start_filewatcher --log-level INFO \
 '
 
 Restart=always

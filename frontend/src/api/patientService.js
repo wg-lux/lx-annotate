@@ -1,14 +1,15 @@
 import axiosInstance, { r } from './axiosInstance';
+import { endpoints } from '@/types/api/endpoints';
 export async function generatePatientPseudonym(id) {
     if (!Number.isFinite(id) || id <= 0)
         throw new Error('Ungültige patientId');
-    const { data } = await axiosInstance.post(r(`/patients/${id}/pseudonym/`));
+    const { data } = await axiosInstance.post(r(endpoints.patient.patientPseudonym(id)));
     return data;
 }
 export const patientService = {
     async getPatients() {
         try {
-            const response = await axiosInstance.get(r('patients/'));
+            const response = await axiosInstance.get(r(endpoints.patient.patients));
             // Handle both array response and paginated response
             if (Array.isArray(response.data)) {
                 return response.data;
@@ -25,7 +26,7 @@ export const patientService = {
     async addPatient(patientData) {
         try {
             console.log('PatientService: Sende Patientendaten an API:', patientData);
-            const response = await axiosInstance.post(r('patients/'), patientData);
+            const response = await axiosInstance.post(r(endpoints.patient.patients), patientData);
             console.log('PatientService: Erfolgreiche Antwort erhalten:', response.data);
             return response.data;
         }
@@ -50,7 +51,7 @@ export const patientService = {
     },
     async updatePatient(patientId, patientData) {
         try {
-            const response = await axiosInstance.put(r(`patients/${patientId}/`), patientData);
+            const response = await axiosInstance.put(r(endpoints.patient.patientById(patientId)), patientData);
             return response.data;
         }
         catch (error) {
@@ -60,7 +61,7 @@ export const patientService = {
     },
     async deletePatient(patientId) {
         try {
-            await axiosInstance.delete(r(`patients/${patientId}/`));
+            await axiosInstance.delete(r(endpoints.patient.patientById(patientId)));
         }
         catch (error) {
             console.error('Error deleting patient:', error);
@@ -71,7 +72,7 @@ export const patientService = {
     async getGenders() {
         try {
             // Verwende den korrekten Gender-Endpunkt
-            const response = await axiosInstance.get(r('genders/')).catch(async () => {
+            const response = await axiosInstance.get(r(endpoints.patient.genders)).catch(async () => {
                 // Fallback: Standard Gender-Optionen
                 return {
                     data: [
@@ -100,7 +101,7 @@ export const patientService = {
     async getCenters() {
         try {
             // Versuche Centers über verschiedene mögliche Endpunkte zu laden
-            const response = await axiosInstance.get(r('centers/')).catch(async () => {
+            const response = await axiosInstance.get(r(endpoints.patient.centers)).catch(async () => {
                 // Fallback über andere verfügbare Endpunkte
                 return {
                     data: [
@@ -129,7 +130,8 @@ export const patientService = {
             lastName: patientForm.lastName,
             dob: patientForm.dob || null,
             gender: patientForm.gender || null,
-            center: patientForm.center || null,
+            center: patientForm.centerKey ? null : (patientForm.center || null),
+            centerKey: patientForm.centerKey || null,
             email: patientForm.email || undefined,
             phone: patientForm.phone || undefined,
             patientHash: patientForm.patientHash || null,
@@ -142,6 +144,12 @@ export const patientService = {
                 delete formattedData[key];
             }
         });
+        if (formattedData.center === null && !formattedData.centerKey) {
+            delete formattedData.center;
+        }
+        if (formattedData.centerKey === null) {
+            delete formattedData.centerKey;
+        }
         return formattedData;
     },
     calculateAge(dateOfBirth) {

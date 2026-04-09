@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref, computed, reactive, readonly } from 'vue';
-import axiosInstance, { a, r } from '../api/axiosInstance';
+import axiosInstance, { r } from '../api/axiosInstance';
 import { AxiosError } from 'axios';
 import { formatTime, getTranslationForLabel, getColorForLabel } from '@/utils/videoUtils';
 import { useAnonymizationStore } from './anonymizationStore';
@@ -102,7 +102,7 @@ export const useVideoStore = defineStore('video', () => {
     }
     function buildVideoStreamUrl(id) {
         const base = (import.meta.env.VITE_API_BASE_URL || window.location.origin).replace(/\/$/, '');
-        return `${base}/api/${r(endpoints.media.videoStream(id))}`;
+        return `${base}/api/${endpoints.media.videoStream(id)}`;
     }
     function normalizeFps(value) {
         const parsed = Number(value);
@@ -221,7 +221,7 @@ export const useVideoStore = defineStore('video', () => {
             return false;
         }
         try {
-            await axiosInstance.delete(`/api/media-management/force-remove/${videoId}/`);
+            await axiosInstance.delete(`/api/${endpoints.mediaManagement.forceRemove(videoId)}`);
             return true;
         }
         catch (error) {
@@ -380,7 +380,7 @@ export const useVideoStore = defineStore('video', () => {
         console.log('🏷️ [VideoStore] Fetching labels with high priority...');
         try {
             // 🔹 NEW: use media/labels/ instead of deprecated videos/
-            const response = await axiosInstance.get(r('media/videos/labels/list/'));
+            const response = await axiosInstance.get(r(endpoints.media.videoLabelsList));
             const processedLabels = response.data.map((label) => ({
                 id: Number(label.id),
                 name: String(label.name),
@@ -401,7 +401,7 @@ export const useVideoStore = defineStore('video', () => {
         try {
             // ✅ PRIORITY: Fetch labels first before processing videos
             await fetchLabels();
-            const response = await axiosInstance.get(r('media/videos/'));
+            const response = await axiosInstance.get(r(endpoints.media.videos));
             console.log('API Response:', response.data); //#TODO Add newly created assigned user from keycloak
             const rawVideos = Array.isArray(response.data?.results)
                 ? response.data.results
@@ -510,7 +510,7 @@ export const useVideoStore = defineStore('video', () => {
             return null;
         }
         try {
-            const response = await axiosInstance.get(r(`media/videos/${id}/fps/`), { headers: { Accept: 'application/json' } });
+            const response = await axiosInstance.get(r(endpoints.media.videoFps(id)), { headers: { Accept: 'application/json' } });
             const fps = normalizeFps(response.data?.fps);
             if (fps === null) {
                 console.warn(`[VideoStore] Invalid FPS payload from endpoint for video ${id}:`, response.data);
@@ -542,7 +542,7 @@ export const useVideoStore = defineStore('video', () => {
                 console.warn('No video ID available for fetching video metadata');
                 return;
             }
-            const response = await axiosInstance.get(r(`media/videos/${id}/metadata/`), {
+            const response = await axiosInstance.get(r(endpoints.media.videoMetadata(id)), {
                 headers: { Accept: 'application/json' }
             });
             const meta = response.data ?? {};
@@ -621,7 +621,7 @@ export const useVideoStore = defineStore('video', () => {
         }
         const videoId = currentVideo.value.id;
         axiosInstance
-            .get(r(`anonymization/${videoId}/has-raw/`))
+            .get(r(endpoints.anonymization.hasRaw(videoId)))
             .then((response) => {
             hasRawVideoFile.value = response.data.has_raw_file;
             console.log(`Raw video file for ID ${videoId}:`, hasRawVideoFile.value);
@@ -633,7 +633,7 @@ export const useVideoStore = defineStore('video', () => {
     }
     async function fetchSegmentsByLabel(id, label = 'outside') {
         try {
-            const response = await axiosInstance.get(r(`media/videos/${id}/segments/`), {
+            const response = await axiosInstance.get(r(endpoints.media.videoSegments(id)), {
                 headers: { Accept: 'application/json' },
                 params: { label }, // backend expects ?label=<label_name>
             });
@@ -659,7 +659,7 @@ export const useVideoStore = defineStore('video', () => {
             }
             controller = new AbortController();
             fetchSegmentsController = controller;
-            const response = await axiosInstance.get(r(`media/videos/${videoId}/segments/`), { headers: { Accept: 'application/json' }, signal: controller.signal });
+            const response = await axiosInstance.get(r(endpoints.media.videoSegments(videoId)), { headers: { Accept: 'application/json' }, signal: controller.signal });
             if (token !== _fetchToken.value)
                 return;
             const rawSegments = normalizeSegmentList(response.data);
@@ -715,7 +715,7 @@ export const useVideoStore = defineStore('video', () => {
                 start_frame_number: startFrame,
                 end_frame_number: endFrame
             };
-            const response = await axiosInstance.post(r(`media/videos/${videoId}/segments/`), segmentData);
+            const response = await axiosInstance.post(r(endpoints.media.videoSegments(videoId)), segmentData);
             const backendSeg = response.data;
             let newSegment = backendSegmentToSegment(backendSeg);
             // Ensure label & labelID match your current selection
@@ -794,7 +794,7 @@ export const useVideoStore = defineStore('video', () => {
         }
     }
     async function updateSegmentWithPayload(videoId, segmentId, payload, options = {}) {
-        const url = r(`media/videos/${videoId}/segments/${segmentId}/`);
+        const url = r(endpoints.media.videoSegmentDetail(videoId, segmentId));
         const response = await axiosInstance.patch(url, payload);
         if (options.updateLocal !== false && currentVideo.value?.id === videoId) {
             const updatedSegment = backendSegmentToSegment(response.data);
@@ -868,7 +868,7 @@ export const useVideoStore = defineStore('video', () => {
     }
     async function setVideoExportFlag(videoId, exportSegmentsByVideo) {
         try {
-            const response = await axiosInstance.patch(r(`media/videos/${videoId}/details/`), { export_segments_by_video: exportSegmentsByVideo });
+            const response = await axiosInstance.patch(r(endpoints.media.videoDetail(videoId)), { export_segments_by_video: exportSegmentsByVideo });
             const updatedValue = response.data?.export_segments_by_video ??
                 response.data?.exportSegmentsByVideo ??
                 exportSegmentsByVideo;
@@ -894,7 +894,7 @@ export const useVideoStore = defineStore('video', () => {
                 console.error('[VideoStore] Kann Segment nicht löschen: Kein Video ausgewählt');
                 return false;
             }
-            const url = r(`media/videos/${videoId}/segments/${segmentId}/`);
+            const url = r(endpoints.media.videoSegmentDetail(videoId, segmentId));
             await axiosInstance.delete(url);
             for (const label in segmentsByLabel) {
                 const index = segmentsByLabel[label].findIndex((s) => s.id === segmentId);
@@ -990,7 +990,7 @@ export const useVideoStore = defineStore('video', () => {
                 console.error('[Draft] Cannot commit: no current video');
                 return null;
             }
-            const response = await axiosInstance.post(r(`media/videos/${videoId}/segments/`), payload);
+            const response = await axiosInstance.post(r(endpoints.media.videoSegments(videoId)), payload);
             console.log('[Draft] API response:', response.data);
             const newSegment = {
                 id: response.data.id,

@@ -1,6 +1,7 @@
 export interface ApplicationSettingsRecord {
     id: number;
     centerId: number | null;
+    centerKey?: string | null;
     centerName: string | null;
     processorId: number | null;
     processorName: string | null;
@@ -29,6 +30,7 @@ export interface ApplicationSettingsUpdatePayload {
 export interface NamedDropdownOption {
     id: number;
     name: string;
+    centerKey?: string | null;
 }
 export interface ValueLabelOption {
     value: string;

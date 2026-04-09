@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { endpoints } from '@/types/api/endpoints';
 const hoisted = vi.hoisted(() => ({
     axios: {
         get: vi.fn()
@@ -34,7 +35,7 @@ describe('reportingTimelineApi', () => {
             patientId: 42,
             patientExaminationId: 314
         });
-        expect(hoisted.axios.get).toHaveBeenCalledWith('/api/media/patients/42/timeline/', {
+        expect(hoisted.axios.get).toHaveBeenCalledWith(`/api/${endpoints.media.patientTimeline(42)}`, {
             params: {
                 latest_only: true,
                 patient_examination_id: 314

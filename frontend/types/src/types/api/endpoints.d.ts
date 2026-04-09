@@ -10,6 +10,7 @@ export type UUID = string;
 export declare const endpoints: {
     readonly auth: {
         readonly bootstrap: "auth/bootstrap";
+        readonly context: "auth/context";
         readonly publicHome: "endoreg_db/";
         readonly login: "login/";
         readonly loginCallback: "login/callback/";
@@ -17,6 +18,7 @@ export declare const endpoints: {
     };
     readonly router: {
         readonly examinations: "examinations/";
+        readonly examinationById: (id: Id) => string;
         readonly findings: "findings/";
         readonly classifications: "classifications/";
         readonly patientFindings: "patient-findings/";
@@ -27,9 +29,11 @@ export declare const endpoints: {
         readonly patients: "patients/";
         readonly patientById: (id: Id) => string;
         readonly patientPseudonym: (id: Id) => string;
+        readonly patientDeletionSafety: (id: Id) => string;
         readonly centers: "centers/";
         readonly genders: "genders/";
         readonly patientFindings: "patient-findings/";
+        readonly patientFindingById: (id: Id) => string;
         readonly checkPatientExaminationExists: (id: Id) => string;
     };
     readonly examination: {
@@ -67,6 +71,11 @@ export declare const endpoints: {
         readonly videoSegments: "video-segments/stats/";
         readonly sensitiveMeta: "video/sensitivemeta/stats/";
         readonly general: "stats/";
+    };
+    readonly hubExport: {
+        readonly overview: "hub-export/overview/";
+        readonly mark: "hub-export/mark/";
+        readonly unmark: "hub-export/unmark/";
     };
     readonly anonymization: {
         readonly itemsOverview: "anonymization/items/overview/";

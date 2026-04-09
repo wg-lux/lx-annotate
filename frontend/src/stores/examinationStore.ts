@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import axiosInstance from '@/api/axiosInstance'
 import { findingsApi, parseFindingsApiError } from '@/api/findingsApi'
 import type { Finding, FindingClassification } from '@/api/findings.contract'
+import { endpoints } from '@/types/api/endpoints'
 import {
   getCoreConceptDisplayName,
   type ClassificationChoiceCore,
@@ -89,7 +90,7 @@ export const useExaminationStore = defineStore('examination', {
       this.loading = true
       this.error = null
       try {
-        const res = await axiosInstance.get('/api/examinations/')
+        const res = await axiosInstance.get(`/api/${endpoints.router.examinations}`)
         // Normalize to Examination[]
         this.exams = (res.data as any[]).map((e) => ({
           id: e.id,

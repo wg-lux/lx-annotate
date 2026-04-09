@@ -1,8 +1,9 @@
 /* @stores/anonymizationStore.ts */
 import { defineStore } from 'pinia';
-import axiosInstance, { a, r } from '@/api/axiosInstance';
+import axiosInstance, { r } from '@/api/axiosInstance';
 import axios from 'axios';
 import { ref, computed } from 'vue';
+import { endpoints } from '@/types/api/endpoints';
 /* ------------------------------------------------------------------ */
 /* Store                                                               */
 /* ------------------------------------------------------------------ */
@@ -88,7 +89,7 @@ export const useAnonymizationStore = defineStore('anonymization', {
             // Remove id from payload before sending (it's in URL)
             const { id, ...updateData } = payload;
             // Use Modern Media Framework endpoint
-            return axiosInstance.patch(r(`media/pdfs/${id}/sensitive-metadata/`), updateData);
+            return axiosInstance.patch(r(endpoints.media.pdfSensitiveMetadata(id)), updateData);
         },
         async patchVideo(payload) {
             if (!payload.id) {
@@ -98,7 +99,7 @@ export const useAnonymizationStore = defineStore('anonymization', {
             // Remove id from payload before sending (it's in URL)
             const { id, ...updateData } = payload;
             // Use Modern Media Framework endpoint
-            return axiosInstance.patch(r(`media/videos/${id}/sensitive-metadata/`), updateData);
+            return axiosInstance.patch(r(endpoints.media.videoSensitiveMetadata(id)), updateData);
         },
         fetchPendingAnonymizations() {
             return this.pending;
@@ -111,7 +112,7 @@ export const useAnonymizationStore = defineStore('anonymization', {
             this.error = null;
             try {
                 console.log('Fetching file overview...');
-                const { data } = await axiosInstance.get(r('anonymization/items/overview/'));
+                const { data } = await axiosInstance.get(r(endpoints.anonymization.itemsOverview));
                 console.log('Received overview data:', data);
                 // Update overview and available files
                 this.overview = data;
@@ -170,7 +171,7 @@ export const useAnonymizationStore = defineStore('anonymization', {
                 // Optimistic UI update
                 file.anonymizationStatus = 'processing_anonymization';
                 // Trigger anonymization
-                await axiosInstance.post(r(`anonymization/${id}/start/`));
+                await axiosInstance.post(r(endpoints.anonymization.start(id)));
                 console.log(`Anonymization started for file ${id}`);
                 // Start polling
                 this.startPolling(id);
@@ -211,7 +212,7 @@ export const useAnonymizationStore = defineStore('anonymization', {
                     // usually backend expects 'report', but let's handle normalization in backend to be safe.
                     // We pass it as a query parameter.
                     const kindParam = file.mediaType === 'pdf' ? 'report' : 'video';
-                    const { data } = await axiosInstance.get(r(`anonymization/${id}/status/`), { params: { kind: kindParam } });
+                    const { data } = await axiosInstance.get(r(endpoints.anonymization.status(id)), { params: { kind: kindParam } });
                     // Refresh file reference in case overview changed
                     const currentFile = this.overview.find((f) => f.id === id);
                     if (currentFile && data.anonymizationStatus) {
@@ -267,14 +268,14 @@ export const useAnonymizationStore = defineStore('anonymization', {
                 console.log('Found item for validation:', item);
                 if (mediaType === 'video') {
                     console.log(`Loading video data for ID: ${item.id}`);
-                    const { data: sensitiveMeta } = await axiosInstance.get(r(`media/videos/${item.id}/sensitive-metadata/`));
+                    const { data: sensitiveMeta } = await axiosInstance.get(r(endpoints.media.videoSensitiveMetadata(item.id)));
                     console.log('Received video detail:', sensitiveMeta);
                     this.current = sensitiveMeta;
                     return this.current;
                 }
                 else if (mediaType === 'pdf') {
                     console.log(`Setting current PDF item for validation: ${id}`);
-                    const metaUrl = r(`media/pdfs/${item.id}/sensitive-metadata/`);
+                    const metaUrl = r(endpoints.media.pdfSensitiveMetadata(item.id));
                     console.log(`Fetching sensitive meta from: ${metaUrl}`);
                     const { data: sensitiveMeta } = await axiosInstance.get(metaUrl);
                     console.log('Received sensitive meta response data:', sensitiveMeta);
@@ -322,7 +323,7 @@ export const useAnonymizationStore = defineStore('anonymization', {
                 file.anonymizationStatus = 'processing_anonymization';
                 file.metadataImported = false;
                 // Trigger re-import via backend
-                const response = await axiosInstance.post(r(`media/videos/${fileId}/reimport/`));
+                const response = await axiosInstance.post(r(endpoints.media.videoReimport(fileId)));
                 console.log(`Video re-import response:`, response.data);
                 console.log(`Starting polling for re-imported video ${fileId}`);
                 this.startPolling(fileId);
@@ -370,7 +371,7 @@ export const useAnonymizationStore = defineStore('anonymization', {
                 file.anonymizationStatus = 'processing_anonymization';
                 file.metadataImported = false;
                 // Trigger re-import via backend using media framework endpoint
-                const response = await axiosInstance.post(r(`media/pdfs/${fileId}/reimport/`));
+                const response = await axiosInstance.post(r(endpoints.media.pdfReimport(fileId)));
                 console.log(`PDF re-import response:`, response.data);
                 console.log(`Starting polling for re-imported PDF ${fileId}`);
                 this.startPolling(fileId);

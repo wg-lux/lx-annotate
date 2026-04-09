@@ -2,6 +2,7 @@
 // Add this to your patient detail/edit component
 import { ref } from 'vue';
 import axios from 'axios'; // Using axios directly - adjust to your setup
+import { endpoints } from '@/types/api/endpoints';
 // Reactive state
 const isGeneratingPseudonym = ref(false);
 const pseudonymError = ref(null);
@@ -16,7 +17,7 @@ async function generatePseudonym(patientId) {
     pseudonymError.value = null;
     pseudonymSuccess.value = null;
     try {
-        const response = await axios.post(`/api/patients/${patientId}/pseudonym/`);
+        const response = await axios.post(`/api/${endpoints.patient.patientPseudonym(patientId)}`);
         const { patient_hash, persisted, message } = response.data;
         pseudonymSuccess.value = `${message} - Hash: ${patient_hash.substring(0, 8)}...`;
         // If you want to update the patient object in your store:

@@ -82,6 +82,119 @@ The application should not generate or manage encryption keys itself. A
 dedicated LuxNix service or external KMS/secrets system should own key
 management and unlock policy.
 
+## Ingress Contract
+
+`lx-annotate` supports two first-class ingest boundaries:
+
+- `watcher`: trusted local filesystem intake from `${IO_DIR}/import/...`
+- `api`: authenticated remote upload intake through `/api/upload/`
+
+Both boundaries now converge on the shared `endoreg_db.services.hub` ingest services
+and create `UploadJob` records with normalized provenance. The watcher
+is not a separate import stack anymore; it is a boundary adapter over the same
+core ingest contract.
+
+Hub-mode policy is intentionally asymmetric:
+
+- `watcher` may keep default-center behavior for trusted local drop zones
+- `api` in `ENDOREG_HUB_MODE=true` requires authenticated callers and declared
+  `center_key`
+- `/api/upload/` is the primary hub boundary
+- `/api/media/hub/transfers/` is an optional secondary boundary and stays
+  disabled unless `ENDOREG_ENABLE_HUB_TRANSFERS=true`
+
+For production hub deployments, operators should assume that incorrect center
+resolution is a clinical data-isolation failure. Treat `center_key` as the only
+machine-facing center identifier in automation and integrations.
+
+## Storage Recommendations
+
+Use filesystem-level encryption as the default for large media assets,
+especially videos. For `lx-annotate`, the preferred production pattern is an
+encrypted-at-rest filesystem or block device such as LUKS/dm-crypt, with Django
+responsible for authentication and authorization only. After access is
+approved, hand the file off to Nginx via `X-Accel-Redirect` so Nginx can serve
+the asset directly with native byte-range support and efficient kernel-backed
+I/O.
+
+Application-level encrypted storage should be reserved for smaller,
+higher-sensitivity artifacts where per-file cryptographic control is worth the
+runtime cost. Examples include reports, exports, metadata bundles, and other
+low-bandwidth payloads. Do not treat application-level encryption as the
+preferred path for video streaming workloads, because it forces userspace
+decryption and proxying through Django, which disables the normal Nginx fast
+path and materially increases CPU, latency, and memory pressure under
+concurrent range requests.
+
+Operational guidance:
+
+- use LUKS/dm-crypt or equivalent filesystem or block-device encryption for
+  video and media roots
+- keep Django as the policy gate for protected media access
+- prefer `X-Accel-Redirect` for authorized video delivery through Nginx
+- use application-layer encrypted storage only where fine-grained crypto
+  controls are required and throughput is not the primary constraint
+- keep `STORAGE_DIR` and `IO_DIR` inside the protected
+  `LX_ANNOTATE_ENCRYPTED_DATA_DIR` root
+- for hub deployments, use durable shared or object-backed storage semantics
+  for managed media and upload artifacts; node-local ephemeral disks are not
+  sufficient
+
+## Hub Deployment Profile
+
+For `ENDOREG_HUB_MODE=true`, the minimum deployment contract is:
+
+- PostgreSQL or another durable multi-user production database
+- explicit `DJANGO_DB_*` configuration or `DATABASE_URL`
+- explicit `LX_ANNOTATE_ENCRYPTED_DATA_DIR`
+- encrypted managed storage enabled
+- authenticated API access before exposing `/api/upload/`
+- center-scoped operational monitoring and log retention
+
+SQLite is not an acceptable hub database. A single-host dev profile can still
+use SQLite, but a shared hub deployment must not.
+
+## Secure Hub Transfer
+
+If the deployment enables `/api/media/hub/transfers/`, treat it as a stricter
+boundary than `/api/upload/`.
+
+Current Phase 1 contract:
+
+- transfer API stays disabled unless `ENDOREG_ENABLE_HUB_TRANSFERS=true`
+- secure transport is required:
+  `ENDOREG_HUB_TRANSFER_REQUIRE_SECURE_TRANSPORT=true`
+- proxy-verified mTLS is required:
+  `ENDOREG_HUB_TRANSFER_REQUIRE_MTLS=true`
+- Django must receive the proxy attestation through:
+  `ENDOREG_HUB_TRANSFER_MTLS_META_KEY`
+  and
+  `ENDOREG_HUB_TRANSFER_MTLS_META_VALUE`
+
+On LuxNix-managed hosts, the `lx-annotate-local` module now expresses that
+contract directly:
+
+- `hub.transferApi.enable = true` is opt-in
+- transfer API enablement is rejected unless mTLS is enabled
+- Nginx verifies client certificates against `hub.transferApi.clientCaFile`
+- Nginx forwards the verification result as
+  `X-Client-Cert-Verified`
+
+Operationally, this means:
+
+- transfer intake must be behind HTTPS
+- transfer intake must be behind Nginx client-certificate verification
+- sender nodes must present a client certificate trusted by the configured CA
+- plain shared-secret authentication alone is not enough for transfer-enabled
+  hub deployments
+
+This is still Phase 1 of the security roadmap:
+
+- transport confidentiality and node authentication are enforced through TLS
+  and mTLS
+- request authentication still uses `NetworkNode.shared_secret`
+- exported artifacts are not yet envelope-encrypted at the application layer
+
 ## Deployment
 
 1. Copy the built wheel from CI to the server.
@@ -101,6 +214,16 @@ sudo chown -R lx-annotate:lx-annotate /var/lib/lx-annotate
 ```bash
 ./deploy/deploy.sh /tmp/lx_annotate-0.0.1-py3-none-any.whl
 ```
+
+That script now runs `deploy/acceptance-smoke.sh` by default after the service
+restart. The smoke path verifies:
+
+- Django runtime checks with the production environment
+- encrypted-storage round-trip without plaintext on disk
+- Nginx TLS/static handoff by fetching `/static/.vite/manifest.json`
+
+Set `RUN_POST_DEPLOY_ACCEPTANCE=0` only when you need to separate rollout from
+acceptance debugging.
 
 6. Put a reverse proxy in front of Daphne. An example Nginx server block lives
    in `deploy/nginx-lx-annotate.conf`.
@@ -136,6 +259,10 @@ The shipped service units currently assume:
 `/var/lib/lx-annotate/.env.systemd` file and both require write access to
 `/var/lib/lx-annotate`.
 
+The watcher unit and the web unit are intentionally separate processes, but
+they are not allowed to diverge in ingest semantics. They share the same
+runtime environment and the same upstream hub ingest contract.
+
 In LuxNix-managed environments, SAP drops are also wired into the runtime data
 tree:
 
@@ -148,6 +275,55 @@ The SAP unit runs `manage.py import_sap_ish_zip ... --output_dir ...` and
 converts supported SAP IS-H `.zip` bundles into watcher-compatible
 preanonymized `.txt` plus `.json` sidecar pairs. Those generated files then
 feed the normal preanonymized watcher ingest path.
+
+## LuxNix Permission Contract
+
+The current LuxNix service definitions are broadly aligned with the application
+readiness checks:
+
+- `/protected_media/` is aliased to the protected storage root
+- the service process runs with `LD_LIBRARY_PATH` set for NumPy/video runtime
+  dependencies
+- the protected runtime root, storage root, and streamable roots are created
+  with service-user ownership and restrictive modes
+- Nginx is added to the service group so protected media can be served without
+  exposing the storage tree publicly
+
+Observed LuxNix runtime modes:
+
+- protected runtime root: `0750`
+- managed storage root: `0750`
+- streamable video roots: `0750`
+- import root: `0770`
+- static/runtime frontend output: `0775`
+
+Minimum required process access:
+
+- watcher service user: read, write, execute on `${IO_DIR}` and its import
+  subdirectories; read, write, execute on `${STORAGE_DIR}` and streamable roots
+- web application service user: read, write, execute on `${STORAGE_DIR}`,
+  streamable roots, and protected runtime roots
+- Nginx worker user: execute on parent directories and read on
+  `${PROTECTED_MEDIA_ROOT}` through shared group membership only
+
+LuxNix gap identified by the audit:
+
+- the main roots are provisioned correctly, but watcher-facing import
+  subdirectories are not all created eagerly by `tmpfiles` or the main boot
+  pre-start step
+- in particular, `${IO_DIR}/import/video_import/`,
+  `${IO_DIR}/import/report_import/`, and related SAP/preanonymized directories
+  should be created explicitly rather than relying on first-touch behavior from
+  helper scripts
+
+Operational recommendation:
+
+- provision `${IO_DIR}/import/` and all watcher/SAP subdirectories explicitly
+  in LuxNix with stable ownership and modes before the watcher starts
+- keep `${STORAGE_DIR}` and `${LX_ANNOTATE_STREAMABLE_VIDEO_ROOT}` on the same
+  filesystem when atomic move semantics are expected
+- treat any missing import subtree as a failed deployment, not as a recoverable
+  runtime surprise
 
 ## Data Recovery Behavior
 
@@ -198,6 +374,10 @@ deployments.
 Run the file watcher as a separate `systemd` unit. A corrupted media file or
 OOM in the watcher must not take down Daphne. The supplied
 `deploy/lx-annotate-watcher.service` keeps that blast radius separate.
+
+That isolation is operational only. Ingest logic, provenance, and cleanup
+policy still live in the shared core package and should not be reimplemented in
+the watcher unit.
 
 ## Auth Caveat
 

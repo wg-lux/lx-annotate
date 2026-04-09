@@ -640,7 +640,7 @@
                     error.value = ''
                     
                     // Call the backend safety check endpoint
-                    const response = await fetch(`/api/patients/${props.patient.id}/check_deletion_safety/`)
+                    const response = await fetch(`/api/${endpoints.patient.patientDeletionSafety(props.patient.id!)}`)
                     if (!response.ok) {
                       throw new Error('Fehler beim Prüfen der Löschbarkeit')
                     }
@@ -734,7 +734,7 @@
                     generatingPseudonym.value = true
                     error.value = ''
                     
-                    const response = await fetch(`/api/patients/${props.patient.id}/pseudonym/`, {
+                    const response = await fetch(`/api/${endpoints.patient.patientPseudonym(props.patient.id!)}`, {
                       method: 'POST',
                       headers: {
                         'Content-Type': 'application/json',
@@ -783,7 +783,7 @@
                     
                     // For regeneration, we call the same endpoint since it will return existing hash if already generated
                     // To force regeneration, we could add a query parameter, but for now just call the same endpoint
-                    const response = await fetch(`/api/patients/${props.patient.id}/pseudonym/`, {
+                    const response = await fetch(`/api/${endpoints.patient.patientPseudonym(props.patient.id!)}`, {
                       method: 'POST',
                       headers: {
                         'Content-Type': 'application/json',
@@ -1095,6 +1095,7 @@ import { usePatientStore, type Patient, type Gender, type Center } from '@/store
 import { patientService, generatePatientPseudonym } from '@/api/patientService'
 import PatientEditForm from './PatientEditForm.vue'
 import axiosInstance from '@/api/axiosInstance'
+import { endpoints } from '@/types/api/endpoints'
 
 // Props
 interface Props {
@@ -1142,7 +1143,7 @@ const checkDeletionSafety = async () => {
     const patientId = patientStore.resolveCurrentPatientId(currentPatient.id, true)!
     
     // Use axiosInstance instead of fetch
-    const response = await axiosInstance.get(`/api/patients/${patientId}/check_deletion_safety/`)
+    const response = await axiosInstance.get(`/api/${endpoints.patient.patientDeletionSafety(patientId)}`)
     
     deletionCheck.value = response.data
     showDeletionModal.value = true

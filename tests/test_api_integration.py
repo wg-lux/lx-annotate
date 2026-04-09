@@ -10,7 +10,9 @@ from datetime import date
 from unittest.mock import patch
 
 from django.contrib.auth.models import User
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase
+from django.test.utils import override_settings
 
 # Import der relevanten Modelle - entsprechend der aktuellen Struktur
 from endoreg_db.models import (
@@ -21,6 +23,7 @@ from endoreg_db.models import (
     Gender,
     Label,
     Patient,
+    UploadJob,
     VideoFile,
 )
 from rest_framework import status
@@ -51,6 +54,9 @@ class APIIntegrationTestCase(APITestCase):
 
         self.center, _ = Center.objects.get_or_create(
             name="Test Center",
+        )
+        self.other_center, _ = Center.objects.get_or_create(
+            name="Other Test Center",
         )
 
         # Test-Patient erstellen
@@ -121,7 +127,7 @@ class PatientAPITests(APIIntegrationTestCase):
             "last_name": "Schmidt",
             "dob": "1985-05-15",
             "gender": "female",
-            "center": "Test Center",
+            "center_key": self.center.center_key,
             "email": "anna.schmidt@example.com",
             "is_real_person": False,
         }
@@ -132,6 +138,7 @@ class PatientAPITests(APIIntegrationTestCase):
         self.assertEqual(response.data["first_name"], "Anna")
         self.assertEqual(response.data["last_name"], "Schmidt")
         self.assertEqual(response.data["gender"], "female")
+        self.assertEqual(response.data["center_key"], self.center.center_key)
 
         # Prüfen, ob Patient in der Datenbank erstellt wurde
         self.assertTrue(
@@ -155,6 +162,61 @@ class PatientAPITests(APIIntegrationTestCase):
         # Prüfen, ob Änderungen in der Datenbank gespeichert wurden
         updated_patient = Patient.objects.get(id=self.patient.id)
         self.assertEqual(updated_patient.first_name, "Maximilian")
+
+    def test_create_patient_accepts_center_key(self):
+        """Test: Neuer Patient kann mit center_key erstellt werden."""
+        url = "/api/patients/"
+        patient_data = {
+            "first_name": "Clara",
+            "last_name": "Keyed",
+            "dob": "1992-07-12",
+            "gender": "female",
+            "center_key": self.center.center_key,
+            "email": "clara.keyed@example.com",
+            "is_real_person": False,
+        }
+
+        response = self.client.post(url, patient_data, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["first_name"], "Clara")
+        self.assertEqual(response.data["center"], self.center.name)
+        self.assertEqual(response.data["center_key"], self.center.center_key)
+
+        patient = Patient.objects.get(first_name="Clara", last_name="Keyed")
+        self.assertEqual(patient.center_id, self.center.id)
+
+    def test_update_patient_accepts_center_key(self):
+        """Test: Patient kann per center_key auf anderes Zentrum umgezogen werden."""
+        url = f"/api/patients/{self.patient.id}/"
+        update_data = {
+            "center_key": self.other_center.center_key,
+        }
+
+        response = self.client.patch(url, update_data, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["center"], self.other_center.name)
+        self.assertEqual(response.data["center_key"], self.other_center.center_key)
+
+        updated_patient = Patient.objects.get(id=self.patient.id)
+        self.assertEqual(updated_patient.center_id, self.other_center.id)
+
+    def test_create_patient_rejects_legacy_center_name_writes(self):
+        """Test: center name is display-only and cannot be used for write operations."""
+        url = "/api/patients/"
+        patient_data = {
+            "first_name": "Nina",
+            "last_name": "Legacy",
+            "gender": "female",
+            "center": self.center.name,
+            "is_real_person": False,
+        }
+
+        response = self.client.post(url, patient_data, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("center_key", response.data)
 
     def test_delete_patient(self):
         """Test: Patienten löschen"""
@@ -204,6 +266,191 @@ class ExaminationAPITests(APIIntegrationTestCase):
         self.assertIn(
             response.status_code, [status.HTTP_200_OK, status.HTTP_404_NOT_FOUND]
         )
+
+
+class UploadJobAPITests(APIIntegrationTestCase):
+    """Tests für UploadJob-Erstellung, Status und Scope-Verhalten."""
+
+    def _pdf_upload(self, name: str = "report.pdf", payload: bytes | None = None):
+        return SimpleUploadedFile(
+            name,
+            payload or b"%PDF-1.4 test payload\n",
+            content_type="application/pdf",
+        )
+
+    @patch("endoreg_db.views.misc.upload_views.start_upload_job_processing")
+    def test_upload_accepts_valid_center_key(self, mock_start_processing):
+        url = "/api/upload/"
+        response = self.client.post(
+            url,
+            {
+                "file": self._pdf_upload(),
+                "center_key": self.center.center_key,
+                "source_system": "test-client",
+            },
+            format="multipart",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertIn("upload_id", response.data)
+        self.assertIn("status_url", response.data)
+
+        upload_job = UploadJob.objects.get(id=response.data["upload_id"])
+        self.assertEqual(upload_job.source_center_id, self.center.id)
+        self.assertEqual(upload_job.source_center.center_key, self.center.center_key)
+        self.assertEqual(upload_job.source_system, "test-client")
+        self.assertEqual(upload_job.ingest_mode, UploadJob.IngestMode.API)
+        mock_start_processing.assert_called_once()
+
+    def test_upload_rejects_invalid_center_key(self):
+        url = "/api/upload/"
+        response = self.client.post(
+            url,
+            {
+                "file": self._pdf_upload(),
+                "center_key": "missing-center-key",
+            },
+            format="multipart",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("error", response.data)
+        self.assertIn("Unknown center_key", response.data["error"])
+
+    @patch("endoreg_db.views.misc.upload_views.resolve_api_upload_context")
+    def test_upload_rejects_center_outside_authenticated_scope(
+        self, mock_allowed_center
+    ):
+        mock_allowed_center.return_value = (
+            None,
+            self.center.id,
+            "Upload center is outside the authenticated scope",
+            {"hub_mode": False},
+        )
+
+        url = "/api/upload/"
+        response = self.client.post(
+            url,
+            {
+                "file": self._pdf_upload(),
+                "center_key": self.other_center.center_key,
+            },
+            format="multipart",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertIn("error", response.data)
+        self.assertIn("outside the authenticated scope", response.data["error"])
+
+    @patch("endoreg_db.views.misc.upload_views.start_upload_job_processing")
+    def test_upload_reuses_job_for_same_idempotency_key(self, mock_start_processing):
+        url = "/api/upload/"
+        headers = {"HTTP_IDEMPOTENCY_KEY": "same-logical-upload"}
+        payload = {
+            "center_key": self.center.center_key,
+            "source_system": "test-client",
+        }
+
+        first = self.client.post(
+            url,
+            {"file": self._pdf_upload(payload=b"%PDF first\n"), **payload},
+            format="multipart",
+            **headers,
+        )
+        second = self.client.post(
+            url,
+            {"file": self._pdf_upload(payload=b"%PDF second\n"), **payload},
+            format="multipart",
+            **headers,
+        )
+
+        self.assertEqual(first.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(second.status_code, status.HTTP_200_OK)
+        self.assertEqual(first.data["upload_id"], second.data["upload_id"])
+        self.assertEqual(
+            UploadJob.objects.filter(
+                idempotency_key="same-logical-upload",
+                source_center=self.center,
+                source_system="test-client",
+                ingest_mode=UploadJob.IngestMode.API,
+            ).count(),
+            1,
+        )
+        mock_start_processing.assert_called_once()
+
+    @patch("endoreg_db.views.misc.upload_views.resolve_allowed_center_id")
+    def test_upload_status_enforces_center_scope(self, mock_allowed_center):
+        mock_allowed_center.return_value = self.center.id
+        upload_job = UploadJob.objects.create(
+            file=self._pdf_upload(name="status.pdf"),
+            content_type="application/pdf",
+            source_center=self.other_center,
+            source_system="test-client",
+            ingest_mode=UploadJob.IngestMode.API,
+        )
+
+        response = self.client.get(f"/api/upload/{upload_job.id}/status/")
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    @override_settings(ENDOREG_HUB_MODE=True)
+    def test_hub_mode_rejects_unauthenticated_uploads(self):
+        response = self.client.post(
+            "/api/upload/",
+            {
+                "file": self._pdf_upload(),
+                "center_key": self.center.center_key,
+            },
+            format="multipart",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertIn("error", response.data)
+        self.assertIn("Authentication is required", response.data["error"])
+
+    @override_settings(ENDOREG_HUB_MODE=True)
+    def test_hub_mode_requires_declared_center_key(self):
+        self.client.force_authenticate(user=self.user)
+
+        response = self.client.post(
+            "/api/upload/",
+            {
+                "file": self._pdf_upload(),
+                "center_name": self.center.name,
+            },
+            format="multipart",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("error", response.data)
+        self.assertIn("center_key is required", response.data["error"])
+
+    @override_settings(ENDOREG_HUB_MODE=True)
+    @patch("endoreg_db.views.misc.upload_views.start_upload_job_processing")
+    def test_hub_mode_accepts_authenticated_upload_with_declared_center_key(
+        self, mock_start_processing
+    ):
+        self.client.force_authenticate(user=self.user)
+
+        response = self.client.post(
+            "/api/upload/",
+            {
+                "file": self._pdf_upload(),
+                "center_key": self.center.center_key,
+                "source_system": "hub-client",
+            },
+            format="multipart",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        upload_job = UploadJob.objects.get(id=response.data["upload_id"])
+        self.assertEqual(upload_job.source_center_id, self.center.id)
+        self.assertEqual(
+            upload_job.processing_provenance.get("resolved_center_key"),
+            self.center.center_key,
+        )
+        self.assertTrue(upload_job.processing_provenance.get("hub_mode"))
+        mock_start_processing.assert_called_once()
 
     def test_examination_findings_endpoint(self):
         """Test: Findings für eine Untersuchung abrufen"""

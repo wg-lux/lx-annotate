@@ -19,10 +19,12 @@ import requests
 from watchdog.events import FileCreatedEvent, FileMovedEvent, FileSystemEventHandler
 from watchdog.observers import Observer
 
-from endoreg_db.models import Center, EndoscopyProcessor
-from endoreg_db.services.hub import process_preanonymized_watcher_file
-from endoreg_db.services.report_import import ReportImportService
-from endoreg_db.services.video_import import VideoImportService
+from endoreg_db.models import Center, EndoscopyProcessor, VideoFile
+from endoreg_db.services.environment_readiness import assert_environment_readiness
+from endoreg_db.services.hub import (
+    process_preanonymized_watcher_file,
+    process_watcher_file,
+)
 from endoreg_db.utils.paths import data_paths
 from endoreg_db.utils.storage import ensure_local_file
 
@@ -86,9 +88,6 @@ logging.getLogger("watchdog.observers.inotify_buffer").setLevel(logging.WARNING)
 
 logger = logging.getLogger(__name__)
 
-video_import_service = VideoImportService()
-report_import_service = ReportImportService()
-
 INTAKE_VIDEO_DIR = data_paths["import_video"].resolve()
 INTAKE_REPORT_DIR = data_paths["import_report"].resolve()
 INTAKE_PREANONYMIZED_DIR = data_paths["import_preanonymized"].resolve()
@@ -151,64 +150,103 @@ def managed_media_temp_path(field_file, *, suffix: str | None = None) -> Iterato
         yield local_path
 
 
+def _resolve_center_by_key(center_key: str) -> Center:
+    center = Center.objects.filter(center_key=center_key).first()
+    if center is None:
+        raise ValueError(f"Unknown center_key for watcher ingest: {center_key}")
+    return center
+
+
+def _resolve_center_reference(center_reference: str) -> Center:
+    normalized_reference = str(center_reference or "").strip()
+    if not normalized_reference:
+        raise ValueError("Watcher default center reference must not be empty")
+
+    center = Center.objects.filter(center_key=normalized_reference).first()
+    if center is not None:
+        return center
+
+    center = Center.objects.filter(name=normalized_reference).first()
+    if center is not None:
+        logger.warning(
+            "Resolved LX_ANNOTATE_DEFAULT_CENTER via center name fallback; prefer center_key: %s",
+            normalized_reference,
+        )
+        return center
+
+    raise ValueError(
+        "Unknown LX_ANNOTATE_DEFAULT_CENTER value for watcher ingest: "
+        f"{normalized_reference}"
+    )
+
+
+def _normalize_center_reference(center_reference: str) -> str:
+    normalized_reference = str(center_reference or "").strip()
+    if not normalized_reference:
+        raise ValueError("Watcher default center reference must not be empty")
+    return normalized_reference
+
+
 class IntakeVideoImportService:
     """
-    Bridge from plaintext intake into the managed vault.
+    Compatibility shim for tests and legacy callers.
 
-    Intake files are allowed to be addressed by path because they are not yet
-    part of managed encrypted storage. As soon as the Django model is created,
-    all further managed-media access must go through storage-backed FieldFiles.
+    The actual watcher path now delegates to the shared hub ingest service.
     """
-
-    def __init__(self, service: VideoImportService):
-        self.service = service
 
     def import_from_intake(
         self,
         *,
         file_path: Path,
-        center_name: str,
+        center_key: str,
         processor_name: str,
         retry: bool = False,
     ):
+        if retry:
+            logger.debug(
+                "Retry flag ignored by watcher compatibility shim for %s", file_path
+            )
         if not is_intake_path(file_path):
             raise ValueError(f"Refusing to import non-intake video path: {file_path}")
-        return self.service.import_and_anonymize(
+        center = _resolve_center_by_key(center_key)
+        return process_watcher_file(
             file_path=file_path,
-            center_name=center_name,
+            file_type="video",
+            center=center,
             processor_name=processor_name,
-            retry=retry,
-            delete_source=False,
+            source_system="watcher",
         )
 
 
 class IntakeReportImportService:
     """
-    Bridge from plaintext report intake into the managed vault.
+    Compatibility shim for tests and legacy callers.
     """
-
-    def __init__(self, service: ReportImportService):
-        self.service = service
 
     def import_from_intake(
         self,
         *,
         file_path: Path,
-        center_name: str,
+        center_key: str,
         retry: bool = False,
     ):
+        if retry:
+            logger.debug(
+                "Retry flag ignored by watcher compatibility shim for %s", file_path
+            )
         if not is_intake_path(file_path):
             raise ValueError(f"Refusing to import non-intake report path: {file_path}")
-        return self.service.import_and_anonymize(
+        center = _resolve_center_by_key(center_key)
+        return process_watcher_file(
             file_path=file_path,
-            center_name=center_name,
-            retry=retry,
-            delete_source=False,
+            file_type="report",
+            center=center,
+            source_system="watcher",
         )
 
 
-intake_video_import_service = IntakeVideoImportService(video_import_service)
-intake_report_import_service = IntakeReportImportService(report_import_service)
+intake_video_import_service = IntakeVideoImportService()
+intake_report_import_service = IntakeReportImportService()
 
 
 def unload_ollama_model(model_name: str = "llama3.2:1b") -> None:
@@ -250,7 +288,16 @@ class AutoProcessingHandler(FileSystemEventHandler):
         self.report_extensions = {".pdf"}
         self.pseudonymized_extensions = {".pdf", ".mp4"}
 
-        self.default_center = "university_hospital_wuerzburg"
+        configured_default_center = os.getenv(
+            "LX_ANNOTATE_DEFAULT_CENTER",
+            "university-hospital-wuerzburg",
+        )
+        # Keep handler construction side-effect free for file watcher tests and
+        # lazy service wiring. Resolve the configured center only at ingest time.
+        self.default_center_reference = _normalize_center_reference(
+            configured_default_center
+        )
+        self.default_center_key = self.default_center_reference
         self.default_processor = "olympus_cv_1500"
         self.default_model = "image_multilabel_classification_colonoscopy_default"
 
@@ -265,7 +312,16 @@ class AutoProcessingHandler(FileSystemEventHandler):
         logger.info(
             "Monitoring pseudonymized extensions: %s", self.pseudonymized_extensions
         )
+        logger.info(
+            "Default watcher center reference: %s", self.default_center_reference
+        )
         logger.info("Pseudonymized intake directory: %s", self.pseudonymized_dir)
+
+    def _resolve_default_center(self) -> Center:
+        try:
+            return _resolve_center_by_key(self.default_center_key)
+        except ValueError:
+            return _resolve_center_reference(self.default_center_reference)
 
     def dispatch(self, event):  # type: ignore[override]
         if event.is_directory:
@@ -404,7 +460,6 @@ class AutoProcessingHandler(FileSystemEventHandler):
     def _process_video(self, video_path: Path) -> None:
         try:
             logger.info("Starting video processing: %s", video_path)
-            video_file = None
             self._mark_processed(str(video_path))
             if not is_intake_path(video_path):
                 raise ValueError(
@@ -435,15 +490,29 @@ class AutoProcessingHandler(FileSystemEventHandler):
                 )
 
             try:
-                video_file = intake_video_import_service.import_from_intake(
+                source_center = self._resolve_default_center()
+                upload_job = process_watcher_file(
                     file_path=video_path,
-                    center_name=self.default_center,
+                    file_type="video",
+                    center=source_center,
                     processor_name=self.default_processor,
-                    retry=False,
+                    source_system="watcher",
+                )
+                video_hash = str(getattr(upload_job, "content_hash", "") or "").strip()
+                if not video_hash:
+                    provenance = (
+                        getattr(upload_job, "processing_provenance", None) or {}
+                    )
+                    video_hash = str(provenance.get("content_hash", "")).strip()
+                video_file = (
+                    VideoFile.objects.filter(video_hash=video_hash).first()
+                    if video_hash
+                    else None
                 )
                 if video_file is None:
-                    logger.info(
-                        "Video import skipped (already being processed): %s", video_path
+                    logger.warning(
+                        "Watcher upload job completed but no VideoFile could be resolved for %s",
+                        video_path,
                     )
                     return
                 if not video_file.sensitive_meta:
@@ -451,7 +520,10 @@ class AutoProcessingHandler(FileSystemEventHandler):
                         "Video imported but no SensitiveMeta created: %s",
                         video_file.video_hash,
                     )
-                logger.info("Video imported successfully: %s", video_file.video_hash)
+                logger.info(
+                    "Video imported through shared hub ingest: %s",
+                    video_file.video_hash,
+                )
             except Exception as import_error:
                 error_msg = str(import_error)
                 if (
@@ -551,12 +623,18 @@ class AutoProcessingHandler(FileSystemEventHandler):
                         f"Storage root does not exist: {storage_root_path}"
                     )
 
-                raw_report = intake_report_import_service.import_from_intake(
+                source_center = self._resolve_default_center()
+                upload_job = process_watcher_file(
                     file_path=report_path,
-                    center_name=self.default_center,
+                    file_type="report",
+                    center=source_center,
+                    source_system="watcher",
                 )
-                if raw_report:
-                    logger.info("report imported successfully: %s", raw_report.pdf_hash)
+                if upload_job.is_successful:
+                    logger.info(
+                        "Report imported through shared hub ingest: %s",
+                        upload_job.id,
+                    )
                     try:
                         if report_path.exists():
                             report_path.unlink()
@@ -566,7 +644,7 @@ class AutoProcessingHandler(FileSystemEventHandler):
                         )
                 else:
                     logger.info(
-                        "report import skipped (already being processed): %s",
+                        "Report import skipped (already being processed): %s",
                         report_path,
                     )
                     self._unmark_processed(str(report_path))
@@ -668,6 +746,7 @@ class FileWatcherService:
         from django.db import connection
 
         connection.ensure_connection()
+        assert_environment_readiness()
         Center.objects.first()
         EndoscopyProcessor.objects.first()
         logger.info("Django setup validation successful")

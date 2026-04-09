@@ -1,6 +1,7 @@
 import { ref, computed, reactive, onMounted } from 'vue';
 import { usePatientStore } from '@/stores/patientStore';
 import { patientService } from '@/api/patientService';
+import { endpoints } from '@/types/api/endpoints';
 const props = defineProps();
 const emit = defineEmits();
 // Composables
@@ -19,6 +20,7 @@ const form = reactive({
     dob: props.patient.dob ? props.patient.dob.split('T')[0] : null,
     gender: props.patient.gender || null,
     center: props.patient.center || null,
+    centerKey: props.patient.centerKey || props.patient.center || null,
     email: props.patient.email || '',
     phone: props.patient.phone || '',
     patientHash: props.patient.patientHash || '',
@@ -132,7 +134,7 @@ const confirmDelete = async () => {
 const loadDeletionInfo = async () => {
     try {
         // This would call the safety check endpoint to get deletion impact
-        const response = await fetch(`/api/patients/${props.patient.id}/check_deletion_safety/`);
+        const response = await fetch(`/api/${endpoints.patient.patientDeletionSafety(props.patient.id)}`);
         if (response.ok) {
             const data = await response.json();
             deletionInfo.value = data.related_objects;
@@ -345,7 +347,7 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
     id: "center",
-    value: (__VLS_ctx.form.center),
+    value: (__VLS_ctx.form.centerKey),
     ...{ class: "form-select" },
     ...{ class: ({ 'is-invalid': __VLS_ctx.errors.center }) },
 });
@@ -355,7 +357,7 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElement
 for (const [center] of __VLS_getVForSourceType((__VLS_ctx.centers))) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
         key: (center.id),
-        value: (center.name),
+        value: (center.centerKey || center.name),
     });
     (center.nameDe || center.name);
 }

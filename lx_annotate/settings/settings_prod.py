@@ -234,13 +234,4 @@ USE_X_FORWARDED_HOST = True
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 
-# Ensure Nginx can read these
-MEDIA_ROOT = Path(
-    os.environ.get(
-        "LX_ANNOTATE_ENCRYPTED_DATA_DIR",
-        os.environ.get("LX_ANNOTATE_DATA_DIR", BASE_DIR / "media"),
-    )
-)
-
-
 print("🔐 PRODUCTION SETTINGS LOADED")

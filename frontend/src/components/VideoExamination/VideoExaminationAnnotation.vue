@@ -827,10 +827,9 @@ watch(
 // Video streaming URL using MediaStore logic like AnonymizationValidationComponent
 const anonymizedVideoSrc = computed(() => {
   if (!selectedVideoId.value) return undefined;
-  
-  // Build anonymized video URL with explicit processed parameter like AnonymizationValidationComponent
-  const base = import.meta.env.VITE_API_BASE_URL || window.location.origin;
-  return `${base}/api/media/videos/${selectedVideoId.value}/?type=processed`;
+
+  const base = (import.meta.env.VITE_API_BASE_URL || window.location.origin).replace(/\/$/, '');
+  return `${base}/api/${endpoints.media.videoStream(selectedVideoId.value)}?type=processed`;
 })
 
 const hasVideos = computed(() => {

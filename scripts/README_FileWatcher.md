@@ -6,7 +6,7 @@ This document covers the automatic media ingestion watcher used by LX-Annotate.
 
 Primary service:
 
-- `scripts/file_watcher.py`
+- `python manage.py start_filewatcher`
 - Watches incoming files and triggers processing via Django services
 
 Supported monitored inputs (via project data paths):
@@ -37,7 +37,7 @@ Start in development mode:
 Run watcher directly:
 
 ```bash
-python scripts/file_watcher.py
+python manage.py start_filewatcher
 ```
 
 ## `start_filewatcher.sh` Commands

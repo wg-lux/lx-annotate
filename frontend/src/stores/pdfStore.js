@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
+import { endpoints } from '@/types/api/endpoints';
 export const usePdfStore = defineStore('pdf', () => {
     // State
     const currentPdf = ref(null);
@@ -23,7 +24,7 @@ export const usePdfStore = defineStore('pdf', () => {
      * URL pattern: /api/media/pdfs/<pdf_id>/stream
      */
     function buildPdfStreamUrl(pdfId) {
-        return `/api/media/pdfs/${pdfId}/stream`;
+        return `/api/${endpoints.media.pdfStream(pdfId)}`;
     }
     /**
      * Fetch the next PDF for annotation from the queue
@@ -37,7 +38,7 @@ export const usePdfStore = defineStore('pdf', () => {
         error.value = null;
         try {
             // Use Modern Framework anonymization overview endpoint
-            const response = await fetch('/api/anonymization/items/overview/');
+            const response = await fetch(`/api/${endpoints.anonymization.itemsOverview}`);
             if (!response.ok) {
                 throw new Error(`Failed to fetch overview: ${response.status}`);
             }
@@ -91,7 +92,7 @@ export const usePdfStore = defineStore('pdf', () => {
         error.value = null;
         try {
             // Use Modern Framework sensitive metadata endpoint
-            const response = await fetch(`/api/media/pdfs/${pdfId}/sensitive-metadata/`, {
+            const response = await fetch(`/api/${endpoints.media.pdfSensitiveMetadata(pdfId)}`, {
                 method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json',
@@ -131,7 +132,7 @@ export const usePdfStore = defineStore('pdf', () => {
         error.value = null;
         try {
             // Use Modern Framework sensitive metadata endpoint for anonymized text
-            const response = await fetch(`/api/media/pdfs/${pdfId}/sensitive-metadata/`, {
+            const response = await fetch(`/api/${endpoints.media.pdfSensitiveMetadata(pdfId)}`, {
                 method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json',
@@ -170,7 +171,7 @@ export const usePdfStore = defineStore('pdf', () => {
         error.value = null;
         try {
             // Use Modern Framework anonymization validate endpoint
-            const response = await fetch(`/api/anonymization/${pdfId}/validate/`, {
+            const response = await fetch(`/api/${endpoints.anonymization.validate(pdfId)}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -216,7 +217,7 @@ export const usePdfStore = defineStore('pdf', () => {
     async function checkAnonymizationStatus(pdfId) {
         try {
             // Use Modern Framework anonymization status endpoint
-            const response = await fetch(`/api/anonymization/${pdfId}/status/`);
+            const response = await fetch(`/api/${endpoints.anonymization.status(pdfId)}`);
             if (!response.ok) {
                 throw new Error(`Failed to check status: ${response.status}`);
             }

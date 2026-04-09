@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { Patient, PatientFormData, Gender, Center } from '@/api/patientService'
 import axiosInstance from '@/api/axiosInstance'
+import { endpoints } from '@/types/api/endpoints'
 
 // Re-export types for easier access
 export type { Patient, PatientFormData, Gender, Center } from '@/api/patientService'
@@ -38,7 +39,7 @@ export const usePatientStore = defineStore('patient', () => {
         try {
             loading.value = true
             error.value = null
-            const response = await axiosInstance.get('/api/patients/')
+            const response = await axiosInstance.get(`/api/${endpoints.patient.patients}`)
             patients.value = response.data.results || response.data
         } catch (err: any) {
             error.value = 'Fehler beim Laden der Patienten: ' + (err.response?.data?.detail || err.message)
@@ -50,7 +51,7 @@ export const usePatientStore = defineStore('patient', () => {
 
     const fetchGenders = async () => {
         try {
-            const response = await axiosInstance.get('/api/genders/')
+            const response = await axiosInstance.get(`/api/${endpoints.patient.genders}`)
             genders.value = response.data.results || response.data
         } catch (err: any) {
             console.error('Fetch genders error:', err)
@@ -60,7 +61,7 @@ export const usePatientStore = defineStore('patient', () => {
 
     const fetchCenters = async () => {
         try {
-            const response = await axiosInstance.get('/api/centers/')
+            const response = await axiosInstance.get(`/api/${endpoints.patient.centers}`)
             centers.value = response.data.results || response.data
         } catch (err: any) {
             console.error('Fetch centers error:', err)
@@ -79,7 +80,7 @@ export const usePatientStore = defineStore('patient', () => {
         try {
             loading.value = true
             error.value = null
-            const response = await axiosInstance.post('/api/patients/', patientData)
+            const response = await axiosInstance.post(`/api/${endpoints.patient.patients}`, patientData)
             const newPatient = response.data
             patients.value.push(newPatient)
             return newPatient
@@ -95,7 +96,7 @@ export const usePatientStore = defineStore('patient', () => {
         try {
             loading.value = true
             error.value = null
-            const response = await axiosInstance.put(`/api/patients/${id}/`, patientData)
+            const response = await axiosInstance.put(`/api/${endpoints.patient.patientById(id)}`, patientData)
             const updatedPatient = response.data
             const index = patients.value.findIndex(p => p.id === id)
             if (index !== -1) {
@@ -114,7 +115,7 @@ export const usePatientStore = defineStore('patient', () => {
         try {
             loading.value = true
             error.value = null
-            await axiosInstance.delete(`/api/patients/${id}/`)
+            await axiosInstance.delete(`/api/${endpoints.patient.patientById(id)}`)
             patients.value = patients.value.filter(p => p.id !== id)
         } catch (err: any) {
             error.value = err.response?.data?.detail || 'Fehler beim Löschen des Patienten'
@@ -155,10 +156,12 @@ export const usePatientStore = defineStore('patient', () => {
         return gender?.nameDe || gender?.name || genderName
     }
 
-    const getCenterDisplayName = (centerName: string | null | undefined): string => {
-        if (!centerName) return 'Kein Zentrum'
-        const center = centers.value.find(c => c.name === centerName)
-        return center?.nameDe || center?.name || centerName
+    const getCenterDisplayName = (centerIdentifier: string | null | undefined): string => {
+        if (!centerIdentifier) return 'Kein Zentrum'
+        const center = centers.value.find(
+            c => c.name === centerIdentifier || c.centerKey === centerIdentifier
+        )
+        return center?.nameDe || center?.name || centerIdentifier
     }
 
     const validatePatientForm = (formData: PatientFormData) => {
@@ -190,7 +193,8 @@ export const usePatientStore = defineStore('patient', () => {
             lastName: formData.lastName?.trim(),
             dob: formData.dob || null,
             gender: formData.gender || null,
-            center: formData.center || null,
+            center: formData.centerKey ? null : (formData.center || null),
+            centerKey: formData.centerKey || null,
             email: formData.email?.trim() || '',
             phone: formData.phone?.trim() || '',
             patientHash: formData.patientHash?.trim() || '',

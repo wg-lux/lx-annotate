@@ -46,7 +46,7 @@ def _ensure_required_runtime_packages() -> None:
         raise ImportError(
             "Required package 'endoreg_db' is not installed in the active Python "
             "environment. Install the packaged dependency instead of relying on a "
-            "repo-local libs/endoreg-db checkout."
+            "repo-local checkout."
         )
 
 

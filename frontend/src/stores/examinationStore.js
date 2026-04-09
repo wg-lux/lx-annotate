@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 import axiosInstance from '@/api/axiosInstance';
 import { findingsApi, parseFindingsApiError } from '@/api/findingsApi';
+import { endpoints } from '@/types/api/endpoints';
 import { getCoreConceptDisplayName } from '@/types/coreConcepts';
 export const useExaminationStore = defineStore('examination', {
     state: () => ({
@@ -49,7 +50,7 @@ export const useExaminationStore = defineStore('examination', {
             this.loading = true;
             this.error = null;
             try {
-                const res = await axiosInstance.get('/api/examinations/');
+                const res = await axiosInstance.get(`/api/${endpoints.router.examinations}`);
                 // Normalize to Examination[]
                 this.exams = res.data.map((e) => ({
                     id: e.id,

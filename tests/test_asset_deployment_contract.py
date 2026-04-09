@@ -74,10 +74,30 @@ def test_django_vite_manifest_paths_match_static_root_contract(monkeypatch):
         in secretspec
     )
     assert (
+        'MEDIA_URL = { description = "Media URL", default = "/protected_media/" }'
+        in secretspec
+    )
+    assert (
+        'PROTECTED_MEDIA_ROOT = { description = "Protected media root for Nginx internal handoff", default = "data/storage" }'
+        in secretspec
+    )
+    assert (
+        'LX_ANNOTATE_STREAMABLE_VIDEO_ROOT = { description = "Root for streamable video storage", default = "data/storage/streamable_videos" }'
+        in secretspec
+    )
+    assert (
         'VITE_ENABLE_DEBUG = { description = "Frontend debug panels", default = "false" }'
         in secretspec
     )
     assert 'VITE_ENABLE_DEBUG = secret "VITE_ENABLE_DEBUG" "false";' in devenv_nix
+    assert (
+        "PROTECTED_MEDIA_ROOT = config.secretspec.secrets.PROTECTED_MEDIA_ROOT;"
+        in devenv_nix
+    )
+    assert (
+        "LX_ANNOTATE_STREAMABLE_VIDEO_ROOT = config.secretspec.secrets.LX_ANNOTATE_STREAMABLE_VIDEO_ROOT;"
+        in devenv_nix
+    )
 
 
 def test_runtime_guard_checks_manifest_and_entry_file_in_static_root():
@@ -209,6 +229,8 @@ def test_frontend_defaults_to_same_origin_api_contract():
     config_ts = _read("frontend/src/config/index.ts")
     axios_ts = _read("frontend/src/api/axiosInstance.ts")
     video_axios_ts = _read("frontend/src/api/videoAxiosInstance.ts")
+    endpoints_ts = _read("frontend/src/types/api/endpoints.ts")
+    findings_api_ts = _read("frontend/src/api/findingsApi.ts")
     correction_vue = _read(
         "frontend/src/components/Anonymizer/AnonymizationCorrectionComponent.vue"
     )
@@ -216,10 +238,94 @@ def test_frontend_defaults_to_same_origin_api_contract():
 
     assert "baseURL: import.meta.env.VITE_API_BASE_URL || '/'" in config_ts
     assert "baseURL: '/'," in axios_ts
-    assert ": '/api/media/videos/'" in video_axios_ts
+    assert "import { endpoints } from '@/types/api/endpoints'" in video_axios_ts
+    assert "endpoints.media.videos" in video_axios_ts
+    assert ": `/api/${endpoints.media.videos}`" in video_axios_ts
+    assert "videoStream: (pk: Id) => `media/videos/${pk}/stream/`" in endpoints_ts
+    assert "patientPseudonym: (id: Id) => `patients/${id}/pseudonym/`" in endpoints_ts
+    assert "import { endpoints } from '@/types/api/endpoints'" in findings_api_ts
+    assert "ENDOREG_PATHS = {" in findings_api_ts
+    assert "findings: `/api/${endpoints.router.findings}`" in findings_api_ts
+    assert (
+        "patientFindings: `/api/${endpoints.patient.patientFindings}`"
+        in findings_api_ts
+    )
     assert "window.location.origin" in correction_vue
     assert "http://localhost:8000" not in correction_vue
     assert "http://localhost:8000" not in error_logger
+
+
+def test_frontend_endpoint_contract_covers_patient_and_reporting_helpers():
+    endpoints_ts = _read("frontend/src/types/api/endpoints.ts")
+    patient_service_ts = _read("frontend/src/api/patientService.ts")
+    report_draft_api_ts = _read("frontend/src/api/reportDraftApi.ts")
+    reporting_timeline_api_ts = _read("frontend/src/api/reportingTimelineApi.ts")
+    dashboard_vue = _read("frontend/src/components/Dashboard/AnnotationDashboard.vue")
+    patient_detail_vue = _read("frontend/src/components/Patients/PatientDetailView.vue")
+    patient_edit_vue = _read("frontend/src/components/Patients/PatientEditForm.vue")
+    pseudonym_ts = _read("frontend/src/composables/usePseudonym.ts")
+
+    assert (
+        "patientDeletionSafety: (id: Id) => `patients/${id}/check_deletion_safety/`"
+        in endpoints_ts
+    )
+    assert (
+        "patientTimeline: (patientId: Id) => `media/patients/${patientId}/timeline/`"
+        in endpoints_ts
+    )
+    assert (
+        "patientExaminationDraft: (id: Id) => `patient-examinations/${id}/draft/`"
+        in endpoints_ts
+    )
+    assert "examinationById: (id: Id) => `examinations/${id}/`" in endpoints_ts
+
+    assert "import { endpoints } from '@/types/api/endpoints'" in patient_service_ts
+    assert (
+        "axiosInstance.post(r(endpoints.patient.patientPseudonym(id)))"
+        in patient_service_ts
+    )
+    assert "axiosInstance.get(r(endpoints.patient.patients))" in patient_service_ts
+    assert (
+        "axiosInstance.put(r(endpoints.patient.patientById(patientId)), patientData)"
+        in patient_service_ts
+    )
+    assert (
+        "axiosInstance.delete(r(endpoints.patient.patientById(patientId)))"
+        in patient_service_ts
+    )
+    assert "axiosInstance.get(r(endpoints.patient.genders))" in patient_service_ts
+    assert "axiosInstance.get(r(endpoints.patient.centers))" in patient_service_ts
+
+    assert (
+        "r(endpoints.examination.patientExaminationDraft(patientExaminationId))"
+        in report_draft_api_ts
+    )
+    assert (
+        "r(endpoints.examination.patientExaminationDraft(params.patientExaminationId))"
+        in report_draft_api_ts
+    )
+    assert (
+        "axiosInstance.get(r(endpoints.media.patientTimeline(params.patientId))"
+        in reporting_timeline_api_ts
+    )
+
+    assert "r(endpoints.media.videos)" in dashboard_vue
+    assert "r(endpoints.media.videoSegments(videoId))" in dashboard_vue
+    assert "endpoints.router.examinations" in dashboard_vue
+    assert "endpoints.media.pdfSensitiveMetadataList" in dashboard_vue
+    assert "endpoints.media.videoSegmentDetail(videoId, segment.id)" in dashboard_vue
+    assert "endpoints.router.examinationById(examination.id)" in dashboard_vue
+
+    assert (
+        "endpoints.patient.patientDeletionSafety(props.patient.id!)"
+        in patient_detail_vue
+    )
+    assert "endpoints.patient.patientPseudonym(props.patient.id!)" in patient_detail_vue
+    assert "endpoints.patient.patientDeletionSafety(patientId)" in patient_detail_vue
+    assert (
+        "endpoints.patient.patientDeletionSafety(props.patient.id!)" in patient_edit_vue
+    )
+    assert "endpoints.patient.patientPseudonym(patientId)" in pseudonym_ts
 
 
 def test_debug_surfaces_use_global_vite_debug_flag():

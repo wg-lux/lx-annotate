@@ -1,12 +1,13 @@
 import axiosInstance from '@/api/axiosInstance';
+import { endpoints } from '@/types/api/endpoints';
 import { normalizeFindingChoice, normalizeFindings, normalizeFindingClassification, normalizePatientFindingRow, normalizePatientFindingRows } from '@/api/findings.contract';
 const ENDOREG_PATHS = {
-    findings: '/api/findings/',
-    examinationFindings: (examinationId) => `/api/examinations/${examinationId}/findings/`,
-    findingClassifications: (findingId) => `/api/findings/${findingId}/classifications/`,
-    classificationChoices: (classificationId) => `/api/classifications/${classificationId}/choices/`,
-    patientFindings: '/api/patient-findings/',
-    patientFindingById: (patientFindingId) => `/api/patient-findings/${patientFindingId}/`
+    findings: `/api/${endpoints.router.findings}`,
+    examinationFindings: (examinationId) => `/api/${endpoints.examination.examinationFindings(examinationId)}`,
+    findingClassifications: (findingId) => `/api/${endpoints.examination.findingClassifications(findingId)}`,
+    classificationChoices: (classificationId) => `/api/${endpoints.examination.classificationChoices(classificationId)}`,
+    patientFindings: `/api/${endpoints.patient.patientFindings}`,
+    patientFindingById: (patientFindingId) => `/api/${endpoints.patient.patientFindingById(patientFindingId)}`
 };
 const DTYPES_PATHS = {
     examinationFindings: (examinationId) => `/base_api/examinations/${examinationId}/findings/`,

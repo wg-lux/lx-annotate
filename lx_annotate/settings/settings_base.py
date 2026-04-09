@@ -40,12 +40,82 @@ APP_DATA_DIR.mkdir(parents=True, exist_ok=True)
 APP_STORAGE_DIR = APP_DATA_DIR / "storage"
 APP_IO_DIR = APP_DATA_DIR
 APP_STORAGE_DIR.mkdir(parents=True, exist_ok=True)
+
+PROTECTED_MEDIA_URL = (
+    str(os.getenv("NGINX_PROTECTED_MEDIA_URL", "/protected_media/") or "").strip()
+    or "/protected_media/"
+)
+_configured_protected_media_root = str(
+    os.getenv("PROTECTED_MEDIA_ROOT", str(APP_STORAGE_DIR)) or ""
+).strip() or str(APP_STORAGE_DIR)
+PROTECTED_MEDIA_ROOT = Path(_configured_protected_media_root).expanduser().resolve()
+try:
+    PROTECTED_MEDIA_ROOT.relative_to(APP_DATA_DIR)
+except ValueError:
+    logger.warning(
+        "Configured PROTECTED_MEDIA_ROOT '%s' resolves outside protected root '%s'. "
+        "Falling back to '%s'.",
+        PROTECTED_MEDIA_ROOT,
+        APP_DATA_DIR,
+        APP_STORAGE_DIR,
+    )
+    PROTECTED_MEDIA_ROOT = APP_STORAGE_DIR.resolve()
+PROTECTED_MEDIA_ROOT.mkdir(parents=True, exist_ok=True)
+
+STREAMABLE_VIDEO_ROOT = (
+    Path(
+        os.getenv(
+            "LX_ANNOTATE_STREAMABLE_VIDEO_ROOT",
+            str(APP_STORAGE_DIR / "streamable_videos"),
+        )
+    )
+    .expanduser()
+    .resolve()
+)
+STREAMABLE_RAW_VIDEO_ROOT = (
+    Path(
+        os.getenv(
+            "LX_ANNOTATE_STREAMABLE_VIDEO_RAW_ROOT",
+            str(STREAMABLE_VIDEO_ROOT / "raw"),
+        )
+    )
+    .expanduser()
+    .resolve()
+)
+STREAMABLE_PROCESSED_VIDEO_ROOT = (
+    Path(
+        os.getenv(
+            "LX_ANNOTATE_STREAMABLE_VIDEO_PROCESSED_ROOT",
+            str(STREAMABLE_VIDEO_ROOT / "processed"),
+        )
+    )
+    .expanduser()
+    .resolve()
+)
+for _path in (
+    STREAMABLE_VIDEO_ROOT,
+    STREAMABLE_RAW_VIDEO_ROOT,
+    STREAMABLE_PROCESSED_VIDEO_ROOT,
+):
+    _path.mkdir(parents=True, exist_ok=True)
+
 # Defaults for safe dev settings and fallback in case of non expected service deployment
 os.environ.setdefault("LX_ANNOTATE_DATA_DIR", str(APP_DATA_DIR))
 os.environ.setdefault("DATA_DIR", str(APP_DATA_DIR))
 os.environ.setdefault("LX_ANNOTATE_ENCRYPTED_DATA_DIR", str(APP_DATA_DIR))
 os.environ.setdefault("STORAGE_DIR", str(APP_STORAGE_DIR))
 os.environ.setdefault("IO_DIR", str(APP_IO_DIR))
+os.environ.setdefault("NGINX_PROTECTED_MEDIA_URL", PROTECTED_MEDIA_URL)
+os.environ["PROTECTED_MEDIA_ROOT"] = str(PROTECTED_MEDIA_ROOT)
+os.environ.setdefault("LX_ANNOTATE_STREAMABLE_VIDEO_ROOT", str(STREAMABLE_VIDEO_ROOT))
+os.environ.setdefault(
+    "LX_ANNOTATE_STREAMABLE_VIDEO_RAW_ROOT",
+    str(STREAMABLE_RAW_VIDEO_ROOT),
+)
+os.environ.setdefault(
+    "LX_ANNOTATE_STREAMABLE_VIDEO_PROCESSED_ROOT",
+    str(STREAMABLE_PROCESSED_VIDEO_ROOT),
+)
 
 # Config Loading Strategy:
 # 1. Look in User Data Dir (~/.local/share/...)
@@ -124,18 +194,80 @@ if not SECRET_KEY:
 
 DEBUG = config.debug
 ALLOWED_HOSTS = config.allowed_hosts
+ENDOREG_HUB_MODE = os.getenv(
+    "ENDOREG_HUB_MODE", os.getenv("LX_ANNOTATE_HUB_MODE", "0")
+).strip().lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
+ENDOREG_ENABLE_HUB_TRANSFERS = os.getenv(
+    "ENDOREG_ENABLE_HUB_TRANSFERS", "0"
+).strip().lower() in {"1", "true", "yes", "on"}
+ENDOREG_HUB_TRANSFER_REQUIRE_SECURE_TRANSPORT = os.getenv(
+    "ENDOREG_HUB_TRANSFER_REQUIRE_SECURE_TRANSPORT", "1"
+).strip().lower() in {"1", "true", "yes", "on"}
+ENDOREG_HUB_TRANSFER_REQUIRE_MTLS = os.getenv(
+    "ENDOREG_HUB_TRANSFER_REQUIRE_MTLS", "0"
+).strip().lower() in {"1", "true", "yes", "on"}
+ENDOREG_HUB_TRANSFER_MTLS_META_KEY = str(
+    os.getenv("ENDOREG_HUB_TRANSFER_MTLS_META_KEY", "") or ""
+).strip()
+ENDOREG_HUB_TRANSFER_MTLS_META_VALUE = str(
+    os.getenv("ENDOREG_HUB_TRANSFER_MTLS_META_VALUE", "") or ""
+).strip()
+LX_ANNOTATE_HUB_EXPORT_AUTO_QUEUE = os.getenv(
+    "LX_ANNOTATE_HUB_EXPORT_AUTO_QUEUE", "0"
+).strip().lower() in {"1", "true", "yes", "on"}
+LX_ANNOTATE_HUB_EXPORT_STALE_AFTER_SECONDS = max(
+    int(os.getenv("LX_ANNOTATE_HUB_EXPORT_STALE_AFTER_SECONDS", "1800")),
+    60,
+)
+LX_ANNOTATE_HUB_EXPORT_LOCAL_CLEANUP_POLICY = str(
+    os.getenv(
+        "LX_ANNOTATE_HUB_EXPORT_LOCAL_CLEANUP_POLICY",
+        "retain_processed_media",
+    )
+    or "retain_processed_media"
+).strip()
 
-# --- DEBUG / LOG GUARD ---
-# Prints status to console on startup to verify .env and keys
-print("----------------------------------------------------------------")
-print("LX_ANNOTATE SETTINGS: Loading config...")
-print(f"Using .env path:      {_env_path} (Exists: {_env_path.exists()})")
-_key_status = "MISSING"
-if SECRET_KEY:
-    _key_status = "SET"
-print(f"DJANGO_SECRET_KEY:    {_key_status}")
-print("----------------------------------------------------------------")
-# -------------------------
+
+def _is_non_dev_hub_profile() -> bool:
+    return (
+        ENDOREG_HUB_MODE
+        and not _is_dev_settings
+        and "settings_test" not in _settings_module
+    )
+
+
+def _require_env_var(*names: str) -> None:
+    if any(os.getenv(name, "").strip() for name in names):
+        return
+    joined = " or ".join(names)
+    raise RuntimeError(f"{joined} must be set when ENDOREG_HUB_MODE is enabled.")
+
+
+def _validate_hub_transfer_security_contract() -> None:
+    if not ENDOREG_ENABLE_HUB_TRANSFERS:
+        return
+    if not ENDOREG_HUB_TRANSFER_REQUIRE_SECURE_TRANSPORT:
+        raise RuntimeError(
+            "ENDOREG_HUB_TRANSFER_REQUIRE_SECURE_TRANSPORT must be enabled when "
+            "ENDOREG_ENABLE_HUB_TRANSFERS is true."
+        )
+    if ENDOREG_HUB_TRANSFER_REQUIRE_MTLS and (
+        not ENDOREG_HUB_TRANSFER_MTLS_META_KEY
+        or not ENDOREG_HUB_TRANSFER_MTLS_META_VALUE
+    ):
+        raise RuntimeError(
+            "ENDOREG_HUB_TRANSFER_MTLS_META_KEY and "
+            "ENDOREG_HUB_TRANSFER_MTLS_META_VALUE must be set when "
+            "ENDOREG_HUB_TRANSFER_REQUIRE_MTLS is enabled."
+        )
+
+
+_validate_hub_transfer_security_contract()
 
 # -----------------------------------------------------------------------------
 # 2. CORE SETTINGS
@@ -259,7 +391,6 @@ STATIC_URL = "/static/"
 # DESTINATION: Where 'collectstatic' copies files TO (Production serving folder)
 # Keep as string because Django settings expect STATIC_ROOT to be a string.
 STATIC_ROOT = str(REPO_ROOT / "staticfiles")
-print(f"STATIC_ROOT set to: {STATIC_ROOT}")
 # Create the directory if it doesn't exist (using Path for the operation)
 Path(STATIC_ROOT).mkdir(parents=True, exist_ok=True)
 # SOURCES: Where Django looks for files to collect
@@ -271,17 +402,19 @@ STATICFILES_DIRS = [
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 # Media (User Uploads)
-MEDIA_URL = "/media/"
-MEDIA_ROOT = APP_DATA_DIR
+_configured_media_url = str(os.getenv("MEDIA_URL", "") or "").strip()
+if (
+    not _configured_media_url
+    or _configured_media_url == "/media/"
+    or _configured_media_url.startswith("/media/")
+):
+    MEDIA_URL = PROTECTED_MEDIA_URL
+else:
+    MEDIA_URL = _configured_media_url
+os.environ["MEDIA_URL"] = MEDIA_URL
+MEDIA_ROOT = PROTECTED_MEDIA_ROOT
 MEDIA_ROOT.mkdir(parents=True, exist_ok=True)
-USE_ENCRYPTED_STORAGE = os.getenv("LX_ANNOTATE_USE_ENCRYPTED_STORAGE", "1").lower() in {
-    "1",
-    "true",
-    "yes",
-}
-DEFAULT_STORAGE_BACKEND = "django.core.files.storage.FileSystemStorage"
-if USE_ENCRYPTED_STORAGE:
-    DEFAULT_STORAGE_BACKEND = "lx_annotate.storage.encrypted.EncryptedStorage"
+DEFAULT_STORAGE_BACKEND = "lx_annotate.storage.encrypted.EncryptedStorage"
 
 STORAGES = {
     "default": {
@@ -291,6 +424,10 @@ STORAGES = {
         "BACKEND": STATICFILES_STORAGE,
     },
 }
+
+if _is_non_dev_hub_profile():
+    _require_env_var("LX_ANNOTATE_ENCRYPTED_DATA_DIR")
+    _require_env_var("DJANGO_DB_NAME", "DATABASE_URL")
 
 # -----------------------------------------------------------------------------
 # 6. LOGGING & APP PATHS
@@ -312,6 +449,11 @@ LOGGING = {
     "loggers": {
         "django": {"handlers": ["console"], "level": "INFO", "propagate": False},
         "lx_anonymizer": {"handlers": ["console"], "level": "INFO", "propagate": False},
+        "lx_annotate.hub_export.audit": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
     },
 }
 

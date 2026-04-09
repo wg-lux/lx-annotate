@@ -23,7 +23,6 @@ from endoreg_db.services.pseudonym_service import (
 
 # Add the project root to the path
 sys.path.insert(0, "/home/admin/dev/lx-annotate")
-sys.path.insert(0, "/home/admin/dev/lx-annotate/libs/endoreg-db")
 
 # Set up Django environment
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "lx_annotate.settings")
