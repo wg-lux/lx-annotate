@@ -188,6 +188,17 @@ Operationally, that split implies:
 - downstream processing, upload-job tracking, and managed storage should be
   reasoned about as shared components rather than watcher-only or API-only logic
 
+Role-driven API policy should be set explicitly with:
+
+- `ENDOREG_DEPLOYMENT_ROLE=central_hub|site_node|standalone`
+
+Role matrix:
+
+- `standalone`: local operation, no central-hub receiver policy
+- `site_node`: network node, but not the central receiver
+- `central_hub`: strict API center scoping, authenticated API uploads, and
+  hardened transfer security contract
+
 ## Hub Export Contract
 
 Outbound transfer to a hub is a separate sender workflow from ingest.

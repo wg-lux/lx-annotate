@@ -84,7 +84,7 @@ class HubTransferSecurityTests(TestCase):
         )
 
     @override_settings(
-        ENDOREG_ENABLE_HUB_TRANSFERS=True,
+        ENDOREG_DEPLOYMENT_ROLE="central_hub",
         ENDOREG_HUB_TRANSFER_REQUIRE_SECURE_TRANSPORT=True,
         ENDOREG_HUB_TRANSFER_REQUIRE_MTLS=False,
     )
@@ -101,7 +101,7 @@ class HubTransferSecurityTests(TestCase):
         self.assertIn("secure transport", str(response.json()["detail"]).lower())
 
     @override_settings(
-        ENDOREG_ENABLE_HUB_TRANSFERS=True,
+        ENDOREG_DEPLOYMENT_ROLE="central_hub",
         ENDOREG_HUB_TRANSFER_REQUIRE_SECURE_TRANSPORT=True,
         ENDOREG_HUB_TRANSFER_REQUIRE_MTLS=True,
         ENDOREG_HUB_TRANSFER_MTLS_META_KEY="HTTP_X_CLIENT_CERT_VERIFIED",
@@ -121,7 +121,7 @@ class HubTransferSecurityTests(TestCase):
         self.assertIn("mutual tls", str(response.json()["detail"]).lower())
 
     @override_settings(
-        ENDOREG_ENABLE_HUB_TRANSFERS=True,
+        ENDOREG_DEPLOYMENT_ROLE="central_hub",
         ENDOREG_HUB_TRANSFER_REQUIRE_SECURE_TRANSPORT=True,
         ENDOREG_HUB_TRANSFER_REQUIRE_MTLS=True,
         ENDOREG_HUB_TRANSFER_MTLS_META_KEY="HTTP_X_CLIENT_CERT_VERIFIED",
@@ -143,7 +143,7 @@ class HubTransferSecurityTests(TestCase):
         self.assertEqual(payload["transfer_key"], "site-node__report__hash-3__v1")
 
     @override_settings(
-        ENDOREG_ENABLE_HUB_TRANSFERS=True,
+        ENDOREG_DEPLOYMENT_ROLE="central_hub",
         ENDOREG_HUB_TRANSFER_REQUIRE_SECURE_TRANSPORT=True,
         ENDOREG_HUB_TRANSFER_REQUIRE_MTLS=False,
     )
@@ -160,7 +160,7 @@ class HubTransferSecurityTests(TestCase):
         self.assertIn("secure transport", str(response.json()["detail"]).lower())
 
     @override_settings(
-        ENDOREG_ENABLE_HUB_TRANSFERS=True,
+        ENDOREG_DEPLOYMENT_ROLE="central_hub",
         ENDOREG_HUB_TRANSFER_REQUIRE_SECURE_TRANSPORT=True,
         ENDOREG_HUB_TRANSFER_REQUIRE_MTLS=True,
         ENDOREG_HUB_TRANSFER_MTLS_META_KEY="HTTP_X_CLIENT_CERT_VERIFIED",
@@ -182,7 +182,7 @@ class HubTransferSecurityTests(TestCase):
         self.assertIn("mutual tls", str(response.json()["detail"]).lower())
 
     @override_settings(
-        ENDOREG_ENABLE_HUB_TRANSFERS=True,
+        ENDOREG_DEPLOYMENT_ROLE="central_hub",
         ENDOREG_HUB_TRANSFER_REQUIRE_SECURE_TRANSPORT=True,
         ENDOREG_HUB_TRANSFER_REQUIRE_MTLS=True,
         ENDOREG_HUB_TRANSFER_MTLS_META_KEY="HTTP_X_CLIENT_CERT_VERIFIED",
@@ -205,7 +205,7 @@ class HubTransferSecurityTests(TestCase):
         self.assertEqual(response.json()["transfer_key"], transfer_job.transfer_key)
 
     @override_settings(
-        ENDOREG_ENABLE_HUB_TRANSFERS=True,
+        ENDOREG_DEPLOYMENT_ROLE="central_hub",
         ENDOREG_HUB_TRANSFER_REQUIRE_SECURE_TRANSPORT=True,
         ENDOREG_HUB_TRANSFER_REQUIRE_MTLS=False,
     )
@@ -225,7 +225,7 @@ class HubTransferSecurityTests(TestCase):
         self.assertIn("secure transport", str(response.json()["detail"]).lower())
 
     @override_settings(
-        ENDOREG_ENABLE_HUB_TRANSFERS=True,
+        ENDOREG_DEPLOYMENT_ROLE="central_hub",
         ENDOREG_HUB_TRANSFER_REQUIRE_SECURE_TRANSPORT=True,
         ENDOREG_HUB_TRANSFER_REQUIRE_MTLS=True,
         ENDOREG_HUB_TRANSFER_MTLS_META_KEY="HTTP_X_CLIENT_CERT_VERIFIED",
@@ -248,7 +248,7 @@ class HubTransferSecurityTests(TestCase):
         self.assertIn("mutual tls", str(response.json()["detail"]).lower())
 
     @override_settings(
-        ENDOREG_ENABLE_HUB_TRANSFERS=True,
+        ENDOREG_DEPLOYMENT_ROLE="central_hub",
         ENDOREG_HUB_TRANSFER_REQUIRE_SECURE_TRANSPORT=True,
         ENDOREG_HUB_TRANSFER_REQUIRE_MTLS=True,
         ENDOREG_HUB_TRANSFER_MTLS_META_KEY="HTTP_X_CLIENT_CERT_VERIFIED",

@@ -15,7 +15,7 @@ urlpatterns = [
     path("api/hub-export/overview/", hub_export_overview, name="hub-export-overview"),
     path("api/hub-export/mark/", hub_export_mark, name="hub-export-mark"),
     path("api/hub-export/unmark/", hub_export_unmark, name="hub-export-unmark"),
-    path("api/", include(("endoreg_db.urls", "endoreg_db"), namespace="endoreg_db")),
+    path("api/", include(("endoreg_db.urls", "endoreg_db"), namespace="api")),
     path("oidc/", include("mozilla_django_oidc.urls")),
     path(
         "favicon.ico",

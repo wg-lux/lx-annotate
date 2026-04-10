@@ -37,6 +37,30 @@ def test_vite_config_uses_static_root_output_and_base_url():
     assert "emptyOutDir: false" in vite_cfg
 
 
+def test_nix_module_exposes_role_and_storage_env_contract():
+    module_nix = _read("nix/module.nix")
+
+    assert "deploymentRole = lib.mkOption {" in module_nix
+    assert '"central_hub"' in module_nix
+    assert '"site_node"' in module_nix
+    assert '"standalone"' in module_nix
+    assert "ENDOREG_DEPLOYMENT_ROLE = cfg.deploymentRole;" in module_nix
+    assert "ENDOREG_HUB_MODE" not in module_nix
+    assert "STORAGE_DIR = effectiveStorageDir;" in module_nix
+    assert "IO_DIR = effectiveIoDir;" in module_nix
+
+
+def test_systemd_env_example_has_role_and_protected_path_contract():
+    env_example = _read("deploy/.env.systemd.example")
+
+    assert "ENDOREG_DEPLOYMENT_ROLE=standalone" in env_example
+    assert "ENDOREG_HUB_MODE" not in env_example
+    assert "ENDOREG_ENABLE_HUB_TRANSFERS" not in env_example
+    assert "LX_ANNOTATE_DEFAULT_CENTER=" in env_example
+    assert "STORAGE_DIR=/var/lib/lx-annotate/data/storage" in env_example
+    assert "IO_DIR=/var/lib/lx-annotate/data" in env_example
+
+
 def test_django_vite_manifest_paths_match_static_root_contract(monkeypatch):
     dev_settings = _read("lx_annotate/settings/settings_dev.py")
     prod_settings = _read("lx_annotate/settings/settings_prod.py")

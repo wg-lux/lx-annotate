@@ -125,6 +125,29 @@ The watcher remains the right boundary for local system dropoff and SAP-style
 handoff flows. The API remains the right boundary for authenticated remote
 uploads and future hub integrations.
 
+## Hub Contract Upgrade
+
+When upgrading to the hub-aware ingest model in `endoreg_db`, treat these as
+deployment requirements for LuxNix and host environments:
+
+- use `center_key` for machine-facing API payloads and automation (not mutable
+  center display names)
+- set `ENDOREG_DEPLOYMENT_ROLE` explicitly to one of:
+  `central_hub`, `site_node`, `standalone`
+- for `central_hub`, require authenticated API uploads with declared
+  `center_key`; do not rely on default-center fallback for API ingest
+- keep `STORAGE_DIR` and `IO_DIR` inside
+  `LX_ANNOTATE_ENCRYPTED_DATA_DIR`
+- run package migrations during upgrade so upload-job and content-hash lifecycle
+  changes are active
+
+Deployment role matrix:
+
+- `standalone`: local deployment, no hub transfer receiver behavior
+- `site_node`: networked node behavior without central hub receiver policy
+- `central_hub`: strict hub ingest policy, authenticated API uploads with
+  explicit `center_key`, and production mTLS transfer contract
+
 ## Hub Export
 
 Outbound hub transfer is tracked as a separate sender workflow from ingest.

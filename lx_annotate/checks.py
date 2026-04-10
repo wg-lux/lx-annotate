@@ -4,9 +4,100 @@ import os
 from pathlib import Path
 
 from django.conf import settings
-from django.core.checks import Critical, Warning, register
+from django.core.checks import (
+    CRITICAL,
+    CheckMessage,
+    Critical,
+    Warning,
+    run_checks,
+    register,
+)
+from django.core.exceptions import ImproperlyConfigured
+from django.db import DEFAULT_DB_ALIAS, connections
+from django.db.utils import OperationalError, ProgrammingError
 
 from endoreg_db.services.environment_readiness import check_environment_readiness
+
+
+_ENDOREG_DB_REQUIRED_COLUMNS: dict[str, tuple[str, ...]] = {
+    "endoreg_db_sensitivemeta": ("validation_comment",),
+    "endoreg_db_videofile": (
+        "storage_mode",
+        "streamable_relative_path",
+        "processed_streamable_relative_path",
+    ),
+}
+
+_ENDOREG_DB_REQUIRED_TABLES: tuple[str, ...] = ("endoreg_db_sensitivemeta_tags",)
+
+
+def _table_columns(
+    table_name: str, *, using: str = DEFAULT_DB_ALIAS
+) -> set[str] | None:
+    connection = connections[using]
+    introspection = connection.introspection
+
+    try:
+        table_names = set(introspection.table_names())
+    except (OperationalError, ProgrammingError):
+        return None
+
+    if table_name not in table_names:
+        return set()
+
+    with connection.cursor() as cursor:
+        description = introspection.get_table_description(cursor, table_name)
+    return {column.name for column in description}
+
+
+@register()
+def lx_annotate_endoreg_db_schema_checks(app_configs, **kwargs):  # type: ignore[unused-argument]
+    messages: list[CheckMessage] = []
+
+    for table_name in _ENDOREG_DB_REQUIRED_TABLES:
+        columns = _table_columns(table_name)
+        if columns is None:
+            continue
+        if not columns:
+            messages.append(
+                Critical(
+                    "endoreg_db schema is behind the lx_annotate migration override set. "
+                    f"Missing required table '{table_name}'. Apply the endoreg_db migrations before serving traffic.",
+                    id="lx_annotate.endoreg_db_schema_table_missing",
+                    obj=table_name,
+                )
+            )
+
+    for table_name, required_columns in _ENDOREG_DB_REQUIRED_COLUMNS.items():
+        columns = _table_columns(table_name)
+        if columns is None:
+            continue
+        if not columns:
+            messages.append(
+                Critical(
+                    "endoreg_db schema is behind the lx_annotate migration override set. "
+                    f"Missing required table '{table_name}'. Apply the endoreg_db migrations before serving traffic.",
+                    id="lx_annotate.endoreg_db_schema_table_missing",
+                    obj=table_name,
+                )
+            )
+            continue
+
+        missing_columns = [
+            column for column in required_columns if column not in columns
+        ]
+        if missing_columns:
+            messages.append(
+                Critical(
+                    "endoreg_db schema is behind the lx_annotate migration override set. "
+                    f"Table '{table_name}' is missing required columns: {', '.join(missing_columns)}. "
+                    "Apply the endoreg_db migrations before serving traffic.",
+                    id="lx_annotate.endoreg_db_schema_column_missing",
+                    obj=table_name,
+                )
+            )
+
+    return messages
 
 
 @register()
@@ -70,3 +161,20 @@ def lx_annotate_environment_checks(app_configs, **kwargs):  # type: ignore[unuse
             )
 
     return messages
+
+
+def assert_runtime_checks_pass() -> None:
+    critical_messages = [
+        message for message in run_checks() if message.level >= CRITICAL
+    ]
+    if not critical_messages:
+        return
+
+    formatted_messages = "\n".join(
+        f"[{message.id}] {message.msg}" for message in critical_messages
+    )
+    raise ImproperlyConfigured(
+        "Critical runtime checks failed:\n"
+        f"{formatted_messages}\n"
+        "The service is refusing to start until the deployment is consistent."
+    )

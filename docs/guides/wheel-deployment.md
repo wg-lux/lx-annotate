@@ -48,6 +48,16 @@ Keep these runtime values explicitly defined:
 - `TESSDATA_PREFIX=/usr/share/tesseract-ocr/5/tessdata`
 - `PYTORCH_ALLOC_CONF=expandable_segments:True`
 
+Set deployment role explicitly:
+
+- `ENDOREG_DEPLOYMENT_ROLE=central_hub|site_node|standalone`
+
+Role matrix:
+
+- `standalone`: local deployment behavior
+- `site_node`: networked node behavior without central receiver policy
+- `central_hub`: strict ingest + transfer receiver profile
+
 Keep secret-bearing values in `.env.systemd` only. Do not add shell tracing
 such as `set -x` to deployment scripts or service wrappers, and restrict `journalctl` access to trusted operators on the host.
 
@@ -97,11 +107,16 @@ core ingest contract.
 Hub-mode policy is intentionally asymmetric:
 
 - `watcher` may keep default-center behavior for trusted local drop zones
-- `api` in `ENDOREG_HUB_MODE=true` requires authenticated callers and declared
+- `api` in `ENDOREG_DEPLOYMENT_ROLE=central_hub` requires authenticated callers and declared
   `center_key`
 - `/api/upload/` is the primary hub boundary
-- `/api/media/hub/transfers/` is an optional secondary boundary and stays
-  disabled unless `ENDOREG_ENABLE_HUB_TRANSFERS=true`
+- `/api/media/hub/transfers/` is the secondary boundary in `central_hub` role
+
+For `ENDOREG_DEPLOYMENT_ROLE=central_hub`:
+
+- API uploads must be authenticated
+- API uploads must declare `center_key` and do not use default-center fallback
+- production deployments must use a non-SQLite database
 
 For production hub deployments, operators should assume that incorrect center
 resolution is a clinical data-isolation failure. Treat `center_key` as the only
@@ -142,7 +157,7 @@ Operational guidance:
 
 ## Hub Deployment Profile
 
-For `ENDOREG_HUB_MODE=true`, the minimum deployment contract is:
+For `ENDOREG_DEPLOYMENT_ROLE=central_hub`, the minimum deployment contract is:
 
 - PostgreSQL or another durable multi-user production database
 - explicit `DJANGO_DB_*` configuration or `DATABASE_URL`
@@ -161,7 +176,6 @@ boundary than `/api/upload/`.
 
 Current Phase 1 contract:
 
-- transfer API stays disabled unless `ENDOREG_ENABLE_HUB_TRANSFERS=true`
 - secure transport is required:
   `ENDOREG_HUB_TRANSFER_REQUIRE_SECURE_TRANSPORT=true`
 - proxy-verified mTLS is required:

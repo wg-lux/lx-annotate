@@ -1,4 +1,5 @@
 from django.apps import AppConfig
+from django.conf import settings
 import os
 import sys
 import threading
@@ -8,10 +9,41 @@ class LxAnnotateConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"
     name = "lx_annotate"
 
+    _SKIP_RUNTIME_CHECK_COMMANDS = {
+        "check",
+        "collectstatic",
+        "dbshell",
+        "makemigrations",
+        "migrate",
+        "shell",
+        "showmigrations",
+        "test",
+    }
+
+    def _should_skip_runtime_checks(self, command: str) -> bool:
+        if command in self._SKIP_RUNTIME_CHECK_COMMANDS:
+            return True
+
+        if getattr(settings, "TESTING", False):
+            return True
+
+        settings_module = str(getattr(settings, "SETTINGS_MODULE", "") or "")
+        if "settings_test" in settings_module:
+            return True
+
+        if "pytest" in sys.modules or os.environ.get("PYTEST_CURRENT_TEST"):
+            return True
+
+        return False
+
     # This is running in development server only. On luxnix, filewatcher is started via systemd service.
     def ready(self):
-        from . import checks  # noqa: F401
+        from . import checks
         from . import signals  # noqa: F401
+
+        command = sys.argv[1] if len(sys.argv) > 1 else ""
+        if not self._should_skip_runtime_checks(command):
+            checks.assert_runtime_checks_pass()
 
         # Only for runserver
         if "runserver" not in sys.argv:

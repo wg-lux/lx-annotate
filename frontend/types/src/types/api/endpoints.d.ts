@@ -22,7 +22,6 @@ export declare const endpoints: {
         readonly findings: "findings/";
         readonly classifications: "classifications/";
         readonly patientFindings: "patient-findings/";
-        readonly patientExaminations: "patient-examinations/";
         readonly patientExaminationReports: "patient-examination-reports/";
     };
     readonly patient: {

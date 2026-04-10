@@ -20,9 +20,6 @@ export const endpoints = {
         findings: 'findings/',
         classifications: 'classifications/',
         patientFindings: 'patient-findings/',
-        // Legacy placeholder kept for existing callers. Current endoreg_db exposes
-        // create/list/detail under `examination.patientExamination*`.
-        patientExaminations: 'patient-examinations/',
         patientExaminationReports: 'patient-examination-reports/'
     },
     patient: {

@@ -290,6 +290,8 @@ class UploadJobAPITests(APIIntegrationTestCase):
             },
             format="multipart",
         )
+        if response.status_code == 500:
+            print(response.content.decode())
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertIn("upload_id", response.data)
@@ -359,7 +361,7 @@ class UploadJobAPITests(APIIntegrationTestCase):
         )
         second = self.client.post(
             url,
-            {"file": self._pdf_upload(payload=b"%PDF second\n"), **payload},
+            {"file": self._pdf_upload(payload=b"%PDF first\n"), **payload},
             format="multipart",
             **headers,
         )
@@ -393,7 +395,7 @@ class UploadJobAPITests(APIIntegrationTestCase):
 
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
-    @override_settings(ENDOREG_HUB_MODE=True)
+    @override_settings(ENDOREG_DEPLOYMENT_ROLE="central_hub")
     def test_hub_mode_rejects_unauthenticated_uploads(self):
         response = self.client.post(
             "/api/upload/",
@@ -408,7 +410,7 @@ class UploadJobAPITests(APIIntegrationTestCase):
         self.assertIn("error", response.data)
         self.assertIn("Authentication is required", response.data["error"])
 
-    @override_settings(ENDOREG_HUB_MODE=True)
+    @override_settings(ENDOREG_DEPLOYMENT_ROLE="central_hub")
     def test_hub_mode_requires_declared_center_key(self):
         self.client.force_authenticate(user=self.user)
 
@@ -425,7 +427,7 @@ class UploadJobAPITests(APIIntegrationTestCase):
         self.assertIn("error", response.data)
         self.assertIn("center_key is required", response.data["error"])
 
-    @override_settings(ENDOREG_HUB_MODE=True)
+    @override_settings(ENDOREG_DEPLOYMENT_ROLE="central_hub")
     @patch("endoreg_db.views.misc.upload_views.start_upload_job_processing")
     def test_hub_mode_accepts_authenticated_upload_with_declared_center_key(
         self, mock_start_processing
@@ -441,6 +443,7 @@ class UploadJobAPITests(APIIntegrationTestCase):
             },
             format="multipart",
         )
+        print(response.content.decode())
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         upload_job = UploadJob.objects.get(id=response.data["upload_id"])

@@ -12,6 +12,8 @@ let
       cfg.encryptedDataDir
     else
       cfg.dataDir;
+  effectiveStorageDir = "${toString effectiveEncryptedDataDir}/storage";
+  effectiveIoDir = toString effectiveEncryptedDataDir;
 in
 {
   options.services.lx-annotate = {
@@ -40,6 +42,19 @@ in
     port = lib.mkOption {
       type = lib.types.port;
       default = 8000;
+    };
+
+    deploymentRole = lib.mkOption {
+      type = lib.types.enum [
+        "central_hub"
+        "site_node"
+        "standalone"
+      ];
+      default = "standalone";
+      description = ''
+        endoreg_db deployment role used by hub-aware ingest policy.
+        central_hub enables strict API center scoping and production guardrails.
+      '';
     };
 
     encryptedDataDir = lib.mkOption {
@@ -96,8 +111,11 @@ in
           DJANGO_HOST = cfg.host;
           DJANGO_PORT = toString cfg.port;
           DJANGO_SETTINGS_MODULE = cfg.settingsModule;
+          ENDOREG_DEPLOYMENT_ROLE = cfg.deploymentRole;
           LX_ANNOTATE_ENCRYPTED_DATA_DIR = toString effectiveEncryptedDataDir;
           LX_ANNOTATE_DATA_DIR = toString effectiveEncryptedDataDir;
+          STORAGE_DIR = effectiveStorageDir;
+          IO_DIR = effectiveIoDir;
           XDG_DATA_HOME = "/var/lib/lx-annotate";
           ENFORCE_AUTH = "0";
         }

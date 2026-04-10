@@ -194,22 +194,29 @@ if not SECRET_KEY:
 
 DEBUG = config.debug
 ALLOWED_HOSTS = config.allowed_hosts
-ENDOREG_HUB_MODE = os.getenv(
-    "ENDOREG_HUB_MODE", os.getenv("LX_ANNOTATE_HUB_MODE", "0")
-).strip().lower() in {
-    "1",
-    "true",
-    "yes",
-    "on",
-}
-ENDOREG_ENABLE_HUB_TRANSFERS = os.getenv(
-    "ENDOREG_ENABLE_HUB_TRANSFERS", "0"
-).strip().lower() in {"1", "true", "yes", "on"}
+ENDOREG_DEPLOYMENT_ROLE_VALUES = (
+    "standalone",
+    "site_node",
+    "central_hub",
+)
+_deployment_role_raw = (
+    str(os.getenv("ENDOREG_DEPLOYMENT_ROLE", "") or "").strip().lower()
+)
+if _deployment_role_raw and _deployment_role_raw not in ENDOREG_DEPLOYMENT_ROLE_VALUES:
+    raise RuntimeError(
+        "ENDOREG_DEPLOYMENT_ROLE must be one of: "
+        f"{', '.join(ENDOREG_DEPLOYMENT_ROLE_VALUES)}"
+    )
+if _deployment_role_raw:
+    ENDOREG_DEPLOYMENT_ROLE = _deployment_role_raw
+else:
+    ENDOREG_DEPLOYMENT_ROLE = "standalone"
 ENDOREG_HUB_TRANSFER_REQUIRE_SECURE_TRANSPORT = os.getenv(
     "ENDOREG_HUB_TRANSFER_REQUIRE_SECURE_TRANSPORT", "1"
 ).strip().lower() in {"1", "true", "yes", "on"}
 ENDOREG_HUB_TRANSFER_REQUIRE_MTLS = os.getenv(
-    "ENDOREG_HUB_TRANSFER_REQUIRE_MTLS", "0"
+    "ENDOREG_HUB_TRANSFER_REQUIRE_MTLS",
+    "1" if ENDOREG_DEPLOYMENT_ROLE == "central_hub" else "0",
 ).strip().lower() in {"1", "true", "yes", "on"}
 ENDOREG_HUB_TRANSFER_MTLS_META_KEY = str(
     os.getenv("ENDOREG_HUB_TRANSFER_MTLS_META_KEY", "") or ""
@@ -233,9 +240,9 @@ LX_ANNOTATE_HUB_EXPORT_LOCAL_CLEANUP_POLICY = str(
 ).strip()
 
 
-def _is_non_dev_hub_profile() -> bool:
+def _is_non_dev_central_hub_profile() -> bool:
     return (
-        ENDOREG_HUB_MODE
+        ENDOREG_DEPLOYMENT_ROLE == "central_hub"
         and not _is_dev_settings
         and "settings_test" not in _settings_module
     )
@@ -245,25 +252,32 @@ def _require_env_var(*names: str) -> None:
     if any(os.getenv(name, "").strip() for name in names):
         return
     joined = " or ".join(names)
-    raise RuntimeError(f"{joined} must be set when ENDOREG_HUB_MODE is enabled.")
+    raise RuntimeError(
+        f"{joined} must be set when ENDOREG_DEPLOYMENT_ROLE=central_hub."
+    )
 
 
 def _validate_hub_transfer_security_contract() -> None:
-    if not ENDOREG_ENABLE_HUB_TRANSFERS:
+    if ENDOREG_DEPLOYMENT_ROLE != "central_hub":
         return
     if not ENDOREG_HUB_TRANSFER_REQUIRE_SECURE_TRANSPORT:
         raise RuntimeError(
-            "ENDOREG_HUB_TRANSFER_REQUIRE_SECURE_TRANSPORT must be enabled when "
-            "ENDOREG_ENABLE_HUB_TRANSFERS is true."
+            "ENDOREG_DEPLOYMENT_ROLE=central_hub requires "
+            "ENDOREG_HUB_TRANSFER_REQUIRE_SECURE_TRANSPORT=true."
         )
-    if ENDOREG_HUB_TRANSFER_REQUIRE_MTLS and (
+    if not ENDOREG_HUB_TRANSFER_REQUIRE_MTLS:
+        raise RuntimeError(
+            "ENDOREG_DEPLOYMENT_ROLE=central_hub requires "
+            "ENDOREG_HUB_TRANSFER_REQUIRE_MTLS=true."
+        )
+    if (
         not ENDOREG_HUB_TRANSFER_MTLS_META_KEY
         or not ENDOREG_HUB_TRANSFER_MTLS_META_VALUE
     ):
         raise RuntimeError(
+            "ENDOREG_DEPLOYMENT_ROLE=central_hub requires "
             "ENDOREG_HUB_TRANSFER_MTLS_META_KEY and "
-            "ENDOREG_HUB_TRANSFER_MTLS_META_VALUE must be set when "
-            "ENDOREG_HUB_TRANSFER_REQUIRE_MTLS is enabled."
+            "ENDOREG_HUB_TRANSFER_MTLS_META_VALUE."
         )
 
 
@@ -425,7 +439,7 @@ STORAGES = {
     },
 }
 
-if _is_non_dev_hub_profile():
+if _is_non_dev_central_hub_profile():
     _require_env_var("LX_ANNOTATE_ENCRYPTED_DATA_DIR")
     _require_env_var("DJANGO_DB_NAME", "DATABASE_URL")
 

@@ -1,1 +1,0 @@
-import{_ as s,o as t,f as e,g as a}from"./main.js";const n={name:"AboutUs",components:{}},r={class:"about"};function c(p,o,u,_,i,d){return t(),e("div",r,[...o[0]||(o[0]=[a("h1",null,"This is an about page",-1)])])}const l=s(n,[["render",c]]);export{l as default};

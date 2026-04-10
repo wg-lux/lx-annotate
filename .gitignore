@@ -60,6 +60,7 @@ share/python-wheels/
 MANIFEST
 EAST/
 .venv/
+.lx-annotate-static.*
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
