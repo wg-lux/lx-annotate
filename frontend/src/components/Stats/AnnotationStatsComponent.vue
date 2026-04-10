@@ -1,10 +1,14 @@
 <template>
   <div class="annotation-stats-overview">
     <!-- Loading State -->
-    <div v-if="annotationStatsStore.isLoading && !hasAnyData" class="text-center py-5">
-      <div class="spinner-border text-primary" role="status">
-        <span class="visually-hidden">Laden...</span>
+    <div v-if="annotationStatsStore.isLoading && !hasAnyData" class="dashboard-loading-state py-4">
+      <div class="skeleton-title mb-3"></div>
+      <div class="row g-3 mb-3">
+        <div class="col-md-4" v-for="n in 3" :key="`overview-skeleton-${n}`">
+          <div class="skeleton-card"></div>
+        </div>
       </div>
+      <div class="skeleton-row"></div>
       <p class="mt-3 text-muted">Statistiken werden geladen...</p>
     </div>
 
@@ -35,6 +39,63 @@
                     Aktualisieren
                   </button>
                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row mb-4 g-3">
+        <div class="col-lg-8">
+          <div class="card player-card h-100">
+            <div class="card-body">
+              <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
+                <div>
+                  <div class="player-kicker">Dein Fortschritt</div>
+                  <h5 class="player-title mb-1">Level {{ currentLevel }}</h5>
+                  <p class="text-muted mb-2">{{ points }} XP gesammelt · {{ pointsToNextLevel }} XP bis zum nächsten Level</p>
+                </div>
+                <div class="achievement-pill">
+                  <i class="fas fa-award me-2"></i>
+                  {{ unlockedAchievementsCount }} Erfolge
+                </div>
+              </div>
+
+              <div class="level-progress mt-3">
+                <div class="d-flex justify-content-between small text-muted mb-1">
+                  <span>Level-Fortschritt</span>
+                  <span>{{ levelProgress }}%</span>
+                </div>
+                <div class="progress" style="height: 12px;">
+                  <div class="progress-bar bg-success" :style="{ width: levelProgress + '%' }"></div>
+                </div>
+              </div>
+
+              <div class="mt-3 d-flex flex-wrap gap-2">
+                <span
+                  v-for="badge in unlockedAchievements"
+                  :key="badge"
+                  class="badge text-bg-light achievement-badge"
+                >
+                  <i class="fas fa-star me-1"></i>{{ badge }}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-lg-4">
+          <div class="card mission-card h-100">
+            <div class="card-body">
+              <div class="player-kicker">Mission des Tages</div>
+              <h6 class="mission-title mt-1 mb-2">{{ focusMission.title }}</h6>
+              <p class="text-muted small mb-3">{{ focusMission.description }}</p>
+              <div class="progress mb-2" style="height: 10px;">
+                <div class="progress-bar bg-info" :style="{ width: focusMission.progress + '%' }"></div>
+              </div>
+              <div class="d-flex justify-content-between align-items-center small">
+                <span class="text-muted">Fortschritt</span>
+                <span class="fw-semibold">{{ focusMission.progress }}%</span>
               </div>
             </div>
           </div>
@@ -416,6 +477,79 @@ const totalAnnotations = computed(() => {
   return annotationStatsStore.stats.totalAnnotations || 0;
 });
 
+const points = computed(() => {
+  const completed =
+    segmentStats.value.completed * 5 +
+    examinationStats.value.completed * 8 +
+    sensitiveMetaStats.value.completed * 6
+
+  const inProgress =
+    segmentStats.value.inProgress * 2 +
+    examinationStats.value.inProgress * 3 +
+    sensitiveMetaStats.value.inProgress * 2
+
+  return completed + inProgress
+})
+
+const POINTS_PER_LEVEL = 120
+
+const currentLevel = computed(() => Math.max(1, Math.floor(points.value / POINTS_PER_LEVEL) + 1))
+const pointsToNextLevel = computed(() => POINTS_PER_LEVEL - (points.value % POINTS_PER_LEVEL || 0))
+const levelProgress = computed(() => Math.min(100, Math.round(((points.value % POINTS_PER_LEVEL) / POINTS_PER_LEVEL) * 100)))
+
+const unlockedAchievements = computed(() => {
+  const unlocked: string[] = []
+
+  if (totalCompleted.value >= 1) unlocked.push('Erster Abschluss')
+  if (totalCompleted.value >= 10) unlocked.push('Konstant geliefert')
+  if (completionPercentage.value >= 50) unlocked.push('Halbzeit-Champion')
+  if (segmentStats.value.completed >= 20) unlocked.push('Segment-Profi')
+  if (examinationStats.value.completed >= 10) unlocked.push('Befundungs-Profi')
+  if (sensitiveMetaStats.value.completed >= 10) unlocked.push('Datenschutz-Held')
+
+  return unlocked
+})
+
+const unlockedAchievementsCount = computed(() => unlockedAchievements.value.length)
+
+const totalCompleted = computed(() => annotationStatsStore.stats.totalCompleted || 0)
+
+const focusMission = computed(() => {
+  const candidates = [
+    {
+      key: 'segments',
+      pending: segmentStats.value.pending,
+      title: 'Video-Segmente klären',
+      description: 'Reduziere offene Segmente, um die Pipeline zu entlasten.',
+      progress: getCompletionPercentage(segmentStats.value),
+    },
+    {
+      key: 'examinations',
+      pending: examinationStats.value.pending,
+      title: 'Befundungen abschließen',
+      description: 'Führe offene Untersuchungen zu einem dokumentierten Abschluss.',
+      progress: getCompletionPercentage(examinationStats.value),
+    },
+    {
+      key: 'sensitive',
+      pending: sensitiveMetaStats.value.pending,
+      title: 'Patientendaten validieren',
+      description: 'Verringere offene Validierungen für einen sicheren Datenfluss.',
+      progress: getCompletionPercentage(sensitiveMetaStats.value),
+    },
+  ]
+
+  const top = candidates.sort((a, b) => b.pending - a.pending)[0]
+  if (!top || top.pending <= 0) {
+    return {
+      title: 'Stabil halten',
+      description: 'Alles sieht gut aus. Heute Fokus auf Qualitätskontrolle und Feinschliff.',
+      progress: 100,
+    }
+  }
+  return top
+})
+
 // Check if we have any data to show
 const hasAnyData = computed(() => {
   return annotationStatsStore.stats.totalAnnotations > 0 || 
@@ -454,20 +588,15 @@ const refreshStats = async (): Promise<void> => {
 
 // Navigation methods
 const navigateToSegments = (): void => {
-  const segmentSection = document.querySelector('[data-section="segments"]');
-  if (segmentSection) {
-    segmentSection.scrollIntoView({ behavior: 'smooth' });
-  } else {
-    router.push('/segments');
-  }
+  router.push('/video-untersuchung')
 };
 
 const navigateToExaminations = (): void => {
-  router.push('/examinations');
+  router.push('/reporting/case-setup')
 };
 
 const navigateToSensitiveMeta = (): void => {
-  router.push('/sensitive-meta');
+  router.push('/anonymisierung/validierung')
 };
 
 const navigateToFrameAnnotation = (): void => {
@@ -475,11 +604,11 @@ const navigateToFrameAnnotation = (): void => {
 };
 
 const navigateToExamination = (): void => {
-  router.push('/examination');
+  router.push('/reporting/case-setup')
 };
 
 const navigateToValidation = (): void => {
-  router.push('/validation');
+  router.push('/anonymisierung/validierung')
 };
 
 // Load stats on component mount and watch for changes
@@ -497,7 +626,53 @@ watch(() => annotationStatsStore.needsRefresh, async (needsRefresh) => {
 
 <style scoped>
 .annotation-stats-overview {
-  padding: 20px;
+  padding: 0;
+}
+
+.player-card,
+.mission-card {
+  border: 1px solid rgba(45, 48, 71, 0.1);
+  box-shadow: 0 12px 26px rgba(19, 30, 53, 0.08);
+  border-radius: 12px;
+}
+
+.player-kicker {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #596780;
+  font-weight: 700;
+}
+
+.player-title {
+  font-weight: 700;
+  color: #2d3047;
+}
+
+.achievement-pill {
+  background: linear-gradient(135deg, #fff6d6 0%, #ffe9a9 100%);
+  border: 1px solid rgba(166, 124, 0, 0.25);
+  color: #7a5a00;
+  border-radius: 999px;
+  padding: 0.35rem 0.75rem;
+  font-weight: 700;
+  font-size: 0.82rem;
+}
+
+.achievement-badge {
+  border: 1px solid rgba(45, 48, 71, 0.12);
+  color: #344767;
+  background: linear-gradient(180deg, #ffffff 0%, #f4f7fc 100%) !important;
+}
+
+.mission-card {
+  background: linear-gradient(180deg, #fcfdff 0%, #f6faff 100%);
+}
+
+.mission-title {
+  font-size: 1.03rem;
+  font-weight: 700;
+  color: #344767;
 }
 
 .bg-gradient-primary {
@@ -506,12 +681,15 @@ watch(() => annotationStatsStore.needsRefresh, async (needsRefresh) => {
 
 .annotation-type-card {
   cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  border: 1px solid rgba(45, 48, 71, 0.08);
+  box-shadow: 0 10px 24px rgba(19, 30, 53, 0.06);
 }
 
 .annotation-type-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 16px 32px rgba(19, 30, 53, 0.12);
+  border-color: rgba(45, 48, 71, 0.18);
 }
 
 .stats-grid {
@@ -590,14 +768,17 @@ watch(() => annotationStatsStore.needsRefresh, async (needsRefresh) => {
   align-items: center;
   padding: 15px;
   border-radius: 8px;
-  background: #f8f9fa;
+  background: linear-gradient(180deg, #f8fafc 0%, #edf2f8 100%);
+  border: 1px solid rgba(45, 48, 71, 0.08);
   cursor: pointer;
-  transition: background-color 0.2s ease;
+  transition: background-color 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
   margin-bottom: 10px;
 }
 
 .quick-action-item:hover {
-  background: #e9ecef;
+  background: linear-gradient(180deg, #ffffff 0%, #edf2f8 100%);
+  box-shadow: 0 10px 20px rgba(19, 30, 53, 0.1);
+  border-color: rgba(45, 48, 71, 0.2);
 }
 
 .action-icon {
@@ -622,8 +803,41 @@ watch(() => annotationStatsStore.needsRefresh, async (needsRefresh) => {
   border-radius: 3px;
 }
 
-.spinner-border {
-  width: 3rem;
-  height: 3rem;
+.dashboard-loading-state {
+  border: 1px solid rgba(45, 48, 71, 0.08);
+  border-radius: 12px;
+  background: #fff;
+  padding: 1rem;
+}
+
+.skeleton-title,
+.skeleton-card,
+.skeleton-row {
+  background: linear-gradient(90deg, #eef2f7 0%, #e4ebf5 50%, #eef2f7 100%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.35s linear infinite;
+  border-radius: 10px;
+}
+
+.skeleton-title {
+  height: 28px;
+  width: 42%;
+}
+
+.skeleton-card {
+  height: 132px;
+}
+
+.skeleton-row {
+  height: 84px;
+}
+
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
 }
 </style>

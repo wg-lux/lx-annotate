@@ -49,6 +49,7 @@
                 <th>Typ</th>
                 <th>Anonymisierung</th>
                 <th>Annotation</th>
+                <th>Validierung</th>
                 <th>Unverarbeitete Daten vorhanden</th>
                 <th>Erstellt</th>
                 <th>Aktionen</th>
@@ -98,6 +99,24 @@
                   >
                     {{ getStatusText(file.annotationStatus) }}
                   </span>
+                </td>
+
+                <!-- Validation Action -->
+                <td>
+                  <button
+                    v-if="file.anonymizationStatus === 'done_processing_anonymization'"
+                    @click="validateFile(file.id, file.mediaType)"
+                    class="btn btn-success btn-sm"
+                    :disabled="!isReadyForValidation(file.id)"
+                  >
+                    <i class="fas fa-eye me-1"></i>
+                    Validieren
+                  </button>
+                  <span v-else-if="file.anonymizationStatus === 'validated'" class="badge bg-success">
+                    <i class="fas fa-check me-1"></i>
+                    Validiert
+                  </span>
+                  <span v-else class="text-muted">-</span>
                 </td>
 
                 <!-- Raw File Available -->
@@ -166,17 +185,6 @@
                     >
                       <i class="fas fa-redo"></i>
                       Erneut versuchen
-                    </button>
-
-                    <!-- View/Validate - only show when anonymization is done -->
-                    <button
-                      v-if="file.anonymizationStatus === 'done_processing_anonymization'"
-                      @click="validateFile(file.id, file.mediaType)"
-                      class="btn btn-outline-success bg-success"
-                      :disabled="!isReadyForValidation(file.id)"
-                    >
-                      <i class="fas fa-eye"></i>
-                      Validieren
                     </button>
 
                     <!-- Video Correction -->

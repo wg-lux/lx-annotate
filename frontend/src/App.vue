@@ -1,23 +1,4 @@
 <template>
-    <header>
-        <!--     Fonts and icons     -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@300..700&display=swap" rel="stylesheet">    
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/latest/css/font-awesome.min.css">
-    <link
-        rel="stylesheet"
-        type="text/css"
-        href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700|Roboto+Slab:400,700|Material+Icons"
-      />
-    <!-- Font Awesome 6.5.1 Free (CSS only, no JS kit required) -->
-    <link rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
-      integrity="sha512-xh6IYswF2Yt+0e1yz3F6j2CvkJyDk6cfogmfVZBt3WgBp1x5Yp1p9ggbo2mcqzg4bV7+ydRZo7ljZHFQUNq9PQ=="
-      crossorigin="anonymous"
-      referrerpolicy="no-referrer">
-
-  </header>
   <div class="g-sidenav-show">
     
     <template v-if="!isMenuOpen">
@@ -59,9 +40,7 @@
 <script>
 import NavbarComponent from './components/Menus/NavbarComponent.vue';
 import SidebarComponent from './components/Menus/SidebarComponent.vue';
-import DashboardComponent from './components/Dashboard/DashboardComponent.vue';
 import ToastMessageContainer from './components/Utils/ToastMessageContainer.vue';
-import AuthCheck from '@/components/Authentification/AuthCheck.vue';
 import axios from 'axios';
 
 // Move this to your http_kc.ts or main.ts if possible, but it works here too
@@ -72,14 +51,10 @@ export default {
   components: {
     NavbarComponent,
     SidebarComponent,
-    DashboardComponent,
-    ToastMessageContainer,
-    AuthCheck
+    ToastMessageContainer
   },
   data() {
     return {
-      // Use window.STATIC_URL injected from base.html
-      staticUrl: window.STATIC_URL,
       isMenuOpen: false,
     };
   },
@@ -92,9 +67,6 @@ export default {
 </script>
 
 <style>
-/* CSS imports in Vue usually go in main.ts, but simple component styles go here */
-@import url('https://fonts.googleapis.com/css2?family=Comfortaa:wght@300..700&display=swap');
-
 @media (max-width: 1199.98px) {
   .g-sidenav-show > aside.sidenav.navbar {
     transform: none !important;

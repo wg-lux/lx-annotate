@@ -234,7 +234,7 @@ export declare const useReportingFlowStore: import("pinia").StoreDefinition<"rep
             streamUrl: string;
         }[];
     } | null>;
-    mediaPreloadStatus: import("vue").Ref<"loading" | "error" | "ready" | "idle", "loading" | "error" | "ready" | "idle">;
+    mediaPreloadStatus: import("vue").Ref<"loading" | "error" | "idle" | "ready", "loading" | "error" | "idle" | "ready">;
     mediaPreloadError: import("vue").Ref<string | null, string | null>;
     draftPersistenceStatus: import("vue").Ref<"error" | "idle" | "saving" | "saved", "error" | "idle" | "saving" | "saved">;
     draftPersistenceError: import("vue").Ref<string | null, string | null>;
@@ -516,7 +516,7 @@ export declare const useReportingFlowStore: import("pinia").StoreDefinition<"rep
             streamUrl: string;
         }[];
     } | null>;
-    mediaPreloadStatus: import("vue").Ref<"loading" | "error" | "ready" | "idle", "loading" | "error" | "ready" | "idle">;
+    mediaPreloadStatus: import("vue").Ref<"loading" | "error" | "idle" | "ready", "loading" | "error" | "idle" | "ready">;
     mediaPreloadError: import("vue").Ref<string | null, string | null>;
     draftPersistenceStatus: import("vue").Ref<"error" | "idle" | "saving" | "saved", "error" | "idle" | "saving" | "saved">;
     draftPersistenceError: import("vue").Ref<string | null, string | null>;
@@ -798,7 +798,7 @@ export declare const useReportingFlowStore: import("pinia").StoreDefinition<"rep
             streamUrl: string;
         }[];
     } | null>;
-    mediaPreloadStatus: import("vue").Ref<"loading" | "error" | "ready" | "idle", "loading" | "error" | "ready" | "idle">;
+    mediaPreloadStatus: import("vue").Ref<"loading" | "error" | "idle" | "ready", "loading" | "error" | "idle" | "ready">;
     mediaPreloadError: import("vue").Ref<string | null, string | null>;
     draftPersistenceStatus: import("vue").Ref<"error" | "idle" | "saving" | "saved", "error" | "idle" | "saving" | "saved">;
     draftPersistenceError: import("vue").Ref<string | null, string | null>;

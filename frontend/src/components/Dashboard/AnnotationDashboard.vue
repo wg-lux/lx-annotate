@@ -1,5 +1,12 @@
 <template>
-  <div class="container-fluid py-4">
+  <div class="container-fluid py-4 annotation-dashboard">
+    <section class="dashboard-hero mb-4">
+      <div>
+        <h2 class="dashboard-title mb-1">Dashboard</h2>
+        <p class="dashboard-subtitle mb-0">Status, offene Arbeitspakete und Schnellzugriffe an einem Ort.</p>
+      </div>
+    </section>
+
     <!-- Einheitliche Annotation-Statistiken -->
     <AnnotationStatsComponent />
     
@@ -7,8 +14,8 @@
     <div class="row mt-4">
       <!-- Video-Segmente -->
       <div class="col-12 mb-4">
-        <div class="card">
-          <div class="card-header d-flex justify-content-between align-items-center">
+        <div class="card dashboard-card">
+          <div class="card-header dashboard-card-header d-flex justify-content-between align-items-center">
             <h5 class="mb-0">
               <i class="fas fa-video text-primary me-2"></i>
               Video-Segment Annotationen
@@ -31,10 +38,10 @@
               </router-link>
             </div>
           </div>
-          <div class="card-body">
+          <div class="card-body p-0">
             <div class="table-responsive">
-              <table class="table table-hover">
-                <thead class="table-dark">
+              <table class="table table-hover align-middle mb-0 dashboard-table">
+                <thead class="table-light">
                   <tr>
                     <th>Video ID</th>
                     <th>Segment</th>
@@ -47,9 +54,10 @@
                 </thead>
                 <tbody>
                   <tr v-if="loadingSegments">
-                    <td colspan="7" class="text-center">
-                      <div class="spinner-border text-primary" role="status">
-                        <span class="visually-hidden">Laden...</span>
+                    <td colspan="7" class="text-center py-4">
+                      <div class="table-loading-state">
+                        <i class="fas fa-wave-square me-2"></i>
+                        Segmente werden geladen...
                       </div>
                     </td>
                   </tr>
@@ -106,8 +114,8 @@
 
       <!-- Examination Annotationen -->
       <div class="col-12 mb-4">
-        <div class="card">
-          <div class="card-header d-flex justify-content-between align-items-center">
+        <div class="card dashboard-card">
+          <div class="card-header dashboard-card-header d-flex justify-content-between align-items-center">
             <h5 class="mb-0">
               <i class="fas fa-stethoscope text-success me-2"></i>
               Examination Annotationen
@@ -130,10 +138,10 @@
               </router-link>
             </div>
           </div>
-          <div class="card-body">
+          <div class="card-body p-0">
             <div class="table-responsive">
-              <table class="table table-hover">
-                <thead class="table-dark">
+              <table class="table table-hover align-middle mb-0 dashboard-table">
+                <thead class="table-light">
                   <tr>
                     <th>ID</th>
                     <th>Patient</th>
@@ -146,9 +154,10 @@
                 </thead>
                 <tbody>
                   <tr v-if="loadingExaminations">
-                    <td colspan="7" class="text-center">
-                      <div class="spinner-border text-primary" role="status">
-                        <span class="visually-hidden">Laden...</span>
+                    <td colspan="7" class="text-center py-4">
+                      <div class="table-loading-state">
+                        <i class="fas fa-wave-square me-2"></i>
+                        Untersuchungen werden geladen...
                       </div>
                     </td>
                   </tr>
@@ -210,8 +219,8 @@
 
       <!-- Sensitive Meta Annotationen -->
       <div class="col-12 mb-4">
-        <div class="card">
-          <div class="card-header d-flex justify-content-between align-items-center">
+        <div class="card dashboard-card">
+          <div class="card-header dashboard-card-header d-flex justify-content-between align-items-center">
             <h5 class="mb-0">
               <i class="fas fa-user-shield text-warning me-2"></i>
               Patientendaten Validierung
@@ -234,10 +243,10 @@
               </router-link>
             </div>
           </div>
-          <div class="card-body">
+          <div class="card-body p-0">
             <div class="table-responsive">
-              <table class="table table-hover">
-                <thead class="table-dark">
+              <table class="table table-hover align-middle mb-0 dashboard-table">
+                <thead class="table-light">
                   <tr>
                     <th>ID</th>
                     <th>Typ</th>
@@ -250,9 +259,10 @@
                 </thead>
                 <tbody>
                   <tr v-if="loadingSensitiveMeta">
-                    <td colspan="7" class="text-center">
-                      <div class="spinner-border text-primary" role="status">
-                        <span class="visually-hidden">Laden...</span>
+                    <td colspan="7" class="text-center py-4">
+                      <div class="table-loading-state">
+                        <i class="fas fa-wave-square me-2"></i>
+                        Patientendaten werden geladen...
                       </div>
                     </td>
                   </tr>
@@ -598,18 +608,57 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.card {
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+.annotation-dashboard {
+  --dashboard-border: rgba(45, 48, 71, 0.1);
+}
+
+.dashboard-hero {
+  background: radial-gradient(circle at top left, rgba(67, 86, 255, 0.16), rgba(67, 86, 255, 0.03) 45%, rgba(255, 255, 255, 0.95) 70%);
+  border: 1px solid var(--dashboard-border);
+  border-radius: 14px;
+  padding: 1rem 1.25rem;
+}
+
+.dashboard-title {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #2d3047;
+}
+
+.dashboard-subtitle {
+  color: #63748a;
+}
+
+.dashboard-card {
+  box-shadow: 0 14px 28px rgba(26, 36, 59, 0.08);
   margin-bottom: 20px;
-  border-radius: 8px;
+  border-radius: 12px;
+  border: 1px solid var(--dashboard-border);
+  overflow: hidden;
+}
+
+.dashboard-card-header {
+  background: linear-gradient(180deg, #fcfdff 0%, #f6f9ff 100%);
+  border-bottom: 1px solid var(--dashboard-border);
+  padding: 0.9rem 1rem;
 }
 
 .table {
   margin-bottom: 0;
 }
 
-.table th, .table td {
+.dashboard-table th,
+.dashboard-table td {
   vertical-align: middle;
+  border-color: rgba(45, 48, 71, 0.08);
+}
+
+.dashboard-table th {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #4f5e79;
+  font-weight: 700;
 }
 
 .header-actions {
@@ -618,7 +667,7 @@ onMounted(async () => {
 }
 
 .table-hover tbody tr:hover {
-  background-color: #f8f9fa;
+  background-color: #f4f8ff;
 }
 
 .badge {
@@ -630,10 +679,36 @@ onMounted(async () => {
   font-size: 0.875rem;
 }
 
+.table-loading-state {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #4f5e79;
+  font-weight: 600;
+  background: linear-gradient(90deg, #f0f4fb 0%, #e7eef9 50%, #f0f4fb 100%);
+  background-size: 200% 100%;
+  animation: loading-shimmer 1.4s linear infinite;
+  padding: 0.7rem 1rem;
+  border-radius: 999px;
+}
+
+@keyframes loading-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
 @media (max-width: 768px) {
   .header-actions {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .dashboard-hero {
+    padding: 0.9rem 1rem;
   }
   
   .table-responsive {

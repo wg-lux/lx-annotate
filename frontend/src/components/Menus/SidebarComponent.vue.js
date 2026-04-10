@@ -1,11 +1,11 @@
 import axiosInstance, { r } from '@/api/axiosInstance';
 import { endpoints } from '@/types/api/endpoints';
-import { getStaticUrl } from '@/utils/getStaticUrl';
+import coloRegLogo from '@/assets/ColoReg.png';
 export default (await import('vue')).defineComponent({
     name: 'SidebarComponent',
     data() {
         return {
-            staticUrl: getStaticUrl(),
+            coloRegLogo,
             isSidebarOpen: false,
             pendingValidationCount: 0,
             processingCount: 0,
@@ -14,7 +14,7 @@ export default (await import('vue')).defineComponent({
     },
     computed: {
         logoSrc() {
-            return `${this.staticUrl}img/ColoReg.png`;
+            return this.coloRegLogo;
         },
         isAnonymizationOverviewRoute() {
             return this.$route.path === '/anonymisierung' || this.$route.path.startsWith('/anonymisierung/uebersicht');
@@ -125,16 +125,6 @@ let __VLS_directives;
 // CSS variable injection 
 // CSS variable injection end 
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
-__VLS_asFunctionalElement(__VLS_intrinsicElements.header, __VLS_intrinsicElements.header)({});
-__VLS_asFunctionalElement(__VLS_intrinsicElements.link)({
-    rel: "stylesheet",
-    type: "text/css",
-    href: "https://fonts.googleapis.com/css?family=Roboto:300,400,500,700|Roboto+Slab:400,700|Material+Icons",
-});
-__VLS_asFunctionalElement(__VLS_intrinsicElements.link)({
-    rel: "stylesheet",
-    href: "https://maxcdn.bootstrapcdn.com/font-awesome/latest/css/font-awesome.min.css",
-});
 if (__VLS_ctx.isSidebarOpen) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ onClick: (__VLS_ctx.closeSidebar) },

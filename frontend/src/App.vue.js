@@ -1,8 +1,6 @@
 import NavbarComponent from './components/Menus/NavbarComponent.vue';
 import SidebarComponent from './components/Menus/SidebarComponent.vue';
-import DashboardComponent from './components/Dashboard/DashboardComponent.vue';
 import ToastMessageContainer from './components/Utils/ToastMessageContainer.vue';
-import AuthCheck from '@/components/Authentification/AuthCheck.vue';
 import axios from 'axios';
 // Move this to your http_kc.ts or main.ts if possible, but it works here too
 axios.defaults.baseURL = '/';
@@ -11,14 +9,10 @@ export default (await import('vue')).defineComponent({
     components: {
         NavbarComponent,
         SidebarComponent,
-        DashboardComponent,
-        ToastMessageContainer,
-        AuthCheck
+        ToastMessageContainer
     },
     data() {
         return {
-            // Use window.STATIC_URL injected from base.html
-            staticUrl: window.STATIC_URL,
             isMenuOpen: false,
         };
     },
@@ -32,44 +26,12 @@ const __VLS_ctx = {};
 const __VLS_componentsOption = {
     NavbarComponent,
     SidebarComponent,
-    DashboardComponent,
-    ToastMessageContainer,
-    AuthCheck
+    ToastMessageContainer
 };
 let __VLS_components;
 let __VLS_directives;
 // CSS variable injection 
 // CSS variable injection end 
-__VLS_asFunctionalElement(__VLS_intrinsicElements.header, __VLS_intrinsicElements.header)({});
-__VLS_asFunctionalElement(__VLS_intrinsicElements.link, __VLS_intrinsicElements.link)({
-    rel: "preconnect",
-    href: "https://fonts.googleapis.com",
-});
-__VLS_asFunctionalElement(__VLS_intrinsicElements.link, __VLS_intrinsicElements.link)({
-    rel: "preconnect",
-    href: "https://fonts.gstatic.com",
-    crossorigin: true,
-});
-__VLS_asFunctionalElement(__VLS_intrinsicElements.link, __VLS_intrinsicElements.link)({
-    href: "https://fonts.googleapis.com/css2?family=Comfortaa:wght@300..700&display=swap",
-    rel: "stylesheet",
-});
-__VLS_asFunctionalElement(__VLS_intrinsicElements.link, __VLS_intrinsicElements.link)({
-    rel: "stylesheet",
-    href: "https://maxcdn.bootstrapcdn.com/font-awesome/latest/css/font-awesome.min.css",
-});
-__VLS_asFunctionalElement(__VLS_intrinsicElements.link)({
-    rel: "stylesheet",
-    type: "text/css",
-    href: "https://fonts.googleapis.com/css?family=Roboto:300,400,500,700|Roboto+Slab:400,700|Material+Icons",
-});
-__VLS_asFunctionalElement(__VLS_intrinsicElements.link, __VLS_intrinsicElements.link)({
-    rel: "stylesheet",
-    href: "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css",
-    integrity: "sha512-xh6IYswF2Yt+0e1yz3F6j2CvkJyDk6cfogmfVZBt3WgBp1x5Yp1p9ggbo2mcqzg4bV7+ydRZo7ljZHFQUNq9PQ==",
-    crossorigin: "anonymous",
-    referrerpolicy: "no-referrer",
-});
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "g-sidenav-show" },
 });

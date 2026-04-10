@@ -1,18 +1,5 @@
 <template>
   <div>
-    <!-- Header with font and icon links -->
-    <header>
-      <link
-        rel="stylesheet"
-        type="text/css"
-        href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700|Roboto+Slab:400,700|Material+Icons"
-      />
-      <link
-        rel="stylesheet"
-        href="https://maxcdn.bootstrapcdn.com/font-awesome/latest/css/font-awesome.min.css"
-      />
-    </header>
-
     <!-- Mobile backdrop -->
     <div v-if="isSidebarOpen" class="sidebar-backdrop" @click="closeSidebar"></div>
 
@@ -242,13 +229,13 @@
 <script>
 import axiosInstance, { r } from '@/api/axiosInstance'
 import { endpoints } from '@/types/api/endpoints'
-import { getStaticUrl } from '@/utils/getStaticUrl'
+import coloRegLogo from '@/assets/ColoReg.png'
 
 export default {
   name: 'SidebarComponent',
   data() {
     return {
-      staticUrl: getStaticUrl(),
+      coloRegLogo,
       isSidebarOpen: false,
       pendingValidationCount: 0,
       processingCount: 0,
@@ -257,7 +244,7 @@ export default {
   },
   computed: {
     logoSrc() {
-      return `${this.staticUrl}img/ColoReg.png`
+      return this.coloRegLogo
     },
     isAnonymizationOverviewRoute() {
       return this.$route.path === '/anonymisierung' || this.$route.path.startsWith('/anonymisierung/uebersicht')

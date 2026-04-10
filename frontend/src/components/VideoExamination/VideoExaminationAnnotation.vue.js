@@ -8,6 +8,7 @@ import Timeline from '@/components/VideoExamination/Timeline.vue';
 import { storeToRefs } from 'pinia';
 import { useToastStore } from '@/stores/toastStore';
 import { formatTime, getTranslationForLabel, getColorForLabel } from '@/utils/videoUtils';
+import { buildVideoStreamUrl } from '@/utils/mediaUrls';
 import { useRoute, useRouter } from 'vue-router';
 const route = useRoute(); // ①
 const router = useRouter();
@@ -251,8 +252,7 @@ watch(selectableVideos, (videos) => {
 const anonymizedVideoSrc = computed(() => {
     if (!selectedVideoId.value)
         return undefined;
-    const base = (import.meta.env.VITE_API_BASE_URL || window.location.origin).replace(/\/$/, '');
-    return `${base}/api/${endpoints.media.videoStream(selectedVideoId.value)}?type=processed`;
+    return buildVideoStreamUrl(selectedVideoId.value, 'processed');
 });
 const hasVideos = computed(() => {
     return selectableVideos.value && selectableVideos.value.length > 0;

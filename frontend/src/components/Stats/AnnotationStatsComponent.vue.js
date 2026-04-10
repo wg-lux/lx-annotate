@@ -41,6 +41,71 @@ const pendingPercentage = computed(() => {
 const totalAnnotations = computed(() => {
     return annotationStatsStore.stats.totalAnnotations || 0;
 });
+const points = computed(() => {
+    const completed = segmentStats.value.completed * 5 +
+        examinationStats.value.completed * 8 +
+        sensitiveMetaStats.value.completed * 6;
+    const inProgress = segmentStats.value.inProgress * 2 +
+        examinationStats.value.inProgress * 3 +
+        sensitiveMetaStats.value.inProgress * 2;
+    return completed + inProgress;
+});
+const POINTS_PER_LEVEL = 120;
+const currentLevel = computed(() => Math.max(1, Math.floor(points.value / POINTS_PER_LEVEL) + 1));
+const pointsToNextLevel = computed(() => POINTS_PER_LEVEL - (points.value % POINTS_PER_LEVEL || 0));
+const levelProgress = computed(() => Math.min(100, Math.round(((points.value % POINTS_PER_LEVEL) / POINTS_PER_LEVEL) * 100)));
+const unlockedAchievements = computed(() => {
+    const unlocked = [];
+    if (totalCompleted.value >= 1)
+        unlocked.push('Erster Abschluss');
+    if (totalCompleted.value >= 10)
+        unlocked.push('Konstant geliefert');
+    if (completionPercentage.value >= 50)
+        unlocked.push('Halbzeit-Champion');
+    if (segmentStats.value.completed >= 20)
+        unlocked.push('Segment-Profi');
+    if (examinationStats.value.completed >= 10)
+        unlocked.push('Befundungs-Profi');
+    if (sensitiveMetaStats.value.completed >= 10)
+        unlocked.push('Datenschutz-Held');
+    return unlocked;
+});
+const unlockedAchievementsCount = computed(() => unlockedAchievements.value.length);
+const totalCompleted = computed(() => annotationStatsStore.stats.totalCompleted || 0);
+const focusMission = computed(() => {
+    const candidates = [
+        {
+            key: 'segments',
+            pending: segmentStats.value.pending,
+            title: 'Video-Segmente klären',
+            description: 'Reduziere offene Segmente, um die Pipeline zu entlasten.',
+            progress: getCompletionPercentage(segmentStats.value),
+        },
+        {
+            key: 'examinations',
+            pending: examinationStats.value.pending,
+            title: 'Befundungen abschließen',
+            description: 'Führe offene Untersuchungen zu einem dokumentierten Abschluss.',
+            progress: getCompletionPercentage(examinationStats.value),
+        },
+        {
+            key: 'sensitive',
+            pending: sensitiveMetaStats.value.pending,
+            title: 'Patientendaten validieren',
+            description: 'Verringere offene Validierungen für einen sicheren Datenfluss.',
+            progress: getCompletionPercentage(sensitiveMetaStats.value),
+        },
+    ];
+    const top = candidates.sort((a, b) => b.pending - a.pending)[0];
+    if (!top || top.pending <= 0) {
+        return {
+            title: 'Stabil halten',
+            description: 'Alles sieht gut aus. Heute Fokus auf Qualitätskontrolle und Feinschliff.',
+            progress: 100,
+        };
+    }
+    return top;
+});
 // Check if we have any data to show
 const hasAnyData = computed(() => {
     return annotationStatsStore.stats.totalAnnotations > 0 ||
@@ -76,28 +141,22 @@ const refreshStats = async () => {
 };
 // Navigation methods
 const navigateToSegments = () => {
-    const segmentSection = document.querySelector('[data-section="segments"]');
-    if (segmentSection) {
-        segmentSection.scrollIntoView({ behavior: 'smooth' });
-    }
-    else {
-        router.push('/segments');
-    }
+    router.push('/video-untersuchung');
 };
 const navigateToExaminations = () => {
-    router.push('/examinations');
+    router.push('/reporting/case-setup');
 };
 const navigateToSensitiveMeta = () => {
-    router.push('/sensitive-meta');
+    router.push('/anonymisierung/validierung');
 };
 const navigateToFrameAnnotation = () => {
     router.push('/frame-annotation');
 };
 const navigateToExamination = () => {
-    router.push('/examination');
+    router.push('/reporting/case-setup');
 };
 const navigateToValidation = () => {
-    router.push('/validation');
+    router.push('/anonymisierung/validierung');
 };
 // Load stats on component mount and watch for changes
 onMounted(async () => {
@@ -113,6 +172,7 @@ debugger; /* PartiallyEnd: #3632/scriptSetup.vue */
 const __VLS_ctx = {};
 let __VLS_components;
 let __VLS_directives;
+/** @type {__VLS_StyleScopedClasses['mission-card']} */ ;
 /** @type {__VLS_StyleScopedClasses['annotation-type-card']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-item']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-item']} */ ;
@@ -127,6 +187,9 @@ let __VLS_directives;
 /** @type {__VLS_StyleScopedClasses['completed']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-icon']} */ ;
 /** @type {__VLS_StyleScopedClasses['quick-action-item']} */ ;
+/** @type {__VLS_StyleScopedClasses['skeleton-title']} */ ;
+/** @type {__VLS_StyleScopedClasses['skeleton-card']} */ ;
+/** @type {__VLS_StyleScopedClasses['skeleton-row']} */ ;
 // CSS variable injection 
 // CSS variable injection end 
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -134,14 +197,25 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.d
 });
 if (__VLS_ctx.annotationStatsStore.isLoading && !__VLS_ctx.hasAnyData) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "text-center py-5" },
+        ...{ class: "dashboard-loading-state py-4" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "spinner-border text-primary" },
-        role: "status",
+        ...{ class: "skeleton-title mb-3" },
     });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-        ...{ class: "visually-hidden" },
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "row g-3 mb-3" },
+    });
+    for (const [n] of __VLS_getVForSourceType((3))) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "col-md-4" },
+            key: (`overview-skeleton-${n}`),
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "skeleton-card" },
+        });
+    }
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "skeleton-row" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
         ...{ class: "mt-3 text-muted" },
@@ -188,6 +262,109 @@ else {
         ...{ class: "fas fa-sync-alt" },
         ...{ class: ({ 'fa-spin': __VLS_ctx.annotationStatsStore.isLoading }) },
     });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "row mb-4 g-3" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "col-lg-8" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "card player-card h-100" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "card-body" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "d-flex flex-wrap justify-content-between align-items-start gap-3" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "player-kicker" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.h5, __VLS_intrinsicElements.h5)({
+        ...{ class: "player-title mb-1" },
+    });
+    (__VLS_ctx.currentLevel);
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
+        ...{ class: "text-muted mb-2" },
+    });
+    (__VLS_ctx.points);
+    (__VLS_ctx.pointsToNextLevel);
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "achievement-pill" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+        ...{ class: "fas fa-award me-2" },
+    });
+    (__VLS_ctx.unlockedAchievementsCount);
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "level-progress mt-3" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "d-flex justify-content-between small text-muted mb-1" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+    (__VLS_ctx.levelProgress);
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "progress" },
+        ...{ style: {} },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "progress-bar bg-success" },
+        ...{ style: ({ width: __VLS_ctx.levelProgress + '%' }) },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "mt-3 d-flex flex-wrap gap-2" },
+    });
+    for (const [badge] of __VLS_getVForSourceType((__VLS_ctx.unlockedAchievements))) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+            key: (badge),
+            ...{ class: "badge text-bg-light achievement-badge" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: "fas fa-star me-1" },
+        });
+        (badge);
+    }
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "col-lg-4" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "card mission-card h-100" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "card-body" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "player-kicker" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({
+        ...{ class: "mission-title mt-1 mb-2" },
+    });
+    (__VLS_ctx.focusMission.title);
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
+        ...{ class: "text-muted small mb-3" },
+    });
+    (__VLS_ctx.focusMission.description);
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "progress mb-2" },
+        ...{ style: {} },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "progress-bar bg-info" },
+        ...{ style: ({ width: __VLS_ctx.focusMission.progress + '%' }) },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "d-flex justify-content-between align-items-center small" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+        ...{ class: "text-muted" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+        ...{ class: "fw-semibold" },
+    });
+    (__VLS_ctx.focusMission.progress);
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "row mb-4" },
     });
@@ -671,11 +848,16 @@ if (__VLS_ctx.annotationStatsStore.hasError) {
     });
 }
 /** @type {__VLS_StyleScopedClasses['annotation-stats-overview']} */ ;
-/** @type {__VLS_StyleScopedClasses['text-center']} */ ;
-/** @type {__VLS_StyleScopedClasses['py-5']} */ ;
-/** @type {__VLS_StyleScopedClasses['spinner-border']} */ ;
-/** @type {__VLS_StyleScopedClasses['text-primary']} */ ;
-/** @type {__VLS_StyleScopedClasses['visually-hidden']} */ ;
+/** @type {__VLS_StyleScopedClasses['dashboard-loading-state']} */ ;
+/** @type {__VLS_StyleScopedClasses['py-4']} */ ;
+/** @type {__VLS_StyleScopedClasses['skeleton-title']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['row']} */ ;
+/** @type {__VLS_StyleScopedClasses['g-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-md-4']} */ ;
+/** @type {__VLS_StyleScopedClasses['skeleton-card']} */ ;
+/** @type {__VLS_StyleScopedClasses['skeleton-row']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['row']} */ ;
@@ -704,6 +886,70 @@ if (__VLS_ctx.annotationStatsStore.hasError) {
 /** @type {__VLS_StyleScopedClasses['fas']} */ ;
 /** @type {__VLS_StyleScopedClasses['fa-sync-alt']} */ ;
 /** @type {__VLS_StyleScopedClasses['fa-spin']} */ ;
+/** @type {__VLS_StyleScopedClasses['row']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-4']} */ ;
+/** @type {__VLS_StyleScopedClasses['g-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-lg-8']} */ ;
+/** @type {__VLS_StyleScopedClasses['card']} */ ;
+/** @type {__VLS_StyleScopedClasses['player-card']} */ ;
+/** @type {__VLS_StyleScopedClasses['h-100']} */ ;
+/** @type {__VLS_StyleScopedClasses['card-body']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['flex-wrap']} */ ;
+/** @type {__VLS_StyleScopedClasses['justify-content-between']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-start']} */ ;
+/** @type {__VLS_StyleScopedClasses['gap-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['player-kicker']} */ ;
+/** @type {__VLS_StyleScopedClasses['player-title']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['achievement-pill']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-award']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['level-progress']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['justify-content-between']} */ ;
+/** @type {__VLS_StyleScopedClasses['small']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['progress']} */ ;
+/** @type {__VLS_StyleScopedClasses['progress-bar']} */ ;
+/** @type {__VLS_StyleScopedClasses['bg-success']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['flex-wrap']} */ ;
+/** @type {__VLS_StyleScopedClasses['gap-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-bg-light']} */ ;
+/** @type {__VLS_StyleScopedClasses['achievement-badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['fa-star']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-lg-4']} */ ;
+/** @type {__VLS_StyleScopedClasses['card']} */ ;
+/** @type {__VLS_StyleScopedClasses['mission-card']} */ ;
+/** @type {__VLS_StyleScopedClasses['h-100']} */ ;
+/** @type {__VLS_StyleScopedClasses['card-body']} */ ;
+/** @type {__VLS_StyleScopedClasses['player-kicker']} */ ;
+/** @type {__VLS_StyleScopedClasses['mission-title']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['small']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['progress']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['progress-bar']} */ ;
+/** @type {__VLS_StyleScopedClasses['bg-info']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['justify-content-between']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['small']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['fw-semibold']} */ ;
 /** @type {__VLS_StyleScopedClasses['row']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-4']} */ ;
 /** @type {__VLS_StyleScopedClasses['col-12']} */ ;
@@ -942,6 +1188,13 @@ const __VLS_self = (await import('vue')).defineComponent({
             inProgressPercentage: inProgressPercentage,
             pendingPercentage: pendingPercentage,
             totalAnnotations: totalAnnotations,
+            points: points,
+            currentLevel: currentLevel,
+            pointsToNextLevel: pointsToNextLevel,
+            levelProgress: levelProgress,
+            unlockedAchievements: unlockedAchievements,
+            unlockedAchievementsCount: unlockedAchievementsCount,
+            focusMission: focusMission,
             hasAnyData: hasAnyData,
             lastUpdateText: lastUpdateText,
             getCompletionPercentage: getCompletionPercentage,

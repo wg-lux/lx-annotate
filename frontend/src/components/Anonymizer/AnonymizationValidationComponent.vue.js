@@ -6,6 +6,7 @@ import { useToastStore } from '@/stores/toastStore';
 import { useMediaTypeStore } from '@/stores/mediaTypeStore';
 import OutsideTimelineComponent from '@/components/Anonymizer/OutsideSegmentComponent.vue';
 import { DateConverter, DateValidator } from '@/utils/dateHelpers';
+import { buildPdfStreamUrl, buildVideoStreamUrl } from '@/utils/mediaUrls';
 import { useRoute } from 'vue-router';
 import { useDebug } from '@/composables/useDebug';
 // @ts-ignore
@@ -457,51 +458,39 @@ async function initializeCurrentItemFromRouteContext() {
     const loaded = await anonymizationStore.setCurrentForValidation(targetFileId, targetScope);
     return !!loaded;
 }
-function buildMediaUrl(path, query) {
-    const url = new URL(r(path), window.location.origin);
-    if (query) {
-        for (const [key, value] of Object.entries(query)) {
-            url.searchParams.set(key, value);
-        }
-    }
-    return url.toString();
-}
 // ✅ NEW: Raw video URL (original unprocessed video)
 const rawVideoSrc = computed(() => {
     if (!isVideo.value || !currentItem.value)
         return undefined;
-    return buildMediaUrl(endpoints.media.videoStream(fileId), { type: 'raw' });
+    return buildVideoStreamUrl(fileId, 'raw');
 });
 // ✅ NEW: Anonymized video URL (processed/anonymized video)
 const anonymizedVideoSrc = computed(() => {
     if (!isVideo.value || !currentItem.value)
         return undefined;
-    return buildMediaUrl(endpoints.media.videoStream(fileId), { type: 'processed' });
+    return buildVideoStreamUrl(fileId, 'processed');
 });
 // ✅ NEW: Raw PDF URL (original unprocessed PDF)
 const rawPdfSrc = computed(() => {
     if (!isPdf.value || !currentItem.value)
         return undefined;
-    return buildMediaUrl(endpoints.media.pdfStream(fileId), { type: 'raw' });
+    return buildPdfStreamUrl(fileId, 'raw');
 });
 // ✅ NEW: Anonymized PDF URL (processed/anonymized PDF)
 const anonymizedPdfSrc = computed(() => {
     if (!isPdf.value || !currentItem.value)
         return undefined;
-    return buildMediaUrl(endpoints.media.pdfStream(fileId), { type: 'processed' });
+    return buildPdfStreamUrl(fileId, 'processed');
 });
 const rawPdfDownloadSrc = computed(() => {
     if (!isPdf.value || !currentItem.value)
         return undefined;
-    return buildMediaUrl(endpoints.media.pdfStream(fileId), { type: 'raw', download: '1' });
+    return buildPdfStreamUrl(fileId, 'raw', { download: 1 });
 });
 const anonymizedPdfDownloadSrc = computed(() => {
     if (!isPdf.value || !currentItem.value)
         return undefined;
-    return buildMediaUrl(endpoints.media.pdfStream(fileId), {
-        type: 'processed',
-        download: '1'
-    });
+    return buildPdfStreamUrl(fileId, 'processed', { download: 1 });
 });
 // ✅ NEW: Refs for dual video elements
 const rawVideoElement = ref(null);
