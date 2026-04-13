@@ -18,7 +18,7 @@
           <li class="nav-item">
             <router-link to="/" class="nav-link" :class="{ active: $route.path === '/' }">
               <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
-                <i class="material-icons opacity-10">dashboard</i>
+                <i class="ni ni-tv-2 opacity-10"></i>
               </div>
               <span class="nav-link-text ms-1">Dashboard</span>
             </router-link>
@@ -26,7 +26,7 @@
           <li>
             <router-link to="/uebersicht" class="nav-link" :class="{ active: $route.path === '/uebersicht' }">
               <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
-                <i class="material-icons opacity-10">dashboard</i>
+                <i class="ni ni-collection opacity-10"></i>
               </div>
               <span class="nav-link-text ms-1">Alle Seiten</span>
             </router-link>
@@ -34,7 +34,7 @@
           <li class="nav-item">
             <router-link to="/documentation" class="nav-link" :class="{ active: $route.path === '/documentation' }">
               <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
-                <i class="material-icons opacity-10">menu_book</i>
+                <i class="ni ni-book-bookmark opacity-10"></i>
               </div>
               <span class="nav-link-text ms-1">Dokumentation</span>
             </router-link>
@@ -42,7 +42,7 @@
           <li class="nav-item">
             <router-link to="/einstellungen" class="nav-link" :class="{ active: $route.path === '/einstellungen' }">
               <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
-                <i class="material-icons opacity-10">tune</i>
+                <i class="ni ni-settings-gear-65 opacity-10"></i>
               </div>
               <span class="nav-link-text ms-1">Einstellungen</span>
             </router-link>
@@ -50,7 +50,7 @@
           <li class="nav-item" v-can="'page.patients.view:GET'">
             <router-link to="/patienten" class="nav-link" :class="{ active: $route.path === '/patienten' }">
               <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
-               <i class="material-icons opacity-10">people</i>
+               <i class="ni ni-circle-08 opacity-10"></i>
               </div>
               <span class="nav-link-text ms-1">Patienten</span>
             </router-link>
@@ -63,7 +63,7 @@
                 :class="{ active: isAnonymizationOverviewRoute }"
               >
                 <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
-                  <i class="material-icons opacity-10">check_circle</i>
+                  <i class="ni ni-check-bold opacity-10"></i>
                 </div>
                 <span class="nav-link-text nav-link-text-with-badge ms-1">
                   1. Anonymisierung
@@ -85,7 +85,7 @@
                 :class="{ active: isAnonymizationValidationRoute }"
               >
                 <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
-                  <i class="material-icons opacity-10">verified_user</i>
+                  <i class="ni ni-user-run opacity-10"></i>
                 </div>
                 <span class="nav-link-text nav-link-text-with-badge ms-1">
                   1b. Validierung fortsetzen
@@ -102,7 +102,7 @@
             <li class="nav-item">
               <router-link to="/video-untersuchung" class="nav-link" :class="{ active: $route.path === '/video-untersuchung' }">
                 <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
-                  <i class="material-icons opacity-10">video_call</i>
+                  <i class="ni ni-button-play opacity-10"></i>
                 </div>
                 <span class="nav-link-text ms-1">2. Video-Untersuchung</span>
               </router-link>
@@ -110,7 +110,7 @@
             <li class="nav-item">
               <router-link to="/frame-annotation" class="nav-link" :class="{ active: $route.path === '/frame-annotation' }">
                 <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
-                  <i class="material-icons opacity-10">note_add</i>
+                  <i class="ni ni-single-copy-04 opacity-10"></i>
                 </div>
                 <span class="nav-link-text ms-1">2b. Frame Annotation</span>
               </router-link>
@@ -123,7 +123,7 @@
                 :class="{ active: isReportingCaseSetupRoute }"
               >
                 <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
-                  <i class="material-icons opacity-10">playlist_add_check</i>
+                  <i class="ni ni-check-bold opacity-10"></i>
                 </div>
                 <span class="nav-link-text ms-1">3. Befundung starten</span>
               </router-link>
@@ -136,7 +136,7 @@
                 :class="{ active: isReportingRoute }"
               >
                 <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
-                  <i class="material-icons opacity-10">fact_check</i>
+                  <i class="ni ni-single-copy-04 opacity-10"></i>
                 </div>
                 <span class="nav-link-text ms-1">Befundung: Übersicht</span>
               </router-link>
@@ -173,7 +173,7 @@
             <li class="nav-item">
               <router-link to="/export" class="nav-link" :class="{ active: $route.path === '/export' }">
                 <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
-                  <i class="material-icons opacity-10">arrow</i>
+                  <i class="ni ni-bold-right opacity-10"></i>
                 </div>
                 <span class="nav-link-text ms-1">Export</span>
               </router-link>
@@ -181,7 +181,7 @@
             <li class="nav-item">
               <router-link to="/hub-export" class="nav-link" :class="{ active: $route.path === '/hub-export' }">
                 <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
-                  <i class="material-icons opacity-10">cloud_upload</i>
+                  <i class="ni ni-cloud-upload-96 opacity-10"></i>
                 </div>
                 <span class="nav-link-text ms-1">Hub-Export</span>
               </router-link>
@@ -440,7 +440,7 @@ export default {
   color: inherit !important;
 }
 
-.nav-link .material-icons {
+.nav-link .icon i {
   color: inherit !important;
   opacity: 0.92 !important;
 }
@@ -469,9 +469,9 @@ export default {
   border-radius: 0.75rem;
 }
 
-.material-icons {
+.icon-shape i {
   font-size: 1rem;
-  line-height: 0;
+  line-height: 1;
 }
 
 .nav-link-text {
