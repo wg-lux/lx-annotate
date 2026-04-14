@@ -88,9 +88,19 @@ logging.getLogger("watchdog.observers.inotify_buffer").setLevel(logging.WARNING)
 
 logger = logging.getLogger(__name__)
 
-INTAKE_VIDEO_DIR = data_paths["import_video"].resolve()
-INTAKE_REPORT_DIR = data_paths["import_report"].resolve()
-INTAKE_PREANONYMIZED_DIR = data_paths["import_preanonymized"].resolve()
+
+def _resolve_intake_dir(env_name: str, data_paths_key: str) -> Path:
+    configured = os.getenv(env_name, "").strip()
+    if configured:
+        return Path(configured).expanduser().resolve()
+    return data_paths[data_paths_key].resolve()
+
+
+INTAKE_VIDEO_DIR = _resolve_intake_dir("WATCHER_VIDEO_DIR", "import_video")
+INTAKE_REPORT_DIR = _resolve_intake_dir("WATCHER_REPORT_DIR", "import_report")
+INTAKE_PREANONYMIZED_DIR = _resolve_intake_dir(
+    "WATCHER_PREANONYMIZED_DIR", "import_preanonymized"
+)
 MANAGED_VAULT_ROOT = RUNTIME_DATA_DIR.resolve()
 
 
@@ -290,7 +300,7 @@ class AutoProcessingHandler(FileSystemEventHandler):
 
         configured_default_center = os.getenv(
             "LX_ANNOTATE_DEFAULT_CENTER",
-            "university-hospital-wuerzburg",
+            "university_hospital_wuerzburg",
         )
         # Keep handler construction side-effect free for file watcher tests and
         # lazy service wiring. Resolve the configured center only at ingest time.
@@ -727,6 +737,7 @@ class FileWatcherService:
                 while True:
                     time.sleep(10)
                     self._health_check()
+                    self._process_existing_files()
             except KeyboardInterrupt:
                 logger.info("Received shutdown signal")
         except Exception as exc:
