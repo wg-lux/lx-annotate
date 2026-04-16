@@ -56,6 +56,8 @@ const labelMarkingStart = ref(0);
 const selectedSegmentId = ref(null);
 const isInitialLoading = ref(true);
 const lastValidationClickedVideoId = ref(null);
+const segmentSourceMode = ref('manual');
+const isImportingPredictionSegments = ref(false);
 // Video detail and metadata like VideoClassificationComponent
 const videoDetail = ref(null);
 const videoMeta = ref(null);
@@ -72,7 +74,7 @@ const videoDropdownRef = ref(null);
 const isVideoDropdownOpen = ref(false);
 const videoSensitiveMetaMap = ref({});
 // Video Dropdown Watcher
-const hasUnsavedChanges = computed(() => rawSegments.value.some(s => s.isDirty));
+const hasUnsavedChanges = computed(() => rawSegments.value.some(s => s.isDirty && s.videoID === selectedVideoId.value && (segmentSourceMode.value === 'all' || s.segmentOrigin === segmentSourceMode.value)));
 async function loadSelectedVideo() {
     if (selectedVideoId.value == null) {
         videoStore.clearVideo();
@@ -433,7 +435,9 @@ async function loadVideoSegments() {
     if (selectedVideoId.value === null)
         return;
     try {
-        await videoStore.fetchAllSegments(selectedVideoId.value, true);
+        await videoStore.fetchAllSegments(selectedVideoId.value, true, {
+            sourceKind: segmentSourceMode.value
+        });
         console.log('Video segments loaded for video:', selectedVideoId.value);
         console.log('Timeline segments count:', rawSegments.value.length);
     }
@@ -441,6 +445,10 @@ async function loadVideoSegments() {
         console.error('Error loading video segments:', error);
     }
 }
+const handleSegmentSourceChange = async () => {
+    selectedSegmentId.value = null;
+    await loadVideoSegments();
+};
 const onVideoLoaded = () => {
     if (videoRef.value) {
         duration.value = videoRef.value.duration;
@@ -572,6 +580,11 @@ const handleCreateSegment = (...args) => {
     const [event] = args;
     return new Promise(async (resolve, reject) => {
         try {
+            if (segmentSourceMode.value === 'prediction') {
+                showErrorMessage('Neue Segmente bitte erst nach dem Übernehmen in die manuellen Annotationen anlegen.');
+                resolve();
+                return;
+            }
             if (selectedVideoId.value) {
                 await videoStore.createSegment?.(selectedVideoId.value, event.label, event.start, event.end);
                 showSuccessMessage(`Segment erstellt: ${getTranslationForLabel(event.label)}`);
@@ -593,6 +606,12 @@ const handleSegmentDelete = (...args) => {
             return;
         }
         try {
+            if (segmentSourceMode.value === 'prediction') {
+                videoStore.removeSegment(segment.id);
+                showSuccessMessage(`KI-Segment lokal entfernt: ${getTranslationForLabel(segment.label)}`);
+                resolve();
+                return;
+            }
             // 1. Remove from store
             videoStore.removeSegment(segment.id);
             // 2. Perform API call
@@ -795,6 +814,10 @@ const deleteExamination = async (examinationId) => {
 };
 // Validate all video segments (complete video review)
 const submitVideoSegments = async () => {
+    if (segmentSourceMode.value === 'prediction') {
+        showErrorMessage('KI-Vorhersagen müssen zuerst als manuelle Segmente übernommen werden.');
+        return;
+    }
     if (!selectedVideoId.value) {
         showErrorMessage('Kein Video ausgewählt');
         return;
@@ -848,6 +871,10 @@ const handleValidateAndMark = async (videoId) => {
     await markValidationFinishedRemoveOutside(videoId);
 };
 const saveSegmentChanges = async () => {
+    if (segmentSourceMode.value === 'prediction') {
+        showErrorMessage('Änderungen an KI-Vorhersagen werden erst mit "Als manuelle Segmente übernehmen" persistiert.');
+        return;
+    }
     try {
         await videoStore.persistDirtySegments();
         await loadVideoSegments();
@@ -859,11 +886,47 @@ const saveSegmentChanges = async () => {
     }
 };
 const discardSegmentChanges = () => {
+    if (segmentSourceMode.value === 'prediction') {
+        void loadVideoSegments();
+        showSuccessMessage('Lokale Änderungen an KI-Vorhersagen verworfen');
+        return;
+    }
     // simplest version: reload from backend
     if (!selectedVideoId.value)
         return;
     videoStore.fetchVideoSegments(selectedVideoId.value);
     showSuccessMessage('Lokale Änderungen verworfen');
+};
+const importPredictionSegmentsToManual = async () => {
+    if (!selectedVideoId.value)
+        return;
+    if (timelineSegmentsForSelectedVideo.value.length === 0) {
+        showErrorMessage('Keine KI-Segmente zum Übernehmen vorhanden');
+        return;
+    }
+    isImportingPredictionSegments.value = true;
+    try {
+        const payload = {
+            replace_existing: true,
+            segments: timelineSegmentsForSelectedVideo.value.map((segment) => ({
+                label_name: segment.label,
+                start_time: segment.startTime,
+                end_time: segment.endTime,
+                export_segment: Boolean(segment.exportSegment)
+            }))
+        };
+        await axiosInstance.post(r(endpoints.media.videoSegmentsImportPredictions(selectedVideoId.value)), payload);
+        segmentSourceMode.value = 'manual';
+        await loadVideoSegments();
+        showSuccessMessage('KI-Vorhersagen wurden als manuelle Segmente übernommen');
+    }
+    catch (error) {
+        console.error('Error importing prediction segments:', error);
+        await guarded(Promise.reject(error));
+    }
+    finally {
+        isImportingPredictionSegments.value = false;
+    }
 };
 // Video event handlers from AnonymizationValidationComponent
 const onVideoError = (event) => {
@@ -1439,22 +1502,36 @@ if (__VLS_ctx.duration > 0) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: "mt-3 d-flex gap-2" },
         });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
+            ...{ onChange: (__VLS_ctx.handleSegmentSourceChange) },
+            value: (__VLS_ctx.segmentSourceMode),
+            ...{ class: "form-select form-select-sm source-select" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+            value: "manual",
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+            value: "prediction",
+        });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
             ...{ onClick: (__VLS_ctx.discardSegmentChanges) },
             ...{ class: "btn btn-outline-secondary" },
+            disabled: (__VLS_ctx.segmentSourceMode === 'prediction'),
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-            ...{ onClick: (...[$event]) => {
-                    if (!(__VLS_ctx.duration > 0))
-                        return;
-                    if (!(__VLS_ctx.selectedVideoId))
-                        return;
-                    __VLS_ctx.saveSegmentChanges;
-                    __VLS_ctx.submitVideoSegments;
-                } },
+            ...{ onClick: (__VLS_ctx.saveSegmentChanges) },
             ...{ class: "btn" },
             ...{ class: (__VLS_ctx.hasUnsavedChanges ? 'btn-primary' : 'btn-outline-secondary') },
+            disabled: (__VLS_ctx.segmentSourceMode === 'prediction'),
         });
+        if (__VLS_ctx.segmentSourceMode === 'prediction') {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+                ...{ onClick: (__VLS_ctx.importPredictionSegmentsToManual) },
+                ...{ class: "btn btn-primary" },
+                disabled: (__VLS_ctx.timelineSegmentsForSelectedVideo.length === 0 || __VLS_ctx.isImportingPredictionSegments),
+            });
+            (__VLS_ctx.isImportingPredictionSegments ? 'Übernehme...' : 'Als manuelle Segmente übernehmen');
+        }
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ onClick: (__VLS_ctx.handleTimelineClick) },
             ...{ class: "simple-timeline-track mt-2" },
@@ -1481,6 +1558,11 @@ if (__VLS_ctx.duration > 0) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: "d-flex align-items-center gap-3" },
         });
+        if (__VLS_ctx.segmentSourceMode === 'prediction') {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: "alert alert-warning py-2 px-3 mb-0" },
+            });
+        }
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: "d-flex align-items-center" },
         });
@@ -1619,6 +1701,7 @@ if (__VLS_ctx.selectedVideoId) {
                 } },
             ...{ class: "btn validation-action-button d-inline-flex align-items-center justify-content-center gap-2" },
             ...{ class: ({ 'validation-action-button-clicked': __VLS_ctx.selectedVideoId === __VLS_ctx.lastValidationClickedVideoId }) },
+            disabled: (__VLS_ctx.segmentSourceMode === 'prediction'),
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
             ...{ class: "material-icons validation-action-icon" },
@@ -1626,7 +1709,7 @@ if (__VLS_ctx.selectedVideoId) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
         (__VLS_ctx.timelineSegmentsForSelectedVideo.length);
     }
-    if (!__VLS_ctx.isAnnotationFinished(__VLS_ctx.selectedVideoId)) {
+    if (!__VLS_ctx.isAnnotationFinished(__VLS_ctx.selectedVideoId) && __VLS_ctx.segmentSourceMode !== 'prediction') {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
             ...{ class: "text-muted text-center mt-2 mb-0" },
             ...{ style: {} },
@@ -1910,9 +1993,14 @@ if (__VLS_ctx.savedExaminations.length > 0) {
 /** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
 /** @type {__VLS_StyleScopedClasses['gap-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-select']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-select-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['source-select']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-secondary']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-primary']} */ ;
 /** @type {__VLS_StyleScopedClasses['simple-timeline-track']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['progress-bar']} */ ;
@@ -1922,6 +2010,11 @@ if (__VLS_ctx.savedExaminations.length > 0) {
 /** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
 /** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['gap-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert-warning']} */ ;
+/** @type {__VLS_StyleScopedClasses['py-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['px-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
 /** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
 /** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['form-label']} */ ;
@@ -2070,6 +2163,8 @@ const __VLS_self = (await import('vue')).defineComponent({
             isMarkingLabel: isMarkingLabel,
             selectedSegmentId: selectedSegmentId,
             lastValidationClickedVideoId: lastValidationClickedVideoId,
+            segmentSourceMode: segmentSourceMode,
+            isImportingPredictionSegments: isImportingPredictionSegments,
             errorMessage: errorMessage,
             successMessage: successMessage,
             isFullscreen: isFullscreen,
@@ -2094,6 +2189,7 @@ const __VLS_self = (await import('vue')).defineComponent({
             canStartLabeling: canStartLabeling,
             clearErrorMessage: clearErrorMessage,
             clearSuccessMessage: clearSuccessMessage,
+            handleSegmentSourceChange: handleSegmentSourceChange,
             onVideoLoaded: onVideoLoaded,
             handleTimeUpdate: handleTimeUpdate,
             handleTimelineClick: handleTimelineClick,
@@ -2114,10 +2210,10 @@ const __VLS_self = (await import('vue')).defineComponent({
             cancelLabelMarking: cancelLabelMarking,
             jumpToExamination: jumpToExamination,
             deleteExamination: deleteExamination,
-            submitVideoSegments: submitVideoSegments,
             handleValidateAndMark: handleValidateAndMark,
             saveSegmentChanges: saveSegmentChanges,
             discardSegmentChanges: discardSegmentChanges,
+            importPredictionSegmentsToManual: importPredictionSegmentsToManual,
             onVideoError: onVideoError,
             onVideoLoadStart: onVideoLoadStart,
             onVideoCanPlay: onVideoCanPlay,

@@ -278,9 +278,19 @@
                 </div>
               </details>
               <div v-if="selectedVideoId" class="mt-3 d-flex gap-2">
+                <select
+                  v-model="segmentSourceMode"
+                  class="form-select form-select-sm source-select"
+                  @change="handleSegmentSourceChange"
+                >
+                  <option value="manual">Manuelle Segmente</option>
+                  <option value="prediction">KI-Vorhersagen</option>
+                </select>
+
                 <button
                   class="btn btn-outline-secondary"
                   @click="discardSegmentChanges"
+                  :disabled="segmentSourceMode === 'prediction'"
                 >
                   Änderungen verwerfen
                 </button>
@@ -288,9 +298,19 @@
                 <button
                   class="btn"
                   :class="hasUnsavedChanges ? 'btn-primary' : 'btn-outline-secondary'"
-                  @click="saveSegmentChanges; submitVideoSegments"
+                  @click="saveSegmentChanges"
+                  :disabled="segmentSourceMode === 'prediction'"
                 >
                   Segmentänderungen speichern
+                </button>
+
+                <button
+                  v-if="segmentSourceMode === 'prediction'"
+                  class="btn btn-primary"
+                  :disabled="timelineSegmentsForSelectedVideo.length === 0 || isImportingPredictionSegments"
+                  @click="importPredictionSegmentsToManual"
+                >
+                  {{ isImportingPredictionSegments ? 'Übernehme...' : 'Als manuelle Segmente übernehmen' }}
                 </button>
 
               
@@ -312,6 +332,13 @@
             <!-- Timeline Controls -->
             <div v-if="selectedVideoId" class="timeline-controls mt-4">
               <div class="d-flex align-items-center gap-3">
+                <div
+                  v-if="segmentSourceMode === 'prediction'"
+                  class="alert alert-warning py-2 px-3 mb-0"
+                >
+                  KI-Segmente sind hier nur als Vorlage editierbar. Zum Speichern in die manuelle Annotation
+                  den Button "Als manuelle Segmente übernehmen" verwenden.
+                </div>
                 <div class="d-flex align-items-center">
                   <label class="form-label mb-0 me-2">Neues Label setzen:</label>
                   <select 
@@ -409,13 +436,14 @@
               class="btn validation-action-button d-inline-flex align-items-center justify-content-center gap-2"
               :class="{ 'validation-action-button-clicked': selectedVideoId === lastValidationClickedVideoId }"
               @click="handleValidateAndMark(selectedVideoId)" 
+              :disabled="segmentSourceMode === 'prediction'"
             > <!-- Remove mark validated when keeping outside segments for training -->
               <i class="material-icons validation-action-icon">check_circle</i>
               <span>Alle Segmente validieren ({{ timelineSegmentsForSelectedVideo.length }})</span>
             </button>
           </div>
           
-          <p v-if="!isAnnotationFinished(selectedVideoId)" 
+          <p v-if="!isAnnotationFinished(selectedVideoId) && segmentSourceMode !== 'prediction'" 
              class="text-muted text-center mt-2 mb-0" style="font-size: 0.9rem;">
             <i class="material-icons" style="font-size: 16px; vertical-align: middle;">info</i>
             Markiert alle Segmente als überprüft und setzt Video-Status auf "Validiert"
@@ -503,7 +531,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
-import { useVideoStore, type Segment, type Video } from '@/stores/videoStore'
+import { useVideoStore, type Segment, type SegmentSourceKind, type Video } from '@/stores/videoStore'
 import { useAnonymizationStore } from '@/stores/anonymizationStore'
 import { useMediaTypeStore } from '@/stores/mediaTypeStore'
 import axiosInstance, { r } from '@/api/axiosInstance'
@@ -602,6 +630,8 @@ const labelMarkingStart = ref<number>(0)
 const selectedSegmentId = ref<number | null>(null)
 const isInitialLoading = ref<boolean>(true)
 const lastValidationClickedVideoId = ref<number | null>(null)
+const segmentSourceMode = ref<SegmentSourceKind>('manual')
+const isImportingPredictionSegments = ref<boolean>(false)
 
 // Video detail and metadata like VideoClassificationComponent
 const videoDetail = ref<{ video_url: string } | null>(null)
@@ -623,7 +653,9 @@ const videoSensitiveMetaMap = ref<Record<number, VideoSensitiveMeta>>({})
 // Video Dropdown Watcher
 
 const hasUnsavedChanges = computed(() => 
-  rawSegments.value.some(s => s.isDirty)
+  rawSegments.value.some(
+    s => s.isDirty && s.videoID === selectedVideoId.value && (segmentSourceMode.value === 'all' || s.segmentOrigin === segmentSourceMode.value)
+  )
 )
 
 async function loadSelectedVideo() {  
@@ -1027,12 +1059,19 @@ async function loadVideoSegments(): Promise<void> {
   if (selectedVideoId.value === null) return
   
   try {
-    await videoStore.fetchAllSegments(selectedVideoId.value, true)
+    await videoStore.fetchAllSegments(selectedVideoId.value, true, {
+      sourceKind: segmentSourceMode.value
+    })
     console.log('Video segments loaded for video:', selectedVideoId.value)
     console.log('Timeline segments count:', rawSegments.value.length)
   } catch (error) {
     console.error('Error loading video segments:', error)
   }
+}
+
+const handleSegmentSourceChange = async (): Promise<void> => {
+  selectedSegmentId.value = null
+  await loadVideoSegments()
 }
 
 const onVideoLoaded = (): void => {
@@ -1186,6 +1225,11 @@ const handleCreateSegment = (...args: unknown[]): Promise<void> => {
   const [event] = args as [CreateSegmentEvent];
   return new Promise<void>(async (resolve, reject) => {
     try {
+      if (segmentSourceMode.value === 'prediction') {
+        showErrorMessage('Neue Segmente bitte erst nach dem Übernehmen in die manuellen Annotationen anlegen.')
+        resolve();
+        return;
+      }
       if (selectedVideoId.value) {
         await videoStore.createSegment?.(
           selectedVideoId.value, 
@@ -1213,6 +1257,13 @@ const handleSegmentDelete = (...args: unknown[]): Promise<void> => {
     }
 
     try {
+      if (segmentSourceMode.value === 'prediction') {
+        videoStore.removeSegment(segment.id)
+        showSuccessMessage(`KI-Segment lokal entfernt: ${getTranslationForLabel(segment.label)}`)
+        resolve();
+        return;
+      }
+
       // 1. Remove from store
       videoStore.removeSegment(segment.id)
 
@@ -1449,6 +1500,10 @@ const deleteExamination = async (examinationId: number): Promise<void> => {
 
 // Validate all video segments (complete video review)
 const submitVideoSegments = async (): Promise<void> => {
+  if (segmentSourceMode.value === 'prediction') {
+    showErrorMessage('KI-Vorhersagen müssen zuerst als manuelle Segmente übernommen werden.')
+    return
+  }
   if (!selectedVideoId.value) {
     showErrorMessage('Kein Video ausgewählt')
     return
@@ -1527,6 +1582,10 @@ const handleValidateAndMark = async (videoId: number | null): Promise<void> => {
 
 
 const saveSegmentChanges = async (): Promise<void> => {
+  if (segmentSourceMode.value === 'prediction') {
+    showErrorMessage('Änderungen an KI-Vorhersagen werden erst mit "Als manuelle Segmente übernehmen" persistiert.')
+    return
+  }
   try {
     await videoStore.persistDirtySegments()
     await loadVideoSegments()
@@ -1538,10 +1597,50 @@ const saveSegmentChanges = async (): Promise<void> => {
 }
 
 const discardSegmentChanges = (): void => {
+  if (segmentSourceMode.value === 'prediction') {
+    void loadVideoSegments()
+    showSuccessMessage('Lokale Änderungen an KI-Vorhersagen verworfen')
+    return
+  }
   // simplest version: reload from backend
   if (!selectedVideoId.value) return
   videoStore.fetchVideoSegments(selectedVideoId.value)
   showSuccessMessage('Lokale Änderungen verworfen')
+}
+
+const importPredictionSegmentsToManual = async (): Promise<void> => {
+  if (!selectedVideoId.value) return
+  if (timelineSegmentsForSelectedVideo.value.length === 0) {
+    showErrorMessage('Keine KI-Segmente zum Übernehmen vorhanden')
+    return
+  }
+
+  isImportingPredictionSegments.value = true
+  try {
+    const payload = {
+      replace_existing: true,
+      segments: timelineSegmentsForSelectedVideo.value.map((segment) => ({
+        label_name: segment.label,
+        start_time: segment.startTime,
+        end_time: segment.endTime,
+        export_segment: Boolean(segment.exportSegment)
+      }))
+    }
+
+    await axiosInstance.post(
+      r(endpoints.media.videoSegmentsImportPredictions(selectedVideoId.value)),
+      payload
+    )
+
+    segmentSourceMode.value = 'manual'
+    await loadVideoSegments()
+    showSuccessMessage('KI-Vorhersagen wurden als manuelle Segmente übernommen')
+  } catch (error: any) {
+    console.error('Error importing prediction segments:', error)
+    await guarded(Promise.reject(error))
+  } finally {
+    isImportingPredictionSegments.value = false
+  }
 }
 
 

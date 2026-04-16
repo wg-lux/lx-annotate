@@ -92,6 +92,25 @@ export interface AnnotationTask {
     frameId: number
     imageUrl: string
     existingExternalId?: string
+    annotationMode?: string
+    labelOptions?: Array<{ id: number; name: string }>
+    manualAnnotations?: Array<{
+      id?: number
+      labelId: number
+      labelName: string
+      value: boolean
+      floatValue?: number | null
+      externalAnnotationId?: string | null
+    }>
+    predictionAnnotations?: Array<{
+      id?: number
+      labelId: number
+      labelName: string
+      value: boolean
+      floatValue?: number | null
+      modelMetaId?: number | null
+    }>
+    suggestedLabelIds?: number[]
   }
 }
 
@@ -116,6 +135,15 @@ function createDummyTask(groupId: string | null): AnnotationTask {
 }
 
 type RawTask = Record<string, unknown>
+type NormalizedAnnotation = {
+  id?: number
+  labelId: number
+  labelName: string
+  value: boolean
+  floatValue?: number | null
+  externalAnnotationId?: string | null
+  modelMetaId?: number | null
+}
 
 function coerceTask(raw: RawTask): AnnotationTask | null {
   const frameIdRaw =
@@ -134,6 +162,31 @@ function coerceTask(raw: RawTask): AnnotationTask | null {
     (raw.data as Record<string, unknown> | undefined)?.existingExternalId ??
     (raw.data as Record<string, unknown> | undefined)?.existing_external_id
   const idRaw = raw.id ?? raw.taskId ?? raw.task_id
+  const labelOptionsRaw =
+    raw.labelOptions ??
+    raw.label_options ??
+    (raw.data as Record<string, unknown> | undefined)?.labelOptions ??
+    (raw.data as Record<string, unknown> | undefined)?.label_options
+  const manualAnnotationsRaw =
+    raw.manualAnnotations ??
+    raw.manual_annotations ??
+    (raw.data as Record<string, unknown> | undefined)?.manualAnnotations ??
+    (raw.data as Record<string, unknown> | undefined)?.manual_annotations
+  const predictionAnnotationsRaw =
+    raw.predictionAnnotations ??
+    raw.prediction_annotations ??
+    (raw.data as Record<string, unknown> | undefined)?.predictionAnnotations ??
+    (raw.data as Record<string, unknown> | undefined)?.prediction_annotations
+  const suggestedLabelIdsRaw =
+    raw.suggestedLabelIds ??
+    raw.suggested_label_ids ??
+    (raw.data as Record<string, unknown> | undefined)?.suggestedLabelIds ??
+    (raw.data as Record<string, unknown> | undefined)?.suggested_label_ids
+  const annotationModeRaw =
+    raw.annotationMode ??
+    raw.annotation_mode ??
+    (raw.data as Record<string, unknown> | undefined)?.annotationMode ??
+    (raw.data as Record<string, unknown> | undefined)?.annotation_mode
 
   const frameId = Number(frameIdRaw)
   const imageUrl = typeof imageUrlRaw === 'string' ? imageUrlRaw : null
@@ -143,6 +196,81 @@ function coerceTask(raw: RawTask): AnnotationTask | null {
     typeof existingExternalIdRaw === 'string' && existingExternalIdRaw.trim()
       ? existingExternalIdRaw
       : undefined
+  const labelOptions = Array.isArray(labelOptionsRaw)
+    ? labelOptionsRaw
+        .map((item) => {
+          if (!item || typeof item !== 'object') return null
+          const row = item as Record<string, unknown>
+          const id = Number(row.id)
+          const name = typeof row.name === 'string' ? row.name.trim() : ''
+          if (!Number.isFinite(id) || !name) return null
+          return { id, name }
+        })
+        .filter((item): item is { id: number; name: string } => item !== null)
+    : []
+  const normalizeAnnotationList = (value: unknown): NormalizedAnnotation[] => {
+    if (!Array.isArray(value)) return []
+
+    const isNonNull = <T>(item: T | null): item is T => item !== null
+
+    return value
+      .map((item) => {
+        if (!item || typeof item !== 'object') return null
+        const row = item as Record<string, unknown>
+        const labelId = Number(row.labelId ?? row.label_id)
+        const labelName =
+          typeof (row.labelName ?? row.label_name) === 'string'
+            ? String(row.labelName ?? row.label_name).trim()
+            : ''
+        if (!Number.isFinite(labelId) || !labelName) return null
+        const normalized: NormalizedAnnotation = {
+          labelId,
+          labelName,
+          value: !!row.value
+        }
+
+        if (typeof row.id === 'number' && Number.isFinite(row.id)) {
+          normalized.id = row.id
+        } else if (typeof row.id === 'string' && row.id.trim()) {
+          const parsedId = Number(row.id)
+          if (Number.isFinite(parsedId)) {
+            normalized.id = parsedId
+          }
+        }
+
+        if (typeof row.floatValue === 'number') {
+          normalized.floatValue = row.floatValue
+        } else if (typeof row.float_value === 'number') {
+          normalized.floatValue = row.float_value
+        } else {
+          normalized.floatValue = null
+        }
+
+        if (typeof row.externalAnnotationId === 'string') {
+          normalized.externalAnnotationId = row.externalAnnotationId
+        } else if (typeof row.external_annotation_id === 'string') {
+          normalized.externalAnnotationId = row.external_annotation_id
+        } else {
+          normalized.externalAnnotationId = null
+        }
+
+        if (typeof row.modelMetaId === 'number') {
+          normalized.modelMetaId = row.modelMetaId
+        } else if (typeof row.model_meta_id === 'number') {
+          normalized.modelMetaId = row.model_meta_id
+        } else {
+          normalized.modelMetaId = null
+        }
+
+        return normalized
+      })
+      .filter(isNonNull)
+  }
+  const suggestedLabelIds = Array.isArray(suggestedLabelIdsRaw)
+    ? suggestedLabelIdsRaw
+        .map((item) => Number(item))
+        .filter((item) => Number.isFinite(item))
+    : []
 
   return {
     id:
@@ -152,7 +280,12 @@ function coerceTask(raw: RawTask): AnnotationTask | null {
     data: {
       frameId,
       imageUrl,
-      existingExternalId
+      existingExternalId,
+      annotationMode: typeof annotationModeRaw === 'string' ? annotationModeRaw : undefined,
+      labelOptions,
+      manualAnnotations: normalizeAnnotationList(manualAnnotationsRaw),
+      predictionAnnotations: normalizeAnnotationList(predictionAnnotationsRaw),
+      suggestedLabelIds
     }
   }
 }

@@ -143,20 +143,76 @@
                 class="img-fluid rounded border"
                 alt="Frame to annotate"
               />
+              <div class="mt-3">
+                <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+                  <h6 class="mb-0">Multilabel State</h6>
+                  <button
+                    class="btn btn-outline-primary btn-sm mb-0"
+                    :disabled="isSubmitting"
+                    @click="applySuggestedLabels"
+                  >
+                    Load AI Suggestion
+                  </button>
+                </div>
+                <div v-if="annotationLabelOptions.length === 0" class="text-muted">
+                  No labels available for this frame task.
+                </div>
+                <div v-else class="label-grid">
+                  <label
+                    v-for="label in annotationLabelOptions"
+                    :key="label.id"
+                    class="label-option border rounded p-2"
+                  >
+                    <div class="form-check mb-1">
+                      <input
+                        :id="`frame-label-${label.id}`"
+                        v-model="selectedLabelIds"
+                        class="form-check-input"
+                        type="checkbox"
+                        :value="label.id"
+                      />
+                      <span class="form-check-label">{{ label.name }}</span>
+                    </div>
+                    <div class="d-flex gap-1 flex-wrap">
+                      <span
+                        v-if="manualAnnotationState[label.id]?.value"
+                        class="badge bg-success-subtle text-success-emphasis"
+                      >
+                        Manual
+                      </span>
+                      <span
+                        v-else-if="manualAnnotationState[label.id]"
+                        class="badge bg-secondary-subtle text-secondary-emphasis"
+                      >
+                        Manual false
+                      </span>
+                      <span
+                        v-if="predictionAnnotationState[label.id]?.value"
+                        class="badge bg-info-subtle text-info-emphasis"
+                      >
+                        AI
+                        <template v-if="predictionAnnotationState[label.id]?.floatValue !== null">
+                          {{ formatConfidence(predictionAnnotationState[label.id]?.floatValue) }}
+                        </template>
+                      </span>
+                    </div>
+                  </label>
+                </div>
+              </div>
               <div class="mt-3 d-flex gap-2 flex-wrap">
                 <button
                   class="btn btn-success"
                   :disabled="isSubmitting"
-                  @click="submitChoice('present')"
+                  @click="submitLabels"
                 >
-                  Mark Present
+                  Save Labels
                 </button>
                 <button
                   class="btn btn-outline-secondary"
                   :disabled="isSubmitting"
-                  @click="submitChoice('absent')"
+                  @click="clearSelectedLabels"
                 >
-                  Mark Absent
+                  Clear Selection
                 </button>
                 <button
                   class="btn btn-outline-warning"
@@ -192,6 +248,7 @@ const authStore = useAuthKcStore()
 const isLoadingTask = ref(false)
 const isSubmitting = ref(false)
 const currentTask = ref<ReturnType<typeof queueStore.popNextTask> | null>(null)
+const selectedLabelIds = ref<number[]>([])
 const errorMessage = ref<string | null>(null)
 const isLoadingLabelGroups = ref(false)
 const labelGroupLoadError = ref<string | null>(null)
@@ -226,6 +283,54 @@ const informationSource = computed({
   get: () => queueStore.informationSource,
   set: (value: string) => queueStore.setInformationSource(value)
 })
+
+const annotationLabelOptions = computed(() => currentTask.value?.data.labelOptions ?? [])
+
+const manualAnnotationState = computed(() =>
+  Object.fromEntries(
+    (currentTask.value?.data.manualAnnotations ?? []).map((annotation) => [
+      annotation.labelId,
+      annotation
+    ])
+  )
+)
+
+const predictionAnnotationState = computed(() =>
+  Object.fromEntries(
+    (currentTask.value?.data.predictionAnnotations ?? []).map((annotation) => [
+      annotation.labelId,
+      annotation
+    ])
+  )
+)
+
+function syncSelectedLabelsFromTask(task: typeof currentTask.value): void {
+  if (!task) {
+    selectedLabelIds.value = []
+    return
+  }
+  const manualSelected = (task.data.manualAnnotations ?? [])
+    .filter((annotation) => annotation.value)
+    .map((annotation) => annotation.labelId)
+  if (manualSelected.length > 0) {
+    selectedLabelIds.value = [...new Set(manualSelected)]
+    return
+  }
+  selectedLabelIds.value = [...new Set(task.data.suggestedLabelIds ?? [])]
+}
+
+function clearSelectedLabels(): void {
+  selectedLabelIds.value = []
+}
+
+function applySuggestedLabels(): void {
+  selectedLabelIds.value = [...new Set(currentTask.value?.data.suggestedLabelIds ?? [])]
+}
+
+function formatConfidence(value: number | null | undefined): string {
+  if (typeof value !== 'number' || Number.isNaN(value)) return ''
+  return `${Math.round(value * 100)}%`
+}
 
 function getAnnotatorPrincipal(): string {
   const rawUser = authStore.user as Record<string, unknown> | null
@@ -353,37 +458,47 @@ async function loadNextTask(): Promise<void> {
       await queueStore.fetchBatch(10)
     }
     currentTask.value = queueStore.popNextTask() ?? null
-    if (!currentTask.value) {
-      currentTask.value = null
-    }
+    syncSelectedLabelsFromTask(currentTask.value)
   } finally {
     isLoadingTask.value = false
   }
 }
 
-async function submitChoice(choice: 'present' | 'absent'): Promise<void> {
+async function submitLabels(): Promise<void> {
   if (!currentTask.value) return
   isSubmitting.value = true
   errorMessage.value = null
   const task = currentTask.value
-  const targetLabel = (targetLabelName.value || 'Target Label').trim()
-  const externalId =
-    task.data.existingExternalId && task.data.existingExternalId.trim()
-      ? task.data.existingExternalId
-      : uuidv7()
+  const labelOptions = task.data.labelOptions ?? []
+  if (labelOptions.length === 0) {
+    errorMessage.value = 'No labels are available for this frame.'
+    isSubmitting.value = false
+    return
+  }
+  const selectedSet = new Set(selectedLabelIds.value)
   try {
-    await axiosInstance.post(r(endpoints.annotation.bulkUpsert), [
-      {
-        frameId: task.data.frameId,
-        choiceName: `${targetLabel}: ${choice}`,
-        value: true,
-        floatValue: null,
-        informationSourceName: informationSource.value,
-        annotator: getAnnotatorPrincipal(),
-        externalAnnotationId: externalId,
-        modelMetaId: null
-      }
-    ])
+    await axiosInstance.post(
+      r(endpoints.annotation.bulkUpsert),
+      labelOptions.map((label) => {
+        const existingManual = (task.data.manualAnnotations ?? []).find(
+          (annotation) => annotation.labelId === label.id
+        )
+        return {
+          frameId: task.data.frameId,
+          labelId: label.id,
+          value: selectedSet.has(label.id),
+          floatValue: null,
+          informationSourceName: informationSource.value,
+          annotator: getAnnotatorPrincipal(),
+          externalAnnotationId:
+            existingManual?.externalAnnotationId ||
+            (task.data.existingExternalId && task.data.existingExternalId.trim()
+              ? `${task.data.existingExternalId}:${label.id}`
+              : uuidv7()),
+          modelMetaId: null
+        }
+      })
+    )
     await loadNextTask()
   } catch (error: any) {
     errorMessage.value =
@@ -418,6 +533,13 @@ async function skipTask(): Promise<void> {
 }
 
 watch(
+  () => currentTask.value?.id,
+  () => {
+    syncSelectedLabelsFromTask(currentTask.value)
+  }
+)
+
+watch(
   () => [queueStore.selectedLabelGroupId, queueStore.taskQuerySignature],
   async () => {
     queueStore.clearQueue()
@@ -438,5 +560,15 @@ onMounted(async () => {
 
 .task-meta {
   font-size: 0.875rem;
+}
+
+.label-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.75rem;
+}
+
+.label-option {
+  background: #fff;
 }
 </style>

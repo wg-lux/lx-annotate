@@ -98,6 +98,12 @@ export interface BackendSegment {
   endTime: number
   exportSegment?: boolean
   export_segment?: boolean
+  sourceName?: string | null
+  source_name?: string | null
+  segmentOrigin?: 'manual' | 'prediction'
+  segment_origin?: 'manual' | 'prediction'
+  predictionMetaId?: number | null
+  prediction_meta_id?: number | null
   labelDisplay?: string
   framePredictions?: BackendFramePrediction[]
   manualFrameAnnotations?: any[]
@@ -139,6 +145,9 @@ export interface Segment {
   isDraft?: boolean
   isDirty?: boolean            // ⬅ used by persistDirtySegments()
   exportSegment?: boolean
+  sourceName?: string | null
+  segmentOrigin?: 'manual' | 'prediction'
+  predictionMetaId?: number | null
 }
 
 /**
@@ -243,6 +252,8 @@ export interface SegmentUpdatePayload {
 
 export interface CreateSegmentResponse extends BackendSegment {}  // reuse same shape
 
+export type SegmentSourceKind = 'all' | 'manual' | 'prediction'
+
 type SegmentListResponse = BackendSegment[] | { results: BackendSegment[] }
 type VideoFpsResponse = { video_id: number; fps: number }
 
@@ -258,6 +269,12 @@ function normalizeSegmentList(data: SegmentListResponse | null | undefined): Bac
 
 export function backendSegmentToSegment(backend: BackendSegment): Segment {
   const labelName = backend.labelName ?? backend.labelDisplay ?? 'unknown'
+  const normalizedSourceName = backend.sourceName ?? backend.source_name ?? null
+  const segmentOrigin =
+    backend.segmentOrigin ??
+    backend.segment_origin ??
+    (normalizedSourceName === 'prediction' ? 'prediction' : undefined) ??
+    ((backend.predictionMetaId ?? backend.prediction_meta_id) != null ? 'prediction' : 'manual')
 
   // Optional: flatten timeSegments → frames map
   let framesMap: Record<string, TimeSegmentFrame> | undefined
@@ -279,7 +296,10 @@ export function backendSegmentToSegment(backend: BackendSegment): Segment {
     startFrameNumber: backend.startFrameNumber,
     endFrameNumber: backend.endFrameNumber,
     exportSegment: backend.exportSegment ?? backend.export_segment ?? false,
-    frames: framesMap
+    frames: framesMap,
+    sourceName: normalizedSourceName,
+    segmentOrigin,
+    predictionMetaId: backend.predictionMetaId ?? backend.prediction_meta_id ?? null
   }
 }
 
@@ -663,7 +683,11 @@ export const useVideoStore = defineStore('video', () => {
   // SEGMENT MANAGEMENT FUNCTIONS
   // ===================================================================
 
-  async function fetchAllSegments(id: number, forceRefresh = false): Promise<void> {
+  async function fetchAllSegments(
+    id: number,
+    forceRefresh = false,
+    options: { sourceKind?: SegmentSourceKind } = {}
+  ): Promise<void> {
     console.log(`[VideoStore] fetchAllSegments called with video ID: ${id}`)
 
     // Ensure currentVideo exists before loading segments
@@ -672,13 +696,14 @@ export const useVideoStore = defineStore('video', () => {
       setCurrentVideo(id)
     }
 
-    const cachedSegments = forceRefresh ? null : getCachedSegments(id)
+    const sourceKind = options.sourceKind ?? 'all'
+    const cachedSegments = forceRefresh || sourceKind !== 'all' ? null : getCachedSegments(id)
     if (cachedSegments !== null) {
       applyCachedSegments(id, cachedSegments)
       return
     }
 
-    await fetchVideoSegments(id)
+    await fetchVideoSegments(id, options)
 
     if (currentVideo.value) {
       const allSegmentsArray: Segment[] = []
@@ -1057,7 +1082,10 @@ export const useVideoStore = defineStore('video', () => {
     }
   }
 
-  async function fetchVideoSegments(videoId: number): Promise<void> {
+  async function fetchVideoSegments(
+    videoId: number,
+    options: { sourceKind?: SegmentSourceKind } = {}
+  ): Promise<void> {
     const token = ++_fetchToken.value
     let controller: AbortController | null = null
     try {
@@ -1066,9 +1094,14 @@ export const useVideoStore = defineStore('video', () => {
       }
       controller = new AbortController()
       fetchSegmentsController = controller
+      const sourceKind = options.sourceKind ?? 'all'
       const response: AxiosResponse<SegmentListResponse> = await axiosInstance.get(
         r(endpoints.media.videoSegments(videoId)),
-        { headers: { Accept: 'application/json' }, signal: controller.signal }
+        {
+          headers: { Accept: 'application/json' },
+          signal: controller.signal,
+          params: sourceKind === 'all' ? undefined : { source_kind: sourceKind }
+        }
       )
 
       if (token !== _fetchToken.value) return

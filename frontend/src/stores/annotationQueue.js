@@ -117,6 +117,26 @@ function coerceTask(raw) {
         raw.data?.existingExternalId ??
         raw.data?.existing_external_id;
     const idRaw = raw.id ?? raw.taskId ?? raw.task_id;
+    const labelOptionsRaw = raw.labelOptions ??
+        raw.label_options ??
+        raw.data?.labelOptions ??
+        raw.data?.label_options;
+    const manualAnnotationsRaw = raw.manualAnnotations ??
+        raw.manual_annotations ??
+        raw.data?.manualAnnotations ??
+        raw.data?.manual_annotations;
+    const predictionAnnotationsRaw = raw.predictionAnnotations ??
+        raw.prediction_annotations ??
+        raw.data?.predictionAnnotations ??
+        raw.data?.prediction_annotations;
+    const suggestedLabelIdsRaw = raw.suggestedLabelIds ??
+        raw.suggested_label_ids ??
+        raw.data?.suggestedLabelIds ??
+        raw.data?.suggested_label_ids;
+    const annotationModeRaw = raw.annotationMode ??
+        raw.annotation_mode ??
+        raw.data?.annotationMode ??
+        raw.data?.annotation_mode;
     const frameId = Number(frameIdRaw);
     const imageUrl = typeof imageUrlRaw === 'string' ? imageUrlRaw : null;
     if (!Number.isFinite(frameId) || !imageUrl)
@@ -124,6 +144,85 @@ function coerceTask(raw) {
     const existingExternalId = typeof existingExternalIdRaw === 'string' && existingExternalIdRaw.trim()
         ? existingExternalIdRaw
         : undefined;
+    const labelOptions = Array.isArray(labelOptionsRaw)
+        ? labelOptionsRaw
+            .map((item) => {
+            if (!item || typeof item !== 'object')
+                return null;
+            const row = item;
+            const id = Number(row.id);
+            const name = typeof row.name === 'string' ? row.name.trim() : '';
+            if (!Number.isFinite(id) || !name)
+                return null;
+            return { id, name };
+        })
+            .filter((item) => item !== null)
+        : [];
+    const normalizeAnnotationList = (value) => {
+        if (!Array.isArray(value))
+            return [];
+        const isNonNull = (item) => item !== null;
+        return value
+            .map((item) => {
+            if (!item || typeof item !== 'object')
+                return null;
+            const row = item;
+            const labelId = Number(row.labelId ?? row.label_id);
+            const labelName = typeof (row.labelName ?? row.label_name) === 'string'
+                ? String(row.labelName ?? row.label_name).trim()
+                : '';
+            if (!Number.isFinite(labelId) || !labelName)
+                return null;
+            const normalized = {
+                labelId,
+                labelName,
+                value: !!row.value
+            };
+            if (typeof row.id === 'number' && Number.isFinite(row.id)) {
+                normalized.id = row.id;
+            }
+            else if (typeof row.id === 'string' && row.id.trim()) {
+                const parsedId = Number(row.id);
+                if (Number.isFinite(parsedId)) {
+                    normalized.id = parsedId;
+                }
+            }
+            if (typeof row.floatValue === 'number') {
+                normalized.floatValue = row.floatValue;
+            }
+            else if (typeof row.float_value === 'number') {
+                normalized.floatValue = row.float_value;
+            }
+            else {
+                normalized.floatValue = null;
+            }
+            if (typeof row.externalAnnotationId === 'string') {
+                normalized.externalAnnotationId = row.externalAnnotationId;
+            }
+            else if (typeof row.external_annotation_id === 'string') {
+                normalized.externalAnnotationId = row.external_annotation_id;
+            }
+            else {
+                normalized.externalAnnotationId = null;
+            }
+            if (typeof row.modelMetaId === 'number') {
+                normalized.modelMetaId = row.modelMetaId;
+            }
+            else if (typeof row.model_meta_id === 'number') {
+                normalized.modelMetaId = row.model_meta_id;
+            }
+            else {
+                normalized.modelMetaId = null;
+            }
+            return normalized;
+        })
+            .filter(isNonNull);
+    };
+    const suggestedLabelIds = Array.isArray(suggestedLabelIdsRaw)
+        ? suggestedLabelIdsRaw
+            .map((item) => Number(item))
+            .filter((item) => Number.isFinite(item))
+        : [];
     return {
         id: typeof idRaw === 'string' || typeof idRaw === 'number'
             ? String(idRaw)
@@ -131,7 +230,12 @@ function coerceTask(raw) {
         data: {
             frameId,
             imageUrl,
-            existingExternalId
+            existingExternalId,
+            annotationMode: typeof annotationModeRaw === 'string' ? annotationModeRaw : undefined,
+            labelOptions,
+            manualAnnotations: normalizeAnnotationList(manualAnnotationsRaw),
+            predictionAnnotations: normalizeAnnotationList(predictionAnnotationsRaw),
+            suggestedLabelIds
         }
     };
 }

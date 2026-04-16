@@ -41,7 +41,30 @@ function buildQueueStore() {
       data: {
         frameId: 101,
         imageUrl: '/media/frame-101.jpg',
-        existingExternalId: 'external-101'
+        existingExternalId: 'external-101',
+        annotationMode: 'multilabel',
+        labelOptions: [
+          { id: 11, name: 'Polyp' },
+          { id: 12, name: 'Bleeding' }
+        ],
+        manualAnnotations: [
+          {
+            labelId: 12,
+            labelName: 'Bleeding',
+            value: false,
+            externalAnnotationId: 'existing-bleeding'
+          }
+        ],
+        predictionAnnotations: [
+          {
+            labelId: 11,
+            labelName: 'Polyp',
+            value: true,
+            floatValue: 0.91,
+            modelMetaId: 5
+          }
+        ],
+        suggestedLabelIds: [11]
       }
     },
     null
@@ -82,7 +105,7 @@ describe('FrameAnnotation route', () => {
     })
   })
 
-  it('loads label groups and submits frame annotations through the route API', async () => {
+  it('loads label groups and submits multilabel frame annotations through the route API', async () => {
     hoisted.post.mockResolvedValue({ data: { ok: true } })
 
     const wrapper = mount(FrameAnnotation)
@@ -91,6 +114,9 @@ describe('FrameAnnotation route', () => {
     expect(hoisted.get).toHaveBeenCalledWith('media/videos/labels/list/')
     expect(hoisted.queueStore.fetchBatch).toHaveBeenCalledWith(10)
     expect(wrapper.text()).toContain('Frame #101')
+    expect(wrapper.text()).toContain('Polyp')
+    expect(wrapper.text()).toContain('Bleeding')
+    expect(wrapper.text()).toContain('AI 91%')
 
     await wrapper.get('button.btn-success').trigger('click')
     await flushPromises()
@@ -98,12 +124,22 @@ describe('FrameAnnotation route', () => {
     expect(hoisted.post).toHaveBeenCalledWith('media/annotations/frames/bulk-upsert/', [
       {
         frameId: 101,
-        choiceName: 'Polyp: present',
+        labelId: 11,
         value: true,
         floatValue: null,
         informationSourceName: 'frame_annotation_frontend',
         annotator: 'oidc:kc-user-7',
-        externalAnnotationId: 'external-101',
+        externalAnnotationId: 'external-101:11',
+        modelMetaId: null
+      },
+      {
+        frameId: 101,
+        labelId: 12,
+        value: false,
+        floatValue: null,
+        informationSourceName: 'frame_annotation_frontend',
+        annotator: 'oidc:kc-user-7',
+        externalAnnotationId: 'existing-bleeding',
         modelMetaId: null
       }
     ])

@@ -17,6 +17,11 @@ function normalizeSegmentList(data) {
 }
 export function backendSegmentToSegment(backend) {
     const labelName = backend.labelName ?? backend.labelDisplay ?? 'unknown';
+    const normalizedSourceName = backend.sourceName ?? backend.source_name ?? null;
+    const segmentOrigin = backend.segmentOrigin ??
+        backend.segment_origin ??
+        (normalizedSourceName === 'prediction' ? 'prediction' : undefined) ??
+        ((backend.predictionMetaId ?? backend.prediction_meta_id) != null ? 'prediction' : 'manual');
     // Optional: flatten timeSegments → frames map
     let framesMap;
     if (backend.timeSegments?.frames?.length) {
@@ -36,7 +41,10 @@ export function backendSegmentToSegment(backend) {
         startFrameNumber: backend.startFrameNumber,
         endFrameNumber: backend.endFrameNumber,
         exportSegment: backend.exportSegment ?? backend.export_segment ?? false,
-        frames: framesMap
+        frames: framesMap,
+        sourceName: normalizedSourceName,
+        segmentOrigin,
+        predictionMetaId: backend.predictionMetaId ?? backend.prediction_meta_id ?? null
     };
 }
 // ===================================================================
@@ -332,19 +340,20 @@ export const useVideoStore = defineStore('video', () => {
     // ===================================================================
     // SEGMENT MANAGEMENT FUNCTIONS
     // ===================================================================
-    async function fetchAllSegments(id, forceRefresh = false) {
+    async function fetchAllSegments(id, forceRefresh = false, options = {}) {
         console.log(`[VideoStore] fetchAllSegments called with video ID: ${id}`);
         // Ensure currentVideo exists before loading segments
         if (!currentVideo.value || currentVideo.value.id !== id) {
             console.log(`[VideoStore] No currentVideo found, creating basic video object for ID: ${id}`);
             setCurrentVideo(id);
         }
-        const cachedSegments = forceRefresh ? null : getCachedSegments(id);
+        const sourceKind = options.sourceKind ?? 'all';
+        const cachedSegments = forceRefresh || sourceKind !== 'all' ? null : getCachedSegments(id);
         if (cachedSegments !== null) {
             applyCachedSegments(id, cachedSegments);
             return;
         }
-        await fetchVideoSegments(id);
+        await fetchVideoSegments(id, options);
         if (currentVideo.value) {
             const allSegmentsArray = [];
             Object.values(segmentsByLabel).forEach((labelSegments) => {
@@ -650,7 +659,7 @@ export const useVideoStore = defineStore('video', () => {
             errorMessage.value = `Error loading segments for label ${label}. Please check the API endpoint or try again later.`;
         }
     }
-    async function fetchVideoSegments(videoId) {
+    async function fetchVideoSegments(videoId, options = {}) {
         const token = ++_fetchToken.value;
         let controller = null;
         try {
@@ -659,7 +668,12 @@ export const useVideoStore = defineStore('video', () => {
             }
             controller = new AbortController();
             fetchSegmentsController = controller;
-            const response = await axiosInstance.get(r(endpoints.media.videoSegments(videoId)), { headers: { Accept: 'application/json' }, signal: controller.signal });
+            const sourceKind = options.sourceKind ?? 'all';
+            const response = await axiosInstance.get(r(endpoints.media.videoSegments(videoId)), {
+                headers: { Accept: 'application/json' },
+                signal: controller.signal,
+                params: sourceKind === 'all' ? undefined : { source_kind: sourceKind }
+            });
             if (token !== _fetchToken.value)
                 return;
             const rawSegments = normalizeSegmentList(response.data);

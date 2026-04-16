@@ -25,7 +25,11 @@ from endoreg_db.services.hub import (
     process_preanonymized_watcher_file,
     process_watcher_file,
 )
-from endoreg_db.utils.paths import data_paths
+from endoreg_db.utils.paths import (
+    data_paths,
+    WATCHER_VIDEO_DROP_DIR,
+    WATCHER_REPORT_DROP_DIR,
+)
 from endoreg_db.utils.storage import ensure_local_file
 
 try:
@@ -96,8 +100,8 @@ def _resolve_intake_dir(env_name: str, data_paths_key: str) -> Path:
     return data_paths[data_paths_key].resolve()
 
 
-INTAKE_VIDEO_DIR = _resolve_intake_dir("WATCHER_VIDEO_DIR", "import_video")
-INTAKE_REPORT_DIR = _resolve_intake_dir("WATCHER_REPORT_DIR", "import_report")
+INTAKE_VIDEO_DIR = WATCHER_VIDEO_DROP_DIR
+INTAKE_REPORT_DIR = WATCHER_REPORT_DROP_DIR
 INTAKE_PREANONYMIZED_DIR = _resolve_intake_dir(
     "WATCHER_PREANONYMIZED_DIR", "import_preanonymized"
 )
@@ -763,22 +767,46 @@ class FileWatcherService:
         logger.info("Django setup validation successful")
 
     def _process_existing_files(self) -> None:
-        logger.info("Processing existing files...")
+        # Only log if we actually find files we haven't seen yet
+        new_files_found = False
+
         for video_file in self.video_dir.glob("*"):
             if (
                 video_file.is_file()
                 and video_file.suffix.lower() in self.handler.video_extensions
             ):
+                path_str = str(video_file)
+                if (
+                    path_str in self.handler.processed_files
+                    or path_str in self.handler.in_flight_files
+                ):
+                    continue
+
+                if not new_files_found:
+                    logger.info("Processing existing files...")
+                    new_files_found = True
+
                 logger.info("Processing existing video: %s", video_file)
-                self.handler._process_file(str(video_file))
+                self.handler._submit_file(path_str)
 
         for report_file in self.report_dir.glob("*"):
             if (
                 report_file.is_file()
                 and report_file.suffix.lower() in self.handler.report_extensions
             ):
+                path_str = str(report_file)
+                if (
+                    path_str in self.handler.processed_files
+                    or path_str in self.handler.in_flight_files
+                ):
+                    continue
+
+                if not new_files_found:
+                    logger.info("Processing existing files...")
+                    new_files_found = True
+
                 logger.info("Processing existing report: %s", report_file)
-                self.handler._process_file(str(report_file))
+                self.handler._submit_file(path_str)
 
         for pseudonymized_file in self.pseudonymized_dir.glob("*"):
             if (
@@ -786,12 +814,24 @@ class FileWatcherService:
                 and pseudonymized_file.suffix.lower()
                 in self.handler.pseudonymized_extensions
             ):
+                path_str = str(pseudonymized_file)
+                if (
+                    path_str in self.handler.processed_files
+                    or path_str in self.handler.in_flight_files
+                ):
+                    continue
+
+                if not new_files_found:
+                    logger.info("Processing existing files...")
+                    new_files_found = True
+
                 logger.info(
                     "Processing existing pseudonymized file: %s", pseudonymized_file
                 )
-                self.handler._process_file(str(pseudonymized_file))
+                self.handler._submit_file(path_str)
 
-        logger.info("Existing files processing completed")
+        if new_files_found:
+            logger.info("Existing files processing completed")
 
     def _health_check(self) -> None:
         if not self.observer.is_alive():

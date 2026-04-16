@@ -1,6 +1,6 @@
 import { setActivePinia, createPinia } from 'pinia'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { useVideoStore } from '@/stores/videoStore'
+import { backendSegmentToSegment, useVideoStore } from '@/stores/videoStore'
 import axiosInstance from '@/api/axiosInstance'
 
 vi.mock('@/api/axiosInstance', () => ({
@@ -81,5 +81,54 @@ describe('VideoStore Performance Optimization', () => {
     const segmentCalls = calls.filter((url) => url.includes('/segments/'))
 
     expect(segmentCalls.length).toBe(0)
+  })
+
+  it('normalizes prediction segment origin metadata from the backend', () => {
+    const segment = backendSegmentToSegment({
+      id: 700,
+      labelName: 'outside',
+      startTime: 12,
+      endTime: 18,
+      startFrameNumber: 300,
+      endFrameNumber: 450,
+      source_name: 'prediction',
+      segment_origin: 'prediction',
+      prediction_meta_id: 44
+    })
+
+    expect(segment.segmentOrigin).toBe('prediction')
+    expect(segment.sourceName).toBe('prediction')
+    expect(segment.predictionMetaId).toBe(44)
+  })
+
+  it('passes source_kind when loading a non-default segment source', async () => {
+    const store = useVideoStore()
+    const axiosGet = axiosInstance.get as unknown as ReturnType<typeof vi.fn>
+
+    axiosGet.mockResolvedValueOnce({
+      data: [
+        {
+          id: 1,
+          labelName: 'outside',
+          startTime: 1,
+          endTime: 2,
+          startFrameNumber: 25,
+          endFrameNumber: 50,
+          source_name: 'prediction',
+          segment_origin: 'prediction'
+        }
+      ]
+    })
+
+    store.setCurrentVideo(101)
+    await store.fetchAllSegments(101, true, { sourceKind: 'prediction' })
+
+    expect(axiosGet).toHaveBeenCalledWith(
+      'media/videos/101/segments/',
+      expect.objectContaining({
+        params: { source_kind: 'prediction' }
+      })
+    )
+    expect(store.currentVideo?.segments?.[0]?.segmentOrigin).toBe('prediction')
   })
 })

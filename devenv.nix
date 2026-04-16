@@ -104,6 +104,9 @@ let
     SERVE_WITH_NGINX = config.secretspec.secrets.SERVE_WITH_NGINX;
     NGINX_PROTECTED_MEDIA_URL = config.secretspec.secrets.NGINX_PROTECTED_MEDIA_URL;
 
+    # --- Watcher Dirs ---
+    WATCHER_VIDEO_DIR = config.secretspec.secrets.WATCHER_VIDEO_DIR;
+    WATCHER_REPORT_DIR = config.secretspec.secrets.WATCHER_REPORT_DIR;
   };
 
   devenv_utils = import ./devenv/default.nix {

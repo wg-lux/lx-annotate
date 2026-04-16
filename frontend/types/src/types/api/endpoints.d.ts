@@ -111,6 +111,7 @@ export declare const endpoints: {
         readonly segmentsStats: "media/videos/segments/stats/";
         readonly videoSegments: (pk: Id) => string;
         readonly videoSegmentDetail: (pk: Id, segmentId: Id) => string;
+        readonly videoSegmentsImportPredictions: (pk: Id) => string;
         readonly videoSegmentValidate: (pk: Id, segmentId: Id) => string;
         readonly videoSegmentsValidateBulk: (pk: Id) => string;
         readonly videoSegmentsValidationStatus: (pk: Id) => string;

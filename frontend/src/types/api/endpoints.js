@@ -113,6 +113,7 @@ export const endpoints = {
         segmentsStats: 'media/videos/segments/stats/',
         videoSegments: (pk) => `media/videos/${pk}/segments/`,
         videoSegmentDetail: (pk, segmentId) => `media/videos/${pk}/segments/${segmentId}/`,
+        videoSegmentsImportPredictions: (pk) => `media/videos/${pk}/segments/import-predictions/`,
         videoSegmentValidate: (pk, segmentId) => `media/videos/${pk}/segments/${segmentId}/validate/`,
         videoSegmentsValidateBulk: (pk) => `media/videos/${pk}/segments/validate-bulk/`,
         videoSegmentsValidationStatus: (pk) => `media/videos/${pk}/segments/validation-status/`,

@@ -141,7 +141,8 @@
                 <span class="nav-link-text ms-1">Befundung: Übersicht</span>
               </router-link>
             </li>
-            <!-- #TODO: Add back when ready
+            <!-- 
+            #TODO: Add back when ready
             <li class="nav-item">
               <router-link to="/frame-annotation" class="nav-link" :class="{ active: $route.path === '/frame-annotation' }">
                 <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
@@ -158,8 +159,6 @@
                 <span class="nav-link-text ms-1">Frame Auswahl</span>
               </router-link>
             </li>
-
-            
             <li class="nav-item">
               <router-link to="/fallgenerator" class="nav-link" :class="{ active: $route.path === '/fallgenerator' }">
                 <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
@@ -168,8 +167,7 @@
                 <span class="nav-link-text ms-1">Fallgenerator</span>
               </router-link>
             </li>
-                                    -->
-
+            -->
             <li class="nav-item">
               <router-link to="/export" class="nav-link" :class="{ active: $route.path === '/export' }">
                 <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">

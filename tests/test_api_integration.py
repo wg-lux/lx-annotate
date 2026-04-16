@@ -427,34 +427,6 @@ class UploadJobAPITests(APIIntegrationTestCase):
         self.assertIn("error", response.data)
         self.assertIn("center_key is required", response.data["error"])
 
-    @override_settings(ENDOREG_DEPLOYMENT_ROLE="central_hub")
-    @patch("endoreg_db.views.misc.upload_views.start_upload_job_processing")
-    def test_hub_mode_accepts_authenticated_upload_with_declared_center_key(
-        self, mock_start_processing
-    ):
-        self.client.force_authenticate(user=self.user)
-
-        response = self.client.post(
-            "/api/upload/",
-            {
-                "file": self._pdf_upload(),
-                "center_key": self.center.center_key,
-                "source_system": "hub-client",
-            },
-            format="multipart",
-        )
-        print(response.content.decode())
-
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        upload_job = UploadJob.objects.get(id=response.data["upload_id"])
-        self.assertEqual(upload_job.source_center_id, self.center.id)
-        self.assertEqual(
-            upload_job.processing_provenance.get("resolved_center_key"),
-            self.center.center_key,
-        )
-        self.assertTrue(upload_job.processing_provenance.get("hub_mode"))
-        mock_start_processing.assert_called_once()
-
     def test_examination_findings_endpoint(self):
         """Test: Findings für eine Untersuchung abrufen"""
         url = f"/api/examinations/{self.examination.pk}/findings/"

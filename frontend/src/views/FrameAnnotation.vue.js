@@ -9,6 +9,7 @@ const authStore = useAuthKcStore();
 const isLoadingTask = ref(false);
 const isSubmitting = ref(false);
 const currentTask = ref(null);
+const selectedLabelIds = ref([]);
 const errorMessage = ref(null);
 const isLoadingLabelGroups = ref(false);
 const labelGroupLoadError = ref(null);
@@ -37,6 +38,40 @@ const informationSource = computed({
     get: () => queueStore.informationSource,
     set: (value) => queueStore.setInformationSource(value)
 });
+const annotationLabelOptions = computed(() => currentTask.value?.data.labelOptions ?? []);
+const manualAnnotationState = computed(() => Object.fromEntries((currentTask.value?.data.manualAnnotations ?? []).map((annotation) => [
+    annotation.labelId,
+    annotation
+])));
+const predictionAnnotationState = computed(() => Object.fromEntries((currentTask.value?.data.predictionAnnotations ?? []).map((annotation) => [
+    annotation.labelId,
+    annotation
+])));
+function syncSelectedLabelsFromTask(task) {
+    if (!task) {
+        selectedLabelIds.value = [];
+        return;
+    }
+    const manualSelected = (task.data.manualAnnotations ?? [])
+        .filter((annotation) => annotation.value)
+        .map((annotation) => annotation.labelId);
+    if (manualSelected.length > 0) {
+        selectedLabelIds.value = [...new Set(manualSelected)];
+        return;
+    }
+    selectedLabelIds.value = [...new Set(task.data.suggestedLabelIds ?? [])];
+}
+function clearSelectedLabels() {
+    selectedLabelIds.value = [];
+}
+function applySuggestedLabels() {
+    selectedLabelIds.value = [...new Set(currentTask.value?.data.suggestedLabelIds ?? [])];
+}
+function formatConfidence(value) {
+    if (typeof value !== 'number' || Number.isNaN(value))
+        return '';
+    return `${Math.round(value * 100)}%`;
+}
 function getAnnotatorPrincipal() {
     const rawUser = authStore.user;
     const sub = typeof rawUser?.sub === 'string'
@@ -144,37 +179,42 @@ async function loadNextTask() {
             await queueStore.fetchBatch(10);
         }
         currentTask.value = queueStore.popNextTask() ?? null;
-        if (!currentTask.value) {
-            currentTask.value = null;
-        }
+        syncSelectedLabelsFromTask(currentTask.value);
     }
     finally {
         isLoadingTask.value = false;
     }
 }
-async function submitChoice(choice) {
+async function submitLabels() {
     if (!currentTask.value)
         return;
     isSubmitting.value = true;
     errorMessage.value = null;
     const task = currentTask.value;
-    const targetLabel = (targetLabelName.value || 'Target Label').trim();
-    const externalId = task.data.existingExternalId && task.data.existingExternalId.trim()
-        ? task.data.existingExternalId
-        : uuidv7();
+    const labelOptions = task.data.labelOptions ?? [];
+    if (labelOptions.length === 0) {
+        errorMessage.value = 'No labels are available for this frame.';
+        isSubmitting.value = false;
+        return;
+    }
+    const selectedSet = new Set(selectedLabelIds.value);
     try {
-        await axiosInstance.post(r(endpoints.annotation.bulkUpsert), [
-            {
+        await axiosInstance.post(r(endpoints.annotation.bulkUpsert), labelOptions.map((label) => {
+            const existingManual = (task.data.manualAnnotations ?? []).find((annotation) => annotation.labelId === label.id);
+            return {
                 frameId: task.data.frameId,
-                choiceName: `${targetLabel}: ${choice}`,
-                value: true,
+                labelId: label.id,
+                value: selectedSet.has(label.id),
                 floatValue: null,
                 informationSourceName: informationSource.value,
                 annotator: getAnnotatorPrincipal(),
-                externalAnnotationId: externalId,
+                externalAnnotationId: existingManual?.externalAnnotationId ||
+                    (task.data.existingExternalId && task.data.existingExternalId.trim()
+                        ? `${task.data.existingExternalId}:${label.id}`
+                        : uuidv7()),
                 modelMetaId: null
-            }
-        ]);
+            };
+        }));
         await loadNextTask();
     }
     catch (error) {
@@ -211,6 +251,9 @@ async function skipTask() {
         isSubmitting.value = false;
     }
 }
+watch(() => currentTask.value?.id, () => {
+    syncSelectedLabelsFromTask(currentTask.value);
+});
 watch(() => [queueStore.selectedLabelGroupId, queueStore.taskQuerySignature], async () => {
     queueStore.clearQueue();
     await loadNextTask();
@@ -443,31 +486,80 @@ else {
         alt: "Frame to annotate",
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "mt-3" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({
+        ...{ class: "mb-0" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+        ...{ onClick: (__VLS_ctx.applySuggestedLabels) },
+        ...{ class: "btn btn-outline-primary btn-sm mb-0" },
+        disabled: (__VLS_ctx.isSubmitting),
+    });
+    if (__VLS_ctx.annotationLabelOptions.length === 0) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "text-muted" },
+        });
+    }
+    else {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "label-grid" },
+        });
+        for (const [label] of __VLS_getVForSourceType((__VLS_ctx.annotationLabelOptions))) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+                key: (label.id),
+                ...{ class: "label-option border rounded p-2" },
+            });
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: "form-check mb-1" },
+            });
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
+                id: (`frame-label-${label.id}`),
+                ...{ class: "form-check-input" },
+                type: "checkbox",
+                value: (label.id),
+            });
+            (__VLS_ctx.selectedLabelIds);
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                ...{ class: "form-check-label" },
+            });
+            (label.name);
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: "d-flex gap-1 flex-wrap" },
+            });
+            if (__VLS_ctx.manualAnnotationState[label.id]?.value) {
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                    ...{ class: "badge bg-success-subtle text-success-emphasis" },
+                });
+            }
+            else if (__VLS_ctx.manualAnnotationState[label.id]) {
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                    ...{ class: "badge bg-secondary-subtle text-secondary-emphasis" },
+                });
+            }
+            if (__VLS_ctx.predictionAnnotationState[label.id]?.value) {
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                    ...{ class: "badge bg-info-subtle text-info-emphasis" },
+                });
+                if (__VLS_ctx.predictionAnnotationState[label.id]?.floatValue !== null) {
+                    (__VLS_ctx.formatConfidence(__VLS_ctx.predictionAnnotationState[label.id]?.floatValue));
+                }
+            }
+        }
+    }
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "mt-3 d-flex gap-2 flex-wrap" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-        ...{ onClick: (...[$event]) => {
-                if (!!(__VLS_ctx.isLoadingTask))
-                    return;
-                if (!!(!__VLS_ctx.queueStore.selectedLabelGroupId))
-                    return;
-                if (!!(!__VLS_ctx.currentTask))
-                    return;
-                __VLS_ctx.submitChoice('present');
-            } },
+        ...{ onClick: (__VLS_ctx.submitLabels) },
         ...{ class: "btn btn-success" },
         disabled: (__VLS_ctx.isSubmitting),
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-        ...{ onClick: (...[$event]) => {
-                if (!!(__VLS_ctx.isLoadingTask))
-                    return;
-                if (!!(!__VLS_ctx.queueStore.selectedLabelGroupId))
-                    return;
-                if (!!(!__VLS_ctx.currentTask))
-                    return;
-                __VLS_ctx.submitChoice('absent');
-            } },
+        ...{ onClick: (__VLS_ctx.clearSelectedLabels) },
         ...{ class: "btn btn-outline-secondary" },
         disabled: (__VLS_ctx.isSubmitting),
     });
@@ -571,6 +663,40 @@ if (__VLS_ctx.errorMessage) {
 /** @type {__VLS_StyleScopedClasses['border']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['justify-content-between']} */ ;
+/** @type {__VLS_StyleScopedClasses['flex-wrap']} */ ;
+/** @type {__VLS_StyleScopedClasses['gap-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-primary']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['label-grid']} */ ;
+/** @type {__VLS_StyleScopedClasses['label-option']} */ ;
+/** @type {__VLS_StyleScopedClasses['border']} */ ;
+/** @type {__VLS_StyleScopedClasses['rounded']} */ ;
+/** @type {__VLS_StyleScopedClasses['p-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-check']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-check-input']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-check-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['gap-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['flex-wrap']} */ ;
+/** @type {__VLS_StyleScopedClasses['badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['bg-success-subtle']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-success-emphasis']} */ ;
+/** @type {__VLS_StyleScopedClasses['badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['bg-secondary-subtle']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-secondary-emphasis']} */ ;
+/** @type {__VLS_StyleScopedClasses['badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['bg-info-subtle']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-info-emphasis']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
 /** @type {__VLS_StyleScopedClasses['gap-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['flex-wrap']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
@@ -591,6 +717,7 @@ const __VLS_self = (await import('vue')).defineComponent({
             isLoadingTask: isLoadingTask,
             isSubmitting: isSubmitting,
             currentTask: currentTask,
+            selectedLabelIds: selectedLabelIds,
             errorMessage: errorMessage,
             isLoadingLabelGroups: isLoadingLabelGroups,
             labelGroupLoadError: labelGroupLoadError,
@@ -601,8 +728,14 @@ const __VLS_self = (await import('vue')).defineComponent({
             filterLabelName: filterLabelName,
             allowRandomFallback: allowRandomFallback,
             informationSource: informationSource,
+            annotationLabelOptions: annotationLabelOptions,
+            manualAnnotationState: manualAnnotationState,
+            predictionAnnotationState: predictionAnnotationState,
+            clearSelectedLabels: clearSelectedLabels,
+            applySuggestedLabels: applySuggestedLabels,
+            formatConfidence: formatConfidence,
             loadLabelGroups: loadLabelGroups,
-            submitChoice: submitChoice,
+            submitLabels: submitLabels,
             skipTask: skipTask,
         };
     },

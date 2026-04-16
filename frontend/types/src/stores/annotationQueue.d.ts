@@ -5,6 +5,28 @@ export interface AnnotationTask {
         frameId: number;
         imageUrl: string;
         existingExternalId?: string;
+        annotationMode?: string;
+        labelOptions?: Array<{
+            id: number;
+            name: string;
+        }>;
+        manualAnnotations?: Array<{
+            id?: number;
+            labelId: number;
+            labelName: string;
+            value: boolean;
+            floatValue?: number | null;
+            externalAnnotationId?: string | null;
+        }>;
+        predictionAnnotations?: Array<{
+            id?: number;
+            labelId: number;
+            labelName: string;
+            value: boolean;
+            floatValue?: number | null;
+            modelMetaId?: number | null;
+        }>;
+        suggestedLabelIds?: number[];
     };
 }
 export declare const useAnnotationQueueStore: import("pinia").StoreDefinition<"annotationQueue", Pick<{
@@ -21,6 +43,28 @@ export declare const useAnnotationQueueStore: import("pinia").StoreDefinition<"a
             frameId: number;
             imageUrl: string;
             existingExternalId?: string | undefined;
+            annotationMode?: string | undefined;
+            labelOptions?: {
+                id: number;
+                name: string;
+            }[] | undefined;
+            manualAnnotations?: {
+                id?: number | undefined;
+                labelId: number;
+                labelName: string;
+                value: boolean;
+                floatValue?: number | null | undefined;
+                externalAnnotationId?: string | null | undefined;
+            }[] | undefined;
+            predictionAnnotations?: {
+                id?: number | undefined;
+                labelId: number;
+                labelName: string;
+                value: boolean;
+                floatValue?: number | null | undefined;
+                modelMetaId?: number | null | undefined;
+            }[] | undefined;
+            suggestedLabelIds?: number[] | undefined;
         };
     }[], AnnotationTask[] | {
         id: string;
@@ -28,6 +72,28 @@ export declare const useAnnotationQueueStore: import("pinia").StoreDefinition<"a
             frameId: number;
             imageUrl: string;
             existingExternalId?: string | undefined;
+            annotationMode?: string | undefined;
+            labelOptions?: {
+                id: number;
+                name: string;
+            }[] | undefined;
+            manualAnnotations?: {
+                id?: number | undefined;
+                labelId: number;
+                labelName: string;
+                value: boolean;
+                floatValue?: number | null | undefined;
+                externalAnnotationId?: string | null | undefined;
+            }[] | undefined;
+            predictionAnnotations?: {
+                id?: number | undefined;
+                labelId: number;
+                labelName: string;
+                value: boolean;
+                floatValue?: number | null | undefined;
+                modelMetaId?: number | null | undefined;
+            }[] | undefined;
+            suggestedLabelIds?: number[] | undefined;
         };
     }[]>;
     isInitialLoading: import("vue").Ref<boolean, boolean>;
@@ -58,6 +124,28 @@ export declare const useAnnotationQueueStore: import("pinia").StoreDefinition<"a
             frameId: number;
             imageUrl: string;
             existingExternalId?: string | undefined;
+            annotationMode?: string | undefined;
+            labelOptions?: {
+                id: number;
+                name: string;
+            }[] | undefined;
+            manualAnnotations?: {
+                id?: number | undefined;
+                labelId: number;
+                labelName: string;
+                value: boolean;
+                floatValue?: number | null | undefined;
+                externalAnnotationId?: string | null | undefined;
+            }[] | undefined;
+            predictionAnnotations?: {
+                id?: number | undefined;
+                labelId: number;
+                labelName: string;
+                value: boolean;
+                floatValue?: number | null | undefined;
+                modelMetaId?: number | null | undefined;
+            }[] | undefined;
+            suggestedLabelIds?: number[] | undefined;
         };
     }[], AnnotationTask[] | {
         id: string;
@@ -65,6 +153,28 @@ export declare const useAnnotationQueueStore: import("pinia").StoreDefinition<"a
             frameId: number;
             imageUrl: string;
             existingExternalId?: string | undefined;
+            annotationMode?: string | undefined;
+            labelOptions?: {
+                id: number;
+                name: string;
+            }[] | undefined;
+            manualAnnotations?: {
+                id?: number | undefined;
+                labelId: number;
+                labelName: string;
+                value: boolean;
+                floatValue?: number | null | undefined;
+                externalAnnotationId?: string | null | undefined;
+            }[] | undefined;
+            predictionAnnotations?: {
+                id?: number | undefined;
+                labelId: number;
+                labelName: string;
+                value: boolean;
+                floatValue?: number | null | undefined;
+                modelMetaId?: number | null | undefined;
+            }[] | undefined;
+            suggestedLabelIds?: number[] | undefined;
         };
     }[]>;
     isInitialLoading: import("vue").Ref<boolean, boolean>;
@@ -95,6 +205,28 @@ export declare const useAnnotationQueueStore: import("pinia").StoreDefinition<"a
             frameId: number;
             imageUrl: string;
             existingExternalId?: string | undefined;
+            annotationMode?: string | undefined;
+            labelOptions?: {
+                id: number;
+                name: string;
+            }[] | undefined;
+            manualAnnotations?: {
+                id?: number | undefined;
+                labelId: number;
+                labelName: string;
+                value: boolean;
+                floatValue?: number | null | undefined;
+                externalAnnotationId?: string | null | undefined;
+            }[] | undefined;
+            predictionAnnotations?: {
+                id?: number | undefined;
+                labelId: number;
+                labelName: string;
+                value: boolean;
+                floatValue?: number | null | undefined;
+                modelMetaId?: number | null | undefined;
+            }[] | undefined;
+            suggestedLabelIds?: number[] | undefined;
         };
     }[], AnnotationTask[] | {
         id: string;
@@ -102,6 +234,28 @@ export declare const useAnnotationQueueStore: import("pinia").StoreDefinition<"a
             frameId: number;
             imageUrl: string;
             existingExternalId?: string | undefined;
+            annotationMode?: string | undefined;
+            labelOptions?: {
+                id: number;
+                name: string;
+            }[] | undefined;
+            manualAnnotations?: {
+                id?: number | undefined;
+                labelId: number;
+                labelName: string;
+                value: boolean;
+                floatValue?: number | null | undefined;
+                externalAnnotationId?: string | null | undefined;
+            }[] | undefined;
+            predictionAnnotations?: {
+                id?: number | undefined;
+                labelId: number;
+                labelName: string;
+                value: boolean;
+                floatValue?: number | null | undefined;
+                modelMetaId?: number | null | undefined;
+            }[] | undefined;
+            suggestedLabelIds?: number[] | undefined;
         };
     }[]>;
     isInitialLoading: import("vue").Ref<boolean, boolean>;
