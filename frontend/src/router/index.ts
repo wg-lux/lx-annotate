@@ -86,6 +86,14 @@ const router = createRouter({
       }
     },
     {
+      path: '/model-training',
+      name: 'Model Training',
+      component: () => import('@/views/ModelTrainingPage.vue'),
+      meta: {
+        description: 'Starten Sie Trainingsläufe für Image-Multilabel-Modelle.'
+      }
+    },
+    {
       path: '/',
       name: 'Dashboard',
       component: () => import('@/views/Dashboard.vue'),

@@ -125,6 +125,41 @@
                 </select>
               </label>
 
+              <label class="settings-field">
+                <span>KI-Datensatz</span>
+                <input
+                  v-model="form.aiDatasetName"
+                  class="form-control"
+                  data-test="ai-dataset-name-input"
+                  :disabled="saving"
+                  list="ai-dataset-options"
+                  placeholder="Datensatzname eingeben oder auswählen"
+                />
+                <datalist id="ai-dataset-options">
+                  <option
+                    v-for="datasetOption in dropdowns.aiDatasets"
+                    :key="`${datasetOption.id}-${datasetOption.datasetType}`"
+                    :value="datasetOption.value"
+                  >
+                    {{ datasetOption.label }}
+                  </option>
+                </datalist>
+              </label>
+
+              <label class="settings-field">
+                <span>KI-Datensatztyp</span>
+                <select
+                  v-model="form.aiDatasetType"
+                  class="form-select"
+                  data-test="ai-dataset-type-select"
+                  :disabled="saving"
+                >
+                  <option :value="EMPTY_OPTION">Kein Standardtyp</option>
+                  <option value="image">Image</option>
+                  <option value="video">Video</option>
+                </select>
+              </label>
+
               <div class="actions-row">
                 <button
                   type="button"
@@ -173,6 +208,14 @@
               <dt>Berichtsvorlage</dt>
               <dd data-test="summary-report-template">{{ selectedReportTemplateLabel }}</dd>
             </div>
+            <div>
+              <dt>KI-Datensatz</dt>
+              <dd data-test="summary-ai-dataset">{{ selectedAiDatasetLabel }}</dd>
+            </div>
+            <div>
+              <dt>KI-Datensatztyp</dt>
+              <dd data-test="summary-ai-dataset-type">{{ selectedAiDatasetTypeLabel }}</dd>
+            </div>
           </dl>
 
           <div class="summary-note">
@@ -182,6 +225,43 @@
               nachfolgende Arbeitsvorgänge.
             </p>
           </div>
+        </aside>
+
+        <aside class="settings-card mt-4">
+          <div class="card-header-row">
+            <div>
+              <h2>KI-Datensatzexport</h2>
+              <p>
+                Exportiert den aktuell ausgewählten Datensatz als standardisierte JSON-Datei in den
+                geschützten Export-Ordner.
+              </p>
+            </div>
+          </div>
+
+          <div class="backup-summary">
+            <div class="backup-stat">
+              <span>Datensatz</span>
+              <strong>{{ selectedAiDatasetLabel }}</strong>
+            </div>
+            <div class="backup-stat">
+              <span>Typ</span>
+              <strong>{{ selectedAiDatasetTypeLabel }}</strong>
+            </div>
+          </div>
+
+          <div v-if="aiDatasetExportMessage" class="alert alert-info mb-0" role="alert">
+            {{ aiDatasetExportMessage }}
+          </div>
+
+          <button
+            type="button"
+            class="btn btn-primary mt-3"
+            data-test="run-ai-dataset-export"
+            :disabled="aiDatasetExportInProgress || !form.aiDatasetName.trim() || !form.aiDatasetType"
+            @click="runAiDatasetExport"
+          >
+            {{ aiDatasetExportInProgress ? 'Export läuft…' : 'KI-Datensatz exportieren' }}
+          </button>
         </aside>
 
         <aside class="settings-card mt-4">
@@ -261,8 +341,10 @@ import {
   fetchApplicationSettings,
   fetchApplicationSettingsDropdowns,
   triggerApplicationBackup,
+  triggerApplicationAiDatasetExport,
   updateApplicationSettings,
   type ApplicationBackupResult,
+  type ApplicationAiDatasetExportResult,
   type ApplicationSettingsDropdowns,
   type ApplicationSettingsRecord
 } from '@/api/applicationSettingsApi'
@@ -281,19 +363,25 @@ const backupInProgress = ref(false)
 const backupTargetPath = ref('')
 const backupResult = ref<ApplicationBackupResult | null>(null)
 const backupError = ref('')
+const aiDatasetExportInProgress = ref(false)
+const aiDatasetExportResult = ref<ApplicationAiDatasetExportResult | null>(null)
+const aiDatasetExportError = ref('')
 
 const dropdowns = reactive<ApplicationSettingsDropdowns>({
   centers: [],
   processors: [],
   annotators: [],
-  reportTemplates: []
+  reportTemplates: [],
+  aiDatasets: []
 })
 
 const form = reactive({
   centerId: EMPTY_OPTION,
   processorId: EMPTY_OPTION,
   annotatorName: EMPTY_OPTION,
-  reportTemplateName: EMPTY_OPTION
+  reportTemplateName: EMPTY_OPTION,
+  aiDatasetName: EMPTY_OPTION,
+  aiDatasetType: EMPTY_OPTION
 })
 
 const updatedAtLabel = computed(() => {
@@ -325,6 +413,16 @@ const selectedReportTemplateLabel = computed(() => {
   return match?.label ?? 'Keine Standardvorlage'
 })
 
+const selectedAiDatasetLabel = computed(() => {
+  return form.aiDatasetName || 'Kein KI-Datensatz'
+})
+
+const selectedAiDatasetTypeLabel = computed(() => {
+  if (form.aiDatasetType === 'image') return 'Image'
+  if (form.aiDatasetType === 'video') return 'Video'
+  return 'Nicht gesetzt'
+})
+
 const backupReady = computed(() => currentSettings.value?.backupStatus.ready ?? false)
 const backupMissingPaths = computed(() => currentSettings.value?.backupStatus.missingPaths ?? [])
 const backupSourceRoots = computed(() => currentSettings.value?.backupStatus.sourceRoots ?? [])
@@ -333,6 +431,14 @@ const backupAvailablePaths = computed(() => currentSettings.value?.backupStatus.
 const backupMessage = computed(() => {
   if (backupError.value) return backupError.value
   if (backupResult.value) return `Backup erstellt: ${backupResult.value.targetRoot}`
+  return ''
+})
+
+const aiDatasetExportMessage = computed(() => {
+  if (aiDatasetExportError.value) return aiDatasetExportError.value
+  if (aiDatasetExportResult.value) {
+    return `Datensatz exportiert: ${aiDatasetExportResult.value.outputPath}`
+  }
   return ''
 })
 
@@ -346,7 +452,9 @@ const isDirty = computed(() => {
       ? EMPTY_OPTION
       : String(currentSettings.value.processorId)) !== form.processorId ||
     (currentSettings.value.annotatorName ?? EMPTY_OPTION) !== form.annotatorName ||
-    (currentSettings.value.reportTemplateName ?? EMPTY_OPTION) !== form.reportTemplateName
+    (currentSettings.value.reportTemplateName ?? EMPTY_OPTION) !== form.reportTemplateName ||
+    (currentSettings.value.aiDatasetName ?? EMPTY_OPTION) !== form.aiDatasetName ||
+    (currentSettings.value.aiDatasetType ?? EMPTY_OPTION) !== form.aiDatasetType
   )
 })
 
@@ -356,6 +464,8 @@ function applySettings(settings: ApplicationSettingsRecord) {
   form.processorId = settings.processorId === null ? EMPTY_OPTION : String(settings.processorId)
   form.annotatorName = settings.annotatorName ?? EMPTY_OPTION
   form.reportTemplateName = settings.reportTemplateName ?? EMPTY_OPTION
+  form.aiDatasetName = settings.aiDatasetName ?? EMPTY_OPTION
+  form.aiDatasetType = settings.aiDatasetType ?? EMPTY_OPTION
 }
 
 function resetForm() {
@@ -377,9 +487,12 @@ async function loadSettings() {
     dropdowns.processors = nextDropdowns.processors
     dropdowns.annotators = nextDropdowns.annotators
     dropdowns.reportTemplates = nextDropdowns.reportTemplates
+    dropdowns.aiDatasets = nextDropdowns.aiDatasets
     applySettings(settings)
     backupResult.value = null
     backupError.value = ''
+    aiDatasetExportResult.value = null
+    aiDatasetExportError.value = ''
   } catch (error) {
     console.error('Failed to load application settings:', error)
     errorMessage.value =
@@ -397,7 +510,9 @@ async function saveSettings() {
       centerId: form.centerId ? Number(form.centerId) : null,
       processorId: form.processorId ? Number(form.processorId) : null,
       annotatorName: form.annotatorName || null,
-      reportTemplateName: form.reportTemplateName || null
+      reportTemplateName: form.reportTemplateName || null,
+      aiDatasetName: form.aiDatasetName || null,
+      aiDatasetType: form.aiDatasetType || null
     })
 
     applySettings(updated)
@@ -429,6 +544,30 @@ async function runBackup() {
     console.error('Failed to run application backup:', error)
   } finally {
     backupInProgress.value = false
+  }
+}
+
+async function runAiDatasetExport() {
+  aiDatasetExportInProgress.value = true
+  aiDatasetExportError.value = ''
+  aiDatasetExportResult.value = null
+
+  try {
+    const result = await triggerApplicationAiDatasetExport({
+      aiDatasetName: form.aiDatasetName || undefined,
+      aiDatasetType: form.aiDatasetType || undefined
+    })
+    aiDatasetExportResult.value = result
+    toast.success({ text: 'KI-Datensatz erfolgreich exportiert.' })
+  } catch (error: any) {
+    aiDatasetExportError.value =
+      error?.response?.data?.errors?.aiDatasetName ||
+      error?.response?.data?.errors?.aiDatasetType ||
+      error?.response?.data?.detail ||
+      'KI-Datensatz konnte nicht exportiert werden.'
+    console.error('Failed to export AI dataset:', error)
+  } finally {
+    aiDatasetExportInProgress.value = false
   }
 }
 

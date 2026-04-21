@@ -634,7 +634,7 @@ const segmentSourceMode = ref<SegmentSourceKind>('manual')
 const isImportingPredictionSegments = ref<boolean>(false)
 
 // Video detail and metadata like VideoClassificationComponent
-const videoDetail = ref<{ video_url: string } | null>(null)
+const videoDetail = ref<Record<string, never> | null>(null)
 const videoMeta = ref<{ duration: number } | null>(null)
 
 // Error and success messages for Bootstrap alerts
@@ -887,7 +887,7 @@ const timelineSegmentsForSelectedVideo = computed<Segment[]>(() => {
 
 const canStartLabeling = computed(() => {
   return selectedVideoId.value && 
-         (videoDetail.value?.video_url || anonymizedVideoSrc.value) && 
+         anonymizedVideoSrc.value && 
          selectedLabelType.value && 
          !isMarkingLabel.value &&
          duration.value > 0
@@ -979,7 +979,7 @@ const loadVideoDetail = async (videoId: number): Promise<void> => {
     const response = await axiosInstance.get(r(endpoints.media.videoDetail(videoId)))
     console.log('Video detail response:', response.data)
     
-    videoDetail.value = { video_url: response.data.video_url }
+    videoDetail.value = {}
     videoMeta.value = {
       duration: Number(response.data.duration ?? 0)
     }
@@ -996,7 +996,6 @@ const loadVideoDetail = async (videoId: number): Promise<void> => {
       duration.value = videoMeta.value.duration
     }
     
-    console.log('Video detail loaded:', videoDetail.value)
     console.log('Video meta loaded:', videoMeta.value)
     console.log('Stream source will be:', anonymizedVideoSrc.value)
   } catch (error) {
@@ -1094,7 +1093,6 @@ const onVideoLoaded = (): void => {
     console.log('🎥 Video loaded - Frontend')
     console.log(`- Video source URL: ${anonymizedVideoSrc.value}`)
     console.log(`- Legacy stream URL: ${videoStreamUrl.value}`)
-    console.log(`- Video detail URL: ${videoDetail.value?.video_url}`)
     console.log(`- Video readyState: ${videoRef.value.readyState}`)
     console.log(`- Video networkState: ${videoRef.value.networkState}`)
     
@@ -1575,7 +1573,6 @@ const handleValidateAndMark = async (videoId: number | null): Promise<void> => {
 
   lastValidationClickedVideoId.value = videoId
   await submitVideoSegments()
-  await markValidationFinishedRemoveOutside(videoId)
 }
 
 
@@ -1681,25 +1678,6 @@ const getVideoStatusIndicator = (videoId: number): string => {
   }
   
   return statusIndicators[item.anonymizationStatus] || item.anonymizationStatus
-}
-
-const markValidationFinishedRemoveOutside = async (videoId: number): Promise<void> => {
-  try {
-    await axiosInstance.post(
-      r(`media/videos/${videoId}/segments/validation-status/`),
-      {
-        isValidated: true,
-        notes: `Validierung manuell als abgeschlossen markiert am ${new Date().toLocaleString('de-DE')}`,
-        informationSourceName: 'manual_validation',
-      }
-    )
-    showSuccessMessage(`Validierung für Video ${videoId} als abgeschlossen markiert`)
-    // Refresh overview to reflect status change
-    await anonymizationStore.fetchOverview()
-  } catch (error: any) {
-    console.error('Error marking validation as finished:', error)
-    await guarded(Promise.reject(error))
-  }
 }
 
 const getVideoCountByStatus = (status: string): number => {

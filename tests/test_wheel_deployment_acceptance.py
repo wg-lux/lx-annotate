@@ -122,7 +122,6 @@ def test_wheel_deployment_guide_documents_dual_ingress_hub_contract():
     guide = _read("docs/guides/wheel-deployment.md")
 
     assert "## Ingress Contract" in guide
-    assert "`watcher`: trusted local filesystem intake" in guide
     assert "`api`: authenticated remote upload intake" in guide
     assert (
         "Both boundaries now converge on the shared `endoreg_db.services.hub` ingest services"

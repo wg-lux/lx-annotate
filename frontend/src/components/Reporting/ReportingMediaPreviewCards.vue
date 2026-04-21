@@ -26,7 +26,7 @@
               <div>document_type: {{ flow.mediaPreload.latestReport.documentType || 'n/a' }}</div>
               <div class="d-flex flex-wrap gap-2 mt-2">
                 <button
-                  v-for="option in flow.mediaPreload.latestReport.streamOptions"
+                  v-for="option in latestReportStreamOptions"
                   :key="`report-${option.type}`"
                   class="btn btn-outline-secondary btn-sm"
                   @click="open_url(option.url)"
@@ -45,7 +45,7 @@
               <div>ID: {{ flow.mediaPreload.latestVideo.id }}</div>
               <div class="d-flex flex-wrap gap-2 mt-2">
                 <button
-                  v-for="option in flow.mediaPreload.latestVideo.streamOptions"
+                  v-for="option in latestVideoStreamOptions"
                   :key="`video-${option.type}`"
                   class="btn btn-outline-secondary btn-sm"
                   @click="open_url(option.url)"
@@ -63,9 +63,52 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
+import type { TimelineStreamOption } from '@/api/reportingTimelineApi'
 import { useReportingFlowStore } from '@/stores/reportingFlowStore'
+import { buildPdfStreamUrl, buildVideoStreamUrl } from '@/utils/mediaUrls'
 
 const flow = useReportingFlowStore()
+
+function buildCentralizedStreamOptions(
+  options: TimelineStreamOption[] | undefined,
+  mediaType: 'pdf' | 'video',
+  mediaId: number | null | undefined
+): TimelineStreamOption[] {
+  if (!mediaId) {
+    return options ?? []
+  }
+
+  return (options ?? []).map((option) => {
+    if (option.type !== 'raw' && option.type !== 'processed') {
+      return option
+    }
+
+    return {
+      ...option,
+      url:
+        mediaType === 'pdf'
+          ? buildPdfStreamUrl(mediaId, option.type)
+          : buildVideoStreamUrl(mediaId, option.type),
+    }
+  })
+}
+
+const latestReportStreamOptions = computed(() =>
+  buildCentralizedStreamOptions(
+    flow.mediaPreload?.latestReport?.streamOptions,
+    'pdf',
+    flow.mediaPreload?.latestReport?.id
+  )
+)
+
+const latestVideoStreamOptions = computed(() =>
+  buildCentralizedStreamOptions(
+    flow.mediaPreload?.latestVideo?.streamOptions,
+    'video',
+    flow.mediaPreload?.latestVideo?.id
+  )
+)
 
 function open_url(url: string) {
   window.open(url, '_blank', 'noopener,noreferrer')

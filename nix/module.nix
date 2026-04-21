@@ -115,7 +115,6 @@ in
           LX_ANNOTATE_ENCRYPTED_DATA_DIR = toString effectiveEncryptedDataDir;
           LX_ANNOTATE_DATA_DIR = toString effectiveEncryptedDataDir;
           STORAGE_DIR = effectiveStorageDir;
-          IO_DIR = effectiveIoDir;
           XDG_DATA_HOME = "/var/lib/lx-annotate";
           ENFORCE_AUTH = "0";
         }

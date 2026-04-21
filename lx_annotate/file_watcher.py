@@ -16,41 +16,42 @@ from pathlib import Path
 from typing import Iterator, Set
 
 import requests
-from watchdog.events import FileCreatedEvent, FileMovedEvent, FileSystemEventHandler
+from watchdog.events import (
+    DirCreatedEvent,
+    FileCreatedEvent,
+    FileMovedEvent,
+    FileSystemEventHandler,
+    DirMovedEvent,
+)
 from watchdog.observers import Observer
-
+from django.db.models.fields.files import FieldFile
 from endoreg_db.models import Center, EndoscopyProcessor, VideoFile
 from endoreg_db.services.environment_readiness import assert_environment_readiness
-from endoreg_db.services.hub import (
+from endoreg_db.services.hub.ingest import (
     process_preanonymized_watcher_file,
     process_watcher_file,
+    UploadProvenance,
 )
-from endoreg_db.utils.paths import (
-    data_paths,
-    WATCHER_VIDEO_DROP_DIR,
-    WATCHER_REPORT_DROP_DIR,
-)
+import endoreg_db.utils.paths as path_utils
 from endoreg_db.utils.storage import ensure_local_file
-
-try:
-    from endoreg_db.utils import data_paths as root_data_paths
-
-    project_root = root_data_paths["project_root"]
-except (ImportError, ModuleNotFoundError, KeyError):
-    project_root = Path(__file__).resolve().parent.parent
-
-PROJECT_ROOT = Path(project_root)
-RUNTIME_DATA_DIR = Path(
-    os.getenv(
-        "LX_ANNOTATE_ENCRYPTED_DATA_DIR",
-        os.getenv(
-            "LX_ANNOTATE_DATA_DIR",
-            os.getenv("DATA_DIR", "/var/lib/lx-annotate/data"),
-        ),
-    )
+from endoreg_db.exceptions import InsufficientStorageError
+from endoreg_db.models.media.video.create_from_file import (
+    check_storage_capacity,
 )
-LOG_DIR = RUNTIME_DATA_DIR / "logs"
+
+
+LOG_DIR = path_utils.LOG_DIR
 LOG_DIR.mkdir(parents=True, exist_ok=True)
+MANAGED_VAULT_ROOT = path_utils.STORAGE_DIR.resolve()
+
+INTAKE_VIDEO_DIR = path_utils.WATCHER_VIDEO_DROP_DIR
+INTAKE_REPORT_DIR = path_utils.WATCHER_REPORT_DROP_DIR
+INTAKE_PREANONYMIZED_DIR = path_utils.WATCHER_PREANONYMIZED_DROP_DIR
+
+
+storage_root_global = path_utils.STORAGE_DIR
+storage_root_report_sensitive = path_utils.SENSITIVE_REPORT_DIR
+storage_root_video_sensitive = path_utils.SENSITIVE_VIDEO_DIR
 
 
 def _setup_ffmpeg() -> None:
@@ -93,21 +94,6 @@ logging.getLogger("watchdog.observers.inotify_buffer").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
 
-def _resolve_intake_dir(env_name: str, data_paths_key: str) -> Path:
-    configured = os.getenv(env_name, "").strip()
-    if configured:
-        return Path(configured).expanduser().resolve()
-    return data_paths[data_paths_key].resolve()
-
-
-INTAKE_VIDEO_DIR = WATCHER_VIDEO_DROP_DIR
-INTAKE_REPORT_DIR = WATCHER_REPORT_DROP_DIR
-INTAKE_PREANONYMIZED_DIR = _resolve_intake_dir(
-    "WATCHER_PREANONYMIZED_DIR", "import_preanonymized"
-)
-MANAGED_VAULT_ROOT = RUNTIME_DATA_DIR.resolve()
-
-
 def _is_relative_to(path: Path, root: Path) -> bool:
     try:
         path.resolve().relative_to(root.resolve())
@@ -136,7 +122,7 @@ def is_managed_vault_path(path: str | Path) -> bool:
 
 
 def iter_storage_chunks(
-    field_file, *, chunk_size: int = 1024 * 1024
+    field_file: FieldFile, *, chunk_size: int = 1024 * 1024
 ) -> Iterator[bytes]:
     """
     Yield managed-media bytes through Django's storage API.
@@ -153,7 +139,9 @@ def iter_storage_chunks(
 
 
 @contextmanager
-def managed_media_temp_path(field_file, *, suffix: str | None = None) -> Iterator[Path]:
+def managed_media_temp_path(
+    field_file: FieldFile, *, suffix: str | None = None
+) -> Iterator[Path]:
     """
     Materialize managed media into a short-lived plaintext temp file.
 
@@ -361,11 +349,11 @@ class AutoProcessingHandler(FileSystemEventHandler):
 
         super().dispatch(event)
 
-    def on_created(self, event):
+    def on_created(self, event: DirCreatedEvent | FileCreatedEvent):
         if isinstance(event, FileCreatedEvent) and not event.is_directory:
             self._submit_file(str(event.src_path))
 
-    def on_moved(self, event) -> None:
+    def on_moved(self, event: DirMovedEvent | FileMovedEvent) -> None:
         if isinstance(event, FileMovedEvent) and not event.is_directory:
             self._submit_file(str(event.dest_path))
 
@@ -419,8 +407,7 @@ class AutoProcessingHandler(FileSystemEventHandler):
             logger.debug("Parent: %s", parent_dir)
 
             if (
-                parent_dir == data_paths["import_video"].resolve()
-                and parent_dir == INTAKE_VIDEO_DIR
+                parent_dir == INTAKE_VIDEO_DIR
                 and file_extension in self.video_extensions
             ):
                 logger.info("New video detected: %s", path)
@@ -481,15 +468,7 @@ class AutoProcessingHandler(FileSystemEventHandler):
                 )
 
             try:
-                from endoreg_db.exceptions import InsufficientStorageError
-                from endoreg_db.models.media.video.create_from_file import (
-                    check_storage_capacity,
-                )
-
-                storage_root = os.getenv(
-                    "DJANGO_DATA_DIR", str(RUNTIME_DATA_DIR / "videos")
-                )
-                check_storage_capacity(video_path, Path(storage_root))
+                check_storage_capacity(video_path, Path(storage_root_global))
             except InsufficientStorageError as storage_error:
                 logger.error(
                     "Insufficient storage space for %s: %s",
@@ -514,7 +493,7 @@ class AutoProcessingHandler(FileSystemEventHandler):
                 )
                 video_hash = str(getattr(upload_job, "content_hash", "") or "").strip()
                 if not video_hash:
-                    provenance = (
+                    provenance: UploadProvenance = (
                         getattr(upload_job, "processing_provenance", None) or {}
                     )
                     video_hash = str(provenance.get("content_hash", "")).strip()
@@ -551,15 +530,15 @@ class AutoProcessingHandler(FileSystemEventHandler):
                     )
                     self._unmark_processed(str(video_path))
                     return
-                if "already exists" in error_msg:
-                    logger.info(
-                        "Video %s already exists in database, skipping", video_path
-                    )
-                    return
                 logger.error("Import failed for %s: %s", video_path, import_error)
                 self._unmark_processed(str(video_path))
                 return
-
+            if not video_path.exists():
+                logger.info(
+                    "Video %s was an idempotent duplicate. Bypassing AI pipeline.",
+                    video_hash,
+                )
+                return
             if video_file and getattr(video_file, "pk", None):
                 try:
                     unload_ollama_model(model_name=self.default_model)
@@ -623,14 +602,7 @@ class AutoProcessingHandler(FileSystemEventHandler):
                 )
 
             try:
-                from endoreg_db.exceptions import InsufficientStorageError
-
-                storage_root = os.getenv(
-                    "report_STORAGE_ROOT", str(RUNTIME_DATA_DIR / "reports")
-                )
-                storage_root_path = Path(storage_root)
-                if not storage_root_path.is_absolute():
-                    storage_root_path = PROJECT_ROOT / storage_root_path
+                storage_root_path = storage_root_report_sensitive
                 storage_root_path.mkdir(parents=True, exist_ok=True)
                 if not storage_root_path.exists():
                     raise InsufficientStorageError(
@@ -644,7 +616,7 @@ class AutoProcessingHandler(FileSystemEventHandler):
                     center=source_center,
                     source_system="watcher",
                 )
-                if upload_job.is_successful:
+                if upload_job.is_complete:
                     logger.info(
                         "Report imported through shared hub ingest: %s",
                         upload_job.id,
@@ -845,7 +817,7 @@ class FileWatcherService:
             self.observer.start()
 
         try:
-            storage_root = RUNTIME_DATA_DIR / "storage" / "videos"
+            storage_root = storage_root_global
             if storage_root.exists():
                 total, used, free = shutil.disk_usage(storage_root)
                 free_gb = free / (1024**3)
@@ -867,6 +839,5 @@ class FileWatcherService:
 
 def run_file_watcher() -> None:
     logger.info("Starting File Watcher Service")
-    logger.info("Project root: %s", PROJECT_ROOT)
     logger.info("Django settings: %s", os.environ.get("DJANGO_SETTINGS_MODULE"))
     FileWatcherService().start()

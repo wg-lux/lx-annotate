@@ -107,13 +107,10 @@ The runtime path variables currently mean:
   deployment code should not treat it as a separate concept.
 - `STORAGE_DIR`: managed storage subtree under the protected runtime root,
   typically `${LX_ANNOTATE_ENCRYPTED_DATA_DIR}/storage`.
-- `IO_DIR`: runtime intake and workflow subtree root. In the current LuxNix
-  topology it still resolves inside the protected runtime root rather than to a
-  separate external mount.
+
 
 When documenting or wiring new deployment code, treat
-`LX_ANNOTATE_ENCRYPTED_DATA_DIR` as authoritative and derive `STORAGE_DIR` and
-`IO_DIR` from it instead of inventing independent roots.
+`LX_ANNOTATE_ENCRYPTED_DATA_DIR` as authoritative and derive `STORAGE_DIR` from it instead of inventing independent roots.
 
 Do not treat app-generated random keys as a valid encryption design. The Django
 app should consume an already-mounted or already-unlocked data path. Encryption
@@ -263,7 +260,7 @@ the new readiness checks:
 
 - `NGINX_PROTECTED_MEDIA_URL` is set to `/protected_media/`
 - `PROTECTED_MEDIA_ROOT` is aligned with the managed storage root
-- the service environment exports `STORAGE_DIR`, `IO_DIR`,
+- the service environment exports `STORAGE_DIR`,
   `LX_ANNOTATE_ENCRYPTED_DATA_DIR`, and streamable video root variables
 - the service user receives writable `ReadWritePaths` for the protected runtime
   tree
@@ -273,7 +270,6 @@ the new readiness checks:
 The remaining deployment weakness is not the main storage roots but the import
 subtree:
 
-- `tmpfiles` provisions `${IO_DIR}/import` itself
 - watcher-facing subdirectories such as `video_import/`, `report_import/`, and
   `preanonymized_import/` are not all provisioned eagerly by `tmpfiles`
 - some SAP-related subdirectories are created lazily by helper scripts instead

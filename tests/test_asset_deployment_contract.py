@@ -47,7 +47,6 @@ def test_nix_module_exposes_role_and_storage_env_contract():
     assert "ENDOREG_DEPLOYMENT_ROLE = cfg.deploymentRole;" in module_nix
     assert "ENDOREG_HUB_MODE" not in module_nix
     assert "STORAGE_DIR = effectiveStorageDir;" in module_nix
-    assert "IO_DIR = effectiveIoDir;" in module_nix
 
 
 def test_systemd_env_example_has_role_and_protected_path_contract():
@@ -58,7 +57,6 @@ def test_systemd_env_example_has_role_and_protected_path_contract():
     assert "ENDOREG_ENABLE_HUB_TRANSFERS" not in env_example
     assert "LX_ANNOTATE_DEFAULT_CENTER=" in env_example
     assert "STORAGE_DIR=/var/lib/lx-annotate/data/storage" in env_example
-    assert "IO_DIR=/var/lib/lx-annotate/data" in env_example
 
 
 def test_django_vite_manifest_paths_match_static_root_contract(monkeypatch):
@@ -274,7 +272,6 @@ def test_frontend_defaults_to_same_origin_api_contract():
         "patientFindings: `/api/${endpoints.patient.patientFindings}`"
         in findings_api_ts
     )
-    assert "window.location.origin" in correction_vue
     assert "http://localhost:8000" not in correction_vue
     assert "http://localhost:8000" not in error_logger
 

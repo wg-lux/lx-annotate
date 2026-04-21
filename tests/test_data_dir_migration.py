@@ -40,7 +40,6 @@ def test_build_management_env_scopes_runtime_paths_to_target(tmp_path):
 
     assert env["LX_ANNOTATE_ENCRYPTED_DATA_DIR"] == str(target_dir)
     assert env["LX_ANNOTATE_DATA_DIR"] == str(target_dir)
-    assert env["IO_DIR"] == str(target_dir)
     assert (
         env["LX_ANNOTATE_DEFAULT_CENTER"]
         == migrate_mod.DEFAULT_WATCHER_CENTER_REFERENCE
@@ -109,7 +108,6 @@ def test_run_migration_delegates_to_manage_py_with_source_root(tmp_path, monkeyp
     assert isinstance(env, dict)
     assert env["LX_ANNOTATE_ENCRYPTED_DATA_DIR"] == str(target_dir)
     assert env["STORAGE_DIR"] == str(target_dir / "storage")
-    assert env["IO_DIR"] == str(target_dir)
     assert len(calls) == 2
     assert calls[1][0][:4] == [
         migrate_mod.sys.executable,

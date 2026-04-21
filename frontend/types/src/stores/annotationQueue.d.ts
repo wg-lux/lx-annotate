@@ -36,6 +36,8 @@ export declare const useAnnotationQueueStore: import("pinia").StoreDefinition<"a
     filterLabelName: import("vue").Ref<string | null, string | null>;
     allowRandomFallback: import("vue").Ref<boolean, boolean>;
     informationSource: import("vue").Ref<string, string>;
+    aiDatasetName: import("vue").Ref<string | null, string | null>;
+    aiDatasetType: import("vue").Ref<string | null, string | null>;
     taskQuerySignature: import("vue").ComputedRef<string>;
     taskQueue: import("vue").Ref<{
         id: string;
@@ -105,18 +107,21 @@ export declare const useAnnotationQueueStore: import("pinia").StoreDefinition<"a
     setFilterLabelName: (label: string | null) => void;
     setAllowRandomFallback: (enabled: boolean) => void;
     setInformationSource: (source: string | null) => void;
+    hydrateAiDatasetDefaults: () => Promise<void>;
     fetchBatch: (batchSize?: number) => Promise<AnnotationTask[]>;
     prefetchIfNeeded: () => Promise<void>;
     popNextTask: () => AnnotationTask | undefined;
     clearQueue: () => void;
     primeQueue: (batchSize?: number) => Promise<void>;
-}, "informationSource" | "selectedLabelGroupId" | "taskMode" | "targetLabelName" | "filterLabelName" | "allowRandomFallback" | "taskQueue" | "isInitialLoading" | "isPrefetching" | "lastError">, Pick<{
+}, "informationSource" | "selectedLabelGroupId" | "taskMode" | "targetLabelName" | "filterLabelName" | "allowRandomFallback" | "aiDatasetName" | "aiDatasetType" | "taskQueue" | "isInitialLoading" | "isPrefetching" | "lastError">, Pick<{
     selectedLabelGroupId: import("vue").Ref<string | null, string | null>;
     taskMode: import("vue").Ref<AnnotationTaskMode, AnnotationTaskMode>;
     targetLabelName: import("vue").Ref<string, string>;
     filterLabelName: import("vue").Ref<string | null, string | null>;
     allowRandomFallback: import("vue").Ref<boolean, boolean>;
     informationSource: import("vue").Ref<string, string>;
+    aiDatasetName: import("vue").Ref<string | null, string | null>;
+    aiDatasetType: import("vue").Ref<string | null, string | null>;
     taskQuerySignature: import("vue").ComputedRef<string>;
     taskQueue: import("vue").Ref<{
         id: string;
@@ -186,6 +191,7 @@ export declare const useAnnotationQueueStore: import("pinia").StoreDefinition<"a
     setFilterLabelName: (label: string | null) => void;
     setAllowRandomFallback: (enabled: boolean) => void;
     setInformationSource: (source: string | null) => void;
+    hydrateAiDatasetDefaults: () => Promise<void>;
     fetchBatch: (batchSize?: number) => Promise<AnnotationTask[]>;
     prefetchIfNeeded: () => Promise<void>;
     popNextTask: () => AnnotationTask | undefined;
@@ -198,6 +204,8 @@ export declare const useAnnotationQueueStore: import("pinia").StoreDefinition<"a
     filterLabelName: import("vue").Ref<string | null, string | null>;
     allowRandomFallback: import("vue").Ref<boolean, boolean>;
     informationSource: import("vue").Ref<string, string>;
+    aiDatasetName: import("vue").Ref<string | null, string | null>;
+    aiDatasetType: import("vue").Ref<string | null, string | null>;
     taskQuerySignature: import("vue").ComputedRef<string>;
     taskQueue: import("vue").Ref<{
         id: string;
@@ -267,9 +275,10 @@ export declare const useAnnotationQueueStore: import("pinia").StoreDefinition<"a
     setFilterLabelName: (label: string | null) => void;
     setAllowRandomFallback: (enabled: boolean) => void;
     setInformationSource: (source: string | null) => void;
+    hydrateAiDatasetDefaults: () => Promise<void>;
     fetchBatch: (batchSize?: number) => Promise<AnnotationTask[]>;
     prefetchIfNeeded: () => Promise<void>;
     popNextTask: () => AnnotationTask | undefined;
     clearQueue: () => void;
     primeQueue: (batchSize?: number) => Promise<void>;
-}, "setSelectedLabelGroupId" | "setTaskMode" | "setTargetLabelName" | "setFilterLabelName" | "setAllowRandomFallback" | "setInformationSource" | "fetchBatch" | "prefetchIfNeeded" | "popNextTask" | "clearQueue" | "primeQueue">>;
+}, "setSelectedLabelGroupId" | "setTaskMode" | "setTargetLabelName" | "setFilterLabelName" | "setAllowRandomFallback" | "setInformationSource" | "hydrateAiDatasetDefaults" | "fetchBatch" | "prefetchIfNeeded" | "popNextTask" | "clearQueue" | "primeQueue">>;

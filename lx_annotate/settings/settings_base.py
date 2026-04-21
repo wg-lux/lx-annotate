@@ -38,7 +38,6 @@ XDG_DATA_HOME = Path(os.getenv("XDG_DATA_HOME", Path.home() / ".local" / "share"
 APP_DATA_DIR = _resolve_runtime_data_dir()
 APP_DATA_DIR.mkdir(parents=True, exist_ok=True)
 APP_STORAGE_DIR = APP_DATA_DIR / "storage"
-APP_IO_DIR = APP_DATA_DIR
 APP_STORAGE_DIR.mkdir(parents=True, exist_ok=True)
 
 PROTECTED_MEDIA_URL = (
@@ -104,7 +103,6 @@ os.environ.setdefault("LX_ANNOTATE_DATA_DIR", str(APP_DATA_DIR))
 os.environ.setdefault("DATA_DIR", str(APP_DATA_DIR))
 os.environ.setdefault("LX_ANNOTATE_ENCRYPTED_DATA_DIR", str(APP_DATA_DIR))
 os.environ.setdefault("STORAGE_DIR", str(APP_STORAGE_DIR))
-os.environ.setdefault("IO_DIR", str(APP_IO_DIR))
 os.environ.setdefault("NGINX_PROTECTED_MEDIA_URL", PROTECTED_MEDIA_URL)
 os.environ["PROTECTED_MEDIA_ROOT"] = str(PROTECTED_MEDIA_ROOT)
 os.environ.setdefault("LX_ANNOTATE_STREAMABLE_VIDEO_ROOT", str(STREAMABLE_VIDEO_ROOT))

@@ -8,6 +8,7 @@ const hoisted = vi.hoisted(() => ({
   fetchApplicationSettingsDropdowns: vi.fn(),
   updateApplicationSettings: vi.fn(),
   triggerApplicationBackup: vi.fn(),
+  triggerApplicationAiDatasetExport: vi.fn(),
   toastSuccess: vi.fn()
 }))
 
@@ -15,7 +16,8 @@ vi.mock('@/api/applicationSettingsApi', () => ({
   fetchApplicationSettings: hoisted.fetchApplicationSettings,
   fetchApplicationSettingsDropdowns: hoisted.fetchApplicationSettingsDropdowns,
   updateApplicationSettings: hoisted.updateApplicationSettings,
-  triggerApplicationBackup: hoisted.triggerApplicationBackup
+  triggerApplicationBackup: hoisted.triggerApplicationBackup,
+  triggerApplicationAiDatasetExport: hoisted.triggerApplicationAiDatasetExport
 }))
 
 vi.mock('@/stores/toastStore', () => ({
@@ -39,6 +41,8 @@ describe('ApplicationSettingsPage', () => {
       processorName: 'Processor One',
       annotatorName: null,
       reportTemplateName: 'template_a',
+      aiDatasetName: 'dataset_alpha',
+      aiDatasetType: 'image',
       updatedAt: '2026-03-26T12:30:00Z',
       backupStatus: {
         ready: true,
@@ -68,6 +72,17 @@ describe('ApplicationSettingsPage', () => {
       reportTemplates: [
         { value: 'template_a', label: 'Template A' },
         { value: 'template_b', label: 'Template B' }
+      ],
+      aiDatasets: [
+        {
+          id: 100,
+          value: 'dataset_alpha',
+          label: 'dataset_alpha',
+          datasetType: 'image',
+          aiModelType: 'image_multilabel_classification',
+          isActive: true,
+          nameCount: 1
+        }
       ]
     })
 
@@ -79,6 +94,8 @@ describe('ApplicationSettingsPage', () => {
       processorName: 'Processor Two',
       annotatorName: 'annotator_b',
       reportTemplateName: 'template_b',
+      aiDatasetName: 'dataset_beta',
+      aiDatasetType: 'video',
       updatedAt: '2026-03-26T13:15:00Z',
       backupStatus: {
         ready: true,
@@ -96,6 +113,21 @@ describe('ApplicationSettingsPage', () => {
       targetRoot: '/mnt/usb/lx-annotate-backup-20260330-120000',
       copiedRoots: []
     })
+
+    hoisted.triggerApplicationAiDatasetExport.mockResolvedValue({
+      success: true,
+      datasetId: 100,
+      datasetName: 'dataset_alpha',
+      datasetType: 'image',
+      outputPath: '/srv/export/ai_datasets/dataset_alpha_image_20260330T120000Z.json',
+      summary: {
+        imageAnnotationCount: 0,
+        videoAnnotationCount: 0,
+        frameCount: 0,
+        videoCount: 0,
+        labelCount: 0
+      }
+    })
   })
 
   it('loads the current defaults and saves updated selections', async () => {
@@ -108,11 +140,15 @@ describe('ApplicationSettingsPage', () => {
     expect(wrapper.get('[data-test=\"summary-processor\"]').text()).toContain('Processor One')
     expect(wrapper.get('[data-test=\"summary-annotator\"]').text()).toContain('Kein Standard-Annotator')
     expect(wrapper.get('[data-test=\"summary-report-template\"]').text()).toContain('Template A')
+    expect(wrapper.get('[data-test=\"summary-ai-dataset\"]').text()).toContain('dataset_alpha')
+    expect(wrapper.get('[data-test=\"summary-ai-dataset-type\"]').text()).toContain('Image')
 
     await wrapper.get('[data-test=\"center-select\"]').setValue('2')
     await wrapper.get('[data-test=\"processor-select\"]').setValue('11')
     await wrapper.get('[data-test=\"annotator-select\"]').setValue('annotator_b')
     await wrapper.get('[data-test=\"report-template-select\"]').setValue('template_b')
+    await wrapper.get('[data-test=\"ai-dataset-name-input\"]').setValue('dataset_beta')
+    await wrapper.get('[data-test=\"ai-dataset-type-select\"]').setValue('video')
     await wrapper.get('[data-test=\"save-settings\"]').trigger('click')
     await flushPromises()
 
@@ -120,7 +156,9 @@ describe('ApplicationSettingsPage', () => {
       centerId: 2,
       processorId: 11,
       annotatorName: 'annotator_b',
-      reportTemplateName: 'template_b'
+      reportTemplateName: 'template_b',
+      aiDatasetName: 'dataset_beta',
+      aiDatasetType: 'video'
     })
     expect(hoisted.toastSuccess).toHaveBeenCalledWith({
       text: 'Anwendungseinstellungen gespeichert.'
@@ -129,6 +167,8 @@ describe('ApplicationSettingsPage', () => {
     expect(wrapper.get('[data-test=\"summary-processor\"]').text()).toContain('Processor Two')
     expect(wrapper.get('[data-test=\"summary-annotator\"]').text()).toContain('annotator_b')
     expect(wrapper.get('[data-test=\"summary-report-template\"]').text()).toContain('Template B')
+    expect(wrapper.get('[data-test=\"summary-ai-dataset\"]').text()).toContain('dataset_beta')
+    expect(wrapper.get('[data-test=\"summary-ai-dataset-type\"]').text()).toContain('Video')
   })
 
   it('runs a backup when the data paths are complete', async () => {
@@ -144,6 +184,22 @@ describe('ApplicationSettingsPage', () => {
     })
     expect(hoisted.toastSuccess).toHaveBeenCalledWith({
       text: 'Backup erfolgreich erstellt.'
+    })
+  })
+
+  it('exports the configured ai dataset', async () => {
+    const wrapper = mount(ApplicationSettingsPage)
+    await flushPromises()
+
+    await wrapper.get('[data-test=\"run-ai-dataset-export\"]').trigger('click')
+    await flushPromises()
+
+    expect(hoisted.triggerApplicationAiDatasetExport).toHaveBeenCalledWith({
+      aiDatasetName: 'dataset_alpha',
+      aiDatasetType: 'image'
+    })
+    expect(hoisted.toastSuccess).toHaveBeenCalledWith({
+      text: 'KI-Datensatz erfolgreich exportiert.'
     })
   })
 })

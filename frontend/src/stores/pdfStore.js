@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { endpoints } from '@/types/api/endpoints';
+import { buildPdfStreamUrl } from '@/utils/mediaUrls';
 export const usePdfStore = defineStore('pdf', () => {
     // State
     const currentPdf = ref(null);
@@ -19,13 +20,6 @@ export const usePdfStore = defineStore('pdf', () => {
         return currentPdf.value.pdfStreamUrl;
     });
     // Actions
-    /**
-     * Build PDF streaming URL using pdf_id (RawPdfFile.id)
-     * URL pattern: /api/media/pdfs/<pdf_id>/stream
-     */
-    function buildPdfStreamUrl(pdfId) {
-        return `/api/${endpoints.media.pdfStream(pdfId)}`;
-    }
     /**
      * Fetch the next PDF for annotation from the queue
      * @param lastId - Optional last processed PDF ID to continue from

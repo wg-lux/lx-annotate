@@ -12,9 +12,12 @@ let
 
   DEPLOYMENT_MODE = "prod";
 
+  packages = [
+    pkgs.stdenv.cc.cc.lib # Provides libstdc++.so.6
+  ];
   python = pkgs.python312;
   uvPackage = pkgs.uv;
-
+  env.LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath [ pkgs.stdenv.cc.cc.lib ];
   devTasks = import ./devenv/devTasks/default.nix { inherit config pkgs lib; env=baseEnv; };
 
   languages.javascript.enable = true;

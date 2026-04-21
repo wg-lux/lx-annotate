@@ -279,7 +279,7 @@ const timelineSegmentsForSelectedVideo = computed(() => {
 });
 const canStartLabeling = computed(() => {
     return selectedVideoId.value &&
-        (videoDetail.value?.video_url || anonymizedVideoSrc.value) &&
+        anonymizedVideoSrc.value &&
         selectedLabelType.value &&
         !isMarkingLabel.value &&
         duration.value > 0;
@@ -360,7 +360,7 @@ const loadVideoDetail = async (videoId) => {
         console.log('Loading video detail for ID:', videoId);
         const response = await axiosInstance.get(r(endpoints.media.videoDetail(videoId)));
         console.log('Video detail response:', response.data);
-        videoDetail.value = { video_url: response.data.video_url };
+        videoDetail.value = {};
         videoMeta.value = {
             duration: Number(response.data.duration ?? 0)
         };
@@ -374,7 +374,6 @@ const loadVideoDetail = async (videoId) => {
         if (videoMeta.value.duration > 0) {
             duration.value = videoMeta.value.duration;
         }
-        console.log('Video detail loaded:', videoDetail.value);
         console.log('Video meta loaded:', videoMeta.value);
         console.log('Stream source will be:', anonymizedVideoSrc.value);
     }
@@ -465,7 +464,6 @@ const onVideoLoaded = () => {
         console.log('🎥 Video loaded - Frontend');
         console.log(`- Video source URL: ${anonymizedVideoSrc.value}`);
         console.log(`- Legacy stream URL: ${videoStreamUrl.value}`);
-        console.log(`- Video detail URL: ${videoDetail.value?.video_url}`);
         console.log(`- Video readyState: ${videoRef.value.readyState}`);
         console.log(`- Video networkState: ${videoRef.value.networkState}`);
         if (videoRef.value.videoWidth && videoRef.value.videoHeight) {
@@ -868,7 +866,6 @@ const handleValidateAndMark = async (videoId) => {
     }
     lastValidationClickedVideoId.value = videoId;
     await submitVideoSegments();
-    await markValidationFinishedRemoveOutside(videoId);
 };
 const saveSegmentChanges = async () => {
     if (segmentSourceMode.value === 'prediction') {
@@ -961,22 +958,6 @@ const getVideoStatusIndicator = (videoId) => {
         'failed': '❌ Fehler'
     };
     return statusIndicators[item.anonymizationStatus] || item.anonymizationStatus;
-};
-const markValidationFinishedRemoveOutside = async (videoId) => {
-    try {
-        await axiosInstance.post(r(`media/videos/${videoId}/segments/validation-status/`), {
-            isValidated: true,
-            notes: `Validierung manuell als abgeschlossen markiert am ${new Date().toLocaleString('de-DE')}`,
-            informationSourceName: 'manual_validation',
-        });
-        showSuccessMessage(`Validierung für Video ${videoId} als abgeschlossen markiert`);
-        // Refresh overview to reflect status change
-        await anonymizationStore.fetchOverview();
-    }
-    catch (error) {
-        console.error('Error marking validation as finished:', error);
-        await guarded(Promise.reject(error));
-    }
 };
 const getVideoCountByStatus = (status) => {
     return overview.value.filter(o => o.mediaType === 'video' && o.anonymizationStatus === status).length;

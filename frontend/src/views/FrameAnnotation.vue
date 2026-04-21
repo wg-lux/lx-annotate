@@ -6,6 +6,12 @@
         <p class="text-sm text-muted mb-3">
           Basic frame-level annotation for random or filtered tasks.
         </p>
+        <p
+          v-if="queueStore.aiDatasetName && queueStore.aiDatasetType"
+          class="text-sm text-primary mb-0"
+        >
+          Active AI dataset queue: {{ queueStore.aiDatasetName }} ({{ queueStore.aiDatasetType }})
+        </p>
       </div>
       <div class="col-12 col-md-6 col-lg-4">
         <label for="label-group-id" class="form-label">Label Group</label>

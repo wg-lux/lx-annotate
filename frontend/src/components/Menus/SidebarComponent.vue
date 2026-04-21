@@ -115,6 +115,14 @@
                 <span class="nav-link-text ms-1">2b. Frame Annotation</span>
               </router-link>
             </li>
+            <li class="nav-item">
+              <router-link to="/model-training" class="nav-link" :class="{ active: $route.path === '/model-training' }">
+                <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
+                  <i class="ni ni-chart-bar-32 opacity-10"></i>
+                </div>
+                <span class="nav-link-text ms-1">2c. Model Training</span>
+              </router-link>
+            </li>
 
             <li class="nav-item">
               <router-link

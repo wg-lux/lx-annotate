@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import { ref, computed, reactive, readonly } from 'vue';
 import axiosInstance, { r } from '../api/axiosInstance';
 import { AxiosError } from 'axios';
+import { buildVideoStreamUrl } from '@/utils/mediaUrls';
 import { formatTime, getTranslationForLabel, getColorForLabel } from '@/utils/videoUtils';
 import { useAnonymizationStore } from './anonymizationStore';
 import { useToastStore } from './toastStore';
@@ -107,10 +108,6 @@ export const useVideoStore = defineStore('video', () => {
                 return match;
         }
         return null;
-    }
-    function buildVideoStreamUrl(id) {
-        const base = (import.meta.env.VITE_API_BASE_URL || window.location.origin).replace(/\/$/, '');
-        return `${base}/api/${endpoints.media.videoStream(id)}`;
     }
     function normalizeFps(value) {
         const parsed = Number(value);
@@ -484,7 +481,7 @@ export const useVideoStore = defineStore('video', () => {
                 isAnnotated: true,
                 errorMessage: '',
                 segments: cachedSegments ?? [],
-                videoUrl: buildVideoStreamUrl(video.id) + '?type=processed',
+                videoUrl: buildVideoStreamUrl(video.id, 'processed'),
                 status: video.status,
                 assignedUser: video.assignedUser || null,
                 duration: video.duration,
@@ -605,12 +602,10 @@ export const useVideoStore = defineStore('video', () => {
             const id = videoId || currentVideo.value?.id;
             if (!id)
                 return;
+            videoUrl.value = buildVideoStreamUrl(id, 'processed');
             const response = await axiosInstance.get(r(endpoints.media.videoDetail(id)), {
                 headers: { Accept: 'application/json' }
             });
-            if (response.data.video_url) {
-                videoUrl.value = response.data.video_url;
-            }
             if (currentVideo.value) {
                 // Only overwrite duration if metadata didn't provide it
                 if (response.data.duration && !videoMeta.value?.duration) {
@@ -622,7 +617,7 @@ export const useVideoStore = defineStore('video', () => {
             console.error('Error loading video URL');
         }
     }
-    const videoStreamUrl = computed(() => currentVideo.value ? buildVideoStreamUrl(currentVideo.value.id) + '?type=processed' : '');
+    const videoStreamUrl = computed(() => currentVideo.value ? buildVideoStreamUrl(currentVideo.value.id, 'processed') : '');
     function hasRawVideoFileFn() {
         if (!currentVideo.value?.id) {
             hasRawVideoFile.value = null;

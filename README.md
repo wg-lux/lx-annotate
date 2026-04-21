@@ -136,7 +136,7 @@ deployment requirements for LuxNix and host environments:
   `central_hub`, `site_node`, `standalone`
 - for `central_hub`, require authenticated API uploads with declared
   `center_key`; do not rely on default-center fallback for API ingest
-- keep `STORAGE_DIR` and `IO_DIR` inside
+- keep `STORAGE_DIR` inside
   `LX_ANNOTATE_ENCRYPTED_DATA_DIR`
 - run package migrations during upgrade so upload-job and content-hash lifecycle
   changes are active
@@ -236,7 +236,7 @@ Current runtime path roles:
 - `LX_ANNOTATE_DATA_DIR`: compatibility alias for the same root
 - `DATA_DIR`: legacy compatibility alias for the same root
 - `STORAGE_DIR`: managed storage subtree, usually `${LX_ANNOTATE_ENCRYPTED_DATA_DIR}/storage`
-- `IO_DIR`: import/export/workflow subtree root, currently still inside the protected root
+
 
 New deployment code should anchor path derivation on
 `LX_ANNOTATE_ENCRYPTED_DATA_DIR` and treat the other variables as derived paths

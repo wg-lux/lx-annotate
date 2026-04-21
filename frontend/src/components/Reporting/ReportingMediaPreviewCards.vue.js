@@ -1,5 +1,25 @@
+import { computed } from 'vue';
 import { useReportingFlowStore } from '@/stores/reportingFlowStore';
+import { buildPdfStreamUrl, buildVideoStreamUrl } from '@/utils/mediaUrls';
 const flow = useReportingFlowStore();
+function buildCentralizedStreamOptions(options, mediaType, mediaId) {
+    if (!mediaId) {
+        return options ?? [];
+    }
+    return (options ?? []).map((option) => {
+        if (option.type !== 'raw' && option.type !== 'processed') {
+            return option;
+        }
+        return {
+            ...option,
+            url: mediaType === 'pdf'
+                ? buildPdfStreamUrl(mediaId, option.type)
+                : buildVideoStreamUrl(mediaId, option.type),
+        };
+    });
+}
+const latestReportStreamOptions = computed(() => buildCentralizedStreamOptions(flow.mediaPreload?.latestReport?.streamOptions, 'pdf', flow.mediaPreload?.latestReport?.id));
+const latestVideoStreamOptions = computed(() => buildCentralizedStreamOptions(flow.mediaPreload?.latestVideo?.streamOptions, 'video', flow.mediaPreload?.latestVideo?.id));
 function open_url(url) {
     window.open(url, '_blank', 'noopener,noreferrer');
 }
@@ -67,7 +87,7 @@ else {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: "d-flex flex-wrap gap-2 mt-2" },
         });
-        for (const [option] of __VLS_getVForSourceType((__VLS_ctx.flow.mediaPreload.latestReport.streamOptions))) {
+        for (const [option] of __VLS_getVForSourceType((__VLS_ctx.latestReportStreamOptions))) {
             __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
                 ...{ onClick: (...[$event]) => {
                         if (!!(__VLS_ctx.flow.mediaPreloadStatus === 'loading'))
@@ -109,7 +129,7 @@ else {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: "d-flex flex-wrap gap-2 mt-2" },
         });
-        for (const [option] of __VLS_getVForSourceType((__VLS_ctx.flow.mediaPreload.latestVideo.streamOptions))) {
+        for (const [option] of __VLS_getVForSourceType((__VLS_ctx.latestVideoStreamOptions))) {
             __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
                 ...{ onClick: (...[$event]) => {
                         if (!!(__VLS_ctx.flow.mediaPreloadStatus === 'loading'))
@@ -194,6 +214,8 @@ const __VLS_self = (await import('vue')).defineComponent({
     setup() {
         return {
             flow: flow,
+            latestReportStreamOptions: latestReportStreamOptions,
+            latestVideoStreamOptions: latestVideoStreamOptions,
             open_url: open_url,
         };
     },

@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'
 import axiosInstance, { r } from '@/api/axiosInstance'
+import { fetchApplicationSettings } from '@/api/applicationSettingsApi'
 import { endpoints } from '@/types/api/endpoints'
 
 const SELECTED_GROUP_STORAGE_KEY = 'annotationQueue.selectedLabelGroupId.v1'
@@ -325,6 +326,8 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
   const isInitialLoading = ref(false)
   const isPrefetching = ref(false)
   const lastError = ref<string | null>(null)
+  const aiDatasetName = ref<string | null>(null)
+  const aiDatasetType = ref<string | null>(null)
   const taskQuerySignature = computed(
     () =>
       `${taskMode.value}|${targetLabelName.value}|${filterLabelName.value ?? ''}|${
@@ -378,6 +381,18 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
     informationSource.value = normalized || DEFAULT_INFORMATION_SOURCE
   }
 
+  async function hydrateAiDatasetDefaults(): Promise<void> {
+    if (aiDatasetName.value !== null || aiDatasetType.value !== null) return
+    try {
+      const settings = await fetchApplicationSettings()
+      aiDatasetName.value = settings.aiDatasetName?.trim() || null
+      aiDatasetType.value = settings.aiDatasetType?.trim() || null
+    } catch {
+      aiDatasetName.value = null
+      aiDatasetType.value = null
+    }
+  }
+
   function buildTaskRequestParams(
     batchSize: number,
     mode: AnnotationTaskMode
@@ -395,6 +410,13 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
     if (mode === 'filtered' && filterLabelName.value) {
       params.filter_label = filterLabelName.value
       params.previous_label = filterLabelName.value
+    }
+
+    if (aiDatasetName.value) {
+      params.ai_dataset_name = aiDatasetName.value
+    }
+    if (aiDatasetType.value) {
+      params.ai_dataset_type = aiDatasetType.value
     }
 
     return params
@@ -420,6 +442,7 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
 
     lastError.value = null
     try {
+      await hydrateAiDatasetDefaults()
       let parsed = await fetchTaskBatchFromApi(batchSize, taskMode.value)
 
       if (
@@ -504,6 +527,8 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
     filterLabelName,
     allowRandomFallback,
     informationSource,
+    aiDatasetName,
+    aiDatasetType,
     taskQuerySignature,
     taskQueue,
     isInitialLoading,
@@ -515,6 +540,7 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
     setFilterLabelName,
     setAllowRandomFallback,
     setInformationSource,
+    hydrateAiDatasetDefaults,
     fetchBatch,
     prefetchIfNeeded,
     popNextTask,

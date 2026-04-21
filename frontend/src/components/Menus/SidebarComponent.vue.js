@@ -425,21 +425,21 @@ const __VLS_36 = {}.RouterLink;
 /** @type {[typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, ]} */ ;
 // @ts-ignore
 const __VLS_37 = __VLS_asFunctionalComponent(__VLS_36, new __VLS_36({
-    to: "/reporting/case-setup",
+    to: "/model-training",
     ...{ class: "nav-link" },
-    ...{ class: ({ active: __VLS_ctx.isReportingCaseSetupRoute }) },
+    ...{ class: ({ active: __VLS_ctx.$route.path === '/model-training' }) },
 }));
 const __VLS_38 = __VLS_37({
-    to: "/reporting/case-setup",
+    to: "/model-training",
     ...{ class: "nav-link" },
-    ...{ class: ({ active: __VLS_ctx.isReportingCaseSetupRoute }) },
+    ...{ class: ({ active: __VLS_ctx.$route.path === '/model-training' }) },
 }, ...__VLS_functionalComponentArgsRest(__VLS_37));
 __VLS_39.slots.default;
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-    ...{ class: "ni ni-check-bold opacity-10" },
+    ...{ class: "ni ni-chart-bar-32 opacity-10" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
     ...{ class: "nav-link-text ms-1" },
@@ -452,21 +452,21 @@ const __VLS_40 = {}.RouterLink;
 /** @type {[typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, ]} */ ;
 // @ts-ignore
 const __VLS_41 = __VLS_asFunctionalComponent(__VLS_40, new __VLS_40({
-    to: "/reporting",
+    to: "/reporting/case-setup",
     ...{ class: "nav-link" },
-    ...{ class: ({ active: __VLS_ctx.isReportingRoute }) },
+    ...{ class: ({ active: __VLS_ctx.isReportingCaseSetupRoute }) },
 }));
 const __VLS_42 = __VLS_41({
-    to: "/reporting",
+    to: "/reporting/case-setup",
     ...{ class: "nav-link" },
-    ...{ class: ({ active: __VLS_ctx.isReportingRoute }) },
+    ...{ class: ({ active: __VLS_ctx.isReportingCaseSetupRoute }) },
 }, ...__VLS_functionalComponentArgsRest(__VLS_41));
 __VLS_43.slots.default;
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-    ...{ class: "ni ni-single-copy-04 opacity-10" },
+    ...{ class: "ni ni-check-bold opacity-10" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
     ...{ class: "nav-link-text ms-1" },
@@ -479,21 +479,21 @@ const __VLS_44 = {}.RouterLink;
 /** @type {[typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, ]} */ ;
 // @ts-ignore
 const __VLS_45 = __VLS_asFunctionalComponent(__VLS_44, new __VLS_44({
-    to: "/export",
+    to: "/reporting",
     ...{ class: "nav-link" },
-    ...{ class: ({ active: __VLS_ctx.$route.path === '/export' }) },
+    ...{ class: ({ active: __VLS_ctx.isReportingRoute }) },
 }));
 const __VLS_46 = __VLS_45({
-    to: "/export",
+    to: "/reporting",
     ...{ class: "nav-link" },
-    ...{ class: ({ active: __VLS_ctx.$route.path === '/export' }) },
+    ...{ class: ({ active: __VLS_ctx.isReportingRoute }) },
 }, ...__VLS_functionalComponentArgsRest(__VLS_45));
 __VLS_47.slots.default;
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-    ...{ class: "ni ni-bold-right opacity-10" },
+    ...{ class: "ni ni-single-copy-04 opacity-10" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
     ...{ class: "nav-link-text ms-1" },
@@ -506,16 +506,43 @@ const __VLS_48 = {}.RouterLink;
 /** @type {[typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, ]} */ ;
 // @ts-ignore
 const __VLS_49 = __VLS_asFunctionalComponent(__VLS_48, new __VLS_48({
+    to: "/export",
+    ...{ class: "nav-link" },
+    ...{ class: ({ active: __VLS_ctx.$route.path === '/export' }) },
+}));
+const __VLS_50 = __VLS_49({
+    to: "/export",
+    ...{ class: "nav-link" },
+    ...{ class: ({ active: __VLS_ctx.$route.path === '/export' }) },
+}, ...__VLS_functionalComponentArgsRest(__VLS_49));
+__VLS_51.slots.default;
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+    ...{ class: "ni ni-bold-right opacity-10" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+    ...{ class: "nav-link-text ms-1" },
+});
+var __VLS_51;
+__VLS_asFunctionalElement(__VLS_intrinsicElements.li, __VLS_intrinsicElements.li)({
+    ...{ class: "nav-item" },
+});
+const __VLS_52 = {}.RouterLink;
+/** @type {[typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, typeof __VLS_components.RouterLink, typeof __VLS_components.routerLink, ]} */ ;
+// @ts-ignore
+const __VLS_53 = __VLS_asFunctionalComponent(__VLS_52, new __VLS_52({
     to: "/hub-export",
     ...{ class: "nav-link" },
     ...{ class: ({ active: __VLS_ctx.$route.path === '/hub-export' }) },
 }));
-const __VLS_50 = __VLS_49({
+const __VLS_54 = __VLS_53({
     to: "/hub-export",
     ...{ class: "nav-link" },
     ...{ class: ({ active: __VLS_ctx.$route.path === '/hub-export' }) },
-}, ...__VLS_functionalComponentArgsRest(__VLS_49));
-__VLS_51.slots.default;
+}, ...__VLS_functionalComponentArgsRest(__VLS_53));
+__VLS_55.slots.default;
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center" },
 });
@@ -525,7 +552,7 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)(
 __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
     ...{ class: "nav-link-text ms-1" },
 });
-var __VLS_51;
+var __VLS_55;
 /** @type {__VLS_StyleScopedClasses['sidebar-backdrop']} */ ;
 /** @type {__VLS_StyleScopedClasses['sidenav']} */ ;
 /** @type {__VLS_StyleScopedClasses['show']} */ ;
@@ -707,6 +734,24 @@ var __VLS_51;
 /** @type {__VLS_StyleScopedClasses['justify-content-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['ni']} */ ;
 /** @type {__VLS_StyleScopedClasses['ni-single-copy-04']} */ ;
+/** @type {__VLS_StyleScopedClasses['opacity-10']} */ ;
+/** @type {__VLS_StyleScopedClasses['nav-link-text']} */ ;
+/** @type {__VLS_StyleScopedClasses['ms-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['nav-item']} */ ;
+/** @type {__VLS_StyleScopedClasses['nav-link']} */ ;
+/** @type {__VLS_StyleScopedClasses['active']} */ ;
+/** @type {__VLS_StyleScopedClasses['icon']} */ ;
+/** @type {__VLS_StyleScopedClasses['icon-shape']} */ ;
+/** @type {__VLS_StyleScopedClasses['icon-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['shadow']} */ ;
+/** @type {__VLS_StyleScopedClasses['border-radius-md']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['justify-content-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-chart-bar-32']} */ ;
 /** @type {__VLS_StyleScopedClasses['opacity-10']} */ ;
 /** @type {__VLS_StyleScopedClasses['nav-link-text']} */ ;
 /** @type {__VLS_StyleScopedClasses['ms-1']} */ ;

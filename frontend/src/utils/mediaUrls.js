@@ -14,8 +14,14 @@ export function buildApiUrl(path, query) {
     return url.toString();
 }
 export function buildVideoStreamUrl(fileId, type, query) {
-    return buildApiUrl(endpoints.media.videoStream(fileId), { type, ...query });
+    return buildApiUrl(endpoints.media.videoStream(fileId), {
+        ...(type ? { type } : {}),
+        ...query
+    });
 }
 export function buildPdfStreamUrl(fileId, type, query) {
-    return buildApiUrl(endpoints.media.pdfStream(fileId), { type, ...query });
+    return buildApiUrl(endpoints.media.pdfStream(fileId), {
+        ...(type ? { type } : {}),
+        ...query
+    });
 }

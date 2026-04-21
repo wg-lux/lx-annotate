@@ -81,9 +81,7 @@ The path-variable contract is:
 - `DATA_DIR`: legacy compatibility alias for the same root.
 - `STORAGE_DIR`: managed storage subtree, normally
   `${LX_ANNOTATE_ENCRYPTED_DATA_DIR}/storage`.
-- `IO_DIR`: import/export/workflow subtree root. In the current deployment
-  model it remains inside `LX_ANNOTATE_ENCRYPTED_DATA_DIR`, not as a second
-  independent runtime root.
+
 
 For new deployment code and operator docs, prefer
 `LX_ANNOTATE_ENCRYPTED_DATA_DIR` and describe the others relative to it.
@@ -96,7 +94,6 @@ management and unlock policy.
 
 `lx-annotate` supports two first-class ingest boundaries:
 
-- `watcher`: trusted local filesystem intake from `${IO_DIR}/import/...`
 - `api`: authenticated remote upload intake through `/api/upload/`
 
 Both boundaries now converge on the shared `endoreg_db.services.hub` ingest services
@@ -149,7 +146,7 @@ Operational guidance:
 - prefer `X-Accel-Redirect` for authorized video delivery through Nginx
 - use application-layer encrypted storage only where fine-grained crypto
   controls are required and throughput is not the primary constraint
-- keep `STORAGE_DIR` and `IO_DIR` inside the protected
+- keep `STORAGE_DIR` inside the protected
   `LX_ANNOTATE_ENCRYPTED_DATA_DIR` root
 - for hub deployments, use durable shared or object-backed storage semantics
   for managed media and upload artifacts; node-local ephemeral disks are not
@@ -313,7 +310,7 @@ Observed LuxNix runtime modes:
 
 Minimum required process access:
 
-- watcher service user: read, write, execute on `${IO_DIR}` and its import
+- watcher service user: read, write, execute on and its import
   subdirectories; read, write, execute on `${STORAGE_DIR}` and streamable roots
 - web application service user: read, write, execute on `${STORAGE_DIR}`,
   streamable roots, and protected runtime roots
@@ -325,15 +322,9 @@ LuxNix gap identified by the audit:
 - the main roots are provisioned correctly, but watcher-facing import
   subdirectories are not all created eagerly by `tmpfiles` or the main boot
   pre-start step
-- in particular, `${IO_DIR}/import/video_import/`,
-  `${IO_DIR}/import/report_import/`, and related SAP/preanonymized directories
-  should be created explicitly rather than relying on first-touch behavior from
-  helper scripts
 
 Operational recommendation:
 
-- provision `${IO_DIR}/import/` and all watcher/SAP subdirectories explicitly
-  in LuxNix with stable ownership and modes before the watcher starts
 - keep `${STORAGE_DIR}` and `${LX_ANNOTATE_STREAMABLE_VIDEO_ROOT}` on the same
   filesystem when atomic move semantics are expected
 - treat any missing import subtree as a failed deployment, not as a recoverable

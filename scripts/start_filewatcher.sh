@@ -36,7 +36,6 @@ print_error() {
 bootstrap_path_env() {
     export DATA_DIR="${DATA_DIR:-${LX_ANNOTATE_DATA_DIR:-$HOME_DIR/data}}"
     export STORAGE_DIR="${STORAGE_DIR:-$DATA_DIR}"
-    export IO_DIR="${IO_DIR:-$DATA_DIR}"
 }
 
 bootstrap_pythonpath() {

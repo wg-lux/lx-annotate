@@ -3,13 +3,14 @@ import axiosInstance, { r } from '@/api/axiosInstance';
 import { endpoints } from '@/types/api/endpoints';
 import { useVideoStore } from '@/stores/videoStore';
 import Timeline from '@/components/VideoExamination/Timeline.vue';
+import { buildVideoStreamUrl } from '@/utils/mediaUrls';
 const props = defineProps();
 const emit = defineEmits();
 /**
  * Local state for the player + meta
  */
 const videoEl = ref(null);
-const videoUrl = ref(''); // backend-provided stream URL
+const videoUrl = ref(''); // centralized stream URL
 const duration = ref(0); // seconds
 const currentTime = ref(0);
 const isPlaying = ref(false);
@@ -24,11 +25,11 @@ const validatedSegments = ref(new Set());
 const isValidating = ref(false);
 const validationError = ref('');
 /**
- * Fetch backend detail to get canonical video_url + duration (don't reconstruct in client)
+ * Fetch backend detail for metadata, but keep stream URLs centralized in mediaUrls.ts.
  */
 async function loadVideoDetail(videoId) {
     const { data } = await axiosInstance.get(`/${r(endpoints.media.videoDetail(videoId))}`);
-    videoUrl.value = data.video_url;
+    videoUrl.value = buildVideoStreamUrl(videoId, 'processed');
     duration.value = Number(data.duration ?? 0);
 }
 /**

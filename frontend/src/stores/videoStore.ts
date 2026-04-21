@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed, reactive, readonly, type Ref, type ComputedRef } from 'vue'
 import axiosInstance, { r } from '../api/axiosInstance'
 import { AxiosError, type AxiosResponse } from 'axios'
+import { buildVideoStreamUrl } from '@/utils/mediaUrls'
 import { formatTime, getTranslationForLabel, getColorForLabel } from '@/utils/videoUtils'
 import { useAnonymizationStore, type FileItem } from './anonymizationStore'
 import { useToastStore } from './toastStore'
@@ -390,11 +391,6 @@ export const useVideoStore = defineStore('video', () => {
       if (match) return match
     }
     return null
-  }
-
-  function buildVideoStreamUrl(id: string | number) {
-    const base = (import.meta.env.VITE_API_BASE_URL || window.location.origin).replace(/\/$/, '')
-    return `${base}/api/${endpoints.media.videoStream(id)}`
   }
 
   function normalizeFps(value: unknown): number | null {
@@ -865,7 +861,7 @@ export const useVideoStore = defineStore('video', () => {
         isAnnotated: true,
         errorMessage: '',
         segments: cachedSegments ?? [],
-        videoUrl: buildVideoStreamUrl(video.id) + '?type=processed',
+        videoUrl: buildVideoStreamUrl(video.id, 'processed'),
         status: video.status as VideoStatus,
         assignedUser: video.assignedUser || null,
         duration: video.duration,
@@ -1007,13 +1003,11 @@ export const useVideoStore = defineStore('video', () => {
       const id = videoId || currentVideo.value?.id
       if (!id) return
 
+      videoUrl.value = buildVideoStreamUrl(id, 'processed')
+
       const response: AxiosResponse = await axiosInstance.get(r(endpoints.media.videoDetail(id)), {
         headers: { Accept: 'application/json' }
       })
-
-      if (response.data.video_url) {
-        videoUrl.value = response.data.video_url
-      }
 
       if (currentVideo.value) {
         // Only overwrite duration if metadata didn't provide it
@@ -1027,7 +1021,7 @@ export const useVideoStore = defineStore('video', () => {
   }
 
   const videoStreamUrl = computed(() =>
-    currentVideo.value ? buildVideoStreamUrl(currentVideo.value.id) + '?type=processed' : ''
+    currentVideo.value ? buildVideoStreamUrl(currentVideo.value.id, 'processed') : ''
   )
 
   function hasRawVideoFileFn() {

@@ -23,16 +23,22 @@ export function buildApiUrl(path: string, query?: QueryParams): string {
 
 export function buildVideoStreamUrl(
   fileId: number,
-  type: 'raw' | 'processed',
+  type?: 'raw' | 'processed',
   query?: QueryParams
 ): string {
-  return buildApiUrl(endpoints.media.videoStream(fileId), { type, ...query })
+  return buildApiUrl(endpoints.media.videoStream(fileId), {
+    ...(type ? { type } : {}),
+    ...query
+  })
 }
 
 export function buildPdfStreamUrl(
   fileId: number,
-  type: 'raw' | 'processed',
+  type?: 'raw' | 'processed',
   query?: QueryParams
 ): string {
-  return buildApiUrl(endpoints.media.pdfStream(fileId), { type, ...query })
+  return buildApiUrl(endpoints.media.pdfStream(fileId), {
+    ...(type ? { type } : {}),
+    ...query
+  })
 }

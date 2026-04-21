@@ -1,4 +1,5 @@
 import { type Ref, type ComputedRef } from 'vue';
+import { buildVideoStreamUrl } from '@/utils/mediaUrls';
 import { getTranslationForLabel, getColorForLabel } from '@/utils/videoUtils';
 /**
  * Translation map for label names (German translations)
@@ -577,7 +578,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
         label_id: number | null;
     }[]>;
     hasRawVideoFile: Readonly<Ref<boolean | null, boolean | null>>;
-    buildVideoStreamUrl: (id: string | number) => string;
+    buildVideoStreamUrl: typeof buildVideoStreamUrl;
     setCurrentVideo: (videoId: number) => VideoAnnotation | null;
     clearVideo: () => void;
     deleteVideo: (videoId: number | null) => Promise<boolean>;
@@ -988,7 +989,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
         label_id: number | null;
     }[]>;
     hasRawVideoFile: Readonly<Ref<boolean | null, boolean | null>>;
-    buildVideoStreamUrl: (id: string | number) => string;
+    buildVideoStreamUrl: typeof buildVideoStreamUrl;
     setCurrentVideo: (videoId: number) => VideoAnnotation | null;
     clearVideo: () => void;
     deleteVideo: (videoId: number | null) => Promise<boolean>;
@@ -1399,7 +1400,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
         label_id: number | null;
     }[]>;
     hasRawVideoFile: Readonly<Ref<boolean | null, boolean | null>>;
-    buildVideoStreamUrl: (id: string | number) => string;
+    buildVideoStreamUrl: typeof buildVideoStreamUrl;
     setCurrentVideo: (videoId: number) => VideoAnnotation | null;
     clearVideo: () => void;
     deleteVideo: (videoId: number | null) => Promise<boolean>;

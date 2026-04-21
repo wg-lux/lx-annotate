@@ -4,6 +4,7 @@ import { useAnonymizationStore } from '@/stores/anonymizationStore';
 import { useMediaTypeStore } from '@/stores/mediaTypeStore';
 import axiosInstance, { r } from '@/api/axiosInstance';
 import { endpoints } from '@/types/api/endpoints';
+import { buildPdfStreamUrl, buildVideoStreamUrl } from '@/utils/mediaUrls';
 // Composables
 const router = useRouter();
 const route = useRoute();
@@ -224,8 +225,7 @@ const loadPdfDocument = async (pdfId) => {
     pdfRenderError.value = '';
     try {
         await ensurePdfJs();
-        const response = await axiosInstance.get(r(`media/pdfs/${pdfId}/stream/`), {
-            params: { type: 'raw' },
+        const response = await axiosInstance.get(buildPdfStreamUrl(pdfId, 'raw'), {
             responseType: 'arraybuffer',
         });
         const source = new Uint8Array(response.data);
@@ -577,9 +577,16 @@ const applyMasking = async () => {
         };
         // Start masking operation
         const response = await axiosInstance.post(r(`media/videos/${currentVideo.value.id}/apply-mask/`), payload);
-        // Start polling for progress
         const taskId = response.data.task_id;
-        await pollTaskProgress(taskId, 'masking');
+        if (taskId) {
+            await pollTaskProgress(taskId, 'masking');
+        }
+        else {
+            await finalizeCorrectionProcessing('masking', {
+                output_path: response.data.output_file,
+                summary: response.data.message || 'Maskierung erfolgreich abgeschlossen'
+            });
+        }
     }
     catch (err) {
         error.value = err.response?.data?.error || 'Fehler bei der Maskierung';
@@ -606,9 +613,16 @@ const removeFrames = async () => {
         };
         // Start frame removal operation
         const response = await axiosInstance.post(r(`media/videos/${currentVideo.value.id}/remove-frames/`), payload);
-        // Start polling for progress
         const taskId = response.data.task_id;
-        await pollTaskProgress(taskId, 'frame_removal');
+        if (taskId) {
+            await pollTaskProgress(taskId, 'frame_removal');
+        }
+        else {
+            await finalizeCorrectionProcessing('frame_removal', {
+                output_path: response.data.output_file,
+                summary: response.data.message || 'Frame-Entfernung erfolgreich abgeschlossen'
+            });
+        }
     }
     catch (err) {
         error.value = err.response?.data?.error || 'Fehler bei der Frame-Entfernung';
@@ -616,6 +630,13 @@ const removeFrames = async () => {
         isProcessing.value = false;
         currentOperation.value = '';
     }
+};
+const markValidationFinishedRemoveOutside = async (videoId) => {
+    await axiosInstance.post(r(`media/videos/${videoId}/segments/validation-status/`), {
+        isValidated: true,
+        notes: `Korrektur abgeschlossen am ${new Date().toLocaleString('de-DE')}`,
+        informationSourceName: 'manual_correction',
+    });
 };
 const parseManualFrames = (frameString) => {
     const frames = [];
@@ -655,21 +676,7 @@ const pollTaskProgress = async (taskId, operation) => {
             processingProgress.value = progress || 0;
             processingStatus.value = message || 'Verarbeitung läuft...';
             if (status === 'SUCCESS') {
-                processingProgress.value = 100;
-                processingStatus.value = 'Verarbeitung abgeschlossen';
-                // Add to history
-                processingHistory.value.unshift({
-                    id: Date.now(),
-                    timestamp: new Date().toISOString(),
-                    operation,
-                    status: 'success',
-                    details: result?.summary || 'Verarbeitung erfolgreich',
-                    outputPath: result?.output_path
-                });
-                // Refresh video details
-                await refreshCurrentVideo();
-                isProcessing.value = false;
-                currentOperation.value = '';
+                await finalizeCorrectionProcessing(operation, result);
                 return;
             }
             if (status === 'FAILURE') {
@@ -685,6 +692,24 @@ const pollTaskProgress = async (taskId, operation) => {
         }
     };
     await poll();
+};
+const finalizeCorrectionProcessing = async (operation, result) => {
+    if (!currentVideo.value)
+        return;
+    processingProgress.value = 100;
+    processingStatus.value = 'Verarbeitung abgeschlossen';
+    processingHistory.value.unshift({
+        id: Date.now(),
+        timestamp: new Date().toISOString(),
+        operation,
+        status: 'success',
+        details: result?.summary || 'Verarbeitung erfolgreich',
+        outputPath: result?.output_path
+    });
+    await markValidationFinishedRemoveOutside(currentVideo.value.id);
+    await refreshCurrentVideo();
+    isProcessing.value = false;
+    currentOperation.value = '';
 };
 const cancelProcessing = async () => {
     // Implementation depends on backend support for task cancellation
@@ -708,11 +733,10 @@ const reprocessVideo = async () => {
 const getVideoUrl = () => {
     if (!currentVideo.value)
         return '';
-    const base = (import.meta.env.VITE_API_BASE_URL || window.location.origin).replace(/\/$/, '');
     const fileType = previewMode.value === 'processed' && hasProcessedVersion.value
         ? 'processed'
         : 'raw';
-    return `${base}/api/${endpoints.media.videoStream(currentVideo.value.id)}?type=${fileType}`;
+    return buildVideoStreamUrl(currentVideo.value.id, fileType);
 };
 const seekVideo = (seconds) => {
     if (videoElement.value) {

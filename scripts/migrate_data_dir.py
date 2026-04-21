@@ -143,7 +143,6 @@ def build_management_env(*, target_dir: Path) -> dict[str, str]:
     env["LX_ANNOTATE_DATA_DIR"] = target_str
     env["DATA_DIR"] = target_str
     env["STORAGE_DIR"] = str(target_dir / "storage")
-    env["IO_DIR"] = target_str
     env.setdefault(
         "LX_ANNOTATE_DEFAULT_CENTER",
         DEFAULT_WATCHER_CENTER_REFERENCE,

@@ -7,6 +7,8 @@ export interface ApplicationSettingsRecord {
     processorName: string | null;
     annotatorName: string | null;
     reportTemplateName: string | null;
+    aiDatasetName: string | null;
+    aiDatasetType: string | null;
     updatedAt: string | null;
     backupStatus: {
         ready: boolean;
@@ -26,6 +28,8 @@ export interface ApplicationSettingsUpdatePayload {
     processorId?: number | null;
     annotatorName?: string | null;
     reportTemplateName?: string | null;
+    aiDatasetName?: string | null;
+    aiDatasetType?: string | null;
 }
 export interface NamedDropdownOption {
     id: number;
@@ -41,6 +45,13 @@ export interface ApplicationSettingsDropdowns {
     processors: NamedDropdownOption[];
     annotators: ValueLabelOption[];
     reportTemplates: ValueLabelOption[];
+    aiDatasets: Array<ValueLabelOption & {
+        id: number;
+        datasetType: string;
+        aiModelType: string;
+        isActive: boolean;
+        nameCount: number;
+    }>;
 }
 export interface ApplicationBackupPayload {
     targetPath: string;
@@ -54,7 +65,26 @@ export interface ApplicationBackupResult {
         fileCount: number;
     }>;
 }
+export interface ApplicationAiDatasetExportPayload {
+    aiDatasetName?: string;
+    aiDatasetType?: string;
+}
+export interface ApplicationAiDatasetExportResult {
+    success: boolean;
+    datasetId: number;
+    datasetName: string;
+    datasetType: string;
+    outputPath: string;
+    summary: {
+        imageAnnotationCount?: number;
+        videoAnnotationCount?: number;
+        frameCount?: number;
+        videoCount?: number;
+        labelCount?: number;
+    };
+}
 export declare function fetchApplicationSettings(): Promise<ApplicationSettingsRecord>;
 export declare function updateApplicationSettings(payload: ApplicationSettingsUpdatePayload): Promise<ApplicationSettingsRecord>;
 export declare function fetchApplicationSettingsDropdowns(): Promise<ApplicationSettingsDropdowns>;
 export declare function triggerApplicationBackup(payload: ApplicationBackupPayload): Promise<ApplicationBackupResult>;
+export declare function triggerApplicationAiDatasetExport(payload: ApplicationAiDatasetExportPayload): Promise<ApplicationAiDatasetExportResult>;

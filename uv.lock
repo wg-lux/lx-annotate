@@ -949,7 +949,7 @@ sdist = { url = "https://files.pythonhosted.org/packages/62/59/e47bbd0542d0e6f4c
 
 [[package]]
 name = "endoreg-db"
-version = "0.9.4.2"
+version = "0.9.5.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "celery" },
@@ -1009,9 +1009,9 @@ dependencies = [
     { name = "whitenoise" },
     { name = "ziglang" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/5b/e5/f93643936a24f22e245ed1896d1907ec84bb590f0990dc99781b9f4d2458/endoreg_db-0.9.4.2.tar.gz", hash = "sha256:36c3613965cbbd6c48b2e02bf7dcfe04865eee856377360b84093bc5373a32f6", size = 670037, upload-time = "2026-04-15T13:27:26.51Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ed/5c/4275ede4f1428d9e44649b93e9cd19ee597bcc9946d5f7f2b10d0a8caea1/endoreg_db-0.9.5.1.tar.gz", hash = "sha256:79473a716b64416548425ca572dcbdf4a9b77e6e953f95fffdc88565ee576bdc", size = 683827, upload-time = "2026-04-21T11:32:09.027Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/07/3e/5f4d199f79d719ef04c2dfadddcd37b6e50d1a679c65d0cfb245eb52769f/endoreg_db-0.9.4.2-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:9774ed66b154410f796d3b4d023f66cc6b89835f0da9cd10bac3f94f8ece6f3d", size = 1244249, upload-time = "2026-04-15T13:27:24.645Z" },
+    { url = "https://files.pythonhosted.org/packages/48/bd/090c1cd7fd72dc7316d37aa7618424bffb900518118471cff78ec515ec8f/endoreg_db-0.9.5.1-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:45c33c6f73d004632d48c64878f34ba3faf3d0c96e4f219fa74ded43ecd82464", size = 1259202, upload-time = "2026-04-21T11:32:06.511Z" },
 ]
 
 [[package]]
@@ -1617,7 +1617,7 @@ wheels = [
 
 [[package]]
 name = "lx-annotate"
-version = "0.2.0"
+version = "0.2.3"
 source = { editable = "." }
 dependencies = [
     { name = "black" },
@@ -1640,7 +1640,6 @@ dependencies = [
     { name = "drf-spectacular" },
     { name = "endoreg-db" },
     { name = "gunicorn" },
-    { name = "lx-anonymizer" },
     { name = "lx-dtypes" },
     { name = "mozilla-django-oidc" },
     { name = "mypy" },
@@ -1716,14 +1715,13 @@ requires-dist = [
     { name = "django-webpack-loader", specifier = ">=0.7.0" },
     { name = "djangorestframework", specifier = ">=3.12.4" },
     { name = "drf-spectacular", specifier = ">=0.28.0" },
-    { name = "endoreg-db", specifier = "==0.9.4.2" },
+    { name = "endoreg-db", specifier = "==0.9.5.1" },
     { name = "flake8", marker = "extra == 'dev'", specifier = ">=7.3.0" },
     { name = "furo", marker = "extra == 'dev'", specifier = ">=2025.9.25" },
     { name = "furo", marker = "extra == 'docs'", specifier = ">=2025.9.25" },
     { name = "gunicorn", specifier = ">=23.0.0" },
     { name = "linkify-it-py", marker = "extra == 'dev'", specifier = ">=2.0.3" },
     { name = "linkify-it-py", marker = "extra == 'docs'", specifier = ">=2.0.3" },
-    { name = "lx-anonymizer", specifier = "==0.9.0.8" },
     { name = "lx-dtypes", editable = "lx-data-models" },
     { name = "mozilla-django-oidc", specifier = ">=4.0.1" },
     { name = "mypy", specifier = ">=1.18.2" },
@@ -1769,7 +1767,7 @@ provides-extras = ["dev", "docs"]
 
 [[package]]
 name = "lx-anonymizer"
-version = "0.9.0.8"
+version = "0.9.1.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "certifi" },
@@ -1792,12 +1790,13 @@ dependencies = [
     { name = "requests" },
     { name = "spacy" },
     { name = "tenacity" },
+    { name = "tesserocr" },
     { name = "types-requests" },
     { name = "ziglang" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/38/d3/a8b100245df99a68bf2f8f9122cfdcc033b464e50c757a6509cda0d58065/lx_anonymizer-0.9.0.8.tar.gz", hash = "sha256:734c8b117173d2b1b8293361ddf8b62ade68b1d8d205faaf478a829247d5be19", size = 1709503, upload-time = "2026-04-10T09:11:56.218Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/fe/0f/2247bcd9f35add8da895121968d08c7fb25415915c971462c82e17007944/lx_anonymizer-0.9.1.0.tar.gz", hash = "sha256:6c5138dab56620bc7b1629d6d24b05234f7c441c19ba9dc7d2309f566fbb18b1", size = 1711547, upload-time = "2026-04-20T13:40:40.859Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/60/14/9791f7321671fedf1d4c181e584d0efca372aa82bb9b0a22bebc6996e040/lx_anonymizer-0.9.0.8-cp312-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:97a2884cba4e48049ac8591bd198b9e83bba17f5d3673787c5b370c42d8cc64e", size = 1629107, upload-time = "2026-04-10T09:11:52.932Z" },
+    { url = "https://files.pythonhosted.org/packages/b1/bb/b0c0da765e2b1b3214a62a11e5d2f148bd04c4d1e465c53bc98f0201b32a/lx_anonymizer-0.9.1.0-cp312-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:f395141606a4d3a58599c1d388763f2d1f98ef46efdc4b443a66314fb70dc564", size = 1629527, upload-time = "2026-04-20T13:40:38.471Z" },
 ]
 
 [package.optional-dependencies]
