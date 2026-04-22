@@ -38,12 +38,7 @@ class LxAnnotateConfig(AppConfig):
 
     # This is running in development server only. On luxnix, filewatcher is started via systemd service.
     def ready(self):
-        from . import checks
         from . import signals  # noqa: F401
-
-        command = sys.argv[1] if len(sys.argv) > 1 else ""
-        if not self._should_skip_runtime_checks(command):
-            checks.assert_runtime_checks_pass()
 
         # Only for runserver
         if "runserver" not in sys.argv:

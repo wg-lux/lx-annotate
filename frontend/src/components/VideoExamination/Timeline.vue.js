@@ -753,7 +753,6 @@ onMounted(() => {
             initializeWaveform();
         });
     }
-    toast.success({ text: '[Timeline] Component mounted and ready' });
 });
 onUnmounted(() => {
     document.removeEventListener('click', handleClickOutside);

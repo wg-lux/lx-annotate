@@ -212,26 +212,6 @@ const loadSensitiveMetaForVideos = async (videoIds) => {
     });
     videoSensitiveMetaMap.value = nextMap;
 };
-//  fire loader whenever selectedVideoId changes programmatically  */
-watch(selectedVideoId, async (newId) => {
-    console.log('Selected video ID changed, syncing store and loading details:', newId);
-    if (typeof newId === 'number') {
-        videoStore.setCurrentVideo(newId);
-    }
-    else if (newId !== null) {
-        errorMessage.value = 'Invalid video ID';
-        return;
-    }
-    await loadSelectedVideo();
-    if (newId !== null) {
-        await loadVideoSegments();
-    }
-}, { immediate: true });
-watch(() => route.query.video, v => {
-    const id = Number(v ?? '') || null;
-    if (id !== selectedVideoId.value)
-        selectedVideoId.value = id;
-}, { immediate: true });
 // List of only videos that are both present in the list **and** in state `done` inside anonymizationStore
 const selectableVideos = computed(() => videoList.value.videos.filter(v => isAnonymized(v.id)));
 const annotatableVideos = computed(() => selectableVideos.value.filter(v => !isAnnotationFinished(v.id)));
@@ -299,7 +279,11 @@ onMounted(async () => {
         await videoStore.fetchAllVideos();
         console.log(`✅ [VideoExamination] Videos loaded: ${videoStore.videoList.videos.length}`);
         console.log(`✅ [VideoExamination] Annotatable videos: ${annotatableVideos.value.length}`);
-        await loadVideoSegments();
+        if (selectedVideoId.value !== null) {
+            videoStore.setCurrentVideo(selectedVideoId.value);
+            await loadSelectedVideo();
+            await loadVideoSegments();
+        }
     }
     catch (error) {
         console.error('❌ [VideoExamination] Error during initial load:', error);
@@ -367,7 +351,15 @@ const loadVideoDetail = async (videoId) => {
         // Update MediaStore with the current video for consistent URL handling
         const currentVideo = selectableVideos.value.find(v => v.id === videoId);
         if (currentVideo) {
-            mediaStore.setCurrentItem(currentVideo);
+            mediaStore.rememberType(videoId, 'video', 'video');
+            mediaStore.setCurrentItem({
+                ...currentVideo,
+                id: videoId,
+                scope: 'video',
+                mediaType: 'video',
+                filename: currentVideo.original_file_name,
+                processedStreamUrl: buildVideoStreamUrl(videoId, 'processed')
+            });
             console.log('MediaStore updated with video:', videoId);
         }
         // Update local duration if available
@@ -991,6 +983,27 @@ const isVideoValidated = (videoId) => {
     const item = overview.value.find(o => o.id === videoId && o.mediaType === 'video');
     return item?.anonymizationStatus === 'validated';
 };
+// Fire loader whenever selectedVideoId changes programmatically.
+// Keep this after all setup bindings it can call; immediate watchers run during setup.
+watch(selectedVideoId, async (newId) => {
+    console.log('Selected video ID changed, syncing store and loading details:', newId);
+    if (typeof newId === 'number') {
+        videoStore.setCurrentVideo(newId);
+    }
+    else if (newId !== null) {
+        errorMessage.value = 'Invalid video ID';
+        return;
+    }
+    await loadSelectedVideo();
+    if (newId !== null) {
+        await loadVideoSegments();
+    }
+});
+watch(() => route.query.video, v => {
+    const id = Number(v ?? '') || null;
+    if (id !== selectedVideoId.value)
+        selectedVideoId.value = id;
+}, { immediate: true });
 debugger; /* PartiallyEnd: #3632/scriptSetup.vue */
 const __VLS_ctx = {};
 let __VLS_components;
