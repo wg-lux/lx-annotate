@@ -126,6 +126,17 @@ function selectVideoFromDropdown(videoId) {
     onVideoChange();
     closeVideoDropdown();
 }
+function enableSegmentEditing() {
+    if (selectedVideoId.value === null)
+        return;
+    router.push({
+        query: {
+            ...route.query,
+            video: String(selectedVideoId.value),
+            editSegments: '1'
+        }
+    });
+}
 const handleDocumentClick = (event) => {
     const target = event.target;
     if (!(target instanceof Node))
@@ -217,6 +228,8 @@ const selectedVideo = computed(() => {
     return selectableVideos.value.find(v => v.id === selectedVideoId.value);
 });
 const isSelectedVideoValidated = computed(() => selectedVideoId.value != null && isAnnotationFinished(selectedVideoId.value));
+const isSegmentEditingUnlocked = computed(() => route.query.editSegments === '1');
+const canEditSelectedVideoSegments = computed(() => !isSelectedVideoValidated.value || isSegmentEditingUnlocked.value);
 const selectedVideoLabel = computed(() => {
     if (!selectableVideos.value.length)
         return 'Keine Videos verfügbar';
@@ -262,7 +275,7 @@ const canStartLabeling = computed(() => {
         selectedLabelType.value &&
         !isMarkingLabel.value &&
         duration.value > 0 &&
-        !isSelectedVideoValidated.value;
+        canEditSelectedVideoSegments.value;
 });
 // ✅ PRIORITY: Load labels first, then videos, then anonymization status
 onMounted(async () => {
@@ -1456,7 +1469,7 @@ if (__VLS_ctx.duration > 0) {
         isPlaying: (__VLS_ctx.isPlaying),
         activeSegmentId: (__VLS_ctx.selectedSegmentId),
         showWaveform: (false),
-        selectionMode: (!__VLS_ctx.isSelectedVideoValidated),
+        selectionMode: (__VLS_ctx.canEditSelectedVideoSegments),
         fps: (__VLS_ctx.fps),
     }));
     const __VLS_1 = __VLS_0({
@@ -1475,7 +1488,7 @@ if (__VLS_ctx.duration > 0) {
         isPlaying: (__VLS_ctx.isPlaying),
         activeSegmentId: (__VLS_ctx.selectedSegmentId),
         showWaveform: (false),
-        selectionMode: (!__VLS_ctx.isSelectedVideoValidated),
+        selectionMode: (__VLS_ctx.canEditSelectedVideoSegments),
         fps: (__VLS_ctx.fps),
     }, ...__VLS_functionalComponentArgsRest(__VLS_0));
     let __VLS_3;
@@ -1539,19 +1552,19 @@ if (__VLS_ctx.duration > 0) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
             ...{ onClick: (__VLS_ctx.discardSegmentChanges) },
             ...{ class: "btn btn-outline-secondary" },
-            disabled: (__VLS_ctx.segmentSourceMode === 'prediction' || __VLS_ctx.isSelectedVideoValidated),
+            disabled: (__VLS_ctx.segmentSourceMode === 'prediction' || !__VLS_ctx.canEditSelectedVideoSegments),
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
             ...{ onClick: (__VLS_ctx.saveSegmentChanges) },
             ...{ class: "btn" },
             ...{ class: (__VLS_ctx.hasUnsavedChanges ? 'btn-primary' : 'btn-outline-secondary') },
-            disabled: (__VLS_ctx.segmentSourceMode === 'prediction' || __VLS_ctx.isSelectedVideoValidated),
+            disabled: (__VLS_ctx.segmentSourceMode === 'prediction' || !__VLS_ctx.canEditSelectedVideoSegments),
         });
         if (__VLS_ctx.segmentSourceMode === 'prediction') {
             __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
                 ...{ onClick: (__VLS_ctx.importPredictionSegmentsToManual) },
                 ...{ class: "btn btn-primary" },
-                disabled: (__VLS_ctx.timelineSegmentsForSelectedVideo.length === 0 || __VLS_ctx.isImportingPredictionSegments || __VLS_ctx.isSelectedVideoValidated),
+                disabled: (__VLS_ctx.timelineSegmentsForSelectedVideo.length === 0 || __VLS_ctx.isImportingPredictionSegments || !__VLS_ctx.canEditSelectedVideoSegments),
             });
             (__VLS_ctx.isImportingPredictionSegments ? 'Übernehme...' : 'Als manuelle Segmente übernehmen');
         }
@@ -1698,17 +1711,36 @@ if (__VLS_ctx.selectedVideoId) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
             ...{ class: "ni ni-check-bold ni-2x me-3 text-success" },
         });
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "validation-status-body" },
+        });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({
             ...{ class: "mb-1" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
             ...{ class: "ni ni-trophy me-1" },
         });
+        (__VLS_ctx.canEditSelectedVideoSegments ? 'Segmentbearbeitung aktiv' : 'Video bereits validiert');
         __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
             ...{ class: "text-muted" },
         });
-        (__VLS_ctx.timelineSegmentsForSelectedVideo.length);
+        if (__VLS_ctx.canEditSelectedVideoSegments) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+        }
+        else {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+            (__VLS_ctx.timelineSegmentsForSelectedVideo.length);
+        }
+        if (!__VLS_ctx.canEditSelectedVideoSegments) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+                ...{ onClick: (__VLS_ctx.enableSegmentEditing) },
+                type: "button",
+                ...{ class: "btn btn-outline-success btn-sm ms-auto validation-edit-button" },
+            });
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+                ...{ class: "ni ni-ruler-pencil me-1" },
+            });
+        }
     }
     else {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -2097,11 +2129,20 @@ if (__VLS_ctx.savedExaminations.length > 0) {
 /** @type {__VLS_StyleScopedClasses['ni-2x']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-success']} */ ;
+/** @type {__VLS_StyleScopedClasses['validation-status-body']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['ni']} */ ;
 /** @type {__VLS_StyleScopedClasses['ni-trophy']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-success']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['ms-auto']} */ ;
+/** @type {__VLS_StyleScopedClasses['validation-edit-button']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-ruler-pencil']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
 /** @type {__VLS_StyleScopedClasses['justify-content-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
@@ -2217,12 +2258,13 @@ const __VLS_self = (await import('vue')).defineComponent({
             hasUnsavedChanges: hasUnsavedChanges,
             toggleVideoDropdown: toggleVideoDropdown,
             selectVideoFromDropdown: selectVideoFromDropdown,
+            enableSegmentEditing: enableSegmentEditing,
             getVideoPatientGender: getVideoPatientGender,
             getVideoPatientAgeLabel: getVideoPatientAgeLabel,
             selectableVideos: selectableVideos,
             pendingValidationVideos: pendingValidationVideos,
             selectedVideo: selectedVideo,
-            isSelectedVideoValidated: isSelectedVideoValidated,
+            canEditSelectedVideoSegments: canEditSelectedVideoSegments,
             selectedVideoLabel: selectedVideoLabel,
             anonymizedVideoSrc: anonymizedVideoSrc,
             hasVideos: hasVideos,

@@ -386,15 +386,19 @@ export default {
 }
 
 .sidenav-header-inner {
-  padding: 0.5rem 1rem;
-  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 0.75rem 1rem 0.35rem;
+  margin-bottom: 0.35rem;
 }
 
 .logo-img {
   display: block;
-  width: 100%;
-  max-width: 100%;
-  height: auto;
+  width: auto;
+  max-width: 150px;
+  max-height: 92px;
   object-fit: contain;
 }
 

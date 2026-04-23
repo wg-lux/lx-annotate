@@ -246,7 +246,7 @@
                 :isPlaying="isPlaying"
                 :activeSegmentId="selectedSegmentId"
                 :showWaveform="false"
-                :selectionMode="!isSelectedVideoValidated"
+                :selectionMode="canEditSelectedVideoSegments"
                 :fps="fps"
                 @seek="handleTimelineSeek"
                 @play-pause="handlePlayPause"
@@ -292,7 +292,7 @@
                 <button
                   class="btn btn-outline-secondary"
                   @click="discardSegmentChanges"
-                  :disabled="segmentSourceMode === 'prediction' || isSelectedVideoValidated"
+                  :disabled="segmentSourceMode === 'prediction' || !canEditSelectedVideoSegments"
                 >
                   Änderungen verwerfen
                 </button>
@@ -301,7 +301,7 @@
                   class="btn"
                   :class="hasUnsavedChanges ? 'btn-primary' : 'btn-outline-secondary'"
                   @click="saveSegmentChanges"
-                  :disabled="segmentSourceMode === 'prediction' || isSelectedVideoValidated"
+                  :disabled="segmentSourceMode === 'prediction' || !canEditSelectedVideoSegments"
                 >
                   Segmentänderungen speichern
                 </button>
@@ -309,7 +309,7 @@
                 <button
                   v-if="segmentSourceMode === 'prediction'"
                   class="btn btn-primary"
-                  :disabled="timelineSegmentsForSelectedVideo.length === 0 || isImportingPredictionSegments || isSelectedVideoValidated"
+                  :disabled="timelineSegmentsForSelectedVideo.length === 0 || isImportingPredictionSegments || !canEditSelectedVideoSegments"
                   @click="importPredictionSegmentsToManual"
                 >
                   {{ isImportingPredictionSegments ? 'Übernehme...' : 'Als manuelle Segmente übernehmen' }}
@@ -422,15 +422,29 @@
           <div v-if="isAnnotationFinished(selectedVideoId)" 
                class="alert alert-success d-flex align-items-center validation-status-alert">
             <i class="ni ni-check-bold ni-2x me-3 text-success"></i>
-            <div>
+            <div class="validation-status-body">
               <h6 class="mb-1">
                 <i class="ni ni-trophy me-1"></i>
-                Video bereits validiert
+                {{ canEditSelectedVideoSegments ? 'Segmentbearbeitung aktiv' : 'Video bereits validiert' }}
               </h6>
               <small class="text-muted">
-                Alle {{ timelineSegmentsForSelectedVideo.length }} Segmente wurden überprüft und als validiert markiert.
+                <span v-if="canEditSelectedVideoSegments">
+                  Segmentänderungen sind wieder möglich. Der Zurück-Button des Browsers beendet diesen Modus.
+                </span>
+                <span v-else>
+                  Alle {{ timelineSegmentsForSelectedVideo.length }} Segmente wurden überprüft und als validiert markiert.
+                </span>
               </small>
             </div>
+            <button
+              v-if="!canEditSelectedVideoSegments"
+              type="button"
+              class="btn btn-outline-success btn-sm ms-auto validation-edit-button"
+              @click="enableSegmentEditing"
+            >
+              <i class="ni ni-ruler-pencil me-1"></i>
+              Segmente bearbeiten
+            </button>
           </div>
           
           <div v-else class="d-flex justify-content-center">
@@ -717,6 +731,18 @@ function selectVideoFromDropdown(videoId: number): void {
   closeVideoDropdown()
 }
 
+function enableSegmentEditing(): void {
+  if (selectedVideoId.value === null) return
+
+  router.push({
+    query: {
+      ...route.query,
+      video: String(selectedVideoId.value),
+      editSegments: '1'
+    }
+  })
+}
+
 const handleDocumentClick = (event: MouseEvent): void => {
   const target = event.target
   if (!(target instanceof Node)) return
@@ -821,6 +847,12 @@ const isSelectedVideoValidated = computed(() =>
   selectedVideoId.value != null && isAnnotationFinished(selectedVideoId.value)
 )
 
+const isSegmentEditingUnlocked = computed(() => route.query.editSegments === '1')
+
+const canEditSelectedVideoSegments = computed(() =>
+  !isSelectedVideoValidated.value || isSegmentEditingUnlocked.value
+)
+
 const selectedVideoLabel = computed(() => {
   if (!selectableVideos.value.length) return 'Keine Videos verfügbar'
   if (selectedVideoId.value == null) return 'Bitte Video auswählen...'
@@ -871,7 +903,7 @@ const canStartLabeling = computed(() => {
          selectedLabelType.value && 
          !isMarkingLabel.value &&
          duration.value > 0 &&
-         !isSelectedVideoValidated.value
+         canEditSelectedVideoSegments.value
 })
 
 
