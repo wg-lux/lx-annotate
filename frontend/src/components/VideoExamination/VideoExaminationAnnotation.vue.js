@@ -88,11 +88,6 @@ async function loadSelectedVideo() {
         selectedVideoId.value = null;
         return;
     }
-    if (isAnnotationFinished(selectedVideoId.value)) {
-        showErrorMessage(`Video ${selectedVideoId.value} ist bereits vollständig annotiert.`);
-        selectedVideoId.value = null;
-        return;
-    }
     // Clear previous error messages when changing videos
     clearErrorMessage();
     clearSuccessMessage();
@@ -125,7 +120,7 @@ function closeVideoDropdown() {
 }
 function selectVideoFromDropdown(videoId) {
     const selected = selectableVideos.value.find(video => video.id === videoId);
-    if (!selected || selected.segmentAnnotationsValidated)
+    if (!selected)
         return;
     selectedVideoId.value = videoId;
     onVideoChange();
@@ -215,6 +210,13 @@ const loadSensitiveMetaForVideos = async (videoIds) => {
 // List of only videos that are both present in the list **and** in state `done` inside anonymizationStore
 const selectableVideos = computed(() => videoList.value.videos.filter(v => isAnonymized(v.id)));
 const annotatableVideos = computed(() => selectableVideos.value.filter(v => !isAnnotationFinished(v.id)));
+const pendingValidationVideos = computed(() => selectableVideos.value.filter(v => !v.segmentAnnotationsValidated));
+const selectedVideo = computed(() => {
+    if (selectedVideoId.value == null)
+        return undefined;
+    return selectableVideos.value.find(v => v.id === selectedVideoId.value);
+});
+const isSelectedVideoValidated = computed(() => selectedVideoId.value != null && isAnnotationFinished(selectedVideoId.value));
 const selectedVideoLabel = computed(() => {
     if (!selectableVideos.value.length)
         return 'Keine Videos verfügbar';
@@ -223,7 +225,7 @@ const selectedVideoLabel = computed(() => {
     const video = selectableVideos.value.find(v => v.id === selectedVideoId.value);
     if (!video)
         return `Video ${selectedVideoId.value}`;
-    return `📹 ${video.original_file_name || `Video Nr. ${video.id}`}`;
+    return video.original_file_name || `Video Nr. ${video.id}`;
 });
 watch(selectableVideos, (videos) => {
     if (!videos.length)
@@ -246,9 +248,6 @@ const noVideosMessage = computed(() => {
     else if (selectableVideos.value.length === 0) {
         return 'Keine anonymisierten Videos verfügbar. Videos müssen erst anonymisiert werden.';
     }
-    else if (annotatableVideos.value.length === 0) {
-        return 'Alle anonymisierten Videos sind bereits validiert.';
-    }
     return '';
 });
 const timelineSegmentsForSelectedVideo = computed(() => {
@@ -262,7 +261,8 @@ const canStartLabeling = computed(() => {
         anonymizedVideoSrc.value &&
         selectedLabelType.value &&
         !isMarkingLabel.value &&
-        duration.value > 0;
+        duration.value > 0 &&
+        !isSelectedVideoValidated.value;
 });
 // ✅ PRIORITY: Load labels first, then videos, then anonymization status
 onMounted(async () => {
@@ -509,6 +509,8 @@ const handleSegmentSelect = (...args) => {
     console.log('Segment selected:', segmentId);
 };
 const handleSegmentResize = (...args) => {
+    if (isSelectedVideoValidated.value)
+        return;
     const [segmentId, newStart, newEnd, _mode, _final] = args;
     if (!Number.isFinite(segmentId)) {
         console.warn('[VideoExamination] Invalid segment ID for resize:', segmentId);
@@ -532,6 +534,8 @@ const handleSegmentResize = (...args) => {
     // ❌ Absolutely no backend call here, this should use the drafts because of the load on the backend.
 };
 const handleSegmentMove = (...args) => {
+    if (isSelectedVideoValidated.value)
+        return;
     const [segmentId, newStart, newEnd, _final] = args;
     if (!Number.isFinite(segmentId)) {
         console.warn('[VideoExamination] Invalid segment ID for move:', segmentId);
@@ -551,6 +555,8 @@ const handleSegmentMove = (...args) => {
     }
 };
 const handleTimeSelection = (...args) => {
+    if (isSelectedVideoValidated.value)
+        return;
     const [data] = args;
     // ✅ FIXED: Only create segment if we have a selected label type
     if (selectedLabelType.value && selectedVideoId.value) {
@@ -570,6 +576,11 @@ const handleCreateSegment = (...args) => {
     const [event] = args;
     return new Promise(async (resolve, reject) => {
         try {
+            if (isSelectedVideoValidated.value) {
+                showErrorMessage('Dieses Video ist bereits validiert und wird schreibgeschützt angezeigt.');
+                resolve();
+                return;
+            }
             if (segmentSourceMode.value === 'prediction') {
                 showErrorMessage('Neue Segmente bitte erst nach dem Übernehmen in die manuellen Annotationen anlegen.');
                 resolve();
@@ -590,6 +601,11 @@ const handleCreateSegment = (...args) => {
 const handleSegmentDelete = (...args) => {
     const [segment] = args;
     return new Promise(async (resolve, reject) => {
+        if (isSelectedVideoValidated.value) {
+            showErrorMessage('Dieses Video ist bereits validiert und wird schreibgeschützt angezeigt.');
+            resolve();
+            return;
+        }
         if (!segment.id || typeof segment.id !== 'number') {
             console.warn('Cannot delete draft or temporary segment:', segment.id);
             resolve();
@@ -860,6 +876,10 @@ const handleValidateAndMark = async (videoId) => {
     await submitVideoSegments();
 };
 const saveSegmentChanges = async () => {
+    if (isSelectedVideoValidated.value) {
+        showErrorMessage('Dieses Video ist bereits validiert und wird schreibgeschützt angezeigt.');
+        return;
+    }
     if (segmentSourceMode.value === 'prediction') {
         showErrorMessage('Änderungen an KI-Vorhersagen werden erst mit "Als manuelle Segmente übernehmen" persistiert.');
         return;
@@ -875,6 +895,10 @@ const saveSegmentChanges = async () => {
     }
 };
 const discardSegmentChanges = () => {
+    if (isSelectedVideoValidated.value) {
+        showErrorMessage('Dieses Video ist bereits validiert und wird schreibgeschützt angezeigt.');
+        return;
+    }
     if (segmentSourceMode.value === 'prediction') {
         void loadVideoSegments();
         showSuccessMessage('Lokale Änderungen an KI-Vorhersagen verworfen');
@@ -889,6 +913,10 @@ const discardSegmentChanges = () => {
 const importPredictionSegmentsToManual = async () => {
     if (!selectedVideoId.value)
         return;
+    if (isSelectedVideoValidated.value) {
+        showErrorMessage('Dieses Video ist bereits validiert und wird schreibgeschützt angezeigt.');
+        return;
+    }
     if (timelineSegmentsForSelectedVideo.value.length === 0) {
         showErrorMessage('Keine KI-Segmente zum Übernehmen vorhanden');
         return;
@@ -1033,7 +1061,7 @@ if (__VLS_ctx.errorMessage) {
         role: "alert",
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "material-icons me-2" },
+        ...{ class: "ni ni-fat-remove me-2" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
     (__VLS_ctx.errorMessage);
@@ -1050,7 +1078,7 @@ if (__VLS_ctx.successMessage) {
         role: "alert",
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "material-icons me-2" },
+        ...{ class: "ni ni-check-bold me-2" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
     (__VLS_ctx.successMessage);
@@ -1111,8 +1139,8 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.
 });
 (__VLS_ctx.selectedVideoLabel);
 __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-    ...{ class: "fas" },
-    ...{ class: (__VLS_ctx.isVideoDropdownOpen ? 'fa-chevron-up' : 'fa-chevron-down') },
+    ...{ class: "ni" },
+    ...{ class: (__VLS_ctx.isVideoDropdownOpen ? 'ni-bold-up' : 'ni-bold-down') },
 });
 if (__VLS_ctx.isVideoDropdownOpen && __VLS_ctx.hasVideos) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -1134,7 +1162,6 @@ if (__VLS_ctx.isVideoDropdownOpen && __VLS_ctx.hasVideos) {
                     'video-dropdown-item-validated': video.segmentAnnotationsValidated,
                     'video-dropdown-item-pending': !video.segmentAnnotationsValidated
                 }) },
-            disabled: (video.segmentAnnotationsValidated),
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: "video-dropdown-main" },
@@ -1142,14 +1169,17 @@ if (__VLS_ctx.isVideoDropdownOpen && __VLS_ctx.hasVideos) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
             ...{ class: "video-dropdown-title" },
         });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: "ni ni-button-play me-1" },
+        });
         (video.original_file_name || 'Video Nr. ' + video.id);
         __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
             ...{ class: "video-dropdown-status-badge" },
             ...{ class: (video.segmentAnnotationsValidated ? 'badge-validated' : 'badge-pending') },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "fas me-1" },
-            ...{ class: (video.segmentAnnotationsValidated ? 'fa-check-double' : 'fa-hourglass-half') },
+            ...{ class: "ni me-1" },
+            ...{ class: (video.segmentAnnotationsValidated ? 'ni-check-bold' : 'ni-watch-time') },
         });
         (video.segmentAnnotationsValidated ? 'Validiert' : 'Validierung offen');
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -1185,23 +1215,23 @@ if (__VLS_ctx.videos.length > 0) {
         ...{ class: "badge bg-success" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-check me-1" },
+        ...{ class: "ni ni-check-bold me-1" },
     });
     (__VLS_ctx.getVideoCountByStatus('done_processing_anonymization'));
     __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
         ...{ class: "badge bg-primary" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-check-double me-1" },
+        ...{ class: "ni ni-check-bold me-1" },
     });
     (__VLS_ctx.getVideoCountByStatus('validated'));
     __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
         ...{ class: "badge bg-secondary" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-clock me-1" },
+        ...{ class: "ni ni-watch-time me-1" },
     });
-    (__VLS_ctx.videos.length - __VLS_ctx.annotatableVideos.length);
+    (__VLS_ctx.pendingValidationVideos.length);
 }
 if (__VLS_ctx.lastValidationClickedVideoId !== null) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -1212,7 +1242,7 @@ if (__VLS_ctx.lastValidationClickedVideoId !== null) {
         ...{ class: "fw-semibold" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-highlighter me-1" },
+        ...{ class: "ni ni-tag me-1" },
     });
     (__VLS_ctx.lastValidationClickedVideoId);
 }
@@ -1221,8 +1251,7 @@ if (!__VLS_ctx.anonymizedVideoSrc && __VLS_ctx.hasVideos) {
         ...{ class: "text-center text-muted py-5" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "material-icons" },
-        ...{ style: {} },
+        ...{ class: "ni ni-button-play ni-3x" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
         ...{ class: "mt-2" },
@@ -1235,7 +1264,7 @@ if (!__VLS_ctx.anonymizedVideoSrc && __VLS_ctx.hasVideos) {
             ...{ class: "d-flex align-items-center justify-content-center" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "fas fa-info-circle me-2" },
+            ...{ class: "ni ni-support-16 me-2" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: "text-start" },
@@ -1254,8 +1283,7 @@ if (!__VLS_ctx.hasVideos) {
         ...{ class: "text-center text-muted py-5" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "material-icons" },
-        ...{ style: {} },
+        ...{ class: "ni ni-collection ni-3x" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
         ...{ class: "mt-2" },
@@ -1276,7 +1304,8 @@ if (__VLS_ctx.anonymizedVideoSrc) {
         title: (__VLS_ctx.isFullscreen ? 'Vollbild verlassen' : 'Vollbild'),
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: (__VLS_ctx.isFullscreen ? 'fas fa-compress' : 'fas fa-expand') },
+        ...{ class: "ni" },
+        ...{ class: (__VLS_ctx.isFullscreen ? 'ni-fat-remove' : 'ni-zoom-split-in') },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.video, __VLS_intrinsicElements.video)({
         ...{ onTimeupdate: (__VLS_ctx.handleTimeUpdate) },
@@ -1346,9 +1375,9 @@ if (__VLS_ctx.anonymizedVideoSrc) {
             ...{ class: "mb-1" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "fas fa-video me-2 text-primary" },
+            ...{ class: "ni ni-button-play me-2 text-primary" },
         });
-        (__VLS_ctx.annotatableVideos.find(v => v.id === __VLS_ctx.selectedVideoId)?.original_file_name || `Video ${__VLS_ctx.selectedVideoId}`);
+        (__VLS_ctx.selectedVideo?.original_file_name || `Video ${__VLS_ctx.selectedVideoId}`);
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: "status-badge-container mb-2" },
         });
@@ -1357,7 +1386,7 @@ if (__VLS_ctx.anonymizedVideoSrc) {
             ...{ class: "badge" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "fas fa-shield-alt me-1" },
+            ...{ class: "ni ni-lock-circle-open me-1" },
         });
         (__VLS_ctx.getStatusText(__VLS_ctx.overview.find(o => o.id === __VLS_ctx.selectedVideoId && o.mediaType === 'video')?.anonymizationStatus || 'not_started'));
         if (__VLS_ctx.timelineSegmentsForSelectedVideo.length > 0) {
@@ -1365,7 +1394,7 @@ if (__VLS_ctx.anonymizedVideoSrc) {
                 ...{ class: "badge bg-info" },
             });
             __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: "fas fa-cut me-1" },
+                ...{ class: "ni ni-scissors me-1" },
             });
             (__VLS_ctx.timelineSegmentsForSelectedVideo.length);
         }
@@ -1374,7 +1403,7 @@ if (__VLS_ctx.anonymizedVideoSrc) {
                 ...{ class: "badge bg-warning" },
             });
             __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: "fas fa-stethoscope me-1" },
+                ...{ class: "ni ni-support-16 me-1" },
             });
             (__VLS_ctx.savedExaminations.length);
         }
@@ -1384,7 +1413,7 @@ if (__VLS_ctx.anonymizedVideoSrc) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
             ...{ class: "text-muted d-block" },
         });
-        (__VLS_ctx.annotatableVideos.find(v => v.id === __VLS_ctx.selectedVideoId)?.centerName || 'Unbekannt');
+        (__VLS_ctx.selectedVideo?.centerName || 'Unbekannt');
         __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
             ...{ class: "text-muted d-block" },
         });
@@ -1427,7 +1456,7 @@ if (__VLS_ctx.duration > 0) {
         isPlaying: (__VLS_ctx.isPlaying),
         activeSegmentId: (__VLS_ctx.selectedSegmentId),
         showWaveform: (false),
-        selectionMode: (true),
+        selectionMode: (!__VLS_ctx.isSelectedVideoValidated),
         fps: (__VLS_ctx.fps),
     }));
     const __VLS_1 = __VLS_0({
@@ -1446,7 +1475,7 @@ if (__VLS_ctx.duration > 0) {
         isPlaying: (__VLS_ctx.isPlaying),
         activeSegmentId: (__VLS_ctx.selectedSegmentId),
         showWaveform: (false),
-        selectionMode: (true),
+        selectionMode: (!__VLS_ctx.isSelectedVideoValidated),
         fps: (__VLS_ctx.fps),
     }, ...__VLS_functionalComponentArgsRest(__VLS_0));
     let __VLS_3;
@@ -1510,19 +1539,19 @@ if (__VLS_ctx.duration > 0) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
             ...{ onClick: (__VLS_ctx.discardSegmentChanges) },
             ...{ class: "btn btn-outline-secondary" },
-            disabled: (__VLS_ctx.segmentSourceMode === 'prediction'),
+            disabled: (__VLS_ctx.segmentSourceMode === 'prediction' || __VLS_ctx.isSelectedVideoValidated),
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
             ...{ onClick: (__VLS_ctx.saveSegmentChanges) },
             ...{ class: "btn" },
             ...{ class: (__VLS_ctx.hasUnsavedChanges ? 'btn-primary' : 'btn-outline-secondary') },
-            disabled: (__VLS_ctx.segmentSourceMode === 'prediction'),
+            disabled: (__VLS_ctx.segmentSourceMode === 'prediction' || __VLS_ctx.isSelectedVideoValidated),
         });
         if (__VLS_ctx.segmentSourceMode === 'prediction') {
             __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
                 ...{ onClick: (__VLS_ctx.importPredictionSegmentsToManual) },
                 ...{ class: "btn btn-primary" },
-                disabled: (__VLS_ctx.timelineSegmentsForSelectedVideo.length === 0 || __VLS_ctx.isImportingPredictionSegments),
+                disabled: (__VLS_ctx.timelineSegmentsForSelectedVideo.length === 0 || __VLS_ctx.isImportingPredictionSegments || __VLS_ctx.isSelectedVideoValidated),
             });
             (__VLS_ctx.isImportingPredictionSegments ? 'Übernehme...' : 'Als manuelle Segmente übernehmen');
         }
@@ -1606,7 +1635,7 @@ if (__VLS_ctx.duration > 0) {
                 'data-cy': "start-label-button",
             });
             __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: "material-icons" },
+                ...{ class: "ni ni-tag" },
             });
         }
         if (__VLS_ctx.isMarkingLabel) {
@@ -1616,7 +1645,7 @@ if (__VLS_ctx.duration > 0) {
                 'data-cy': "finish-label-button",
             });
             __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: "material-icons" },
+                ...{ class: "ni ni-button-pause" },
             });
         }
         if (__VLS_ctx.isMarkingLabel) {
@@ -1642,7 +1671,7 @@ if (__VLS_ctx.duration > 0) {
             });
             __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({});
             __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: "material-icons align-middle me-1" },
+                ...{ class: "ni ni-support-16 align-middle me-1" },
                 ...{ style: {} },
             });
             (__VLS_ctx.getTranslationForLabel(__VLS_ctx.videoStore.draftSegment.label));
@@ -1667,14 +1696,14 @@ if (__VLS_ctx.selectedVideoId) {
             ...{ class: "alert alert-success d-flex align-items-center validation-status-alert" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "fas fa-check-circle fa-2x me-3 text-success" },
+            ...{ class: "ni ni-check-bold ni-2x me-3 text-success" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
         __VLS_asFunctionalElement(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({
             ...{ class: "mb-1" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "fas fa-medal me-1" },
+            ...{ class: "ni ni-trophy me-1" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
             ...{ class: "text-muted" },
@@ -1698,7 +1727,7 @@ if (__VLS_ctx.selectedVideoId) {
             disabled: (__VLS_ctx.segmentSourceMode === 'prediction'),
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "material-icons validation-action-icon" },
+            ...{ class: "ni ni-check-bold validation-action-icon" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
         (__VLS_ctx.timelineSegmentsForSelectedVideo.length);
@@ -1709,7 +1738,7 @@ if (__VLS_ctx.selectedVideoId) {
             ...{ style: {} },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "material-icons" },
+            ...{ class: "ni ni-support-16" },
             ...{ style: {} },
         });
     }
@@ -1727,7 +1756,7 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.h5, __VLS_intrinsicElements.h5
     ...{ class: "mb-0" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-    ...{ class: "fas fa-clipboard-list me-2" },
+    ...{ class: "ni ni-single-copy-04 me-2" },
 });
 if (__VLS_ctx.currentMarker) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
@@ -1743,7 +1772,7 @@ if (__VLS_ctx.selectedVideoId) {
         ...{ class: "alert alert-info alert-sm mb-0" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-info-circle me-1" },
+        ...{ class: "ni ni-support-16 me-1" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
     (__VLS_ctx.selectedVideoId);
@@ -1755,7 +1784,7 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.d
     ...{ class: "text-center text-muted py-5 px-3" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-    ...{ class: "fas fa-route fa-3x mb-3 text-muted" },
+    ...{ class: "ni ni-map-big ni-3x mb-3 text-muted" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({});
 __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
@@ -1816,7 +1845,7 @@ if (__VLS_ctx.savedExaminations.length > 0) {
             ...{ class: "btn btn-sm btn-outline-primary me-2" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "material-icons" },
+            ...{ class: "ni ni-button-play" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
             ...{ onClick: (...[$event]) => {
@@ -1827,7 +1856,7 @@ if (__VLS_ctx.savedExaminations.length > 0) {
             ...{ class: "btn btn-sm btn-outline-danger" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "material-icons" },
+            ...{ class: "ni ni-fat-delete" },
         });
     }
 }
@@ -1839,7 +1868,8 @@ if (__VLS_ctx.savedExaminations.length > 0) {
 /** @type {__VLS_StyleScopedClasses['alert-dismissible']} */ ;
 /** @type {__VLS_StyleScopedClasses['fade']} */ ;
 /** @type {__VLS_StyleScopedClasses['show']} */ ;
-/** @type {__VLS_StyleScopedClasses['material-icons']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-fat-remove']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-close']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert']} */ ;
@@ -1847,7 +1877,8 @@ if (__VLS_ctx.savedExaminations.length > 0) {
 /** @type {__VLS_StyleScopedClasses['alert-dismissible']} */ ;
 /** @type {__VLS_StyleScopedClasses['fade']} */ ;
 /** @type {__VLS_StyleScopedClasses['show']} */ ;
-/** @type {__VLS_StyleScopedClasses['material-icons']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-check-bold']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-close']} */ ;
 /** @type {__VLS_StyleScopedClasses['row']} */ ;
@@ -1864,7 +1895,7 @@ if (__VLS_ctx.savedExaminations.length > 0) {
 /** @type {__VLS_StyleScopedClasses['video-dropdown']} */ ;
 /** @type {__VLS_StyleScopedClasses['video-dropdown-trigger']} */ ;
 /** @type {__VLS_StyleScopedClasses['video-dropdown-trigger-text']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
 /** @type {__VLS_StyleScopedClasses['video-dropdown-menu']} */ ;
 /** @type {__VLS_StyleScopedClasses['video-dropdown-item']} */ ;
 /** @type {__VLS_StyleScopedClasses['video-dropdown-item-selected']} */ ;
@@ -1872,8 +1903,11 @@ if (__VLS_ctx.savedExaminations.length > 0) {
 /** @type {__VLS_StyleScopedClasses['video-dropdown-item-pending']} */ ;
 /** @type {__VLS_StyleScopedClasses['video-dropdown-main']} */ ;
 /** @type {__VLS_StyleScopedClasses['video-dropdown-title']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-button-play']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['video-dropdown-status-badge']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['video-dropdown-meta']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
@@ -1885,31 +1919,33 @@ if (__VLS_ctx.savedExaminations.length > 0) {
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['badge']} */ ;
 /** @type {__VLS_StyleScopedClasses['bg-success']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-check']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-check-bold']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['badge']} */ ;
 /** @type {__VLS_StyleScopedClasses['bg-primary']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-check-double']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-check-bold']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['badge']} */ ;
 /** @type {__VLS_StyleScopedClasses['bg-secondary']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-clock']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-watch-time']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['p-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['rounded']} */ ;
 /** @type {__VLS_StyleScopedClasses['validation-click-indicator']} */ ;
 /** @type {__VLS_StyleScopedClasses['fw-semibold']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-highlighter']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-tag']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['py-5']} */ ;
-/** @type {__VLS_StyleScopedClasses['material-icons']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-button-play']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-3x']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert-info']} */ ;
@@ -1917,18 +1953,21 @@ if (__VLS_ctx.savedExaminations.length > 0) {
 /** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
 /** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['justify-content-center']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-info-circle']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-support-16']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-start']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['py-5']} */ ;
-/** @type {__VLS_StyleScopedClasses['material-icons']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-collection']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-3x']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['video-container']} */ ;
 /** @type {__VLS_StyleScopedClasses['fullscreen-toggle']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
 /** @type {__VLS_StyleScopedClasses['w-100']} */ ;
 /** @type {__VLS_StyleScopedClasses['label-overlay']} */ ;
 /** @type {__VLS_StyleScopedClasses['label-overlay-card']} */ ;
@@ -1947,25 +1986,25 @@ if (__VLS_ctx.savedExaminations.length > 0) {
 /** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['col-md-8']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-1']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-video']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-button-play']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-primary']} */ ;
 /** @type {__VLS_StyleScopedClasses['status-badge-container']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['badge']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-shield-alt']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-lock-circle-open']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['badge']} */ ;
 /** @type {__VLS_StyleScopedClasses['bg-info']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-cut']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-scissors']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['badge']} */ ;
 /** @type {__VLS_StyleScopedClasses['bg-warning']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-stethoscope']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-support-16']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['col-md-4']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-md-end']} */ ;
@@ -2024,12 +2063,14 @@ if (__VLS_ctx.savedExaminations.length > 0) {
 /** @type {__VLS_StyleScopedClasses['btn-success']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['control-button']} */ ;
-/** @type {__VLS_StyleScopedClasses['material-icons']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-tag']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-warning']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['control-button']} */ ;
-/** @type {__VLS_StyleScopedClasses['material-icons']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-button-pause']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-secondary']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
@@ -2041,7 +2082,8 @@ if (__VLS_ctx.savedExaminations.length > 0) {
 /** @type {__VLS_StyleScopedClasses['alert-info']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
-/** @type {__VLS_StyleScopedClasses['material-icons']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-support-16']} */ ;
 /** @type {__VLS_StyleScopedClasses['align-middle']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
@@ -2050,14 +2092,14 @@ if (__VLS_ctx.savedExaminations.length > 0) {
 /** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
 /** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['validation-status-alert']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-check-circle']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-2x']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-check-bold']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-2x']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-success']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-1']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-medal']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-trophy']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
@@ -2069,20 +2111,22 @@ if (__VLS_ctx.savedExaminations.length > 0) {
 /** @type {__VLS_StyleScopedClasses['justify-content-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['gap-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['validation-action-button-clicked']} */ ;
-/** @type {__VLS_StyleScopedClasses['material-icons']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-check-bold']} */ ;
 /** @type {__VLS_StyleScopedClasses['validation-action-icon']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
-/** @type {__VLS_StyleScopedClasses['material-icons']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-support-16']} */ ;
 /** @type {__VLS_StyleScopedClasses['col-lg-12']} */ ;
 /** @type {__VLS_StyleScopedClasses['card']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-header']} */ ;
 /** @type {__VLS_StyleScopedClasses['pb-0']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-clipboard-list']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-single-copy-04']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
@@ -2090,17 +2134,17 @@ if (__VLS_ctx.savedExaminations.length > 0) {
 /** @type {__VLS_StyleScopedClasses['alert-info']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-info-circle']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-support-16']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-body']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['py-5']} */ ;
 /** @type {__VLS_StyleScopedClasses['px-3']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-route']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-3x']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-map-big']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-3x']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
@@ -2127,11 +2171,13 @@ if (__VLS_ctx.savedExaminations.length > 0) {
 /** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-primary']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-2']} */ ;
-/** @type {__VLS_StyleScopedClasses['material-icons']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-button-play']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-danger']} */ ;
-/** @type {__VLS_StyleScopedClasses['material-icons']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-fat-delete']} */ ;
 var __VLS_dollars;
 const __VLS_self = (await import('vue')).defineComponent({
     setup() {
@@ -2174,7 +2220,9 @@ const __VLS_self = (await import('vue')).defineComponent({
             getVideoPatientGender: getVideoPatientGender,
             getVideoPatientAgeLabel: getVideoPatientAgeLabel,
             selectableVideos: selectableVideos,
-            annotatableVideos: annotatableVideos,
+            pendingValidationVideos: pendingValidationVideos,
+            selectedVideo: selectedVideo,
+            isSelectedVideoValidated: isSelectedVideoValidated,
             selectedVideoLabel: selectedVideoLabel,
             anonymizedVideoSrc: anonymizedVideoSrc,
             hasVideos: hasVideos,

@@ -2,14 +2,14 @@
   <div class="container-fluid py-4">
     <!-- Error Message Alert -->
     <div v-if="errorMessage" class="alert alert-danger alert-dismissible fade show" role="alert">
-      <i class="material-icons me-2">error</i>
+      <i class="ni ni-fat-remove me-2"></i>
       <strong>Fehler:</strong> {{ errorMessage }}
       <button type="button" class="btn-close" @click="clearErrorMessage" aria-label="Close"></button>
     </div>
     
     <!-- Success Message Alert -->
     <div v-if="successMessage" class="alert alert-success alert-dismissible fade show" role="alert">
-      <i class="material-icons me-2">check_circle</i>
+      <i class="ni ni-check-bold me-2"></i>
       <strong>Erfolg:</strong> {{ successMessage }}
       <button type="button" class="btn-close" @click="clearSuccessMessage" aria-label="Close"></button>
     </div>
@@ -42,7 +42,7 @@
                   @click="toggleVideoDropdown"
                 >
                   <span class="video-dropdown-trigger-text">{{ selectedVideoLabel }}</span>
-                  <i class="fas" :class="isVideoDropdownOpen ? 'fa-chevron-up' : 'fa-chevron-down'"></i>
+                  <i class="ni" :class="isVideoDropdownOpen ? 'ni-bold-up' : 'ni-bold-down'"></i>
                 </button>
                 <div v-if="isVideoDropdownOpen && hasVideos" class="video-dropdown-menu" role="listbox">
                   <button
@@ -55,16 +55,18 @@
                       'video-dropdown-item-validated': video.segmentAnnotationsValidated,
                       'video-dropdown-item-pending': !video.segmentAnnotationsValidated
                     }"
-                    :disabled="video.segmentAnnotationsValidated"
                     @click="selectVideoFromDropdown(video.id)"
                   >
                     <div class="video-dropdown-main">
-                      <span class="video-dropdown-title">📹 {{ video.original_file_name || 'Video Nr. ' + video.id }}</span>
+                      <span class="video-dropdown-title">
+                        <i class="ni ni-button-play me-1"></i>
+                        {{ video.original_file_name || 'Video Nr. ' + video.id }}
+                      </span>
                       <span
                         class="video-dropdown-status-badge"
                         :class="video.segmentAnnotationsValidated ? 'badge-validated' : 'badge-pending'"
                       >
-                        <i class="fas me-1" :class="video.segmentAnnotationsValidated ? 'fa-check-double' : 'fa-hourglass-half'"></i>
+                        <i class="ni me-1" :class="video.segmentAnnotationsValidated ? 'ni-check-bold' : 'ni-watch-time'"></i>
                         {{ video.segmentAnnotationsValidated ? 'Validiert' : 'Validierung offen' }}
                       </span>
                     </div>
@@ -86,16 +88,16 @@
                 <div class="d-flex flex-wrap gap-2 align-items-center">
                   <small class="text-muted">Status-Übersicht:</small>
                   <span class="badge bg-success">
-                    <i class="fas fa-check me-1"></i>
+                    <i class="ni ni-check-bold me-1"></i>
                     {{ getVideoCountByStatus('done_processing_anonymization') }} Anonymisiert
                   </span>
                   <span class="badge bg-primary">
-                    <i class="fas fa-check-double me-1"></i>
+                    <i class="ni ni-check-bold me-1"></i>
                     {{ getVideoCountByStatus('validated') }} Validiert
                   </span>
                   <span class="badge bg-secondary">
-                    <i class="fas fa-clock me-1"></i>
-                    {{ videos.length - annotatableVideos.length }} Ausstehend
+                    <i class="ni ni-watch-time me-1"></i>
+                    {{ pendingValidationVideos.length }} Ausstehend
                   </span>
                 </div>
               </div>
@@ -107,20 +109,20 @@
               :class="selectedVideoId === lastValidationClickedVideoId ? 'validation-click-indicator-active' : 'validation-click-indicator-muted'"
             >
               <small class="fw-semibold">
-                <i class="fas fa-highlighter me-1"></i>
+                <i class="ni ni-tag me-1"></i>
                 Das Video mit dieser ID wurde als validiert markiert {{ lastValidationClickedVideoId }}
               </small>
             </div>
 
             <!-- No Video Selected State -->
             <div v-if="!anonymizedVideoSrc && hasVideos" class="text-center text-muted py-5">
-              <i class="material-icons" style="font-size: 48px;">movie</i>
+              <i class="ni ni-button-play ni-3x"></i>
               <p class="mt-2">Video auswählen, um mit der Betrachtung zu beginnen</p>
               
               <!-- ✅ NEW: Enhanced video status info when selected but not loaded -->
               <div v-if="selectedVideoId" class="alert alert-info mt-2">
                 <div class="d-flex align-items-center justify-content-center">
-                  <i class="fas fa-info-circle me-2"></i>
+                  <i class="ni ni-support-16 me-2"></i>
                   <div class="text-start">
                     <strong>Video {{ selectedVideoId }}:</strong> {{ getVideoStatusIndicator(selectedVideoId) }}<br>
                     <small class="text-muted">Die Ansicht wird vorbereitet.</small>
@@ -131,7 +133,7 @@
 
             <!-- No Videos Available State -->
             <div v-if="!hasVideos" class="text-center text-muted py-5">
-              <i class="material-icons" style="font-size: 48px;">video_library</i>
+              <i class="ni ni-collection ni-3x"></i>
               <p class="mt-2">{{ noVideosMessage }}</p>
               <small>Videos können über den Ordner Raw Videos hochgeladen werden. Sie müssen erst anonymisiert werden, bevor sie hier angezeigt werden.</small>
             </div>
@@ -144,7 +146,7 @@
                 @click="toggleFullscreen"
                 :title="isFullscreen ? 'Vollbild verlassen' : 'Vollbild'"
               >
-                <i :class="isFullscreen ? 'fas fa-compress' : 'fas fa-expand'"></i>
+                <i class="ni" :class="isFullscreen ? 'ni-fat-remove' : 'ni-zoom-split-in'"></i>
               </button>
               <video 
                 ref="videoRef"
@@ -196,29 +198,29 @@
                 <div class="row align-items-center">
                   <div class="col-md-8">
                     <h6 class="mb-1">
-                      <i class="fas fa-video me-2 text-primary"></i>
-                      {{ annotatableVideos.find(v => v.id === selectedVideoId)?.original_file_name || `Video ${selectedVideoId}` }}
+                      <i class="ni ni-button-play me-2 text-primary"></i>
+                      {{ selectedVideo?.original_file_name || `Video ${selectedVideoId}` }}
                     </h6>
                     <div class="status-badge-container mb-2">
                       <span 
                         :class="getStatusBadgeClass(overview.find(o => o.id === selectedVideoId && o.mediaType === 'video')?.anonymizationStatus || 'not_started')"
                         class="badge"
                       >
-                        <i class="fas fa-shield-alt me-1"></i>
+                        <i class="ni ni-lock-circle-open me-1"></i>
                         {{ getStatusText(overview.find(o => o.id === selectedVideoId && o.mediaType === 'video')?.anonymizationStatus || 'not_started') }}
                       </span>
                       <span v-if="timelineSegmentsForSelectedVideo.length > 0" class="badge bg-info">
-                        <i class="fas fa-cut me-1"></i>
+                        <i class="ni ni-scissors me-1"></i>
                         {{ timelineSegmentsForSelectedVideo.length }} Segmente
                       </span>
                       <span v-if="savedExaminations.length > 0" class="badge bg-warning">
-                        <i class="fas fa-stethoscope me-1"></i>
+                        <i class="ni ni-support-16 me-1"></i>
                         {{ savedExaminations.length }} Untersuchungen
                       </span>
                     </div>
                   </div>
                   <div class="col-md-4 text-md-end">
-                    <small class="text-muted d-block">Center: {{ annotatableVideos.find(v => v.id === selectedVideoId)?.centerName || 'Unbekannt' }}</small>
+                    <small class="text-muted d-block">Center: {{ selectedVideo?.centerName || 'Unbekannt' }}</small>
                     <small class="text-muted d-block">Dauer: {{ formatTime(duration) }}</small>
                   </div>
                 </div>
@@ -244,7 +246,7 @@
                 :isPlaying="isPlaying"
                 :activeSegmentId="selectedSegmentId"
                 :showWaveform="false"
-                :selectionMode="true"
+                :selectionMode="!isSelectedVideoValidated"
                 :fps="fps"
                 @seek="handleTimelineSeek"
                 @play-pause="handlePlayPause"
@@ -290,7 +292,7 @@
                 <button
                   class="btn btn-outline-secondary"
                   @click="discardSegmentChanges"
-                  :disabled="segmentSourceMode === 'prediction'"
+                  :disabled="segmentSourceMode === 'prediction' || isSelectedVideoValidated"
                 >
                   Änderungen verwerfen
                 </button>
@@ -299,7 +301,7 @@
                   class="btn"
                   :class="hasUnsavedChanges ? 'btn-primary' : 'btn-outline-secondary'"
                   @click="saveSegmentChanges"
-                  :disabled="segmentSourceMode === 'prediction'"
+                  :disabled="segmentSourceMode === 'prediction' || isSelectedVideoValidated"
                 >
                   Segmentänderungen speichern
                 </button>
@@ -307,7 +309,7 @@
                 <button
                   v-if="segmentSourceMode === 'prediction'"
                   class="btn btn-primary"
-                  :disabled="timelineSegmentsForSelectedVideo.length === 0 || isImportingPredictionSegments"
+                  :disabled="timelineSegmentsForSelectedVideo.length === 0 || isImportingPredictionSegments || isSelectedVideoValidated"
                   @click="importPredictionSegmentsToManual"
                 >
                   {{ isImportingPredictionSegments ? 'Übernehme...' : 'Als manuelle Segmente übernehmen' }}
@@ -369,7 +371,7 @@
                     :disabled="!canStartLabeling"
                     data-cy="start-label-button"
                   >
-                    <i class="material-icons">label</i>
+                    <i class="ni ni-tag"></i>
                     Label-Start setzen
                   </button>
                   
@@ -379,7 +381,7 @@
                     class="btn btn-warning btn-sm control-button"
                     data-cy="finish-label-button"
                   >
-                    <i class="material-icons">stop</i>
+                    <i class="ni ni-button-pause"></i>
                     Label-Ende setzen
                   </button>
 
@@ -400,7 +402,7 @@
               <!-- Draft-Info während Label-Erstellung -->
               <div v-if="videoStore.draftSegment" class="alert alert-info mt-2 mb-0">
                 <small>
-                  <i class="material-icons align-middle me-1" style="font-size: 16px;">info</i>
+                  <i class="ni ni-support-16 align-middle me-1" style="font-size: 16px;"></i>
                   Label "{{ getTranslationForLabel(videoStore.draftSegment.label) }}" 
                   <span v-if="videoStore.draftSegment.endTime">
                     von {{ formatTime(videoStore.draftSegment.startTime) }} bis {{ formatTime(videoStore.draftSegment.endTime) }}
@@ -419,10 +421,10 @@
           <!-- Show different button based on annotation status -->
           <div v-if="isAnnotationFinished(selectedVideoId)" 
                class="alert alert-success d-flex align-items-center validation-status-alert">
-            <i class="fas fa-check-circle fa-2x me-3 text-success"></i>
+            <i class="ni ni-check-bold ni-2x me-3 text-success"></i>
             <div>
               <h6 class="mb-1">
-                <i class="fas fa-medal me-1"></i>
+                <i class="ni ni-trophy me-1"></i>
                 Video bereits validiert
               </h6>
               <small class="text-muted">
@@ -438,14 +440,14 @@
               @click="handleValidateAndMark(selectedVideoId)" 
               :disabled="segmentSourceMode === 'prediction'"
             > <!-- Remove mark validated when keeping outside segments for training -->
-              <i class="material-icons validation-action-icon">check_circle</i>
+              <i class="ni ni-check-bold validation-action-icon"></i>
               <span>Alle Segmente validieren ({{ timelineSegmentsForSelectedVideo.length }})</span>
             </button>
           </div>
           
           <p v-if="!isAnnotationFinished(selectedVideoId) && segmentSourceMode !== 'prediction'" 
              class="text-muted text-center mt-2 mb-0" style="font-size: 0.9rem;">
-            <i class="material-icons" style="font-size: 16px; vertical-align: middle;">info</i>
+            <i class="ni ni-support-16" style="font-size: 16px; vertical-align: middle;"></i>
             Markiert alle Segmente als überprüft und setzt Video-Status auf "Validiert"
           </p>
         </div>
@@ -458,7 +460,7 @@
         <div class="card">
           <div class="card-header pb-0">
             <h5 class="mb-0">
-              <i class="fas fa-clipboard-list me-2"></i>
+              <i class="ni ni-single-copy-04 me-2"></i>
               Klinische Befundung
             </h5>
             <small class="text-muted" v-if="currentMarker">
@@ -466,7 +468,7 @@
             </small>
             <div class="mt-2" v-if="selectedVideoId">
               <div class="alert alert-info alert-sm mb-0">
-                <i class="fas fa-info-circle me-1"></i>
+                <i class="ni ni-support-16 me-1"></i>
                 <strong>Video {{ selectedVideoId }}:</strong>
                 Die klinische Befundung erfolgt im nächsten Schritt.
               </div>
@@ -474,7 +476,7 @@
           </div>
           <div class="card-body">
             <div class="text-center text-muted py-5 px-3">
-              <i class="fas fa-route fa-3x mb-3 text-muted"></i>
+              <i class="ni ni-map-big ni-3x mb-3 text-muted"></i>
               <h6>Befundung fortsetzen</h6>
               <p class="mb-3">
                 Wechseln Sie zur Befundung, um den Fall weiter zu bearbeiten und den Bericht zu vervollständigen.
@@ -510,13 +512,13 @@
                     @click="jumpToExamination(exam)" 
                     class="btn btn-sm btn-outline-primary me-2"
                   >
-                    <i class="material-icons">play_arrow</i>
+                    <i class="ni ni-button-play"></i>
                   </button>
                   <button 
                     @click="deleteExamination(exam.id)" 
                     class="btn btn-sm btn-outline-danger"
                   >
-                    <i class="material-icons">delete</i>
+                    <i class="ni ni-fat-delete"></i>
                   </button>
                 </div>
               </div>
@@ -672,12 +674,6 @@ async function loadSelectedVideo() {
     selectedVideoId.value = null
     return
   }
-  if (isAnnotationFinished(selectedVideoId.value)) {
-    showErrorMessage(`Video ${selectedVideoId.value} ist bereits vollständig annotiert.`)
-    selectedVideoId.value = null
-    return
-  }
-
   // Clear previous error messages when changing videos
   clearErrorMessage()
   clearSuccessMessage()
@@ -715,7 +711,7 @@ function closeVideoDropdown(): void {
 
 function selectVideoFromDropdown(videoId: number): void {
   const selected = selectableVideos.value.find(video => video.id === videoId)
-  if (!selected || selected.segmentAnnotationsValidated) return
+  if (!selected) return
   selectedVideoId.value = videoId
   onVideoChange()
   closeVideoDropdown()
@@ -812,12 +808,25 @@ const annotatableVideos = computed(() =>
   selectableVideos.value.filter(v => !isAnnotationFinished(v.id))
 )
 
+const pendingValidationVideos = computed(() =>
+  selectableVideos.value.filter(v => !v.segmentAnnotationsValidated)
+)
+
+const selectedVideo = computed<Video | undefined>(() => {
+  if (selectedVideoId.value == null) return undefined
+  return selectableVideos.value.find(v => v.id === selectedVideoId.value)
+})
+
+const isSelectedVideoValidated = computed(() =>
+  selectedVideoId.value != null && isAnnotationFinished(selectedVideoId.value)
+)
+
 const selectedVideoLabel = computed(() => {
   if (!selectableVideos.value.length) return 'Keine Videos verfügbar'
   if (selectedVideoId.value == null) return 'Bitte Video auswählen...'
   const video = selectableVideos.value.find(v => v.id === selectedVideoId.value)
   if (!video) return `Video ${selectedVideoId.value}`
-  return `📹 ${video.original_file_name || `Video Nr. ${video.id}`}`
+  return video.original_file_name || `Video Nr. ${video.id}`
 })
 
 watch(
@@ -845,8 +854,6 @@ const noVideosMessage = computed(() => {
     return 'Keine Videos verfügbar. Bitte laden Sie zuerst Videos hoch.'
   } else if (selectableVideos.value.length === 0) {
     return 'Keine anonymisierten Videos verfügbar. Videos müssen erst anonymisiert werden.'
-  } else if (annotatableVideos.value.length === 0) {
-    return 'Alle anonymisierten Videos sind bereits validiert.'
   }
   return ''
 })
@@ -863,7 +870,8 @@ const canStartLabeling = computed(() => {
          anonymizedVideoSrc.value && 
          selectedLabelType.value && 
          !isMarkingLabel.value &&
-         duration.value > 0
+         duration.value > 0 &&
+         !isSelectedVideoValidated.value
 })
 
 
@@ -1139,6 +1147,8 @@ const handleSegmentSelect = (...args: unknown[]): void => {
 }
 
 const handleSegmentResize = (...args: unknown[]): void => {
+  if (isSelectedVideoValidated.value) return
+
   const [segmentId, newStart, newEnd, _mode, _final] =
     args as [number, number, number, string, boolean?]
 
@@ -1166,6 +1176,8 @@ const handleSegmentResize = (...args: unknown[]): void => {
 }
 
 const handleSegmentMove = (...args: unknown[]): void => {
+  if (isSelectedVideoValidated.value) return
+
   const [segmentId, newStart, newEnd, _final] =
     args as [number, number, number, boolean?]
 
@@ -1188,6 +1200,8 @@ const handleSegmentMove = (...args: unknown[]): void => {
 }
 
 const handleTimeSelection = (...args: unknown[]): void => {
+  if (isSelectedVideoValidated.value) return
+
   const [data] = args as [{ start: number; end: number }];
   
   // ✅ FIXED: Only create segment if we have a selected label type
@@ -1209,6 +1223,11 @@ const handleCreateSegment = (...args: unknown[]): Promise<void> => {
   const [event] = args as [CreateSegmentEvent];
   return new Promise<void>(async (resolve, reject) => {
     try {
+      if (isSelectedVideoValidated.value) {
+        showErrorMessage('Dieses Video ist bereits validiert und wird schreibgeschützt angezeigt.')
+        resolve();
+        return;
+      }
       if (segmentSourceMode.value === 'prediction') {
         showErrorMessage('Neue Segmente bitte erst nach dem Übernehmen in die manuellen Annotationen anlegen.')
         resolve();
@@ -1234,6 +1253,12 @@ const handleCreateSegment = (...args: unknown[]): Promise<void> => {
 const handleSegmentDelete = (...args: unknown[]): Promise<void> => {
   const [segment] = args as [Segment];
   return new Promise<void>(async (resolve, reject) => {
+    if (isSelectedVideoValidated.value) {
+      showErrorMessage('Dieses Video ist bereits validiert und wird schreibgeschützt angezeigt.')
+      resolve();
+      return;
+    }
+
     if (!segment.id || typeof segment.id !== 'number') {
       console.warn('Cannot delete draft or temporary segment:', segment.id)
       resolve();
@@ -1565,6 +1590,10 @@ const handleValidateAndMark = async (videoId: number | null): Promise<void> => {
 
 
 const saveSegmentChanges = async (): Promise<void> => {
+  if (isSelectedVideoValidated.value) {
+    showErrorMessage('Dieses Video ist bereits validiert und wird schreibgeschützt angezeigt.')
+    return
+  }
   if (segmentSourceMode.value === 'prediction') {
     showErrorMessage('Änderungen an KI-Vorhersagen werden erst mit "Als manuelle Segmente übernehmen" persistiert.')
     return
@@ -1580,6 +1609,10 @@ const saveSegmentChanges = async (): Promise<void> => {
 }
 
 const discardSegmentChanges = (): void => {
+  if (isSelectedVideoValidated.value) {
+    showErrorMessage('Dieses Video ist bereits validiert und wird schreibgeschützt angezeigt.')
+    return
+  }
   if (segmentSourceMode.value === 'prediction') {
     void loadVideoSegments()
     showSuccessMessage('Lokale Änderungen an KI-Vorhersagen verworfen')
@@ -1593,6 +1626,10 @@ const discardSegmentChanges = (): void => {
 
 const importPredictionSegmentsToManual = async (): Promise<void> => {
   if (!selectedVideoId.value) return
+  if (isSelectedVideoValidated.value) {
+    showErrorMessage('Dieses Video ist bereits validiert und wird schreibgeschützt angezeigt.')
+    return
+  }
   if (timelineSegmentsForSelectedVideo.value.length === 0) {
     showErrorMessage('Keine KI-Segmente zum Übernehmen vorhanden')
     return
@@ -1969,7 +2006,7 @@ watch(
   background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
 }
 
-.validation-status-alert .fas {
+.validation-status-alert .ni {
   opacity: 0.8;
 }
 
