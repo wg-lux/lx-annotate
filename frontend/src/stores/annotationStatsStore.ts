@@ -123,7 +123,7 @@ export interface StatsFilters {
   user_id?: number
 }
 
-export const useAnnotationStatsStore = defineStore('annotationStats', {
+export const useAnnotationStatsStore = defineStore('annotationStatsDashboard', {
   state: () => ({
     // Main statistics data
     stats: null as AnnotationStatsData | null,

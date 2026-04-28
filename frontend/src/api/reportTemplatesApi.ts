@@ -21,6 +21,7 @@ import type {
   ReportTemplateRuntimePatientFindingInput,
   ReportTemplateRuntimeValidationFindingInput,
   ReportTemplateRuntimeValidationResult,
+  ClassificationValidatorExecution,
   ReportTemplateGraphEdge,
   ReportTemplateGraphNode,
   ReportTemplateStructureGraph,
@@ -28,7 +29,9 @@ import type {
   ReportTemplateSection,
   ReportTemplateValidators,
   RuntimeValidationIssue,
-  RuntimeValidatorDependencyStatus
+  RuntimeValidatorDependencyStatus,
+  InterventionValidatorExecution,
+  UnitValidatorExecution
 } from '@/types/reportTemplate'
 
 const REPORT_TEMPLATE_BASE = '/base_api/report-templates'
@@ -581,6 +584,91 @@ function normalizeExaminationValidatorExecutions(value: unknown): ExaminationVal
     .filter((entry) => !!entry.name)
 }
 
+function normalizeValidatorHint(value: unknown): Record<string, unknown> {
+  return isRecordLike(value) ? value : {}
+}
+
+function normalizePrecedence(value: unknown): 'required' | 'optional' {
+  return asString(value) === 'optional' ? 'optional' : 'required'
+}
+
+function normalizeClassificationValidatorExecutions(
+  value: unknown
+): ClassificationValidatorExecution[] {
+  if (!Array.isArray(value)) return []
+  return value
+    .filter((entry): entry is Record<string, unknown> => isRecordLike(entry))
+    .map((entry) => ({
+      name: asString(entry.name) || '',
+      ok: asBoolean(entry.ok),
+      operator: asString(entry.operator) || '',
+      finding: asString(entry.finding) || '',
+      classification: asString(entry.classification) || '',
+      precedence: normalizePrecedence(entry.precedence),
+      matchedOccurrences: asNumber(entry.matchedOccurrences ?? entry.matched_occurrences) ?? 0,
+      triggeredOccurrences:
+        asNumber(entry.triggeredOccurrences ?? entry.triggered_occurrences) ?? 0,
+      hint: normalizeValidatorHint(entry.hint),
+      issues: Array.isArray(entry.issues)
+        ? entry.issues
+            .map((issue) => normalizeRuntimeIssue(issue))
+            .filter((issue): issue is RuntimeValidationIssue => issue !== null)
+        : []
+    }))
+    .filter((entry) => !!entry.name)
+}
+
+function normalizeInterventionValidatorExecutions(
+  value: unknown
+): InterventionValidatorExecution[] {
+  if (!Array.isArray(value)) return []
+  return value
+    .filter((entry): entry is Record<string, unknown> => isRecordLike(entry))
+    .map((entry) => ({
+      name: asString(entry.name) || '',
+      ok: asBoolean(entry.ok),
+      operator: asString(entry.operator) || '',
+      finding: asString(entry.finding) || '',
+      intervention: asString(entry.intervention) || '',
+      precedence: normalizePrecedence(entry.precedence),
+      matchedOccurrences: asNumber(entry.matchedOccurrences ?? entry.matched_occurrences) ?? 0,
+      triggeredOccurrences:
+        asNumber(entry.triggeredOccurrences ?? entry.triggered_occurrences) ?? 0,
+      hint: normalizeValidatorHint(entry.hint),
+      issues: Array.isArray(entry.issues)
+        ? entry.issues
+            .map((issue) => normalizeRuntimeIssue(issue))
+            .filter((issue): issue is RuntimeValidationIssue => issue !== null)
+        : []
+    }))
+    .filter((entry) => !!entry.name)
+}
+
+function normalizeUnitValidatorExecutions(value: unknown): UnitValidatorExecution[] {
+  if (!Array.isArray(value)) return []
+  return value
+    .filter((entry): entry is Record<string, unknown> => isRecordLike(entry))
+    .map((entry) => ({
+      name: asString(entry.name) || '',
+      ok: asBoolean(entry.ok),
+      operator: asString(entry.operator) || '',
+      finding: asString(entry.finding) || '',
+      classification: asString(entry.classification) || '',
+      unit: asString(entry.unit) || '',
+      precedence: normalizePrecedence(entry.precedence),
+      matchedOccurrences: asNumber(entry.matchedOccurrences ?? entry.matched_occurrences) ?? 0,
+      triggeredOccurrences:
+        asNumber(entry.triggeredOccurrences ?? entry.triggered_occurrences) ?? 0,
+      hint: normalizeValidatorHint(entry.hint),
+      issues: Array.isArray(entry.issues)
+        ? entry.issues
+            .map((issue) => normalizeRuntimeIssue(issue))
+            .filter((issue): issue is RuntimeValidationIssue => issue !== null)
+        : []
+    }))
+    .filter((entry) => !!entry.name)
+}
+
 export function normalizeRuntimeValidationResult(
   payload: unknown
 ): ReportTemplateRuntimeValidationResult | null {
@@ -592,11 +680,20 @@ export function normalizeRuntimeValidationResult(
     ok: asBoolean(payload.ok),
     evaluatedFindingsCount:
       asNumber(payload.evaluatedFindingsCount ?? payload.evaluated_findings_count) ?? 0,
+    classificationValidators: normalizeClassificationValidatorExecutions(
+      payload.classificationValidators ?? payload.classification_validators
+    ),
+    interventionValidators: normalizeInterventionValidatorExecutions(
+      payload.interventionValidators ?? payload.intervention_validators
+    ),
     findingsValidators: normalizeFindingsValidatorExecutions(
       payload.findingsValidators ?? payload.findings_validators
     ),
     examinationValidators: normalizeExaminationValidatorExecutions(
       payload.examinationValidators ?? payload.examination_validators
+    ),
+    unitValidators: normalizeUnitValidatorExecutions(
+      payload.unitValidators ?? payload.unit_validators
     ),
     issues: Array.isArray(payload.issues)
       ? payload.issues

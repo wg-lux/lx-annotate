@@ -142,6 +142,43 @@ describe('reportTemplatesApi', () => {
         templateName: 'star_upper_gi_main',
         ok: false,
         evaluatedFindingsCount: 2,
+        classification_validators: [
+          {
+            name: 'lst_required_when_large',
+            ok: false,
+            operator: 'condition',
+            finding: 'esophagus_polyp',
+            classification: 'lst',
+            precedence: 'required',
+            matched_occurrences: 1,
+            triggered_occurrences: 0,
+            hint: { classification_name: 'lst' },
+            issues: [
+              {
+                code: 'missing_data_requirement',
+                level: 'warning',
+                message: 'Missing source data',
+                validator_name: 'lst_required_when_large',
+                validator_kind: 'classification_validator',
+                details: { missing_condition_classifications: ['size_mm'] }
+              }
+            ]
+          }
+        ],
+        intervention_validators: [
+          {
+            name: 'biopsy_required_when_large',
+            ok: false,
+            operator: 'condition',
+            finding: 'esophagus_polyp',
+            intervention: 'biopsy',
+            precedence: 'required',
+            matched_occurrences: 1,
+            triggered_occurrences: 1,
+            hint: { intervention_name: 'biopsy' },
+            issues: []
+          }
+        ],
         findingsValidators: [
           {
             name: 'polyp_has_lst_if_large',
@@ -163,6 +200,21 @@ describe('reportTemplatesApi', () => {
           }
         ],
         examinationValidators: [],
+        unit_validators: [
+          {
+            name: 'size_uses_mm',
+            ok: false,
+            operator: 'exists',
+            finding: 'esophagus_polyp',
+            classification: 'size_mm',
+            unit: 'mm',
+            precedence: 'required',
+            matched_occurrences: 1,
+            triggered_occurrences: 0,
+            hint: { unit_name: 'mm' },
+            issues: []
+          }
+        ],
         issues: [
           {
             code: 'missing_required_classification',
@@ -241,7 +293,28 @@ describe('reportTemplatesApi', () => {
       }
     )
     expect(result.templateName).toBe('star_upper_gi_main')
+    expect(result.classificationValidators[0]).toMatchObject({
+      name: 'lst_required_when_large',
+      classification: 'lst',
+      matchedOccurrences: 1,
+      triggeredOccurrences: 0
+    })
+    expect(result.classificationValidators[0].issues[0]).toMatchObject({
+      code: 'missing_data_requirement',
+      level: 'warning',
+      validatorKind: 'classification_validator',
+      details: { missing_condition_classifications: ['size_mm'] }
+    })
+    expect(result.interventionValidators[0]).toMatchObject({
+      name: 'biopsy_required_when_large',
+      intervention: 'biopsy',
+      triggeredOccurrences: 1
+    })
     expect(result.findingsValidators[0].missingRequiredClassifications).toEqual(['lst'])
+    expect(result.unitValidators[0]).toMatchObject({
+      name: 'size_uses_mm',
+      unit: 'mm'
+    })
     expect(result.issues[0].code).toBe('missing_required_classification')
   })
 

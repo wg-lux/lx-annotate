@@ -5,7 +5,7 @@ import FindingsCapturePage from '../FindingsCapturePage.vue';
 const hoisted = vi.hoisted(() => ({
     flowRef: { current: null },
     findingSelectorsRef: { current: null },
-    validateFromLedger: vi.fn(),
+    validateRuntime: vi.fn(),
     templateControls: {
         setModuleName: vi.fn(),
         selectTemplateByName: vi.fn().mockResolvedValue(undefined),
@@ -19,7 +19,7 @@ vi.mock('@/composables/reporting/useFindingSelectors', () => ({
     useFindingSelectors: () => hoisted.findingSelectorsRef.current
 }));
 vi.mock('@/api/reportTemplatesApi', () => ({
-    validatePatientFindingsAgainstTemplate: hoisted.validateFromLedger
+    validateReportTemplateRuntime: hoisted.validateRuntime
 }));
 vi.mock('@/composables/reporting/useReportTemplates', () => ({
     useReportTemplates: () => ({
@@ -103,6 +103,7 @@ function buildFlowStore() {
         setLastTemplateValidation: vi.fn((result) => {
             flow.lastTemplateValidation = result;
         }),
+        persistCurrentRuntimeDraft: vi.fn().mockResolvedValue(undefined),
         addFinding: vi.fn(({ findingName }) => {
             const localId = `finding_${flow.currentRuntimeDraft.payload.patientFindings.length + 1}`;
             flow.currentRuntimeDraft.payload.patientFindings.push({
@@ -158,7 +159,10 @@ function mountPage() {
                 MedicalBlock: {
                     template: '<div><slot /></div>'
                 },
-                ReportTemplateValidationPanel: true,
+                ReportTemplateValidationPanel: {
+                    props: ['findingAnchors', 'result'],
+                    template: '<div data-testid="validation-panel-stub">{{ findingAnchors.esophagus_polyp }}</div>'
+                },
                 ReportingMediaPreviewCards: true
             }
         }
@@ -230,7 +234,7 @@ describe('FindingsCapturePage runtime draft flow', () => {
                 }
                 : null)
         };
-        hoisted.validateFromLedger.mockResolvedValue({
+        hoisted.validateRuntime.mockResolvedValue({
             templateName: 'star_upper_gi_main',
             ok: true,
             evaluatedFindingsCount: 1,
@@ -246,6 +250,8 @@ describe('FindingsCapturePage runtime draft flow', () => {
         const wrapper = mountPage();
         await flushPromises();
         expect(wrapper.text()).toContain('Oesophagus Polyp');
+        expect(wrapper.find('#finding-esophagus_polyp').exists()).toBe(true);
+        expect(wrapper.get('[data-testid="validation-panel-stub"]').text()).toContain('finding-esophagus_polyp');
         const addButton = wrapper.findAll('button').find((button) => button.text().includes('Befund hinzufügen'));
         expect(addButton).toBeTruthy();
         await addButton.trigger('click');
@@ -256,12 +262,8 @@ describe('FindingsCapturePage runtime draft flow', () => {
         expect(hoisted.flowRef.current.currentRuntimeDraft.payload.patientFindings).toHaveLength(1);
         vi.advanceTimersByTime(400);
         await flushPromises();
-        expect(hoisted.validateFromLedger).toHaveBeenCalledWith({
-            moduleName: 'report_template_examples',
-            templateName: 'star_upper_gi_main',
-            patientExaminationId: 42,
-            getFindingById: expect.any(Function)
-        });
+        expect(hoisted.validateRuntime).toHaveBeenCalledWith('report_template_examples', 'star_upper_gi_main', hoisted.flowRef.current.currentRuntimeDraft.payload);
+        expect(hoisted.flowRef.current.persistCurrentRuntimeDraft).toHaveBeenCalled();
     });
     it('updates classification values on the local draft and validates them', async () => {
         hoisted.flowRef.current.currentRuntimeDraft.payload.patientFindings = [
@@ -285,11 +287,7 @@ describe('FindingsCapturePage runtime draft flow', () => {
         });
         vi.advanceTimersByTime(400);
         await flushPromises();
-        expect(hoisted.validateFromLedger).toHaveBeenCalledWith({
-            moduleName: 'report_template_examples',
-            templateName: 'star_upper_gi_main',
-            patientExaminationId: 42,
-            getFindingById: expect.any(Function)
-        });
+        expect(hoisted.validateRuntime).toHaveBeenCalledWith('report_template_examples', 'star_upper_gi_main', hoisted.flowRef.current.currentRuntimeDraft.payload);
+        expect(hoisted.flowRef.current.persistCurrentRuntimeDraft).toHaveBeenCalled();
     });
 });

@@ -7,12 +7,6 @@ resolution-markers = [
     "sys_platform != 'emscripten' and sys_platform != 'win32'",
 ]
 
-[manifest]
-members = [
-    "lx-annotate",
-    "lx-dtypes",
-]
-
 [[package]]
 name = "accessible-pygments"
 version = "0.0.5"
@@ -949,7 +943,7 @@ sdist = { url = "https://files.pythonhosted.org/packages/62/59/e47bbd0542d0e6f4c
 
 [[package]]
 name = "endoreg-db"
-version = "0.9.6.0"
+version = "0.9.6.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "celery" },
@@ -964,9 +958,11 @@ dependencies = [
     { name = "djangorestframework" },
     { name = "dotenv" },
     { name = "faker" },
+    { name = "ffprobe" },
     { name = "googlemaps" },
     { name = "gunicorn" },
     { name = "icecream" },
+    { name = "kombu" },
     { name = "librosa" },
     { name = "llvmlite" },
     { name = "lx-anonymizer", extra = ["llm", "ocr"] },
@@ -1009,9 +1005,9 @@ dependencies = [
     { name = "whitenoise" },
     { name = "ziglang" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/8c/e9/61884f0ac2ea47f3faf3274151b16f9fa9bcacf2befbe8510703eaadd76e/endoreg_db-0.9.6.0.tar.gz", hash = "sha256:e4e46ca8e69e90967127f949d1da38f3f67cea19c5170a792c6340426eaed5dd", size = 685244, upload-time = "2026-04-23T09:26:45.025Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/d6/af/3e101d8a2b922a805aafd154469b6191e740dea890fc6fa719e6e8571043/endoreg_db-0.9.6.2.tar.gz", hash = "sha256:d8cd131c6099ff58975035ef4323dd5a2f9b2ba72a151ee1687f7da0be838fbc", size = 695547, upload-time = "2026-04-27T12:42:10.286Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/a0/c3/714cbcf21b3e9f53974d09f986d6cd530160919c41429bd32fa52aab0c7d/endoreg_db-0.9.6.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:7349beecf919b7defcce5ed80a1d86a88b87d5b3de801eccac81af092c4d1439", size = 1261615, upload-time = "2026-04-23T09:26:41.139Z" },
+    { url = "https://files.pythonhosted.org/packages/53/80/baa1d64c81a2b186ab5d85760f730916e52f8b0eb2571c75f49d6f6089ed/endoreg_db-0.9.6.2-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:418238593504bdb24da8f6db6870f930178e6cac83f07c9991ab8f419ecb4bff", size = 1279159, upload-time = "2026-04-27T12:42:08.495Z" },
 ]
 
 [[package]]
@@ -1052,6 +1048,12 @@ sdist = { url = "https://files.pythonhosted.org/packages/66/c1/f8224fe97fea2f98d
 wheels = [
     { url = "https://files.pythonhosted.org/packages/2b/5c/39452a6b6aa76ffa518fa7308e1975b37e9ba77caa6172a69d61e7180221/faker-40.12.0-py3-none-any.whl", hash = "sha256:6238a4058a8b581892e3d78fe5fdfa7568739e1c8283e4ede83f1dde0bfc1a3b", size = 1994601, upload-time = "2026-03-30T18:00:54.804Z" },
 ]
+
+[[package]]
+name = "ffprobe"
+version = "0.5"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/95/9c/adf90d21108d41f611aa921defd2f2e56d3f92724e4b5aa41fae7a9972aa/ffprobe-0.5.zip", hash = "sha256:f7dc048df62c6ccc1c602c865a7f0976b2679200fd07ebdc34ce51e9a8205b76", size = 3530, upload-time = "2013-10-30T12:40:42.67Z" }
 
 [[package]]
 name = "filelock"
@@ -1617,7 +1619,7 @@ wheels = [
 
 [[package]]
 name = "lx-annotate"
-version = "0.3.1"
+version = "0.3.6"
 source = { editable = "." }
 dependencies = [
     { name = "black" },
@@ -1715,14 +1717,14 @@ requires-dist = [
     { name = "django-webpack-loader", specifier = ">=0.7.0" },
     { name = "djangorestframework", specifier = ">=3.12.4" },
     { name = "drf-spectacular", specifier = ">=0.28.0" },
-    { name = "endoreg-db", specifier = "==0.9.6.0" },
+    { name = "endoreg-db", specifier = "==0.9.6.2" },
     { name = "flake8", marker = "extra == 'dev'", specifier = ">=7.3.0" },
     { name = "furo", marker = "extra == 'dev'", specifier = ">=2025.9.25" },
     { name = "furo", marker = "extra == 'docs'", specifier = ">=2025.9.25" },
     { name = "gunicorn", specifier = ">=23.0.0" },
     { name = "linkify-it-py", marker = "extra == 'dev'", specifier = ">=2.0.3" },
     { name = "linkify-it-py", marker = "extra == 'docs'", specifier = ">=2.0.3" },
-    { name = "lx-dtypes", editable = "lx-data-models" },
+    { name = "lx-dtypes", specifier = "==0.1.5" },
     { name = "mozilla-django-oidc", specifier = ">=4.0.1" },
     { name = "mypy", specifier = ">=1.18.2" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.16.0" },
@@ -1815,8 +1817,8 @@ ocr = [
 
 [[package]]
 name = "lx-dtypes"
-version = "0.1.4"
-source = { editable = "lx-data-models" }
+version = "0.1.5"
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "bibtexparser" },
     { name = "django" },
@@ -1839,87 +1841,10 @@ dependencies = [
     { name = "scipy" },
     { name = "types-pyyaml" },
 ]
-
-[package.optional-dependencies]
-dev = [
-    { name = "build" },
-    { name = "flake8" },
-    { name = "furo" },
-    { name = "linkify-it-py" },
-    { name = "mypy" },
-    { name = "myst-parser" },
-    { name = "pip" },
-    { name = "pre-commit" },
-    { name = "pytest" },
-    { name = "pytest-cov" },
-    { name = "pytest-django" },
-    { name = "pytest-env" },
-    { name = "pytest-mypy-plugins" },
-    { name = "pytest-xdist" },
-    { name = "ruff" },
-    { name = "sphinx" },
-    { name = "sphinx-autodoc-typehints" },
-    { name = "sphinx-copybutton" },
-    { name = "twine" },
+sdist = { url = "https://files.pythonhosted.org/packages/25/f7/eec7ce806e8c02238998064e89d639436157563ed8df2dde5d87519887c9/lx_dtypes-0.1.5.tar.gz", hash = "sha256:404b25091469cbc2ce573ef69a290b03381a6bea6f8db89f6a372401a0ca0d9f", size = 2124384, upload-time = "2026-04-24T12:35:26.723Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/9e/cb/db16f76785c1606a9530dc0064c1ace7c11ae1686621e7e04758d1e9ec6c/lx_dtypes-0.1.5-py3-none-any.whl", hash = "sha256:c7048286a2fe16edeb7f8a42db2805c4429b799f6a9af2724ea59e7efd4cbb95", size = 514814, upload-time = "2026-04-24T12:35:19.813Z" },
 ]
-docs = [
-    { name = "furo" },
-    { name = "linkify-it-py" },
-    { name = "myst-parser" },
-    { name = "sphinx" },
-    { name = "sphinx-autodoc-typehints" },
-    { name = "sphinx-copybutton" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "bibtexparser", specifier = ">=1.4.0" },
-    { name = "build", marker = "extra == 'dev'", specifier = ">=1.3.0" },
-    { name = "django", specifier = ">=6.0" },
-    { name = "django-ninja", specifier = ">=1.5.3" },
-    { name = "django-stubs", extras = ["compatible-mypy"], specifier = ">=5.2.8" },
-    { name = "django-stubs-ext", specifier = ">=5.2.8" },
-    { name = "flake8", marker = "extra == 'dev'", specifier = ">=7.3.0" },
-    { name = "furo", marker = "extra == 'dev'", specifier = ">=2025.9.25" },
-    { name = "furo", marker = "extra == 'docs'", specifier = ">=2025.9.25" },
-    { name = "icecream", specifier = ">=2.1.4" },
-    { name = "linkify-it-py", marker = "extra == 'dev'", specifier = ">=2.0.3" },
-    { name = "linkify-it-py", marker = "extra == 'docs'", specifier = ">=2.0.3" },
-    { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.16.0" },
-    { name = "myst-parser", marker = "extra == 'dev'", specifier = ">=4.0.1" },
-    { name = "myst-parser", marker = "extra == 'docs'", specifier = ">=4.0.1" },
-    { name = "numpy", specifier = ">=2.2.3" },
-    { name = "opencv-python", specifier = ">=4.12.0.88" },
-    { name = "openpyxl", specifier = ">=3.1.5" },
-    { name = "pandas", specifier = ">=2.2.3" },
-    { name = "pandas-stubs", specifier = ">=2.3.3.251201" },
-    { name = "pandera", extras = ["pandas", "io", "mypy"], specifier = ">=0.27.0" },
-    { name = "pillow", specifier = ">=11.3.0" },
-    { name = "pip", marker = "extra == 'dev'", specifier = ">=25.2" },
-    { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=4.5.0" },
-    { name = "pydantic", specifier = ">=2.10.6" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=9.0.2" },
-    { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=6.1.1" },
-    { name = "pytest-django", marker = "extra == 'dev'", specifier = ">=4.11.1" },
-    { name = "pytest-env", marker = "extra == 'dev'", specifier = ">=1.1.5" },
-    { name = "pytest-mypy-plugins", marker = "extra == 'dev'", specifier = ">=3.2.0" },
-    { name = "pytest-xdist", marker = "extra == 'dev'", specifier = ">=3.8.0" },
-    { name = "python-ffmpeg", specifier = ">=2.0.12" },
-    { name = "pyyaml", specifier = ">=6.0.2" },
-    { name = "requests", specifier = ">=2.32.3" },
-    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.14.8" },
-    { name = "scikit-learn", specifier = ">=1.8.0" },
-    { name = "scipy", specifier = ">=1.16.1" },
-    { name = "sphinx", marker = "extra == 'dev'", specifier = ">=8.2.3,<9.0" },
-    { name = "sphinx", marker = "extra == 'docs'", specifier = ">=8.2.3,<9.0" },
-    { name = "sphinx-autodoc-typehints", marker = "extra == 'dev'", specifier = ">=3.5.2" },
-    { name = "sphinx-autodoc-typehints", marker = "extra == 'docs'", specifier = ">=3.5.2" },
-    { name = "sphinx-copybutton", marker = "extra == 'dev'", specifier = ">=0.5.2" },
-    { name = "sphinx-copybutton", marker = "extra == 'docs'", specifier = ">=0.5.2" },
-    { name = "twine", marker = "extra == 'dev'", specifier = ">=6.2.0" },
-    { name = "types-pyyaml", specifier = ">=6.0.12.20250915" },
-]
-provides-extras = ["dev", "docs"]
 
 [[package]]
 name = "markdown-it-py"

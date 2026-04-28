@@ -104,7 +104,7 @@ describe('FrameAnnotation route', () => {
         expect(wrapper.text()).toContain('Frame #101');
         expect(wrapper.text()).toContain('Polyp');
         expect(wrapper.text()).toContain('Bleeding');
-        expect(wrapper.text()).toContain('AI 91%');
+        expect(wrapper.text()).toContain('KI 91%');
         await wrapper.get('button.btn-success').trigger('click');
         await flushPromises();
         expect(hoisted.post).toHaveBeenCalledWith('media/annotations/frames/bulk-upsert/', [
@@ -130,17 +130,75 @@ describe('FrameAnnotation route', () => {
             }
         ]);
         expect(hoisted.queueStore.popNextTask).toHaveBeenCalledTimes(2);
-        expect(wrapper.text()).toContain('No annotation tasks available.');
+        expect(wrapper.text()).toContain('Keine Annotationsaufgaben verfügbar.');
     });
     it('skips the current task via the frame-annotation route endpoint', async () => {
         hoisted.post.mockResolvedValue({ data: { ok: true } });
         const wrapper = mount(FrameAnnotation);
         await flushPromises();
-        await wrapper.get('button.btn-outline-warning').trigger('click');
+        await wrapper.get('[data-test="exclude-dataset-button"]').trigger('click');
         await flushPromises();
         expect(hoisted.post).toHaveBeenCalledWith('media/annotations/frames/skip/', {
             frameId: 101,
             annotator: 'oidc:kc-user-7'
         });
+    });
+    it('supports negative quick example action for the target label', async () => {
+        hoisted.post.mockResolvedValue({ data: { ok: true } });
+        const wrapper = mount(FrameAnnotation);
+        await flushPromises();
+        await wrapper.get('[data-test="negative-example-button"]').trigger('click');
+        await flushPromises();
+        expect(hoisted.post).toHaveBeenCalledWith('media/annotations/frames/bulk-upsert/', [
+            {
+                frameId: 101,
+                labelId: 11,
+                value: false,
+                floatValue: null,
+                informationSourceName: 'frame_annotation_frontend',
+                annotator: 'oidc:kc-user-7',
+                externalAnnotationId: 'external-101:11',
+                modelMetaId: null
+            },
+            {
+                frameId: 101,
+                labelId: 12,
+                value: false,
+                floatValue: null,
+                informationSourceName: 'frame_annotation_frontend',
+                annotator: 'oidc:kc-user-7',
+                externalAnnotationId: 'existing-bleeding',
+                modelMetaId: null
+            }
+        ]);
+    });
+    it('supports positive quick example action for the target label', async () => {
+        hoisted.post.mockResolvedValue({ data: { ok: true } });
+        const wrapper = mount(FrameAnnotation);
+        await flushPromises();
+        await wrapper.get('[data-test="positive-example-button"]').trigger('click');
+        await flushPromises();
+        expect(hoisted.post).toHaveBeenCalledWith('media/annotations/frames/bulk-upsert/', [
+            {
+                frameId: 101,
+                labelId: 11,
+                value: true,
+                floatValue: null,
+                informationSourceName: 'frame_annotation_frontend',
+                annotator: 'oidc:kc-user-7',
+                externalAnnotationId: 'external-101:11',
+                modelMetaId: null
+            },
+            {
+                frameId: 101,
+                labelId: 12,
+                value: false,
+                floatValue: null,
+                informationSourceName: 'frame_annotation_frontend',
+                annotator: 'oidc:kc-user-7',
+                externalAnnotationId: 'existing-bleeding',
+                modelMetaId: null
+            }
+        ]);
     });
 });

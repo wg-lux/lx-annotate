@@ -1,7 +1,9 @@
 import { createModelTrainingRun, fetchModelTrainingOptions, fetchModelTrainingRun } from '@/api/modelTrainingApi';
+import { useAnnotationQueueStore } from '@/stores/annotationQueue';
 import { useToastStore } from '@/stores/toastStore';
-import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 const toast = useToastStore();
+const annotationQueue = useAnnotationQueueStore();
 const loading = ref(true);
 const runPolling = ref(false);
 const errorMessage = ref('');
@@ -13,6 +15,8 @@ const featureModeOptions = ref([]);
 const pollTimer = ref(null);
 const form = reactive({
     datasetId: '',
+    samplingStrategy: annotationQueue.samplingStrategy,
+    predictionSegmentsOnly: annotationQueue.predictionSegmentsOnly,
     backboneName: 'gastro_rn50',
     featureMode: 'freeze_backbone',
     epochs: 10,
@@ -21,11 +25,36 @@ const form = reactive({
     backboneCheckpoint: '',
     treatUnlabeledAsNegative: true
 });
+const samplingStrategyOptions = [
+    {
+        value: 'balanced',
+        label: 'Ausgewogen: Annotationen und KI-Segmente',
+        description: 'Wählt Frames aus Dataset-Annotationen und KI-Segmenten und priorisiert unterrepräsentierte Labels.'
+    },
+    {
+        value: 'segments',
+        label: 'KI-Segmentierungen',
+        description: 'Wählt Frames aus Segmentbereichen des Datensatzes, optional nur aus Modellvorhersagen.'
+    },
+    {
+        value: 'annotations',
+        label: 'Annotationen',
+        description: 'Wählt Frames aus positiven Frame-Annotationen des Datensatzes.'
+    },
+    {
+        value: 'none',
+        label: 'Zufällig',
+        description: 'Deaktiviert Dataset-basiertes Sampling und nutzt die normale zufällige Auswahl.'
+    }
+];
 const selectedBackboneDescription = computed(() => {
     return backboneOptions.value.find((option) => option.value === form.backboneName)?.description ?? '';
 });
 const selectedFeatureModeDescription = computed(() => {
     return featureModeOptions.value.find((option) => option.value === form.featureMode)?.description ?? '';
+});
+const selectedSamplingStrategyDescription = computed(() => {
+    return (samplingStrategyOptions.find((option) => option.value === form.samplingStrategy)?.description ?? '');
 });
 const statusChipLabel = computed(() => {
     if (!currentRun.value)
@@ -57,6 +86,12 @@ function applyDefaults() {
         form.datasetId = String(preferredDataset.id);
     }
 }
+function syncAnnotationQueueSelection() {
+    annotationQueue.setSamplingStrategy(form.samplingStrategy);
+    annotationQueue.setPredictionSegmentsOnly(form.predictionSegmentsOnly);
+    const selectedDataset = datasetOptions.value.find((dataset) => String(dataset.id) === form.datasetId);
+    annotationQueue.setAiDataset(selectedDataset?.value || selectedDataset?.label || null, selectedDataset?.datasetType || null);
+}
 async function loadPage() {
     loading.value = true;
     errorMessage.value = '';
@@ -74,6 +109,7 @@ async function loadPage() {
         form.backboneCheckpoint = options.defaults.backboneCheckpoint ?? '';
         form.treatUnlabeledAsNegative = options.defaults.treatUnlabeledAsNegative;
         applyDefaults();
+        syncAnnotationQueueSelection();
     }
     catch (error) {
         console.error('Failed to load model training options:', error);
@@ -83,6 +119,9 @@ async function loadPage() {
         loading.value = false;
     }
 }
+watch(() => [form.datasetId, form.samplingStrategy, form.predictionSegmentsOnly], () => {
+    syncAnnotationQueueSelection();
+});
 async function refreshRun(runId) {
     try {
         const run = await fetchModelTrainingRun(runId);
@@ -258,6 +297,44 @@ else {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
         ...{ class: "text-muted mt-1" },
     });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+        ...{ class: "training-field" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
+        value: (__VLS_ctx.form.samplingStrategy),
+        ...{ class: "form-select" },
+        'data-test': "training-sampling-strategy-select",
+        disabled: (__VLS_ctx.runPolling),
+    });
+    for (const [option] of __VLS_getVForSourceType((__VLS_ctx.samplingStrategyOptions))) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+            key: (option.value),
+            value: (option.value),
+        });
+        (option.label);
+    }
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+        ...{ class: "text-muted mt-1" },
+    });
+    (__VLS_ctx.selectedSamplingStrategyDescription);
+    if (__VLS_ctx.form.samplingStrategy === 'balanced' || __VLS_ctx.form.samplingStrategy === 'segments') {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "form-check training-checkbox" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
+            id: "prediction-segments-only",
+            ...{ class: "form-check-input" },
+            type: "checkbox",
+            'data-test': "training-prediction-segments-only",
+            disabled: (__VLS_ctx.runPolling),
+        });
+        (__VLS_ctx.form.predictionSegmentsOnly);
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+            ...{ class: "form-check-label" },
+            for: "prediction-segments-only",
+        });
+    }
     __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
         ...{ class: "training-field" },
     });
@@ -500,6 +577,14 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.pre, __VLS_intrinsicElements.p
 /** @type {__VLS_StyleScopedClasses['form-select']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-check']} */ ;
+/** @type {__VLS_StyleScopedClasses['training-checkbox']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-check-input']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-check-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['training-field']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-select']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['training-field']} */ ;
 /** @type {__VLS_StyleScopedClasses['form-select']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
@@ -551,8 +636,10 @@ const __VLS_self = (await import('vue')).defineComponent({
             backboneOptions: backboneOptions,
             featureModeOptions: featureModeOptions,
             form: form,
+            samplingStrategyOptions: samplingStrategyOptions,
             selectedBackboneDescription: selectedBackboneDescription,
             selectedFeatureModeDescription: selectedFeatureModeDescription,
+            selectedSamplingStrategyDescription: selectedSamplingStrategyDescription,
             statusChipLabel: statusChipLabel,
             statusChipClass: statusChipClass,
             loadPage: loadPage,

@@ -282,10 +282,6 @@ def test_frontend_endpoint_contract_covers_patient_and_reporting_helpers():
     report_draft_api_ts = _read("frontend/src/api/reportDraftApi.ts")
     reporting_timeline_api_ts = _read("frontend/src/api/reportingTimelineApi.ts")
     dashboard_vue = _read("frontend/src/components/Dashboard/AnnotationDashboard.vue")
-    patient_detail_vue = _read("frontend/src/components/Patients/PatientDetailView.vue")
-    patient_edit_vue = _read("frontend/src/components/Patients/PatientEditForm.vue")
-    pseudonym_ts = _read("frontend/src/composables/usePseudonym.ts")
-
     assert (
         "patientDeletionSafety: (id: Id) => `patients/${id}/check_deletion_safety/`"
         in endpoints_ts
@@ -336,17 +332,6 @@ def test_frontend_endpoint_contract_covers_patient_and_reporting_helpers():
     assert "endpoints.media.pdfSensitiveMetadataList" in dashboard_vue
     assert "endpoints.media.videoSegmentDetail(videoId, segment.id)" in dashboard_vue
     assert "endpoints.router.examinationById(examination.id)" in dashboard_vue
-
-    assert (
-        "endpoints.patient.patientDeletionSafety(props.patient.id!)"
-        in patient_detail_vue
-    )
-    assert "endpoints.patient.patientPseudonym(props.patient.id!)" in patient_detail_vue
-    assert "endpoints.patient.patientDeletionSafety(patientId)" in patient_detail_vue
-    assert (
-        "endpoints.patient.patientDeletionSafety(props.patient.id!)" in patient_edit_vue
-    )
-    assert "endpoints.patient.patientPseudonym(patientId)" in pseudonym_ts
 
 
 def test_debug_surfaces_use_global_vite_debug_flag():

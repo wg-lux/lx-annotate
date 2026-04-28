@@ -10,12 +10,16 @@ const TARGET_LABEL_STORAGE_KEY = 'annotationQueue.targetLabelName.v1'
 const FILTER_LABEL_STORAGE_KEY = 'annotationQueue.filterLabelName.v1'
 const RANDOM_FALLBACK_STORAGE_KEY = 'annotationQueue.allowRandomFallback.v1'
 const INFORMATION_SOURCE_STORAGE_KEY = 'annotationQueue.informationSource.v1'
+const SAMPLING_STRATEGY_STORAGE_KEY = 'annotationQueue.samplingStrategy.v1'
+const PREDICTION_SEGMENTS_ONLY_STORAGE_KEY = 'annotationQueue.predictionSegmentsOnly.v1'
 const DEBUG_DUMMY_TASK_QUERY_KEY = 'ls_dummy_task'
 const DEBUG_DUMMY_TASK_GROUP_ID = '1'
 const DEFAULT_TARGET_LABEL_NAME = 'Target Label'
 const DEFAULT_INFORMATION_SOURCE = 'frame_annotation_frontend'
+const DEFAULT_SAMPLING_STRATEGY = 'balanced'
 
 export type AnnotationTaskMode = 'random' | 'filtered'
+export type AnnotationSamplingStrategy = 'balanced' | 'segments' | 'annotations' | 'none'
 
 function loadStoredGroupId(): string | null {
   try {
@@ -64,6 +68,15 @@ function loadStoredTaskMode(): AnnotationTaskMode {
   return raw === 'filtered' ? 'filtered' : 'random'
 }
 
+function normalizeSamplingStrategy(value: string | null): AnnotationSamplingStrategy {
+  if (value === 'segments' || value === 'annotations' || value === 'none') return value
+  return DEFAULT_SAMPLING_STRATEGY
+}
+
+function loadStoredSamplingStrategy(): AnnotationSamplingStrategy {
+  return normalizeSamplingStrategy(loadStoredText(SAMPLING_STRATEGY_STORAGE_KEY))
+}
+
 function normalizeLabelName(value: string | null): string {
   const normalized = value?.trim() ?? ''
   return normalized || DEFAULT_TARGET_LABEL_NAME
@@ -72,6 +85,16 @@ function normalizeLabelName(value: string | null): string {
 function loadStoredRandomFallback(): boolean {
   try {
     const raw = localStorage.getItem(RANDOM_FALLBACK_STORAGE_KEY)
+    if (raw === null) return true
+    return raw === '1' || raw.toLowerCase() === 'true'
+  } catch {
+    return true
+  }
+}
+
+function loadStoredPredictionSegmentsOnly(): boolean {
+  try {
+    const raw = localStorage.getItem(PREDICTION_SEGMENTS_ONLY_STORAGE_KEY)
     if (raw === null) return true
     return raw === '1' || raw.toLowerCase() === 'true'
   } catch {
@@ -155,8 +178,12 @@ function coerceTask(raw: RawTask): AnnotationTask | null {
   const imageUrlRaw =
     raw.imageUrl ??
     raw.image_url ??
+    raw.frameStreamPath ??
+    raw.frame_stream_path ??
     (raw.data as Record<string, unknown> | undefined)?.imageUrl ??
-    (raw.data as Record<string, unknown> | undefined)?.image_url
+    (raw.data as Record<string, unknown> | undefined)?.image_url ??
+    (raw.data as Record<string, unknown> | undefined)?.frameStreamPath ??
+    (raw.data as Record<string, unknown> | undefined)?.frame_stream_path
   const existingExternalIdRaw =
     raw.existingExternalId ??
     raw.existing_external_id ??
@@ -277,7 +304,7 @@ function coerceTask(raw: RawTask): AnnotationTask | null {
     id:
       typeof idRaw === 'string' || typeof idRaw === 'number'
         ? String(idRaw)
-        : crypto.randomUUID(),
+        : globalThis.crypto?.randomUUID?.() ?? `frame-task-${frameId}`,
     data: {
       frameId,
       imageUrl,
@@ -322,6 +349,8 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
   const informationSource = ref<string>(
     loadStoredText(INFORMATION_SOURCE_STORAGE_KEY) ?? DEFAULT_INFORMATION_SOURCE
   )
+  const samplingStrategy = ref<AnnotationSamplingStrategy>(loadStoredSamplingStrategy())
+  const predictionSegmentsOnly = ref<boolean>(loadStoredPredictionSegmentsOnly())
   const taskQueue = ref<AnnotationTask[]>([])
   const isInitialLoading = ref(false)
   const isPrefetching = ref(false)
@@ -334,6 +363,10 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
         informationSource.value
       }|${
         allowRandomFallback.value ? '1' : '0'
+      }|${samplingStrategy.value}|${
+        predictionSegmentsOnly.value ? '1' : '0'
+      }|${aiDatasetName.value ?? ''}|${
+        aiDatasetType.value ?? ''
       }`
   )
 
@@ -354,6 +387,12 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
   })
   watch(informationSource, (next) => {
     persistText(INFORMATION_SOURCE_STORAGE_KEY, next)
+  })
+  watch(samplingStrategy, (next) => {
+    persistText(SAMPLING_STRATEGY_STORAGE_KEY, next)
+  })
+  watch(predictionSegmentsOnly, (next) => {
+    persistBoolean(PREDICTION_SEGMENTS_ONLY_STORAGE_KEY, next)
   })
 
   function setSelectedLabelGroupId(groupId: string | null): void {
@@ -379,6 +418,19 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
   function setInformationSource(source: string | null): void {
     const normalized = source?.trim() ?? ''
     informationSource.value = normalized || DEFAULT_INFORMATION_SOURCE
+  }
+
+  function setSamplingStrategy(strategy: string | null): void {
+    samplingStrategy.value = normalizeSamplingStrategy(strategy)
+  }
+
+  function setPredictionSegmentsOnly(enabled: boolean): void {
+    predictionSegmentsOnly.value = !!enabled
+  }
+
+  function setAiDataset(datasetName: string | null, datasetType: string | null): void {
+    aiDatasetName.value = datasetName?.trim() || null
+    aiDatasetType.value = datasetType?.trim() || null
   }
 
   async function hydrateAiDatasetDefaults(): Promise<void> {
@@ -418,6 +470,8 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
     if (aiDatasetType.value) {
       params.ai_dataset_type = aiDatasetType.value
     }
+    params.dataset_frame_filter = samplingStrategy.value
+    params.prediction_segments_only = predictionSegmentsOnly.value ? 'true' : 'false'
 
     return params
   }
@@ -527,6 +581,8 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
     filterLabelName,
     allowRandomFallback,
     informationSource,
+    samplingStrategy,
+    predictionSegmentsOnly,
     aiDatasetName,
     aiDatasetType,
     taskQuerySignature,
@@ -540,6 +596,9 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
     setFilterLabelName,
     setAllowRandomFallback,
     setInformationSource,
+    setSamplingStrategy,
+    setPredictionSegmentsOnly,
+    setAiDataset,
     hydrateAiDatasetDefaults,
     fetchBatch,
     prefetchIfNeeded,

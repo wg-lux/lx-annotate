@@ -86,9 +86,9 @@ export const endpoints = {
 
   stats: {
     examinations: 'examinations/stats/',
-    videoSegment: 'video-segment/stats/',
-    videoSegments: 'video-segments/stats/',
-    sensitiveMeta: 'video/sensitivemeta/stats/',
+    videoSegment: 'media/videos/segments/stats/',
+    videoSegments: 'media/videos/segments/stats/',
+    sensitiveMeta: 'media/sensitive-metadata/',
     general: 'stats/'
   },
 

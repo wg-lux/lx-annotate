@@ -315,11 +315,29 @@ onUnmounted(() => {
     document.removeEventListener('fullscreenchange', handleFullscreenChange);
 });
 // Guarded function for error handling like VideoClassificationComponent
+function isAbortLikeError(error) {
+    const message = String(error?.message || error?.target?.error?.message || error || '').toLowerCase();
+    const code = error?.code || error?.target?.error?.code;
+    const mediaAbortCode = typeof MediaError !== 'undefined' ? MediaError.MEDIA_ERR_ABORTED : 1;
+    return (code === 20 ||
+        code === mediaAbortCode ||
+        error?.name === 'AbortError' ||
+        error?.code === 'ERR_CANCELED' ||
+        message.includes('ns_binding_aborted') ||
+        message.includes('binding aborted') ||
+        message.includes('aborted') ||
+        message.includes('canceled') ||
+        message.includes('cancelled'));
+}
 async function guarded(p) {
     try {
         return await p;
     }
     catch (e) {
+        if (isAbortLikeError(e)) {
+            console.debug('[VideoExamination] Ignoring aborted request/media load:', e);
+            return undefined;
+        }
         const errorMsg = e?.response?.data?.detail || e?.response?.data?.error || e?.message || String(e);
         errorMessage.value = errorMsg;
         return undefined;
@@ -793,7 +811,11 @@ const finishLabelMarking = async () => {
         videoStore.setCurrentVideo(selectedVideoId.value);
         // FIX: Use updateDraftEnd und commitDraft statt finishDraftSegment
         videoStore.updateDraftEnd(currentTime.value);
-        await videoStore.commitDraft();
+        const createdSegment = await videoStore.commitDraft();
+        if (!createdSegment) {
+            showErrorMessage(videoStore.errorMessage || 'Label konnte nicht gespeichert werden.');
+            return;
+        }
         // Reset state (keep last selected label)
         isMarkingLabel.value = false;
         // Reload segments to show the new one
@@ -960,6 +982,10 @@ const importPredictionSegmentsToManual = async () => {
 };
 // Video event handlers from AnonymizationValidationComponent
 const onVideoError = (event) => {
+    if (isAbortLikeError(event)) {
+        console.debug('[VideoExamination] Ignoring aborted video load:', event);
+        return;
+    }
     console.error('Video loading error:', event);
     const video = event.target;
     console.error('Video error details:', {

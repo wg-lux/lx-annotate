@@ -9,10 +9,13 @@ const TARGET_LABEL_STORAGE_KEY = 'annotationQueue.targetLabelName.v1';
 const FILTER_LABEL_STORAGE_KEY = 'annotationQueue.filterLabelName.v1';
 const RANDOM_FALLBACK_STORAGE_KEY = 'annotationQueue.allowRandomFallback.v1';
 const INFORMATION_SOURCE_STORAGE_KEY = 'annotationQueue.informationSource.v1';
+const SAMPLING_STRATEGY_STORAGE_KEY = 'annotationQueue.samplingStrategy.v1';
+const PREDICTION_SEGMENTS_ONLY_STORAGE_KEY = 'annotationQueue.predictionSegmentsOnly.v1';
 const DEBUG_DUMMY_TASK_QUERY_KEY = 'ls_dummy_task';
 const DEBUG_DUMMY_TASK_GROUP_ID = '1';
 const DEFAULT_TARGET_LABEL_NAME = 'Target Label';
 const DEFAULT_INFORMATION_SOURCE = 'frame_annotation_frontend';
+const DEFAULT_SAMPLING_STRATEGY = 'balanced';
 function loadStoredGroupId() {
     try {
         const raw = localStorage.getItem(SELECTED_GROUP_STORAGE_KEY);
@@ -61,6 +64,14 @@ function loadStoredTaskMode() {
     const raw = loadStoredText(TASK_MODE_STORAGE_KEY);
     return raw === 'filtered' ? 'filtered' : 'random';
 }
+function normalizeSamplingStrategy(value) {
+    if (value === 'segments' || value === 'annotations' || value === 'none')
+        return value;
+    return DEFAULT_SAMPLING_STRATEGY;
+}
+function loadStoredSamplingStrategy() {
+    return normalizeSamplingStrategy(loadStoredText(SAMPLING_STRATEGY_STORAGE_KEY));
+}
 function normalizeLabelName(value) {
     const normalized = value?.trim() ?? '';
     return normalized || DEFAULT_TARGET_LABEL_NAME;
@@ -68,6 +79,17 @@ function normalizeLabelName(value) {
 function loadStoredRandomFallback() {
     try {
         const raw = localStorage.getItem(RANDOM_FALLBACK_STORAGE_KEY);
+        if (raw === null)
+            return true;
+        return raw === '1' || raw.toLowerCase() === 'true';
+    }
+    catch {
+        return true;
+    }
+}
+function loadStoredPredictionSegmentsOnly() {
+    try {
+        const raw = localStorage.getItem(PREDICTION_SEGMENTS_ONLY_STORAGE_KEY);
         if (raw === null)
             return true;
         return raw === '1' || raw.toLowerCase() === 'true';
@@ -111,8 +133,12 @@ function coerceTask(raw) {
         raw.data?.frame_id;
     const imageUrlRaw = raw.imageUrl ??
         raw.image_url ??
+        raw.frameStreamPath ??
+        raw.frame_stream_path ??
         raw.data?.imageUrl ??
-        raw.data?.image_url;
+        raw.data?.image_url ??
+        raw.data?.frameStreamPath ??
+        raw.data?.frame_stream_path;
     const existingExternalIdRaw = raw.existingExternalId ??
         raw.existing_external_id ??
         raw.data?.existingExternalId ??
@@ -227,7 +253,7 @@ function coerceTask(raw) {
     return {
         id: typeof idRaw === 'string' || typeof idRaw === 'number'
             ? String(idRaw)
-            : crypto.randomUUID(),
+            : globalThis.crypto?.randomUUID?.() ?? `frame-task-${frameId}`,
         data: {
             frameId,
             imageUrl,
@@ -266,13 +292,15 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
     const filterLabelName = ref(loadStoredText(FILTER_LABEL_STORAGE_KEY));
     const allowRandomFallback = ref(loadStoredRandomFallback());
     const informationSource = ref(loadStoredText(INFORMATION_SOURCE_STORAGE_KEY) ?? DEFAULT_INFORMATION_SOURCE);
+    const samplingStrategy = ref(loadStoredSamplingStrategy());
+    const predictionSegmentsOnly = ref(loadStoredPredictionSegmentsOnly());
     const taskQueue = ref([]);
     const isInitialLoading = ref(false);
     const isPrefetching = ref(false);
     const lastError = ref(null);
     const aiDatasetName = ref(null);
     const aiDatasetType = ref(null);
-    const taskQuerySignature = computed(() => `${taskMode.value}|${targetLabelName.value}|${filterLabelName.value ?? ''}|${informationSource.value}|${allowRandomFallback.value ? '1' : '0'}`);
+    const taskQuerySignature = computed(() => `${taskMode.value}|${targetLabelName.value}|${filterLabelName.value ?? ''}|${informationSource.value}|${allowRandomFallback.value ? '1' : '0'}|${samplingStrategy.value}|${predictionSegmentsOnly.value ? '1' : '0'}|${aiDatasetName.value ?? ''}|${aiDatasetType.value ?? ''}`);
     watch(selectedLabelGroupId, (next) => {
         persistGroupId(next);
     });
@@ -290,6 +318,12 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
     });
     watch(informationSource, (next) => {
         persistText(INFORMATION_SOURCE_STORAGE_KEY, next);
+    });
+    watch(samplingStrategy, (next) => {
+        persistText(SAMPLING_STRATEGY_STORAGE_KEY, next);
+    });
+    watch(predictionSegmentsOnly, (next) => {
+        persistBoolean(PREDICTION_SEGMENTS_ONLY_STORAGE_KEY, next);
     });
     function setSelectedLabelGroupId(groupId) {
         selectedLabelGroupId.value = groupId && groupId.trim() ? groupId : null;
@@ -309,6 +343,16 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
     function setInformationSource(source) {
         const normalized = source?.trim() ?? '';
         informationSource.value = normalized || DEFAULT_INFORMATION_SOURCE;
+    }
+    function setSamplingStrategy(strategy) {
+        samplingStrategy.value = normalizeSamplingStrategy(strategy);
+    }
+    function setPredictionSegmentsOnly(enabled) {
+        predictionSegmentsOnly.value = !!enabled;
+    }
+    function setAiDataset(datasetName, datasetType) {
+        aiDatasetName.value = datasetName?.trim() || null;
+        aiDatasetType.value = datasetType?.trim() || null;
     }
     async function hydrateAiDatasetDefaults() {
         if (aiDatasetName.value !== null || aiDatasetType.value !== null)
@@ -342,6 +386,8 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
         if (aiDatasetType.value) {
             params.ai_dataset_type = aiDatasetType.value;
         }
+        params.dataset_frame_filter = samplingStrategy.value;
+        params.prediction_segments_only = predictionSegmentsOnly.value ? 'true' : 'false';
         return params;
     }
     async function fetchTaskBatchFromApi(batchSize, mode) {
@@ -441,6 +487,8 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
         filterLabelName,
         allowRandomFallback,
         informationSource,
+        samplingStrategy,
+        predictionSegmentsOnly,
         aiDatasetName,
         aiDatasetType,
         taskQuerySignature,
@@ -454,6 +502,9 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
         setFilterLabelName,
         setAllowRandomFallback,
         setInformationSource,
+        setSamplingStrategy,
+        setPredictionSegmentsOnly,
+        setAiDataset,
         hydrateAiDatasetDefaults,
         fetchBatch,
         prefetchIfNeeded,

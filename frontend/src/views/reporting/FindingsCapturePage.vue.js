@@ -1,6 +1,6 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { getClassificationDisplayName, getFindingDisplayName, mergeFindingClassifications } from '@/api/findings.contract';
-import { validatePatientFindingsAgainstTemplate } from '@/api/reportTemplatesApi';
+import { validateReportTemplateRuntime } from '@/api/reportTemplatesApi';
 import MedicalBlock from '@/components/AssistedReporting/MedicalBlock.vue';
 import ReportTemplateValidationPanel from '@/components/Reporting/ReportTemplateValidationPanel.vue';
 import ReportingMediaPreviewCards from '@/components/Reporting/ReportingMediaPreviewCards.vue';
@@ -60,8 +60,20 @@ const backendMessagesByFinding = computed(() => {
     ]);
     return Object.fromEntries(entries);
 });
+const findingAnchors = computed(() => {
+    const entries = sectionBlocks.value
+        .flatMap((section) => section.findings)
+        .map((finding) => [
+        normalizeKey(finding.finding),
+        findingAnchorId(finding.finding)
+    ]);
+    return Object.fromEntries(entries);
+});
 function normalizeKey(value) {
     return value.trim().toLowerCase().replace(/\s+/g, '_').replace(/-/g, '_');
+}
+function findingAnchorId(findingName) {
+    return `finding-${normalizeKey(findingName)}`;
 }
 function clearMessages() {
     errorMessage.value = null;
@@ -326,20 +338,25 @@ async function runRuntimeValidation(forceFeedback = false) {
     }
     templateValidationLoading.value = true;
     templateValidationError.value = null;
+    let validationFailed = false;
     try {
-        const result = await validatePatientFindingsAgainstTemplate({
-            moduleName: flow.selectedKbModule,
-            templateName,
-            patientExaminationId,
-            getFindingById
-        });
+        const result = await validateReportTemplateRuntime(flow.selectedKbModule, templateName, draft.payload);
         flow.setLastTemplateValidation(result);
     }
     catch (e) {
+        validationFailed = true;
         flow.setLastTemplateValidation(null);
         templateValidationError.value = formatApiError(e, 'Template-Validierung konnte nicht ausgefuehrt werden.');
     }
     finally {
+        try {
+            await flow.persistCurrentRuntimeDraft();
+        }
+        catch (e) {
+            if (!validationFailed) {
+                templateValidationError.value = formatApiError(e, 'Der Reporting-Entwurf konnte nach der Validierung nicht gespeichert werden.');
+            }
+        }
         templateValidationLoading.value = false;
     }
 }
@@ -617,6 +634,7 @@ else {
         for (const [templateFinding] of __VLS_getVForSourceType((section.findings))) {
             __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
                 key: (`${section.name}:${templateFinding.finding}`),
+                id: (__VLS_ctx.findingAnchorId(templateFinding.finding)),
                 ...{ class: "border rounded p-3" },
             });
             __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -792,11 +810,13 @@ else {
         loading: (__VLS_ctx.templateValidationLoading),
         errorMessage: (__VLS_ctx.templateValidationError),
         result: (__VLS_ctx.flow.lastTemplateValidation),
+        findingAnchors: (__VLS_ctx.findingAnchors),
     }));
     const __VLS_7 = __VLS_6({
         loading: (__VLS_ctx.templateValidationLoading),
         errorMessage: (__VLS_ctx.templateValidationError),
         result: (__VLS_ctx.flow.lastTemplateValidation),
+        findingAnchors: (__VLS_ctx.findingAnchors),
     }, ...__VLS_functionalComponentArgsRest(__VLS_6));
 }
 /** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
@@ -960,6 +980,8 @@ const __VLS_self = (await import('vue')).defineComponent({
             selectedExaminationName: selectedExaminationName,
             selectedExaminationDisplayName: selectedExaminationDisplayName,
             selectedTemplateValidatorCounts: selectedTemplateValidatorCounts,
+            findingAnchors: findingAnchors,
+            findingAnchorId: findingAnchorId,
             formatFindingsEvent: formatFindingsEvent,
             getFindingLabel: getFindingLabel,
             visibleClassificationsForFinding: visibleClassificationsForFinding,

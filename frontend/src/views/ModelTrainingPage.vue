@@ -66,6 +66,42 @@
             </label>
 
             <label class="training-field">
+              <span>Samplingstrategie</span>
+              <select
+                v-model="form.samplingStrategy"
+                class="form-select"
+                data-test="training-sampling-strategy-select"
+                :disabled="runPolling"
+              >
+                <option
+                  v-for="option in samplingStrategyOptions"
+                  :key="option.value"
+                  :value="option.value"
+                >
+                  {{ option.label }}
+                </option>
+              </select>
+              <small class="text-muted mt-1">{{ selectedSamplingStrategyDescription }}</small>
+            </label>
+
+            <div
+              v-if="form.samplingStrategy === 'balanced' || form.samplingStrategy === 'segments'"
+              class="form-check training-checkbox"
+            >
+              <input
+                id="prediction-segments-only"
+                v-model="form.predictionSegmentsOnly"
+                class="form-check-input"
+                type="checkbox"
+                data-test="training-prediction-segments-only"
+                :disabled="runPolling"
+              />
+              <label class="form-check-label" for="prediction-segments-only">
+                Nur KI-Segmentierungen für Segment-Sampling verwenden
+              </label>
+            </div>
+
+            <label class="training-field">
               <span>Model Backbone</span>
               <select
                 v-model="form.backboneName"
@@ -255,10 +291,15 @@ import {
   type ModelTrainingOption,
   type ModelTrainingRunRecord
 } from '@/api/modelTrainingApi'
+import {
+  useAnnotationQueueStore,
+  type AnnotationSamplingStrategy
+} from '@/stores/annotationQueue'
 import { useToastStore } from '@/stores/toastStore'
-import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 
 const toast = useToastStore()
+const annotationQueue = useAnnotationQueueStore()
 
 const loading = ref(true)
 const runPolling = ref(false)
@@ -272,6 +313,8 @@ const pollTimer = ref<number | null>(null)
 
 const form = reactive({
   datasetId: '',
+  samplingStrategy: annotationQueue.samplingStrategy,
+  predictionSegmentsOnly: annotationQueue.predictionSegmentsOnly,
   backboneName: 'gastro_rn50',
   featureMode: 'freeze_backbone',
   epochs: 10,
@@ -281,12 +324,47 @@ const form = reactive({
   treatUnlabeledAsNegative: true
 })
 
+const samplingStrategyOptions: Array<{
+  value: AnnotationSamplingStrategy
+  label: string
+  description: string
+}> = [
+  {
+    value: 'balanced',
+    label: 'Ausgewogen: Annotationen und KI-Segmente',
+    description:
+      'Wählt Frames aus Dataset-Annotationen und KI-Segmenten und priorisiert unterrepräsentierte Labels.'
+  },
+  {
+    value: 'segments',
+    label: 'KI-Segmentierungen',
+    description:
+      'Wählt Frames aus Segmentbereichen des Datensatzes, optional nur aus Modellvorhersagen.'
+  },
+  {
+    value: 'annotations',
+    label: 'Annotationen',
+    description: 'Wählt Frames aus positiven Frame-Annotationen des Datensatzes.'
+  },
+  {
+    value: 'none',
+    label: 'Zufällig',
+    description: 'Deaktiviert Dataset-basiertes Sampling und nutzt die normale zufällige Auswahl.'
+  }
+]
+
 const selectedBackboneDescription = computed(() => {
   return backboneOptions.value.find((option) => option.value === form.backboneName)?.description ?? ''
 })
 
 const selectedFeatureModeDescription = computed(() => {
   return featureModeOptions.value.find((option) => option.value === form.featureMode)?.description ?? ''
+})
+
+const selectedSamplingStrategyDescription = computed(() => {
+  return (
+    samplingStrategyOptions.find((option) => option.value === form.samplingStrategy)?.description ?? ''
+  )
 })
 
 const statusChipLabel = computed(() => {
@@ -320,6 +398,16 @@ function applyDefaults(): void {
   }
 }
 
+function syncAnnotationQueueSelection(): void {
+  annotationQueue.setSamplingStrategy(form.samplingStrategy)
+  annotationQueue.setPredictionSegmentsOnly(form.predictionSegmentsOnly)
+  const selectedDataset = datasetOptions.value.find((dataset) => String(dataset.id) === form.datasetId)
+  annotationQueue.setAiDataset(
+    selectedDataset?.value || selectedDataset?.label || null,
+    selectedDataset?.datasetType || null
+  )
+}
+
 async function loadPage(): Promise<void> {
   loading.value = true
   errorMessage.value = ''
@@ -338,6 +426,7 @@ async function loadPage(): Promise<void> {
     form.backboneCheckpoint = options.defaults.backboneCheckpoint ?? ''
     form.treatUnlabeledAsNegative = options.defaults.treatUnlabeledAsNegative
     applyDefaults()
+    syncAnnotationQueueSelection()
   } catch (error) {
     console.error('Failed to load model training options:', error)
     errorMessage.value = 'Die Trainingsoptionen konnten nicht geladen werden.'
@@ -345,6 +434,13 @@ async function loadPage(): Promise<void> {
     loading.value = false
   }
 }
+
+watch(
+  () => [form.datasetId, form.samplingStrategy, form.predictionSegmentsOnly] as const,
+  () => {
+    syncAnnotationQueueSelection()
+  }
+)
 
 async function refreshRun(runId: string): Promise<void> {
   try {

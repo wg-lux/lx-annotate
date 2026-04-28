@@ -1,6 +1,8 @@
 import { flushPromises, mount } from '@vue/test-utils'
+import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { useAnnotationQueueStore } from '@/stores/annotationQueue'
 import ModelTrainingPage from '../ModelTrainingPage.vue'
 
 const hoisted = vi.hoisted(() => ({
@@ -27,6 +29,8 @@ vi.mock('@/stores/toastStore', () => ({
 describe('ModelTrainingPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    setActivePinia(createPinia())
+    localStorage.clear()
     hoisted.fetchModelTrainingOptions.mockResolvedValue({
       aiDatasets: [
         {
@@ -36,6 +40,15 @@ describe('ModelTrainingPage', () => {
           datasetType: 'image',
           aiModelType: 'image_multilabel_classification',
           isActive: true,
+          nameCount: 1
+        },
+        {
+          id: 9,
+          value: 'Dataset B',
+          label: 'Dataset B',
+          datasetType: 'video',
+          aiModelType: 'video_segment_classification',
+          isActive: false,
           nameCount: 1
         }
       ],
@@ -132,5 +145,26 @@ describe('ModelTrainingPage', () => {
     expect(hoisted.fetchModelTrainingRun).toHaveBeenCalledWith('run-1')
     expect(wrapper.text()).toContain('Training abgeschlossen')
     expect(wrapper.text()).toContain('/tmp/model.pth')
+  })
+
+  it('syncs sampling criteria and selected dataset into the annotation queue', async () => {
+    const wrapper = mount(ModelTrainingPage)
+    await flushPromises()
+
+    const queueStore = useAnnotationQueueStore()
+    expect(queueStore.aiDatasetName).toBe('Dataset A')
+    expect(queueStore.aiDatasetType).toBe('image')
+    expect(queueStore.samplingStrategy).toBe('balanced')
+    expect(queueStore.predictionSegmentsOnly).toBe(true)
+
+    await wrapper.get('[data-test="training-dataset-select"]').setValue('9')
+    await wrapper.get('[data-test="training-sampling-strategy-select"]').setValue('segments')
+    await wrapper.get('[data-test="training-prediction-segments-only"]').setValue(false)
+    await flushPromises()
+
+    expect(queueStore.aiDatasetName).toBe('Dataset B')
+    expect(queueStore.aiDatasetType).toBe('video')
+    expect(queueStore.samplingStrategy).toBe('segments')
+    expect(queueStore.predictionSegmentsOnly).toBe(false)
   })
 })

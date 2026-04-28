@@ -3,30 +3,46 @@ import { useRouter } from 'vue-router';
 import { useAnnotationStatsStore } from '@/stores/annotationStats';
 const router = useRouter();
 const annotationStatsStore = useAnnotationStatsStore();
+const emptyStats = {
+    segmentPending: 0,
+    segmentInProgress: 0,
+    segmentCompleted: 0,
+    examinationPending: 0,
+    examinationInProgress: 0,
+    examinationCompleted: 0,
+    sensitiveMetaPending: 0,
+    sensitiveMetaInProgress: 0,
+    sensitiveMetaCompleted: 0,
+    totalPending: 0,
+    totalInProgress: 0,
+    totalCompleted: 0,
+    totalAnnotations: 0
+};
+const stats = computed(() => annotationStatsStore.stats || emptyStats);
 // Enhanced computed properties with fallback values
 const segmentStats = computed(() => ({
-    pending: annotationStatsStore.stats.segmentPending || 0,
-    inProgress: annotationStatsStore.stats.segmentInProgress || 0,
-    completed: annotationStatsStore.stats.segmentCompleted || 0,
-    total: (annotationStatsStore.stats.segmentPending || 0) +
-        (annotationStatsStore.stats.segmentInProgress || 0) +
-        (annotationStatsStore.stats.segmentCompleted || 0)
+    pending: stats.value.segmentPending || 0,
+    inProgress: stats.value.segmentInProgress || 0,
+    completed: stats.value.segmentCompleted || 0,
+    total: (stats.value.segmentPending || 0) +
+        (stats.value.segmentInProgress || 0) +
+        (stats.value.segmentCompleted || 0)
 }));
 const examinationStats = computed(() => ({
-    pending: annotationStatsStore.stats.examinationPending || 0,
-    inProgress: annotationStatsStore.stats.examinationInProgress || 0,
-    completed: annotationStatsStore.stats.examinationCompleted || 0,
-    total: (annotationStatsStore.stats.examinationPending || 0) +
-        (annotationStatsStore.stats.examinationInProgress || 0) +
-        (annotationStatsStore.stats.examinationCompleted || 0)
+    pending: stats.value.examinationPending || 0,
+    inProgress: stats.value.examinationInProgress || 0,
+    completed: stats.value.examinationCompleted || 0,
+    total: (stats.value.examinationPending || 0) +
+        (stats.value.examinationInProgress || 0) +
+        (stats.value.examinationCompleted || 0)
 }));
 const sensitiveMetaStats = computed(() => ({
-    pending: annotationStatsStore.stats.sensitiveMetaPending || 0,
-    inProgress: annotationStatsStore.stats.sensitiveMetaInProgress || 0,
-    completed: annotationStatsStore.stats.sensitiveMetaCompleted || 0,
-    total: (annotationStatsStore.stats.sensitiveMetaPending || 0) +
-        (annotationStatsStore.stats.sensitiveMetaInProgress || 0) +
-        (annotationStatsStore.stats.sensitiveMetaCompleted || 0)
+    pending: stats.value.sensitiveMetaPending || 0,
+    inProgress: stats.value.sensitiveMetaInProgress || 0,
+    completed: stats.value.sensitiveMetaCompleted || 0,
+    total: (stats.value.sensitiveMetaPending || 0) +
+        (stats.value.sensitiveMetaInProgress || 0) +
+        (stats.value.sensitiveMetaCompleted || 0)
 }));
 // Global computed properties for the main progress bar
 const completionPercentage = computed(() => {
@@ -39,7 +55,7 @@ const pendingPercentage = computed(() => {
     return annotationStatsStore.pendingPercentage || 0;
 });
 const totalAnnotations = computed(() => {
-    return annotationStatsStore.stats.totalAnnotations || 0;
+    return stats.value.totalAnnotations || 0;
 });
 const points = computed(() => {
     const completed = segmentStats.value.completed * 5 +
@@ -71,7 +87,7 @@ const unlockedAchievements = computed(() => {
     return unlocked;
 });
 const unlockedAchievementsCount = computed(() => unlockedAchievements.value.length);
-const totalCompleted = computed(() => annotationStatsStore.stats.totalCompleted || 0);
+const totalCompleted = computed(() => stats.value.totalCompleted || 0);
 const focusMission = computed(() => {
     const candidates = [
         {
@@ -108,7 +124,7 @@ const focusMission = computed(() => {
 });
 // Check if we have any data to show
 const hasAnyData = computed(() => {
-    return annotationStatsStore.stats.totalAnnotations > 0 ||
+    return stats.value.totalAnnotations > 0 ||
         annotationStatsStore.lastUpdated !== null;
 });
 const lastUpdateText = computed(() => {
@@ -133,7 +149,9 @@ const getCompletionPercentage = (stats) => {
 };
 const refreshStats = async () => {
     try {
-        await annotationStatsStore.forceRefresh();
+        if (typeof annotationStatsStore.forceRefresh === 'function') {
+            await annotationStatsStore.forceRefresh();
+        }
     }
     catch (error) {
         console.error('Failed to refresh stats:', error);
@@ -160,11 +178,13 @@ const navigateToValidation = () => {
 };
 // Load stats on component mount and watch for changes
 onMounted(async () => {
-    await annotationStatsStore.fetchAnnotationStats();
+    if (typeof annotationStatsStore.fetchAnnotationStats === 'function') {
+        await annotationStatsStore.fetchAnnotationStats();
+    }
 });
 // Auto-refresh when needed
 watch(() => annotationStatsStore.needsRefresh, async (needsRefresh) => {
-    if (needsRefresh) {
+    if (needsRefresh && typeof annotationStatsStore.refreshIfNeeded === 'function') {
         await annotationStatsStore.refreshIfNeeded();
     }
 });

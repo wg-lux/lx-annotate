@@ -304,7 +304,7 @@ class AutoProcessingHandler(FileSystemEventHandler):
         self.default_model = "image_multilabel_classification_colonoscopy_default"
 
         self.executor = ThreadPoolExecutor(
-            max_workers=2, thread_name_prefix="FileProcessor"
+            max_workers=1, thread_name_prefix="FileProcessor"
         )
         self.pseudonymized_dir = INTAKE_PREANONYMIZED_DIR
 
@@ -431,31 +431,43 @@ class AutoProcessingHandler(FileSystemEventHandler):
         finally:
             self._release_processing_slot(path_key)
 
-    def _wait_for_file_stable(self, path: Path, timeout: int = 30) -> bool:
+    def _wait_for_file_stable(
+        self,
+        path: Path,
+        timeout: int = 900,
+        stable_checks_required: int = 10,
+        interval: float = 2.0,
+    ) -> bool:
         if not path.exists() or should_ignore_file(path):
             return False
 
-        initial_size = -1
+        last_size = -1
         stable_checks = 0
-        for _ in range(timeout):
+        deadline = time.monotonic() + timeout
+
+        while time.monotonic() < deadline:
             try:
                 current_size = path.stat().st_size
-                if current_size == initial_size:
-                    stable_checks += 1
-                    if stable_checks >= 3:
-                        logger.debug("File stable: %s (%s bytes)", path, current_size)
-                        return True
-                else:
-                    stable_checks = 0
-                    initial_size = current_size
-                    logger.debug(
-                        "File still changing: %s (%s bytes)", path, current_size
-                    )
-                time.sleep(1)
-            except (OSError, IOError) as exc:
-                logger.debug("Error checking file size: %s", exc)
-                time.sleep(1)
+            except OSError as exc:
+                logger.debug("Error checking file size for %s: %s", path, exc)
+                time.sleep(interval)
+                continue
 
+            if current_size <= 0:
+                stable_checks = 0
+            elif current_size == last_size:
+                stable_checks += 1
+                if stable_checks >= stable_checks_required:
+                    logger.info("File stable: %s (%s bytes)", path, current_size)
+                    return True
+            else:
+                stable_checks = 0
+                last_size = current_size
+                logger.debug("File still changing: %s (%s bytes)", path, current_size)
+
+            time.sleep(interval)
+
+        logger.warning("Timed out waiting for stable file: %s", path)
         return False
 
     def _process_video(self, video_path: Path) -> None:

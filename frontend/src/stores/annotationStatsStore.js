@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import axios from 'axios';
 import { endpoints } from '@/types/api/endpoints';
-export const useAnnotationStatsStore = defineStore('annotationStats', {
+export const useAnnotationStatsStore = defineStore('annotationStatsDashboard', {
     state: () => ({
         // Main statistics data
         stats: null,

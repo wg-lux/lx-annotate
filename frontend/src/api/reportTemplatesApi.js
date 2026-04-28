@@ -473,6 +473,82 @@ function normalizeExaminationValidatorExecutions(value) {
     }))
         .filter((entry) => !!entry.name);
 }
+function normalizeValidatorHint(value) {
+    return isRecordLike(value) ? value : {};
+}
+function normalizePrecedence(value) {
+    return asString(value) === 'optional' ? 'optional' : 'required';
+}
+function normalizeClassificationValidatorExecutions(value) {
+    if (!Array.isArray(value))
+        return [];
+    return value
+        .filter((entry) => isRecordLike(entry))
+        .map((entry) => ({
+        name: asString(entry.name) || '',
+        ok: asBoolean(entry.ok),
+        operator: asString(entry.operator) || '',
+        finding: asString(entry.finding) || '',
+        classification: asString(entry.classification) || '',
+        precedence: normalizePrecedence(entry.precedence),
+        matchedOccurrences: asNumber(entry.matchedOccurrences ?? entry.matched_occurrences) ?? 0,
+        triggeredOccurrences: asNumber(entry.triggeredOccurrences ?? entry.triggered_occurrences) ?? 0,
+        hint: normalizeValidatorHint(entry.hint),
+        issues: Array.isArray(entry.issues)
+            ? entry.issues
+                .map((issue) => normalizeRuntimeIssue(issue))
+                .filter((issue) => issue !== null)
+            : []
+    }))
+        .filter((entry) => !!entry.name);
+}
+function normalizeInterventionValidatorExecutions(value) {
+    if (!Array.isArray(value))
+        return [];
+    return value
+        .filter((entry) => isRecordLike(entry))
+        .map((entry) => ({
+        name: asString(entry.name) || '',
+        ok: asBoolean(entry.ok),
+        operator: asString(entry.operator) || '',
+        finding: asString(entry.finding) || '',
+        intervention: asString(entry.intervention) || '',
+        precedence: normalizePrecedence(entry.precedence),
+        matchedOccurrences: asNumber(entry.matchedOccurrences ?? entry.matched_occurrences) ?? 0,
+        triggeredOccurrences: asNumber(entry.triggeredOccurrences ?? entry.triggered_occurrences) ?? 0,
+        hint: normalizeValidatorHint(entry.hint),
+        issues: Array.isArray(entry.issues)
+            ? entry.issues
+                .map((issue) => normalizeRuntimeIssue(issue))
+                .filter((issue) => issue !== null)
+            : []
+    }))
+        .filter((entry) => !!entry.name);
+}
+function normalizeUnitValidatorExecutions(value) {
+    if (!Array.isArray(value))
+        return [];
+    return value
+        .filter((entry) => isRecordLike(entry))
+        .map((entry) => ({
+        name: asString(entry.name) || '',
+        ok: asBoolean(entry.ok),
+        operator: asString(entry.operator) || '',
+        finding: asString(entry.finding) || '',
+        classification: asString(entry.classification) || '',
+        unit: asString(entry.unit) || '',
+        precedence: normalizePrecedence(entry.precedence),
+        matchedOccurrences: asNumber(entry.matchedOccurrences ?? entry.matched_occurrences) ?? 0,
+        triggeredOccurrences: asNumber(entry.triggeredOccurrences ?? entry.triggered_occurrences) ?? 0,
+        hint: normalizeValidatorHint(entry.hint),
+        issues: Array.isArray(entry.issues)
+            ? entry.issues
+                .map((issue) => normalizeRuntimeIssue(issue))
+                .filter((issue) => issue !== null)
+            : []
+    }))
+        .filter((entry) => !!entry.name);
+}
 export function normalizeRuntimeValidationResult(payload) {
     if (!isRecordLike(payload))
         return null;
@@ -483,8 +559,11 @@ export function normalizeRuntimeValidationResult(payload) {
         templateName,
         ok: asBoolean(payload.ok),
         evaluatedFindingsCount: asNumber(payload.evaluatedFindingsCount ?? payload.evaluated_findings_count) ?? 0,
+        classificationValidators: normalizeClassificationValidatorExecutions(payload.classificationValidators ?? payload.classification_validators),
+        interventionValidators: normalizeInterventionValidatorExecutions(payload.interventionValidators ?? payload.intervention_validators),
         findingsValidators: normalizeFindingsValidatorExecutions(payload.findingsValidators ?? payload.findings_validators),
         examinationValidators: normalizeExaminationValidatorExecutions(payload.examinationValidators ?? payload.examination_validators),
+        unitValidators: normalizeUnitValidatorExecutions(payload.unitValidators ?? payload.unit_validators),
         issues: Array.isArray(payload.issues)
             ? payload.issues
                 .map((issue) => normalizeRuntimeIssue(issue))

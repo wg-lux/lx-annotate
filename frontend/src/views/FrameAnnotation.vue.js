@@ -161,7 +161,7 @@ async function loadLabelGroups() {
             error?.response?.data?.detail ||
                 error?.response?.data?.error ||
                 error?.message ||
-                'Failed to load label groups.';
+                'Label-Gruppen konnten nicht geladen werden.';
     }
     finally {
         isLoadingLabelGroups.value = false;
@@ -185,19 +185,25 @@ async function loadNextTask() {
         isLoadingTask.value = false;
     }
 }
-async function submitLabels() {
+function getTargetLabelId(task) {
+    const targetLabel = queueStore.targetLabelName.trim().toLowerCase();
+    if (!targetLabel)
+        return null;
+    const match = (task.data.labelOptions ?? []).find((label) => label.name.trim().toLowerCase() === targetLabel);
+    return match?.id ?? null;
+}
+async function submitLabelsWithSelection(selectedIds) {
     if (!currentTask.value)
         return;
-    isSubmitting.value = true;
-    errorMessage.value = null;
     const task = currentTask.value;
     const labelOptions = task.data.labelOptions ?? [];
     if (labelOptions.length === 0) {
-        errorMessage.value = 'No labels are available for this frame.';
-        isSubmitting.value = false;
+        errorMessage.value = 'Für diesen Frame sind keine Labels verfügbar.';
         return;
     }
-    const selectedSet = new Set(selectedLabelIds.value);
+    isSubmitting.value = true;
+    errorMessage.value = null;
+    const selectedSet = new Set(selectedIds);
     try {
         await axiosInstance.post(r(endpoints.annotation.bulkUpsert), labelOptions.map((label) => {
             const existingManual = (task.data.manualAnnotations ?? []).find((annotation) => annotation.labelId === label.id);
@@ -222,11 +228,40 @@ async function submitLabels() {
             error?.response?.data?.detail ||
                 error?.response?.data?.error ||
                 error?.message ||
-                'Failed to submit annotation.';
+                'Annotation konnte nicht gespeichert werden.';
     }
     finally {
         isSubmitting.value = false;
     }
+}
+async function submitLabels() {
+    await submitLabelsWithSelection(selectedLabelIds.value);
+}
+async function submitPositiveExample() {
+    if (!currentTask.value)
+        return;
+    const targetLabelId = getTargetLabelId(currentTask.value);
+    if (targetLabelId === null) {
+        errorMessage.value = `Ziel-Label "${queueStore.targetLabelName}" ist für diesen Frame nicht verfügbar.`;
+        return;
+    }
+    const nextSelection = new Set(selectedLabelIds.value);
+    nextSelection.add(targetLabelId);
+    selectedLabelIds.value = [...nextSelection];
+    await submitLabelsWithSelection(selectedLabelIds.value);
+}
+async function submitNegativeExample() {
+    if (!currentTask.value)
+        return;
+    const targetLabelId = getTargetLabelId(currentTask.value);
+    if (targetLabelId === null) {
+        errorMessage.value = `Ziel-Label "${queueStore.targetLabelName}" ist für diesen Frame nicht verfügbar.`;
+        return;
+    }
+    const nextSelection = new Set(selectedLabelIds.value);
+    nextSelection.delete(targetLabelId);
+    selectedLabelIds.value = [...nextSelection];
+    await submitLabelsWithSelection(selectedLabelIds.value);
 }
 async function skipTask() {
     if (!currentTask.value)
@@ -245,7 +280,7 @@ async function skipTask() {
             error?.response?.data?.detail ||
                 error?.response?.data?.error ||
                 error?.message ||
-                'Failed to skip task.';
+                'Aufgabe konnte nicht übersprungen werden.';
     }
     finally {
         isSubmitting.value = false;
@@ -266,6 +301,8 @@ debugger; /* PartiallyEnd: #3632/scriptSetup.vue */
 const __VLS_ctx = {};
 let __VLS_components;
 let __VLS_directives;
+/** @type {__VLS_StyleScopedClasses['sidebar-action-button']} */ ;
+/** @type {__VLS_StyleScopedClasses['sidebar-action-button']} */ ;
 // CSS variable injection 
 // CSS variable injection end 
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -332,7 +369,7 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElement
     ...{ class: "btn btn-outline-secondary btn-sm mb-0" },
     disabled: (__VLS_ctx.isLoadingLabelGroups),
 });
-(__VLS_ctx.isLoadingLabelGroups ? 'Loading groups...' : 'Reload Groups');
+(__VLS_ctx.isLoadingLabelGroups ? 'Gruppen werden geladen...' : 'Gruppen neu laden');
 if (__VLS_ctx.labelGroupOptions.length > 0) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
         ...{ class: "text-muted" },
@@ -490,7 +527,7 @@ else {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.img)({
         src: (__VLS_ctx.currentTask.data.imageUrl),
         ...{ class: "img-fluid rounded border" },
-        alt: "Frame to annotate",
+        alt: "Zu annotierender Frame",
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "mt-3" },
@@ -562,18 +599,31 @@ else {
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
         ...{ onClick: (__VLS_ctx.submitLabels) },
-        ...{ class: "btn btn-success" },
+        ...{ class: "btn btn-success sidebar-action-button" },
         disabled: (__VLS_ctx.isSubmitting),
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+        ...{ onClick: (__VLS_ctx.submitPositiveExample) },
+        ...{ class: "btn btn-outline-success sidebar-action-button" },
+        disabled: (__VLS_ctx.isSubmitting),
+        'data-test': "positive-example-button",
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+        ...{ onClick: (__VLS_ctx.submitNegativeExample) },
+        ...{ class: "btn btn-outline-danger sidebar-action-button" },
+        disabled: (__VLS_ctx.isSubmitting),
+        'data-test': "negative-example-button",
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
         ...{ onClick: (__VLS_ctx.clearSelectedLabels) },
-        ...{ class: "btn btn-outline-secondary" },
+        ...{ class: "btn btn-outline-secondary sidebar-action-button" },
         disabled: (__VLS_ctx.isSubmitting),
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
         ...{ onClick: (__VLS_ctx.skipTask) },
-        ...{ class: "btn btn-outline-warning" },
+        ...{ class: "btn btn-outline-warning sidebar-action-button" },
         disabled: (__VLS_ctx.isSubmitting),
+        'data-test': "exclude-dataset-button",
     });
 }
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -711,10 +761,19 @@ if (__VLS_ctx.errorMessage) {
 /** @type {__VLS_StyleScopedClasses['flex-wrap']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-success']} */ ;
+/** @type {__VLS_StyleScopedClasses['sidebar-action-button']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-success']} */ ;
+/** @type {__VLS_StyleScopedClasses['sidebar-action-button']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-danger']} */ ;
+/** @type {__VLS_StyleScopedClasses['sidebar-action-button']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-secondary']} */ ;
+/** @type {__VLS_StyleScopedClasses['sidebar-action-button']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-warning']} */ ;
+/** @type {__VLS_StyleScopedClasses['sidebar-action-button']} */ ;
 /** @type {__VLS_StyleScopedClasses['col-12']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert-danger']} */ ;
@@ -746,6 +805,8 @@ const __VLS_self = (await import('vue')).defineComponent({
             formatConfidence: formatConfidence,
             loadLabelGroups: loadLabelGroups,
             submitLabels: submitLabels,
+            submitPositiveExample: submitPositiveExample,
+            submitNegativeExample: submitNegativeExample,
             skipTask: skipTask,
         };
     },

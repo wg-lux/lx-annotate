@@ -66,9 +66,9 @@ export declare const endpoints: {
     };
     readonly stats: {
         readonly examinations: "examinations/stats/";
-        readonly videoSegment: "video-segment/stats/";
-        readonly videoSegments: "video-segments/stats/";
-        readonly sensitiveMeta: "video/sensitivemeta/stats/";
+        readonly videoSegment: "media/videos/segments/stats/";
+        readonly videoSegments: "media/videos/segments/stats/";
+        readonly sensitiveMeta: "media/sensitive-metadata/";
         readonly general: "stats/";
     };
     readonly hubExport: {

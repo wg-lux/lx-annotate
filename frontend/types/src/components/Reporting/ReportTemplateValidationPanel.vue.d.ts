@@ -5,6 +5,7 @@ type __VLS_Props = {
     loading?: boolean;
     errorMessage?: string | null;
     result?: ReportTemplateRuntimeValidationResult | null;
+    findingAnchors?: Record<string, string>;
 };
 declare const _default: import("vue").DefineComponent<__VLS_Props, {}, {}, {}, {}, import("vue").ComponentOptionsMixin, import("vue").ComponentOptionsMixin, {}, string, import("vue").PublicProps, Readonly<__VLS_Props> & Readonly<{}>, {
     loading: boolean;
@@ -12,5 +13,6 @@ declare const _default: import("vue").DefineComponent<__VLS_Props, {}, {}, {}, {
     errorMessage: string | null;
     subtitle: string;
     result: ReportTemplateRuntimeValidationResult | null;
+    findingAnchors: Record<string, string>;
 }, {}, {}, {}, string, import("vue").ComponentProvideOptions, false, {}, any>;
 export default _default;

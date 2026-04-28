@@ -2,26 +2,26 @@
   <div class="container-fluid py-4">
     <div class="row mb-3">
       <div class="col-12">
-        <h4 class="mb-2">Frame Annotation</h4>
+        <h4 class="mb-2">Frame-Annotation</h4>
         <p class="text-sm text-muted mb-3">
-          Basic frame-level annotation for random or filtered tasks.
+          Einfache Frame-basierte Annotation für zufällige oder gefilterte Aufgaben.
         </p>
         <p
           v-if="queueStore.aiDatasetName && queueStore.aiDatasetType"
           class="text-sm text-primary mb-0"
         >
-          Active AI dataset queue: {{ queueStore.aiDatasetName }} ({{ queueStore.aiDatasetType }})
+          Aktive KI-Datensatz-Warteschlange: {{ queueStore.aiDatasetName }} ({{ queueStore.aiDatasetType }})
         </p>
       </div>
       <div class="col-12 col-md-6 col-lg-4">
-        <label for="label-group-id" class="form-label">Label Group</label>
+        <label for="label-group-id" class="form-label">Label-Gruppe</label>
         <select
           v-if="labelGroupOptions.length > 0"
           id="label-group-id"
           v-model="selectedLabelGroupId"
           class="form-select"
         >
-          <option value="">Select label group</option>
+          <option value="">Label-Gruppe auswählen</option>
           <option
             v-for="group in labelGroupOptions"
             :key="group.id"
@@ -44,13 +44,13 @@
             :disabled="isLoadingLabelGroups"
             @click="loadLabelGroups"
           >
-            {{ isLoadingLabelGroups ? 'Loading groups...' : 'Reload Groups' }}
+            {{ isLoadingLabelGroups ? 'Gruppen werden geladen...' : 'Gruppen neu laden' }}
           </button>
           <small v-if="labelGroupOptions.length > 0" class="text-muted">
-            {{ labelGroupOptions.length }} group(s) available
+            {{ labelGroupOptions.length }} Gruppe(n) verfügbar
           </small>
           <small v-else class="text-muted">
-            No groups discovered. You can enter a group ID manually.
+            Keine Gruppen gefunden. Sie können eine Gruppen-ID manuell eingeben.
           </small>
         </div>
         <small v-if="labelGroupLoadError" class="text-danger d-block mt-1">
@@ -58,21 +58,21 @@
         </small>
       </div>
       <div class="col-12 col-md-6 col-lg-4">
-        <label for="task-mode" class="form-label">Task Source</label>
+        <label for="task-mode" class="form-label">Aufgabenquelle</label>
         <select
           id="task-mode"
           v-model="taskMode"
           class="form-select"
         >
-          <option value="random">Random Frames</option>
-          <option value="filtered">Filtered by Previous Label</option>
+          <option value="random">Zufällige Frames</option>
+          <option value="filtered">Nach vorherigem Label gefiltert</option>
         </select>
         <small v-if="taskMode === 'random'" class="text-muted d-block mt-1">
-          Random mode is active.
+          Zufallsmodus ist aktiv.
         </small>
       </div>
       <div class="col-12 col-md-6 col-lg-4">
-        <label for="target-label-name" class="form-label">Label to Annotate</label>
+        <label for="target-label-name" class="form-label">Zu annotierendes Label</label>
         <input
           id="target-label-name"
           v-model.lazy="targetLabelName"
@@ -82,7 +82,7 @@
         />
       </div>
       <div class="col-12 col-md-6 col-lg-4">
-        <label for="information-source" class="form-label">Information Source</label>
+        <label for="information-source" class="form-label">Informationsquelle</label>
         <input
           id="information-source"
           v-model.lazy="informationSource"
@@ -101,7 +101,7 @@
         v-if="taskMode === 'filtered'"
         class="col-12 col-md-6 col-lg-4"
       >
-        <label for="filter-label-name" class="form-label">Filter by Previous Label</label>
+        <label for="filter-label-name" class="form-label">Nach vorherigem Label filtern</label>
         <input
           id="filter-label-name"
           v-model.lazy="filterLabelName"
@@ -122,7 +122,7 @@
             type="checkbox"
           />
           <label class="form-check-label" for="random-fallback">
-            Fallback to random frames when filtered query is empty
+            Auf zufällige Frames zurückfallen, wenn der Filter keine Treffer liefert
           </label>
         </div>
       </div>
@@ -132,36 +132,36 @@
       <div class="col-12 col-xl-8">
         <div class="card frame-card">
           <div class="card-body">
-            <div v-if="isLoadingTask" class="text-muted">Loading task...</div>
+            <div v-if="isLoadingTask" class="text-muted">Aufgabe wird geladen...</div>
             <div v-else-if="!queueStore.selectedLabelGroupId" class="text-muted">
-              Select a label group to start annotating.
+              Wählen Sie eine Label-Gruppe aus, um mit der Annotation zu starten.
             </div>
             <div v-else-if="!currentTask" class="text-muted">
-              No annotation tasks available.
+              Keine Annotationsaufgaben verfügbar.
             </div>
             <template v-else>
               <div class="task-meta mb-2">
                 <span class="badge bg-light text-dark me-2">Frame #{{ currentTask.data.frameId }}</span>
-                <span class="badge bg-light text-dark">Task {{ currentTask.id }}</span>
+                <span class="badge bg-light text-dark">Aufgabe {{ currentTask.id }}</span>
               </div>
               <img
                 :src="currentTask.data.imageUrl"
                 class="img-fluid rounded border"
-                alt="Frame to annotate"
+                alt="Zu annotierender Frame"
               />
               <div class="mt-3">
                 <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
-                  <h6 class="mb-0">Multilabel State</h6>
+                  <h6 class="mb-0">Multilabel-Status</h6>
                   <button
                     class="btn btn-outline-primary btn-sm mb-0"
                     :disabled="isSubmitting"
                     @click="applySuggestedLabels"
                   >
-                    Load AI Suggestion
+                    KI-Vorschlag übernehmen
                   </button>
                 </div>
                 <div v-if="annotationLabelOptions.length === 0" class="text-muted">
-                  No labels available for this frame task.
+                  Keine Labels für diese Frame-Aufgabe verfügbar.
                 </div>
                 <div v-else class="label-grid">
                   <label
@@ -190,13 +190,13 @@
                         v-else-if="manualAnnotationState[label.id]"
                         class="badge bg-secondary-subtle text-secondary-emphasis"
                       >
-                        Manual false
+                        Manuell nein
                       </span>
                       <span
                         v-if="predictionAnnotationState[label.id]?.value"
                         class="badge bg-info-subtle text-info-emphasis"
                       >
-                        AI
+                        KI
                         <template v-if="predictionAnnotationState[label.id]?.floatValue !== null">
                           {{ formatConfidence(predictionAnnotationState[label.id]?.floatValue) }}
                         </template>
@@ -207,25 +207,42 @@
               </div>
               <div class="mt-3 d-flex gap-2 flex-wrap">
                 <button
-                  class="btn btn-success"
+                  class="btn btn-success sidebar-action-button"
                   :disabled="isSubmitting"
                   @click="submitLabels"
                 >
-                  Save Labels
+                  Labels speichern
                 </button>
                 <button
-                  class="btn btn-outline-secondary"
+                  class="btn btn-outline-success sidebar-action-button"
+                  :disabled="isSubmitting"
+                  data-test="positive-example-button"
+                  @click="submitPositiveExample"
+                >
+                  Positives Beispiel
+                </button>
+                <button
+                  class="btn btn-outline-danger sidebar-action-button"
+                  :disabled="isSubmitting"
+                  data-test="negative-example-button"
+                  @click="submitNegativeExample"
+                >
+                  Negatives Beispiel
+                </button>
+                <button
+                  class="btn btn-outline-secondary sidebar-action-button"
                   :disabled="isSubmitting"
                   @click="clearSelectedLabels"
                 >
-                  Clear Selection
+                  Auswahl leeren
                 </button>
                 <button
-                  class="btn btn-outline-warning"
+                  class="btn btn-outline-warning sidebar-action-button"
                   :disabled="isSubmitting"
+                  data-test="exclude-dataset-button"
                   @click="skipTask"
                 >
-                  Skip
+                  Nicht im Datensatz aufnehmen
                 </button>
               </div>
             </template>
@@ -445,7 +462,7 @@ async function loadLabelGroups(): Promise<void> {
       error?.response?.data?.detail ||
       error?.response?.data?.error ||
       error?.message ||
-      'Failed to load label groups.'
+      'Label-Gruppen konnten nicht geladen werden.'
   } finally {
     isLoadingLabelGroups.value = false
   }
@@ -470,18 +487,27 @@ async function loadNextTask(): Promise<void> {
   }
 }
 
-async function submitLabels(): Promise<void> {
+function getTargetLabelId(task: NonNullable<typeof currentTask.value>): number | null {
+  const targetLabel = queueStore.targetLabelName.trim().toLowerCase()
+  if (!targetLabel) return null
+
+  const match = (task.data.labelOptions ?? []).find(
+    (label) => label.name.trim().toLowerCase() === targetLabel
+  )
+  return match?.id ?? null
+}
+
+async function submitLabelsWithSelection(selectedIds: number[]): Promise<void> {
   if (!currentTask.value) return
-  isSubmitting.value = true
-  errorMessage.value = null
   const task = currentTask.value
   const labelOptions = task.data.labelOptions ?? []
   if (labelOptions.length === 0) {
-    errorMessage.value = 'No labels are available for this frame.'
-    isSubmitting.value = false
+    errorMessage.value = 'Für diesen Frame sind keine Labels verfügbar.'
     return
   }
-  const selectedSet = new Set(selectedLabelIds.value)
+  isSubmitting.value = true
+  errorMessage.value = null
+  const selectedSet = new Set(selectedIds)
   try {
     await axiosInstance.post(
       r(endpoints.annotation.bulkUpsert),
@@ -511,10 +537,42 @@ async function submitLabels(): Promise<void> {
       error?.response?.data?.detail ||
       error?.response?.data?.error ||
       error?.message ||
-      'Failed to submit annotation.'
+      'Annotation konnte nicht gespeichert werden.'
   } finally {
     isSubmitting.value = false
   }
+}
+
+async function submitLabels(): Promise<void> {
+  await submitLabelsWithSelection(selectedLabelIds.value)
+}
+
+async function submitPositiveExample(): Promise<void> {
+  if (!currentTask.value) return
+  const targetLabelId = getTargetLabelId(currentTask.value)
+  if (targetLabelId === null) {
+    errorMessage.value = `Ziel-Label "${queueStore.targetLabelName}" ist für diesen Frame nicht verfügbar.`
+    return
+  }
+
+  const nextSelection = new Set(selectedLabelIds.value)
+  nextSelection.add(targetLabelId)
+  selectedLabelIds.value = [...nextSelection]
+  await submitLabelsWithSelection(selectedLabelIds.value)
+}
+
+async function submitNegativeExample(): Promise<void> {
+  if (!currentTask.value) return
+  const targetLabelId = getTargetLabelId(currentTask.value)
+  if (targetLabelId === null) {
+    errorMessage.value = `Ziel-Label "${queueStore.targetLabelName}" ist für diesen Frame nicht verfügbar.`
+    return
+  }
+
+  const nextSelection = new Set(selectedLabelIds.value)
+  nextSelection.delete(targetLabelId)
+  selectedLabelIds.value = [...nextSelection]
+  await submitLabelsWithSelection(selectedLabelIds.value)
 }
 
 async function skipTask(): Promise<void> {
@@ -532,7 +590,7 @@ async function skipTask(): Promise<void> {
       error?.response?.data?.detail ||
       error?.response?.data?.error ||
       error?.message ||
-      'Failed to skip task.'
+      'Aufgabe konnte nicht übersprungen werden.'
   } finally {
     isSubmitting.value = false
   }
@@ -576,5 +634,26 @@ onMounted(async () => {
 
 .label-option {
   background: #fff;
+}
+
+/* Match the rounded/outlined interaction feel used by sidebar nav links. */
+.sidebar-action-button {
+  border-radius: 0.5rem;
+  border-width: 1px;
+  transition:
+    background-color 0.16s ease,
+    border-color 0.16s ease,
+    box-shadow 0.16s ease,
+    transform 0.16s ease;
+}
+
+.sidebar-action-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.12);
+}
+
+.sidebar-action-button:focus-visible {
+  outline: 2px solid #9dc2ff;
+  outline-offset: 1px;
 }
 </style>
