@@ -1,4 +1,4 @@
-import { fetchApplicationSettings, fetchApplicationSettingsDropdowns, triggerApplicationBackup, triggerApplicationAiDatasetExport, updateApplicationSettings } from '@/api/applicationSettingsApi';
+import { fetchApplicationSettings, fetchApplicationSettingsDropdowns, triggerApplicationBackup, triggerApplicationAiDatasetExport, triggerApplicationVideoDimensionBackfill, updateApplicationSettings } from '@/api/applicationSettingsApi';
 import { useToastStore } from '@/stores/toastStore';
 import { computed, onMounted, reactive, ref } from 'vue';
 const EMPTY_OPTION = '';
@@ -14,6 +14,11 @@ const backupError = ref('');
 const aiDatasetExportInProgress = ref(false);
 const aiDatasetExportResult = ref(null);
 const aiDatasetExportError = ref('');
+const videoDimensionBackfillInProgress = ref(false);
+const videoDimensionBackfillDryRun = ref(true);
+const videoDimensionBackfillLimit = ref('');
+const videoDimensionBackfillRun = ref(null);
+const videoDimensionBackfillError = ref('');
 const dropdowns = reactive({
     centers: [],
     processors: [],
@@ -83,6 +88,20 @@ const aiDatasetExportMessage = computed(() => {
     }
     return '';
 });
+const videoDimensionBackfillMessage = computed(() => {
+    if (videoDimensionBackfillError.value)
+        return videoDimensionBackfillError.value;
+    const run = videoDimensionBackfillRun.value;
+    if (!run)
+        return '';
+    if (run.error)
+        return run.error;
+    if (!run.result)
+        return `Lauf gestartet: ${run.status}`;
+    const repaired = run.result.summary.repaired ?? 0;
+    const wouldRepair = run.result.summary.would_repair ?? run.result.summary.wouldRepair ?? 0;
+    return `Lauf ${run.status}: ${run.result.count} Videos geprüft, ${repaired} repariert, ${wouldRepair} würden repariert.`;
+});
 const isDirty = computed(() => {
     if (!currentSettings.value)
         return false;
@@ -128,6 +147,7 @@ async function loadSettings() {
         backupError.value = '';
         aiDatasetExportResult.value = null;
         aiDatasetExportError.value = '';
+        videoDimensionBackfillError.value = '';
     }
     catch (error) {
         console.error('Failed to load application settings:', error);
@@ -157,6 +177,32 @@ async function saveSettings() {
     }
     finally {
         saving.value = false;
+    }
+}
+async function runVideoDimensionBackfill() {
+    videoDimensionBackfillInProgress.value = true;
+    videoDimensionBackfillError.value = '';
+    videoDimensionBackfillRun.value = null;
+    const limit = String(videoDimensionBackfillLimit.value ?? '').trim();
+    try {
+        const result = await triggerApplicationVideoDimensionBackfill({
+            dryRun: videoDimensionBackfillDryRun.value,
+            limit: limit ? Number(limit) : null
+        });
+        videoDimensionBackfillRun.value = result;
+        toast.success({ text: 'Video-Dimensionsprüfung gestartet.' });
+    }
+    catch (error) {
+        videoDimensionBackfillError.value =
+            error?.response?.data?.errors?.dryRun ||
+                error?.response?.data?.errors?.dry_run ||
+                error?.response?.data?.errors?.limit ||
+                error?.response?.data?.detail ||
+                'Video-Dimensionsprüfung konnte nicht gestartet werden.';
+        console.error('Failed to run video dimension backfill:', error);
+    }
+    finally {
+        videoDimensionBackfillInProgress.value = false;
     }
 }
 async function runBackup() {
@@ -511,6 +557,58 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.d
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
 __VLS_asFunctionalElement(__VLS_intrinsicElements.h2, __VLS_intrinsicElements.h2)({});
 __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+    ...{ class: "settings-field" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
+    type: "number",
+    min: "1",
+    ...{ class: "form-control" },
+    'data-test': "video-dimension-backfill-limit",
+    disabled: (__VLS_ctx.videoDimensionBackfillInProgress),
+    placeholder: "Alle Videos",
+});
+(__VLS_ctx.videoDimensionBackfillLimit);
+__VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+    ...{ class: "form-check mt-3" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
+    type: "checkbox",
+    ...{ class: "form-check-input" },
+    'data-test': "video-dimension-backfill-dry-run",
+    disabled: (__VLS_ctx.videoDimensionBackfillInProgress),
+});
+(__VLS_ctx.videoDimensionBackfillDryRun);
+__VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+    ...{ class: "form-check-label" },
+});
+if (__VLS_ctx.videoDimensionBackfillMessage) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "alert alert-info mt-3 mb-0" },
+        role: "alert",
+    });
+    (__VLS_ctx.videoDimensionBackfillMessage);
+}
+__VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+    ...{ onClick: (__VLS_ctx.runVideoDimensionBackfill) },
+    type: "button",
+    ...{ class: "btn btn-warning mt-3" },
+    'data-test': "run-video-dimension-backfill",
+    disabled: (__VLS_ctx.videoDimensionBackfillInProgress),
+});
+(__VLS_ctx.videoDimensionBackfillInProgress
+    ? 'Dimensionen werden geprüft…'
+    : 'Video-Dimensionsprüfung starten');
+__VLS_asFunctionalElement(__VLS_intrinsicElements.aside, __VLS_intrinsicElements.aside)({
+    ...{ class: "settings-card mt-4" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "card-header-row" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.h2, __VLS_intrinsicElements.h2)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "backup-summary" },
 });
@@ -688,6 +786,22 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElement
 /** @type {__VLS_StyleScopedClasses['settings-card']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-4']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-header-row']} */ ;
+/** @type {__VLS_StyleScopedClasses['settings-field']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-control']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-check']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-check-input']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-check-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert-info']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-warning']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['settings-card']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-4']} */ ;
+/** @type {__VLS_StyleScopedClasses['card-header-row']} */ ;
 /** @type {__VLS_StyleScopedClasses['backup-summary']} */ ;
 /** @type {__VLS_StyleScopedClasses['backup-stat']} */ ;
 /** @type {__VLS_StyleScopedClasses['backup-stat']} */ ;
@@ -733,6 +847,9 @@ const __VLS_self = (await import('vue')).defineComponent({
             backupInProgress: backupInProgress,
             backupTargetPath: backupTargetPath,
             aiDatasetExportInProgress: aiDatasetExportInProgress,
+            videoDimensionBackfillInProgress: videoDimensionBackfillInProgress,
+            videoDimensionBackfillDryRun: videoDimensionBackfillDryRun,
+            videoDimensionBackfillLimit: videoDimensionBackfillLimit,
             dropdowns: dropdowns,
             form: form,
             updatedAtLabel: updatedAtLabel,
@@ -749,10 +866,12 @@ const __VLS_self = (await import('vue')).defineComponent({
             backupAvailablePaths: backupAvailablePaths,
             backupMessage: backupMessage,
             aiDatasetExportMessage: aiDatasetExportMessage,
+            videoDimensionBackfillMessage: videoDimensionBackfillMessage,
             isDirty: isDirty,
             resetForm: resetForm,
             loadSettings: loadSettings,
             saveSettings: saveSettings,
+            runVideoDimensionBackfill: runVideoDimensionBackfill,
             runBackup: runBackup,
             runAiDatasetExport: runAiDatasetExport,
         };

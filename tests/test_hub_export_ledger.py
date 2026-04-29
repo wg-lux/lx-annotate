@@ -1,5 +1,6 @@
 from __future__ import annotations
-
+import base64
+import os
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
@@ -10,6 +11,11 @@ from lx_annotate.models import OutboundHubTransferJob
 
 
 User = get_user_model()
+
+
+TEST_MASTER_KEY = base64.urlsafe_b64encode(b"0" * 32).decode("ascii")
+
+os.environ.setdefault("LX_ANNOTATE_MASTER_KEY", TEST_MASTER_KEY)
 
 
 class OutboundHubTransferJobTests(TestCase):

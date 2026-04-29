@@ -7,6 +7,13 @@ from endoreg_db.models import Center, NetworkNode, RawPdfFile, RawPdfState
 from lx_annotate.hub.hub_export_jobs import build_hub_export_overview
 from lx_annotate.models import OutboundHubTransferJob
 
+import base64
+import os
+
+TEST_MASTER_KEY = base64.urlsafe_b64encode(b"0" * 32).decode("ascii")
+
+os.environ.setdefault("LX_ANNOTATE_MASTER_KEY", TEST_MASTER_KEY)
+
 
 class HubExportPostProcessingTests(TestCase):
     def setUp(self) -> None:

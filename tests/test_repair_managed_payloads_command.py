@@ -58,6 +58,23 @@ def test_repair_managed_payloads_skips_already_encrypted_files(
     assert "already_encrypted=1" in out.getvalue()
 
 
+def test_repair_managed_payloads_rejects_corrupt_encrypted_payload(
+    monkeypatch, repair_storage
+):
+    from lx_annotate.management.commands import repair_managed_payloads as command_mod
+
+    corrupt_path = Path(repair_storage.path("videos/corrupt.bin"))
+    corrupt_path.parent.mkdir(parents=True, exist_ok=True)
+    corrupt_payload = MAGIC + b"truncated-ciphertext"
+    corrupt_path.write_bytes(corrupt_payload)
+    monkeypatch.setattr(command_mod, "default_storage", repair_storage)
+
+    with pytest.raises(CommandError, match="Encrypted managed payload is corrupt"):
+        call_command("repair_managed_payloads")
+
+    assert corrupt_path.read_bytes() == corrupt_payload
+
+
 def test_repair_managed_payloads_fails_when_backend_is_not_encrypted(monkeypatch):
     from django.core.files.storage import FileSystemStorage
     from lx_annotate.management.commands import repair_managed_payloads as command_mod

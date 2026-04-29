@@ -12,16 +12,23 @@ from lx_annotate.storage.encrypted import EncryptedStorage
 from lx_annotate.storage.encryption import MAGIC, load_master_key
 
 
+def test_lx_storage_imports_use_endoreg_db_source_of_truth():
+    from endoreg_db.utils.encryption.encrypted import (
+        EncryptedStorage as EndoregEncryptedStorage,
+    )
+    from endoreg_db.utils.encryption.encryption import MAGIC as ENDOREG_MAGIC
+    from endoreg_db.utils.encryption.encryption import (
+        encrypt_stream as endoreg_encrypt_stream,
+    )
+    from lx_annotate.storage import encryption as lx_encryption
+
+    assert EncryptedStorage is EndoregEncryptedStorage
+    assert MAGIC is ENDOREG_MAGIC
+    assert lx_encryption.encrypt_stream is endoreg_encrypt_stream
+
+
 def _random_key() -> str:
     return base64.urlsafe_b64encode(os.urandom(32)).decode("ascii")
-
-
-@pytest.fixture
-def master_key(monkeypatch) -> bytes:
-    encoded = _random_key()
-    monkeypatch.setenv("LX_ANNOTATE_MASTER_KEY", encoded)
-    monkeypatch.delenv("LX_ANNOTATE_MASTER_KEY_FILE", raising=False)
-    return load_master_key()
 
 
 def test_encrypted_storage_round_trips_large_payload(tmp_path, master_key):  # noqa: ARG001

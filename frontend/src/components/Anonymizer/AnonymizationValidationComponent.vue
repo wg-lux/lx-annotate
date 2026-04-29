@@ -779,6 +779,7 @@ import { useAnonymizationStore, type SensitiveMeta } from '@/stores/anonymizatio
 import {useVideoStore} from '@/stores/videoStore';
 import { useToastStore } from '@/stores/toastStore';
 import { useMediaTypeStore, type MediaScope } from '@/stores/mediaTypeStore';
+import { useAuthKcStore } from '@/stores/auth_kc';
 import OutsideTimelineComponent from '@/components/Anonymizer/OutsideSegmentComponent.vue';
 import { DateConverter, DateValidator } from '@/utils/dateHelpers';
 import { buildPdfStreamUrl, buildVideoStreamUrl } from '@/utils/mediaUrls';
@@ -797,12 +798,14 @@ const { isDebug } = useDebug();
 // Store references
 const anonymizationStore = useAnonymizationStore();
 const videoStore = useVideoStore();
+const authStore = useAuthKcStore();
 // const pdfStore = usePdfStore();
 const mediaStore = useMediaTypeStore();
 
 const route = useRoute();
 const isPdf   = computed(() => mediaStore.isPdf);
 const isVideo = computed(() => mediaStore.isVideo);
+const canViewRawVideo = computed(() => authStore.isAuthenticated);
 
 function restoreLast(): { fileId?: number; scope?: MediaScope } {
   const fid = Number(sessionStorage.getItem('last:fileId') || '');
@@ -1384,7 +1387,7 @@ async function initializeCurrentItemFromRouteContext(): Promise<boolean> {
 
 // ✅ NEW: Raw video URL (original unprocessed video)
 const rawVideoSrc = computed(() => {
-  if (!isVideo.value || !currentItem.value) return undefined;
+  if (!isVideo.value || !currentItem.value || !canViewRawVideo.value) return undefined;
   return buildVideoStreamUrl(fileId, 'raw');
 });
 

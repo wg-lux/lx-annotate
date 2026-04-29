@@ -230,6 +230,60 @@
         <aside class="settings-card mt-4">
           <div class="card-header-row">
             <div>
+              <h2>Video-Dimensionen</h2>
+              <p>
+                Prüft anonymisierte Videos gegen die Rohvideo-Dimensionen und repariert Abweichungen
+                über den geschützten Storage-Pfad.
+              </p>
+            </div>
+          </div>
+
+          <label class="settings-field">
+            <span>Maximale Videos</span>
+            <input
+              v-model="videoDimensionBackfillLimit"
+              type="number"
+              min="1"
+              class="form-control"
+              data-test="video-dimension-backfill-limit"
+              :disabled="videoDimensionBackfillInProgress"
+              placeholder="Alle Videos"
+            />
+          </label>
+
+          <label class="form-check mt-3">
+            <input
+              v-model="videoDimensionBackfillDryRun"
+              type="checkbox"
+              class="form-check-input"
+              data-test="video-dimension-backfill-dry-run"
+              :disabled="videoDimensionBackfillInProgress"
+            />
+            <span class="form-check-label">Nur prüfen, nicht reparieren</span>
+          </label>
+
+          <div v-if="videoDimensionBackfillMessage" class="alert alert-info mt-3 mb-0" role="alert">
+            {{ videoDimensionBackfillMessage }}
+          </div>
+
+          <button
+            type="button"
+            class="btn btn-warning mt-3"
+            data-test="run-video-dimension-backfill"
+            :disabled="videoDimensionBackfillInProgress"
+            @click="runVideoDimensionBackfill"
+          >
+            {{
+              videoDimensionBackfillInProgress
+                ? 'Dimensionen werden geprüft…'
+                : 'Video-Dimensionsprüfung starten'
+            }}
+          </button>
+        </aside>
+
+        <aside class="settings-card mt-4">
+          <div class="card-header-row">
+            <div>
               <h2>KI-Datensatzexport</h2>
               <p>
                 Exportiert den aktuell ausgewählten Datensatz als standardisierte JSON-Datei in den
@@ -342,9 +396,11 @@ import {
   fetchApplicationSettingsDropdowns,
   triggerApplicationBackup,
   triggerApplicationAiDatasetExport,
+  triggerApplicationVideoDimensionBackfill,
   updateApplicationSettings,
   type ApplicationBackupResult,
   type ApplicationAiDatasetExportResult,
+  type ApplicationVideoDimensionBackfillRun,
   type ApplicationSettingsDropdowns,
   type ApplicationSettingsRecord
 } from '@/api/applicationSettingsApi'
@@ -366,6 +422,11 @@ const backupError = ref('')
 const aiDatasetExportInProgress = ref(false)
 const aiDatasetExportResult = ref<ApplicationAiDatasetExportResult | null>(null)
 const aiDatasetExportError = ref('')
+const videoDimensionBackfillInProgress = ref(false)
+const videoDimensionBackfillDryRun = ref(true)
+const videoDimensionBackfillLimit = ref('')
+const videoDimensionBackfillRun = ref<ApplicationVideoDimensionBackfillRun | null>(null)
+const videoDimensionBackfillError = ref('')
 
 const dropdowns = reactive<ApplicationSettingsDropdowns>({
   centers: [],
@@ -442,6 +503,18 @@ const aiDatasetExportMessage = computed(() => {
   return ''
 })
 
+const videoDimensionBackfillMessage = computed(() => {
+  if (videoDimensionBackfillError.value) return videoDimensionBackfillError.value
+  const run = videoDimensionBackfillRun.value
+  if (!run) return ''
+  if (run.error) return run.error
+  if (!run.result) return `Lauf gestartet: ${run.status}`
+
+  const repaired = run.result.summary.repaired ?? 0
+  const wouldRepair = run.result.summary.would_repair ?? run.result.summary.wouldRepair ?? 0
+  return `Lauf ${run.status}: ${run.result.count} Videos geprüft, ${repaired} repariert, ${wouldRepair} würden repariert.`
+})
+
 const isDirty = computed(() => {
   if (!currentSettings.value) return false
 
@@ -493,6 +566,7 @@ async function loadSettings() {
     backupError.value = ''
     aiDatasetExportResult.value = null
     aiDatasetExportError.value = ''
+    videoDimensionBackfillError.value = ''
   } catch (error) {
     console.error('Failed to load application settings:', error)
     errorMessage.value =
@@ -521,6 +595,33 @@ async function saveSettings() {
     console.error('Failed to save application settings:', error)
   } finally {
     saving.value = false
+  }
+}
+
+async function runVideoDimensionBackfill() {
+  videoDimensionBackfillInProgress.value = true
+  videoDimensionBackfillError.value = ''
+  videoDimensionBackfillRun.value = null
+
+  const limit = String(videoDimensionBackfillLimit.value ?? '').trim()
+
+  try {
+    const result = await triggerApplicationVideoDimensionBackfill({
+      dryRun: videoDimensionBackfillDryRun.value,
+      limit: limit ? Number(limit) : null
+    })
+    videoDimensionBackfillRun.value = result
+    toast.success({ text: 'Video-Dimensionsprüfung gestartet.' })
+  } catch (error: any) {
+    videoDimensionBackfillError.value =
+      error?.response?.data?.errors?.dryRun ||
+      error?.response?.data?.errors?.dry_run ||
+      error?.response?.data?.errors?.limit ||
+      error?.response?.data?.detail ||
+      'Video-Dimensionsprüfung konnte nicht gestartet werden.'
+    console.error('Failed to run video dimension backfill:', error)
+  } finally {
+    videoDimensionBackfillInProgress.value = false
   }
 }
 

@@ -285,6 +285,7 @@ export declare const useReportingFlowStore: import("pinia").StoreDefinition<"rep
         latestReport: {
             mediaType: string;
             id: number;
+            rawPdfId?: number | null | undefined;
             patientExaminationId: number | null;
             anonymizedText: string | null;
             documentType: string | null;
@@ -323,6 +324,7 @@ export declare const useReportingFlowStore: import("pinia").StoreDefinition<"rep
         latestReport: {
             mediaType: string;
             id: number;
+            rawPdfId?: number | null | undefined;
             patientExaminationId: number | null;
             anonymizedText: string | null;
             documentType: string | null;
@@ -683,6 +685,7 @@ export declare const useReportingFlowStore: import("pinia").StoreDefinition<"rep
         latestReport: {
             mediaType: string;
             id: number;
+            rawPdfId?: number | null | undefined;
             patientExaminationId: number | null;
             anonymizedText: string | null;
             documentType: string | null;
@@ -721,6 +724,7 @@ export declare const useReportingFlowStore: import("pinia").StoreDefinition<"rep
         latestReport: {
             mediaType: string;
             id: number;
+            rawPdfId?: number | null | undefined;
             patientExaminationId: number | null;
             anonymizedText: string | null;
             documentType: string | null;
@@ -1081,6 +1085,7 @@ export declare const useReportingFlowStore: import("pinia").StoreDefinition<"rep
         latestReport: {
             mediaType: string;
             id: number;
+            rawPdfId?: number | null | undefined;
             patientExaminationId: number | null;
             anonymizedText: string | null;
             documentType: string | null;
@@ -1119,6 +1124,7 @@ export declare const useReportingFlowStore: import("pinia").StoreDefinition<"rep
         latestReport: {
             mediaType: string;
             id: number;
+            rawPdfId?: number | null | undefined;
             patientExaminationId: number | null;
             anonymizedText: string | null;
             documentType: string | null;

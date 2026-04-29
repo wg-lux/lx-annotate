@@ -65,6 +65,33 @@ export interface ApplicationBackupResult {
         fileCount: number;
     }>;
 }
+export interface ApplicationVideoDimensionBackfillPayload {
+    dryRun?: boolean;
+    limit?: number | null;
+}
+export interface ApplicationVideoDimensionBackfillRun {
+    runId: string;
+    status: 'queued' | 'running' | 'completed' | 'failed';
+    dryRun: boolean;
+    limit: number | null;
+    createdAt: string;
+    startedAt: string | null;
+    finishedAt: string | null;
+    result: {
+        count: number;
+        summary: Record<string, number>;
+        items: Array<{
+            videoId: number | null;
+            status: string;
+            sourceDimensions: number[];
+            processedDimensions: number[];
+            repaired: boolean;
+            detail: string;
+        }>;
+    } | null;
+    error: string | null;
+    stdout: string;
+}
 export interface ApplicationAiDatasetExportPayload {
     aiDatasetName?: string;
     aiDatasetType?: string;
@@ -88,3 +115,5 @@ export declare function updateApplicationSettings(payload: ApplicationSettingsUp
 export declare function fetchApplicationSettingsDropdowns(): Promise<ApplicationSettingsDropdowns>;
 export declare function triggerApplicationBackup(payload: ApplicationBackupPayload): Promise<ApplicationBackupResult>;
 export declare function triggerApplicationAiDatasetExport(payload: ApplicationAiDatasetExportPayload): Promise<ApplicationAiDatasetExportResult>;
+export declare function triggerApplicationVideoDimensionBackfill(payload: ApplicationVideoDimensionBackfillPayload): Promise<ApplicationVideoDimensionBackfillRun>;
+export declare function fetchApplicationVideoDimensionBackfillRun(runId: string): Promise<ApplicationVideoDimensionBackfillRun>;

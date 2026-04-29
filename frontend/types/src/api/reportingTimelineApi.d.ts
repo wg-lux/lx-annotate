@@ -13,6 +13,7 @@ export type TimelinePatient = {
 export type TimelineLatestReport = {
     mediaType: 'pdf' | 'full_report' | string;
     id: number;
+    rawPdfId?: number | null;
     patientExaminationId: number | null;
     anonymizedText: string | null;
     documentType: string | null;

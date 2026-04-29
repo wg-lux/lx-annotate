@@ -7,7 +7,10 @@ const { flowStore, buildPdfStreamUrl, buildVideoStreamUrl, } = vi.hoisted(() => 
         mediaPreloadError: null,
         mediaPreload: {
             latestReport: {
-                id: 12,
+                id: 99,
+                rawPdfId: 12,
+                anonymizedText: 'Extracted anonymized report text',
+                documentType: 'colonoscopy',
                 streamOptions: [
                     { type: 'raw', url: '/backend/report/raw' },
                     { type: 'processed', url: '/backend/report/processed' },
@@ -41,7 +44,10 @@ describe('ReportingMediaPreviewCards', () => {
         flowStore.mediaPreloadError = null;
         flowStore.mediaPreload = {
             latestReport: {
-                id: 12,
+                id: 99,
+                rawPdfId: 12,
+                anonymizedText: 'Extracted anonymized report text',
+                documentType: 'colonoscopy',
                 streamOptions: [
                     { type: 'raw', url: '/backend/report/raw' },
                     { type: 'processed', url: '/backend/report/processed' },
@@ -77,6 +83,11 @@ describe('ReportingMediaPreviewCards', () => {
         expect(openSpy).toHaveBeenCalledWith('/rebuilt/pdfs/12/processed', '_blank', 'noopener,noreferrer');
         expect(openSpy).toHaveBeenCalledWith('/rebuilt/videos/34/raw', '_blank', 'noopener,noreferrer');
         expect(openSpy).toHaveBeenCalledWith('/rebuilt/videos/34/processed', '_blank', 'noopener,noreferrer');
+    });
+    it('renders extracted report text in the preview card', () => {
+        const wrapper = mount(ReportingMediaPreviewCards);
+        expect(wrapper.text()).toContain('Text extraction');
+        expect(wrapper.text()).toContain('Extracted anonymized report text');
     });
     it('preserves nonstandard preload stream options unchanged', async () => {
         const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);

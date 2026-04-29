@@ -16,6 +16,12 @@ from lx_annotate.hub.hub_export_payloads import (
     validate_transfer_payload,
 )
 from lx_annotate.models import OutboundHubTransferJob
+import base64
+import os
+
+TEST_MASTER_KEY = base64.urlsafe_b64encode(b"0" * 32).decode("ascii")
+
+os.environ.setdefault("LX_ANNOTATE_MASTER_KEY", TEST_MASTER_KEY)
 
 
 class HubExportPayloadTests(TestCase):

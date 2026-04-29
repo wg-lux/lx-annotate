@@ -62,11 +62,14 @@ def test_file_on_disk_is_actually_encrypted(encrypted_storage, tmp_path):
     )
 
 
-def test_missing_master_key_raises_error(tmp_path):
+def test_missing_master_key_raises_error(tmp_path, monkeypatch):
     """
     CONFIGURATION CONTRACT: The storage backend must fail fast and hard if
     initialized without a master KEK. It should never default to plaintext.
     """
+    monkeypatch.delenv("LX_ANNOTATE_MASTER_KEY", raising=False)
+    monkeypatch.delenv("LX_ANNOTATE_MASTER_KEY_FILE", raising=False)
+
     with pytest.raises((ImproperlyConfigured, ValueError)):
         # Attempting to initialize without passing master_key (or setting the env var)
         EncryptedStorage(location=str(tmp_path), master_key=None)

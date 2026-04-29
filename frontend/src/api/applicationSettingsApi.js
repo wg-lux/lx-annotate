@@ -7,6 +7,7 @@ const SETTINGS_REPORT_TEMPLATES_PATH = 'settings/application/dropdowns/report_te
 const SETTINGS_AI_DATASETS_PATH = 'settings/application/dropdowns/ai_datasets/';
 const SETTINGS_AI_DATASET_EXPORT_PATH = 'settings/application/ai_dataset_export/';
 const SETTINGS_BACKUP_PATH = 'settings/application/backup/';
+const SETTINGS_VIDEO_DIMENSION_BACKFILL_RUNS_PATH = 'settings/application/video_dimension_backfill/runs/';
 export async function fetchApplicationSettings() {
     const { data } = await axiosInstance.get(r(SETTINGS_DETAIL_PATH));
     return data;
@@ -37,5 +38,13 @@ export async function triggerApplicationBackup(payload) {
 }
 export async function triggerApplicationAiDatasetExport(payload) {
     const { data } = await axiosInstance.post(r(SETTINGS_AI_DATASET_EXPORT_PATH), payload);
+    return data;
+}
+export async function triggerApplicationVideoDimensionBackfill(payload) {
+    const { data } = await axiosInstance.post(r(SETTINGS_VIDEO_DIMENSION_BACKFILL_RUNS_PATH), payload);
+    return data;
+}
+export async function fetchApplicationVideoDimensionBackfillRun(runId) {
+    const { data } = await axiosInstance.get(r(`${SETTINGS_VIDEO_DIMENSION_BACKFILL_RUNS_PATH}${runId}/`));
     return data;
 }

@@ -62,6 +62,13 @@ class Command(BaseCommand):
 
             relative_name = path.relative_to(root).as_posix()
             if storage.is_encrypted(relative_name):
+                try:
+                    storage.get_plaintext_size(relative_name)
+                except Exception as exc:
+                    raise CommandError(
+                        "Encrypted managed payload is corrupt and was not repaired: "
+                        f"{relative_name}: {exc}"
+                    ) from exc
                 already_encrypted += 1
                 continue
 

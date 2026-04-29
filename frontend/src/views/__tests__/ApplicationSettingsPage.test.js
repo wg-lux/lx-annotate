@@ -7,6 +7,7 @@ const hoisted = vi.hoisted(() => ({
     updateApplicationSettings: vi.fn(),
     triggerApplicationBackup: vi.fn(),
     triggerApplicationAiDatasetExport: vi.fn(),
+    triggerApplicationVideoDimensionBackfill: vi.fn(),
     toastSuccess: vi.fn()
 }));
 vi.mock('@/api/applicationSettingsApi', () => ({
@@ -14,7 +15,8 @@ vi.mock('@/api/applicationSettingsApi', () => ({
     fetchApplicationSettingsDropdowns: hoisted.fetchApplicationSettingsDropdowns,
     updateApplicationSettings: hoisted.updateApplicationSettings,
     triggerApplicationBackup: hoisted.triggerApplicationBackup,
-    triggerApplicationAiDatasetExport: hoisted.triggerApplicationAiDatasetExport
+    triggerApplicationAiDatasetExport: hoisted.triggerApplicationAiDatasetExport,
+    triggerApplicationVideoDimensionBackfill: hoisted.triggerApplicationVideoDimensionBackfill
 }));
 vi.mock('@/stores/toastStore', () => ({
     useToastStore: () => ({
@@ -118,6 +120,31 @@ describe('ApplicationSettingsPage', () => {
                 labelCount: 0
             }
         });
+        hoisted.triggerApplicationVideoDimensionBackfill.mockResolvedValue({
+            runId: 'run-1',
+            status: 'completed',
+            dryRun: true,
+            limit: 5,
+            createdAt: '2026-04-29T12:00:00Z',
+            startedAt: '2026-04-29T12:00:01Z',
+            finishedAt: '2026-04-29T12:00:02Z',
+            result: {
+                count: 1,
+                summary: { would_repair: 1 },
+                items: [
+                    {
+                        videoId: 123,
+                        status: 'would_repair',
+                        sourceDimensions: [1920, 1080],
+                        processedDimensions: [1440, 1080],
+                        repaired: false,
+                        detail: ''
+                    }
+                ]
+            },
+            error: null,
+            stdout: ''
+        });
     });
     it('loads the current defaults and saves updated selections', async () => {
         const wrapper = mount(ApplicationSettingsPage);
@@ -180,6 +207,21 @@ describe('ApplicationSettingsPage', () => {
         });
         expect(hoisted.toastSuccess).toHaveBeenCalledWith({
             text: 'KI-Datensatz erfolgreich exportiert.'
+        });
+    });
+    it('starts the video dimension backfill from application settings', async () => {
+        const wrapper = mount(ApplicationSettingsPage);
+        await flushPromises();
+        await wrapper.get('[data-test=\"video-dimension-backfill-limit\"]').setValue('5');
+        await wrapper.get('[data-test=\"run-video-dimension-backfill\"]').trigger('click');
+        await flushPromises();
+        expect(hoisted.triggerApplicationVideoDimensionBackfill).toHaveBeenCalledWith({
+            dryRun: true,
+            limit: 5
+        });
+        expect(wrapper.text()).toContain('1 Videos geprüft');
+        expect(hoisted.toastSuccess).toHaveBeenCalledWith({
+            text: 'Video-Dimensionsprüfung gestartet.'
         });
     });
 });
