@@ -1,0 +1,758 @@
+<!doctype html>
+<html class="no-js" lang="en" data-content_root="../">
+  <head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="index" title="Index" href="../genindex.html"><link rel="search" title="Search" href="../search.html"><link rel="next" title="Reporting Template &amp; Requirement Sets Page (TemplateRequirementsPage)" href="../assisted-reporting-report.html"><link rel="prev" title="Frontend Asset Deployment Contract" href="asset-deployment.html">
+
+    <!-- Generated with Sphinx 8.2.3 and Furo 2025.12.19 -->
+        <title>Wheel Deployment - lx-annotate Documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=d111a655" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?v=7bdb33bb" />
+    <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo-extensions.css?v=8dab3a3b" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #f2f2f2;
+  --color-code-foreground: #1e1e1e;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-with-moon" viewBox="0 0 24 24">
+    <title>Auto light/dark, in light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path style="opacity: 50%" d="M 5.411 14.504 C 5.471 14.504 5.532 14.504 5.591 14.504 C 3.639 16.319 4.383 19.569 6.931 20.352 C 7.693 20.586 8.512 20.551 9.25 20.252 C 8.023 23.207 4.056 23.725 2.11 21.184 C 0.166 18.642 1.702 14.949 4.874 14.536 C 5.051 14.512 5.231 14.5 5.411 14.5 L 5.411 14.504 Z"/>
+      <line x1="14.5" y1="3.25" x2="14.5" y2="1.25"/>
+      <line x1="14.5" y1="15.85" x2="14.5" y2="17.85"/>
+      <line x1="10.044" y1="5.094" x2="8.63" y2="3.68"/>
+      <line x1="19" y1="14.05" x2="20.414" y2="15.464"/>
+      <line x1="8.2" y1="9.55" x2="6.2" y2="9.55"/>
+      <line x1="20.8" y1="9.55" x2="22.8" y2="9.55"/>
+      <line x1="10.044" y1="14.006" x2="8.63" y2="15.42"/>
+      <line x1="19" y1="5.05" x2="20.414" y2="3.636"/>
+      <circle cx="14.5" cy="9.55" r="3.6"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon-with-sun" viewBox="0 0 24 24">
+    <title>Auto light/dark, in dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path d="M 8.282 7.007 C 8.385 7.007 8.494 7.007 8.595 7.007 C 5.18 10.184 6.481 15.869 10.942 17.24 C 12.275 17.648 13.706 17.589 15 17.066 C 12.851 22.236 5.91 23.143 2.505 18.696 C -0.897 14.249 1.791 7.786 7.342 7.063 C 7.652 7.021 7.965 7 8.282 7 L 8.282 7.007 Z"/>
+      <line style="opacity: 50%" x1="18" y1="3.705" x2="18" y2="2.5"/>
+      <line style="opacity: 50%" x1="18" y1="11.295" x2="18" y2="12.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="4.816" x2="14.464" y2="3.964"/>
+      <line style="opacity: 50%" x1="20.711" y1="10.212" x2="21.563" y2="11.063"/>
+      <line style="opacity: 50%" x1="14.205" y1="7.5" x2="13.001" y2="7.5"/>
+      <line style="opacity: 50%" x1="21.795" y1="7.5" x2="23" y2="7.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="10.184" x2="14.464" y2="11.036"/>
+      <line style="opacity: 50%" x1="20.711" y1="4.789" x2="21.563" y2="3.937"/>
+      <circle style="opacity: 50%" cx="18" cy="7.5" r="2.169"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-pencil" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-pencil-code">
+      <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
+      <path d="M13.5 6.5l4 4" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+  <symbol id="svg-eye" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-eye-code">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+      <path
+        d="M11.11 17.958c-3.209 -.307 -5.91 -2.293 -8.11 -5.958c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6c-.21 .352 -.427 .688 -.647 1.008" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation" aria-label="Toggle site navigation sidebar">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc" aria-label="Toggle table of contents sidebar">
+<label class="overlay sidebar-overlay" for="__navigation"></label>
+<label class="overlay toc-overlay" for="__toc"></label>
+
+<a class="skip-to-content muted-link" href="#furo-main-content">Skip to content</a>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <span class="icon"><svg><use href="#svg-menu"></use></svg></span>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="../index.html"><div class="brand">lx-annotate Documentation</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+          <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+          <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+        <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="../index.html">
+  
+  <span class="sidebar-brand-text">lx-annotate Documentation</span>
+  
+</a><form class="sidebar-search-container" method="get" action="../search.html" role="search">
+  <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  <p class="caption" role="heading"><span class="caption-text">Guides</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="general-documentation.html">General Documentation Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="deployment-strategy.html">Deployment Strategy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="encrypted-storage-process.html">Encrypted Storage Process</a></li>
+<li class="toctree-l1"><a class="reference internal" href="asset-deployment.html">Frontend Asset Deployment Contract</a></li>
+<li class="toctree-l1 current current-page"><a class="current reference internal" href="#">Wheel Deployment</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../assisted-reporting-report.html">Reporting Template &amp; Requirement Sets Page (TemplateRequirementsPage)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="segment-annotation-workflow.html">Segment Annotation Workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="anonymization-validation-correction-workflow.html">Anonymization Validation and Correction Workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dates-and-times.html">1. Always Use Strong Typing (Not Strings)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dates-and-times.html#enforce-timezone-awareness-crucial">2. Enforce Timezone Awareness (Crucial)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dates-and-times.html#stick-to-iso-8601-standards">3. Stick to ISO 8601 Standards</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dates-and-times.html#validating-business-logic-past-future">4. Validating Business Logic (Past/Future)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dates-and-times.html#handling-now-and-defaults">5. Handling “Now” and Defaults</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dates-and-times.html#serialization-json-output">6. Serialization (JSON Output)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dates-and-times.html#summary-checklist">Summary Checklist</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dates-and-times.html#example-putting-it-all-together">7. Example: Putting it all together</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dates-and-times.html#next-step">Next Step</a></li>
+<li class="toctree-l1"><a class="reference internal" href="pydantic-cheatsheet.html">Pydantic V2 Cheat Sheet</a></li>
+<li class="toctree-l1"><a class="reference internal" href="reporting-template-requirements-page.html">Reporting Template &amp; Requirement Sets Page (TemplateRequirementsPage)</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../api/index.html">API Reference</a></li>
+</ul>
+
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          <div class="view-this-page">
+  <a class="muted-link" href="../_sources/guides/wheel-deployment.md.txt" title="View this page">
+    <svg><use href="#svg-eye"></use></svg>
+    <span class="visually-hidden">View this page</span>
+  </a>
+</div>
+<div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+              <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+              <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+            <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+          </label>
+        </div>
+        <article role="main" id="furo-main-content">
+          <section id="wheel-deployment">
+<h1>Wheel Deployment<a class="headerlink" href="#wheel-deployment" title="Link to this heading">¶</a></h1>
+<p>This guide documents the production deployment path for <code class="docutils literal notranslate"><span class="pre">lx-annotate</span></code> when the
+application is built in CI as a Python wheel with frontend staticfiles included.</p>
+<section id="scope">
+<h2>Scope<a class="headerlink" href="#scope" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>CI builds the frontend with Node.js and packages the result with <code class="docutils literal notranslate"><span class="pre">hatchling</span></code>.</p></li>
+<li><p>Production installs the wheel into a regular Python virtualenv.</p></li>
+<li><p>Production still needs host-level binaries for media and OCR workloads.</p></li>
+</ul>
+</section>
+<section id="host-packages">
+<h2>Host Packages<a class="headerlink" href="#host-packages" title="Link to this heading">¶</a></h2>
+<p>For Debian/Ubuntu hosts:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>sudo<span class="w"> </span>./deploy/bootstrap-host.sh
+</pre></div>
+</div>
+<p>That script installs:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">python3</span></code>, <code class="docutils literal notranslate"><span class="pre">python3-venv</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">ffmpeg</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">tesseract-ocr</span></code>, <code class="docutils literal notranslate"><span class="pre">tesseract-ocr-eng</span></code>, <code class="docutils literal notranslate"><span class="pre">tesseract-ocr-deu</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">libgl1</span></code>, <code class="docutils literal notranslate"><span class="pre">libglib2.0-0</span></code>, <code class="docutils literal notranslate"><span class="pre">libxcb1</span></code></p></li>
+</ul>
+<p>The extra shared libraries match the runtime expectations currently modeled in
+<code class="docutils literal notranslate"><span class="pre">devenv.nix</span></code> and the CI workflow.</p>
+<p>Because these host binaries come from the OS package manager rather than Nix,
+minor package drift is now an operational concern. Treat FFmpeg and Tesseract
+updates as deployment changes: review them, pin or hold them if needed, and
+update <code class="docutils literal notranslate"><span class="pre">deploy/bootstrap-host.sh</span></code> whenever runtime dependencies change.</p>
+</section>
+<section id="runtime-contract">
+<h2>Runtime Contract<a class="headerlink" href="#runtime-contract" title="Link to this heading">¶</a></h2>
+<p>Create <code class="docutils literal notranslate"><span class="pre">/var/lib/lx-annotate/.env.systemd</span></code> from
+<code class="docutils literal notranslate"><span class="pre">deploy/.env.systemd.example</span></code> and set real values for:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">DJANGO_SECRET_KEY</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">DJANGO_DB_*</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">OIDC_RP_CLIENT_SECRET</span></code></p></li>
+<li><p>host/origin values such as <code class="docutils literal notranslate"><span class="pre">BASE_URL</span></code>, <code class="docutils literal notranslate"><span class="pre">DJANGO_ALLOWED_HOSTS</span></code>,
+<code class="docutils literal notranslate"><span class="pre">DJANGO_CSRF_TRUSTED_ORIGINS</span></code>, and <code class="docutils literal notranslate"><span class="pre">DJANGO_CORS_ALLOWED_ORIGINS</span></code></p></li>
+</ul>
+<p>Keep these runtime values explicitly defined:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">TESSDATA_PREFIX=/usr/share/tesseract-ocr/5/tessdata</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">PYTORCH_ALLOC_CONF=expandable_segments:True</span></code></p></li>
+</ul>
+<p>Set deployment role explicitly:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">ENDOREG_DEPLOYMENT_ROLE=central_hub|site_node|standalone</span></code></p></li>
+</ul>
+<p>Role matrix:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">standalone</span></code>: local deployment behavior</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">site_node</span></code>: networked node behavior without central receiver policy</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">central_hub</span></code>: strict ingest + transfer receiver profile</p></li>
+</ul>
+<p>Keep secret-bearing values in <code class="docutils literal notranslate"><span class="pre">.env.systemd</span></code> only. Do not add shell tracing
+such as <code class="docutils literal notranslate"><span class="pre">set</span> <span class="pre">-x</span></code> to deployment scripts or service wrappers, and restrict <code class="docutils literal notranslate"><span class="pre">journalctl</span></code> access to trusted operators on the host.</p>
+<p>The runtime layout is intentionally split:</p>
+<ul class="simple">
+<li><p>code and virtualenv under the service user home</p></li>
+<li><p>data, staticfiles, and <code class="docutils literal notranslate"><span class="pre">.env.systemd</span></code> under <code class="docutils literal notranslate"><span class="pre">/var/lib/lx-annotate</span></code></p></li>
+</ul>
+<p>This split is required for encrypted data storage and tighter filesystem access
+control around patient data.</p>
+<p>Use <code class="docutils literal notranslate"><span class="pre">LX_ANNOTATE_ENCRYPTED_DATA_DIR</span></code> as the canonical runtime variable for the
+protected data mount. The current code and LuxNix wrappers still export
+<code class="docutils literal notranslate"><span class="pre">LX_ANNOTATE_DATA_DIR</span></code> as a compatibility alias for older code paths, so treat
+the environment as transitional rather than fully cleaned up.</p>
+<p>The path-variable contract is:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">LX_ANNOTATE_ENCRYPTED_DATA_DIR</span></code>: canonical protected runtime root.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">LX_ANNOTATE_DATA_DIR</span></code>: compatibility alias for the same root.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">DATA_DIR</span></code>: legacy compatibility alias for the same root.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">STORAGE_DIR</span></code>: managed storage subtree, normally
+<code class="docutils literal notranslate"><span class="pre">${LX_ANNOTATE_ENCRYPTED_DATA_DIR}/storage</span></code>.</p></li>
+</ul>
+<p>For new deployment code and operator docs, prefer
+<code class="docutils literal notranslate"><span class="pre">LX_ANNOTATE_ENCRYPTED_DATA_DIR</span></code> and describe the others relative to it.</p>
+<p>The application should not generate or manage encryption keys itself. A
+dedicated LuxNix service or external KMS/secrets system should own key
+management and unlock policy.</p>
+</section>
+<section id="ingress-contract">
+<h2>Ingress Contract<a class="headerlink" href="#ingress-contract" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">lx-annotate</span></code> supports two first-class ingest boundaries:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">api</span></code>: authenticated remote upload intake through <code class="docutils literal notranslate"><span class="pre">/api/upload/</span></code></p></li>
+</ul>
+<p>Both boundaries now converge on the shared <code class="docutils literal notranslate"><span class="pre">endoreg_db.services.hub</span></code> ingest services
+and create <code class="docutils literal notranslate"><span class="pre">UploadJob</span></code> records with normalized provenance. The watcher
+is not a separate import stack anymore; it is a boundary adapter over the same
+core ingest contract.</p>
+<p>Hub-mode policy is intentionally asymmetric:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">watcher</span></code> may keep default-center behavior for trusted local drop zones</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">api</span></code> in <code class="docutils literal notranslate"><span class="pre">ENDOREG_DEPLOYMENT_ROLE=central_hub</span></code> requires authenticated callers and declared
+<code class="docutils literal notranslate"><span class="pre">center_key</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">/api/upload/</span></code> is the primary hub boundary</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">/api/media/hub/transfers/</span></code> is the secondary boundary in <code class="docutils literal notranslate"><span class="pre">central_hub</span></code> role</p></li>
+</ul>
+<p>For <code class="docutils literal notranslate"><span class="pre">ENDOREG_DEPLOYMENT_ROLE=central_hub</span></code>:</p>
+<ul class="simple">
+<li><p>API uploads must be authenticated</p></li>
+<li><p>API uploads must declare <code class="docutils literal notranslate"><span class="pre">center_key</span></code> and do not use default-center fallback</p></li>
+<li><p>production deployments must use a non-SQLite database</p></li>
+</ul>
+<p>For production hub deployments, operators should assume that incorrect center
+resolution is a clinical data-isolation failure. Treat <code class="docutils literal notranslate"><span class="pre">center_key</span></code> as the only
+machine-facing center identifier in automation and integrations.</p>
+</section>
+<section id="storage-recommendations">
+<h2>Storage Recommendations<a class="headerlink" href="#storage-recommendations" title="Link to this heading">¶</a></h2>
+<p>Use filesystem-level encryption as the default for large media assets,
+especially videos. For <code class="docutils literal notranslate"><span class="pre">lx-annotate</span></code>, the preferred production pattern is an
+encrypted-at-rest filesystem or block device such as LUKS/dm-crypt, with Django
+responsible for authentication and authorization only. After access is
+approved, hand the file off to Nginx via <code class="docutils literal notranslate"><span class="pre">X-Accel-Redirect</span></code> so Nginx can serve
+the asset directly with native byte-range support and efficient kernel-backed
+I/O.</p>
+<p>Application-level encrypted storage should be reserved for smaller,
+higher-sensitivity artifacts where per-file cryptographic control is worth the
+runtime cost. Examples include reports, exports, metadata bundles, and other
+low-bandwidth payloads. Do not treat application-level encryption as the
+preferred path for video streaming workloads, because it forces userspace
+decryption and proxying through Django, which disables the normal Nginx fast
+path and materially increases CPU, latency, and memory pressure under
+concurrent range requests.</p>
+<p>Operational guidance:</p>
+<ul class="simple">
+<li><p>use LUKS/dm-crypt or equivalent filesystem or block-device encryption for
+video and media roots</p></li>
+<li><p>keep Django as the policy gate for protected media access</p></li>
+<li><p>prefer <code class="docutils literal notranslate"><span class="pre">X-Accel-Redirect</span></code> for authorized video delivery through Nginx</p></li>
+<li><p>use application-layer encrypted storage only where fine-grained crypto
+controls are required and throughput is not the primary constraint</p></li>
+<li><p>keep <code class="docutils literal notranslate"><span class="pre">STORAGE_DIR</span></code> inside the protected
+<code class="docutils literal notranslate"><span class="pre">LX_ANNOTATE_ENCRYPTED_DATA_DIR</span></code> root</p></li>
+<li><p>for hub deployments, use durable shared or object-backed storage semantics
+for managed media and upload artifacts; node-local ephemeral disks are not
+sufficient</p></li>
+</ul>
+</section>
+<section id="hub-deployment-profile">
+<h2>Hub Deployment Profile<a class="headerlink" href="#hub-deployment-profile" title="Link to this heading">¶</a></h2>
+<p>For <code class="docutils literal notranslate"><span class="pre">ENDOREG_DEPLOYMENT_ROLE=central_hub</span></code>, the minimum deployment contract is:</p>
+<ul class="simple">
+<li><p>PostgreSQL or another durable multi-user production database</p></li>
+<li><p>explicit <code class="docutils literal notranslate"><span class="pre">DJANGO_DB_*</span></code> configuration or <code class="docutils literal notranslate"><span class="pre">DATABASE_URL</span></code></p></li>
+<li><p>explicit <code class="docutils literal notranslate"><span class="pre">LX_ANNOTATE_ENCRYPTED_DATA_DIR</span></code></p></li>
+<li><p>encrypted managed storage enabled</p></li>
+<li><p>authenticated API access before exposing <code class="docutils literal notranslate"><span class="pre">/api/upload/</span></code></p></li>
+<li><p>center-scoped operational monitoring and log retention</p></li>
+</ul>
+<p>SQLite is not an acceptable hub database. A single-host dev profile can still
+use SQLite, but a shared hub deployment must not.</p>
+</section>
+<section id="secure-hub-transfer">
+<h2>Secure Hub Transfer<a class="headerlink" href="#secure-hub-transfer" title="Link to this heading">¶</a></h2>
+<p>If the deployment enables <code class="docutils literal notranslate"><span class="pre">/api/media/hub/transfers/</span></code>, treat it as a stricter
+boundary than <code class="docutils literal notranslate"><span class="pre">/api/upload/</span></code>.</p>
+<p>Current Phase 1 contract:</p>
+<ul class="simple">
+<li><p>secure transport is required:
+<code class="docutils literal notranslate"><span class="pre">ENDOREG_HUB_TRANSFER_REQUIRE_SECURE_TRANSPORT=true</span></code></p></li>
+<li><p>proxy-verified mTLS is required:
+<code class="docutils literal notranslate"><span class="pre">ENDOREG_HUB_TRANSFER_REQUIRE_MTLS=true</span></code></p></li>
+<li><p>Django must receive the proxy attestation through:
+<code class="docutils literal notranslate"><span class="pre">ENDOREG_HUB_TRANSFER_MTLS_META_KEY</span></code>
+and
+<code class="docutils literal notranslate"><span class="pre">ENDOREG_HUB_TRANSFER_MTLS_META_VALUE</span></code></p></li>
+</ul>
+<p>On LuxNix-managed hosts, the <code class="docutils literal notranslate"><span class="pre">lx-annotate-local</span></code> module now expresses that
+contract directly:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">hub.transferApi.enable</span> <span class="pre">=</span> <span class="pre">true</span></code> is opt-in</p></li>
+<li><p>transfer API enablement is rejected unless mTLS is enabled</p></li>
+<li><p>Nginx verifies client certificates against <code class="docutils literal notranslate"><span class="pre">hub.transferApi.clientCaFile</span></code></p></li>
+<li><p>Nginx forwards the verification result as
+<code class="docutils literal notranslate"><span class="pre">X-Client-Cert-Verified</span></code></p></li>
+</ul>
+<p>Operationally, this means:</p>
+<ul class="simple">
+<li><p>transfer intake must be behind HTTPS</p></li>
+<li><p>transfer intake must be behind Nginx client-certificate verification</p></li>
+<li><p>sender nodes must present a client certificate trusted by the configured CA</p></li>
+<li><p>plain shared-secret authentication alone is not enough for transfer-enabled
+hub deployments</p></li>
+</ul>
+<p>This is still Phase 1 of the security roadmap:</p>
+<ul class="simple">
+<li><p>transport confidentiality and node authentication are enforced through TLS
+and mTLS</p></li>
+<li><p>request authentication still uses <code class="docutils literal notranslate"><span class="pre">NetworkNode.shared_secret</span></code></p></li>
+<li><p>exported artifacts are not yet envelope-encrypted at the application layer</p></li>
+</ul>
+</section>
+<section id="deployment">
+<h2>Deployment<a class="headerlink" href="#deployment" title="Link to this heading">¶</a></h2>
+<ol class="arabic simple">
+<li><p>Copy the built wheel from CI to the server.</p></li>
+<li><p>Copy <code class="docutils literal notranslate"><span class="pre">deploy/lx-annotate.service</span></code> to <code class="docutils literal notranslate"><span class="pre">/etc/systemd/system/</span></code>.</p></li>
+<li><p>Copy <code class="docutils literal notranslate"><span class="pre">deploy/lx-annotate-watcher.service</span></code> to <code class="docutils literal notranslate"><span class="pre">/etc/systemd/system/</span></code> if the
+file watcher should run in production.</p></li>
+<li><p>Create the app user and directories:</p></li>
+</ol>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>sudo<span class="w"> </span>useradd<span class="w"> </span>--system<span class="w"> </span>--home<span class="w"> </span>/var/lib/lx-annotate<span class="w"> </span>--create-home<span class="w"> </span>lx-annotate<span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nb">true</span>
+sudo<span class="w"> </span>mkdir<span class="w"> </span>-p<span class="w"> </span>/var/lib/lx-annotate
+sudo<span class="w"> </span>chown<span class="w"> </span>-R<span class="w"> </span>lx-annotate:lx-annotate<span class="w"> </span>/var/lib/lx-annotate
+</pre></div>
+</div>
+<ol class="arabic simple" start="5">
+<li><p>Run the deployment script:</p></li>
+</ol>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>./deploy/deploy.sh<span class="w"> </span>/tmp/lx_annotate-0.0.1-py3-none-any.whl
+</pre></div>
+</div>
+<p>That script now runs <code class="docutils literal notranslate"><span class="pre">deploy/acceptance-smoke.sh</span></code> by default after the service
+restart. The smoke path verifies:</p>
+<ul class="simple">
+<li><p>Django runtime checks with the production environment</p></li>
+<li><p>encrypted-storage round-trip without plaintext on disk</p></li>
+<li><p>Nginx TLS/static handoff by fetching <code class="docutils literal notranslate"><span class="pre">/static/.vite/manifest.json</span></code></p></li>
+</ul>
+<p>Set <code class="docutils literal notranslate"><span class="pre">RUN_POST_DEPLOY_ACCEPTANCE=0</span></code> only when you need to separate rollout from
+acceptance debugging.</p>
+<ol class="arabic simple" start="6">
+<li><p>Put a reverse proxy in front of Daphne. An example Nginx server block lives
+in <code class="docutils literal notranslate"><span class="pre">deploy/nginx-lx-annotate.conf</span></code>.</p></li>
+<li><p>Enable the service:</p></li>
+</ol>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>sudo<span class="w"> </span>systemctl<span class="w"> </span>daemon-reload
+sudo<span class="w"> </span>systemctl<span class="w"> </span><span class="nb">enable</span><span class="w"> </span>--now<span class="w"> </span>lx-annotate.service
+sudo<span class="w"> </span>systemctl<span class="w"> </span><span class="nb">enable</span><span class="w"> </span>--now<span class="w"> </span>lx-annotate-watcher.service
+</pre></div>
+</div>
+</section>
+<section id="current-services">
+<h2>Current Services<a class="headerlink" href="#current-services" title="Link to this heading">¶</a></h2>
+<p>The current wheel deployment environment is expected to contain:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">lx-annotate.service</span></code>: Daphne ASGI service</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">lx-annotate-watcher.service</span></code>: separate file watcher service</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">lx-annotate-sap-import.service</span></code>: one-shot SAP IS-H zip converter in LuxNix deployments</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">lx-annotate-sap-import.path</span></code>: path trigger watching <code class="docutils literal notranslate"><span class="pre">${DATA_DIR}/import/sap_import/*.zip</span></code> in LuxNix deployments</p></li>
+<li><p>Nginx: reverse proxy plus static/media handoff</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">/var/lib/lx-annotate/.env.systemd</span></code>: runtime environment source of truth</p></li>
+</ul>
+<p>The shipped service units currently assume:</p>
+<ul class="simple">
+<li><p>app root: <code class="docutils literal notranslate"><span class="pre">/home/lx-annotate/lx-annotate-wheel</span></code></p></li>
+<li><p>virtualenv: <code class="docutils literal notranslate"><span class="pre">/home/lx-annotate/lx-annotate-wheel/.venv</span></code></p></li>
+<li><p>runtime state root: <code class="docutils literal notranslate"><span class="pre">/var/lib/lx-annotate</span></code></p></li>
+<li><p>runtime data root: <code class="docutils literal notranslate"><span class="pre">/var/lib/lx-annotate/data</span></code></p></li>
+<li><p>staticfiles root: <code class="docutils literal notranslate"><span class="pre">/var/lib/lx-annotate/staticfiles</span></code></p></li>
+</ul>
+<p><code class="docutils literal notranslate"><span class="pre">lx-annotate.service</span></code> and <code class="docutils literal notranslate"><span class="pre">lx-annotate-watcher.service</span></code> both read the same
+<code class="docutils literal notranslate"><span class="pre">/var/lib/lx-annotate/.env.systemd</span></code> file and both require write access to
+<code class="docutils literal notranslate"><span class="pre">/var/lib/lx-annotate</span></code>.</p>
+<p>The watcher unit and the web unit are intentionally separate processes, but
+they are not allowed to diverge in ingest semantics. They share the same
+runtime environment and the same upstream hub ingest contract.</p>
+<p>In LuxNix-managed environments, SAP drops are also wired into the runtime data
+tree:</p>
+<ul class="simple">
+<li><p>incoming SAP IS-H zip bundles: <code class="docutils literal notranslate"><span class="pre">/var/lib/lx-annotate/data/import/sap_import/</span></code></p></li>
+<li><p>processed SAP zips: <code class="docutils literal notranslate"><span class="pre">/var/lib/lx-annotate/data/import/sap_import_processed/</span></code></p></li>
+<li><p>failed SAP zips: <code class="docutils literal notranslate"><span class="pre">/var/lib/lx-annotate/data/import/sap_import_failed/</span></code></p></li>
+<li><p>generated watcher payloads: <code class="docutils literal notranslate"><span class="pre">/var/lib/lx-annotate/data/import/preanonymized_import/</span></code></p></li>
+</ul>
+<p>The SAP unit runs <code class="docutils literal notranslate"><span class="pre">manage.py</span> <span class="pre">import_sap_ish_zip</span> <span class="pre">...</span> <span class="pre">--output_dir</span> <span class="pre">...</span></code> and
+converts supported SAP IS-H <code class="docutils literal notranslate"><span class="pre">.zip</span></code> bundles into watcher-compatible
+preanonymized <code class="docutils literal notranslate"><span class="pre">.txt</span></code> plus <code class="docutils literal notranslate"><span class="pre">.json</span></code> sidecar pairs. Those generated files then
+feed the normal preanonymized watcher ingest path.</p>
+</section>
+<section id="luxnix-permission-contract">
+<h2>LuxNix Permission Contract<a class="headerlink" href="#luxnix-permission-contract" title="Link to this heading">¶</a></h2>
+<p>The current LuxNix service definitions are broadly aligned with the application
+readiness checks:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">/protected_media/</span></code> is aliased to the protected storage root</p></li>
+<li><p>the service process runs with <code class="docutils literal notranslate"><span class="pre">LD_LIBRARY_PATH</span></code> set for NumPy/video runtime
+dependencies</p></li>
+<li><p>the protected runtime root, storage root, and streamable roots are created
+with service-user ownership and restrictive modes</p></li>
+<li><p>Nginx is added to the service group so protected media can be served without
+exposing the storage tree publicly</p></li>
+</ul>
+<p>Observed LuxNix runtime modes:</p>
+<ul class="simple">
+<li><p>protected runtime root: <code class="docutils literal notranslate"><span class="pre">0750</span></code></p></li>
+<li><p>managed storage root: <code class="docutils literal notranslate"><span class="pre">0750</span></code></p></li>
+<li><p>streamable video roots: <code class="docutils literal notranslate"><span class="pre">0750</span></code></p></li>
+<li><p>import root: <code class="docutils literal notranslate"><span class="pre">0770</span></code></p></li>
+<li><p>static/runtime frontend output: <code class="docutils literal notranslate"><span class="pre">0775</span></code></p></li>
+</ul>
+<p>Minimum required process access:</p>
+<ul class="simple">
+<li><p>watcher service user: read, write, execute on and its import
+subdirectories; read, write, execute on <code class="docutils literal notranslate"><span class="pre">${STORAGE_DIR}</span></code> and streamable roots</p></li>
+<li><p>web application service user: read, write, execute on <code class="docutils literal notranslate"><span class="pre">${STORAGE_DIR}</span></code>,
+streamable roots, and protected runtime roots</p></li>
+<li><p>Nginx worker user: execute on parent directories and read on
+<code class="docutils literal notranslate"><span class="pre">${PROTECTED_MEDIA_ROOT}</span></code> through shared group membership only</p></li>
+</ul>
+<p>LuxNix gap identified by the audit:</p>
+<ul class="simple">
+<li><p>the main roots are provisioned correctly, but watcher-facing import
+subdirectories are not all created eagerly by <code class="docutils literal notranslate"><span class="pre">tmpfiles</span></code> or the main boot
+pre-start step</p></li>
+</ul>
+<p>Operational recommendation:</p>
+<ul class="simple">
+<li><p>keep <code class="docutils literal notranslate"><span class="pre">${STORAGE_DIR}</span></code> and <code class="docutils literal notranslate"><span class="pre">${LX_ANNOTATE_STREAMABLE_VIDEO_ROOT}</span></code> on the same
+filesystem when atomic move semantics are expected</p></li>
+<li><p>treat any missing import subtree as a failed deployment, not as a recoverable
+runtime surprise</p></li>
+</ul>
+</section>
+<section id="data-recovery-behavior">
+<h2>Data Recovery Behavior<a class="headerlink" href="#data-recovery-behavior" title="Link to this heading">¶</a></h2>
+<p>In environments migrating from an older repo-local deployment, operators may
+also install a one-shot <code class="docutils literal notranslate"><span class="pre">lx-annotate-data-recovery.service</span></code>.</p>
+<p>Its observed behavior matches
+<a class="reference internal" href="#/home/admin/dev/lx-annotate/scripts/migrate_data_dir.py"><span class="xref myst">scripts/migrate_data_dir.py</span></a>
+running in merge mode:</p>
+<ul class="simple">
+<li><p>it treats the legacy repo-local <code class="docutils literal notranslate"><span class="pre">data/</span></code> tree as the source</p></li>
+<li><p>it copies missing entries into <code class="docutils literal notranslate"><span class="pre">/var/lib/lx-annotate/data</span></code></p></li>
+<li><p>it skips paths already present in the target and logs warnings</p></li>
+<li><p>it preserves <code class="docutils literal notranslate"><span class="pre">/var/lib/lx-annotate/.env.systemd</span></code> if that file already exists</p></li>
+</ul>
+<p>So a log like this:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">copying</span> <span class="pre">/var/endoreg-service-user/lx-annotate/data/reports</span> <span class="pre">-&gt;</span> <span class="pre">/var/lib/lx-annotate/data/reports</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">WARNING:</span> <span class="pre">destination</span> <span class="pre">already</span> <span class="pre">exists,</span> <span class="pre">skipping:</span> <span class="pre">/var/lib/lx-annotate/data/sensitive_reports</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">target</span> <span class="pre">env</span> <span class="pre">file</span> <span class="pre">already</span> <span class="pre">exists,</span> <span class="pre">leaving</span> <span class="pre">as</span> <span class="pre">source</span> <span class="pre">of</span> <span class="pre">truth:</span> <span class="pre">/var/lib/lx-annotate/.env.systemd</span></code></p></li>
+</ul>
+<p>means the recovery unit performed a non-destructive merge into the runtime data
+directory. It did not replace already-present target directories, and it did
+not treat the legacy tree as the current source of truth for environment
+configuration.</p>
+<p>The Python migration script in this repository writes <code class="docutils literal notranslate"><span class="pre">DATA_DIR/.migration-complete</span></code>
+for a full migration. If your host logs mention a different marker such as
+<code class="docutils literal notranslate"><span class="pre">data/logs/data_recovery_complete</span></code>, that marker comes from the host-side
+recovery wrapper or unit, not from the Python script itself.</p>
+</section>
+<section id="failure-recovery">
+<h2>Failure Recovery<a class="headerlink" href="#failure-recovery" title="Link to this heading">¶</a></h2>
+<p>If <code class="docutils literal notranslate"><span class="pre">deploy.sh</span></code> fails during <code class="docutils literal notranslate"><span class="pre">migrate</span></code>, the script stops before restarting the
+service. The current wheel is not auto-rolled back. Recovery is manual:</p>
+<ol class="arabic simple">
+<li><p>Inspect the migration error and database lock state.</p></li>
+<li><p>Restore the previous database state according to your backup/restore policy.</p></li>
+<li><p>Reinstall the previous known-good wheel if application code must be rolled
+back together with the schema.</p></li>
+<li><p>Restart <code class="docutils literal notranslate"><span class="pre">lx-annotate.service</span></code> only after the database is healthy again.</p></li>
+</ol>
+<p>This flow should be rehearsed outside production before enabling unattended
+deployments.</p>
+</section>
+<section id="service-isolation">
+<h2>Service Isolation<a class="headerlink" href="#service-isolation" title="Link to this heading">¶</a></h2>
+<p>Run the file watcher as a separate <code class="docutils literal notranslate"><span class="pre">systemd</span></code> unit. A corrupted media file or
+OOM in the watcher must not take down Daphne. The supplied
+<code class="docutils literal notranslate"><span class="pre">deploy/lx-annotate-watcher.service</span></code> keeps that blast radius separate.</p>
+<p>That isolation is operational only. Ingest logic, provenance, and cleanup
+policy still live in the shared core package and should not be reimplemented in
+the watcher unit.</p>
+</section>
+<section id="auth-caveat">
+<h2>Auth Caveat<a class="headerlink" href="#auth-caveat" title="Link to this heading">¶</a></h2>
+<p>The current production settings still contain a repo-aware Keycloak shim. On a
+fresh wheel-only host:</p>
+<ul class="simple">
+<li><p>with <code class="docutils literal notranslate"><span class="pre">ENFORCE_AUTH=0</span></code>, auth is disabled if Keycloak integration cannot load</p></li>
+<li><p>with <code class="docutils literal notranslate"><span class="pre">ENFORCE_AUTH=1</span></code>, startup fails hard</p></li>
+</ul>
+<p>Do not treat wheel-only auth as complete until that legacy path dependency is
+removed.</p>
+</section>
+<section id="nginx-handoff">
+<h2>Nginx Handoff<a class="headerlink" href="#nginx-handoff" title="Link to this heading">¶</a></h2>
+<p>Daphne should not serve static bundles directly in production. Serve these
+paths at the reverse proxy:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">/static/</span></code> from <code class="docutils literal notranslate"><span class="pre">/var/lib/lx-annotate/staticfiles/</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">/media/</span></code> from <code class="docutils literal notranslate"><span class="pre">/var/lib/lx-annotate/data/</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">/protected_media/</span></code> as an internal Nginx location</p></li>
+</ul>
+<p>The example Nginx config covers the proxy and static routing. Application code
+still needs to emit the appropriate <code class="docutils literal notranslate"><span class="pre">X-Accel-Redirect</span></code> headers for protected
+media responses.</p>
+</section>
+<section id="notes">
+<h2>Notes<a class="headerlink" href="#notes" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>The wheel includes Django templates and built frontend staticfiles.</p></li>
+<li><p>The application still expects an external <code class="docutils literal notranslate"><span class="pre">.env.systemd</span></code> file at runtime.</p></li>
+<li><p>Some settings still assume a repo-like layout under <code class="docutils literal notranslate"><span class="pre">BASE_DIR</span></code> for optional
+integrations. In particular, the production Keycloak path shim in
+<code class="docutils literal notranslate"><span class="pre">lx_annotate/settings/settings_prod.py</span></code> remains repo-aware even though the
+core app now ships as a wheel.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">--force-reinstall</span></code> is run with <code class="docutils literal notranslate"><span class="pre">PIP_NO_CACHE_DIR=1</span></code> to avoid local pip
+cache growth on long-lived hosts.</p></li>
+</ul>
+</section>
+</section>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          <a class="next-page" href="../assisted-reporting-report.html">
+              <div class="page-info">
+                <div class="context">
+                  <span>Next</span>
+                </div>
+                <div class="title">Reporting Template &amp; Requirement Sets Page (TemplateRequirementsPage)</div>
+              </div>
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+            </a>
+          <a class="prev-page" href="asset-deployment.html">
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+              <div class="page-info">
+                <div class="context">
+                  <span>Previous</span>
+                </div>
+                
+                <div class="title">Frontend Asset Deployment Contract</div>
+                
+              </div>
+            </a>
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 1980, Thomas J. Lux
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer">
+      
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">Wheel Deployment</a><ul>
+<li><a class="reference internal" href="#scope">Scope</a></li>
+<li><a class="reference internal" href="#host-packages">Host Packages</a></li>
+<li><a class="reference internal" href="#runtime-contract">Runtime Contract</a></li>
+<li><a class="reference internal" href="#ingress-contract">Ingress Contract</a></li>
+<li><a class="reference internal" href="#storage-recommendations">Storage Recommendations</a></li>
+<li><a class="reference internal" href="#hub-deployment-profile">Hub Deployment Profile</a></li>
+<li><a class="reference internal" href="#secure-hub-transfer">Secure Hub Transfer</a></li>
+<li><a class="reference internal" href="#deployment">Deployment</a></li>
+<li><a class="reference internal" href="#current-services">Current Services</a></li>
+<li><a class="reference internal" href="#luxnix-permission-contract">LuxNix Permission Contract</a></li>
+<li><a class="reference internal" href="#data-recovery-behavior">Data Recovery Behavior</a></li>
+<li><a class="reference internal" href="#failure-recovery">Failure Recovery</a></li>
+<li><a class="reference internal" href="#service-isolation">Service Isolation</a></li>
+<li><a class="reference internal" href="#auth-caveat">Auth Caveat</a></li>
+<li><a class="reference internal" href="#nginx-handoff">Nginx Handoff</a></li>
+<li><a class="reference internal" href="#notes">Notes</a></li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
+      
+      
+    </aside>
+  </div>
+</div><script src="../_static/documentation_options.js?v=8da8c241"></script>
+    <script src="../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/scripts/furo.js?v=46bd48cc"></script>
+    <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../_static/copybutton.js?v=f281be69"></script>
+    </body>
+</html>

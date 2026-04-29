@@ -126,7 +126,7 @@ verify-vite-artifacts: check-repo check-tools frontend-build-force ## Fail if fr
 verify-vite-manifest: check-repo check-tools frontend-build-force ## Fail if the built Vite manifest is empty, invalid, or missing src/main.ts
 	@cd "$(REPO_DIR)" && $(DEVENV_RUN) python -c 'import json; from pathlib import Path; fail=lambda msg: (_ for _ in ()).throw(SystemExit(msg)); static_root=Path("staticfiles"); manifest_path=static_root/".vite"/"manifest.json"; manifest_path.exists() or fail(f"missing Vite manifest: {manifest_path}"); raw=manifest_path.read_text(encoding="utf-8"); raw.strip() or fail(f"empty Vite manifest: {manifest_path}"); manifest=json.loads(raw); entry=manifest.get("src/main.ts"); isinstance(entry, dict) or fail("Vite manifest is missing the src/main.ts entry required by {% vite_asset '\''src/main.ts'\'' %}"); entry_file=entry.get("file"); entry_file or fail("Vite manifest src/main.ts entry is missing its file mapping"); entry_path=static_root/entry_file; entry_path.exists() or fail(f"Vite manifest src/main.ts points to a missing asset: {entry_path}"); print(f"verified Vite manifest: src/main.ts -> {entry_file}")'
 
-package: verify-vite-artifacts verify-vite-manifest ## Build sdist and wheel only after frontend artifacts are valid
+package: verify-vite-artifacts verify-vite-manifest docs-publish ## Build sdist and wheel only after frontend artifacts and Sphinx docs are valid
 	cd "$(REPO_DIR)" && $(DEVENV_RUN) python -m build
 
 deploy-prod: update submodules verify-vite-artifacts migrate load-base-data static ## Update code and prepare prod assets

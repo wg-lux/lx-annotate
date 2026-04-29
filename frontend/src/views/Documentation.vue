@@ -14,8 +14,9 @@
       </div>
       <div class="card-body p-0">
         <div class="alert alert-info rounded-0 mb-0 border-start-0 border-end-0">
-          Sphinx docs are served from <code>{{ docsUrl }}</code>. If this page is empty, run
-          <code>uv run --extra docs make -C docs html</code> and sync to <code>static/docs</code>.
+          Sphinx docs are served from <code>{{ docsUrl }}</code>. Rebuild them with
+          <code>make docs-publish</code> for local updates, or <code>make package</code> to publish
+          them into packaged artifacts.
         </div>
         <iframe
           :src="docsUrl"
