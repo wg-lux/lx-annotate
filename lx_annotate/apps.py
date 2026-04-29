@@ -1,6 +1,7 @@
 from django.apps import AppConfig
 from django.conf import settings
 import os
+from pathlib import Path
 import sys
 import threading
 
@@ -22,6 +23,12 @@ class LxAnnotateConfig(AppConfig):
 
     def _should_skip_runtime_checks(self, command: str) -> bool:
         if command in self._SKIP_RUNTIME_CHECK_COMMANDS:
+            return True
+
+        entrypoint = Path(sys.argv[0]).resolve()
+        if entrypoint.name == "manage.py":
+            return True
+        if entrypoint.name == "__main__.py" and "django" in entrypoint.parts:
             return True
 
         if getattr(settings, "TESTING", False):

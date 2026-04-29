@@ -208,6 +208,21 @@ def test_lx_annotate_app_ready_only_runs_watcher_for_runserver_child(monkeypatch
     assert called["count"] == 1
 
 
+def test_runtime_checks_skip_django_management_entrypoints(monkeypatch, tmp_path):
+    config = LxAnnotateConfig("lx_annotate", __import__("lx_annotate"))
+
+    manage_py = tmp_path / "manage.py"
+    manage_py.write_text("", encoding="utf-8")
+    monkeypatch.setattr(sys, "argv", [str(manage_py), "custom_deploy"])
+    assert config._should_skip_runtime_checks("custom_deploy") is True
+
+    django_main = tmp_path / "django" / "__main__.py"
+    django_main.parent.mkdir()
+    django_main.write_text("", encoding="utf-8")
+    monkeypatch.setattr(sys, "argv", [str(django_main), "custom_deploy"])
+    assert config._should_skip_runtime_checks("custom_deploy") is True
+
+
 def test_start_file_watcher_starts_daemon_thread_and_calls_command(monkeypatch):
     config = LxAnnotateConfig("lx_annotate", __import__("lx_annotate"))
     calls: list[tuple[str, dict]] = []

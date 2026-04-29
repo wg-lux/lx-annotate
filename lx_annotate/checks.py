@@ -1,79 +1,39 @@
 from __future__ import annotations
 
 import os
-import sys
 from pathlib import Path
 
 from django.conf import settings
-from django.core.checks import (
-    CRITICAL,
-    CheckMessage,
-    Critical,
-    Warning,
-    register,
-    run_checks,
-)
+from django.core.checks import CRITICAL, CheckMessage, Critical, Warning
 from django.core.exceptions import ImproperlyConfigured
 from django.db import DEFAULT_DB_ALIAS, connections
-from django.db.migrations.executor import MigrationExecutor
 from django.db.utils import OperationalError, ProgrammingError
 
 from endoreg_db.services.environment_readiness import check_environment_readiness
 
 
-_ENDOREG_DB_REQUIRED_COLUMNS: dict[str, dict[str, str]] = {
-    "endoreg_db_sensitivemeta": {
-        "validation_comment": "0014_sensitivemeta_tags_sensitivemeta_validation_comment_and_more",
-    },
-    "endoreg_db_videofile": {
-        "storage_mode": "0015_uploadjob_content_hash_and_more",
-        "processed_streamable_relative_path": "0015_uploadjob_content_hash_and_more",
-        "raw_streamable_relative_path": "0016_rename_streamable_relative_path_videofile_raw_streamable_relative_path_and_more",
-    },
+# These checks are intentionally not registered with Django's system check
+# framework. Django runs registered checks before `migrate`, which creates a
+# chicken-and-egg failure for production deployment units whose only job is to
+# apply the missing migrations. Runtime startup calls `assert_runtime_checks_pass`
+# directly after management commands such as `migrate` have had a chance to heal
+# the schema.
+_ENDOREG_DB_REQUIRED_COLUMNS: dict[str, tuple[str, ...]] = {
+    "endoreg_db_sensitivemeta": ("validation_comment",),
+    "endoreg_db_videofile": (
+        "storage_mode",
+        "processed_streamable_relative_path",
+        "raw_streamable_relative_path",
+    ),
 }
 
-_ENDOREG_DB_REQUIRED_TABLES: dict[str, str] = {
-    "endoreg_db_videofile": "0001_initial",
-    "endoreg_db_sensitivemeta": "0001_initial",
-    "endoreg_db_sensitivemeta_tags": "0014_sensitivemeta_tags_sensitivemeta_validation_comment_and_more",
-    "endoreg_db_auditledger": "0017_auditledger_ledgerhead_and_more",
-    "endoreg_db_ledgerhead": "0017_auditledger_ledgerhead_and_more",
-}
-
-
-def _current_management_command() -> str:
-    return sys.argv[1] if len(sys.argv) > 1 else ""
-
-
-def _pending_migrations_for_app(
-    app_label: str, *, using: str = DEFAULT_DB_ALIAS
-) -> set[str] | None:
-    connection = connections[using]
-
-    try:
-        executor = MigrationExecutor(connection)
-        targets = [
-            node for node in executor.loader.graph.leaf_nodes() if node[0] == app_label
-        ]
-        plan = executor.migration_plan(targets)
-    except (OperationalError, ProgrammingError):
-        return None
-
-    return {
-        migration.name
-        for migration, backwards in plan
-        if migration.app_label == app_label and not backwards
-    }
-
-
-def _is_expected_pending_schema_gap(
-    *, pending_migrations: set[str] | None, required_by_migration: str
-) -> bool:
-    if _current_management_command() != "migrate":
-        return False
-    if pending_migrations is None:
-        return False
-    return required_by_migration in pending_migrations
+_ENDOREG_DB_REQUIRED_TABLES: tuple[str, ...] = (
+    "endoreg_db_videofile",
+    "endoreg_db_sensitivemeta",
+    "endoreg_db_sensitivemeta_tags",
+    "endoreg_db_auditledger",
+    "endoreg_db_ledgerhead",
+)
 
 
 def _table_columns(
@@ -95,21 +55,22 @@ def _table_columns(
     return {column.name for column in description}
 
 
-@register()
 def lx_annotate_endoreg_db_schema_checks(app_configs, **kwargs):  # type: ignore[unused-argument]
     messages: list[CheckMessage] = []
-    pending_endoreg_db_migrations = _pending_migrations_for_app("endoreg_db")
 
-    for table_name, required_by_migration in _ENDOREG_DB_REQUIRED_TABLES.items():
+    for table_name in _ENDOREG_DB_REQUIRED_TABLES:
         columns = _table_columns(table_name)
         if columns is None:
+            messages.append(
+                Critical(
+                    "Unable to inspect endoreg_db schema. Verify database connectivity "
+                    "and service-user introspection permissions before serving traffic.",
+                    id="lx_annotate.endoreg_db_schema_introspection_failed",
+                    obj=table_name,
+                )
+            )
             continue
         if columns:
-            continue
-        if _is_expected_pending_schema_gap(
-            pending_migrations=pending_endoreg_db_migrations,
-            required_by_migration=required_by_migration,
-        ):
             continue
         messages.append(
             Critical(
@@ -123,18 +84,20 @@ def lx_annotate_endoreg_db_schema_checks(app_configs, **kwargs):  # type: ignore
     for table_name, required_columns in _ENDOREG_DB_REQUIRED_COLUMNS.items():
         columns = _table_columns(table_name)
         if columns is None:
+            messages.append(
+                Critical(
+                    "Unable to inspect endoreg_db schema. Verify database connectivity "
+                    "and service-user introspection permissions before serving traffic.",
+                    id="lx_annotate.endoreg_db_schema_introspection_failed",
+                    obj=table_name,
+                )
+            )
             continue
         if not columns:
             continue
 
         missing_columns = [
-            column
-            for column, required_by_migration in required_columns.items()
-            if column not in columns
-            and not _is_expected_pending_schema_gap(
-                pending_migrations=pending_endoreg_db_migrations,
-                required_by_migration=required_by_migration,
-            )
+            column for column in required_columns if column not in columns
         ]
         if missing_columns:
             messages.append(
@@ -150,7 +113,6 @@ def lx_annotate_endoreg_db_schema_checks(app_configs, **kwargs):  # type: ignore
     return messages
 
 
-@register()
 def lx_annotate_environment_checks(app_configs, **kwargs):  # type: ignore[unused-argument]
     messages = []
 
@@ -215,7 +177,13 @@ def lx_annotate_environment_checks(app_configs, **kwargs):  # type: ignore[unuse
 
 def assert_runtime_checks_pass() -> None:
     critical_messages = [
-        message for message in run_checks() if message.level >= CRITICAL
+        message
+        for check in (
+            lx_annotate_endoreg_db_schema_checks,
+            lx_annotate_environment_checks,
+        )
+        for message in check(None)
+        if message.level >= CRITICAL
     ]
     if not critical_messages:
         return

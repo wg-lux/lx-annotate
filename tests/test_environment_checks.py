@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
+import pytest
+from django.core.checks.registry import registry
+from django.core.exceptions import ImproperlyConfigured
 from django.test import override_settings
 
 from lx_annotate import checks as checks_module
@@ -46,43 +49,14 @@ def test_environment_checks_surface_core_readiness_issues(monkeypatch, tmp_path)
     assert any(message.id == "lx_annotate.storage_root_missing" for message in messages)
 
 
-def test_schema_checks_skip_columns_covered_by_pending_migration(monkeypatch):
-    monkeypatch.setattr(checks_module.sys, "argv", ["manage.py", "migrate"])
-    monkeypatch.setattr(
-        checks_module,
-        "_pending_migrations_for_app",
-        lambda app_label, using=checks_module.DEFAULT_DB_ALIAS: {
-            "0016_rename_streamable_relative_path_videofile_raw_streamable_relative_path_and_more"
-        },
-    )
-    monkeypatch.setattr(
-        checks_module,
-        "_table_columns",
-        lambda table_name, using=checks_module.DEFAULT_DB_ALIAS: {
-            "id",
-            "storage_mode",
-            "processed_streamable_relative_path",
-        }
-        if table_name == "endoreg_db_videofile"
-        else {"id", "validation_comment"},
-    )
+def test_runtime_checks_are_not_registered_as_pre_migrate_system_checks():
+    registered_checks = set(registry.registered_checks)
 
-    messages = checks_module.lx_annotate_endoreg_db_schema_checks(None)
-
-    assert not any(
-        message.id == "lx_annotate.endoreg_db_schema_column_missing"
-        and message.obj == "endoreg_db_videofile"
-        for message in messages
-    )
+    assert checks_module.lx_annotate_endoreg_db_schema_checks not in registered_checks
+    assert checks_module.lx_annotate_environment_checks not in registered_checks
 
 
-def test_schema_checks_fail_when_required_columns_have_no_pending_migration(monkeypatch):
-    monkeypatch.setattr(checks_module.sys, "argv", ["manage.py", "migrate"])
-    monkeypatch.setattr(
-        checks_module,
-        "_pending_migrations_for_app",
-        lambda app_label, using=checks_module.DEFAULT_DB_ALIAS: set(),
-    )
+def test_schema_checks_fail_when_required_columns_are_missing(monkeypatch):
     monkeypatch.setattr(
         checks_module,
         "_table_columns",
@@ -105,15 +79,7 @@ def test_schema_checks_fail_when_required_columns_have_no_pending_migration(monk
     )
 
 
-def test_schema_checks_skip_missing_table_covered_by_pending_migration(monkeypatch):
-    monkeypatch.setattr(checks_module.sys, "argv", ["manage.py", "migrate"])
-    monkeypatch.setattr(
-        checks_module,
-        "_pending_migrations_for_app",
-        lambda app_label, using=checks_module.DEFAULT_DB_ALIAS: {
-            "0017_auditledger_ledgerhead_and_more"
-        },
-    )
+def test_schema_checks_fail_when_required_tables_are_missing(monkeypatch):
     monkeypatch.setattr(
         checks_module,
         "_table_columns",
@@ -124,8 +90,44 @@ def test_schema_checks_skip_missing_table_covered_by_pending_migration(monkeypat
 
     messages = checks_module.lx_annotate_endoreg_db_schema_checks(None)
 
-    assert not any(
+    assert any(
         message.id == "lx_annotate.endoreg_db_schema_table_missing"
         and message.obj == "endoreg_db_auditledger"
         for message in messages
     )
+
+
+def test_schema_checks_fail_closed_when_schema_cannot_be_introspected(monkeypatch):
+    monkeypatch.setattr(
+        checks_module,
+        "_table_columns",
+        lambda table_name, using=checks_module.DEFAULT_DB_ALIAS: None,
+    )
+
+    messages = checks_module.lx_annotate_endoreg_db_schema_checks(None)
+
+    assert any(
+        message.id == "lx_annotate.endoreg_db_schema_introspection_failed"
+        for message in messages
+    )
+
+
+def test_assert_runtime_checks_pass_fails_closed_on_critical_messages(monkeypatch):
+    monkeypatch.setattr(
+        checks_module,
+        "lx_annotate_endoreg_db_schema_checks",
+        lambda app_configs: [
+            checks_module.Critical(
+                "schema drift",
+                id="lx_annotate.endoreg_db_schema_column_missing",
+            )
+        ],
+    )
+    monkeypatch.setattr(
+        checks_module,
+        "lx_annotate_environment_checks",
+        lambda app_configs: [],
+    )
+
+    with pytest.raises(ImproperlyConfigured, match="schema drift"):
+        checks_module.assert_runtime_checks_pass()
