@@ -8,6 +8,32 @@ from django.core.management.base import BaseCommand, CommandError
 
 from lx_annotate.storage.encrypted import EncryptedStorage
 
+DERIVED_OR_TEMP_DIR_NAMES = {
+    ".lx-annotate-rsync-partial",
+    "_processing",
+    "streamable_videos",
+    "transcoding",
+}
+
+
+def _skip_reason(relative_name: str) -> str | None:
+    """
+    Return why a managed-storage path must not be repaired in place.
+
+    FieldFile payloads are canonical encrypted storage. Streamable files are
+    explicit protected plaintext artifacts for nginx and must never be rewritten
+    by this command. Temporary/partial files are not canonical payloads either.
+    """
+    relative_path = Path(relative_name)
+    if any(part in DERIVED_OR_TEMP_DIR_NAMES for part in relative_path.parts):
+        return "derived_or_temp_directory"
+
+    name = relative_path.name
+    if name.startswith(".") or name.startswith("~") or name.endswith(".tmp"):
+        return "temporary_artifact"
+
+    return None
+
 
 class Command(BaseCommand):
     help = (
@@ -61,6 +87,12 @@ class Command(BaseCommand):
                 continue
 
             relative_name = path.relative_to(root).as_posix()
+            reason = _skip_reason(relative_name)
+            if reason is not None:
+                skipped += 1
+                self.stdout.write(f"Skipping {reason}: {relative_name}")
+                continue
+
             if storage.is_encrypted(relative_name):
                 try:
                     storage.get_plaintext_size(relative_name)

@@ -58,6 +58,46 @@ def test_repair_managed_payloads_skips_already_encrypted_files(
     assert "already_encrypted=1" in out.getvalue()
 
 
+def test_repair_managed_payloads_skips_streamable_plaintext_artifacts(
+    monkeypatch, repair_storage
+):
+    from lx_annotate.management.commands import repair_managed_payloads as command_mod
+
+    plaintext = b"\x00\x00\x00\x18ftypmp42"
+    streamable_path = Path(
+        repair_storage.path("streamable_videos/processed/video.mp4")
+    )
+    streamable_path.parent.mkdir(parents=True, exist_ok=True)
+    streamable_path.write_bytes(plaintext)
+    monkeypatch.setattr(command_mod, "default_storage", repair_storage)
+    out = StringIO()
+
+    call_command("repair_managed_payloads", stdout=out)
+
+    assert streamable_path.read_bytes() == plaintext
+    assert "Skipping derived_or_temp_directory" in out.getvalue()
+    assert "skipped=1" in out.getvalue()
+
+
+def test_repair_managed_payloads_skips_temporary_artifacts(
+    monkeypatch, repair_storage
+):
+    from lx_annotate.management.commands import repair_managed_payloads as command_mod
+
+    plaintext = b"partial plaintext temp"
+    temp_path = Path(repair_storage.path("videos/.part.mp4.tmp"))
+    temp_path.parent.mkdir(parents=True, exist_ok=True)
+    temp_path.write_bytes(plaintext)
+    monkeypatch.setattr(command_mod, "default_storage", repair_storage)
+    out = StringIO()
+
+    call_command("repair_managed_payloads", stdout=out)
+
+    assert temp_path.read_bytes() == plaintext
+    assert "Skipping temporary_artifact" in out.getvalue()
+    assert "skipped=1" in out.getvalue()
+
+
 def test_repair_managed_payloads_rejects_corrupt_encrypted_payload(
     monkeypatch, repair_storage
 ):
