@@ -734,6 +734,25 @@ class FileWatcherService:
         finally:
             self.stop()
 
+    def process_existing_once(self) -> int:
+        """
+        Drain files already present in the intake directories, then exit.
+
+        This mode is intended for maintenance/timer execution: any file left in
+        the plaintext intake directories is retried on the next run, while the
+        main web service does not have to compete with a resident watcher.
+        """
+        try:
+            self._validate_django_setup()
+            return self._process_existing_files()
+        except Exception as exc:
+            logger.error(
+                "Error processing existing watcher files: %s", exc, exc_info=True
+            )
+            raise
+        finally:
+            self.handler.shutdown()
+
     def stop(self) -> None:
         if self.observer.is_alive():
             self.observer.stop()
@@ -750,9 +769,10 @@ class FileWatcherService:
         EndoscopyProcessor.objects.first()
         logger.info("Django setup validation successful")
 
-    def _process_existing_files(self) -> None:
+    def _process_existing_files(self) -> int:
         # Only log if we actually find files we haven't seen yet
         new_files_found = False
+        submitted_count = 0
 
         for video_file in self.video_dir.glob("*"):
             if (
@@ -772,6 +792,7 @@ class FileWatcherService:
 
                 logger.info("Processing existing video: %s", video_file)
                 self.handler._submit_file(path_str)
+                submitted_count += 1
 
         for report_file in self.report_dir.glob("*"):
             if (
@@ -791,6 +812,7 @@ class FileWatcherService:
 
                 logger.info("Processing existing report: %s", report_file)
                 self.handler._submit_file(path_str)
+                submitted_count += 1
 
         for pseudonymized_file in self.pseudonymized_dir.glob("*"):
             if (
@@ -813,9 +835,12 @@ class FileWatcherService:
                     "Processing existing pseudonymized file: %s", pseudonymized_file
                 )
                 self.handler._submit_file(path_str)
+                submitted_count += 1
 
         if new_files_found:
             logger.info("Existing files processing completed")
+
+        return submitted_count
 
     def _health_check(self) -> None:
         if not self.observer.is_alive():
@@ -849,7 +874,15 @@ class FileWatcherService:
             logger.debug("Storage check failed: %s", exc)
 
 
-def run_file_watcher() -> None:
+def run_file_watcher(*, process_existing_once: bool = False) -> None:
     logger.info("Starting File Watcher Service")
     logger.info("Django settings: %s", os.environ.get("DJANGO_SETTINGS_MODULE"))
-    FileWatcherService().start()
+    service = FileWatcherService()
+    if process_existing_once:
+        submitted_count = service.process_existing_once()
+        logger.info(
+            "File watcher processed existing intake files once: submitted=%s",
+            submitted_count,
+        )
+        return
+    service.start()

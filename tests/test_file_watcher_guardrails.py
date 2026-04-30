@@ -122,3 +122,28 @@ def test_acceptance_watcher_runs_without_http_context():
         call_command("run_filewatcher", "--iterations=1", "--dry-run")
     except Exception as exc:  # pragma: no cover - explicit acceptance failure path
         pytest.fail(f"File watcher failed to run in headless systemd mode: {exc}")
+
+
+def test_acceptance_watcher_can_process_existing_files_once(monkeypatch):
+    """
+    Timer/maintenance mode should drain existing intake files without starting
+    the resident observer loop.
+    """
+    calls = []
+
+    def fake_run_file_watcher(*, process_existing_once=False):
+        calls.append(process_existing_once)
+
+    monkeypatch.setattr(
+        "lx_annotate.management.commands.run_filewatcher.run_file_watcher",
+        fake_run_file_watcher,
+        raising=False,
+    )
+    monkeypatch.setattr(
+        "lx_annotate.file_watcher.run_file_watcher",
+        fake_run_file_watcher,
+    )
+
+    call_command("run_filewatcher", "--process-existing-once")
+
+    assert calls == [True]

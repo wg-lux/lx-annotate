@@ -104,6 +104,14 @@ class Command(BaseCommand):
             default=None,
             help="Compatibility flag for test-mode headless execution.",
         )
+        parser.add_argument(
+            "--process-existing-once",
+            action="store_true",
+            help=(
+                "Process files already present in the watcher intake directories "
+                "and exit instead of running the resident observer loop."
+            ),
+        )
 
     def handle(self, *args, **options):
         log_level = options.get("log_level")
@@ -118,9 +126,15 @@ class Command(BaseCommand):
 
         from lx_annotate.file_watcher import run_file_watcher
 
-        self.stdout.write(self.style.SUCCESS("Starting file watcher service"))
+        process_existing_once = bool(options.get("process_existing_once"))
+        if process_existing_once:
+            self.stdout.write(
+                self.style.SUCCESS("Processing existing watcher files once")
+            )
+        else:
+            self.stdout.write(self.style.SUCCESS("Starting file watcher service"))
         try:
-            run_file_watcher()
+            run_file_watcher(process_existing_once=process_existing_once)
         except KeyboardInterrupt:
             self.stdout.write(self.style.WARNING("File watcher interrupted"))
         except Exception as exc:

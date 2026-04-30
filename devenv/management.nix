@@ -340,7 +340,7 @@ PY
           esac
         fi
 
-        secretspec run --provider env $VENV_PYTHON manage.py run_filewatcher
+        secretspec run --provider env $VENV_PYTHON manage.py run_filewatcher ''${LX_ANNOTATE_FILEWATCHER_ARGS:-}
     '';
 
   };
