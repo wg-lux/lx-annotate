@@ -6,7 +6,7 @@
         <!-- Basic Information Section -->
         <div class="form-section">
           <h5 class="section-title">
-            <i class="fas fa-user"></i>
+            <i class="ni ni-circle-08"></i>
             Grunddaten
           </h5>
           
@@ -94,7 +94,7 @@
         <!-- Contact Information Section -->
         <div class="form-section">
           <h5 class="section-title">
-            <i class="fas fa-address-book"></i>
+            <i class="ni ni-book-bookmark"></i>
             Kontaktdaten
           </h5>
 
@@ -177,7 +177,7 @@
 
       <!-- Error Display -->
       <div v-if="generalError" class="alert alert-danger">
-        <i class="fas fa-exclamation-triangle"></i>
+        <i class="ni ni-user-run"></i>
         <strong>Fehler:</strong> {{ generalError }}
       </div>
 
@@ -190,7 +190,7 @@
             @click="$emit('cancel')"
             :disabled="loading"
           >
-            <i class="fas fa-times"></i>
+            <i class="ni ni-settings-gear-65"></i>
             Abbrechen
           </button>
 
@@ -200,7 +200,7 @@
             :disabled="loading || !isFormValid"
           >
             <span v-if="loading" class="spinner-border spinner-border-sm me-2"></span>
-            <i v-else class="fas fa-save me-2"></i>
+            <i v-else class="ni ni-collection me-2"></i>
             {{ loading ? 'Wird gespeichert...' : 'Speichern' }}
           </button>
         </div>
@@ -213,7 +213,7 @@
             @click="showDeleteModal = true"
             :disabled="loading"
           >
-            <i class="fas fa-trash"></i>
+            <i class="ni ni-settings-gear-65"></i>
             Patient löschen
           </button>
         </div>
@@ -226,13 +226,13 @@
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title">
-              <i class="fas fa-exclamation-triangle text-danger"></i>
+              <i class="ni ni-user-run text-danger"></i>
               Patient löschen bestätigen
             </h5>
           </div>
           <div class="modal-body">
             <div class="alert alert-warning">
-              <i class="fas fa-exclamation-triangle"></i>
+              <i class="ni ni-user-run"></i>
               <strong>Achtung!</strong> Diese Aktion kann nicht rückgängig gemacht werden.
             </div>
             
@@ -276,7 +276,7 @@
               :disabled="deleting"
             >
               <span v-if="deleting" class="spinner-border spinner-border-sm me-2"></span>
-              <i v-else class="fas fa-trash me-2"></i>
+              <i v-else class="ni ni-settings-gear-65 me-2"></i>
               {{ deleting ? 'Wird gelöscht...' : 'Endgültig löschen' }}
             </button>
           </div>

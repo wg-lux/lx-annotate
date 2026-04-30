@@ -8,7 +8,7 @@
             class="btn btn-outline-secondary btn-sm"
             @click="goBack"
           >
-            <i class="fas fa-arrow-left me-1"></i>
+            <i class="ni ni-bold-right me-1 icon-reverse"></i>
             Zurück zur Übersicht
           </button>
           <button 
@@ -16,7 +16,7 @@
             @click="refreshCurrentVideo"
             :disabled="isRefreshing"
           >
-            <i class="fas fa-sync-alt" :class="{ 'fa-spin': isRefreshing }"></i>
+            <i class="ni ni-bold-right" :class="{ 'ni-spin': isRefreshing }"></i>
             Aktualisieren
           </button>
         </div>
@@ -38,7 +38,7 @@
 
         <!-- No File Selected -->
         <div v-else-if="!currentVideo" class="alert alert-info" role="alert">
-          <i class="fas fa-info-circle me-2"></i>
+          <i class="ni ni-user-run me-2"></i>
           Keine Datei ausgewählt. Bitte wählen Sie eine Datei aus der Übersicht aus.
         </div>
 
@@ -68,7 +68,7 @@
                             @click="reloadPdfDocument"
                             :disabled="isRenderingPdf"
                           >
-                            <i class="fas fa-file-pdf me-1"></i>
+                            <i class="ni ni-single-copy-04 me-1"></i>
                             PDF neu laden
                           </button>
                           <button
@@ -76,7 +76,7 @@
                             @click="generateRedactedPdf"
                             :disabled="isRenderingPdf || totalPdfBoxCount === 0"
                           >
-                            <i class="fas fa-shield-alt me-1"></i>
+                            <i class="ni ni-check-bold me-1"></i>
                             Anonymisierte PDF erzeugen
                           </button>
                           <button
@@ -84,7 +84,7 @@
                             @click="downloadRedactedPdf"
                             :disabled="!redactedPdfUrl"
                           >
-                            <i class="fas fa-download me-1"></i>
+                            <i class="ni ni-cloud-upload-96 me-1"></i>
                             PDF herunterladen
                           </button>
                           <button
@@ -92,7 +92,7 @@
                             @click="uploadRedactedPdf"
                             :disabled="!redactedPdfBytes || isProcessing"
                           >
-                            <i class="fas fa-upload me-1"></i>
+                            <i class="ni ni-cloud-upload-96 me-1"></i>
                             Als neue Datei hochladen
                           </button>
                         </div>
@@ -115,7 +115,7 @@
                         @click="previousPdfPage"
                         :disabled="activePdfPage <= 1 || isRenderingPdf"
                       >
-                        <i class="fas fa-chevron-left"></i>
+                        <i class="ni ni-bold-right icon-reverse"></i>
                       </button>
                       <span class="small text-muted">Seite {{ activePdfPage }} / {{ pdfPageCount || 1 }}</span>
                       <button
@@ -123,7 +123,7 @@
                         @click="nextPdfPage"
                         :disabled="activePdfPage >= pdfPageCount || isRenderingPdf"
                       >
-                        <i class="fas fa-chevron-right"></i>
+                        <i class="ni ni-bold-right"></i>
                       </button>
                     </div>
                   </div>
@@ -182,7 +182,7 @@
                       @click="undoLastPdfBox"
                       :disabled="getCurrentPageBoxCount() === 0"
                     >
-                      <i class="fas fa-undo me-1"></i>
+                      <i class="ni ni-bold-right me-1"></i>
                       Letzte Box entfernen
                     </button>
                     <button
@@ -190,7 +190,7 @@
                       @click="clearCurrentPdfPageBoxes"
                       :disabled="getCurrentPageBoxCount() === 0"
                     >
-                      <i class="fas fa-eraser me-1"></i>
+                      <i class="ni ni-settings-gear-65 me-1"></i>
                       Seite leeren
                     </button>
                     <button
@@ -198,7 +198,7 @@
                       @click="clearAllPdfBoxes"
                       :disabled="totalPdfBoxCount === 0"
                     >
-                      <i class="fas fa-trash me-1"></i>
+                      <i class="ni ni-settings-gear-65 me-1"></i>
                       Alle Boxen löschen
                     </button>
                     <hr class="my-2">
@@ -265,7 +265,7 @@
                           @click="analyzeVideo"
                           :disabled="isProcessing"
                         >
-                          <i class="fas fa-search me-1"></i>
+                          <i class="ni ni-tv-2 me-1"></i>
                           Video analysieren
                         </button>
                         <button 
@@ -273,7 +273,7 @@
                           @click="reprocessVideo"
                           :disabled="isProcessing"
                         >
-                          <i class="fas fa-redo me-1"></i>
+                          <i class="ni ni-bold-right me-1"></i>
                           Erneut verarbeiten
                         </button>
                       </div>
@@ -291,7 +291,7 @@
               <div class="card h-100">
                 <div class="card-header">
                   <h5 class="mb-0">
-                    <i class="fas fa-mask me-2"></i>
+                    <i class="ni ni-check-bold me-2"></i>
                     Video Maskierung
                   </h5>
                 </div>
@@ -377,9 +377,9 @@
                     @click="applyMasking"
                     :disabled="isProcessing || !canApplyMask"
                   >
-                    <i class="fas fa-mask me-2"></i>
+                    <i class="ni ni-check-bold me-2"></i>
                     <span v-if="isProcessing && currentOperation === 'masking'">
-                      <i class="fas fa-spinner fa-spin me-1"></i>
+                      <i class="ni ni-settings-gear-65 ni-spin me-1"></i>
                       Maskierung wird angewendet...
                     </span>
                     <span v-else>
@@ -395,7 +395,7 @@
               <div class="card h-100">
                 <div class="card-header">
                   <h5 class="mb-0">
-                    <i class="fas fa-cut me-2"></i>
+                    <i class="ni ni-single-copy-04 me-2"></i>
                     Frame-Entfernung
                   </h5>
                 </div>
@@ -490,9 +490,9 @@
                     @click="removeFrames"
                     :disabled="isProcessing || !canRemoveFrames"
                   >
-                    <i class="fas fa-cut me-2"></i>
+                    <i class="ni ni-single-copy-04 me-2"></i>
                     <span v-if="isProcessing && currentOperation === 'frame_removal'">
-                      <i class="fas fa-spinner fa-spin me-1"></i>
+                      <i class="ni ni-settings-gear-65 ni-spin me-1"></i>
                       Frames werden entfernt...
                     </span>
                     <span v-else>
@@ -527,7 +527,7 @@
                       class="btn btn-outline-danger btn-sm"
                       @click="cancelProcessing"
                     >
-                      <i class="fas fa-times me-1"></i>
+                      <i class="ni ni-settings-gear-65 me-1"></i>
                       Abbrechen
                     </button>
                   </div>
@@ -580,11 +580,11 @@
                   <div class="mt-3 d-flex justify-content-between align-items-center">
                     <div class="d-flex gap-2">
                       <button class="btn btn-outline-secondary btn-sm" @click="seekVideo(-10)">
-                        <i class="fas fa-backward me-1"></i>
+                        <i class="ni ni-bold-right me-1 icon-reverse"></i>
                         -10s
                       </button>
                       <button class="btn btn-outline-secondary btn-sm" @click="seekVideo(10)">
-                        <i class="fas fa-forward me-1"></i>
+                        <i class="ni ni-bold-right me-1"></i>
                         +10s
                       </button>
                     </div>
@@ -638,7 +638,7 @@
                               class="btn btn-outline-primary btn-sm"
                               @click="downloadResult(entry.id)"
                             >
-                              <i class="fas fa-download"></i>
+                              <i class="ni ni-cloud-upload-96"></i>
                             </button>
                           </td>
                         </tr>

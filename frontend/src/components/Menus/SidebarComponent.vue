@@ -55,7 +55,6 @@
               <span class="nav-link-text ms-1">Patienten</span>
             </router-link>
           </li>
-
             <li class="nav-item">
               <router-link
                 to="/anonymisierung/uebersicht"
@@ -66,7 +65,7 @@
                   <i class="ni ni-check-bold opacity-10"></i>
                 </div>
                 <span class="nav-link-text nav-link-text-with-badge ms-1">
-                  1. Anonymisierung
+                  1. Videoübersicht - Anonymisierung starten
                   <span
                     v-if="processingCount > 0"
                     class="workflow-badge workflow-badge-processing"
@@ -104,7 +103,7 @@
                 <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
                   <i class="ni ni-button-play opacity-10"></i>
                 </div>
-                <span class="nav-link-text ms-1">2. Video-Untersuchung</span>
+                <span class="nav-link-text ms-1">2. Videountersuchung befunden</span>
               </router-link>
             </li>
             <li class="nav-item">
@@ -154,7 +153,7 @@
             <li class="nav-item">
               <router-link to="/frame-annotation" class="nav-link" :class="{ active: $route.path === '/frame-annotation' }">
                 <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
-                  <i class="material-icons opacity-10">note_add</i>
+                  <i class="ni ni-fat-add opacity-10"></i>
                 </div>
                 <span class="nav-link-text ms-1">Frame Annotation</span>
               </router-link>
@@ -162,7 +161,7 @@
             <li class="nav-item">
               <router-link to="/frame-selection" class="nav-link" :class="{ active: $route.path === '/frame-selection' }">
                 <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
-                  <i class="material-icons opacity-10">photo_library</i>
+                  <i class="ni ni-album-2 opacity-10"></i>
                 </div>
                 <span class="nav-link-text ms-1">Frame Auswahl</span>
               </router-link>
@@ -170,7 +169,7 @@
             <li class="nav-item">
               <router-link to="/fallgenerator" class="nav-link" :class="{ active: $route.path === '/fallgenerator' }">
                 <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
-                  <i class="material-icons opacity-10">check_circle</i>
+                  <i class="ni ni-check-bold opacity-10"></i>
                 </div>
                 <span class="nav-link-text ms-1">Fallgenerator</span>
               </router-link>
@@ -195,7 +194,7 @@
             <!-- <li class="nav-item">
               <router-link to="anonymisierung/validierung" class="nav-link" :class="{ active: $route.path === '/validierung' }">
                 <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
-                  <i class="material-icons opacity-10">check_circle</i>
+                  <i class="ni ni-check-bold opacity-10"></i>
                 </div>
                 <span class="nav-link-text ms-1">Datenvalidierung</span>
               </router-link>
@@ -204,7 +203,7 @@
             <li class="nav-item">
               <router-link to="/pdf-meta-annotation" class="nav-link" :class="{ active: $route.path === '/pdf-annotation' }">
                 <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
-                  <i class="material-icons opacity-10">note_add</i>
+                  <i class="ni ni-fat-add opacity-10"></i>
                 </div>
                 <span class="nav-link-text ms-1">PDF Annotation</span>
               </router-link>
@@ -212,7 +211,7 @@
             <li class="nav-item">
               <router-link to="/profile" class="nav-link" :class="{ active: $route.path === '/profile' }">
                 <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
-                  <i class="material-icons opacity-10">person</i>
+                  <i class="ni ni-circle-08 opacity-10"></i>
                 </div>
                 <span class="nav-link-text ms-1">Profile</span>
               </router-link>
@@ -220,7 +219,7 @@
             <li class="nav-item">
               <router-link to="/ueber-uns" class="nav-link" :class="{ active: $route.path === '/ueber-uns' }">
                 <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
-                  <i class="material-icons opacity-10">people</i>
+                  <i class="ni ni-badge opacity-10"></i>
                 </div>
                 <span class="nav-link-text ms-1">Über Uns</span>
               </router-link>

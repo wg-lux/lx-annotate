@@ -2,7 +2,7 @@
   <div class="container-fluid py-4">
     <!-- Error Message Alert -->
     <div v-if="errorMessage" class="alert alert-danger alert-dismissible fade show" role="alert">
-      <i class="ni ni-fat-remove me-2"></i>
+      <i class="ni ni-settings-gear-65 me-2"></i>
       <strong>Fehler:</strong> {{ errorMessage }}
       <button type="button" class="btn-close" @click="clearErrorMessage" aria-label="Close"></button>
     </div>
@@ -42,7 +42,7 @@
                   @click="toggleVideoDropdown"
                 >
                   <span class="video-dropdown-trigger-text">{{ selectedVideoLabel }}</span>
-                  <i class="ni" :class="isVideoDropdownOpen ? 'ni-bold-up' : 'ni-bold-down'"></i>
+                  <i class="ni" :class="isVideoDropdownOpen ? 'ni-bold-right' : 'ni-bold-right'"></i>
                 </button>
                 <div v-if="isVideoDropdownOpen && hasVideos" class="video-dropdown-menu" role="listbox">
                   <button
@@ -66,7 +66,7 @@
                         class="video-dropdown-status-badge"
                         :class="video.segmentAnnotationsValidated ? 'badge-validated' : 'badge-pending'"
                       >
-                        <i class="ni me-1" :class="video.segmentAnnotationsValidated ? 'ni-check-bold' : 'ni-watch-time'"></i>
+                        <i class="ni me-1" :class="video.segmentAnnotationsValidated ? 'ni-check-bold' : 'ni-user-run'"></i>
                         {{ video.segmentAnnotationsValidated ? 'Validiert' : 'Validierung offen' }}
                       </span>
                     </div>
@@ -96,7 +96,7 @@
                     {{ getVideoCountByStatus('validated') }} Validiert
                   </span>
                   <span class="badge bg-secondary">
-                    <i class="ni ni-watch-time me-1"></i>
+                    <i class="ni ni-user-run me-1"></i>
                     {{ pendingValidationVideos.length }} Ausstehend
                   </span>
                 </div>
@@ -109,7 +109,7 @@
               :class="selectedVideoId === lastValidationClickedVideoId ? 'validation-click-indicator-active' : 'validation-click-indicator-muted'"
             >
               <small class="fw-semibold">
-                <i class="ni ni-tag me-1"></i>
+                <i class="ni ni-single-copy-04 me-1"></i>
                 Das Video mit dieser ID wurde als validiert markiert {{ lastValidationClickedVideoId }}
               </small>
             </div>
@@ -122,7 +122,7 @@
               <!-- ✅ NEW: Enhanced video status info when selected but not loaded -->
               <div v-if="selectedVideoId" class="alert alert-info mt-2">
                 <div class="d-flex align-items-center justify-content-center">
-                  <i class="ni ni-support-16 me-2"></i>
+                  <i class="ni ni-user-run me-2"></i>
                   <div class="text-start">
                     <strong>Video {{ selectedVideoId }}:</strong> {{ getVideoStatusIndicator(selectedVideoId) }}<br>
                     <small class="text-muted">Die Ansicht wird vorbereitet.</small>
@@ -146,7 +146,7 @@
                 @click="toggleFullscreen"
                 :title="isFullscreen ? 'Vollbild verlassen' : 'Vollbild'"
               >
-                <i class="ni" :class="isFullscreen ? 'ni-fat-remove' : 'ni-zoom-split-in'"></i>
+                <i class="ni" :class="isFullscreen ? 'ni-settings-gear-65' : 'ni-tv-2'"></i>
               </button>
               <video 
                 ref="videoRef"
@@ -206,15 +206,15 @@
                         :class="getStatusBadgeClass(overview.find(o => o.id === selectedVideoId && o.mediaType === 'video')?.anonymizationStatus || 'not_started')"
                         class="badge"
                       >
-                        <i class="ni ni-lock-circle-open me-1"></i>
+                        <i class="ni ni-check-bold me-1"></i>
                         {{ getStatusText(overview.find(o => o.id === selectedVideoId && o.mediaType === 'video')?.anonymizationStatus || 'not_started') }}
                       </span>
                       <span v-if="timelineSegmentsForSelectedVideo.length > 0" class="badge bg-info">
-                        <i class="ni ni-scissors me-1"></i>
+                        <i class="ni ni-single-copy-04 me-1"></i>
                         {{ timelineSegmentsForSelectedVideo.length }} Segmente
                       </span>
                       <span v-if="savedExaminations.length > 0" class="badge bg-warning">
-                        <i class="ni ni-support-16 me-1"></i>
+                        <i class="ni ni-user-run me-1"></i>
                         {{ savedExaminations.length }} Untersuchungen
                       </span>
                     </div>
@@ -371,7 +371,7 @@
                     :disabled="!canStartLabeling"
                     data-cy="start-label-button"
                   >
-                    <i class="ni ni-tag"></i>
+                    <i class="ni ni-single-copy-04"></i>
                     Label-Start setzen
                   </button>
                   
@@ -381,7 +381,7 @@
                     class="btn btn-warning btn-sm control-button"
                     data-cy="finish-label-button"
                   >
-                    <i class="ni ni-button-pause"></i>
+                    <i class="ni ni-button-play"></i>
                     Label-Ende setzen
                   </button>
 
@@ -402,7 +402,7 @@
               <!-- Draft-Info während Label-Erstellung -->
               <div v-if="videoStore.draftSegment" class="alert alert-info mt-2 mb-0">
                 <small>
-                  <i class="ni ni-support-16 align-middle me-1" style="font-size: 16px;"></i>
+                  <i class="ni ni-user-run align-middle me-1" style="font-size: 16px;"></i>
                   Label "{{ getTranslationForLabel(videoStore.draftSegment.label) }}" 
                   <span v-if="videoStore.draftSegment.endTime">
                     von {{ formatTime(videoStore.draftSegment.startTime) }} bis {{ formatTime(videoStore.draftSegment.endTime) }}
@@ -424,7 +424,7 @@
             <i class="ni ni-check-bold ni-2x me-3 text-success"></i>
             <div class="validation-status-body">
               <h6 class="mb-1">
-                <i class="ni ni-trophy me-1"></i>
+                <i class="ni ni-chart-bar-32 me-1"></i>
                 {{ canEditSelectedVideoSegments ? 'Segmentbearbeitung aktiv' : 'Video bereits validiert' }}
               </h6>
               <small class="text-muted">
@@ -442,7 +442,7 @@
               class="btn btn-outline-success btn-sm ms-auto validation-edit-button"
               @click="enableSegmentEditing"
             >
-              <i class="ni ni-ruler-pencil me-1"></i>
+              <i class="ni ni-single-copy-04 me-1"></i>
               Segmente bearbeiten
             </button>
           </div>
@@ -461,7 +461,7 @@
           
           <p v-if="!isAnnotationFinished(selectedVideoId) && segmentSourceMode !== 'prediction'" 
              class="text-muted text-center mt-2 mb-0" style="font-size: 0.9rem;">
-            <i class="ni ni-support-16" style="font-size: 16px; vertical-align: middle;"></i>
+            <i class="ni ni-user-run" style="font-size: 16px; vertical-align: middle;"></i>
             Markiert alle Segmente als überprüft und setzt Video-Status auf "Validiert"
           </p>
         </div>
@@ -482,7 +482,7 @@
             </small>
             <div class="mt-2" v-if="selectedVideoId">
               <div class="alert alert-info alert-sm mb-0">
-                <i class="ni ni-support-16 me-1"></i>
+                <i class="ni ni-user-run me-1"></i>
                 <strong>Video {{ selectedVideoId }}:</strong>
                 Die klinische Befundung erfolgt im nächsten Schritt.
               </div>
@@ -490,7 +490,7 @@
           </div>
           <div class="card-body">
             <div class="text-center text-muted py-5 px-3">
-              <i class="ni ni-map-big ni-3x mb-3 text-muted"></i>
+              <i class="ni ni-collection ni-3x mb-3 text-muted"></i>
               <h6>Befundung fortsetzen</h6>
               <p class="mb-3">
                 Wechseln Sie zur Befundung, um den Fall weiter zu bearbeiten und den Bericht zu vervollständigen.
@@ -532,7 +532,7 @@
                     @click="deleteExamination(exam.id)" 
                     class="btn btn-sm btn-outline-danger"
                   >
-                    <i class="ni ni-fat-delete"></i>
+                    <i class="ni ni-settings-gear-65"></i>
                   </button>
                 </div>
               </div>

@@ -40,6 +40,23 @@ const templateStatusMessage = ref(null);
 const canSave = computed(() => !!flow.patientExaminationId && !!selectedTemplateName.value);
 const currentRuntimeDraft = computed(() => flow.currentRuntimeDraft);
 const currentPayload = computed(() => currentRuntimeDraft.value?.payload || null);
+const renderedReportPreview = computed(() => buildRenderedText());
+const reportWordCount = computed(() => {
+    const words = renderedReportPreview.value
+        .replace(/[#*-]/g, ' ')
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean);
+    return words.length;
+});
+const reportPatientLabel = computed(() => {
+    const patient = selectedPatient.value;
+    if (!patient)
+        return 'Nicht gewählt';
+    const name = [patient.firstName, patient.lastName].filter(Boolean).join(' ').trim();
+    const details = [patient.gender, formatDateOnly(patient.dob)].filter(Boolean);
+    return [name || `Patient #${patient.id}`, ...details].join(' · ');
+});
 const normalizedIndications = computed(() => flow.indications
     .filter((row) => row.examinationIndicationId != null)
     .map((row) => ({
@@ -703,22 +720,52 @@ debugger; /* PartiallyEnd: #3632/scriptSetup.vue */
 const __VLS_ctx = {};
 let __VLS_components;
 let __VLS_directives;
+/** @type {__VLS_StyleScopedClasses['report-status-pill']} */ ;
+/** @type {__VLS_StyleScopedClasses['report-status-pill']} */ ;
+/** @type {__VLS_StyleScopedClasses['report-status-pill']} */ ;
+/** @type {__VLS_StyleScopedClasses['report-status-pill']} */ ;
+/** @type {__VLS_StyleScopedClasses['report-preview-meta']} */ ;
+/** @type {__VLS_StyleScopedClasses['report-preview-meta']} */ ;
+/** @type {__VLS_StyleScopedClasses['report-preview-meta']} */ ;
+/** @type {__VLS_StyleScopedClasses['report-preview-sheet']} */ ;
+/** @type {__VLS_StyleScopedClasses['report-preview-footer']} */ ;
+/** @type {__VLS_StyleScopedClasses['report-editor-layout']} */ ;
+/** @type {__VLS_StyleScopedClasses['report-preview-panel']} */ ;
+/** @type {__VLS_StyleScopedClasses['report-workspace-header']} */ ;
+/** @type {__VLS_StyleScopedClasses['report-workspace-actions']} */ ;
+/** @type {__VLS_StyleScopedClasses['report-preview-toolbar']} */ ;
+/** @type {__VLS_StyleScopedClasses['report-preview-footer']} */ ;
+// CSS variable injection 
+// CSS variable injection end 
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "d-flex flex-column gap-3" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "card shadow-sm" },
+    ...{ class: "card shadow-sm report-workspace-card" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "card-header d-flex justify-content-between align-items-center" },
+    ...{ class: "card-header report-workspace-header" },
 });
-__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "report-workspace-title" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "small text-uppercase text-muted fw-semibold" },
+});
 __VLS_asFunctionalElement(__VLS_intrinsicElements.h5, __VLS_intrinsicElements.h5)({
-    ...{ class: "mb-0" },
+    ...{ class: "mb-1" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
     ...{ class: "text-muted" },
 });
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "report-workspace-actions" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "report-status-pill" },
+    ...{ class: (__VLS_ctx.lastSaveStatus === 'final' ? 'is-final' : 'is-draft') },
+});
+(__VLS_ctx.lastSaveStatus === 'final' ? 'Final' : __VLS_ctx.flow.activeReportId ? 'Entwurf' : 'Neuer Bericht');
 const __VLS_0 = {}.RouterLink;
 /** @type {[typeof __VLS_components.RouterLink, typeof __VLS_components.RouterLink, ]} */ ;
 // @ts-ignore
@@ -747,12 +794,18 @@ if (__VLS_ctx.successMessage) {
     });
     (__VLS_ctx.successMessage);
 }
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "report-editor-layout" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "report-editor-main" },
+});
 /** @type {[typeof MedicalBlock, typeof MedicalBlock, ]} */ ;
 // @ts-ignore
 const __VLS_4 = __VLS_asFunctionalComponent(MedicalBlock, new MedicalBlock({
     title: "Template-Kontext",
     subtitle: "Templates per Untersuchung laden und für den Bericht aktivieren",
-    icon: "description",
+    icon: "ni ni-single-copy-04",
     iconBgClass: "bg-gradient-primary",
     isComplete: (!!__VLS_ctx.selectedTemplateName),
     isActive: (true),
@@ -762,7 +815,7 @@ const __VLS_4 = __VLS_asFunctionalComponent(MedicalBlock, new MedicalBlock({
 const __VLS_5 = __VLS_4({
     title: "Template-Kontext",
     subtitle: "Templates per Untersuchung laden und für den Bericht aktivieren",
-    icon: "description",
+    icon: "ni ni-single-copy-04",
     iconBgClass: "bg-gradient-primary",
     isComplete: (!!__VLS_ctx.selectedTemplateName),
     isActive: (true),
@@ -870,7 +923,7 @@ for (const [section] of __VLS_getVForSourceType((__VLS_ctx.sectionBlocks))) {
         key: (section.name),
         title: (section.title),
         subtitle: (section.subtitle),
-        icon: "assignment",
+        icon: "ni ni-single-copy-04",
         iconBgClass: "bg-gradient-info",
         isComplete: (__VLS_ctx.isSectionConfigured(section.name)),
         isActive: (section.position === 0),
@@ -881,7 +934,7 @@ for (const [section] of __VLS_getVForSourceType((__VLS_ctx.sectionBlocks))) {
         key: (section.name),
         title: (section.title),
         subtitle: (section.subtitle),
-        icon: "assignment",
+        icon: "ni ni-single-copy-04",
         iconBgClass: "bg-gradient-info",
         isComplete: (__VLS_ctx.isSectionConfigured(section.name)),
         isActive: (section.position === 0),
@@ -1054,8 +1107,50 @@ if (__VLS_ctx.sectionCompletionSummary.totalSections) {
         }
     }
 }
+__VLS_asFunctionalElement(__VLS_intrinsicElements.aside, __VLS_intrinsicElements.aside)({
+    ...{ class: "report-preview-panel" },
+});
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "d-flex flex-wrap gap-2" },
+    ...{ class: "report-preview-card" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "report-preview-toolbar" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "small text-uppercase text-muted fw-semibold" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({
+    ...{ class: "mb-0" },
+});
+(__VLS_ctx.selectedTemplateName || 'Unbenanntes Template');
+__VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+    ...{ class: "report-status-pill compact" },
+    ...{ class: (__VLS_ctx.canSave ? 'is-draft' : 'is-muted') },
+});
+(__VLS_ctx.reportWordCount);
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "report-preview-meta" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+(__VLS_ctx.reportPatientLabel);
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+(__VLS_ctx.selectedExaminationDisplayName || 'Nicht gewählt');
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+(__VLS_ctx.flow.activeReportId ? `#${__VLS_ctx.flow.activeReportId}` : 'Neu');
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "report-preview-sheet" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.pre, __VLS_intrinsicElements.pre)({});
+(__VLS_ctx.renderedReportPreview);
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "report-preview-footer" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
     ...{ onClick: (...[$event]) => {
@@ -1212,12 +1307,18 @@ if (__VLS_ctx.isDebug) {
 /** @type {__VLS_StyleScopedClasses['gap-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['card']} */ ;
 /** @type {__VLS_StyleScopedClasses['shadow-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['report-workspace-card']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-header']} */ ;
-/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
-/** @type {__VLS_StyleScopedClasses['justify-content-between']} */ ;
-/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
-/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['report-workspace-header']} */ ;
+/** @type {__VLS_StyleScopedClasses['report-workspace-title']} */ ;
+/** @type {__VLS_StyleScopedClasses['small']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-uppercase']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['fw-semibold']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['report-workspace-actions']} */ ;
+/** @type {__VLS_StyleScopedClasses['report-status-pill']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-secondary']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
@@ -1228,6 +1329,8 @@ if (__VLS_ctx.isDebug) {
 /** @type {__VLS_StyleScopedClasses['alert']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert-success']} */ ;
 /** @type {__VLS_StyleScopedClasses['py-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['report-editor-layout']} */ ;
+/** @type {__VLS_StyleScopedClasses['report-editor-main']} */ ;
 /** @type {__VLS_StyleScopedClasses['row']} */ ;
 /** @type {__VLS_StyleScopedClasses['g-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
@@ -1303,9 +1406,19 @@ if (__VLS_ctx.isDebug) {
 /** @type {__VLS_StyleScopedClasses['small']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
 /** @type {__VLS_StyleScopedClasses['ps-3']} */ ;
-/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
-/** @type {__VLS_StyleScopedClasses['flex-wrap']} */ ;
-/** @type {__VLS_StyleScopedClasses['gap-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['report-preview-panel']} */ ;
+/** @type {__VLS_StyleScopedClasses['report-preview-card']} */ ;
+/** @type {__VLS_StyleScopedClasses['report-preview-toolbar']} */ ;
+/** @type {__VLS_StyleScopedClasses['small']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-uppercase']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['fw-semibold']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['report-status-pill']} */ ;
+/** @type {__VLS_StyleScopedClasses['compact']} */ ;
+/** @type {__VLS_StyleScopedClasses['report-preview-meta']} */ ;
+/** @type {__VLS_StyleScopedClasses['report-preview-sheet']} */ ;
+/** @type {__VLS_StyleScopedClasses['report-preview-footer']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-primary']} */ ;
 /** @type {__VLS_StyleScopedClasses['spinner-border']} */ ;
@@ -1408,6 +1521,9 @@ const __VLS_self = (await import('vue')).defineComponent({
             canSave: canSave,
             currentRuntimeDraft: currentRuntimeDraft,
             currentPayload: currentPayload,
+            renderedReportPreview: renderedReportPreview,
+            reportWordCount: reportWordCount,
+            reportPatientLabel: reportPatientLabel,
             normalizedIndicationsPreview: normalizedIndicationsPreview,
             indicationOptionsForEditor: indicationOptionsForEditor,
             sectionDraftPreview: sectionDraftPreview,

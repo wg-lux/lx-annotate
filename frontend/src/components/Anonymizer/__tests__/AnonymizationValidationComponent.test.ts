@@ -171,6 +171,16 @@ describe('AnonymizationValidationComponent', () => {
     )
   })
 
+  it('renders the source file id in the validation header', async () => {
+    hoisted.anonymizationStoreRef.current.current = buildPdfItem({ id: 99 })
+
+    const wrapper = mountComponent()
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('PDF-ID: 5')
+    expect(wrapper.text()).not.toContain('PDF-ID: 99')
+  })
+
   it('shows backend validation errors when approval fails', async () => {
     vi.mocked(axiosInstance.post).mockRejectedValue({
       response: {

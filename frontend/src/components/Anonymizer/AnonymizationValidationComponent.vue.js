@@ -315,6 +315,16 @@ const validationProgressPercent = computed(() => {
 // ============================================================================
 // Computed
 const currentItem = computed(() => anonymizationStore.current);
+const currentFileIdLabel = computed(() => {
+    const targetFileId = resolveFileIdFromContext();
+    if (targetFileId === null)
+        return '';
+    if (sourceMediaScope.value === 'video')
+        return `Video-ID: ${targetFileId}`;
+    if (sourceMediaScope.value === 'pdf')
+        return `PDF-ID: ${targetFileId}`;
+    return `Datei-ID: ${targetFileId}`;
+});
 const patientHashDisplay = computed(() => caseResolution.value?.patientHashDisplay ?? currentItem.value?.patientHashDisplay ?? null);
 const examinationHashDisplay = computed(() => caseResolution.value?.examinationHashDisplay ?? currentItem.value?.examinationHashDisplay ?? null);
 const pseudoPatientId = computed(() => {
@@ -582,7 +592,7 @@ const validateVideoForSegmentAnnotation = async () => {
             shouldShowOutsideTimeline.value = true;
             videoValidationStatus.value = {
                 class: 'alert-warning',
-                icon: 'fas fa-exclamation-triangle',
+                icon: 'ni ni-user-run',
                 title: 'Segmentvalidierung erforderlich',
                 message: `${outsideSegments.length} "Outside"-Segmente gefunden, die validiert werden müssen.`,
                 details: 'Verwenden Sie die Timeline unten, um die Segmente zu überprüfen und zu bestätigen.'
@@ -591,7 +601,7 @@ const validateVideoForSegmentAnnotation = async () => {
         else {
             videoValidationStatus.value = {
                 class: 'alert-success',
-                icon: 'fas fa-check-circle',
+                icon: 'ni ni-check-bold',
                 title: 'Video bereit für Annotation',
                 message: 'Keine "Outside"-Segmente gefunden. Video ist bereit für die Segment-Annotation.',
                 details: `Video ID: ${currentItem.value.id} - Alle Validierungen bestanden.`
@@ -603,7 +613,7 @@ const validateVideoForSegmentAnnotation = async () => {
         console.error('Error validating video for segment annotation:', error);
         videoValidationStatus.value = {
             class: 'alert-danger',
-            icon: 'fas fa-times-circle',
+            icon: 'ni ni-settings-gear-65',
             title: 'Validierung fehlgeschlagen',
             message: 'Video konnte nicht für Segment-Annotation validiert werden.',
             details: error?.response?.data?.detail || error?.message || 'Unbekannter Fehler'
@@ -627,7 +637,7 @@ const onOutsideValidationComplete = () => {
     shouldShowOutsideTimeline.value = false;
     videoValidationStatus.value = {
         class: 'alert-success',
-        icon: 'fas fa-check-circle',
+        icon: 'ni ni-check-bold',
         title: 'Validierung abgeschlossen',
         message: 'Alle Outside-Segmente wurden erfolgreich validiert.',
         details: `Video ${currentItem.value?.id} ist jetzt bereit für die vollständige Segment-Annotation.`
@@ -1440,7 +1450,7 @@ if (__VLS_ctx.anonymizationStore.isAnyFileProcessing) {
         ...{ class: "alert alert-warning mt-3" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-info-circle me-2" },
+        ...{ class: "ni ni-user-run me-2" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
     (__VLS_ctx.anonymizationStore.processingFiles.length);
@@ -1460,7 +1470,7 @@ if (__VLS_ctx.anonymizationStore.isAnyFileProcessing) {
     }, ...__VLS_functionalComponentArgsRest(__VLS_1));
     __VLS_3.slots.default;
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-eye me-1" },
+        ...{ class: "ni ni-user-run me-1" },
     });
     var __VLS_3;
 }
@@ -1477,12 +1487,19 @@ if (__VLS_ctx.currentItem) {
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-info-circle me-2" },
+        ...{ class: "ni ni-user-run me-2" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
     __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
     (__VLS_ctx.isPdf ? 'PDF-Dokument' : __VLS_ctx.isVideo ? 'Video-Datei' : 'Unbekanntes Format');
     (__VLS_ctx.currentItem?.centerName ? `- ${__VLS_ctx.currentItem.centerName}` : '');
+    if (__VLS_ctx.currentFileIdLabel) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+            ...{ class: "badge bg-secondary ms-2 align-middle" },
+            title: "ID aus der Anonymisierungs-Übersicht",
+        });
+        (__VLS_ctx.currentFileIdLabel);
+    }
     if (__VLS_ctx.currentItem && (__VLS_ctx.isVideo || __VLS_ctx.isPdf)) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: "text-end" },
@@ -1491,7 +1508,7 @@ if (__VLS_ctx.currentItem) {
             ...{ class: "text-muted" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "fas fa-tools me-1" },
+            ...{ class: "ni ni-settings-gear-65 me-1" },
         });
         (__VLS_ctx.isVideo ? 'Video-Korrektur verfügbar' : 'Text-Korrektur verfügbar');
     }
@@ -1529,7 +1546,7 @@ if (__VLS_ctx.currentItem) {
             ...{ class: "alert-heading" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "fas fa-exclamation-triangle me-2" },
+            ...{ class: "ni ni-user-run me-2" },
         });
         (__VLS_ctx.validationErrorSummary);
         __VLS_asFunctionalElement(__VLS_intrinsicElements.hr, __VLS_intrinsicElements.hr)({});
@@ -1637,7 +1654,7 @@ if (__VLS_ctx.currentItem) {
         ...{ class: "form-text text-muted" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-info-circle me-1" },
+        ...{ class: "ni ni-user-run me-1" },
     });
     if (__VLS_ctx.dobDisplayFormat) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
@@ -1682,7 +1699,7 @@ if (__VLS_ctx.currentItem) {
         ...{ class: "form-text text-muted" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-info-circle me-1" },
+        ...{ class: "ni ni-user-run me-1" },
     });
     if (__VLS_ctx.examDateDisplayFormat) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
@@ -1954,7 +1971,7 @@ if (__VLS_ctx.currentItem) {
         ...{ class: "alert alert-info mt-2 mb-0" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-info-circle me-2" },
+        ...{ class: "ni ni-user-run me-2" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
     if (__VLS_ctx.isPdf) {
@@ -1990,7 +2007,7 @@ if (__VLS_ctx.currentItem) {
             ...{ class: "text-center mb-3 text-danger" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "fas fa-file-pdf me-1" },
+            ...{ class: "ni ni-single-copy-04 me-1" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.iframe, __VLS_intrinsicElements.iframe)({
             src: (__VLS_ctx.rawPdfSrc),
@@ -2027,7 +2044,7 @@ if (__VLS_ctx.currentItem) {
             ...{ class: "text-center mb-3 text-success" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "fas fa-shield-alt me-1" },
+            ...{ class: "ni ni-check-bold me-1" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.iframe, __VLS_intrinsicElements.iframe)({
             src: (__VLS_ctx.anonymizedPdfSrc),
@@ -2062,14 +2079,14 @@ if (__VLS_ctx.currentItem) {
             ...{ class: "btn btn-outline-primary btn-sm me-2" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "fas fa-download me-1" },
+            ...{ class: "ni ni-cloud-upload-96 me-1" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
             ...{ onClick: (__VLS_ctx.downloadAnonymizedPdf) },
             ...{ class: "btn btn-outline-success btn-sm" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "fas fa-download me-1" },
+            ...{ class: "ni ni-cloud-upload-96 me-1" },
         });
     }
     else if (__VLS_ctx.isVideo) {
@@ -2089,7 +2106,7 @@ if (__VLS_ctx.currentItem) {
             ...{ class: "text-center mb-3 text-danger" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "fas fa-eye me-1" },
+            ...{ class: "ni ni-user-run me-1" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.video, __VLS_intrinsicElements.video)({
             ...{ onError: (__VLS_ctx.onRawVideoError) },
@@ -2120,7 +2137,7 @@ if (__VLS_ctx.currentItem) {
             ...{ class: "text-center mb-3 text-success" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "fas fa-shield-alt me-1" },
+            ...{ class: "ni ni-check-bold me-1" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.video, __VLS_intrinsicElements.video)({
             ...{ onError: (__VLS_ctx.onAnonymizedVideoError) },
@@ -2149,14 +2166,14 @@ if (__VLS_ctx.currentItem) {
             ...{ class: "btn btn-outline-primary btn-sm me-2" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "fas fa-sync me-1" },
+            ...{ class: "ni ni-bold-right me-1" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
             ...{ onClick: (__VLS_ctx.pauseAllVideos) },
             ...{ class: "btn btn-outline-secondary btn-sm" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "fas fa-pause me-1" },
+            ...{ class: "ni ni-button-play me-1" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
             ...{ onClick: (__VLS_ctx.validateVideoForSegmentAnnotation) },
@@ -2171,7 +2188,7 @@ if (__VLS_ctx.currentItem) {
         }
         else {
             __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: "fas fa-check me-1" },
+                ...{ class: "ni ni-check-bold me-1" },
             });
         }
         if (__VLS_ctx.shouldShowOutsideTimeline && __VLS_ctx.currentItem) {
@@ -2192,7 +2209,7 @@ if (__VLS_ctx.currentItem) {
                 ...{ class: "mb-0 text-warning" },
             });
             __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: "fas fa-exclamation-triangle me-2" },
+                ...{ class: "ni ni-user-run me-2" },
             });
             (__VLS_ctx.currentItem.id);
             __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
@@ -2311,7 +2328,7 @@ if (__VLS_ctx.currentItem) {
             title: (__VLS_ctx.isVideo ? 'Video-Korrektur: Maskierung, Frame-Entfernung, etc.' : 'PDF-Korrektur: Text-Annotation anpassen'),
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "fas fa-edit me-1" },
+            ...{ class: "ni ni-single-copy-04 me-1" },
         });
         (__VLS_ctx.isVideo ? 'Video-Korrektur' : 'PDF-Korrektur');
         if (__VLS_ctx.dirty) {
@@ -2360,7 +2377,7 @@ if (__VLS_ctx.currentItem) {
             ...{ class: "alert alert-warning mt-2 mb-0" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "fas fa-exclamation-triangle me-2" },
+            ...{ class: "ni ni-user-run me-2" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
         (__VLS_ctx.approvalBlockReason);
@@ -2508,15 +2525,15 @@ if (__VLS_ctx.currentItem) {
 /** @type {__VLS_StyleScopedClasses['alert']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert-warning']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-info-circle']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-user-run']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-primary']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-eye']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-user-run']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['row']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
@@ -2526,13 +2543,17 @@ if (__VLS_ctx.currentItem) {
 /** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
 /** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['justify-content-between']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-info-circle']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-user-run']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['bg-secondary']} */ ;
+/** @type {__VLS_StyleScopedClasses['ms-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-middle']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-end']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-tools']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-settings-gear-65']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['row']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-4']} */ ;
@@ -2549,8 +2570,8 @@ if (__VLS_ctx.currentItem) {
 /** @type {__VLS_StyleScopedClasses['fade']} */ ;
 /** @type {__VLS_StyleScopedClasses['show']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert-heading']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-exclamation-triangle']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-user-run']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-close']} */ ;
@@ -2581,8 +2602,8 @@ if (__VLS_ctx.currentItem) {
 /** @type {__VLS_StyleScopedClasses['is-invalid']} */ ;
 /** @type {__VLS_StyleScopedClasses['form-text']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-info-circle']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-user-run']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['ms-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['badge']} */ ;
@@ -2597,8 +2618,8 @@ if (__VLS_ctx.currentItem) {
 /** @type {__VLS_StyleScopedClasses['is-invalid']} */ ;
 /** @type {__VLS_StyleScopedClasses['form-text']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-info-circle']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-user-run']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['ms-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['badge']} */ ;
@@ -2688,8 +2709,8 @@ if (__VLS_ctx.currentItem) {
 /** @type {__VLS_StyleScopedClasses['alert-info']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-info-circle']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-user-run']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-body']} */ ;
 /** @type {__VLS_StyleScopedClasses['media-viewer-container']} */ ;
@@ -2701,8 +2722,8 @@ if (__VLS_ctx.currentItem) {
 /** @type {__VLS_StyleScopedClasses['text-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-danger']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-file-pdf']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-single-copy-04']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-center']} */ ;
@@ -2718,8 +2739,8 @@ if (__VLS_ctx.currentItem) {
 /** @type {__VLS_StyleScopedClasses['text-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-success']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-shield-alt']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-check-bold']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-center']} */ ;
@@ -2736,14 +2757,14 @@ if (__VLS_ctx.currentItem) {
 /** @type {__VLS_StyleScopedClasses['btn-outline-primary']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-2']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-download']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-cloud-upload-96']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-success']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-download']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-cloud-upload-96']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['dual-video-container']} */ ;
 /** @type {__VLS_StyleScopedClasses['row']} */ ;
@@ -2753,8 +2774,8 @@ if (__VLS_ctx.currentItem) {
 /** @type {__VLS_StyleScopedClasses['text-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-danger']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-eye']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-user-run']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-center']} */ ;
@@ -2765,8 +2786,8 @@ if (__VLS_ctx.currentItem) {
 /** @type {__VLS_StyleScopedClasses['text-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-success']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-shield-alt']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-check-bold']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-center']} */ ;
@@ -2778,14 +2799,14 @@ if (__VLS_ctx.currentItem) {
 /** @type {__VLS_StyleScopedClasses['btn-outline-primary']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-2']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-sync']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-bold-right']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-secondary']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-pause']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-button-play']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-info']} */ ;
@@ -2794,8 +2815,8 @@ if (__VLS_ctx.currentItem) {
 /** @type {__VLS_StyleScopedClasses['spinner-border']} */ ;
 /** @type {__VLS_StyleScopedClasses['spinner-border-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-check']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-check-bold']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['outside-timeline-container']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-4']} */ ;
@@ -2809,8 +2830,8 @@ if (__VLS_ctx.currentItem) {
 /** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-warning']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-exclamation-triangle']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-user-run']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-end']} */ ;
@@ -2842,8 +2863,8 @@ if (__VLS_ctx.currentItem) {
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-warning']} */ ;
 /** @type {__VLS_StyleScopedClasses['position-relative']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-edit']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-single-copy-04']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['position-absolute']} */ ;
 /** @type {__VLS_StyleScopedClasses['top-0']} */ ;
@@ -2868,8 +2889,8 @@ if (__VLS_ctx.currentItem) {
 /** @type {__VLS_StyleScopedClasses['alert-warning']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-exclamation-triangle']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-user-run']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['row']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-4']} */ ;
@@ -2977,6 +2998,7 @@ const __VLS_self = (await import('vue')).defineComponent({
             approvalBlockReason: approvalBlockReason,
             validationProgressPercent: validationProgressPercent,
             currentItem: currentItem,
+            currentFileIdLabel: currentFileIdLabel,
             patientHashDisplay: patientHashDisplay,
             examinationHashDisplay: examinationHashDisplay,
             linkageStatus: linkageStatus,

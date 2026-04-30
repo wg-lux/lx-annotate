@@ -6,7 +6,7 @@
         <div class="g-sidenav-hidden">
           <div class="sidenav m-1">
             <button @click="toggleMenu" class="btn btn-outline-primary border-0 my-3 btn-sm mb-0 me-3">
-              <i class="ni ni-align-left-2"></i>
+              <i class="ni ni-collection"></i>
             </button>
           </div>
         </div>
@@ -16,7 +16,7 @@
     <template v-if="isMenuOpen">
       <aside class="sidenav navbar navbar-vertical navbar-expand-xs border-0 border-radius-xl my-3 fixed-start ms-3 bg-gradient-dark" id="sidenav-main">
         <button @click="toggleMenu" class="btn btn-outline-info btn-sm mb-0 me-3 bg-gradient-dark">
-          <i class="ni ni-fat-remove"></i>
+          <i class="ni ni-settings-gear-65"></i>
         </button>
         <SidebarComponent />
       </aside>

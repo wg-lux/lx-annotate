@@ -4,15 +4,15 @@
     <div class="detail-header">
       <div class="patient-header-info">
         <h2 class="patient-title">
-          <i class="fas fa-user"></i>
+          <i class="ni ni-circle-08"></i>
           {{ patient.firstName }} {{ patient.lastName }}
         </h2>
         <span v-if="patient.isRealPerson" class="badge bg-success">
-          <i class="fas fa-shield-alt"></i>
+          <i class="ni ni-check-bold"></i>
           Realer Patient
         </span>
         <span v-else class="badge bg-secondary">
-          <i class="fas fa-user-secret"></i>
+          <i class="ni ni-check-bold"></i>
           Test-Patient
         </span>
       </div>
@@ -23,7 +23,7 @@
           @click="$emit('close')"
           :disabled="loading"
         >
-          <i class="fas fa-times"></i>
+          <i class="ni ni-settings-gear-65"></i>
           Schließen
         </button>
         
@@ -32,7 +32,7 @@
           @click="showEditForm = true"
           :disabled="loading || showEditForm"
         >
-          <i class="fas fa-edit"></i>
+          <i class="ni ni-single-copy-04"></i>
           Bearbeiten
         </button>
         
@@ -41,7 +41,7 @@
           @click="checkDeletionSafety"
           :disabled="loading || showEditForm"
         >
-          <i class="fas fa-trash"></i>
+          <i class="ni ni-settings-gear-65"></i>
           Löschen
         </button>
       </div>
@@ -49,12 +49,12 @@
 
     <!-- Error/Success Messages -->
     <div v-if="error" class="alert alert-danger">
-      <i class="fas fa-exclamation-triangle"></i>
+      <i class="ni ni-user-run"></i>
       {{ error }}
     </div>
 
     <div v-if="successMessage" class="alert alert-success">
-      <i class="fas fa-check-circle"></i>
+      <i class="ni ni-check-bold"></i>
       {{ successMessage }}
     </div>
 
@@ -63,7 +63,7 @@
       <div class="card">
         <div class="card-header">
           <h4 class="card-title">
-            <i class="fas fa-edit"></i>
+            <i class="ni ni-single-copy-04"></i>
             Patient bearbeiten
           </h4>
         </div>
@@ -86,7 +86,7 @@
           <div class="card info-card">
             <div class="card-header">
               <h5 class="card-title">
-                <i class="fas fa-user"></i>
+                <i class="ni ni-circle-08"></i>
                 Grunddaten
               </h5>
             </div>
@@ -111,7 +111,7 @@
                       title="Neue Pseudonamen generieren"
                     >
                       <span v-if="generatingPseudonym" class="spinner-border spinner-border-sm me-1"></span>
-                      <i v-else class="fas fa-refresh"></i>
+                      <i v-else class="ni ni-bold-right"></i>
                       {{ generatingPseudonym ? 'Generiere...' : 'Neu' }}
                     </button>
                   </span>
@@ -122,7 +122,7 @@
                     :disabled="generatingPseudonym"
                   >
                     <span v-if="generatingPseudonym" class="spinner-border spinner-border-sm me-1"></span>
-                    <i v-else class="fas fa-user-secret"></i>
+                    <i v-else class="ni ni-check-bold"></i>
                     {{ generatingPseudonym ? 'Generiere...' : 'Pseudonym generieren' }}
                   </button>
                 </div>
@@ -147,7 +147,7 @@
           <div class="card info-card">
             <div class="card-header">
               <h5 class="card-title">
-                <i class="fas fa-address-book"></i>
+                <i class="ni ni-book-bookmark"></i>
                 Kontaktdaten
               </h5>
             </div>
@@ -188,7 +188,7 @@
                       title="Pseudonym-Hash generieren"
                     >
                       <span v-if="generatingPseudonym" class="spinner-border spinner-border-sm me-1"></span>
-                      <i v-else class="fas fa-key me-1"></i>
+                      <i v-else class="ni ni-check-bold me-1"></i>
                       {{ generatingPseudonym ? 'Generiere...' : (patient.patientHash ? 'Aktualisieren' : 'Generieren') }}
                     </button>
                   </div>
@@ -205,7 +205,7 @@
           <div class="card info-card">
             <div class="card-header">
               <h5 class="card-title">
-                <i class="fas fa-cog"></i>
+                <i class="ni ni-settings-gear-65"></i>
                 Systeminformationen
               </h5>
             </div>
@@ -220,11 +220,11 @@
                     <label>Datentyp:</label>
                     <span>
                       <span v-if="patient.isRealPerson" class="badge bg-success">
-                        <i class="fas fa-shield-alt"></i>
+                        <i class="ni ni-check-bold"></i>
                         Realer Patient
                       </span>
                       <span v-else class="badge bg-secondary">
-                        <i class="fas fa-user-secret"></i>
+                        <i class="ni ni-check-bold"></i>
                         Test-/Pseudo-Patient
                       </span>
                     </span>
@@ -253,19 +253,19 @@
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title">
-              <i class="fas fa-exclamation-triangle text-warning"></i>
+              <i class="ni ni-user-run text-warning"></i>
               Löschvorgang prüfen
             </h5>
           </div>
           <div class="modal-body">
             <div v-if="deletionCheck?.canDelete" class="alert alert-info">
-              <i class="fas fa-info-circle"></i>
+              <i class="ni ni-user-run"></i>
               <strong>Patient kann gelöscht werden.</strong>
               <p class="mb-0 mt-2">Sind Sie sicher, dass Sie diesen Patienten löschen möchten?</p>
             </div>
             
             <div v-else class="alert alert-warning">
-              <i class="fas fa-exclamation-triangle"></i>
+              <i class="ni ni-user-run"></i>
               <strong>Patient kann nicht gelöscht werden.</strong>
               <ul class="mt-2 mb-0">
                 <li v-for="warning in deletionCheck?.warnings?.filter((w: string) => w)" :key="warning">
@@ -278,19 +278,19 @@
               <h6>Verknüpfte Objekte:</h6>
               <div class="related-objects">
                 <div class="object-count">
-                  <i class="fas fa-stethoscope"></i>
+                  <i class="ni ni-user-run"></i>
                   {{ deletionCheck.relatedObjects.examinations }} Untersuchung(en)
                 </div>
                 <div class="object-count">
-                  <i class="fas fa-search"></i>
+                  <i class="ni ni-tv-2"></i>
                   {{ deletionCheck.relatedObjects.findings }} Befund(e)
                 </div>
                 <div class="object-count">
-                  <i class="fas fa-video"></i>
+                  <i class="ni ni-button-play"></i>
                   {{ deletionCheck.relatedObjects.videos }} Video(s)
                 </div>
                 <div class="object-count">
-                  <i class="fas fa-file-pdf"></i>
+                  <i class="ni ni-single-copy-04"></i>
                   {{ deletionCheck.relatedObjects.reports }} Bericht(e)
                 </div>
               </div>
@@ -313,7 +313,7 @@
               :disabled="deleting"
             >
               <span v-if="deleting" class="spinner-border spinner-border-sm me-2"></span>
-              <i v-else class="fas fa-trash me-2"></i>
+              <i v-else class="ni ni-settings-gear-65 me-2"></i>
               {{ deleting ? 'Wird gelöscht...' : 'Endgültig löschen' }}
             </button>
           </div>

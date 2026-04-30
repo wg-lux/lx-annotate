@@ -17,7 +17,7 @@
         <div class="card dashboard-card">
           <div class="card-header dashboard-card-header d-flex justify-content-between align-items-center">
             <h5 class="mb-0">
-              <i class="fas fa-video text-primary me-2"></i>
+              <i class="ni ni-button-play text-primary me-2"></i>
               Video-Segment Annotationen
             </h5>
             <div class="header-actions">
@@ -26,14 +26,14 @@
                 @click="refreshSegments"
                 :disabled="loadingSegments"
               >
-                <i class="fas fa-sync-alt" :class="{ 'fa-spin': loadingSegments }"></i>
+                <i class="ni ni-bold-right" :class="{ 'ni-spin': loadingSegments }"></i>
                 Aktualisieren
               </button>
               <router-link 
                 to="/frame-annotation" 
                 class="btn btn-primary btn-sm"
               >
-                <i class="fas fa-plus me-1"></i>
+                <i class="ni ni-fat-add me-1"></i>
                 Neue Annotation
               </router-link>
             </div>
@@ -56,14 +56,14 @@
                   <tr v-if="loadingSegments">
                     <td colspan="7" class="text-center py-4">
                       <div class="table-loading-state">
-                        <i class="fas fa-wave-square me-2"></i>
+                        <i class="ni ni-button-play me-2"></i>
                         Segmente werden geladen...
                       </div>
                     </td>
                   </tr>
                   <tr v-else-if="segments.length === 0">
                     <td colspan="7" class="text-center text-muted">
-                      <i class="fas fa-video fa-2x mb-2"></i>
+                      <i class="ni ni-button-play ni-2x mb-2"></i>
                       <br>
                       Keine Video-Segmente verfügbar
                     </td>
@@ -92,7 +92,7 @@
                           @click="editSegment(segment)"
                           :title="'Segment bearbeiten'"
                         >
-                          <i class="fas fa-edit"></i>
+                          <i class="ni ni-single-copy-04"></i>
                         </button>
                         <button 
                           class="btn btn-outline-success" 
@@ -100,7 +100,7 @@
                           :disabled="segment.status === 'completed'"
                           :title="'Als abgeschlossen markieren'"
                         >
-                          <i class="fas fa-check"></i>
+                          <i class="ni ni-check-bold"></i>
                         </button>
                       </div>
                     </td>
@@ -117,7 +117,7 @@
         <div class="card dashboard-card">
           <div class="card-header dashboard-card-header d-flex justify-content-between align-items-center">
             <h5 class="mb-0">
-              <i class="fas fa-stethoscope text-success me-2"></i>
+              <i class="ni ni-user-run text-success me-2"></i>
               Examination Annotationen
             </h5>
             <div class="header-actions">
@@ -126,14 +126,14 @@
                 @click="refreshExaminations"
                 :disabled="loadingExaminations"
               >
-                <i class="fas fa-sync-alt" :class="{ 'fa-spin': loadingExaminations }"></i>
+                <i class="ni ni-bold-right" :class="{ 'ni-spin': loadingExaminations }"></i>
                 Aktualisieren
               </button>
               <router-link 
                 to="/reporting/case-setup" 
                 class="btn btn-success btn-sm"
               >
-                <i class="fas fa-plus me-1"></i>
+                <i class="ni ni-fat-add me-1"></i>
                 Neue Befundung
               </router-link>
             </div>
@@ -156,14 +156,14 @@
                   <tr v-if="loadingExaminations">
                     <td colspan="7" class="text-center py-4">
                       <div class="table-loading-state">
-                        <i class="fas fa-wave-square me-2"></i>
+                        <i class="ni ni-button-play me-2"></i>
                         Untersuchungen werden geladen...
                       </div>
                     </td>
                   </tr>
                   <tr v-else-if="examinations.length === 0">
                     <td colspan="7" class="text-center text-muted">
-                      <i class="fas fa-stethoscope fa-2x mb-2"></i>
+                      <i class="ni ni-user-run ni-2x mb-2"></i>
                       <br>
                       Keine Untersuchungen verfügbar
                     </td>
@@ -197,7 +197,7 @@
                           @click="editExamination(examination)"
                           :title="'Untersuchung bearbeiten'"
                         >
-                          <i class="fas fa-edit"></i>
+                          <i class="ni ni-single-copy-04"></i>
                         </button>
                         <button 
                           class="btn btn-outline-success" 
@@ -205,7 +205,7 @@
                           :disabled="examination.status === 'completed'"
                           :title="'Als abgeschlossen markieren'"
                         >
-                          <i class="fas fa-check"></i>
+                          <i class="ni ni-check-bold"></i>
                         </button>
                       </div>
                     </td>
@@ -222,7 +222,7 @@
         <div class="card dashboard-card">
           <div class="card-header dashboard-card-header d-flex justify-content-between align-items-center">
             <h5 class="mb-0">
-              <i class="fas fa-user-shield text-warning me-2"></i>
+              <i class="ni ni-check-bold text-warning me-2"></i>
               Patientendaten Validierung
             </h5>
             <div class="header-actions">
@@ -231,14 +231,14 @@
                 @click="refreshSensitiveMeta"
                 :disabled="loadingSensitiveMeta"
               >
-                <i class="fas fa-sync-alt" :class="{ 'fa-spin': loadingSensitiveMeta }"></i>
+                <i class="ni ni-bold-right" :class="{ 'ni-spin': loadingSensitiveMeta }"></i>
                 Aktualisieren
               </button>
               <router-link 
                 to="/video-meta-annotation" 
                 class="btn btn-warning btn-sm"
               >
-                <i class="fas fa-play me-1"></i>
+                <i class="ni ni-button-play me-1"></i>
                 Validierung starten
               </router-link>
             </div>
@@ -261,14 +261,14 @@
                   <tr v-if="loadingSensitiveMeta">
                     <td colspan="7" class="text-center py-4">
                       <div class="table-loading-state">
-                        <i class="fas fa-wave-square me-2"></i>
+                        <i class="ni ni-button-play me-2"></i>
                         Patientendaten werden geladen...
                       </div>
                     </td>
                   </tr>
                   <tr v-else-if="sensitiveMetaData.length === 0">
                     <td colspan="7" class="text-center text-muted">
-                      <i class="fas fa-user-shield fa-2x mb-2"></i>
+                      <i class="ni ni-check-bold ni-2x mb-2"></i>
                       <br>
                       Keine Patientendaten zur Validierung verfügbar
                     </td>
@@ -277,7 +277,7 @@
                     <td><code>{{ meta.id }}</code></td>
                     <td>
                       <span class="badge" :class="meta.content_type === 'video' ? 'bg-primary' : 'bg-danger'">
-                        <i :class="meta.content_type === 'video' ? 'fas fa-video' : 'fas fa-file-pdf'"></i>
+                        <i :class="meta.content_type === 'video' ? 'ni ni-button-play' : 'ni ni-single-copy-04'"></i>
                         {{ meta.content_type?.toUpperCase() || 'UNBEKANNT' }}
                       </span>
                     </td>
@@ -292,7 +292,7 @@
                     </td>
                     <td>
                       <span :class="meta.requires_validation ? 'text-warning' : 'text-success'">
-                        <i :class="meta.requires_validation ? 'fas fa-exclamation-triangle' : 'fas fa-check-circle'"></i>
+                        <i :class="meta.requires_validation ? 'ni ni-user-run' : 'ni ni-check-bold'"></i>
                         {{ meta.requires_validation ? 'Ja' : 'Nein' }}
                       </span>
                     </td>
@@ -303,7 +303,7 @@
                           @click="validateSensitiveMeta(meta)"
                           :title="'Patientendaten validieren'"
                         >
-                          <i class="fas fa-edit"></i>
+                          <i class="ni ni-single-copy-04"></i>
                         </button>
                         <button 
                           class="btn btn-outline-success" 
@@ -311,7 +311,7 @@
                           :disabled="!meta.requires_validation"
                           :title="'Als validiert markieren'"
                         >
-                          <i class="fas fa-check"></i>
+                          <i class="ni ni-check-bold"></i>
                         </button>
                       </div>
                     </td>

@@ -8,6 +8,7 @@ const hoisted = vi.hoisted(() => ({
     triggerApplicationBackup: vi.fn(),
     triggerApplicationAiDatasetExport: vi.fn(),
     triggerApplicationVideoDimensionBackfill: vi.fn(),
+    fetchApplicationVideoDimensionBackfillRun: vi.fn(),
     toastSuccess: vi.fn()
 }));
 vi.mock('@/api/applicationSettingsApi', () => ({
@@ -16,7 +17,8 @@ vi.mock('@/api/applicationSettingsApi', () => ({
     updateApplicationSettings: hoisted.updateApplicationSettings,
     triggerApplicationBackup: hoisted.triggerApplicationBackup,
     triggerApplicationAiDatasetExport: hoisted.triggerApplicationAiDatasetExport,
-    triggerApplicationVideoDimensionBackfill: hoisted.triggerApplicationVideoDimensionBackfill
+    triggerApplicationVideoDimensionBackfill: hoisted.triggerApplicationVideoDimensionBackfill,
+    fetchApplicationVideoDimensionBackfillRun: hoisted.fetchApplicationVideoDimensionBackfillRun
 }));
 vi.mock('@/stores/toastStore', () => ({
     useToastStore: () => ({
@@ -223,5 +225,50 @@ describe('ApplicationSettingsPage', () => {
         expect(hoisted.toastSuccess).toHaveBeenCalledWith({
             text: 'Video-Dimensionsprüfung gestartet.'
         });
+    });
+    it('polls a queued video dimension backfill until it finishes', async () => {
+        vi.useFakeTimers();
+        try {
+            hoisted.triggerApplicationVideoDimensionBackfill.mockResolvedValueOnce({
+                runId: 'run-queued',
+                status: 'queued',
+                dryRun: true,
+                limit: null,
+                createdAt: '2026-04-29T12:00:00Z',
+                startedAt: null,
+                finishedAt: null,
+                result: null,
+                error: null,
+                stdout: ''
+            });
+            hoisted.fetchApplicationVideoDimensionBackfillRun.mockResolvedValueOnce({
+                runId: 'run-queued',
+                status: 'completed',
+                dryRun: true,
+                limit: null,
+                createdAt: '2026-04-29T12:00:00Z',
+                startedAt: '2026-04-29T12:00:01Z',
+                finishedAt: '2026-04-29T12:00:02Z',
+                result: {
+                    count: 2,
+                    summary: { repaired: 1 },
+                    items: []
+                },
+                error: null,
+                stdout: ''
+            });
+            const wrapper = mount(ApplicationSettingsPage);
+            await flushPromises();
+            await wrapper.get('[data-test=\"run-video-dimension-backfill\"]').trigger('click');
+            await flushPromises();
+            expect(wrapper.text()).toContain('Lauf gestartet: queued');
+            await vi.advanceTimersByTimeAsync(1000);
+            await flushPromises();
+            expect(hoisted.fetchApplicationVideoDimensionBackfillRun).toHaveBeenCalledWith('run-queued');
+            expect(wrapper.text()).toContain('2 Videos geprüft');
+        }
+        finally {
+            vi.useRealTimers();
+        }
     });
 });

@@ -1,7 +1,9 @@
-import { fetchApplicationSettings, fetchApplicationSettingsDropdowns, triggerApplicationBackup, triggerApplicationAiDatasetExport, triggerApplicationVideoDimensionBackfill, updateApplicationSettings } from '@/api/applicationSettingsApi';
+import { fetchApplicationSettings, fetchApplicationSettingsDropdowns, fetchApplicationVideoDimensionBackfillRun, triggerApplicationBackup, triggerApplicationAiDatasetExport, triggerApplicationVideoDimensionBackfill, updateApplicationSettings } from '@/api/applicationSettingsApi';
 import { useToastStore } from '@/stores/toastStore';
 import { computed, onMounted, reactive, ref } from 'vue';
 const EMPTY_OPTION = '';
+const VIDEO_DIMENSION_BACKFILL_POLL_INTERVAL_MS = 1000;
+const VIDEO_DIMENSION_BACKFILL_MAX_POLLS = 120;
 const toast = useToastStore();
 const loading = ref(true);
 const saving = ref(false);
@@ -190,6 +192,7 @@ async function runVideoDimensionBackfill() {
             limit: limit ? Number(limit) : null
         });
         videoDimensionBackfillRun.value = result;
+        videoDimensionBackfillRun.value = await pollVideoDimensionBackfillRun(result);
         toast.success({ text: 'Video-Dimensionsprüfung gestartet.' });
     }
     catch (error) {
@@ -204,6 +207,18 @@ async function runVideoDimensionBackfill() {
     finally {
         videoDimensionBackfillInProgress.value = false;
     }
+}
+async function pollVideoDimensionBackfillRun(initialRun) {
+    let run = initialRun;
+    for (let attempt = 0; attempt < VIDEO_DIMENSION_BACKFILL_MAX_POLLS; attempt += 1) {
+        if (run.status !== 'queued' && run.status !== 'running') {
+            return run;
+        }
+        await new Promise((resolve) => window.setTimeout(resolve, VIDEO_DIMENSION_BACKFILL_POLL_INTERVAL_MS));
+        run = await fetchApplicationVideoDimensionBackfillRun(run.runId);
+        videoDimensionBackfillRun.value = run;
+    }
+    throw new Error('Video-Dimensionsprüfung läuft länger als erwartet.');
 }
 async function runBackup() {
     backupInProgress.value = true;

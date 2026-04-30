@@ -1,222 +1,267 @@
 <template>
   <div class="d-flex flex-column gap-3">
-    <div class="card shadow-sm">
-      <div class="card-header d-flex justify-content-between align-items-center">
-        <div>
-          <h5 class="mb-0">Berichtseditor & Speichern</h5>
-          <small class="text-muted">Template-gesteuerte Abschnitte mit wiederverwendbaren MedicalBlocks.</small>
+    <div class="card shadow-sm report-workspace-card">
+      <div class="card-header report-workspace-header">
+        <div class="report-workspace-title">
+          <div class="small text-uppercase text-muted fw-semibold">Reporting Workspace</div>
+          <h5 class="mb-1">Berichtseditor</h5>
+          <small class="text-muted">
+            Strukturierte Befunde links erfassen, den entstehenden Bericht rechts prüfen.
+          </small>
         </div>
-        <RouterLink class="btn btn-outline-secondary btn-sm" to="/reporting/case-setup">
-          Weiteren Fall im Reporting anlegen
-        </RouterLink>
+        <div class="report-workspace-actions">
+          <div class="report-status-pill" :class="lastSaveStatus === 'final' ? 'is-final' : 'is-draft'">
+            {{ lastSaveStatus === 'final' ? 'Final' : flow.activeReportId ? 'Entwurf' : 'Neuer Bericht' }}
+          </div>
+          <RouterLink class="btn btn-outline-secondary btn-sm" to="/reporting/case-setup">
+            Weiteren Fall anlegen
+          </RouterLink>
+        </div>
       </div>
       <div class="card-body">
         <div v-if="errorMessage" class="alert alert-danger py-2">{{ errorMessage }}</div>
         <div v-if="successMessage" class="alert alert-success py-2">{{ successMessage }}</div>
 
-        <MedicalBlock
-          title="Template-Kontext"
-          subtitle="Templates per Untersuchung laden und für den Bericht aktivieren"
-          icon="description"
-          icon-bg-class="bg-gradient-primary"
-          :is-complete="!!selectedTemplateName"
-          :is-active="true"
-          :show-action="false"
-          :loading="loading || templateLoading"
-        >
-          <template #default>
-            <div class="row g-3 mb-3">
-              <div class="col-md-4">
-                <label class="form-label">KB-Modul</label>
-                <input
+        <div class="report-editor-layout">
+          <div class="report-editor-main">
+            <MedicalBlock
+              title="Template-Kontext"
+              subtitle="Templates per Untersuchung laden und für den Bericht aktivieren"
+              icon="ni ni-single-copy-04"
+              icon-bg-class="bg-gradient-primary"
+              :is-complete="!!selectedTemplateName"
+              :is-active="true"
+              :show-action="false"
+              :loading="loading || templateLoading"
+            >
+              <template #default>
+                <div class="row g-3 mb-3">
+                  <div class="col-md-4">
+                    <label class="form-label">KB-Modul</label>
+                    <input
+                      class="form-control"
+                      :value="selectedKbModule"
+                      :disabled="loading || templateLoading"
+                      @change="onModuleChange(($event.target as HTMLInputElement).value)"
+                    />
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label">Untersuchung</label>
+                    <input class="form-control" :value="selectedExaminationDisplayName || ''" readonly />
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label">Template</label>
+                    <select
+                      class="form-select"
+                      :value="selectedTemplateName || ''"
+                      :disabled="loading || templateLoading || !templateOptions.length"
+                      @change="onTemplateSelectionChange(($event.target as HTMLSelectElement).value)"
+                    >
+                      <option value="" disabled>
+                        {{ templateLoading ? 'Templates laden...' : 'Template wählen' }}
+                      </option>
+                      <option v-for="template in templateOptions" :key="template.name" :value="template.name">
+                        {{ template.name }}
+                      </option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="d-flex flex-wrap gap-2">
+                  <button
+                    class="btn btn-outline-secondary btn-sm"
+                    :disabled="loading || templateLoading || !selectedExaminationName"
+                    @click="refreshTemplatesForExamination"
+                  >
+                    Templates laden
+                  </button>
+                  <button class="btn btn-outline-secondary btn-sm" :disabled="loading" @click="loadLatestReportMeta">
+                    Letzten Report laden
+                  </button>
+                </div>
+                <div v-if="templateErrorMessage" class="alert alert-danger py-2 mt-3 mb-0">
+                  {{ templateErrorMessage }}
+                </div>
+                <div v-if="templateStatusMessage" class="alert alert-success py-2 mt-3 mb-0">
+                  {{ templateStatusMessage }}
+                </div>
+              </template>
+            </MedicalBlock>
+
+            <div v-if="!sectionBlocks.length" class="alert alert-info">
+              Keine Template-Abschnitte geladen. Bitte zunächst ein Template auswählen.
+            </div>
+            <div v-else-if="!currentRuntimeDraft || !currentPayload" class="alert alert-warning">
+              Kein aktiver Reporting-Entwurf geladen. Bitte zuerst zur klinischen Dokumentation wechseln.
+            </div>
+
+            <MedicalBlock
+              v-for="section in sectionBlocks"
+              :key="section.name"
+              :title="section.title"
+              :subtitle="section.subtitle"
+              icon="ni ni-single-copy-04"
+              icon-bg-class="bg-gradient-info"
+              :is-complete="isSectionConfigured(section.name)"
+              :is-active="section.position === 0"
+              :show-action="false"
+              :loading="loading"
+            >
+              <template #default>
+                <div class="small text-muted mb-2">
+                  {{ section.findings.length }} Befunde · {{ section.requiredFindingsCount }} erforderlich ·
+                  {{ section.requiredClassificationsCount }} Pflicht-Klassifikationen
+                </div>
+                <div class="mb-3">
+                  <div class="fw-semibold small mb-1">Live-Vorschau aus Entwurf</div>
+                  <div
+                    v-if="getSectionPreview(section.name).findingSummaries.length"
+                    class="border rounded bg-light p-2 small"
+                  >
+                    <div
+                      v-for="summary in getSectionPreview(section.name).findingSummaries"
+                      :key="summary"
+                      class="mb-1"
+                    >
+                      {{ summary }}
+                    </div>
+                  </div>
+                  <div v-else class="small text-muted">
+                    Für diesen Abschnitt liegen im aktuellen Entwurf noch keine Befunde vor.
+                  </div>
+                </div>
+
+                <div class="d-flex flex-wrap gap-3 mb-3">
+                  <div class="form-check">
+                    <input
+                      class="form-check-input"
+                      type="checkbox"
+                      :checked="getSectionDraft(section.name).includePatientData"
+                      :disabled="loading"
+                      @change="onSectionDraftToggle(section.name, 'includePatientData', ($event.target as HTMLInputElement).checked)"
+                    />
+                    <label class="form-check-label">Patientendaten einbeziehen</label>
+                  </div>
+                  <div class="form-check">
+                    <input
+                      class="form-check-input"
+                      type="checkbox"
+                      :checked="getSectionDraft(section.name).includeExaminationData"
+                      :disabled="loading"
+                      @change="onSectionDraftToggle(section.name, 'includeExaminationData', ($event.target as HTMLInputElement).checked)"
+                    />
+                    <label class="form-check-label">Untersuchungsdaten einbeziehen</label>
+                  </div>
+                </div>
+
+                <label class="form-label">Abschnittsnotiz / Entwurfstext</label>
+                <textarea
                   class="form-control"
-                  :value="selectedKbModule"
-                  :disabled="loading || templateLoading"
-                  @change="onModuleChange(($event.target as HTMLInputElement).value)"
+                  rows="4"
+                  :disabled="loading"
+                  :value="getSectionDraft(section.name).note"
+                  @input="onSectionDraftNote(section.name, ($event.target as HTMLTextAreaElement).value)"
                 />
-              </div>
-              <div class="col-md-4">
-                <label class="form-label">Untersuchung</label>
-                <input class="form-control" :value="selectedExaminationDisplayName || ''" readonly />
-              </div>
-              <div class="col-md-4">
-                <label class="form-label">Template</label>
-                <select
-                  class="form-select"
-                  :value="selectedTemplateName || ''"
-                  :disabled="loading || templateLoading || !templateOptions.length"
-                  @change="onTemplateSelectionChange(($event.target as HTMLSelectElement).value)"
-                >
-                  <option value="" disabled>
-                    {{ templateLoading ? 'Templates laden...' : 'Template wählen' }}
-                  </option>
-                  <option v-for="template in templateOptions" :key="template.name" :value="template.name">
-                    {{ template.name }}
-                  </option>
-                </select>
-              </div>
-            </div>
+              </template>
+            </MedicalBlock>
 
-            <div class="d-flex flex-wrap gap-2">
-              <button
-                class="btn btn-outline-secondary btn-sm"
-                :disabled="loading || templateLoading || !selectedExaminationName"
-                @click="refreshTemplatesForExamination"
-              >
-                Templates für Untersuchung laden
-              </button>
-              <button class="btn btn-outline-secondary btn-sm" :disabled="loading" @click="loadLatestReportMeta">
-                Letzten Report laden
-              </button>
-            </div>
-            <div v-if="templateErrorMessage" class="alert alert-danger py-2 mt-3 mb-0">
-              {{ templateErrorMessage }}
-            </div>
-            <div v-if="templateStatusMessage" class="alert alert-success py-2 mt-3 mb-0">
-              {{ templateStatusMessage }}
-            </div>
-          </template>
-        </MedicalBlock>
+            <IndicationsEditor
+              class="mb-4"
+              :rows="flow.indications"
+              :indication-options="indicationOptionsForEditor"
+              :disabled="loading"
+              :options-loading="indicationOptionsLoading"
+              :options-error="indicationOptionsError"
+              description="Dieser Status wird direkt auf &lt;code&gt;save-submission.indications&lt;/code&gt; gemappt. Leere Liste &lt;code&gt;[]&lt;/code&gt; löscht bestehende Indikationen auf dem Backend."
+              @update-row="(idx, patch) => flow.updateIndicationRow(idx, patch)"
+              @add-row="flow.addIndicationRow()"
+              @remove-row="(idx) => flow.removeIndicationRow(idx)"
+              @refresh-options="loadIndicationCatalog"
+            />
 
-        <div v-if="!sectionBlocks.length" class="alert alert-info">
-          Keine Template-Abschnitte geladen. Bitte zunächst ein Template auswählen.
-        </div>
-        <div v-else-if="!currentRuntimeDraft || !currentPayload" class="alert alert-warning">
-          Kein aktiver Reporting-Entwurf geladen. Bitte zuerst zur klinischen Dokumentation wechseln.
-        </div>
-
-        <MedicalBlock
-          v-for="section in sectionBlocks"
-          :key="section.name"
-          :title="section.title"
-          :subtitle="section.subtitle"
-          icon="assignment"
-          icon-bg-class="bg-gradient-info"
-          :is-complete="isSectionConfigured(section.name)"
-          :is-active="section.position === 0"
-          :show-action="false"
-          :loading="loading"
-        >
-          <template #default>
-            <div class="small text-muted mb-2">
-              {{ section.findings.length }} Befunde · {{ section.requiredFindingsCount }} erforderlich ·
-              {{ section.requiredClassificationsCount }} Pflicht-Klassifikationen
-            </div>
-            <div class="mb-3">
-              <div class="fw-semibold small mb-1">Live-Vorschau aus Entwurf</div>
+            <div v-if="sectionCompletionSummary.totalSections" class="alert alert-info py-3">
+              <div class="fw-semibold mb-1">Vollständigkeitsübersicht</div>
+              <div class="small mb-2">
+                {{ sectionCompletionSummary.completedSections }} von
+                {{ sectionCompletionSummary.totalSections }} Abschnitten vollständig
+                · {{ sectionCompletionSummary.totalMissingFindings }} fehlende Pflichtbefunde
+                · {{ sectionCompletionSummary.totalMissingClassifications }} fehlende Pflicht-Klassifikationen
+              </div>
               <div
-                v-if="getSectionPreview(section.name).findingSummaries.length"
-                class="border rounded bg-light p-2 small"
+                v-if="!sectionCompletionSummary.incompleteSections.length"
+                class="small text-success"
               >
-                <div
-                  v-for="summary in getSectionPreview(section.name).findingSummaries"
-                  :key="summary"
-                  class="mb-1"
+                Keine fehlenden Pflichtbefunde oder Pflicht-Klassifikationen im aktuellen Entwurf.
+              </div>
+              <ul v-else class="small mb-0 ps-3">
+                <li
+                  v-for="section in sectionCompletionSummary.incompleteSections"
+                  :key="section.name"
                 >
-                  {{ summary }}
+                  <strong>{{ section.title }}</strong>
+                  <span v-if="section.missingFindings.length">
+                    · Befunde fehlen: {{ section.missingFindings.join(', ') }}
+                  </span>
+                  <span v-if="section.missingClassifications.length">
+                    · Klassifikationen fehlen:
+                    {{ section.missingClassifications.join(', ') }}
+                  </span>
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <aside class="report-preview-panel">
+            <div class="report-preview-card">
+              <div class="report-preview-toolbar">
+                <div>
+                  <div class="small text-uppercase text-muted fw-semibold">Berichtsvorschau</div>
+                  <h6 class="mb-0">{{ selectedTemplateName || 'Unbenanntes Template' }}</h6>
+                </div>
+                <span class="report-status-pill compact" :class="canSave ? 'is-draft' : 'is-muted'">
+                  {{ reportWordCount }} Wörter
+                </span>
+              </div>
+
+              <div class="report-preview-meta">
+                <div>
+                  <span>Patient</span>
+                  <strong>{{ reportPatientLabel }}</strong>
+                </div>
+                <div>
+                  <span>Untersuchung</span>
+                  <strong>{{ selectedExaminationDisplayName || 'Nicht gewählt' }}</strong>
+                </div>
+                <div>
+                  <span>Report-ID</span>
+                  <strong>{{ flow.activeReportId ? `#${flow.activeReportId}` : 'Neu' }}</strong>
                 </div>
               </div>
-              <div v-else class="small text-muted">
-                Für diesen Abschnitt liegen im aktuellen Entwurf noch keine Befunde vor.
+
+              <div class="report-preview-sheet">
+                <pre>{{ renderedReportPreview }}</pre>
+              </div>
+
+              <div class="report-preview-footer">
+                <button
+                  class="btn btn-outline-primary"
+                  :disabled="loading || !canSave"
+                  @click="saveReportSubmission('draft')"
+                >
+                  <span v-if="loading && pendingSaveStatus === 'draft'" class="spinner-border spinner-border-sm me-1" />
+                  Entwurf speichern
+                </button>
+                <button
+                  class="btn btn-success"
+                  :disabled="loading || !canSave"
+                  @click="saveReportSubmission('final')"
+                >
+                  <span v-if="loading && pendingSaveStatus === 'final'" class="spinner-border spinner-border-sm me-1" />
+                  Final speichern
+                </button>
               </div>
             </div>
-
-            <div class="d-flex flex-wrap gap-3 mb-3">
-              <div class="form-check">
-                <input
-                  class="form-check-input"
-                  type="checkbox"
-                  :checked="getSectionDraft(section.name).includePatientData"
-                  :disabled="loading"
-                  @change="onSectionDraftToggle(section.name, 'includePatientData', ($event.target as HTMLInputElement).checked)"
-                />
-                <label class="form-check-label">Patientendaten einbeziehen</label>
-              </div>
-              <div class="form-check">
-                <input
-                  class="form-check-input"
-                  type="checkbox"
-                  :checked="getSectionDraft(section.name).includeExaminationData"
-                  :disabled="loading"
-                  @change="onSectionDraftToggle(section.name, 'includeExaminationData', ($event.target as HTMLInputElement).checked)"
-                />
-                <label class="form-check-label">Untersuchungsdaten einbeziehen</label>
-              </div>
-            </div>
-
-            <label class="form-label">Abschnittsnotiz / Entwurfstext</label>
-            <textarea
-              class="form-control"
-              rows="4"
-              :disabled="loading"
-              :value="getSectionDraft(section.name).note"
-              @input="onSectionDraftNote(section.name, ($event.target as HTMLTextAreaElement).value)"
-            />
-          </template>
-        </MedicalBlock>
-
-        <IndicationsEditor
-          class="mb-4"
-          :rows="flow.indications"
-          :indication-options="indicationOptionsForEditor"
-          :disabled="loading"
-          :options-loading="indicationOptionsLoading"
-          :options-error="indicationOptionsError"
-          description="Dieser Status wird direkt auf &lt;code&gt;save-submission.indications&lt;/code&gt; gemappt. Leere Liste &lt;code&gt;[]&lt;/code&gt; löscht bestehende Indikationen auf dem Backend."
-          @update-row="(idx, patch) => flow.updateIndicationRow(idx, patch)"
-          @add-row="flow.addIndicationRow()"
-          @remove-row="(idx) => flow.removeIndicationRow(idx)"
-          @refresh-options="loadIndicationCatalog"
-        />
-
-        <div v-if="sectionCompletionSummary.totalSections" class="alert alert-info py-3">
-          <div class="fw-semibold mb-1">Vollständigkeitsübersicht</div>
-          <div class="small mb-2">
-            {{ sectionCompletionSummary.completedSections }} von
-            {{ sectionCompletionSummary.totalSections }} Abschnitten vollständig
-            · {{ sectionCompletionSummary.totalMissingFindings }} fehlende Pflichtbefunde
-            · {{ sectionCompletionSummary.totalMissingClassifications }} fehlende Pflicht-Klassifikationen
-          </div>
-          <div
-            v-if="!sectionCompletionSummary.incompleteSections.length"
-            class="small text-success"
-          >
-            Keine fehlenden Pflichtbefunde oder Pflicht-Klassifikationen im aktuellen Entwurf.
-          </div>
-          <ul v-else class="small mb-0 ps-3">
-            <li
-              v-for="section in sectionCompletionSummary.incompleteSections"
-              :key="section.name"
-            >
-              <strong>{{ section.title }}</strong>
-              <span v-if="section.missingFindings.length">
-                · Befunde fehlen: {{ section.missingFindings.join(', ') }}
-              </span>
-              <span v-if="section.missingClassifications.length">
-                · Klassifikationen fehlen:
-                {{ section.missingClassifications.join(', ') }}
-              </span>
-            </li>
-          </ul>
-        </div>
-
-        <div class="d-flex flex-wrap gap-2">
-          <button
-            class="btn btn-outline-primary"
-            :disabled="loading || !canSave"
-            @click="saveReportSubmission('draft')"
-          >
-            <span v-if="loading && pendingSaveStatus === 'draft'" class="spinner-border spinner-border-sm me-1" />
-            Entwurf speichern
-          </button>
-          <button
-            class="btn btn-success"
-            :disabled="loading || !canSave"
-            @click="saveReportSubmission('final')"
-          >
-            <span v-if="loading && pendingSaveStatus === 'final'" class="spinner-border spinner-border-sm me-1" />
-            Final speichern
-          </button>
+          </aside>
         </div>
       </div>
     </div>
@@ -379,6 +424,22 @@ const templateStatusMessage = ref<string | null>(null)
 const canSave = computed(() => !!flow.patientExaminationId && !!selectedTemplateName.value)
 const currentRuntimeDraft = computed(() => flow.currentRuntimeDraft)
 const currentPayload = computed(() => currentRuntimeDraft.value?.payload || null)
+const renderedReportPreview = computed(() => buildRenderedText())
+const reportWordCount = computed(() => {
+  const words = renderedReportPreview.value
+    .replace(/[#*-]/g, ' ')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+  return words.length
+})
+const reportPatientLabel = computed(() => {
+  const patient = selectedPatient.value
+  if (!patient) return 'Nicht gewählt'
+  const name = [patient.firstName, patient.lastName].filter(Boolean).join(' ').trim()
+  const details = [patient.gender, formatDateOnly(patient.dob)].filter(Boolean)
+  return [name || `Patient #${patient.id}`, ...details].join(' · ')
+})
 
 const normalizedIndications = computed<SaveReportSubmissionRequest['indications']>(() =>
   flow.indications
@@ -1144,3 +1205,179 @@ onMounted(async () => {
   await loadLatestReportMeta()
 })
 </script>
+
+<style scoped>
+.report-workspace-card {
+  border: 0;
+}
+
+.report-workspace-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  border-bottom: 1px solid #e9ecef;
+  background: #fff;
+}
+
+.report-workspace-title {
+  min-width: 0;
+}
+
+.report-workspace-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: .75rem;
+  flex-wrap: wrap;
+}
+
+.report-editor-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(340px, 420px);
+  gap: 1.25rem;
+  align-items: start;
+}
+
+.report-editor-main {
+  min-width: 0;
+}
+
+.report-preview-panel {
+  position: sticky;
+  top: 1rem;
+}
+
+.report-preview-card {
+  border: 1px solid #e3e7ee;
+  border-radius: 8px;
+  background: #f7f9fc;
+  box-shadow: 0 10px 24px rgba(20, 35, 60, .08);
+  overflow: hidden;
+}
+
+.report-preview-toolbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1rem .75rem;
+  background: #fff;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.report-status-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2rem;
+  padding: .35rem .75rem;
+  border-radius: 999px;
+  font-size: .75rem;
+  font-weight: 700;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.report-status-pill.compact {
+  min-height: 1.75rem;
+}
+
+.report-status-pill.is-draft {
+  color: #664d03;
+  background: #fff3cd;
+  border-color: #ffecb5;
+}
+
+.report-status-pill.is-final {
+  color: #0f5132;
+  background: #d1e7dd;
+  border-color: #badbcc;
+}
+
+.report-status-pill.is-muted {
+  color: #495057;
+  background: #e9ecef;
+  border-color: #dee2e6;
+}
+
+.report-preview-meta {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: .5rem;
+  padding: .875rem 1rem;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.report-preview-meta div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: .8rem;
+}
+
+.report-preview-meta span {
+  color: #6c757d;
+}
+
+.report-preview-meta strong {
+  min-width: 0;
+  text-align: right;
+  color: #212529;
+}
+
+.report-preview-sheet {
+  max-height: min(68vh, 780px);
+  overflow: auto;
+  margin: 1rem;
+  padding: 1.25rem;
+  background: #fff;
+  border: 1px solid #e3e7ee;
+  border-radius: 6px;
+}
+
+.report-preview-sheet pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: #1f2933;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: .95rem;
+  line-height: 1.65;
+}
+
+.report-preview-footer {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: .75rem;
+  padding: 0 1rem 1rem;
+}
+
+.report-preview-footer .btn {
+  margin-bottom: 0;
+}
+
+@media (max-width: 1199.98px) {
+  .report-editor-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .report-preview-panel {
+    position: static;
+    order: -1;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .report-workspace-header,
+  .report-workspace-actions,
+  .report-preview-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .report-preview-footer {
+    grid-template-columns: 1fr;
+  }
+}
+</style>

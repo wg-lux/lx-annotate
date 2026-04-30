@@ -265,7 +265,7 @@ else {
         ...{ class: "text-white mb-1" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-chart-pie me-2" },
+        ...{ class: "ni ni-chart-bar-32 me-2" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
         ...{ class: "text-white opacity-8 mb-0" },
@@ -279,8 +279,8 @@ else {
         disabled: (__VLS_ctx.annotationStatsStore.isLoading),
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-sync-alt" },
-        ...{ class: ({ 'fa-spin': __VLS_ctx.annotationStatsStore.isLoading }) },
+        ...{ class: "ni ni-bold-right" },
+        ...{ class: ({ 'ni-spin': __VLS_ctx.annotationStatsStore.isLoading }) },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "row mb-4 g-3" },
@@ -314,7 +314,7 @@ else {
         ...{ class: "achievement-pill" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-award me-2" },
+        ...{ class: "ni ni-chart-bar-32 me-2" },
     });
     (__VLS_ctx.unlockedAchievementsCount);
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -343,7 +343,7 @@ else {
             ...{ class: "badge text-bg-light achievement-badge" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "fas fa-star me-1" },
+            ...{ class: "ni ni-chart-bar-32 me-1" },
         });
         (badge);
     }
@@ -401,7 +401,7 @@ else {
         ...{ class: "card-title mb-3" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-tasks me-2" },
+        ...{ class: "ni ni-single-copy-04 me-2" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "progress-container" },
@@ -477,7 +477,7 @@ else {
         ...{ class: "mb-0" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-video me-2" },
+        ...{ class: "ni ni-button-play me-2" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
         ...{ class: "badge bg-light text-primary" },
@@ -496,7 +496,7 @@ else {
         ...{ class: "stat-icon" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-clock" },
+        ...{ class: "ni ni-user-run" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "stat-info" },
@@ -515,7 +515,7 @@ else {
         ...{ class: "stat-icon" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-cogs" },
+        ...{ class: "ni ni-settings-gear-65" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "stat-info" },
@@ -534,7 +534,7 @@ else {
         ...{ class: "stat-icon" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-check-circle" },
+        ...{ class: "ni ni-check-bold" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "stat-info" },
@@ -578,7 +578,7 @@ else {
         ...{ class: "mb-0" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-stethoscope me-2" },
+        ...{ class: "ni ni-user-run me-2" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
         ...{ class: "badge bg-light text-success" },
@@ -597,7 +597,7 @@ else {
         ...{ class: "stat-icon" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-clock" },
+        ...{ class: "ni ni-user-run" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "stat-info" },
@@ -616,7 +616,7 @@ else {
         ...{ class: "stat-icon" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-cogs" },
+        ...{ class: "ni ni-settings-gear-65" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "stat-info" },
@@ -635,7 +635,7 @@ else {
         ...{ class: "stat-icon" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-check-circle" },
+        ...{ class: "ni ni-check-bold" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "stat-info" },
@@ -679,7 +679,7 @@ else {
         ...{ class: "mb-0" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-user-shield me-2" },
+        ...{ class: "ni ni-check-bold me-2" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
         ...{ class: "badge bg-dark text-warning" },
@@ -698,7 +698,7 @@ else {
         ...{ class: "stat-icon" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-clock" },
+        ...{ class: "ni ni-user-run" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "stat-info" },
@@ -717,7 +717,7 @@ else {
         ...{ class: "stat-icon" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-cogs" },
+        ...{ class: "ni ni-settings-gear-65" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "stat-info" },
@@ -736,7 +736,7 @@ else {
         ...{ class: "stat-icon" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-check-circle" },
+        ...{ class: "ni ni-check-bold" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "stat-info" },
@@ -779,7 +779,7 @@ else {
         ...{ class: "mb-0" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-bolt me-2" },
+        ...{ class: "ni ni-chart-bar-32 me-2" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "card-body" },
@@ -798,7 +798,7 @@ else {
         ...{ class: "action-icon bg-primary" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-plus" },
+        ...{ class: "ni ni-fat-add" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "action-content" },
@@ -818,7 +818,7 @@ else {
         ...{ class: "action-icon bg-success" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-plus" },
+        ...{ class: "ni ni-fat-add" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "action-content" },
@@ -838,7 +838,7 @@ else {
         ...{ class: "action-icon bg-warning" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-play" },
+        ...{ class: "ni ni-button-play" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "action-content" },
@@ -853,7 +853,7 @@ if (__VLS_ctx.annotationStatsStore.hasError) {
         ...{ class: "alert alert-danger mt-3" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-exclamation-triangle me-2" },
+        ...{ class: "ni ni-user-run me-2" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
     (__VLS_ctx.annotationStatsStore.error);
@@ -892,8 +892,8 @@ if (__VLS_ctx.annotationStatsStore.hasError) {
 /** @type {__VLS_StyleScopedClasses['col-8']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-white']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-1']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-chart-pie']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-chart-bar-32']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-white']} */ ;
 /** @type {__VLS_StyleScopedClasses['opacity-8']} */ ;
@@ -903,9 +903,9 @@ if (__VLS_ctx.annotationStatsStore.hasError) {
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-light']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-sync-alt']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-spin']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-bold-right']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-spin']} */ ;
 /** @type {__VLS_StyleScopedClasses['row']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-4']} */ ;
 /** @type {__VLS_StyleScopedClasses['g-3']} */ ;
@@ -925,8 +925,8 @@ if (__VLS_ctx.annotationStatsStore.hasError) {
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['achievement-pill']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-award']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-chart-bar-32']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['level-progress']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
@@ -945,8 +945,8 @@ if (__VLS_ctx.annotationStatsStore.hasError) {
 /** @type {__VLS_StyleScopedClasses['badge']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-bg-light']} */ ;
 /** @type {__VLS_StyleScopedClasses['achievement-badge']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-star']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-chart-bar-32']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['col-lg-4']} */ ;
 /** @type {__VLS_StyleScopedClasses['card']} */ ;
@@ -977,8 +977,8 @@ if (__VLS_ctx.annotationStatsStore.hasError) {
 /** @type {__VLS_StyleScopedClasses['card-body']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-title']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-tasks']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-single-copy-04']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['progress-container']} */ ;
 /** @type {__VLS_StyleScopedClasses['progress']} */ ;
@@ -1011,8 +1011,8 @@ if (__VLS_ctx.annotationStatsStore.hasError) {
 /** @type {__VLS_StyleScopedClasses['justify-content-between']} */ ;
 /** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-video']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-button-play']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['badge']} */ ;
 /** @type {__VLS_StyleScopedClasses['bg-light']} */ ;
@@ -1022,24 +1022,24 @@ if (__VLS_ctx.annotationStatsStore.hasError) {
 /** @type {__VLS_StyleScopedClasses['stat-item']} */ ;
 /** @type {__VLS_StyleScopedClasses['pending']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-icon']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-clock']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-user-run']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-info']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-number']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-label']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-item']} */ ;
 /** @type {__VLS_StyleScopedClasses['in-progress']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-icon']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-cogs']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-settings-gear-65']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-info']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-number']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-label']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-item']} */ ;
 /** @type {__VLS_StyleScopedClasses['completed']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-icon']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-check-circle']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-check-bold']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-info']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-number']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-label']} */ ;
@@ -1063,8 +1063,8 @@ if (__VLS_ctx.annotationStatsStore.hasError) {
 /** @type {__VLS_StyleScopedClasses['justify-content-between']} */ ;
 /** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-stethoscope']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-user-run']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['badge']} */ ;
 /** @type {__VLS_StyleScopedClasses['bg-light']} */ ;
@@ -1074,24 +1074,24 @@ if (__VLS_ctx.annotationStatsStore.hasError) {
 /** @type {__VLS_StyleScopedClasses['stat-item']} */ ;
 /** @type {__VLS_StyleScopedClasses['pending']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-icon']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-clock']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-user-run']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-info']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-number']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-label']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-item']} */ ;
 /** @type {__VLS_StyleScopedClasses['in-progress']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-icon']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-cogs']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-settings-gear-65']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-info']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-number']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-label']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-item']} */ ;
 /** @type {__VLS_StyleScopedClasses['completed']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-icon']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-check-circle']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-check-bold']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-info']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-number']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-label']} */ ;
@@ -1115,8 +1115,8 @@ if (__VLS_ctx.annotationStatsStore.hasError) {
 /** @type {__VLS_StyleScopedClasses['justify-content-between']} */ ;
 /** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-user-shield']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-check-bold']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['badge']} */ ;
 /** @type {__VLS_StyleScopedClasses['bg-dark']} */ ;
@@ -1126,24 +1126,24 @@ if (__VLS_ctx.annotationStatsStore.hasError) {
 /** @type {__VLS_StyleScopedClasses['stat-item']} */ ;
 /** @type {__VLS_StyleScopedClasses['pending']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-icon']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-clock']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-user-run']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-info']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-number']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-label']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-item']} */ ;
 /** @type {__VLS_StyleScopedClasses['in-progress']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-icon']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-cogs']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-settings-gear-65']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-info']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-number']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-label']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-item']} */ ;
 /** @type {__VLS_StyleScopedClasses['completed']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-icon']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-check-circle']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-check-bold']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-info']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-number']} */ ;
 /** @type {__VLS_StyleScopedClasses['stat-label']} */ ;
@@ -1160,8 +1160,8 @@ if (__VLS_ctx.annotationStatsStore.hasError) {
 /** @type {__VLS_StyleScopedClasses['card']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-header']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-bolt']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-chart-bar-32']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-body']} */ ;
 /** @type {__VLS_StyleScopedClasses['row']} */ ;
@@ -1169,31 +1169,31 @@ if (__VLS_ctx.annotationStatsStore.hasError) {
 /** @type {__VLS_StyleScopedClasses['quick-action-item']} */ ;
 /** @type {__VLS_StyleScopedClasses['action-icon']} */ ;
 /** @type {__VLS_StyleScopedClasses['bg-primary']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-plus']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-fat-add']} */ ;
 /** @type {__VLS_StyleScopedClasses['action-content']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['col-md-4']} */ ;
 /** @type {__VLS_StyleScopedClasses['quick-action-item']} */ ;
 /** @type {__VLS_StyleScopedClasses['action-icon']} */ ;
 /** @type {__VLS_StyleScopedClasses['bg-success']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-plus']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-fat-add']} */ ;
 /** @type {__VLS_StyleScopedClasses['action-content']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['col-md-4']} */ ;
 /** @type {__VLS_StyleScopedClasses['quick-action-item']} */ ;
 /** @type {__VLS_StyleScopedClasses['action-icon']} */ ;
 /** @type {__VLS_StyleScopedClasses['bg-warning']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-play']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-button-play']} */ ;
 /** @type {__VLS_StyleScopedClasses['action-content']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert-danger']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-exclamation-triangle']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-user-run']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-close']} */ ;
 var __VLS_dollars;

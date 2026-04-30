@@ -219,6 +219,11 @@ const getFileIcon = (mediaType) => {
 const getMediaTypeBadgeClass = (mediaType) => {
     return mediaStore.getMediaTypeBadgeClass(mediaType);
 };
+const getFileIdLabel = (file) => {
+    return file.mediaType === 'video'
+        ? `Video-ID: ${file.id}`
+        : `PDF-ID: ${file.id}`;
+};
 const getStatusBadgeClass = (status) => {
     const classes = {
         'not_started': 'bg-secondary',
@@ -336,8 +341,8 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElement
     disabled: (__VLS_ctx.isRefreshing),
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-    ...{ class: "fas fa-sync-alt" },
-    ...{ class: ({ 'fa-spin': __VLS_ctx.isRefreshing }) },
+    ...{ class: "ni ni-bold-right" },
+    ...{ class: ({ 'ni-spin': __VLS_ctx.isRefreshing }) },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "card-body" },
@@ -373,7 +378,7 @@ else if (!__VLS_ctx.availableFiles.length) {
         ...{ class: "mb-4" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-folder-open fa-3x text-muted" },
+        ...{ class: "ni ni-collection ni-3x text-muted" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.h5, __VLS_intrinsicElements.h5)({
         ...{ class: "text-muted" },
@@ -414,10 +419,15 @@ else {
             ...{ class: (__VLS_ctx.getFileIcon(file.mediaType)) },
             ...{ class: "me-2" },
         });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
         __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
             ...{ class: "fw-medium" },
         });
         (file.filename);
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "small text-muted mt-1" },
+        });
+        (__VLS_ctx.getFileIdLabel(file));
         __VLS_asFunctionalElement(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
         __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
             ...{ class: (__VLS_ctx.getMediaTypeBadgeClass(file.mediaType)) },
@@ -431,7 +441,7 @@ else {
         });
         if (file.anonymizationStatus === 'processing_anonymization') {
             __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: "fas fa-spinner fa-spin me-1" },
+                ...{ class: "ni ni-settings-gear-65 ni-spin me-1" },
             });
         }
         (__VLS_ctx.getStatusText(file.anonymizationStatus));
@@ -457,7 +467,7 @@ else {
                 disabled: (!__VLS_ctx.isReadyForValidation(file.id)),
             });
             __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: "fas fa-eye me-1" },
+                ...{ class: "ni ni-user-run me-1" },
             });
         }
         else if (file.anonymizationStatus === 'validated') {
@@ -465,7 +475,7 @@ else {
                 ...{ class: "badge bg-success" },
             });
             __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: "fas fa-check me-1" },
+                ...{ class: "ni ni-check-bold me-1" },
             });
         }
         else {
@@ -479,7 +489,7 @@ else {
                 ...{ class: "text-success" },
             });
             __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: "fas fa-check-circle me-1" },
+                ...{ class: "ni ni-check-bold me-1" },
             });
         }
         else {
@@ -487,7 +497,7 @@ else {
                 ...{ class: "text-danger" },
             });
             __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: "fas fa-times-circle me-1" },
+                ...{ class: "ni ni-settings-gear-65 me-1" },
             });
         }
         __VLS_asFunctionalElement(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
@@ -516,7 +526,7 @@ else {
                 title: "Video erneut importieren und Metadaten aktualisieren",
             });
             __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: "fas fa-redo-alt" },
+                ...{ class: "ni ni-bold-right" },
             });
         }
         if (file.mediaType === 'pdf' && __VLS_ctx.needsReimport(file)) {
@@ -535,7 +545,7 @@ else {
                 title: "PDF erneut importieren und verarbeiten",
             });
             __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: "fas fa-redo-alt" },
+                ...{ class: "ni ni-bold-right" },
             });
         }
         if (file.anonymizationStatus === 'not_started') {
@@ -553,7 +563,7 @@ else {
                 disabled: (__VLS_ctx.isProcessing(file.id)),
             });
             __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: "fas fa-play" },
+                ...{ class: "ni ni-button-play" },
             });
         }
         if (file.anonymizationStatus === 'failed') {
@@ -571,7 +581,7 @@ else {
                 disabled: (__VLS_ctx.isProcessing(file.id)),
             });
             __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: "fas fa-redo" },
+                ...{ class: "ni ni-bold-right" },
             });
         }
         if (file.mediaType === 'video' && (file.anonymizationStatus === 'done_processing_anonymization' || file.anonymizationStatus === 'validated')) {
@@ -589,7 +599,7 @@ else {
                 disabled: (__VLS_ctx.isProcessing(file.id)),
             });
             __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: "fas fa-edit" },
+                ...{ class: "ni ni-single-copy-04" },
             });
         }
         __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
@@ -605,7 +615,7 @@ else {
             title: "Datei permanent löschen",
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "fas fa-trash" },
+            ...{ class: "ni ni-settings-gear-65" },
         });
         if (file.anonymizationStatus === 'processing_anonymization') {
             __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
@@ -613,7 +623,7 @@ else {
                 disabled: true,
             });
             __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: "fas fa-spinner fa-spin me-1" },
+                ...{ class: "ni ni-settings-gear-65 ni-spin me-1" },
             });
         }
         if (file.anonymizationStatus === 'extracting_frames') {
@@ -622,7 +632,7 @@ else {
                 disabled: true,
             });
             __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: "fas fa-spinner fa-spin me-1" },
+                ...{ class: "ni ni-settings-gear-65 ni-spin me-1" },
             });
         }
     }
@@ -718,7 +728,7 @@ if (__VLS_ctx.filteredOutCount > 0) {
         role: "alert",
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-exclamation-triangle me-2" },
+        ...{ class: "ni ni-user-run me-2" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
     (__VLS_ctx.filteredOutCount);
@@ -737,9 +747,9 @@ if (__VLS_ctx.filteredOutCount > 0) {
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-primary']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-sync-alt']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-spin']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-bold-right']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-spin']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-body']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert-danger']} */ ;
@@ -752,9 +762,9 @@ if (__VLS_ctx.filteredOutCount > 0) {
 /** @type {__VLS_StyleScopedClasses['text-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['py-5']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-4']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-folder-open']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-3x']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-collection']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-3x']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
@@ -767,71 +777,74 @@ if (__VLS_ctx.filteredOutCount > 0) {
 /** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['fw-medium']} */ ;
+/** @type {__VLS_StyleScopedClasses['small']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['badge']} */ ;
 /** @type {__VLS_StyleScopedClasses['badge']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-spinner']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-spin']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-settings-gear-65']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-spin']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['badge']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-success']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-eye']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-user-run']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['badge']} */ ;
 /** @type {__VLS_StyleScopedClasses['bg-success']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-check']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-check-bold']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-success']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-check-circle']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-check-bold']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-danger']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-times-circle']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-settings-gear-65']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-group']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-group-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-info']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-redo-alt']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-bold-right']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-info']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-redo-alt']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-bold-right']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-primary']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-play']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-button-play']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-warning']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-redo']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-bold-right']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-warning']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-edit']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-single-copy-04']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-danger']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-trash']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-settings-gear-65']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-info']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-spinner']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-spin']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-settings-gear-65']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-spin']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-info']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-spinner']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-spin']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-settings-gear-65']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-spin']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['row']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-4']} */ ;
@@ -875,8 +888,8 @@ if (__VLS_ctx.filteredOutCount > 0) {
 /** @type {__VLS_StyleScopedClasses['alert']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert-warning']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-exclamation-triangle']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-user-run']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-2']} */ ;
 var __VLS_dollars;
 const __VLS_self = (await import('vue')).defineComponent({
@@ -898,6 +911,7 @@ const __VLS_self = (await import('vue')).defineComponent({
             needsReimport: needsReimport,
             getFileIcon: getFileIcon,
             getMediaTypeBadgeClass: getMediaTypeBadgeClass,
+            getFileIdLabel: getFileIdLabel,
             getStatusBadgeClass: getStatusBadgeClass,
             getStatusText: getStatusText,
             formatDate: formatDate,

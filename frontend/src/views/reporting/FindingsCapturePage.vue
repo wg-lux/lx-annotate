@@ -3,7 +3,7 @@
     <MedicalBlock
       title="Template & Dokumentationsregeln"
       subtitle="Template wählen, Abschnitte prüfen und den lokalen Befund-Entwurf gegen die Wissensbasis validieren"
-      icon="description"
+      icon="ni ni-single-copy-04"
       icon-bg-class="bg-gradient-primary"
       :is-complete="!!selectedTemplateName && !!currentRuntimeDraft"
       :is-active="true"

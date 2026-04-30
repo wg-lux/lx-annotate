@@ -1100,7 +1100,7 @@ if (__VLS_ctx.errorMessage) {
         role: "alert",
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "ni ni-fat-remove me-2" },
+        ...{ class: "ni ni-settings-gear-65 me-2" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
     (__VLS_ctx.errorMessage);
@@ -1179,7 +1179,7 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.
 (__VLS_ctx.selectedVideoLabel);
 __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
     ...{ class: "ni" },
-    ...{ class: (__VLS_ctx.isVideoDropdownOpen ? 'ni-bold-up' : 'ni-bold-down') },
+    ...{ class: (__VLS_ctx.isVideoDropdownOpen ? 'ni-bold-right' : 'ni-bold-right') },
 });
 if (__VLS_ctx.isVideoDropdownOpen && __VLS_ctx.hasVideos) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -1218,7 +1218,7 @@ if (__VLS_ctx.isVideoDropdownOpen && __VLS_ctx.hasVideos) {
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
             ...{ class: "ni me-1" },
-            ...{ class: (video.segmentAnnotationsValidated ? 'ni-check-bold' : 'ni-watch-time') },
+            ...{ class: (video.segmentAnnotationsValidated ? 'ni-check-bold' : 'ni-user-run') },
         });
         (video.segmentAnnotationsValidated ? 'Validiert' : 'Validierung offen');
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -1268,7 +1268,7 @@ if (__VLS_ctx.videos.length > 0) {
         ...{ class: "badge bg-secondary" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "ni ni-watch-time me-1" },
+        ...{ class: "ni ni-user-run me-1" },
     });
     (__VLS_ctx.pendingValidationVideos.length);
 }
@@ -1281,7 +1281,7 @@ if (__VLS_ctx.lastValidationClickedVideoId !== null) {
         ...{ class: "fw-semibold" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "ni ni-tag me-1" },
+        ...{ class: "ni ni-single-copy-04 me-1" },
     });
     (__VLS_ctx.lastValidationClickedVideoId);
 }
@@ -1303,7 +1303,7 @@ if (!__VLS_ctx.anonymizedVideoSrc && __VLS_ctx.hasVideos) {
             ...{ class: "d-flex align-items-center justify-content-center" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "ni ni-support-16 me-2" },
+            ...{ class: "ni ni-user-run me-2" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: "text-start" },
@@ -1344,7 +1344,7 @@ if (__VLS_ctx.anonymizedVideoSrc) {
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
         ...{ class: "ni" },
-        ...{ class: (__VLS_ctx.isFullscreen ? 'ni-fat-remove' : 'ni-zoom-split-in') },
+        ...{ class: (__VLS_ctx.isFullscreen ? 'ni-settings-gear-65' : 'ni-tv-2') },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.video, __VLS_intrinsicElements.video)({
         ...{ onTimeupdate: (__VLS_ctx.handleTimeUpdate) },
@@ -1425,7 +1425,7 @@ if (__VLS_ctx.anonymizedVideoSrc) {
             ...{ class: "badge" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "ni ni-lock-circle-open me-1" },
+            ...{ class: "ni ni-check-bold me-1" },
         });
         (__VLS_ctx.getStatusText(__VLS_ctx.overview.find(o => o.id === __VLS_ctx.selectedVideoId && o.mediaType === 'video')?.anonymizationStatus || 'not_started'));
         if (__VLS_ctx.timelineSegmentsForSelectedVideo.length > 0) {
@@ -1433,7 +1433,7 @@ if (__VLS_ctx.anonymizedVideoSrc) {
                 ...{ class: "badge bg-info" },
             });
             __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: "ni ni-scissors me-1" },
+                ...{ class: "ni ni-single-copy-04 me-1" },
             });
             (__VLS_ctx.timelineSegmentsForSelectedVideo.length);
         }
@@ -1442,7 +1442,7 @@ if (__VLS_ctx.anonymizedVideoSrc) {
                 ...{ class: "badge bg-warning" },
             });
             __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: "ni ni-support-16 me-1" },
+                ...{ class: "ni ni-user-run me-1" },
             });
             (__VLS_ctx.savedExaminations.length);
         }
@@ -1674,7 +1674,7 @@ if (__VLS_ctx.duration > 0) {
                 'data-cy': "start-label-button",
             });
             __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: "ni ni-tag" },
+                ...{ class: "ni ni-single-copy-04" },
             });
         }
         if (__VLS_ctx.isMarkingLabel) {
@@ -1684,7 +1684,7 @@ if (__VLS_ctx.duration > 0) {
                 'data-cy': "finish-label-button",
             });
             __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: "ni ni-button-pause" },
+                ...{ class: "ni ni-button-play" },
             });
         }
         if (__VLS_ctx.isMarkingLabel) {
@@ -1710,7 +1710,7 @@ if (__VLS_ctx.duration > 0) {
             });
             __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({});
             __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: "ni ni-support-16 align-middle me-1" },
+                ...{ class: "ni ni-user-run align-middle me-1" },
                 ...{ style: {} },
             });
             (__VLS_ctx.getTranslationForLabel(__VLS_ctx.videoStore.draftSegment.label));
@@ -1744,7 +1744,7 @@ if (__VLS_ctx.selectedVideoId) {
             ...{ class: "mb-1" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "ni ni-trophy me-1" },
+            ...{ class: "ni ni-chart-bar-32 me-1" },
         });
         (__VLS_ctx.canEditSelectedVideoSegments ? 'Segmentbearbeitung aktiv' : 'Video bereits validiert');
         __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
@@ -1764,7 +1764,7 @@ if (__VLS_ctx.selectedVideoId) {
                 ...{ class: "btn btn-outline-success btn-sm ms-auto validation-edit-button" },
             });
             __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: "ni ni-ruler-pencil me-1" },
+                ...{ class: "ni ni-single-copy-04 me-1" },
             });
         }
     }
@@ -1796,7 +1796,7 @@ if (__VLS_ctx.selectedVideoId) {
             ...{ style: {} },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "ni ni-support-16" },
+            ...{ class: "ni ni-user-run" },
             ...{ style: {} },
         });
     }
@@ -1830,7 +1830,7 @@ if (__VLS_ctx.selectedVideoId) {
         ...{ class: "alert alert-info alert-sm mb-0" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "ni ni-support-16 me-1" },
+        ...{ class: "ni ni-user-run me-1" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
     (__VLS_ctx.selectedVideoId);
@@ -1842,7 +1842,7 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.d
     ...{ class: "text-center text-muted py-5 px-3" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-    ...{ class: "ni ni-map-big ni-3x mb-3 text-muted" },
+    ...{ class: "ni ni-collection ni-3x mb-3 text-muted" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({});
 __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
@@ -1914,7 +1914,7 @@ if (__VLS_ctx.savedExaminations.length > 0) {
             ...{ class: "btn btn-sm btn-outline-danger" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "ni ni-fat-delete" },
+            ...{ class: "ni ni-settings-gear-65" },
         });
     }
 }
@@ -1927,7 +1927,7 @@ if (__VLS_ctx.savedExaminations.length > 0) {
 /** @type {__VLS_StyleScopedClasses['fade']} */ ;
 /** @type {__VLS_StyleScopedClasses['show']} */ ;
 /** @type {__VLS_StyleScopedClasses['ni']} */ ;
-/** @type {__VLS_StyleScopedClasses['ni-fat-remove']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-settings-gear-65']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-close']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert']} */ ;
@@ -1988,7 +1988,7 @@ if (__VLS_ctx.savedExaminations.length > 0) {
 /** @type {__VLS_StyleScopedClasses['badge']} */ ;
 /** @type {__VLS_StyleScopedClasses['bg-secondary']} */ ;
 /** @type {__VLS_StyleScopedClasses['ni']} */ ;
-/** @type {__VLS_StyleScopedClasses['ni-watch-time']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-user-run']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['p-2']} */ ;
@@ -1996,7 +1996,7 @@ if (__VLS_ctx.savedExaminations.length > 0) {
 /** @type {__VLS_StyleScopedClasses['validation-click-indicator']} */ ;
 /** @type {__VLS_StyleScopedClasses['fw-semibold']} */ ;
 /** @type {__VLS_StyleScopedClasses['ni']} */ ;
-/** @type {__VLS_StyleScopedClasses['ni-tag']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-single-copy-04']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
@@ -2012,7 +2012,7 @@ if (__VLS_ctx.savedExaminations.length > 0) {
 /** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['justify-content-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['ni']} */ ;
-/** @type {__VLS_StyleScopedClasses['ni-support-16']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-user-run']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-start']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
@@ -2052,17 +2052,17 @@ if (__VLS_ctx.savedExaminations.length > 0) {
 /** @type {__VLS_StyleScopedClasses['mb-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['badge']} */ ;
 /** @type {__VLS_StyleScopedClasses['ni']} */ ;
-/** @type {__VLS_StyleScopedClasses['ni-lock-circle-open']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-check-bold']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['badge']} */ ;
 /** @type {__VLS_StyleScopedClasses['bg-info']} */ ;
 /** @type {__VLS_StyleScopedClasses['ni']} */ ;
-/** @type {__VLS_StyleScopedClasses['ni-scissors']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-single-copy-04']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['badge']} */ ;
 /** @type {__VLS_StyleScopedClasses['bg-warning']} */ ;
 /** @type {__VLS_StyleScopedClasses['ni']} */ ;
-/** @type {__VLS_StyleScopedClasses['ni-support-16']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-user-run']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['col-md-4']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-md-end']} */ ;
@@ -2122,13 +2122,13 @@ if (__VLS_ctx.savedExaminations.length > 0) {
 /** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['control-button']} */ ;
 /** @type {__VLS_StyleScopedClasses['ni']} */ ;
-/** @type {__VLS_StyleScopedClasses['ni-tag']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-single-copy-04']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-warning']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['control-button']} */ ;
 /** @type {__VLS_StyleScopedClasses['ni']} */ ;
-/** @type {__VLS_StyleScopedClasses['ni-button-pause']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-button-play']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-secondary']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
@@ -2141,7 +2141,7 @@ if (__VLS_ctx.savedExaminations.length > 0) {
 /** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
 /** @type {__VLS_StyleScopedClasses['ni']} */ ;
-/** @type {__VLS_StyleScopedClasses['ni-support-16']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-user-run']} */ ;
 /** @type {__VLS_StyleScopedClasses['align-middle']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
@@ -2158,7 +2158,7 @@ if (__VLS_ctx.savedExaminations.length > 0) {
 /** @type {__VLS_StyleScopedClasses['validation-status-body']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['ni']} */ ;
-/** @type {__VLS_StyleScopedClasses['ni-trophy']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-chart-bar-32']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
@@ -2167,7 +2167,7 @@ if (__VLS_ctx.savedExaminations.length > 0) {
 /** @type {__VLS_StyleScopedClasses['ms-auto']} */ ;
 /** @type {__VLS_StyleScopedClasses['validation-edit-button']} */ ;
 /** @type {__VLS_StyleScopedClasses['ni']} */ ;
-/** @type {__VLS_StyleScopedClasses['ni-ruler-pencil']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-single-copy-04']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
 /** @type {__VLS_StyleScopedClasses['justify-content-center']} */ ;
@@ -2186,7 +2186,7 @@ if (__VLS_ctx.savedExaminations.length > 0) {
 /** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
 /** @type {__VLS_StyleScopedClasses['ni']} */ ;
-/** @type {__VLS_StyleScopedClasses['ni-support-16']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-user-run']} */ ;
 /** @type {__VLS_StyleScopedClasses['col-lg-12']} */ ;
 /** @type {__VLS_StyleScopedClasses['card']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-header']} */ ;
@@ -2202,7 +2202,7 @@ if (__VLS_ctx.savedExaminations.length > 0) {
 /** @type {__VLS_StyleScopedClasses['alert-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
 /** @type {__VLS_StyleScopedClasses['ni']} */ ;
-/** @type {__VLS_StyleScopedClasses['ni-support-16']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-user-run']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-body']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-center']} */ ;
@@ -2210,7 +2210,7 @@ if (__VLS_ctx.savedExaminations.length > 0) {
 /** @type {__VLS_StyleScopedClasses['py-5']} */ ;
 /** @type {__VLS_StyleScopedClasses['px-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['ni']} */ ;
-/** @type {__VLS_StyleScopedClasses['ni-map-big']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-collection']} */ ;
 /** @type {__VLS_StyleScopedClasses['ni-3x']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
@@ -2244,7 +2244,7 @@ if (__VLS_ctx.savedExaminations.length > 0) {
 /** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-danger']} */ ;
 /** @type {__VLS_StyleScopedClasses['ni']} */ ;
-/** @type {__VLS_StyleScopedClasses['ni-fat-delete']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-settings-gear-65']} */ ;
 var __VLS_dollars;
 const __VLS_self = (await import('vue')).defineComponent({
     setup() {

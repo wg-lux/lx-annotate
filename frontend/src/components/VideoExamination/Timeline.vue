@@ -7,7 +7,7 @@
           class="play-btn"
           :disabled="!video"
         >
-          <i :class="isPlaying ? 'fas fa-pause' : 'fas fa-play'"></i>
+          <i :class="isPlaying ? 'ni ni-button-play' : 'ni ni-button-play'"></i>
         </button>
         <button
           @click="stepFrame(-1)"
@@ -15,7 +15,7 @@
           :disabled="!video || duration <= 0"
           title="Ein Frame zurück"
         >
-          <i class="fas fa-step-backward"></i>
+          <i class="ni ni-bold-right icon-reverse"></i>
         </button>
         <button
           @click="stepFrame(1)"
@@ -23,7 +23,7 @@
           :disabled="!video || duration <= 0"
           title="Ein Frame vor"
         >
-          <i class="fas fa-step-forward"></i>
+          <i class="ni ni-bold-right"></i>
         </button>
         <button
           @click="deleteSelectedSegment"
@@ -31,7 +31,7 @@
           :disabled="activeSegmentId == null"
           title="Ausgewähltes Segment löschen (Entf)"
         >
-          <i class="fas fa-trash"></i>
+          <i class="ni ni-settings-gear-65"></i>
         </button>
         <span class="time-display">
           {{ formatTime(currentTime) }} / {{ formatTime(duration) }}
@@ -39,11 +39,11 @@
       </div>
       <div class="zoom-controls">
         <button @click="zoomOut" :disabled="zoomLevel <= 1">
-          <i class="fas fa-search-minus"></i>
+          <i class="ni ni-tv-2"></i>
         </button>
         <span class="zoom-level">{{ Math.round(zoomLevel * 100) }}%</span>
         <button @click="zoomIn" :disabled="zoomLevel >= 5">
-          <i class="fas fa-search-plus"></i>
+          <i class="ni ni-tv-2"></i>
         </button>
       </div>
     </div>
@@ -105,7 +105,7 @@
                 class="resize-handle start-handle"
                 :title="'Segment-Start ändern'"
               >
-                <i class="fas fa-grip-lines-vertical"></i>
+                <i class="ni ni-collection"></i>
               </div>
 
               <div class="segment-content">
@@ -132,11 +132,11 @@
                 class="resize-handle end-handle"
                 :title="'Segment-Ende ändern'"
               >
-                <i class="fas fa-grip-lines-vertical"></i>
+                <i class="ni ni-collection"></i>
               </div>
 
               <div v-if="segment.isDraft" class="draft-indicator">
-                <i class="fas fa-edit"></i>
+                <i class="ni ni-single-copy-04"></i>
               </div>
             </div>
           </div>
@@ -177,16 +177,16 @@
       @click.stop
     >
       <div class="context-menu-item" @click="editSegment(contextMenu.segment)">
-        <i class="fas fa-edit"></i>
+        <i class="ni ni-single-copy-04"></i>
         Segment bearbeiten
       </div>
       <div class="context-menu-item danger" @click="deleteSegment(contextMenu.segment)">
-        <i class="fas fa-trash"></i>
+        <i class="ni ni-settings-gear-65"></i>
         Segment löschen
       </div>
       <div class="context-menu-separator"></div>
       <div class="context-menu-item" @click="playSegment(contextMenu.segment)">
-        <i class="fas fa-play"></i>
+        <i class="ni ni-button-play"></i>
         Segment abspielen
       </div>
     </div>

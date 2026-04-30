@@ -4,7 +4,7 @@
       <!-- Basic Information -->
       <div class="form-section">
         <h4>
-          <i class="fas fa-user"></i>
+          <i class="ni ni-circle-08"></i>
           Grunddaten
         </h4>
         
@@ -95,7 +95,7 @@
       <!-- Contact Information -->
       <div class="form-section">
         <h4>
-          <i class="fas fa-address-book"></i>
+          <i class="ni ni-book-bookmark"></i>
           Kontaktdaten
         </h4>
         
@@ -139,7 +139,7 @@
       <!-- Organization -->
       <div class="form-section">
         <h4>
-          <i class="fas fa-hospital"></i>
+          <i class="ni ni-collection"></i>
           Organisation
         </h4>
         
@@ -199,7 +199,7 @@
           :disabled="loading || !isFormValid"
         >
           <span v-if="loading" class="spinner-border spinner-border-sm me-2"></span>
-          <i v-else class="fas fa-save me-2"></i>
+          <i v-else class="ni ni-collection me-2"></i>
           {{ loading ? 'Wird gespeichert...' : 'Patient erstellen' }}
         </button>
         
@@ -209,7 +209,7 @@
           @click="$emit('cancel')"
           :disabled="loading"
         >
-          <i class="fas fa-times me-2"></i>
+          <i class="ni ni-settings-gear-65 me-2"></i>
           Abbrechen
         </button>
       </div>

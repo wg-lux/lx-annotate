@@ -9,7 +9,7 @@
             @click="refreshOverview"
             :disabled="isRefreshing"
           >
-            <i class="fas fa-sync-alt" :class="{ 'fa-spin': isRefreshing }"></i>
+            <i class="ni ni-bold-right" :class="{ 'ni-spin': isRefreshing }"></i>
             Aktualisieren
           </button>
         </div>
@@ -32,7 +32,7 @@
         <!-- Empty State -->
         <div v-else-if="!availableFiles.length" class="text-center py-5">
           <div class="mb-4">
-            <i class="fas fa-folder-open fa-3x text-muted"></i>
+            <i class="ni ni-collection ni-3x text-muted"></i>
           </div>
           <h5 class="text-muted">Keine Dateien vorhanden</h5>
           <p class="text-muted mb-4">
@@ -63,7 +63,12 @@
                       :class="getFileIcon(file.mediaType)" 
                       class="me-2"
                     ></i>
-                    <span class="fw-medium">{{ file.filename }}</span>
+                    <div>
+                      <span class="fw-medium">{{ file.filename }}</span>
+                      <div class="small text-muted mt-1">
+                        {{ getFileIdLabel(file) }}
+                      </div>
+                    </div>
                   </div>
                 </td>
 
@@ -85,7 +90,7 @@
                   >
                     <i 
                       v-if="file.anonymizationStatus === 'processing_anonymization'"
-                      class="fas fa-spinner fa-spin me-1"
+                      class="ni ni-settings-gear-65 ni-spin me-1"
                     ></i>
                     {{ getStatusText(file.anonymizationStatus) }}
                   </span>
@@ -109,11 +114,11 @@
                     class="btn btn-success btn-sm"
                     :disabled="!isReadyForValidation(file.id)"
                   >
-                    <i class="fas fa-eye me-1"></i>
+                    <i class="ni ni-user-run me-1"></i>
                     Validieren
                   </button>
                   <span v-else-if="file.anonymizationStatus === 'validated'" class="badge bg-success">
-                    <i class="fas fa-check me-1"></i>
+                    <i class="ni ni-check-bold me-1"></i>
                     Validiert
                   </span>
                   <span v-else class="text-muted">-</span>
@@ -122,11 +127,11 @@
                 <!-- Raw File Available -->
                 <td>
                   <span v-if="hasOriginalFile(file)" class="text-success">
-                    <i class="fas fa-check-circle me-1"></i>
+                    <i class="ni ni-check-bold me-1"></i>
                     Ja
                   </span>
                   <span v-else class="text-danger">
-                    <i class="fas fa-times-circle me-1"></i>
+                    <i class="ni ni-settings-gear-65 me-1"></i>
                     Nein
                   </span>
                 </td>
@@ -149,7 +154,7 @@
                       :disabled="isProcessing(file.id)"
                       title="Video erneut importieren und Metadaten aktualisieren"
                     >
-                      <i class="fas fa-redo-alt"></i>
+                      <i class="ni ni-bold-right"></i>
                       Erneut importieren
                     </button>
 
@@ -161,7 +166,7 @@
                       :disabled="isProcessing(file.id)"
                       title="PDF erneut importieren und verarbeiten"
                     >
-                      <i class="fas fa-redo-alt"></i>
+                      <i class="ni ni-bold-right"></i>
                       Erneut importieren
                     </button>
 
@@ -172,7 +177,7 @@
                       class="btn btn-outline-primary"
                       :disabled="isProcessing(file.id)"
                     >
-                      <i class="fas fa-play"></i>
+                      <i class="ni ni-button-play"></i>
                       Starten
                     </button>
 
@@ -183,7 +188,7 @@
                       class="btn btn-outline-warning"
                       :disabled="isProcessing(file.id)"
                     >
-                      <i class="fas fa-redo"></i>
+                      <i class="ni ni-bold-right"></i>
                       Erneut versuchen
                     </button>
 
@@ -194,7 +199,7 @@
                       class="btn btn-outline-warning"
                       :disabled="isProcessing(file.id)"
                     >
-                      <i class="fas fa-edit"></i>
+                      <i class="ni ni-single-copy-04"></i>
                       Korrektur
                     </button>
 
@@ -205,7 +210,7 @@
                       :disabled="isProcessing(file.id)"
                       title="Datei permanent löschen"
                     >
-                      <i class="fas fa-trash"></i>
+                      <i class="ni ni-settings-gear-65"></i>
                       Löschen
                     </button>
 
@@ -215,7 +220,7 @@
                       class="btn btn-outline-info"
                       disabled
                     >
-                      <i class="fas fa-spinner fa-spin me-1"></i>
+                      <i class="ni ni-settings-gear-65 ni-spin me-1"></i>
                       Anonymisierung...
                     </button>
                     <button
@@ -223,7 +228,7 @@
                       class="btn btn-outline-info"
                       disabled
                     >
-                      <i class="fas fa-spinner fa-spin me-1"></i>
+                      <i class="ni ni-settings-gear-65 ni-spin me-1"></i>
                       Frames extrahieren...
                     </button>
 
@@ -290,7 +295,7 @@
 
         <!-- Show warning if files were filtered out -->
         <div v-if="filteredOutCount > 0" class="alert alert-warning mt-3" role="alert">
-          <i class="fas fa-exclamation-triangle me-2"></i>
+          <i class="ni ni-user-run me-2"></i>
           <strong>Hinweis:</strong> {{ filteredOutCount }} Datei(en) wurden ausgeblendet, da die ursprünglichen Dateien nicht mehr verfügbar sind.
         </div>
       </div>
@@ -549,6 +554,12 @@ const getFileIcon = (mediaType: string) => {
 
 const getMediaTypeBadgeClass = (mediaType: string) => {
   return mediaStore.getMediaTypeBadgeClass(mediaType as any);
+};
+
+const getFileIdLabel = (file: FileItem) => {
+  return file.mediaType === 'video'
+    ? `Video-ID: ${file.id}`
+    : `PDF-ID: ${file.id}`;
 };
 
 const getStatusBadgeClass = (status: string) => {

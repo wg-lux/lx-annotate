@@ -23,11 +23,11 @@
           
           <!-- Processing Status Alert -->
           <div v-if="anonymizationStore.isAnyFileProcessing" class="alert alert-warning mt-3">
-            <i class="fas fa-info-circle me-2"></i>
+            <i class="ni ni-user-run me-2"></i>
             <strong>{{ anonymizationStore.processingFiles.length }} Datei(en)</strong> werden gerade anonymisiert.
             <div class="mt-2">
               <router-link to="/anonymisierung/uebersicht" class="btn btn-sm btn-outline-primary">
-                <i class="fas fa-eye me-1"></i>
+                <i class="ni ni-user-run me-1"></i>
                 Zur Übersicht
               </router-link>
             </div>
@@ -41,16 +41,23 @@
             <div class="col-12">
               <div class="alert alert-info d-flex align-items-center justify-content-between" role="alert">
                 <div>
-                  <i class="fas fa-info-circle me-2"></i>
+                  <i class="ni ni-user-run me-2"></i>
                   <span>
                     <strong>Validierung:</strong> 
                     {{ isPdf ? 'PDF-Dokument' : isVideo ? 'Video-Datei' : 'Unbekanntes Format' }}
                     {{ currentItem?.centerName ? `- ${currentItem.centerName}` : '' }}
+                    <span
+                      v-if="currentFileIdLabel"
+                      class="badge bg-secondary ms-2 align-middle"
+                      title="ID aus der Anonymisierungs-Übersicht"
+                    >
+                      {{ currentFileIdLabel }}
+                    </span>
                   </span>
                 </div>
                 <div v-if="currentItem && (isVideo || isPdf)" class="text-end">
                   <small class="text-muted">
-                    <i class="fas fa-tools me-1"></i>
+                    <i class="ni ni-settings-gear-65 me-1"></i>
                     {{ isVideo ? 'Video-Korrektur verfügbar' : 'Text-Korrektur verfügbar' }}
                   </small>
                 </div>
@@ -81,7 +88,7 @@
             <div class="col-12">
               <div class="alert alert-danger alert-dismissible fade show" role="alert">
                 <h6 class="alert-heading">
-                  <i class="fas fa-exclamation-triangle me-2"></i>
+                  <i class="ni ni-user-run me-2"></i>
                   {{ validationErrorSummary }}
                 </h6>
                 <hr>
@@ -146,7 +153,7 @@
                       @blur="onDobBlur"
                     >
                     <small class="form-text text-muted">
-                      <i class="fas fa-info-circle me-1"></i>
+                      <i class="ni ni-user-run me-1"></i>
                       <span v-if="dobDisplayFormat" class="ms-2 badge bg-secondary">
                         {{ dobDisplayFormat }}
                       </span>
@@ -176,7 +183,7 @@
                       @blur="onExamDateBlur"
                     >
                     <small class="form-text text-muted">
-                      <i class="fas fa-info-circle me-1"></i>
+                      <i class="ni ni-user-run me-1"></i>
                       <span v-if="examDateDisplayFormat" class="ms-2 badge bg-secondary">
                         {{ examDateDisplayFormat }}
                       </span>
@@ -364,7 +371,7 @@
                   </h5>
                   <!-- Clear Data Format Message -->
                   <div class="alert alert-info mt-2 mb-0">
-                    <i class="fas fa-info-circle me-2"></i>
+                    <i class="ni ni-user-run me-2"></i>
                     <strong>Datenformat:</strong> 
                     <span v-if="isPdf">
                       PDF-Dokument ({{ Math.round((anonymizedPdfSrc?.length || 0) / 1024) || 'Nicht Verfügbar' }} KB)
@@ -385,7 +392,7 @@
                       <div class="col-md-6">
                         <div class="pdf-section raw-pdf">
                           <h6 class="text-center mb-3 text-danger">
-                            <i class="fas fa-file-pdf me-1"></i>
+                            <i class="ni ni-single-copy-04 me-1"></i>
                             Original PDF (Raw)
                           </h6>
                           <iframe
@@ -420,7 +427,7 @@
                       <div class="col-md-6">
                         <div class="pdf-section anonymized-pdf">
                           <h6 class="text-center mb-3 text-success">
-                            <i class="fas fa-shield-alt me-1"></i>
+                            <i class="ni ni-check-bold me-1"></i>
                             Anonymisiertes PDF (Processed)
                           </h6>
                           <iframe
@@ -458,14 +465,14 @@
                         class="btn btn-outline-primary btn-sm me-2"
                         @click="downloadRawPdf"
                       >
-                        <i class="fas fa-download me-1"></i>
+                        <i class="ni ni-cloud-upload-96 me-1"></i>
                         Original herunterladen
                       </button>
                       <button 
                         class="btn btn-outline-success btn-sm"
                         @click="downloadAnonymizedPdf"
                       >
-                        <i class="fas fa-download me-1"></i>
+                        <i class="ni ni-cloud-upload-96 me-1"></i>
                         Anonymisiert herunterladen
                       </button>
                     </div>
@@ -478,7 +485,7 @@
                       <div class="col-md-6">
                         <div class="video-section raw-video">
                           <h6 class="text-center mb-3 text-danger">
-                            <i class="fas fa-eye me-1"></i>
+                            <i class="ni ni-user-run me-1"></i>
                             Original Video (Raw)
                           </h6>
                           <video
@@ -506,7 +513,7 @@
                       <div class="col-md-6">
                         <div class="video-section anonymized-video">
                           <h6 class="text-center mb-3 text-success">
-                            <i class="fas fa-shield-alt me-1"></i>
+                            <i class="ni ni-check-bold me-1"></i>
                             Anonymisiertes Video (Processed)
                           </h6>
                           <video
@@ -537,14 +544,14 @@
                         class="btn btn-outline-primary btn-sm me-2"
                         @click="syncVideos"
                       >
-                        <i class="fas fa-sync me-1"></i>
+                        <i class="ni ni-bold-right me-1"></i>
                         Videos synchronisieren
                       </button>
                       <button 
                         class="btn btn-outline-secondary btn-sm"
                         @click="pauseAllVideos"
                       >
-                        <i class="fas fa-pause me-1"></i>
+                        <i class="ni ni-button-play me-1"></i>
                         Alle pausieren
                       </button>
                       <button 
@@ -553,7 +560,7 @@
                         :disabled="isValidatingVideo"
                       >
                         <span v-if="isValidatingVideo" class="spinner-border spinner-border-sm me-1" role="status"></span>
-                        <i v-else class="fas fa-check me-1"></i>
+                        <i v-else class="ni ni-check-bold me-1"></i>
                         Segment-Annotation prüfen
                       </button>
                     </div>
@@ -565,7 +572,7 @@
                           <div class="d-flex justify-content-between align-items-center">
                             <div>
                               <h6 class="mb-0 text-warning">
-                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                <i class="ni ni-user-run me-2"></i>
                                 Segmente zur Entfernung - Video ID: {{ currentItem.id }}
                               </h6>
                               <small class="text-muted">
@@ -642,7 +649,7 @@
                   :disabled="isApproving"
                   :title="isVideo ? 'Video-Korrektur: Maskierung, Frame-Entfernung, etc.' : 'PDF-Korrektur: Text-Annotation anpassen'"
                 >
-                  <i class="fas fa-edit me-1"></i>
+                  <i class="ni ni-single-copy-04 me-1"></i>
                   {{ isVideo ? 'Video-Korrektur' : 'PDF-Korrektur' }}
                   <!-- Unsaved changes indicator -->
                   <span 
@@ -681,7 +688,7 @@
 
                 <!-- Phase 3.1: Show warning if approval blocked due to unvalidated segments -->
                 <div v-if="!canApprove && approvalBlockReason" class="alert alert-warning mt-2 mb-0">
-                  <i class="fas fa-exclamation-triangle me-2"></i>
+                  <i class="ni ni-user-run me-2"></i>
                   <strong>Bestätigung blockiert:</strong> {{ approvalBlockReason }}
                 </div>
               </div>
@@ -1212,6 +1219,14 @@ const validationProgressPercent = computed(() => {
 
 // Computed
 const currentItem = computed(() => anonymizationStore.current);
+const currentFileIdLabel = computed(() => {
+  const targetFileId = resolveFileIdFromContext();
+  if (targetFileId === null) return '';
+
+  if (sourceMediaScope.value === 'video') return `Video-ID: ${targetFileId}`;
+  if (sourceMediaScope.value === 'pdf') return `PDF-ID: ${targetFileId}`;
+  return `Datei-ID: ${targetFileId}`;
+});
 
 const patientHashDisplay = computed(
   () => caseResolution.value?.patientHashDisplay ?? currentItem.value?.patientHashDisplay ?? null
@@ -1529,7 +1544,7 @@ const validateVideoForSegmentAnnotation = async () => {
       shouldShowOutsideTimeline.value = true;
       videoValidationStatus.value = {
         class: 'alert-warning',
-        icon: 'fas fa-exclamation-triangle',
+        icon: 'ni ni-user-run',
         title: 'Segmentvalidierung erforderlich',
         message: `${outsideSegments.length} "Outside"-Segmente gefunden, die validiert werden müssen.`,
         details: 'Verwenden Sie die Timeline unten, um die Segmente zu überprüfen und zu bestätigen.'
@@ -1537,7 +1552,7 @@ const validateVideoForSegmentAnnotation = async () => {
     } else {
       videoValidationStatus.value = {
         class: 'alert-success',
-        icon: 'fas fa-check-circle',
+        icon: 'ni ni-check-bold',
         title: 'Video bereit für Annotation',
         message: 'Keine "Outside"-Segmente gefunden. Video ist bereit für die Segment-Annotation.',
         details: `Video ID: ${currentItem.value.id} - Alle Validierungen bestanden.`
@@ -1549,7 +1564,7 @@ const validateVideoForSegmentAnnotation = async () => {
     console.error('Error validating video for segment annotation:', error);
     videoValidationStatus.value = {
       class: 'alert-danger',
-      icon: 'fas fa-times-circle',
+      icon: 'ni ni-settings-gear-65',
       title: 'Validierung fehlgeschlagen',
       message: 'Video konnte nicht für Segment-Annotation validiert werden.',
       details: error?.response?.data?.detail || error?.message || 'Unbekannter Fehler'
@@ -1576,7 +1591,7 @@ const onOutsideValidationComplete = () => {
   
   videoValidationStatus.value = {
     class: 'alert-success',
-    icon: 'fas fa-check-circle',
+    icon: 'ni ni-check-bold',
     title: 'Validierung abgeschlossen',
     message: 'Alle Outside-Segmente wurden erfolgreich validiert.',
     details: `Video ${currentItem.value?.id} ist jetzt bereit für die vollständige Segment-Annotation.`

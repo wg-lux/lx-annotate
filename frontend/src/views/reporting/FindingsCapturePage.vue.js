@@ -429,7 +429,7 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.d
 const __VLS_0 = __VLS_asFunctionalComponent(MedicalBlock, new MedicalBlock({
     title: "Template & Dokumentationsregeln",
     subtitle: "Template wählen, Abschnitte prüfen und den lokalen Befund-Entwurf gegen die Wissensbasis validieren",
-    icon: "description",
+    icon: "ni ni-single-copy-04",
     iconBgClass: "bg-gradient-primary",
     isComplete: (!!__VLS_ctx.selectedTemplateName && !!__VLS_ctx.currentRuntimeDraft),
     isActive: (true),
@@ -439,7 +439,7 @@ const __VLS_0 = __VLS_asFunctionalComponent(MedicalBlock, new MedicalBlock({
 const __VLS_1 = __VLS_0({
     title: "Template & Dokumentationsregeln",
     subtitle: "Template wählen, Abschnitte prüfen und den lokalen Befund-Entwurf gegen die Wissensbasis validieren",
-    icon: "description",
+    icon: "ni ni-single-copy-04",
     iconBgClass: "bg-gradient-primary",
     isComplete: (!!__VLS_ctx.selectedTemplateName && !!__VLS_ctx.currentRuntimeDraft),
     isActive: (true),

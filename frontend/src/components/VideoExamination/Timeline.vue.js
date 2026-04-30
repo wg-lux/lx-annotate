@@ -818,7 +818,7 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElement
     disabled: (!__VLS_ctx.video),
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-    ...{ class: (__VLS_ctx.isPlaying ? 'fas fa-pause' : 'fas fa-play') },
+    ...{ class: (__VLS_ctx.isPlaying ? 'ni ni-button-play' : 'ni ni-button-play') },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
     ...{ onClick: (...[$event]) => {
@@ -829,7 +829,7 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElement
     title: "Ein Frame zurück",
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-    ...{ class: "fas fa-step-backward" },
+    ...{ class: "ni ni-bold-right icon-reverse" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
     ...{ onClick: (...[$event]) => {
@@ -840,7 +840,7 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElement
     title: "Ein Frame vor",
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-    ...{ class: "fas fa-step-forward" },
+    ...{ class: "ni ni-bold-right" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
     ...{ onClick: (__VLS_ctx.deleteSelectedSegment) },
@@ -849,7 +849,7 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElement
     title: "Ausgewähltes Segment löschen (Entf)",
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-    ...{ class: "fas fa-trash" },
+    ...{ class: "ni ni-settings-gear-65" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
     ...{ class: "time-display" },
@@ -864,7 +864,7 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElement
     disabled: (__VLS_ctx.zoomLevel <= 1),
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-    ...{ class: "fas fa-search-minus" },
+    ...{ class: "ni ni-tv-2" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
     ...{ class: "zoom-level" },
@@ -875,7 +875,7 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElement
     disabled: (__VLS_ctx.zoomLevel >= 5),
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-    ...{ class: "fas fa-search-plus" },
+    ...{ class: "ni ni-tv-2" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "timeline-wrapper" },
@@ -951,7 +951,7 @@ for (const [row] of __VLS_getVForSourceType((__VLS_ctx.segmentRows))) {
             title: ('Segment-Start ändern'),
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "fas fa-grip-lines-vertical" },
+            ...{ class: "ni ni-collection" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: "segment-content" },
@@ -982,14 +982,14 @@ for (const [row] of __VLS_getVForSourceType((__VLS_ctx.segmentRows))) {
             title: ('Segment-Ende ändern'),
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-            ...{ class: "fas fa-grip-lines-vertical" },
+            ...{ class: "ni ni-collection" },
         });
         if (segment.isDraft) {
             __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
                 ...{ class: "draft-indicator" },
             });
             __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: "fas fa-edit" },
+                ...{ class: "ni ni-single-copy-04" },
             });
         }
     }
@@ -1040,7 +1040,7 @@ if (__VLS_ctx.contextMenu.visible) {
         ...{ class: "context-menu-item" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-edit" },
+        ...{ class: "ni ni-single-copy-04" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ onClick: (...[$event]) => {
@@ -1051,7 +1051,7 @@ if (__VLS_ctx.contextMenu.visible) {
         ...{ class: "context-menu-item danger" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-trash" },
+        ...{ class: "ni ni-settings-gear-65" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "context-menu-separator" },
@@ -1065,7 +1065,7 @@ if (__VLS_ctx.contextMenu.visible) {
         ...{ class: "context-menu-item" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-        ...{ class: "fas fa-play" },
+        ...{ class: "ni ni-button-play" },
     });
 }
 if (__VLS_ctx.timeEditor.visible) {
@@ -1136,22 +1136,23 @@ if (__VLS_ctx.tooltip.visible) {
 /** @type {__VLS_StyleScopedClasses['timeline-controls']} */ ;
 /** @type {__VLS_StyleScopedClasses['play-btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['control-btn']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-step-backward']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-bold-right']} */ ;
+/** @type {__VLS_StyleScopedClasses['icon-reverse']} */ ;
 /** @type {__VLS_StyleScopedClasses['control-btn']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-step-forward']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-bold-right']} */ ;
 /** @type {__VLS_StyleScopedClasses['control-btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['danger']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-trash']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-settings-gear-65']} */ ;
 /** @type {__VLS_StyleScopedClasses['time-display']} */ ;
 /** @type {__VLS_StyleScopedClasses['zoom-controls']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-search-minus']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-tv-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['zoom-level']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-search-plus']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-tv-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['timeline-wrapper']} */ ;
 /** @type {__VLS_StyleScopedClasses['timeline']} */ ;
 /** @type {__VLS_StyleScopedClasses['time-markers']} */ ;
@@ -1167,19 +1168,19 @@ if (__VLS_ctx.tooltip.visible) {
 /** @type {__VLS_StyleScopedClasses['too-small']} */ ;
 /** @type {__VLS_StyleScopedClasses['resize-handle']} */ ;
 /** @type {__VLS_StyleScopedClasses['start-handle']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-grip-lines-vertical']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-collection']} */ ;
 /** @type {__VLS_StyleScopedClasses['segment-content']} */ ;
 /** @type {__VLS_StyleScopedClasses['segment-label']} */ ;
 /** @type {__VLS_StyleScopedClasses['segment-duration']} */ ;
 /** @type {__VLS_StyleScopedClasses['segment-delete-btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['resize-handle']} */ ;
 /** @type {__VLS_StyleScopedClasses['end-handle']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-grip-lines-vertical']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-collection']} */ ;
 /** @type {__VLS_StyleScopedClasses['draft-indicator']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-edit']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-single-copy-04']} */ ;
 /** @type {__VLS_StyleScopedClasses['playhead']} */ ;
 /** @type {__VLS_StyleScopedClasses['playhead-line']} */ ;
 /** @type {__VLS_StyleScopedClasses['playhead-handle']} */ ;
@@ -1188,16 +1189,16 @@ if (__VLS_ctx.tooltip.visible) {
 /** @type {__VLS_StyleScopedClasses['waveform-canvas']} */ ;
 /** @type {__VLS_StyleScopedClasses['context-menu']} */ ;
 /** @type {__VLS_StyleScopedClasses['context-menu-item']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-edit']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-single-copy-04']} */ ;
 /** @type {__VLS_StyleScopedClasses['context-menu-item']} */ ;
 /** @type {__VLS_StyleScopedClasses['danger']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-trash']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-settings-gear-65']} */ ;
 /** @type {__VLS_StyleScopedClasses['context-menu-separator']} */ ;
 /** @type {__VLS_StyleScopedClasses['context-menu-item']} */ ;
-/** @type {__VLS_StyleScopedClasses['fas']} */ ;
-/** @type {__VLS_StyleScopedClasses['fa-play']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-button-play']} */ ;
 /** @type {__VLS_StyleScopedClasses['time-editor']} */ ;
 /** @type {__VLS_StyleScopedClasses['time-editor-title']} */ ;
 /** @type {__VLS_StyleScopedClasses['time-editor-label']} */ ;

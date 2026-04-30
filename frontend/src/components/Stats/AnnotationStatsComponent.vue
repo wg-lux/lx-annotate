@@ -22,7 +22,7 @@
               <div class="row align-items-center">
                 <div class="col-8">
                   <h4 class="text-white mb-1">
-                    <i class="fas fa-chart-pie me-2"></i>
+                    <i class="ni ni-chart-bar-32 me-2"></i>
                     Annotation Übersicht
                   </h4>
                   <p class="text-white opacity-8 mb-0">
@@ -35,7 +35,7 @@
                     @click="refreshStats"
                     :disabled="annotationStatsStore.isLoading"
                   >
-                    <i class="fas fa-sync-alt" :class="{ 'fa-spin': annotationStatsStore.isLoading }"></i>
+                    <i class="ni ni-bold-right" :class="{ 'ni-spin': annotationStatsStore.isLoading }"></i>
                     Aktualisieren
                   </button>
                 </div>
@@ -56,7 +56,7 @@
                   <p class="text-muted mb-2">{{ points }} XP gesammelt · {{ pointsToNextLevel }} XP bis zum nächsten Level</p>
                 </div>
                 <div class="achievement-pill">
-                  <i class="fas fa-award me-2"></i>
+                  <i class="ni ni-chart-bar-32 me-2"></i>
                   {{ unlockedAchievementsCount }} Erfolge
                 </div>
               </div>
@@ -77,7 +77,7 @@
                   :key="badge"
                   class="badge text-bg-light achievement-badge"
                 >
-                  <i class="fas fa-star me-1"></i>{{ badge }}
+                  <i class="ni ni-chart-bar-32 me-1"></i>{{ badge }}
                 </span>
               </div>
             </div>
@@ -108,7 +108,7 @@
           <div class="card">
             <div class="card-body">
               <h6 class="card-title mb-3">
-                <i class="fas fa-tasks me-2"></i>
+                <i class="ni ni-single-copy-04 me-2"></i>
                 Gesamtfortschritt
               </h6>
               <div class="progress-container">
@@ -172,7 +172,7 @@
             <div class="card-header bg-primary text-white">
               <div class="d-flex justify-content-between align-items-center">
                 <h6 class="mb-0">
-                  <i class="fas fa-video me-2"></i>
+                  <i class="ni ni-button-play me-2"></i>
                   Video-Segmente
                 </h6>
                 <span class="badge bg-light text-primary">
@@ -184,7 +184,7 @@
               <div class="stats-grid">
                 <div class="stat-item pending">
                   <div class="stat-icon">
-                    <i class="fas fa-clock"></i>
+                    <i class="ni ni-user-run"></i>
                   </div>
                   <div class="stat-info">
                     <div class="stat-number">{{ segmentStats.pending }}</div>
@@ -194,7 +194,7 @@
                 
                 <div class="stat-item in-progress">
                   <div class="stat-icon">
-                    <i class="fas fa-cogs"></i>
+                    <i class="ni ni-settings-gear-65"></i>
                   </div>
                   <div class="stat-info">
                     <div class="stat-number">{{ segmentStats.inProgress }}</div>
@@ -204,7 +204,7 @@
                 
                 <div class="stat-item completed">
                   <div class="stat-icon">
-                    <i class="fas fa-check-circle"></i>
+                    <i class="ni ni-check-bold"></i>
                   </div>
                   <div class="stat-info">
                     <div class="stat-number">{{ segmentStats.completed }}</div>
@@ -235,7 +235,7 @@
             <div class="card-header bg-success text-white">
               <div class="d-flex justify-content-between align-items-center">
                 <h6 class="mb-0">
-                  <i class="fas fa-stethoscope me-2"></i>
+                  <i class="ni ni-user-run me-2"></i>
                   Untersuchungen
                 </h6>
                 <span class="badge bg-light text-success">
@@ -247,7 +247,7 @@
               <div class="stats-grid">
                 <div class="stat-item pending">
                   <div class="stat-icon">
-                    <i class="fas fa-clock"></i>
+                    <i class="ni ni-user-run"></i>
                   </div>
                   <div class="stat-info">
                     <div class="stat-number">{{ examinationStats.pending }}</div>
@@ -257,7 +257,7 @@
                 
                 <div class="stat-item in-progress">
                   <div class="stat-icon">
-                    <i class="fas fa-cogs"></i>
+                    <i class="ni ni-settings-gear-65"></i>
                   </div>
                   <div class="stat-info">
                     <div class="stat-number">{{ examinationStats.inProgress }}</div>
@@ -267,7 +267,7 @@
                 
                 <div class="stat-item completed">
                   <div class="stat-icon">
-                    <i class="fas fa-check-circle"></i>
+                    <i class="ni ni-check-bold"></i>
                   </div>
                   <div class="stat-info">
                     <div class="stat-number">{{ examinationStats.completed }}</div>
@@ -298,7 +298,7 @@
             <div class="card-header bg-warning text-dark">
               <div class="d-flex justify-content-between align-items-center">
                 <h6 class="mb-0">
-                  <i class="fas fa-user-shield me-2"></i>
+                  <i class="ni ni-check-bold me-2"></i>
                   Patientendaten
                 </h6>
                 <span class="badge bg-dark text-warning">
@@ -310,7 +310,7 @@
               <div class="stats-grid">
                 <div class="stat-item pending">
                   <div class="stat-icon">
-                    <i class="fas fa-clock"></i>
+                    <i class="ni ni-user-run"></i>
                   </div>
                   <div class="stat-info">
                     <div class="stat-number">{{ sensitiveMetaStats.pending }}</div>
@@ -320,7 +320,7 @@
                 
                 <div class="stat-item in-progress">
                   <div class="stat-icon">
-                    <i class="fas fa-cogs"></i>
+                    <i class="ni ni-settings-gear-65"></i>
                   </div>
                   <div class="stat-info">
                     <div class="stat-number">{{ sensitiveMetaStats.inProgress }}</div>
@@ -330,7 +330,7 @@
                 
                 <div class="stat-item completed">
                   <div class="stat-icon">
-                    <i class="fas fa-check-circle"></i>
+                    <i class="ni ni-check-bold"></i>
                   </div>
                   <div class="stat-info">
                     <div class="stat-number">{{ sensitiveMetaStats.completed }}</div>
@@ -362,7 +362,7 @@
           <div class="card">
             <div class="card-header">
               <h6 class="mb-0">
-                <i class="fas fa-bolt me-2"></i>
+                <i class="ni ni-chart-bar-32 me-2"></i>
                 Schnellaktionen
               </h6>
             </div>
@@ -371,7 +371,7 @@
                 <div class="col-md-4">
                   <div class="quick-action-item" @click="navigateToFrameAnnotation">
                     <div class="action-icon bg-primary">
-                      <i class="fas fa-plus"></i>
+                      <i class="ni ni-fat-add"></i>
                     </div>
                     <div class="action-content">
                       <h6>Neue Video-Annotation</h6>
@@ -383,7 +383,7 @@
                 <div class="col-md-4">
                   <div class="quick-action-item" @click="navigateToExamination">
                     <div class="action-icon bg-success">
-                      <i class="fas fa-plus"></i>
+                      <i class="ni ni-fat-add"></i>
                     </div>
                     <div class="action-content">
                       <h6>Neue Befundung</h6>
@@ -395,7 +395,7 @@
                 <div class="col-md-4">
                   <div class="quick-action-item" @click="navigateToValidation">
                     <div class="action-icon bg-warning">
-                      <i class="fas fa-play"></i>
+                      <i class="ni ni-button-play"></i>
                     </div>
                     <div class="action-content">
                       <h6>Validierung starten</h6>
@@ -412,7 +412,7 @@
 
     <!-- Error Alert -->
     <div v-if="annotationStatsStore.hasError" class="alert alert-danger mt-3">
-      <i class="fas fa-exclamation-triangle me-2"></i>
+      <i class="ni ni-user-run me-2"></i>
       <strong>Fehler beim Laden der Statistiken:</strong>
       {{ annotationStatsStore.error }}
       <button 
