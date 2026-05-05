@@ -35,6 +35,7 @@ function buildQueueStore(overrides = {}) {
         filterLabelName: null,
         allowRandomFallback: true,
         informationSource: 'frame_annotation_frontend',
+        annotatorPrincipal: null,
         taskQueue: [],
         taskQuerySignature: 'random|Polyp||frame_annotation_frontend|1',
         lastError: null,
@@ -44,6 +45,7 @@ function buildQueueStore(overrides = {}) {
         setFilterLabelName: vi.fn(),
         setAllowRandomFallback: vi.fn(),
         setInformationSource: vi.fn(),
+        setAnnotatorPrincipal: vi.fn(),
         clearQueue: vi.fn(),
         fetchBatch: vi.fn().mockResolvedValue(undefined),
         popNextTask: vi.fn(() => nextTasks.shift() ?? null)
@@ -70,6 +72,7 @@ function buildQueueStore(overrides = {}) {
 describe('FrameAnnotation usability audit', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        localStorage.clear();
         hoisted.queueStore = buildQueueStore();
         hoisted.get.mockResolvedValue({
             data: {
@@ -99,7 +102,7 @@ describe('FrameAnnotation usability audit', () => {
         expect(hoisted.post).not.toHaveBeenCalledWith('media/annotations/frames/bulk-upsert/', expect.anything());
         expect(wrapper.text()).toContain('Ziel-Label "NichtVorhanden" ist für diesen Frame nicht verfügbar.');
     });
-    it.fails('sollte Backend-Fehler beim Task-Laden sichtbar machen (aktuell nicht umgesetzt)', async () => {
+    it('zeigt Backend-Fehler beim Task-Laden sichtbar an', async () => {
         hoisted.queueStore = buildQueueStore({
             fetchBatch: vi.fn().mockImplementation(async () => {
                 hoisted.queueStore.lastError = 'Backend nicht erreichbar';

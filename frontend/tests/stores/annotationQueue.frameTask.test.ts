@@ -108,6 +108,36 @@ describe('annotationQueue frame task normalization', () => {
     })
   })
 
+  it('passes the active annotator to the frame task endpoint and query signature', async () => {
+    const store = useAnnotationQueueStore()
+    store.setSelectedLabelGroupId('3')
+    store.setTargetLabelName('Polyp')
+    const initialSignature = store.taskQuerySignature
+    store.setAnnotatorPrincipal('reviewer-two')
+
+    expect(store.taskQuerySignature).not.toBe(initialSignature)
+    expect(store.taskQuerySignature).toContain('reviewer-two')
+
+    mocks.axiosGet.mockResolvedValueOnce({
+      data: {
+        task: {
+          frame_id: 103,
+          frame_stream_path: '/api/media/videos/7/frames/90/stream/'
+        }
+      }
+    })
+
+    await store.fetchBatch(1)
+
+    expect(mocks.axiosGet).toHaveBeenCalledWith('/api/media/annotations/frames/random-task/', {
+      params: expect.objectContaining({
+        label_group_id: '3',
+        limit: 1,
+        annotator: 'reviewer-two'
+      })
+    })
+  })
+
   it('falls back to balanced sampling for unknown sampling strategies', async () => {
     const store = useAnnotationQueueStore()
     store.setSelectedLabelGroupId('3')

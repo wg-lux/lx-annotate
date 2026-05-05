@@ -25,6 +25,8 @@ To add documentation to the frontend run these commands:
 uv run --extra docs make -C docs html
 mkdir -p static/docs
 rsync -a --delete docs/_build/html/ static/docs/
+mkdir -p staticfiles/docs
+rsync -a --delete docs/_build/html/ staticfiles/docs/
 
 
 ## Recommended Reading Paths

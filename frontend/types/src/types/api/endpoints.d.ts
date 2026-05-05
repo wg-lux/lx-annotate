@@ -107,9 +107,11 @@ export declare const endpoints: {
         readonly videoApplyMask: (pk: Id) => string;
         readonly videoRemoveFrames: (pk: Id) => string;
         readonly videoLabelsList: "media/videos/labels/list/";
+        readonly videoLabelSetsList: "media/videos/label-sets/list/";
         readonly segmentsCollection: "media/videos/segments/";
         readonly segmentsStats: "media/videos/segments/stats/";
         readonly videoSegments: (pk: Id) => string;
+        readonly videoSegmentsBulkMutation: (pk: Id) => string;
         readonly videoSegmentDetail: (pk: Id, segmentId: Id) => string;
         readonly videoSegmentsImportPredictions: (pk: Id) => string;
         readonly videoSegmentValidate: (pk: Id, segmentId: Id) => string;

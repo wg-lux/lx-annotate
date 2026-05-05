@@ -146,6 +146,17 @@ def test_runtime_guard_checks_manifest_and_entry_file_in_static_root():
     assert 'chmod -R u+w "$staged_static_root"' in vue_tasks
 
 
+def test_generated_docs_are_published_to_packaged_staticfiles():
+    makefile = _read("Makefile")
+    pyproject = _read("pyproject.toml")
+    asset_deployment = _read("docs/guides/asset-deployment.md")
+
+    assert "rsync -a --delete docs/_build/html/ static/docs/" in makefile
+    assert "rsync -a --delete docs/_build/html/ staticfiles/docs/" in makefile
+    assert '"staticfiles" = "lx_annotate/staticfiles"' in pyproject
+    assert "static/docs` and `staticfiles/docs" in asset_deployment
+
+
 def test_devenv_shell_pins_uv_to_devenv_state_venv():
     devenv_nix = _read("devenv.nix")
 

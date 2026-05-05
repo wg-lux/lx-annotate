@@ -33,11 +33,11 @@ Vite manifest must exist at:
 `make package`
 
 `make package` forces a frontend rebuild, checks that committed frontend artifacts
-did not drift, publishes Sphinx HTML into `static/docs`, and then fails if
-`staticfiles/.vite/manifest.json` is empty, invalid JSON, missing the
-`src/main.ts` entry, or points at a missing asset. This prevents stale or
-broken frontend artifacts from reaching wheel or sdist packaging and ensures the
-frontend `/documentation` page can load the packaged docs bundle.
+did not drift, publishes Sphinx HTML into `static/docs` and `staticfiles/docs`,
+and then fails if `staticfiles/.vite/manifest.json` is empty, invalid JSON,
+missing the `src/main.ts` entry, or points at a missing asset. This prevents
+stale or broken frontend artifacts from reaching wheel or sdist packaging and
+ensures the frontend `/documentation` page can load the packaged docs bundle.
 
 ## Why `emptyOutDir` Is Disabled
 

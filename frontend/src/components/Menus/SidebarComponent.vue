@@ -103,7 +103,7 @@
                 <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
                   <i class="ni ni-button-play opacity-10"></i>
                 </div>
-                <span class="nav-link-text ms-1">2. Videountersuchung befunden</span>
+                <span class="nav-link-text ms-1">2. Videountersuchung bearbeiten</span>
               </router-link>
             </li>
             <li class="nav-item">

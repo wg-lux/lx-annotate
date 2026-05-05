@@ -9,6 +9,57 @@ const hoisted = vi.hoisted(() => ({
     triggerApplicationAiDatasetExport: vi.fn(),
     triggerApplicationVideoDimensionBackfill: vi.fn(),
     fetchApplicationVideoDimensionBackfillRun: vi.fn(),
+    terminologyStore: {
+        bundles: [
+            {
+                moduleName: 'editor_bundle',
+                version: '2026.04.30',
+                medicalField: 'gastroenterology',
+                inputDirs: ['/registry/editor_bundle'],
+                isActive: true
+            }
+        ],
+        activeBundle: {
+            moduleName: 'editor_bundle',
+            version: '2026.04.30',
+            medicalField: 'gastroenterology',
+            inputDirs: ['/registry/editor_bundle'],
+            isActive: true
+        },
+        registryPath: '/registry',
+        loading: false,
+        selecting: false,
+        error: null,
+        selectedMedicalField: 'gastroenterology',
+        lastSelectionCounts: null,
+        activeModuleName: 'editor_bundle',
+        activeBundleKey: 'editor_bundle@@2026.04.30',
+        activeBundleLabel: 'editor_bundle · 2026.04.30',
+        filteredBundles: [
+            {
+                moduleName: 'editor_bundle',
+                version: '2026.04.30',
+                medicalField: 'gastroenterology',
+                inputDirs: ['/registry/editor_bundle'],
+                isActive: true
+            }
+        ],
+        medicalFieldLabel: 'Gastroenterologie',
+        medicalFieldOptions: [{ value: 'gastroenterology', label: 'Gastroenterologie' }],
+        bundleKey: vi.fn((bundle) => `${bundle.moduleName}@@${bundle.version}`),
+        findBundleByKey: vi.fn((key) => key === 'editor_bundle@@2026.04.30'
+            ? {
+                moduleName: 'editor_bundle',
+                version: '2026.04.30',
+                medicalField: 'gastroenterology',
+                inputDirs: ['/registry/editor_bundle'],
+                isActive: true
+            }
+            : null),
+        loadBundles: vi.fn(),
+        selectBundle: vi.fn(),
+        setMedicalField: vi.fn()
+    },
     toastSuccess: vi.fn()
 }));
 vi.mock('@/api/applicationSettingsApi', () => ({
@@ -28,9 +79,18 @@ vi.mock('@/stores/toastStore', () => ({
         info: vi.fn()
     })
 }));
+vi.mock('@/stores/terminologyStore', () => ({
+    useTerminologyStore: () => hoisted.terminologyStore
+}));
 describe('ApplicationSettingsPage', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        hoisted.terminologyStore.loadBundles.mockResolvedValue(undefined);
+        hoisted.terminologyStore.selectBundle.mockResolvedValue({
+            ok: true,
+            active: hoisted.terminologyStore.activeBundle,
+            counts: { findings: 2 }
+        });
         hoisted.fetchApplicationSettings.mockResolvedValue({
             id: 1,
             centerId: 1,

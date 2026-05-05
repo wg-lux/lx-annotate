@@ -42,10 +42,10 @@
 
         <!-- Files Table -->
         <div v-else class="table-responsive">
-          <table class="table table-hover">
+          <table class="table table-hover overview-files-table">
             <thead class="table-light">
               <tr>
-                <th>Dateiname</th>
+                <th class="sticky-filename-column">Dateiname</th>
                 <th>Typ</th>
                 <th>Anonymisierung</th>
                 <th>Annotation</th>
@@ -57,14 +57,14 @@
             </thead>
             <tbody>
               <tr v-for="file in availableFiles" :key="`${file.mediaType}-${file.id}`">                <!-- Filename -->
-                <td>
+                <td class="sticky-filename-column">
                   <div class="d-flex align-items-center">
                     <i 
                       :class="getFileIcon(file.mediaType)" 
                       class="me-2"
                     ></i>
                     <div>
-                      <span class="fw-medium">{{ file.filename }}</span>
+                      <span class="fw-medium filename-text">{{ file.filename }}</span>
                       <div class="small text-muted mt-1">
                         {{ getFileIdLabel(file) }}
                       </div>
@@ -205,9 +205,11 @@
 
                     <!-- Delete Button - Show for all files -->
                     <button
+                      data-test="delete-file-button"
                       @click="deleteFile(file.id)"
                       class="btn btn-outline-danger"
                       :disabled="isProcessing(file.id)"
+                      :aria-label="`Datei ${file.id} löschen`"
                       title="Datei permanent löschen"
                     >
                       <i class="ni ni-settings-gear-65"></i>
@@ -685,6 +687,34 @@ onUnmounted(() => {
   vertical-align: middle;
 }
 
+.overview-files-table {
+  min-width: 980px;
+}
+
+.overview-files-table .sticky-filename-column {
+  position: sticky;
+  left: 0;
+  min-width: 16rem;
+  max-width: 24rem;
+  background: #fff;
+  box-shadow: 0.25rem 0 0.75rem rgba(0, 0, 0, 0.04);
+  z-index: 2;
+}
+
+.overview-files-table thead .sticky-filename-column {
+  background: #f8f9fa;
+  z-index: 3;
+}
+
+.overview-files-table tbody tr:hover .sticky-filename-column {
+  background: var(--bs-table-hover-bg, #f8f9fa);
+}
+
+.filename-text {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
 .btn-group-sm .btn {
   padding: 0.25rem 0.5rem;
   font-size: 0.75rem;
@@ -711,6 +741,11 @@ onUnmounted(() => {
   .btn-group-sm .btn {
     padding: 0.125rem 0.25rem;
     font-size: 0.7rem;
+  }
+
+  .overview-files-table .sticky-filename-column {
+    min-width: 13rem;
+    max-width: 16rem;
   }
 }
 </style>

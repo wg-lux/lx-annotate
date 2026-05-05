@@ -41,6 +41,7 @@ interface BaseStore {
   filterLabelName: string | null;
   allowRandomFallback: boolean;
   informationSource: string;
+  annotatorPrincipal: string | null;
   taskQueue: any[];
   taskQuerySignature: string;
   lastError: string | null;
@@ -50,6 +51,7 @@ interface BaseStore {
   setFilterLabelName: any;
   setAllowRandomFallback: any;
   setInformationSource: any;
+  setAnnotatorPrincipal: any;
   clearQueue: any;
   fetchBatch: any;
   popNextTask: any;
@@ -66,6 +68,7 @@ function buildQueueStore(overrides: QueueStoreOverrides = {}) {
     filterLabelName: null,
     allowRandomFallback: true,
     informationSource: 'frame_annotation_frontend',
+    annotatorPrincipal: null,
     taskQueue: [] as any[],
     taskQuerySignature: 'random|Polyp||frame_annotation_frontend|1',
     lastError: null as string | null,
@@ -75,6 +78,7 @@ function buildQueueStore(overrides: QueueStoreOverrides = {}) {
     setFilterLabelName: vi.fn(),
     setAllowRandomFallback: vi.fn(),
     setInformationSource: vi.fn(),
+    setAnnotatorPrincipal: vi.fn(),
     clearQueue: vi.fn(),
     fetchBatch: vi.fn().mockResolvedValue(undefined),
     popNextTask: vi.fn(() => nextTasks.shift() ?? null)
@@ -103,6 +107,7 @@ function buildQueueStore(overrides: QueueStoreOverrides = {}) {
 describe('FrameAnnotation usability audit', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    localStorage.clear()
     hoisted.queueStore = buildQueueStore()
     hoisted.get.mockResolvedValue({
       data: {
@@ -144,8 +149,8 @@ describe('FrameAnnotation usability audit', () => {
     )
   })
 
-  it.fails(
-    'sollte Backend-Fehler beim Task-Laden sichtbar machen (aktuell nicht umgesetzt)',
+  it(
+    'zeigt Backend-Fehler beim Task-Laden sichtbar an',
     async () => {
       hoisted.queueStore = buildQueueStore({
         fetchBatch: vi.fn().mockImplementation(async () => {

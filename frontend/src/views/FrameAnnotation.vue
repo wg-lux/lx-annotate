@@ -27,7 +27,7 @@
             :key="group.id"
             :value="group.id"
           >
-            {{ group.name }} (ID: {{ group.id }})
+            {{ group.displayName }} (ID: {{ group.id }})
           </option>
         </select>
         <input
@@ -78,7 +78,7 @@
           v-model.lazy="targetLabelName"
           type="text"
           class="form-control"
-          placeholder="z. B. Polyp"
+          placeholder="Optional, z. B. polyp"
         />
       </div>
       <div class="col-12 col-md-6 col-lg-4">
@@ -88,14 +88,48 @@
           v-model.lazy="informationSource"
           type="text"
           class="form-control"
-          placeholder="e.g. frame_annotation_frontend"
+          placeholder="manual_annotation"
           list="information-source-options"
         />
         <datalist id="information-source-options">
-          <option value="frame_annotation_frontend" />
+          <option value="manual_annotation" />
           <option value="human_annotation" />
+          <option value="frame_annotation_frontend" />
           <option value="model_prediction" />
         </datalist>
+      </div>
+      <div class="col-12 col-lg-8">
+        <label for="frame-annotator-override" class="form-label">Annotator-Scope</label>
+        <div class="d-flex flex-wrap gap-2">
+          <input
+            id="frame-annotator-override"
+            v-model.trim="annotatorOverrideInput"
+            type="text"
+            class="form-control annotator-override-input"
+            data-test="annotator-override-input"
+            :placeholder="baseAnnotatorPrincipal"
+          />
+          <button
+            type="button"
+            class="btn btn-outline-primary mb-0"
+            :disabled="isSubmitting || !canApplyAnnotatorOverride"
+            data-test="annotator-override-apply"
+            @click="restartAnnotationAsOverride"
+          >
+            Annotation als anderer Nutzer neu starten
+          </button>
+          <button
+            v-if="isAnnotatorOverrideActive"
+            type="button"
+            class="btn btn-outline-secondary mb-0"
+            :disabled="isSubmitting"
+            data-test="annotator-override-revert"
+            @click="revertAnnotatorOverride"
+          >
+            Zurück zu meinem Nutzer
+          </button>
+        </div>
+        <small class="text-muted d-block mt-1">Aktiver Annotator: {{ activeAnnotatorLabel }}</small>
       </div>
       <div
         v-if="taskMode === 'filtered'"
@@ -133,9 +167,6 @@
         <div class="card frame-card">
           <div class="card-body">
             <div v-if="isLoadingTask" class="text-muted">Aufgabe wird geladen...</div>
-            <div v-else-if="!queueStore.selectedLabelGroupId" class="text-muted">
-              Wählen Sie eine Label-Gruppe aus, um mit der Annotation zu starten.
-            </div>
             <div v-else-if="!currentTask" class="text-muted">
               Keine Annotationsaufgaben verfügbar.
             </div>
@@ -250,8 +281,8 @@
         </div>
       </div>
       <div class="col-12">
-        <div v-if="errorMessage" class="alert alert-danger mb-0" role="alert">
-          {{ errorMessage }}
+        <div v-if="visibleErrorMessage" class="alert alert-danger mb-0" role="alert">
+          {{ visibleErrorMessage }}
         </div>
       </div>
     </div>
@@ -265,6 +296,20 @@ import axiosInstance, { r } from '@/api/axiosInstance'
 import { endpoints } from '@/types/api/endpoints'
 import { useAnnotationQueueStore } from '@/stores/annotationQueue'
 import { useAuthKcStore } from '@/stores/auth_kc'
+import {
+  clearAnnotatorOverride,
+  getAnnotatorPrincipalFromAuthUser,
+  loadAnnotatorOverride,
+  saveAnnotatorOverride
+} from '@/utils/annotationPrincipal'
+
+interface LabelGroupOption {
+  id: string
+  name: string
+  displayName: string
+  version: number | null
+  labelCount: number | null
+}
 
 const queueStore = useAnnotationQueueStore()
 const authStore = useAuthKcStore()
@@ -275,7 +320,10 @@ const selectedLabelIds = ref<number[]>([])
 const errorMessage = ref<string | null>(null)
 const isLoadingLabelGroups = ref(false)
 const labelGroupLoadError = ref<string | null>(null)
-const labelGroupOptions = ref<Array<{ id: string; name: string }>>([])
+const labelGroupOptions = ref<LabelGroupOption[]>([])
+const annotatorOverride = ref<string | null>(null)
+const annotatorOverrideInput = ref('')
+let isReloadingAnnotationQueue = false
 
 const selectedLabelGroupId = computed({
   get: () => queueStore.selectedLabelGroupId ?? '',
@@ -308,6 +356,30 @@ const informationSource = computed({
 })
 
 const annotationLabelOptions = computed(() => currentTask.value?.data.labelOptions ?? [])
+const visibleErrorMessage = computed(() => errorMessage.value || queueStore.lastError)
+const baseAnnotatorPrincipal = computed(() =>
+  getAnnotatorPrincipalFromAuthUser(authStore.user as Record<string, unknown> | null)
+)
+const annotatorOverrideScope = computed(
+  () => `frame:${queueStore.selectedLabelGroupId ?? 'all'}:${informationSource.value}`
+)
+const activeAnnotatorPrincipal = computed(
+  () => annotatorOverride.value || baseAnnotatorPrincipal.value
+)
+const isAnnotatorOverrideActive = computed(() => annotatorOverride.value !== null)
+const canApplyAnnotatorOverride = computed(() => {
+  const normalized = annotatorOverrideInput.value.trim()
+  return (
+    !!normalized &&
+    normalized !== activeAnnotatorPrincipal.value &&
+    normalized !== baseAnnotatorPrincipal.value
+  )
+})
+const activeAnnotatorLabel = computed(() =>
+  isAnnotatorOverrideActive.value
+    ? `${activeAnnotatorPrincipal.value} (Override)`
+    : activeAnnotatorPrincipal.value
+)
 
 const manualAnnotationState = computed(() =>
   Object.fromEntries(
@@ -355,22 +427,41 @@ function formatConfidence(value: number | null | undefined): string {
   return `${Math.round(value * 100)}%`
 }
 
-function getAnnotatorPrincipal(): string {
-  const rawUser = authStore.user as Record<string, unknown> | null
-  const sub =
-    typeof rawUser?.sub === 'string'
-      ? rawUser.sub.trim()
-      : typeof rawUser?.oidcSub === 'string'
-        ? rawUser.oidcSub.trim()
-        : ''
-  if (sub) return `oidc:${sub}`
+function syncAnnotatorOverrideFromStorage(): void {
+  annotatorOverride.value = loadAnnotatorOverride(
+    annotatorOverrideScope.value,
+    baseAnnotatorPrincipal.value
+  )
+  annotatorOverrideInput.value = annotatorOverride.value ?? ''
+}
 
-  const username =
-    typeof authStore.user?.username === 'string'
-      ? authStore.user.username.trim()
-      : ''
-  if (username) return username
-  return 'unknown'
+function applyActiveAnnotatorToQueue(): void {
+  queueStore.setAnnotatorPrincipal?.(activeAnnotatorPrincipal.value)
+}
+
+async function reloadAnnotationQueue(): Promise<void> {
+  isReloadingAnnotationQueue = true
+  try {
+    queueStore.clearQueue()
+    await loadNextTask()
+  } finally {
+    isReloadingAnnotationQueue = false
+  }
+}
+
+async function restartAnnotationAsOverride(): Promise<void> {
+  const normalized = annotatorOverrideInput.value.trim()
+  if (!normalized) return
+  saveAnnotatorOverride(annotatorOverrideScope.value, baseAnnotatorPrincipal.value, normalized)
+  annotatorOverride.value = normalized
+  await reloadAnnotationQueue()
+}
+
+async function revertAnnotatorOverride(): Promise<void> {
+  clearAnnotatorOverride(annotatorOverrideScope.value, baseAnnotatorPrincipal.value)
+  annotatorOverride.value = null
+  annotatorOverrideInput.value = ''
+  await reloadAnnotationQueue()
 }
 
 function extractListPayload(payload: unknown): Array<Record<string, unknown>> {
@@ -391,6 +482,16 @@ function extractListPayload(payload: unknown): Array<Record<string, unknown>> {
       (item): item is Record<string, unknown> => !!item && typeof item === 'object'
     )
   }
+  if (Array.isArray(obj.labelSets)) {
+    return obj.labelSets.filter(
+      (item): item is Record<string, unknown> => !!item && typeof item === 'object'
+    )
+  }
+  if (Array.isArray(obj.label_sets)) {
+    return obj.label_sets.filter(
+      (item): item is Record<string, unknown> => !!item && typeof item === 'object'
+    )
+  }
   if (Array.isArray(obj.groups)) {
     return obj.groups.filter(
       (item): item is Record<string, unknown> => !!item && typeof item === 'object'
@@ -399,7 +500,16 @@ function extractListPayload(payload: unknown): Array<Record<string, unknown>> {
   return []
 }
 
-function parseGroupOption(raw: Record<string, unknown>): { id: string; name: string } | null {
+function parseOptionalNumber(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) return value
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = Number(value)
+    return Number.isFinite(parsed) ? parsed : null
+  }
+  return null
+}
+
+function parseGroupOption(raw: Record<string, unknown>): LabelGroupOption | null {
   const nestedLabelGroup =
     raw.labelGroup && typeof raw.labelGroup === 'object'
       ? (raw.labelGroup as Record<string, unknown>)
@@ -433,17 +543,27 @@ function parseGroupOption(raw: Record<string, unknown>): { id: string; name: str
     nestedLabelGroup?.name ??
     raw.name
   const name = typeof nameRaw === 'string' && nameRaw.trim() ? nameRaw.trim() : `Group ${id}`
+  const version = parseOptionalNumber(raw.version ?? nestedLabelGroup?.version)
+  const labelCount = parseOptionalNumber(
+    raw.labelCount ??
+      raw.label_count ??
+      nestedLabelGroup?.labelCount ??
+      nestedLabelGroup?.label_count
+  )
+  const displayParts = [name]
+  if (version !== null) displayParts.push(`v${version}`)
+  if (labelCount !== null) displayParts.push(`${labelCount} Labels`)
 
-  return { id, name }
+  return { id, name, version, labelCount, displayName: displayParts.join(' - ') }
 }
 
 async function loadLabelGroups(): Promise<void> {
   isLoadingLabelGroups.value = true
   labelGroupLoadError.value = null
   try {
-    const res = await axiosInstance.get(r(endpoints.media.videoLabelsList))
+    const res = await axiosInstance.get(r(endpoints.media.videoLabelSetsList))
     const rows = extractListPayload(res.data)
-    const byId = new Map<string, { id: string; name: string }>()
+    const byId = new Map<string, LabelGroupOption>()
     for (const row of rows) {
       const parsed = parseGroupOption(row)
       if (!parsed) continue
@@ -469,19 +589,25 @@ async function loadLabelGroups(): Promise<void> {
 }
 
 async function loadNextTask(): Promise<void> {
-  if (!queueStore.selectedLabelGroupId) {
-    currentTask.value = null
-    return
-  }
-
   isLoadingTask.value = true
   errorMessage.value = null
   try {
+    applyActiveAnnotatorToQueue()
     if (!queueStore.taskQueue.length) {
       await queueStore.fetchBatch(10)
     }
     currentTask.value = queueStore.popNextTask() ?? null
     syncSelectedLabelsFromTask(currentTask.value)
+    if (!currentTask.value && queueStore.lastError) {
+      errorMessage.value = queueStore.lastError
+    }
+  } catch (error: any) {
+    currentTask.value = null
+    errorMessage.value =
+      error?.response?.data?.detail ||
+      error?.response?.data?.error ||
+      error?.message ||
+      'Aufgabe konnte nicht geladen werden.'
   } finally {
     isLoadingTask.value = false
   }
@@ -521,7 +647,7 @@ async function submitLabelsWithSelection(selectedIds: number[]): Promise<void> {
           value: selectedSet.has(label.id),
           floatValue: null,
           informationSourceName: informationSource.value,
-          annotator: getAnnotatorPrincipal(),
+          annotator: activeAnnotatorPrincipal.value,
           externalAnnotationId:
             existingManual?.externalAnnotationId ||
             (task.data.existingExternalId && task.data.existingExternalId.trim()
@@ -582,7 +708,7 @@ async function skipTask(): Promise<void> {
   try {
     await axiosInstance.post(r(endpoints.annotation.skip), {
       frameId: currentTask.value.data.frameId,
-      annotator: getAnnotatorPrincipal()
+      annotator: activeAnnotatorPrincipal.value
     })
     await loadNextTask()
   } catch (error: any) {
@@ -597,6 +723,15 @@ async function skipTask(): Promise<void> {
 }
 
 watch(
+  [baseAnnotatorPrincipal, annotatorOverrideScope],
+  () => {
+    syncAnnotatorOverrideFromStorage()
+    applyActiveAnnotatorToQueue()
+  },
+  { immediate: true }
+)
+
+watch(
   () => currentTask.value?.id,
   () => {
     syncSelectedLabelsFromTask(currentTask.value)
@@ -606,6 +741,7 @@ watch(
 watch(
   () => [queueStore.selectedLabelGroupId, queueStore.taskQuerySignature],
   async () => {
+    if (isReloadingAnnotationQueue) return
     queueStore.clearQueue()
     await loadNextTask()
   }
@@ -634,6 +770,10 @@ onMounted(async () => {
 
 .label-option {
   background: #fff;
+}
+
+.annotator-override-input {
+  max-width: 320px;
 }
 
 /* Match the rounded/outlined interaction feel used by sidebar nav links. */

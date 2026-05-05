@@ -90,6 +90,7 @@ export interface FrontendSegment {
     endTime: number;
     usingFPS?: boolean;
 }
+export type SegmentSyncState = 'clean' | 'dirty' | 'pending_create' | 'pending_update' | 'pending_delete' | 'error';
 /**
  * Segment interface for internal store usage
  * (canonical frontend representation)
@@ -113,6 +114,8 @@ export interface Segment {
     sourceName?: string | null;
     segmentOrigin?: 'manual' | 'prediction';
     predictionMetaId?: number | null;
+    syncState?: SegmentSyncState;
+    lastSyncError?: string | null;
 }
 /**
  * Video annotation interface
@@ -147,6 +150,7 @@ export interface VideoMeta {
     centerKey?: string;
     centerName: string;
     processorName: string;
+    validatedAnnotators?: string[];
     segments?: Segment[];
     exportSegmentsByVideo?: boolean;
 }
@@ -253,6 +257,8 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
             readonly sourceName?: string | null | undefined;
             readonly segmentOrigin?: "manual" | "prediction" | undefined;
             readonly predictionMetaId?: number | null | undefined;
+            readonly syncState?: SegmentSyncState | undefined;
+            readonly lastSyncError?: string | null | undefined;
         }[];
         readonly videoUrl: string;
         readonly status: VideoStatus;
@@ -297,6 +303,8 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
             readonly sourceName?: string | null | undefined;
             readonly segmentOrigin?: "manual" | "prediction" | undefined;
             readonly predictionMetaId?: number | null | undefined;
+            readonly syncState?: SegmentSyncState | undefined;
+            readonly lastSyncError?: string | null | undefined;
         }[];
         readonly videoUrl: string;
         readonly status: VideoStatus;
@@ -324,6 +332,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
             readonly centerKey?: string | undefined;
             readonly centerName: string;
             readonly processorName: string;
+            readonly validatedAnnotators?: readonly string[] | undefined;
             readonly segments?: readonly {
                 readonly id: number;
                 readonly label: string;
@@ -357,6 +366,8 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
                 readonly sourceName?: string | null | undefined;
                 readonly segmentOrigin?: "manual" | "prediction" | undefined;
                 readonly predictionMetaId?: number | null | undefined;
+                readonly syncState?: SegmentSyncState | undefined;
+                readonly lastSyncError?: string | null | undefined;
             }[] | undefined;
             readonly exportSegmentsByVideo?: boolean | undefined;
         }[];
@@ -381,6 +392,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
             readonly centerKey?: string | undefined;
             readonly centerName: string;
             readonly processorName: string;
+            readonly validatedAnnotators?: readonly string[] | undefined;
             readonly segments?: readonly {
                 readonly id: number;
                 readonly label: string;
@@ -414,6 +426,8 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
                 readonly sourceName?: string | null | undefined;
                 readonly segmentOrigin?: "manual" | "prediction" | undefined;
                 readonly predictionMetaId?: number | null | undefined;
+                readonly syncState?: SegmentSyncState | undefined;
+                readonly lastSyncError?: string | null | undefined;
             }[] | undefined;
             readonly exportSegmentsByVideo?: boolean | undefined;
         }[];
@@ -438,6 +452,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
         readonly centerKey?: string | undefined;
         readonly centerName: string;
         readonly processorName: string;
+        readonly validatedAnnotators?: readonly string[] | undefined;
         readonly segments?: readonly {
             readonly id: number;
             readonly label: string;
@@ -471,6 +486,8 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
             readonly sourceName?: string | null | undefined;
             readonly segmentOrigin?: "manual" | "prediction" | undefined;
             readonly predictionMetaId?: number | null | undefined;
+            readonly syncState?: SegmentSyncState | undefined;
+            readonly lastSyncError?: string | null | undefined;
         }[] | undefined;
         readonly exportSegmentsByVideo?: boolean | undefined;
     } | null, {
@@ -488,6 +505,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
         readonly centerKey?: string | undefined;
         readonly centerName: string;
         readonly processorName: string;
+        readonly validatedAnnotators?: readonly string[] | undefined;
         readonly segments?: readonly {
             readonly id: number;
             readonly label: string;
@@ -521,6 +539,8 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
             readonly sourceName?: string | null | undefined;
             readonly segmentOrigin?: "manual" | "prediction" | undefined;
             readonly predictionMetaId?: number | null | undefined;
+            readonly syncState?: SegmentSyncState | undefined;
+            readonly lastSyncError?: string | null | undefined;
         }[] | undefined;
         readonly exportSegmentsByVideo?: boolean | undefined;
     } | null>>;
@@ -664,6 +684,8 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
             readonly sourceName?: string | null | undefined;
             readonly segmentOrigin?: "manual" | "prediction" | undefined;
             readonly predictionMetaId?: number | null | undefined;
+            readonly syncState?: SegmentSyncState | undefined;
+            readonly lastSyncError?: string | null | undefined;
         }[];
         readonly videoUrl: string;
         readonly status: VideoStatus;
@@ -708,6 +730,8 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
             readonly sourceName?: string | null | undefined;
             readonly segmentOrigin?: "manual" | "prediction" | undefined;
             readonly predictionMetaId?: number | null | undefined;
+            readonly syncState?: SegmentSyncState | undefined;
+            readonly lastSyncError?: string | null | undefined;
         }[];
         readonly videoUrl: string;
         readonly status: VideoStatus;
@@ -735,6 +759,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
             readonly centerKey?: string | undefined;
             readonly centerName: string;
             readonly processorName: string;
+            readonly validatedAnnotators?: readonly string[] | undefined;
             readonly segments?: readonly {
                 readonly id: number;
                 readonly label: string;
@@ -768,6 +793,8 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
                 readonly sourceName?: string | null | undefined;
                 readonly segmentOrigin?: "manual" | "prediction" | undefined;
                 readonly predictionMetaId?: number | null | undefined;
+                readonly syncState?: SegmentSyncState | undefined;
+                readonly lastSyncError?: string | null | undefined;
             }[] | undefined;
             readonly exportSegmentsByVideo?: boolean | undefined;
         }[];
@@ -792,6 +819,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
             readonly centerKey?: string | undefined;
             readonly centerName: string;
             readonly processorName: string;
+            readonly validatedAnnotators?: readonly string[] | undefined;
             readonly segments?: readonly {
                 readonly id: number;
                 readonly label: string;
@@ -825,6 +853,8 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
                 readonly sourceName?: string | null | undefined;
                 readonly segmentOrigin?: "manual" | "prediction" | undefined;
                 readonly predictionMetaId?: number | null | undefined;
+                readonly syncState?: SegmentSyncState | undefined;
+                readonly lastSyncError?: string | null | undefined;
             }[] | undefined;
             readonly exportSegmentsByVideo?: boolean | undefined;
         }[];
@@ -849,6 +879,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
         readonly centerKey?: string | undefined;
         readonly centerName: string;
         readonly processorName: string;
+        readonly validatedAnnotators?: readonly string[] | undefined;
         readonly segments?: readonly {
             readonly id: number;
             readonly label: string;
@@ -882,6 +913,8 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
             readonly sourceName?: string | null | undefined;
             readonly segmentOrigin?: "manual" | "prediction" | undefined;
             readonly predictionMetaId?: number | null | undefined;
+            readonly syncState?: SegmentSyncState | undefined;
+            readonly lastSyncError?: string | null | undefined;
         }[] | undefined;
         readonly exportSegmentsByVideo?: boolean | undefined;
     } | null, {
@@ -899,6 +932,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
         readonly centerKey?: string | undefined;
         readonly centerName: string;
         readonly processorName: string;
+        readonly validatedAnnotators?: readonly string[] | undefined;
         readonly segments?: readonly {
             readonly id: number;
             readonly label: string;
@@ -932,6 +966,8 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
             readonly sourceName?: string | null | undefined;
             readonly segmentOrigin?: "manual" | "prediction" | undefined;
             readonly predictionMetaId?: number | null | undefined;
+            readonly syncState?: SegmentSyncState | undefined;
+            readonly lastSyncError?: string | null | undefined;
         }[] | undefined;
         readonly exportSegmentsByVideo?: boolean | undefined;
     } | null>>;
@@ -1075,6 +1111,8 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
             readonly sourceName?: string | null | undefined;
             readonly segmentOrigin?: "manual" | "prediction" | undefined;
             readonly predictionMetaId?: number | null | undefined;
+            readonly syncState?: SegmentSyncState | undefined;
+            readonly lastSyncError?: string | null | undefined;
         }[];
         readonly videoUrl: string;
         readonly status: VideoStatus;
@@ -1119,6 +1157,8 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
             readonly sourceName?: string | null | undefined;
             readonly segmentOrigin?: "manual" | "prediction" | undefined;
             readonly predictionMetaId?: number | null | undefined;
+            readonly syncState?: SegmentSyncState | undefined;
+            readonly lastSyncError?: string | null | undefined;
         }[];
         readonly videoUrl: string;
         readonly status: VideoStatus;
@@ -1146,6 +1186,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
             readonly centerKey?: string | undefined;
             readonly centerName: string;
             readonly processorName: string;
+            readonly validatedAnnotators?: readonly string[] | undefined;
             readonly segments?: readonly {
                 readonly id: number;
                 readonly label: string;
@@ -1179,6 +1220,8 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
                 readonly sourceName?: string | null | undefined;
                 readonly segmentOrigin?: "manual" | "prediction" | undefined;
                 readonly predictionMetaId?: number | null | undefined;
+                readonly syncState?: SegmentSyncState | undefined;
+                readonly lastSyncError?: string | null | undefined;
             }[] | undefined;
             readonly exportSegmentsByVideo?: boolean | undefined;
         }[];
@@ -1203,6 +1246,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
             readonly centerKey?: string | undefined;
             readonly centerName: string;
             readonly processorName: string;
+            readonly validatedAnnotators?: readonly string[] | undefined;
             readonly segments?: readonly {
                 readonly id: number;
                 readonly label: string;
@@ -1236,6 +1280,8 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
                 readonly sourceName?: string | null | undefined;
                 readonly segmentOrigin?: "manual" | "prediction" | undefined;
                 readonly predictionMetaId?: number | null | undefined;
+                readonly syncState?: SegmentSyncState | undefined;
+                readonly lastSyncError?: string | null | undefined;
             }[] | undefined;
             readonly exportSegmentsByVideo?: boolean | undefined;
         }[];
@@ -1260,6 +1306,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
         readonly centerKey?: string | undefined;
         readonly centerName: string;
         readonly processorName: string;
+        readonly validatedAnnotators?: readonly string[] | undefined;
         readonly segments?: readonly {
             readonly id: number;
             readonly label: string;
@@ -1293,6 +1340,8 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
             readonly sourceName?: string | null | undefined;
             readonly segmentOrigin?: "manual" | "prediction" | undefined;
             readonly predictionMetaId?: number | null | undefined;
+            readonly syncState?: SegmentSyncState | undefined;
+            readonly lastSyncError?: string | null | undefined;
         }[] | undefined;
         readonly exportSegmentsByVideo?: boolean | undefined;
     } | null, {
@@ -1310,6 +1359,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
         readonly centerKey?: string | undefined;
         readonly centerName: string;
         readonly processorName: string;
+        readonly validatedAnnotators?: readonly string[] | undefined;
         readonly segments?: readonly {
             readonly id: number;
             readonly label: string;
@@ -1343,6 +1393,8 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
             readonly sourceName?: string | null | undefined;
             readonly segmentOrigin?: "manual" | "prediction" | undefined;
             readonly predictionMetaId?: number | null | undefined;
+            readonly syncState?: SegmentSyncState | undefined;
+            readonly lastSyncError?: string | null | undefined;
         }[] | undefined;
         readonly exportSegmentsByVideo?: boolean | undefined;
     } | null>>;

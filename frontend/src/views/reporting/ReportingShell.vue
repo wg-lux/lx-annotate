@@ -2,9 +2,13 @@
   <div class="reporting-shell container-fluid py-4">
     <div class="card shadow-sm mb-3 reporting-context-card">
       <div class="card-body">
-        <div class="d-flex flex-column flex-xl-row align-items-xl-start justify-content-between gap-3">
+        <div
+          class="d-flex flex-column flex-xl-row align-items-xl-start justify-content-between gap-3"
+        >
           <div class="reporting-context-main">
-            <div class="small text-uppercase text-muted fw-semibold tracking-label">Berichtsarbeitsplatz</div>
+            <div class="small text-uppercase text-muted fw-semibold tracking-label">
+              Berichtsarbeitsplatz
+            </div>
             <h4 class="mb-2">Fallkontext und Arbeitsbereich</h4>
             <p class="text-muted mb-0">
               Wählen Sie zuerst eine Patientenuntersuchung. Danach führen die Arbeitsschritte von
@@ -26,13 +30,19 @@
                 <strong>{{ selectedTemplateLabel }}</strong>
               </div>
               <div class="context-summary-item">
+                <span class="context-summary-label">Terminologie</span>
+                <strong>{{ selectedTerminologyLabel }}</strong>
+              </div>
+              <div class="context-summary-item">
                 <span class="context-summary-label">Entwurfsstatus</span>
                 <strong>{{ draftSummaryLongLabel }}</strong>
               </div>
             </div>
           </div>
         </div>
-        <div class="d-flex flex-column flex-lg-row align-items-lg-end justify-content-between gap-3 mt-3">
+        <div
+          class="d-flex flex-column flex-lg-row align-items-lg-end justify-content-between gap-3 mt-3"
+        >
           <div class="context-case-select">
             <label class="form-label form-label-sm mb-1">Patientenuntersuchung wählen</label>
             <select
@@ -64,6 +74,25 @@
             </div>
           </div>
           <div class="d-flex flex-wrap gap-2">
+            <input
+              ref="terminologyZipInput"
+              class="visually-hidden"
+              type="file"
+              accept=".zip,application/zip"
+              @change="importTerminologyZip"
+            />
+            <button
+              class="btn btn-outline-secondary"
+              type="button"
+              :disabled="terminology.importing"
+              @click="openTerminologyZipPicker"
+            >
+              {{
+                terminology.importing
+                  ? 'Terminologie wird importiert…'
+                  : 'Terminologie-ZIP importieren'
+              }}
+            </button>
             <button
               class="btn btn-outline-secondary"
               :disabled="flow.mediaPreloadStatus === 'loading' || !flow.selectedPatientId"
@@ -79,6 +108,9 @@
               {{ isContextPanelOpen ? 'Arbeitskontext ausblenden' : 'Arbeitskontext einblenden' }}
             </button>
           </div>
+        </div>
+        <div v-if="terminologyImportMessage" class="small text-muted mt-2">
+          {{ terminologyImportMessage }}
         </div>
       </div>
     </div>
@@ -103,15 +135,14 @@
                   v-if="!isStepDisabled(item)"
                   :to="item.to"
                   class="workflow-step-btn btn btn-sm text-start"
-                  :class="isActive(item.to) ? 'btn-dark is-active' : 'btn-outline-secondary is-inactive'"
+                  :class="
+                    isActive(item.to) ? 'btn-dark is-active' : 'btn-outline-secondary is-inactive'
+                  "
                 >
                   <span>{{ item.label }}</span>
                   <span class="workflow-step-meta">{{ stepStatusLabel(item) }}</span>
                 </RouterLink>
-                <div
-                  v-else
-                  class="workflow-step-btn btn btn-sm text-start is-disabled"
-                >
+                <div v-else class="workflow-step-btn btn btn-sm text-start is-disabled">
                   <span>{{ item.label }}</span>
                   <span class="workflow-step-meta">{{ stepStatusLabel(item) }}</span>
                 </div>
@@ -280,27 +311,36 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import axiosInstance, { r } from '@/api/axiosInstance'
 import { findingsApi } from '@/api/findingsApi'
 import { fetchPatientExaminationDraft } from '@/api/reportDraftApi'
-import { buildReportTemplateRuntimePayload, fetchReportTemplatesByExamination } from '@/api/reportTemplatesApi'
+import {
+  buildReportTemplateRuntimePayload,
+  fetchReportTemplatesByExamination
+} from '@/api/reportTemplatesApi'
 import type { Finding } from '@/api/findings.contract'
 import type { ReportTemplateRuntimePayload } from '@/types/reportTemplate'
 import { endpoints } from '@/types/api/endpoints'
 import { useReportingFlowStore } from '@/stores/reportingFlowStore'
+import { useTerminologyStore } from '@/stores/terminologyStore'
 import { fetchPatientTimelineLatest, pickPreferredStream } from '@/api/reportingTimelineApi'
 
 const route = useRoute()
 const router = useRouter()
 const flow = useReportingFlowStore()
+const terminology = useTerminologyStore()
 const selectedVideoStreamUrl = ref<string | null>(null)
 const selectedFrameStreamUrl = ref<string | null>(null)
 const isContextPanelOpen = ref(true)
+const terminologyLoadPromise = ref<Promise<void> | null>(null)
+const terminologyZipInput = ref<HTMLInputElement | null>(null)
+const terminologyImportMessage = ref('')
 type PatientExaminationOption = {
   id: number
   label: string
+  examinationName: string
   patientId: number | null
   examinationId: number | null
 }
@@ -315,19 +355,31 @@ const routePatientExaminationId = computed<number | null>(() => {
   if (!Number.isFinite(parsed)) return null
   return parsed > 0 ? parsed : null
 })
-const selectedPatientExaminationId = computed(() =>
-  routePatientExaminationId.value ?? flow.patientExaminationId ?? ''
+const selectedPatientExaminationId = computed(
+  () => routePatientExaminationId.value ?? flow.patientExaminationId ?? ''
 )
 
 const pe = computed(() => flow.patientExaminationId || ':patient_examination_id')
 
 const navItems = computed(() => [
-  { label: 'Berichtsvorlagen', to: '/reporting/template-builder', requiresPatientExamination: false },
+  {
+    label: 'Berichtsvorlagen',
+    to: '/reporting/template-builder',
+    requiresPatientExamination: false
+  },
   { label: 'Arbeitsliste', to: '/reporting', requiresPatientExamination: false },
   { label: 'Falldaten', to: '/reporting/case-setup', requiresPatientExamination: false },
   { label: 'Befunde', to: `/reporting/${pe.value}/findings`, requiresPatientExamination: true },
-  { label: 'Bericht schreiben', to: `/reporting/${pe.value}/report-editor`, requiresPatientExamination: true },
-  { label: 'Bilder auswählen', to: `/reporting/${pe.value}/frame-selector`, requiresPatientExamination: true },
+  {
+    label: 'Bericht schreiben',
+    to: `/reporting/${pe.value}/report-editor`,
+    requiresPatientExamination: true
+  },
+  {
+    label: 'Bilder auswählen',
+    to: `/reporting/${pe.value}/frame-selector`,
+    requiresPatientExamination: true
+  },
   { label: 'Abschluss', to: `/reporting/${pe.value}/finalized`, requiresPatientExamination: true }
 ])
 
@@ -336,11 +388,19 @@ const preferredReportStream = computed(() =>
 )
 
 const preferredReportDownload = computed(() =>
-  preferredReportStream.value ? `${preferredReportStream.value}${preferredReportStream.value.includes('?') ? '&' : '?'}download=1` : null
+  preferredReportStream.value
+    ? `${preferredReportStream.value}${preferredReportStream.value.includes('?') ? '&' : '?'}download=1`
+    : null
 )
 
 const preferredVideoStream = computed(() =>
   pickPreferredStream(flow.mediaPreload?.latestVideo?.streamOptions || [])
+)
+
+const activeKbModule = computed(() =>
+  terminology.activeBundle
+    ? terminology.activeModuleName
+    : flow.selectedKbModule || 'report_template_examples'
 )
 
 const draftSummaryLabel = computed(() => {
@@ -359,16 +419,23 @@ const draftSummaryLongLabel = computed(() => {
 })
 
 const selectedPatientExaminationLabel = computed(() => {
-  const selected = patientExaminationOptions.value.find((entry) => entry.id === routePatientExaminationId.value)
-    || patientExaminationOptions.value.find((entry) => entry.id === flow.patientExaminationId)
-    || null
+  const selected =
+    patientExaminationOptions.value.find((entry) => entry.id === routePatientExaminationId.value) ||
+    patientExaminationOptions.value.find((entry) => entry.id === flow.patientExaminationId) ||
+    null
   if (selected) return selected.label
   return flow.patientExaminationId ? `#${flow.patientExaminationId}` : 'Noch nicht gewählt'
 })
 
-const selectedTemplateLabel = computed(() =>
-  flow.selectedTemplateName || 'Noch keine Vorlage gewählt'
+const selectedTemplateLabel = computed(
+  () => flow.selectedTemplateName || 'Noch keine Vorlage gewählt'
 )
+
+const selectedTerminologyLabel = computed(() => {
+  const field = terminology.medicalFieldLabel
+  const bundle = terminology.activeBundle ? terminology.activeBundleLabel : 'Standard-Terminologie'
+  return `${field} · ${bundle}`
+})
 
 const currentStepLabel = computed(() => {
   const current = navItems.value.find((item) => isActive(item.to))
@@ -409,6 +476,49 @@ function selectVideoStream(url: string | null) {
 
 function selectFrameStream(url: string | null) {
   selectedFrameStreamUrl.value = url
+}
+
+function openTerminologyZipPicker() {
+  terminologyImportMessage.value = ''
+  terminologyZipInput.value?.click()
+}
+
+async function importTerminologyZip(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+
+  terminologyImportMessage.value = ''
+  try {
+    await terminology.importBundle(file)
+    terminologyImportMessage.value = 'Terminologiepaket importiert und geladen.'
+  } catch (error: any) {
+    terminologyImportMessage.value =
+      terminology.error ||
+      error?.response?.data?.detail ||
+      error?.message ||
+      'Terminologiepaket konnte nicht importiert werden.'
+  } finally {
+    input.value = ''
+  }
+}
+
+function ensureTerminologyBundlesLoaded(): Promise<void> {
+  if (terminology.activeBundle || terminology.bundles.length || terminology.error) {
+    return Promise.resolve()
+  }
+  if (terminologyLoadPromise.value) return terminologyLoadPromise.value
+
+  const task = terminology
+    .loadBundles()
+    .catch((error) => {
+      console.error('Failed to load terminology bundles:', error)
+    })
+    .finally(() => {
+      terminologyLoadPromise.value = null
+    })
+  terminologyLoadPromise.value = task
+  return task
 }
 
 function toPositiveInteger(value: unknown): number | null {
@@ -490,6 +600,44 @@ function extractExaminationName(raw: Record<string, any>): string {
   )
 }
 
+function isGastroenterologyExaminationName(value: string): boolean {
+  const normalized = value.trim().toLowerCase()
+  if (!normalized) return false
+  return [
+    'gastro',
+    'kolon',
+    'colon',
+    'colo',
+    'rekt',
+    'rect',
+    'endoskop',
+    'endoscop',
+    'gastroskop',
+    'gastroscop',
+    'koloskop',
+    'colonoscop',
+    'colonoscopy',
+    'magen',
+    'darm',
+    'duoden',
+    'sigmo',
+    'procto',
+    'ösoph',
+    'oesoph',
+    'esoph',
+    'egd',
+    'ercp',
+    'eus',
+    'upper gi',
+    'lower gi'
+  ].some((keyword) => normalized.includes(keyword))
+}
+
+function isPatientExaminationAllowedForMedicalField(option: PatientExaminationOption): boolean {
+  if (terminology.selectedMedicalField !== 'gastroenterology') return true
+  return isGastroenterologyExaminationName(option.examinationName)
+}
+
 function extractPatientId(raw: Record<string, any>): number | null {
   return toPositiveInteger(raw.patient?.id ?? raw.patient_id ?? raw.patientId)
 }
@@ -551,9 +699,7 @@ function extractIndicationRows(raw: Record<string, any>) {
         }
       })
       .filter(
-        (
-          row
-        ): row is { examinationIndicationId: number; indicationChoiceId: number | null } =>
+        (row): row is { examinationIndicationId: number; indicationChoiceId: number | null } =>
           row !== null
       )
   })
@@ -602,6 +748,7 @@ function normalizePatientExaminationOption(raw: unknown) {
   return {
     id,
     label: dateLabel ? `#${id} · ${examinationName} · ${dateLabel}` : `#${id} · ${examinationName}`,
+    examinationName,
     patientId: toPositiveInteger(row.patient?.id ?? row.patient_id ?? row.patientId),
     examinationId: toPositiveInteger(row.examination?.id ?? row.examination_id ?? row.examinationId)
   }
@@ -610,9 +757,11 @@ function normalizePatientExaminationOption(raw: unknown) {
 function upsertPatientExaminationOption(option: {
   id: number
   label: string
+  examinationName: string
   patientId: number | null
   examinationId: number | null
 }) {
+  if (!isPatientExaminationAllowedForMedicalField(option)) return
   const next = patientExaminationOptions.value.slice()
   const index = next.findIndex((entry) => entry.id === option.id)
   if (index >= 0) next[index] = option
@@ -641,13 +790,14 @@ async function fetchPatientExaminationOptions(patientId: number) {
           option: ReturnType<typeof normalizePatientExaminationOption>
         ): option is PatientExaminationOption => option !== null
       )
-      .sort(
-        (left: PatientExaminationOption, right: PatientExaminationOption) => right.id - left.id
-      )
+      .filter(isPatientExaminationAllowedForMedicalField)
+      .sort((left: PatientExaminationOption, right: PatientExaminationOption) => right.id - left.id)
   } catch (error: any) {
     patientExaminationOptions.value = []
     patientExaminationOptionsError.value =
-      error?.response?.data?.detail || error?.message || 'Patientenuntersuchungen konnten nicht geladen werden.'
+      error?.response?.data?.detail ||
+      error?.message ||
+      'Patientenuntersuchungen konnten nicht geladen werden.'
   } finally {
     patientExaminationOptionsLoading.value = false
   }
@@ -677,7 +827,8 @@ function getNavigationTargetForPatientExamination(patientExaminationId: number):
 async function onPatientExaminationSelect(rawValue: string) {
   const patientExaminationId = toPositiveInteger(rawValue)
   if (patientExaminationId === null) return
-  const selectedOption = patientExaminationOptions.value.find((entry) => entry.id === patientExaminationId) ?? null
+  const selectedOption =
+    patientExaminationOptions.value.find((entry) => entry.id === patientExaminationId) ?? null
 
   flow.setPatientExaminationContext({
     patientExaminationId,
@@ -704,12 +855,13 @@ async function bootstrapRuntimeDraft(
   const detailExaminationId = extractExaminationId(detail)
   flow.setCaseSelection({
     selectedPatientId: option?.patientId ?? detailPatientId ?? flow.selectedPatientId,
-    selectedExaminationId: option?.examinationId ?? detailExaminationId ?? flow.selectedExaminationId
+    selectedExaminationId:
+      option?.examinationId ?? detailExaminationId ?? flow.selectedExaminationId
   })
 
   const examinationName = extractExaminationName(detail)
   const templates = examinationName
-    ? await fetchReportTemplatesByExamination(flow.selectedKbModule, examinationName)
+    ? await fetchReportTemplatesByExamination(activeKbModule.value, examinationName)
     : []
   const selectedTemplate =
     (flow.selectedTemplateName &&
@@ -717,9 +869,7 @@ async function bootstrapRuntimeDraft(
     templates[0] ||
     null
 
-  const selectedExaminationId =
-    option?.examinationId ??
-    detailExaminationId
+  const selectedExaminationId = option?.examinationId ?? detailExaminationId
   const findingCatalog = selectedExaminationId
     ? await findingsApi.getExaminationFindings(selectedExaminationId)
     : []
@@ -728,7 +878,7 @@ async function bootstrapRuntimeDraft(
   )
 
   const payload = await buildReportTemplateRuntimePayload({
-    moduleName: flow.selectedKbModule,
+    moduleName: activeKbModule.value,
     patientExaminationId,
     patient: resolvePatientKey(detail, patientExaminationId),
     examiners: extractExaminers(detail),
@@ -737,14 +887,14 @@ async function bootstrapRuntimeDraft(
   })
 
   flow.setTemplateSelection({
-    moduleName: flow.selectedKbModule,
+    moduleName: activeKbModule.value,
     templateName: selectedTemplate?.name || null
   })
   flow.setIndications(extractIndicationRows(detail))
   flow.setRuntimeDraft({
     draftId: `draft_${patientExaminationId}`,
     patientExaminationId,
-    moduleName: flow.selectedKbModule,
+    moduleName: activeKbModule.value,
     templateName: selectedTemplate?.name || null,
     payload: {
       ...payload,
@@ -755,13 +905,9 @@ async function bootstrapRuntimeDraft(
   })
 }
 
-async function hydrateRuntimeDraftFromDraftApi(
-  patientExaminationId: number
-): Promise<boolean> {
+async function hydrateRuntimeDraftFromDraftApi(patientExaminationId: number): Promise<boolean> {
   const response = await fetchPatientExaminationDraft(patientExaminationId)
-  const draft = response?.draft && typeof response.draft === 'object'
-    ? response.draft
-    : {}
+  const draft = response?.draft && typeof response.draft === 'object' ? response.draft : {}
   if (!isRuntimePayload(draft.payload)) {
     flow.markDraftPersistenceHydrated(response?.updated_at ?? null)
     return false
@@ -771,7 +917,7 @@ async function hydrateRuntimeDraftFromDraftApi(
     moduleName:
       typeof draft.module_name === 'string' && draft.module_name.trim()
         ? draft.module_name
-        : flow.selectedKbModule,
+        : activeKbModule.value,
     templateName:
       typeof draft.template_name === 'string' && draft.template_name.trim()
         ? draft.template_name
@@ -783,7 +929,7 @@ async function hydrateRuntimeDraftFromDraftApi(
     moduleName:
       typeof draft.module_name === 'string' && draft.module_name.trim()
         ? draft.module_name
-        : flow.selectedKbModule,
+        : activeKbModule.value,
     templateName:
       typeof draft.template_name === 'string' && draft.template_name.trim()
         ? draft.template_name
@@ -874,6 +1020,7 @@ async function hydrateDraftForRoutePatientExamination(patientExaminationId: numb
   const task = (async () => {
     draftBootstrapError.value = null
     try {
+      await ensureTerminologyBundlesLoaded()
       await ensureRuntimeDraft(patientExaminationId)
     } catch (error: any) {
       draftBootstrapError.value =
@@ -897,25 +1044,24 @@ async function refreshMediaPreload() {
   const patientExaminationId = routePatientExaminationId.value || flow.patientExaminationId
   flow.setMediaPreloadLoading()
   try {
-    const payload = await fetchPatientTimelineLatest(
-      {
-        patientId: flow.selectedPatientId,
-        patientExaminationId
-      }
-    )
+    const payload = await fetchPatientTimelineLatest({
+      patientId: flow.selectedPatientId,
+      patientExaminationId
+    })
     flow.setMediaPreload(payload)
     selectedVideoStreamUrl.value = pickPreferredStream(payload.latestVideo?.streamOptions || [])
     selectedFrameStreamUrl.value = payload.latestFrames[0]?.streamUrl || null
   } catch (error: any) {
     const status = error?.response?.status
     const detail = error?.response?.data?.detail || error?.message
-    const message = status === 404
-      ? 'Patient wurde nicht gefunden (404). Bitte Fall-Setup prüfen.'
-      : status === 400
-        ? 'Ungültige patient_examination_id (400). Bitte Routing-Kontext prüfen.'
-        : status === 403
-          ? 'Zugriff auf Timeline verweigert (403). Berechtigungen prüfen.'
-          : `Fehler beim Laden des Medien-Preloads: ${detail || 'unbekannt'}`
+    const message =
+      status === 404
+        ? 'Patient wurde nicht gefunden (404). Bitte Fall-Setup prüfen.'
+        : status === 400
+          ? 'Ungültige patient_examination_id (400). Bitte Routing-Kontext prüfen.'
+          : status === 403
+            ? 'Zugriff auf Timeline verweigert (403). Berechtigungen prüfen.'
+            : `Fehler beim Laden des Medien-Preloads: ${detail || 'unbekannt'}`
     flow.setMediaPreloadError(message)
   }
 }
@@ -954,6 +1100,15 @@ watch(
 )
 
 watch(
+  () => terminology.selectedMedicalField,
+  async () => {
+    if (flow.selectedPatientId) {
+      await fetchPatientExaminationOptions(flow.selectedPatientId)
+    }
+  }
+)
+
+watch(
   [() => flow.selectedPatientId, () => flow.patientExaminationId, routePatientExaminationId],
   async ([patientId]) => {
     if (!patientId) {
@@ -964,6 +1119,10 @@ watch(
   },
   { immediate: true }
 )
+
+onMounted(() => {
+  ensureTerminologyBundlesLoaded()
+})
 </script>
 
 <style scoped>

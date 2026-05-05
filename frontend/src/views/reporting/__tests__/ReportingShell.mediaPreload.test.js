@@ -27,6 +27,27 @@ const hoisted = vi.hoisted(() => ({
     reportDraftApi: {
         fetchPatientExaminationDraft: vi.fn()
     },
+    terminologyStore: {
+        bundles: [],
+        activeBundle: null,
+        registryPath: '',
+        loading: false,
+        selecting: false,
+        error: null,
+        selectedMedicalField: 'gastroenterology',
+        lastSelectionCounts: null,
+        activeModuleName: 'report_template_examples',
+        activeBundleKey: '',
+        activeBundleLabel: 'Standard-Terminologie',
+        filteredBundles: [],
+        medicalFieldLabel: 'Gastroenterologie',
+        medicalFieldOptions: [{ value: 'gastroenterology', label: 'Gastroenterologie' }],
+        bundleKey: vi.fn((bundle) => `${bundle.moduleName}@@${bundle.version}`),
+        findBundleByKey: vi.fn(),
+        loadBundles: vi.fn(),
+        selectBundle: vi.fn(),
+        setMedicalField: vi.fn()
+    },
     timelineApi: {
         fetchPatientTimelineLatest: vi.fn(),
         pickPreferredStream: vi.fn((options) => {
@@ -36,6 +57,9 @@ const hoisted = vi.hoisted(() => ({
 }));
 vi.mock('@/stores/reportingFlowStore', () => ({
     useReportingFlowStore: () => hoisted.flowRef.current
+}));
+vi.mock('@/stores/terminologyStore', () => ({
+    useTerminologyStore: () => hoisted.terminologyStore
 }));
 vi.mock('vue-router', async () => {
     const actual = await vi.importActual('vue-router');
@@ -141,6 +165,10 @@ function mountShell() {
 describe('ReportingShell media preload', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        hoisted.terminologyStore.activeBundle = null;
+        hoisted.terminologyStore.activeModuleName = 'report_template_examples';
+        hoisted.terminologyStore.selectedMedicalField = 'gastroenterology';
+        hoisted.terminologyStore.loadBundles.mockResolvedValue(undefined);
         hoisted.flowRef.current = buildFlowStore();
         hoisted.findingsApi.getExaminationFindings.mockResolvedValue([]);
         hoisted.reportTemplatesApi.fetchReportTemplatesByExamination.mockResolvedValue([
@@ -364,9 +392,7 @@ describe('ReportingShell media preload', () => {
         const video = wrapper.find('video');
         expect(video.exists()).toBe(true);
         expect(video.attributes('src')).toBe('/timeline/video/processed');
-        const rawButton = wrapper
-            .findAll('button')
-            .find((button) => button.text().trim() === 'raw');
+        const rawButton = wrapper.findAll('button').find((button) => button.text().trim() === 'raw');
         expect(rawButton).toBeTruthy();
         await rawButton.trigger('click');
         await flushPromises();

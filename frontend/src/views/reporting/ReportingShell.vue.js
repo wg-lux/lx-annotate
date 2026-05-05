@@ -1,4 +1,4 @@
-import { computed, ref, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import axiosInstance, { r } from '@/api/axiosInstance';
 import { findingsApi } from '@/api/findingsApi';
@@ -6,13 +6,18 @@ import { fetchPatientExaminationDraft } from '@/api/reportDraftApi';
 import { buildReportTemplateRuntimePayload, fetchReportTemplatesByExamination } from '@/api/reportTemplatesApi';
 import { endpoints } from '@/types/api/endpoints';
 import { useReportingFlowStore } from '@/stores/reportingFlowStore';
+import { useTerminologyStore } from '@/stores/terminologyStore';
 import { fetchPatientTimelineLatest, pickPreferredStream } from '@/api/reportingTimelineApi';
 const route = useRoute();
 const router = useRouter();
 const flow = useReportingFlowStore();
+const terminology = useTerminologyStore();
 const selectedVideoStreamUrl = ref(null);
 const selectedFrameStreamUrl = ref(null);
 const isContextPanelOpen = ref(true);
+const terminologyLoadPromise = ref(null);
+const terminologyZipInput = ref(null);
+const terminologyImportMessage = ref('');
 const patientExaminationOptions = ref([]);
 const patientExaminationOptionsLoading = ref(false);
 const patientExaminationOptionsError = ref(null);
@@ -27,17 +32,34 @@ const routePatientExaminationId = computed(() => {
 const selectedPatientExaminationId = computed(() => routePatientExaminationId.value ?? flow.patientExaminationId ?? '');
 const pe = computed(() => flow.patientExaminationId || ':patient_examination_id');
 const navItems = computed(() => [
-    { label: 'Berichtsvorlagen', to: '/reporting/template-builder', requiresPatientExamination: false },
+    {
+        label: 'Berichtsvorlagen',
+        to: '/reporting/template-builder',
+        requiresPatientExamination: false
+    },
     { label: 'Arbeitsliste', to: '/reporting', requiresPatientExamination: false },
     { label: 'Falldaten', to: '/reporting/case-setup', requiresPatientExamination: false },
     { label: 'Befunde', to: `/reporting/${pe.value}/findings`, requiresPatientExamination: true },
-    { label: 'Bericht schreiben', to: `/reporting/${pe.value}/report-editor`, requiresPatientExamination: true },
-    { label: 'Bilder auswählen', to: `/reporting/${pe.value}/frame-selector`, requiresPatientExamination: true },
+    {
+        label: 'Bericht schreiben',
+        to: `/reporting/${pe.value}/report-editor`,
+        requiresPatientExamination: true
+    },
+    {
+        label: 'Bilder auswählen',
+        to: `/reporting/${pe.value}/frame-selector`,
+        requiresPatientExamination: true
+    },
     { label: 'Abschluss', to: `/reporting/${pe.value}/finalized`, requiresPatientExamination: true }
 ]);
 const preferredReportStream = computed(() => pickPreferredStream(flow.mediaPreload?.latestReport?.streamOptions || []));
-const preferredReportDownload = computed(() => preferredReportStream.value ? `${preferredReportStream.value}${preferredReportStream.value.includes('?') ? '&' : '?'}download=1` : null);
+const preferredReportDownload = computed(() => preferredReportStream.value
+    ? `${preferredReportStream.value}${preferredReportStream.value.includes('?') ? '&' : '?'}download=1`
+    : null);
 const preferredVideoStream = computed(() => pickPreferredStream(flow.mediaPreload?.latestVideo?.streamOptions || []));
+const activeKbModule = computed(() => terminology.activeBundle
+    ? terminology.activeModuleName
+    : flow.selectedKbModule || 'report_template_examples');
 const draftSummaryLabel = computed(() => {
     const draft = flow.currentRuntimeDraft;
     if (!draft)
@@ -54,14 +76,19 @@ const draftSummaryLongLabel = computed(() => {
         : 'Entwurf wurde für den aktuellen Fall vorbereitet';
 });
 const selectedPatientExaminationLabel = computed(() => {
-    const selected = patientExaminationOptions.value.find((entry) => entry.id === routePatientExaminationId.value)
-        || patientExaminationOptions.value.find((entry) => entry.id === flow.patientExaminationId)
-        || null;
+    const selected = patientExaminationOptions.value.find((entry) => entry.id === routePatientExaminationId.value) ||
+        patientExaminationOptions.value.find((entry) => entry.id === flow.patientExaminationId) ||
+        null;
     if (selected)
         return selected.label;
     return flow.patientExaminationId ? `#${flow.patientExaminationId}` : 'Noch nicht gewählt';
 });
 const selectedTemplateLabel = computed(() => flow.selectedTemplateName || 'Noch keine Vorlage gewählt');
+const selectedTerminologyLabel = computed(() => {
+    const field = terminology.medicalFieldLabel;
+    const bundle = terminology.activeBundle ? terminology.activeBundleLabel : 'Standard-Terminologie';
+    return `${field} · ${bundle}`;
+});
 const currentStepLabel = computed(() => {
     const current = navItems.value.find((item) => isActive(item.to));
     return current?.label || 'Arbeitsbereich';
@@ -100,6 +127,48 @@ function selectVideoStream(url) {
 }
 function selectFrameStream(url) {
     selectedFrameStreamUrl.value = url;
+}
+function openTerminologyZipPicker() {
+    terminologyImportMessage.value = '';
+    terminologyZipInput.value?.click();
+}
+async function importTerminologyZip(event) {
+    const input = event.target;
+    const file = input.files?.[0];
+    if (!file)
+        return;
+    terminologyImportMessage.value = '';
+    try {
+        await terminology.importBundle(file);
+        terminologyImportMessage.value = 'Terminologiepaket importiert und geladen.';
+    }
+    catch (error) {
+        terminologyImportMessage.value =
+            terminology.error ||
+                error?.response?.data?.detail ||
+                error?.message ||
+                'Terminologiepaket konnte nicht importiert werden.';
+    }
+    finally {
+        input.value = '';
+    }
+}
+function ensureTerminologyBundlesLoaded() {
+    if (terminology.activeBundle || terminology.bundles.length || terminology.error) {
+        return Promise.resolve();
+    }
+    if (terminologyLoadPromise.value)
+        return terminologyLoadPromise.value;
+    const task = terminology
+        .loadBundles()
+        .catch((error) => {
+        console.error('Failed to load terminology bundles:', error);
+    })
+        .finally(() => {
+        terminologyLoadPromise.value = null;
+    });
+    terminologyLoadPromise.value = task;
+    return task;
 }
 function toPositiveInteger(value) {
     const parsed = Number(value);
@@ -169,6 +238,44 @@ function extractExaminationName(raw) {
         (typeof raw.examination_name === 'string' && raw.examination_name.trim()) ||
         (typeof raw.examination === 'string' && raw.examination.trim()) ||
         '');
+}
+function isGastroenterologyExaminationName(value) {
+    const normalized = value.trim().toLowerCase();
+    if (!normalized)
+        return false;
+    return [
+        'gastro',
+        'kolon',
+        'colon',
+        'colo',
+        'rekt',
+        'rect',
+        'endoskop',
+        'endoscop',
+        'gastroskop',
+        'gastroscop',
+        'koloskop',
+        'colonoscop',
+        'colonoscopy',
+        'magen',
+        'darm',
+        'duoden',
+        'sigmo',
+        'procto',
+        'ösoph',
+        'oesoph',
+        'esoph',
+        'egd',
+        'ercp',
+        'eus',
+        'upper gi',
+        'lower gi'
+    ].some((keyword) => normalized.includes(keyword));
+}
+function isPatientExaminationAllowedForMedicalField(option) {
+    if (terminology.selectedMedicalField !== 'gastroenterology')
+        return true;
+    return isGastroenterologyExaminationName(option.examinationName);
 }
 function extractPatientId(raw) {
     return toPositiveInteger(raw.patient?.id ?? raw.patient_id ?? raw.patientId);
@@ -266,11 +373,14 @@ function normalizePatientExaminationOption(raw) {
     return {
         id,
         label: dateLabel ? `#${id} · ${examinationName} · ${dateLabel}` : `#${id} · ${examinationName}`,
+        examinationName,
         patientId: toPositiveInteger(row.patient?.id ?? row.patient_id ?? row.patientId),
         examinationId: toPositiveInteger(row.examination?.id ?? row.examination_id ?? row.examinationId)
     };
 }
 function upsertPatientExaminationOption(option) {
+    if (!isPatientExaminationAllowedForMedicalField(option))
+        return;
     const next = patientExaminationOptions.value.slice();
     const index = next.findIndex((entry) => entry.id === option.id);
     if (index >= 0)
@@ -294,12 +404,15 @@ async function fetchPatientExaminationOptions(patientId) {
         patientExaminationOptions.value = rows
             .map(normalizePatientExaminationOption)
             .filter((option) => option !== null)
+            .filter(isPatientExaminationAllowedForMedicalField)
             .sort((left, right) => right.id - left.id);
     }
     catch (error) {
         patientExaminationOptions.value = [];
         patientExaminationOptionsError.value =
-            error?.response?.data?.detail || error?.message || 'Patientenuntersuchungen konnten nicht geladen werden.';
+            error?.response?.data?.detail ||
+                error?.message ||
+                'Patientenuntersuchungen konnten nicht geladen werden.';
     }
     finally {
         patientExaminationOptionsLoading.value = false;
@@ -350,20 +463,19 @@ async function bootstrapRuntimeDraft(patientExaminationId, option) {
     });
     const examinationName = extractExaminationName(detail);
     const templates = examinationName
-        ? await fetchReportTemplatesByExamination(flow.selectedKbModule, examinationName)
+        ? await fetchReportTemplatesByExamination(activeKbModule.value, examinationName)
         : [];
     const selectedTemplate = (flow.selectedTemplateName &&
         templates.find((template) => template.name === flow.selectedTemplateName)) ||
         templates[0] ||
         null;
-    const selectedExaminationId = option?.examinationId ??
-        detailExaminationId;
+    const selectedExaminationId = option?.examinationId ?? detailExaminationId;
     const findingCatalog = selectedExaminationId
         ? await findingsApi.getExaminationFindings(selectedExaminationId)
         : [];
     const findingsById = new Map((Array.isArray(findingCatalog) ? findingCatalog : []).map((finding) => [finding.id, finding]));
     const payload = await buildReportTemplateRuntimePayload({
-        moduleName: flow.selectedKbModule,
+        moduleName: activeKbModule.value,
         patientExaminationId,
         patient: resolvePatientKey(detail, patientExaminationId),
         examiners: extractExaminers(detail),
@@ -371,14 +483,14 @@ async function bootstrapRuntimeDraft(patientExaminationId, option) {
         getFindingById: (findingId) => findingsById.get(findingId)
     });
     flow.setTemplateSelection({
-        moduleName: flow.selectedKbModule,
+        moduleName: activeKbModule.value,
         templateName: selectedTemplate?.name || null
     });
     flow.setIndications(extractIndicationRows(detail));
     flow.setRuntimeDraft({
         draftId: `draft_${patientExaminationId}`,
         patientExaminationId,
-        moduleName: flow.selectedKbModule,
+        moduleName: activeKbModule.value,
         templateName: selectedTemplate?.name || null,
         payload: {
             ...payload,
@@ -390,9 +502,7 @@ async function bootstrapRuntimeDraft(patientExaminationId, option) {
 }
 async function hydrateRuntimeDraftFromDraftApi(patientExaminationId) {
     const response = await fetchPatientExaminationDraft(patientExaminationId);
-    const draft = response?.draft && typeof response.draft === 'object'
-        ? response.draft
-        : {};
+    const draft = response?.draft && typeof response.draft === 'object' ? response.draft : {};
     if (!isRuntimePayload(draft.payload)) {
         flow.markDraftPersistenceHydrated(response?.updated_at ?? null);
         return false;
@@ -400,7 +510,7 @@ async function hydrateRuntimeDraftFromDraftApi(patientExaminationId) {
     flow.setTemplateSelection({
         moduleName: typeof draft.module_name === 'string' && draft.module_name.trim()
             ? draft.module_name
-            : flow.selectedKbModule,
+            : activeKbModule.value,
         templateName: typeof draft.template_name === 'string' && draft.template_name.trim()
             ? draft.template_name
             : null
@@ -410,7 +520,7 @@ async function hydrateRuntimeDraftFromDraftApi(patientExaminationId) {
         patientExaminationId,
         moduleName: typeof draft.module_name === 'string' && draft.module_name.trim()
             ? draft.module_name
-            : flow.selectedKbModule,
+            : activeKbModule.value,
         templateName: typeof draft.template_name === 'string' && draft.template_name.trim()
             ? draft.template_name
             : null,
@@ -485,6 +595,7 @@ async function hydrateDraftForRoutePatientExamination(patientExaminationId) {
     const task = (async () => {
         draftBootstrapError.value = null;
         try {
+            await ensureTerminologyBundlesLoaded();
             await ensureRuntimeDraft(patientExaminationId);
         }
         catch (error) {
@@ -557,6 +668,11 @@ watch([() => flow.selectedPatientId, routePatientExaminationId], async ([patient
         await hydrateDraftForRoutePatientExamination(patientExaminationId);
     }
 }, { immediate: true });
+watch(() => terminology.selectedMedicalField, async () => {
+    if (flow.selectedPatientId) {
+        await fetchPatientExaminationOptions(flow.selectedPatientId);
+    }
+});
 watch([() => flow.selectedPatientId, () => flow.patientExaminationId, routePatientExaminationId], async ([patientId]) => {
     if (!patientId) {
         flow.clearMediaPreload();
@@ -564,6 +680,9 @@ watch([() => flow.selectedPatientId, () => flow.patientExaminationId, routePatie
     }
     await refreshMediaPreload();
 }, { immediate: true });
+onMounted(() => {
+    ensureTerminologyBundlesLoaded();
+});
 debugger; /* PartiallyEnd: #3632/scriptSetup.vue */
 const __VLS_ctx = {};
 let __VLS_components;
@@ -653,6 +772,14 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.
     ...{ class: "context-summary-label" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+(__VLS_ctx.selectedTerminologyLabel);
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "context-summary-item" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+    ...{ class: "context-summary-label" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
 (__VLS_ctx.draftSummaryLongLabel);
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "d-flex flex-column flex-lg-row align-items-lg-end justify-content-between gap-3 mt-3" },
@@ -696,6 +823,23 @@ if (__VLS_ctx.patientExaminationOptionsError) {
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "d-flex flex-wrap gap-2" },
 });
+__VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
+    ...{ onChange: (__VLS_ctx.importTerminologyZip) },
+    ref: "terminologyZipInput",
+    ...{ class: "visually-hidden" },
+    type: "file",
+    accept: ".zip,application/zip",
+});
+/** @type {typeof __VLS_ctx.terminologyZipInput} */ ;
+__VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+    ...{ onClick: (__VLS_ctx.openTerminologyZipPicker) },
+    ...{ class: "btn btn-outline-secondary" },
+    type: "button",
+    disabled: (__VLS_ctx.terminology.importing),
+});
+(__VLS_ctx.terminology.importing
+    ? 'Terminologie wird importiert…'
+    : 'Terminologie-ZIP importieren');
 __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
     ...{ onClick: (__VLS_ctx.refreshMediaPreload) },
     ...{ class: "btn btn-outline-secondary" },
@@ -709,6 +853,12 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElement
     type: "button",
 });
 (__VLS_ctx.isContextPanelOpen ? 'Arbeitskontext ausblenden' : 'Arbeitskontext einblenden');
+if (__VLS_ctx.terminologyImportMessage) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "small text-muted mt-2" },
+    });
+    (__VLS_ctx.terminologyImportMessage);
+}
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "row g-3" },
 });
@@ -1095,6 +1245,8 @@ const __VLS_6 = __VLS_5({}, ...__VLS_functionalComponentArgsRest(__VLS_5));
 /** @type {__VLS_StyleScopedClasses['context-summary-label']} */ ;
 /** @type {__VLS_StyleScopedClasses['context-summary-item']} */ ;
 /** @type {__VLS_StyleScopedClasses['context-summary-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-summary-item']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-summary-label']} */ ;
 /** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
 /** @type {__VLS_StyleScopedClasses['flex-column']} */ ;
 /** @type {__VLS_StyleScopedClasses['flex-lg-row']} */ ;
@@ -1113,10 +1265,16 @@ const __VLS_6 = __VLS_5({}, ...__VLS_functionalComponentArgsRest(__VLS_5));
 /** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
 /** @type {__VLS_StyleScopedClasses['flex-wrap']} */ ;
 /** @type {__VLS_StyleScopedClasses['gap-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['visually-hidden']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-secondary']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-secondary']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-secondary']} */ ;
+/** @type {__VLS_StyleScopedClasses['small']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['row']} */ ;
 /** @type {__VLS_StyleScopedClasses['g-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['col-lg-3']} */ ;
@@ -1290,9 +1448,12 @@ const __VLS_self = (await import('vue')).defineComponent({
     setup() {
         return {
             flow: flow,
+            terminology: terminology,
             selectedVideoStreamUrl: selectedVideoStreamUrl,
             selectedFrameStreamUrl: selectedFrameStreamUrl,
             isContextPanelOpen: isContextPanelOpen,
+            terminologyZipInput: terminologyZipInput,
+            terminologyImportMessage: terminologyImportMessage,
             patientExaminationOptions: patientExaminationOptions,
             patientExaminationOptionsLoading: patientExaminationOptionsLoading,
             patientExaminationOptionsError: patientExaminationOptionsError,
@@ -1305,12 +1466,15 @@ const __VLS_self = (await import('vue')).defineComponent({
             draftSummaryLongLabel: draftSummaryLongLabel,
             selectedPatientExaminationLabel: selectedPatientExaminationLabel,
             selectedTemplateLabel: selectedTemplateLabel,
+            selectedTerminologyLabel: selectedTerminologyLabel,
             currentStepLabel: currentStepLabel,
             mediaPreloadLabel: mediaPreloadLabel,
             nextStepHint: nextStepHint,
             openUrl: openUrl,
             selectVideoStream: selectVideoStream,
             selectFrameStream: selectFrameStream,
+            openTerminologyZipPicker: openTerminologyZipPicker,
+            importTerminologyZip: importTerminologyZip,
             onPatientExaminationSelect: onPatientExaminationSelect,
             refreshMediaPreload: refreshMediaPreload,
             isActive: isActive,

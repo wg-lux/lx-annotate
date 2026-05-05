@@ -29,6 +29,27 @@ const hoisted = vi.hoisted(() => ({
   reportDraftApi: {
     fetchPatientExaminationDraft: vi.fn()
   },
+  terminologyStore: {
+    bundles: [],
+    activeBundle: null as any,
+    registryPath: '',
+    loading: false,
+    selecting: false,
+    error: null as string | null,
+    selectedMedicalField: 'gastroenterology',
+    lastSelectionCounts: null as Record<string, number> | null,
+    activeModuleName: 'report_template_examples',
+    activeBundleKey: '',
+    activeBundleLabel: 'Standard-Terminologie',
+    filteredBundles: [],
+    medicalFieldLabel: 'Gastroenterologie',
+    medicalFieldOptions: [{ value: 'gastroenterology', label: 'Gastroenterologie' }],
+    bundleKey: vi.fn((bundle: any) => `${bundle.moduleName}@@${bundle.version}`),
+    findBundleByKey: vi.fn(),
+    loadBundles: vi.fn(),
+    selectBundle: vi.fn(),
+    setMedicalField: vi.fn()
+  },
   timelineApi: {
     fetchPatientTimelineLatest: vi.fn(),
     pickPreferredStream: vi.fn((options: Array<{ type: string; url: string }>) => {
@@ -39,6 +60,10 @@ const hoisted = vi.hoisted(() => ({
 
 vi.mock('@/stores/reportingFlowStore', () => ({
   useReportingFlowStore: () => hoisted.flowRef.current
+}))
+
+vi.mock('@/stores/terminologyStore', () => ({
+  useTerminologyStore: () => hoisted.terminologyStore
 }))
 
 vi.mock('vue-router', async () => {
@@ -97,8 +122,10 @@ function buildFlowStore() {
     setCaseSelection: vi.fn(),
     setPatientExaminationContext: vi.fn(function (this: any, payload: any) {
       this.patientExaminationId = payload.patientExaminationId
-      if (payload.selectedPatientId !== undefined) this.selectedPatientId = payload.selectedPatientId
-      if (payload.selectedExaminationId !== undefined) this.selectedExaminationId = payload.selectedExaminationId
+      if (payload.selectedPatientId !== undefined)
+        this.selectedPatientId = payload.selectedPatientId
+      if (payload.selectedExaminationId !== undefined)
+        this.selectedExaminationId = payload.selectedExaminationId
     }),
     setTemplateSelection: vi.fn(function (this: any, payload: any) {
       if (payload.moduleName !== undefined) this.selectedKbModule = payload.moduleName
@@ -149,6 +176,10 @@ function mountShell() {
 describe('ReportingShell media preload', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    hoisted.terminologyStore.activeBundle = null
+    hoisted.terminologyStore.activeModuleName = 'report_template_examples'
+    hoisted.terminologyStore.selectedMedicalField = 'gastroenterology'
+    hoisted.terminologyStore.loadBundles.mockResolvedValue(undefined)
     hoisted.flowRef.current = buildFlowStore()
     hoisted.findingsApi.getExaminationFindings.mockResolvedValue([])
     hoisted.reportTemplatesApi.fetchReportTemplatesByExamination.mockResolvedValue([
@@ -410,9 +441,7 @@ describe('ReportingShell media preload', () => {
     expect(video.exists()).toBe(true)
     expect(video.attributes('src')).toBe('/timeline/video/processed')
 
-    const rawButton = wrapper
-      .findAll('button')
-      .find((button) => button.text().trim() === 'raw')
+    const rawButton = wrapper.findAll('button').find((button) => button.text().trim() === 'raw')
     expect(rawButton).toBeTruthy()
 
     await rawButton!.trigger('click')

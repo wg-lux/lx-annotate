@@ -31,7 +31,7 @@
           :disabled="activeSegmentId == null"
           title="Ausgewähltes Segment löschen (Entf)"
         >
-          <i class="ni ni-settings-gear-65"></i>
+          <i class="ni ni-basket"></i>
         </button>
         <span class="time-display">
           {{ formatTime(currentTime) }} / {{ formatTime(duration) }}
@@ -49,17 +49,36 @@
     </div>
 
     <div class="timeline-wrapper" :style="{ height: timelineHeight + 'px' }">
-      <div class="timeline" ref="timeline" @mousedown="onTimelineMouseDown" :style="{ height: timelineHeight + 'px' }">
+      <div
+        class="timeline"
+        ref="timeline"
+        @mousedown="onTimelineMouseDown"
+        @scroll.passive="handleTimelineScroll"
+        :style="{ height: timelineHeight + 'px' }"
+      >
         <!-- Time markers -->
-        <div class="time-markers">
+        <div
+          class="time-markers"
+          :style="{ height: timelineContentHeight + 'px' }"
+        >
           <div 
             v-for="marker in timeMarkers" 
             :key="marker.time"
             class="time-marker"
+            :class="{
+              'time-marker-start': marker.position <= 0,
+              'time-marker-end': marker.position >= 100
+            }"
             :style="{ left: marker.position + '%' }"
           >
-            <div class="marker-line" :style="{ height: timelineHeight + 'px' }"></div>
             <div class="marker-text">{{ formatTime(marker.time) }}</div>
+            <div
+              class="marker-line"
+              :style="{
+                top: markerAreaHeight + 'px',
+                height: markerLineHeight + 'px'
+              }"
+            ></div>
           </div>
         </div>
 
@@ -88,6 +107,7 @@
               :class="{ 
                 'active': segment.id === activeSegmentId,
                 'draft': segment.isDraft,
+                'sync-error': segment.syncState === 'error',
                 'too-small': getSegmentWidth(segment.start, segment.end) < 5
               }"
               :style="{
@@ -97,8 +117,11 @@
                 borderColor: segment.isDraft ? '#ff9800' : 'transparent'
               }"
               :data-id="segment.id"
-              @click="selectSegment(segment)"
+              @click.stop="handleSegmentClick(segment, $event)"
               @contextmenu.prevent="openSegmentTimeEditor(segment, $event)"
+              @mouseenter="showSegmentTooltip(segment, $event)"
+              @mousemove="moveSegmentTooltip($event)"
+              @mouseleave="hideSegmentTooltip"
             >
               <!-- Start resize handle -->
               <div 
@@ -138,6 +161,20 @@
               <div v-if="segment.isDraft" class="draft-indicator">
                 <i class="ni ni-single-copy-04"></i>
               </div>
+              <div
+                v-else-if="segment.syncState === 'error'"
+                class="segment-status-indicator error"
+                :title="segment.lastSyncError || 'Segment konnte nicht gespeichert werden'"
+              >
+                !
+              </div>
+              <div
+                v-else-if="segment.isDirty || segment.syncState === 'dirty'"
+                class="segment-status-indicator dirty"
+                title="Ungespeicherte Änderung"
+              >
+                *
+              </div>
             </div>
           </div>
         </div>
@@ -145,9 +182,9 @@
         <!-- Playhead -->
         <div 
           class="playhead"
-          :style="{ left: playheadPosition + '%', height: timelineHeight + 'px' }"
+          :style="{ left: playheadPosition + '%', height: timelineContentHeight + 'px' }"
         >
-          <div class="playhead-line" :style="{ height: timelineHeight + 'px' }"></div>
+          <div class="playhead-line" :style="{ height: timelineContentHeight + 'px' }"></div>
           <div class="playhead-handle"></div>
         </div>
 
@@ -158,7 +195,7 @@
           :style="{
             left: Math.min(selectionStart, selectionEnd) + '%',
             width: Math.abs(selectionEnd - selectionStart) + '%',
-            height: timelineHeight + 'px'
+            height: timelineContentHeight + 'px'
           }"
         ></div>
       </div>
@@ -175,19 +212,83 @@
       class="context-menu"
       :style="{ left: contextMenu.x + 'px', top: contextMenu.y + 'px' }"
       @click.stop
+      @mousedown.stop
     >
-      <div class="context-menu-item" @click="editSegment(contextMenu.segment)">
-        <i class="ni ni-single-copy-04"></i>
-        Segment bearbeiten
+      <div class="context-menu-header">
+        <div class="context-menu-title">
+          {{ contextMenu.segment ? getTranslationForLabel(contextMenu.segment.label) : 'Segment' }}
+        </div>
+        <div v-if="contextMenu.segment" class="context-menu-meta">
+          {{ formatTime(contextMenu.segment.startTime) }} - {{ formatTime(contextMenu.segment.endTime) }}
+        </div>
+        <div v-if="contextMenu.segment?.lastSyncError" class="context-menu-error">
+          {{ contextMenu.segment.lastSyncError }}
+        </div>
+        <div
+          v-if="contextMenu.segment && getSegmentWidth(contextMenu.segment.start, contextMenu.segment.end) < 5"
+          class="context-menu-hint"
+        >
+          Kurzes Segment: für präzise Kanten die Timeline heranzoomen.
+        </div>
       </div>
-      <div class="context-menu-item danger" @click="deleteSegment(contextMenu.segment)">
-        <i class="ni ni-settings-gear-65"></i>
-        Segment löschen
+
+      <label class="context-menu-label" for="segment-label-select">Label</label>
+      <select
+        id="segment-label-select"
+        v-model="contextMenu.labelName"
+        class="context-menu-select"
+      >
+        <option
+          v-for="label in labelsForEditor"
+          :key="label.name"
+          :value="label.name"
+        >
+          {{ getTranslationForLabel(label.name) }}
+        </option>
+      </select>
+
+      <div class="context-menu-time-grid">
+        <label class="context-menu-label" for="segment-menu-start-input">Start</label>
+        <label class="context-menu-label" for="segment-menu-end-input">Ende</label>
+        <input
+          id="segment-menu-start-input"
+          v-model="contextMenu.startInput"
+          class="context-menu-input"
+          placeholder="mm:ss"
+          @keydown.enter.prevent="applyContextMenuChanges"
+          @keydown.esc.prevent="hideContextMenu"
+        />
+        <input
+          id="segment-menu-end-input"
+          v-model="contextMenu.endInput"
+          class="context-menu-input"
+          placeholder="mm:ss"
+          @keydown.enter.prevent="applyContextMenuChanges"
+          @keydown.esc.prevent="hideContextMenu"
+        />
       </div>
+
+      <div v-if="contextMenu.error" class="context-menu-error">
+        {{ contextMenu.error }}
+      </div>
+
+      <div class="context-menu-actions">
+        <button type="button" class="context-menu-btn" @click="hideContextMenu">
+          Abbrechen
+        </button>
+        <button type="button" class="context-menu-btn primary" @click="applyContextMenuChanges">
+          Speichern
+        </button>
+      </div>
+
       <div class="context-menu-separator"></div>
       <div class="context-menu-item" @click="playSegment(contextMenu.segment)">
         <i class="ni ni-button-play"></i>
         Segment abspielen
+      </div>
+      <div class="context-menu-item danger" @click="deleteSegment(contextMenu.segment)">
+        <i class="ni ni-basket"></i>
+        Segment löschen
       </div>
     </div>
 
@@ -265,7 +366,11 @@ interface ContextMenuState {
   visible: boolean
   x: number
   y: number
-  segment: Segment | null
+  segment: CanonicalSegment | null
+  labelName: string
+  startInput: string
+  endInput: string
+  error: string
 }
 
 interface TooltipState {
@@ -318,6 +423,7 @@ const emit = defineEmits<{
   (e: 'segment-select', segmentId: number): void
   (e: 'segment-edit', segment: Segment): void
   (e: 'segment-delete', segment: Segment): void
+  (e: 'segment-label-change', segmentId: number, label: string, labelId: number | null): void
   (e: 'segment-create', data: { label: string; start: number; end: number }): void
   (e: 'segment-resize', segmentId: number, newStart: number, newEnd: number, mode: string, final?: boolean): void
   (e: 'segment-move', segmentId: number, newStart: number, newEnd: number, final?: boolean): void
@@ -329,17 +435,23 @@ const timeline = ref<HTMLElement | null>(null)
 const waveformCanvas = ref<HTMLCanvasElement | null>(null)
 const timeEditorStartInput = ref<HTMLInputElement | null>(null)
 const cleanupFunctions = ref<Array<() => void>>([])
+const timelineWidth = ref<number>(0)
 const zoomLevel = ref<number>(1)
 const isSelecting = ref<boolean>(false)
+const isScrubbing = ref<boolean>(false)
 const selectionStart = ref<number>(0)
 const selectionEnd = ref<number>(0)
 const markerAreaHeight = 36
 const rowHeight = 56
 const rowContentHeight = 48
 const timelinePadding = 12
-const visibleRowCount = 1
+const visibleRowCount = 3
+const minTimeMarkerGapPx = 88
 const clipboardSegment = ref<{ label: string; duration: number } | null>(null)
 const deletedSegments = ref<Array<{ label: string; start: number; end: number }>>([])
+const suppressNextSegmentClick = ref<boolean>(false)
+let timelineResizeObserver: ResizeObserver | null = null
+let scrollSnapTimer: number | null = null
 
 
 
@@ -348,7 +460,11 @@ const contextMenu = ref<ContextMenuState>({
   visible: false,
   x: 0,
   y: 0,
-  segment: null
+  segment: null,
+  labelName: '',
+  startInput: '',
+  endInput: '',
+  error: ''
 })
 
 // Tooltip
@@ -386,13 +502,39 @@ const playheadPosition = computed((): number => {
   return Math.max(0, Math.min(100, percentage))
 })
 
+const niceMarkerIntervals = [
+  0.5,
+  1,
+  2,
+  5,
+  10,
+  15,
+  30,
+  60,
+  120,
+  300,
+  600,
+  900,
+  1200,
+  1800,
+  3600,
+  7200,
+  14400
+]
+
+const getNiceMarkerInterval = (minimumInterval: number): number => {
+  return niceMarkerIntervals.find(interval => interval >= minimumInterval) ?? niceMarkerIntervals[niceMarkerIntervals.length - 1]
+}
+
 const timeMarkers = computed((): TimeMarker[] => {
   const markers: TimeMarker[] = []
   const totalTime = duration.value
   if (!totalTime) return markers
 
-  const baseInterval = 10
-  const interval = baseInterval / zoomLevel.value
+  const availableWidth = Math.max(timelineWidth.value || 0, 320)
+  const maxMarkerCount = Math.max(2, Math.floor(availableWidth / minTimeMarkerGapPx) + 1)
+  const minimumInterval = totalTime / Math.max(1, maxMarkerCount - 1)
+  const interval = getNiceMarkerInterval(minimumInterval)
   const markerCount = Math.floor(totalTime / interval)
 
   for (let i = 0; i <= markerCount; i++) {
@@ -403,6 +545,17 @@ const timeMarkers = computed((): TimeMarker[] => {
         position: (time / totalTime) * 100
       })
     }
+  }
+
+  const lastMarker = markers[markers.length - 1]
+  const lastMarkerGapPx = lastMarker
+    ? ((totalTime - lastMarker.time) / totalTime) * availableWidth
+    : availableWidth
+  if (!lastMarker || (totalTime > lastMarker.time && lastMarkerGapPx >= minTimeMarkerGapPx * 0.75)) {
+    markers.push({
+      time: totalTime,
+      position: 100
+    })
   }
 
   return markers
@@ -447,6 +600,15 @@ const labelOrder = computed((): string[] => {
   return Array.from(labels).sort() // Sorts A-Z. Remove .sort() if you want random order.
 })
 
+const labelsForEditor = computed<LabelMeta[]>(() => {
+  if (props.labels?.length) return props.labels
+
+  return labelOrder.value.map((name) => ({
+    id: 0,
+    name
+  }))
+})
+
 // 3. Define selectedLabel (State)
 const selectedLabel = ref<string | null>(null)
 
@@ -454,6 +616,80 @@ const selectedLabel = ref<string | null>(null)
 const selectSegment = (segment: CanonicalSegment): void => {
   selectedLabel.value = segment.label
   emit('segment-select', Number(segment.id))
+  snapSegmentRowToTop(Number(segment.id))
+}
+
+const handleSegmentClick = (segment: CanonicalSegment, event: MouseEvent): void => {
+  const target = event.target as HTMLElement | null
+  if (suppressNextSegmentClick.value) {
+    suppressNextSegmentClick.value = false
+    return
+  }
+  if (target?.closest('.resize-handle, .segment-delete-btn, .segment-status-indicator')) {
+    selectSegment(segment)
+    return
+  }
+  showSegmentMenu(segment, event)
+}
+
+const getSegmentStatusText = (segment: Segment | CanonicalSegment): string | null => {
+  if (segment.lastSyncError) return `Fehler: ${segment.lastSyncError}`
+  if (segment.syncState === 'error') return 'Fehler beim Speichern'
+  if (segment.syncState === 'pending_create') return 'Wird erstellt'
+  if (segment.syncState === 'pending_update') return 'Wird gespeichert'
+  if (segment.syncState === 'pending_delete') return 'Wird gelöscht'
+  if (segment.isDirty || segment.syncState === 'dirty') return 'Ungespeicherte Änderung'
+  return null
+}
+
+const getSegmentTooltipText = (segment: CanonicalSegment): string => {
+  const status = getSegmentStatusText(segment)
+  const isTiny = getSegmentWidth(segment.start, segment.end) < 5
+  const lines = [
+    getTranslationForLabel(segment.label),
+    `${formatTime(segment.startTime)} - ${formatTime(segment.endTime)} (${formatDuration(segment.startTime, segment.endTime)})`
+  ]
+  if (status) lines.push(status)
+  if (isTiny) lines.push('Kurzes Segment: zum präzisen Bearbeiten heranzoomen.')
+  lines.push('Klicken zum Bearbeiten')
+  return lines.join('\n')
+}
+
+const getTooltipPosition = (event: MouseEvent): { x: number; y: number } => {
+  const panelWidth = 280
+  const panelHeight = 120
+  const viewportPadding = 12
+  return {
+    x: Math.max(
+      viewportPadding,
+      Math.min(event.clientX + 12, window.innerWidth - panelWidth - viewportPadding)
+    ),
+    y: Math.max(
+      viewportPadding,
+      Math.min(event.clientY + 12, window.innerHeight - panelHeight - viewportPadding)
+    )
+  }
+}
+
+const showSegmentTooltip = (segment: CanonicalSegment, event: MouseEvent): void => {
+  const position = getTooltipPosition(event)
+  tooltip.value = {
+    visible: true,
+    x: position.x,
+    y: position.y,
+    text: getSegmentTooltipText(segment)
+  }
+}
+
+const moveSegmentTooltip = (event: MouseEvent): void => {
+  if (!tooltip.value.visible) return
+  const position = getTooltipPosition(event)
+  tooltip.value.x = position.x
+  tooltip.value.y = position.y
+}
+
+const hideSegmentTooltip = (): void => {
+  tooltip.value.visible = false
 }
 
 // 5. Define segmentRows THIRD (Computed)
@@ -509,6 +745,68 @@ const segmentRows = computed((): SegmentRow[] => {
   return rows
 })
 
+const getSegmentRowNumber = (segmentId: number): number | null => {
+  const row = segmentRows.value.find(item =>
+    item.segments.some(segment => Number(segment.id) === Number(segmentId))
+  )
+  return row?.rowNumber ?? null
+}
+
+const getTimelineMaxScrollTop = (): number => {
+  return Math.max(0, timelineContentHeight.value - timelineHeight.value)
+}
+
+const scrollTimelineTo = (top: number, behavior: ScrollBehavior = 'smooth'): void => {
+  const element = timeline.value
+  if (!element) return
+
+  if (typeof element.scrollTo === 'function') {
+    element.scrollTo({ top, behavior })
+    return
+  }
+
+  element.scrollTop = top
+}
+
+const scrollRowToTop = (rowNumber: number, behavior: ScrollBehavior = 'smooth'): void => {
+  const targetTop = Math.max(
+    0,
+    Math.min(rowNumber * rowHeight, getTimelineMaxScrollTop())
+  )
+  scrollTimelineTo(targetTop, behavior)
+}
+
+const snapSegmentRowToTop = (segmentId: number): void => {
+  nextTick(() => {
+    const rowNumber = getSegmentRowNumber(segmentId)
+    if (rowNumber === null) return
+    scrollRowToTop(rowNumber)
+  })
+}
+
+const snapTimelineToNearestRow = (): void => {
+  if (!timeline.value) return
+  const targetTop = Math.max(
+    0,
+    Math.min(
+      Math.round(timeline.value.scrollTop / rowHeight) * rowHeight,
+      getTimelineMaxScrollTop()
+    )
+  )
+  if (Math.abs(timeline.value.scrollTop - targetTop) < 2) return
+  scrollTimelineTo(targetTop)
+}
+
+const handleTimelineScroll = (): void => {
+  if (scrollSnapTimer !== null) {
+    window.clearTimeout(scrollSnapTimer)
+  }
+  scrollSnapTimer = window.setTimeout(() => {
+    scrollSnapTimer = null
+    snapTimelineToNearestRow()
+  }, 120)
+}
+
 
 // Timeline height
 const totalRowsHeight = computed((): number => segmentRows.value.length * rowHeight)
@@ -517,6 +815,15 @@ const visibleRows = computed((): number =>
 )
 const timelineHeight = computed((): number => {
   return markerAreaHeight + (visibleRows.value * rowHeight) + timelinePadding
+})
+const timelineContentHeight = computed((): number => {
+  return Math.max(
+    timelineHeight.value,
+    markerAreaHeight + totalRowsHeight.value + timelinePadding
+  )
+})
+const markerLineHeight = computed((): number => {
+  return Math.max(0, timelineContentHeight.value - markerAreaHeight)
 })
 
 // Helpers
@@ -603,6 +910,9 @@ function useDragResize(el: HTMLElement, opt: DragResizeOptions) {
   function move(ev: PointerEvent) {
     if (!mode) return
     const dx = ev.clientX - pxStart
+    if (Math.abs(dx) > 3) {
+      suppressNextSegmentClick.value = true
+    }
 
     if (mode === 'drag') {
       let left = Math.min(
@@ -646,6 +956,9 @@ function useDragResize(el: HTMLElement, opt: DragResizeOptions) {
     mode = null
     el.releasePointerCapture(ev.pointerId)
     opt.onDone()
+    window.setTimeout(() => {
+      suppressNextSegmentClick.value = false
+    }, 0)
   }
 
   el.addEventListener('pointerdown', down)
@@ -931,19 +1244,43 @@ const playSegment = (segment: Segment | null): void => {
   emit('play-pause')
 }
 
+const getFloatingPanelPosition = (
+  event: MouseEvent,
+  panelWidth = 280,
+  panelHeight = 340
+): { x: number; y: number } => {
+  const viewportPadding = 12
+  const maxX = Math.max(viewportPadding, window.innerWidth - panelWidth - viewportPadding)
+  const maxY = Math.max(viewportPadding, window.innerHeight - panelHeight - viewportPadding)
+  return {
+    x: Math.max(viewportPadding, Math.min(event.clientX, maxX)),
+    y: Math.max(viewportPadding, Math.min(event.clientY, maxY))
+  }
+}
+
 // Context menu
-const showSegmentMenu = (segment: Segment, event: MouseEvent): void => {
+const showSegmentMenu = (segment: CanonicalSegment, event: MouseEvent): void => {
   hideTimeEditor()
+  hideSegmentTooltip()
+  const range = getSegmentRange(segment)
+  const position = getFloatingPanelPosition(event)
+  selectSegment(segment)
   contextMenu.value = {
     visible: true,
-    x: event.clientX,
-    y: event.clientY,
-    segment
+    x: position.x,
+    y: position.y,
+    segment,
+    labelName: segment.label,
+    startInput: formatEditorTime(range.start),
+    endInput: formatEditorTime(range.end),
+    error: ''
   }
 }
 
 const hideContextMenu = (): void => {
   contextMenu.value.visible = false
+  contextMenu.value.segment = null
+  contextMenu.value.error = ''
 }
 
 const formatEditorTime = (timeInSeconds: number): string => {
@@ -980,6 +1317,81 @@ const parseEditorTime = (value: string): number | null => {
   return numericParts[0] * 3600 + numericParts[1] * 60 + numericParts[2]
 }
 
+const validateEditorRange = (
+  startInput: string,
+  endInput: string
+): { start: number; end: number; error: string | null } => {
+  const parsedStart = parseEditorTime(startInput)
+  const parsedEnd = parseEditorTime(endInput)
+
+  if (parsedStart === null || parsedEnd === null) {
+    return { start: 0, end: 0, error: 'Ungültiges Zeitformat.' }
+  }
+  if (parsedStart < 0 || parsedEnd < 0) {
+    return { start: parsedStart, end: parsedEnd, error: 'Zeiten dürfen nicht negativ sein.' }
+  }
+  if (parsedEnd <= parsedStart) {
+    return { start: parsedStart, end: parsedEnd, error: 'Die Endzeit muss nach der Startzeit liegen.' }
+  }
+  if (duration.value > 0 && parsedEnd > duration.value) {
+    return {
+      start: parsedStart,
+      end: parsedEnd,
+      error: `Die Endzeit darf maximal ${formatTime(duration.value)} sein.`
+    }
+  }
+
+  return { start: parsedStart, end: parsedEnd, error: null }
+}
+
+const applyContextMenuChanges = (): void => {
+  const menuState = contextMenu.value
+  if (!menuState.visible || !menuState.segment) return
+
+  const labelName = menuState.labelName.trim()
+  if (!labelName) {
+    contextMenu.value.error = 'Bitte ein Label auswählen.'
+    return
+  }
+
+  const validated = validateEditorRange(menuState.startInput, menuState.endInput)
+  if (validated.error) {
+    contextMenu.value.error = validated.error
+    return
+  }
+
+  const numericId = getNumericSegmentId(menuState.segment.id)
+  if (numericId === null) return
+
+  const selectedLabel = labelsForEditor.value.find(label => label.name === labelName)
+  const labelId = selectedLabel && selectedLabel.id > 0 ? selectedLabel.id : null
+  const originalLabel = menuState.segment.label
+  const originalRange = getSegmentRange(menuState.segment)
+
+  const localSegment = displayedSegments.value.find(s => s.id === menuState.segment?.id)
+  if (localSegment) {
+    localSegment.label = labelName
+    localSegment.color = getColorForLabel(labelName)
+    localSegment.start = validated.start
+    localSegment.end = validated.end
+    localSegment.startTime = validated.start
+    localSegment.endTime = validated.end
+  }
+
+  if (originalLabel !== labelName) {
+    emit('segment-label-change', numericId, labelName, labelId)
+  }
+
+  if (
+    Math.abs(originalRange.start - validated.start) > 0.0005 ||
+    Math.abs(originalRange.end - validated.end) > 0.0005
+  ) {
+    emit('segment-resize', numericId, validated.start, validated.end, 'manual', true)
+  }
+
+  hideContextMenu()
+}
+
 const hideTimeEditor = (): void => {
   timeEditor.value.visible = false
   timeEditor.value.segment = null
@@ -1013,50 +1425,47 @@ const applyTimeEditorChanges = (): void => {
   const editingState = timeEditor.value
   if (!editingState.visible || !editingState.segment) return
 
-  const parsedStart = parseEditorTime(editingState.startInput)
-  const parsedEnd = parseEditorTime(editingState.endInput)
-
-  if (parsedStart === null || parsedEnd === null) {
-    timeEditor.value.error = 'Ungültiges Zeitformat.'
-    return
-  }
-  if (parsedStart < 0 || parsedEnd < 0) {
-    timeEditor.value.error = 'Zeiten dürfen nicht negativ sein.'
-    return
-  }
-  if (parsedEnd <= parsedStart) {
-    timeEditor.value.error = 'Die Endzeit muss nach der Startzeit liegen.'
-    return
-  }
-  if (duration.value > 0 && parsedEnd > duration.value) {
-    timeEditor.value.error = `Die Endzeit darf maximal ${formatTime(duration.value)} sein.`
+  const validated = validateEditorRange(editingState.startInput, editingState.endInput)
+  if (validated.error) {
+    timeEditor.value.error = validated.error
     return
   }
 
   const localSegment = displayedSegments.value.find(s => s.id === editingState.segment?.id)
   if (localSegment) {
-    localSegment.start = parsedStart
-    localSegment.end = parsedEnd
-    localSegment.startTime = parsedStart
-    localSegment.endTime = parsedEnd
+    localSegment.start = validated.start
+    localSegment.end = validated.end
+    localSegment.startTime = validated.start
+    localSegment.endTime = validated.end
   }
 
   const numericId = getNumericSegmentId(editingState.segment.id)
   if (numericId !== null) {
-    emit('segment-resize', numericId, parsedStart, parsedEnd, 'manual', true)
+    emit('segment-resize', numericId, validated.start, validated.end, 'manual', true)
   }
   hideTimeEditor()
 }
 
 // Timeline interaction
-const onTimelineMouseDown = (event: MouseEvent): void => {
-  if (!timeline.value) return
+const getTimelineTimeFromEvent = (event: MouseEvent): number | null => {
+  if (!timeline.value || duration.value === 0) return null
 
   const rect = timeline.value.getBoundingClientRect()
-  const clickX = event.clientX - rect.left
-  const clickTime = (clickX / rect.width) * duration.value
+  const clickX = Math.max(0, Math.min(rect.width, event.clientX - rect.left))
+  return (clickX / rect.width) * duration.value
+}
+
+const onTimelineMouseDown = (event: MouseEvent): void => {
+  if (!timeline.value) return
+  const target = event.target as HTMLElement | null
+  if (target?.closest('.segment, .context-menu, .time-editor')) return
+
+  const clickTime = getTimelineTimeFromEvent(event)
+  if (clickTime === null) return
 
   if (props.selectionMode) {
+    const rect = timeline.value.getBoundingClientRect()
+    const clickX = Math.max(0, Math.min(rect.width, event.clientX - rect.left))
     isSelecting.value = true
     selectionStart.value = (clickX / rect.width) * 100
     selectionEnd.value = selectionStart.value
@@ -1065,7 +1474,29 @@ const onTimelineMouseDown = (event: MouseEvent): void => {
     document.addEventListener('mouseup', onSelectionMouseUp)
   } else {
     emit('seek', clickTime)
+    isScrubbing.value = true
+    document.addEventListener('mousemove', onTimelineScrubMove)
+    document.addEventListener('mouseup', onTimelineScrubEnd)
   }
+}
+
+const onTimelineScrubMove = (event: MouseEvent): void => {
+  if (!isScrubbing.value) return
+  const scrubTime = getTimelineTimeFromEvent(event)
+  if (scrubTime === null) return
+  emit('seek', scrubTime)
+}
+
+const onTimelineScrubEnd = (event: MouseEvent): void => {
+  if (isScrubbing.value) {
+    const scrubTime = getTimelineTimeFromEvent(event)
+    if (scrubTime !== null) {
+      emit('seek', scrubTime)
+    }
+  }
+  isScrubbing.value = false
+  document.removeEventListener('mousemove', onTimelineScrubMove)
+  document.removeEventListener('mouseup', onTimelineScrubEnd)
 }
 
 const onSelectionMouseMove = (event: MouseEvent): void => {
@@ -1127,6 +1558,21 @@ const initializeWaveform = (): void => {
   ctx.stroke()
 }
 
+const updateTimelineWidth = (): void => {
+  timelineWidth.value = timeline.value?.clientWidth ?? 0
+}
+
+const initializeTimelineMetrics = (): void => {
+  updateTimelineWidth()
+  if (!timeline.value) return
+
+  timelineResizeObserver?.disconnect()
+  timelineResizeObserver = new ResizeObserver(() => {
+    updateTimelineWidth()
+  })
+  timelineResizeObserver.observe(timeline.value)
+}
+
 // Click outside
 const handleClickOutside = (event: Event): void => {
   if (contextMenu.value.visible && !(event.target as Element)?.closest('.context-menu')) {
@@ -1152,6 +1598,22 @@ watch(
   { immediate: true }
 )
 
+watch(
+  () => props.activeSegmentId,
+  (segmentId) => {
+    if (segmentId == null) return
+    snapSegmentRowToTop(Number(segmentId))
+  }
+)
+
+watch(
+  segmentRows,
+  () => {
+    if (props.activeSegmentId == null) return
+    snapSegmentRowToTop(Number(props.activeSegmentId))
+  }
+)
+
 watch(segmentRows, (rows: SegmentRow[]) => {
   rows.forEach(row => {
     row.segments.forEach(s => {
@@ -1167,6 +1629,7 @@ onMounted(() => {
   document.addEventListener('keydown', handleKeyDown)
 
   nextTick(() => {
+    initializeTimelineMetrics()
     initializeDragResize()
   })
 
@@ -1180,6 +1643,14 @@ onMounted(() => {
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
   document.removeEventListener('keydown', handleKeyDown)
+  document.removeEventListener('mousemove', onTimelineScrubMove)
+  document.removeEventListener('mouseup', onTimelineScrubEnd)
+  timelineResizeObserver?.disconnect()
+  timelineResizeObserver = null
+  if (scrollSnapTimer !== null) {
+    window.clearTimeout(scrollSnapTimer)
+    scrollSnapTimer = null
+  }
   cleanupFunctions.value.forEach(cleanup => cleanup())
   cleanupFunctions.value = []
   document.removeEventListener('mousemove', onSelectionMouseMove)
@@ -1331,7 +1802,7 @@ const getNumericSegmentId = (segmentId: number): number | null => {
 .timeline-wrapper {
   position: relative;
   height: 120px;
-  background-color: #fafafa;
+  background-color: #f4f6f8;
 }
 
 .timeline {
@@ -1342,7 +1813,24 @@ const getNumericSegmentId = (segmentId: number): number | null => {
   border-radius: 6px;
   cursor: crosshair;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  scroll-snap-type: y proximity;
+  scroll-behavior: smooth;
   box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.timeline::-webkit-scrollbar {
+  width: 8px;
+}
+
+.timeline::-webkit-scrollbar-track {
+  background: #eef1f5;
+  border-radius: 999px;
+}
+
+.timeline::-webkit-scrollbar-thumb {
+  background: #c3cbd5;
+  border-radius: 999px;
 }
 
 .time-markers {
@@ -1350,27 +1838,48 @@ const getNumericSegmentId = (segmentId: number): number | null => {
   top: 0;
   left: 0;
   right: 0;
-  height: 100%;
+  min-height: 100%;
   pointer-events: none;
+  z-index: 1;
 }
 
 .time-marker {
   position: absolute;
+  top: 0;
   height: 100%;
 }
 
 .marker-line {
+  position: absolute;
   width: 1px;
-  height: 15px;
-  background-color: #ddd;
-  margin-bottom: 5px;
+  background: linear-gradient(
+    to bottom,
+    rgba(119, 132, 150, 0.38),
+    rgba(119, 132, 150, 0.18)
+  );
 }
 
 .marker-text {
+  position: sticky;
+  top: 8px;
+  left: 0;
+  z-index: 2;
+  padding: 1px 4px;
+  background: rgba(255, 255, 255, 0.88);
+  border-radius: 3px;
   font-size: 10px;
-  color: #999;
+  color: #667085;
   transform: translateX(-50%);
   white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.time-marker-start .marker-text {
+  transform: translateX(0);
+}
+
+.time-marker-end .marker-text {
+  transform: translateX(-100%);
 }
 
 .segments-container {
@@ -1379,6 +1888,7 @@ const getNumericSegmentId = (segmentId: number): number | null => {
   right: 0;
   height: auto;
   pointer-events: none;
+  z-index: 2;
 }
 
 .segment-row {
@@ -1386,6 +1896,16 @@ const getNumericSegmentId = (segmentId: number): number | null => {
   left: 0;
   right: 0;
   pointer-events: auto;
+  scroll-snap-align: start;
+  scroll-margin-top: 36px;
+  border-top: 1px solid rgba(148, 163, 184, 0.18);
+  background:
+    linear-gradient(to bottom, rgba(248, 250, 252, 0.72), rgba(255, 255, 255, 0.18));
+}
+
+.segment-row.active {
+  background:
+    linear-gradient(to bottom, rgba(232, 244, 255, 0.92), rgba(255, 255, 255, 0.42));
 }
 
 .segment {
@@ -1413,6 +1933,10 @@ const getNumericSegmentId = (segmentId: number): number | null => {
   border-color: #2196F3 !important;
   box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.3);
   z-index: 15;
+}
+
+.segment.sync-error {
+  border-color: #dc3545 !important;
 }
 
 .segment.draft {
@@ -1466,6 +1990,33 @@ const getNumericSegmentId = (segmentId: number): number | null => {
   justify-content: center;
   font-size: 8px;
   color: white;
+}
+
+.segment-status-indicator {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  color: white;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.segment-status-indicator.error {
+  background-color: #dc3545;
+}
+
+.segment-status-indicator.dirty {
+  background-color: #ffc107;
+  color: #212529;
 }
 
 .playhead {
@@ -1526,8 +2077,102 @@ const getNumericSegmentId = (segmentId: number): number | null => {
   border-radius: 6px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
   z-index: 1000;
-  min-width: 160px;
+  width: 280px;
   overflow: hidden;
+  padding: 10px;
+}
+
+.context-menu-header {
+  margin-bottom: 8px;
+}
+
+.context-menu-title {
+  color: #222;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.context-menu-meta {
+  color: #666;
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+.context-menu-label {
+  color: #555;
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.context-menu-select,
+.context-menu-input {
+  width: 100%;
+  border: 1px solid #cfd4da;
+  border-radius: 4px;
+  color: #222;
+  font-size: 12px;
+  padding: 6px 8px;
+}
+
+.context-menu-select:focus,
+.context-menu-input:focus {
+  outline: none;
+  border-color: #2196f3;
+  box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.15);
+}
+
+.context-menu-time-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 4px 8px;
+  margin-top: 8px;
+}
+
+.context-menu-error {
+  color: #055160;
+  background-color: #cff4fc;
+  border-radius: 4px;
+  font-size: 11px;
+  line-height: 1.35;
+  margin-top: 8px;
+  padding: 6px 8px;
+  overflow-wrap: anywhere;
+}
+
+.context-menu-hint {
+  color: #664d03;
+  background-color: #fff3cd;
+  border-radius: 4px;
+  font-size: 11px;
+  line-height: 1.35;
+  margin-top: 8px;
+  padding: 6px 8px;
+}
+
+.context-menu-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.context-menu-btn {
+  border: 1px solid #cfd4da;
+  background: #fff;
+  color: #333;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 6px 9px;
+}
+
+.context-menu-btn.primary {
+  border-color: #0d6efd;
+  background: #0d6efd;
+  color: #fff;
 }
 
 .time-editor {
@@ -1570,8 +2215,12 @@ const getNumericSegmentId = (segmentId: number): number | null => {
 }
 
 .time-editor-error {
-  color: #d32f2f;
+  color: #055160;
+  background: #cff4fc;
+  border-radius: 4px;
   font-size: 11px;
+  line-height: 1.35;
+  padding: 6px 8px;
 }
 
 .time-editor-actions {
@@ -1599,10 +2248,12 @@ const getNumericSegmentId = (segmentId: number): number | null => {
 .context-menu-item {
   display: flex;
   align-items: center;
-  padding: 10px 12px;
+  border-radius: 4px;
+  padding: 8px 6px;
   cursor: pointer;
   transition: background-color 0.2s ease;
-  font-size: 14px;
+  font-size: 13px;
+  color: #333;
 }
 
 .context-menu-item:hover {
@@ -1634,7 +2285,8 @@ const getNumericSegmentId = (segmentId: number): number | null => {
   font-size: 12px;
   pointer-events: none;
   z-index: 1000;
-  white-space: nowrap;
+  white-space: pre-line;
+  max-width: 260px;
 }
 
 

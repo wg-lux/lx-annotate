@@ -6,7 +6,15 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
-from endoreg_db.models import Center, UploadJob
+from endoreg_db.models import (
+    Center,
+    InformationSource,
+    Label,
+    LabelType,
+    LabelVideoSegment,
+    UploadJob,
+    VideoFile,
+)
 from endoreg_db.services.hub.ingest import process_watcher_file
 
 
@@ -233,6 +241,94 @@ def test_handler_process_video_delegates_to_shared_hub_ingest(monkeypatch, tmp_p
         handler._process_video(video_path)
     finally:
         video_path.unlink(missing_ok=True)
+
+
+def test_handler_runs_pipe_1_after_successful_ingest_cleanup(monkeypatch):
+    handler = file_watcher.AutoProcessingHandler()
+    video_path = file_watcher.INTAKE_VIDEO_DIR / "cleaned-before-pipe.mp4"
+    video_path.write_bytes(b"video-bytes")
+    pipe_calls: list[dict[str, object]] = []
+
+    center = SimpleNamespace(center_key=handler.default_center_key)
+    upload_job = SimpleNamespace(
+        content_hash="video-hash",
+        processing_provenance={"content_hash": "video-hash"},
+    )
+    video_file = SimpleNamespace(
+        pk=7,
+        video_hash="video-hash",
+        sensitive_meta=None,
+        active_raw_file=None,
+        pipe_1=lambda **kwargs: pipe_calls.append(kwargs) or True,
+    )
+
+    def fake_process_watcher_file(**kwargs):
+        assert kwargs["file_path"] == video_path
+        video_path.unlink()
+        return upload_job
+
+    monkeypatch.setattr(file_watcher, "_resolve_center_by_key", lambda key: center)
+    monkeypatch.setattr(file_watcher, "process_watcher_file", fake_process_watcher_file)
+    monkeypatch.setattr(
+        file_watcher.VideoFile.objects,
+        "filter",
+        lambda **kwargs: SimpleNamespace(first=lambda: video_file),
+    )
+    monkeypatch.setattr(file_watcher, "unload_ollama_model", lambda model_name: None)
+    monkeypatch.setattr(
+        file_watcher, "_prediction_pipeline_complete", lambda video: False
+    )
+
+    try:
+        handler._process_video(video_path)
+    finally:
+        video_path.unlink(missing_ok=True)
+
+    assert pipe_calls == [
+        {"model_name": handler.default_model, "delete_frames_after": True}
+    ]
+    assert not video_path.exists()
+
+
+@pytest.mark.django_db
+def test_prediction_pipeline_complete_requires_materialized_prediction_segments():
+    center = Center.objects.create(name="Watcher Prediction Center")
+    video = VideoFile.objects.create(center=center, video_hash="watcher-pred-ranges")
+    state = video.get_or_create_state()
+    state.initial_prediction_completed = True
+    state.lvs_created = True
+    state.save(update_fields=["initial_prediction_completed", "lvs_created"])
+    video.sequences = {"outside": [(1, 4)]}
+    video.save(update_fields=["sequences"])
+
+    assert file_watcher._prediction_pipeline_complete(video) is False
+
+    label_type = LabelType.objects.create(name="watcher-video")
+    label = Label.objects.create(name="outside", label_type=label_type)
+    prediction_source, _ = InformationSource.objects.get_or_create(name="prediction")
+    LabelVideoSegment.objects.create(
+        video_file=video,
+        label=label,
+        start_frame_number=1,
+        end_frame_number=4,
+        source=prediction_source,
+    )
+
+    assert file_watcher._prediction_pipeline_complete(video) is True
+
+
+@pytest.mark.django_db
+def test_prediction_pipeline_complete_allows_empty_prediction_result():
+    center = Center.objects.create(name="Watcher Empty Prediction Center")
+    video = VideoFile.objects.create(center=center, video_hash="watcher-pred-empty")
+    state = video.get_or_create_state()
+    state.initial_prediction_completed = True
+    state.lvs_created = True
+    state.save(update_fields=["initial_prediction_completed", "lvs_created"])
+    video.sequences = {}
+    video.save(update_fields=["sequences"])
+
+    assert file_watcher._prediction_pipeline_complete(video) is True
 
 
 @pytest.mark.django_db

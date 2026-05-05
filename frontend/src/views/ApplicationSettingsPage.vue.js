@@ -1,10 +1,12 @@
 import { fetchApplicationSettings, fetchApplicationSettingsDropdowns, fetchApplicationVideoDimensionBackfillRun, triggerApplicationBackup, triggerApplicationAiDatasetExport, triggerApplicationVideoDimensionBackfill, updateApplicationSettings } from '@/api/applicationSettingsApi';
+import { useTerminologyStore } from '@/stores/terminologyStore';
 import { useToastStore } from '@/stores/toastStore';
 import { computed, onMounted, reactive, ref } from 'vue';
 const EMPTY_OPTION = '';
 const VIDEO_DIMENSION_BACKFILL_POLL_INTERVAL_MS = 1000;
 const VIDEO_DIMENSION_BACKFILL_MAX_POLLS = 120;
 const toast = useToastStore();
+const terminology = useTerminologyStore();
 const loading = ref(true);
 const saving = ref(false);
 const errorMessage = ref('');
@@ -21,6 +23,7 @@ const videoDimensionBackfillDryRun = ref(true);
 const videoDimensionBackfillLimit = ref('');
 const videoDimensionBackfillRun = ref(null);
 const videoDimensionBackfillError = ref('');
+const selectedTerminologyKey = ref('');
 const dropdowns = reactive({
     centers: [],
     processors: [],
@@ -104,11 +107,21 @@ const videoDimensionBackfillMessage = computed(() => {
     const wouldRepair = run.result.summary.would_repair ?? run.result.summary.wouldRepair ?? 0;
     return `Lauf ${run.status}: ${run.result.count} Videos geprüft, ${repaired} repariert, ${wouldRepair} würden repariert.`;
 });
+const terminologyStatusMessage = computed(() => {
+    if (terminology.error)
+        return terminology.error;
+    if (terminology.lastSelectionCounts) {
+        const total = Object.values(terminology.lastSelectionCounts).reduce((sum, count) => sum + Number(count || 0), 0);
+        return `Terminologie aktiviert: ${total} Einträge geladen.`;
+    }
+    return '';
+});
 const isDirty = computed(() => {
     if (!currentSettings.value)
         return false;
-    return ((currentSettings.value.centerId === null ? EMPTY_OPTION : String(currentSettings.value.centerId)) !==
-        form.centerId ||
+    return ((currentSettings.value.centerId === null
+        ? EMPTY_OPTION
+        : String(currentSettings.value.centerId)) !== form.centerId ||
         (currentSettings.value.processorId === null
             ? EMPTY_OPTION
             : String(currentSettings.value.processorId)) !== form.processorId ||
@@ -158,6 +171,35 @@ async function loadSettings() {
     }
     finally {
         loading.value = false;
+    }
+}
+async function loadTerminologyBundles() {
+    try {
+        await terminology.loadBundles();
+        selectedTerminologyKey.value =
+            terminology.activeBundleKey ||
+                (terminology.filteredBundles[0] ? terminology.bundleKey(terminology.filteredBundles[0]) : '');
+    }
+    catch (error) {
+        console.error('Failed to load terminology bundles:', error);
+    }
+}
+function setMedicalField(value) {
+    if (value === 'gastroenterology') {
+        terminology.setMedicalField(value);
+    }
+}
+async function activateTerminologyBundle() {
+    const bundle = terminology.findBundleByKey(selectedTerminologyKey.value);
+    if (!bundle)
+        return;
+    try {
+        await terminology.selectBundle(bundle);
+        selectedTerminologyKey.value = terminology.activeBundleKey;
+        toast.success({ text: 'Terminologiepaket geladen.' });
+    }
+    catch (error) {
+        console.error('Failed to activate terminology bundle:', error);
     }
 }
 async function saveSettings() {
@@ -269,6 +311,7 @@ async function runAiDatasetExport() {
 }
 onMounted(() => {
     loadSettings();
+    loadTerminologyBundles();
 });
 debugger; /* PartiallyEnd: #3632/scriptSetup.vue */
 const __VLS_ctx = {};
@@ -558,11 +601,115 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.dd, __VLS_intrinsicElements.dd
     'data-test': "summary-ai-dataset-type",
 });
 (__VLS_ctx.selectedAiDatasetTypeLabel);
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.dt, __VLS_intrinsicElements.dt)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.dd, __VLS_intrinsicElements.dd)({
+    'data-test': "summary-medical-field",
+});
+(__VLS_ctx.terminology.medicalFieldLabel);
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.dt, __VLS_intrinsicElements.dt)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.dd, __VLS_intrinsicElements.dd)({
+    'data-test': "summary-terminology",
+});
+(__VLS_ctx.terminology.activeBundleLabel);
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "summary-note" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
 __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.aside, __VLS_intrinsicElements.aside)({
+    ...{ class: "settings-card mt-4" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "card-header-row" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.h2, __VLS_intrinsicElements.h2)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+    ...{ onClick: (__VLS_ctx.loadTerminologyBundles) },
+    type: "button",
+    ...{ class: "btn btn-outline-secondary btn-sm" },
+    disabled: (__VLS_ctx.terminology.loading || __VLS_ctx.terminology.selecting),
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+    ...{ class: "settings-field" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
+    ...{ onChange: (...[$event]) => {
+            __VLS_ctx.setMedicalField($event.target.value);
+        } },
+    value: (__VLS_ctx.terminology.selectedMedicalField),
+    ...{ class: "form-select" },
+    'data-test': "medical-field-select",
+    disabled: (__VLS_ctx.terminology.selecting),
+});
+for (const [option] of __VLS_getVForSourceType((__VLS_ctx.terminology.medicalFieldOptions))) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+        key: (option.value),
+        value: (option.value),
+    });
+    (option.label);
+}
+__VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+    ...{ class: "settings-field mt-3" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
+    value: (__VLS_ctx.selectedTerminologyKey),
+    ...{ class: "form-select" },
+    'data-test': "terminology-bundle-select",
+    disabled: (__VLS_ctx.terminology.loading || __VLS_ctx.terminology.selecting || !__VLS_ctx.terminology.filteredBundles.length),
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+    value: "",
+});
+(__VLS_ctx.terminology.loading
+    ? 'Terminologiepakete werden geladen...'
+    : __VLS_ctx.terminology.filteredBundles.length
+        ? 'Terminologiepaket wählen'
+        : 'Keine Pakete im Register');
+for (const [bundle] of __VLS_getVForSourceType((__VLS_ctx.terminology.filteredBundles))) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+        key: (__VLS_ctx.terminology.bundleKey(bundle)),
+        value: (__VLS_ctx.terminology.bundleKey(bundle)),
+    });
+    (bundle.moduleName);
+    (bundle.version);
+    (bundle.isActive ? ' · aktiv' : '');
+}
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "backup-summary terminology-summary" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "backup-stat" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+(__VLS_ctx.terminology.activeBundleLabel);
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "backup-stat" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+(__VLS_ctx.terminology.registryPath || 'Nicht gesetzt');
+if (__VLS_ctx.terminologyStatusMessage) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "alert alert-info mb-0" },
+        role: "alert",
+    });
+    (__VLS_ctx.terminologyStatusMessage);
+}
+__VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+    ...{ onClick: (__VLS_ctx.activateTerminologyBundle) },
+    type: "button",
+    ...{ class: "btn btn-primary mt-3" },
+    'data-test': "activate-terminology-bundle",
+    disabled: (__VLS_ctx.terminology.selecting || !__VLS_ctx.selectedTerminologyKey),
+});
+(__VLS_ctx.terminology.selecting ? 'Terminologie wird geladen…' : 'Terminologie laden');
 __VLS_asFunctionalElement(__VLS_intrinsicElements.aside, __VLS_intrinsicElements.aside)({
     ...{ class: "settings-card mt-4" },
 });
@@ -801,6 +948,27 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElement
 /** @type {__VLS_StyleScopedClasses['settings-card']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-4']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-header-row']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-secondary']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['settings-field']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-select']} */ ;
+/** @type {__VLS_StyleScopedClasses['settings-field']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-select']} */ ;
+/** @type {__VLS_StyleScopedClasses['backup-summary']} */ ;
+/** @type {__VLS_StyleScopedClasses['terminology-summary']} */ ;
+/** @type {__VLS_StyleScopedClasses['backup-stat']} */ ;
+/** @type {__VLS_StyleScopedClasses['backup-stat']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert-info']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-primary']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['settings-card']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-4']} */ ;
+/** @type {__VLS_StyleScopedClasses['card-header-row']} */ ;
 /** @type {__VLS_StyleScopedClasses['settings-field']} */ ;
 /** @type {__VLS_StyleScopedClasses['form-control']} */ ;
 /** @type {__VLS_StyleScopedClasses['form-check']} */ ;
@@ -856,6 +1024,7 @@ const __VLS_self = (await import('vue')).defineComponent({
     setup() {
         return {
             EMPTY_OPTION: EMPTY_OPTION,
+            terminology: terminology,
             loading: loading,
             saving: saving,
             errorMessage: errorMessage,
@@ -865,6 +1034,7 @@ const __VLS_self = (await import('vue')).defineComponent({
             videoDimensionBackfillInProgress: videoDimensionBackfillInProgress,
             videoDimensionBackfillDryRun: videoDimensionBackfillDryRun,
             videoDimensionBackfillLimit: videoDimensionBackfillLimit,
+            selectedTerminologyKey: selectedTerminologyKey,
             dropdowns: dropdowns,
             form: form,
             updatedAtLabel: updatedAtLabel,
@@ -882,9 +1052,13 @@ const __VLS_self = (await import('vue')).defineComponent({
             backupMessage: backupMessage,
             aiDatasetExportMessage: aiDatasetExportMessage,
             videoDimensionBackfillMessage: videoDimensionBackfillMessage,
+            terminologyStatusMessage: terminologyStatusMessage,
             isDirty: isDirty,
             resetForm: resetForm,
             loadSettings: loadSettings,
+            loadTerminologyBundles: loadTerminologyBundles,
+            setMedicalField: setMedicalField,
+            activateTerminologyBundle: activateTerminologyBundle,
             saveSettings: saveSettings,
             runVideoDimensionBackfill: runVideoDimensionBackfill,
             runBackup: runBackup,

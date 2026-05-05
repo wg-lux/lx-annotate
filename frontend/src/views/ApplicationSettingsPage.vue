@@ -216,6 +216,14 @@
               <dt>KI-Datensatztyp</dt>
               <dd data-test="summary-ai-dataset-type">{{ selectedAiDatasetTypeLabel }}</dd>
             </div>
+            <div>
+              <dt>Fachbereich</dt>
+              <dd data-test="summary-medical-field">{{ terminology.medicalFieldLabel }}</dd>
+            </div>
+            <div>
+              <dt>Terminologie</dt>
+              <dd data-test="summary-terminology">{{ terminology.activeBundleLabel }}</dd>
+            </div>
           </dl>
 
           <div class="summary-note">
@@ -225,6 +233,100 @@
               nachfolgende Arbeitsvorgänge.
             </p>
           </div>
+        </aside>
+
+        <aside class="settings-card mt-4">
+          <div class="card-header-row">
+            <div>
+              <h2>Terminologie</h2>
+              <p>
+                Aktiviert ein veröffentlichtes Terminologiepaket für Befunde, Berichtsvorlagen und
+                Untersuchungsfilter.
+              </p>
+            </div>
+            <button
+              type="button"
+              class="btn btn-outline-secondary btn-sm"
+              :disabled="terminology.loading || terminology.selecting"
+              @click="loadTerminologyBundles"
+            >
+              Pakete neu laden
+            </button>
+          </div>
+
+          <label class="settings-field">
+            <span>Fachbereich</span>
+            <select
+              :value="terminology.selectedMedicalField"
+              class="form-select"
+              data-test="medical-field-select"
+              :disabled="terminology.selecting"
+              @change="setMedicalField(($event.target as HTMLSelectElement).value)"
+            >
+              <option
+                v-for="option in terminology.medicalFieldOptions"
+                :key="option.value"
+                :value="option.value"
+              >
+                {{ option.label }}
+              </option>
+            </select>
+          </label>
+
+          <label class="settings-field mt-3">
+            <span>Terminologiepaket</span>
+            <select
+              v-model="selectedTerminologyKey"
+              class="form-select"
+              data-test="terminology-bundle-select"
+              :disabled="
+                terminology.loading || terminology.selecting || !terminology.filteredBundles.length
+              "
+            >
+              <option value="">
+                {{
+                  terminology.loading
+                    ? 'Terminologiepakete werden geladen...'
+                    : terminology.filteredBundles.length
+                      ? 'Terminologiepaket wählen'
+                      : 'Keine Pakete im Register'
+                }}
+              </option>
+              <option
+                v-for="bundle in terminology.filteredBundles"
+                :key="terminology.bundleKey(bundle)"
+                :value="terminology.bundleKey(bundle)"
+              >
+                {{ bundle.moduleName }} · {{ bundle.version
+                }}{{ bundle.isActive ? ' · aktiv' : '' }}
+              </option>
+            </select>
+          </label>
+
+          <div class="backup-summary terminology-summary">
+            <div class="backup-stat">
+              <span>Aktiv</span>
+              <strong>{{ terminology.activeBundleLabel }}</strong>
+            </div>
+            <div class="backup-stat">
+              <span>Register</span>
+              <strong>{{ terminology.registryPath || 'Nicht gesetzt' }}</strong>
+            </div>
+          </div>
+
+          <div v-if="terminologyStatusMessage" class="alert alert-info mb-0" role="alert">
+            {{ terminologyStatusMessage }}
+          </div>
+
+          <button
+            type="button"
+            class="btn btn-primary mt-3"
+            data-test="activate-terminology-bundle"
+            :disabled="terminology.selecting || !selectedTerminologyKey"
+            @click="activateTerminologyBundle"
+          >
+            {{ terminology.selecting ? 'Terminologie wird geladen…' : 'Terminologie laden' }}
+          </button>
         </aside>
 
         <aside class="settings-card mt-4">
@@ -311,7 +413,9 @@
             type="button"
             class="btn btn-primary mt-3"
             data-test="run-ai-dataset-export"
-            :disabled="aiDatasetExportInProgress || !form.aiDatasetName.trim() || !form.aiDatasetType"
+            :disabled="
+              aiDatasetExportInProgress || !form.aiDatasetName.trim() || !form.aiDatasetType
+            "
             @click="runAiDatasetExport"
           >
             {{ aiDatasetExportInProgress ? 'Export läuft…' : 'KI-Datensatz exportieren' }}
@@ -327,7 +431,10 @@
                 benötigten Datenpfade vorhanden sind.
               </p>
             </div>
-            <span class="backup-chip" :class="{ 'backup-chip-ready': backupReady, 'backup-chip-blocked': !backupReady }">
+            <span
+              class="backup-chip"
+              :class="{ 'backup-chip-ready': backupReady, 'backup-chip-blocked': !backupReady }"
+            >
               {{ backupReady ? 'Backup bereit' : 'Pfadprüfung fehlgeschlagen' }}
             </span>
           </div>
@@ -405,6 +512,8 @@ import {
   type ApplicationSettingsDropdowns,
   type ApplicationSettingsRecord
 } from '@/api/applicationSettingsApi'
+import type { MedicalField } from '@/api/terminologyApi'
+import { useTerminologyStore } from '@/stores/terminologyStore'
 import { useToastStore } from '@/stores/toastStore'
 import { computed, onMounted, reactive, ref } from 'vue'
 
@@ -413,6 +522,7 @@ const VIDEO_DIMENSION_BACKFILL_POLL_INTERVAL_MS = 1000
 const VIDEO_DIMENSION_BACKFILL_MAX_POLLS = 120
 
 const toast = useToastStore()
+const terminology = useTerminologyStore()
 
 const loading = ref(true)
 const saving = ref(false)
@@ -430,6 +540,7 @@ const videoDimensionBackfillDryRun = ref(true)
 const videoDimensionBackfillLimit = ref('')
 const videoDimensionBackfillRun = ref<ApplicationVideoDimensionBackfillRun | null>(null)
 const videoDimensionBackfillError = ref('')
+const selectedTerminologyKey = ref('')
 
 const dropdowns = reactive<ApplicationSettingsDropdowns>({
   centers: [],
@@ -490,8 +601,12 @@ const selectedAiDatasetTypeLabel = computed(() => {
 const backupReady = computed(() => currentSettings.value?.backupStatus.ready ?? false)
 const backupMissingPaths = computed(() => currentSettings.value?.backupStatus.missingPaths ?? [])
 const backupSourceRoots = computed(() => currentSettings.value?.backupStatus.sourceRoots ?? [])
-const backupRequiredPaths = computed(() => currentSettings.value?.backupStatus.requiredPathCount ?? 0)
-const backupAvailablePaths = computed(() => currentSettings.value?.backupStatus.availablePathCount ?? 0)
+const backupRequiredPaths = computed(
+  () => currentSettings.value?.backupStatus.requiredPathCount ?? 0
+)
+const backupAvailablePaths = computed(
+  () => currentSettings.value?.backupStatus.availablePathCount ?? 0
+)
 const backupMessage = computed(() => {
   if (backupError.value) return backupError.value
   if (backupResult.value) return `Backup erstellt: ${backupResult.value.targetRoot}`
@@ -518,12 +633,25 @@ const videoDimensionBackfillMessage = computed(() => {
   return `Lauf ${run.status}: ${run.result.count} Videos geprüft, ${repaired} repariert, ${wouldRepair} würden repariert.`
 })
 
+const terminologyStatusMessage = computed(() => {
+  if (terminology.error) return terminology.error
+  if (terminology.lastSelectionCounts) {
+    const total = Object.values(terminology.lastSelectionCounts).reduce(
+      (sum, count) => sum + Number(count || 0),
+      0
+    )
+    return `Terminologie aktiviert: ${total} Einträge geladen.`
+  }
+  return ''
+})
+
 const isDirty = computed(() => {
   if (!currentSettings.value) return false
 
   return (
-    (currentSettings.value.centerId === null ? EMPTY_OPTION : String(currentSettings.value.centerId)) !==
-      form.centerId ||
+    (currentSettings.value.centerId === null
+      ? EMPTY_OPTION
+      : String(currentSettings.value.centerId)) !== form.centerId ||
     (currentSettings.value.processorId === null
       ? EMPTY_OPTION
       : String(currentSettings.value.processorId)) !== form.processorId ||
@@ -576,6 +704,36 @@ async function loadSettings() {
       'Die Anwendungseinstellungen konnten nicht geladen werden. Bitte erneut versuchen.'
   } finally {
     loading.value = false
+  }
+}
+
+async function loadTerminologyBundles() {
+  try {
+    await terminology.loadBundles()
+    selectedTerminologyKey.value =
+      terminology.activeBundleKey ||
+      (terminology.filteredBundles[0] ? terminology.bundleKey(terminology.filteredBundles[0]) : '')
+  } catch (error) {
+    console.error('Failed to load terminology bundles:', error)
+  }
+}
+
+function setMedicalField(value: string) {
+  if (value === 'gastroenterology') {
+    terminology.setMedicalField(value as MedicalField)
+  }
+}
+
+async function activateTerminologyBundle() {
+  const bundle = terminology.findBundleByKey(selectedTerminologyKey.value)
+  if (!bundle) return
+
+  try {
+    await terminology.selectBundle(bundle)
+    selectedTerminologyKey.value = terminology.activeBundleKey
+    toast.success({ text: 'Terminologiepaket geladen.' })
+  } catch (error) {
+    console.error('Failed to activate terminology bundle:', error)
   }
 }
 
@@ -698,6 +856,7 @@ async function runAiDatasetExport() {
 
 onMounted(() => {
   loadSettings()
+  loadTerminologyBundles()
 })
 </script>
 
@@ -716,9 +875,7 @@ onMounted(() => {
   margin-bottom: 1.5rem;
   padding: 1.5rem 1.75rem;
   border-radius: 1.25rem;
-  background:
-    linear-gradient(135deg, rgba(14, 54, 88, 0.96), rgba(27, 111, 163, 0.92)),
-    #12344d;
+  background: linear-gradient(135deg, rgba(14, 54, 88, 0.96), rgba(27, 111, 163, 0.92)), #12344d;
   color: #f5fbff;
   box-shadow: 0 24px 48px rgba(17, 34, 51, 0.16);
 }
@@ -791,9 +948,7 @@ onMounted(() => {
 }
 
 .settings-card-contrast {
-  background:
-    linear-gradient(180deg, rgba(250, 252, 255, 0.96), rgba(239, 247, 255, 0.96)),
-    #fff;
+  background: linear-gradient(180deg, rgba(250, 252, 255, 0.96), rgba(239, 247, 255, 0.96)), #fff;
 }
 
 .card-header-row {
@@ -862,7 +1017,12 @@ onMounted(() => {
 .skeleton-line {
   height: 1rem;
   border-radius: 999px;
-  background: linear-gradient(90deg, rgba(214, 225, 235, 0.6), rgba(232, 239, 244, 0.95), rgba(214, 225, 235, 0.6));
+  background: linear-gradient(
+    90deg,
+    rgba(214, 225, 235, 0.6),
+    rgba(232, 239, 244, 0.95),
+    rgba(214, 225, 235, 0.6)
+  );
   background-size: 200% 100%;
   animation: shimmer 1.3s linear infinite;
 }
@@ -944,6 +1104,11 @@ onMounted(() => {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.75rem;
   margin-bottom: 1rem;
+}
+
+.terminology-summary {
+  grid-template-columns: 1fr;
+  margin-top: 1rem;
 }
 
 .backup-stat,

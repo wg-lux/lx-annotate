@@ -64,9 +64,7 @@ def test_repair_managed_payloads_skips_streamable_plaintext_artifacts(
     from lx_annotate.management.commands import repair_managed_payloads as command_mod
 
     plaintext = b"\x00\x00\x00\x18ftypmp42"
-    streamable_path = Path(
-        repair_storage.path("streamable_videos/processed/video.mp4")
-    )
+    streamable_path = Path(repair_storage.path("streamable_videos/processed/video.mp4"))
     streamable_path.parent.mkdir(parents=True, exist_ok=True)
     streamable_path.write_bytes(plaintext)
     monkeypatch.setattr(command_mod, "default_storage", repair_storage)
@@ -79,9 +77,7 @@ def test_repair_managed_payloads_skips_streamable_plaintext_artifacts(
     assert "skipped=1" in out.getvalue()
 
 
-def test_repair_managed_payloads_skips_temporary_artifacts(
-    monkeypatch, repair_storage
-):
+def test_repair_managed_payloads_skips_temporary_artifacts(monkeypatch, repair_storage):
     from lx_annotate.management.commands import repair_managed_payloads as command_mod
 
     plaintext = b"partial plaintext temp"

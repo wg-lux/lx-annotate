@@ -29,6 +29,7 @@ describe('VideoStore Performance Optimization', () => {
                     id: 101,
                     original_file_name: 'Video A',
                     status: 'available',
+                    validated_annotators: ['reviewer-one'],
                     segments: [
                         {
                             id: 500,
@@ -56,6 +57,7 @@ describe('VideoStore Performance Optimization', () => {
         expect(store.videoList.videos.length).toBe(2);
         const videoA = store.videoList.videos.find((video) => video.id === 101);
         expect(videoA).toBeDefined();
+        expect(videoA?.validatedAnnotators).toEqual(['reviewer-one']);
         expect(videoA?.segments?.length).toBe(1);
         expect(videoA?.segments?.[0].label).toBe('polyp');
         expect(videoA?.segments?.[0].startTime).toBe(10.5);

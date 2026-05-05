@@ -15,6 +15,9 @@ _resolve_center_by_key = fw._resolve_center_by_key
 process_watcher_file = fw.process_watcher_file
 process_preanonymized_watcher_file = fw.process_preanonymized_watcher_file
 unload_ollama_model = fw.unload_ollama_model
+_has_prediction_segments = fw._has_prediction_segments
+_prediction_sequences_have_ranges = fw._prediction_sequences_have_ranges
+_prediction_pipeline_complete = fw._prediction_pipeline_complete
 
 
 @contextmanager
@@ -37,6 +40,9 @@ class AutoProcessingHandler(fw.AutoProcessingHandler):
         fw.process_watcher_file = process_watcher_file
         fw.process_preanonymized_watcher_file = process_preanonymized_watcher_file
         fw.unload_ollama_model = unload_ollama_model
+        fw._has_prediction_segments = _has_prediction_segments
+        fw._prediction_sequences_have_ranges = _prediction_sequences_have_ranges
+        fw._prediction_pipeline_complete = _prediction_pipeline_complete
 
     def _process_video(self, video_path):
         self._syncfw_bindings()

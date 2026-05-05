@@ -11,6 +11,59 @@ const hoisted = vi.hoisted(() => ({
   triggerApplicationAiDatasetExport: vi.fn(),
   triggerApplicationVideoDimensionBackfill: vi.fn(),
   fetchApplicationVideoDimensionBackfillRun: vi.fn(),
+  terminologyStore: {
+    bundles: [
+      {
+        moduleName: 'editor_bundle',
+        version: '2026.04.30',
+        medicalField: 'gastroenterology',
+        inputDirs: ['/registry/editor_bundle'],
+        isActive: true
+      }
+    ],
+    activeBundle: {
+      moduleName: 'editor_bundle',
+      version: '2026.04.30',
+      medicalField: 'gastroenterology',
+      inputDirs: ['/registry/editor_bundle'],
+      isActive: true
+    },
+    registryPath: '/registry',
+    loading: false,
+    selecting: false,
+    error: null as string | null,
+    selectedMedicalField: 'gastroenterology',
+    lastSelectionCounts: null as Record<string, number> | null,
+    activeModuleName: 'editor_bundle',
+    activeBundleKey: 'editor_bundle@@2026.04.30',
+    activeBundleLabel: 'editor_bundle · 2026.04.30',
+    filteredBundles: [
+      {
+        moduleName: 'editor_bundle',
+        version: '2026.04.30',
+        medicalField: 'gastroenterology',
+        inputDirs: ['/registry/editor_bundle'],
+        isActive: true
+      }
+    ],
+    medicalFieldLabel: 'Gastroenterologie',
+    medicalFieldOptions: [{ value: 'gastroenterology', label: 'Gastroenterologie' }],
+    bundleKey: vi.fn((bundle: any) => `${bundle.moduleName}@@${bundle.version}`),
+    findBundleByKey: vi.fn((key: string) =>
+      key === 'editor_bundle@@2026.04.30'
+        ? {
+            moduleName: 'editor_bundle',
+            version: '2026.04.30',
+            medicalField: 'gastroenterology',
+            inputDirs: ['/registry/editor_bundle'],
+            isActive: true
+          }
+        : null
+    ),
+    loadBundles: vi.fn(),
+    selectBundle: vi.fn(),
+    setMedicalField: vi.fn()
+  },
   toastSuccess: vi.fn()
 }))
 
@@ -33,9 +86,19 @@ vi.mock('@/stores/toastStore', () => ({
   })
 }))
 
+vi.mock('@/stores/terminologyStore', () => ({
+  useTerminologyStore: () => hoisted.terminologyStore
+}))
+
 describe('ApplicationSettingsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    hoisted.terminologyStore.loadBundles.mockResolvedValue(undefined)
+    hoisted.terminologyStore.selectBundle.mockResolvedValue({
+      ok: true,
+      active: hoisted.terminologyStore.activeBundle,
+      counts: { findings: 2 }
+    })
 
     hoisted.fetchApplicationSettings.mockResolvedValue({
       id: 1,
@@ -168,7 +231,9 @@ describe('ApplicationSettingsPage', () => {
     expect(hoisted.fetchApplicationSettingsDropdowns).toHaveBeenCalledTimes(1)
     expect(wrapper.get('[data-test=\"summary-center\"]').text()).toContain('Center Alpha')
     expect(wrapper.get('[data-test=\"summary-processor\"]').text()).toContain('Processor One')
-    expect(wrapper.get('[data-test=\"summary-annotator\"]').text()).toContain('Kein Standard-Annotator')
+    expect(wrapper.get('[data-test=\"summary-annotator\"]').text()).toContain(
+      'Kein Standard-Annotator'
+    )
     expect(wrapper.get('[data-test=\"summary-report-template\"]').text()).toContain('Template A')
     expect(wrapper.get('[data-test=\"summary-ai-dataset\"]').text()).toContain('dataset_alpha')
     expect(wrapper.get('[data-test=\"summary-ai-dataset-type\"]').text()).toContain('Image')

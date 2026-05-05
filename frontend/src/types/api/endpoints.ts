@@ -133,10 +133,12 @@ export const endpoints = {
     videoApplyMask: (pk: Id) => `media/videos/${pk}/apply-mask/`,
     videoRemoveFrames: (pk: Id) => `media/videos/${pk}/remove-frames/`,
     videoLabelsList: 'media/videos/labels/list/',
+    videoLabelSetsList: 'media/videos/label-sets/list/',
 
     segmentsCollection: 'media/videos/segments/',
     segmentsStats: 'media/videos/segments/stats/',
     videoSegments: (pk: Id) => `media/videos/${pk}/segments/`,
+    videoSegmentsBulkMutation: (pk: Id) => `media/videos/${pk}/segments/bulk/`,
     videoSegmentDetail: (pk: Id, segmentId: Id) => `media/videos/${pk}/segments/${segmentId}/`,
     videoSegmentsImportPredictions: (pk: Id) => `media/videos/${pk}/segments/import-predictions/`,
     videoSegmentValidate: (pk: Id, segmentId: Id) =>

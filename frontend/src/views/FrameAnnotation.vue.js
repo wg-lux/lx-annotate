@@ -4,6 +4,7 @@ import axiosInstance, { r } from '@/api/axiosInstance';
 import { endpoints } from '@/types/api/endpoints';
 import { useAnnotationQueueStore } from '@/stores/annotationQueue';
 import { useAuthKcStore } from '@/stores/auth_kc';
+import { clearAnnotatorOverride, getAnnotatorPrincipalFromAuthUser, loadAnnotatorOverride, saveAnnotatorOverride } from '@/utils/annotationPrincipal';
 const queueStore = useAnnotationQueueStore();
 const authStore = useAuthKcStore();
 const isLoadingTask = ref(false);
@@ -14,6 +15,9 @@ const errorMessage = ref(null);
 const isLoadingLabelGroups = ref(false);
 const labelGroupLoadError = ref(null);
 const labelGroupOptions = ref([]);
+const annotatorOverride = ref(null);
+const annotatorOverrideInput = ref('');
+let isReloadingAnnotationQueue = false;
 const selectedLabelGroupId = computed({
     get: () => queueStore.selectedLabelGroupId ?? '',
     set: (value) => queueStore.setSelectedLabelGroupId(value.trim() || null)
@@ -39,6 +43,20 @@ const informationSource = computed({
     set: (value) => queueStore.setInformationSource(value)
 });
 const annotationLabelOptions = computed(() => currentTask.value?.data.labelOptions ?? []);
+const visibleErrorMessage = computed(() => errorMessage.value || queueStore.lastError);
+const baseAnnotatorPrincipal = computed(() => getAnnotatorPrincipalFromAuthUser(authStore.user));
+const annotatorOverrideScope = computed(() => `frame:${queueStore.selectedLabelGroupId ?? 'all'}:${informationSource.value}`);
+const activeAnnotatorPrincipal = computed(() => annotatorOverride.value || baseAnnotatorPrincipal.value);
+const isAnnotatorOverrideActive = computed(() => annotatorOverride.value !== null);
+const canApplyAnnotatorOverride = computed(() => {
+    const normalized = annotatorOverrideInput.value.trim();
+    return (!!normalized &&
+        normalized !== activeAnnotatorPrincipal.value &&
+        normalized !== baseAnnotatorPrincipal.value);
+});
+const activeAnnotatorLabel = computed(() => isAnnotatorOverrideActive.value
+    ? `${activeAnnotatorPrincipal.value} (Override)`
+    : activeAnnotatorPrincipal.value);
 const manualAnnotationState = computed(() => Object.fromEntries((currentTask.value?.data.manualAnnotations ?? []).map((annotation) => [
     annotation.labelId,
     annotation
@@ -72,21 +90,36 @@ function formatConfidence(value) {
         return '';
     return `${Math.round(value * 100)}%`;
 }
-function getAnnotatorPrincipal() {
-    const rawUser = authStore.user;
-    const sub = typeof rawUser?.sub === 'string'
-        ? rawUser.sub.trim()
-        : typeof rawUser?.oidcSub === 'string'
-            ? rawUser.oidcSub.trim()
-            : '';
-    if (sub)
-        return `oidc:${sub}`;
-    const username = typeof authStore.user?.username === 'string'
-        ? authStore.user.username.trim()
-        : '';
-    if (username)
-        return username;
-    return 'unknown';
+function syncAnnotatorOverrideFromStorage() {
+    annotatorOverride.value = loadAnnotatorOverride(annotatorOverrideScope.value, baseAnnotatorPrincipal.value);
+    annotatorOverrideInput.value = annotatorOverride.value ?? '';
+}
+function applyActiveAnnotatorToQueue() {
+    queueStore.setAnnotatorPrincipal?.(activeAnnotatorPrincipal.value);
+}
+async function reloadAnnotationQueue() {
+    isReloadingAnnotationQueue = true;
+    try {
+        queueStore.clearQueue();
+        await loadNextTask();
+    }
+    finally {
+        isReloadingAnnotationQueue = false;
+    }
+}
+async function restartAnnotationAsOverride() {
+    const normalized = annotatorOverrideInput.value.trim();
+    if (!normalized)
+        return;
+    saveAnnotatorOverride(annotatorOverrideScope.value, baseAnnotatorPrincipal.value, normalized);
+    annotatorOverride.value = normalized;
+    await reloadAnnotationQueue();
+}
+async function revertAnnotatorOverride() {
+    clearAnnotatorOverride(annotatorOverrideScope.value, baseAnnotatorPrincipal.value);
+    annotatorOverride.value = null;
+    annotatorOverrideInput.value = '';
+    await reloadAnnotationQueue();
 }
 function extractListPayload(payload) {
     if (Array.isArray(payload)) {
@@ -101,10 +134,25 @@ function extractListPayload(payload) {
     if (Array.isArray(obj.labels)) {
         return obj.labels.filter((item) => !!item && typeof item === 'object');
     }
+    if (Array.isArray(obj.labelSets)) {
+        return obj.labelSets.filter((item) => !!item && typeof item === 'object');
+    }
+    if (Array.isArray(obj.label_sets)) {
+        return obj.label_sets.filter((item) => !!item && typeof item === 'object');
+    }
     if (Array.isArray(obj.groups)) {
         return obj.groups.filter((item) => !!item && typeof item === 'object');
     }
     return [];
+}
+function parseOptionalNumber(value) {
+    if (typeof value === 'number' && Number.isFinite(value))
+        return value;
+    if (typeof value === 'string' && value.trim()) {
+        const parsed = Number(value);
+        return Number.isFinite(parsed) ? parsed : null;
+    }
+    return null;
 }
 function parseGroupOption(raw) {
     const nestedLabelGroup = raw.labelGroup && typeof raw.labelGroup === 'object'
@@ -133,13 +181,23 @@ function parseGroupOption(raw) {
         nestedLabelGroup?.name ??
         raw.name;
     const name = typeof nameRaw === 'string' && nameRaw.trim() ? nameRaw.trim() : `Group ${id}`;
-    return { id, name };
+    const version = parseOptionalNumber(raw.version ?? nestedLabelGroup?.version);
+    const labelCount = parseOptionalNumber(raw.labelCount ??
+        raw.label_count ??
+        nestedLabelGroup?.labelCount ??
+        nestedLabelGroup?.label_count);
+    const displayParts = [name];
+    if (version !== null)
+        displayParts.push(`v${version}`);
+    if (labelCount !== null)
+        displayParts.push(`${labelCount} Labels`);
+    return { id, name, version, labelCount, displayName: displayParts.join(' - ') };
 }
 async function loadLabelGroups() {
     isLoadingLabelGroups.value = true;
     labelGroupLoadError.value = null;
     try {
-        const res = await axiosInstance.get(r(endpoints.media.videoLabelsList));
+        const res = await axiosInstance.get(r(endpoints.media.videoLabelSetsList));
         const rows = extractListPayload(res.data);
         const byId = new Map();
         for (const row of rows) {
@@ -168,18 +226,26 @@ async function loadLabelGroups() {
     }
 }
 async function loadNextTask() {
-    if (!queueStore.selectedLabelGroupId) {
-        currentTask.value = null;
-        return;
-    }
     isLoadingTask.value = true;
     errorMessage.value = null;
     try {
+        applyActiveAnnotatorToQueue();
         if (!queueStore.taskQueue.length) {
             await queueStore.fetchBatch(10);
         }
         currentTask.value = queueStore.popNextTask() ?? null;
         syncSelectedLabelsFromTask(currentTask.value);
+        if (!currentTask.value && queueStore.lastError) {
+            errorMessage.value = queueStore.lastError;
+        }
+    }
+    catch (error) {
+        currentTask.value = null;
+        errorMessage.value =
+            error?.response?.data?.detail ||
+                error?.response?.data?.error ||
+                error?.message ||
+                'Aufgabe konnte nicht geladen werden.';
     }
     finally {
         isLoadingTask.value = false;
@@ -213,7 +279,7 @@ async function submitLabelsWithSelection(selectedIds) {
                 value: selectedSet.has(label.id),
                 floatValue: null,
                 informationSourceName: informationSource.value,
-                annotator: getAnnotatorPrincipal(),
+                annotator: activeAnnotatorPrincipal.value,
                 externalAnnotationId: existingManual?.externalAnnotationId ||
                     (task.data.existingExternalId && task.data.existingExternalId.trim()
                         ? `${task.data.existingExternalId}:${label.id}`
@@ -271,7 +337,7 @@ async function skipTask() {
     try {
         await axiosInstance.post(r(endpoints.annotation.skip), {
             frameId: currentTask.value.data.frameId,
-            annotator: getAnnotatorPrincipal()
+            annotator: activeAnnotatorPrincipal.value
         });
         await loadNextTask();
     }
@@ -286,10 +352,16 @@ async function skipTask() {
         isSubmitting.value = false;
     }
 }
+watch([baseAnnotatorPrincipal, annotatorOverrideScope], () => {
+    syncAnnotatorOverrideFromStorage();
+    applyActiveAnnotatorToQueue();
+}, { immediate: true });
 watch(() => currentTask.value?.id, () => {
     syncSelectedLabelsFromTask(currentTask.value);
 });
 watch(() => [queueStore.selectedLabelGroupId, queueStore.taskQuerySignature], async () => {
+    if (isReloadingAnnotationQueue)
+        return;
     queueStore.clearQueue();
     await loadNextTask();
 });
@@ -348,7 +420,7 @@ if (__VLS_ctx.labelGroupOptions.length > 0) {
             key: (group.id),
             value: (group.id),
         });
-        (group.name);
+        (group.displayName);
         (group.id);
     }
 }
@@ -422,7 +494,7 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
     value: (__VLS_ctx.targetLabelName),
     type: "text",
     ...{ class: "form-control" },
-    placeholder: "z. B. Polyp",
+    placeholder: "Optional, z. B. polyp",
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "col-12 col-md-6 col-lg-4" },
@@ -436,21 +508,62 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
     value: (__VLS_ctx.informationSource),
     type: "text",
     ...{ class: "form-control" },
-    placeholder: "e.g. frame_annotation_frontend",
+    placeholder: "manual_annotation",
     list: "information-source-options",
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.datalist, __VLS_intrinsicElements.datalist)({
     id: "information-source-options",
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.option)({
-    value: "frame_annotation_frontend",
+    value: "manual_annotation",
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.option)({
     value: "human_annotation",
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.option)({
+    value: "frame_annotation_frontend",
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.option)({
     value: "model_prediction",
 });
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "col-12 col-lg-8" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+    for: "frame-annotator-override",
+    ...{ class: "form-label" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "d-flex flex-wrap gap-2" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
+    id: "frame-annotator-override",
+    value: (__VLS_ctx.annotatorOverrideInput),
+    type: "text",
+    ...{ class: "form-control annotator-override-input" },
+    'data-test': "annotator-override-input",
+    placeholder: (__VLS_ctx.baseAnnotatorPrincipal),
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+    ...{ onClick: (__VLS_ctx.restartAnnotationAsOverride) },
+    type: "button",
+    ...{ class: "btn btn-outline-primary mb-0" },
+    disabled: (__VLS_ctx.isSubmitting || !__VLS_ctx.canApplyAnnotatorOverride),
+    'data-test': "annotator-override-apply",
+});
+if (__VLS_ctx.isAnnotatorOverrideActive) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+        ...{ onClick: (__VLS_ctx.revertAnnotatorOverride) },
+        type: "button",
+        ...{ class: "btn btn-outline-secondary mb-0" },
+        disabled: (__VLS_ctx.isSubmitting),
+        'data-test': "annotator-override-revert",
+    });
+}
+__VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+    ...{ class: "text-muted d-block mt-1" },
+});
+(__VLS_ctx.activeAnnotatorLabel);
 if (__VLS_ctx.taskMode === 'filtered') {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "col-12 col-md-6 col-lg-4" },
@@ -498,11 +611,6 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.d
     ...{ class: "card-body" },
 });
 if (__VLS_ctx.isLoadingTask) {
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "text-muted" },
-    });
-}
-else if (!__VLS_ctx.queueStore.selectedLabelGroupId) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "text-muted" },
     });
@@ -629,12 +737,12 @@ else {
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "col-12" },
 });
-if (__VLS_ctx.errorMessage) {
+if (__VLS_ctx.visibleErrorMessage) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "alert alert-danger mb-0" },
         role: "alert",
     });
-    (__VLS_ctx.errorMessage);
+    (__VLS_ctx.visibleErrorMessage);
 }
 /** @type {__VLS_StyleScopedClasses['container-fluid']} */ ;
 /** @type {__VLS_StyleScopedClasses['py-4']} */ ;
@@ -686,6 +794,23 @@ if (__VLS_ctx.errorMessage) {
 /** @type {__VLS_StyleScopedClasses['form-label']} */ ;
 /** @type {__VLS_StyleScopedClasses['form-control']} */ ;
 /** @type {__VLS_StyleScopedClasses['col-12']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-lg-8']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['flex-wrap']} */ ;
+/** @type {__VLS_StyleScopedClasses['gap-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-control']} */ ;
+/** @type {__VLS_StyleScopedClasses['annotator-override-input']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-primary']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-secondary']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-block']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-12']} */ ;
 /** @type {__VLS_StyleScopedClasses['col-md-6']} */ ;
 /** @type {__VLS_StyleScopedClasses['col-lg-4']} */ ;
 /** @type {__VLS_StyleScopedClasses['form-label']} */ ;
@@ -706,7 +831,6 @@ if (__VLS_ctx.errorMessage) {
 /** @type {__VLS_StyleScopedClasses['card']} */ ;
 /** @type {__VLS_StyleScopedClasses['frame-card']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-body']} */ ;
-/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['task-meta']} */ ;
@@ -787,10 +911,10 @@ const __VLS_self = (await import('vue')).defineComponent({
             isSubmitting: isSubmitting,
             currentTask: currentTask,
             selectedLabelIds: selectedLabelIds,
-            errorMessage: errorMessage,
             isLoadingLabelGroups: isLoadingLabelGroups,
             labelGroupLoadError: labelGroupLoadError,
             labelGroupOptions: labelGroupOptions,
+            annotatorOverrideInput: annotatorOverrideInput,
             selectedLabelGroupId: selectedLabelGroupId,
             taskMode: taskMode,
             targetLabelName: targetLabelName,
@@ -798,11 +922,18 @@ const __VLS_self = (await import('vue')).defineComponent({
             allowRandomFallback: allowRandomFallback,
             informationSource: informationSource,
             annotationLabelOptions: annotationLabelOptions,
+            visibleErrorMessage: visibleErrorMessage,
+            baseAnnotatorPrincipal: baseAnnotatorPrincipal,
+            isAnnotatorOverrideActive: isAnnotatorOverrideActive,
+            canApplyAnnotatorOverride: canApplyAnnotatorOverride,
+            activeAnnotatorLabel: activeAnnotatorLabel,
             manualAnnotationState: manualAnnotationState,
             predictionAnnotationState: predictionAnnotationState,
             clearSelectedLabels: clearSelectedLabels,
             applySuggestedLabels: applySuggestedLabels,
             formatConfidence: formatConfidence,
+            restartAnnotationAsOverride: restartAnnotationAsOverride,
+            revertAnnotatorOverride: revertAnnotatorOverride,
             loadLabelGroups: loadLabelGroups,
             submitLabels: submitLabels,
             submitPositiveExample: submitPositiveExample,

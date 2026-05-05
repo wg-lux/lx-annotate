@@ -111,9 +111,11 @@ static: check-repo check-tools ## Collect static files
 docs-build: check-repo check-tools ## Build Sphinx HTML docs
 	cd "$(REPO_DIR)" && $(DEVENV_RUN) uv run --extra docs make -C docs html
 
-docs-publish: docs-build ## Publish docs to static/docs for the /documentation app route
+docs-publish: docs-build ## Publish docs for the /documentation app route
 	cd "$(REPO_DIR)" && $(MKDIR_P) static/docs
 	cd "$(REPO_DIR)" && rsync -a --delete docs/_build/html/ static/docs/
+	cd "$(REPO_DIR)" && $(MKDIR_P) staticfiles/docs
+	cd "$(REPO_DIR)" && rsync -a --delete docs/_build/html/ staticfiles/docs/
 
 verify-vite-artifacts: check-repo check-tools frontend-build-force ## Fail if frontend build changes committed staticfiles artifacts
 	@set -e; \

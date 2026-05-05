@@ -14,8 +14,8 @@ const SAMPLING_STRATEGY_STORAGE_KEY = 'annotationQueue.samplingStrategy.v1'
 const PREDICTION_SEGMENTS_ONLY_STORAGE_KEY = 'annotationQueue.predictionSegmentsOnly.v1'
 const DEBUG_DUMMY_TASK_QUERY_KEY = 'ls_dummy_task'
 const DEBUG_DUMMY_TASK_GROUP_ID = '1'
-const DEFAULT_TARGET_LABEL_NAME = 'Target Label'
-const DEFAULT_INFORMATION_SOURCE = 'frame_annotation_frontend'
+const DEFAULT_TARGET_LABEL_NAME = ''
+const DEFAULT_INFORMATION_SOURCE = 'manual_annotation'
 const DEFAULT_SAMPLING_STRATEGY = 'balanced'
 
 export type AnnotationTaskMode = 'random' | 'filtered'
@@ -351,6 +351,7 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
   )
   const samplingStrategy = ref<AnnotationSamplingStrategy>(loadStoredSamplingStrategy())
   const predictionSegmentsOnly = ref<boolean>(loadStoredPredictionSegmentsOnly())
+  const annotatorPrincipal = ref<string | null>(null)
   const taskQueue = ref<AnnotationTask[]>([])
   const isInitialLoading = ref(false)
   const isPrefetching = ref(false)
@@ -367,7 +368,7 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
         predictionSegmentsOnly.value ? '1' : '0'
       }|${aiDatasetName.value ?? ''}|${
         aiDatasetType.value ?? ''
-      }`
+      }|${annotatorPrincipal.value ?? ''}`
   )
 
   watch(selectedLabelGroupId, (next) => {
@@ -433,6 +434,10 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
     aiDatasetType.value = datasetType?.trim() || null
   }
 
+  function setAnnotatorPrincipal(principal: string | null): void {
+    annotatorPrincipal.value = principal?.trim() || null
+  }
+
   async function hydrateAiDatasetDefaults(): Promise<void> {
     if (aiDatasetName.value !== null || aiDatasetType.value !== null) return
     try {
@@ -450,14 +455,22 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
     mode: AnnotationTaskMode
   ): Record<string, string | number> {
     const params: Record<string, string | number> = {
-      label_group_id: selectedLabelGroupId.value as string,
       limit: batchSize
     }
 
+    if (selectedLabelGroupId.value) {
+      params.label_group_id = selectedLabelGroupId.value
+    }
     params.task_mode = mode
-    params.target_label = targetLabelName.value
+    const targetLabel = targetLabelName.value.trim()
+    if (targetLabel) {
+      params.target_label = targetLabel
+    }
     params.information_source = informationSource.value
     params.information_source_name = informationSource.value
+    if (annotatorPrincipal.value) {
+      params.annotator = annotatorPrincipal.value
+    }
 
     if (mode === 'filtered' && filterLabelName.value) {
       params.filter_label = filterLabelName.value
@@ -490,8 +503,9 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
 
   async function fetchBatch(batchSize = 10): Promise<AnnotationTask[]> {
     if (!selectedLabelGroupId.value) {
-      if (!dummyTaskModeEnabled) return []
-      selectedLabelGroupId.value = DEBUG_DUMMY_TASK_GROUP_ID
+      if (dummyTaskModeEnabled) {
+        selectedLabelGroupId.value = DEBUG_DUMMY_TASK_GROUP_ID
+      }
     }
 
     lastError.value = null
@@ -542,7 +556,7 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
   }
 
   async function prefetchIfNeeded(): Promise<void> {
-    if (isPrefetching.value || !selectedLabelGroupId.value) return
+    if (isPrefetching.value) return
     if (taskQueue.value.length >= 3) return
 
     isPrefetching.value = true
@@ -564,7 +578,6 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
   }
 
   async function primeQueue(batchSize = 10): Promise<void> {
-    if (!selectedLabelGroupId.value) return
     isInitialLoading.value = true
     clearQueue()
     try {
@@ -585,6 +598,7 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
     predictionSegmentsOnly,
     aiDatasetName,
     aiDatasetType,
+    annotatorPrincipal,
     taskQuerySignature,
     taskQueue,
     isInitialLoading,
@@ -599,6 +613,7 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
     setSamplingStrategy,
     setPredictionSegmentsOnly,
     setAiDataset,
+    setAnnotatorPrincipal,
     hydrateAiDatasetDefaults,
     fetchBatch,
     prefetchIfNeeded,

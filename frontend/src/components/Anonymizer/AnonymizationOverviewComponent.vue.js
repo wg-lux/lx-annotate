@@ -316,8 +316,15 @@ const __VLS_ctx = {};
 let __VLS_components;
 let __VLS_directives;
 /** @type {__VLS_StyleScopedClasses['table']} */ ;
+/** @type {__VLS_StyleScopedClasses['overview-files-table']} */ ;
+/** @type {__VLS_StyleScopedClasses['overview-files-table']} */ ;
+/** @type {__VLS_StyleScopedClasses['sticky-filename-column']} */ ;
+/** @type {__VLS_StyleScopedClasses['overview-files-table']} */ ;
+/** @type {__VLS_StyleScopedClasses['sticky-filename-column']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-group-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['overview-files-table']} */ ;
+/** @type {__VLS_StyleScopedClasses['sticky-filename-column']} */ ;
 // CSS variable injection 
 // CSS variable injection end 
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -392,13 +399,15 @@ else {
         ...{ class: "table-responsive" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.table, __VLS_intrinsicElements.table)({
-        ...{ class: "table table-hover" },
+        ...{ class: "table table-hover overview-files-table" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.thead, __VLS_intrinsicElements.thead)({
         ...{ class: "table-light" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.tr, __VLS_intrinsicElements.tr)({});
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({
+        ...{ class: "sticky-filename-column" },
+    });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
     __VLS_asFunctionalElement(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
     __VLS_asFunctionalElement(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
@@ -411,7 +420,9 @@ else {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.tr, __VLS_intrinsicElements.tr)({
             key: (`${file.mediaType}-${file.id}`),
         });
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({
+            ...{ class: "sticky-filename-column" },
+        });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: "d-flex align-items-center" },
         });
@@ -421,7 +432,7 @@ else {
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
         __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-            ...{ class: "fw-medium" },
+            ...{ class: "fw-medium filename-text" },
         });
         (file.filename);
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -610,8 +621,10 @@ else {
                         return;
                     __VLS_ctx.deleteFile(file.id);
                 } },
+            'data-test': "delete-file-button",
             ...{ class: "btn btn-outline-danger" },
             disabled: (__VLS_ctx.isProcessing(file.id)),
+            'aria-label': (`Datei ${file.id} löschen`),
             title: "Datei permanent löschen",
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
@@ -772,11 +785,15 @@ if (__VLS_ctx.filteredOutCount > 0) {
 /** @type {__VLS_StyleScopedClasses['table-responsive']} */ ;
 /** @type {__VLS_StyleScopedClasses['table']} */ ;
 /** @type {__VLS_StyleScopedClasses['table-hover']} */ ;
+/** @type {__VLS_StyleScopedClasses['overview-files-table']} */ ;
 /** @type {__VLS_StyleScopedClasses['table-light']} */ ;
+/** @type {__VLS_StyleScopedClasses['sticky-filename-column']} */ ;
+/** @type {__VLS_StyleScopedClasses['sticky-filename-column']} */ ;
 /** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
 /** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['fw-medium']} */ ;
+/** @type {__VLS_StyleScopedClasses['filename-text']} */ ;
 /** @type {__VLS_StyleScopedClasses['small']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-1']} */ ;

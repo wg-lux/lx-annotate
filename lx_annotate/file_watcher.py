@@ -24,8 +24,9 @@ from watchdog.events import (
     DirMovedEvent,
 )
 from watchdog.observers import Observer
+from django.db.models import Q
 from django.db.models.fields.files import FieldFile
-from endoreg_db.models import Center, EndoscopyProcessor, VideoFile
+from endoreg_db.models import Center, EndoscopyProcessor, LabelVideoSegment, VideoFile
 from endoreg_db.services.environment_readiness import assert_environment_readiness
 from endoreg_db.services.hub.ingest import (
     process_preanonymized_watcher_file,
@@ -38,7 +39,6 @@ from endoreg_db.exceptions import InsufficientStorageError
 from endoreg_db.models.media.video.create_from_file import (
     check_storage_capacity,
 )
-
 
 LOG_DIR = path_utils.LOG_DIR
 LOG_DIR.mkdir(parents=True, exist_ok=True)
@@ -150,6 +150,78 @@ def managed_media_temp_path(
     """
     with ensure_local_file(field_file, suffix=suffix) as local_path:
         yield local_path
+
+
+def _has_prediction_segments(video_file: VideoFile) -> bool:
+    video_pk = getattr(video_file, "pk", None)
+    if video_pk is None:
+        return False
+
+    try:
+        return (
+            LabelVideoSegment.objects.filter(video_file=video_file)
+            .filter(Q(prediction_meta__isnull=False) | Q(source__name="prediction"))
+            .exists()
+        )
+    except Exception as exc:
+        logger.warning(
+            "Could not check prediction segments for video %s: %s",
+            getattr(video_file, "video_hash", video_pk),
+            exc,
+        )
+        return False
+
+
+def _prediction_sequences_have_ranges(video_file: VideoFile) -> bool | None:
+    sequences = getattr(video_file, "sequences", None)
+    if not isinstance(sequences, dict):
+        return None
+    return any(bool(sequence_list) for sequence_list in sequences.values())
+
+
+def _prediction_pipeline_complete(video_file: VideoFile) -> bool:
+    try:
+        state = getattr(video_file, "state", None)
+    except Exception:
+        state = None
+
+    if state is None:
+        get_state = getattr(video_file, "get_or_create_state", None)
+        if callable(get_state):
+            try:
+                state = get_state()
+            except Exception as exc:
+                logger.warning(
+                    "Could not resolve video state for %s: %s",
+                    getattr(video_file, "video_hash", "<unknown>"),
+                    exc,
+                )
+                return False
+
+    initial_prediction_completed = getattr(state, "initial_prediction_completed", False)
+    lvs_created = getattr(state, "lvs_created", False)
+    has_prediction_segments = _has_prediction_segments(video_file)
+
+    if not (initial_prediction_completed and lvs_created):
+        return False
+
+    if has_prediction_segments:
+        return True
+
+    has_prediction_ranges = _prediction_sequences_have_ranges(video_file)
+    if has_prediction_ranges is False:
+        logger.info(
+            "Video %s completed prediction with no segment ranges to materialize.",
+            getattr(video_file, "video_hash", getattr(video_file, "pk", "<unknown>")),
+        )
+        return True
+
+    logger.warning(
+        "Video %s has lvs_created=True but no prediction LabelVideoSegment rows. "
+        "Treating prediction pipeline as incomplete so pipe_1 can materialize rows for the KI segment view.",
+        getattr(video_file, "video_hash", getattr(video_file, "pk", "<unknown>")),
+    )
+    return False
 
 
 def _resolve_center_by_key(center_key: str) -> Center:
@@ -545,13 +617,18 @@ class AutoProcessingHandler(FileSystemEventHandler):
                 logger.error("Import failed for %s: %s", video_path, import_error)
                 self._unmark_processed(str(video_path))
                 return
-            if not video_path.exists():
-                logger.info(
-                    "Video %s was an idempotent duplicate. Bypassing AI pipeline.",
-                    video_hash,
-                )
-                return
             if video_file and getattr(video_file, "pk", None):
+                if not video_path.exists():
+                    if _prediction_pipeline_complete(video_file):
+                        logger.info(
+                            "Video %s already has completed prediction segments. Bypassing AI pipeline.",
+                            video_hash,
+                        )
+                        return
+                    logger.info(
+                        "Watcher source for video %s was cleaned up after ingest; continuing AI pipeline from managed media.",
+                        video_hash,
+                    )
                 try:
                     unload_ollama_model(model_name=self.default_model)
                     active_file = getattr(video_file, "active_raw_file", None)
@@ -570,9 +647,21 @@ class AutoProcessingHandler(FileSystemEventHandler):
                             model_name=self.default_model, delete_frames_after=True
                         )
                     if success:
-                        logger.info(
-                            "Video segmentation completed: %s", video_file.video_hash
-                        )
+                        if _has_prediction_segments(video_file):
+                            logger.info(
+                                "Video segmentation completed: %s",
+                                video_file.video_hash,
+                            )
+                        elif _prediction_sequences_have_ranges(video_file) is False:
+                            logger.warning(
+                                "Video segmentation completed without KI segments for %s because prediction returned no segment ranges.",
+                                video_file.video_hash,
+                            )
+                        else:
+                            logger.error(
+                                "Video segmentation reported success for %s but no prediction LabelVideoSegment rows exist for the KI segment view.",
+                                video_file.video_hash,
+                            )
                     else:
                         logger.error(
                             "Video segmentation failed: %s", video_file.video_hash

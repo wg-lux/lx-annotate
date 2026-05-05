@@ -69,6 +69,7 @@ function buildQueueStore() {
         filterLabelName: null,
         allowRandomFallback: true,
         informationSource: 'frame_annotation_frontend',
+        annotatorPrincipal: null,
         taskQueue: [],
         taskQuerySignature: 'random|Polyp||frame_annotation_frontend|1',
         setSelectedLabelGroupId: vi.fn(),
@@ -77,6 +78,7 @@ function buildQueueStore() {
         setFilterLabelName: vi.fn(),
         setAllowRandomFallback: vi.fn(),
         setInformationSource: vi.fn(),
+        setAnnotatorPrincipal: vi.fn(),
         clearQueue: vi.fn(),
         fetchBatch: vi.fn().mockResolvedValue(undefined),
         popNextTask: vi.fn(() => nextTasks.shift() ?? null)
@@ -85,12 +87,13 @@ function buildQueueStore() {
 describe('FrameAnnotation route', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        localStorage.clear();
         hoisted.queueStore = buildQueueStore();
         hoisted.get.mockResolvedValue({
             data: {
                 results: [
-                    { id: 3, name: 'Upper GI' },
-                    { id: 4, name: 'Lower GI' }
+                    { id: 3, name: 'Upper GI', version: 1, labelCount: 2 },
+                    { id: 4, name: 'Lower GI', version: 2, labelCount: 4 }
                 ]
             }
         });
@@ -99,7 +102,7 @@ describe('FrameAnnotation route', () => {
         hoisted.post.mockResolvedValue({ data: { ok: true } });
         const wrapper = mount(FrameAnnotation);
         await flushPromises();
-        expect(hoisted.get).toHaveBeenCalledWith('media/videos/labels/list/');
+        expect(hoisted.get).toHaveBeenCalledWith('media/videos/label-sets/list/');
         expect(hoisted.queueStore.fetchBatch).toHaveBeenCalledWith(10);
         expect(wrapper.text()).toContain('Frame #101');
         expect(wrapper.text()).toContain('Polyp');
@@ -142,6 +145,22 @@ describe('FrameAnnotation route', () => {
             frameId: 101,
             annotator: 'oidc:kc-user-7'
         });
+    });
+    it('restarts the frame annotation queue with an override annotator and can revert it', async () => {
+        const wrapper = mount(FrameAnnotation);
+        await flushPromises();
+        expect(hoisted.queueStore.setAnnotatorPrincipal).toHaveBeenLastCalledWith('oidc:kc-user-7');
+        await wrapper.get('[data-test="annotator-override-input"]').setValue('reviewer-two');
+        await wrapper.get('[data-test="annotator-override-apply"]').trigger('click');
+        await flushPromises();
+        expect(hoisted.queueStore.setAnnotatorPrincipal).toHaveBeenLastCalledWith('reviewer-two');
+        expect(hoisted.queueStore.clearQueue).toHaveBeenCalled();
+        expect(hoisted.queueStore.fetchBatch).toHaveBeenCalledTimes(2);
+        expect(wrapper.text()).toContain('Aktiver Annotator: reviewer-two (Override)');
+        await wrapper.get('[data-test="annotator-override-revert"]').trigger('click');
+        await flushPromises();
+        expect(hoisted.queueStore.setAnnotatorPrincipal).toHaveBeenLastCalledWith('oidc:kc-user-7');
+        expect(wrapper.text()).toContain('Aktiver Annotator: oidc:kc-user-7');
     });
     it('supports negative quick example action for the target label', async () => {
         hoisted.post.mockResolvedValue({ data: { ok: true } });

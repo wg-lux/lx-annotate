@@ -13,8 +13,8 @@ const SAMPLING_STRATEGY_STORAGE_KEY = 'annotationQueue.samplingStrategy.v1';
 const PREDICTION_SEGMENTS_ONLY_STORAGE_KEY = 'annotationQueue.predictionSegmentsOnly.v1';
 const DEBUG_DUMMY_TASK_QUERY_KEY = 'ls_dummy_task';
 const DEBUG_DUMMY_TASK_GROUP_ID = '1';
-const DEFAULT_TARGET_LABEL_NAME = 'Target Label';
-const DEFAULT_INFORMATION_SOURCE = 'frame_annotation_frontend';
+const DEFAULT_TARGET_LABEL_NAME = '';
+const DEFAULT_INFORMATION_SOURCE = 'manual_annotation';
 const DEFAULT_SAMPLING_STRATEGY = 'balanced';
 function loadStoredGroupId() {
     try {
@@ -294,13 +294,14 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
     const informationSource = ref(loadStoredText(INFORMATION_SOURCE_STORAGE_KEY) ?? DEFAULT_INFORMATION_SOURCE);
     const samplingStrategy = ref(loadStoredSamplingStrategy());
     const predictionSegmentsOnly = ref(loadStoredPredictionSegmentsOnly());
+    const annotatorPrincipal = ref(null);
     const taskQueue = ref([]);
     const isInitialLoading = ref(false);
     const isPrefetching = ref(false);
     const lastError = ref(null);
     const aiDatasetName = ref(null);
     const aiDatasetType = ref(null);
-    const taskQuerySignature = computed(() => `${taskMode.value}|${targetLabelName.value}|${filterLabelName.value ?? ''}|${informationSource.value}|${allowRandomFallback.value ? '1' : '0'}|${samplingStrategy.value}|${predictionSegmentsOnly.value ? '1' : '0'}|${aiDatasetName.value ?? ''}|${aiDatasetType.value ?? ''}`);
+    const taskQuerySignature = computed(() => `${taskMode.value}|${targetLabelName.value}|${filterLabelName.value ?? ''}|${informationSource.value}|${allowRandomFallback.value ? '1' : '0'}|${samplingStrategy.value}|${predictionSegmentsOnly.value ? '1' : '0'}|${aiDatasetName.value ?? ''}|${aiDatasetType.value ?? ''}|${annotatorPrincipal.value ?? ''}`);
     watch(selectedLabelGroupId, (next) => {
         persistGroupId(next);
     });
@@ -354,6 +355,9 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
         aiDatasetName.value = datasetName?.trim() || null;
         aiDatasetType.value = datasetType?.trim() || null;
     }
+    function setAnnotatorPrincipal(principal) {
+        annotatorPrincipal.value = principal?.trim() || null;
+    }
     async function hydrateAiDatasetDefaults() {
         if (aiDatasetName.value !== null || aiDatasetType.value !== null)
             return;
@@ -369,13 +373,21 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
     }
     function buildTaskRequestParams(batchSize, mode) {
         const params = {
-            label_group_id: selectedLabelGroupId.value,
             limit: batchSize
         };
+        if (selectedLabelGroupId.value) {
+            params.label_group_id = selectedLabelGroupId.value;
+        }
         params.task_mode = mode;
-        params.target_label = targetLabelName.value;
+        const targetLabel = targetLabelName.value.trim();
+        if (targetLabel) {
+            params.target_label = targetLabel;
+        }
         params.information_source = informationSource.value;
         params.information_source_name = informationSource.value;
+        if (annotatorPrincipal.value) {
+            params.annotator = annotatorPrincipal.value;
+        }
         if (mode === 'filtered' && filterLabelName.value) {
             params.filter_label = filterLabelName.value;
             params.previous_label = filterLabelName.value;
@@ -400,9 +412,9 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
     }
     async function fetchBatch(batchSize = 10) {
         if (!selectedLabelGroupId.value) {
-            if (!dummyTaskModeEnabled)
-                return [];
-            selectedLabelGroupId.value = DEBUG_DUMMY_TASK_GROUP_ID;
+            if (dummyTaskModeEnabled) {
+                selectedLabelGroupId.value = DEBUG_DUMMY_TASK_GROUP_ID;
+            }
         }
         lastError.value = null;
         try {
@@ -448,7 +460,7 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
         }
     }
     async function prefetchIfNeeded() {
-        if (isPrefetching.value || !selectedLabelGroupId.value)
+        if (isPrefetching.value)
             return;
         if (taskQueue.value.length >= 3)
             return;
@@ -469,8 +481,6 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
         taskQueue.value = [];
     }
     async function primeQueue(batchSize = 10) {
-        if (!selectedLabelGroupId.value)
-            return;
         isInitialLoading.value = true;
         clearQueue();
         try {
@@ -491,6 +501,7 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
         predictionSegmentsOnly,
         aiDatasetName,
         aiDatasetType,
+        annotatorPrincipal,
         taskQuerySignature,
         taskQueue,
         isInitialLoading,
@@ -505,6 +516,7 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
         setSamplingStrategy,
         setPredictionSegmentsOnly,
         setAiDataset,
+        setAnnotatorPrincipal,
         hydrateAiDatasetDefaults,
         fetchBatch,
         prefetchIfNeeded,

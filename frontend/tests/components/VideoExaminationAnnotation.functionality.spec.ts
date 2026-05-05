@@ -106,6 +106,15 @@ vi.mock('@/stores/toastStore', () => ({
   useToastStore: () => testState.toastStore
 }))
 
+vi.mock('@/stores/auth_kc', () => ({
+  useAuthKcStore: () => ({
+    user: {
+      sub: 'kc-user-7',
+      username: 'annotator'
+    }
+  })
+}))
+
 import VideoExaminationAnnotation from '@/components/VideoExamination/VideoExaminationAnnotation.vue'
 
 const videos = [
@@ -182,6 +191,8 @@ async function settle() {
 
 describe('VideoExaminationAnnotation functionality', () => {
   beforeEach(() => {
+    localStorage.clear()
+    vi.stubGlobal('confirm', vi.fn(() => true))
     testState.route.query.video = null
     testState.router.replace.mockReset()
     testState.router.push.mockReset()
@@ -276,6 +287,52 @@ describe('VideoExaminationAnnotation functionality', () => {
 
     expect(saveButton?.attributes('disabled')).toBeDefined()
     expect(discardButton?.attributes('disabled')).toBeDefined()
+
+    wrapper.unmount()
+  })
+
+  it('lets a different annotator restart a validated video and submit under that scope', async () => {
+    testState.route.query.video = '2'
+    testState.axiosPost.mockResolvedValue({
+      data: {
+        updatedCount: 1,
+        totalSegments: 1
+      }
+    })
+
+    const wrapper = mountComponent()
+    await settle()
+
+    await wrapper.get('[data-test="video-annotator-override-input"]').setValue('reviewer-two')
+    await wrapper.get('[data-test="video-annotator-override-apply"]').trigger('click')
+    await settle()
+
+    const timeline = wrapper.findComponent({ name: 'Timeline' })
+    expect(timeline.props('selectionMode')).toBe(true)
+    expect(wrapper.text()).toContain('Aktiver Annotator: reviewer-two (Override)')
+
+    const validateButton = wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('Annotation validieren'))
+    expect(validateButton?.attributes('disabled')).toBeUndefined()
+
+    await validateButton!.trigger('click')
+    await settle()
+
+    expect(testState.axiosPost).toHaveBeenCalledWith('/api/media/videos/2/segments/validate-bulk/', {
+      segmentIds: [11],
+      segments: [{ id: 11, start_time: 4, end_time: 12 }],
+      isValidated: true,
+      notes: expect.stringContaining('Vollständige Video-Review abgeschlossen am'),
+      informationSourceName: 'manual_annotation',
+      annotator: 'reviewer-two'
+    })
+
+    await wrapper.get('[data-test="video-annotator-override-revert"]').trigger('click')
+    await settle()
+
+    expect(wrapper.findComponent({ name: 'Timeline' }).props('selectionMode')).toBe(false)
+    expect(wrapper.text()).toContain('Aktiver Annotator: oidc:kc-user-7')
 
     wrapper.unmount()
   })

@@ -292,11 +292,11 @@ Vite manifest must exist at:
 <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">package</span></code></p></li>
 </ol>
 <p><code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">package</span></code> forces a frontend rebuild, checks that committed frontend artifacts
-did not drift, publishes Sphinx HTML into <code class="docutils literal notranslate"><span class="pre">static/docs</span></code>, and then fails if
-<code class="docutils literal notranslate"><span class="pre">staticfiles/.vite/manifest.json</span></code> is empty, invalid JSON, missing the
-<code class="docutils literal notranslate"><span class="pre">src/main.ts</span></code> entry, or points at a missing asset. This prevents stale or
-broken frontend artifacts from reaching wheel or sdist packaging and ensures the
-frontend <code class="docutils literal notranslate"><span class="pre">/documentation</span></code> page can load the packaged docs bundle.</p>
+did not drift, publishes Sphinx HTML into <code class="docutils literal notranslate"><span class="pre">static/docs</span></code> and <code class="docutils literal notranslate"><span class="pre">staticfiles/docs</span></code>,
+and then fails if <code class="docutils literal notranslate"><span class="pre">staticfiles/.vite/manifest.json</span></code> is empty, invalid JSON,
+missing the <code class="docutils literal notranslate"><span class="pre">src/main.ts</span></code> entry, or points at a missing asset. This prevents
+stale or broken frontend artifacts from reaching wheel or sdist packaging and
+ensures the frontend <code class="docutils literal notranslate"><span class="pre">/documentation</span></code> page can load the packaged docs bundle.</p>
 </section>
 <section id="why-emptyoutdir-is-disabled">
 <h2>Why <code class="docutils literal notranslate"><span class="pre">emptyOutDir</span></code> Is Disabled<a class="headerlink" href="#why-emptyoutdir-is-disabled" title="Link to this heading">¶</a></h2>
@@ -397,7 +397,7 @@ includes.</p>
       
     </aside>
   </div>
-</div><script src="../_static/documentation_options.js?v=ff822928"></script>
+</div><script src="../_static/documentation_options.js?v=90733dfc"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/furo.js?v=46bd48cc"></script>

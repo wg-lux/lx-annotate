@@ -98,6 +98,57 @@ The backend views and urls are located inside:
 - `/home/admin/dev/lx-annotate/.devenv/state/venv/lib/python3.12/site-packages/endoreg_db`
 - `/home/admin/dev/lx-annotate/lx-data-models`
 
+## Video Status Terminology For Frontend Agents
+
+Do not conflate anonymization validation with segment annotation validation.
+They are different workflow gates and must be displayed separately.
+
+- `overview[].anonymizationStatus` belongs to the anonymization pipeline.
+  `done_processing_anonymization` means processed media exists but still needs
+  anonymization validation. `validated` means anonymization was accepted and the
+  processed video may be used downstream.
+- `videoList.videos[].segmentAnnotationsValidated` means segment review for the
+  video is complete. In `VideoExaminationAnnotation`, this should make segment
+  editing read-only unless an explicit edit override is active.
+- `overview[].annotationStatus` can describe overview/workflow state, but the
+  VideoExamination annotation UI should prefer `segmentAnnotationsValidated`
+  from the video list when deciding whether segment editing is allowed.
+- The `VideoExaminationAnnotation` dropdown should keep anonymized and already
+  segment-validated videos selectable for viewing. It should only filter out
+  videos whose anonymization is not usable yet.
+- Dropdown labels/colors should distinguish at least these states:
+  pending anonymization validation, ready for segment annotation, and segment
+  annotation already validated. A segment-validated video must not be shown as
+  green "ready for processing".
+
+## Annotation Restart And Prediction Segment Notes
+
+- Frame annotation and video segment validation can deliberately write under an
+  explicit `annotator` principal. Frontend overrides must be scoped to the
+  current base user and annotation target, and must be reversible back to the
+  authenticated user.
+- Frame annotation task loading must send the active annotator as well as
+  submit/skip actions; otherwise another user's restart still consumes the
+  original user's lock/exclusion scope.
+- Video segment validation creates frame-level annotations from segments. When
+  restarting under another annotator, the validation payload must include
+  `annotator` so generated `ImageClassificationAnnotation` rows are scoped to
+  that annotator.
+- The video dropdown can show `validated_annotators` from the backend. Keep it
+  as a hint that another annotator already has a validated annotation track;
+  do not use it as the sole source of whether editing is locked.
+- The `VideoExaminationAnnotation` KI/prediction segment view is fed by
+  `LabelVideoSegment` rows marked with `prediction_meta` or source
+  `prediction`; the frontend loads them through `source_kind=prediction`.
+- Watcher ingest may delete the watched source file as part of successful
+  upload-job cleanup. That must not be treated as proof that prediction
+  segments already exist; `pipe_1` still needs to run unless the video state and
+  prediction-segment rows show the prediction pipeline is complete.
+- `VideoState.lvs_created` is not enough by itself when prediction returned
+  segment ranges. `pipe_1` must materialize `LabelVideoSegment` rows marked with
+  `prediction_meta` or source `prediction`, otherwise the
+  `VideoExaminationAnnotation` KI segment view has nothing to load.
+
 ## Lookup Contract Guide For Frontend Agents
 
 ### Purpose

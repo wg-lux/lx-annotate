@@ -41,6 +41,7 @@ export declare const useAnnotationQueueStore: import("pinia").StoreDefinition<"a
     predictionSegmentsOnly: import("vue").Ref<boolean, boolean>;
     aiDatasetName: import("vue").Ref<string | null, string | null>;
     aiDatasetType: import("vue").Ref<string | null, string | null>;
+    annotatorPrincipal: import("vue").Ref<string | null, string | null>;
     taskQuerySignature: import("vue").ComputedRef<string>;
     taskQueue: import("vue").Ref<{
         id: string;
@@ -113,13 +114,14 @@ export declare const useAnnotationQueueStore: import("pinia").StoreDefinition<"a
     setSamplingStrategy: (strategy: string | null) => void;
     setPredictionSegmentsOnly: (enabled: boolean) => void;
     setAiDataset: (datasetName: string | null, datasetType: string | null) => void;
+    setAnnotatorPrincipal: (principal: string | null) => void;
     hydrateAiDatasetDefaults: () => Promise<void>;
     fetchBatch: (batchSize?: number) => Promise<AnnotationTask[]>;
     prefetchIfNeeded: () => Promise<void>;
     popNextTask: () => AnnotationTask | undefined;
     clearQueue: () => void;
     primeQueue: (batchSize?: number) => Promise<void>;
-}, "informationSource" | "selectedLabelGroupId" | "taskMode" | "targetLabelName" | "filterLabelName" | "allowRandomFallback" | "samplingStrategy" | "predictionSegmentsOnly" | "aiDatasetName" | "aiDatasetType" | "taskQueue" | "isInitialLoading" | "isPrefetching" | "lastError">, Pick<{
+}, "informationSource" | "selectedLabelGroupId" | "taskMode" | "targetLabelName" | "filterLabelName" | "allowRandomFallback" | "samplingStrategy" | "predictionSegmentsOnly" | "aiDatasetName" | "aiDatasetType" | "annotatorPrincipal" | "taskQueue" | "isInitialLoading" | "isPrefetching" | "lastError">, Pick<{
     selectedLabelGroupId: import("vue").Ref<string | null, string | null>;
     taskMode: import("vue").Ref<AnnotationTaskMode, AnnotationTaskMode>;
     targetLabelName: import("vue").Ref<string, string>;
@@ -130,6 +132,7 @@ export declare const useAnnotationQueueStore: import("pinia").StoreDefinition<"a
     predictionSegmentsOnly: import("vue").Ref<boolean, boolean>;
     aiDatasetName: import("vue").Ref<string | null, string | null>;
     aiDatasetType: import("vue").Ref<string | null, string | null>;
+    annotatorPrincipal: import("vue").Ref<string | null, string | null>;
     taskQuerySignature: import("vue").ComputedRef<string>;
     taskQueue: import("vue").Ref<{
         id: string;
@@ -202,6 +205,7 @@ export declare const useAnnotationQueueStore: import("pinia").StoreDefinition<"a
     setSamplingStrategy: (strategy: string | null) => void;
     setPredictionSegmentsOnly: (enabled: boolean) => void;
     setAiDataset: (datasetName: string | null, datasetType: string | null) => void;
+    setAnnotatorPrincipal: (principal: string | null) => void;
     hydrateAiDatasetDefaults: () => Promise<void>;
     fetchBatch: (batchSize?: number) => Promise<AnnotationTask[]>;
     prefetchIfNeeded: () => Promise<void>;
@@ -219,6 +223,7 @@ export declare const useAnnotationQueueStore: import("pinia").StoreDefinition<"a
     predictionSegmentsOnly: import("vue").Ref<boolean, boolean>;
     aiDatasetName: import("vue").Ref<string | null, string | null>;
     aiDatasetType: import("vue").Ref<string | null, string | null>;
+    annotatorPrincipal: import("vue").Ref<string | null, string | null>;
     taskQuerySignature: import("vue").ComputedRef<string>;
     taskQueue: import("vue").Ref<{
         id: string;
@@ -291,10 +296,11 @@ export declare const useAnnotationQueueStore: import("pinia").StoreDefinition<"a
     setSamplingStrategy: (strategy: string | null) => void;
     setPredictionSegmentsOnly: (enabled: boolean) => void;
     setAiDataset: (datasetName: string | null, datasetType: string | null) => void;
+    setAnnotatorPrincipal: (principal: string | null) => void;
     hydrateAiDatasetDefaults: () => Promise<void>;
     fetchBatch: (batchSize?: number) => Promise<AnnotationTask[]>;
     prefetchIfNeeded: () => Promise<void>;
     popNextTask: () => AnnotationTask | undefined;
     clearQueue: () => void;
     primeQueue: (batchSize?: number) => Promise<void>;
-}, "setSelectedLabelGroupId" | "setTaskMode" | "setTargetLabelName" | "setFilterLabelName" | "setAllowRandomFallback" | "setInformationSource" | "setSamplingStrategy" | "setPredictionSegmentsOnly" | "setAiDataset" | "hydrateAiDatasetDefaults" | "fetchBatch" | "prefetchIfNeeded" | "popNextTask" | "clearQueue" | "primeQueue">>;
+}, "setSelectedLabelGroupId" | "setTaskMode" | "setTargetLabelName" | "setFilterLabelName" | "setAllowRandomFallback" | "setInformationSource" | "setSamplingStrategy" | "setPredictionSegmentsOnly" | "setAiDataset" | "setAnnotatorPrincipal" | "hydrateAiDatasetDefaults" | "fetchBatch" | "prefetchIfNeeded" | "popNextTask" | "clearQueue" | "primeQueue">>;
