@@ -126,6 +126,9 @@ export const useVideoStore = defineStore('video', () => {
     const videoUrl = ref('');
     const segmentsByLabel = reactive({ ...defaultSegments });
     const videoList = ref({ videos: [], labels: [] });
+    const predictionModels = ref([]);
+    const defaultHuggingfaceModelId = ref('wg-lux/colo_segmentation_RegNetX800MF_base');
+    const defaultPredictionLabelsetName = ref('multilabel_classification_colonoscopy_default');
     const videoMeta = ref(null);
     const resolvedVideoFps = ref(null);
     const activeSegmentId = ref(null);
@@ -229,7 +232,7 @@ export const useVideoStore = defineStore('video', () => {
                 endTime: draftSegment.value.endTime || draftSegment.value.startTime,
                 avgConfidence: 0,
                 labelID: labelIdMap.value[draftSegment.value.label] ?? null,
-                isDraft: true,
+                isDraft: true
             };
             segments.push(draft);
         }
@@ -482,7 +485,7 @@ export const useVideoStore = defineStore('video', () => {
             const processedLabels = response.data.map((label) => ({
                 id: Number(label.id),
                 name: String(label.name),
-                color: label.color || getColorForLabel(label.name),
+                color: label.color || getColorForLabel(label.name)
             }));
             videoList.value.labels = processedLabels;
             console.log(`✅ [VideoStore] Loaded ${processedLabels.length} labels`);
@@ -493,6 +496,20 @@ export const useVideoStore = defineStore('video', () => {
             videoList.value.labels = [];
             throw error;
         }
+    }
+    async function fetchPredictionModels() {
+        const response = await axiosInstance.get(r(endpoints.media.videoPredictionModelsList));
+        predictionModels.value = response.data.models || [];
+        defaultHuggingfaceModelId.value =
+            response.data.defaultHuggingfaceModelId || defaultHuggingfaceModelId.value;
+        defaultPredictionLabelsetName.value =
+            response.data.defaultLabelsetName || defaultPredictionLabelsetName.value;
+        return predictionModels.value;
+    }
+    async function rerunPredictionSegments(videoId, payload) {
+        const response = await axiosInstance.post(r(endpoints.media.videoSegmentsRerunPredictions(videoId)), payload);
+        await fetchAllSegments(videoId, true, { sourceKind: 'prediction' });
+        return response.data;
     }
     async function fetchAllVideos() {
         console.log('Fetching all videos...');
@@ -511,9 +528,7 @@ export const useVideoStore = defineStore('video', () => {
             // Process videos with enhanced metadata
             const processedVideos = rawVideos.map((video) => {
                 const videoId = Number(video.id);
-                const rawSegments = Array.isArray(video.segments)
-                    ? video.segments
-                    : [];
+                const rawSegments = Array.isArray(video.segments) ? video.segments : [];
                 const segments = rawSegments.map((backendSeg) => ensureLabelId(backendSegmentToSegment({ ...backendSeg, videoId })));
                 return {
                     id: videoId,
@@ -654,7 +669,7 @@ export const useVideoStore = defineStore('video', () => {
                 id: Number(meta.id ?? id),
                 original_file_name: String(meta.original_file_name ?? meta.originalFileName ?? ''),
                 status: String(meta.status ?? 'available'),
-                assignedUser: meta.assignedUser === "BLANK" ? null : meta.assignedUser,
+                assignedUser: meta.assignedUser === 'BLANK' ? null : meta.assignedUser,
                 anonymized: Boolean(meta.anonymized ?? false),
                 duration: meta.duration !== undefined ? Number(meta.duration) : undefined,
                 fps: meta.fps !== undefined ? Number(meta.fps) : undefined,
@@ -736,7 +751,7 @@ export const useVideoStore = defineStore('video', () => {
         try {
             const response = await axiosInstance.get(r(endpoints.media.videoSegments(id)), {
                 headers: { Accept: 'application/json' },
-                params: { label }, // backend expects ?label=<label_name>
+                params: { label } // backend expects ?label=<label_name>
             });
             const rawSegments = normalizeSegmentList(response.data);
             const segmentsForLabel = rawSegments.map((backendSeg) => ensureLabelId(backendSegmentToSegment(backendSeg)));
@@ -847,7 +862,8 @@ export const useVideoStore = defineStore('video', () => {
                     }
                 ]
             });
-            const created = response.created.find((item) => (item.clientId ?? item.client_id) === tempSegment?.id) ?? response.created[0];
+            const created = response.created.find((item) => (item.clientId ?? item.client_id) === tempSegment?.id) ??
+                response.created[0];
             if (!created?.segment) {
                 throw new Error('Backend returned no segment for created timeline item');
             }
@@ -895,7 +911,7 @@ export const useVideoStore = defineStore('video', () => {
             console.error('[VideoStore] Cannot infer segment times for update', segmentId);
             return null;
         }
-        return createSegmentUpdatePayload(segmentId, (updates.startTime ?? updates.start_time) ?? fallbackStart, (updates.endTime ?? updates.end_time) ?? fallbackEnd, updates);
+        return createSegmentUpdatePayload(segmentId, updates.startTime ?? updates.start_time ?? fallbackStart, updates.endTime ?? updates.end_time ?? fallbackEnd, updates);
     }
     function shouldRetrySegmentUpdate(error) {
         const status = error.response?.status;
@@ -962,7 +978,9 @@ export const useVideoStore = defineStore('video', () => {
             }
             else {
                 console.error('[VideoStore] Segment update failed after retries:', axiosError.response?.data || axiosError.message);
-                getToastStore().error({ text: 'Segment konnte nicht gespeichert werden. Bitte erneut speichern.' });
+                getToastStore().error({
+                    text: 'Segment konnte nicht gespeichert werden. Bitte erneut speichern.'
+                });
             }
         }
         finally {
@@ -1183,7 +1201,7 @@ export const useVideoStore = defineStore('video', () => {
         if (!currentVideo.value?.id)
             return;
         // Filter for segments that have been moved/resized locally
-        const dirtySegments = allSegments.value.filter(s => s.isDirty && !s.isDraft && s.id > 0);
+        const dirtySegments = allSegments.value.filter((s) => s.isDirty && !s.isDraft && s.id > 0);
         if (dirtySegments.length === 0) {
             console.log('[VideoStore] No dirty segments to persist.');
             return;
@@ -1191,8 +1209,7 @@ export const useVideoStore = defineStore('video', () => {
         console.log(`[VideoStore] Persisting ${dirtySegments.length} dirty segments...`);
         try {
             const videoId = currentVideo.value.id;
-            const updates = dirtySegments
-                .map((segment) => {
+            const updates = dirtySegments.map((segment) => {
                 const extra = {
                     export_segment: segment.exportSegment
                 };
@@ -1221,7 +1238,9 @@ export const useVideoStore = defineStore('video', () => {
                 getToastStore().success({ text: 'Alle Änderungen gespeichert' });
             }
             else if (successCount > 0) {
-                getToastStore().warning({ text: `${successCount} von ${dirtySegments.length} Segmenten gespeichert` });
+                getToastStore().warning({
+                    text: `${successCount} von ${dirtySegments.length} Segmenten gespeichert`
+                });
             }
             else {
                 getToastStore().error({ text: 'Speichern fehlgeschlagen' });
@@ -1368,6 +1387,9 @@ export const useVideoStore = defineStore('video', () => {
         hasVideo,
         segments,
         labels,
+        predictionModels: readonly(predictionModels),
+        defaultHuggingfaceModelId: readonly(defaultHuggingfaceModelId),
+        defaultPredictionLabelsetName: readonly(defaultPredictionLabelsetName),
         videoStreamUrl,
         timelineSegments,
         hasRawVideoFile: readonly(hasRawVideoFile),
@@ -1383,6 +1405,8 @@ export const useVideoStore = defineStore('video', () => {
         fetchAllSegments,
         fetchAllVideos,
         fetchLabels, // Priority label fetching
+        fetchPredictionModels,
+        rerunPredictionSegments,
         fetchVideoSegments,
         fetchSegmentsByLabel,
         createSegment,

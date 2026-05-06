@@ -101,7 +101,7 @@ The file watcher ingests media placed in:
 ```bash
 ./scripts/start_filewatcher.sh dev
 # or
-python manage.py start_filewatcher
+python manage.py run_filewatcher
 ```
 
 ## Ingress Modes

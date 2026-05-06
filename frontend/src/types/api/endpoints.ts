@@ -43,8 +43,7 @@ export const endpoints = {
   examination: {
     examinationFindings: (examinationId: Id) => `examinations/${examinationId}/findings/`,
     findingClassifications: (findingId: Id) => `findings/${findingId}/classifications/`,
-    classificationChoices: (classificationId: Id) =>
-      `classifications/${classificationId}/choices/`,
+    classificationChoices: (classificationId: Id) => `classifications/${classificationId}/choices/`,
 
     patientExaminationCreate: 'patient-examinations/create/',
     patientExaminationDetail: (id: Id) => `patient-examinations/${id}/`,
@@ -134,6 +133,7 @@ export const endpoints = {
     videoRemoveFrames: (pk: Id) => `media/videos/${pk}/remove-frames/`,
     videoLabelsList: 'media/videos/labels/list/',
     videoLabelSetsList: 'media/videos/label-sets/list/',
+    videoPredictionModelsList: 'media/videos/prediction-models/list/',
 
     segmentsCollection: 'media/videos/segments/',
     segmentsStats: 'media/videos/segments/stats/',
@@ -141,14 +141,14 @@ export const endpoints = {
     videoSegmentsBulkMutation: (pk: Id) => `media/videos/${pk}/segments/bulk/`,
     videoSegmentDetail: (pk: Id, segmentId: Id) => `media/videos/${pk}/segments/${segmentId}/`,
     videoSegmentsImportPredictions: (pk: Id) => `media/videos/${pk}/segments/import-predictions/`,
+    videoSegmentsRerunPredictions: (pk: Id) => `media/videos/${pk}/segments/rerun-predictions/`,
     videoSegmentValidate: (pk: Id, segmentId: Id) =>
       `media/videos/${pk}/segments/${segmentId}/validate/`,
     videoSegmentsValidateBulk: (pk: Id) => `media/videos/${pk}/segments/validate-bulk/`,
-    videoSegmentsValidationStatus: (pk: Id) =>
-      `media/videos/${pk}/segments/validation-status/`,
+    videoSegmentsValidationStatus: (pk: Id) => `media/videos/${pk}/segments/validation-status/`,
+    videoSegmentsBlackenOutside: (pk: Id) => `media/videos/${pk}/segments/blacken-outside/`,
 
-    ensureSegmentAnnotationsForVideo: (pk: Id) =>
-      `media/videos/${pk}/ensure-segment-annotations/`,
+    ensureSegmentAnnotationsForVideo: (pk: Id) => `media/videos/${pk}/ensure-segment-annotations/`,
     ensureSegmentAnnotationsBulk: 'media/videos/ensure-segment-annotations/',
 
     videoSensitiveMetadata: (pk: Id) => `media/videos/${pk}/sensitive-metadata/`,

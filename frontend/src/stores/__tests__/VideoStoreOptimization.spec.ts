@@ -133,4 +133,101 @@ describe('VideoStore Performance Optimization', () => {
     )
     expect(store.currentVideo?.segments?.[0]?.segmentOrigin).toBe('prediction')
   })
+
+  it('loads prediction model options for KI reruns', async () => {
+    const store = useVideoStore()
+    const axiosGet = axiosInstance.get as unknown as ReturnType<typeof vi.fn>
+
+    axiosGet.mockResolvedValueOnce({
+      data: {
+        models: [
+          {
+            id: 7,
+            name: 'segmentation-meta',
+            version: '3',
+            modelName: 'segmentation-model',
+            aiModelId: 5,
+            labelsetName: 'colon-labels',
+            labelsetVersion: 1,
+            labelsetId: 9,
+            weightsAvailable: true,
+            isActive: true
+          }
+        ],
+        defaultHuggingfaceModelId: 'wg-lux/custom-segmentation',
+        defaultModelName: 'segmentation-model',
+        defaultLabelsetName: 'colon-labels',
+        huggingfaceModels: []
+      }
+    })
+
+    const models = await store.fetchPredictionModels()
+
+    expect(axiosGet).toHaveBeenCalledWith('media/videos/prediction-models/list/')
+    expect(models).toHaveLength(1)
+    expect(store.predictionModels[0]?.id).toBe(7)
+    expect(store.defaultHuggingfaceModelId).toBe('wg-lux/custom-segmentation')
+    expect(store.defaultPredictionLabelsetName).toBe('colon-labels')
+  })
+
+  it('reruns prediction segments and reloads prediction source rows', async () => {
+    const store = useVideoStore()
+    const axiosGet = axiosInstance.get as unknown as ReturnType<typeof vi.fn>
+    const axiosPost = axiosInstance.post as unknown as ReturnType<typeof vi.fn>
+    const payload = {
+      hfModelId: 'wg-lux/custom-segmentation',
+      labelsetName: 'colon-labels',
+      replacePredictionSegments: true
+    }
+
+    axiosPost.mockResolvedValueOnce({
+      data: {
+        success: true,
+        videoId: 101,
+        modelMeta: {
+          id: 7,
+          name: 'segmentation-meta',
+          version: '3',
+          modelName: 'segmentation-model',
+          aiModelId: 5,
+          labelsetName: 'colon-labels',
+          labelsetVersion: 1,
+          labelsetId: 9,
+          weightsAvailable: true,
+          isActive: true
+        },
+        deletedPredictionSegments: 2,
+        predictionSegmentsCount: 1
+      }
+    })
+    axiosGet.mockResolvedValueOnce({
+      data: [
+        {
+          id: 501,
+          labelName: 'outside',
+          startTime: 3,
+          endTime: 8,
+          startFrameNumber: 75,
+          endFrameNumber: 200,
+          source_name: 'prediction',
+          segment_origin: 'prediction',
+          prediction_meta_id: 7
+        }
+      ]
+    })
+
+    store.setCurrentVideo(101)
+    const response = await store.rerunPredictionSegments(101, payload)
+
+    expect(axiosPost).toHaveBeenCalledWith('media/videos/101/segments/rerun-predictions/', payload)
+    expect(axiosGet).toHaveBeenCalledWith(
+      'media/videos/101/segments/',
+      expect.objectContaining({
+        params: { source_kind: 'prediction' }
+      })
+    )
+    expect(response.predictionSegmentsCount).toBe(1)
+    expect(store.currentVideo?.segments?.[0]?.predictionMetaId).toBe(7)
+    expect(store.currentVideo?.segments?.[0]?.segmentOrigin).toBe('prediction')
+  })
 })

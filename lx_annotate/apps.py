@@ -68,7 +68,7 @@ class LxAnnotateConfig(AppConfig):
                 from django.core.management import call_command
 
                 print("📁 Starting file watcher service...")
-                call_command("start_filewatcher", log_level="INFO")
+                call_command("run_filewatcher", log_level="INFO")
             except Exception as e:
                 print(f"⚠️ Failed to start file watcher: {e}")
                 return False

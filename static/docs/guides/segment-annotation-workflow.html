@@ -3,7 +3,7 @@
   <head><meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="index" title="Index" href="../genindex.html"><link rel="search" title="Search" href="../search.html"><link rel="next" title="Anonymization Validation and Correction Workflow" href="anonymization-validation-correction-workflow.html"><link rel="prev" title="Reporting Template &amp; Requirement Sets Page (TemplateRequirementsPage)" href="../assisted-reporting-report.html">
+<link rel="index" title="Index" href="../genindex.html"><link rel="search" title="Search" href="../search.html"><link rel="next" title="Anonymization Validation and Correction Workflow" href="anonymization-validation-correction-workflow.html"><link rel="prev" title="AI Training Data Export" href="ai-training-data-export.html">
 
     <!-- Generated with Sphinx 8.2.3 and Furo 2025.12.19 -->
         <title>Segment Annotation Workflow - lx-annotate Documentation</title>
@@ -196,21 +196,19 @@
 <li class="toctree-l1"><a class="reference internal" href="general-documentation.html">General Documentation Guide</a></li>
 <li class="toctree-l1"><a class="reference internal" href="deployment-strategy.html">Deployment Strategy</a></li>
 <li class="toctree-l1"><a class="reference internal" href="encrypted-storage-process.html">Encrypted Storage Process</a></li>
+<li class="toctree-l1"><a class="reference internal" href="hub-export-workflow.html">Hub Export Workflow</a></li>
 <li class="toctree-l1"><a class="reference internal" href="asset-deployment.html">Frontend Asset Deployment Contract</a></li>
 <li class="toctree-l1"><a class="reference internal" href="wheel-deployment.html">Wheel Deployment</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../assisted-reporting-report.html">Reporting Template &amp; Requirement Sets Page (TemplateRequirementsPage)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ai-training-data-export.html">AI Training Data Export</a></li>
 <li class="toctree-l1 current current-page"><a class="current reference internal" href="#">Segment Annotation Workflow</a></li>
 <li class="toctree-l1"><a class="reference internal" href="anonymization-validation-correction-workflow.html">Anonymization Validation and Correction Workflow</a></li>
-<li class="toctree-l1"><a class="reference internal" href="dates-and-times.html">1. Always Use Strong Typing (Not Strings)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="dates-and-times.html#enforce-timezone-awareness-crucial">2. Enforce Timezone Awareness (Crucial)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="dates-and-times.html#stick-to-iso-8601-standards">3. Stick to ISO 8601 Standards</a></li>
-<li class="toctree-l1"><a class="reference internal" href="dates-and-times.html#validating-business-logic-past-future">4. Validating Business Logic (Past/Future)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="dates-and-times.html#handling-now-and-defaults">5. Handling “Now” and Defaults</a></li>
-<li class="toctree-l1"><a class="reference internal" href="dates-and-times.html#serialization-json-output">6. Serialization (JSON Output)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="dates-and-times.html#summary-checklist">Summary Checklist</a></li>
-<li class="toctree-l1"><a class="reference internal" href="dates-and-times.html#example-putting-it-all-together">7. Example: Putting it all together</a></li>
-<li class="toctree-l1"><a class="reference internal" href="dates-and-times.html#next-step">Next Step</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dates-and-times.html">Dates and Times</a></li>
 <li class="toctree-l1"><a class="reference internal" href="pydantic-cheatsheet.html">Pydantic V2 Cheat Sheet</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dtypes-findings-migration.html">Dtypes Findings Migration (Incremental, Endoreg-Safe)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="core-concept-contract.html">Core Concept Contract</a></li>
+<li class="toctree-l1"><a class="reference internal" href="core-concept-readiness-verdict.html">Core Concept Readiness Verdict</a></li>
+<li class="toctree-l1"><a class="reference internal" href="core-concept-type-matrix.html">Core Concept Type Matrix</a></li>
 <li class="toctree-l1"><a class="reference internal" href="reporting-template-requirements-page.html">Reporting Template &amp; Requirement Sets Page (TemplateRequirementsPage)</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
@@ -289,8 +287,9 @@
 <section id="preconditions">
 <h2>Preconditions<a class="headerlink" href="#preconditions" title="Link to this heading">¶</a></h2>
 <ul class="simple">
-<li><p>The selected video must already be anonymized (<code class="docutils literal notranslate"><span class="pre">done_processing_anonymization</span></code>) or validated.</p></li>
-<li><p>Videos already fully validated for segment annotation cannot be edited again in normal flow.</p></li>
+<li><p>The selected video must have usable anonymized processed media.</p></li>
+<li><p>Segment-validated videos remain selectable for review.</p></li>
+<li><p>Segment editing is read-only after segment validation unless an explicit edit override is active.</p></li>
 </ul>
 </section>
 <section id="step-by-step-for-medical-users">
@@ -328,7 +327,7 @@
 <section id="no-video-can-be-selected">
 <h3>No video can be selected<a class="headerlink" href="#no-video-can-be-selected" title="Link to this heading">¶</a></h3>
 <ul class="simple">
-<li><p>Cause: video is not anonymized yet or already fully validated.</p></li>
+<li><p>Cause: no video has usable anonymized media for the current workflow.</p></li>
 <li><p>Action: return to anonymization workflow and check status.</p></li>
 </ul>
 </section>
@@ -354,14 +353,6 @@
 <li><p><code class="docutils literal notranslate"><span class="pre">frontend/src/components/VideoExamination/Timeline.vue</span></code></p></li>
 </ul>
 </section>
-<section id="fixed-issues">
-<h2>Fixed Issues<a class="headerlink" href="#fixed-issues" title="Link to this heading">¶</a></h2>
-<p>We already made the following UI observations and fixed them:</p>
-<ul class="simple">
-<li><p>Video validation status was hard to read -&gt; add color coding and symbols</p></li>
-<li><p>Button for final validation didnt register -&gt; changed button size and broke color code</p></li>
-</ul>
-</section>
 </section>
 
         </article>
@@ -378,14 +369,14 @@
               </div>
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
             </a>
-          <a class="prev-page" href="../assisted-reporting-report.html">
+          <a class="prev-page" href="ai-training-data-export.html">
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
               <div class="page-info">
                 <div class="context">
                   <span>Previous</span>
                 </div>
                 
-                <div class="title">Reporting Template &amp; Requirement Sets Page (TemplateRequirementsPage)</div>
+                <div class="title">AI Training Data Export</div>
                 
               </div>
             </a>
@@ -435,7 +426,6 @@
 </ul>
 </li>
 <li><a class="reference internal" href="#technical-references">Technical References</a></li>
-<li><a class="reference internal" href="#fixed-issues">Fixed Issues</a></li>
 </ul>
 </li>
 </ul>
@@ -447,7 +437,7 @@
       
     </aside>
   </div>
-</div><script src="../_static/documentation_options.js?v=90733dfc"></script>
+</div><script src="../_static/documentation_options.js?v=03f3338f"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/furo.js?v=46bd48cc"></script>

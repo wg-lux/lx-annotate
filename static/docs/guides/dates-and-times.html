@@ -6,7 +6,7 @@
 <link rel="index" title="Index" href="../genindex.html"><link rel="search" title="Search" href="../search.html"><link rel="next" title="Pydantic V2 Cheat Sheet" href="pydantic-cheatsheet.html"><link rel="prev" title="Anonymization Validation and Correction Workflow" href="anonymization-validation-correction-workflow.html">
 
     <!-- Generated with Sphinx 8.2.3 and Furo 2025.12.19 -->
-        <title>1. Always Use Strong Typing (Not Strings) - lx-annotate Documentation</title>
+        <title>Dates and Times - lx-annotate Documentation</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=d111a655" />
     <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?v=7bdb33bb" />
     <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
@@ -173,7 +173,7 @@
           <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
         </button>
       </div>
-      <label class="toc-overlay-icon toc-header-icon no-toc" for="__toc">
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
         <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
       </label>
     </div>
@@ -196,21 +196,19 @@
 <li class="toctree-l1"><a class="reference internal" href="general-documentation.html">General Documentation Guide</a></li>
 <li class="toctree-l1"><a class="reference internal" href="deployment-strategy.html">Deployment Strategy</a></li>
 <li class="toctree-l1"><a class="reference internal" href="encrypted-storage-process.html">Encrypted Storage Process</a></li>
+<li class="toctree-l1"><a class="reference internal" href="hub-export-workflow.html">Hub Export Workflow</a></li>
 <li class="toctree-l1"><a class="reference internal" href="asset-deployment.html">Frontend Asset Deployment Contract</a></li>
 <li class="toctree-l1"><a class="reference internal" href="wheel-deployment.html">Wheel Deployment</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../assisted-reporting-report.html">Reporting Template &amp; Requirement Sets Page (TemplateRequirementsPage)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ai-training-data-export.html">AI Training Data Export</a></li>
 <li class="toctree-l1"><a class="reference internal" href="segment-annotation-workflow.html">Segment Annotation Workflow</a></li>
 <li class="toctree-l1"><a class="reference internal" href="anonymization-validation-correction-workflow.html">Anonymization Validation and Correction Workflow</a></li>
-<li class="toctree-l1 current current-page"><a class="current reference internal" href="#">1. Always Use Strong Typing (Not Strings)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="#enforce-timezone-awareness-crucial">2. Enforce Timezone Awareness (Crucial)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="#stick-to-iso-8601-standards">3. Stick to ISO 8601 Standards</a></li>
-<li class="toctree-l1"><a class="reference internal" href="#validating-business-logic-past-future">4. Validating Business Logic (Past/Future)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="#handling-now-and-defaults">5. Handling “Now” and Defaults</a></li>
-<li class="toctree-l1"><a class="reference internal" href="#serialization-json-output">6. Serialization (JSON Output)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="#summary-checklist">Summary Checklist</a></li>
-<li class="toctree-l1"><a class="reference internal" href="#example-putting-it-all-together">7. Example: Putting it all together</a></li>
-<li class="toctree-l1"><a class="reference internal" href="#next-step">Next Step</a></li>
+<li class="toctree-l1 current current-page"><a class="current reference internal" href="#">Dates and Times</a></li>
 <li class="toctree-l1"><a class="reference internal" href="pydantic-cheatsheet.html">Pydantic V2 Cheat Sheet</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dtypes-findings-migration.html">Dtypes Findings Migration (Incremental, Endoreg-Safe)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="core-concept-contract.html">Core Concept Contract</a></li>
+<li class="toctree-l1"><a class="reference internal" href="core-concept-readiness-verdict.html">Core Concept Readiness Verdict</a></li>
+<li class="toctree-l1"><a class="reference internal" href="core-concept-type-matrix.html">Core Concept Type Matrix</a></li>
 <li class="toctree-l1"><a class="reference internal" href="reporting-template-requirements-page.html">Reporting Template &amp; Requirement Sets Page (TemplateRequirementsPage)</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
@@ -249,16 +247,19 @@
               <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
             </button>
           </div>
-          <label class="toc-overlay-icon toc-content-icon no-toc" for="__toc">
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
             <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
           </label>
         </div>
         <article role="main" id="furo-main-content">
-          <p>Handling dates and times is notoriously difficult due to timezones, leap years, and varying formats. Pydantic (specifically V2) provides robust tools to handle this, but it requires strict discipline to prevent “naive” datetime errors in production.</p>
-<p>Here are the best practices for implementing date and datetime fields in Pydantic models.</p>
-<hr class="docutils" />
-<section id="always-use-strong-typing-not-strings">
-<h1>1. Always Use Strong Typing (Not Strings)<a class="headerlink" href="#always-use-strong-typing-not-strings" title="Link to this heading">¶</a></h1>
+          <section id="dates-and-times">
+<h1>Dates and Times<a class="headerlink" href="#dates-and-times" title="Link to this heading">¶</a></h1>
+<p>Date and time fields must be typed and timezone-aware at the model boundary.
+Pydantic V2 provides the validation tools, but the project convention is to
+reject ambiguous datetime values before they reach persistence or workflow
+logic.</p>
+<section id="always-use-strong-typing">
+<h2>1. Always Use Strong Typing<a class="headerlink" href="#always-use-strong-typing" title="Link to this heading">¶</a></h2>
 <p>Never define a date field as a <code class="docutils literal notranslate"><span class="pre">str</span></code>, even if the input is a string from a JSON payload. Use Python’s standard library types. Pydantic will automatically parse ISO 8601 strings into these objects.</p>
 <ul class="simple">
 <li><p><strong><code class="docutils literal notranslate"><span class="pre">datetime.date</span></code></strong>: For birthdays, holidays, or specific calendar days (no time component).</p></li>
@@ -266,10 +267,11 @@
 <li><p><strong><code class="docutils literal notranslate"><span class="pre">datetime.time</span></code></strong>: For opening hours or recurring daily events.</p></li>
 </ul>
 </section>
-<section id="enforce-timezone-awareness-crucial">
-<h1>2. Enforce Timezone Awareness (Crucial)<a class="headerlink" href="#enforce-timezone-awareness-crucial" title="Link to this heading">¶</a></h1>
-<p>The most common bug in backend systems is mixing <strong>Naive</strong> (no timezone info) and <strong>Aware</strong> (timezone info included) datetimes.</p>
-<p><strong>Best Practice:</strong></p>
+<section id="enforce-timezone-awareness">
+<h2>2. Enforce Timezone Awareness<a class="headerlink" href="#enforce-timezone-awareness" title="Link to this heading">¶</a></h2>
+<p>The most common backend error is mixing naive datetimes, which have no timezone
+metadata, with aware datetimes, which include timezone metadata.</p>
+<p>Project rules:</p>
 <ul class="simple">
 <li><p>Store everything in <strong>UTC</strong>.</p></li>
 <li><p>Reject naive datetimes at the API boundary.</p></li>
@@ -279,39 +281,38 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">pydantic</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseModel</span><span class="p">,</span> <span class="n">AwareDatetime</span>
 
 <span class="k">class</span><span class="w"> </span><span class="nc">Event</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
-    <span class="c1"># BAD: Accepts naive datetimes, defaults to local time</span>
+    <span class="c1"># Bad: accepts naive datetimes and defaults to local time.</span>
     <span class="c1"># created_at: datetime</span>
 
-    <span class="c1"># GOOD: Ensures the datetime has timezone info</span>
+    <span class="c1"># Good: requires timezone metadata.</span>
     <span class="n">start_time</span><span class="p">:</span> <span class="n">AwareDatetime</span>
 
 <span class="c1"># Usage</span>
 <span class="k">try</span><span class="p">:</span>
-    <span class="c1"># This will FAIL validation because no timezone is provided</span>
+    <span class="c1"># Fails validation because no timezone is provided.</span>
     <span class="n">Event</span><span class="p">(</span><span class="n">start_time</span><span class="o">=</span><span class="n">datetime</span><span class="p">(</span><span class="mi">2023</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">12</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
-<span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+<span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
     <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Validation Error: Timezone required&quot;</span><span class="p">)</span>
 
-<span class="c1"># This PASSES</span>
+<span class="c1"># Passes validation.</span>
 <span class="n">Event</span><span class="p">(</span><span class="n">start_time</span><span class="o">=</span><span class="n">datetime</span><span class="p">(</span><span class="mi">2023</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">12</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">tzinfo</span><span class="o">=</span><span class="n">timezone</span><span class="o">.</span><span class="n">utc</span><span class="p">))</span>
 </pre></div>
 </div>
 </section>
 <section id="stick-to-iso-8601-standards">
-<h1>3. Stick to ISO 8601 Standards<a class="headerlink" href="#stick-to-iso-8601-standards" title="Link to this heading">¶</a></h1>
+<h2>3. Stick to ISO 8601 Standards<a class="headerlink" href="#stick-to-iso-8601-standards" title="Link to this heading">¶</a></h2>
 <p>Pydantic is optimized to parse ISO 8601 formats (e.g., <code class="docutils literal notranslate"><span class="pre">YYYY-MM-DDTHH:MM:SSZ</span></code>).</p>
 <ul class="simple">
 <li><p><strong>Input:</strong> Encourage clients to send ISO strings.</p></li>
 <li><p><strong>Output:</strong> Pydantic serializes to ISO strings by default.</p></li>
-<li><p><strong>Avoid Custom Formats:</strong> Avoid configuring Pydantic to parse format strings like <code class="docutils literal notranslate"><span class="pre">DD/MM/YYYY</span></code>. It makes your API brittle and region-dependent. If you <em>must</em> handle a legacy format, use a <code class="docutils literal notranslate"><span class="pre">BeforeValidator</span></code>.</p></li>
+<li><p><strong>Avoid Custom Formats:</strong> Avoid configuring Pydantic to parse format strings like <code class="docutils literal notranslate"><span class="pre">DD/MM/YYYY</span></code>. It makes the API brittle and region-dependent. If a legacy format is unavoidable, use a <code class="docutils literal notranslate"><span class="pre">BeforeValidator</span></code>.</p></li>
 </ul>
 </section>
-<section id="validating-business-logic-past-future">
-<h1>4. Validating Business Logic (Past/Future)<a class="headerlink" href="#validating-business-logic-past-future" title="Link to this heading">¶</a></h1>
+<section id="validate-business-logic">
+<h2>4. Validate Business Logic<a class="headerlink" href="#validate-business-logic" title="Link to this heading">¶</a></h2>
 <p>Use the <code class="docutils literal notranslate"><span class="pre">&#64;field_validator</span></code> decorator to enforce logical constraints, such as ensuring a birth date is in the past or a scheduled task is in the future.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="kn">import</span> <span class="n">date</span><span class="p">,</span> <span class="n">timedelta</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">pydantic</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseModel</span><span class="p">,</span> <span class="n">field_validator</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">datetime</span>
 
 <span class="k">class</span><span class="w"> </span><span class="nc">UserProfile</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
     <span class="n">birth_date</span><span class="p">:</span> <span class="n">date</span>
@@ -328,26 +329,26 @@
 </pre></div>
 </div>
 </section>
-<section id="handling-now-and-defaults">
-<h1>5. Handling “Now” and Defaults<a class="headerlink" href="#handling-now-and-defaults" title="Link to this heading">¶</a></h1>
+<section id="handle-now-and-defaults">
+<h2>5. Handle “Now” and Defaults<a class="headerlink" href="#handle-now-and-defaults" title="Link to this heading">¶</a></h2>
 <p><strong>Never</strong> set a mutable default (like <code class="docutils literal notranslate"><span class="pre">datetime.now()</span></code>) directly in the field definition. Python evaluates default arguments once at definition time, not at instantiation time.</p>
-<p><strong>The Wrong Way:</strong></p>
+<p>Bad:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">Log</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
-    <span class="n">timestamp</span><span class="p">:</span> <span class="n">datetime</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span>  <span class="c1"># ❌ Fixed to when the server started</span>
+    <span class="n">timestamp</span><span class="p">:</span> <span class="n">datetime</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span>  <span class="c1"># Fixed to when the server started.</span>
 </pre></div>
 </div>
-<p><strong>The Right Way (Field with <code class="docutils literal notranslate"><span class="pre">default_factory</span></code>):</strong></p>
+<p>Good:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">pydantic</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseModel</span><span class="p">,</span> <span class="n">Field</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="kn">import</span> <span class="n">datetime</span><span class="p">,</span> <span class="n">timezone</span>
 
 <span class="k">class</span><span class="w"> </span><span class="nc">Log</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
-    <span class="c1"># ✅ Evaluated every time a model is created</span>
+    <span class="c1"># Evaluated every time a model is created.</span>
     <span class="n">timestamp</span><span class="p">:</span> <span class="n">datetime</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">(</span><span class="n">timezone</span><span class="o">.</span><span class="n">utc</span><span class="p">))</span>
 </pre></div>
 </div>
 </section>
-<section id="serialization-json-output">
-<h1>6. Serialization (JSON Output)<a class="headerlink" href="#serialization-json-output" title="Link to this heading">¶</a></h1>
+<section id="serialization">
+<h2>6. Serialization<a class="headerlink" href="#serialization" title="Link to this heading">¶</a></h2>
 <p>When you convert your model to JSON (e.g., sending a response in FastAPI), Pydantic converts datetime objects to strings.</p>
 <p>If you need a specific output format (that isn’t standard ISO), strictly separate your <strong>Internal Model</strong> from your <strong>Response Model</strong>, or use a serialization serializer.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">pydantic</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseModel</span><span class="p">,</span> <span class="n">field_serializer</span>
@@ -363,7 +364,7 @@
 </div>
 </section>
 <section id="summary-checklist">
-<h1>Summary Checklist<a class="headerlink" href="#summary-checklist" title="Link to this heading">¶</a></h1>
+<h2>Summary Checklist<a class="headerlink" href="#summary-checklist" title="Link to this heading">¶</a></h2>
 <div class="table-wrapper colwidths-auto docutils container">
 <table class="docutils align-default">
 <thead>
@@ -397,37 +398,33 @@
 </table>
 </div>
 </section>
-<hr class="docutils" />
-<section id="example-putting-it-all-together">
-<h1>7. Example: Putting it all together<a class="headerlink" href="#example-putting-it-all-together" title="Link to this heading">¶</a></h1>
+<section id="complete-example">
+<h2>7. Complete Example<a class="headerlink" href="#complete-example" title="Link to this heading">¶</a></h2>
 <p>Here is a complete, production-ready example using Pydantic V2 features.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="kn">import</span> <span class="n">datetime</span><span class="p">,</span> <span class="n">timezone</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Optional</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">pydantic</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseModel</span><span class="p">,</span> <span class="n">Field</span><span class="p">,</span> <span class="n">AwareDatetime</span><span class="p">,</span> <span class="n">field_validator</span>
 
 <span class="k">class</span><span class="w"> </span><span class="nc">Appointment</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
-    <span class="c1"># 1. Use AwareDatetime to enforce timezone</span>
+    <span class="c1"># Enforce timezone metadata.</span>
     <span class="n">start_time</span><span class="p">:</span> <span class="n">AwareDatetime</span>
 
-    <span class="c1"># 2. Use default_factory for creation times</span>
+    <span class="c1"># Use default_factory for creation times.</span>
     <span class="n">created_at</span><span class="p">:</span> <span class="n">AwareDatetime</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span>
         <span class="n">default_factory</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">(</span><span class="n">timezone</span><span class="o">.</span><span class="n">utc</span><span class="p">)</span>
     <span class="p">)</span>
 
     <span class="n">description</span><span class="p">:</span> <span class="nb">str</span>
 
-    <span class="c1"># 3. Validation logic</span>
+    <span class="c1"># Business validation.</span>
     <span class="nd">@field_validator</span><span class="p">(</span><span class="s1">&#39;start_time&#39;</span><span class="p">)</span>
     <span class="nd">@classmethod</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">validate_future_date</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">v</span><span class="p">:</span> <span class="n">datetime</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">datetime</span><span class="p">:</span>
-        <span class="c1"># Ensure comparison is timezone-aware</span>
+        <span class="c1"># Ensure comparison is timezone-aware.</span>
         <span class="k">if</span> <span class="n">v</span> <span class="o">&lt;</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">(</span><span class="n">timezone</span><span class="o">.</span><span class="n">utc</span><span class="p">):</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Appointment must be in the future&#39;</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">v</span>
 
-<span class="c1"># --- Testing the Model ---</span>
-
-<span class="c1"># Valid Input (ISO String with Timezone)</span>
+<span class="c1"># Valid input: ISO string with timezone.</span>
 <span class="n">data</span> <span class="o">=</span> <span class="p">{</span>
     <span class="s2">&quot;start_time&quot;</span><span class="p">:</span> <span class="s2">&quot;2030-12-01T14:00:00Z&quot;</span><span class="p">,</span>
     <span class="s2">&quot;description&quot;</span><span class="p">:</span> <span class="s2">&quot;Dentist&quot;</span>
@@ -435,7 +432,7 @@
 <span class="n">appt</span> <span class="o">=</span> <span class="n">Appointment</span><span class="p">(</span><span class="o">**</span><span class="n">data</span><span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Success: </span><span class="si">{</span><span class="n">appt</span><span class="o">.</span><span class="n">start_time</span><span class="o">.</span><span class="n">isoformat</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
-<span class="c1"># Invalid Input (Naive time provided)</span>
+<span class="c1"># Invalid input: naive datetime.</span>
 <span class="k">try</span><span class="p">:</span>
     <span class="n">Appointment</span><span class="p">(</span><span class="n">start_time</span><span class="o">=</span><span class="n">datetime</span><span class="p">(</span><span class="mi">2030</span><span class="p">,</span> <span class="mi">12</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">14</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Fail&quot;</span><span class="p">)</span>
 <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
@@ -443,9 +440,6 @@
 </pre></div>
 </div>
 </section>
-<section id="next-step">
-<h1>Next Step<a class="headerlink" href="#next-step" title="Link to this heading">¶</a></h1>
-<p>Would you like me to write a custom validator for a specific date scenario you are facing, such as handling recurring events or age verification logic?</p>
 </section>
 
         </article>
@@ -491,13 +485,39 @@
         
       </footer>
     </div>
-    <aside class="toc-drawer no-toc">
+    <aside class="toc-drawer">
       
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">Dates and Times</a><ul>
+<li><a class="reference internal" href="#always-use-strong-typing">1. Always Use Strong Typing</a></li>
+<li><a class="reference internal" href="#enforce-timezone-awareness">2. Enforce Timezone Awareness</a></li>
+<li><a class="reference internal" href="#stick-to-iso-8601-standards">3. Stick to ISO 8601 Standards</a></li>
+<li><a class="reference internal" href="#validate-business-logic">4. Validate Business Logic</a></li>
+<li><a class="reference internal" href="#handle-now-and-defaults">5. Handle “Now” and Defaults</a></li>
+<li><a class="reference internal" href="#serialization">6. Serialization</a></li>
+<li><a class="reference internal" href="#summary-checklist">Summary Checklist</a></li>
+<li><a class="reference internal" href="#complete-example">7. Complete Example</a></li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
       
       
     </aside>
   </div>
-</div><script src="../_static/documentation_options.js?v=90733dfc"></script>
+</div><script src="../_static/documentation_options.js?v=03f3338f"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/furo.js?v=46bd48cc"></script>

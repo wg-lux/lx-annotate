@@ -209,6 +209,9 @@ if _deployment_role_raw:
     ENDOREG_DEPLOYMENT_ROLE = _deployment_role_raw
 else:
     ENDOREG_DEPLOYMENT_ROLE = "standalone"
+ENDOREG_ENABLE_HUB_TRANSFERS = os.getenv(
+    "ENDOREG_ENABLE_HUB_TRANSFERS", "0"
+).strip().lower() in {"1", "true", "yes", "on"}
 ENDOREG_HUB_TRANSFER_REQUIRE_SECURE_TRANSPORT = os.getenv(
     "ENDOREG_HUB_TRANSFER_REQUIRE_SECURE_TRANSPORT", "1"
 ).strip().lower() in {"1", "true", "yes", "on"}
@@ -257,6 +260,11 @@ def _require_env_var(*names: str) -> None:
 
 
 def _validate_hub_transfer_security_contract() -> None:
+    if ENDOREG_ENABLE_HUB_TRANSFERS and ENDOREG_DEPLOYMENT_ROLE != "central_hub":
+        raise RuntimeError(
+            "ENDOREG_ENABLE_HUB_TRANSFERS=true requires "
+            "ENDOREG_DEPLOYMENT_ROLE=central_hub."
+        )
     if ENDOREG_DEPLOYMENT_ROLE != "central_hub":
         return
     if not ENDOREG_HUB_TRANSFER_REQUIRE_SECURE_TRANSPORT:

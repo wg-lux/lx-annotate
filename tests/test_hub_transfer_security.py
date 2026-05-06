@@ -8,6 +8,7 @@ from django.test import TestCase, override_settings
 from endoreg_db.models import Center, NetworkNode, TransferJob
 
 
+@override_settings(ENDOREG_ENABLE_HUB_TRANSFERS=True)
 class HubTransferSecurityTests(TestCase):
     def setUp(self) -> None:
         self.center = Center.objects.create(
@@ -81,6 +82,32 @@ class HubTransferSecurityTests(TestCase):
             resource_rows={},
             processing_snapshot={},
             provenance={},
+        )
+
+    @override_settings(
+        ENDOREG_DEPLOYMENT_ROLE="central_hub",
+        ENDOREG_ENABLE_HUB_TRANSFERS=False,
+        ENDOREG_HUB_TRANSFER_REQUIRE_SECURE_TRANSPORT=True,
+        ENDOREG_HUB_TRANSFER_REQUIRE_MTLS=True,
+        ENDOREG_HUB_TRANSFER_MTLS_META_KEY="HTTP_X_CLIENT_CERT_VERIFIED",
+        ENDOREG_HUB_TRANSFER_MTLS_META_VALUE="SUCCESS",
+    )
+    def test_transfer_create_returns_404_when_transfer_api_flag_is_disabled(self):
+        response = self.client.post(
+            "/api/media/hub/transfers/",
+            data=self._transfer_payload(transfer_key="site-node__report__off__v1"),
+            content_type="application/json",
+            secure=True,
+            HTTP_X_CLIENT_CERT_VERIFIED="SUCCESS",
+            HTTP_X_NETWORK_NODE_KEY=self.site_node.node_key,
+            HTTP_X_NETWORK_NODE_SECRET="super-secret",
+        )
+
+        self.assertEqual(response.status_code, 404)
+        self.assertFalse(
+            TransferJob.objects.filter(
+                transfer_key="site-node__report__off__v1"
+            ).exists()
         )
 
     @override_settings(

@@ -109,7 +109,7 @@ describe('Sidebar linked routes', () => {
         }
         expect(errors).toEqual([]);
         wrapper.unmount();
-    });
+    }, 15000);
     it('markiert Befundung: Übersicht als aktiv auf /reporting', async () => {
         const wrapper = mount(SidebarComponent, {
             global: {

@@ -162,6 +162,46 @@ export interface LabelMeta {
     name: string;
     color?: string;
 }
+export interface PredictionModelMeta {
+    id: number;
+    name: string;
+    version: string;
+    description?: string;
+    modelName: string;
+    aiModelId: number;
+    labelsetName: string;
+    labelsetVersion: number | string;
+    labelsetId: number;
+    weightsAvailable: boolean;
+    isActive: boolean;
+}
+export interface PredictionModelListResponse {
+    models: PredictionModelMeta[];
+    defaultHuggingfaceModelId: string;
+    defaultModelName: string;
+    defaultLabelsetName: string;
+    huggingfaceModels: Array<{
+        modelId: string;
+        label: string;
+        labelsetName: string;
+    }>;
+}
+export interface RerunPredictionSegmentsPayload {
+    modelMetaId?: number | null;
+    hfModelId?: string | null;
+    labelsetName?: string | null;
+    labelsetVersion?: number | string | null;
+    replacePredictionSegments?: boolean;
+    deleteFramesAfter?: boolean;
+}
+export interface RerunPredictionSegmentsResponse {
+    success: boolean;
+    videoId: number;
+    modelMeta: PredictionModelMeta;
+    deletedPredictionSegments: number;
+    predictionSegmentsCount: number;
+    error?: string;
+}
 /**
  * Video list response structure
  */
@@ -585,6 +625,33 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
     hasVideo: ComputedRef<boolean>;
     segments: ComputedRef<Segment[]>;
     labels: ComputedRef<LabelMeta[]>;
+    predictionModels: Readonly<Ref<readonly {
+        readonly id: number;
+        readonly name: string;
+        readonly version: string;
+        readonly description?: string | undefined;
+        readonly modelName: string;
+        readonly aiModelId: number;
+        readonly labelsetName: string;
+        readonly labelsetVersion: number | string;
+        readonly labelsetId: number;
+        readonly weightsAvailable: boolean;
+        readonly isActive: boolean;
+    }[], readonly {
+        readonly id: number;
+        readonly name: string;
+        readonly version: string;
+        readonly description?: string | undefined;
+        readonly modelName: string;
+        readonly aiModelId: number;
+        readonly labelsetName: string;
+        readonly labelsetVersion: number | string;
+        readonly labelsetId: number;
+        readonly weightsAvailable: boolean;
+        readonly isActive: boolean;
+    }[]>>;
+    defaultHuggingfaceModelId: Readonly<Ref<string, string>>;
+    defaultPredictionLabelsetName: Readonly<Ref<string, string>>;
     videoStreamUrl: ComputedRef<string>;
     timelineSegments: ComputedRef<{
         id: number;
@@ -611,6 +678,8 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
     }) => Promise<void>;
     fetchAllVideos: () => Promise<VideoList>;
     fetchLabels: () => Promise<LabelMeta[]>;
+    fetchPredictionModels: () => Promise<PredictionModelMeta[]>;
+    rerunPredictionSegments: (videoId: number, payload: RerunPredictionSegmentsPayload) => Promise<RerunPredictionSegmentsResponse>;
     fetchVideoSegments: (videoId: number, options?: {
         sourceKind?: SegmentSourceKind;
     }) => Promise<void>;
@@ -646,7 +715,7 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
     formatTime: (seconds: number) => string;
     getSegmentOptions: () => SegmentOption[];
     clearSegments: () => void;
-}, "errorMessage" | "videoUrl" | "videos" | "currentVideo" | "segmentsByLabel" | "videoList" | "videoMeta" | "draftSegment" | "hasRawVideoFile">, Pick<{
+}, "errorMessage" | "videoUrl" | "videos" | "currentVideo" | "segmentsByLabel" | "videoList" | "videoMeta" | "draftSegment" | "predictionModels" | "defaultHuggingfaceModelId" | "defaultPredictionLabelsetName" | "hasRawVideoFile">, Pick<{
     currentVideo: Readonly<Ref<{
         readonly id: number;
         readonly isAnnotated: boolean;
@@ -1012,6 +1081,33 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
     hasVideo: ComputedRef<boolean>;
     segments: ComputedRef<Segment[]>;
     labels: ComputedRef<LabelMeta[]>;
+    predictionModels: Readonly<Ref<readonly {
+        readonly id: number;
+        readonly name: string;
+        readonly version: string;
+        readonly description?: string | undefined;
+        readonly modelName: string;
+        readonly aiModelId: number;
+        readonly labelsetName: string;
+        readonly labelsetVersion: number | string;
+        readonly labelsetId: number;
+        readonly weightsAvailable: boolean;
+        readonly isActive: boolean;
+    }[], readonly {
+        readonly id: number;
+        readonly name: string;
+        readonly version: string;
+        readonly description?: string | undefined;
+        readonly modelName: string;
+        readonly aiModelId: number;
+        readonly labelsetName: string;
+        readonly labelsetVersion: number | string;
+        readonly labelsetId: number;
+        readonly weightsAvailable: boolean;
+        readonly isActive: boolean;
+    }[]>>;
+    defaultHuggingfaceModelId: Readonly<Ref<string, string>>;
+    defaultPredictionLabelsetName: Readonly<Ref<string, string>>;
     videoStreamUrl: ComputedRef<string>;
     timelineSegments: ComputedRef<{
         id: number;
@@ -1038,6 +1134,8 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
     }) => Promise<void>;
     fetchAllVideos: () => Promise<VideoList>;
     fetchLabels: () => Promise<LabelMeta[]>;
+    fetchPredictionModels: () => Promise<PredictionModelMeta[]>;
+    rerunPredictionSegments: (videoId: number, payload: RerunPredictionSegmentsPayload) => Promise<RerunPredictionSegmentsResponse>;
     fetchVideoSegments: (videoId: number, options?: {
         sourceKind?: SegmentSourceKind;
     }) => Promise<void>;
@@ -1439,6 +1537,33 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
     hasVideo: ComputedRef<boolean>;
     segments: ComputedRef<Segment[]>;
     labels: ComputedRef<LabelMeta[]>;
+    predictionModels: Readonly<Ref<readonly {
+        readonly id: number;
+        readonly name: string;
+        readonly version: string;
+        readonly description?: string | undefined;
+        readonly modelName: string;
+        readonly aiModelId: number;
+        readonly labelsetName: string;
+        readonly labelsetVersion: number | string;
+        readonly labelsetId: number;
+        readonly weightsAvailable: boolean;
+        readonly isActive: boolean;
+    }[], readonly {
+        readonly id: number;
+        readonly name: string;
+        readonly version: string;
+        readonly description?: string | undefined;
+        readonly modelName: string;
+        readonly aiModelId: number;
+        readonly labelsetName: string;
+        readonly labelsetVersion: number | string;
+        readonly labelsetId: number;
+        readonly weightsAvailable: boolean;
+        readonly isActive: boolean;
+    }[]>>;
+    defaultHuggingfaceModelId: Readonly<Ref<string, string>>;
+    defaultPredictionLabelsetName: Readonly<Ref<string, string>>;
     videoStreamUrl: ComputedRef<string>;
     timelineSegments: ComputedRef<{
         id: number;
@@ -1465,6 +1590,8 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
     }) => Promise<void>;
     fetchAllVideos: () => Promise<VideoList>;
     fetchLabels: () => Promise<LabelMeta[]>;
+    fetchPredictionModels: () => Promise<PredictionModelMeta[]>;
+    rerunPredictionSegments: (videoId: number, payload: RerunPredictionSegmentsPayload) => Promise<RerunPredictionSegmentsResponse>;
     fetchVideoSegments: (videoId: number, options?: {
         sourceKind?: SegmentSourceKind;
     }) => Promise<void>;
@@ -1500,4 +1627,4 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
     formatTime: (seconds: number) => string;
     getSegmentOptions: () => SegmentOption[];
     clearSegments: () => void;
-}, "buildVideoStreamUrl" | "setCurrentVideo" | "clearVideo" | "deleteVideo" | "setVideo" | "loadVideo" | "fetchVideoFps" | "fetchVideoUrl" | "fetchAllSegments" | "fetchAllVideos" | "fetchLabels" | "fetchVideoSegments" | "fetchSegmentsByLabel" | "createSegment" | "updateSegmentAPI" | "setSegmentExportFlag" | "setVideoExportFlag" | "deleteSegment" | "removeSegment" | "saveAnnotations" | "getSegmentStyle" | "getColorForLabel" | "getTranslationForLabel" | "jumpToSegment" | "setActiveSegment" | "updateVideoStatus" | "assignUserToVideo" | "hasRawVideoFileFn" | "persistDirtySegments" | "updateSegmentInMemory" | "startDraft" | "updateDraftEnd" | "commitDraft" | "cancelDraft" | "createFiveSecondSegment" | "patchDraftSegment" | "patchSegmentLocally" | "backendSegmentToSegment" | "formatTime" | "getSegmentOptions" | "clearSegments">>;
+}, "buildVideoStreamUrl" | "setCurrentVideo" | "clearVideo" | "deleteVideo" | "setVideo" | "loadVideo" | "fetchVideoFps" | "fetchVideoUrl" | "fetchAllSegments" | "fetchAllVideos" | "fetchLabels" | "fetchPredictionModels" | "rerunPredictionSegments" | "fetchVideoSegments" | "fetchSegmentsByLabel" | "createSegment" | "updateSegmentAPI" | "setSegmentExportFlag" | "setVideoExportFlag" | "deleteSegment" | "removeSegment" | "saveAnnotations" | "getSegmentStyle" | "getColorForLabel" | "getTranslationForLabel" | "jumpToSegment" | "setActiveSegment" | "updateVideoStatus" | "assignUserToVideo" | "hasRawVideoFileFn" | "persistDirtySegments" | "updateSegmentInMemory" | "startDraft" | "updateDraftEnd" | "commitDraft" | "cancelDraft" | "createFiveSecondSegment" | "patchDraftSegment" | "patchSegmentLocally" | "backendSegmentToSegment" | "formatTime" | "getSegmentOptions" | "clearSegments">>;

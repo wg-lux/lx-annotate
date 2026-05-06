@@ -3,7 +3,7 @@
   <head><meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="index" title="Index" href="../genindex.html"><link rel="search" title="Search" href="../search.html"><link rel="next" title="Reporting Template &amp; Requirement Sets Page (TemplateRequirementsPage)" href="reporting-template-requirements-page.html"><link rel="prev" title="1. Always Use Strong Typing (Not Strings)" href="dates-and-times.html">
+<link rel="index" title="Index" href="../genindex.html"><link rel="search" title="Search" href="../search.html"><link rel="next" title="Dtypes Findings Migration (Incremental, Endoreg-Safe)" href="dtypes-findings-migration.html"><link rel="prev" title="Dates and Times" href="dates-and-times.html">
 
     <!-- Generated with Sphinx 8.2.3 and Furo 2025.12.19 -->
         <title>Pydantic V2 Cheat Sheet - lx-annotate Documentation</title>
@@ -196,21 +196,19 @@
 <li class="toctree-l1"><a class="reference internal" href="general-documentation.html">General Documentation Guide</a></li>
 <li class="toctree-l1"><a class="reference internal" href="deployment-strategy.html">Deployment Strategy</a></li>
 <li class="toctree-l1"><a class="reference internal" href="encrypted-storage-process.html">Encrypted Storage Process</a></li>
+<li class="toctree-l1"><a class="reference internal" href="hub-export-workflow.html">Hub Export Workflow</a></li>
 <li class="toctree-l1"><a class="reference internal" href="asset-deployment.html">Frontend Asset Deployment Contract</a></li>
 <li class="toctree-l1"><a class="reference internal" href="wheel-deployment.html">Wheel Deployment</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../assisted-reporting-report.html">Reporting Template &amp; Requirement Sets Page (TemplateRequirementsPage)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ai-training-data-export.html">AI Training Data Export</a></li>
 <li class="toctree-l1"><a class="reference internal" href="segment-annotation-workflow.html">Segment Annotation Workflow</a></li>
 <li class="toctree-l1"><a class="reference internal" href="anonymization-validation-correction-workflow.html">Anonymization Validation and Correction Workflow</a></li>
-<li class="toctree-l1"><a class="reference internal" href="dates-and-times.html">1. Always Use Strong Typing (Not Strings)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="dates-and-times.html#enforce-timezone-awareness-crucial">2. Enforce Timezone Awareness (Crucial)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="dates-and-times.html#stick-to-iso-8601-standards">3. Stick to ISO 8601 Standards</a></li>
-<li class="toctree-l1"><a class="reference internal" href="dates-and-times.html#validating-business-logic-past-future">4. Validating Business Logic (Past/Future)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="dates-and-times.html#handling-now-and-defaults">5. Handling “Now” and Defaults</a></li>
-<li class="toctree-l1"><a class="reference internal" href="dates-and-times.html#serialization-json-output">6. Serialization (JSON Output)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="dates-and-times.html#summary-checklist">Summary Checklist</a></li>
-<li class="toctree-l1"><a class="reference internal" href="dates-and-times.html#example-putting-it-all-together">7. Example: Putting it all together</a></li>
-<li class="toctree-l1"><a class="reference internal" href="dates-and-times.html#next-step">Next Step</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dates-and-times.html">Dates and Times</a></li>
 <li class="toctree-l1 current current-page"><a class="current reference internal" href="#">Pydantic V2 Cheat Sheet</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dtypes-findings-migration.html">Dtypes Findings Migration (Incremental, Endoreg-Safe)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="core-concept-contract.html">Core Concept Contract</a></li>
+<li class="toctree-l1"><a class="reference internal" href="core-concept-readiness-verdict.html">Core Concept Readiness Verdict</a></li>
+<li class="toctree-l1"><a class="reference internal" href="core-concept-type-matrix.html">Core Concept Type Matrix</a></li>
 <li class="toctree-l1"><a class="reference internal" href="reporting-template-requirements-page.html">Reporting Template &amp; Requirement Sets Page (TemplateRequirementsPage)</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
@@ -257,32 +255,31 @@
           <section id="pydantic-v2-cheat-sheet">
 <h1>Pydantic V2 Cheat Sheet<a class="headerlink" href="#pydantic-v2-cheat-sheet" title="Link to this heading">¶</a></h1>
 <p>This guide consolidates strict typing, date handling, and validation into reusable patterns.</p>
-<hr class="docutils" />
 <section id="the-pydantic-v2-lifecycle">
 <h2>The Pydantic V2 Lifecycle<a class="headerlink" href="#the-pydantic-v2-lifecycle" title="Link to this heading">¶</a></h2>
-<p>Understanding <em>when</em> things happen is key to using the tools below.</p>
+<p>Understanding when validation and serialization run is key to using the tools
+below.</p>
 </section>
-<hr class="docutils" />
-<section id="the-golden-standard-base-model">
-<h2>1. The “Golden Standard” Base Model<a class="headerlink" href="#the-golden-standard-base-model" title="Link to this heading">¶</a></h2>
-<p>Start every project with this. It handles string hygiene and configuration globally, so you don’t have to repeat it.</p>
+<section id="shared-base-model">
+<h2>1. Shared Base Model<a class="headerlink" href="#shared-base-model" title="Link to this heading">¶</a></h2>
+<p>Use a project base model when schemas share strict input hygiene and model
+configuration.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">pydantic</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseModel</span><span class="p">,</span> <span class="n">ConfigDict</span>
 
 <span class="k">class</span><span class="w"> </span><span class="nc">AppBaseModel</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
     <span class="n">model_config</span> <span class="o">=</span> <span class="n">ConfigDict</span><span class="p">(</span>
-        <span class="c1"># 1. Strips leading/trailing whitespace automatically (&quot;  val  &quot; -&gt; &quot;val&quot;)</span>
+        <span class="c1"># Strip leading/trailing whitespace automatically (&quot;  val  &quot; -&gt; &quot;val&quot;).</span>
         <span class="n">str_strip_whitespace</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-        <span class="c1"># 2. Rejects extra fields not defined in the model (Security/Strictness)</span>
+        <span class="c1"># Reject extra fields not defined in the model.</span>
         <span class="n">extra</span><span class="o">=</span><span class="s1">&#39;forbid&#39;</span><span class="p">,</span>
-        <span class="c1"># 3. Validates default values (ensures your defaults aren&#39;t broken)</span>
+        <span class="c1"># Validate default values.</span>
         <span class="n">validate_default</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-        <span class="c1"># 4. Allows population by alias (e.g. accepting &quot;camelCase&quot; input)</span>
+        <span class="c1"># Allow population by alias, such as accepting &quot;camelCase&quot; input.</span>
         <span class="n">populate_by_name</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
     <span class="p">)</span>
 </pre></div>
 </div>
 </section>
-<hr class="docutils" />
 <section id="datetime-timezones-strict-mode">
 <h2>2. DateTime &amp; Timezones (Strict Mode)<a class="headerlink" href="#datetime-timezones-strict-mode" title="Link to this heading">¶</a></h2>
 <p>Never use naive datetimes. Always use <code class="docutils literal notranslate"><span class="pre">AwareDatetime</span></code> and <code class="docutils literal notranslate"><span class="pre">default_factory</span></code>.</p>
@@ -290,24 +287,23 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">pydantic</span><span class="w"> </span><span class="kn">import</span> <span class="n">Field</span><span class="p">,</span> <span class="n">AwareDatetime</span>
 
 <span class="k">class</span><span class="w"> </span><span class="nc">TimestampModel</span><span class="p">(</span><span class="n">AppBaseModel</span><span class="p">):</span>
-    <span class="c1"># ✅ CORRECT: Enforces timezone info in input</span>
+    <span class="c1"># Enforces timezone metadata in input.</span>
     <span class="n">event_time</span><span class="p">:</span> <span class="n">AwareDatetime</span>
 
-    <span class="c1"># ✅ CORRECT: Dynamic default (calculated at runtime)</span>
-    <span class="c1"># Stores as UTC, ensuring database consistency</span>
+    <span class="c1"># Dynamic default calculated at runtime and stored as UTC.</span>
     <span class="n">created_at</span><span class="p">:</span> <span class="n">AwareDatetime</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span>
         <span class="n">default_factory</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">(</span><span class="n">timezone</span><span class="o">.</span><span class="n">utc</span><span class="p">)</span>
     <span class="p">)</span>
 
-    <span class="c1"># ❌ WRONG: Static default (calculated at server startup)</span>
+    <span class="c1"># Bad: static default calculated at server startup.</span>
     <span class="c1"># created_at: datetime = datetime.now()</span>
 </pre></div>
 </div>
 </section>
-<hr class="docutils" />
 <section id="reusable-fields-mixins">
 <h2>3. Reusable Fields (Mixins)<a class="headerlink" href="#reusable-fields-mixins" title="Link to this heading">¶</a></h2>
-<p>Use Mixins for fields that appear across multiple models (like your <code class="docutils literal notranslate"><span class="pre">name_de</span></code>/<code class="docutils literal notranslate"><span class="pre">name_en</span></code> requirement).</p>
+<p>Use mixins for fields that appear across multiple models, such as localized
+<code class="docutils literal notranslate"><span class="pre">name_de</span></code>/<code class="docutils literal notranslate"><span class="pre">name_en</span></code> labels.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Optional</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">pydantic</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseModel</span><span class="p">,</span> <span class="n">model_validator</span>
 
@@ -332,7 +328,6 @@
 </pre></div>
 </div>
 </section>
-<hr class="docutils" />
 <section id="advanced-validation-patterns">
 <h2>4. Advanced Validation Patterns<a class="headerlink" href="#advanced-validation-patterns" title="Link to this heading">¶</a></h2>
 <section id="a-sorting-uniqueness-lists">
@@ -354,8 +349,8 @@
 </pre></div>
 </div>
 </section>
-<section id="b-the-best-of-both-worlds-dict-vs-list">
-<h3>B. The “Best of Both Worlds” (Dict vs List)<a class="headerlink" href="#b-the-best-of-both-worlds-dict-vs-list" title="Link to this heading">¶</a></h3>
+<section id="b-dictionary-storage-with-list-api-payloads">
+<h3>B. Dictionary Storage With List API Payloads<a class="headerlink" href="#b-dictionary-storage-with-list-api-payloads" title="Link to this heading">¶</a></h3>
 <p>Store data as a <strong>Dict</strong> (for O(1) performance), but accept and return <strong>Lists</strong> (for API standards).</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Any</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">pydantic</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseModel</span><span class="p">,</span> <span class="n">field_validator</span><span class="p">,</span> <span class="n">field_serializer</span><span class="p">,</span> <span class="n">ValidationInfo</span>
@@ -381,10 +376,10 @@
 </div>
 </section>
 </section>
-<hr class="docutils" />
 <section id="computed-fields-derived-data">
 <h2>5. Computed Fields (Derived Data)<a class="headerlink" href="#computed-fields-derived-data" title="Link to this heading">¶</a></h2>
-<p>Use this for fields that shouldn’t be saved to the DB, but should appear in the API response.</p>
+<p>Use computed fields for values that should appear in the API response but should
+not be persisted directly.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">pydantic</span><span class="w"> </span><span class="kn">import</span> <span class="n">computed_field</span>
 
 <span class="k">class</span><span class="w"> </span><span class="nc">Rectangle</span><span class="p">(</span><span class="n">AppBaseModel</span><span class="p">):</span>
@@ -399,7 +394,6 @@
 </pre></div>
 </div>
 </section>
-<hr class="docutils" />
 <section id="managing-aliases-frontend-vs-backend">
 <h2>6. Managing Aliases (Frontend vs Backend)<a class="headerlink" href="#managing-aliases-frontend-vs-backend" title="Link to this heading">¶</a></h2>
 <p>Handle <code class="docutils literal notranslate"><span class="pre">camelCase</span></code> (JS frontend) vs <code class="docutils literal notranslate"><span class="pre">snake_case</span></code> (Python backend).</p>
@@ -415,7 +409,6 @@
 </pre></div>
 </div>
 </section>
-<hr class="docutils" />
 <section id="path-objects-filesystems">
 <h2>7. Path Objects &amp; Filesystems<a class="headerlink" href="#path-objects-filesystems" title="Link to this heading">¶</a></h2>
 <p>Prefer <code class="docutils literal notranslate"><span class="pre">pathlib</span></code> types over raw strings whenever a model touches the filesystem. This preserves cross-platform semantics and lets Pydantic validate early.</p>
@@ -426,11 +419,11 @@
 <span class="k">class</span><span class="w"> </span><span class="nc">FileInput</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
     <span class="n">model_config</span> <span class="o">=</span> <span class="n">ConfigDict</span><span class="p">(</span><span class="n">str_strip_whitespace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
-    <span class="c1"># ✅ Use the specialized validators for existing files/dirs</span>
+    <span class="c1"># Use the specialized validators for existing files/dirs.</span>
     <span class="n">template_path</span><span class="p">:</span> <span class="n">FilePath</span>
     <span class="n">output_dir</span><span class="p">:</span> <span class="n">DirectoryPath</span>
 
-    <span class="c1"># ✅ Accept strings, but normalize to absolute Paths</span>
+    <span class="c1"># Accept strings, but normalize to absolute Paths.</span>
     <span class="nd">@field_validator</span><span class="p">(</span><span class="s1">&#39;template_path&#39;</span><span class="p">,</span> <span class="s1">&#39;output_dir&#39;</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;after&#39;</span><span class="p">)</span>
     <span class="nd">@classmethod</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">resolve_paths</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="n">Path</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
@@ -438,7 +431,7 @@
 
 
 <span class="k">class</span><span class="w"> </span><span class="nc">LazyPathModel</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
-    <span class="c1"># ✅ When the resource might not exist yet, fall back to plain Path</span>
+    <span class="c1"># Use plain Path when the resource might not exist yet.</span>
     <span class="n">export_path</span><span class="p">:</span> <span class="n">Path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="s1">&#39;exports/report.json&#39;</span><span class="p">)</span>
 
     <span class="nd">@field_validator</span><span class="p">(</span><span class="s1">&#39;export_path&#39;</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;before&#39;</span><span class="p">)</span>
@@ -457,7 +450,6 @@
 <li><p>Add validators when business rules apply (extensions, allowed roots, etc.) and document the behavior in docstrings.</p></li>
 </ul>
 </section>
-<hr class="docutils" />
 <section id="yaml-fixtures-sample-data">
 <h2>8. YAML Fixtures &amp; Sample Data<a class="headerlink" href="#yaml-fixtures-sample-data" title="Link to this heading">¶</a></h2>
 <p>Treat YAML fixtures like immutable contracts: load them through your models so drift is caught immediately.</p>
@@ -518,10 +510,6 @@
 </table>
 </div>
 </section>
-<section id="next-step">
-<h2>Next Step<a class="headerlink" href="#next-step" title="Link to this heading">¶</a></h2>
-<p>Would you like me to show you how to generate <strong>Environment Configuration</strong> (loading <code class="docutils literal notranslate"><span class="pre">.env</span></code> files) using <code class="docutils literal notranslate"><span class="pre">pydantic-settings</span></code>, which is the standard way to handle secrets like database URLs alongside these models?</p>
-</section>
 </section>
 
         </article>
@@ -529,12 +517,12 @@
       <footer>
         
         <div class="related-pages">
-          <a class="next-page" href="reporting-template-requirements-page.html">
+          <a class="next-page" href="dtypes-findings-migration.html">
               <div class="page-info">
                 <div class="context">
                   <span>Next</span>
                 </div>
-                <div class="title">Reporting Template &amp; Requirement Sets Page (TemplateRequirementsPage)</div>
+                <div class="title">Dtypes Findings Migration (Incremental, Endoreg-Safe)</div>
               </div>
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
             </a>
@@ -545,7 +533,7 @@
                   <span>Previous</span>
                 </div>
                 
-                <div class="title">1. Always Use Strong Typing (Not Strings)</div>
+                <div class="title">Dates and Times</div>
                 
               </div>
             </a>
@@ -581,12 +569,12 @@
             <ul>
 <li><a class="reference internal" href="#">Pydantic V2 Cheat Sheet</a><ul>
 <li><a class="reference internal" href="#the-pydantic-v2-lifecycle">The Pydantic V2 Lifecycle</a></li>
-<li><a class="reference internal" href="#the-golden-standard-base-model">1. The “Golden Standard” Base Model</a></li>
+<li><a class="reference internal" href="#shared-base-model">1. Shared Base Model</a></li>
 <li><a class="reference internal" href="#datetime-timezones-strict-mode">2. DateTime &amp; Timezones (Strict Mode)</a></li>
 <li><a class="reference internal" href="#reusable-fields-mixins">3. Reusable Fields (Mixins)</a></li>
 <li><a class="reference internal" href="#advanced-validation-patterns">4. Advanced Validation Patterns</a><ul>
 <li><a class="reference internal" href="#a-sorting-uniqueness-lists">A. Sorting &amp; Uniqueness (Lists)</a></li>
-<li><a class="reference internal" href="#b-the-best-of-both-worlds-dict-vs-list">B. The “Best of Both Worlds” (Dict vs List)</a></li>
+<li><a class="reference internal" href="#b-dictionary-storage-with-list-api-payloads">B. Dictionary Storage With List API Payloads</a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#computed-fields-derived-data">5. Computed Fields (Derived Data)</a></li>
@@ -594,7 +582,6 @@
 <li><a class="reference internal" href="#path-objects-filesystems">7. Path Objects &amp; Filesystems</a></li>
 <li><a class="reference internal" href="#yaml-fixtures-sample-data">8. YAML Fixtures &amp; Sample Data</a></li>
 <li><a class="reference internal" href="#summary-table-validator-modes">Summary Table: Validator Modes</a></li>
-<li><a class="reference internal" href="#next-step">Next Step</a></li>
 </ul>
 </li>
 </ul>
@@ -606,7 +593,7 @@
       
     </aside>
   </div>
-</div><script src="../_static/documentation_options.js?v=90733dfc"></script>
+</div><script src="../_static/documentation_options.js?v=03f3338f"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/furo.js?v=46bd48cc"></script>

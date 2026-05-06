@@ -353,6 +353,7 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
   const predictionSegmentsOnly = ref<boolean>(loadStoredPredictionSegmentsOnly())
   const annotatorPrincipal = ref<string | null>(null)
   const taskQueue = ref<AnnotationTask[]>([])
+  let queueGeneration = 0
   const isInitialLoading = ref(false)
   const isPrefetching = ref(false)
   const lastError = ref<string | null>(null)
@@ -509,9 +510,18 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
     }
 
     lastError.value = null
+    const currentTaskRequestSignature = () =>
+      `${selectedLabelGroupId.value ?? ''}|${taskQuerySignature.value}`
+    const isCurrentRequest = (generation: number, signature: string) =>
+      generation === queueGeneration && signature === currentTaskRequestSignature()
+    let requestGeneration = queueGeneration
+    let requestSignature = currentTaskRequestSignature()
     try {
       await hydrateAiDatasetDefaults()
+      requestGeneration = queueGeneration
+      requestSignature = currentTaskRequestSignature()
       let parsed = await fetchTaskBatchFromApi(batchSize, taskMode.value)
+      if (!isCurrentRequest(requestGeneration, requestSignature)) return []
 
       if (
         taskMode.value === 'filtered' &&
@@ -519,19 +529,23 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
         parsed.length === 0
       ) {
         parsed = await fetchTaskBatchFromApi(batchSize, 'random')
+        if (!isCurrentRequest(requestGeneration, requestSignature)) return []
       }
 
       taskQueue.value.push(...parsed)
       if (dummyTaskModeEnabled && parsed.length === 0 && taskQueue.value.length === 0) {
+        if (!isCurrentRequest(requestGeneration, requestSignature)) return []
         const dummy = createDummyTask(selectedLabelGroupId.value)
         taskQueue.value.push(dummy)
         return [dummy]
       }
       return parsed
     } catch (error: any) {
+      if (!isCurrentRequest(requestGeneration, requestSignature)) return []
       if (taskMode.value === 'filtered' && allowRandomFallback.value) {
         try {
           const fallbackParsed = await fetchTaskBatchFromApi(batchSize, 'random')
+          if (!isCurrentRequest(requestGeneration, requestSignature)) return []
           taskQueue.value.push(...fallbackParsed)
           if (fallbackParsed.length > 0) {
             return fallbackParsed
@@ -547,6 +561,7 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
         error?.message ||
         'Failed to fetch annotation tasks.'
       if (dummyTaskModeEnabled && taskQueue.value.length === 0) {
+        if (!isCurrentRequest(requestGeneration, requestSignature)) return []
         const dummy = createDummyTask(selectedLabelGroupId.value)
         taskQueue.value.push(dummy)
         return [dummy]
@@ -574,6 +589,7 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
   }
 
   function clearQueue(): void {
+    queueGeneration += 1
     taskQueue.value = []
   }
 

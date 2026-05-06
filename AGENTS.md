@@ -148,6 +148,12 @@ They are different workflow gates and must be displayed separately.
   segment ranges. `pipe_1` must materialize `LabelVideoSegment` rows marked with
   `prediction_meta` or source `prediction`, otherwise the
   `VideoExaminationAnnotation` KI segment view has nothing to load.
+- Frontend-triggered KI reruns should replace existing prediction
+  `LabelVideoSegment` rows before calling `pipe_1`. Mixing rows from old and new
+  model metadata makes the KI segment view ambiguous.
+- Hugging Face model selection for video segments should resolve through
+  `ModelMeta.setup_default_from_huggingface` and then call `pipe_1` with the
+  resolved `model_name` and `model_meta_version`.
 
 ## Lookup Contract Guide For Frontend Agents
 

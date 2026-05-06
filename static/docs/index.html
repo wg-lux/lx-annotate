@@ -196,21 +196,19 @@
 <li class="toctree-l1"><a class="reference internal" href="guides/general-documentation.html">General Documentation Guide</a></li>
 <li class="toctree-l1"><a class="reference internal" href="guides/deployment-strategy.html">Deployment Strategy</a></li>
 <li class="toctree-l1"><a class="reference internal" href="guides/encrypted-storage-process.html">Encrypted Storage Process</a></li>
+<li class="toctree-l1"><a class="reference internal" href="guides/hub-export-workflow.html">Hub Export Workflow</a></li>
 <li class="toctree-l1"><a class="reference internal" href="guides/asset-deployment.html">Frontend Asset Deployment Contract</a></li>
 <li class="toctree-l1"><a class="reference internal" href="guides/wheel-deployment.html">Wheel Deployment</a></li>
 <li class="toctree-l1"><a class="reference internal" href="assisted-reporting-report.html">Reporting Template &amp; Requirement Sets Page (TemplateRequirementsPage)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="guides/ai-training-data-export.html">AI Training Data Export</a></li>
 <li class="toctree-l1"><a class="reference internal" href="guides/segment-annotation-workflow.html">Segment Annotation Workflow</a></li>
 <li class="toctree-l1"><a class="reference internal" href="guides/anonymization-validation-correction-workflow.html">Anonymization Validation and Correction Workflow</a></li>
-<li class="toctree-l1"><a class="reference internal" href="guides/dates-and-times.html">1. Always Use Strong Typing (Not Strings)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="guides/dates-and-times.html#enforce-timezone-awareness-crucial">2. Enforce Timezone Awareness (Crucial)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="guides/dates-and-times.html#stick-to-iso-8601-standards">3. Stick to ISO 8601 Standards</a></li>
-<li class="toctree-l1"><a class="reference internal" href="guides/dates-and-times.html#validating-business-logic-past-future">4. Validating Business Logic (Past/Future)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="guides/dates-and-times.html#handling-now-and-defaults">5. Handling “Now” and Defaults</a></li>
-<li class="toctree-l1"><a class="reference internal" href="guides/dates-and-times.html#serialization-json-output">6. Serialization (JSON Output)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="guides/dates-and-times.html#summary-checklist">Summary Checklist</a></li>
-<li class="toctree-l1"><a class="reference internal" href="guides/dates-and-times.html#example-putting-it-all-together">7. Example: Putting it all together</a></li>
-<li class="toctree-l1"><a class="reference internal" href="guides/dates-and-times.html#next-step">Next Step</a></li>
+<li class="toctree-l1"><a class="reference internal" href="guides/dates-and-times.html">Dates and Times</a></li>
 <li class="toctree-l1"><a class="reference internal" href="guides/pydantic-cheatsheet.html">Pydantic V2 Cheat Sheet</a></li>
+<li class="toctree-l1"><a class="reference internal" href="guides/dtypes-findings-migration.html">Dtypes Findings Migration (Incremental, Endoreg-Safe)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="guides/core-concept-contract.html">Core Concept Contract</a></li>
+<li class="toctree-l1"><a class="reference internal" href="guides/core-concept-readiness-verdict.html">Core Concept Readiness Verdict</a></li>
+<li class="toctree-l1"><a class="reference internal" href="guides/core-concept-type-matrix.html">Core Concept Type Matrix</a></li>
 <li class="toctree-l1"><a class="reference internal" href="guides/reporting-template-requirements-page.html">Reporting Template &amp; Requirement Sets Page (TemplateRequirementsPage)</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
@@ -305,6 +303,23 @@ used throughout the project.</p>
 <li class="toctree-l2"><a class="reference internal" href="guides/encrypted-storage-process.html#related-files">Related Files</a></li>
 </ul>
 </li>
+<li class="toctree-l1"><a class="reference internal" href="guides/hub-export-workflow.html">Hub Export Workflow</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="guides/hub-export-workflow.html#scope">Scope</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/hub-export-workflow.html#core-decisions">Core Decisions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/hub-export-workflow.html#marked-for-upload">Marked For Upload</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/hub-export-workflow.html#eligible-resources">Eligible Resources</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/hub-export-workflow.html#sender-state-machine">Sender State Machine</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/hub-export-workflow.html#transfer-identity">Transfer Identity</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/hub-export-workflow.html#transfer-mode-policy">Transfer Mode Policy</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/hub-export-workflow.html#retry-and-reuse-rules">Retry And Reuse Rules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/hub-export-workflow.html#sender-payload-responsibilities">Sender Payload Responsibilities</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/hub-export-workflow.html#ui-workflow">UI Workflow</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/hub-export-workflow.html#operational-requirements">Operational Requirements</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/hub-export-workflow.html#audit-requirements">Audit Requirements</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/hub-export-workflow.html#local-cleanup-policy">Local Cleanup Policy</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/hub-export-workflow.html#summary">Summary</a></li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="guides/asset-deployment.html">Frontend Asset Deployment Contract</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="guides/asset-deployment.html#contract-summary">Contract Summary</a></li>
 <li class="toctree-l2"><a class="reference internal" href="guides/asset-deployment.html#deployment-flow">Deployment Flow</a></li>
@@ -350,6 +365,17 @@ used throughout the project.</p>
 <li class="toctree-l2"><a class="reference internal" href="assisted-reporting-report.html#related-technical-files-for-admins-developers">Related Technical Files (for Admins/Developers)</a></li>
 </ul>
 </li>
+<li class="toctree-l1"><a class="reference internal" href="guides/ai-training-data-export.html">AI Training Data Export</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="guides/ai-training-data-export.html#data-safety-boundary">Data Safety Boundary</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/ai-training-data-export.html#recommended-user-workflow">Recommended User Workflow</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/ai-training-data-export.html#export-output">Export Output</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/ai-training-data-export.html#api-example">API Example</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/ai-training-data-export.html#management-command-example">Management Command Example</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/ai-training-data-export.html#standardized-ai-dataset-json">Standardized AI Dataset JSON</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/ai-training-data-export.html#gastronet-style-training">GastroNet-Style Training</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/ai-training-data-export.html#practical-checks">Practical Checks</a></li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="guides/segment-annotation-workflow.html">Segment Annotation Workflow</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="guides/segment-annotation-workflow.html#target-audience">Target Audience</a></li>
 <li class="toctree-l2"><a class="reference internal" href="guides/segment-annotation-workflow.html#primary-component">Primary Component</a></li>
@@ -361,7 +387,6 @@ used throughout the project.</p>
 <li class="toctree-l2"><a class="reference internal" href="guides/segment-annotation-workflow.html#training-notes">Training Notes</a></li>
 <li class="toctree-l2"><a class="reference internal" href="guides/segment-annotation-workflow.html#common-issues">Common Issues</a></li>
 <li class="toctree-l2"><a class="reference internal" href="guides/segment-annotation-workflow.html#technical-references">Technical References</a></li>
-<li class="toctree-l2"><a class="reference internal" href="guides/segment-annotation-workflow.html#fixed-issues">Fixed Issues</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="guides/anonymization-validation-correction-workflow.html">Anonymization Validation and Correction Workflow</a><ul>
@@ -375,18 +400,20 @@ used throughout the project.</p>
 <li class="toctree-l2"><a class="reference internal" href="guides/anonymization-validation-correction-workflow.html#technical-references">Technical References</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="guides/dates-and-times.html">1. Always Use Strong Typing (Not Strings)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="guides/dates-and-times.html#enforce-timezone-awareness-crucial">2. Enforce Timezone Awareness (Crucial)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="guides/dates-and-times.html#stick-to-iso-8601-standards">3. Stick to ISO 8601 Standards</a></li>
-<li class="toctree-l1"><a class="reference internal" href="guides/dates-and-times.html#validating-business-logic-past-future">4. Validating Business Logic (Past/Future)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="guides/dates-and-times.html#handling-now-and-defaults">5. Handling “Now” and Defaults</a></li>
-<li class="toctree-l1"><a class="reference internal" href="guides/dates-and-times.html#serialization-json-output">6. Serialization (JSON Output)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="guides/dates-and-times.html#summary-checklist">Summary Checklist</a></li>
-<li class="toctree-l1"><a class="reference internal" href="guides/dates-and-times.html#example-putting-it-all-together">7. Example: Putting it all together</a></li>
-<li class="toctree-l1"><a class="reference internal" href="guides/dates-and-times.html#next-step">Next Step</a></li>
+<li class="toctree-l1"><a class="reference internal" href="guides/dates-and-times.html">Dates and Times</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="guides/dates-and-times.html#always-use-strong-typing">1. Always Use Strong Typing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/dates-and-times.html#enforce-timezone-awareness">2. Enforce Timezone Awareness</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/dates-and-times.html#stick-to-iso-8601-standards">3. Stick to ISO 8601 Standards</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/dates-and-times.html#validate-business-logic">4. Validate Business Logic</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/dates-and-times.html#handle-now-and-defaults">5. Handle “Now” and Defaults</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/dates-and-times.html#serialization">6. Serialization</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/dates-and-times.html#summary-checklist">Summary Checklist</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/dates-and-times.html#complete-example">7. Complete Example</a></li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="guides/pydantic-cheatsheet.html">Pydantic V2 Cheat Sheet</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="guides/pydantic-cheatsheet.html#the-pydantic-v2-lifecycle">The Pydantic V2 Lifecycle</a></li>
-<li class="toctree-l2"><a class="reference internal" href="guides/pydantic-cheatsheet.html#the-golden-standard-base-model">1. The “Golden Standard” Base Model</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/pydantic-cheatsheet.html#shared-base-model">1. Shared Base Model</a></li>
 <li class="toctree-l2"><a class="reference internal" href="guides/pydantic-cheatsheet.html#datetime-timezones-strict-mode">2. DateTime &amp; Timezones (Strict Mode)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="guides/pydantic-cheatsheet.html#reusable-fields-mixins">3. Reusable Fields (Mixins)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="guides/pydantic-cheatsheet.html#advanced-validation-patterns">4. Advanced Validation Patterns</a></li>
@@ -395,7 +422,54 @@ used throughout the project.</p>
 <li class="toctree-l2"><a class="reference internal" href="guides/pydantic-cheatsheet.html#path-objects-filesystems">7. Path Objects &amp; Filesystems</a></li>
 <li class="toctree-l2"><a class="reference internal" href="guides/pydantic-cheatsheet.html#yaml-fixtures-sample-data">8. YAML Fixtures &amp; Sample Data</a></li>
 <li class="toctree-l2"><a class="reference internal" href="guides/pydantic-cheatsheet.html#summary-table-validator-modes">Summary Table: Validator Modes</a></li>
-<li class="toctree-l2"><a class="reference internal" href="guides/pydantic-cheatsheet.html#next-step">Next Step</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="guides/dtypes-findings-migration.html">Dtypes Findings Migration (Incremental, Endoreg-Safe)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="guides/dtypes-findings-migration.html#scope">Scope</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/dtypes-findings-migration.html#current-state-inventory">Current-State Inventory</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/dtypes-findings-migration.html#phased-checklist">Phased Checklist</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/dtypes-findings-migration.html#compatibility-matrix">Compatibility Matrix</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/dtypes-findings-migration.html#decision-log">Decision Log</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/dtypes-findings-migration.html#progress-log">Progress Log</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/dtypes-findings-migration.html#cutover-gate">Cutover Gate</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="guides/core-concept-contract.html">Core Concept Contract</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="guides/core-concept-contract.html#purpose">Purpose</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/core-concept-contract.html#core-concepts">Core Concepts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/core-concept-contract.html#source-of-truth-order">Source-Of-Truth Order</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/core-concept-contract.html#identity-rule">Identity Rule</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/core-concept-contract.html#collection-rule">Collection Rule</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/core-concept-contract.html#api-surface">API Surface</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/core-concept-contract.html#drift-audit">Drift Audit</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="guides/core-concept-readiness-verdict.html">Core Concept Readiness Verdict</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="guides/core-concept-readiness-verdict.html#purpose">Purpose</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/core-concept-readiness-verdict.html#current-foundation-implemented">Current Foundation (Implemented)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/core-concept-readiness-verdict.html#verdict-by-core-concept">Verdict by Core Concept</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/core-concept-readiness-verdict.html#open-conceptual-decisions-blocking-full-semantic-automation">Open Conceptual Decisions (Blocking Full Semantic Automation)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/core-concept-readiness-verdict.html#opinion-on-report-templates-yaml">Opinion on <code class="docutils literal notranslate"><span class="pre">report_templates.yaml</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/core-concept-readiness-verdict.html#governance-recommendation">Governance Recommendation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/core-concept-readiness-verdict.html#source-of-truth-order-canonical">Source-Of-Truth Order (Canonical)</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="guides/core-concept-type-matrix.html">Core Concept Type Matrix</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="guides/core-concept-type-matrix.html#classification">Classification</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/core-concept-type-matrix.html#classificationchoice">ClassificationChoice</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/core-concept-type-matrix.html#classificationchoicedescriptor">ClassificationChoiceDescriptor</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/core-concept-type-matrix.html#examination">Examination</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/core-concept-type-matrix.html#finding">Finding</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/core-concept-type-matrix.html#findingtype">FindingType</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/core-concept-type-matrix.html#indication">Indication</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/core-concept-type-matrix.html#indicationtype">IndicationType</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/core-concept-type-matrix.html#intervention">Intervention</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/core-concept-type-matrix.html#interventiontype">InterventionType</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/core-concept-type-matrix.html#unit">Unit</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/core-concept-type-matrix.html#unittype">UnitType</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/core-concept-type-matrix.html#informationsource">InformationSource</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/core-concept-type-matrix.html#informationsourcetype">InformationSourceType</a></li>
+<li class="toctree-l2"><a class="reference internal" href="guides/core-concept-type-matrix.html#citation">Citation</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="guides/reporting-template-requirements-page.html">Reporting Template &amp; Requirement Sets Page (TemplateRequirementsPage)</a><ul>
@@ -427,11 +501,9 @@ used throughout the project.</p>
 <section id="quick-links">
 <h2>Quick Links<a class="headerlink" href="#quick-links" title="Link to this heading">¶</a></h2>
 <ul class="simple">
-<li><p>Project repository: <a class="reference external" href="https://github.com/wg-lux/lx-data-models">https://github.com/wg-lux/lx-data-models</a></p></li>
-<li><p>Issue tracker: <a class="reference external" href="https://github.com/wg-lux/lx-data-models/issues">https://github.com/wg-lux/lx-data-models/issues</a></p></li>
-<li><p>Python Package Index (coming soon)</p></li>
+<li><p>Project repository: <a class="reference external" href="https://github.com/wg-lux/lx-annotate">https://github.com/wg-lux/lx-annotate</a></p></li>
+<li><p>Issue tracker: <a class="reference external" href="https://github.com/wg-lux/lx-annotate/issues">https://github.com/wg-lux/lx-annotate/issues</a></p></li>
 </ul>
-<p>Need another topic? Open a discussion or file an issue and we will expand the docs.</p>
 </section>
 </section>
 
@@ -496,7 +568,7 @@ used throughout the project.</p>
       
     </aside>
   </div>
-</div><script src="_static/documentation_options.js?v=90733dfc"></script>
+</div><script src="_static/documentation_options.js?v=03f3338f"></script>
     <script src="_static/doctools.js?v=9bcbadda"></script>
     <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="_static/scripts/furo.js?v=46bd48cc"></script>

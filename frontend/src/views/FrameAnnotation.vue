@@ -324,6 +324,7 @@ const labelGroupOptions = ref<LabelGroupOption[]>([])
 const annotatorOverride = ref<string | null>(null)
 const annotatorOverrideInput = ref('')
 let isReloadingAnnotationQueue = false
+let isBootstrappingAnnotationQueue = true
 
 const selectedLabelGroupId = computed({
   get: () => queueStore.selectedLabelGroupId ?? '',
@@ -741,15 +742,19 @@ watch(
 watch(
   () => [queueStore.selectedLabelGroupId, queueStore.taskQuerySignature],
   async () => {
-    if (isReloadingAnnotationQueue) return
+    if (isBootstrappingAnnotationQueue || isReloadingAnnotationQueue) return
     queueStore.clearQueue()
     await loadNextTask()
   }
 )
 
 onMounted(async () => {
-  await loadLabelGroups()
-  await loadNextTask()
+  try {
+    await loadLabelGroups()
+    await loadNextTask()
+  } finally {
+    isBootstrappingAnnotationQueue = false
+  }
 })
 </script>
 

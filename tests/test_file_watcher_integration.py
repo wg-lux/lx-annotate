@@ -16,6 +16,8 @@ from endoreg_db.models import (
     VideoFile,
 )
 from endoreg_db.services.hub.ingest import process_watcher_file
+from endoreg_db.utils.file_operations import atomic_write_file, sha256_file
+from endoreg_db.utils.storage import save_local_file
 
 
 class RecordingExecutor:
@@ -428,16 +430,23 @@ def test_watcher_and_api_upload_jobs_share_core_ingest_expectations(
 
 @pytest.mark.django_db
 def test_process_watcher_file_reuses_completed_job_for_same_video_content(
-    monkeypatch, tmp_path
+    monkeypatch, tmp_path, master_key
 ):
     center = Center.objects.create(name="Dedup Center")
     first_path = tmp_path / "first.mp4"
     second_path = tmp_path / "renamed.mp4"
     payload = b"same-video-content"
-    first_path.write_bytes(payload)
-    second_path.write_bytes(payload)
-
-    created_video = SimpleNamespace(sensitive_meta=None)
+    atomic_write_file(
+        destination=first_path,
+        content=(payload,),
+        required_bytes=len(payload),
+    )
+    atomic_write_file(
+        destination=second_path,
+        content=(payload,),
+        required_bytes=len(payload),
+    )
+    video_hash = sha256_file(first_path)
 
     class _StubVideoImportService:
         def import_and_anonymize(
@@ -451,7 +460,36 @@ def test_process_watcher_file_reuses_completed_job_for_same_video_content(
             assert Path(file_path) == first_path
             assert center_name == center.name
             assert retry is False
-            return created_video
+            processed_path = tmp_path / "processed.mp4"
+            processed_payload = b"processed-" + payload
+            atomic_write_file(
+                destination=processed_path,
+                content=(processed_payload,),
+                required_bytes=len(processed_payload),
+            )
+            processed_hash = sha256_file(processed_path)
+            video = VideoFile.objects.create(
+                center=center,
+                original_file_name=Path(file_path).name,
+                video_hash=video_hash,
+                processed_video_hash=processed_hash,
+                suffix=".mp4",
+            )
+            save_local_file(
+                video.raw_file,
+                Path(file_path),
+                name=f"{video_hash}.mp4",
+                save=False,
+            )
+            save_local_file(
+                video.processed_file,
+                processed_path,
+                name=f"{processed_hash}.mp4",
+                save=False,
+            )
+            video.save(update_fields=["raw_file", "processed_file"])
+            video.get_or_create_state().mark_anonymization_validated()
+            return video
 
     monkeypatch.setattr(
         "endoreg_db.services.hub.ingest.VideoImportService",

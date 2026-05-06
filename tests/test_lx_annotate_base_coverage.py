@@ -247,7 +247,7 @@ def test_start_file_watcher_starts_daemon_thread_and_calls_command(monkeypatch):
 
     monkeypatch.setattr("lx_annotate.apps.threading.Thread", FakeThread)
     assert config.start_file_watcher() is True
-    assert calls == [("start_filewatcher", {"log_level": "INFO"})]
+    assert calls == [("run_filewatcher", {"log_level": "INFO"})]
 
 
 def test_serializers_accept_uploaded_files():

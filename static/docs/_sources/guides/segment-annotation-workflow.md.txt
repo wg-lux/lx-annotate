@@ -25,8 +25,9 @@ This page explains the practical workflow for segment annotation in videos after
 
 ## Preconditions
 
-- The selected video must already be anonymized (`done_processing_anonymization`) or validated.
-- Videos already fully validated for segment annotation cannot be edited again in normal flow.
+- The selected video must have usable anonymized processed media.
+- Segment-validated videos remain selectable for review.
+- Segment editing is read-only after segment validation unless an explicit edit override is active.
 
 ## Step-by-Step for Medical Users
 
@@ -56,7 +57,7 @@ This page explains the practical workflow for segment annotation in videos after
 
 ### No video can be selected
 
-- Cause: video is not anonymized yet or already fully validated.
+- Cause: no video has usable anonymized media for the current workflow.
 - Action: return to anonymization workflow and check status.
 
 ### Validation button reports no segments
@@ -73,10 +74,3 @@ This page explains the practical workflow for segment annotation in videos after
 
 - `frontend/src/components/VideoExamination/VideoExaminationAnnotation.vue`
 - `frontend/src/components/VideoExamination/Timeline.vue`
-
-## Fixed Issues
-
-We already made the following UI observations and fixed them:
-
-- Video validation status was hard to read -> add color coding and symbols
-- Button for final validation didnt register -> changed button size and broke color code

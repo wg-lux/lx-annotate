@@ -66,7 +66,7 @@ File watcher (development):
 Run watcher directly:
 
 ```bash
-python manage.py start_filewatcher
+python manage.py run_filewatcher
 ```
 
 CUDA quick test:

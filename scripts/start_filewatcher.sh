@@ -128,7 +128,7 @@ test_watcher() {
     bootstrap_pythonpath
     
     # Test packaged watcher command path
-    python manage.py start_filewatcher --test --log-level INFO > /dev/null 2>&1
+    python manage.py run_filewatcher --dry-run --log-level INFO > /dev/null 2>&1
     local exit_code=$?
     
     if [ $exit_code -eq 0 ]; then
@@ -189,7 +189,7 @@ start_dev() {
     bootstrap_pythonpath
 
     print_status "Starting packaged file watcher command..."
-    python manage.py start_filewatcher --log-level DEBUG
+    python manage.py run_filewatcher --log-level DEBUG
 }
 
 

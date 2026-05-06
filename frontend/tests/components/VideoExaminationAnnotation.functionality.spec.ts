@@ -196,6 +196,8 @@ describe('VideoExaminationAnnotation functionality', () => {
     testState.route.query.video = null
     testState.router.replace.mockReset()
     testState.router.push.mockReset()
+    testState.axiosGet.mockReset()
+    testState.axiosPost.mockReset()
     testState.videoStore = makeVideoStore()
     testState.anonymizationStore = reactive({
       overview: videos.map((video) => ({
@@ -333,6 +335,160 @@ describe('VideoExaminationAnnotation functionality', () => {
 
     expect(wrapper.findComponent({ name: 'Timeline' }).props('selectionMode')).toBe(false)
     expect(wrapper.text()).toContain('Aktiver Annotator: oidc:kc-user-7')
+
+    wrapper.unmount()
+  })
+
+  it('can request outside-segment blackening without changing validation state', async () => {
+    testState.route.query.video = '2'
+    testState.axiosPost.mockResolvedValue({
+      data: {
+        status: 'queued',
+        outsideSegmentCount: 1,
+        postProcessingJob: { status: 'queued' }
+      }
+    })
+
+    const wrapper = mountComponent()
+    await settle()
+
+    const blackenButton = wrapper.get('[data-test="blacken-outside-segments-button"]')
+    expect(blackenButton.attributes('disabled')).toBeUndefined()
+
+    await blackenButton.trigger('click')
+    await settle()
+
+    expect(testState.axiosPost).toHaveBeenCalledWith(
+      '/api/media/videos/2/segments/blacken-outside/',
+      {
+        onlyValidated: false
+      }
+    )
+    expect(testState.axiosPost).not.toHaveBeenCalledWith(
+      '/api/media/videos/2/segments/validate-bulk/',
+      expect.anything()
+    )
+    expect(wrapper.text()).toContain('Schwärzung der Außerhalb-Segmente gestartet')
+
+    wrapper.unmount()
+  })
+
+  it('shows outside-segment blackening no-op without reloading the video', async () => {
+    testState.route.query.video = '2'
+    const loadSpy = vi
+      .spyOn(window.HTMLMediaElement.prototype, 'load')
+      .mockImplementation(() => undefined)
+    testState.axiosPost.mockResolvedValue({
+      data: {
+        status: 'noop',
+        outsideSegmentCount: 0
+      }
+    })
+
+    const wrapper = mountComponent()
+    await settle()
+
+    await wrapper.get('[data-test="blacken-outside-segments-button"]').trigger('click')
+    await settle()
+
+    expect(wrapper.text()).toContain('Keine Außerhalb-Segmente gefunden')
+    expect(loadSpy).not.toHaveBeenCalled()
+
+    loadSpy.mockRestore()
+    wrapper.unmount()
+  })
+
+  it('reloads the video only when outside-segment blackening completed', async () => {
+    testState.route.query.video = '2'
+    const loadSpy = vi
+      .spyOn(window.HTMLMediaElement.prototype, 'load')
+      .mockImplementation(() => undefined)
+    testState.axiosPost.mockResolvedValue({
+      data: {
+        status: 'completed',
+        outsideSegmentCount: 1,
+        postProcessingJob: { status: 'completed' }
+      }
+    })
+
+    const wrapper = mountComponent()
+    await settle()
+
+    await wrapper.get('[data-test="blacken-outside-segments-button"]').trigger('click')
+    await settle()
+
+    expect(wrapper.text()).toContain('Außerhalb-Segmente geschwärzt')
+    expect(loadSpy).toHaveBeenCalledTimes(1)
+
+    loadSpy.mockRestore()
+    wrapper.unmount()
+  })
+
+  it('shows already queued outside-segment blackening as non-blocking status', async () => {
+    testState.route.query.video = '2'
+    testState.axiosPost.mockResolvedValue({
+      data: {
+        status: 'already_queued',
+        outsideSegmentCount: 1,
+        postProcessingJob: { status: 'already_queued' }
+      }
+    })
+
+    const wrapper = mountComponent()
+    await settle()
+
+    await wrapper.get('[data-test="blacken-outside-segments-button"]').trigger('click')
+    await settle()
+
+    expect(wrapper.text()).toContain('Schwärzung der Außerhalb-Segmente läuft bereits')
+
+    wrapper.unmount()
+  })
+
+  it('shows busy outside-segment blackening responses as errors', async () => {
+    testState.route.query.video = '2'
+    testState.axiosPost.mockRejectedValue({
+      response: {
+        status: 409,
+        data: {
+          status: 'busy',
+          message: 'Video reprocessing is already running'
+        }
+      }
+    })
+
+    const wrapper = mountComponent()
+    await settle()
+
+    await wrapper.get('[data-test="blacken-outside-segments-button"]').trigger('click')
+    await settle()
+
+    expect(wrapper.text()).toContain('Ein anderer Verarbeitungsvorgang')
+    expect(wrapper.text()).not.toContain('Schwärzung der Außerhalb-Segmente gestartet')
+
+    wrapper.unmount()
+  })
+
+  it('shows failed outside-segment blackening responses as errors', async () => {
+    testState.route.query.video = '2'
+    testState.axiosPost.mockRejectedValue({
+      response: {
+        status: 500,
+        data: {
+          status: 'failed',
+          error: 'inline rebuild failed'
+        }
+      }
+    })
+
+    const wrapper = mountComponent()
+    await settle()
+
+    await wrapper.get('[data-test="blacken-outside-segments-button"]').trigger('click')
+    await settle()
+
+    expect(wrapper.text()).toContain('Schwärzung der Außerhalb-Segmente fehlgeschlagen')
+    expect(wrapper.text()).toContain('inline rebuild failed')
 
     wrapper.unmount()
   })

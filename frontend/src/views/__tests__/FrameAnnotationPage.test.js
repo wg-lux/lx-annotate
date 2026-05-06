@@ -1,5 +1,6 @@
 import { flushPromises, mount } from '@vue/test-utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { reactive } from 'vue';
 import FrameAnnotation from '../FrameAnnotation.vue';
 const hoisted = vi.hoisted(() => ({
     get: vi.fn(),
@@ -27,7 +28,7 @@ vi.mock('@/stores/auth_kc', () => ({
         }
     })
 }));
-function buildQueueStore() {
+function buildQueueStore(overrides = {}) {
     const nextTasks = [
         {
             id: 'task-1',
@@ -62,7 +63,7 @@ function buildQueueStore() {
         },
         null
     ];
-    return {
+    const store = reactive({
         selectedLabelGroupId: '3',
         taskMode: 'random',
         targetLabelName: 'Polyp',
@@ -81,8 +82,31 @@ function buildQueueStore() {
         setAnnotatorPrincipal: vi.fn(),
         clearQueue: vi.fn(),
         fetchBatch: vi.fn().mockResolvedValue(undefined),
-        popNextTask: vi.fn(() => nextTasks.shift() ?? null)
-    };
+        popNextTask: vi.fn(() => nextTasks.shift() ?? null),
+        ...overrides
+    });
+    store.setSelectedLabelGroupId = vi.fn((groupId) => {
+        store.selectedLabelGroupId = groupId && groupId.trim() ? groupId : null;
+    });
+    store.setTaskMode = vi.fn((mode) => {
+        store.taskMode = mode === 'filtered' ? 'filtered' : 'random';
+    });
+    store.setTargetLabelName = vi.fn((label) => {
+        store.targetLabelName = label?.trim() ?? '';
+    });
+    store.setFilterLabelName = vi.fn((label) => {
+        store.filterLabelName = label && label.trim() ? label.trim() : null;
+    });
+    store.setAllowRandomFallback = vi.fn((enabled) => {
+        store.allowRandomFallback = !!enabled;
+    });
+    store.setInformationSource = vi.fn((source) => {
+        store.informationSource = source?.trim() || 'manual_annotation';
+    });
+    store.setAnnotatorPrincipal = vi.fn((principal) => {
+        store.annotatorPrincipal = principal?.trim() || null;
+    });
+    return store;
 }
 describe('FrameAnnotation route', () => {
     beforeEach(() => {
@@ -134,6 +158,14 @@ describe('FrameAnnotation route', () => {
         ]);
         expect(hoisted.queueStore.popNextTask).toHaveBeenCalledTimes(2);
         expect(wrapper.text()).toContain('Keine Annotationsaufgaben verfügbar.');
+    });
+    it('loads one initial task when the first label group is auto-selected', async () => {
+        hoisted.queueStore = buildQueueStore({ selectedLabelGroupId: null });
+        mount(FrameAnnotation);
+        await flushPromises();
+        expect(hoisted.queueStore.setSelectedLabelGroupId).toHaveBeenCalledWith('4');
+        expect(hoisted.queueStore.fetchBatch).toHaveBeenCalledTimes(1);
+        expect(hoisted.queueStore.popNextTask).toHaveBeenCalledTimes(1);
     });
     it('skips the current task via the frame-annotation route endpoint', async () => {
         hoisted.post.mockResolvedValue({ data: { ok: true } });

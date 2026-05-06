@@ -45,8 +45,7 @@ Runtime services:
 
 ## Build Strategy
 
-The GitHub Actions workflow in
-[ci-cd.yml](/home/admin/dev/lx-annotate/.github/workflows/ci-cd.yml) performs
+The GitHub Actions workflow in `.github/workflows/ci-cd.yml` performs
 three deployment-related jobs:
 
 1. Run backend and frontend tests.
@@ -68,8 +67,7 @@ The wheel is only a Python artifact. It does not bundle host binaries such as:
 - `tesseract-ocr`
 - shared libraries required by video/OCR/image dependencies
 
-Those are provisioned on the host by
-[bootstrap-host.sh](/home/admin/dev/lx-annotate/deploy/bootstrap-host.sh).
+Those are provisioned on the host by `deploy/bootstrap-host.sh`.
 
 The runtime deployment flow is:
 
@@ -80,8 +78,7 @@ The runtime deployment flow is:
 5. Run migrations.
 6. Restart the ASGI service.
 
-That flow is implemented by
-[deploy.sh](/home/admin/dev/lx-annotate/deploy/deploy.sh).
+That flow is implemented by `deploy/deploy.sh`.
 
 The runtime split is deliberate:
 
@@ -149,9 +146,9 @@ Operational guidance:
 
 The production service split is intentional:
 
-- [lx-annotate.service](/home/admin/dev/lx-annotate/deploy/lx-annotate.service)
+- `deploy/lx-annotate.service`
   runs Daphne
-- [lx-annotate-watcher.service](/home/admin/dev/lx-annotate/deploy/lx-annotate-watcher.service)
+- `deploy/lx-annotate-watcher.service`
   runs the file watcher separately
 
 The watcher must remain isolated from the web process so media ingestion
@@ -212,7 +209,7 @@ The sender-side rules are:
 - retries must reuse a deterministic transfer identity
 
 The detailed sender workflow is documented in
-[hub-export-workflow.md](/home/admin/dev/lx-annotate/docs/guides/hub-export-workflow.md).
+[Hub Export Workflow](hub-export-workflow.md).
 
 ## Current Service Environment
 
@@ -280,7 +277,7 @@ required infrastructure, not convenience directories. A clean boot should not
 depend on the first ingest helper script to make the runtime writable shape
 exist.
 
-The Nix module in [nix/module.nix](/home/admin/dev/lx-annotate/nix/module.nix)
+The Nix module in `nix/module.nix`
 documents a simpler packaged service shape. It does not cover the fuller
 LuxNix topology described here, including the separate watcher, SAP-import,
 and data-recovery units, so operators should treat the wheel deployment docs
@@ -294,7 +291,7 @@ Some deployments also run a one-shot `systemd` unit named
 repo-local layout to the runtime state layout under `/var/lib/lx-annotate`.
 
 This repository does not currently ship that unit file directly, but the
-behavior matches [migrate_data_dir.py](/home/admin/dev/lx-annotate/scripts/migrate_data_dir.py):
+behavior matches `scripts/migrate_data_dir.py`:
 
 - source tree: legacy repository-local `./data`, for example
   `/var/endoreg-service-user/lx-annotate/data`
@@ -332,7 +329,7 @@ responsible for:
 - proxying dynamic requests to Daphne
 
 The reference Nginx config lives in
-[nginx-lx-annotate.conf](/home/admin/dev/lx-annotate/deploy/nginx-lx-annotate.conf).
+`deploy/nginx-lx-annotate.conf`.
 
 ## LuxNix Strategy
 
@@ -342,7 +339,7 @@ The LuxNix module supports two runtime modes:
 - `runtime.mode = "wheel"` installs and starts the packaged wheel
 
 That switch lives in
-[/home/admin/luxnix/modules/nixos/services/lx-annotate-local/default.nix](/home/admin/luxnix/modules/nixos/services/lx-annotate-local/default.nix).
+`/home/admin/luxnix/modules/nixos/services/lx-annotate-local/default.nix`.
 
 Use `repo` mode for local development or legacy setups that still depend on a
 live checkout. Use `wheel` mode for standardized production-style deployments.
@@ -360,7 +357,7 @@ commands are configured for them.
 
 The current endoreg-client role now wires those commands by default:
 
-- `runtime.commands.fileWatcher = "python manage.py start_filewatcher"`
+- `runtime.commands.fileWatcher = "python manage.py run_filewatcher"`
 - `runtime.commands.exportFrames = "export-frames"`
 
 Without those command values, these wheel-mode artifacts drop out of the
@@ -417,5 +414,5 @@ the root-managed encrypted-data mount service and can remain root-only.
 
 ## Related Guides
 
-- [wheel-deployment.md](/home/admin/dev/lx-annotate/docs/guides/wheel-deployment.md)
-- [asset-deployment.md](/home/admin/dev/lx-annotate/docs/guides/asset-deployment.md)
+- [Wheel Deployment](wheel-deployment.md)
+- [Frontend Asset Deployment Contract](asset-deployment.md)

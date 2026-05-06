@@ -196,21 +196,19 @@
 <li class="toctree-l1"><a class="reference internal" href="general-documentation.html">General Documentation Guide</a></li>
 <li class="toctree-l1 current current-page"><a class="current reference internal" href="#">Deployment Strategy</a></li>
 <li class="toctree-l1"><a class="reference internal" href="encrypted-storage-process.html">Encrypted Storage Process</a></li>
+<li class="toctree-l1"><a class="reference internal" href="hub-export-workflow.html">Hub Export Workflow</a></li>
 <li class="toctree-l1"><a class="reference internal" href="asset-deployment.html">Frontend Asset Deployment Contract</a></li>
 <li class="toctree-l1"><a class="reference internal" href="wheel-deployment.html">Wheel Deployment</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../assisted-reporting-report.html">Reporting Template &amp; Requirement Sets Page (TemplateRequirementsPage)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ai-training-data-export.html">AI Training Data Export</a></li>
 <li class="toctree-l1"><a class="reference internal" href="segment-annotation-workflow.html">Segment Annotation Workflow</a></li>
 <li class="toctree-l1"><a class="reference internal" href="anonymization-validation-correction-workflow.html">Anonymization Validation and Correction Workflow</a></li>
-<li class="toctree-l1"><a class="reference internal" href="dates-and-times.html">1. Always Use Strong Typing (Not Strings)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="dates-and-times.html#enforce-timezone-awareness-crucial">2. Enforce Timezone Awareness (Crucial)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="dates-and-times.html#stick-to-iso-8601-standards">3. Stick to ISO 8601 Standards</a></li>
-<li class="toctree-l1"><a class="reference internal" href="dates-and-times.html#validating-business-logic-past-future">4. Validating Business Logic (Past/Future)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="dates-and-times.html#handling-now-and-defaults">5. Handling “Now” and Defaults</a></li>
-<li class="toctree-l1"><a class="reference internal" href="dates-and-times.html#serialization-json-output">6. Serialization (JSON Output)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="dates-and-times.html#summary-checklist">Summary Checklist</a></li>
-<li class="toctree-l1"><a class="reference internal" href="dates-and-times.html#example-putting-it-all-together">7. Example: Putting it all together</a></li>
-<li class="toctree-l1"><a class="reference internal" href="dates-and-times.html#next-step">Next Step</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dates-and-times.html">Dates and Times</a></li>
 <li class="toctree-l1"><a class="reference internal" href="pydantic-cheatsheet.html">Pydantic V2 Cheat Sheet</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dtypes-findings-migration.html">Dtypes Findings Migration (Incremental, Endoreg-Safe)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="core-concept-contract.html">Core Concept Contract</a></li>
+<li class="toctree-l1"><a class="reference internal" href="core-concept-readiness-verdict.html">Core Concept Readiness Verdict</a></li>
+<li class="toctree-l1"><a class="reference internal" href="core-concept-type-matrix.html">Core Concept Type Matrix</a></li>
 <li class="toctree-l1"><a class="reference internal" href="reporting-template-requirements-page.html">Reporting Template &amp; Requirement Sets Page (TemplateRequirementsPage)</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
@@ -300,8 +298,7 @@ scripts, or under the service user home in LuxNix wheel mode</p></li>
 </section>
 <section id="build-strategy">
 <h2>Build Strategy<a class="headerlink" href="#build-strategy" title="Link to this heading">¶</a></h2>
-<p>The GitHub Actions workflow in
-<a class="reference internal" href="#/home/admin/dev/lx-annotate/.github/workflows/ci-cd.yml"><span class="xref myst">ci-cd.yml</span></a> performs
+<p>The GitHub Actions workflow in <code class="docutils literal notranslate"><span class="pre">.github/workflows/ci-cd.yml</span></code> performs
 three deployment-related jobs:</p>
 <ol class="arabic simple">
 <li><p>Run backend and frontend tests.</p></li>
@@ -324,8 +321,7 @@ three deployment-related jobs:</p>
 <li><p><code class="docutils literal notranslate"><span class="pre">tesseract-ocr</span></code></p></li>
 <li><p>shared libraries required by video/OCR/image dependencies</p></li>
 </ul>
-<p>Those are provisioned on the host by
-<a class="reference internal" href="#/home/admin/dev/lx-annotate/deploy/bootstrap-host.sh"><span class="xref myst">bootstrap-host.sh</span></a>.</p>
+<p>Those are provisioned on the host by <code class="docutils literal notranslate"><span class="pre">deploy/bootstrap-host.sh</span></code>.</p>
 <p>The runtime deployment flow is:</p>
 <ol class="arabic simple">
 <li><p>Provision host packages.</p></li>
@@ -335,8 +331,7 @@ three deployment-related jobs:</p>
 <li><p>Run migrations.</p></li>
 <li><p>Restart the ASGI service.</p></li>
 </ol>
-<p>That flow is implemented by
-<a class="reference internal" href="#/home/admin/dev/lx-annotate/deploy/deploy.sh"><span class="xref myst">deploy.sh</span></a>.</p>
+<p>That flow is implemented by <code class="docutils literal notranslate"><span class="pre">deploy/deploy.sh</span></code>.</p>
 <p>The runtime split is deliberate:</p>
 <ul class="simple">
 <li><p>code and virtualenv under the service user home</p></li>
@@ -398,9 +393,9 @@ controls are required and throughput is not the primary constraint</p></li>
 <h2>Service Topology<a class="headerlink" href="#service-topology" title="Link to this heading">¶</a></h2>
 <p>The production service split is intentional:</p>
 <ul class="simple">
-<li><p><a class="reference internal" href="#/home/admin/dev/lx-annotate/deploy/lx-annotate.service"><span class="xref myst">lx-annotate.service</span></a>
+<li><p><code class="docutils literal notranslate"><span class="pre">deploy/lx-annotate.service</span></code>
 runs Daphne</p></li>
-<li><p><a class="reference internal" href="#/home/admin/dev/lx-annotate/deploy/lx-annotate-watcher.service"><span class="xref myst">lx-annotate-watcher.service</span></a>
+<li><p><code class="docutils literal notranslate"><span class="pre">deploy/lx-annotate-watcher.service</span></code>
 runs the file watcher separately</p></li>
 </ul>
 <p>The watcher must remain isolated from the web process so media ingestion
@@ -461,7 +456,7 @@ node for a configured central hub</p></li>
 <li><p>retries must reuse a deterministic transfer identity</p></li>
 </ul>
 <p>The detailed sender workflow is documented in
-<a class="reference internal" href="#/home/admin/dev/lx-annotate/docs/guides/hub-export-workflow.md"><span class="xref myst">hub-export-workflow.md</span></a>.</p>
+<a class="reference internal" href="hub-export-workflow.html"><span class="std std-doc">Hub Export Workflow</span></a>.</p>
 </section>
 <section id="current-service-environment">
 <h2>Current Service Environment<a class="headerlink" href="#current-service-environment" title="Link to this heading">¶</a></h2>
@@ -528,7 +523,7 @@ of by the boot-time directory contract</p></li>
 required infrastructure, not convenience directories. A clean boot should not
 depend on the first ingest helper script to make the runtime writable shape
 exist.</p>
-<p>The Nix module in <a class="reference internal" href="#/home/admin/dev/lx-annotate/nix/module.nix"><span class="xref myst">nix/module.nix</span></a>
+<p>The Nix module in <code class="docutils literal notranslate"><span class="pre">nix/module.nix</span></code>
 documents a simpler packaged service shape. It does not cover the fuller
 LuxNix topology described here, including the separate watcher, SAP-import,
 and data-recovery units, so operators should treat the wheel deployment docs
@@ -541,7 +536,7 @@ truth for multi-service production setups.</p>
 <code class="docutils literal notranslate"><span class="pre">lx-annotate-data-recovery.service</span></code> before or during cutover from a legacy
 repo-local layout to the runtime state layout under <code class="docutils literal notranslate"><span class="pre">/var/lib/lx-annotate</span></code>.</p>
 <p>This repository does not currently ship that unit file directly, but the
-behavior matches <a class="reference internal" href="#/home/admin/dev/lx-annotate/scripts/migrate_data_dir.py"><span class="xref myst">migrate_data_dir.py</span></a>:</p>
+behavior matches <code class="docutils literal notranslate"><span class="pre">scripts/migrate_data_dir.py</span></code>:</p>
 <ul class="simple">
 <li><p>source tree: legacy repository-local <code class="docutils literal notranslate"><span class="pre">./data</span></code>, for example
 <code class="docutils literal notranslate"><span class="pre">/var/endoreg-service-user/lx-annotate/data</span></code></p></li>
@@ -579,7 +574,7 @@ responsible for:</p>
 <li><p>proxying dynamic requests to Daphne</p></li>
 </ul>
 <p>The reference Nginx config lives in
-<a class="reference internal" href="#/home/admin/dev/lx-annotate/deploy/nginx-lx-annotate.conf"><span class="xref myst">nginx-lx-annotate.conf</span></a>.</p>
+<code class="docutils literal notranslate"><span class="pre">deploy/nginx-lx-annotate.conf</span></code>.</p>
 </section>
 <section id="luxnix-strategy">
 <h2>LuxNix Strategy<a class="headerlink" href="#luxnix-strategy" title="Link to this heading">¶</a></h2>
@@ -589,7 +584,7 @@ responsible for:</p>
 <li><p><code class="docutils literal notranslate"><span class="pre">runtime.mode</span> <span class="pre">=</span> <span class="pre">&quot;wheel&quot;</span></code> installs and starts the packaged wheel</p></li>
 </ul>
 <p>That switch lives in
-<a class="reference internal" href="#/home/admin/luxnix/modules/nixos/services/lx-annotate-local/default.nix"><span class="xref myst">/home/admin/luxnix/modules/nixos/services/lx-annotate-local/default.nix</span></a>.</p>
+<code class="docutils literal notranslate"><span class="pre">/home/admin/luxnix/modules/nixos/services/lx-annotate-local/default.nix</span></code>.</p>
 <p>Use <code class="docutils literal notranslate"><span class="pre">repo</span></code> mode for local development or legacy setups that still depend on a
 live checkout. Use <code class="docutils literal notranslate"><span class="pre">wheel</span></code> mode for standardized production-style deployments.</p>
 <p>In LuxNix wheel mode, the split is:</p>
@@ -604,7 +599,7 @@ conditional in wheel mode. They are only instantiated when explicit wheel-mode
 commands are configured for them.</p>
 <p>The current endoreg-client role now wires those commands by default:</p>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">runtime.commands.fileWatcher</span> <span class="pre">=</span> <span class="pre">&quot;python</span> <span class="pre">manage.py</span> <span class="pre">start_filewatcher&quot;</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">runtime.commands.fileWatcher</span> <span class="pre">=</span> <span class="pre">&quot;python</span> <span class="pre">manage.py</span> <span class="pre">run_filewatcher&quot;</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">runtime.commands.exportFrames</span> <span class="pre">=</span> <span class="pre">&quot;export-frames&quot;</span></code></p></li>
 </ul>
 <p>Without those command values, these wheel-mode artifacts drop out of the
@@ -663,8 +658,8 @@ automated rollback path.</p></li>
 <section id="related-guides">
 <h2>Related Guides<a class="headerlink" href="#related-guides" title="Link to this heading">¶</a></h2>
 <ul class="simple">
-<li><p><a class="reference internal" href="#/home/admin/dev/lx-annotate/docs/guides/wheel-deployment.md"><span class="xref myst">wheel-deployment.md</span></a></p></li>
-<li><p><a class="reference internal" href="#/home/admin/dev/lx-annotate/docs/guides/asset-deployment.md"><span class="xref myst">asset-deployment.md</span></a></p></li>
+<li><p><a class="reference internal" href="wheel-deployment.html"><span class="std std-doc">Wheel Deployment</span></a></p></li>
+<li><p><a class="reference internal" href="asset-deployment.html"><span class="std std-doc">Frontend Asset Deployment Contract</span></a></p></li>
 </ul>
 </section>
 </section>
@@ -755,7 +750,7 @@ automated rollback path.</p></li>
       
     </aside>
   </div>
-</div><script src="../_static/documentation_options.js?v=90733dfc"></script>
+</div><script src="../_static/documentation_options.js?v=03f3338f"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/furo.js?v=46bd48cc"></script>

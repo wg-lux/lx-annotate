@@ -336,7 +336,7 @@ In environments migrating from an older repo-local deployment, operators may
 also install a one-shot `lx-annotate-data-recovery.service`.
 
 Its observed behavior matches
-[scripts/migrate_data_dir.py](/home/admin/dev/lx-annotate/scripts/migrate_data_dir.py)
+`scripts/migrate_data_dir.py`
 running in merge mode:
 
 - it treats the legacy repo-local `data/` tree as the source

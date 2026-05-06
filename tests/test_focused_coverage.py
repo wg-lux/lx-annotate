@@ -202,6 +202,20 @@ def test_settings_base_requires_secure_transport_for_transfer_api(monkeypatch):
         importlib.import_module("lx_annotate.settings.settings_base")
 
 
+def test_settings_base_requires_central_hub_for_enabled_transfer_api(monkeypatch):
+    monkeypatch.setenv("DJANGO_SETTINGS_MODULE", "lx_annotate.settings.settings_prod")
+    monkeypatch.setenv("ENDOREG_DEPLOYMENT_ROLE", "site_node")
+    monkeypatch.setenv("ENDOREG_ENABLE_HUB_TRANSFERS", "true")
+
+    sys.modules.pop("lx_annotate.settings.settings_base", None)
+
+    with pytest.raises(
+        RuntimeError,
+        match=r"ENDOREG_ENABLE_HUB_TRANSFERS=true requires ENDOREG_DEPLOYMENT_ROLE=central_hub",
+    ):
+        importlib.import_module("lx_annotate.settings.settings_base")
+
+
 def test_get_or_create_secret_key_returns_empty_when_secret_file_env_is_set(
     monkeypatch,
 ):

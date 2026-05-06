@@ -108,15 +108,18 @@ export declare const endpoints: {
         readonly videoRemoveFrames: (pk: Id) => string;
         readonly videoLabelsList: "media/videos/labels/list/";
         readonly videoLabelSetsList: "media/videos/label-sets/list/";
+        readonly videoPredictionModelsList: "media/videos/prediction-models/list/";
         readonly segmentsCollection: "media/videos/segments/";
         readonly segmentsStats: "media/videos/segments/stats/";
         readonly videoSegments: (pk: Id) => string;
         readonly videoSegmentsBulkMutation: (pk: Id) => string;
         readonly videoSegmentDetail: (pk: Id, segmentId: Id) => string;
         readonly videoSegmentsImportPredictions: (pk: Id) => string;
+        readonly videoSegmentsRerunPredictions: (pk: Id) => string;
         readonly videoSegmentValidate: (pk: Id, segmentId: Id) => string;
         readonly videoSegmentsValidateBulk: (pk: Id) => string;
         readonly videoSegmentsValidationStatus: (pk: Id) => string;
+        readonly videoSegmentsBlackenOutside: (pk: Id) => string;
         readonly ensureSegmentAnnotationsForVideo: (pk: Id) => string;
         readonly ensureSegmentAnnotationsBulk: "media/videos/ensure-segment-annotations/";
         readonly videoSensitiveMetadata: (pk: Id) => string;

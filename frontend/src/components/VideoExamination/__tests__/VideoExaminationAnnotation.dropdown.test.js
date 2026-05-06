@@ -4,6 +4,11 @@ import { createPinia, setActivePinia } from 'pinia';
 import axiosInstance from '@/api/axiosInstance';
 import VideoExaminationAnnotation from '../VideoExaminationAnnotation.vue';
 import { useAnonymizationStore } from '@/stores/anonymizationStore';
+const routerMocks = vi.hoisted(() => ({
+    query: {},
+    replace: vi.fn(),
+    push: vi.fn()
+}));
 vi.mock('@/api/axiosInstance', () => ({
     default: {
         get: vi.fn(),
@@ -14,11 +19,11 @@ vi.mock('@/api/axiosInstance', () => ({
 }));
 vi.mock('vue-router', () => ({
     useRouter: () => ({
-        replace: vi.fn(),
-        push: vi.fn()
+        replace: routerMocks.replace,
+        push: routerMocks.push
     }),
     useRoute: () => ({
-        query: {}
+        query: routerMocks.query
     })
 }));
 vi.mock('@/utils/videoUtils', () => ({
@@ -35,9 +40,58 @@ vi.mock('@/stores/auth_kc', () => ({
     })
 }));
 describe('VideoExaminationAnnotation dropdown status display', () => {
+    const mountComponent = () => mount(VideoExaminationAnnotation, {
+        global: {
+            stubs: {
+                Timeline: true,
+                RouterLink: {
+                    props: ['to'],
+                    template: '<a><slot /></a>'
+                }
+            }
+        }
+    });
+    const findButtonByText = (wrapper, text) => wrapper.findAll('button').find((button) => button.text().includes(text));
+    const openVideoDropdown = async (wrapper) => {
+        await wrapper.find('.video-dropdown-trigger').trigger('click');
+        await flushPromises();
+    };
+    const getDropdownItems = (wrapper) => wrapper.findAll('.video-dropdown-item');
+    const findDropdownFilterButton = (wrapper, labelPrefix) => wrapper
+        .findAll('.video-dropdown-filter-button')
+        .find((button) => button.text().startsWith(labelPrefix));
+    const chooseDropdownFilter = async (wrapper, labelPrefix) => {
+        const button = findDropdownFilterButton(wrapper, labelPrefix);
+        expect(button).toBeTruthy();
+        await button.trigger('click');
+        await flushPromises();
+    };
+    const expectVisibleVideos = (wrapper, expectedNames) => {
+        const itemTexts = getDropdownItems(wrapper).map((item) => item.text());
+        expect(itemTexts).toHaveLength(expectedNames.length);
+        expectedNames.forEach((name) => {
+            expect(itemTexts.some((text) => text.includes(name))).toBe(true);
+        });
+    };
+    const expectDropdownItemState = (wrapper, videoText, itemClass, badgeClass, statusText) => {
+        const item = getDropdownItems(wrapper).find((entry) => entry.text().includes(videoText));
+        expect(item).toBeTruthy();
+        expect(item.classes()).toContain(itemClass);
+        expect(item.find('.video-dropdown-status-badge').classes()).toContain(badgeClass);
+        expect(item.text()).toContain(statusText);
+    };
+    const selectVideoFromDropdown = async (wrapper, videoText) => {
+        await openVideoDropdown(wrapper);
+        const item = wrapper.findAll('.video-dropdown-item').find((entry) => entry.text().includes(videoText));
+        expect(item).toBeTruthy();
+        await item.trigger('click');
+        await flushPromises();
+        await flushPromises();
+    };
     beforeEach(() => {
         vi.clearAllMocks();
         localStorage.clear();
+        routerMocks.query = {};
         setActivePinia(createPinia());
         const anonymizationStore = useAnonymizationStore();
         // Regression guard: anonymization validation and segment annotation
@@ -66,12 +120,44 @@ describe('VideoExaminationAnnotation dropdown status display', () => {
                 anonymizationStatus: 'validated',
                 annotationStatus: 'validated',
                 createdAt: '2026-04-30T08:30:00Z'
+            },
+            {
+                id: 12,
+                filename: 'still-processing.mp4',
+                mediaType: 'video',
+                anonymizationStatus: 'processing_anonymization',
+                annotationStatus: 'not_started',
+                createdAt: '2026-04-30T08:45:00Z'
             }
         ];
         anonymizationStore.fetchOverview = vi.fn().mockResolvedValue(undefined);
         vi.mocked(axiosInstance.get).mockImplementation(async (url) => {
             if (url === 'media/videos/labels/list/') {
                 return { data: [] };
+            }
+            if (url === 'media/videos/prediction-models/list/') {
+                return {
+                    data: {
+                        models: [
+                            {
+                                id: 7,
+                                name: 'segmentation-meta',
+                                version: '3',
+                                modelName: 'segmentation-model',
+                                aiModelId: 5,
+                                labelsetName: 'colon-labels',
+                                labelsetVersion: 1,
+                                labelsetId: 9,
+                                weightsAvailable: true,
+                                isActive: true
+                            }
+                        ],
+                        defaultHuggingfaceModelId: 'wg-lux/custom-segmentation',
+                        defaultModelName: 'segmentation-model',
+                        defaultLabelsetName: 'colon-labels',
+                        huggingfaceModels: []
+                    }
+                };
             }
             if (url === 'media/videos/') {
                 return {
@@ -94,6 +180,12 @@ describe('VideoExaminationAnnotation dropdown status display', () => {
                             centerName: 'Center C',
                             segmentAnnotationsValidated: true,
                             validatedAnnotators: ['oidc:reviewer-previous']
+                        },
+                        {
+                            id: 12,
+                            original_file_name: 'still-processing.mp4',
+                            centerName: 'Center D',
+                            segmentAnnotationsValidated: false
                         }
                     ]
                 };
@@ -101,33 +193,141 @@ describe('VideoExaminationAnnotation dropdown status display', () => {
             if (url.includes('/sensitive-metadata/')) {
                 return { data: { patient_dob: null, patient_gender_name: null } };
             }
+            if (url.includes('/examinations/')) {
+                return { data: [] };
+            }
+            if (url.includes('/details/')) {
+                return { data: { duration: 90 } };
+            }
+            if (url.includes('/metadata/')) {
+                return { data: { duration: 90, fps: 25, frameCount: 2250 } };
+            }
+            if (url.includes('/fps/')) {
+                return { data: { fps: 25 } };
+            }
+            const segmentMatch = url.match(/media\/videos\/(\d+)\/segments\//);
+            if (segmentMatch) {
+                return {
+                    data: [
+                        {
+                            id: Number(segmentMatch[1]) * 100,
+                            videoId: Number(segmentMatch[1]),
+                            labelName: 'outside',
+                            startTime: 1,
+                            endTime: 5,
+                            startFrameNumber: 25,
+                            endFrameNumber: 125
+                        }
+                    ]
+                };
+            }
             return { data: {} };
         });
     });
     it('shows explicit readiness text and enlarged status-bar classes in the video dropdown', async () => {
-        const wrapper = mount(VideoExaminationAnnotation, {
-            global: {
-                stubs: {
-                    Timeline: true,
-                    RouterLink: {
-                        props: ['to'],
-                        template: '<a><slot /></a>'
-                    }
-                }
-            }
-        });
+        const wrapper = mountComponent();
         await flushPromises();
-        await wrapper.find('.video-dropdown-trigger').trigger('click');
-        await flushPromises();
+        await openVideoDropdown(wrapper);
         const items = wrapper.findAll('.video-dropdown-item');
-        expect(items).toHaveLength(3);
+        expect(items).toHaveLength(4);
         expect(items[0].classes()).toContain('video-dropdown-item-pending');
         expect(items[1].classes()).toContain('video-dropdown-item-ready');
         expect(items[2].classes()).toContain('video-dropdown-item-validated');
+        expect(items[3].classes()).toContain('video-dropdown-item-unusable');
         expect(items[0].text()).toContain('Zurück zu Schritt 1 - Anonymisierung validieren');
         expect(items[1].text()).toContain('Video startklar für Befundung!');
         expect(items[2].text()).toContain('Video bereits validiert');
         expect(items[2].text()).toContain('Vorannotation von: oidc:reviewer-previous');
+        expect(items[3].text()).toContain('Noch nicht nutzbar: Anonymisierung läuft');
         expect(wrapper.find('.video-dropdown-status-badge i').exists()).toBe(false);
+        const filterButtons = wrapper.findAll('.video-dropdown-filter-button');
+        expect(filterButtons.map((button) => button.text())).toEqual([
+            'Alle (4)',
+            'Nutzbar (3)',
+            'Anonymisierung prüfen (1)',
+            'Bereit (1)',
+            'Segmentvalidiert (1)',
+            'Nicht nutzbar (1)'
+        ]);
+        expect(filterButtons[0].classes()).toContain('active');
+        expectVisibleVideos(wrapper, [
+            'needs-validation.mp4',
+            'ready-for-reporting.mp4',
+            'already-segment-validated.mp4',
+            'still-processing.mp4'
+        ]);
+        expectDropdownItemState(wrapper, 'needs-validation.mp4', 'video-dropdown-item-pending', 'badge-pending', 'Zurück zu Schritt 1 - Anonymisierung validieren');
+        expectDropdownItemState(wrapper, 'ready-for-reporting.mp4', 'video-dropdown-item-ready', 'badge-ready', 'Video startklar für Befundung!');
+        expectDropdownItemState(wrapper, 'already-segment-validated.mp4', 'video-dropdown-item-validated', 'badge-validated', 'Video bereits validiert');
+        expectDropdownItemState(wrapper, 'still-processing.mp4', 'video-dropdown-item-unusable', 'badge-unusable', 'Noch nicht nutzbar: Anonymisierung läuft');
+        await chooseDropdownFilter(wrapper, 'Nutzbar');
+        expectVisibleVideos(wrapper, [
+            'needs-validation.mp4',
+            'ready-for-reporting.mp4',
+            'already-segment-validated.mp4'
+        ]);
+        expect(wrapper.text()).not.toContain('still-processing.mp4');
+        expectDropdownItemState(wrapper, 'needs-validation.mp4', 'video-dropdown-item-pending', 'badge-pending', 'Zurück zu Schritt 1 - Anonymisierung validieren');
+        expectDropdownItemState(wrapper, 'ready-for-reporting.mp4', 'video-dropdown-item-ready', 'badge-ready', 'Video startklar für Befundung!');
+        expectDropdownItemState(wrapper, 'already-segment-validated.mp4', 'video-dropdown-item-validated', 'badge-validated', 'Video bereits validiert');
+        await chooseDropdownFilter(wrapper, 'Anonymisierung prüfen');
+        expectVisibleVideos(wrapper, ['needs-validation.mp4']);
+        expectDropdownItemState(wrapper, 'needs-validation.mp4', 'video-dropdown-item-pending', 'badge-pending', 'Zurück zu Schritt 1 - Anonymisierung validieren');
+        await chooseDropdownFilter(wrapper, 'Bereit');
+        expectVisibleVideos(wrapper, ['ready-for-reporting.mp4']);
+        expectDropdownItemState(wrapper, 'ready-for-reporting.mp4', 'video-dropdown-item-ready', 'badge-ready', 'Video startklar für Befundung!');
+        await chooseDropdownFilter(wrapper, 'Segmentvalidiert');
+        expectVisibleVideos(wrapper, ['already-segment-validated.mp4']);
+        expectDropdownItemState(wrapper, 'already-segment-validated.mp4', 'video-dropdown-item-validated', 'badge-validated', 'Video bereits validiert');
+        expect(getDropdownItems(wrapper)[0].classes()).not.toContain('video-dropdown-item-ready');
+        await chooseDropdownFilter(wrapper, 'Nicht nutzbar');
+        expectVisibleVideos(wrapper, ['still-processing.mp4']);
+        const filteredItems = wrapper.findAll('.video-dropdown-item');
+        expect(filteredItems).toHaveLength(1);
+        expect(filteredItems[0].text()).toContain('still-processing.mp4');
+        await filteredItems[0].trigger('click');
+        await flushPromises();
+        expect(wrapper.vm.selectedVideoId).toBe(12);
+        expect(wrapper.text()).toContain('Dieses Video ist noch nicht für die Segmentansicht nutzbar');
+        expect(wrapper.text()).not.toContain('Video löschen?');
+    });
+    it('keeps processed videos pending anonymization validation viewable but not mutable', async () => {
+        const wrapper = mountComponent();
+        await flushPromises();
+        await selectVideoFromDropdown(wrapper, 'needs-validation.mp4');
+        expect(wrapper.vm.selectedVideoId).toBe(6);
+        expect(wrapper.find('[data-cy="video-player"]').exists()).toBe(true);
+        expect(wrapper.text()).not.toContain('Video löschen?');
+        expect(wrapper.text()).not.toContain('Alle Segmente validieren');
+        const saveButton = findButtonByText(wrapper, 'Segmentänderungen speichern');
+        const rerunButton = findButtonByText(wrapper, 'KI neu berechnen');
+        expect(saveButton?.attributes('disabled')).toBeDefined();
+        expect(rerunButton?.attributes('disabled')).toBeDefined();
+        expect(wrapper.find('[data-cy="label-select"]').attributes('disabled')).toBeDefined();
+    });
+    it('keeps segment-validated videos read-only until the same-user edit override is active', async () => {
+        const readOnlyWrapper = mountComponent();
+        await flushPromises();
+        await selectVideoFromDropdown(readOnlyWrapper, 'already-segment-validated.mp4');
+        expect(readOnlyWrapper.text()).toContain('Video bereits validiert');
+        expect(findButtonByText(readOnlyWrapper, 'Segmente bearbeiten')).toBeTruthy();
+        expect(findButtonByText(readOnlyWrapper, 'Segmentänderungen speichern')?.attributes('disabled')).toBeDefined();
+        expect(findButtonByText(readOnlyWrapper, 'KI neu berechnen')?.attributes('disabled')).toBeDefined();
+        routerMocks.query = { editSegments: '1' };
+        const overrideWrapper = mountComponent();
+        await flushPromises();
+        await selectVideoFromDropdown(overrideWrapper, 'already-segment-validated.mp4');
+        expect(overrideWrapper.text()).toContain('Segmentbearbeitung aktiv');
+        expect(findButtonByText(overrideWrapper, 'Segmentänderungen speichern')?.attributes('disabled')).toBeUndefined();
+        expect(findButtonByText(overrideWrapper, 'KI neu berechnen')?.attributes('disabled')).toBeUndefined();
+    });
+    it('allows another annotator override to edit and validate a segment-validated video', async () => {
+        localStorage.setItem(`lxAnnotate.annotationPrincipalOverride.v1:${encodeURIComponent('oidc:kc-user-7')}:${encodeURIComponent('video:10')}`, 'oidc:reviewer-new');
+        const wrapper = mountComponent();
+        await flushPromises();
+        await selectVideoFromDropdown(wrapper, 'already-segment-validated.mp4');
+        expect(wrapper.text()).toContain('Aktiver Annotator: oidc:reviewer-new (Override)');
+        expect(findButtonByText(wrapper, 'Segmentänderungen speichern')?.attributes('disabled')).toBeUndefined();
+        expect(findButtonByText(wrapper, 'Annotation validieren')?.attributes('disabled')).toBeUndefined();
     });
 });

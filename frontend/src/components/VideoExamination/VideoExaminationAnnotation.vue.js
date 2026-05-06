@@ -22,7 +22,11 @@ const initialVideoId = Number(route.query.video ?? '') || null;
 const videoStore = useVideoStore();
 const mediaStore = useMediaTypeStore();
 const authStore = useAuthKcStore();
-const { videoList, videoStreamUrl, timelineSegments } = storeToRefs(videoStore);
+const videoStoreRefs = storeToRefs(videoStore);
+const { videoList, videoStreamUrl, timelineSegments } = videoStoreRefs;
+const predictionModels = videoStoreRefs.predictionModels ?? ref([]);
+const defaultHuggingfaceModelId = videoStoreRefs.defaultHuggingfaceModelId ?? ref('');
+const defaultPredictionLabelsetName = videoStoreRefs.defaultPredictionLabelsetName ?? ref('');
 const videos = computed(() => videoList.value.videos);
 const { allSegments: rawSegments } = storeToRefs(videoStore);
 const anonymizationStore = useAnonymizationStore();
@@ -32,15 +36,22 @@ const timelineLabels = computed(() => {
     const storeLabels = videoStore.labels || [];
     return [...storeLabels]; // Convert readonly array to mutable array
 });
-/**
- * helper: returns true when a video's anonymization status is 'done_processing_anonymization'
- */
-function isAnonymized(videoId) {
-    const item = overview.value.find(o => o.id === videoId && o.mediaType === 'video');
-    return item?.anonymizationStatus === 'done_processing_anonymization' || item?.anonymizationStatus === 'validated';
+function getVideoOverviewItem(videoId) {
+    return overview.value.find((o) => o.id === videoId && o.mediaType === 'video');
+}
+function getVideoAnonymizationStatus(videoId) {
+    return getVideoOverviewItem(videoId)?.anonymizationStatus || 'unknown';
+}
+function canViewProcessedVideo(videoId) {
+    const item = getVideoOverviewItem(videoId);
+    return (item?.anonymizationStatus === 'done_processing_anonymization' ||
+        item?.anonymizationStatus === 'validated');
+}
+function canAnnotateSegments(videoId) {
+    return getVideoOverviewItem(videoId)?.anonymizationStatus === 'validated' || isAnnotationFinished(videoId);
 }
 function isAnnotationFinished(videoId) {
-    const video = videoList.value.videos.find(v => v.id === videoId);
+    const video = videoList.value.videos.find((v) => v.id === videoId);
     return Boolean(video?.segmentAnnotationsValidated);
 }
 // Reactive data
@@ -62,6 +73,10 @@ const lastValidationClickedVideoId = ref(null);
 const validationRequestVideoId = ref(null);
 const segmentSourceMode = ref('manual');
 const isImportingPredictionSegments = ref(false);
+const predictionModelMode = ref('local');
+const selectedPredictionModelMetaId = ref(null);
+const huggingFaceModelId = ref('');
+const isRerunningPredictionSegments = ref(false);
 const annotatorOverride = ref(null);
 const annotatorOverrideInput = ref('');
 // Video detail and metadata like VideoClassificationComponent
@@ -73,6 +88,9 @@ const messageTone = ref('hint');
 const successMessage = ref('');
 const isFullscreen = ref(false);
 const isValidatingSegments = computed(() => validationRequestVideoId.value !== null);
+const outsideBlackeningRequestVideoIds = ref(new Set());
+const isBlackeningOutsideSegments = computed(() => selectedVideoId.value !== null &&
+    outsideBlackeningRequestVideoIds.value.has(selectedVideoId.value));
 const activeValidationIndicatorVideoId = computed(() => validationRequestVideoId.value ?? lastValidationClickedVideoId.value);
 // Template refs
 const videoRef = ref(null);
@@ -82,9 +100,12 @@ const timelineRef = ref(null);
 const videoDropdownRef = ref(null);
 const isVideoDropdownOpen = ref(false);
 const videoDropdownSearch = ref('');
+const videoDropdownFilter = ref('all');
 const videoSensitiveMetaMap = ref({});
 // Video Dropdown Watcher
-const hasUnsavedChanges = computed(() => rawSegments.value.some(s => s.isDirty && s.videoID === selectedVideoId.value && (segmentSourceMode.value === 'all' || s.segmentOrigin === segmentSourceMode.value)));
+const hasUnsavedChanges = computed(() => rawSegments.value.some((s) => s.isDirty &&
+    s.videoID === selectedVideoId.value &&
+    (segmentSourceMode.value === 'all' || s.segmentOrigin === segmentSourceMode.value)));
 async function loadSelectedVideo() {
     if (selectedVideoId.value == null) {
         videoStore.clearVideo();
@@ -92,10 +113,16 @@ async function loadSelectedVideo() {
         videoMeta.value = null;
         return;
     }
-    // ✅ NEW: Validate that selected video is anonymized
-    if (!isAnonymized(selectedVideoId.value)) {
-        showErrorMessage(`Video ${selectedVideoId.value} kann nicht annotiert werden, da es noch nicht anonymisiert wurde.`);
-        selectedVideoId.value = null;
+    if (!canViewProcessedVideo(selectedVideoId.value)) {
+        videoStore.clearVideo();
+        videoDetail.value = null;
+        videoMeta.value = null;
+        duration.value = 0;
+        savedExaminations.value = [];
+        examinationMarkers.value = [];
+        currentMarker.value = null;
+        selectedSegmentId.value = null;
+        showErrorMessage(`Video ${selectedVideoId.value} kann noch nicht in der Segmentansicht geöffnet werden. Status: ${getStatusText(getVideoAnonymizationStatus(selectedVideoId.value))}.`);
         return;
     }
     // Clear previous error messages when changing videos
@@ -114,6 +141,7 @@ async function loadSelectedVideo() {
     }
 }
 function onVideoChange() {
+    // handler for the <select>
     /** update the url so users can bookmark / refresh */
     router.replace({ query: { video: selectedVideoId.value } });
 }
@@ -122,7 +150,7 @@ function toggleVideoDropdown() {
         return;
     isVideoDropdownOpen.value = !isVideoDropdownOpen.value;
     if (isVideoDropdownOpen.value) {
-        loadSensitiveMetaForVideos(selectableVideos.value.map(v => v.id));
+        loadSensitiveMetaForVideos(videos.value.map((v) => v.id));
     }
 }
 function closeVideoDropdown() {
@@ -130,7 +158,7 @@ function closeVideoDropdown() {
     videoDropdownSearch.value = '';
 }
 function selectVideoFromDropdown(videoId) {
-    const selected = selectableVideos.value.find(video => video.id === videoId);
+    const selected = videos.value.find((video) => video.id === videoId);
     if (!selected)
         return;
     selectedVideoId.value = videoId;
@@ -208,7 +236,7 @@ const getVideoPatientAgeLabel = (videoId) => {
     return age == null ? 'Unbekannt' : `${age} J.`;
 };
 const loadSensitiveMetaForVideos = async (videoIds) => {
-    const missingIds = videoIds.filter(id => !(id in videoSensitiveMetaMap.value));
+    const missingIds = videoIds.filter((id) => !(id in videoSensitiveMetaMap.value));
     if (missingIds.length === 0)
         return;
     const results = await Promise.all(missingIds.map(async (id) => {
@@ -224,18 +252,19 @@ const loadSensitiveMetaForVideos = async (videoIds) => {
     results.forEach(({ id, data }) => {
         nextMap[id] = {
             patient_dob: data?.patient_dob ?? null,
-            patient_gender_name: data?.patient_gender_name ?? null,
+            patient_gender_name: data?.patient_gender_name ?? null
         };
     });
     videoSensitiveMetaMap.value = nextMap;
 };
-// List of only videos that are both present in the list **and** in state `done` inside anonymizationStore
-const selectableVideos = computed(() => videoList.value.videos.filter(v => isAnonymized(v.id)));
+const selectableVideos = computed(() => videoList.value.videos);
+const usableVideos = computed(() => videos.value.filter((v) => canViewProcessedVideo(v.id)));
 const filteredSelectableVideos = computed(() => {
     const query = videoDropdownSearch.value.trim().toLowerCase();
+    const statusFilteredVideos = selectableVideos.value.filter((video) => isVideoVisibleForDropdownFilter(video.id));
     if (!query)
-        return selectableVideos.value;
-    return selectableVideos.value.filter(video => {
+        return statusFilteredVideos;
+    return statusFilteredVideos.filter((video) => {
         const searchable = [
             String(video.id),
             video.original_file_name,
@@ -252,14 +281,47 @@ const filteredSelectableVideos = computed(() => {
         return searchable.includes(query);
     });
 });
-const annotatableVideos = computed(() => selectableVideos.value.filter(v => !isAnnotationFinished(v.id)));
-const pendingValidationVideos = computed(() => selectableVideos.value.filter(v => !v.segmentAnnotationsValidated));
+const annotatableVideos = computed(() => usableVideos.value.filter((v) => !isAnnotationFinished(v.id)));
+const pendingValidationVideos = computed(() => usableVideos.value.filter((v) => !v.segmentAnnotationsValidated));
 const selectedVideo = computed(() => {
     if (selectedVideoId.value == null)
         return undefined;
-    return selectableVideos.value.find(v => v.id === selectedVideoId.value);
+    return selectableVideos.value.find((v) => v.id === selectedVideoId.value);
 });
 const isSelectedVideoValidated = computed(() => selectedVideoId.value != null && isAnnotationFinished(selectedVideoId.value));
+const isSelectedVideoViewable = computed(() => selectedVideoId.value != null && canViewProcessedVideo(selectedVideoId.value));
+const canAnnotateSelectedVideo = computed(() => selectedVideoId.value != null && canAnnotateSegments(selectedVideoId.value));
+const canBlackenOutsideSegments = computed(() => selectedVideoId.value !== null &&
+    canAnnotateSelectedVideo.value &&
+    !outsideBlackeningRequestVideoIds.value.has(selectedVideoId.value));
+const videoDropdownFilterOptions = computed(() => [
+    { value: 'all', label: `Alle (${videos.value.length})` },
+    { value: 'usable', label: `Nutzbar (${usableVideos.value.length})` },
+    {
+        value: 'pending_anonymization_validation',
+        label: `Anonymisierung prüfen (${getVideoCountByDropdownStatus('pending_anonymization_validation')})`
+    },
+    {
+        value: 'ready_for_annotation',
+        label: `Bereit (${getVideoCountByDropdownStatus('ready_for_annotation')})`
+    },
+    {
+        value: 'annotation_validated',
+        label: `Segmentvalidiert (${getVideoCountByDropdownStatus('annotation_validated')})`
+    },
+    {
+        value: 'not_usable',
+        label: `Nicht nutzbar (${getVideoCountByDropdownStatus('not_usable')})`
+    }
+]);
+function isVideoVisibleForDropdownFilter(videoId) {
+    const activeFilter = videoDropdownFilter.value;
+    if (activeFilter === 'all')
+        return true;
+    if (activeFilter === 'usable')
+        return canViewProcessedVideo(videoId);
+    return getVideoDropdownStatus(videoId) === activeFilter;
+}
 const isSegmentEditingUnlocked = computed(() => route.query.editSegments === '1');
 const baseAnnotatorPrincipal = computed(() => getAnnotatorPrincipalFromAuthUser(authStore.user));
 const annotatorOverrideScope = computed(() => selectedVideoId.value == null ? 'video:none' : `video:${selectedVideoId.value}`);
@@ -275,39 +337,66 @@ const activeAnnotatorLabel = computed(() => isAnnotatorOverrideActive.value
     ? `${activeAnnotatorPrincipal.value} (Override)`
     : activeAnnotatorPrincipal.value);
 function getVideoValidatedAnnotators(videoId) {
-    const video = selectableVideos.value.find(v => v.id === videoId);
+    const video = selectableVideos.value.find((v) => v.id === videoId);
     const annotators = video?.validatedAnnotators ?? [];
-    return [...new Set(annotators
-            .map(annotator => String(annotator).trim())
-            .filter(Boolean))].sort((a, b) => a.localeCompare(b));
+    return [...new Set(annotators.map((annotator) => String(annotator).trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b));
 }
 function hasOtherValidatedAnnotator(videoId) {
-    return getVideoValidatedAnnotators(videoId).some(annotator => annotator !== activeAnnotatorPrincipal.value);
+    return getVideoValidatedAnnotators(videoId).some((annotator) => annotator !== activeAnnotatorPrincipal.value);
 }
 function getVideoValidatedAnnotatorLabel(videoId) {
     const annotators = getVideoValidatedAnnotators(videoId);
     if (!annotators.length)
         return '';
-    const prefix = hasOtherValidatedAnnotator(videoId)
-        ? 'Vorannotation von'
-        : 'Validiert von';
+    const prefix = hasOtherValidatedAnnotator(videoId) ? 'Vorannotation von' : 'Validiert von';
     return `${prefix}: ${annotators.join(', ')}`;
 }
-const canEditSelectedVideoSegments = computed(() => !isSelectedVideoValidated.value || isSegmentEditingUnlocked.value || isAnnotatorOverrideActive.value);
+const isSegmentReadOnlyByValidation = computed(() => isSelectedVideoValidated.value);
+const hasSegmentEditOverride = computed(() => isSegmentEditingUnlocked.value || isAnnotatorOverrideActive.value);
+const canMutateSelectedSegments = computed(() => canAnnotateSelectedVideo.value &&
+    (!isSegmentReadOnlyByValidation.value || hasSegmentEditOverride.value));
+const predictionModelOptions = computed(() => predictionModels.value ?? []);
+const selectedPredictionModel = computed(() => predictionModelOptions.value.find((model) => model.id === selectedPredictionModelMetaId.value) ?? null);
+const canRerunPredictionSegments = computed(() => {
+    if (selectedVideoId.value === null ||
+        isRerunningPredictionSegments.value ||
+        !canMutateSelectedSegments.value) {
+        return false;
+    }
+    if (predictionModelMode.value === 'huggingface') {
+        return huggingFaceModelId.value.trim().length > 0;
+    }
+    return selectedPredictionModel.value !== null;
+});
+function formatPredictionModelOption(model) {
+    const activeSuffix = model.isActive ? ' · aktiv' : '';
+    return `${model.modelName} / ${model.name} v${model.version}${activeSuffix}`;
+}
 const selectedVideoLabel = computed(() => {
     if (!selectableVideos.value.length)
         return 'Keine Videos verfügbar';
     if (selectedVideoId.value == null)
         return 'Bitte Video auswählen...';
-    const video = selectableVideos.value.find(v => v.id === selectedVideoId.value);
+    const video = selectableVideos.value.find((v) => v.id === selectedVideoId.value);
     if (!video)
         return `Video ${selectedVideoId.value}`;
     return video.original_file_name || `Video Nr. ${video.id}`;
 });
-watch(selectableVideos, (videos) => {
+watch(videos, (videos) => {
     if (!videos.length)
         return;
-    loadSensitiveMetaForVideos(videos.map(v => v.id));
+    loadSensitiveMetaForVideos(videos.map((v) => v.id));
+}, { immediate: true });
+watch(predictionModelOptions, (models) => {
+    if (selectedPredictionModelMetaId.value !== null || models.length === 0)
+        return;
+    const activeModel = models.find((model) => model.isActive);
+    selectedPredictionModelMetaId.value = activeModel?.id ?? models[0].id;
+}, { immediate: true });
+watch(defaultHuggingfaceModelId, (modelId) => {
+    if (!huggingFaceModelId.value.trim()) {
+        huggingFaceModelId.value = modelId;
+    }
 }, { immediate: true });
 function syncAnnotatorOverrideFromStorage() {
     annotatorOverride.value = loadAnnotatorOverride(annotatorOverrideScope.value, baseAnnotatorPrincipal.value);
@@ -334,33 +423,31 @@ watch([baseAnnotatorPrincipal, annotatorOverrideScope], () => {
 const anonymizedVideoSrc = computed(() => {
     if (!selectedVideoId.value)
         return undefined;
+    if (!canViewProcessedVideo(selectedVideoId.value))
+        return undefined;
     return buildVideoStreamUrl(selectedVideoId.value, 'processed');
 });
 const hasVideos = computed(() => {
-    return selectableVideos.value && selectableVideos.value.length > 0;
+    return videos.value.length > 0;
 });
 const noVideosMessage = computed(() => {
     if (videos.value.length === 0) {
         return 'Keine Videos verfügbar. Bitte laden Sie zuerst Videos hoch.';
-    }
-    else if (selectableVideos.value.length === 0) {
-        return 'Keine anonymisierten Videos verfügbar. Videos müssen erst anonymisiert werden.';
     }
     return '';
 });
 const timelineSegmentsForSelectedVideo = computed(() => {
     if (!selectedVideoId.value)
         return [];
-    return rawSegments.value
-        .filter(s => s.videoID === selectedVideoId.value);
+    return rawSegments.value.filter((s) => s.videoID === selectedVideoId.value);
 });
 const canStartLabeling = computed(() => {
-    return selectedVideoId.value &&
+    return (selectedVideoId.value &&
         anonymizedVideoSrc.value &&
         selectedLabelType.value &&
         !isMarkingLabel.value &&
         duration.value > 0 &&
-        canEditSelectedVideoSegments.value;
+        canMutateSelectedSegments.value);
 });
 // ✅ PRIORITY: Load labels first, then videos, then anonymization status
 onMounted(async () => {
@@ -370,6 +457,14 @@ onMounted(async () => {
         // Step 1: Load labels with high priority
         await videoStore.fetchLabels();
         console.log(`✅ [VideoExamination] Labels loaded: ${videoStore.labels.length}`);
+        try {
+            if (typeof videoStore.fetchPredictionModels === 'function') {
+                await videoStore.fetchPredictionModels();
+            }
+        }
+        catch (error) {
+            console.warn('[VideoExamination] Prediction model list could not be loaded:', error);
+        }
         // Step 2: Load anonymization overview BEFORE videos (needed for filtering)
         await anonymizationStore.fetchOverview();
         console.log(`✅ [VideoExamination] Anonymization status loaded: ${overview.value.length} items`);
@@ -380,7 +475,9 @@ onMounted(async () => {
         if (selectedVideoId.value !== null) {
             videoStore.setCurrentVideo(selectedVideoId.value);
             await loadSelectedVideo();
-            await loadVideoSegments();
+            if (canViewProcessedVideo(selectedVideoId.value)) {
+                await loadVideoSegments();
+            }
         }
     }
     catch (error) {
@@ -450,6 +547,12 @@ const showErrorMessage = (message, tone = 'hint') => {
     errorMessage.value = message;
     messageTone.value = tone;
 };
+function getSegmentMutationBlockedMessage() {
+    if (selectedVideoId.value !== null && !canAnnotateSegments(selectedVideoId.value)) {
+        return 'Segmentbearbeitung ist erst nach validierter Anonymisierung möglich.';
+    }
+    return 'Dieses Video ist bereits validiert und wird schreibgeschützt angezeigt.';
+}
 // Load video detail from backend like VideoClassificationComponent
 const loadVideoDetail = async (videoId) => {
     if (!videoId)
@@ -463,7 +566,7 @@ const loadVideoDetail = async (videoId) => {
             duration: Number(response.data.duration ?? 0)
         };
         // Update MediaStore with the current video for consistent URL handling
-        const currentVideo = selectableVideos.value.find(v => v.id === videoId);
+        const currentVideo = selectableVideos.value.find((v) => v.id === videoId);
         if (currentVideo) {
             mediaStore.rememberType(videoId, 'video', 'video');
             mediaStore.setCurrentItem({
@@ -506,7 +609,10 @@ const loadSavedExaminations = async () => {
     catch (error) {
         console.error('Error loading saved examinations:', error);
         // Check if this is an anonymization error like VideoClassificationComponent
-        const errorMessage = error?.response?.data?.error || error?.response?.data?.detail || error?.message || error.toString();
+        const errorMessage = error?.response?.data?.error ||
+            error?.response?.data?.detail ||
+            error?.message ||
+            error.toString();
         if (errorMessage.includes('darf nicht annotiert werden') ||
             errorMessage.includes('anonymisierung') ||
             errorMessage.includes('anonymization')) {
@@ -538,6 +644,8 @@ const loadVideoMetadata = async () => {
 };
 async function loadVideoSegments() {
     if (selectedVideoId.value === null)
+        return;
+    if (!canViewProcessedVideo(selectedVideoId.value))
         return;
     try {
         await videoStore.fetchAllSegments(selectedVideoId.value, true, {
@@ -607,7 +715,7 @@ const handlePlayPause = (...args) => {
     if (!videoRef.value)
         return;
     if (videoRef.value.paused) {
-        videoRef.value.play().catch(error => {
+        videoRef.value.play().catch((error) => {
             console.error('Error playing video:', error);
             showErrorMessage('Fehler beim Abspielen des Videos');
         });
@@ -623,7 +731,7 @@ const handleSegmentSelect = (...args) => {
     console.log('Segment selected:', segmentId);
 };
 const handleSegmentLabelChange = (...args) => {
-    if (!canEditSelectedVideoSegments.value)
+    if (!canMutateSelectedSegments.value)
         return;
     const [segmentId, label, labelId] = args;
     if (!Number.isFinite(segmentId) || !label) {
@@ -642,7 +750,7 @@ const handleSegmentLabelChange = (...args) => {
     }
 };
 const handleSegmentResize = (...args) => {
-    if (!canEditSelectedVideoSegments.value)
+    if (!canMutateSelectedSegments.value)
         return;
     const [segmentId, newStart, newEnd, _mode, _final] = args;
     if (!Number.isFinite(segmentId)) {
@@ -667,7 +775,7 @@ const handleSegmentResize = (...args) => {
     // ❌ Absolutely no backend call here, this should use the drafts because of the load on the backend.
 };
 const handleSegmentMove = (...args) => {
-    if (!canEditSelectedVideoSegments.value)
+    if (!canMutateSelectedSegments.value)
         return;
     const [segmentId, newStart, newEnd, _final] = args;
     if (!Number.isFinite(segmentId)) {
@@ -688,7 +796,7 @@ const handleSegmentMove = (...args) => {
     }
 };
 const handleTimeSelection = (...args) => {
-    if (!canEditSelectedVideoSegments.value)
+    if (!canMutateSelectedSegments.value)
         return;
     const [data] = args;
     // ✅ FIXED: Only create segment if we have a selected label type
@@ -709,8 +817,8 @@ const handleCreateSegment = (...args) => {
     const [event] = args;
     return new Promise(async (resolve, reject) => {
         try {
-            if (!canEditSelectedVideoSegments.value) {
-                showErrorMessage('Dieses Video ist bereits validiert und wird schreibgeschützt angezeigt.');
+            if (!canMutateSelectedSegments.value) {
+                showErrorMessage(getSegmentMutationBlockedMessage());
                 resolve();
                 return;
             }
@@ -734,8 +842,8 @@ const handleCreateSegment = (...args) => {
 const handleSegmentDelete = (...args) => {
     const [segment] = args;
     return new Promise(async (resolve, reject) => {
-        if (!canEditSelectedVideoSegments.value) {
-            showErrorMessage('Dieses Video ist bereits validiert und wird schreibgeschützt angezeigt.');
+        if (!canMutateSelectedSegments.value) {
+            showErrorMessage(getSegmentMutationBlockedMessage());
             resolve();
             return;
         }
@@ -864,12 +972,8 @@ const handleKeyDown = (event) => {
         }
         return;
     }
-    const isPlus = event.key === '+' ||
-        event.code === 'NumpadAdd' ||
-        (event.code === 'Equal' && event.shiftKey);
-    const isMinus = event.key === '-' ||
-        event.code === 'Minus' ||
-        event.code === 'NumpadSubtract';
+    const isPlus = event.key === '+' || event.code === 'NumpadAdd' || (event.code === 'Equal' && event.shiftKey);
+    const isMinus = event.key === '-' || event.code === 'Minus' || event.code === 'NumpadSubtract';
     if (isPlus) {
         event.preventDefault();
         startLabelMarking();
@@ -911,6 +1015,11 @@ const startLabelMarking = () => {
 const finishLabelMarking = async () => {
     if (!isMarkingLabel.value || !selectedVideoId.value)
         return;
+    if (!canMutateSelectedSegments.value) {
+        showErrorMessage(getSegmentMutationBlockedMessage());
+        cancelLabelMarking();
+        return;
+    }
     try {
         videoStore.setCurrentVideo(selectedVideoId.value);
         // FIX: Use updateDraftEnd und commitDraft statt finishDraftSegment
@@ -935,14 +1044,15 @@ const cancelLabelMarking = () => {
 };
 const jumpToExamination = (examination) => {
     seekToTime(examination.timestamp);
-    currentMarker.value = examinationMarkers.value.find(m => m.id === `exam-${examination.id}`) || null;
+    currentMarker.value =
+        examinationMarkers.value.find((m) => m.id === `exam-${examination.id}`) || null;
 };
 const deleteExamination = async (examinationId) => {
     try {
         await axiosInstance.delete(r(`examinations/${examinationId}/`));
         // Remove from local arrays
-        savedExaminations.value = savedExaminations.value.filter(e => e.id !== examinationId);
-        examinationMarkers.value = examinationMarkers.value.filter(m => m.id !== `exam-${examinationId}`);
+        savedExaminations.value = savedExaminations.value.filter((e) => e.id !== examinationId);
+        examinationMarkers.value = examinationMarkers.value.filter((m) => m.id !== `exam-${examinationId}`);
         // Clear current marker if it was deleted
         if (currentMarker.value?.id === `exam-${examinationId}`) {
             currentMarker.value = null;
@@ -952,7 +1062,10 @@ const deleteExamination = async (examinationId) => {
     }
     catch (error) {
         console.error('Error deleting examination:', error);
-        const errorMsg = error?.response?.data?.detail || error?.response?.data?.error || error?.message || String(error);
+        const errorMsg = error?.response?.data?.detail ||
+            error?.response?.data?.error ||
+            error?.message ||
+            String(error);
         showErrorMessage(errorMsg, 'danger');
     }
 };
@@ -964,6 +1077,10 @@ const submitVideoSegments = async (videoId) => {
     }
     if (!videoId) {
         showErrorMessage('Kein Video ausgewählt');
+        return;
+    }
+    if (!canMutateSelectedSegments.value) {
+        showErrorMessage(getSegmentMutationBlockedMessage());
         return;
     }
     if (validationRequestVideoId.value !== null) {
@@ -978,29 +1095,29 @@ const submitVideoSegments = async (videoId) => {
     }
     validationRequestVideoId.value = videoId;
     // Confirm with user before validation
-    if (!confirm(`Möchten Sie alle ${segmentCount} Segmente von Video ${videoId} als validiert markieren? Außerhalb-Segmente werden danach gelöscht.`)) {
+    if (!confirm(`Möchten Sie alle ${segmentCount} Segmente von Video ${videoId} als validiert markieren? Außerhalb-Segmente werden danach geschwärzt.`)) {
         validationRequestVideoId.value = null;
         return;
     }
     // Build payload including updated start/end times (in seconds)
     const segmentPayload = segmentsForRequest
-        .filter(s => typeof s.id === 'number')
-        .map(s => ({
+        .filter((s) => typeof s.id === 'number')
+        .map((s) => ({
         id: s.id,
         // assuming Segment has startTime/endTime in seconds
         start_time: s.startTime,
-        end_time: s.endTime,
+        end_time: s.endTime
     }));
     console.log('🔄 Sending segments to backend:', segmentPayload);
     try {
         console.log(`🔍 Validating all segments for video ${videoId}...`);
         const response = await axiosInstance.post(r(`media/videos/${videoId}/segments/validate-bulk/`), {
-            segmentIds: segmentPayload.map(s => s.id),
+            segmentIds: segmentPayload.map((s) => s.id),
             segments: segmentPayload,
             isValidated: true,
             notes: `Vollständige Video-Review abgeschlossen am ${new Date().toLocaleString('de-DE')}`,
             informationSourceName: 'manual_annotation', // or 'manual_validation', see backend
-            annotator: activeAnnotatorPrincipal.value,
+            annotator: activeAnnotatorPrincipal.value
         });
         console.log('✅ Validation response:', response.data);
         showSuccessMessage(`Erfolgreich! ${response.data.updatedCount} von ${response.data.totalSegments ?? response.data.requestedCount} Segmenten validiert.`);
@@ -1026,9 +1143,96 @@ const handleValidateAndMark = async (videoId) => {
     }
     await submitVideoSegments(videoId);
 };
+const setOutsideBlackeningRequestState = (videoId, isPending) => {
+    const nextRequestVideoIds = new Set(outsideBlackeningRequestVideoIds.value);
+    if (isPending) {
+        nextRequestVideoIds.add(videoId);
+    }
+    else {
+        nextRequestVideoIds.delete(videoId);
+    }
+    outsideBlackeningRequestVideoIds.value = nextRequestVideoIds;
+};
+const normalizeOutsideBlackeningResponse = (responseData) => {
+    const postProcessingJob = responseData?.postProcessingJob ?? responseData?.post_processing_job;
+    return {
+        outsideSegmentCount: Number(responseData?.outsideSegmentCount ?? responseData?.outside_segment_count ?? 0),
+        jobStatus: String(postProcessingJob?.status ?? responseData?.status ?? ''),
+        message: String(responseData?.error ?? responseData?.message ?? '')
+    };
+};
+const handleOutsideBlackeningResponseState = (responseState) => {
+    const { outsideSegmentCount, jobStatus, message } = responseState;
+    if (jobStatus === 'completed') {
+        videoRef.value?.load();
+        showSuccessMessage(`Außerhalb-Segmente geschwärzt (${outsideSegmentCount} Segmente).`);
+        return true;
+    }
+    if (jobStatus === 'queued') {
+        showSuccessMessage(`Schwärzung der Außerhalb-Segmente gestartet (${outsideSegmentCount} Segmente).`);
+        return true;
+    }
+    if (jobStatus === 'already_queued') {
+        showSuccessMessage('Schwärzung der Außerhalb-Segmente läuft bereits.');
+        return true;
+    }
+    if (jobStatus === 'busy') {
+        showErrorMessage('Ein anderer Verarbeitungsvorgang für dieses Video läuft bereits.');
+        return true;
+    }
+    if (jobStatus === 'failed') {
+        showErrorMessage(`Schwärzung der Außerhalb-Segmente fehlgeschlagen${message ? `: ${message}` : '.'}`, 'danger');
+        return true;
+    }
+    if (jobStatus === 'noop' || (!jobStatus && outsideSegmentCount === 0)) {
+        showSuccessMessage('Keine Außerhalb-Segmente gefunden. Es wurde nichts gestartet.');
+        return true;
+    }
+    return false;
+};
+const blackenOutsideSegmentsForSelectedVideo = async () => {
+    const videoId = selectedVideoId.value;
+    if (!videoId) {
+        showErrorMessage('Kein Video ausgewählt');
+        return;
+    }
+    if (!canAnnotateSegments(videoId)) {
+        showErrorMessage('Außerhalb-Segmente können erst nach validierter Anonymisierung geschwärzt werden.');
+        return;
+    }
+    if (outsideBlackeningRequestVideoIds.value.has(videoId)) {
+        showErrorMessage(`Schwärzung für Video ${videoId} wird bereits gestartet.`);
+        return;
+    }
+    if (!confirm(`Außerhalb-Segmente für Video ${videoId} erneut schwärzen?`)) {
+        return;
+    }
+    setOutsideBlackeningRequestState(videoId, true);
+    try {
+        const response = await axiosInstance.post(r(endpoints.media.videoSegmentsBlackenOutside(videoId)), {
+            onlyValidated: false
+        });
+        if (handleOutsideBlackeningResponseState(normalizeOutsideBlackeningResponse(response.data))) {
+            return;
+        }
+        showErrorMessage('Unerwarteter Status beim Schwärzen der Außerhalb-Segmente.', 'danger');
+    }
+    catch (error) {
+        const responseData = error?.response?.data;
+        if (responseData &&
+            handleOutsideBlackeningResponseState(normalizeOutsideBlackeningResponse(responseData))) {
+            return;
+        }
+        console.error('Fehler beim Schwärzen der Außerhalb-Segmente:', error);
+        await guarded(Promise.reject(error));
+    }
+    finally {
+        setOutsideBlackeningRequestState(videoId, false);
+    }
+};
 const saveSegmentChanges = async () => {
-    if (!canEditSelectedVideoSegments.value) {
-        showErrorMessage('Dieses Video ist bereits validiert und wird schreibgeschützt angezeigt.');
+    if (!canMutateSelectedSegments.value) {
+        showErrorMessage(getSegmentMutationBlockedMessage());
         return;
     }
     if (segmentSourceMode.value === 'prediction') {
@@ -1045,8 +1249,8 @@ const saveSegmentChanges = async () => {
     }
 };
 const discardSegmentChanges = () => {
-    if (!canEditSelectedVideoSegments.value) {
-        showErrorMessage('Dieses Video ist bereits validiert und wird schreibgeschützt angezeigt.');
+    if (!canMutateSelectedSegments.value) {
+        showErrorMessage(getSegmentMutationBlockedMessage());
         return;
     }
     if (segmentSourceMode.value === 'prediction') {
@@ -1063,8 +1267,8 @@ const discardSegmentChanges = () => {
 const importPredictionSegmentsToManual = async () => {
     if (!selectedVideoId.value)
         return;
-    if (!canEditSelectedVideoSegments.value) {
-        showErrorMessage('Dieses Video ist bereits validiert und wird schreibgeschützt angezeigt.');
+    if (!canMutateSelectedSegments.value) {
+        showErrorMessage(getSegmentMutationBlockedMessage());
         return;
     }
     if (timelineSegmentsForSelectedVideo.value.length === 0) {
@@ -1095,6 +1299,37 @@ const importPredictionSegmentsToManual = async () => {
         isImportingPredictionSegments.value = false;
     }
 };
+const rerunPredictionSegmentsForSelectedVideo = async () => {
+    if (!selectedVideoId.value || !canRerunPredictionSegments.value)
+        return;
+    isRerunningPredictionSegments.value = true;
+    try {
+        const payload = predictionModelMode.value === 'huggingface'
+            ? {
+                hfModelId: huggingFaceModelId.value.trim(),
+                labelsetName: defaultPredictionLabelsetName.value,
+                replacePredictionSegments: true,
+                deleteFramesAfter: true
+            }
+            : {
+                modelMetaId: selectedPredictionModelMetaId.value,
+                replacePredictionSegments: true,
+                deleteFramesAfter: true
+            };
+        const response = await videoStore.rerunPredictionSegments(selectedVideoId.value, payload);
+        await videoStore.fetchPredictionModels();
+        segmentSourceMode.value = 'prediction';
+        await loadVideoSegments();
+        showSuccessMessage(`KI-Vorhersagen neu berechnet (${response.predictionSegmentsCount} Segmente)`);
+    }
+    catch (error) {
+        console.error('Error rerunning prediction segments:', error);
+        await guarded(Promise.reject(error));
+    }
+    finally {
+        isRerunningPredictionSegments.value = false;
+    }
+};
 // Video event handlers from AnonymizationValidationComponent
 const onVideoError = (event) => {
     if (isAbortLikeError(event)) {
@@ -1119,6 +1354,9 @@ const onVideoCanPlay = () => {
 };
 const getVideoDropdownStatusText = (videoId) => {
     const status = getVideoDropdownStatus(videoId);
+    if (status === 'not_usable') {
+        return `Noch nicht nutzbar: ${getStatusText(getVideoAnonymizationStatus(videoId))}`;
+    }
     if (status === 'annotation_validated')
         return 'Video bereits validiert';
     if (status === 'ready_for_annotation')
@@ -1127,6 +1365,8 @@ const getVideoDropdownStatusText = (videoId) => {
 };
 const getVideoDropdownStatusBadgeClass = (videoId) => {
     const status = getVideoDropdownStatus(videoId);
+    if (status === 'not_usable')
+        return 'badge-unusable';
     if (status === 'annotation_validated')
         return 'badge-validated';
     if (status === 'ready_for_annotation')
@@ -1135,6 +1375,8 @@ const getVideoDropdownStatusBadgeClass = (videoId) => {
 };
 const getVideoDropdownItemClass = (videoId) => {
     const status = getVideoDropdownStatus(videoId);
+    if (status === 'not_usable')
+        return 'video-dropdown-item-unusable';
     if (status === 'annotation_validated')
         return 'video-dropdown-item-validated';
     if (status === 'ready_for_annotation')
@@ -1143,60 +1385,75 @@ const getVideoDropdownItemClass = (videoId) => {
 };
 const getVideoDropdownStatus = (videoId) => {
     // Keep anonymization validation and segment annotation validation separate:
-    // green means ready for segment work, while validated segments are read-only.
+    // filters decide visibility, while this resolver alone decides row color/text.
+    if (!canViewProcessedVideo(videoId))
+        return 'not_usable';
     if (isAnnotationFinished(videoId))
         return 'annotation_validated';
-    return isVideoValidated(videoId)
-        ? 'ready_for_annotation'
-        : 'pending_anonymization_validation';
+    return isVideoValidated(videoId) ? 'ready_for_annotation' : 'pending_anonymization_validation';
 };
+function getVideoCountByDropdownStatus(status) {
+    return videos.value.filter((video) => getVideoDropdownStatus(video.id) === status).length;
+}
 // ✅ NEW: Helper functions for video status display
 const getVideoStatusIndicator = (videoId) => {
-    if (isAnnotationFinished(videoId))
+    if (!canViewProcessedVideo(videoId))
+        return `Noch nicht nutzbar: ${getStatusText(getVideoAnonymizationStatus(videoId))}`;
+    if (canAnnotateSegments(videoId) && isAnnotationFinished(videoId))
         return 'Video bereits validiert';
-    const item = overview.value.find(o => o.id === videoId && o.mediaType === 'video');
+    const item = getVideoOverviewItem(videoId);
     if (!item)
         return '';
     const statusIndicators = {
-        'not_started': '⏳ Wartend',
-        'processing_anonymization': '🔄 In Verarbeitung',
-        'extracting_frames': '🎬 Frames',
-        'done_processing_anonymization': 'Zurück zu Schritt 1 - Anonymisierung validieren',
-        'validated': 'Video startklar für Befundung!',
-        'failed': '❌ Fehler'
+        not_started: '⏳ Wartend',
+        processing_anonymization: '🔄 In Verarbeitung',
+        extracting_frames: '🎬 Frames',
+        started: 'Gestartet',
+        anonymized: 'Anonymisiert, Metadaten noch offen',
+        done_processing_anonymization: 'Zurück zu Schritt 1 - Anonymisierung validieren',
+        validated: 'Video startklar für Befundung!',
+        unknown: 'Status unbekannt',
+        failed: '❌ Fehler'
     };
     return statusIndicators[item.anonymizationStatus] || item.anonymizationStatus;
 };
 const getVideoCountByStatus = (status) => {
-    return overview.value.filter(o => o.mediaType === 'video' && o.anonymizationStatus === status).length;
+    return overview.value.filter((o) => o.mediaType === 'video' && o.anonymizationStatus === status)
+        .length;
 };
 const getStatusBadgeClass = (status) => {
     const classes = {
-        'not_started': 'bg-secondary',
-        'processing_anonymization': 'bg-warning',
-        'extracting_frames': 'bg-info',
-        'predicting_segments': 'bg-info',
-        'done_processing_anonymization': 'bg-success',
-        'validated': 'bg-primary',
-        'failed': 'bg-danger'
+        not_started: 'bg-secondary',
+        processing_anonymization: 'bg-warning',
+        extracting_frames: 'bg-info',
+        predicting_segments: 'bg-info',
+        started: 'bg-info',
+        anonymized: 'bg-warning',
+        done_processing_anonymization: 'bg-success',
+        validated: 'bg-primary',
+        unknown: 'bg-secondary',
+        failed: 'bg-danger'
     };
     return classes[status] || 'bg-secondary';
 };
 const getStatusText = (status) => {
     const texts = {
-        'not_started': 'Nicht gestartet',
-        'processing_anonymization': 'Anonymisierung läuft',
-        'extracting_frames': 'Frames extrahieren',
-        'predicting_segments': 'Segmente vorhersagen',
-        'done_processing_anonymization': 'Fertig',
-        'validated': 'Validiert',
-        'failed': 'Fehlgeschlagen'
+        not_started: 'Nicht gestartet',
+        processing_anonymization: 'Anonymisierung läuft',
+        extracting_frames: 'Frames extrahieren',
+        predicting_segments: 'Segmente vorhersagen',
+        started: 'Gestartet',
+        anonymized: 'Anonymisiert',
+        done_processing_anonymization: 'Fertig',
+        validated: 'Validiert',
+        unknown: 'Status unbekannt',
+        failed: 'Fehlgeschlagen'
     };
     return texts[status] || status;
 };
 // Tracks anonymization validation. Segment annotation validation is tracked by isAnnotationFinished().
 const isVideoValidated = (videoId) => {
-    const item = overview.value.find(o => o.id === videoId && o.mediaType === 'video');
+    const item = getVideoOverviewItem(videoId);
     return item?.anonymizationStatus === 'validated';
 };
 // Fire loader whenever selectedVideoId changes programmatically.
@@ -1211,11 +1468,11 @@ watch(selectedVideoId, async (newId) => {
         return;
     }
     await loadSelectedVideo();
-    if (newId !== null) {
+    if (newId !== null && canViewProcessedVideo(newId)) {
         await loadVideoSegments();
     }
 });
-watch(() => route.query.video, v => {
+watch(() => route.query.video, (v) => {
     const id = Number(v ?? '') || null;
     if (id !== selectedVideoId.value)
         selectedVideoId.value = id;
@@ -1230,6 +1487,8 @@ let __VLS_directives;
 /** @type {__VLS_StyleScopedClasses['status-badge-container']} */ ;
 /** @type {__VLS_StyleScopedClasses['video-dropdown-trigger']} */ ;
 /** @type {__VLS_StyleScopedClasses['video-dropdown-search-input']} */ ;
+/** @type {__VLS_StyleScopedClasses['video-dropdown-filter-button']} */ ;
+/** @type {__VLS_StyleScopedClasses['video-dropdown-filter-button']} */ ;
 /** @type {__VLS_StyleScopedClasses['video-dropdown-item']} */ ;
 /** @type {__VLS_StyleScopedClasses['video-dropdown-item']} */ ;
 /** @type {__VLS_StyleScopedClasses['video-dropdown-item']} */ ;
@@ -1238,7 +1497,10 @@ let __VLS_directives;
 /** @type {__VLS_StyleScopedClasses['validation-action-button']} */ ;
 /** @type {__VLS_StyleScopedClasses['label-overlay']} */ ;
 /** @type {__VLS_StyleScopedClasses['label-overlay-item']} */ ;
+/** @type {__VLS_StyleScopedClasses['active']} */ ;
 /** @type {__VLS_StyleScopedClasses['shortcuts-toggle']} */ ;
+/** @type {__VLS_StyleScopedClasses['prediction-rerun-controls']} */ ;
+/** @type {__VLS_StyleScopedClasses['prediction-rerun-controls']} */ ;
 // CSS variable injection 
 // CSS variable injection end 
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -1351,6 +1613,25 @@ if (__VLS_ctx.isVideoDropdownOpen && __VLS_ctx.hasVideos) {
         'aria-label': "Video suchen",
     });
     (__VLS_ctx.videoDropdownSearch);
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "video-dropdown-filters" },
+        role: "group",
+        'aria-label': "Videofilter",
+    });
+    for (const [option] of __VLS_getVForSourceType((__VLS_ctx.videoDropdownFilterOptions))) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+            ...{ onClick: (...[$event]) => {
+                    if (!(__VLS_ctx.isVideoDropdownOpen && __VLS_ctx.hasVideos))
+                        return;
+                    __VLS_ctx.videoDropdownFilter = option.value;
+                } },
+            key: (option.value),
+            type: "button",
+            ...{ class: "video-dropdown-filter-button" },
+            ...{ class: ({ active: __VLS_ctx.videoDropdownFilter === option.value }) },
+        });
+        (option.label);
+    }
     for (const [video] of __VLS_getVForSourceType((__VLS_ctx.filteredSelectableVideos))) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
             ...{ onClick: (...[$event]) => {
@@ -1393,7 +1674,9 @@ if (__VLS_ctx.isVideoDropdownOpen && __VLS_ctx.hasVideos) {
         if (__VLS_ctx.getVideoValidatedAnnotatorLabel(video.id)) {
             __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
                 ...{ class: "video-dropdown-annotators" },
-                ...{ class: ({ 'video-dropdown-annotators-other': __VLS_ctx.hasOtherValidatedAnnotator(video.id) }) },
+                ...{ class: ({
+                        'video-dropdown-annotators-other': __VLS_ctx.hasOtherValidatedAnnotator(video.id)
+                    }) },
                 'data-test': "video-dropdown-annotators",
             });
             __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
@@ -1446,7 +1729,7 @@ if (__VLS_ctx.videos.length > 0) {
     });
     (__VLS_ctx.pendingValidationVideos.length);
 }
-if (__VLS_ctx.selectedVideoId) {
+if (__VLS_ctx.selectedVideoId && __VLS_ctx.canAnnotateSelectedVideo) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "annotation-scope-panel mt-2" },
     });
@@ -1488,7 +1771,9 @@ if (__VLS_ctx.selectedVideoId) {
 if (__VLS_ctx.validationRequestVideoId !== null || __VLS_ctx.lastValidationClickedVideoId !== null) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "mt-2 p-2 rounded validation-click-indicator" },
-        ...{ class: (__VLS_ctx.selectedVideoId === __VLS_ctx.activeValidationIndicatorVideoId ? 'validation-click-indicator-active' : 'validation-click-indicator-muted') },
+        ...{ class: (__VLS_ctx.selectedVideoId === __VLS_ctx.activeValidationIndicatorVideoId
+                ? 'validation-click-indicator-active'
+                : 'validation-click-indicator-muted') },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
         ...{ class: "fw-semibold" },
@@ -1516,6 +1801,9 @@ if (!__VLS_ctx.anonymizedVideoSrc && __VLS_ctx.hasVideos) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
         ...{ class: "mt-2" },
     });
+    (__VLS_ctx.selectedVideoId && !__VLS_ctx.isSelectedVideoViewable
+        ? 'Dieses Video ist noch nicht für die Segmentansicht nutzbar'
+        : 'Video auswählen, um mit der Betrachtung zu beginnen');
     if (__VLS_ctx.selectedVideoId) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: "alert alert-info mt-2" },
@@ -1532,10 +1820,13 @@ if (!__VLS_ctx.anonymizedVideoSrc && __VLS_ctx.hasVideos) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
         (__VLS_ctx.selectedVideoId);
         (__VLS_ctx.getVideoStatusIndicator(__VLS_ctx.selectedVideoId));
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.br, __VLS_intrinsicElements.br)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.br)({});
         __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
             ...{ class: "text-muted" },
         });
+        (__VLS_ctx.isSelectedVideoViewable
+            ? 'Die Ansicht wird vorbereitet.'
+            : 'Bitte zuerst den erforderlichen Anonymisierungsschritt abschließen.');
     }
 }
 if (!__VLS_ctx.hasVideos) {
@@ -1642,13 +1933,13 @@ if (__VLS_ctx.anonymizedVideoSrc) {
             ...{ class: "status-badge-container mb-2" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-            ...{ class: (__VLS_ctx.getStatusBadgeClass(__VLS_ctx.overview.find(o => o.id === __VLS_ctx.selectedVideoId && o.mediaType === 'video')?.anonymizationStatus || 'not_started')) },
+            ...{ class: (__VLS_ctx.getStatusBadgeClass(__VLS_ctx.overview.find((o) => o.id === __VLS_ctx.selectedVideoId && o.mediaType === 'video')?.anonymizationStatus || 'not_started')) },
             ...{ class: "badge" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
             ...{ class: "ni ni-check-bold me-1" },
         });
-        (__VLS_ctx.getStatusText(__VLS_ctx.overview.find(o => o.id === __VLS_ctx.selectedVideoId && o.mediaType === 'video')?.anonymizationStatus || 'not_started'));
+        (__VLS_ctx.getStatusText(__VLS_ctx.overview.find((o) => o.id === __VLS_ctx.selectedVideoId && o.mediaType === 'video')?.anonymizationStatus || 'not_started'));
         if (__VLS_ctx.timelineSegmentsForSelectedVideo.length > 0) {
             __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
                 ...{ class: "badge bg-info" },
@@ -1680,20 +1971,6 @@ if (__VLS_ctx.anonymizedVideoSrc) {
         (__VLS_ctx.formatTime(__VLS_ctx.duration));
     }
 }
-if (!__VLS_ctx.anonymizedVideoSrc) {
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-        ...{ onClick: (...[$event]) => {
-                if (!(!__VLS_ctx.anonymizedVideoSrc))
-                    return;
-                __VLS_ctx.videoStore.deleteVideo(__VLS_ctx.selectedVideoId);
-            } },
-        ...{ class: "btn btn-primary" },
-        disabled: (!__VLS_ctx.hasVideos),
-    });
-}
 if (__VLS_ctx.duration > 0) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "timeline-wrapper mt-3" },
@@ -1717,7 +1994,7 @@ if (__VLS_ctx.duration > 0) {
         isPlaying: (__VLS_ctx.isPlaying),
         activeSegmentId: (__VLS_ctx.selectedSegmentId),
         showWaveform: (false),
-        selectionMode: (__VLS_ctx.canEditSelectedVideoSegments),
+        selectionMode: (__VLS_ctx.canMutateSelectedSegments),
         fps: (__VLS_ctx.fps),
     }));
     const __VLS_1 = __VLS_0({
@@ -1737,7 +2014,7 @@ if (__VLS_ctx.duration > 0) {
         isPlaying: (__VLS_ctx.isPlaying),
         activeSegmentId: (__VLS_ctx.selectedSegmentId),
         showWaveform: (false),
-        selectionMode: (__VLS_ctx.canEditSelectedVideoSegments),
+        selectionMode: (__VLS_ctx.canMutateSelectedSegments),
         fps: (__VLS_ctx.fps),
     }, ...__VLS_functionalComponentArgsRest(__VLS_0));
     let __VLS_3;
@@ -1786,9 +2063,9 @@ if (__VLS_ctx.duration > 0) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "mt-1 shortcuts-body" },
     });
-    if (__VLS_ctx.selectedVideoId) {
+    if (__VLS_ctx.selectedVideoId && __VLS_ctx.isSelectedVideoViewable) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: "mt-3 d-flex gap-2" },
+            ...{ class: "mt-3 d-flex gap-2 flex-wrap align-items-center" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
             ...{ onChange: (__VLS_ctx.handleSegmentSourceChange) },
@@ -1804,155 +2081,202 @@ if (__VLS_ctx.duration > 0) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
             ...{ onClick: (__VLS_ctx.discardSegmentChanges) },
             ...{ class: "btn btn-outline-secondary" },
-            disabled: (__VLS_ctx.segmentSourceMode === 'prediction' || !__VLS_ctx.canEditSelectedVideoSegments),
+            disabled: (__VLS_ctx.segmentSourceMode === 'prediction' || !__VLS_ctx.canMutateSelectedSegments),
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
             ...{ onClick: (__VLS_ctx.saveSegmentChanges) },
             ...{ class: "btn" },
             ...{ class: (__VLS_ctx.hasUnsavedChanges ? 'btn-primary' : 'btn-outline-secondary') },
-            disabled: (__VLS_ctx.segmentSourceMode === 'prediction' || !__VLS_ctx.canEditSelectedVideoSegments),
+            disabled: (__VLS_ctx.segmentSourceMode === 'prediction' || !__VLS_ctx.canMutateSelectedSegments),
         });
         if (__VLS_ctx.segmentSourceMode === 'prediction') {
             __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
                 ...{ onClick: (__VLS_ctx.importPredictionSegmentsToManual) },
                 ...{ class: "btn btn-primary" },
-                disabled: (__VLS_ctx.timelineSegmentsForSelectedVideo.length === 0 || __VLS_ctx.isImportingPredictionSegments || !__VLS_ctx.canEditSelectedVideoSegments),
+                disabled: (__VLS_ctx.timelineSegmentsForSelectedVideo.length === 0 ||
+                    __VLS_ctx.isImportingPredictionSegments ||
+                    !__VLS_ctx.canMutateSelectedSegments),
             });
-            (__VLS_ctx.isImportingPredictionSegments ? 'Übernehme...' : 'Als manuelle Segmente übernehmen');
-        }
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ onClick: (__VLS_ctx.handleTimelineClick) },
-            ...{ class: "simple-timeline-track mt-2" },
-            ref: "timelineRef",
-        });
-        /** @type {typeof __VLS_ctx.timelineRef} */ ;
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: "progress-bar" },
-            ...{ style: ({ width: `${(__VLS_ctx.currentTime / __VLS_ctx.duration) * 100}%` }) },
-        });
-        for (const [marker] of __VLS_getVForSourceType((__VLS_ctx.examinationMarkers))) {
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                key: (marker.id),
-                ...{ class: "examination-marker" },
-                ...{ style: ({ left: `${(marker.timestamp / __VLS_ctx.duration) * 100}%` }) },
-                title: (`Untersuchung bei ${__VLS_ctx.formatTime(marker.timestamp)}`),
-            });
+            (__VLS_ctx.isImportingPredictionSegments
+                ? 'Übernehme...'
+                : 'Als manuelle Segmente übernehmen');
         }
     }
-    if (__VLS_ctx.selectedVideoId) {
+    if (__VLS_ctx.selectedVideoId && __VLS_ctx.isSelectedVideoViewable) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: "timeline-controls mt-4" },
-        });
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: "d-flex align-items-center gap-3" },
-        });
-        if (__VLS_ctx.segmentSourceMode === 'prediction') {
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: "alert alert-warning py-2 px-3 mb-0" },
-            });
-        }
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: "d-flex align-items-center" },
-        });
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
-            ...{ class: "form-label mb-0 me-2" },
+            ...{ class: "prediction-rerun-controls mt-2 d-flex gap-2 flex-wrap align-items-center" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
-            ...{ onChange: (__VLS_ctx.onLabelSelect) },
-            ...{ onFocus: (...[$event]) => {
-                    if (!(__VLS_ctx.duration > 0))
-                        return;
-                    if (!(__VLS_ctx.selectedVideoId))
-                        return;
-                    __VLS_ctx.isLabelSelectActive = true;
-                } },
-            ...{ onBlur: (...[$event]) => {
-                    if (!(__VLS_ctx.duration > 0))
-                        return;
-                    if (!(__VLS_ctx.selectedVideoId))
-                        return;
-                    __VLS_ctx.isLabelSelectActive = false;
-                } },
-            ref: "labelSelectRef",
-            value: (__VLS_ctx.selectedLabelType),
-            ...{ class: "form-select form-select-sm control-select" },
-            'data-cy': "label-select",
+            value: (__VLS_ctx.predictionModelMode),
+            ...{ class: "form-select form-select-sm model-mode-select" },
         });
-        /** @type {typeof __VLS_ctx.labelSelectRef} */ ;
         __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-            value: "",
+            value: "local",
         });
-        for (const [label] of __VLS_getVForSourceType((__VLS_ctx.timelineLabels))) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+            value: "huggingface",
+        });
+        if (__VLS_ctx.predictionModelMode === 'local') {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
+                value: (__VLS_ctx.selectedPredictionModelMetaId),
+                ...{ class: "form-select form-select-sm prediction-model-select" },
+                disabled: (__VLS_ctx.predictionModelOptions.length === 0 || __VLS_ctx.isRerunningPredictionSegments),
+            });
             __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-                key: (label.id),
-                value: (label.name),
+                value: (null),
             });
-            (__VLS_ctx.getTranslationForLabel(label.name));
+            for (const [model] of __VLS_getVForSourceType((__VLS_ctx.predictionModelOptions))) {
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+                    key: (model.id),
+                    value: (model.id),
+                });
+                (__VLS_ctx.formatPredictionModelOption(model));
+            }
         }
+        else {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
+                ...{ class: "form-control form-control-sm huggingface-model-input" },
+                placeholder: "wg-lux/colo_segmentation_RegNetX800MF_base",
+                disabled: (__VLS_ctx.isRerunningPredictionSegments),
+            });
+            (__VLS_ctx.huggingFaceModelId);
+        }
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+            ...{ onClick: (__VLS_ctx.rerunPredictionSegmentsForSelectedVideo) },
+            ...{ class: "btn btn-outline-primary" },
+            disabled: (!__VLS_ctx.canRerunPredictionSegments),
+        });
+        (__VLS_ctx.isRerunningPredictionSegments ? 'KI läuft...' : 'KI neu berechnen');
+    }
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ onClick: (__VLS_ctx.handleTimelineClick) },
+        ...{ class: "simple-timeline-track mt-2" },
+        ref: "timelineRef",
+    });
+    /** @type {typeof __VLS_ctx.timelineRef} */ ;
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "progress-bar" },
+        ...{ style: ({ width: `${(__VLS_ctx.currentTime / __VLS_ctx.duration) * 100}%` }) },
+    });
+    for (const [marker] of __VLS_getVForSourceType((__VLS_ctx.examinationMarkers))) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: "d-flex align-items-center gap-2" },
+            key: (marker.id),
+            ...{ class: "examination-marker" },
+            ...{ style: ({ left: `${(marker.timestamp / __VLS_ctx.duration) * 100}%` }) },
+            title: (`Untersuchung bei ${__VLS_ctx.formatTime(marker.timestamp)}`),
         });
-        if (!__VLS_ctx.isMarkingLabel) {
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-                ...{ onClick: (__VLS_ctx.startLabelMarking) },
-                ...{ class: "btn btn-success btn-sm control-button" },
-                disabled: (!__VLS_ctx.canStartLabeling),
-                'data-cy': "start-label-button",
-            });
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: "ni ni-single-copy-04" },
-            });
-        }
-        if (__VLS_ctx.isMarkingLabel) {
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-                ...{ onClick: (__VLS_ctx.finishLabelMarking) },
-                ...{ class: "btn btn-warning btn-sm control-button" },
-                'data-cy': "finish-label-button",
-            });
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: "ni ni-button-play" },
-            });
-        }
-        if (__VLS_ctx.isMarkingLabel) {
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-                ...{ onClick: (__VLS_ctx.cancelLabelMarking) },
-                ...{ class: "btn btn-outline-secondary btn-sm control-button" },
-            });
-        }
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
-            ...{ class: "ms-3 text-muted" },
+    }
+}
+if (__VLS_ctx.selectedVideoId && __VLS_ctx.isSelectedVideoViewable) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "timeline-controls mt-4" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "d-flex align-items-center gap-3" },
+    });
+    if (__VLS_ctx.segmentSourceMode === 'prediction') {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "alert alert-warning py-2 px-3 mb-0" },
         });
-        if (__VLS_ctx.videoStore.draftSegment && __VLS_ctx.videoStore.draftSegment.startTime !== null) {
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
-                ...{ class: "mb-0" },
-            });
+    }
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "d-flex align-items-center" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+        ...{ class: "form-label mb-0 me-2" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
+        ...{ onChange: (__VLS_ctx.onLabelSelect) },
+        ...{ onFocus: (...[$event]) => {
+                if (!(__VLS_ctx.selectedVideoId && __VLS_ctx.isSelectedVideoViewable))
+                    return;
+                __VLS_ctx.isLabelSelectActive = true;
+            } },
+        ...{ onBlur: (...[$event]) => {
+                if (!(__VLS_ctx.selectedVideoId && __VLS_ctx.isSelectedVideoViewable))
+                    return;
+                __VLS_ctx.isLabelSelectActive = false;
+            } },
+        ref: "labelSelectRef",
+        value: (__VLS_ctx.selectedLabelType),
+        ...{ class: "form-select form-select-sm control-select" },
+        'data-cy': "label-select",
+        disabled: (!__VLS_ctx.canMutateSelectedSegments),
+    });
+    /** @type {typeof __VLS_ctx.labelSelectRef} */ ;
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+        value: "",
+    });
+    for (const [label] of __VLS_getVForSourceType((__VLS_ctx.timelineLabels))) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+            key: (label.id),
+            value: (label.name),
+        });
+        (__VLS_ctx.getTranslationForLabel(label.name));
+    }
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "d-flex align-items-center gap-2" },
+    });
+    if (!__VLS_ctx.isMarkingLabel) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+            ...{ onClick: (__VLS_ctx.startLabelMarking) },
+            ...{ class: "btn btn-success btn-sm control-button" },
+            disabled: (!__VLS_ctx.canStartLabeling),
+            'data-cy': "start-label-button",
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: "ni ni-single-copy-04" },
+        });
+    }
+    if (__VLS_ctx.isMarkingLabel) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+            ...{ onClick: (__VLS_ctx.finishLabelMarking) },
+            ...{ class: "btn btn-warning btn-sm control-button" },
+            'data-cy': "finish-label-button",
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: "ni ni-button-play" },
+        });
+    }
+    if (__VLS_ctx.isMarkingLabel) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+            ...{ onClick: (__VLS_ctx.cancelLabelMarking) },
+            ...{ class: "btn btn-outline-secondary btn-sm control-button" },
+        });
+    }
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "ms-3 text-muted" },
+    });
+    if (__VLS_ctx.videoStore.draftSegment && __VLS_ctx.videoStore.draftSegment.startTime !== null) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
+            ...{ class: "mb-0" },
+        });
+        (__VLS_ctx.formatTime(__VLS_ctx.videoStore.draftSegment.startTime));
+    }
+    (__VLS_ctx.formatTime(__VLS_ctx.currentTime));
+    (__VLS_ctx.formatTime(__VLS_ctx.duration));
+    if (__VLS_ctx.videoStore.draftSegment) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "alert alert-info mt-2 mb-0" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+            ...{ class: "ni ni-user-run align-middle me-1" },
+            ...{ style: {} },
+        });
+        (__VLS_ctx.getTranslationForLabel(__VLS_ctx.videoStore.draftSegment.label));
+        if (__VLS_ctx.videoStore.draftSegment.endTime) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
             (__VLS_ctx.formatTime(__VLS_ctx.videoStore.draftSegment.startTime));
+            (__VLS_ctx.formatTime(__VLS_ctx.videoStore.draftSegment.endTime));
         }
-        (__VLS_ctx.formatTime(__VLS_ctx.currentTime));
-        (__VLS_ctx.formatTime(__VLS_ctx.duration));
-        if (__VLS_ctx.videoStore.draftSegment) {
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-                ...{ class: "alert alert-info mt-2 mb-0" },
-            });
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({});
-            __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
-                ...{ class: "ni ni-user-run align-middle me-1" },
-                ...{ style: {} },
-            });
-            (__VLS_ctx.getTranslationForLabel(__VLS_ctx.videoStore.draftSegment.label));
-            if (__VLS_ctx.videoStore.draftSegment.endTime) {
-                __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
-                (__VLS_ctx.formatTime(__VLS_ctx.videoStore.draftSegment.startTime));
-                (__VLS_ctx.formatTime(__VLS_ctx.videoStore.draftSegment.endTime));
-            }
-            else {
-                __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
-                (__VLS_ctx.formatTime(__VLS_ctx.videoStore.draftSegment.startTime));
-            }
+        else {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+            (__VLS_ctx.formatTime(__VLS_ctx.videoStore.draftSegment.startTime));
         }
     }
 }
-if (__VLS_ctx.selectedVideoId) {
+if (__VLS_ctx.selectedVideoId && __VLS_ctx.canAnnotateSelectedVideo) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "mt-3" },
     });
@@ -1972,11 +2296,13 @@ if (__VLS_ctx.selectedVideoId) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
             ...{ class: "ni ni-chart-bar-32 me-1" },
         });
-        (__VLS_ctx.canEditSelectedVideoSegments ? 'Segmentbearbeitung aktiv' : 'Video bereits validiert');
+        (__VLS_ctx.canMutateSelectedSegments
+            ? 'Segmentbearbeitung aktiv'
+            : 'Video bereits validiert');
         __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
             ...{ class: "text-muted" },
         });
-        if (__VLS_ctx.canEditSelectedVideoSegments) {
+        if (__VLS_ctx.canMutateSelectedSegments) {
             __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
             (__VLS_ctx.isAnnotatorOverrideActive
                 ? 'Segmentänderungen laufen unter dem aktiven Annotator-Override. "Zurück zu meinem Nutzer" setzt den Scope zurück.'
@@ -1989,7 +2315,7 @@ if (__VLS_ctx.selectedVideoId) {
         if (__VLS_ctx.isAnnotatorOverrideActive) {
             __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
                 ...{ onClick: (...[$event]) => {
-                        if (!(__VLS_ctx.selectedVideoId))
+                        if (!(__VLS_ctx.selectedVideoId && __VLS_ctx.canAnnotateSelectedVideo))
                             return;
                         if (!(__VLS_ctx.isAnnotationFinished(__VLS_ctx.selectedVideoId)))
                             return;
@@ -2008,7 +2334,7 @@ if (__VLS_ctx.selectedVideoId) {
             });
             (__VLS_ctx.isValidatingSegments ? 'Validierung läuft...' : 'Annotation validieren');
         }
-        else if (!__VLS_ctx.canEditSelectedVideoSegments) {
+        else if (!__VLS_ctx.canMutateSelectedSegments) {
             __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
                 ...{ onClick: (__VLS_ctx.enableSegmentEditing) },
                 type: "button",
@@ -2025,14 +2351,16 @@ if (__VLS_ctx.selectedVideoId) {
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
             ...{ onClick: (...[$event]) => {
-                    if (!(__VLS_ctx.selectedVideoId))
+                    if (!(__VLS_ctx.selectedVideoId && __VLS_ctx.canAnnotateSelectedVideo))
                         return;
                     if (!!(__VLS_ctx.isAnnotationFinished(__VLS_ctx.selectedVideoId)))
                         return;
                     __VLS_ctx.handleValidateAndMark(__VLS_ctx.selectedVideoId);
                 } },
             ...{ class: "btn validation-action-button d-inline-flex align-items-center justify-content-center gap-2" },
-            ...{ class: ({ 'validation-action-button-clicked': __VLS_ctx.selectedVideoId === __VLS_ctx.validationRequestVideoId }) },
+            ...{ class: ({
+                    'validation-action-button-clicked': __VLS_ctx.selectedVideoId === __VLS_ctx.validationRequestVideoId
+                }) },
             disabled: (__VLS_ctx.segmentSourceMode === 'prediction' || __VLS_ctx.isValidatingSegments),
             'aria-busy': (__VLS_ctx.isValidatingSegments ? 'true' : 'false'),
         });
@@ -2041,8 +2369,29 @@ if (__VLS_ctx.selectedVideoId) {
             ...{ class: (__VLS_ctx.isValidatingSegments ? 'ni-settings-gear-65' : 'ni-check-bold') },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
-        (__VLS_ctx.isValidatingSegments ? 'Validierung läuft...' : `Alle Segmente validieren (${__VLS_ctx.timelineSegmentsForSelectedVideo.length})`);
+        (__VLS_ctx.isValidatingSegments
+            ? 'Validierung läuft...'
+            : `Alle Segmente validieren (${__VLS_ctx.timelineSegmentsForSelectedVideo.length})`);
     }
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "d-flex justify-content-center mt-2" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+        ...{ onClick: (__VLS_ctx.blackenOutsideSegmentsForSelectedVideo) },
+        type: "button",
+        ...{ class: "btn btn-outline-dark btn-sm d-inline-flex align-items-center justify-content-center gap-2" },
+        'data-test': "blacken-outside-segments-button",
+        disabled: (!__VLS_ctx.canBlackenOutsideSegments),
+        'aria-busy': (__VLS_ctx.isBlackeningOutsideSegments ? 'true' : 'false'),
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+        ...{ class: "ni" },
+        ...{ class: (__VLS_ctx.isBlackeningOutsideSegments ? 'ni-settings-gear-65' : 'ni-tv-2') },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+    (__VLS_ctx.isBlackeningOutsideSegments
+        ? 'Schwärzung wird gestartet...'
+        : 'Außerhalb-Segmente schwärzen');
     if (!__VLS_ctx.isAnnotationFinished(__VLS_ctx.selectedVideoId) && __VLS_ctx.segmentSourceMode !== 'prediction') {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
             ...{ class: "text-muted text-center mt-2 mb-0" },
@@ -2075,7 +2424,7 @@ if (__VLS_ctx.currentMarker) {
     });
     (__VLS_ctx.formatTime(__VLS_ctx.currentMarker.timestamp));
 }
-if (__VLS_ctx.selectedVideoId) {
+if (__VLS_ctx.selectedVideoId && __VLS_ctx.canAnnotateSelectedVideo) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "mt-2" },
     });
@@ -2171,7 +2520,6 @@ if (__VLS_ctx.savedExaminations.length > 0) {
         });
     }
 }
-/** @type {__VLS_StyleScopedClasses['']} */ ;
 /** @type {__VLS_StyleScopedClasses['container-fluid']} */ ;
 /** @type {__VLS_StyleScopedClasses['py-4']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert']} */ ;
@@ -2208,6 +2556,9 @@ if (__VLS_ctx.savedExaminations.length > 0) {
 /** @type {__VLS_StyleScopedClasses['video-dropdown-menu']} */ ;
 /** @type {__VLS_StyleScopedClasses['video-dropdown-search']} */ ;
 /** @type {__VLS_StyleScopedClasses['video-dropdown-search-input']} */ ;
+/** @type {__VLS_StyleScopedClasses['video-dropdown-filters']} */ ;
+/** @type {__VLS_StyleScopedClasses['video-dropdown-filter-button']} */ ;
+/** @type {__VLS_StyleScopedClasses['active']} */ ;
 /** @type {__VLS_StyleScopedClasses['video-dropdown-item']} */ ;
 /** @type {__VLS_StyleScopedClasses['video-dropdown-item-selected']} */ ;
 /** @type {__VLS_StyleScopedClasses['video-dropdown-main']} */ ;
@@ -2345,8 +2696,6 @@ if (__VLS_ctx.savedExaminations.length > 0) {
 /** @type {__VLS_StyleScopedClasses['d-block']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['d-block']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn']} */ ;
-/** @type {__VLS_StyleScopedClasses['btn-primary']} */ ;
 /** @type {__VLS_StyleScopedClasses['timeline-wrapper']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
@@ -2359,6 +2708,8 @@ if (__VLS_ctx.savedExaminations.length > 0) {
 /** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
 /** @type {__VLS_StyleScopedClasses['gap-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['flex-wrap']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['form-select']} */ ;
 /** @type {__VLS_StyleScopedClasses['form-select-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['source-select']} */ ;
@@ -2367,6 +2718,23 @@ if (__VLS_ctx.savedExaminations.length > 0) {
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-primary']} */ ;
+/** @type {__VLS_StyleScopedClasses['prediction-rerun-controls']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['gap-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['flex-wrap']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-select']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-select-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['model-mode-select']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-select']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-select-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['prediction-model-select']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-control']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-control-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['huggingface-model-input']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-primary']} */ ;
 /** @type {__VLS_StyleScopedClasses['simple-timeline-track']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['progress-bar']} */ ;
@@ -2462,6 +2830,17 @@ if (__VLS_ctx.savedExaminations.length > 0) {
 /** @type {__VLS_StyleScopedClasses['validation-action-button-clicked']} */ ;
 /** @type {__VLS_StyleScopedClasses['ni']} */ ;
 /** @type {__VLS_StyleScopedClasses['validation-action-icon']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['justify-content-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-dark']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-inline-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['justify-content-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['gap-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
@@ -2554,12 +2933,17 @@ const __VLS_self = (await import('vue')).defineComponent({
             validationRequestVideoId: validationRequestVideoId,
             segmentSourceMode: segmentSourceMode,
             isImportingPredictionSegments: isImportingPredictionSegments,
+            predictionModelMode: predictionModelMode,
+            selectedPredictionModelMetaId: selectedPredictionModelMetaId,
+            huggingFaceModelId: huggingFaceModelId,
+            isRerunningPredictionSegments: isRerunningPredictionSegments,
             annotatorOverrideInput: annotatorOverrideInput,
             errorMessage: errorMessage,
             messageTone: messageTone,
             successMessage: successMessage,
             isFullscreen: isFullscreen,
             isValidatingSegments: isValidatingSegments,
+            isBlackeningOutsideSegments: isBlackeningOutsideSegments,
             activeValidationIndicatorVideoId: activeValidationIndicatorVideoId,
             videoRef: videoRef,
             videoContainerRef: videoContainerRef,
@@ -2568,6 +2952,7 @@ const __VLS_self = (await import('vue')).defineComponent({
             videoDropdownRef: videoDropdownRef,
             isVideoDropdownOpen: isVideoDropdownOpen,
             videoDropdownSearch: videoDropdownSearch,
+            videoDropdownFilter: videoDropdownFilter,
             hasUnsavedChanges: hasUnsavedChanges,
             toggleVideoDropdown: toggleVideoDropdown,
             selectVideoFromDropdown: selectVideoFromDropdown,
@@ -2577,13 +2962,20 @@ const __VLS_self = (await import('vue')).defineComponent({
             filteredSelectableVideos: filteredSelectableVideos,
             pendingValidationVideos: pendingValidationVideos,
             selectedVideo: selectedVideo,
+            isSelectedVideoViewable: isSelectedVideoViewable,
+            canAnnotateSelectedVideo: canAnnotateSelectedVideo,
+            canBlackenOutsideSegments: canBlackenOutsideSegments,
+            videoDropdownFilterOptions: videoDropdownFilterOptions,
             baseAnnotatorPrincipal: baseAnnotatorPrincipal,
             isAnnotatorOverrideActive: isAnnotatorOverrideActive,
             canApplyAnnotatorOverride: canApplyAnnotatorOverride,
             activeAnnotatorLabel: activeAnnotatorLabel,
             hasOtherValidatedAnnotator: hasOtherValidatedAnnotator,
             getVideoValidatedAnnotatorLabel: getVideoValidatedAnnotatorLabel,
-            canEditSelectedVideoSegments: canEditSelectedVideoSegments,
+            canMutateSelectedSegments: canMutateSelectedSegments,
+            predictionModelOptions: predictionModelOptions,
+            canRerunPredictionSegments: canRerunPredictionSegments,
+            formatPredictionModelOption: formatPredictionModelOption,
             selectedVideoLabel: selectedVideoLabel,
             restartVideoAnnotationAsOverride: restartVideoAnnotationAsOverride,
             revertVideoAnnotatorOverride: revertVideoAnnotatorOverride,
@@ -2617,9 +3009,11 @@ const __VLS_self = (await import('vue')).defineComponent({
             jumpToExamination: jumpToExamination,
             deleteExamination: deleteExamination,
             handleValidateAndMark: handleValidateAndMark,
+            blackenOutsideSegmentsForSelectedVideo: blackenOutsideSegmentsForSelectedVideo,
             saveSegmentChanges: saveSegmentChanges,
             discardSegmentChanges: discardSegmentChanges,
             importPredictionSegmentsToManual: importPredictionSegmentsToManual,
+            rerunPredictionSegmentsForSelectedVideo: rerunPredictionSegmentsForSelectedVideo,
             onVideoError: onVideoError,
             onVideoLoadStart: onVideoLoadStart,
             onVideoCanPlay: onVideoCanPlay,

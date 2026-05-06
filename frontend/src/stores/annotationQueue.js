@@ -296,6 +296,7 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
     const predictionSegmentsOnly = ref(loadStoredPredictionSegmentsOnly());
     const annotatorPrincipal = ref(null);
     const taskQueue = ref([]);
+    let queueGeneration = 0;
     const isInitialLoading = ref(false);
     const isPrefetching = ref(false);
     const lastError = ref(null);
@@ -417,16 +418,28 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
             }
         }
         lastError.value = null;
+        const currentTaskRequestSignature = () => `${selectedLabelGroupId.value ?? ''}|${taskQuerySignature.value}`;
+        const isCurrentRequest = (generation, signature) => generation === queueGeneration && signature === currentTaskRequestSignature();
+        let requestGeneration = queueGeneration;
+        let requestSignature = currentTaskRequestSignature();
         try {
             await hydrateAiDatasetDefaults();
+            requestGeneration = queueGeneration;
+            requestSignature = currentTaskRequestSignature();
             let parsed = await fetchTaskBatchFromApi(batchSize, taskMode.value);
+            if (!isCurrentRequest(requestGeneration, requestSignature))
+                return [];
             if (taskMode.value === 'filtered' &&
                 allowRandomFallback.value &&
                 parsed.length === 0) {
                 parsed = await fetchTaskBatchFromApi(batchSize, 'random');
+                if (!isCurrentRequest(requestGeneration, requestSignature))
+                    return [];
             }
             taskQueue.value.push(...parsed);
             if (dummyTaskModeEnabled && parsed.length === 0 && taskQueue.value.length === 0) {
+                if (!isCurrentRequest(requestGeneration, requestSignature))
+                    return [];
                 const dummy = createDummyTask(selectedLabelGroupId.value);
                 taskQueue.value.push(dummy);
                 return [dummy];
@@ -434,9 +447,13 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
             return parsed;
         }
         catch (error) {
+            if (!isCurrentRequest(requestGeneration, requestSignature))
+                return [];
             if (taskMode.value === 'filtered' && allowRandomFallback.value) {
                 try {
                     const fallbackParsed = await fetchTaskBatchFromApi(batchSize, 'random');
+                    if (!isCurrentRequest(requestGeneration, requestSignature))
+                        return [];
                     taskQueue.value.push(...fallbackParsed);
                     if (fallbackParsed.length > 0) {
                         return fallbackParsed;
@@ -452,6 +469,8 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
                     error?.message ||
                     'Failed to fetch annotation tasks.';
             if (dummyTaskModeEnabled && taskQueue.value.length === 0) {
+                if (!isCurrentRequest(requestGeneration, requestSignature))
+                    return [];
                 const dummy = createDummyTask(selectedLabelGroupId.value);
                 taskQueue.value.push(dummy);
                 return [dummy];
@@ -478,6 +497,7 @@ export const useAnnotationQueueStore = defineStore('annotationQueue', () => {
         return task;
     }
     function clearQueue() {
+        queueGeneration += 1;
         taskQueue.value = [];
     }
     async function primeQueue(batchSize = 10) {

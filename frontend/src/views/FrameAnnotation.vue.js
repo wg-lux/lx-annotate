@@ -18,6 +18,7 @@ const labelGroupOptions = ref([]);
 const annotatorOverride = ref(null);
 const annotatorOverrideInput = ref('');
 let isReloadingAnnotationQueue = false;
+let isBootstrappingAnnotationQueue = true;
 const selectedLabelGroupId = computed({
     get: () => queueStore.selectedLabelGroupId ?? '',
     set: (value) => queueStore.setSelectedLabelGroupId(value.trim() || null)
@@ -360,14 +361,19 @@ watch(() => currentTask.value?.id, () => {
     syncSelectedLabelsFromTask(currentTask.value);
 });
 watch(() => [queueStore.selectedLabelGroupId, queueStore.taskQuerySignature], async () => {
-    if (isReloadingAnnotationQueue)
+    if (isBootstrappingAnnotationQueue || isReloadingAnnotationQueue)
         return;
     queueStore.clearQueue();
     await loadNextTask();
 });
 onMounted(async () => {
-    await loadLabelGroups();
-    await loadNextTask();
+    try {
+        await loadLabelGroups();
+        await loadNextTask();
+    }
+    finally {
+        isBootstrappingAnnotationQueue = false;
+    }
 });
 debugger; /* PartiallyEnd: #3632/scriptSetup.vue */
 const __VLS_ctx = {};

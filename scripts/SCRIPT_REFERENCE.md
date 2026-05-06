@@ -34,7 +34,7 @@ python scripts/assert_dirs.py
 
 ## File Watcher and Operations
 
-### `python manage.py start_filewatcher`
+### `python manage.py run_filewatcher`
 
 Purpose:
 
@@ -43,7 +43,7 @@ Purpose:
 Usage:
 
 ```bash
-python manage.py start_filewatcher
+python manage.py run_filewatcher
 ```
 
 ### `scripts/start_filewatcher.sh`
