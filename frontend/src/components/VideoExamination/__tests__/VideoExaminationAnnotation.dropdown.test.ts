@@ -108,7 +108,9 @@ describe('VideoExaminationAnnotation dropdown status display', () => {
 
   const selectVideoFromDropdown = async (wrapper: ReturnType<typeof mount>, videoText: string) => {
     await openVideoDropdown(wrapper)
-    const item = wrapper.findAll('.video-dropdown-item').find((entry) => entry.text().includes(videoText))
+    const item = wrapper
+      .findAll('.video-dropdown-item')
+      .find((entry) => entry.text().includes(videoText))
     expect(item).toBeTruthy()
     await item!.trigger('click')
     await flushPromises()
@@ -149,6 +151,22 @@ describe('VideoExaminationAnnotation dropdown status display', () => {
         anonymizationStatus: 'validated',
         annotationStatus: 'validated',
         createdAt: '2026-04-30T08:30:00Z'
+      },
+      {
+        id: 14,
+        filename: 'cleanup-running.mp4',
+        mediaType: 'video',
+        anonymizationStatus: 'validated',
+        annotationStatus: 'validated',
+        createdAt: '2026-04-30T08:35:00Z'
+      },
+      {
+        id: 16,
+        filename: 'cleanup-failed.mp4',
+        mediaType: 'video',
+        anonymizationStatus: 'validated',
+        annotationStatus: 'validated',
+        createdAt: '2026-04-30T08:40:00Z'
       },
       {
         id: 12,
@@ -212,6 +230,24 @@ describe('VideoExaminationAnnotation dropdown status display', () => {
               validatedAnnotators: ['oidc:reviewer-previous']
             },
             {
+              id: 14,
+              original_file_name: 'cleanup-running.mp4',
+              centerName: 'Center E',
+              segmentAnnotationsValidated: false,
+              segmentAnnotationStatus: 'cleanup_running'
+            },
+            {
+              id: 16,
+              original_file_name: 'cleanup-failed.mp4',
+              centerName: 'Center F',
+              segmentAnnotationsValidated: false,
+              segmentAnnotationStatus: 'cleanup_failed',
+              postValidationRebuild: {
+                status: 'failed',
+                details: 'frame verification failed'
+              }
+            },
+            {
               id: 12,
               original_file_name: 'still-processing.mp4',
               centerName: 'Center D',
@@ -262,24 +298,30 @@ describe('VideoExaminationAnnotation dropdown status display', () => {
     await openVideoDropdown(wrapper)
 
     const items = wrapper.findAll('.video-dropdown-item')
-    expect(items).toHaveLength(4)
+    expect(items).toHaveLength(6)
     expect(items[0].classes()).toContain('video-dropdown-item-pending')
     expect(items[1].classes()).toContain('video-dropdown-item-ready')
     expect(items[2].classes()).toContain('video-dropdown-item-validated')
-    expect(items[3].classes()).toContain('video-dropdown-item-unusable')
+    expect(items[3].classes()).toContain('video-dropdown-item-cleanup')
+    expect(items[4].classes()).toContain('video-dropdown-item-pending')
+    expect(items[5].classes()).toContain('video-dropdown-item-unusable')
     expect(items[0].text()).toContain('Zurück zu Schritt 1 - Anonymisierung validieren')
     expect(items[1].text()).toContain('Video startklar für Befundung!')
     expect(items[2].text()).toContain('Video bereits validiert')
     expect(items[2].text()).toContain('Vorannotation von: oidc:reviewer-previous')
-    expect(items[3].text()).toContain('Noch nicht nutzbar: Anonymisierung läuft')
+    expect(items[3].text()).toContain('Segmentvalidierung läuft')
+    expect(items[4].text()).toContain('Segmentvalidierung prüfen')
+    expect(items[5].text()).toContain('Noch nicht nutzbar: Anonymisierung läuft')
     expect(wrapper.find('.video-dropdown-status-badge i').exists()).toBe(false)
 
     const filterButtons = wrapper.findAll('.video-dropdown-filter-button')
     expect(filterButtons.map((button) => button.text())).toEqual([
-      'Alle (4)',
-      'Nutzbar (3)',
+      'Alle (6)',
+      'Nutzbar (5)',
       'Anonymisierung prüfen (1)',
       'Bereit (1)',
+      'Validierung läuft (1)',
+      'Validierung prüfen (1)',
       'Segmentvalidiert (1)',
       'Nicht nutzbar (1)'
     ])
@@ -289,6 +331,8 @@ describe('VideoExaminationAnnotation dropdown status display', () => {
       'needs-validation.mp4',
       'ready-for-reporting.mp4',
       'already-segment-validated.mp4',
+      'cleanup-running.mp4',
+      'cleanup-failed.mp4',
       'still-processing.mp4'
     ])
     expectDropdownItemState(
@@ -314,6 +358,20 @@ describe('VideoExaminationAnnotation dropdown status display', () => {
     )
     expectDropdownItemState(
       wrapper,
+      'cleanup-running.mp4',
+      'video-dropdown-item-cleanup',
+      'badge-cleanup',
+      'Segmentvalidierung läuft'
+    )
+    expectDropdownItemState(
+      wrapper,
+      'cleanup-failed.mp4',
+      'video-dropdown-item-pending',
+      'badge-pending',
+      'Segmentvalidierung prüfen'
+    )
+    expectDropdownItemState(
+      wrapper,
       'still-processing.mp4',
       'video-dropdown-item-unusable',
       'badge-unusable',
@@ -324,7 +382,9 @@ describe('VideoExaminationAnnotation dropdown status display', () => {
     expectVisibleVideos(wrapper, [
       'needs-validation.mp4',
       'ready-for-reporting.mp4',
-      'already-segment-validated.mp4'
+      'already-segment-validated.mp4',
+      'cleanup-running.mp4',
+      'cleanup-failed.mp4'
     ])
     expect(wrapper.text()).not.toContain('still-processing.mp4')
     expectDropdownItemState(
@@ -348,6 +408,20 @@ describe('VideoExaminationAnnotation dropdown status display', () => {
       'badge-validated',
       'Video bereits validiert'
     )
+    expectDropdownItemState(
+      wrapper,
+      'cleanup-running.mp4',
+      'video-dropdown-item-cleanup',
+      'badge-cleanup',
+      'Segmentvalidierung läuft'
+    )
+    expectDropdownItemState(
+      wrapper,
+      'cleanup-failed.mp4',
+      'video-dropdown-item-pending',
+      'badge-pending',
+      'Segmentvalidierung prüfen'
+    )
 
     await chooseDropdownFilter(wrapper, 'Anonymisierung prüfen')
     expectVisibleVideos(wrapper, ['needs-validation.mp4'])
@@ -367,6 +441,26 @@ describe('VideoExaminationAnnotation dropdown status display', () => {
       'video-dropdown-item-ready',
       'badge-ready',
       'Video startklar für Befundung!'
+    )
+
+    await chooseDropdownFilter(wrapper, 'Validierung läuft')
+    expectVisibleVideos(wrapper, ['cleanup-running.mp4'])
+    expectDropdownItemState(
+      wrapper,
+      'cleanup-running.mp4',
+      'video-dropdown-item-cleanup',
+      'badge-cleanup',
+      'Segmentvalidierung läuft'
+    )
+
+    await chooseDropdownFilter(wrapper, 'Validierung prüfen')
+    expectVisibleVideos(wrapper, ['cleanup-failed.mp4'])
+    expectDropdownItemState(
+      wrapper,
+      'cleanup-failed.mp4',
+      'video-dropdown-item-pending',
+      'badge-pending',
+      'Segmentvalidierung prüfen'
     )
 
     await chooseDropdownFilter(wrapper, 'Segmentvalidiert')
@@ -413,6 +507,24 @@ describe('VideoExaminationAnnotation dropdown status display', () => {
     expect(wrapper.find('[data-cy="label-select"]').attributes('disabled')).toBeDefined()
   })
 
+  it('keeps cleanup-running segment validation non-final and non-mutable', async () => {
+    const wrapper = mountComponent()
+    await flushPromises()
+
+    await selectVideoFromDropdown(wrapper, 'cleanup-running.mp4')
+
+    expect((wrapper.vm as any).selectedVideoId).toBe(14)
+    expect(wrapper.text()).toContain('Außerhalb-Frames werden geschwärzt')
+    expect(wrapper.find('[data-test="segment-cleanup-processing"]').exists()).toBe(true)
+    expect(findButtonByText(wrapper, 'Alle Segmente validieren')).toBeUndefined()
+    expect(wrapper.text()).not.toContain('Video bereits validiert')
+    expect(
+      findButtonByText(wrapper, 'Segmentänderungen speichern')?.attributes('disabled')
+    ).toBeDefined()
+    expect(findButtonByText(wrapper, 'KI neu berechnen')?.attributes('disabled')).toBeDefined()
+    expect(wrapper.find('[data-cy="label-select"]').attributes('disabled')).toBeDefined()
+  })
+
   it('keeps segment-validated videos read-only until the same-user edit override is active', async () => {
     const readOnlyWrapper = mountComponent()
     await flushPromises()
@@ -421,8 +533,12 @@ describe('VideoExaminationAnnotation dropdown status display', () => {
 
     expect(readOnlyWrapper.text()).toContain('Video bereits validiert')
     expect(findButtonByText(readOnlyWrapper, 'Segmente bearbeiten')).toBeTruthy()
-    expect(findButtonByText(readOnlyWrapper, 'Segmentänderungen speichern')?.attributes('disabled')).toBeDefined()
-    expect(findButtonByText(readOnlyWrapper, 'KI neu berechnen')?.attributes('disabled')).toBeDefined()
+    expect(
+      findButtonByText(readOnlyWrapper, 'Segmentänderungen speichern')?.attributes('disabled')
+    ).toBeDefined()
+    expect(
+      findButtonByText(readOnlyWrapper, 'KI neu berechnen')?.attributes('disabled')
+    ).toBeDefined()
 
     routerMocks.query = { editSegments: '1' }
     const overrideWrapper = mountComponent()
@@ -431,8 +547,12 @@ describe('VideoExaminationAnnotation dropdown status display', () => {
     await selectVideoFromDropdown(overrideWrapper, 'already-segment-validated.mp4')
 
     expect(overrideWrapper.text()).toContain('Segmentbearbeitung aktiv')
-    expect(findButtonByText(overrideWrapper, 'Segmentänderungen speichern')?.attributes('disabled')).toBeUndefined()
-    expect(findButtonByText(overrideWrapper, 'KI neu berechnen')?.attributes('disabled')).toBeUndefined()
+    expect(
+      findButtonByText(overrideWrapper, 'Segmentänderungen speichern')?.attributes('disabled')
+    ).toBeUndefined()
+    expect(
+      findButtonByText(overrideWrapper, 'KI neu berechnen')?.attributes('disabled')
+    ).toBeUndefined()
   })
 
   it('allows another annotator override to edit and validate a segment-validated video', async () => {
@@ -446,7 +566,11 @@ describe('VideoExaminationAnnotation dropdown status display', () => {
     await selectVideoFromDropdown(wrapper, 'already-segment-validated.mp4')
 
     expect(wrapper.text()).toContain('Aktiver Annotator: oidc:reviewer-new (Override)')
-    expect(findButtonByText(wrapper, 'Segmentänderungen speichern')?.attributes('disabled')).toBeUndefined()
-    expect(findButtonByText(wrapper, 'Annotation validieren')?.attributes('disabled')).toBeUndefined()
+    expect(
+      findButtonByText(wrapper, 'Segmentänderungen speichern')?.attributes('disabled')
+    ).toBeUndefined()
+    expect(
+      findButtonByText(wrapper, 'Annotation validieren')?.attributes('disabled')
+    ).toBeUndefined()
   })
 })

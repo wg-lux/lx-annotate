@@ -5,6 +5,62 @@ import { endpoints } from '@/types/api/endpoints';
 import { useAnnotationQueueStore } from '@/stores/annotationQueue';
 import { useAuthKcStore } from '@/stores/auth_kc';
 import { clearAnnotatorOverride, getAnnotatorPrincipalFromAuthUser, loadAnnotatorOverride, saveAnnotatorOverride } from '@/utils/annotationPrincipal';
+const ANONYMIZER_INFORMATION_SOURCE = 'lx_anonymizer_evaluation';
+const ANONYMIZER_FIELD_DEFINITIONS = [
+    {
+        key: 'endoscope_image',
+        label: 'Endoskop-Bild',
+        aliases: ['endoscope_image', 'endoscope image', 'endoscopy image', 'endo image'],
+        sensitive: false
+    },
+    {
+        key: 'examination_date',
+        label: 'Untersuchungsdatum',
+        aliases: ['examination_date', 'examination date', 'exam date', 'date'],
+        sensitive: true
+    },
+    {
+        key: 'examination_time',
+        label: 'Untersuchungszeit',
+        aliases: ['examination_time', 'examination time', 'exam time', 'time'],
+        sensitive: true
+    },
+    {
+        key: 'patient_first_name',
+        label: 'Vorname',
+        aliases: ['patient_first_name', 'patient first name', 'first name', 'vorname'],
+        sensitive: true
+    },
+    {
+        key: 'patient_last_name',
+        label: 'Nachname',
+        aliases: ['patient_last_name', 'patient last name', 'last name', 'nachname'],
+        sensitive: true
+    },
+    {
+        key: 'patient_dob',
+        label: 'Geburtsdatum',
+        aliases: ['patient_dob', 'patient dob', 'date of birth', 'birth date', 'geburtsdatum'],
+        sensitive: true
+    },
+    {
+        key: 'endoscope_type',
+        label: 'Endoskop-Typ',
+        aliases: ['endoscope_type', 'endoscope type', 'scope type'],
+        sensitive: false
+    },
+    {
+        key: 'endoscope_sn',
+        label: 'Endoskop-Seriennummer',
+        aliases: [
+            'endoscope_sn',
+            'endoscope serial number',
+            'scope serial number',
+            'serial number'
+        ],
+        sensitive: false
+    }
+];
 const queueStore = useAnnotationQueueStore();
 const authStore = useAuthKcStore();
 const isLoadingTask = ref(false);
@@ -17,6 +73,16 @@ const labelGroupLoadError = ref(null);
 const labelGroupOptions = ref([]);
 const annotatorOverride = ref(null);
 const annotatorOverrideInput = ref('');
+const frameImageElement = ref(null);
+const frameStageElement = ref(null);
+const selectedBoxLabelId = ref(null);
+const boxAnnotations = ref([]);
+const draftBox = ref(null);
+const activeBoxClientId = ref(null);
+const isLoadingBoxAnnotations = ref(false);
+const isSavingBoxAnnotations = ref(false);
+const boxAnnotationError = ref(null);
+let boxDraftStart = null;
 let isReloadingAnnotationQueue = false;
 let isBootstrappingAnnotationQueue = true;
 const selectedLabelGroupId = computed({
@@ -44,6 +110,7 @@ const informationSource = computed({
     set: (value) => queueStore.setInformationSource(value)
 });
 const annotationLabelOptions = computed(() => currentTask.value?.data.labelOptions ?? []);
+const selectedBoxLabel = computed(() => annotationLabelOptions.value.find((label) => label.id === selectedBoxLabelId.value) ?? null);
 const visibleErrorMessage = computed(() => errorMessage.value || queueStore.lastError);
 const baseAnnotatorPrincipal = computed(() => getAnnotatorPrincipalFromAuthUser(authStore.user));
 const annotatorOverrideScope = computed(() => `frame:${queueStore.selectedLabelGroupId ?? 'all'}:${informationSource.value}`);
@@ -66,6 +133,27 @@ const predictionAnnotationState = computed(() => Object.fromEntries((currentTask
     annotation.labelId,
     annotation
 ])));
+const labelOptionByNormalizedName = computed(() => {
+    const byName = new Map();
+    for (const label of annotationLabelOptions.value) {
+        byName.set(normalizeAnonymizerLabelName(label.name), label);
+    }
+    return byName;
+});
+const anonymizerFieldRows = computed(() => ANONYMIZER_FIELD_DEFINITIONS.map((definition) => {
+    const label = findAnonymizerLabelForDefinition(definition);
+    return {
+        ...definition,
+        labelId: label?.id ?? null,
+        labelName: label?.name ?? '',
+        selected: label ? selectedLabelIds.value.includes(label.id) : false
+    };
+}));
+const hasAnyAnonymizerLabels = computed(() => anonymizerFieldRows.value.some((field) => field.labelId !== null));
+const hasAnonymizerSensitiveLabels = computed(() => anonymizerFieldRows.value.some((field) => field.sensitive && field.labelId !== null));
+const missingAnonymizerFieldLabels = computed(() => anonymizerFieldRows.value
+    .filter((field) => field.labelId === null)
+    .map((field) => field.key));
 function syncSelectedLabelsFromTask(task) {
     if (!task) {
         selectedLabelIds.value = [];
@@ -85,6 +173,331 @@ function clearSelectedLabels() {
 }
 function applySuggestedLabels() {
     selectedLabelIds.value = [...new Set(currentTask.value?.data.suggestedLabelIds ?? [])];
+}
+function normalizeAnonymizerLabelName(value) {
+    return value.trim().toLowerCase().replace(/[\s-]+/g, '_');
+}
+function findAnonymizerLabelForDefinition(definition) {
+    for (const alias of definition.aliases) {
+        const label = labelOptionByNormalizedName.value.get(normalizeAnonymizerLabelName(alias));
+        if (label)
+            return label;
+    }
+    return null;
+}
+function getCheckboxChecked(event) {
+    return event.target?.checked ?? false;
+}
+function setLabelSelection(labelId, selected) {
+    const nextSelection = new Set(selectedLabelIds.value);
+    if (selected) {
+        nextSelection.add(labelId);
+    }
+    else {
+        nextSelection.delete(labelId);
+    }
+    selectedLabelIds.value = [...nextSelection];
+}
+function setAnonymizerFieldSelected(fieldKey, selected) {
+    const field = anonymizerFieldRows.value.find((row) => row.key === fieldKey);
+    if (field?.labelId === null || field?.labelId === undefined)
+        return;
+    setLabelSelection(field.labelId, selected);
+}
+function setAnonymizerFields(rows, selected) {
+    const nextSelection = new Set(selectedLabelIds.value);
+    for (const field of rows) {
+        if (field.labelId === null)
+            continue;
+        if (selected) {
+            nextSelection.add(field.labelId);
+        }
+        else {
+            nextSelection.delete(field.labelId);
+        }
+    }
+    selectedLabelIds.value = [...nextSelection];
+}
+function markSensitiveAnonymizerLabels(selected) {
+    setAnonymizerFields(anonymizerFieldRows.value.filter((field) => field.sensitive), selected);
+}
+function markAllAnonymizerLabels(selected) {
+    setAnonymizerFields(anonymizerFieldRows.value, selected);
+}
+function clearAnonymizerLabels() {
+    markAllAnonymizerLabels(false);
+}
+function useAnonymizerInformationSource() {
+    informationSource.value = ANONYMIZER_INFORMATION_SOURCE;
+}
+function ensureSelectedBoxLabel() {
+    if (selectedBoxLabelId.value !== null &&
+        annotationLabelOptions.value.some((label) => label.id === selectedBoxLabelId.value)) {
+        return;
+    }
+    selectedBoxLabelId.value = annotationLabelOptions.value[0]?.id ?? null;
+}
+function resetBoxAnnotationState() {
+    boxAnnotations.value = [];
+    draftBox.value = null;
+    activeBoxClientId.value = null;
+    boxAnnotationError.value = null;
+    boxDraftStart = null;
+    ensureSelectedBoxLabel();
+}
+function syncFrameImageMetrics() {
+    if (!frameImageElement.value)
+        return;
+    cancelBoxDraft();
+}
+function clamp(value, min, max) {
+    return Math.min(Math.max(value, min), max);
+}
+function imagePointFromPointerEvent(event) {
+    const image = frameImageElement.value;
+    if (!image || image.naturalWidth <= 0 || image.naturalHeight <= 0)
+        return null;
+    const rect = image.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0)
+        return null;
+    const displayX = clamp(event.clientX - rect.left, 0, rect.width);
+    const displayY = clamp(event.clientY - rect.top, 0, rect.height);
+    return {
+        x: (displayX / rect.width) * image.naturalWidth,
+        y: (displayY / rect.height) * image.naturalHeight,
+        imageWidth: image.naturalWidth,
+        imageHeight: image.naturalHeight
+    };
+}
+function buildBoxDraft(start, current) {
+    if (!currentTask.value || !selectedBoxLabel.value)
+        return null;
+    const x = Math.min(start.x, current.x);
+    const y = Math.min(start.y, current.y);
+    const width = Math.abs(current.x - start.x);
+    const height = Math.abs(current.y - start.y);
+    return {
+        id: null,
+        clientId: uuidv7(),
+        frameId: currentTask.value.data.frameId,
+        labelId: selectedBoxLabel.value.id,
+        labelName: selectedBoxLabel.value.name,
+        value: true,
+        floatValue: null,
+        x,
+        y,
+        width,
+        height,
+        imageWidth: current.imageWidth,
+        imageHeight: current.imageHeight,
+        annotator: activeAnnotatorPrincipal.value,
+        externalAnnotationId: uuidv7()
+    };
+}
+function startBoxDraft(event) {
+    if (!selectedBoxLabel.value || isSavingBoxAnnotations.value)
+        return;
+    const point = imagePointFromPointerEvent(event);
+    if (!point)
+        return;
+    boxDraftStart = point;
+    draftBox.value = buildBoxDraft(point, point);
+    boxAnnotationError.value = null;
+    const target = event.currentTarget;
+    target?.setPointerCapture?.(event.pointerId);
+    event.preventDefault();
+}
+function updateBoxDraft(event) {
+    if (!boxDraftStart)
+        return;
+    const point = imagePointFromPointerEvent(event);
+    if (!point)
+        return;
+    draftBox.value = buildBoxDraft(boxDraftStart, point);
+    event.preventDefault();
+}
+function finishBoxDraft(event) {
+    if (!boxDraftStart || !draftBox.value)
+        return;
+    const finishedBox = draftBox.value;
+    boxDraftStart = null;
+    draftBox.value = null;
+    if (event) {
+        const target = event.currentTarget;
+        target?.releasePointerCapture?.(event.pointerId);
+    }
+    if (finishedBox.width < 3 || finishedBox.height < 3)
+        return;
+    boxAnnotations.value = [...boxAnnotations.value, finishedBox];
+    activeBoxClientId.value = finishedBox.clientId;
+}
+function cancelBoxDraft() {
+    boxDraftStart = null;
+    draftBox.value = null;
+}
+function boxAnnotationStyle(box) {
+    const imageWidth = box.imageWidth || 1;
+    const imageHeight = box.imageHeight || 1;
+    return {
+        left: `${(box.x / imageWidth) * 100}%`,
+        top: `${(box.y / imageHeight) * 100}%`,
+        width: `${(box.width / imageWidth) * 100}%`,
+        height: `${(box.height / imageHeight) * 100}%`
+    };
+}
+function formatBoxAnnotation(box) {
+    return [
+        `x ${Math.round(box.x)}`,
+        `y ${Math.round(box.y)}`,
+        `w ${Math.round(box.width)}`,
+        `h ${Math.round(box.height)}`
+    ].join(' / ');
+}
+function removeBoxAnnotation(clientId) {
+    boxAnnotations.value = boxAnnotations.value.filter((box) => box.clientId !== clientId);
+    if (activeBoxClientId.value === clientId) {
+        activeBoxClientId.value = null;
+    }
+}
+function clearBoxAnnotations() {
+    boxAnnotations.value = [];
+    activeBoxClientId.value = null;
+    cancelBoxDraft();
+}
+function extractBoxAnnotationPayload(payload) {
+    if (Array.isArray(payload)) {
+        return payload.filter((item) => !!item && typeof item === 'object');
+    }
+    if (!payload || typeof payload !== 'object')
+        return [];
+    const obj = payload;
+    if (Array.isArray(obj.annotations)) {
+        return obj.annotations.filter((item) => !!item && typeof item === 'object');
+    }
+    if (Array.isArray(obj.results)) {
+        return obj.results.filter((item) => !!item && typeof item === 'object');
+    }
+    return [];
+}
+function parseBoxAnnotation(raw) {
+    const id = parseOptionalNumber(raw.id);
+    const frameId = parseOptionalNumber(raw.frameId ?? raw.frame_id);
+    const labelId = parseOptionalNumber(raw.labelId ?? raw.label_id);
+    const x = parseOptionalNumber(raw.x);
+    const y = parseOptionalNumber(raw.y);
+    const width = parseOptionalNumber(raw.width);
+    const height = parseOptionalNumber(raw.height);
+    const imageWidth = parseOptionalNumber(raw.imageWidth ?? raw.image_width);
+    const imageHeight = parseOptionalNumber(raw.imageHeight ?? raw.image_height);
+    const labelNameRaw = raw.labelName ?? raw.label_name;
+    const labelName = typeof labelNameRaw === 'string' ? labelNameRaw.trim() : '';
+    if (frameId === null ||
+        labelId === null ||
+        x === null ||
+        y === null ||
+        width === null ||
+        height === null ||
+        imageWidth === null ||
+        imageHeight === null ||
+        !labelName) {
+        return null;
+    }
+    const externalRaw = raw.externalAnnotationId ?? raw.external_annotation_id;
+    const annotatorRaw = raw.annotator;
+    const floatValue = parseOptionalNumber(raw.floatValue ?? raw.float_value);
+    return {
+        id,
+        clientId: id !== null ? `box-${id}` : uuidv7(),
+        frameId,
+        labelId,
+        labelName,
+        value: raw.value !== false,
+        floatValue,
+        x,
+        y,
+        width,
+        height,
+        imageWidth,
+        imageHeight,
+        annotator: typeof annotatorRaw === 'string' ? annotatorRaw : activeAnnotatorPrincipal.value,
+        externalAnnotationId: typeof externalRaw === 'string' && externalRaw.trim() ? externalRaw.trim() : uuidv7()
+    };
+}
+async function loadBoxAnnotationsForTask(task) {
+    if (!task) {
+        resetBoxAnnotationState();
+        return;
+    }
+    isLoadingBoxAnnotations.value = true;
+    boxAnnotationError.value = null;
+    try {
+        const res = await axiosInstance.get(r(endpoints.annotation.frameBoxes), {
+            params: {
+                frame_id: task.data.frameId,
+                information_source_name: informationSource.value,
+                annotator: activeAnnotatorPrincipal.value
+            }
+        });
+        boxAnnotations.value = extractBoxAnnotationPayload(res.data)
+            .map((item) => parseBoxAnnotation(item))
+            .filter((box) => box !== null);
+        activeBoxClientId.value = boxAnnotations.value[0]?.clientId ?? null;
+        ensureSelectedBoxLabel();
+    }
+    catch (error) {
+        boxAnnotations.value = [];
+        boxAnnotationError.value =
+            error?.response?.data?.detail ||
+                error?.response?.data?.error ||
+                error?.message ||
+                'Box-Annotationen konnten nicht geladen werden.';
+    }
+    finally {
+        isLoadingBoxAnnotations.value = false;
+    }
+}
+async function submitBoxAnnotations() {
+    if (!currentTask.value)
+        return;
+    const task = currentTask.value;
+    isSavingBoxAnnotations.value = true;
+    boxAnnotationError.value = null;
+    try {
+        await axiosInstance.post(r(endpoints.annotation.frameBoxes), {
+            frame_id: task.data.frameId,
+            replace: true,
+            information_source_name: informationSource.value,
+            annotator: activeAnnotatorPrincipal.value,
+            annotations: boxAnnotations.value.map((box) => ({
+                id: box.id,
+                frame_id: task.data.frameId,
+                label_id: box.labelId,
+                value: box.value,
+                float_value: box.floatValue,
+                x: Math.round(box.x),
+                y: Math.round(box.y),
+                width: Math.round(box.width),
+                height: Math.round(box.height),
+                image_width: Math.round(box.imageWidth),
+                image_height: Math.round(box.imageHeight),
+                information_source_name: informationSource.value,
+                annotator: activeAnnotatorPrincipal.value,
+                external_annotation_id: box.externalAnnotationId,
+                model_meta_id: null
+            }))
+        });
+        await loadBoxAnnotationsForTask(task);
+    }
+    catch (error) {
+        boxAnnotationError.value =
+            error?.response?.data?.detail ||
+                error?.response?.data?.error ||
+                error?.message ||
+                'Box-Annotationen konnten nicht gespeichert werden.';
+    }
+    finally {
+        isSavingBoxAnnotations.value = false;
+    }
 }
 function formatConfidence(value) {
     if (typeof value !== 'number' || Number.isNaN(value))
@@ -235,7 +648,9 @@ async function loadNextTask() {
             await queueStore.fetchBatch(10);
         }
         currentTask.value = queueStore.popNextTask() ?? null;
+        resetBoxAnnotationState();
         syncSelectedLabelsFromTask(currentTask.value);
+        await loadBoxAnnotationsForTask(currentTask.value);
         if (!currentTask.value && queueStore.lastError) {
             errorMessage.value = queueStore.lastError;
         }
@@ -359,6 +774,7 @@ watch([baseAnnotatorPrincipal, annotatorOverrideScope], () => {
 }, { immediate: true });
 watch(() => currentTask.value?.id, () => {
     syncSelectedLabelsFromTask(currentTask.value);
+    ensureSelectedBoxLabel();
 });
 watch(() => [queueStore.selectedLabelGroupId, queueStore.taskQuerySignature], async () => {
     if (isBootstrappingAnnotationQueue || isReloadingAnnotationQueue)
@@ -379,6 +795,7 @@ debugger; /* PartiallyEnd: #3632/scriptSetup.vue */
 const __VLS_ctx = {};
 let __VLS_components;
 let __VLS_directives;
+/** @type {__VLS_StyleScopedClasses['box-annotation-rect']} */ ;
 /** @type {__VLS_StyleScopedClasses['sidebar-action-button']} */ ;
 /** @type {__VLS_StyleScopedClasses['sidebar-action-button']} */ ;
 // CSS variable injection 
@@ -530,6 +947,9 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.option)({
     value: "frame_annotation_frontend",
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.option)({
+    value: "lx_anonymizer_evaluation",
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.option)({
     value: "model_prediction",
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -638,11 +1058,53 @@ else {
         ...{ class: "badge bg-light text-dark" },
     });
     (__VLS_ctx.currentTask.id);
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.img)({
-        src: (__VLS_ctx.currentTask.data.imageUrl),
-        ...{ class: "img-fluid rounded border" },
-        alt: "Zu annotierender Frame",
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ onPointerdown: (__VLS_ctx.startBoxDraft) },
+        ...{ onPointermove: (__VLS_ctx.updateBoxDraft) },
+        ...{ onPointerup: (__VLS_ctx.finishBoxDraft) },
+        ...{ onPointercancel: (__VLS_ctx.cancelBoxDraft) },
+        ...{ onPointerleave: (__VLS_ctx.finishBoxDraft) },
+        ref: "frameStageElement",
+        ...{ class: "frame-image-stage rounded border" },
+        'data-test': "frame-box-stage",
     });
+    /** @type {typeof __VLS_ctx.frameStageElement} */ ;
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.img)({
+        ...{ onLoad: (__VLS_ctx.syncFrameImageMetrics) },
+        ref: "frameImageElement",
+        src: (__VLS_ctx.currentTask.data.imageUrl),
+        ...{ class: "img-fluid rounded frame-image" },
+        alt: "Zu annotierender Frame",
+        draggable: "false",
+    });
+    /** @type {typeof __VLS_ctx.frameImageElement} */ ;
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "box-annotation-layer" },
+        'aria-hidden': "true",
+    });
+    for (const [box] of __VLS_getVForSourceType((__VLS_ctx.boxAnnotations))) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ onPointerdown: (...[$event]) => {
+                    if (!!(__VLS_ctx.isLoadingTask))
+                        return;
+                    if (!!(!__VLS_ctx.currentTask))
+                        return;
+                    __VLS_ctx.activeBoxClientId = box.clientId;
+                } },
+            key: (box.clientId),
+            ...{ class: "box-annotation-rect" },
+            ...{ class: ({ 'box-annotation-rect-active': __VLS_ctx.activeBoxClientId === box.clientId }) },
+            ...{ style: (__VLS_ctx.boxAnnotationStyle(box)) },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+        (box.labelName);
+    }
+    if (__VLS_ctx.draftBox) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div)({
+            ...{ class: "box-annotation-rect box-annotation-rect-draft" },
+            ...{ style: (__VLS_ctx.boxAnnotationStyle(__VLS_ctx.draftBox)) },
+        });
+    }
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "mt-3" },
     });
@@ -707,6 +1169,232 @@ else {
                 }
             }
         }
+    }
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "mt-3 box-annotation-panel border rounded p-3" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({
+        ...{ class: "mb-0" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "d-flex gap-2 flex-wrap" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+        ...{ onClick: (__VLS_ctx.useAnonymizerInformationSource) },
+        type: "button",
+        ...{ class: "btn btn-outline-secondary btn-sm mb-0" },
+        disabled: (__VLS_ctx.informationSource === __VLS_ctx.ANONYMIZER_INFORMATION_SOURCE),
+        'data-test': "anonymizer-source-button",
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+        ...{ onClick: (__VLS_ctx.submitBoxAnnotations) },
+        type: "button",
+        ...{ class: "btn btn-outline-success btn-sm mb-0" },
+        disabled: (__VLS_ctx.isSavingBoxAnnotations || !__VLS_ctx.currentTask),
+        'data-test': "box-save-button",
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+        ...{ onClick: (__VLS_ctx.clearBoxAnnotations) },
+        type: "button",
+        ...{ class: "btn btn-outline-secondary btn-sm mb-0" },
+        disabled: (__VLS_ctx.isSavingBoxAnnotations || __VLS_ctx.boxAnnotations.length === 0),
+        'data-test': "box-clear-button",
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "row g-2 align-items-end mb-3" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "col-12 col-md-6" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+        for: "box-label-id",
+        ...{ class: "form-label" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
+        id: "box-label-id",
+        value: (__VLS_ctx.selectedBoxLabelId),
+        ...{ class: "form-select" },
+        'data-test': "box-label-select",
+        disabled: (__VLS_ctx.annotationLabelOptions.length === 0),
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+        value: (null),
+    });
+    for (const [label] of __VLS_getVForSourceType((__VLS_ctx.annotationLabelOptions))) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+            key: (label.id),
+            value: (label.id),
+        });
+        (label.name);
+    }
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "col-12 col-md-6" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "d-flex flex-wrap gap-2" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+        ...{ class: "badge bg-light text-dark" },
+    });
+    (__VLS_ctx.boxAnnotations.length);
+    if (__VLS_ctx.isLoadingBoxAnnotations) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+            ...{ class: "badge bg-light text-dark" },
+        });
+    }
+    if (__VLS_ctx.boxAnnotations.length > 0) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "box-annotation-list mb-3" },
+        });
+        for (const [box] of __VLS_getVForSourceType((__VLS_ctx.boxAnnotations))) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ onClick: (...[$event]) => {
+                        if (!!(__VLS_ctx.isLoadingTask))
+                            return;
+                        if (!!(!__VLS_ctx.currentTask))
+                            return;
+                        if (!(__VLS_ctx.boxAnnotations.length > 0))
+                            return;
+                        __VLS_ctx.activeBoxClientId = box.clientId;
+                    } },
+                key: (`list-${box.clientId}`),
+                ...{ class: "box-annotation-list-item" },
+                ...{ class: ({ 'box-annotation-list-item-active': __VLS_ctx.activeBoxClientId === box.clientId }) },
+            });
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+            (box.labelName);
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+                ...{ class: "text-muted d-block" },
+            });
+            (__VLS_ctx.formatBoxAnnotation(box));
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+                ...{ onClick: (...[$event]) => {
+                        if (!!(__VLS_ctx.isLoadingTask))
+                            return;
+                        if (!!(!__VLS_ctx.currentTask))
+                            return;
+                        if (!(__VLS_ctx.boxAnnotations.length > 0))
+                            return;
+                        __VLS_ctx.removeBoxAnnotation(box.clientId);
+                    } },
+                type: "button",
+                ...{ class: "btn btn-outline-danger btn-sm mb-0" },
+                disabled: (__VLS_ctx.isSavingBoxAnnotations),
+            });
+        }
+    }
+    if (__VLS_ctx.boxAnnotationError) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+            ...{ class: "text-danger d-block mb-3" },
+        });
+        (__VLS_ctx.boxAnnotationError);
+    }
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({
+        ...{ class: "mb-0" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "d-flex gap-2 flex-wrap" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+        ...{ onClick: (...[$event]) => {
+                if (!!(__VLS_ctx.isLoadingTask))
+                    return;
+                if (!!(!__VLS_ctx.currentTask))
+                    return;
+                __VLS_ctx.markSensitiveAnonymizerLabels(true);
+            } },
+        type: "button",
+        ...{ class: "btn btn-outline-primary btn-sm mb-0" },
+        disabled: (!__VLS_ctx.hasAnonymizerSensitiveLabels),
+        'data-test': "anonymizer-sensitive-present-button",
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+        ...{ onClick: (...[$event]) => {
+                if (!!(__VLS_ctx.isLoadingTask))
+                    return;
+                if (!!(!__VLS_ctx.currentTask))
+                    return;
+                __VLS_ctx.markSensitiveAnonymizerLabels(false);
+            } },
+        type: "button",
+        ...{ class: "btn btn-outline-primary btn-sm mb-0" },
+        disabled: (!__VLS_ctx.hasAnonymizerSensitiveLabels),
+        'data-test': "anonymizer-sensitive-absent-button",
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+        ...{ onClick: (...[$event]) => {
+                if (!!(__VLS_ctx.isLoadingTask))
+                    return;
+                if (!!(!__VLS_ctx.currentTask))
+                    return;
+                __VLS_ctx.markAllAnonymizerLabels(true);
+            } },
+        type: "button",
+        ...{ class: "btn btn-outline-secondary btn-sm mb-0" },
+        disabled: (!__VLS_ctx.hasAnyAnonymizerLabels),
+        'data-test': "anonymizer-all-visible-button",
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+        ...{ onClick: (__VLS_ctx.clearAnonymizerLabels) },
+        type: "button",
+        ...{ class: "btn btn-outline-secondary btn-sm mb-0" },
+        disabled: (!__VLS_ctx.hasAnyAnonymizerLabels),
+        'data-test': "anonymizer-clear-button",
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "anonymizer-field-grid" },
+    });
+    for (const [field] of __VLS_getVForSourceType((__VLS_ctx.anonymizerFieldRows))) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+            key: (field.key),
+            ...{ class: "anonymizer-field-option border rounded p-2" },
+            ...{ class: ({ 'anonymizer-field-option-missing': field.labelId === null }) },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "form-check mb-1" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
+            ...{ onChange: (...[$event]) => {
+                    if (!!(__VLS_ctx.isLoadingTask))
+                        return;
+                    if (!!(!__VLS_ctx.currentTask))
+                        return;
+                    __VLS_ctx.setAnonymizerFieldSelected(field.key, __VLS_ctx.getCheckboxChecked($event));
+                } },
+            id: (`anonymizer-field-${field.key}`),
+            ...{ class: "form-check-input" },
+            type: "checkbox",
+            checked: (field.selected),
+            disabled: (field.labelId === null),
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+            ...{ class: "form-check-label" },
+        });
+        (field.label);
+        if (field.labelName) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+                ...{ class: "text-muted" },
+            });
+            (field.labelName);
+        }
+        else {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                ...{ class: "badge bg-warning-subtle text-warning-emphasis" },
+            });
+        }
+    }
+    if (__VLS_ctx.missingAnonymizerFieldLabels.length > 0) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+            ...{ class: "text-muted d-block mt-2" },
+        });
+        (__VLS_ctx.missingAnonymizerFieldLabels.join(', '));
     }
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "mt-3 d-flex gap-2 flex-wrap" },
@@ -848,9 +1536,17 @@ if (__VLS_ctx.visibleErrorMessage) {
 /** @type {__VLS_StyleScopedClasses['badge']} */ ;
 /** @type {__VLS_StyleScopedClasses['bg-light']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-dark']} */ ;
-/** @type {__VLS_StyleScopedClasses['img-fluid']} */ ;
+/** @type {__VLS_StyleScopedClasses['frame-image-stage']} */ ;
 /** @type {__VLS_StyleScopedClasses['rounded']} */ ;
 /** @type {__VLS_StyleScopedClasses['border']} */ ;
+/** @type {__VLS_StyleScopedClasses['img-fluid']} */ ;
+/** @type {__VLS_StyleScopedClasses['rounded']} */ ;
+/** @type {__VLS_StyleScopedClasses['frame-image']} */ ;
+/** @type {__VLS_StyleScopedClasses['box-annotation-layer']} */ ;
+/** @type {__VLS_StyleScopedClasses['box-annotation-rect']} */ ;
+/** @type {__VLS_StyleScopedClasses['box-annotation-rect-active']} */ ;
+/** @type {__VLS_StyleScopedClasses['box-annotation-rect']} */ ;
+/** @type {__VLS_StyleScopedClasses['box-annotation-rect-draft']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
 /** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
@@ -886,6 +1582,108 @@ if (__VLS_ctx.visibleErrorMessage) {
 /** @type {__VLS_StyleScopedClasses['bg-info-subtle']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-info-emphasis']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['box-annotation-panel']} */ ;
+/** @type {__VLS_StyleScopedClasses['border']} */ ;
+/** @type {__VLS_StyleScopedClasses['rounded']} */ ;
+/** @type {__VLS_StyleScopedClasses['p-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['justify-content-between']} */ ;
+/** @type {__VLS_StyleScopedClasses['flex-wrap']} */ ;
+/** @type {__VLS_StyleScopedClasses['gap-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['gap-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['flex-wrap']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-secondary']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-success']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-secondary']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['row']} */ ;
+/** @type {__VLS_StyleScopedClasses['g-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-end']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-12']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-md-6']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-select']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-12']} */ ;
+/** @type {__VLS_StyleScopedClasses['col-md-6']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['flex-wrap']} */ ;
+/** @type {__VLS_StyleScopedClasses['gap-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['bg-light']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-dark']} */ ;
+/** @type {__VLS_StyleScopedClasses['badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['bg-light']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-dark']} */ ;
+/** @type {__VLS_StyleScopedClasses['box-annotation-list']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['box-annotation-list-item']} */ ;
+/** @type {__VLS_StyleScopedClasses['box-annotation-list-item-active']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-block']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-danger']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-danger']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-block']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['justify-content-between']} */ ;
+/** @type {__VLS_StyleScopedClasses['flex-wrap']} */ ;
+/** @type {__VLS_StyleScopedClasses['gap-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['gap-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['flex-wrap']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-primary']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-primary']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-secondary']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-secondary']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['anonymizer-field-grid']} */ ;
+/** @type {__VLS_StyleScopedClasses['anonymizer-field-option']} */ ;
+/** @type {__VLS_StyleScopedClasses['border']} */ ;
+/** @type {__VLS_StyleScopedClasses['rounded']} */ ;
+/** @type {__VLS_StyleScopedClasses['p-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['anonymizer-field-option-missing']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-check']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-check-input']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-check-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['bg-warning-subtle']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-warning-emphasis']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-block']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
 /** @type {__VLS_StyleScopedClasses['gap-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['flex-wrap']} */ ;
@@ -912,6 +1710,7 @@ var __VLS_dollars;
 const __VLS_self = (await import('vue')).defineComponent({
     setup() {
         return {
+            ANONYMIZER_INFORMATION_SOURCE: ANONYMIZER_INFORMATION_SOURCE,
             queueStore: queueStore,
             isLoadingTask: isLoadingTask,
             isSubmitting: isSubmitting,
@@ -921,6 +1720,15 @@ const __VLS_self = (await import('vue')).defineComponent({
             labelGroupLoadError: labelGroupLoadError,
             labelGroupOptions: labelGroupOptions,
             annotatorOverrideInput: annotatorOverrideInput,
+            frameImageElement: frameImageElement,
+            frameStageElement: frameStageElement,
+            selectedBoxLabelId: selectedBoxLabelId,
+            boxAnnotations: boxAnnotations,
+            draftBox: draftBox,
+            activeBoxClientId: activeBoxClientId,
+            isLoadingBoxAnnotations: isLoadingBoxAnnotations,
+            isSavingBoxAnnotations: isSavingBoxAnnotations,
+            boxAnnotationError: boxAnnotationError,
             selectedLabelGroupId: selectedLabelGroupId,
             taskMode: taskMode,
             targetLabelName: targetLabelName,
@@ -935,8 +1743,28 @@ const __VLS_self = (await import('vue')).defineComponent({
             activeAnnotatorLabel: activeAnnotatorLabel,
             manualAnnotationState: manualAnnotationState,
             predictionAnnotationState: predictionAnnotationState,
+            anonymizerFieldRows: anonymizerFieldRows,
+            hasAnyAnonymizerLabels: hasAnyAnonymizerLabels,
+            hasAnonymizerSensitiveLabels: hasAnonymizerSensitiveLabels,
+            missingAnonymizerFieldLabels: missingAnonymizerFieldLabels,
             clearSelectedLabels: clearSelectedLabels,
             applySuggestedLabels: applySuggestedLabels,
+            getCheckboxChecked: getCheckboxChecked,
+            setAnonymizerFieldSelected: setAnonymizerFieldSelected,
+            markSensitiveAnonymizerLabels: markSensitiveAnonymizerLabels,
+            markAllAnonymizerLabels: markAllAnonymizerLabels,
+            clearAnonymizerLabels: clearAnonymizerLabels,
+            useAnonymizerInformationSource: useAnonymizerInformationSource,
+            syncFrameImageMetrics: syncFrameImageMetrics,
+            startBoxDraft: startBoxDraft,
+            updateBoxDraft: updateBoxDraft,
+            finishBoxDraft: finishBoxDraft,
+            cancelBoxDraft: cancelBoxDraft,
+            boxAnnotationStyle: boxAnnotationStyle,
+            formatBoxAnnotation: formatBoxAnnotation,
+            removeBoxAnnotation: removeBoxAnnotation,
+            clearBoxAnnotations: clearBoxAnnotations,
+            submitBoxAnnotations: submitBoxAnnotations,
             formatConfidence: formatConfidence,
             restartAnnotationAsOverride: restartAnnotationAsOverride,
             revertAnnotatorOverride: revertAnnotatorOverride,

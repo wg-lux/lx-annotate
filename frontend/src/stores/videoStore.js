@@ -537,6 +537,9 @@ export const useVideoStore = defineStore('video', () => {
                     assignedUser: video.assignedUser || null,
                     anonymized: video.anonymized || false,
                     segmentAnnotationsValidated: video.segmentAnnotationsValidated ?? video.segment_annotations_validated ?? false,
+                    segmentAnnotationStatus: video.segmentAnnotationStatus ?? video.segment_annotation_status ?? 'not_started',
+                    outsideSegmentsRemoved: video.outsideSegmentsRemoved ?? video.outside_segments_removed ?? false,
+                    postValidationRebuild: video.postValidationRebuild ?? video.post_validation_rebuild ?? null,
                     duration: video.duration !== undefined ? Number(video.duration) : undefined,
                     fps: video.fps !== undefined ? Number(video.fps) : undefined,
                     frameCount: video.frameCount !== undefined

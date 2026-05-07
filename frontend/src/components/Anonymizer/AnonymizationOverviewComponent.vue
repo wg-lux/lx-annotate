@@ -47,6 +47,7 @@
               <tr>
                 <th class="sticky-filename-column">Dateiname</th>
                 <th>Typ</th>
+                <th>Upload</th>
                 <th>Anonymisierung</th>
                 <th>Annotation</th>
                 <th>Validierung</th>
@@ -80,6 +81,28 @@
                   >
                     {{ file.mediaType.toUpperCase() }}
                   </span>
+                </td>
+
+                <!-- Upload Job Status -->
+                <td>
+                  <div v-if="file.uploadJob" class="upload-job-summary">
+                    <span
+                      class="badge"
+                      :class="getUploadJobStatusBadgeClass(file.uploadJob.status)"
+                    >
+                      {{ getUploadJobStatusText(file.uploadJob.status) }}
+                    </span>
+                    <div v-if="getUploadJobOriginLabel(file.uploadJob)" class="small text-muted mt-1">
+                      {{ getUploadJobOriginLabel(file.uploadJob) }}
+                    </div>
+                    <div v-if="getUploadJobCleanupLabel(file.uploadJob)" class="small text-muted">
+                      {{ getUploadJobCleanupLabel(file.uploadJob) }}
+                    </div>
+                    <div v-if="file.uploadJob.errorDetail" class="small text-danger mt-1">
+                      {{ file.uploadJob.errorDetail }}
+                    </div>
+                  </div>
+                  <span v-else class="text-muted">-</span>
                 </td>
 
                 <!-- Anonymization Status -->
@@ -308,7 +331,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { useAnonymizationStore, type FileItem } from '@/stores/anonymizationStore';
+import { useAnonymizationStore, type FileItem, type UploadJobOverview } from '@/stores/anonymizationStore';
 import { useVideoStore } from '@/stores/videoStore';
 import { useMediaTypeStore } from '@/stores/mediaTypeStore';
 import { usePollingProtection } from '@/composables/usePollingProtection';
@@ -591,6 +614,74 @@ const getStatusText = (status: string) => {
   return texts[status] || status;
 };
 
+const getUploadJobStatusBadgeClass = (status: string) => {
+  const classes: { [key: string]: string } = {
+    pending: 'bg-secondary',
+    processing: 'bg-warning',
+    anonymized: 'bg-success',
+    error: 'bg-danger',
+    lost: 'bg-danger'
+  };
+  return classes[status] || 'bg-secondary';
+};
+
+const getUploadJobStatusText = (status: string) => {
+  const texts: { [key: string]: string } = {
+    pending: 'Upload wartet',
+    processing: 'Upload läuft',
+    anonymized: 'Upload abgeschlossen',
+    error: 'Uploadfehler',
+    lost: 'Upload verloren'
+  };
+  return texts[status] || status;
+};
+
+const getUploadJobOriginLabel = (uploadJob: UploadJobOverview) => {
+  const parts: string[] = [];
+  if (uploadJob.ingestMode === 'watcher') {
+    parts.push('Watcher');
+  } else if (uploadJob.ingestMode === 'api') {
+    parts.push('API');
+  } else if (uploadJob.ingestMode) {
+    parts.push(uploadJob.ingestMode);
+  }
+
+  if (uploadJob.sourceSystem) {
+    parts.push(uploadJob.sourceSystem);
+  }
+
+  if (uploadJob.sourceCenterKey) {
+    parts.push(uploadJob.sourceCenterKey);
+  }
+
+  return parts.join(' / ');
+};
+
+const getUploadJobCleanupStatusText = (status: string) => {
+  const texts: { [key: string]: string } = {
+    pending: 'Bereinigung offen',
+    eligible: 'Bereinigung bereit',
+    completed: 'Bereinigt',
+    skipped: 'Bereinigung übersprungen'
+  };
+  return texts[status] || status;
+};
+
+const getUploadJobCleanupLabel = (uploadJob: UploadJobOverview) => {
+  const sourceLabel =
+    typeof uploadJob.sourceFilePersisted === 'boolean'
+      ? uploadJob.sourceFilePersisted
+        ? 'Quelle vorhanden'
+        : 'Quelle bereinigt'
+      : '';
+
+  const cleanupLabel = uploadJob.cleanupStatus
+    ? getUploadJobCleanupStatusText(uploadJob.cleanupStatus)
+    : '';
+
+  return [sourceLabel, cleanupLabel].filter(Boolean).join(' - ');
+};
+
 const formatDate = (dateString: string | null) => {
   if (!dateString) return '-';
   
@@ -620,6 +711,14 @@ const getTotalByStatus = (status: string) => {
 
 
 const hasOriginalFile = (file: FileItem): boolean => {
+  if (typeof file.uploadJob?.sourceFilePersisted === 'boolean') {
+    return file.uploadJob.sourceFilePersisted;
+  }
+
+  if (file.rawFile && file.rawFile.trim() !== '') {
+    return true;
+  }
+
   // Check if the file has the necessary properties to indicate original file exists
   if (file.mediaType === 'video') {
     // For videos, check if rawFile exists and has a valid path
@@ -672,10 +771,6 @@ onUnmounted(() => {
 
 <style scoped>
 
-.bg-success {
-  background-color: #6c757d !important;
-}
-
 .table th {
   border-top: none;
   font-weight: 600;
@@ -688,7 +783,7 @@ onUnmounted(() => {
 }
 
 .overview-files-table {
-  min-width: 980px;
+  min-width: 1120px;
 }
 
 .overview-files-table .sticky-filename-column {
@@ -712,6 +807,15 @@ onUnmounted(() => {
 
 .filename-text {
   display: block;
+  overflow-wrap: anywhere;
+}
+
+.upload-job-summary {
+  min-width: 10rem;
+  max-width: 16rem;
+}
+
+.upload-job-summary .small {
   overflow-wrap: anywhere;
 }
 

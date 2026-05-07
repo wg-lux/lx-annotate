@@ -95,6 +95,7 @@
           <option value="manual_annotation" />
           <option value="human_annotation" />
           <option value="frame_annotation_frontend" />
+          <option value="lx_anonymizer_evaluation" />
           <option value="model_prediction" />
         </datalist>
       </div>
@@ -175,11 +176,42 @@
                 <span class="badge bg-light text-dark me-2">Frame #{{ currentTask.data.frameId }}</span>
                 <span class="badge bg-light text-dark">Aufgabe {{ currentTask.id }}</span>
               </div>
-              <img
-                :src="currentTask.data.imageUrl"
-                class="img-fluid rounded border"
-                alt="Zu annotierender Frame"
-              />
+              <div
+                ref="frameStageElement"
+                class="frame-image-stage rounded border"
+                data-test="frame-box-stage"
+                @pointerdown="startBoxDraft"
+                @pointermove="updateBoxDraft"
+                @pointerup="finishBoxDraft"
+                @pointercancel="cancelBoxDraft"
+                @pointerleave="finishBoxDraft"
+              >
+                <img
+                  ref="frameImageElement"
+                  :src="currentTask.data.imageUrl"
+                  class="img-fluid rounded frame-image"
+                  alt="Zu annotierender Frame"
+                  draggable="false"
+                  @load="syncFrameImageMetrics"
+                />
+                <div class="box-annotation-layer" aria-hidden="true">
+                  <div
+                    v-for="box in boxAnnotations"
+                    :key="box.clientId"
+                    class="box-annotation-rect"
+                    :class="{ 'box-annotation-rect-active': activeBoxClientId === box.clientId }"
+                    :style="boxAnnotationStyle(box)"
+                    @pointerdown.stop="activeBoxClientId = box.clientId"
+                  >
+                    <span>{{ box.labelName }}</span>
+                  </div>
+                  <div
+                    v-if="draftBox"
+                    class="box-annotation-rect box-annotation-rect-draft"
+                    :style="boxAnnotationStyle(draftBox)"
+                  />
+                </div>
+              </div>
               <div class="mt-3">
                 <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
                   <h6 class="mb-0">Multilabel-Status</h6>
@@ -235,6 +267,172 @@
                     </div>
                   </label>
                 </div>
+              </div>
+              <div class="mt-3 box-annotation-panel border rounded p-3">
+                <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+                  <h6 class="mb-0">Box-basierte Annotation</h6>
+                  <div class="d-flex gap-2 flex-wrap">
+                    <button
+                      type="button"
+                      class="btn btn-outline-secondary btn-sm mb-0"
+                      :disabled="informationSource === ANONYMIZER_INFORMATION_SOURCE"
+                      data-test="anonymizer-source-button"
+                      @click="useAnonymizerInformationSource"
+                    >
+                      Quelle setzen
+                    </button>
+                    <button
+                      type="button"
+                      class="btn btn-outline-success btn-sm mb-0"
+                      :disabled="isSavingBoxAnnotations || !currentTask"
+                      data-test="box-save-button"
+                      @click="submitBoxAnnotations"
+                    >
+                      Boxen speichern
+                    </button>
+                    <button
+                      type="button"
+                      class="btn btn-outline-secondary btn-sm mb-0"
+                      :disabled="isSavingBoxAnnotations || boxAnnotations.length === 0"
+                      data-test="box-clear-button"
+                      @click="clearBoxAnnotations"
+                    >
+                      Boxen löschen
+                    </button>
+                  </div>
+                </div>
+                <div class="row g-2 align-items-end mb-3">
+                  <div class="col-12 col-md-6">
+                    <label for="box-label-id" class="form-label">Box-Label</label>
+                    <select
+                      id="box-label-id"
+                      v-model.number="selectedBoxLabelId"
+                      class="form-select"
+                      data-test="box-label-select"
+                      :disabled="annotationLabelOptions.length === 0"
+                    >
+                      <option :value="null">Label auswählen</option>
+                      <option
+                        v-for="label in annotationLabelOptions"
+                        :key="label.id"
+                        :value="label.id"
+                      >
+                        {{ label.name }}
+                      </option>
+                    </select>
+                  </div>
+                  <div class="col-12 col-md-6">
+                    <div class="d-flex flex-wrap gap-2">
+                      <span class="badge bg-light text-dark">
+                        {{ boxAnnotations.length }} Box(en)
+                      </span>
+                      <span v-if="isLoadingBoxAnnotations" class="badge bg-light text-dark">
+                        Boxen werden geladen
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div v-if="boxAnnotations.length > 0" class="box-annotation-list mb-3">
+                  <div
+                    v-for="box in boxAnnotations"
+                    :key="`list-${box.clientId}`"
+                    class="box-annotation-list-item"
+                    :class="{ 'box-annotation-list-item-active': activeBoxClientId === box.clientId }"
+                    @click="activeBoxClientId = box.clientId"
+                  >
+                    <div>
+                      <strong>{{ box.labelName }}</strong>
+                      <small class="text-muted d-block">{{ formatBoxAnnotation(box) }}</small>
+                    </div>
+                    <button
+                      type="button"
+                      class="btn btn-outline-danger btn-sm mb-0"
+                      :disabled="isSavingBoxAnnotations"
+                      @click.stop="removeBoxAnnotation(box.clientId)"
+                    >
+                      Entfernen
+                    </button>
+                  </div>
+                </div>
+                <small
+                  v-if="boxAnnotationError"
+                  class="text-danger d-block mb-3"
+                >
+                  {{ boxAnnotationError }}
+                </small>
+                <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+                  <h6 class="mb-0">Anonymizer-Schnellfelder</h6>
+                  <div class="d-flex gap-2 flex-wrap">
+                    <button
+                      type="button"
+                      class="btn btn-outline-primary btn-sm mb-0"
+                      :disabled="!hasAnonymizerSensitiveLabels"
+                      data-test="anonymizer-sensitive-present-button"
+                      @click="markSensitiveAnonymizerLabels(true)"
+                    >
+                      PHI sichtbar
+                    </button>
+                    <button
+                      type="button"
+                      class="btn btn-outline-primary btn-sm mb-0"
+                      :disabled="!hasAnonymizerSensitiveLabels"
+                      data-test="anonymizer-sensitive-absent-button"
+                      @click="markSensitiveAnonymizerLabels(false)"
+                    >
+                      PHI nicht sichtbar
+                    </button>
+                    <button
+                      type="button"
+                      class="btn btn-outline-secondary btn-sm mb-0"
+                      :disabled="!hasAnyAnonymizerLabels"
+                      data-test="anonymizer-all-visible-button"
+                      @click="markAllAnonymizerLabels(true)"
+                    >
+                      Alle sichtbar
+                    </button>
+                    <button
+                      type="button"
+                      class="btn btn-outline-secondary btn-sm mb-0"
+                      :disabled="!hasAnyAnonymizerLabels"
+                      data-test="anonymizer-clear-button"
+                      @click="clearAnonymizerLabels"
+                    >
+                      Alle löschen
+                    </button>
+                  </div>
+                </div>
+                <div class="anonymizer-field-grid">
+                  <label
+                    v-for="field in anonymizerFieldRows"
+                    :key="field.key"
+                    class="anonymizer-field-option border rounded p-2"
+                    :class="{ 'anonymizer-field-option-missing': field.labelId === null }"
+                  >
+                    <div class="form-check mb-1">
+                      <input
+                        :id="`anonymizer-field-${field.key}`"
+                        class="form-check-input"
+                        type="checkbox"
+                        :checked="field.selected"
+                        :disabled="field.labelId === null"
+                        @change="setAnonymizerFieldSelected(field.key, getCheckboxChecked($event))"
+                      />
+                      <span class="form-check-label">{{ field.label }}</span>
+                    </div>
+                    <small v-if="field.labelName" class="text-muted">
+                      {{ field.labelName }}
+                    </small>
+                    <span v-else class="badge bg-warning-subtle text-warning-emphasis">
+                      Label fehlt
+                    </span>
+                  </label>
+                </div>
+                <small
+                  v-if="missingAnonymizerFieldLabels.length > 0"
+                  class="text-muted d-block mt-2"
+                >
+                  Fehlende Labels: {{ missingAnonymizerFieldLabels.join(', ') }}
+                </small>
               </div>
               <div class="mt-3 d-flex gap-2 flex-wrap">
                 <button
@@ -311,6 +509,101 @@ interface LabelGroupOption {
   labelCount: number | null
 }
 
+interface AnonymizerFieldDefinition {
+  key: string
+  label: string
+  aliases: string[]
+  sensitive: boolean
+}
+
+interface AnonymizerFieldRow extends AnonymizerFieldDefinition {
+  labelId: number | null
+  labelName: string
+  selected: boolean
+}
+
+interface FrameBoxAnnotationDraft {
+  id: number | null
+  clientId: string
+  frameId: number
+  labelId: number
+  labelName: string
+  value: boolean
+  floatValue: number | null
+  x: number
+  y: number
+  width: number
+  height: number
+  imageWidth: number
+  imageHeight: number
+  annotator: string
+  externalAnnotationId: string
+}
+
+interface ImagePoint {
+  x: number
+  y: number
+  imageWidth: number
+  imageHeight: number
+}
+
+const ANONYMIZER_INFORMATION_SOURCE = 'lx_anonymizer_evaluation'
+const ANONYMIZER_FIELD_DEFINITIONS: AnonymizerFieldDefinition[] = [
+  {
+    key: 'endoscope_image',
+    label: 'Endoskop-Bild',
+    aliases: ['endoscope_image', 'endoscope image', 'endoscopy image', 'endo image'],
+    sensitive: false
+  },
+  {
+    key: 'examination_date',
+    label: 'Untersuchungsdatum',
+    aliases: ['examination_date', 'examination date', 'exam date', 'date'],
+    sensitive: true
+  },
+  {
+    key: 'examination_time',
+    label: 'Untersuchungszeit',
+    aliases: ['examination_time', 'examination time', 'exam time', 'time'],
+    sensitive: true
+  },
+  {
+    key: 'patient_first_name',
+    label: 'Vorname',
+    aliases: ['patient_first_name', 'patient first name', 'first name', 'vorname'],
+    sensitive: true
+  },
+  {
+    key: 'patient_last_name',
+    label: 'Nachname',
+    aliases: ['patient_last_name', 'patient last name', 'last name', 'nachname'],
+    sensitive: true
+  },
+  {
+    key: 'patient_dob',
+    label: 'Geburtsdatum',
+    aliases: ['patient_dob', 'patient dob', 'date of birth', 'birth date', 'geburtsdatum'],
+    sensitive: true
+  },
+  {
+    key: 'endoscope_type',
+    label: 'Endoskop-Typ',
+    aliases: ['endoscope_type', 'endoscope type', 'scope type'],
+    sensitive: false
+  },
+  {
+    key: 'endoscope_sn',
+    label: 'Endoskop-Seriennummer',
+    aliases: [
+      'endoscope_sn',
+      'endoscope serial number',
+      'scope serial number',
+      'serial number'
+    ],
+    sensitive: false
+  }
+]
+
 const queueStore = useAnnotationQueueStore()
 const authStore = useAuthKcStore()
 const isLoadingTask = ref(false)
@@ -323,6 +616,16 @@ const labelGroupLoadError = ref<string | null>(null)
 const labelGroupOptions = ref<LabelGroupOption[]>([])
 const annotatorOverride = ref<string | null>(null)
 const annotatorOverrideInput = ref('')
+const frameImageElement = ref<HTMLImageElement | null>(null)
+const frameStageElement = ref<HTMLElement | null>(null)
+const selectedBoxLabelId = ref<number | null>(null)
+const boxAnnotations = ref<FrameBoxAnnotationDraft[]>([])
+const draftBox = ref<FrameBoxAnnotationDraft | null>(null)
+const activeBoxClientId = ref<string | null>(null)
+const isLoadingBoxAnnotations = ref(false)
+const isSavingBoxAnnotations = ref(false)
+const boxAnnotationError = ref<string | null>(null)
+let boxDraftStart: ImagePoint | null = null
 let isReloadingAnnotationQueue = false
 let isBootstrappingAnnotationQueue = true
 
@@ -357,6 +660,9 @@ const informationSource = computed({
 })
 
 const annotationLabelOptions = computed(() => currentTask.value?.data.labelOptions ?? [])
+const selectedBoxLabel = computed(
+  () => annotationLabelOptions.value.find((label) => label.id === selectedBoxLabelId.value) ?? null
+)
 const visibleErrorMessage = computed(() => errorMessage.value || queueStore.lastError)
 const baseAnnotatorPrincipal = computed(() =>
   getAnnotatorPrincipalFromAuthUser(authStore.user as Record<string, unknown> | null)
@@ -400,6 +706,38 @@ const predictionAnnotationState = computed(() =>
   )
 )
 
+const labelOptionByNormalizedName = computed(() => {
+  const byName = new Map<string, { id: number; name: string }>()
+  for (const label of annotationLabelOptions.value) {
+    byName.set(normalizeAnonymizerLabelName(label.name), label)
+  }
+  return byName
+})
+
+const anonymizerFieldRows = computed<AnonymizerFieldRow[]>(() =>
+  ANONYMIZER_FIELD_DEFINITIONS.map((definition) => {
+    const label = findAnonymizerLabelForDefinition(definition)
+    return {
+      ...definition,
+      labelId: label?.id ?? null,
+      labelName: label?.name ?? '',
+      selected: label ? selectedLabelIds.value.includes(label.id) : false
+    }
+  })
+)
+
+const hasAnyAnonymizerLabels = computed(() =>
+  anonymizerFieldRows.value.some((field) => field.labelId !== null)
+)
+const hasAnonymizerSensitiveLabels = computed(() =>
+  anonymizerFieldRows.value.some((field) => field.sensitive && field.labelId !== null)
+)
+const missingAnonymizerFieldLabels = computed(() =>
+  anonymizerFieldRows.value
+    .filter((field) => field.labelId === null)
+    .map((field) => field.key)
+)
+
 function syncSelectedLabelsFromTask(task: typeof currentTask.value): void {
   if (!task) {
     selectedLabelIds.value = []
@@ -421,6 +759,355 @@ function clearSelectedLabels(): void {
 
 function applySuggestedLabels(): void {
   selectedLabelIds.value = [...new Set(currentTask.value?.data.suggestedLabelIds ?? [])]
+}
+
+function normalizeAnonymizerLabelName(value: string): string {
+  return value.trim().toLowerCase().replace(/[\s-]+/g, '_')
+}
+
+function findAnonymizerLabelForDefinition(
+  definition: AnonymizerFieldDefinition
+): { id: number; name: string } | null {
+  for (const alias of definition.aliases) {
+    const label = labelOptionByNormalizedName.value.get(normalizeAnonymizerLabelName(alias))
+    if (label) return label
+  }
+  return null
+}
+
+function getCheckboxChecked(event: Event): boolean {
+  return (event.target as HTMLInputElement | null)?.checked ?? false
+}
+
+function setLabelSelection(labelId: number, selected: boolean): void {
+  const nextSelection = new Set(selectedLabelIds.value)
+  if (selected) {
+    nextSelection.add(labelId)
+  } else {
+    nextSelection.delete(labelId)
+  }
+  selectedLabelIds.value = [...nextSelection]
+}
+
+function setAnonymizerFieldSelected(fieldKey: string, selected: boolean): void {
+  const field = anonymizerFieldRows.value.find((row) => row.key === fieldKey)
+  if (field?.labelId === null || field?.labelId === undefined) return
+  setLabelSelection(field.labelId, selected)
+}
+
+function setAnonymizerFields(rows: AnonymizerFieldRow[], selected: boolean): void {
+  const nextSelection = new Set(selectedLabelIds.value)
+  for (const field of rows) {
+    if (field.labelId === null) continue
+    if (selected) {
+      nextSelection.add(field.labelId)
+    } else {
+      nextSelection.delete(field.labelId)
+    }
+  }
+  selectedLabelIds.value = [...nextSelection]
+}
+
+function markSensitiveAnonymizerLabels(selected: boolean): void {
+  setAnonymizerFields(
+    anonymizerFieldRows.value.filter((field) => field.sensitive),
+    selected
+  )
+}
+
+function markAllAnonymizerLabels(selected: boolean): void {
+  setAnonymizerFields(anonymizerFieldRows.value, selected)
+}
+
+function clearAnonymizerLabels(): void {
+  markAllAnonymizerLabels(false)
+}
+
+function useAnonymizerInformationSource(): void {
+  informationSource.value = ANONYMIZER_INFORMATION_SOURCE
+}
+
+function ensureSelectedBoxLabel(): void {
+  if (
+    selectedBoxLabelId.value !== null &&
+    annotationLabelOptions.value.some((label) => label.id === selectedBoxLabelId.value)
+  ) {
+    return
+  }
+  selectedBoxLabelId.value = annotationLabelOptions.value[0]?.id ?? null
+}
+
+function resetBoxAnnotationState(): void {
+  boxAnnotations.value = []
+  draftBox.value = null
+  activeBoxClientId.value = null
+  boxAnnotationError.value = null
+  boxDraftStart = null
+  ensureSelectedBoxLabel()
+}
+
+function syncFrameImageMetrics(): void {
+  if (!frameImageElement.value) return
+  cancelBoxDraft()
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), max)
+}
+
+function imagePointFromPointerEvent(event: PointerEvent): ImagePoint | null {
+  const image = frameImageElement.value
+  if (!image || image.naturalWidth <= 0 || image.naturalHeight <= 0) return null
+  const rect = image.getBoundingClientRect()
+  if (rect.width <= 0 || rect.height <= 0) return null
+
+  const displayX = clamp(event.clientX - rect.left, 0, rect.width)
+  const displayY = clamp(event.clientY - rect.top, 0, rect.height)
+  return {
+    x: (displayX / rect.width) * image.naturalWidth,
+    y: (displayY / rect.height) * image.naturalHeight,
+    imageWidth: image.naturalWidth,
+    imageHeight: image.naturalHeight
+  }
+}
+
+function buildBoxDraft(start: ImagePoint, current: ImagePoint): FrameBoxAnnotationDraft | null {
+  if (!currentTask.value || !selectedBoxLabel.value) return null
+  const x = Math.min(start.x, current.x)
+  const y = Math.min(start.y, current.y)
+  const width = Math.abs(current.x - start.x)
+  const height = Math.abs(current.y - start.y)
+  return {
+    id: null,
+    clientId: uuidv7(),
+    frameId: currentTask.value.data.frameId,
+    labelId: selectedBoxLabel.value.id,
+    labelName: selectedBoxLabel.value.name,
+    value: true,
+    floatValue: null,
+    x,
+    y,
+    width,
+    height,
+    imageWidth: current.imageWidth,
+    imageHeight: current.imageHeight,
+    annotator: activeAnnotatorPrincipal.value,
+    externalAnnotationId: uuidv7()
+  }
+}
+
+function startBoxDraft(event: PointerEvent): void {
+  if (!selectedBoxLabel.value || isSavingBoxAnnotations.value) return
+  const point = imagePointFromPointerEvent(event)
+  if (!point) return
+  boxDraftStart = point
+  draftBox.value = buildBoxDraft(point, point)
+  boxAnnotationError.value = null
+  const target = event.currentTarget as HTMLElement | null
+  target?.setPointerCapture?.(event.pointerId)
+  event.preventDefault()
+}
+
+function updateBoxDraft(event: PointerEvent): void {
+  if (!boxDraftStart) return
+  const point = imagePointFromPointerEvent(event)
+  if (!point) return
+  draftBox.value = buildBoxDraft(boxDraftStart, point)
+  event.preventDefault()
+}
+
+function finishBoxDraft(event?: PointerEvent): void {
+  if (!boxDraftStart || !draftBox.value) return
+  const finishedBox = draftBox.value
+  boxDraftStart = null
+  draftBox.value = null
+  if (event) {
+    const target = event.currentTarget as HTMLElement | null
+    target?.releasePointerCapture?.(event.pointerId)
+  }
+  if (finishedBox.width < 3 || finishedBox.height < 3) return
+  boxAnnotations.value = [...boxAnnotations.value, finishedBox]
+  activeBoxClientId.value = finishedBox.clientId
+}
+
+function cancelBoxDraft(): void {
+  boxDraftStart = null
+  draftBox.value = null
+}
+
+function boxAnnotationStyle(box: FrameBoxAnnotationDraft): Record<string, string> {
+  const imageWidth = box.imageWidth || 1
+  const imageHeight = box.imageHeight || 1
+  return {
+    left: `${(box.x / imageWidth) * 100}%`,
+    top: `${(box.y / imageHeight) * 100}%`,
+    width: `${(box.width / imageWidth) * 100}%`,
+    height: `${(box.height / imageHeight) * 100}%`
+  }
+}
+
+function formatBoxAnnotation(box: FrameBoxAnnotationDraft): string {
+  return [
+    `x ${Math.round(box.x)}`,
+    `y ${Math.round(box.y)}`,
+    `w ${Math.round(box.width)}`,
+    `h ${Math.round(box.height)}`
+  ].join(' / ')
+}
+
+function removeBoxAnnotation(clientId: string): void {
+  boxAnnotations.value = boxAnnotations.value.filter((box) => box.clientId !== clientId)
+  if (activeBoxClientId.value === clientId) {
+    activeBoxClientId.value = null
+  }
+}
+
+function clearBoxAnnotations(): void {
+  boxAnnotations.value = []
+  activeBoxClientId.value = null
+  cancelBoxDraft()
+}
+
+function extractBoxAnnotationPayload(payload: unknown): Array<Record<string, unknown>> {
+  if (Array.isArray(payload)) {
+    return payload.filter(
+      (item): item is Record<string, unknown> => !!item && typeof item === 'object'
+    )
+  }
+  if (!payload || typeof payload !== 'object') return []
+  const obj = payload as Record<string, unknown>
+  if (Array.isArray(obj.annotations)) {
+    return obj.annotations.filter(
+      (item): item is Record<string, unknown> => !!item && typeof item === 'object'
+    )
+  }
+  if (Array.isArray(obj.results)) {
+    return obj.results.filter(
+      (item): item is Record<string, unknown> => !!item && typeof item === 'object'
+    )
+  }
+  return []
+}
+
+function parseBoxAnnotation(raw: Record<string, unknown>): FrameBoxAnnotationDraft | null {
+  const id = parseOptionalNumber(raw.id)
+  const frameId = parseOptionalNumber(raw.frameId ?? raw.frame_id)
+  const labelId = parseOptionalNumber(raw.labelId ?? raw.label_id)
+  const x = parseOptionalNumber(raw.x)
+  const y = parseOptionalNumber(raw.y)
+  const width = parseOptionalNumber(raw.width)
+  const height = parseOptionalNumber(raw.height)
+  const imageWidth = parseOptionalNumber(raw.imageWidth ?? raw.image_width)
+  const imageHeight = parseOptionalNumber(raw.imageHeight ?? raw.image_height)
+  const labelNameRaw = raw.labelName ?? raw.label_name
+  const labelName = typeof labelNameRaw === 'string' ? labelNameRaw.trim() : ''
+  if (
+    frameId === null ||
+    labelId === null ||
+    x === null ||
+    y === null ||
+    width === null ||
+    height === null ||
+    imageWidth === null ||
+    imageHeight === null ||
+    !labelName
+  ) {
+    return null
+  }
+  const externalRaw = raw.externalAnnotationId ?? raw.external_annotation_id
+  const annotatorRaw = raw.annotator
+  const floatValue = parseOptionalNumber(raw.floatValue ?? raw.float_value)
+  return {
+    id,
+    clientId: id !== null ? `box-${id}` : uuidv7(),
+    frameId,
+    labelId,
+    labelName,
+    value: raw.value !== false,
+    floatValue,
+    x,
+    y,
+    width,
+    height,
+    imageWidth,
+    imageHeight,
+    annotator: typeof annotatorRaw === 'string' ? annotatorRaw : activeAnnotatorPrincipal.value,
+    externalAnnotationId:
+      typeof externalRaw === 'string' && externalRaw.trim() ? externalRaw.trim() : uuidv7()
+  }
+}
+
+async function loadBoxAnnotationsForTask(task: typeof currentTask.value): Promise<void> {
+  if (!task) {
+    resetBoxAnnotationState()
+    return
+  }
+  isLoadingBoxAnnotations.value = true
+  boxAnnotationError.value = null
+  try {
+    const res = await axiosInstance.get(r(endpoints.annotation.frameBoxes), {
+      params: {
+        frame_id: task.data.frameId,
+        information_source_name: informationSource.value,
+        annotator: activeAnnotatorPrincipal.value
+      }
+    })
+    boxAnnotations.value = extractBoxAnnotationPayload(res.data)
+      .map((item) => parseBoxAnnotation(item))
+      .filter((box): box is FrameBoxAnnotationDraft => box !== null)
+    activeBoxClientId.value = boxAnnotations.value[0]?.clientId ?? null
+    ensureSelectedBoxLabel()
+  } catch (error: any) {
+    boxAnnotations.value = []
+    boxAnnotationError.value =
+      error?.response?.data?.detail ||
+      error?.response?.data?.error ||
+      error?.message ||
+      'Box-Annotationen konnten nicht geladen werden.'
+  } finally {
+    isLoadingBoxAnnotations.value = false
+  }
+}
+
+async function submitBoxAnnotations(): Promise<void> {
+  if (!currentTask.value) return
+  const task = currentTask.value
+  isSavingBoxAnnotations.value = true
+  boxAnnotationError.value = null
+  try {
+    await axiosInstance.post(r(endpoints.annotation.frameBoxes), {
+      frame_id: task.data.frameId,
+      replace: true,
+      information_source_name: informationSource.value,
+      annotator: activeAnnotatorPrincipal.value,
+      annotations: boxAnnotations.value.map((box) => ({
+        id: box.id,
+        frame_id: task.data.frameId,
+        label_id: box.labelId,
+        value: box.value,
+        float_value: box.floatValue,
+        x: Math.round(box.x),
+        y: Math.round(box.y),
+        width: Math.round(box.width),
+        height: Math.round(box.height),
+        image_width: Math.round(box.imageWidth),
+        image_height: Math.round(box.imageHeight),
+        information_source_name: informationSource.value,
+        annotator: activeAnnotatorPrincipal.value,
+        external_annotation_id: box.externalAnnotationId,
+        model_meta_id: null
+      }))
+    })
+    await loadBoxAnnotationsForTask(task)
+  } catch (error: any) {
+    boxAnnotationError.value =
+      error?.response?.data?.detail ||
+      error?.response?.data?.error ||
+      error?.message ||
+      'Box-Annotationen konnten nicht gespeichert werden.'
+  } finally {
+    isSavingBoxAnnotations.value = false
+  }
 }
 
 function formatConfidence(value: number | null | undefined): string {
@@ -598,7 +1285,9 @@ async function loadNextTask(): Promise<void> {
       await queueStore.fetchBatch(10)
     }
     currentTask.value = queueStore.popNextTask() ?? null
+    resetBoxAnnotationState()
     syncSelectedLabelsFromTask(currentTask.value)
+    await loadBoxAnnotationsForTask(currentTask.value)
     if (!currentTask.value && queueStore.lastError) {
       errorMessage.value = queueStore.lastError
     }
@@ -736,6 +1425,7 @@ watch(
   () => currentTask.value?.id,
   () => {
     syncSelectedLabelsFromTask(currentTask.value)
+    ensureSelectedBoxLabel()
   }
 )
 
@@ -775,6 +1465,98 @@ onMounted(async () => {
 
 .label-option {
   background: #fff;
+}
+
+.frame-image-stage {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+  line-height: 0;
+  cursor: crosshair;
+  user-select: none;
+}
+
+.frame-image {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+.box-annotation-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.box-annotation-rect {
+  position: absolute;
+  border: 2px solid #0d6efd;
+  background: rgba(13, 110, 253, 0.12);
+  pointer-events: auto;
+}
+
+.box-annotation-rect span {
+  position: absolute;
+  top: -1.6rem;
+  left: -2px;
+  max-width: 180px;
+  padding: 0.125rem 0.35rem;
+  overflow: hidden;
+  color: #fff;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: #0d6efd;
+  border-radius: 0.25rem;
+  font-size: 0.75rem;
+  line-height: 1.2;
+}
+
+.box-annotation-rect-active {
+  border-color: #198754;
+  background: rgba(25, 135, 84, 0.14);
+}
+
+.box-annotation-rect-draft {
+  border-style: dashed;
+}
+
+.box-annotation-panel {
+  background: #fbfcfe;
+}
+
+.box-annotation-list {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.box-annotation-list-item {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0.625rem;
+  background: #fff;
+  border: 1px solid #dee2e6;
+  border-radius: 0.375rem;
+}
+
+.box-annotation-list-item-active {
+  border-color: #198754;
+}
+
+.anonymizer-field-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.5rem;
+}
+
+.anonymizer-field-option {
+  background: #fff;
+  min-height: 76px;
+}
+
+.anonymizer-field-option-missing {
+  background: #fff9e8;
 }
 
 .annotator-override-input {

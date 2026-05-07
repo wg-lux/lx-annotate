@@ -248,6 +248,65 @@ const getStatusText = (status) => {
     };
     return texts[status] || status;
 };
+const getUploadJobStatusBadgeClass = (status) => {
+    const classes = {
+        pending: 'bg-secondary',
+        processing: 'bg-warning',
+        anonymized: 'bg-success',
+        error: 'bg-danger',
+        lost: 'bg-danger'
+    };
+    return classes[status] || 'bg-secondary';
+};
+const getUploadJobStatusText = (status) => {
+    const texts = {
+        pending: 'Upload wartet',
+        processing: 'Upload läuft',
+        anonymized: 'Upload abgeschlossen',
+        error: 'Uploadfehler',
+        lost: 'Upload verloren'
+    };
+    return texts[status] || status;
+};
+const getUploadJobOriginLabel = (uploadJob) => {
+    const parts = [];
+    if (uploadJob.ingestMode === 'watcher') {
+        parts.push('Watcher');
+    }
+    else if (uploadJob.ingestMode === 'api') {
+        parts.push('API');
+    }
+    else if (uploadJob.ingestMode) {
+        parts.push(uploadJob.ingestMode);
+    }
+    if (uploadJob.sourceSystem) {
+        parts.push(uploadJob.sourceSystem);
+    }
+    if (uploadJob.sourceCenterKey) {
+        parts.push(uploadJob.sourceCenterKey);
+    }
+    return parts.join(' / ');
+};
+const getUploadJobCleanupStatusText = (status) => {
+    const texts = {
+        pending: 'Bereinigung offen',
+        eligible: 'Bereinigung bereit',
+        completed: 'Bereinigt',
+        skipped: 'Bereinigung übersprungen'
+    };
+    return texts[status] || status;
+};
+const getUploadJobCleanupLabel = (uploadJob) => {
+    const sourceLabel = typeof uploadJob.sourceFilePersisted === 'boolean'
+        ? uploadJob.sourceFilePersisted
+            ? 'Quelle vorhanden'
+            : 'Quelle bereinigt'
+        : '';
+    const cleanupLabel = uploadJob.cleanupStatus
+        ? getUploadJobCleanupStatusText(uploadJob.cleanupStatus)
+        : '';
+    return [sourceLabel, cleanupLabel].filter(Boolean).join(' - ');
+};
 const formatDate = (dateString) => {
     if (!dateString)
         return '-';
@@ -271,6 +330,12 @@ const getTotalByStatus = (status) => {
     return availableFiles.value.filter(file => relevantStatuses.includes(file.anonymizationStatus)).length;
 };
 const hasOriginalFile = (file) => {
+    if (typeof file.uploadJob?.sourceFilePersisted === 'boolean') {
+        return file.uploadJob.sourceFilePersisted;
+    }
+    if (file.rawFile && file.rawFile.trim() !== '') {
+        return true;
+    }
     // Check if the file has the necessary properties to indicate original file exists
     if (file.mediaType === 'video') {
         // For videos, check if rawFile exists and has a valid path
@@ -321,6 +386,7 @@ let __VLS_directives;
 /** @type {__VLS_StyleScopedClasses['sticky-filename-column']} */ ;
 /** @type {__VLS_StyleScopedClasses['overview-files-table']} */ ;
 /** @type {__VLS_StyleScopedClasses['sticky-filename-column']} */ ;
+/** @type {__VLS_StyleScopedClasses['upload-job-summary']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-group-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['overview-files-table']} */ ;
@@ -415,6 +481,7 @@ else {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
     __VLS_asFunctionalElement(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
     __VLS_asFunctionalElement(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.th, __VLS_intrinsicElements.th)({});
     __VLS_asFunctionalElement(__VLS_intrinsicElements.tbody, __VLS_intrinsicElements.tbody)({});
     for (const [file] of __VLS_getVForSourceType((__VLS_ctx.availableFiles))) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.tr, __VLS_intrinsicElements.tr)({
@@ -445,6 +512,40 @@ else {
             ...{ class: "badge" },
         });
         (file.mediaType.toUpperCase());
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
+        if (file.uploadJob) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                ...{ class: "upload-job-summary" },
+            });
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                ...{ class: "badge" },
+                ...{ class: (__VLS_ctx.getUploadJobStatusBadgeClass(file.uploadJob.status)) },
+            });
+            (__VLS_ctx.getUploadJobStatusText(file.uploadJob.status));
+            if (__VLS_ctx.getUploadJobOriginLabel(file.uploadJob)) {
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                    ...{ class: "small text-muted mt-1" },
+                });
+                (__VLS_ctx.getUploadJobOriginLabel(file.uploadJob));
+            }
+            if (__VLS_ctx.getUploadJobCleanupLabel(file.uploadJob)) {
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                    ...{ class: "small text-muted" },
+                });
+                (__VLS_ctx.getUploadJobCleanupLabel(file.uploadJob));
+            }
+            if (file.uploadJob.errorDetail) {
+                __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+                    ...{ class: "small text-danger mt-1" },
+                });
+                (file.uploadJob.errorDetail);
+            }
+        }
+        else {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+                ...{ class: "text-muted" },
+            });
+        }
         __VLS_asFunctionalElement(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({});
         __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
             ...{ class: (__VLS_ctx.getStatusBadgeClass(file.anonymizationStatus)) },
@@ -798,6 +899,17 @@ if (__VLS_ctx.filteredOutCount > 0) {
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['upload-job-summary']} */ ;
+/** @type {__VLS_StyleScopedClasses['badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['small']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['small']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['small']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-danger']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['badge']} */ ;
 /** @type {__VLS_StyleScopedClasses['ni']} */ ;
 /** @type {__VLS_StyleScopedClasses['ni-settings-gear-65']} */ ;
@@ -931,6 +1043,10 @@ const __VLS_self = (await import('vue')).defineComponent({
             getFileIdLabel: getFileIdLabel,
             getStatusBadgeClass: getStatusBadgeClass,
             getStatusText: getStatusText,
+            getUploadJobStatusBadgeClass: getUploadJobStatusBadgeClass,
+            getUploadJobStatusText: getUploadJobStatusText,
+            getUploadJobOriginLabel: getUploadJobOriginLabel,
+            getUploadJobCleanupLabel: getUploadJobCleanupLabel,
             formatDate: formatDate,
             getTotalByStatus: getTotalByStatus,
             hasOriginalFile: hasOriginalFile,

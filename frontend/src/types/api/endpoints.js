@@ -60,6 +60,7 @@ export const endpoints = {
     annotation: {
         randomTask: 'media/annotations/frames/random-task/',
         bulkUpsert: 'media/annotations/frames/bulk-upsert/',
+        frameBoxes: 'media/annotations/frames/boxes/',
         skip: 'media/annotations/frames/skip/'
     },
     upload: {

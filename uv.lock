@@ -943,7 +943,7 @@ sdist = { url = "https://files.pythonhosted.org/packages/62/59/e47bbd0542d0e6f4c
 
 [[package]]
 name = "endoreg-db"
-version = "0.9.8.0"
+version = "0.9.8.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "celery" },
@@ -1005,9 +1005,9 @@ dependencies = [
     { name = "whitenoise" },
     { name = "ziglang" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/d0/15/97edddb74e247749597b2e28a0e0d12dcd88e9eb94b246ddcb658853f6aa/endoreg_db-0.9.8.0.tar.gz", hash = "sha256:57c0052c216fa4f3c1bbfc9012375083850da45d8372964364f15a1ec30eb24c", size = 751350, upload-time = "2026-05-06T14:32:41.838Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/e2/0f/e18c603b66c0e92aeb87862dd3adce01e87082d3368f8dcaea7ea6feb564/endoreg_db-0.9.8.1.tar.gz", hash = "sha256:f3e6ba55ab7fe605c8f427bb5a4a2c54ac27f7a8c14ccc651a137d1c43bf4337", size = 752393, upload-time = "2026-05-06T15:44:33.077Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/b1/2c/1891e9ea1cf2b6fb832986b963b96cbc3b31a70dbfe47fd58a334dd354c9/endoreg_db-0.9.8.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:968d025dc8a9c67861466c3501e2287e3237fb318d9733a2e1b389f64b8dc5b0", size = 1342461, upload-time = "2026-05-06T14:32:39.925Z" },
+    { url = "https://files.pythonhosted.org/packages/3a/8c/24c04c5717e160eba9ae1c9503ab01d681dced1bf322db5b37ee70ebabda/endoreg_db-0.9.8.1-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:6922f2667e54c58a0778a3339dace0180422e9a9b80c9b3fee55426c3624299d", size = 1343535, upload-time = "2026-05-06T15:44:30.866Z" },
 ]
 
 [[package]]
@@ -1619,7 +1619,7 @@ wheels = [
 
 [[package]]
 name = "lx-annotate"
-version = "0.4.9"
+version = "0.5.0"
 source = { editable = "." }
 dependencies = [
     { name = "black" },
@@ -1656,6 +1656,7 @@ dependencies = [
     { name = "pytest-django" },
     { name = "python-dotenv" },
     { name = "python-environ" },
+    { name = "redis" },
     { name = "requests" },
     { name = "sops" },
     { name = "torch" },
@@ -1717,7 +1718,7 @@ requires-dist = [
     { name = "django-webpack-loader", specifier = ">=0.7.0" },
     { name = "djangorestframework", specifier = ">=3.12.4" },
     { name = "drf-spectacular", specifier = ">=0.28.0" },
-    { name = "endoreg-db", specifier = "==0.9.8.0" },
+    { name = "endoreg-db", specifier = "==0.9.8.1" },
     { name = "flake8", marker = "extra == 'dev'", specifier = ">=7.3.0" },
     { name = "furo", marker = "extra == 'dev'", specifier = ">=2025.9.25" },
     { name = "furo", marker = "extra == 'docs'", specifier = ">=2025.9.25" },
@@ -1748,6 +1749,7 @@ requires-dist = [
     { name = "pytest-xdist", marker = "extra == 'dev'", specifier = ">=3.8.0" },
     { name = "python-dotenv", specifier = ">=1.0.1" },
     { name = "python-environ", specifier = ">=0.4.54" },
+    { name = "redis", specifier = ">=7.4.0" },
     { name = "requests", specifier = ">=2.32.3" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.14.8" },
     { name = "sops", specifier = ">=1.18" },
@@ -3206,6 +3208,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/5a/a9/104ec9234c8448c4379768221ea6df01260cd6c2ce13182d4eac531c8342/readme_renderer-44.0.tar.gz", hash = "sha256:8712034eabbfa6805cacf1402b4eeb2a73028f72d1166d6f5cb7f9c047c5d1e1", size = 32056, upload-time = "2024-07-08T15:00:57.805Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/e1/67/921ec3024056483db83953ae8e48079ad62b92db7880013ca77632921dd0/readme_renderer-44.0-py3-none-any.whl", hash = "sha256:2fbca89b81a08526aadf1357a8c2ae889ec05fb03f5da67f9769c9a592166151", size = 13310, upload-time = "2024-07-08T15:00:56.577Z" },
+]
+
+[[package]]
+name = "redis"
+version = "7.4.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/7b/7f/3759b1d0d72b7c92f0d70ffd9dc962b7b7b5ee74e135f9d7d8ab06b8a318/redis-7.4.0.tar.gz", hash = "sha256:64a6ea7bf567ad43c964d2c30d82853f8df927c5c9017766c55a1d1ed95d18ad", size = 4943913, upload-time = "2026-03-24T09:14:37.53Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/74/3a/95deec7db1eb53979973ebd156f3369a72732208d1391cd2e5d127062a32/redis-7.4.0-py3-none-any.whl", hash = "sha256:a9c74a5c893a5ef8455a5adb793a31bb70feb821c86eccb62eebef5a19c429ec", size = 409772, upload-time = "2026-03-24T09:14:35.968Z" },
 ]
 
 [[package]]

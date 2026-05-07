@@ -58,6 +58,7 @@ export declare const endpoints: {
     readonly annotation: {
         readonly randomTask: "media/annotations/frames/random-task/";
         readonly bulkUpsert: "media/annotations/frames/bulk-upsert/";
+        readonly frameBoxes: "media/annotations/frames/boxes/";
         readonly skip: "media/annotations/frames/skip/";
     };
     readonly upload: {

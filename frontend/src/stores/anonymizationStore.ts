@@ -10,6 +10,20 @@ import { endpoints } from '@/types/api/endpoints'
 /* ------------------------------------------------------------------ */
 
 // New interface for file overview
+export interface UploadJobOverview {
+  id: string
+  status: 'pending' | 'processing' | 'anonymized' | 'error' | 'lost' | string
+  ingestMode?: 'api' | 'watcher' | string
+  sourceSystem?: string
+  sourceCenterKey?: string | null
+  originalFilename?: string
+  sourceFilePersisted?: boolean
+  cleanupStatus?: 'pending' | 'eligible' | 'completed' | 'skipped' | string
+  errorDetail?: string
+  createdAt?: string | null
+  updatedAt?: string | null
+}
+
 export interface FileItem {
   id: number
   filename: string
@@ -29,6 +43,7 @@ export interface FileItem {
   metadataImported?: boolean // New field to track if metadata was properly imported
   fileSize?: number | undefined // Optional field for file size
   rawFile?: string // New field for raw file path (for videos)
+  uploadJob?: UploadJobOverview | null
 }
 
 export interface AnonymizationState {

@@ -132,6 +132,20 @@ export interface VideoAnnotation {
     fps?: number;
     frameCount?: number;
 }
+export type SegmentAnnotationStatus = 'not_started' | 'cleanup_queued' | 'cleanup_running' | 'cleanup_failed' | 'cleanup_required' | 'validated';
+export interface PostValidationRebuildSummary {
+    id?: number | null;
+    status?: string;
+    taskId?: string;
+    task_id?: string;
+    details?: string;
+    outputFile?: string;
+    output_file?: string;
+    createdAt?: string | null;
+    created_at?: string | null;
+    completedAt?: string | null;
+    completed_at?: string | null;
+}
 /**
  * Video metadata from backend
  */
@@ -142,6 +156,9 @@ export interface VideoMeta {
     assignedUser?: string | null;
     anonymized: boolean;
     segmentAnnotationsValidated?: boolean;
+    segmentAnnotationStatus?: SegmentAnnotationStatus;
+    outsideSegmentsRemoved?: boolean;
+    postValidationRebuild?: PostValidationRebuildSummary | null;
     duration?: number;
     fps?: number;
     hasROI?: boolean;
@@ -364,6 +381,21 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
             readonly assignedUser?: string | null | undefined;
             readonly anonymized: boolean;
             readonly segmentAnnotationsValidated?: boolean | undefined;
+            readonly segmentAnnotationStatus?: SegmentAnnotationStatus | undefined;
+            readonly outsideSegmentsRemoved?: boolean | undefined;
+            readonly postValidationRebuild?: {
+                readonly id?: number | null | undefined;
+                readonly status?: string | undefined;
+                readonly taskId?: string | undefined;
+                readonly task_id?: string | undefined;
+                readonly details?: string | undefined;
+                readonly outputFile?: string | undefined;
+                readonly output_file?: string | undefined;
+                readonly createdAt?: string | null | undefined;
+                readonly created_at?: string | null | undefined;
+                readonly completedAt?: string | null | undefined;
+                readonly completed_at?: string | null | undefined;
+            } | null | undefined;
             readonly duration?: number | undefined;
             readonly fps?: number | undefined;
             readonly hasROI?: boolean | undefined;
@@ -424,6 +456,21 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
             readonly assignedUser?: string | null | undefined;
             readonly anonymized: boolean;
             readonly segmentAnnotationsValidated?: boolean | undefined;
+            readonly segmentAnnotationStatus?: SegmentAnnotationStatus | undefined;
+            readonly outsideSegmentsRemoved?: boolean | undefined;
+            readonly postValidationRebuild?: {
+                readonly id?: number | null | undefined;
+                readonly status?: string | undefined;
+                readonly taskId?: string | undefined;
+                readonly task_id?: string | undefined;
+                readonly details?: string | undefined;
+                readonly outputFile?: string | undefined;
+                readonly output_file?: string | undefined;
+                readonly createdAt?: string | null | undefined;
+                readonly created_at?: string | null | undefined;
+                readonly completedAt?: string | null | undefined;
+                readonly completed_at?: string | null | undefined;
+            } | null | undefined;
             readonly duration?: number | undefined;
             readonly fps?: number | undefined;
             readonly hasROI?: boolean | undefined;
@@ -484,6 +531,21 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
         readonly assignedUser?: string | null | undefined;
         readonly anonymized: boolean;
         readonly segmentAnnotationsValidated?: boolean | undefined;
+        readonly segmentAnnotationStatus?: SegmentAnnotationStatus | undefined;
+        readonly outsideSegmentsRemoved?: boolean | undefined;
+        readonly postValidationRebuild?: {
+            readonly id?: number | null | undefined;
+            readonly status?: string | undefined;
+            readonly taskId?: string | undefined;
+            readonly task_id?: string | undefined;
+            readonly details?: string | undefined;
+            readonly outputFile?: string | undefined;
+            readonly output_file?: string | undefined;
+            readonly createdAt?: string | null | undefined;
+            readonly created_at?: string | null | undefined;
+            readonly completedAt?: string | null | undefined;
+            readonly completed_at?: string | null | undefined;
+        } | null | undefined;
         readonly duration?: number | undefined;
         readonly fps?: number | undefined;
         readonly hasROI?: boolean | undefined;
@@ -537,6 +599,21 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
         readonly assignedUser?: string | null | undefined;
         readonly anonymized: boolean;
         readonly segmentAnnotationsValidated?: boolean | undefined;
+        readonly segmentAnnotationStatus?: SegmentAnnotationStatus | undefined;
+        readonly outsideSegmentsRemoved?: boolean | undefined;
+        readonly postValidationRebuild?: {
+            readonly id?: number | null | undefined;
+            readonly status?: string | undefined;
+            readonly taskId?: string | undefined;
+            readonly task_id?: string | undefined;
+            readonly details?: string | undefined;
+            readonly outputFile?: string | undefined;
+            readonly output_file?: string | undefined;
+            readonly createdAt?: string | null | undefined;
+            readonly created_at?: string | null | undefined;
+            readonly completedAt?: string | null | undefined;
+            readonly completed_at?: string | null | undefined;
+        } | null | undefined;
         readonly duration?: number | undefined;
         readonly fps?: number | undefined;
         readonly hasROI?: boolean | undefined;
@@ -820,6 +897,21 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
             readonly assignedUser?: string | null | undefined;
             readonly anonymized: boolean;
             readonly segmentAnnotationsValidated?: boolean | undefined;
+            readonly segmentAnnotationStatus?: SegmentAnnotationStatus | undefined;
+            readonly outsideSegmentsRemoved?: boolean | undefined;
+            readonly postValidationRebuild?: {
+                readonly id?: number | null | undefined;
+                readonly status?: string | undefined;
+                readonly taskId?: string | undefined;
+                readonly task_id?: string | undefined;
+                readonly details?: string | undefined;
+                readonly outputFile?: string | undefined;
+                readonly output_file?: string | undefined;
+                readonly createdAt?: string | null | undefined;
+                readonly created_at?: string | null | undefined;
+                readonly completedAt?: string | null | undefined;
+                readonly completed_at?: string | null | undefined;
+            } | null | undefined;
             readonly duration?: number | undefined;
             readonly fps?: number | undefined;
             readonly hasROI?: boolean | undefined;
@@ -880,6 +972,21 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
             readonly assignedUser?: string | null | undefined;
             readonly anonymized: boolean;
             readonly segmentAnnotationsValidated?: boolean | undefined;
+            readonly segmentAnnotationStatus?: SegmentAnnotationStatus | undefined;
+            readonly outsideSegmentsRemoved?: boolean | undefined;
+            readonly postValidationRebuild?: {
+                readonly id?: number | null | undefined;
+                readonly status?: string | undefined;
+                readonly taskId?: string | undefined;
+                readonly task_id?: string | undefined;
+                readonly details?: string | undefined;
+                readonly outputFile?: string | undefined;
+                readonly output_file?: string | undefined;
+                readonly createdAt?: string | null | undefined;
+                readonly created_at?: string | null | undefined;
+                readonly completedAt?: string | null | undefined;
+                readonly completed_at?: string | null | undefined;
+            } | null | undefined;
             readonly duration?: number | undefined;
             readonly fps?: number | undefined;
             readonly hasROI?: boolean | undefined;
@@ -940,6 +1047,21 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
         readonly assignedUser?: string | null | undefined;
         readonly anonymized: boolean;
         readonly segmentAnnotationsValidated?: boolean | undefined;
+        readonly segmentAnnotationStatus?: SegmentAnnotationStatus | undefined;
+        readonly outsideSegmentsRemoved?: boolean | undefined;
+        readonly postValidationRebuild?: {
+            readonly id?: number | null | undefined;
+            readonly status?: string | undefined;
+            readonly taskId?: string | undefined;
+            readonly task_id?: string | undefined;
+            readonly details?: string | undefined;
+            readonly outputFile?: string | undefined;
+            readonly output_file?: string | undefined;
+            readonly createdAt?: string | null | undefined;
+            readonly created_at?: string | null | undefined;
+            readonly completedAt?: string | null | undefined;
+            readonly completed_at?: string | null | undefined;
+        } | null | undefined;
         readonly duration?: number | undefined;
         readonly fps?: number | undefined;
         readonly hasROI?: boolean | undefined;
@@ -993,6 +1115,21 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
         readonly assignedUser?: string | null | undefined;
         readonly anonymized: boolean;
         readonly segmentAnnotationsValidated?: boolean | undefined;
+        readonly segmentAnnotationStatus?: SegmentAnnotationStatus | undefined;
+        readonly outsideSegmentsRemoved?: boolean | undefined;
+        readonly postValidationRebuild?: {
+            readonly id?: number | null | undefined;
+            readonly status?: string | undefined;
+            readonly taskId?: string | undefined;
+            readonly task_id?: string | undefined;
+            readonly details?: string | undefined;
+            readonly outputFile?: string | undefined;
+            readonly output_file?: string | undefined;
+            readonly createdAt?: string | null | undefined;
+            readonly created_at?: string | null | undefined;
+            readonly completedAt?: string | null | undefined;
+            readonly completed_at?: string | null | undefined;
+        } | null | undefined;
         readonly duration?: number | undefined;
         readonly fps?: number | undefined;
         readonly hasROI?: boolean | undefined;
@@ -1276,6 +1413,21 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
             readonly assignedUser?: string | null | undefined;
             readonly anonymized: boolean;
             readonly segmentAnnotationsValidated?: boolean | undefined;
+            readonly segmentAnnotationStatus?: SegmentAnnotationStatus | undefined;
+            readonly outsideSegmentsRemoved?: boolean | undefined;
+            readonly postValidationRebuild?: {
+                readonly id?: number | null | undefined;
+                readonly status?: string | undefined;
+                readonly taskId?: string | undefined;
+                readonly task_id?: string | undefined;
+                readonly details?: string | undefined;
+                readonly outputFile?: string | undefined;
+                readonly output_file?: string | undefined;
+                readonly createdAt?: string | null | undefined;
+                readonly created_at?: string | null | undefined;
+                readonly completedAt?: string | null | undefined;
+                readonly completed_at?: string | null | undefined;
+            } | null | undefined;
             readonly duration?: number | undefined;
             readonly fps?: number | undefined;
             readonly hasROI?: boolean | undefined;
@@ -1336,6 +1488,21 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
             readonly assignedUser?: string | null | undefined;
             readonly anonymized: boolean;
             readonly segmentAnnotationsValidated?: boolean | undefined;
+            readonly segmentAnnotationStatus?: SegmentAnnotationStatus | undefined;
+            readonly outsideSegmentsRemoved?: boolean | undefined;
+            readonly postValidationRebuild?: {
+                readonly id?: number | null | undefined;
+                readonly status?: string | undefined;
+                readonly taskId?: string | undefined;
+                readonly task_id?: string | undefined;
+                readonly details?: string | undefined;
+                readonly outputFile?: string | undefined;
+                readonly output_file?: string | undefined;
+                readonly createdAt?: string | null | undefined;
+                readonly created_at?: string | null | undefined;
+                readonly completedAt?: string | null | undefined;
+                readonly completed_at?: string | null | undefined;
+            } | null | undefined;
             readonly duration?: number | undefined;
             readonly fps?: number | undefined;
             readonly hasROI?: boolean | undefined;
@@ -1396,6 +1563,21 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
         readonly assignedUser?: string | null | undefined;
         readonly anonymized: boolean;
         readonly segmentAnnotationsValidated?: boolean | undefined;
+        readonly segmentAnnotationStatus?: SegmentAnnotationStatus | undefined;
+        readonly outsideSegmentsRemoved?: boolean | undefined;
+        readonly postValidationRebuild?: {
+            readonly id?: number | null | undefined;
+            readonly status?: string | undefined;
+            readonly taskId?: string | undefined;
+            readonly task_id?: string | undefined;
+            readonly details?: string | undefined;
+            readonly outputFile?: string | undefined;
+            readonly output_file?: string | undefined;
+            readonly createdAt?: string | null | undefined;
+            readonly created_at?: string | null | undefined;
+            readonly completedAt?: string | null | undefined;
+            readonly completed_at?: string | null | undefined;
+        } | null | undefined;
         readonly duration?: number | undefined;
         readonly fps?: number | undefined;
         readonly hasROI?: boolean | undefined;
@@ -1449,6 +1631,21 @@ export declare const useVideoStore: import("pinia").StoreDefinition<"video", Pic
         readonly assignedUser?: string | null | undefined;
         readonly anonymized: boolean;
         readonly segmentAnnotationsValidated?: boolean | undefined;
+        readonly segmentAnnotationStatus?: SegmentAnnotationStatus | undefined;
+        readonly outsideSegmentsRemoved?: boolean | undefined;
+        readonly postValidationRebuild?: {
+            readonly id?: number | null | undefined;
+            readonly status?: string | undefined;
+            readonly taskId?: string | undefined;
+            readonly task_id?: string | undefined;
+            readonly details?: string | undefined;
+            readonly outputFile?: string | undefined;
+            readonly output_file?: string | undefined;
+            readonly createdAt?: string | null | undefined;
+            readonly created_at?: string | null | undefined;
+            readonly completedAt?: string | null | undefined;
+            readonly completed_at?: string | null | undefined;
+        } | null | undefined;
         readonly duration?: number | undefined;
         readonly fps?: number | undefined;
         readonly hasROI?: boolean | undefined;

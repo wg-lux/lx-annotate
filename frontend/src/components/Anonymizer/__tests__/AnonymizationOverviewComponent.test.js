@@ -93,6 +93,29 @@ describe('AnonymizationOverviewComponent', () => {
         expect(wrapper.text()).toContain('study-video.mp4');
         expect(wrapper.text()).toContain('Video-ID: 17');
     });
+    it('renders upload job status separately from anonymization state', async () => {
+        hoisted.anonymizationStoreRef.current.overview = [
+            buildVideoFile({
+                uploadJob: {
+                    id: 'b99b5f04-8c40-4ec7-a0ef-6b34d3f908f8',
+                    status: 'anonymized',
+                    ingestMode: 'watcher',
+                    sourceSystem: 'watcher-daemon',
+                    sourceCenterKey: 'test-center',
+                    sourceFilePersisted: false,
+                    cleanupStatus: 'completed'
+                }
+            })
+        ];
+        const wrapper = mount(AnonymizationOverviewComponent);
+        await flushPromises();
+        const uploadSummary = wrapper.find('.upload-job-summary');
+        expect(uploadSummary.text()).toContain('Upload abgeschlossen');
+        expect(uploadSummary.text()).toContain('Watcher / watcher-daemon / test-center');
+        expect(uploadSummary.text()).toContain('Quelle bereinigt - Bereinigt');
+        expect(wrapper.find('.upload-job-summary .badge.bg-success').exists()).toBe(true);
+        expect(wrapper.text()).toContain('Fertig');
+    });
     it('keeps the filename column identifiable for sticky horizontal scrolling', async () => {
         const wrapper = mount(AnonymizationOverviewComponent);
         await flushPromises();

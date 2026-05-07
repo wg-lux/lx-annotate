@@ -38,6 +38,16 @@ export interface VideoMeta {
   status: string
   assignedUser?: string | null
   anonymized: boolean
+  segmentAnnotationsValidated?: boolean
+  segmentAnnotationStatus?:
+    | 'not_started'
+    | 'cleanup_queued'
+    | 'cleanup_running'
+    | 'cleanup_failed'
+    | 'cleanup_required'
+    | 'validated'
+  outsideSegmentsRemoved?: boolean
+  postValidationRebuild?: Record<string, unknown> | null
 }
 export interface LabelMeta {
   id: number

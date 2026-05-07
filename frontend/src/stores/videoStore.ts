@@ -176,6 +176,28 @@ export interface VideoAnnotation {
   frameCount?: number
 }
 
+export type SegmentAnnotationStatus =
+  | 'not_started'
+  | 'cleanup_queued'
+  | 'cleanup_running'
+  | 'cleanup_failed'
+  | 'cleanup_required'
+  | 'validated'
+
+export interface PostValidationRebuildSummary {
+  id?: number | null
+  status?: string
+  taskId?: string
+  task_id?: string
+  details?: string
+  outputFile?: string
+  output_file?: string
+  createdAt?: string | null
+  created_at?: string | null
+  completedAt?: string | null
+  completed_at?: string | null
+}
+
 /**
  * Video metadata from backend
  */
@@ -186,6 +208,9 @@ export interface VideoMeta {
   assignedUser?: string | null
   anonymized: boolean
   segmentAnnotationsValidated?: boolean
+  segmentAnnotationStatus?: SegmentAnnotationStatus
+  outsideSegmentsRemoved?: boolean
+  postValidationRebuild?: PostValidationRebuildSummary | null
   duration?: number
   fps?: number
   hasROI?: boolean
@@ -1016,6 +1041,12 @@ export const useVideoStore = defineStore('video', () => {
           anonymized: video.anonymized || false,
           segmentAnnotationsValidated:
             video.segmentAnnotationsValidated ?? video.segment_annotations_validated ?? false,
+          segmentAnnotationStatus:
+            video.segmentAnnotationStatus ?? video.segment_annotation_status ?? 'not_started',
+          outsideSegmentsRemoved:
+            video.outsideSegmentsRemoved ?? video.outside_segments_removed ?? false,
+          postValidationRebuild:
+            video.postValidationRebuild ?? video.post_validation_rebuild ?? null,
           duration: video.duration !== undefined ? Number(video.duration) : undefined,
           fps: video.fps !== undefined ? Number(video.fps) : undefined,
           frameCount:

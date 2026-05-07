@@ -94,6 +94,7 @@ describe('Sidebar linked routes', () => {
             '/video-untersuchung',
             '/frame-annotation',
             '/model-training',
+            '/ai-dataset-buckets',
             '/reporting/case-setup',
             '/reporting',
             '/export',

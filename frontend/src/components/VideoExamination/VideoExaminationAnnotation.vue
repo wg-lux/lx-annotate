@@ -221,8 +221,17 @@
                 <span v-if="isValidatingSegments">
                   Validierung läuft für Video {{ validationRequestVideoId }}
                 </span>
+                <span
+                  v-else-if="
+                    activeValidationIndicatorVideoId &&
+                    isSegmentCleanupPending(activeValidationIndicatorVideoId)
+                  "
+                >
+                  Außerhalb-Frames werden für Video
+                  {{ activeValidationIndicatorVideoId }} geschwärzt
+                </span>
                 <span v-else>
-                  Das Video mit dieser ID wurde als validiert markiert
+                  Letzte Segmentvalidierung für Video
                   {{ lastValidationClickedVideoId }}
                 </span>
               </small>
@@ -357,6 +366,16 @@
                       <span v-if="savedExaminations.length > 0" class="badge bg-warning">
                         <i class="ni ni-user-run me-1"></i>
                         {{ savedExaminations.length }} Untersuchungen
+                      </span>
+                      <span
+                        v-if="
+                          selectedVideoId && getSegmentAnnotationStatusBadgeText(selectedVideoId)
+                        "
+                        class="badge"
+                        :class="getSegmentAnnotationStatusBadgeClass(selectedVideoId)"
+                      >
+                        <i class="ni ni-settings-gear-65 me-1"></i>
+                        {{ getSegmentAnnotationStatusBadgeText(selectedVideoId) }}
                       </span>
                     </div>
                   </div>
@@ -616,9 +635,7 @@
               <h6 class="mb-1">
                 <i class="ni ni-chart-bar-32 me-1"></i>
                 {{
-                  canMutateSelectedSegments
-                    ? 'Segmentbearbeitung aktiv'
-                    : 'Video bereits validiert'
+                  canMutateSelectedSegments ? 'Segmentbearbeitung aktiv' : 'Video bereits validiert'
                 }}
               </h6>
               <small class="text-muted">
@@ -660,14 +677,64 @@
             </button>
           </div>
 
-          <div v-else class="d-flex justify-content-center">
+          <div
+            v-else-if="selectedVideoId !== null && isSegmentCleanupPending(selectedVideoId)"
+            class="alert alert-info d-flex align-items-center validation-processing-alert"
+            data-test="segment-cleanup-processing"
+            role="status"
+            aria-live="polite"
+          >
+            <i class="ni ni-settings-gear-65 ni-2x me-3 text-info"></i>
+            <div class="validation-status-body">
+              <h6 class="mb-1">
+                <i class="ni ni-tv-2 me-1"></i>
+                Außerhalb-Frames werden geschwärzt
+              </h6>
+              <small class="text-muted">
+                Die Segmentprüfung ist gespeichert. Das Video wird erst als validiert angezeigt,
+                wenn die geschwärzten Outside-Frames erzeugt und geprüft wurden.
+              </small>
+            </div>
+          </div>
+
+          <div
+            v-else-if="selectedVideoId !== null && isSegmentCleanupFailed(selectedVideoId)"
+            class="alert alert-warning d-flex align-items-center validation-failed-alert"
+            data-test="segment-cleanup-failed"
+            role="alert"
+          >
+            <i class="ni ni-settings ni-2x me-3 text-warning"></i>
+            <div class="validation-status-body">
+              <h6 class="mb-1">Nachverarbeitung prüfen</h6>
+              <small class="text-muted">
+                Die Segmentvalidierung ist noch nicht abgeschlossen, weil die Outside-Frame-Prüfung
+                nicht erfolgreich war.
+                <span v-if="selectedPostValidationRebuildDetails">
+                  {{ selectedPostValidationRebuildDetails }}
+                </span>
+              </small>
+            </div>
+          </div>
+
+          <div
+            v-if="
+              selectedVideoId !== null &&
+              !isSegmentCleanupPending(selectedVideoId) &&
+              !isAnnotationFinished(selectedVideoId)
+            "
+            class="d-flex justify-content-center"
+          >
             <button
               class="btn validation-action-button d-inline-flex align-items-center justify-content-center gap-2"
               :class="{
                 'validation-action-button-clicked': selectedVideoId === validationRequestVideoId
               }"
               @click="handleValidateAndMark(selectedVideoId)"
-              :disabled="segmentSourceMode === 'prediction' || isValidatingSegments"
+              :disabled="
+                segmentSourceMode === 'prediction' ||
+                isValidatingSegments ||
+                isSegmentCleanupPending(selectedVideoId)
+              "
               :aria-busy="isValidatingSegments ? 'true' : 'false'"
             >
               <!-- Remove mark validated when keeping outside segments for training -->
@@ -679,7 +746,9 @@
                 {{
                   isValidatingSegments
                     ? 'Validierung läuft...'
-                    : `Alle Segmente validieren (${timelineSegmentsForSelectedVideo.length})`
+                    : selectedVideoId !== null && isSegmentCleanupFailed(selectedVideoId)
+                      ? `Validierung erneut starten (${timelineSegmentsForSelectedVideo.length})`
+                      : `Alle Segmente validieren (${timelineSegmentsForSelectedVideo.length})`
                 }}
               </span>
             </button>
@@ -714,7 +783,8 @@
             style="font-size: 0.9rem"
           >
             <i class="ni ni-user-run" style="font-size: 16px; vertical-align: middle"></i>
-            Markiert alle Segmente als überprüft und setzt Video-Status auf "Validiert"
+            Markiert alle Segmente als überprüft und startet die Nachverarbeitung: Outside-Frames
+            schwärzen und prüfen.
           </p>
         </div>
       </div>
@@ -798,6 +868,7 @@ import {
   useVideoStore,
   type PredictionModelMeta,
   type Segment,
+  type SegmentAnnotationStatus,
   type SegmentSourceKind,
   type Video
 } from '@/stores/videoStore'
@@ -861,6 +932,8 @@ type VideoDropdownStatus =
   | 'not_usable'
   | 'pending_anonymization_validation'
   | 'ready_for_annotation'
+  | 'annotation_cleanup_pending'
+  | 'annotation_cleanup_failed'
   | 'annotation_validated'
 type VideoDropdownFilter = 'all' | 'usable' | VideoDropdownStatus
 
@@ -870,11 +943,7 @@ const mediaStore = useMediaTypeStore()
 const authStore = useAuthKcStore()
 const videoStoreRefs = storeToRefs(videoStore)
 
-const {
-  videoList,
-  videoStreamUrl,
-  timelineSegments
-} = videoStoreRefs
+const { videoList, videoStreamUrl, timelineSegments } = videoStoreRefs
 const predictionModels = videoStoreRefs.predictionModels ?? ref<PredictionModelMeta[]>([])
 const defaultHuggingfaceModelId = videoStoreRefs.defaultHuggingfaceModelId ?? ref('')
 const defaultPredictionLabelsetName = videoStoreRefs.defaultPredictionLabelsetName ?? ref('')
@@ -910,12 +979,31 @@ function canViewProcessedVideo(videoId: number): boolean {
 }
 
 function canAnnotateSegments(videoId: number): boolean {
-  return getVideoOverviewItem(videoId)?.anonymizationStatus === 'validated' || isAnnotationFinished(videoId)
+  return (
+    getVideoOverviewItem(videoId)?.anonymizationStatus === 'validated' ||
+    isAnnotationFinished(videoId)
+  )
 }
 
 function isAnnotationFinished(videoId: number): boolean {
   const video = videoList.value.videos.find((v) => v.id === videoId)
   return Boolean(video?.segmentAnnotationsValidated)
+}
+
+function getVideoSegmentAnnotationStatus(videoId: number): SegmentAnnotationStatus {
+  const video = videoList.value.videos.find((v) => v.id === videoId)
+  if (video?.segmentAnnotationStatus) return video.segmentAnnotationStatus
+  return video?.segmentAnnotationsValidated ? 'validated' : 'not_started'
+}
+
+function isSegmentCleanupPending(videoId: number): boolean {
+  const status = getVideoSegmentAnnotationStatus(videoId)
+  return status === 'cleanup_queued' || status === 'cleanup_running'
+}
+
+function isSegmentCleanupFailed(videoId: number): boolean {
+  const status = getVideoSegmentAnnotationStatus(videoId)
+  return status === 'cleanup_failed' || status === 'cleanup_required'
 }
 
 // Reactive data
@@ -1201,10 +1289,15 @@ const isSelectedVideoViewable = computed(
 const canAnnotateSelectedVideo = computed(
   () => selectedVideoId.value != null && canAnnotateSegments(selectedVideoId.value)
 )
+const selectedPostValidationRebuildDetails = computed(() => {
+  const details = selectedVideo.value?.postValidationRebuild?.details
+  return typeof details === 'string' && details.trim() ? details.trim() : ''
+})
 const canBlackenOutsideSegments = computed(
   () =>
     selectedVideoId.value !== null &&
     canAnnotateSelectedVideo.value &&
+    !isSegmentCleanupPending(selectedVideoId.value) &&
     !outsideBlackeningRequestVideoIds.value.has(selectedVideoId.value)
 )
 
@@ -1221,6 +1314,14 @@ const videoDropdownFilterOptions = computed<Array<{ value: VideoDropdownFilter; 
     {
       value: 'ready_for_annotation',
       label: `Bereit (${getVideoCountByDropdownStatus('ready_for_annotation')})`
+    },
+    {
+      value: 'annotation_cleanup_pending',
+      label: `Validierung läuft (${getVideoCountByDropdownStatus('annotation_cleanup_pending')})`
+    },
+    {
+      value: 'annotation_cleanup_failed',
+      label: `Validierung prüfen (${getVideoCountByDropdownStatus('annotation_cleanup_failed')})`
     },
     {
       value: 'annotation_validated',
@@ -1295,6 +1396,7 @@ const hasSegmentEditOverride = computed(
 const canMutateSelectedSegments = computed(
   () =>
     canAnnotateSelectedVideo.value &&
+    (selectedVideoId.value === null || !isSegmentCleanupPending(selectedVideoId.value)) &&
     (!isSegmentReadOnlyByValidation.value || hasSegmentEditOverride.value)
 )
 
@@ -1456,6 +1558,7 @@ onMounted(async () => {
 
     // Step 3: Load videos after labels and anonymization status are available
     await videoStore.fetchAllVideos()
+    pollExistingSegmentCleanupVideos()
     console.log(`✅ [VideoExamination] Videos loaded: ${videoStore.videoList.videos.length}`)
     console.log(`✅ [VideoExamination] Annotatable videos: ${annotatableVideos.value.length}`)
 
@@ -2155,6 +2258,90 @@ const deleteExamination = async (examinationId: number): Promise<void> => {
   }
 }
 
+const sleep = (milliseconds: number): Promise<void> =>
+  new Promise((resolve) => window.setTimeout(resolve, milliseconds))
+
+const segmentValidationPollingPromises = new Map<number, Promise<void>>()
+
+type SegmentValidationResponseState = {
+  jobStatus: string
+  segmentAnnotationStatus: SegmentAnnotationStatus
+  message: string
+}
+
+const normalizeSegmentValidationResponse = (responseData: any): SegmentValidationResponseState => {
+  const postProcessingJob = responseData?.postProcessingJob ?? responseData?.post_processing_job
+  const segmentAnnotationStatus =
+    responseData?.segmentAnnotationStatus ?? responseData?.segment_annotation_status
+  return {
+    jobStatus: String(postProcessingJob?.status ?? responseData?.status ?? ''),
+    segmentAnnotationStatus: (segmentAnnotationStatus ?? 'not_started') as SegmentAnnotationStatus,
+    message: String(responseData?.error ?? responseData?.message ?? '')
+  }
+}
+
+const pollSegmentValidationStatus = (
+  videoId: number,
+  options: { showTerminalMessages?: boolean } = {}
+): Promise<void> => {
+  const existingPromise = segmentValidationPollingPromises.get(videoId)
+  if (existingPromise) return existingPromise
+
+  const showTerminalMessages = options.showTerminalMessages ?? true
+  const maxAttempts = 120
+  const intervalMs = 5000
+
+  const pollingPromise = (async () => {
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+      if (attempt > 0) {
+        await sleep(intervalMs)
+      }
+      await videoStore.fetchAllVideos()
+      const status = getVideoSegmentAnnotationStatus(videoId)
+      if (status === 'validated') {
+        videoRef.value?.load()
+        if (showTerminalMessages) {
+          showSuccessMessage('Segmentvalidierung abgeschlossen.')
+        }
+        return
+      }
+      if (status === 'cleanup_failed') {
+        const video = videoList.value.videos.find((v) => v.id === videoId)
+        const details = video?.postValidationRebuild?.details
+        if (showTerminalMessages) {
+          showErrorMessage(
+            `Segmentvalidierung fehlgeschlagen${details ? `: ${details}` : '.'}`,
+            'danger'
+          )
+        }
+        return
+      }
+      if (status === 'cleanup_required' || status === 'not_started') {
+        if (showTerminalMessages) {
+          showErrorMessage('Segmentvalidierung wartet auf die Nachverarbeitung.', 'danger')
+        }
+        return
+      }
+    }
+    if (showTerminalMessages) {
+      showSuccessMessage('Segmentvalidierung läuft weiter. Die Videoliste aktualisiert den Status.')
+    }
+  })().finally(() => {
+    segmentValidationPollingPromises.delete(videoId)
+  })
+
+  segmentValidationPollingPromises.set(videoId, pollingPromise)
+  return pollingPromise
+}
+
+const pollExistingSegmentCleanupVideos = (): void => {
+  videoList.value.videos
+    .filter((video) => isSegmentCleanupPending(video.id))
+    .forEach((video) => {
+      void pollSegmentValidationStatus(video.id, { showTerminalMessages: false })
+    })
+}
+
 // Validate all video segments (complete video review)
 const submitVideoSegments = async (videoId: number): Promise<void> => {
   if (segmentSourceMode.value === 'prediction') {
@@ -2224,10 +2411,30 @@ const submitVideoSegments = async (videoId: number): Promise<void> => {
     )
 
     console.log('✅ Validation response:', response.data)
+    const validationState = normalizeSegmentValidationResponse(response.data)
 
-    showSuccessMessage(
-      `Erfolgreich! ${response.data.updatedCount} von ${response.data.totalSegments ?? response.data.requestedCount} Segmenten validiert.`
-    )
+    if (
+      validationState.jobStatus === 'queued' ||
+      validationState.jobStatus === 'already_queued' ||
+      validationState.segmentAnnotationStatus === 'cleanup_queued' ||
+      validationState.segmentAnnotationStatus === 'cleanup_running'
+    ) {
+      showSuccessMessage('Segmentprüfung gespeichert. Nachverarbeitung läuft.')
+      await pollSegmentValidationStatus(videoId)
+    } else if (
+      validationState.jobStatus === 'failed' ||
+      validationState.segmentAnnotationStatus === 'cleanup_failed'
+    ) {
+      showErrorMessage(
+        `Validierung fehlgeschlagen${validationState.message ? `: ${validationState.message}` : '.'}`,
+        'danger'
+      )
+    } else {
+      showSuccessMessage(
+        `Erfolgreich! ${response.data.updatedCount} von ${response.data.totalSegments ?? response.data.requestedCount} Segmenten validiert.`
+      )
+      await videoStore.fetchAllVideos()
+    }
     lastValidationClickedVideoId.value = videoId
 
     // Reload segments to reflect validation status + updated times
@@ -2286,9 +2493,7 @@ const handleOutsideBlackeningResponseState = (
 
   if (jobStatus === 'completed') {
     videoRef.value?.load()
-    showSuccessMessage(
-      `Außerhalb-Segmente geschwärzt (${outsideSegmentCount} Segmente).`
-    )
+    showSuccessMessage(`Außerhalb-Segmente geschwärzt (${outsideSegmentCount} Segmente).`)
     return true
   }
 
@@ -2333,7 +2538,9 @@ const blackenOutsideSegmentsForSelectedVideo = async (): Promise<void> => {
   }
 
   if (!canAnnotateSegments(videoId)) {
-    showErrorMessage('Außerhalb-Segmente können erst nach validierter Anonymisierung geschwärzt werden.')
+    showErrorMessage(
+      'Außerhalb-Segmente können erst nach validierter Anonymisierung geschwärzt werden.'
+    )
     return
   }
 
@@ -2515,14 +2722,39 @@ const getVideoDropdownStatusText = (videoId: number): string => {
     return `Noch nicht nutzbar: ${getStatusText(getVideoAnonymizationStatus(videoId))}`
   }
   if (status === 'annotation_validated') return 'Video bereits validiert'
+  if (status === 'annotation_cleanup_pending') return 'Segmentvalidierung läuft'
+  if (status === 'annotation_cleanup_failed') return 'Segmentvalidierung prüfen'
   if (status === 'ready_for_annotation') return 'Video startklar für Befundung!'
   return 'Zurück zu Schritt 1 - Anonymisierung validieren'
+}
+
+const getSegmentAnnotationStatusBadgeText = (videoId: number): string => {
+  const status = getVideoSegmentAnnotationStatus(videoId)
+  if (status === 'cleanup_queued' || status === 'cleanup_running') {
+    return 'Außerhalb-Frames werden geschwärzt'
+  }
+  if (status === 'cleanup_failed') return 'Außerhalb-Frame-Prüfung fehlgeschlagen'
+  if (status === 'cleanup_required') return 'Außerhalb-Frame-Prüfung erforderlich'
+  if (status === 'validated' || isAnnotationFinished(videoId)) {
+    return 'Segmentvalidiert'
+  }
+  return ''
+}
+
+const getSegmentAnnotationStatusBadgeClass = (videoId: number): string => {
+  const status = getVideoSegmentAnnotationStatus(videoId)
+  if (status === 'cleanup_queued' || status === 'cleanup_running') return 'bg-info text-dark'
+  if (status === 'cleanup_failed' || status === 'cleanup_required') return 'bg-warning text-dark'
+  if (status === 'validated' || isAnnotationFinished(videoId)) return 'bg-success'
+  return 'bg-secondary'
 }
 
 const getVideoDropdownStatusBadgeClass = (videoId: number): string => {
   const status = getVideoDropdownStatus(videoId)
   if (status === 'not_usable') return 'badge-unusable'
   if (status === 'annotation_validated') return 'badge-validated'
+  if (status === 'annotation_cleanup_pending') return 'badge-cleanup'
+  if (status === 'annotation_cleanup_failed') return 'badge-pending'
   if (status === 'ready_for_annotation') return 'badge-ready'
   return 'badge-pending'
 }
@@ -2531,6 +2763,8 @@ const getVideoDropdownItemClass = (videoId: number): string => {
   const status = getVideoDropdownStatus(videoId)
   if (status === 'not_usable') return 'video-dropdown-item-unusable'
   if (status === 'annotation_validated') return 'video-dropdown-item-validated'
+  if (status === 'annotation_cleanup_pending') return 'video-dropdown-item-cleanup'
+  if (status === 'annotation_cleanup_failed') return 'video-dropdown-item-pending'
   if (status === 'ready_for_annotation') return 'video-dropdown-item-ready'
   return 'video-dropdown-item-pending'
 }
@@ -2540,6 +2774,13 @@ const getVideoDropdownStatus = (videoId: number): VideoDropdownStatus => {
   // filters decide visibility, while this resolver alone decides row color/text.
   if (!canViewProcessedVideo(videoId)) return 'not_usable'
   if (isAnnotationFinished(videoId)) return 'annotation_validated'
+  const segmentStatus = getVideoSegmentAnnotationStatus(videoId)
+  if (segmentStatus === 'cleanup_queued' || segmentStatus === 'cleanup_running') {
+    return 'annotation_cleanup_pending'
+  }
+  if (segmentStatus === 'cleanup_failed' || segmentStatus === 'cleanup_required') {
+    return 'annotation_cleanup_failed'
+  }
   return isVideoValidated(videoId) ? 'ready_for_annotation' : 'pending_anonymization_validation'
 }
 
@@ -2549,8 +2790,10 @@ function getVideoCountByDropdownStatus(status: VideoDropdownStatus): number {
 
 // ✅ NEW: Helper functions for video status display
 const getVideoStatusIndicator = (videoId: number): string => {
-  if (!canViewProcessedVideo(videoId)) return `Noch nicht nutzbar: ${getStatusText(getVideoAnonymizationStatus(videoId))}`
-  if (canAnnotateSegments(videoId) && isAnnotationFinished(videoId)) return 'Video bereits validiert'
+  if (!canViewProcessedVideo(videoId))
+    return `Noch nicht nutzbar: ${getStatusText(getVideoAnonymizationStatus(videoId))}`
+  if (canAnnotateSegments(videoId) && isAnnotationFinished(videoId))
+    return 'Video bereits validiert'
 
   const item = getVideoOverviewItem(videoId)
   if (!item) return ''
@@ -2917,6 +3160,11 @@ watch(
   color: #ffffff;
 }
 
+.badge-cleanup {
+  background: #0dcaf0;
+  color: #073642;
+}
+
 .badge-pending {
   background: #ffc107;
   color: #212529;
@@ -2958,6 +3206,10 @@ watch(
   border-left-color: #198754;
 }
 
+.video-dropdown-item-cleanup {
+  border-left-color: #0dcaf0;
+}
+
 .video-dropdown-item-pending {
   border-left-color: #ffc107;
 }
@@ -2969,6 +3221,16 @@ watch(
 .validation-status-alert {
   border-left: 4px solid #28a745;
   background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+}
+
+.validation-processing-alert {
+  border-left: 4px solid #0dcaf0;
+  background: #eefaff;
+}
+
+.validation-failed-alert {
+  border-left: 4px solid #ffc107;
+  background: #fff8e1;
 }
 
 .validation-status-alert .ni {

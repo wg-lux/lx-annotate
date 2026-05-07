@@ -1,3 +1,16 @@
+export interface UploadJobOverview {
+    id: string;
+    status: 'pending' | 'processing' | 'anonymized' | 'error' | 'lost' | string;
+    ingestMode?: 'api' | 'watcher' | string;
+    sourceSystem?: string;
+    sourceCenterKey?: string | null;
+    originalFilename?: string;
+    sourceFilePersisted?: boolean;
+    cleanupStatus?: 'pending' | 'eligible' | 'completed' | 'skipped' | string;
+    errorDetail?: string;
+    createdAt?: string | null;
+    updatedAt?: string | null;
+}
 export interface FileItem {
     id: number;
     filename: string;
@@ -9,6 +22,7 @@ export interface FileItem {
     metadataImported?: boolean;
     fileSize?: number | undefined;
     rawFile?: string;
+    uploadJob?: UploadJobOverview | null;
 }
 export interface AnonymizationState {
     anonymizationStatus: string;
@@ -67,6 +81,19 @@ export declare const availableFiles: import("vue").Ref<{
     metadataImported?: boolean | undefined;
     fileSize?: number | undefined;
     rawFile?: string | undefined;
+    uploadJob?: {
+        id: string;
+        status: 'pending' | 'processing' | 'anonymized' | 'error' | 'lost' | string;
+        ingestMode?: string | undefined;
+        sourceSystem?: string | undefined;
+        sourceCenterKey?: string | null | undefined;
+        originalFilename?: string | undefined;
+        sourceFilePersisted?: boolean | undefined;
+        cleanupStatus?: string | undefined;
+        errorDetail?: string | undefined;
+        createdAt?: string | null | undefined;
+        updatedAt?: string | null | undefined;
+    } | null | undefined;
 }[], FileItem[] | {
     id: number;
     filename: string;
@@ -78,6 +105,19 @@ export declare const availableFiles: import("vue").Ref<{
     metadataImported?: boolean | undefined;
     fileSize?: number | undefined;
     rawFile?: string | undefined;
+    uploadJob?: {
+        id: string;
+        status: 'pending' | 'processing' | 'anonymized' | 'error' | 'lost' | string;
+        ingestMode?: string | undefined;
+        sourceSystem?: string | undefined;
+        sourceCenterKey?: string | null | undefined;
+        originalFilename?: string | undefined;
+        sourceFilePersisted?: boolean | undefined;
+        cleanupStatus?: string | undefined;
+        errorDetail?: string | undefined;
+        createdAt?: string | null | undefined;
+        updatedAt?: string | null | undefined;
+    } | null | undefined;
 }[]>;
 export declare const useAnonymizationStore: import("pinia").StoreDefinition<"anonymization", AnonymizationState, {
     getCurrentItem: (state: {
@@ -129,6 +169,19 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
             metadataImported?: boolean | undefined;
             fileSize?: number | undefined;
             rawFile?: string | undefined;
+            uploadJob?: {
+                id: string;
+                status: 'pending' | 'processing' | 'anonymized' | 'error' | 'lost' | string;
+                ingestMode?: string | undefined;
+                sourceSystem?: string | undefined;
+                sourceCenterKey?: string | null | undefined;
+                originalFilename?: string | undefined;
+                sourceFilePersisted?: boolean | undefined;
+                cleanupStatus?: string | undefined;
+                errorDetail?: string | undefined;
+                createdAt?: string | null | undefined;
+                updatedAt?: string | null | undefined;
+            } | null | undefined;
         }[];
         pollingHandles: Record<number, ReturnType<typeof setInterval>>;
         isPolling: boolean;
@@ -144,6 +197,19 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
             metadataImported?: boolean | undefined;
             fileSize?: number | undefined;
             rawFile?: string | undefined;
+            uploadJob?: {
+                id: string;
+                status: 'pending' | 'processing' | 'anonymized' | 'error' | 'lost' | string;
+                ingestMode?: string | undefined;
+                sourceSystem?: string | undefined;
+                sourceCenterKey?: string | null | undefined;
+                originalFilename?: string | undefined;
+                sourceFilePersisted?: boolean | undefined;
+                cleanupStatus?: string | undefined;
+                errorDetail?: string | undefined;
+                createdAt?: string | null | undefined;
+                updatedAt?: string | null | undefined;
+            } | null | undefined;
         }[];
         needsValidationIds: number[];
     } & import("pinia").PiniaCustomStateProperties<AnonymizationState>) => {
@@ -228,6 +294,19 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
             metadataImported?: boolean | undefined;
             fileSize?: number | undefined;
             rawFile?: string | undefined;
+            uploadJob?: {
+                id: string;
+                status: 'pending' | 'processing' | 'anonymized' | 'error' | 'lost' | string;
+                ingestMode?: string | undefined;
+                sourceSystem?: string | undefined;
+                sourceCenterKey?: string | null | undefined;
+                originalFilename?: string | undefined;
+                sourceFilePersisted?: boolean | undefined;
+                cleanupStatus?: string | undefined;
+                errorDetail?: string | undefined;
+                createdAt?: string | null | undefined;
+                updatedAt?: string | null | undefined;
+            } | null | undefined;
         }[];
         pollingHandles: Record<number, ReturnType<typeof setInterval>>;
         isPolling: boolean;
@@ -243,6 +322,19 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
             metadataImported?: boolean | undefined;
             fileSize?: number | undefined;
             rawFile?: string | undefined;
+            uploadJob?: {
+                id: string;
+                status: 'pending' | 'processing' | 'anonymized' | 'error' | 'lost' | string;
+                ingestMode?: string | undefined;
+                sourceSystem?: string | undefined;
+                sourceCenterKey?: string | null | undefined;
+                originalFilename?: string | undefined;
+                sourceFilePersisted?: boolean | undefined;
+                cleanupStatus?: string | undefined;
+                errorDetail?: string | undefined;
+                createdAt?: string | null | undefined;
+                updatedAt?: string | null | undefined;
+            } | null | undefined;
         }[];
         needsValidationIds: number[];
     } & import("pinia").PiniaCustomStateProperties<AnonymizationState>) => boolean;
@@ -295,6 +387,19 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
             metadataImported?: boolean | undefined;
             fileSize?: number | undefined;
             rawFile?: string | undefined;
+            uploadJob?: {
+                id: string;
+                status: 'pending' | 'processing' | 'anonymized' | 'error' | 'lost' | string;
+                ingestMode?: string | undefined;
+                sourceSystem?: string | undefined;
+                sourceCenterKey?: string | null | undefined;
+                originalFilename?: string | undefined;
+                sourceFilePersisted?: boolean | undefined;
+                cleanupStatus?: string | undefined;
+                errorDetail?: string | undefined;
+                createdAt?: string | null | undefined;
+                updatedAt?: string | null | undefined;
+            } | null | undefined;
         }[];
         pollingHandles: Record<number, ReturnType<typeof setInterval>>;
         isPolling: boolean;
@@ -310,6 +415,19 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
             metadataImported?: boolean | undefined;
             fileSize?: number | undefined;
             rawFile?: string | undefined;
+            uploadJob?: {
+                id: string;
+                status: 'pending' | 'processing' | 'anonymized' | 'error' | 'lost' | string;
+                ingestMode?: string | undefined;
+                sourceSystem?: string | undefined;
+                sourceCenterKey?: string | null | undefined;
+                originalFilename?: string | undefined;
+                sourceFilePersisted?: boolean | undefined;
+                cleanupStatus?: string | undefined;
+                errorDetail?: string | undefined;
+                createdAt?: string | null | undefined;
+                updatedAt?: string | null | undefined;
+            } | null | undefined;
         }[];
         needsValidationIds: number[];
     } & import("pinia").PiniaCustomStateProperties<AnonymizationState>) => {
@@ -323,6 +441,19 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
         metadataImported?: boolean | undefined;
         fileSize?: number | undefined;
         rawFile?: string | undefined;
+        uploadJob?: {
+            id: string;
+            status: 'pending' | 'processing' | 'anonymized' | 'error' | 'lost' | string;
+            ingestMode?: string | undefined;
+            sourceSystem?: string | undefined;
+            sourceCenterKey?: string | null | undefined;
+            originalFilename?: string | undefined;
+            sourceFilePersisted?: boolean | undefined;
+            cleanupStatus?: string | undefined;
+            errorDetail?: string | undefined;
+            createdAt?: string | null | undefined;
+            updatedAt?: string | null | undefined;
+        } | null | undefined;
     }[];
     getState: (state: {
         anonymizationStatus: string;
@@ -373,6 +504,19 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
             metadataImported?: boolean | undefined;
             fileSize?: number | undefined;
             rawFile?: string | undefined;
+            uploadJob?: {
+                id: string;
+                status: 'pending' | 'processing' | 'anonymized' | 'error' | 'lost' | string;
+                ingestMode?: string | undefined;
+                sourceSystem?: string | undefined;
+                sourceCenterKey?: string | null | undefined;
+                originalFilename?: string | undefined;
+                sourceFilePersisted?: boolean | undefined;
+                cleanupStatus?: string | undefined;
+                errorDetail?: string | undefined;
+                createdAt?: string | null | undefined;
+                updatedAt?: string | null | undefined;
+            } | null | undefined;
         }[];
         pollingHandles: Record<number, ReturnType<typeof setInterval>>;
         isPolling: boolean;
@@ -388,6 +532,19 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
             metadataImported?: boolean | undefined;
             fileSize?: number | undefined;
             rawFile?: string | undefined;
+            uploadJob?: {
+                id: string;
+                status: 'pending' | 'processing' | 'anonymized' | 'error' | 'lost' | string;
+                ingestMode?: string | undefined;
+                sourceSystem?: string | undefined;
+                sourceCenterKey?: string | null | undefined;
+                originalFilename?: string | undefined;
+                sourceFilePersisted?: boolean | undefined;
+                cleanupStatus?: string | undefined;
+                errorDetail?: string | undefined;
+                createdAt?: string | null | undefined;
+                updatedAt?: string | null | undefined;
+            } | null | undefined;
         }[];
         needsValidationIds: number[];
     } & import("pinia").PiniaCustomStateProperties<AnonymizationState>) => {
@@ -439,6 +596,19 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
             metadataImported?: boolean | undefined;
             fileSize?: number | undefined;
             rawFile?: string | undefined;
+            uploadJob?: {
+                id: string;
+                status: 'pending' | 'processing' | 'anonymized' | 'error' | 'lost' | string;
+                ingestMode?: string | undefined;
+                sourceSystem?: string | undefined;
+                sourceCenterKey?: string | null | undefined;
+                originalFilename?: string | undefined;
+                sourceFilePersisted?: boolean | undefined;
+                cleanupStatus?: string | undefined;
+                errorDetail?: string | undefined;
+                createdAt?: string | null | undefined;
+                updatedAt?: string | null | undefined;
+            } | null | undefined;
         }[];
         pollingHandles: Record<number, ReturnType<typeof setInterval>>;
         isPolling: boolean;
@@ -454,6 +624,19 @@ export declare const useAnonymizationStore: import("pinia").StoreDefinition<"ano
             metadataImported?: boolean | undefined;
             fileSize?: number | undefined;
             rawFile?: string | undefined;
+            uploadJob?: {
+                id: string;
+                status: 'pending' | 'processing' | 'anonymized' | 'error' | 'lost' | string;
+                ingestMode?: string | undefined;
+                sourceSystem?: string | undefined;
+                sourceCenterKey?: string | null | undefined;
+                originalFilename?: string | undefined;
+                sourceFilePersisted?: boolean | undefined;
+                cleanupStatus?: string | undefined;
+                errorDetail?: string | undefined;
+                createdAt?: string | null | undefined;
+                updatedAt?: string | null | undefined;
+            } | null | undefined;
         }[];
         needsValidationIds: number[];
     } & import("pinia").PiniaCustomStateProperties<AnonymizationState>;

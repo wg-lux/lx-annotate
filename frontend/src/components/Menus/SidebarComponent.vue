@@ -122,6 +122,14 @@
                 <span class="nav-link-text ms-1">2c. Model Training</span>
               </router-link>
             </li>
+            <li class="nav-item">
+              <router-link to="/ai-dataset-buckets" class="nav-link" :class="{ active: $route.path === '/ai-dataset-buckets' }">
+                <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
+                  <i class="ni ni-chart-pie-35 opacity-10"></i>
+                </div>
+                <span class="nav-link-text ms-1">2d. Dataset Buckets</span>
+              </router-link>
+            </li>
 
             <li class="nav-item">
               <router-link

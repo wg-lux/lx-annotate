@@ -94,6 +94,14 @@ const router = createRouter({
             }
         },
         {
+            path: '/ai-dataset-buckets',
+            name: 'AI Dataset Buckets',
+            component: () => import('@/views/AiDatasetBucketsPage.vue'),
+            meta: {
+                description: 'Aktuelle Frame-Bucket-Verteilung der AI-Datensätze prüfen.'
+            }
+        },
+        {
             path: '/',
             name: 'Dashboard',
             component: () => import('@/views/Dashboard.vue'),
