@@ -102,6 +102,14 @@ const router = createRouter({
             }
         },
         {
+            path: '/ai-dataset-settings',
+            name: 'AI Dataset Settings',
+            component: () => import('@/views/AiDatasetSettingsPage.vue'),
+            meta: {
+                description: 'Training-Manifest-Konfiguration für AI-Datensätze verwalten.'
+            }
+        },
+        {
             path: '/',
             name: 'Dashboard',
             component: () => import('@/views/Dashboard.vue'),

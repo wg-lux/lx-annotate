@@ -1,0 +1,531 @@
+<template>
+  <div class="dataset-settings-page container-fluid py-4 px-3 px-lg-4">
+    <section class="page-heading">
+      <div>
+        <p class="section-kicker">AI Dataset</p>
+        <h1>Training Manifest Settings</h1>
+      </div>
+      <button
+        type="button"
+        class="btn btn-outline-secondary btn-sm"
+        :disabled="loadingOptions || buildingManifest"
+        data-test="reload-options"
+        @click="loadOptions"
+      >
+        Reload
+      </button>
+    </section>
+
+    <div class="settings-layout">
+      <section class="settings-panel">
+        <div class="panel-heading">
+          <h2>Dataset</h2>
+          <span class="status-chip" :class="{ 'status-chip-busy': loadingOptions || buildingManifest }">
+            {{ statusLabel }}
+          </span>
+        </div>
+
+        <div class="settings-grid">
+          <label class="field-group">
+            <span>AI Dataset</span>
+            <select
+              v-model="selectedDatasetId"
+              class="form-select"
+              data-test="dataset-select"
+              :disabled="loadingOptions || buildingManifest"
+            >
+              <option value="">Select dataset</option>
+              <option v-for="dataset in datasetOptions" :key="dataset.id" :value="String(dataset.id)">
+                {{ dataset.label }} - {{ dataset.datasetType }} - ID {{ dataset.id }}
+              </option>
+            </select>
+          </label>
+
+          <label class="field-group">
+            <span>Label Set</span>
+            <select
+              v-model="form.labelSetId"
+              class="form-select"
+              data-test="label-set-select"
+              :disabled="loadingOptions || buildingManifest"
+            >
+              <option value="">Auto-detect</option>
+              <option v-for="group in labelSetOptions" :key="group.id" :value="String(group.id)">
+                {{ group.name }} v{{ group.version }} - {{ group.labelCount }} Labels
+              </option>
+            </select>
+          </label>
+
+          <label class="field-group">
+            <span>Current Preprocessing</span>
+            <select
+              v-model="form.preprocessingStrategy"
+              class="form-select"
+              data-test="preprocessing-strategy-select"
+              :disabled="buildingManifest"
+            >
+              <option value="preserve_dimensions_black_mask">Preserve dimensions with black mask</option>
+              <option value="crop_to_endoscope_roi">Crop endoscope ROI</option>
+            </select>
+          </label>
+
+          <label class="field-group">
+            <span>Model Input</span>
+            <select
+              v-model="form.recommendedModelInputStrategy"
+              class="form-select"
+              data-test="model-input-strategy-select"
+              :disabled="buildingManifest"
+            >
+              <option value="crop_to_endoscope_roi">Crop endoscope ROI</option>
+              <option value="preserve_dimensions_black_mask">Preserve dimensions with black mask</option>
+            </select>
+          </label>
+
+          <label class="field-group">
+            <span>Information Sources</span>
+            <input
+              v-model="informationSourceInput"
+              class="form-control"
+              data-test="information-source-input"
+              :disabled="buildingManifest"
+              placeholder="manual_annotation, prediction"
+            />
+          </label>
+
+          <div class="check-column">
+            <label class="check-row">
+              <input
+                v-model="form.treatUnlabeledAsNegative"
+                class="form-check-input"
+                type="checkbox"
+                data-test="unknowns-negative-checkbox"
+                :disabled="buildingManifest"
+              />
+              <span>Train unknowns as negative</span>
+            </label>
+            <label class="check-row">
+              <input
+                v-model="form.checkFrameFormat"
+                class="form-check-input"
+                type="checkbox"
+                data-test="check-frame-format-checkbox"
+                :disabled="buildingManifest"
+              />
+              <span>Check frame format</span>
+            </label>
+            <label class="check-row">
+              <input
+                v-model="form.includeFilePaths"
+                class="form-check-input"
+                type="checkbox"
+                data-test="include-file-paths-checkbox"
+                :disabled="buildingManifest"
+              />
+              <span>Include local file paths</span>
+            </label>
+          </div>
+        </div>
+
+        <div v-if="errorMessage" class="alert alert-warning mb-0 mt-3" role="alert">
+          {{ errorMessage }}
+        </div>
+
+        <div class="actions-row">
+          <button
+            type="button"
+            class="btn btn-primary"
+            data-test="build-training-manifest"
+            :disabled="buildingManifest || !selectedDatasetId"
+            @click="buildManifest"
+          >
+            {{ buildingManifest ? 'Building manifest...' : 'Preview manifest' }}
+          </button>
+          <button
+            type="button"
+            class="btn btn-outline-secondary"
+            :disabled="buildingManifest"
+            @click="resetManifest"
+          >
+            Reset result
+          </button>
+        </div>
+      </section>
+
+      <section class="settings-panel summary-panel">
+        <div class="panel-heading">
+          <h2>Manifest Summary</h2>
+          <span v-if="manifestPreview" class="status-chip status-chip-ready" data-test="manifest-ready">
+            {{ manifestPreview.summary.sampleCount }} Samples
+          </span>
+        </div>
+
+        <div v-if="!manifestPreview" class="empty-state">
+          No manifest preview yet.
+        </div>
+
+        <template v-else>
+          <div class="summary-grid" data-test="manifest-summary">
+            <div class="metric-tile">
+              <span>Labels</span>
+              <strong>{{ manifestPreview.summary.labelCount }}</strong>
+            </div>
+            <div class="metric-tile">
+              <span>Samples</span>
+              <strong>{{ manifestPreview.summary.sampleCount }}</strong>
+            </div>
+            <div class="metric-tile">
+              <span>Frame Check</span>
+              <strong>{{ frameFormatLabel }}</strong>
+            </div>
+            <div class="metric-tile">
+              <span>Crop Templates</span>
+              <strong>{{ cropTemplateCount }}</strong>
+            </div>
+          </div>
+
+          <dl class="format-list" data-test="frame-format-summary">
+            <div>
+              <dt>Format</dt>
+              <dd>{{ frameFormatDetail }}</dd>
+            </div>
+            <div>
+              <dt>Preprocessing</dt>
+              <dd>{{ strategyLabel(manifestPreview.summary.frameFormat.preprocessingStrategy) }}</dd>
+            </div>
+            <div>
+              <dt>Model Input</dt>
+              <dd>{{ strategyLabel(manifestPreview.summary.frameFormat.recommendedModelInputStrategy) }}</dd>
+            </div>
+          </dl>
+
+          <details class="manifest-json">
+            <summary>lx-ai-core payload</summary>
+            <pre data-test="lx-ai-core-manifest-json">{{ lxAiCoreManifestJson }}</pre>
+          </details>
+        </template>
+      </section>
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import {
+  buildAiDatasetTrainingManifest,
+  fetchAiDatasetLabelSets,
+  fetchAiDatasetOptions,
+  type AiDatasetFrameFormatStrategy,
+  type AiDatasetLabelSetOption,
+  type AiDatasetOption,
+  type AiDatasetTrainingManifestConfig,
+  type AiDatasetTrainingManifestPreview
+} from '@/api/aiDatasetApi'
+import { computed, onMounted, reactive, ref } from 'vue'
+
+const datasetOptions = ref<AiDatasetOption[]>([])
+const labelSetOptions = ref<AiDatasetLabelSetOption[]>([])
+const selectedDatasetId = ref('')
+const loadingOptions = ref(true)
+const buildingManifest = ref(false)
+const errorMessage = ref('')
+const manifestPreview = ref<AiDatasetTrainingManifestPreview | null>(null)
+const informationSourceInput = ref('')
+
+const form = reactive<AiDatasetTrainingManifestConfig>({
+  labelSetId: '',
+  treatUnlabeledAsNegative: false,
+  includeFilePaths: false,
+  checkFrameFormat: true,
+  preprocessingStrategy: 'preserve_dimensions_black_mask',
+  recommendedModelInputStrategy: 'crop_to_endoscope_roi',
+  informationSourceNames: null
+})
+
+const statusLabel = computed(() => {
+  if (loadingOptions.value) return 'Loading options'
+  if (buildingManifest.value) return 'Building preview'
+  return 'Ready'
+})
+
+const frameFormatLabel = computed(() => {
+  const status = manifestPreview.value?.summary.frameFormat.status
+  if (status === 'passed') return 'Passed'
+  if (status === 'failed') return 'Failed'
+  return 'Not checked'
+})
+
+const frameFormatDetail = computed(() => {
+  const frameFormat = manifestPreview.value?.summary.frameFormat
+  if (!frameFormat || frameFormat.status === 'not_checked') return 'Not checked'
+  const dimensions =
+    frameFormat.expectedWidth && frameFormat.expectedHeight
+      ? `${frameFormat.expectedWidth} x ${frameFormat.expectedHeight}`
+      : 'Unknown dimensions'
+  return `${frameFormat.expectedImageFormat || 'Unknown format'} - ${dimensions} - ${
+    frameFormat.expectedMode || 'Unknown mode'
+  }`
+})
+
+const cropTemplateCount = computed(() => {
+  const templates = manifestPreview.value?.summary.frameFormat.cropTemplatesByVideoUuid ?? {}
+  return Object.values(templates).filter((template) => Array.isArray(template)).length
+})
+
+const lxAiCoreManifestJson = computed(() => {
+  if (!manifestPreview.value) return ''
+  return JSON.stringify(manifestPreview.value.lxAiCoreManifest, null, 2)
+})
+
+function strategyLabel(strategy: AiDatasetFrameFormatStrategy): string {
+  if (strategy === 'crop_to_endoscope_roi') return 'Crop endoscope ROI'
+  return 'Preserve dimensions with black mask'
+}
+
+function normalizedInformationSourceNames(): string[] | null {
+  const names = informationSourceInput.value
+    .split(',')
+    .map((name) => name.trim())
+    .filter(Boolean)
+  return names.length ? names : null
+}
+
+async function loadOptions(): Promise<void> {
+  loadingOptions.value = true
+  errorMessage.value = ''
+  try {
+    const [datasets, labelSets] = await Promise.all([
+      fetchAiDatasetOptions(),
+      fetchAiDatasetLabelSets()
+    ])
+    datasetOptions.value = datasets
+    labelSetOptions.value = labelSets
+    if (!selectedDatasetId.value) {
+      const imageDataset =
+        datasets.find((dataset) => dataset.datasetType === 'image' && dataset.isActive) ??
+        datasets.find((dataset) => dataset.datasetType === 'image') ??
+        datasets[0]
+      selectedDatasetId.value = imageDataset ? String(imageDataset.id) : ''
+    }
+  } catch (error) {
+    console.error('Failed to load AI dataset manifest options:', error)
+    errorMessage.value = 'Dataset options could not be loaded.'
+  } finally {
+    loadingOptions.value = false
+  }
+}
+
+async function buildManifest(): Promise<void> {
+  if (!selectedDatasetId.value) return
+
+  buildingManifest.value = true
+  errorMessage.value = ''
+  manifestPreview.value = null
+  try {
+    manifestPreview.value = await buildAiDatasetTrainingManifest(selectedDatasetId.value, {
+      ...form,
+      labelSetId: form.labelSetId || null,
+      informationSourceNames: normalizedInformationSourceNames()
+    })
+  } catch (error: any) {
+    console.error('Failed to build AI dataset training manifest:', error)
+    const errors = error?.response?.data?.errors
+    errorMessage.value =
+      errors?.manifest ||
+      errors?.labelSetId ||
+      errors?.preprocessingStrategy ||
+      errors?.recommendedModelInputStrategy ||
+      'The manifest could not be created with this configuration.'
+  } finally {
+    buildingManifest.value = false
+  }
+}
+
+function resetManifest(): void {
+  manifestPreview.value = null
+  errorMessage.value = ''
+}
+
+onMounted(() => {
+  void loadOptions()
+})
+</script>
+
+<style scoped>
+.dataset-settings-page {
+  color: #172337;
+}
+
+.page-heading,
+.panel-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.page-heading {
+  margin-bottom: 1rem;
+}
+
+.section-kicker {
+  margin: 0 0 0.35rem;
+  color: #2f6f94;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.page-heading h1,
+.panel-heading h2 {
+  margin: 0;
+}
+
+.page-heading h1 {
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+.panel-heading h2 {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.settings-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(20rem, 0.9fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.settings-panel,
+.empty-state {
+  border: 1px solid #d9e2ec;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 1rem;
+}
+
+.settings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.field-group {
+  display: grid;
+  gap: 0.35rem;
+  color: #334155;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.check-column {
+  display: grid;
+  gap: 0.65rem;
+  align-content: center;
+}
+
+.check-row {
+  display: flex;
+  gap: 0.55rem;
+  align-items: center;
+  margin: 0;
+  color: #334155;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.actions-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.status-chip {
+  border-radius: 999px;
+  background: #eef3f8;
+  color: #476176;
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 0.25rem 0.65rem;
+  white-space: nowrap;
+}
+
+.status-chip-ready {
+  background: #e7f7ef;
+  color: #20724d;
+}
+
+.status-chip-busy {
+  background: #fff6de;
+  color: #8a620f;
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+  gap: 0.75rem;
+  margin: 1rem 0;
+}
+
+.metric-tile {
+  border: 1px solid #e0e7ef;
+  border-radius: 8px;
+  padding: 0.8rem;
+}
+
+.metric-tile span,
+.format-list dt {
+  color: #64748b;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.metric-tile strong {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 1.35rem;
+}
+
+.format-list {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0 0 1rem;
+}
+
+.format-list div {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.format-list dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.manifest-json summary {
+  cursor: pointer;
+  font-weight: 700;
+  margin-bottom: 0.75rem;
+}
+
+.manifest-json pre {
+  max-height: 28rem;
+  overflow: auto;
+  border-radius: 8px;
+  background: #101828;
+  color: #e5edf7;
+  padding: 1rem;
+  white-space: pre-wrap;
+}
+
+@media (max-width: 991.98px) {
+  .settings-layout {
+    grid-template-columns: 1fr;
+  }
+}
+</style>

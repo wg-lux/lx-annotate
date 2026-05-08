@@ -69,6 +69,46 @@ export interface AiDatasetFrameBucketDistributionParams {
     targetLabelId?: number | string | null;
     predictionSegmentsOnly?: boolean;
 }
+export type AiDatasetFrameFormatStrategy = 'preserve_dimensions_black_mask' | 'crop_to_endoscope_roi';
+export interface AiDatasetTrainingManifestConfig {
+    labelSetId?: number | string | null;
+    treatUnlabeledAsNegative: boolean;
+    includeFilePaths: boolean;
+    checkFrameFormat: boolean;
+    preprocessingStrategy: AiDatasetFrameFormatStrategy;
+    recommendedModelInputStrategy: AiDatasetFrameFormatStrategy;
+    informationSourceNames?: string[] | null;
+}
+export interface AiDatasetFrameFormatSummary {
+    checkRequired: boolean;
+    status: 'not_checked' | 'passed' | 'failed';
+    checkedFrameCount: number;
+    expectedImageFormat: string | null;
+    expectedWidth: number | null;
+    expectedHeight: number | null;
+    expectedMode: string | null;
+    preprocessingStrategy: AiDatasetFrameFormatStrategy;
+    recommendedModelInputStrategy: AiDatasetFrameFormatStrategy;
+    cropTemplatesByVideoUuid: Record<string, number[] | null>;
+    notes: string[];
+    errors: string[];
+}
+export interface AiDatasetTrainingManifestPreview {
+    datasetId: number;
+    datasetName: string | null;
+    datasetType: string;
+    aiModelType: string;
+    config: AiDatasetTrainingManifestConfig;
+    summary: {
+        labelCount: number;
+        sampleCount: number;
+        classFrequencies: number[] | null;
+        frameFormat: AiDatasetFrameFormatSummary;
+    };
+    manifest: Record<string, unknown>;
+    lxAiCoreManifest: Record<string, unknown>;
+}
 export declare function fetchAiDatasetOptions(): Promise<AiDatasetOption[]>;
 export declare function fetchAiDatasetLabelSets(): Promise<AiDatasetLabelSetOption[]>;
 export declare function fetchAiDatasetFrameBucketDistribution(datasetId: number | string, params?: AiDatasetFrameBucketDistributionParams): Promise<AiDatasetFrameBucketDistribution>;
+export declare function buildAiDatasetTrainingManifest(datasetId: number | string, config: AiDatasetTrainingManifestConfig): Promise<AiDatasetTrainingManifestPreview>;

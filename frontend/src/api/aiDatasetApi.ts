@@ -80,9 +80,56 @@ export interface AiDatasetFrameBucketDistributionParams {
   predictionSegmentsOnly?: boolean
 }
 
+export type AiDatasetFrameFormatStrategy =
+  | 'preserve_dimensions_black_mask'
+  | 'crop_to_endoscope_roi'
+
+export interface AiDatasetTrainingManifestConfig {
+  labelSetId?: number | string | null
+  treatUnlabeledAsNegative: boolean
+  includeFilePaths: boolean
+  checkFrameFormat: boolean
+  preprocessingStrategy: AiDatasetFrameFormatStrategy
+  recommendedModelInputStrategy: AiDatasetFrameFormatStrategy
+  informationSourceNames?: string[] | null
+}
+
+export interface AiDatasetFrameFormatSummary {
+  checkRequired: boolean
+  status: 'not_checked' | 'passed' | 'failed'
+  checkedFrameCount: number
+  expectedImageFormat: string | null
+  expectedWidth: number | null
+  expectedHeight: number | null
+  expectedMode: string | null
+  preprocessingStrategy: AiDatasetFrameFormatStrategy
+  recommendedModelInputStrategy: AiDatasetFrameFormatStrategy
+  cropTemplatesByVideoUuid: Record<string, number[] | null>
+  notes: string[]
+  errors: string[]
+}
+
+export interface AiDatasetTrainingManifestPreview {
+  datasetId: number
+  datasetName: string | null
+  datasetType: string
+  aiModelType: string
+  config: AiDatasetTrainingManifestConfig
+  summary: {
+    labelCount: number
+    sampleCount: number
+    classFrequencies: number[] | null
+    frameFormat: AiDatasetFrameFormatSummary
+  }
+  manifest: Record<string, unknown>
+  lxAiCoreManifest: Record<string, unknown>
+}
+
 const AI_DATASETS_DROPDOWN_PATH = 'settings/application/dropdowns/ai_datasets/'
 const frameBucketDistributionPath = (datasetId: number | string) =>
   `settings/application/ai_datasets/${datasetId}/frame_bucket_distribution/`
+const trainingManifestPath = (datasetId: number | string) =>
+  `settings/application/ai_datasets/${datasetId}/training_manifest/`
 
 export async function fetchAiDatasetOptions(): Promise<AiDatasetOption[]> {
   const { data } = await axiosInstance.get<AiDatasetOption[]>(r(AI_DATASETS_DROPDOWN_PATH))
@@ -112,6 +159,17 @@ export async function fetchAiDatasetFrameBucketDistribution(
             : String(params.predictionSegmentsOnly)
       }
     }
+  )
+  return data
+}
+
+export async function buildAiDatasetTrainingManifest(
+  datasetId: number | string,
+  config: AiDatasetTrainingManifestConfig
+): Promise<AiDatasetTrainingManifestPreview> {
+  const { data } = await axiosInstance.post<AiDatasetTrainingManifestPreview>(
+    r(trainingManifestPath(datasetId)),
+    config
   )
   return data
 }

@@ -107,6 +107,7 @@ describe('Sidebar linked routes', () => {
       '/frame-annotation',
       '/model-training',
       '/ai-dataset-buckets',
+      '/ai-dataset-settings',
       '/reporting/case-setup',
       '/reporting',
       '/export',
