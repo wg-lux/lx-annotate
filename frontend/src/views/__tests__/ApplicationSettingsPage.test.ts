@@ -149,6 +149,15 @@ describe('ApplicationSettingsPage', () => {
           aiModelType: 'image_multilabel_classification',
           isActive: true,
           nameCount: 1
+        },
+        {
+          id: 101,
+          value: 'dataset_beta',
+          label: 'dataset_beta',
+          datasetType: 'video',
+          aiModelType: 'video_segment_classification',
+          isActive: true,
+          nameCount: 1
         }
       ]
     })
@@ -183,10 +192,16 @@ describe('ApplicationSettingsPage', () => {
 
     hoisted.triggerApplicationAiDatasetExport.mockResolvedValue({
       success: true,
+      artifactId: 'artifact-100',
       datasetId: 100,
       datasetName: 'dataset_alpha',
       datasetType: 'image',
       outputPath: '/srv/export/ai_datasets/dataset_alpha_image_20260330T120000Z.json',
+      downloadUrl: '/api/settings/application/ai_dataset_export/artifact-100/download/',
+      sha256: 'a'.repeat(64),
+      byteSize: 2048,
+      status: 'completed',
+      error: null,
       summary: {
         imageAnnotationCount: 0,
         videoAnnotationCount: 0,
@@ -242,8 +257,7 @@ describe('ApplicationSettingsPage', () => {
     await wrapper.get('[data-test=\"processor-select\"]').setValue('11')
     await wrapper.get('[data-test=\"annotator-select\"]').setValue('annotator_b')
     await wrapper.get('[data-test=\"report-template-select\"]').setValue('template_b')
-    await wrapper.get('[data-test=\"ai-dataset-name-input\"]').setValue('dataset_beta')
-    await wrapper.get('[data-test=\"ai-dataset-type-select\"]').setValue('video')
+    await wrapper.get('[data-test=\"ai-dataset-select\"]').setValue('101')
     await wrapper.get('[data-test=\"save-settings\"]').trigger('click')
     await flushPromises()
 
@@ -290,9 +304,13 @@ describe('ApplicationSettingsPage', () => {
     await flushPromises()
 
     expect(hoisted.triggerApplicationAiDatasetExport).toHaveBeenCalledWith({
-      aiDatasetName: 'dataset_alpha',
-      aiDatasetType: 'image'
+      datasetId: 100,
+      onlyValidated: true
     })
+    expect(wrapper.get('[data-test=\"ai-dataset-export-result\"]').text()).toContain('2.0 KB')
+    expect(wrapper.get('[data-test=\"download-ai-dataset-export\"]').attributes('href')).toBe(
+      '/api/settings/application/ai_dataset_export/artifact-100/download/'
+    )
     expect(hoisted.toastSuccess).toHaveBeenCalledWith({
       text: 'KI-Datensatz erfolgreich exportiert.'
     })

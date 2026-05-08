@@ -93,15 +93,23 @@ export interface ApplicationVideoDimensionBackfillRun {
     stdout: string;
 }
 export interface ApplicationAiDatasetExportPayload {
+    datasetId?: number;
     aiDatasetName?: string;
     aiDatasetType?: string;
+    onlyValidated?: boolean;
 }
 export interface ApplicationAiDatasetExportResult {
     success: boolean;
+    artifactId: string;
     datasetId: number;
     datasetName: string;
     datasetType: string;
     outputPath: string;
+    downloadUrl: string | null;
+    sha256: string;
+    byteSize: number;
+    status: 'running' | 'completed' | 'failed';
+    error?: string | null;
     summary: {
         imageAnnotationCount?: number;
         videoAnnotationCount?: number;

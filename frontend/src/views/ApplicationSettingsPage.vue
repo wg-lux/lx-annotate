@@ -127,23 +127,26 @@
 
               <label class="settings-field">
                 <span>KI-Datensatz</span>
-                <input
-                  v-model="form.aiDatasetName"
-                  class="form-control"
-                  data-test="ai-dataset-name-input"
+                <select
+                  v-model="form.aiDatasetId"
+                  class="form-select"
+                  data-test="ai-dataset-select"
                   :disabled="saving"
-                  list="ai-dataset-options"
-                  placeholder="Datensatzname eingeben oder auswählen"
-                />
-                <datalist id="ai-dataset-options">
+                  @change="applySelectedAiDataset"
+                >
+                  <option :value="EMPTY_OPTION">Kein KI-Datensatz</option>
                   <option
                     v-for="datasetOption in dropdowns.aiDatasets"
                     :key="`${datasetOption.id}-${datasetOption.datasetType}`"
-                    :value="datasetOption.value"
+                    :value="String(datasetOption.id)"
                   >
-                    {{ datasetOption.label }}
+                    {{ datasetOption.label }} · {{ datasetOption.datasetType }} · ID
+                    {{ datasetOption.id }}
                   </option>
-                </datalist>
+                </select>
+                <small v-if="selectedAiDatasetDuplicateWarning" class="text-warning mt-1">
+                  {{ selectedAiDatasetDuplicateWarning }}
+                </small>
               </label>
 
               <label class="settings-field">
@@ -152,7 +155,7 @@
                   v-model="form.aiDatasetType"
                   class="form-select"
                   data-test="ai-dataset-type-select"
-                  :disabled="saving"
+                  :disabled="saving || Boolean(form.aiDatasetId)"
                 >
                   <option :value="EMPTY_OPTION">Kein Standardtyp</option>
                   <option value="image">Image</option>
@@ -409,17 +412,43 @@
             {{ aiDatasetExportMessage }}
           </div>
 
+          <dl v-if="aiDatasetExportResult" class="export-result" data-test="ai-dataset-export-result">
+            <div>
+              <dt>SHA-256</dt>
+              <dd>{{ aiDatasetExportResult.sha256 || 'Nicht verfügbar' }}</dd>
+            </div>
+            <div>
+              <dt>Größe</dt>
+              <dd>{{ formatBytes(aiDatasetExportResult.byteSize) }}</dd>
+            </div>
+            <div>
+              <dt>Annotationen</dt>
+              <dd>
+                {{
+                  (aiDatasetExportResult.summary.imageAnnotationCount ?? 0) +
+                  (aiDatasetExportResult.summary.videoAnnotationCount ?? 0)
+                }}
+              </dd>
+            </div>
+          </dl>
+
           <button
             type="button"
             class="btn btn-primary mt-3"
             data-test="run-ai-dataset-export"
-            :disabled="
-              aiDatasetExportInProgress || !form.aiDatasetName.trim() || !form.aiDatasetType
-            "
+            :disabled="aiDatasetExportInProgress || !selectedAiDatasetOption"
             @click="runAiDatasetExport"
           >
             {{ aiDatasetExportInProgress ? 'Export läuft…' : 'KI-Datensatz exportieren' }}
           </button>
+          <a
+            v-if="aiDatasetExportResult?.downloadUrl"
+            class="btn btn-outline-primary mt-3 ms-2"
+            data-test="download-ai-dataset-export"
+            :href="aiDatasetExportResult.downloadUrl"
+          >
+            Export herunterladen
+          </a>
         </aside>
 
         <aside class="settings-card mt-4">
@@ -555,6 +584,7 @@ const form = reactive({
   processorId: EMPTY_OPTION,
   annotatorName: EMPTY_OPTION,
   reportTemplateName: EMPTY_OPTION,
+  aiDatasetId: EMPTY_OPTION,
   aiDatasetName: EMPTY_OPTION,
   aiDatasetType: EMPTY_OPTION
 })
@@ -588,14 +618,28 @@ const selectedReportTemplateLabel = computed(() => {
   return match?.label ?? 'Keine Standardvorlage'
 })
 
+const selectedAiDatasetOption = computed(() => {
+  return dropdowns.aiDatasets.find((option) => String(option.id) === form.aiDatasetId) ?? null
+})
+
 const selectedAiDatasetLabel = computed(() => {
+  if (selectedAiDatasetOption.value) {
+    return `${selectedAiDatasetOption.value.label} (ID ${selectedAiDatasetOption.value.id})`
+  }
   return form.aiDatasetName || 'Kein KI-Datensatz'
 })
 
 const selectedAiDatasetTypeLabel = computed(() => {
-  if (form.aiDatasetType === 'image') return 'Image'
-  if (form.aiDatasetType === 'video') return 'Video'
+  const datasetType = selectedAiDatasetOption.value?.datasetType || form.aiDatasetType
+  if (datasetType === 'image') return 'Image'
+  if (datasetType === 'video') return 'Video'
   return 'Nicht gesetzt'
+})
+
+const selectedAiDatasetDuplicateWarning = computed(() => {
+  const selected = selectedAiDatasetOption.value
+  if (!selected || selected.nameCount <= 1) return ''
+  return 'Mehrere Datensätze haben diesen Namen. Der Export verwendet deshalb die eindeutige ID.'
 })
 
 const backupReady = computed(() => currentSettings.value?.backupStatus.ready ?? false)
@@ -670,11 +714,26 @@ function applySettings(settings: ApplicationSettingsRecord) {
   form.reportTemplateName = settings.reportTemplateName ?? EMPTY_OPTION
   form.aiDatasetName = settings.aiDatasetName ?? EMPTY_OPTION
   form.aiDatasetType = settings.aiDatasetType ?? EMPTY_OPTION
+  form.aiDatasetId =
+    dropdowns.aiDatasets
+      .find(
+        (dataset) =>
+          dataset.value === form.aiDatasetName && dataset.datasetType === form.aiDatasetType
+      )
+      ?.id.toString() ?? EMPTY_OPTION
 }
 
 function resetForm() {
   if (!currentSettings.value) return
   applySettings(currentSettings.value)
+}
+
+function applySelectedAiDataset() {
+  const selected = selectedAiDatasetOption.value
+  form.aiDatasetName = selected?.value ?? EMPTY_OPTION
+  form.aiDatasetType = selected?.datasetType ?? EMPTY_OPTION
+  aiDatasetExportResult.value = null
+  aiDatasetExportError.value = ''
 }
 
 async function loadSettings() {
@@ -739,6 +798,7 @@ async function activateTerminologyBundle() {
 
 async function saveSettings() {
   saving.value = true
+  applySelectedAiDataset()
 
   try {
     const updated = await updateApplicationSettings({
@@ -831,14 +891,17 @@ async function runBackup() {
 }
 
 async function runAiDatasetExport() {
+  const selected = selectedAiDatasetOption.value
+  if (!selected) return
+
   aiDatasetExportInProgress.value = true
   aiDatasetExportError.value = ''
   aiDatasetExportResult.value = null
 
   try {
     const result = await triggerApplicationAiDatasetExport({
-      aiDatasetName: form.aiDatasetName || undefined,
-      aiDatasetType: form.aiDatasetType || undefined
+      datasetId: selected.id,
+      onlyValidated: true
     })
     aiDatasetExportResult.value = result
     toast.success({ text: 'KI-Datensatz erfolgreich exportiert.' })
@@ -852,6 +915,18 @@ async function runAiDatasetExport() {
   } finally {
     aiDatasetExportInProgress.value = false
   }
+}
+
+function formatBytes(value: number): string {
+  if (!Number.isFinite(value) || value <= 0) return '0 B'
+  const units = ['B', 'KB', 'MB', 'GB']
+  let amount = value
+  let unitIndex = 0
+  while (amount >= 1024 && unitIndex < units.length - 1) {
+    amount /= 1024
+    unitIndex += 1
+  }
+  return `${amount.toFixed(unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`
 }
 
 onMounted(() => {
@@ -1104,6 +1179,29 @@ onMounted(() => {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.75rem;
   margin-bottom: 1rem;
+}
+
+.export-result {
+  display: grid;
+  gap: 0.75rem;
+  margin: 1rem 0 0;
+}
+
+.export-result div {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.export-result dt {
+  color: #607488;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.export-result dd {
+  margin: 0;
+  overflow-wrap: anywhere;
 }
 
 .terminology-summary {
