@@ -180,7 +180,7 @@ export declare const usePatientStore: import("pinia").StoreDefinition<"patient",
     clearSelectedPatientId: () => void;
     setCurrentPatient: (p: Patient | null) => void;
     resolveCurrentPatientId: (propId?: number, strict?: boolean) => number | null;
-}, "loading" | "error" | "selectedPatientId" | "patients" | "currentPatient" | "genders" | "centers">, Pick<{
+}, "error" | "loading" | "selectedPatientId" | "centers" | "patients" | "currentPatient" | "genders">, Pick<{
     patients: import("vue").Ref<{
         id?: number | undefined;
         firstName: string;
@@ -540,4 +540,4 @@ export declare const usePatientStore: import("pinia").StoreDefinition<"patient",
     clearSelectedPatientId: () => void;
     setCurrentPatient: (p: Patient | null) => void;
     resolveCurrentPatientId: (propId?: number, strict?: boolean) => number | null;
-}, "clearError" | "fetchPatients" | "fetchGenders" | "fetchCenters" | "loadGenders" | "loadCenters" | "initializeLookupData" | "createPatient" | "updatePatient" | "deletePatient" | "getPatientById" | "calculatePatientAge" | "getGenderDisplayName" | "getCenterDisplayName" | "validatePatientForm" | "formatPatientForSubmission" | "clearCurrentPatient" | "getCurrentPatient" | "setSelectedPatientId" | "getSelectedPatientId" | "clearSelectedPatientId" | "setCurrentPatient" | "resolveCurrentPatientId">>;
+}, "fetchPatients" | "fetchGenders" | "fetchCenters" | "loadGenders" | "loadCenters" | "initializeLookupData" | "createPatient" | "updatePatient" | "deletePatient" | "clearError" | "getPatientById" | "calculatePatientAge" | "getGenderDisplayName" | "getCenterDisplayName" | "validatePatientForm" | "formatPatientForSubmission" | "clearCurrentPatient" | "getCurrentPatient" | "setSelectedPatientId" | "getSelectedPatientId" | "clearSelectedPatientId" | "setCurrentPatient" | "resolveCurrentPatientId">>;
