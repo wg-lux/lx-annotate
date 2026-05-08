@@ -9,6 +9,10 @@ export async function createModelTrainingRun(payload) {
     const { data } = await axiosInstance.post(r(MODEL_TRAINING_RUNS_PATH), payload);
     return data;
 }
+export async function fetchModelTrainingRuns() {
+    const { data } = await axiosInstance.get(r(MODEL_TRAINING_RUNS_PATH));
+    return data;
+}
 export async function fetchModelTrainingRun(runId) {
     const { data } = await axiosInstance.get(r(`${MODEL_TRAINING_RUNS_PATH}${runId}/`));
     return data;

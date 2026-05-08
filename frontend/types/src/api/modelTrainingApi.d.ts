@@ -12,10 +12,31 @@ export interface ModelTrainingOption {
     label: string;
     description: string;
 }
+export interface PhiRegionDetectorTrainingDefaults {
+    baseModel: string;
+    datasetYaml: string;
+    outputDir: string;
+    runName: string;
+    epochs: number;
+    batchSize: number;
+    inputSize: number;
+    device: string;
+    workers: number;
+    patience: number;
+    exportOnnx: boolean;
+    confidenceThreshold: number;
+    nmsThreshold: number;
+    classIds: string;
+}
 export interface ModelTrainingOptionsResponse {
+    trainingTargets: ModelTrainingOption[];
     aiDatasets: ModelTrainingDatasetOption[];
     backbones: ModelTrainingOption[];
     featureModes: ModelTrainingOption[];
+    phiRegionDetector: {
+        baseModels: ModelTrainingOption[];
+        defaults: PhiRegionDetectorTrainingDefaults;
+    };
     defaults: {
         epochs: number;
         batchSize: number;
@@ -27,20 +48,36 @@ export interface ModelTrainingOptionsResponse {
     };
 }
 export interface ModelTrainingRunPayload {
-    datasetId: number;
-    backboneName: string;
-    featureMode: string;
+    trainingTarget?: 'image_multilabel' | 'phi_region_detector';
+    datasetId?: number;
+    datasetYaml?: string;
+    outputDir?: string;
+    baseModel?: string;
+    runName?: string | null;
+    backboneName?: string;
+    featureMode?: string;
     epochs: number;
     batchSize: number;
-    labelsetVersion: number;
-    treatUnlabeledAsNegative: boolean;
+    inputSize?: number;
+    device?: string;
+    workers?: number;
+    patience?: number;
+    exportOnnx?: boolean;
+    confidenceThreshold?: number;
+    nmsThreshold?: number;
+    classIds?: string;
+    labelsetVersion?: number;
+    treatUnlabeledAsNegative?: boolean;
     backboneCheckpoint?: string | null;
 }
 export interface ModelTrainingRunRecord {
     runId: string;
-    status: 'queued' | 'running' | 'completed' | 'failed';
-    datasetId: number;
+    trainingTarget?: 'image_multilabel' | 'phi_region_detector';
+    status: 'queued' | 'running' | 'completed' | 'failed' | 'lost';
+    datasetId: number | null;
     datasetName: string | null;
+    datasetType?: string;
+    aiModelType?: string;
     backboneName: string;
     featureMode: string;
     freezeBackbone: boolean;
@@ -61,9 +98,12 @@ export interface ModelTrainingRunRecord {
             testLoss?: number | null;
         };
     } | null;
+    artifactPaths?: Record<string, string>;
     error: string | null;
     stdout: string;
+    stderr?: string;
 }
 export declare function fetchModelTrainingOptions(): Promise<ModelTrainingOptionsResponse>;
 export declare function createModelTrainingRun(payload: ModelTrainingRunPayload): Promise<ModelTrainingRunRecord>;
+export declare function fetchModelTrainingRuns(): Promise<ModelTrainingRunRecord[]>;
 export declare function fetchModelTrainingRun(runId: string): Promise<ModelTrainingRunRecord>;
