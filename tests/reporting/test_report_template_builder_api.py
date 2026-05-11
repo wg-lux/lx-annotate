@@ -7,7 +7,7 @@ import yaml
 from django.test import Client, override_settings
 from django.urls import clear_url_caches, resolve, set_urlconf
 
-from tests.test_base_api_mount import _reload_urls_with_base_api
+from tests.api.test_base_api_mount import _reload_urls_with_base_api
 
 
 def _make_temp_kb_module(tmp_path):

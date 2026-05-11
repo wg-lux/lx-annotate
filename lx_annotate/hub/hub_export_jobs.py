@@ -11,6 +11,7 @@ from .hub_export_cleanup import configured_local_cleanup_policy
 from .hub_export_state import (
     is_report_hub_export_eligible,
     is_video_hub_export_eligible,
+    video_hub_export_blocked_reason,
 )
 from ..models import OutboundHubTransferJob
 
@@ -113,6 +114,7 @@ def build_hub_export_overview(*, target_node: NetworkNode | None) -> dict[str, A
             state.anonymization_status.value if state is not None else "not_started"
         )
         eligible = is_video_hub_export_eligible(video)
+        blocked_reason = "" if eligible else video_hub_export_blocked_reason(video)
         video_job = jobs_by_key.get(("video", int(video.id)))
         items.append(
             {
@@ -145,6 +147,7 @@ def build_hub_export_overview(*, target_node: NetworkNode | None) -> dict[str, A
                     )
                 ),
                 "eligible": eligible,
+                "blocked_reason": blocked_reason,
                 "created_at": video.date_created.isoformat()
                 if video.date_created
                 else None,

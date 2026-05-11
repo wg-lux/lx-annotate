@@ -137,8 +137,8 @@ let __VLS_directives;
 /** @type {__VLS_StyleScopedClasses['format-list']} */ ;
 /** @type {__VLS_StyleScopedClasses['manifest-json']} */ ;
 /** @type {__VLS_StyleScopedClasses['settings-layout']} */ ;
-// CSS variable injection
-// CSS variable injection end
+// CSS variable injection 
+// CSS variable injection end 
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "dataset-settings-page container-fluid py-4 px-3 px-lg-4" },
 });

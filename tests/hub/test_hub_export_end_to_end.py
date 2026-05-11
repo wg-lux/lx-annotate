@@ -99,7 +99,13 @@ class HubExportEndToEndTests(TestCase):
         video_state = VideoState.objects.create(
             anonymized=True,
             sensitive_meta_processed=True,
+            anonymization_validated=True,
             processing_started=True,
+            outside_segments_removed=True,
+            segment_annotations_created=True,
+            segment_annotations_validated=True,
+            ready_for_export=True,
+            processed_file_sha256="a" * 64,
         )
         video = VideoFile.objects.create(
             center=self.center,

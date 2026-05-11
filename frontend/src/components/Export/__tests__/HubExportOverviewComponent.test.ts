@@ -168,4 +168,42 @@ describe('HubExportOverviewComponent', () => {
       resources: [{ id: 21, resourceKind: 'video' }]
     })
   })
+
+  it('shows ineligible videos when the backend provides a blocked reason', async () => {
+    hoisted.get.mockResolvedValue({
+      data: {
+        selectedTargetNodeKey: 'hub-node',
+        sourceNodeKey: 'site-node',
+        hubNodes: [{ nodeKey: 'hub-node', displayName: 'Hub', baseUrl: 'https://hub.example', owningCenterKey: 'center-a' }],
+        configReady: true,
+        configError: '',
+        items: [
+          {
+            id: 31,
+            resourceKind: 'video',
+            filename: 'video-cleanup.mp4',
+            anonymizationStatus: 'validated',
+            processedMediaPresent: true,
+            sourceCenterKey: 'center-a',
+            sourceCenterName: 'Center A',
+            markedForUpload: false,
+            outboundStatus: '',
+            lastError: '',
+            blockedReason: 'segment cleanup pending',
+            lastTransferTimestamp: null,
+            targetNodeKey: 'hub-node',
+            eligible: false,
+            createdAt: '2026-04-08T12:00:00Z'
+          }
+        ]
+      }
+    })
+
+    const wrapper = mount(HubExportOverviewComponent)
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('video-cleanup.mp4')
+    expect(wrapper.text()).toContain('segment cleanup pending')
+    expect(wrapper.get('[data-test="hub-export-select-video-31"]').attributes('disabled')).toBeDefined()
+  })
 })

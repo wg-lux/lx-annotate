@@ -20,6 +20,7 @@ export interface HubExportItem {
   markedForUpload: boolean
   outboundStatus: string
   lastError: string
+  blockedReason?: string
   lastTransferTimestamp: string | null
   targetNodeKey: string | null
   eligible: boolean

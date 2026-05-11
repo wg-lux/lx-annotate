@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import base64
+import os
+
 from django.core.files.base import ContentFile
 from django.test import TestCase
 
@@ -16,8 +19,6 @@ from lx_annotate.hub.hub_export_payloads import (
     validate_transfer_payload,
 )
 from lx_annotate.models import OutboundHubTransferJob
-import base64
-import os
 
 TEST_MASTER_KEY = base64.urlsafe_b64encode(b"0" * 32).decode("ascii")
 
@@ -46,8 +47,14 @@ class HubExportPayloadTests(TestCase):
         state = VideoState.objects.create(
             anonymized=True,
             sensitive_meta_processed=True,
+            anonymization_validated=True,
             processing_started=True,
             frames_extracted=True,
+            outside_segments_removed=True,
+            segment_annotations_created=True,
+            segment_annotations_validated=True,
+            ready_for_export=True,
+            processed_file_sha256="a" * 64,
         )
         video = VideoFile.objects.create(
             center=self.center,

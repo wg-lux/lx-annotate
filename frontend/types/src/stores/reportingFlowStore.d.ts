@@ -54,10 +54,10 @@ export declare const useReportingFlowStore: import("pinia").StoreDefinition<"rep
             hint: Record<string, unknown>;
             issues: {
                 code: string;
-                level: "warning" | "error";
+                level: "error" | "warning";
                 message: string;
                 validatorName?: string | undefined;
-                validatorKind?: "classification_validator" | "intervention_validator" | "findings_validator" | "examination_validator" | "template" | "unit_validator" | undefined;
+                validatorKind?: "template" | "classification_validator" | "intervention_validator" | "findings_validator" | "examination_validator" | "unit_validator" | undefined;
                 details?: Record<string, unknown> | undefined;
             }[];
         }[];
@@ -73,10 +73,10 @@ export declare const useReportingFlowStore: import("pinia").StoreDefinition<"rep
             hint: Record<string, unknown>;
             issues: {
                 code: string;
-                level: "warning" | "error";
+                level: "error" | "warning";
                 message: string;
                 validatorName?: string | undefined;
-                validatorKind?: "classification_validator" | "intervention_validator" | "findings_validator" | "examination_validator" | "template" | "unit_validator" | undefined;
+                validatorKind?: "template" | "classification_validator" | "intervention_validator" | "findings_validator" | "examination_validator" | "unit_validator" | undefined;
                 details?: Record<string, unknown> | undefined;
             }[];
         }[];
@@ -90,10 +90,10 @@ export declare const useReportingFlowStore: import("pinia").StoreDefinition<"rep
             missingRequiredClassifications: string[];
             issues: {
                 code: string;
-                level: "warning" | "error";
+                level: "error" | "warning";
                 message: string;
                 validatorName?: string | undefined;
-                validatorKind?: "classification_validator" | "intervention_validator" | "findings_validator" | "examination_validator" | "template" | "unit_validator" | undefined;
+                validatorKind?: "template" | "classification_validator" | "intervention_validator" | "findings_validator" | "examination_validator" | "unit_validator" | undefined;
                 details?: Record<string, unknown> | undefined;
             }[];
         }[];
@@ -110,10 +110,10 @@ export declare const useReportingFlowStore: import("pinia").StoreDefinition<"rep
             }[];
             issues: {
                 code: string;
-                level: "warning" | "error";
+                level: "error" | "warning";
                 message: string;
                 validatorName?: string | undefined;
-                validatorKind?: "classification_validator" | "intervention_validator" | "findings_validator" | "examination_validator" | "template" | "unit_validator" | undefined;
+                validatorKind?: "template" | "classification_validator" | "intervention_validator" | "findings_validator" | "examination_validator" | "unit_validator" | undefined;
                 details?: Record<string, unknown> | undefined;
             }[];
         }[];
@@ -130,19 +130,19 @@ export declare const useReportingFlowStore: import("pinia").StoreDefinition<"rep
             hint: Record<string, unknown>;
             issues: {
                 code: string;
-                level: "warning" | "error";
+                level: "error" | "warning";
                 message: string;
                 validatorName?: string | undefined;
-                validatorKind?: "classification_validator" | "intervention_validator" | "findings_validator" | "examination_validator" | "template" | "unit_validator" | undefined;
+                validatorKind?: "template" | "classification_validator" | "intervention_validator" | "findings_validator" | "examination_validator" | "unit_validator" | undefined;
                 details?: Record<string, unknown> | undefined;
             }[];
         }[];
         issues: {
             code: string;
-            level: "warning" | "error";
+            level: "error" | "warning";
             message: string;
             validatorName?: string | undefined;
-            validatorKind?: "classification_validator" | "intervention_validator" | "findings_validator" | "examination_validator" | "template" | "unit_validator" | undefined;
+            validatorKind?: "template" | "classification_validator" | "intervention_validator" | "findings_validator" | "examination_validator" | "unit_validator" | undefined;
             details?: Record<string, unknown> | undefined;
         }[];
     } | null, ReportingTemplateValidation | {
@@ -161,10 +161,10 @@ export declare const useReportingFlowStore: import("pinia").StoreDefinition<"rep
             hint: Record<string, unknown>;
             issues: {
                 code: string;
-                level: "warning" | "error";
+                level: "error" | "warning";
                 message: string;
                 validatorName?: string | undefined;
-                validatorKind?: "classification_validator" | "intervention_validator" | "findings_validator" | "examination_validator" | "template" | "unit_validator" | undefined;
+                validatorKind?: "template" | "classification_validator" | "intervention_validator" | "findings_validator" | "examination_validator" | "unit_validator" | undefined;
                 details?: Record<string, unknown> | undefined;
             }[];
         }[];
@@ -180,10 +180,10 @@ export declare const useReportingFlowStore: import("pinia").StoreDefinition<"rep
             hint: Record<string, unknown>;
             issues: {
                 code: string;
-                level: "warning" | "error";
+                level: "error" | "warning";
                 message: string;
                 validatorName?: string | undefined;
-                validatorKind?: "classification_validator" | "intervention_validator" | "findings_validator" | "examination_validator" | "template" | "unit_validator" | undefined;
+                validatorKind?: "template" | "classification_validator" | "intervention_validator" | "findings_validator" | "examination_validator" | "unit_validator" | undefined;
                 details?: Record<string, unknown> | undefined;
             }[];
         }[];
@@ -197,10 +197,10 @@ export declare const useReportingFlowStore: import("pinia").StoreDefinition<"rep
             missingRequiredClassifications: string[];
             issues: {
                 code: string;
-                level: "warning" | "error";
+                level: "error" | "warning";
                 message: string;
                 validatorName?: string | undefined;
-                validatorKind?: "classification_validator" | "intervention_validator" | "findings_validator" | "examination_validator" | "template" | "unit_validator" | undefined;
+                validatorKind?: "template" | "classification_validator" | "intervention_validator" | "findings_validator" | "examination_validator" | "unit_validator" | undefined;
                 details?: Record<string, unknown> | undefined;
             }[];
         }[];
@@ -217,10 +217,10 @@ export declare const useReportingFlowStore: import("pinia").StoreDefinition<"rep
             }[];
             issues: {
                 code: string;
-                level: "warning" | "error";
+                level: "error" | "warning";
                 message: string;
                 validatorName?: string | undefined;
-                validatorKind?: "classification_validator" | "intervention_validator" | "findings_validator" | "examination_validator" | "template" | "unit_validator" | undefined;
+                validatorKind?: "template" | "classification_validator" | "intervention_validator" | "findings_validator" | "examination_validator" | "unit_validator" | undefined;
                 details?: Record<string, unknown> | undefined;
             }[];
         }[];
@@ -237,19 +237,19 @@ export declare const useReportingFlowStore: import("pinia").StoreDefinition<"rep
             hint: Record<string, unknown>;
             issues: {
                 code: string;
-                level: "warning" | "error";
+                level: "error" | "warning";
                 message: string;
                 validatorName?: string | undefined;
-                validatorKind?: "classification_validator" | "intervention_validator" | "findings_validator" | "examination_validator" | "template" | "unit_validator" | undefined;
+                validatorKind?: "template" | "classification_validator" | "intervention_validator" | "findings_validator" | "examination_validator" | "unit_validator" | undefined;
                 details?: Record<string, unknown> | undefined;
             }[];
         }[];
         issues: {
             code: string;
-            level: "warning" | "error";
+            level: "error" | "warning";
             message: string;
             validatorName?: string | undefined;
-            validatorKind?: "classification_validator" | "intervention_validator" | "findings_validator" | "examination_validator" | "template" | "unit_validator" | undefined;
+            validatorKind?: "template" | "classification_validator" | "intervention_validator" | "findings_validator" | "examination_validator" | "unit_validator" | undefined;
             details?: Record<string, unknown> | undefined;
         }[];
     }>;
@@ -352,7 +352,7 @@ export declare const useReportingFlowStore: import("pinia").StoreDefinition<"rep
             streamUrl: string;
         }[];
     } | null>;
-    mediaPreloadStatus: import("vue").Ref<"error" | "loading" | "idle" | "ready", "error" | "loading" | "idle" | "ready">;
+    mediaPreloadStatus: import("vue").Ref<"loading" | "error" | "idle" | "ready", "loading" | "error" | "idle" | "ready">;
     mediaPreloadError: import("vue").Ref<string | null, string | null>;
     draftPersistenceStatus: import("vue").Ref<"error" | "idle" | "saving" | "saved", "error" | "idle" | "saving" | "saved">;
     draftPersistenceError: import("vue").Ref<string | null, string | null>;
@@ -417,7 +417,7 @@ export declare const useReportingFlowStore: import("pinia").StoreDefinition<"rep
     removeIndicationRow: (index: number) => void;
     resetForPatientSwitch: () => void;
     clearAll: () => void;
-}, "patientExaminationId" | "authSubject" | "sessionStatus" | "lookupToken" | "selectedPatientId" | "selectedExaminationId" | "activeReportId" | "selectedKbModule" | "selectedTemplateName" | "templateSectionDrafts" | "runtimeDraftsByPatientExaminationId" | "indications" | "lookupSnapshot" | "lastTemplateValidation" | "findingsRevision" | "lastFindingsEvent" | "mediaPreload" | "mediaPreloadStatus" | "mediaPreloadError" | "draftPersistenceStatus" | "draftPersistenceError" | "lastPersistedDraftAt" | "savingFinalReport">, Pick<{
+}, "lookupToken" | "patientExaminationId" | "selectedPatientId" | "selectedExaminationId" | "activeReportId" | "indications" | "selectedKbModule" | "selectedTemplateName" | "templateSectionDrafts" | "runtimeDraftsByPatientExaminationId" | "authSubject" | "sessionStatus" | "lookupSnapshot" | "lastTemplateValidation" | "findingsRevision" | "lastFindingsEvent" | "mediaPreload" | "mediaPreloadStatus" | "mediaPreloadError" | "draftPersistenceStatus" | "draftPersistenceError" | "lastPersistedDraftAt" | "savingFinalReport">, Pick<{
     authSubject: import("vue").Ref<string | null, string | null>;
     sessionStatus: import("vue").Ref<SessionStatus, SessionStatus>;
     lookupToken: import("vue").Ref<string | null, string | null>;
@@ -454,10 +454,10 @@ export declare const useReportingFlowStore: import("pinia").StoreDefinition<"rep
             hint: Record<string, unknown>;
             issues: {
                 code: string;
-                level: "warning" | "error";
+                level: "error" | "warning";
                 message: string;
                 validatorName?: string | undefined;
-                validatorKind?: "classification_validator" | "intervention_validator" | "findings_validator" | "examination_validator" | "template" | "unit_validator" | undefined;
+                validatorKind?: "template" | "classification_validator" | "intervention_validator" | "findings_validator" | "examination_validator" | "unit_validator" | undefined;
                 details?: Record<string, unknown> | undefined;
             }[];
         }[];
@@ -473,10 +473,10 @@ export declare const useReportingFlowStore: import("pinia").StoreDefinition<"rep
             hint: Record<string, unknown>;
             issues: {
                 code: string;
-                level: "warning" | "error";
+                level: "error" | "warning";
                 message: string;
                 validatorName?: string | undefined;
-                validatorKind?: "classification_validator" | "intervention_validator" | "findings_validator" | "examination_validator" | "template" | "unit_validator" | undefined;
+                validatorKind?: "template" | "classification_validator" | "intervention_validator" | "findings_validator" | "examination_validator" | "unit_validator" | undefined;
                 details?: Record<string, unknown> | undefined;
             }[];
         }[];
@@ -490,10 +490,10 @@ export declare const useReportingFlowStore: import("pinia").StoreDefinition<"rep
             missingRequiredClassifications: string[];
             issues: {
                 code: string;
-                level: "warning" | "error";
+                level: "error" | "warning";
                 message: string;
                 validatorName?: string | undefined;
-                validatorKind?: "classification_validator" | "intervention_validator" | "findings_validator" | "examination_validator" | "template" | "unit_validator" | undefined;
+                validatorKind?: "template" | "classification_validator" | "intervention_validator" | "findings_validator" | "examination_validator" | "unit_validator" | undefined;
                 details?: Record<string, unknown> | undefined;
             }[];
         }[];
@@ -510,10 +510,10 @@ export declare const useReportingFlowStore: import("pinia").StoreDefinition<"rep
             }[];
             issues: {
                 code: string;
-                level: "warning" | "error";
+                level: "error" | "warning";
                 message: string;
                 validatorName?: string | undefined;
-                validatorKind?: "classification_validator" | "intervention_validator" | "findings_validator" | "examination_validator" | "template" | "unit_validator" | undefined;
+                validatorKind?: "template" | "classification_validator" | "intervention_validator" | "findings_validator" | "examination_validator" | "unit_validator" | undefined;
                 details?: Record<string, unknown> | undefined;
             }[];
         }[];
@@ -530,19 +530,19 @@ export declare const useReportingFlowStore: import("pinia").StoreDefinition<"rep
             hint: Record<string, unknown>;
             issues: {
                 code: string;
-                level: "warning" | "error";
+                level: "error" | "warning";
                 message: string;
                 validatorName?: string | undefined;
-                validatorKind?: "classification_validator" | "intervention_validator" | "findings_validator" | "examination_validator" | "template" | "unit_validator" | undefined;
+                validatorKind?: "template" | "classification_validator" | "intervention_validator" | "findings_validator" | "examination_validator" | "unit_validator" | undefined;
                 details?: Record<string, unknown> | undefined;
             }[];
         }[];
         issues: {
             code: string;
-            level: "warning" | "error";
+            level: "error" | "warning";
             message: string;
             validatorName?: string | undefined;
-            validatorKind?: "classification_validator" | "intervention_validator" | "findings_validator" | "examination_validator" | "template" | "unit_validator" | undefined;
+            validatorKind?: "template" | "classification_validator" | "intervention_validator" | "findings_validator" | "examination_validator" | "unit_validator" | undefined;
             details?: Record<string, unknown> | undefined;
         }[];
     } | null, ReportingTemplateValidation | {
@@ -561,10 +561,10 @@ export declare const useReportingFlowStore: import("pinia").StoreDefinition<"rep
             hint: Record<string, unknown>;
             issues: {
                 code: string;
-                level: "warning" | "error";
+                level: "error" | "warning";
                 message: string;
                 validatorName?: string | undefined;
-                validatorKind?: "classification_validator" | "intervention_validator" | "findings_validator" | "examination_validator" | "template" | "unit_validator" | undefined;
+                validatorKind?: "template" | "classification_validator" | "intervention_validator" | "findings_validator" | "examination_validator" | "unit_validator" | undefined;
                 details?: Record<string, unknown> | undefined;
             }[];
         }[];
@@ -580,10 +580,10 @@ export declare const useReportingFlowStore: import("pinia").StoreDefinition<"rep
             hint: Record<string, unknown>;
             issues: {
                 code: string;
-                level: "warning" | "error";
+                level: "error" | "warning";
                 message: string;
                 validatorName?: string | undefined;
-                validatorKind?: "classification_validator" | "intervention_validator" | "findings_validator" | "examination_validator" | "template" | "unit_validator" | undefined;
+                validatorKind?: "template" | "classification_validator" | "intervention_validator" | "findings_validator" | "examination_validator" | "unit_validator" | undefined;
                 details?: Record<string, unknown> | undefined;
             }[];
         }[];
@@ -597,10 +597,10 @@ export declare const useReportingFlowStore: import("pinia").StoreDefinition<"rep
             missingRequiredClassifications: string[];
             issues: {
                 code: string;
-                level: "warning" | "error";
+                level: "error" | "warning";
                 message: string;
                 validatorName?: string | undefined;
-                validatorKind?: "classification_validator" | "intervention_validator" | "findings_validator" | "examination_validator" | "template" | "unit_validator" | undefined;
+                validatorKind?: "template" | "classification_validator" | "intervention_validator" | "findings_validator" | "examination_validator" | "unit_validator" | undefined;
                 details?: Record<string, unknown> | undefined;
             }[];
         }[];
@@ -617,10 +617,10 @@ export declare const useReportingFlowStore: import("pinia").StoreDefinition<"rep
             }[];
             issues: {
                 code: string;
-                level: "warning" | "error";
+                level: "error" | "warning";
                 message: string;
                 validatorName?: string | undefined;
-                validatorKind?: "classification_validator" | "intervention_validator" | "findings_validator" | "examination_validator" | "template" | "unit_validator" | undefined;
+                validatorKind?: "template" | "classification_validator" | "intervention_validator" | "findings_validator" | "examination_validator" | "unit_validator" | undefined;
                 details?: Record<string, unknown> | undefined;
             }[];
         }[];
@@ -637,19 +637,19 @@ export declare const useReportingFlowStore: import("pinia").StoreDefinition<"rep
             hint: Record<string, unknown>;
             issues: {
                 code: string;
-                level: "warning" | "error";
+                level: "error" | "warning";
                 message: string;
                 validatorName?: string | undefined;
-                validatorKind?: "classification_validator" | "intervention_validator" | "findings_validator" | "examination_validator" | "template" | "unit_validator" | undefined;
+                validatorKind?: "template" | "classification_validator" | "intervention_validator" | "findings_validator" | "examination_validator" | "unit_validator" | undefined;
                 details?: Record<string, unknown> | undefined;
             }[];
         }[];
         issues: {
             code: string;
-            level: "warning" | "error";
+            level: "error" | "warning";
             message: string;
             validatorName?: string | undefined;
-            validatorKind?: "classification_validator" | "intervention_validator" | "findings_validator" | "examination_validator" | "template" | "unit_validator" | undefined;
+            validatorKind?: "template" | "classification_validator" | "intervention_validator" | "findings_validator" | "examination_validator" | "unit_validator" | undefined;
             details?: Record<string, unknown> | undefined;
         }[];
     }>;
@@ -752,7 +752,7 @@ export declare const useReportingFlowStore: import("pinia").StoreDefinition<"rep
             streamUrl: string;
         }[];
     } | null>;
-    mediaPreloadStatus: import("vue").Ref<"error" | "loading" | "idle" | "ready", "error" | "loading" | "idle" | "ready">;
+    mediaPreloadStatus: import("vue").Ref<"loading" | "error" | "idle" | "ready", "loading" | "error" | "idle" | "ready">;
     mediaPreloadError: import("vue").Ref<string | null, string | null>;
     draftPersistenceStatus: import("vue").Ref<"error" | "idle" | "saving" | "saved", "error" | "idle" | "saving" | "saved">;
     draftPersistenceError: import("vue").Ref<string | null, string | null>;
@@ -854,10 +854,10 @@ export declare const useReportingFlowStore: import("pinia").StoreDefinition<"rep
             hint: Record<string, unknown>;
             issues: {
                 code: string;
-                level: "warning" | "error";
+                level: "error" | "warning";
                 message: string;
                 validatorName?: string | undefined;
-                validatorKind?: "classification_validator" | "intervention_validator" | "findings_validator" | "examination_validator" | "template" | "unit_validator" | undefined;
+                validatorKind?: "template" | "classification_validator" | "intervention_validator" | "findings_validator" | "examination_validator" | "unit_validator" | undefined;
                 details?: Record<string, unknown> | undefined;
             }[];
         }[];
@@ -873,10 +873,10 @@ export declare const useReportingFlowStore: import("pinia").StoreDefinition<"rep
             hint: Record<string, unknown>;
             issues: {
                 code: string;
-                level: "warning" | "error";
+                level: "error" | "warning";
                 message: string;
                 validatorName?: string | undefined;
-                validatorKind?: "classification_validator" | "intervention_validator" | "findings_validator" | "examination_validator" | "template" | "unit_validator" | undefined;
+                validatorKind?: "template" | "classification_validator" | "intervention_validator" | "findings_validator" | "examination_validator" | "unit_validator" | undefined;
                 details?: Record<string, unknown> | undefined;
             }[];
         }[];
@@ -890,10 +890,10 @@ export declare const useReportingFlowStore: import("pinia").StoreDefinition<"rep
             missingRequiredClassifications: string[];
             issues: {
                 code: string;
-                level: "warning" | "error";
+                level: "error" | "warning";
                 message: string;
                 validatorName?: string | undefined;
-                validatorKind?: "classification_validator" | "intervention_validator" | "findings_validator" | "examination_validator" | "template" | "unit_validator" | undefined;
+                validatorKind?: "template" | "classification_validator" | "intervention_validator" | "findings_validator" | "examination_validator" | "unit_validator" | undefined;
                 details?: Record<string, unknown> | undefined;
             }[];
         }[];
@@ -910,10 +910,10 @@ export declare const useReportingFlowStore: import("pinia").StoreDefinition<"rep
             }[];
             issues: {
                 code: string;
-                level: "warning" | "error";
+                level: "error" | "warning";
                 message: string;
                 validatorName?: string | undefined;
-                validatorKind?: "classification_validator" | "intervention_validator" | "findings_validator" | "examination_validator" | "template" | "unit_validator" | undefined;
+                validatorKind?: "template" | "classification_validator" | "intervention_validator" | "findings_validator" | "examination_validator" | "unit_validator" | undefined;
                 details?: Record<string, unknown> | undefined;
             }[];
         }[];
@@ -930,19 +930,19 @@ export declare const useReportingFlowStore: import("pinia").StoreDefinition<"rep
             hint: Record<string, unknown>;
             issues: {
                 code: string;
-                level: "warning" | "error";
+                level: "error" | "warning";
                 message: string;
                 validatorName?: string | undefined;
-                validatorKind?: "classification_validator" | "intervention_validator" | "findings_validator" | "examination_validator" | "template" | "unit_validator" | undefined;
+                validatorKind?: "template" | "classification_validator" | "intervention_validator" | "findings_validator" | "examination_validator" | "unit_validator" | undefined;
                 details?: Record<string, unknown> | undefined;
             }[];
         }[];
         issues: {
             code: string;
-            level: "warning" | "error";
+            level: "error" | "warning";
             message: string;
             validatorName?: string | undefined;
-            validatorKind?: "classification_validator" | "intervention_validator" | "findings_validator" | "examination_validator" | "template" | "unit_validator" | undefined;
+            validatorKind?: "template" | "classification_validator" | "intervention_validator" | "findings_validator" | "examination_validator" | "unit_validator" | undefined;
             details?: Record<string, unknown> | undefined;
         }[];
     } | null, ReportingTemplateValidation | {
@@ -961,10 +961,10 @@ export declare const useReportingFlowStore: import("pinia").StoreDefinition<"rep
             hint: Record<string, unknown>;
             issues: {
                 code: string;
-                level: "warning" | "error";
+                level: "error" | "warning";
                 message: string;
                 validatorName?: string | undefined;
-                validatorKind?: "classification_validator" | "intervention_validator" | "findings_validator" | "examination_validator" | "template" | "unit_validator" | undefined;
+                validatorKind?: "template" | "classification_validator" | "intervention_validator" | "findings_validator" | "examination_validator" | "unit_validator" | undefined;
                 details?: Record<string, unknown> | undefined;
             }[];
         }[];
@@ -980,10 +980,10 @@ export declare const useReportingFlowStore: import("pinia").StoreDefinition<"rep
             hint: Record<string, unknown>;
             issues: {
                 code: string;
-                level: "warning" | "error";
+                level: "error" | "warning";
                 message: string;
                 validatorName?: string | undefined;
-                validatorKind?: "classification_validator" | "intervention_validator" | "findings_validator" | "examination_validator" | "template" | "unit_validator" | undefined;
+                validatorKind?: "template" | "classification_validator" | "intervention_validator" | "findings_validator" | "examination_validator" | "unit_validator" | undefined;
                 details?: Record<string, unknown> | undefined;
             }[];
         }[];
@@ -997,10 +997,10 @@ export declare const useReportingFlowStore: import("pinia").StoreDefinition<"rep
             missingRequiredClassifications: string[];
             issues: {
                 code: string;
-                level: "warning" | "error";
+                level: "error" | "warning";
                 message: string;
                 validatorName?: string | undefined;
-                validatorKind?: "classification_validator" | "intervention_validator" | "findings_validator" | "examination_validator" | "template" | "unit_validator" | undefined;
+                validatorKind?: "template" | "classification_validator" | "intervention_validator" | "findings_validator" | "examination_validator" | "unit_validator" | undefined;
                 details?: Record<string, unknown> | undefined;
             }[];
         }[];
@@ -1017,10 +1017,10 @@ export declare const useReportingFlowStore: import("pinia").StoreDefinition<"rep
             }[];
             issues: {
                 code: string;
-                level: "warning" | "error";
+                level: "error" | "warning";
                 message: string;
                 validatorName?: string | undefined;
-                validatorKind?: "classification_validator" | "intervention_validator" | "findings_validator" | "examination_validator" | "template" | "unit_validator" | undefined;
+                validatorKind?: "template" | "classification_validator" | "intervention_validator" | "findings_validator" | "examination_validator" | "unit_validator" | undefined;
                 details?: Record<string, unknown> | undefined;
             }[];
         }[];
@@ -1037,19 +1037,19 @@ export declare const useReportingFlowStore: import("pinia").StoreDefinition<"rep
             hint: Record<string, unknown>;
             issues: {
                 code: string;
-                level: "warning" | "error";
+                level: "error" | "warning";
                 message: string;
                 validatorName?: string | undefined;
-                validatorKind?: "classification_validator" | "intervention_validator" | "findings_validator" | "examination_validator" | "template" | "unit_validator" | undefined;
+                validatorKind?: "template" | "classification_validator" | "intervention_validator" | "findings_validator" | "examination_validator" | "unit_validator" | undefined;
                 details?: Record<string, unknown> | undefined;
             }[];
         }[];
         issues: {
             code: string;
-            level: "warning" | "error";
+            level: "error" | "warning";
             message: string;
             validatorName?: string | undefined;
-            validatorKind?: "classification_validator" | "intervention_validator" | "findings_validator" | "examination_validator" | "template" | "unit_validator" | undefined;
+            validatorKind?: "template" | "classification_validator" | "intervention_validator" | "findings_validator" | "examination_validator" | "unit_validator" | undefined;
             details?: Record<string, unknown> | undefined;
         }[];
     }>;
@@ -1152,7 +1152,7 @@ export declare const useReportingFlowStore: import("pinia").StoreDefinition<"rep
             streamUrl: string;
         }[];
     } | null>;
-    mediaPreloadStatus: import("vue").Ref<"error" | "loading" | "idle" | "ready", "error" | "loading" | "idle" | "ready">;
+    mediaPreloadStatus: import("vue").Ref<"loading" | "error" | "idle" | "ready", "loading" | "error" | "idle" | "ready">;
     mediaPreloadError: import("vue").Ref<string | null, string | null>;
     draftPersistenceStatus: import("vue").Ref<"error" | "idle" | "saving" | "saved", "error" | "idle" | "saving" | "saved">;
     draftPersistenceError: import("vue").Ref<string | null, string | null>;

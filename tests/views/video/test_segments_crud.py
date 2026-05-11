@@ -15,8 +15,10 @@ from endoreg_db.models import (
     VideoProcessingHistory,
     VideoState,
 )
-from endoreg_db.services.video_post_validation_jobs import (
+from endoreg_db.models.state.video_segment_validation import (
     OUTSIDE_FRAME_BLACKENING_KIND,
+)
+from endoreg_db.services.video_post_validation_jobs import (
     JobDispatchResult,
 )
 
@@ -193,7 +195,7 @@ def test_bulk_validation_dispatch_failure_returns_503(api_client, center):
     segment = _make_segment(video, label_name="outside")
 
     def failing_dispatch(*, video_id: int, only_validated: bool = False):
-        VideoProcessingHistory.objects.create(
+        history = VideoProcessingHistory.objects.create(
             video_id=video_id,
             operation=VideoProcessingHistory.OPERATION_REPROCESSING,
             status=VideoProcessingHistory.STATUS_FAILURE,
@@ -204,7 +206,13 @@ def test_bulk_validation_dispatch_failure_returns_503(api_client, center):
                 "only_validated": only_validated,
             },
         )
-        raise RuntimeError("broker unavailable")
+        return JobDispatchResult(
+            task_id="task-dispatch-failed",
+            mode="celery",
+            status="failed",
+            video_id=video_id,
+            history_id=history.pk,
+        )
 
     with patch(
         "endoreg_db.views.video.segments_crud.dispatch_video_post_validation_rebuild",
@@ -223,8 +231,12 @@ def test_bulk_validation_dispatch_failure_returns_503(api_client, center):
     assert response.status_code == 503
     assert response.data["segment_annotation_status"] == "cleanup_failed"
     assert response.data["segment_annotations_validated"] is False
+    assert response.data["post_processing_job"]["status"] == "failed"
 
     video.refresh_from_db()
     state = video.get_or_create_state()
     assert state.segment_annotations_validated is False
     assert state.outside_segments_removed is False
+    history = VideoProcessingHistory.objects.get(task_id="task-dispatch-failed")
+    assert history.status == VideoProcessingHistory.STATUS_FAILURE
+    assert "broker unavailable" in history.details

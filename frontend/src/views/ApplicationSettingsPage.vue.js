@@ -36,6 +36,7 @@ const form = reactive({
     processorId: EMPTY_OPTION,
     annotatorName: EMPTY_OPTION,
     reportTemplateName: EMPTY_OPTION,
+    aiDatasetId: EMPTY_OPTION,
     aiDatasetName: EMPTY_OPTION,
     aiDatasetType: EMPTY_OPTION
 });
@@ -63,15 +64,28 @@ const selectedReportTemplateLabel = computed(() => {
     const match = dropdowns.reportTemplates.find((option) => option.value === form.reportTemplateName);
     return match?.label ?? 'Keine Standardvorlage';
 });
+const selectedAiDatasetOption = computed(() => {
+    return dropdowns.aiDatasets.find((option) => String(option.id) === form.aiDatasetId) ?? null;
+});
 const selectedAiDatasetLabel = computed(() => {
+    if (selectedAiDatasetOption.value) {
+        return `${selectedAiDatasetOption.value.label} (ID ${selectedAiDatasetOption.value.id})`;
+    }
     return form.aiDatasetName || 'Kein KI-Datensatz';
 });
 const selectedAiDatasetTypeLabel = computed(() => {
-    if (form.aiDatasetType === 'image')
+    const datasetType = selectedAiDatasetOption.value?.datasetType || form.aiDatasetType;
+    if (datasetType === 'image')
         return 'Image';
-    if (form.aiDatasetType === 'video')
+    if (datasetType === 'video')
         return 'Video';
     return 'Nicht gesetzt';
+});
+const selectedAiDatasetDuplicateWarning = computed(() => {
+    const selected = selectedAiDatasetOption.value;
+    if (!selected || selected.nameCount <= 1)
+        return '';
+    return 'Mehrere Datensätze haben diesen Namen. Der Export verwendet deshalb die eindeutige ID.';
 });
 const backupReady = computed(() => currentSettings.value?.backupStatus.ready ?? false);
 const backupMissingPaths = computed(() => currentSettings.value?.backupStatus.missingPaths ?? []);
@@ -138,11 +152,22 @@ function applySettings(settings) {
     form.reportTemplateName = settings.reportTemplateName ?? EMPTY_OPTION;
     form.aiDatasetName = settings.aiDatasetName ?? EMPTY_OPTION;
     form.aiDatasetType = settings.aiDatasetType ?? EMPTY_OPTION;
+    form.aiDatasetId =
+        dropdowns.aiDatasets
+            .find((dataset) => dataset.value === form.aiDatasetName && dataset.datasetType === form.aiDatasetType)
+            ?.id.toString() ?? EMPTY_OPTION;
 }
 function resetForm() {
     if (!currentSettings.value)
         return;
     applySettings(currentSettings.value);
+}
+function applySelectedAiDataset() {
+    const selected = selectedAiDatasetOption.value;
+    form.aiDatasetName = selected?.value ?? EMPTY_OPTION;
+    form.aiDatasetType = selected?.datasetType ?? EMPTY_OPTION;
+    aiDatasetExportResult.value = null;
+    aiDatasetExportError.value = '';
 }
 async function loadSettings() {
     loading.value = true;
@@ -204,6 +229,7 @@ async function activateTerminologyBundle() {
 }
 async function saveSettings() {
     saving.value = true;
+    applySelectedAiDataset();
     try {
         const updated = await updateApplicationSettings({
             centerId: form.centerId ? Number(form.centerId) : null,
@@ -286,13 +312,16 @@ async function runBackup() {
     }
 }
 async function runAiDatasetExport() {
+    const selected = selectedAiDatasetOption.value;
+    if (!selected)
+        return;
     aiDatasetExportInProgress.value = true;
     aiDatasetExportError.value = '';
     aiDatasetExportResult.value = null;
     try {
         const result = await triggerApplicationAiDatasetExport({
-            aiDatasetName: form.aiDatasetName || undefined,
-            aiDatasetType: form.aiDatasetType || undefined
+            datasetId: selected.id,
+            onlyValidated: true
         });
         aiDatasetExportResult.value = result;
         toast.success({ text: 'KI-Datensatz erfolgreich exportiert.' });
@@ -308,6 +337,18 @@ async function runAiDatasetExport() {
     finally {
         aiDatasetExportInProgress.value = false;
     }
+}
+function formatBytes(value) {
+    if (!Number.isFinite(value) || value <= 0)
+        return '0 B';
+    const units = ['B', 'KB', 'MB', 'GB'];
+    let amount = value;
+    let unitIndex = 0;
+    while (amount >= 1024 && unitIndex < units.length - 1) {
+        amount /= 1024;
+        unitIndex += 1;
+    }
+    return `${amount.toFixed(unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
 }
 onMounted(() => {
     loadSettings();
@@ -327,6 +368,9 @@ let __VLS_directives;
 /** @type {__VLS_StyleScopedClasses['settings-summary']} */ ;
 /** @type {__VLS_StyleScopedClasses['summary-note']} */ ;
 /** @type {__VLS_StyleScopedClasses['summary-note']} */ ;
+/** @type {__VLS_StyleScopedClasses['export-result']} */ ;
+/** @type {__VLS_StyleScopedClasses['export-result']} */ ;
+/** @type {__VLS_StyleScopedClasses['export-result']} */ ;
 /** @type {__VLS_StyleScopedClasses['backup-stat']} */ ;
 /** @type {__VLS_StyleScopedClasses['backup-stat']} */ ;
 /** @type {__VLS_StyleScopedClasses['backup-root-header']} */ ;
@@ -498,23 +542,30 @@ else {
         ...{ class: "settings-field" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
-        ...{ class: "form-control" },
-        'data-test': "ai-dataset-name-input",
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
+        ...{ onChange: (__VLS_ctx.applySelectedAiDataset) },
+        value: (__VLS_ctx.form.aiDatasetId),
+        ...{ class: "form-select" },
+        'data-test': "ai-dataset-select",
         disabled: (__VLS_ctx.saving),
-        list: "ai-dataset-options",
-        placeholder: "Datensatzname eingeben oder auswählen",
     });
-    (__VLS_ctx.form.aiDatasetName);
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.datalist, __VLS_intrinsicElements.datalist)({
-        id: "ai-dataset-options",
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+        value: (__VLS_ctx.EMPTY_OPTION),
     });
     for (const [datasetOption] of __VLS_getVForSourceType((__VLS_ctx.dropdowns.aiDatasets))) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
             key: (`${datasetOption.id}-${datasetOption.datasetType}`),
-            value: (datasetOption.value),
+            value: (String(datasetOption.id)),
         });
         (datasetOption.label);
+        (datasetOption.datasetType);
+        (datasetOption.id);
+    }
+    if (__VLS_ctx.selectedAiDatasetDuplicateWarning) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+            ...{ class: "text-warning mt-1" },
+        });
+        (__VLS_ctx.selectedAiDatasetDuplicateWarning);
     }
     __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
         ...{ class: "settings-field" },
@@ -524,7 +575,7 @@ else {
         value: (__VLS_ctx.form.aiDatasetType),
         ...{ class: "form-select" },
         'data-test': "ai-dataset-type-select",
-        disabled: (__VLS_ctx.saving),
+        disabled: (__VLS_ctx.saving || Boolean(__VLS_ctx.form.aiDatasetId)),
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
         value: (__VLS_ctx.EMPTY_OPTION),
@@ -793,14 +844,40 @@ if (__VLS_ctx.aiDatasetExportMessage) {
     });
     (__VLS_ctx.aiDatasetExportMessage);
 }
+if (__VLS_ctx.aiDatasetExportResult) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.dl, __VLS_intrinsicElements.dl)({
+        ...{ class: "export-result" },
+        'data-test': "ai-dataset-export-result",
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.dt, __VLS_intrinsicElements.dt)({});
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.dd, __VLS_intrinsicElements.dd)({});
+    (__VLS_ctx.aiDatasetExportResult.sha256 || 'Nicht verfügbar');
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.dt, __VLS_intrinsicElements.dt)({});
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.dd, __VLS_intrinsicElements.dd)({});
+    (__VLS_ctx.formatBytes(__VLS_ctx.aiDatasetExportResult.byteSize));
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.dt, __VLS_intrinsicElements.dt)({});
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.dd, __VLS_intrinsicElements.dd)({});
+    ((__VLS_ctx.aiDatasetExportResult.summary.imageAnnotationCount ?? 0) +
+        (__VLS_ctx.aiDatasetExportResult.summary.videoAnnotationCount ?? 0));
+}
 __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
     ...{ onClick: (__VLS_ctx.runAiDatasetExport) },
     type: "button",
     ...{ class: "btn btn-primary mt-3" },
     'data-test': "run-ai-dataset-export",
-    disabled: (__VLS_ctx.aiDatasetExportInProgress || !__VLS_ctx.form.aiDatasetName.trim() || !__VLS_ctx.form.aiDatasetType),
+    disabled: (__VLS_ctx.aiDatasetExportInProgress || !__VLS_ctx.selectedAiDatasetOption),
 });
 (__VLS_ctx.aiDatasetExportInProgress ? 'Export läuft…' : 'KI-Datensatz exportieren');
+if (__VLS_ctx.aiDatasetExportResult?.downloadUrl) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.a, __VLS_intrinsicElements.a)({
+        ...{ class: "btn btn-outline-primary mt-3 ms-2" },
+        'data-test': "download-ai-dataset-export",
+        href: (__VLS_ctx.aiDatasetExportResult.downloadUrl),
+    });
+}
 __VLS_asFunctionalElement(__VLS_intrinsicElements.aside, __VLS_intrinsicElements.aside)({
     ...{ class: "settings-card mt-4" },
 });
@@ -930,7 +1007,9 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElement
 /** @type {__VLS_StyleScopedClasses['settings-field']} */ ;
 /** @type {__VLS_StyleScopedClasses['form-select']} */ ;
 /** @type {__VLS_StyleScopedClasses['settings-field']} */ ;
-/** @type {__VLS_StyleScopedClasses['form-control']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-select']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-warning']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['settings-field']} */ ;
 /** @type {__VLS_StyleScopedClasses['form-select']} */ ;
 /** @type {__VLS_StyleScopedClasses['actions-row']} */ ;
@@ -991,9 +1070,14 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElement
 /** @type {__VLS_StyleScopedClasses['alert']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert-info']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['export-result']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-primary']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-primary']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['ms-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['settings-card']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-4']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-header-row']} */ ;
@@ -1031,6 +1115,7 @@ const __VLS_self = (await import('vue')).defineComponent({
             backupInProgress: backupInProgress,
             backupTargetPath: backupTargetPath,
             aiDatasetExportInProgress: aiDatasetExportInProgress,
+            aiDatasetExportResult: aiDatasetExportResult,
             videoDimensionBackfillInProgress: videoDimensionBackfillInProgress,
             videoDimensionBackfillDryRun: videoDimensionBackfillDryRun,
             videoDimensionBackfillLimit: videoDimensionBackfillLimit,
@@ -1042,8 +1127,10 @@ const __VLS_self = (await import('vue')).defineComponent({
             selectedProcessorLabel: selectedProcessorLabel,
             selectedAnnotatorLabel: selectedAnnotatorLabel,
             selectedReportTemplateLabel: selectedReportTemplateLabel,
+            selectedAiDatasetOption: selectedAiDatasetOption,
             selectedAiDatasetLabel: selectedAiDatasetLabel,
             selectedAiDatasetTypeLabel: selectedAiDatasetTypeLabel,
+            selectedAiDatasetDuplicateWarning: selectedAiDatasetDuplicateWarning,
             backupReady: backupReady,
             backupMissingPaths: backupMissingPaths,
             backupSourceRoots: backupSourceRoots,
@@ -1055,6 +1142,7 @@ const __VLS_self = (await import('vue')).defineComponent({
             terminologyStatusMessage: terminologyStatusMessage,
             isDirty: isDirty,
             resetForm: resetForm,
+            applySelectedAiDataset: applySelectedAiDataset,
             loadSettings: loadSettings,
             loadTerminologyBundles: loadTerminologyBundles,
             setMedicalField: setMedicalField,
@@ -1063,6 +1151,7 @@ const __VLS_self = (await import('vue')).defineComponent({
             runVideoDimensionBackfill: runVideoDimensionBackfill,
             runBackup: runBackup,
             runAiDatasetExport: runAiDatasetExport,
+            formatBytes: formatBytes,
         };
     },
 });

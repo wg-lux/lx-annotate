@@ -3,11 +3,13 @@ from unittest.mock import patch
 import pytest
 
 from endoreg_db.models import Center, VideoFile, VideoProcessingHistory, VideoState
+from endoreg_db.models.state.video_segment_validation import (
+    OUTSIDE_FRAME_BLACKENING_KIND,
+    resolve_segment_annotation_status,
+)
 from endoreg_db.services import video_post_validation_jobs
 from endoreg_db.services.video_post_validation_jobs import (
-    OUTSIDE_FRAME_BLACKENING_KIND,
     dispatch_video_post_validation_rebuild,
-    resolve_segment_annotation_status,
 )
 
 pytestmark = pytest.mark.django_db
@@ -120,7 +122,7 @@ def test_celery_dispatch_failure_does_not_fall_back_to_thread(monkeypatch, cente
 
     class FailingTask:
         @staticmethod
-        def delay(*args, **kwargs):
+        def apply_async(*args, **kwargs):
             raise RuntimeError("broker unavailable")
 
     monkeypatch.setattr(
@@ -129,10 +131,12 @@ def test_celery_dispatch_failure_does_not_fall_back_to_thread(monkeypatch, cente
     )
 
     with patch.object(video_post_validation_jobs._executor, "submit") as submit:
-        with pytest.raises(RuntimeError, match="broker unavailable"):
-            dispatch_video_post_validation_rebuild(video_id=video.pk)
+        result = dispatch_video_post_validation_rebuild(video_id=video.pk)
 
     submit.assert_not_called()
+    assert result.status == "failed"
+    assert result.mode == "celery"
+    assert result.history_id is not None
     history = VideoProcessingHistory.objects.get(video=video)
     assert history.status == VideoProcessingHistory.STATUS_FAILURE
-    assert "Celery dispatch failed" in history.details
+    assert "broker unavailable" in history.details

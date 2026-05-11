@@ -700,6 +700,10 @@ async function loadPage(): Promise<void> {
     applyPhiDefaults(options.phiRegionDetector.defaults)
     const activeRun = runs.find(isRunActive) ?? runs[0] ?? null
     currentRun.value = activeRun
+    runErrorMessage.value =
+      activeRun && (activeRun.status === 'failed' || activeRun.status === 'lost')
+        ? activeRun.error || 'Training fehlgeschlagen.'
+        : ''
     runPolling.value = activeRun ? isRunActive(activeRun) : false
     if (activeRun && isRunActive(activeRun)) {
       startPolling(activeRun.runId)

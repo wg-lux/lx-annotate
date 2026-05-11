@@ -103,7 +103,7 @@
                 <th>Zentrum</th>
                 <th>Markiert</th>
                 <th>Status</th>
-                <th>Letzter Fehler</th>
+                <th>Hinweis</th>
               </tr>
             </thead>
             <tbody>
@@ -145,7 +145,12 @@
                     {{ item.outboundStatus || 'nicht markiert' }}
                   </span>
                 </td>
-                <td class="text-danger small">{{ item.lastError || '-' }}</td>
+                <td
+                  class="small"
+                  :class="itemNotice(item) === '-' ? 'text-muted' : 'text-danger'"
+                >
+                  {{ itemNotice(item) }}
+                </td>
               </tr>
             </tbody>
           </table>
@@ -165,7 +170,11 @@ const selectedTargetNodeKey = ref<string | null>(null)
 
 const selectionKey = (item: HubExportItem) => `${item.resourceKind}:${item.id}`
 
-const filteredItems = computed(() => hubExportStore.items.filter((item) => item.eligible || item.markedForUpload))
+const itemNotice = (item: HubExportItem) => item.lastError || item.blockedReason || '-'
+
+const filteredItems = computed(() =>
+  hubExportStore.items.filter((item) => item.eligible || item.markedForUpload || item.blockedReason)
+)
 const selectableItems = computed(() => filteredItems.value.filter((item) => item.eligible))
 const allSelectableChecked = computed(() =>
   selectableItems.value.length > 0 &&

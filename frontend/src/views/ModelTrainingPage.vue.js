@@ -1,79 +1,115 @@
-import { createModelTrainingRun, fetchModelTrainingOptions, fetchModelTrainingRun } from '@/api/modelTrainingApi';
-import { useAnnotationQueueStore } from '@/stores/annotationQueue';
+import { createModelTrainingRun, fetchModelTrainingOptions, fetchModelTrainingRun, fetchModelTrainingRuns } from '@/api/modelTrainingApi';
 import { useToastStore } from '@/stores/toastStore';
-import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
 const toast = useToastStore();
-const annotationQueue = useAnnotationQueueStore();
 const loading = ref(true);
 const runPolling = ref(false);
 const errorMessage = ref('');
 const runErrorMessage = ref('');
 const currentRun = ref(null);
+const recentRuns = ref([]);
+const trainingTargetOptions = ref([]);
 const datasetOptions = ref([]);
 const backboneOptions = ref([]);
 const featureModeOptions = ref([]);
+const phiBaseModelOptions = ref([]);
+const imageDefaults = ref(null);
+const phiDefaults = ref(null);
 const pollTimer = ref(null);
 const form = reactive({
+    trainingTarget: 'image_multilabel',
     datasetId: '',
-    samplingStrategy: annotationQueue.samplingStrategy,
-    predictionSegmentsOnly: annotationQueue.predictionSegmentsOnly,
+    datasetYaml: '',
+    outputDir: '',
+    baseModel: 'yolov8n.pt',
+    runName: '',
     backboneName: 'gastro_rn50',
     featureMode: 'freeze_backbone',
     epochs: 10,
     batchSize: 32,
+    inputSize: 640,
+    device: 'auto',
+    workers: 4,
+    patience: 25,
+    exportOnnx: true,
+    confidenceThreshold: 0.35,
+    nmsThreshold: 0.45,
+    classIds: '',
     labelsetVersion: 2,
     backboneCheckpoint: '',
     treatUnlabeledAsNegative: true
 });
-const samplingStrategyOptions = [
-    {
-        value: 'balanced',
-        label: 'Ausgewogen: Annotationen und KI-Segmente',
-        description: 'Wählt Frames aus Dataset-Annotationen und KI-Segmenten und priorisiert unterrepräsentierte Labels.'
-    },
-    {
-        value: 'segments',
-        label: 'KI-Segmentierungen',
-        description: 'Wählt Frames aus Segmentbereichen des Datensatzes, optional nur aus Modellvorhersagen.'
-    },
-    {
-        value: 'annotations',
-        label: 'Annotationen',
-        description: 'Wählt Frames aus positiven Frame-Annotationen des Datensatzes.'
-    },
-    {
-        value: 'none',
-        label: 'Zufällig',
-        description: 'Deaktiviert Dataset-basiertes Sampling und nutzt die normale zufällige Auswahl.'
-    }
-];
 const selectedBackboneDescription = computed(() => {
     return backboneOptions.value.find((option) => option.value === form.backboneName)?.description ?? '';
 });
 const selectedFeatureModeDescription = computed(() => {
     return featureModeOptions.value.find((option) => option.value === form.featureMode)?.description ?? '';
 });
-const selectedSamplingStrategyDescription = computed(() => {
-    return (samplingStrategyOptions.find((option) => option.value === form.samplingStrategy)?.description ?? '');
+const selectedPhiBaseModelDescription = computed(() => {
+    return phiBaseModelOptions.value.find((option) => option.value === form.baseModel)?.description ?? '';
+});
+const canStartTraining = computed(() => {
+    if (form.trainingTarget === 'phi_region_detector') {
+        return Boolean(form.datasetYaml.trim());
+    }
+    return Boolean(form.datasetId);
 });
 const statusChipLabel = computed(() => {
     if (!currentRun.value)
         return loading.value ? 'Lade Optionen' : 'Bereit';
-    if (currentRun.value.status === 'queued')
-        return 'In Warteschlange';
-    if (currentRun.value.status === 'running')
-        return 'Training läuft';
-    if (currentRun.value.status === 'completed')
-        return 'Training abgeschlossen';
-    return 'Training fehlgeschlagen';
+    return runStatusLabel(currentRun.value.status);
 });
 const statusChipClass = computed(() => {
     return {
         'training-status-running': currentRun.value?.status === 'queued' || currentRun.value?.status === 'running',
         'training-status-success': currentRun.value?.status === 'completed',
-        'training-status-failed': currentRun.value?.status === 'failed'
+        'training-status-failed': currentRun.value?.status === 'failed' || currentRun.value?.status === 'lost'
     };
 });
+const artifactEntries = computed(() => {
+    const entries = Object.entries(currentRun.value?.artifactPaths ?? {});
+    return entries.filter(([key]) => {
+        return !['model_path', 'meta_path', 'modelPath', 'metaPath'].includes(key) || !currentRun.value?.result;
+    });
+});
+const runOutputLog = computed(() => {
+    const output = [currentRun.value?.stdout, currentRun.value?.stderr]
+        .filter((value) => value && value.trim())
+        .join('\n');
+    return output || 'No output yet.';
+});
+function isRunActive(run) {
+    return run.status === 'queued' || run.status === 'running';
+}
+function runStatusLabel(status) {
+    if (status === 'queued')
+        return 'In Warteschlange';
+    if (status === 'running')
+        return 'Training läuft';
+    if (status === 'completed')
+        return 'Training abgeschlossen';
+    if (status === 'lost')
+        return 'Ergebnis verloren';
+    return 'Training fehlgeschlagen';
+}
+function trainingTargetLabel(target) {
+    if (target === 'phi_region_detector')
+        return 'PHI Region Detector';
+    return 'Image Multilabel Model';
+}
+function runDatasetLabel(run) {
+    if (run.datasetName)
+        return run.datasetName;
+    if (run.datasetId)
+        return `ID ${run.datasetId}`;
+    return 'External dataset';
+}
+function artifactLabel(key) {
+    return key
+        .replace(/([a-z])([A-Z])/g, '$1 $2')
+        .replace(/_/g, ' ')
+        .replace(/\b\w/g, (match) => match.toUpperCase());
+}
 function stopPolling() {
     if (pollTimer.value !== null) {
         window.clearInterval(pollTimer.value);
@@ -86,56 +122,100 @@ function applyDefaults() {
         form.datasetId = String(preferredDataset.id);
     }
 }
-function syncAnnotationQueueSelection() {
-    annotationQueue.setSamplingStrategy(form.samplingStrategy);
-    annotationQueue.setPredictionSegmentsOnly(form.predictionSegmentsOnly);
-    const selectedDataset = datasetOptions.value.find((dataset) => String(dataset.id) === form.datasetId);
-    annotationQueue.setAiDataset(selectedDataset?.value || selectedDataset?.label || null, selectedDataset?.datasetType || null);
+function applyImageTrainingDefaults(defaults) {
+    form.backboneName = defaults.backboneName;
+    form.featureMode = defaults.featureMode;
+    form.epochs = defaults.epochs;
+    form.batchSize = defaults.batchSize;
+    form.labelsetVersion = defaults.labelsetVersion;
+    form.backboneCheckpoint = defaults.backboneCheckpoint ?? '';
+    form.treatUnlabeledAsNegative = defaults.treatUnlabeledAsNegative;
+}
+function applyPhiDefaults(defaults, includeShared = false) {
+    form.datasetYaml = defaults.datasetYaml;
+    form.outputDir = defaults.outputDir;
+    form.baseModel = defaults.baseModel;
+    form.runName = defaults.runName;
+    if (includeShared) {
+        form.epochs = defaults.epochs;
+        form.batchSize = defaults.batchSize;
+    }
+    form.inputSize = defaults.inputSize;
+    form.device = defaults.device;
+    form.workers = defaults.workers;
+    form.patience = defaults.patience;
+    form.exportOnnx = defaults.exportOnnx;
+    form.confidenceThreshold = defaults.confidenceThreshold;
+    form.nmsThreshold = defaults.nmsThreshold;
+    form.classIds = defaults.classIds;
+}
+function setTrainingTarget(value) {
+    if (value === 'image_multilabel' || value === 'phi_region_detector') {
+        form.trainingTarget = value;
+        errorMessage.value = '';
+        if (value === 'phi_region_detector' && phiDefaults.value) {
+            applyPhiDefaults(phiDefaults.value, true);
+        }
+        else if (value === 'image_multilabel' && imageDefaults.value) {
+            applyImageTrainingDefaults(imageDefaults.value);
+        }
+    }
 }
 async function loadPage() {
     loading.value = true;
     errorMessage.value = '';
     runErrorMessage.value = '';
+    stopPolling();
     try {
-        const options = await fetchModelTrainingOptions();
+        const [options, runs] = await Promise.all([
+            fetchModelTrainingOptions(),
+            fetchModelTrainingRuns()
+        ]);
+        trainingTargetOptions.value = options.trainingTargets;
         datasetOptions.value = options.aiDatasets;
         backboneOptions.value = options.backbones;
         featureModeOptions.value = options.featureModes;
-        form.backboneName = options.defaults.backboneName;
-        form.featureMode = options.defaults.featureMode;
-        form.epochs = options.defaults.epochs;
-        form.batchSize = options.defaults.batchSize;
-        form.labelsetVersion = options.defaults.labelsetVersion;
-        form.backboneCheckpoint = options.defaults.backboneCheckpoint ?? '';
-        form.treatUnlabeledAsNegative = options.defaults.treatUnlabeledAsNegative;
+        phiBaseModelOptions.value = options.phiRegionDetector.baseModels;
+        imageDefaults.value = options.defaults;
+        phiDefaults.value = options.phiRegionDetector.defaults;
+        recentRuns.value = runs;
+        applyImageTrainingDefaults(options.defaults);
         applyDefaults();
-        syncAnnotationQueueSelection();
+        applyPhiDefaults(options.phiRegionDetector.defaults);
+        const activeRun = runs.find(isRunActive) ?? runs[0] ?? null;
+        currentRun.value = activeRun;
+        runErrorMessage.value =
+            activeRun && (activeRun.status === 'failed' || activeRun.status === 'lost')
+                ? activeRun.error || 'Training fehlgeschlagen.'
+                : '';
+        runPolling.value = activeRun ? isRunActive(activeRun) : false;
+        if (activeRun && isRunActive(activeRun)) {
+            startPolling(activeRun.runId);
+        }
     }
     catch (error) {
-        console.error('Failed to load model training options:', error);
-        errorMessage.value = 'Die Trainingsoptionen konnten nicht geladen werden.';
+        console.error('Failed to load model training page:', error);
+        errorMessage.value = 'Die Trainingsoptionen oder gespeicherten Läufe konnten nicht geladen werden.';
     }
     finally {
         loading.value = false;
     }
 }
-watch(() => [form.datasetId, form.samplingStrategy, form.predictionSegmentsOnly], () => {
-    syncAnnotationQueueSelection();
-});
 async function refreshRun(runId) {
     try {
         const run = await fetchModelTrainingRun(runId);
         currentRun.value = run;
+        recentRuns.value = [run, ...recentRuns.value.filter((entry) => entry.runId !== run.runId)];
         if (run.status === 'completed') {
             runPolling.value = false;
             stopPolling();
             toast.success({ text: 'Training abgeschlossen.' });
         }
-        else if (run.status === 'failed') {
+        else if (run.status === 'failed' || run.status === 'lost') {
             runPolling.value = false;
             stopPolling();
             runErrorMessage.value = run.error || 'Training fehlgeschlagen.';
-            toast.error({ text: 'Training fehlgeschlagen.' });
+            toast.error({ text: run.status === 'lost' ? 'Trainingsergebnis verloren.' : 'Training fehlgeschlagen.' });
         }
     }
     catch (error) {
@@ -147,25 +227,57 @@ async function refreshRun(runId) {
 }
 function startPolling(runId) {
     stopPolling();
+    runPolling.value = true;
     pollTimer.value = window.setInterval(() => {
         void refreshRun(runId);
     }, 2000);
 }
+function selectRun(run) {
+    currentRun.value = run;
+    runErrorMessage.value = run.error || '';
+    if (isRunActive(run)) {
+        startPolling(run.runId);
+    }
+    else {
+        runPolling.value = false;
+        stopPolling();
+    }
+}
 async function startTraining() {
     runErrorMessage.value = '';
+    errorMessage.value = '';
     try {
-        const run = await createModelTrainingRun({
-            datasetId: Number(form.datasetId),
-            backboneName: form.backboneName,
-            featureMode: form.featureMode,
-            epochs: form.epochs,
-            batchSize: form.batchSize,
-            labelsetVersion: form.labelsetVersion,
-            treatUnlabeledAsNegative: form.treatUnlabeledAsNegative,
-            backboneCheckpoint: form.backboneCheckpoint.trim() || null
-        });
+        const payload = form.trainingTarget === 'phi_region_detector'
+            ? {
+                trainingTarget: form.trainingTarget,
+                datasetYaml: form.datasetYaml.trim(),
+                outputDir: form.outputDir.trim(),
+                baseModel: form.baseModel,
+                runName: form.runName.trim() || null,
+                epochs: form.epochs,
+                batchSize: form.batchSize,
+                inputSize: form.inputSize,
+                device: form.device.trim() || 'auto',
+                workers: form.workers,
+                patience: form.patience,
+                exportOnnx: form.exportOnnx,
+                confidenceThreshold: form.confidenceThreshold,
+                nmsThreshold: form.nmsThreshold,
+                classIds: form.classIds.trim()
+            }
+            : {
+                datasetId: Number(form.datasetId),
+                backboneName: form.backboneName,
+                featureMode: form.featureMode,
+                epochs: form.epochs,
+                batchSize: form.batchSize,
+                labelsetVersion: form.labelsetVersion,
+                treatUnlabeledAsNegative: form.treatUnlabeledAsNegative,
+                backboneCheckpoint: form.backboneCheckpoint.trim() || null
+            };
+        const run = await createModelTrainingRun(payload);
         currentRun.value = run;
-        runPolling.value = true;
+        recentRuns.value = [run, ...recentRuns.value.filter((entry) => entry.runId !== run.runId)];
         toast.success({ text: 'Training gestartet.' });
         startPolling(run.runId);
         void refreshRun(run.runId);
@@ -199,10 +311,14 @@ let __VLS_directives;
 /** @type {__VLS_StyleScopedClasses['card-header-row']} */ ;
 /** @type {__VLS_StyleScopedClasses['training-card-contrast']} */ ;
 /** @type {__VLS_StyleScopedClasses['status-intro']} */ ;
+/** @type {__VLS_StyleScopedClasses['recent-runs-header']} */ ;
+/** @type {__VLS_StyleScopedClasses['recent-runs-header']} */ ;
+/** @type {__VLS_StyleScopedClasses['recent-run-row']} */ ;
 /** @type {__VLS_StyleScopedClasses['training-summary']} */ ;
 /** @type {__VLS_StyleScopedClasses['training-summary']} */ ;
 /** @type {__VLS_StyleScopedClasses['training-summary']} */ ;
 /** @type {__VLS_StyleScopedClasses['training-hero']} */ ;
+/** @type {__VLS_StyleScopedClasses['recent-run-row']} */ ;
 // CSS variable injection 
 // CSS variable injection end 
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -266,6 +382,27 @@ else {
         ...{ onSubmit: (__VLS_ctx.startTraining) },
         ...{ class: "training-form" },
     });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "training-target-control" },
+        role: "group",
+        'aria-label': "Training target",
+    });
+    for (const [option] of __VLS_getVForSourceType((__VLS_ctx.trainingTargetOptions))) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+            ...{ onClick: (...[$event]) => {
+                    if (!!(__VLS_ctx.loading))
+                        return;
+                    __VLS_ctx.setTrainingTarget(option.value);
+                } },
+            key: (option.value),
+            type: "button",
+            ...{ class: "training-target-button" },
+            ...{ class: ({ 'training-target-button-active': __VLS_ctx.form.trainingTarget === option.value }) },
+            disabled: (__VLS_ctx.runPolling),
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+        (option.label);
+    }
     if (__VLS_ctx.errorMessage) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: "alert alert-warning mb-3" },
@@ -273,178 +410,338 @@ else {
         });
         (__VLS_ctx.errorMessage);
     }
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
-        ...{ class: "training-field" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
-        value: (__VLS_ctx.form.datasetId),
-        ...{ class: "form-select" },
-        'data-test': "training-dataset-select",
-        disabled: (__VLS_ctx.runPolling),
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-        value: "",
-    });
-    for (const [dataset] of __VLS_getVForSourceType((__VLS_ctx.datasetOptions))) {
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-            key: (dataset.id),
-            value: (String(dataset.id)),
+    if (__VLS_ctx.form.trainingTarget === 'image_multilabel') {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+            ...{ class: "training-field" },
         });
-        (dataset.label);
-        (dataset.id);
-    }
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
-        ...{ class: "text-muted mt-1" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
-        ...{ class: "training-field" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
-        value: (__VLS_ctx.form.samplingStrategy),
-        ...{ class: "form-select" },
-        'data-test': "training-sampling-strategy-select",
-        disabled: (__VLS_ctx.runPolling),
-    });
-    for (const [option] of __VLS_getVForSourceType((__VLS_ctx.samplingStrategyOptions))) {
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-            key: (option.value),
-            value: (option.value),
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
+            value: (__VLS_ctx.form.datasetId),
+            ...{ class: "form-select" },
+            'data-test': "training-dataset-select",
+            disabled: (__VLS_ctx.runPolling),
         });
-        (option.label);
-    }
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
-        ...{ class: "text-muted mt-1" },
-    });
-    (__VLS_ctx.selectedSamplingStrategyDescription);
-    if (__VLS_ctx.form.samplingStrategy === 'balanced' || __VLS_ctx.form.samplingStrategy === 'segments') {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+            value: "",
+        });
+        for (const [dataset] of __VLS_getVForSourceType((__VLS_ctx.datasetOptions))) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+                key: (dataset.id),
+                value: (String(dataset.id)),
+            });
+            (dataset.label);
+            (dataset.id);
+        }
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+            ...{ class: "text-muted mt-1" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+            ...{ class: "training-field" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
+            value: (__VLS_ctx.form.backboneName),
+            ...{ class: "form-select" },
+            'data-test': "training-backbone-select",
+            disabled: (__VLS_ctx.runPolling),
+        });
+        for (const [option] of __VLS_getVForSourceType((__VLS_ctx.backboneOptions))) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+                key: (option.value),
+                value: (option.value),
+            });
+            (option.label);
+        }
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+            ...{ class: "text-muted mt-1" },
+        });
+        (__VLS_ctx.selectedBackboneDescription);
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+            ...{ class: "training-field" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
+            value: (__VLS_ctx.form.featureMode),
+            ...{ class: "form-select" },
+            'data-test': "training-feature-mode-select",
+            disabled: (__VLS_ctx.runPolling),
+        });
+        for (const [option] of __VLS_getVForSourceType((__VLS_ctx.featureModeOptions))) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+                key: (option.value),
+                value: (option.value),
+            });
+            (option.label);
+        }
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+            ...{ class: "text-muted mt-1" },
+        });
+        (__VLS_ctx.selectedFeatureModeDescription);
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "training-grid" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+            ...{ class: "training-field" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
+            type: "number",
+            min: "1",
+            ...{ class: "form-control" },
+            'data-test': "training-epochs-input",
+            disabled: (__VLS_ctx.runPolling),
+        });
+        (__VLS_ctx.form.epochs);
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+            ...{ class: "training-field" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
+            type: "number",
+            min: "1",
+            ...{ class: "form-control" },
+            'data-test': "training-batch-size-input",
+            disabled: (__VLS_ctx.runPolling),
+        });
+        (__VLS_ctx.form.batchSize);
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+            ...{ class: "training-field" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
+            type: "number",
+            min: "1",
+            ...{ class: "form-control" },
+            'data-test': "training-labelset-version-input",
+            disabled: (__VLS_ctx.runPolling),
+        });
+        (__VLS_ctx.form.labelsetVersion);
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+            ...{ class: "training-field" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
+            value: (__VLS_ctx.form.backboneCheckpoint),
+            type: "text",
+            ...{ class: "form-control" },
+            'data-test': "training-backbone-checkpoint-input",
+            disabled: (__VLS_ctx.runPolling),
+            placeholder: "/absolute/path/to/checkpoint.pth",
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+            ...{ class: "text-muted mt-1" },
+        });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: "form-check training-checkbox" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
-            id: "prediction-segments-only",
+            id: "treat-unlabeled-as-negative",
             ...{ class: "form-check-input" },
             type: "checkbox",
-            'data-test': "training-prediction-segments-only",
             disabled: (__VLS_ctx.runPolling),
         });
-        (__VLS_ctx.form.predictionSegmentsOnly);
+        (__VLS_ctx.form.treatUnlabeledAsNegative);
         __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
             ...{ class: "form-check-label" },
-            for: "prediction-segments-only",
+            for: "treat-unlabeled-as-negative",
         });
     }
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
-        ...{ class: "training-field" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
-        value: (__VLS_ctx.form.backboneName),
-        ...{ class: "form-select" },
-        'data-test': "training-backbone-select",
-        disabled: (__VLS_ctx.runPolling),
-    });
-    for (const [option] of __VLS_getVForSourceType((__VLS_ctx.backboneOptions))) {
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-            key: (option.value),
-            value: (option.value),
+    else {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+            ...{ class: "training-field" },
         });
-        (option.label);
-    }
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
-        ...{ class: "text-muted mt-1" },
-    });
-    (__VLS_ctx.selectedBackboneDescription);
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
-        ...{ class: "training-field" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
-        value: (__VLS_ctx.form.featureMode),
-        ...{ class: "form-select" },
-        'data-test': "training-feature-mode-select",
-        disabled: (__VLS_ctx.runPolling),
-    });
-    for (const [option] of __VLS_getVForSourceType((__VLS_ctx.featureModeOptions))) {
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-            key: (option.value),
-            value: (option.value),
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
+            value: (__VLS_ctx.form.datasetYaml),
+            type: "text",
+            ...{ class: "form-control" },
+            'data-test': "phi-dataset-yaml-input",
+            disabled: (__VLS_ctx.runPolling),
+            placeholder: "/absolute/path/to/dataset.yaml",
         });
-        (option.label);
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+            ...{ class: "training-field" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
+            value: (__VLS_ctx.form.baseModel),
+            ...{ class: "form-select" },
+            'data-test': "phi-base-model-select",
+            disabled: (__VLS_ctx.runPolling),
+        });
+        for (const [option] of __VLS_getVForSourceType((__VLS_ctx.phiBaseModelOptions))) {
+            __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+                key: (option.value),
+                value: (option.value),
+            });
+            (option.label);
+        }
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
+            ...{ class: "text-muted mt-1" },
+        });
+        (__VLS_ctx.selectedPhiBaseModelDescription);
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "training-grid" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+            ...{ class: "training-field" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
+            type: "number",
+            min: "1",
+            ...{ class: "form-control" },
+            'data-test': "phi-epochs-input",
+            disabled: (__VLS_ctx.runPolling),
+        });
+        (__VLS_ctx.form.epochs);
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+            ...{ class: "training-field" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
+            type: "number",
+            min: "1",
+            ...{ class: "form-control" },
+            'data-test': "phi-batch-size-input",
+            disabled: (__VLS_ctx.runPolling),
+        });
+        (__VLS_ctx.form.batchSize);
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+            ...{ class: "training-field" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
+            type: "number",
+            min: "32",
+            step: "32",
+            ...{ class: "form-control" },
+            'data-test': "phi-input-size-input",
+            disabled: (__VLS_ctx.runPolling),
+        });
+        (__VLS_ctx.form.inputSize);
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "training-grid" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+            ...{ class: "training-field" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
+            value: (__VLS_ctx.form.device),
+            type: "text",
+            ...{ class: "form-control" },
+            'data-test': "phi-device-input",
+            disabled: (__VLS_ctx.runPolling),
+            placeholder: "auto",
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+            ...{ class: "training-field" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
+            type: "number",
+            min: "0",
+            ...{ class: "form-control" },
+            'data-test': "phi-workers-input",
+            disabled: (__VLS_ctx.runPolling),
+        });
+        (__VLS_ctx.form.workers);
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+            ...{ class: "training-field" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
+            type: "number",
+            min: "0",
+            ...{ class: "form-control" },
+            'data-test': "phi-patience-input",
+            disabled: (__VLS_ctx.runPolling),
+        });
+        (__VLS_ctx.form.patience);
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "training-grid" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+            ...{ class: "training-field" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
+            type: "number",
+            min: "0",
+            max: "1",
+            step: "0.01",
+            ...{ class: "form-control" },
+            'data-test': "phi-confidence-input",
+            disabled: (__VLS_ctx.runPolling),
+        });
+        (__VLS_ctx.form.confidenceThreshold);
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+            ...{ class: "training-field" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
+            type: "number",
+            min: "0",
+            max: "1",
+            step: "0.01",
+            ...{ class: "form-control" },
+            'data-test': "phi-nms-input",
+            disabled: (__VLS_ctx.runPolling),
+        });
+        (__VLS_ctx.form.nmsThreshold);
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+            ...{ class: "training-field" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
+            value: (__VLS_ctx.form.classIds),
+            type: "text",
+            ...{ class: "form-control" },
+            'data-test': "phi-class-ids-input",
+            disabled: (__VLS_ctx.runPolling),
+            placeholder: "0,1",
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+            ...{ class: "training-field" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
+            value: (__VLS_ctx.form.outputDir),
+            type: "text",
+            ...{ class: "form-control" },
+            'data-test': "phi-output-dir-input",
+            disabled: (__VLS_ctx.runPolling),
+            placeholder: "/absolute/path/to/runs",
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+            ...{ class: "training-field" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
+            value: (__VLS_ctx.form.runName),
+            type: "text",
+            ...{ class: "form-control" },
+            'data-test': "phi-run-name-input",
+            disabled: (__VLS_ctx.runPolling),
+            placeholder: "phi-detector-v1",
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            ...{ class: "form-check training-checkbox" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
+            id: "phi-export-onnx",
+            ...{ class: "form-check-input" },
+            type: "checkbox",
+            'data-test': "phi-export-onnx-checkbox",
+            disabled: (__VLS_ctx.runPolling),
+        });
+        (__VLS_ctx.form.exportOnnx);
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+            ...{ class: "form-check-label" },
+            for: "phi-export-onnx",
+        });
     }
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
-        ...{ class: "text-muted mt-1" },
-    });
-    (__VLS_ctx.selectedFeatureModeDescription);
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "training-grid" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
-        ...{ class: "training-field" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
-        type: "number",
-        min: "1",
-        ...{ class: "form-control" },
-        'data-test': "training-epochs-input",
-        disabled: (__VLS_ctx.runPolling),
-    });
-    (__VLS_ctx.form.epochs);
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
-        ...{ class: "training-field" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
-        type: "number",
-        min: "1",
-        ...{ class: "form-control" },
-        'data-test': "training-batch-size-input",
-        disabled: (__VLS_ctx.runPolling),
-    });
-    (__VLS_ctx.form.batchSize);
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
-        ...{ class: "training-field" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
-        type: "number",
-        min: "1",
-        ...{ class: "form-control" },
-        'data-test': "training-labelset-version-input",
-        disabled: (__VLS_ctx.runPolling),
-    });
-    (__VLS_ctx.form.labelsetVersion);
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
-        ...{ class: "training-field" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
-        value: (__VLS_ctx.form.backboneCheckpoint),
-        type: "text",
-        ...{ class: "form-control" },
-        'data-test': "training-backbone-checkpoint-input",
-        disabled: (__VLS_ctx.runPolling),
-        placeholder: "/absolute/path/to/checkpoint.pth",
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
-        ...{ class: "text-muted mt-1" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "form-check training-checkbox" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
-        id: "treat-unlabeled-as-negative",
-        ...{ class: "form-check-input" },
-        type: "checkbox",
-        disabled: (__VLS_ctx.runPolling),
-    });
-    (__VLS_ctx.form.treatUnlabeledAsNegative);
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
-        ...{ class: "form-check-label" },
-        for: "treat-unlabeled-as-negative",
-    });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "actions-row" },
     });
@@ -453,9 +750,43 @@ else {
         type: "button",
         ...{ class: "btn btn-primary" },
         'data-test': "start-training-run",
-        disabled: (__VLS_ctx.runPolling || !__VLS_ctx.form.datasetId),
+        disabled: (__VLS_ctx.runPolling || !__VLS_ctx.canStartTraining),
     });
     (__VLS_ctx.runPolling ? 'Training läuft…' : 'Training starten');
+}
+if (__VLS_ctx.recentRuns.length) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "recent-runs" },
+        'data-test': "training-runs-list",
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "recent-runs-header" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.h3, __VLS_intrinsicElements.h3)({});
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+    (__VLS_ctx.recentRuns.length);
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "recent-runs-table" },
+    });
+    for (const [run] of __VLS_getVForSourceType((__VLS_ctx.recentRuns))) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+            ...{ onClick: (...[$event]) => {
+                    if (!(__VLS_ctx.recentRuns.length))
+                        return;
+                    __VLS_ctx.selectRun(run);
+                } },
+            key: (run.runId),
+            type: "button",
+            ...{ class: "recent-run-row" },
+            ...{ class: ({ 'recent-run-row-active': __VLS_ctx.currentRun?.runId === run.runId }) },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+        (__VLS_ctx.runDatasetLabel(run));
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+        (__VLS_ctx.runStatusLabel(run.status));
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+        (__VLS_ctx.formatTimestamp(run.createdAt));
+    }
 }
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "col-12 col-xl-5" },
@@ -478,11 +809,15 @@ if (__VLS_ctx.currentRun) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
     __VLS_asFunctionalElement(__VLS_intrinsicElements.dt, __VLS_intrinsicElements.dt)({});
     __VLS_asFunctionalElement(__VLS_intrinsicElements.dd, __VLS_intrinsicElements.dd)({});
-    (__VLS_ctx.currentRun.status);
+    (__VLS_ctx.trainingTargetLabel(__VLS_ctx.currentRun.trainingTarget));
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
     __VLS_asFunctionalElement(__VLS_intrinsicElements.dt, __VLS_intrinsicElements.dt)({});
     __VLS_asFunctionalElement(__VLS_intrinsicElements.dd, __VLS_intrinsicElements.dd)({});
-    (__VLS_ctx.currentRun.datasetName || `ID ${__VLS_ctx.currentRun.datasetId}`);
+    (__VLS_ctx.runStatusLabel(__VLS_ctx.currentRun.status));
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.dt, __VLS_intrinsicElements.dt)({});
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.dd, __VLS_intrinsicElements.dd)({});
+    (__VLS_ctx.runDatasetLabel(__VLS_ctx.currentRun));
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
     __VLS_asFunctionalElement(__VLS_intrinsicElements.dt, __VLS_intrinsicElements.dt)({});
     __VLS_asFunctionalElement(__VLS_intrinsicElements.dd, __VLS_intrinsicElements.dd)({});
@@ -513,6 +848,15 @@ if (__VLS_ctx.currentRun) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.dd, __VLS_intrinsicElements.dd)({});
         (__VLS_ctx.currentRun.result.metaPath);
     }
+    for (const [[label, path]] of __VLS_getVForSourceType((__VLS_ctx.artifactEntries))) {
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+            key: (label),
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.dt, __VLS_intrinsicElements.dt)({});
+        (__VLS_ctx.artifactLabel(label));
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.dd, __VLS_intrinsicElements.dd)({});
+        (path);
+    }
 }
 else {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
@@ -535,11 +879,16 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.d
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
 __VLS_asFunctionalElement(__VLS_intrinsicElements.h2, __VLS_intrinsicElements.h2)({});
 __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.details, __VLS_intrinsicElements.details)({
+    ...{ class: "training-log-details" },
+    open: true,
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.summary, __VLS_intrinsicElements.summary)({});
 __VLS_asFunctionalElement(__VLS_intrinsicElements.pre, __VLS_intrinsicElements.pre)({
     ...{ class: "training-log" },
     'data-test': "training-run-log",
 });
-(__VLS_ctx.currentRun?.stdout || 'No output yet.');
+(__VLS_ctx.runOutputLog);
 /** @type {__VLS_StyleScopedClasses['training-page']} */ ;
 /** @type {__VLS_StyleScopedClasses['container-fluid']} */ ;
 /** @type {__VLS_StyleScopedClasses['py-4']} */ ;
@@ -566,6 +915,9 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.pre, __VLS_intrinsicElements.p
 /** @type {__VLS_StyleScopedClasses['skeleton-line-short']} */ ;
 /** @type {__VLS_StyleScopedClasses['skeleton-line']} */ ;
 /** @type {__VLS_StyleScopedClasses['training-form']} */ ;
+/** @type {__VLS_StyleScopedClasses['training-target-control']} */ ;
+/** @type {__VLS_StyleScopedClasses['training-target-button']} */ ;
+/** @type {__VLS_StyleScopedClasses['training-target-button-active']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert-warning']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
@@ -573,14 +925,6 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.pre, __VLS_intrinsicElements.p
 /** @type {__VLS_StyleScopedClasses['form-select']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-1']} */ ;
-/** @type {__VLS_StyleScopedClasses['training-field']} */ ;
-/** @type {__VLS_StyleScopedClasses['form-select']} */ ;
-/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
-/** @type {__VLS_StyleScopedClasses['mt-1']} */ ;
-/** @type {__VLS_StyleScopedClasses['form-check']} */ ;
-/** @type {__VLS_StyleScopedClasses['training-checkbox']} */ ;
-/** @type {__VLS_StyleScopedClasses['form-check-input']} */ ;
-/** @type {__VLS_StyleScopedClasses['form-check-label']} */ ;
 /** @type {__VLS_StyleScopedClasses['training-field']} */ ;
 /** @type {__VLS_StyleScopedClasses['form-select']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
@@ -604,9 +948,49 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.pre, __VLS_intrinsicElements.p
 /** @type {__VLS_StyleScopedClasses['training-checkbox']} */ ;
 /** @type {__VLS_StyleScopedClasses['form-check-input']} */ ;
 /** @type {__VLS_StyleScopedClasses['form-check-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['training-field']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-control']} */ ;
+/** @type {__VLS_StyleScopedClasses['training-field']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-select']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['training-grid']} */ ;
+/** @type {__VLS_StyleScopedClasses['training-field']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-control']} */ ;
+/** @type {__VLS_StyleScopedClasses['training-field']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-control']} */ ;
+/** @type {__VLS_StyleScopedClasses['training-field']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-control']} */ ;
+/** @type {__VLS_StyleScopedClasses['training-grid']} */ ;
+/** @type {__VLS_StyleScopedClasses['training-field']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-control']} */ ;
+/** @type {__VLS_StyleScopedClasses['training-field']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-control']} */ ;
+/** @type {__VLS_StyleScopedClasses['training-field']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-control']} */ ;
+/** @type {__VLS_StyleScopedClasses['training-grid']} */ ;
+/** @type {__VLS_StyleScopedClasses['training-field']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-control']} */ ;
+/** @type {__VLS_StyleScopedClasses['training-field']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-control']} */ ;
+/** @type {__VLS_StyleScopedClasses['training-field']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-control']} */ ;
+/** @type {__VLS_StyleScopedClasses['training-field']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-control']} */ ;
+/** @type {__VLS_StyleScopedClasses['training-field']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-control']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-check']} */ ;
+/** @type {__VLS_StyleScopedClasses['training-checkbox']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-check-input']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-check-label']} */ ;
 /** @type {__VLS_StyleScopedClasses['actions-row']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-primary']} */ ;
+/** @type {__VLS_StyleScopedClasses['recent-runs']} */ ;
+/** @type {__VLS_StyleScopedClasses['recent-runs-header']} */ ;
+/** @type {__VLS_StyleScopedClasses['recent-runs-table']} */ ;
+/** @type {__VLS_StyleScopedClasses['recent-run-row']} */ ;
+/** @type {__VLS_StyleScopedClasses['recent-run-row-active']} */ ;
 /** @type {__VLS_StyleScopedClasses['col-12']} */ ;
 /** @type {__VLS_StyleScopedClasses['col-xl-5']} */ ;
 /** @type {__VLS_StyleScopedClasses['training-card']} */ ;
@@ -622,6 +1006,7 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.pre, __VLS_intrinsicElements.p
 /** @type {__VLS_StyleScopedClasses['training-card']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-4']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-header-row']} */ ;
+/** @type {__VLS_StyleScopedClasses['training-log-details']} */ ;
 /** @type {__VLS_StyleScopedClasses['training-log']} */ ;
 var __VLS_dollars;
 const __VLS_self = (await import('vue')).defineComponent({
@@ -632,17 +1017,28 @@ const __VLS_self = (await import('vue')).defineComponent({
             errorMessage: errorMessage,
             runErrorMessage: runErrorMessage,
             currentRun: currentRun,
+            recentRuns: recentRuns,
+            trainingTargetOptions: trainingTargetOptions,
             datasetOptions: datasetOptions,
             backboneOptions: backboneOptions,
             featureModeOptions: featureModeOptions,
+            phiBaseModelOptions: phiBaseModelOptions,
             form: form,
-            samplingStrategyOptions: samplingStrategyOptions,
             selectedBackboneDescription: selectedBackboneDescription,
             selectedFeatureModeDescription: selectedFeatureModeDescription,
-            selectedSamplingStrategyDescription: selectedSamplingStrategyDescription,
+            selectedPhiBaseModelDescription: selectedPhiBaseModelDescription,
+            canStartTraining: canStartTraining,
             statusChipLabel: statusChipLabel,
             statusChipClass: statusChipClass,
+            artifactEntries: artifactEntries,
+            runOutputLog: runOutputLog,
+            runStatusLabel: runStatusLabel,
+            trainingTargetLabel: trainingTargetLabel,
+            runDatasetLabel: runDatasetLabel,
+            artifactLabel: artifactLabel,
+            setTrainingTarget: setTrainingTarget,
             loadPage: loadPage,
+            selectRun: selectRun,
             startTraining: startTraining,
             formatTimestamp: formatTimestamp,
         };

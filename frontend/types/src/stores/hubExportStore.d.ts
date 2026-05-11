@@ -15,6 +15,7 @@ export interface HubExportItem {
     markedForUpload: boolean;
     outboundStatus: string;
     lastError: string;
+    blockedReason?: string;
     lastTransferTimestamp: string | null;
     targetNodeKey: string | null;
     eligible: boolean;
@@ -60,6 +61,7 @@ export declare const useHubExportStore: import("pinia").StoreDefinition<"hubExpo
             markedForUpload: boolean;
             outboundStatus: string;
             lastError: string;
+            blockedReason?: string | undefined;
             lastTransferTimestamp: string | null;
             targetNodeKey: string | null;
             eligible: boolean;
@@ -87,6 +89,7 @@ export declare const useHubExportStore: import("pinia").StoreDefinition<"hubExpo
         markedForUpload: boolean;
         outboundStatus: string;
         lastError: string;
+        blockedReason?: string | undefined;
         lastTransferTimestamp: string | null;
         targetNodeKey: string | null;
         eligible: boolean;
@@ -114,6 +117,7 @@ export declare const useHubExportStore: import("pinia").StoreDefinition<"hubExpo
             markedForUpload: boolean;
             outboundStatus: string;
             lastError: string;
+            blockedReason?: string | undefined;
             lastTransferTimestamp: string | null;
             targetNodeKey: string | null;
             eligible: boolean;
@@ -141,6 +145,7 @@ export declare const useHubExportStore: import("pinia").StoreDefinition<"hubExpo
         markedForUpload: boolean;
         outboundStatus: string;
         lastError: string;
+        blockedReason?: string | undefined;
         lastTransferTimestamp: string | null;
         targetNodeKey: string | null;
         eligible: boolean;

@@ -4,7 +4,8 @@ const hubExportStore = useHubExportStore();
 const selectedKeys = ref(new Set());
 const selectedTargetNodeKey = ref(null);
 const selectionKey = (item) => `${item.resourceKind}:${item.id}`;
-const filteredItems = computed(() => hubExportStore.items.filter((item) => item.eligible || item.markedForUpload));
+const itemNotice = (item) => item.lastError || item.blockedReason || '-';
+const filteredItems = computed(() => hubExportStore.items.filter((item) => item.eligible || item.markedForUpload || item.blockedReason));
 const selectableItems = computed(() => filteredItems.value.filter((item) => item.eligible));
 const allSelectableChecked = computed(() => selectableItems.value.length > 0 &&
     selectableItems.value.every((item) => selectedKeys.value.has(selectionKey(item))));
@@ -260,9 +261,10 @@ else {
         });
         (item.outboundStatus || 'nicht markiert');
         __VLS_asFunctionalElement(__VLS_intrinsicElements.td, __VLS_intrinsicElements.td)({
-            ...{ class: "text-danger small" },
+            ...{ class: "small" },
+            ...{ class: (__VLS_ctx.itemNotice(item) === '-' ? 'text-muted' : 'text-danger') },
         });
-        (item.lastError || '-');
+        (__VLS_ctx.itemNotice(item));
     }
 }
 /** @type {__VLS_StyleScopedClasses['container-fluid']} */ ;
@@ -329,7 +331,6 @@ else {
 /** @type {__VLS_StyleScopedClasses['badge']} */ ;
 /** @type {__VLS_StyleScopedClasses['badge']} */ ;
 /** @type {__VLS_StyleScopedClasses['badge']} */ ;
-/** @type {__VLS_StyleScopedClasses['text-danger']} */ ;
 /** @type {__VLS_StyleScopedClasses['small']} */ ;
 var __VLS_dollars;
 const __VLS_self = (await import('vue')).defineComponent({
@@ -339,6 +340,7 @@ const __VLS_self = (await import('vue')).defineComponent({
             selectedKeys: selectedKeys,
             selectedTargetNodeKey: selectedTargetNodeKey,
             selectionKey: selectionKey,
+            itemNotice: itemNotice,
             filteredItems: filteredItems,
             allSelectableChecked: allSelectableChecked,
             selectedEligibleItems: selectedEligibleItems,

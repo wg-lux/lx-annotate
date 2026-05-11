@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import base64
+import os
 from datetime import timedelta
+
 
 from django.core.files.base import ContentFile
 from django.test import TestCase, override_settings
@@ -12,10 +15,16 @@ from endoreg_db.models import (
     RawPdfFile,
     RawPdfState,
     VideoFile,
+    VideoProcessingHistory,
     VideoState,
 )
+from endoreg_db.models.state import video_segment_validation as segment_state
 from lx_annotate.hub.hub_export_jobs import build_hub_export_overview
 from lx_annotate.models import OutboundHubTransferJob
+
+TEST_MASTER_KEY = base64.urlsafe_b64encode(b"0" * 32).decode("ascii")
+
+os.environ.setdefault("LX_ANNOTATE_MASTER_KEY", TEST_MASTER_KEY)
 
 
 class HubExportHookTests(TestCase):
@@ -73,7 +82,13 @@ class HubExportHookTests(TestCase):
         video_state = VideoState.objects.create(
             anonymized=True,
             sensitive_meta_processed=True,
+            anonymization_validated=True,
             processing_started=True,
+            outside_segments_removed=True,
+            segment_annotations_created=True,
+            segment_annotations_validated=True,
+            ready_for_export=True,
+            processed_file_sha256="a" * 64,
         )
         video = VideoFile.objects.create(
             center=self.center,
@@ -98,16 +113,79 @@ class HubExportHookTests(TestCase):
         video_state.sensitive_meta_processed = False
         video_state.anonymization_validated = False
         video_state.processing_started = False
+        video_state.ready_for_export = False
+        video_state.processed_file_sha256 = ""
         video_state.save(
             update_fields=[
                 "anonymized",
                 "sensitive_meta_processed",
                 "anonymization_validated",
                 "processing_started",
+                "ready_for_export",
+                "processed_file_sha256",
                 "date_modified",
             ]
         )
 
         job.refresh_from_db()
         self.assertEqual(job.local_status, OutboundHubTransferJob.LocalStatus.FAILED)
-        self.assertIn("not currently eligible", job.last_error)
+        self.assertIn("not ready for export", job.last_error)
+
+    def test_video_pending_segment_cleanup_is_not_eligible(self):
+        video_state = VideoState.objects.create(
+            anonymized=True,
+            sensitive_meta_processed=True,
+            anonymization_validated=True,
+            processing_started=True,
+            outside_segments_removed=True,
+            segment_annotations_created=True,
+            segment_annotations_validated=False,
+        )
+        video = VideoFile.objects.create(
+            center=self.center,
+            state=video_state,
+            video_hash="video-hash-cleanup-pending",
+            original_file_name="video-cleanup-pending.mp4",
+            processed_file=ContentFile(
+                b"processed-video", name="video-cleanup-pending-processed.mp4"
+            ),
+        )
+        VideoProcessingHistory.objects.create(
+            video=video,
+            operation=VideoProcessingHistory.OPERATION_REPROCESSING,
+            status=VideoProcessingHistory.STATUS_PENDING,
+            task_id="cleanup-pending",
+            config=segment_state._blackening_history_config(only_validated=False),
+        )
+
+        overview = build_hub_export_overview(target_node=self.hub_node)
+        video_item = next(item for item in overview["items"] if item["id"] == video.pk)
+        self.assertFalse(video_item["eligible"])
+        self.assertEqual(video_item["blocked_reason"], "segment cleanup pending")
+
+    def test_video_final_cleanup_still_requires_ready_for_export(self):
+        video_state = VideoState.objects.create(
+            anonymized=True,
+            sensitive_meta_processed=True,
+            anonymization_validated=True,
+            processing_started=True,
+            outside_segments_removed=True,
+            segment_annotations_created=True,
+            segment_annotations_validated=True,
+            ready_for_export=False,
+            processed_file_sha256="",
+        )
+        video = VideoFile.objects.create(
+            center=self.center,
+            state=video_state,
+            video_hash="video-hash-not-ready",
+            original_file_name="video-not-ready.mp4",
+            processed_file=ContentFile(
+                b"processed-video", name="video-not-ready-processed.mp4"
+            ),
+        )
+
+        overview = build_hub_export_overview(target_node=self.hub_node)
+        video_item = next(item for item in overview["items"] if item["id"] == video.pk)
+        self.assertFalse(video_item["eligible"])
+        self.assertEqual(video_item["blocked_reason"], "not ready for export")
