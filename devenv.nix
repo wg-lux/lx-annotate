@@ -110,7 +110,7 @@ let
     # --- Watcher Dirs ---
     WATCHER_VIDEO_DIR = config.secretspec.secrets.WATCHER_VIDEO_DIR;
     WATCHER_REPORT_DIR = config.secretspec.secrets.WATCHER_REPORT_DIR;
-
+    WATCHER_PREANONYMIZED_DIR = config.secretspec.secrets.WATCHER_PREANONYMIZED_DIR;
     FFMPEG_TRANSCODE_TIMEOUT_SECONDS = config.secretspec.secrets.FFMPEG_TRANSCODE_TIMEOUT_SECONDS;
     FFMPEG_EXECUTABLE = config.secretspec.secrets.FFMPEG_EXECUTABLE;
     FFMPEG_BINARY = config.secretspec.secrets.FFMPEG_BINARY;

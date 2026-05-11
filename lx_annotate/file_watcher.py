@@ -93,6 +93,39 @@ logging.getLogger("watchdog.observers.inotify_buffer").setLevel(logging.WARNING)
 
 logger = logging.getLogger(__name__)
 
+processing_stack_preloaded = False
+
+
+def _preload_processing_stack() -> None:
+    """
+    Import signal-sensitive modules before watcher workers run.
+
+    tesserocr imports cysignals, which installs Python signal handlers during
+    module initialization. That import must happen on the main interpreter
+    thread; otherwise OCR processing fails later inside FileProcessor.
+    """
+    global processing_stack_preloaded
+    if processing_stack_preloaded:
+        return
+    if threading.current_thread() is not threading.main_thread():
+        raise RuntimeError("Processing stack must be initialized from the main thread.")
+
+    try:
+        from lx_anonymizer.frame_cleaner import FrameCleaner
+        from lx_anonymizer.report_reader import ReportReader
+        import tesserocr
+    except ImportError as exc:
+        logger.warning(
+            "Report OCR dependency could not be preloaded: %s. "
+            "Report imports may fail until lx-anonymizer dependencies are available.",
+            exc,
+        )
+        return
+
+    _ = (FrameCleaner, ReportReader, tesserocr)
+    processing_stack_preloaded = True
+    logger.info("Report OCR dependencies initialized on main thread")
+
 
 def _is_relative_to(path: Path, root: Path) -> bool:
     try:
@@ -966,6 +999,7 @@ class FileWatcherService:
 def run_file_watcher(*, process_existing_once: bool = False) -> None:
     logger.info("Starting File Watcher Service")
     logger.info("Django settings: %s", os.environ.get("DJANGO_SETTINGS_MODULE"))
+    _preload_processing_stack()
     service = FileWatcherService()
     if process_existing_once:
         submitted_count = service.process_existing_once()

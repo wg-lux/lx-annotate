@@ -147,3 +147,31 @@ def test_acceptance_watcher_can_process_existing_files_once(monkeypatch):
     call_command("run_filewatcher", "--process-existing-once")
 
     assert calls == [True]
+
+
+def test_run_file_watcher_preloads_processing_stack_before_processing(monkeypatch):
+    import lx_annotate.file_watcher as watcher
+
+    events = []
+
+    class FakeFileWatcherService:
+        def __init__(self):
+            events.append("service")
+
+        def process_existing_once(self):
+            events.append("process-existing")
+            return 0
+
+        def start(self):
+            events.append("start")
+
+    monkeypatch.setattr(
+        watcher,
+        "_preload_processing_stack",
+        lambda: events.append("preload"),
+    )
+    monkeypatch.setattr(watcher, "FileWatcherService", FakeFileWatcherService)
+
+    watcher.run_file_watcher(process_existing_once=True)
+
+    assert events == ["preload", "service", "process-existing"]
