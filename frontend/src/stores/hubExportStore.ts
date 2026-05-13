@@ -27,12 +27,26 @@ export interface HubExportItem {
   createdAt: string | null
 }
 
+export type HubExportPrivacyStatus = 'pass' | 'warning' | 'unavailable'
+
+export interface HubExportPrivacySummary {
+  minK: number
+  eligibleResourceCount: number
+  eligibleCaseCount: number
+  markedResourceCount: number
+  smallestEquivalenceClassSize: number | null
+  violatingEquivalenceClassCount: number
+  passesKAnonymity: boolean
+  status: HubExportPrivacyStatus
+}
+
 export interface HubExportOverviewResponse {
   selectedTargetNodeKey: string | null
   sourceNodeKey: string | null
   hubNodes: HubNodeSummary[]
   configReady: boolean
   configError: string
+  privacySummary: HubExportPrivacySummary | null
   items: HubExportItem[]
 }
 
@@ -45,7 +59,8 @@ export const useHubExportStore = defineStore('hubExport', {
     hubNodes: [] as HubNodeSummary[],
     items: [] as HubExportItem[],
     configReady: false,
-    configError: ''
+    configError: '',
+    privacySummary: null as HubExportPrivacySummary | null
   }),
   getters: {
     eligibleItems: (state) => state.items.filter((item) => item.eligible),
@@ -64,6 +79,7 @@ export const useHubExportStore = defineStore('hubExport', {
         this.items = data.items
         this.configReady = data.configReady
         this.configError = data.configError
+        this.privacySummary = data.privacySummary ?? null
         return data
       } catch (error: any) {
         this.error = error?.response?.data?.detail || error?.message || 'Fehler beim Laden der Hub-Export-Übersicht.'

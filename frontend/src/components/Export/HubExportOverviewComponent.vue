@@ -76,6 +76,47 @@
           </div>
         </div>
 
+        <div
+          v-if="privacySummary"
+          class="privacy-summary d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3"
+          data-test="hub-export-privacy-summary"
+        >
+          <div class="d-flex align-items-center gap-2 flex-wrap">
+            <span class="text-sm fw-semibold">K-Anonymität k={{ privacySummary.minK }}</span>
+            <span
+              class="badge"
+              :class="privacyBadgeClass(privacySummary.status)"
+              data-test="hub-export-privacy-badge"
+            >
+              {{ privacyStatusLabel(privacySummary.status) }}
+            </span>
+          </div>
+          <div class="d-flex align-items-center gap-3 flex-wrap text-sm text-muted">
+            <span>
+              Fälle:
+              <span class="fw-semibold text-dark">{{ privacySummary.eligibleCaseCount }}</span>
+            </span>
+            <span>
+              kleinste Gruppe:
+              <span
+                class="fw-semibold text-dark"
+                data-test="hub-export-privacy-smallest-class"
+              >
+                {{ privacyMetricValue(privacySummary.smallestEquivalenceClassSize) }}
+              </span>
+            </span>
+            <span>
+              verletzte Gruppen:
+              <span
+                class="fw-semibold text-dark"
+                data-test="hub-export-privacy-violating-classes"
+              >
+                {{ privacySummary.violatingEquivalenceClassCount }}
+              </span>
+            </span>
+          </div>
+        </div>
+
         <div v-if="!filteredItems.length && !hubExportStore.loading" class="text-center py-5">
           <h5 class="text-muted">Keine exportierbaren Ressourcen</h5>
           <p class="text-muted mb-0">
@@ -162,7 +203,11 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import { useHubExportStore, type HubExportItem } from '@/stores/hubExportStore'
+import {
+  useHubExportStore,
+  type HubExportItem,
+  type HubExportPrivacyStatus
+} from '@/stores/hubExportStore'
 
 const hubExportStore = useHubExportStore()
 const selectedKeys = ref<Set<string>>(new Set())
@@ -175,6 +220,7 @@ const itemNotice = (item: HubExportItem) => item.lastError || item.blockedReason
 const filteredItems = computed(() =>
   hubExportStore.items.filter((item) => item.eligible || item.markedForUpload || item.blockedReason)
 )
+const privacySummary = computed(() => hubExportStore.privacySummary)
 const selectableItems = computed(() => filteredItems.value.filter((item) => item.eligible))
 const allSelectableChecked = computed(() =>
   selectableItems.value.length > 0 &&
@@ -254,6 +300,26 @@ const statusBadgeClass = (status: string) => {
   return classes[status] || 'bg-secondary'
 }
 
+const privacyStatusLabel = (status: HubExportPrivacyStatus) => {
+  const labels: Record<HubExportPrivacyStatus, string> = {
+    pass: 'bestanden',
+    warning: 'nicht ausreichend',
+    unavailable: 'nicht berechenbar'
+  }
+  return labels[status]
+}
+
+const privacyBadgeClass = (status: HubExportPrivacyStatus) => {
+  const classes: Record<HubExportPrivacyStatus, string> = {
+    pass: 'bg-success',
+    warning: 'bg-warning text-dark',
+    unavailable: 'bg-secondary'
+  }
+  return classes[status]
+}
+
+const privacyMetricValue = (value: number | null) => value ?? 'n/a'
+
 watch(
   () => hubExportStore.selectedTargetNodeKey,
   (next) => {
@@ -269,5 +335,12 @@ onMounted(async () => {
 <style scoped>
 .hub-target-select {
   min-width: 16rem;
+}
+
+.privacy-summary {
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
 }
 </style>

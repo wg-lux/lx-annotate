@@ -10,7 +10,8 @@ export const useHubExportStore = defineStore('hubExport', {
         hubNodes: [],
         items: [],
         configReady: false,
-        configError: ''
+        configError: '',
+        privacySummary: null
     }),
     getters: {
         eligibleItems: (state) => state.items.filter((item) => item.eligible),
@@ -29,6 +30,7 @@ export const useHubExportStore = defineStore('hubExport', {
                 this.items = data.items;
                 this.configReady = data.configReady;
                 this.configError = data.configError;
+                this.privacySummary = data.privacySummary ?? null;
                 return data;
             }
             catch (error) {

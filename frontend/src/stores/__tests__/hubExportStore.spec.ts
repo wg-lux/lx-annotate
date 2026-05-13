@@ -52,6 +52,36 @@ describe('hubExportStore', () => {
     expect(store.configError).toContain('exactly one active central hub node')
   })
 
+  it('hydrates the hub export privacy summary', async () => {
+    hoisted.get.mockResolvedValue({
+      data: {
+        selectedTargetNodeKey: 'hub-node',
+        sourceNodeKey: 'site-node',
+        hubNodes: [{ nodeKey: 'hub-node', displayName: 'Hub', baseUrl: 'https://hub.example', owningCenterKey: 'center-a' }],
+        configReady: true,
+        configError: '',
+        privacySummary: {
+          minK: 5,
+          eligibleResourceCount: 3,
+          eligibleCaseCount: 3,
+          markedResourceCount: 0,
+          smallestEquivalenceClassSize: 3,
+          violatingEquivalenceClassCount: 1,
+          passesKAnonymity: false,
+          status: 'warning'
+        },
+        items: []
+      }
+    })
+
+    const store = useHubExportStore()
+    await store.fetchOverview('hub-node')
+
+    expect(store.privacySummary?.minK).toBe(5)
+    expect(store.privacySummary?.passesKAnonymity).toBe(false)
+    expect(store.privacySummary?.status).toBe('warning')
+  })
+
   it('marks resources and refreshes the overview', async () => {
     hoisted.get.mockResolvedValue({
       data: {
