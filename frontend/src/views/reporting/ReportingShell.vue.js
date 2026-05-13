@@ -68,13 +68,6 @@ const draftSummaryLabel = computed(() => {
         ? 'wiederhergestellt'
         : 'initialisiert';
 });
-const draftSummaryLongLabel = computed(() => {
-    if (!flow.currentRuntimeDraft)
-        return 'Noch kein Entwurf geladen';
-    return draftSummaryLabel.value === 'wiederhergestellt'
-        ? 'Entwurf wurde aus einem vorhandenen Stand wiederhergestellt'
-        : 'Entwurf wurde für den aktuellen Fall vorbereitet';
-});
 const selectedPatientExaminationLabel = computed(() => {
     const selected = patientExaminationOptions.value.find((entry) => entry.id === routePatientExaminationId.value) ||
         patientExaminationOptions.value.find((entry) => entry.id === flow.patientExaminationId) ||
@@ -353,6 +346,14 @@ function isRuntimePayload(value) {
         typeof payload.examination === 'string' &&
         Array.isArray(payload.patientFindings));
 }
+function stringField(record, ...keys) {
+    for (const key of keys) {
+        const value = record[key];
+        if (typeof value === 'string' && value.trim())
+            return value.trim();
+    }
+    return null;
+}
 function normalizePatientExaminationOption(raw) {
     if (!raw || typeof raw !== 'object')
         return null;
@@ -503,32 +504,27 @@ async function bootstrapRuntimeDraft(patientExaminationId, option) {
 async function hydrateRuntimeDraftFromDraftApi(patientExaminationId) {
     const response = await fetchPatientExaminationDraft(patientExaminationId);
     const draft = response?.draft && typeof response.draft === 'object' ? response.draft : {};
+    const draftModuleName = stringField(draft, 'moduleName', 'module_name') || activeKbModule.value;
+    const draftTemplateName = stringField(draft, 'templateName', 'template_name');
+    const updatedAt = response?.updatedAt ?? response?.updated_at ?? null;
     if (!isRuntimePayload(draft.payload)) {
-        flow.markDraftPersistenceHydrated(response?.updated_at ?? null);
+        flow.markDraftPersistenceHydrated(updatedAt);
         return false;
     }
     flow.setTemplateSelection({
-        moduleName: typeof draft.module_name === 'string' && draft.module_name.trim()
-            ? draft.module_name
-            : activeKbModule.value,
-        templateName: typeof draft.template_name === 'string' && draft.template_name.trim()
-            ? draft.template_name
-            : null
+        moduleName: draftModuleName,
+        templateName: draftTemplateName
     });
     flow.setRuntimeDraft({
         draftId: `draft_${patientExaminationId}`,
         patientExaminationId,
-        moduleName: typeof draft.module_name === 'string' && draft.module_name.trim()
-            ? draft.module_name
-            : activeKbModule.value,
-        templateName: typeof draft.template_name === 'string' && draft.template_name.trim()
-            ? draft.template_name
-            : null,
+        moduleName: draftModuleName,
+        templateName: draftTemplateName,
         payload: draft.payload,
         hydratedFrom: 'draft_api',
-        updatedAt: response?.updated_at || new Date().toISOString()
+        updatedAt: updatedAt || new Date().toISOString()
     });
-    flow.markDraftPersistenceHydrated(response?.updated_at ?? null);
+    flow.markDraftPersistenceHydrated(updatedAt);
     return true;
 }
 async function ensureRuntimeDraft(patientExaminationId) {
@@ -636,7 +632,7 @@ async function refreshMediaPreload() {
                 ? 'Ungültige patient_examination_id (400). Bitte Routing-Kontext prüfen.'
                 : status === 403
                     ? 'Zugriff auf Timeline verweigert (403). Berechtigungen prüfen.'
-                    : `Fehler beim Laden des Medien-Preloads: ${detail || 'unbekannt'}`;
+                    : `Fehler beim Laden der Medien: ${detail || 'unbekannt'}`;
         flow.setMediaPreloadError(message);
     }
 }
@@ -689,9 +685,23 @@ let __VLS_components;
 let __VLS_directives;
 /** @type {__VLS_StyleScopedClasses['reporting-shell']} */ ;
 /** @type {__VLS_StyleScopedClasses['reporting-shell']} */ ;
+/** @type {__VLS_StyleScopedClasses['reporting-command-bar']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-case-select']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-case-select']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-summary-item']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-tile']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-summary-item']} */ ;
+/** @type {__VLS_StyleScopedClasses['is-primary']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-summary-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-summary-item']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-tile']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-tile']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-tile']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-status-pill']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-status-pill']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-status-pill']} */ ;
 /** @type {__VLS_StyleScopedClasses['reporting-shell']} */ ;
 /** @type {__VLS_StyleScopedClasses['reporting-shell']} */ ;
-/** @type {__VLS_StyleScopedClasses['card-body']} */ ;
 /** @type {__VLS_StyleScopedClasses['reporting-shell']} */ ;
 /** @type {__VLS_StyleScopedClasses['reporting-shell']} */ ;
 /** @type {__VLS_StyleScopedClasses['reporting-shell']} */ ;
@@ -708,41 +718,119 @@ let __VLS_directives;
 /** @type {__VLS_StyleScopedClasses['workflow-step-btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['reporting-shell']} */ ;
 /** @type {__VLS_StyleScopedClasses['workflow-step-btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['is-disabled']} */ ;
+/** @type {__VLS_StyleScopedClasses['workflow-step-index']} */ ;
 /** @type {__VLS_StyleScopedClasses['reporting-shell']} */ ;
+/** @type {__VLS_StyleScopedClasses['workflow-step-btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['media-context-card']} */ ;
+/** @type {__VLS_StyleScopedClasses['reporting-command-bar']} */ ;
+/** @type {__VLS_StyleScopedClasses['reporting-shell']} */ ;
+/** @type {__VLS_StyleScopedClasses['workflow-panel']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-quick-grid']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-case-select']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
 // CSS variable injection 
 // CSS variable injection end 
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "reporting-shell container-fluid py-4" },
 });
-__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "card shadow-sm mb-3 reporting-context-card" },
+__VLS_asFunctionalElement(__VLS_intrinsicElements.section, __VLS_intrinsicElements.section)({
+    ...{ class: "reporting-command-bar mb-3" },
+    'aria-label': "Reporting-Kontext",
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "card-body" },
-});
-__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "d-flex flex-column flex-xl-row align-items-xl-start justify-content-between gap-3" },
-});
-__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "reporting-context-main" },
+    ...{ class: "reporting-command-main" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "small text-uppercase text-muted fw-semibold tracking-label" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.h4, __VLS_intrinsicElements.h4)({
-    ...{ class: "mb-2" },
-});
-__VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
-    ...{ class: "text-muted mb-0" },
+    ...{ class: "mb-3" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "reporting-context-summary" },
+    ...{ class: "context-case-select" },
 });
+__VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+    ...{ class: "form-label form-label-sm mb-1" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "d-flex flex-column flex-lg-row gap-2" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
+    ...{ onChange: (...[$event]) => {
+            __VLS_ctx.onPatientExaminationSelect($event.target.value);
+        } },
+    ...{ class: "form-select" },
+    'data-testid': "patient-examination-select",
+    value: (__VLS_ctx.selectedPatientExaminationId),
+    disabled: (__VLS_ctx.patientExaminationOptionsLoading || !__VLS_ctx.patientExaminationOptions.length),
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+    value: "",
+});
+(__VLS_ctx.patientExaminationOptionsLoading
+    ? 'Patientenuntersuchungen werden geladen...'
+    : __VLS_ctx.patientExaminationOptions.length
+        ? 'Bitte Patientenuntersuchung wählen'
+        : 'Keine Patientenuntersuchungen verfügbar');
+for (const [option] of __VLS_getVForSourceType((__VLS_ctx.patientExaminationOptions))) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+        key: (option.id),
+        value: (option.id),
+    });
+    (option.label);
+}
+__VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
+    ...{ onChange: (__VLS_ctx.importTerminologyZip) },
+    ref: "terminologyZipInput",
+    ...{ class: "visually-hidden" },
+    type: "file",
+    accept: ".zip,application/zip",
+});
+/** @type {typeof __VLS_ctx.terminologyZipInput} */ ;
+__VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+    ...{ onClick: (__VLS_ctx.openTerminologyZipPicker) },
+    ...{ class: "btn btn-outline-secondary" },
+    type: "button",
+    disabled: (__VLS_ctx.terminology.importing),
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+    ...{ class: "ni ni-single-copy-04 me-1" },
+    'aria-hidden': "true",
+});
+(__VLS_ctx.terminology.importing ? 'Terminologie wird importiert…' : 'Terminologie importieren');
+__VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+    ...{ onClick: (__VLS_ctx.refreshMediaPreload) },
+    ...{ class: "btn btn-outline-secondary" },
+    disabled: (__VLS_ctx.flow.mediaPreloadStatus === 'loading' || !__VLS_ctx.flow.selectedPatientId),
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+    ...{ class: "ni ni-refresh-02 me-1" },
+    'aria-hidden': "true",
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+    ...{ onClick: (...[$event]) => {
+            __VLS_ctx.isContextPanelOpen = !__VLS_ctx.isContextPanelOpen;
+        } },
+    ...{ class: "btn btn-outline-secondary" },
+    type: "button",
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.i, __VLS_intrinsicElements.i)({
+    ...{ class: "ni ni-settings-gear-65 me-1" },
+    'aria-hidden': "true",
+});
+(__VLS_ctx.isContextPanelOpen ? 'Kontext ausblenden' : 'Kontext einblenden');
+if (__VLS_ctx.patientExaminationOptionsError) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "small text-danger mt-1" },
+    });
+    (__VLS_ctx.patientExaminationOptionsError);
+}
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "context-summary-grid" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "context-summary-item" },
+    ...{ class: "context-summary-item is-primary" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
     ...{ class: "context-summary-label" },
@@ -780,79 +868,15 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.
     ...{ class: "context-summary-label" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
-(__VLS_ctx.draftSummaryLongLabel);
+(__VLS_ctx.draftSummaryLabel);
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "d-flex flex-column flex-lg-row align-items-lg-end justify-content-between gap-3 mt-3" },
+    ...{ class: "context-summary-item" },
 });
-__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "context-case-select" },
+__VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+    ...{ class: "context-summary-label" },
 });
-__VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
-    ...{ class: "form-label form-label-sm mb-1" },
-});
-__VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
-    ...{ onChange: (...[$event]) => {
-            __VLS_ctx.onPatientExaminationSelect($event.target.value);
-        } },
-    ...{ class: "form-select" },
-    'data-testid': "patient-examination-select",
-    value: (__VLS_ctx.selectedPatientExaminationId),
-    disabled: (__VLS_ctx.patientExaminationOptionsLoading || !__VLS_ctx.patientExaminationOptions.length),
-});
-__VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-    value: "",
-});
-(__VLS_ctx.patientExaminationOptionsLoading
-    ? 'Patientenuntersuchungen werden geladen...'
-    : __VLS_ctx.patientExaminationOptions.length
-        ? 'Bitte Patientenuntersuchung wählen'
-        : 'Keine Patientenuntersuchungen verfügbar');
-for (const [option] of __VLS_getVForSourceType((__VLS_ctx.patientExaminationOptions))) {
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
-        key: (option.id),
-        value: (option.id),
-    });
-    (option.label);
-}
-if (__VLS_ctx.patientExaminationOptionsError) {
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "small text-danger mt-1" },
-    });
-    (__VLS_ctx.patientExaminationOptionsError);
-}
-__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "d-flex flex-wrap gap-2" },
-});
-__VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
-    ...{ onChange: (__VLS_ctx.importTerminologyZip) },
-    ref: "terminologyZipInput",
-    ...{ class: "visually-hidden" },
-    type: "file",
-    accept: ".zip,application/zip",
-});
-/** @type {typeof __VLS_ctx.terminologyZipInput} */ ;
-__VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-    ...{ onClick: (__VLS_ctx.openTerminologyZipPicker) },
-    ...{ class: "btn btn-outline-secondary" },
-    type: "button",
-    disabled: (__VLS_ctx.terminology.importing),
-});
-(__VLS_ctx.terminology.importing
-    ? 'Terminologie wird importiert…'
-    : 'Terminologie-ZIP importieren');
-__VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-    ...{ onClick: (__VLS_ctx.refreshMediaPreload) },
-    ...{ class: "btn btn-outline-secondary" },
-    disabled: (__VLS_ctx.flow.mediaPreloadStatus === 'loading' || !__VLS_ctx.flow.selectedPatientId),
-});
-__VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
-    ...{ onClick: (...[$event]) => {
-            __VLS_ctx.isContextPanelOpen = !__VLS_ctx.isContextPanelOpen;
-        } },
-    ...{ class: "btn btn-outline-secondary" },
-    type: "button",
-});
-(__VLS_ctx.isContextPanelOpen ? 'Arbeitskontext ausblenden' : 'Arbeitskontext einblenden');
+__VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+(__VLS_ctx.mediaPreloadLabel);
 if (__VLS_ctx.terminologyImportMessage) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "small text-muted mt-2" },
@@ -866,19 +890,20 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.d
     ...{ class: "col-lg-3" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "card shadow-sm" },
+    ...{ class: "card shadow-sm workflow-panel" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-    ...{ class: "card-header" },
+    ...{ class: "card-header d-flex align-items-center justify-content-between gap-2" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({
     ...{ class: "mb-0" },
 });
+__VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+    ...{ class: "small text-muted" },
+});
+(__VLS_ctx.currentStepLabel);
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "card-body p-3" },
-});
-__VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
-    ...{ class: "small text-muted mb-3" },
 });
 if (__VLS_ctx.draftBootstrapError) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -889,7 +914,7 @@ if (__VLS_ctx.draftBootstrapError) {
 __VLS_asFunctionalElement(__VLS_intrinsicElements.nav, __VLS_intrinsicElements.nav)({
     ...{ class: "nav flex-column gap-1" },
 });
-for (const [item] of __VLS_getVForSourceType((__VLS_ctx.navItems))) {
+for (const [item, index] of __VLS_getVForSourceType((__VLS_ctx.navItems))) {
     (item.to);
     if (!__VLS_ctx.isStepDisabled(item)) {
         const __VLS_0 = {}.RouterLink;
@@ -898,14 +923,23 @@ for (const [item] of __VLS_getVForSourceType((__VLS_ctx.navItems))) {
         const __VLS_1 = __VLS_asFunctionalComponent(__VLS_0, new __VLS_0({
             to: (item.to),
             ...{ class: "workflow-step-btn btn btn-sm text-start" },
+            'aria-current': (__VLS_ctx.isActive(item.to) ? 'page' : undefined),
             ...{ class: (__VLS_ctx.isActive(item.to) ? 'btn-dark is-active' : 'btn-outline-secondary is-inactive') },
         }));
         const __VLS_2 = __VLS_1({
             to: (item.to),
             ...{ class: "workflow-step-btn btn btn-sm text-start" },
+            'aria-current': (__VLS_ctx.isActive(item.to) ? 'page' : undefined),
             ...{ class: (__VLS_ctx.isActive(item.to) ? 'btn-dark is-active' : 'btn-outline-secondary is-inactive') },
         }, ...__VLS_functionalComponentArgsRest(__VLS_1));
         __VLS_3.slots.default;
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+            ...{ class: "workflow-step-index" },
+        });
+        (index + 1);
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+            ...{ class: "workflow-step-copy" },
+        });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
         (item.label);
         __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
@@ -917,6 +951,13 @@ for (const [item] of __VLS_getVForSourceType((__VLS_ctx.navItems))) {
     else {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: "workflow-step-btn btn btn-sm text-start is-disabled" },
+        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+            ...{ class: "workflow-step-index" },
+        });
+        (index + 1);
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+            ...{ class: "workflow-step-copy" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
         (item.label);
@@ -931,10 +972,10 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.d
 });
 if (__VLS_ctx.isContextPanelOpen) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "card shadow-sm mb-3" },
+        ...{ class: "card shadow-sm mb-3 context-panel" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "card-header d-flex justify-content-between align-items-center" },
+        ...{ class: "card-header d-flex justify-content-between align-items-center gap-3" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
     __VLS_asFunctionalElement(__VLS_intrinsicElements.h6, __VLS_intrinsicElements.h6)({
@@ -943,37 +984,26 @@ if (__VLS_ctx.isContextPanelOpen) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
         ...{ class: "text-muted" },
     });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({
-        ...{ class: "text-muted" },
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+        ...{ class: "context-status-pill" },
+        ...{ class: (`is-${__VLS_ctx.flow.mediaPreloadStatus}`) },
     });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
     (__VLS_ctx.mediaPreloadLabel);
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "card-body" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "row g-3 mb-3" },
+        ...{ class: "context-quick-grid mb-3" },
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "col-md-4" },
+        ...{ class: "context-tile" },
     });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "border rounded p-3 h-100" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "fw-semibold mb-1" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "small text-muted" },
-    });
-    (__VLS_ctx.draftSummaryLongLabel);
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "small text-muted mt-1" },
-    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
+    (__VLS_ctx.draftSummaryLabel);
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({});
     (__VLS_ctx.selectedPatientExaminationLabel);
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "small text-muted mt-1" },
-    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({});
     (__VLS_ctx.selectedTemplateLabel);
     if (__VLS_ctx.draftBootstrapError) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -982,17 +1012,9 @@ if (__VLS_ctx.isContextPanelOpen) {
         (__VLS_ctx.draftBootstrapError);
     }
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "col-md-4" },
+        ...{ class: "context-tile" },
     });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "border rounded p-3 h-100" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "fw-semibold mb-1" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "small text-muted" },
-    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
     __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
     (__VLS_ctx.mediaPreloadLabel);
     if (__VLS_ctx.flow.mediaPreloadError) {
@@ -1002,22 +1024,14 @@ if (__VLS_ctx.isContextPanelOpen) {
         (__VLS_ctx.flow.mediaPreloadError);
     }
     else {
-        __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: "small text-muted mt-2" },
-        });
+        __VLS_asFunctionalElement(__VLS_intrinsicElements.small, __VLS_intrinsicElements.small)({});
+        (__VLS_ctx.flow.mediaPreload ? 'Bericht, Video und Frames geladen' : 'Noch leer');
     }
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "col-md-4" },
+        ...{ class: "context-tile" },
     });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "border rounded p-3 h-100" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "fw-semibold mb-1" },
-    });
-    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-        ...{ class: "small text-muted" },
-    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.strong, __VLS_intrinsicElements.strong)({});
     (__VLS_ctx.nextStepHint);
     if (__VLS_ctx.flow.mediaPreload) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -1027,7 +1041,7 @@ if (__VLS_ctx.isContextPanelOpen) {
             ...{ class: "col-md-4" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: "border rounded p-3 h-100" },
+            ...{ class: "media-context-card" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: "fw-semibold mb-1" },
@@ -1098,7 +1112,7 @@ if (__VLS_ctx.isContextPanelOpen) {
             ...{ class: "col-md-4" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: "border rounded p-3 h-100" },
+            ...{ class: "media-context-card" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: "fw-semibold mb-1" },
@@ -1161,7 +1175,7 @@ if (__VLS_ctx.isContextPanelOpen) {
             ...{ class: "col-md-4" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
-            ...{ class: "border rounded p-3 h-100" },
+            ...{ class: "media-context-card" },
         });
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: "fw-semibold mb-1" },
@@ -1215,63 +1229,57 @@ const __VLS_6 = __VLS_5({}, ...__VLS_functionalComponentArgsRest(__VLS_5));
 /** @type {__VLS_StyleScopedClasses['reporting-shell']} */ ;
 /** @type {__VLS_StyleScopedClasses['container-fluid']} */ ;
 /** @type {__VLS_StyleScopedClasses['py-4']} */ ;
-/** @type {__VLS_StyleScopedClasses['card']} */ ;
-/** @type {__VLS_StyleScopedClasses['shadow-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['reporting-command-bar']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
-/** @type {__VLS_StyleScopedClasses['reporting-context-card']} */ ;
-/** @type {__VLS_StyleScopedClasses['card-body']} */ ;
-/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
-/** @type {__VLS_StyleScopedClasses['flex-column']} */ ;
-/** @type {__VLS_StyleScopedClasses['flex-xl-row']} */ ;
-/** @type {__VLS_StyleScopedClasses['align-items-xl-start']} */ ;
-/** @type {__VLS_StyleScopedClasses['justify-content-between']} */ ;
-/** @type {__VLS_StyleScopedClasses['gap-3']} */ ;
-/** @type {__VLS_StyleScopedClasses['reporting-context-main']} */ ;
+/** @type {__VLS_StyleScopedClasses['reporting-command-main']} */ ;
 /** @type {__VLS_StyleScopedClasses['small']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-uppercase']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['fw-semibold']} */ ;
 /** @type {__VLS_StyleScopedClasses['tracking-label']} */ ;
-/** @type {__VLS_StyleScopedClasses['mb-2']} */ ;
-/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
-/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
-/** @type {__VLS_StyleScopedClasses['reporting-context-summary']} */ ;
-/** @type {__VLS_StyleScopedClasses['context-summary-grid']} */ ;
-/** @type {__VLS_StyleScopedClasses['context-summary-item']} */ ;
-/** @type {__VLS_StyleScopedClasses['context-summary-label']} */ ;
-/** @type {__VLS_StyleScopedClasses['context-summary-item']} */ ;
-/** @type {__VLS_StyleScopedClasses['context-summary-label']} */ ;
-/** @type {__VLS_StyleScopedClasses['context-summary-item']} */ ;
-/** @type {__VLS_StyleScopedClasses['context-summary-label']} */ ;
-/** @type {__VLS_StyleScopedClasses['context-summary-item']} */ ;
-/** @type {__VLS_StyleScopedClasses['context-summary-label']} */ ;
-/** @type {__VLS_StyleScopedClasses['context-summary-item']} */ ;
-/** @type {__VLS_StyleScopedClasses['context-summary-label']} */ ;
-/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
-/** @type {__VLS_StyleScopedClasses['flex-column']} */ ;
-/** @type {__VLS_StyleScopedClasses['flex-lg-row']} */ ;
-/** @type {__VLS_StyleScopedClasses['align-items-lg-end']} */ ;
-/** @type {__VLS_StyleScopedClasses['justify-content-between']} */ ;
-/** @type {__VLS_StyleScopedClasses['gap-3']} */ ;
-/** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['context-case-select']} */ ;
 /** @type {__VLS_StyleScopedClasses['form-label']} */ ;
 /** @type {__VLS_StyleScopedClasses['form-label-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-1']} */ ;
-/** @type {__VLS_StyleScopedClasses['form-select']} */ ;
-/** @type {__VLS_StyleScopedClasses['small']} */ ;
-/** @type {__VLS_StyleScopedClasses['text-danger']} */ ;
-/** @type {__VLS_StyleScopedClasses['mt-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
-/** @type {__VLS_StyleScopedClasses['flex-wrap']} */ ;
+/** @type {__VLS_StyleScopedClasses['flex-column']} */ ;
+/** @type {__VLS_StyleScopedClasses['flex-lg-row']} */ ;
 /** @type {__VLS_StyleScopedClasses['gap-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-select']} */ ;
 /** @type {__VLS_StyleScopedClasses['visually-hidden']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-secondary']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-single-copy-04']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-secondary']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-refresh-02']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-secondary']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni']} */ ;
+/** @type {__VLS_StyleScopedClasses['ni-settings-gear-65']} */ ;
+/** @type {__VLS_StyleScopedClasses['me-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['small']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-danger']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-summary-grid']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-summary-item']} */ ;
+/** @type {__VLS_StyleScopedClasses['is-primary']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-summary-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-summary-item']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-summary-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-summary-item']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-summary-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-summary-item']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-summary-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-summary-item']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-summary-label']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-summary-item']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-summary-label']} */ ;
 /** @type {__VLS_StyleScopedClasses['small']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
@@ -1280,13 +1288,17 @@ const __VLS_6 = __VLS_5({}, ...__VLS_functionalComponentArgsRest(__VLS_5));
 /** @type {__VLS_StyleScopedClasses['col-lg-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['card']} */ ;
 /** @type {__VLS_StyleScopedClasses['shadow-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['workflow-panel']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-header']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['justify-content-between']} */ ;
+/** @type {__VLS_StyleScopedClasses['gap-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
-/** @type {__VLS_StyleScopedClasses['card-body']} */ ;
-/** @type {__VLS_StyleScopedClasses['p-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['small']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
-/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['card-body']} */ ;
+/** @type {__VLS_StyleScopedClasses['p-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert-warning']} */ ;
 /** @type {__VLS_StyleScopedClasses['py-2']} */ ;
@@ -1298,81 +1310,50 @@ const __VLS_6 = __VLS_5({}, ...__VLS_functionalComponentArgsRest(__VLS_5));
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-start']} */ ;
+/** @type {__VLS_StyleScopedClasses['workflow-step-index']} */ ;
+/** @type {__VLS_StyleScopedClasses['workflow-step-copy']} */ ;
 /** @type {__VLS_StyleScopedClasses['workflow-step-meta']} */ ;
 /** @type {__VLS_StyleScopedClasses['workflow-step-btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-start']} */ ;
 /** @type {__VLS_StyleScopedClasses['is-disabled']} */ ;
+/** @type {__VLS_StyleScopedClasses['workflow-step-index']} */ ;
+/** @type {__VLS_StyleScopedClasses['workflow-step-copy']} */ ;
 /** @type {__VLS_StyleScopedClasses['workflow-step-meta']} */ ;
 /** @type {__VLS_StyleScopedClasses['col-lg-9']} */ ;
 /** @type {__VLS_StyleScopedClasses['card']} */ ;
 /** @type {__VLS_StyleScopedClasses['shadow-sm']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-panel']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-header']} */ ;
 /** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
 /** @type {__VLS_StyleScopedClasses['justify-content-between']} */ ;
 /** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['gap-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
-/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-status-pill']} */ ;
 /** @type {__VLS_StyleScopedClasses['card-body']} */ ;
-/** @type {__VLS_StyleScopedClasses['row']} */ ;
-/** @type {__VLS_StyleScopedClasses['g-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-quick-grid']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
-/** @type {__VLS_StyleScopedClasses['col-md-4']} */ ;
-/** @type {__VLS_StyleScopedClasses['border']} */ ;
-/** @type {__VLS_StyleScopedClasses['rounded']} */ ;
-/** @type {__VLS_StyleScopedClasses['p-3']} */ ;
-/** @type {__VLS_StyleScopedClasses['h-100']} */ ;
-/** @type {__VLS_StyleScopedClasses['fw-semibold']} */ ;
-/** @type {__VLS_StyleScopedClasses['mb-1']} */ ;
-/** @type {__VLS_StyleScopedClasses['small']} */ ;
-/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
-/** @type {__VLS_StyleScopedClasses['small']} */ ;
-/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
-/** @type {__VLS_StyleScopedClasses['mt-1']} */ ;
-/** @type {__VLS_StyleScopedClasses['small']} */ ;
-/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
-/** @type {__VLS_StyleScopedClasses['mt-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-tile']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert-warning']} */ ;
 /** @type {__VLS_StyleScopedClasses['py-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
-/** @type {__VLS_StyleScopedClasses['col-md-4']} */ ;
-/** @type {__VLS_StyleScopedClasses['border']} */ ;
-/** @type {__VLS_StyleScopedClasses['rounded']} */ ;
-/** @type {__VLS_StyleScopedClasses['p-3']} */ ;
-/** @type {__VLS_StyleScopedClasses['h-100']} */ ;
-/** @type {__VLS_StyleScopedClasses['fw-semibold']} */ ;
-/** @type {__VLS_StyleScopedClasses['mb-1']} */ ;
-/** @type {__VLS_StyleScopedClasses['small']} */ ;
-/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-tile']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert']} */ ;
 /** @type {__VLS_StyleScopedClasses['alert-warning']} */ ;
 /** @type {__VLS_StyleScopedClasses['py-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
-/** @type {__VLS_StyleScopedClasses['small']} */ ;
-/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
-/** @type {__VLS_StyleScopedClasses['mt-2']} */ ;
-/** @type {__VLS_StyleScopedClasses['col-md-4']} */ ;
-/** @type {__VLS_StyleScopedClasses['border']} */ ;
-/** @type {__VLS_StyleScopedClasses['rounded']} */ ;
-/** @type {__VLS_StyleScopedClasses['p-3']} */ ;
-/** @type {__VLS_StyleScopedClasses['h-100']} */ ;
-/** @type {__VLS_StyleScopedClasses['fw-semibold']} */ ;
-/** @type {__VLS_StyleScopedClasses['mb-1']} */ ;
-/** @type {__VLS_StyleScopedClasses['small']} */ ;
-/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['context-tile']} */ ;
 /** @type {__VLS_StyleScopedClasses['row']} */ ;
 /** @type {__VLS_StyleScopedClasses['g-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['col-md-4']} */ ;
-/** @type {__VLS_StyleScopedClasses['border']} */ ;
-/** @type {__VLS_StyleScopedClasses['rounded']} */ ;
-/** @type {__VLS_StyleScopedClasses['p-3']} */ ;
-/** @type {__VLS_StyleScopedClasses['h-100']} */ ;
+/** @type {__VLS_StyleScopedClasses['media-context-card']} */ ;
 /** @type {__VLS_StyleScopedClasses['fw-semibold']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['small']} */ ;
@@ -1395,10 +1376,7 @@ const __VLS_6 = __VLS_5({}, ...__VLS_functionalComponentArgsRest(__VLS_5));
 /** @type {__VLS_StyleScopedClasses['small']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['col-md-4']} */ ;
-/** @type {__VLS_StyleScopedClasses['border']} */ ;
-/** @type {__VLS_StyleScopedClasses['rounded']} */ ;
-/** @type {__VLS_StyleScopedClasses['p-3']} */ ;
-/** @type {__VLS_StyleScopedClasses['h-100']} */ ;
+/** @type {__VLS_StyleScopedClasses['media-context-card']} */ ;
 /** @type {__VLS_StyleScopedClasses['fw-semibold']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['small']} */ ;
@@ -1422,10 +1400,7 @@ const __VLS_6 = __VLS_5({}, ...__VLS_functionalComponentArgsRest(__VLS_5));
 /** @type {__VLS_StyleScopedClasses['small']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
 /** @type {__VLS_StyleScopedClasses['col-md-4']} */ ;
-/** @type {__VLS_StyleScopedClasses['border']} */ ;
-/** @type {__VLS_StyleScopedClasses['rounded']} */ ;
-/** @type {__VLS_StyleScopedClasses['p-3']} */ ;
-/** @type {__VLS_StyleScopedClasses['h-100']} */ ;
+/** @type {__VLS_StyleScopedClasses['media-context-card']} */ ;
 /** @type {__VLS_StyleScopedClasses['fw-semibold']} */ ;
 /** @type {__VLS_StyleScopedClasses['mb-1']} */ ;
 /** @type {__VLS_StyleScopedClasses['small']} */ ;
@@ -1463,7 +1438,7 @@ const __VLS_self = (await import('vue')).defineComponent({
             preferredReportStream: preferredReportStream,
             preferredReportDownload: preferredReportDownload,
             preferredVideoStream: preferredVideoStream,
-            draftSummaryLongLabel: draftSummaryLongLabel,
+            draftSummaryLabel: draftSummaryLabel,
             selectedPatientExaminationLabel: selectedPatientExaminationLabel,
             selectedTemplateLabel: selectedTemplateLabel,
             selectedTerminologyLabel: selectedTerminologyLabel,

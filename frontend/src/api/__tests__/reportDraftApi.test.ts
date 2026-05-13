@@ -38,7 +38,7 @@ describe('reportDraftApi', () => {
     expect(hoisted.axios.get).toHaveBeenCalledWith(
       `/api/${endpoints.examination.patientExaminationDraft(314)}`
     )
-    expect(result.draft.template_name).toBe('star_upper_gi_main')
+    expect(result.draft.template_name ?? result.draft.templateName).toBe('star_upper_gi_main')
   })
 
   it('persists unvalidated runtime draft state without reshaping the payload', async () => {
@@ -74,14 +74,15 @@ describe('reportDraftApi', () => {
     expect(hoisted.axios.put).toHaveBeenCalledWith(
       `/api/${endpoints.examination.patientExaminationDraft(314)}`,
       {
-      module_name: 'report_template_examples',
-      template_name: 'star_upper_gi_main',
-      payload: {
-        patient: 'patient_42',
-        examiners: ['dr_house'],
-        examination: 'colonoscopy',
-        patientFindings: []
+        moduleName: 'report_template_examples',
+        templateName: 'star_upper_gi_main',
+        payload: {
+          patient: 'patient_42',
+          examiners: ['dr_house'],
+          examination: 'colonoscopy',
+          patientFindings: []
+        }
       }
-    })
+    )
   })
 })

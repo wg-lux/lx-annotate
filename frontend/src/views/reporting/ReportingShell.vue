@@ -1,50 +1,12 @@
 <template>
   <div class="reporting-shell container-fluid py-4">
-    <div class="card shadow-sm mb-3 reporting-context-card">
-      <div class="card-body">
-        <div
-          class="d-flex flex-column flex-xl-row align-items-xl-start justify-content-between gap-3"
-        >
-          <div class="reporting-context-main">
-            <div class="small text-uppercase text-muted fw-semibold tracking-label">
-              Berichtsarbeitsplatz
-            </div>
-            <h4 class="mb-2">Fallkontext und Arbeitsbereich</h4>
-            <p class="text-muted mb-0">
-              Wählen Sie zuerst eine Patientenuntersuchung. Danach führen die Arbeitsschritte von
-              den Befunden bis zum fertigen Bericht.
-            </p>
-          </div>
-          <div class="reporting-context-summary">
-            <div class="context-summary-grid">
-              <div class="context-summary-item">
-                <span class="context-summary-label">Aktueller Schritt</span>
-                <strong>{{ currentStepLabel }}</strong>
-              </div>
-              <div class="context-summary-item">
-                <span class="context-summary-label">Patientenuntersuchung</span>
-                <strong>{{ selectedPatientExaminationLabel }}</strong>
-              </div>
-              <div class="context-summary-item">
-                <span class="context-summary-label">Berichtsvorlage</span>
-                <strong>{{ selectedTemplateLabel }}</strong>
-              </div>
-              <div class="context-summary-item">
-                <span class="context-summary-label">Terminologie</span>
-                <strong>{{ selectedTerminologyLabel }}</strong>
-              </div>
-              <div class="context-summary-item">
-                <span class="context-summary-label">Entwurfsstatus</span>
-                <strong>{{ draftSummaryLongLabel }}</strong>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div
-          class="d-flex flex-column flex-lg-row align-items-lg-end justify-content-between gap-3 mt-3"
-        >
-          <div class="context-case-select">
-            <label class="form-label form-label-sm mb-1">Patientenuntersuchung wählen</label>
+    <section class="reporting-command-bar mb-3" aria-label="Reporting-Kontext">
+      <div class="reporting-command-main">
+        <div class="small text-uppercase text-muted fw-semibold tracking-label">Reporting</div>
+        <h4 class="mb-3">Bericht erstellen</h4>
+        <div class="context-case-select">
+          <label class="form-label form-label-sm mb-1">Fall</label>
+          <div class="d-flex flex-column flex-lg-row gap-2">
             <select
               class="form-select"
               data-testid="patient-examination-select"
@@ -69,11 +31,6 @@
                 {{ option.label }}
               </option>
             </select>
-            <div v-if="patientExaminationOptionsError" class="small text-danger mt-1">
-              {{ patientExaminationOptionsError }}
-            </div>
-          </div>
-          <div class="d-flex flex-wrap gap-2">
             <input
               ref="terminologyZipInput"
               class="visually-hidden"
@@ -87,10 +44,9 @@
               :disabled="terminology.importing"
               @click="openTerminologyZipPicker"
             >
+              <i class="ni ni-single-copy-04 me-1" aria-hidden="true"></i>
               {{
-                terminology.importing
-                  ? 'Terminologie wird importiert…'
-                  : 'Terminologie-ZIP importieren'
+                terminology.importing ? 'Terminologie wird importiert…' : 'Terminologie importieren'
               }}
             </button>
             <button
@@ -98,6 +54,7 @@
               :disabled="flow.mediaPreloadStatus === 'loading' || !flow.selectedPatientId"
               @click="refreshMediaPreload"
             >
+              <i class="ni ni-refresh-02 me-1" aria-hidden="true"></i>
               Medien aktualisieren
             </button>
             <button
@@ -105,46 +62,80 @@
               type="button"
               @click="isContextPanelOpen = !isContextPanelOpen"
             >
-              {{ isContextPanelOpen ? 'Arbeitskontext ausblenden' : 'Arbeitskontext einblenden' }}
+              <i class="ni ni-settings-gear-65 me-1" aria-hidden="true"></i>
+              {{ isContextPanelOpen ? 'Kontext ausblenden' : 'Kontext einblenden' }}
             </button>
           </div>
-        </div>
-        <div v-if="terminologyImportMessage" class="small text-muted mt-2">
-          {{ terminologyImportMessage }}
+          <div v-if="patientExaminationOptionsError" class="small text-danger mt-1">
+            {{ patientExaminationOptionsError }}
+          </div>
         </div>
       </div>
-    </div>
+      <div class="context-summary-grid">
+        <div class="context-summary-item is-primary">
+          <span class="context-summary-label">Jetzt</span>
+          <strong>{{ currentStepLabel }}</strong>
+        </div>
+        <div class="context-summary-item">
+          <span class="context-summary-label">Fall</span>
+          <strong>{{ selectedPatientExaminationLabel }}</strong>
+        </div>
+        <div class="context-summary-item">
+          <span class="context-summary-label">Vorlage</span>
+          <strong>{{ selectedTemplateLabel }}</strong>
+        </div>
+        <div class="context-summary-item">
+          <span class="context-summary-label">Terminologie</span>
+          <strong>{{ selectedTerminologyLabel }}</strong>
+        </div>
+        <div class="context-summary-item">
+          <span class="context-summary-label">Entwurf</span>
+          <strong>{{ draftSummaryLabel }}</strong>
+        </div>
+        <div class="context-summary-item">
+          <span class="context-summary-label">Medien</span>
+          <strong>{{ mediaPreloadLabel }}</strong>
+        </div>
+      </div>
+      <div v-if="terminologyImportMessage" class="small text-muted mt-2">
+        {{ terminologyImportMessage }}
+      </div>
+    </section>
 
     <div class="row g-3">
       <div class="col-lg-3">
-        <div class="card shadow-sm">
-          <div class="card-header">
-            <h6 class="mb-0">Arbeitsschritte</h6>
+        <div class="card shadow-sm workflow-panel">
+          <div class="card-header d-flex align-items-center justify-content-between gap-2">
+            <h6 class="mb-0">Ablauf</h6>
+            <span class="small text-muted">{{ currentStepLabel }}</span>
           </div>
           <div class="card-body p-3">
-            <p class="small text-muted mb-3">
-              Folgen Sie dem Ablauf von der Falldatenpflege bis zum Abschluss. Nicht verfügbare
-              Schritte werden erst nach Auswahl einer Patientenuntersuchung freigeschaltet.
-            </p>
             <div v-if="draftBootstrapError" class="alert alert-warning py-2 mb-3">
               {{ draftBootstrapError }}
             </div>
             <nav class="nav flex-column gap-1">
-              <template v-for="item in navItems" :key="item.to">
+              <template v-for="(item, index) in navItems" :key="item.to">
                 <RouterLink
                   v-if="!isStepDisabled(item)"
                   :to="item.to"
                   class="workflow-step-btn btn btn-sm text-start"
+                  :aria-current="isActive(item.to) ? 'page' : undefined"
                   :class="
                     isActive(item.to) ? 'btn-dark is-active' : 'btn-outline-secondary is-inactive'
                   "
                 >
-                  <span>{{ item.label }}</span>
-                  <span class="workflow-step-meta">{{ stepStatusLabel(item) }}</span>
+                  <span class="workflow-step-index">{{ index + 1 }}</span>
+                  <span class="workflow-step-copy">
+                    <span>{{ item.label }}</span>
+                    <span class="workflow-step-meta">{{ stepStatusLabel(item) }}</span>
+                  </span>
                 </RouterLink>
                 <div v-else class="workflow-step-btn btn btn-sm text-start is-disabled">
-                  <span>{{ item.label }}</span>
-                  <span class="workflow-step-meta">{{ stepStatusLabel(item) }}</span>
+                  <span class="workflow-step-index">{{ index + 1 }}</span>
+                  <span class="workflow-step-copy">
+                    <span>{{ item.label }}</span>
+                    <span class="workflow-step-meta">{{ stepStatusLabel(item) }}</span>
+                  </span>
                 </div>
               </template>
             </nav>
@@ -153,62 +144,46 @@
       </div>
 
       <div class="col-lg-9">
-        <div v-if="isContextPanelOpen" class="card shadow-sm mb-3">
-          <div class="card-header d-flex justify-content-between align-items-center">
+        <div v-if="isContextPanelOpen" class="card shadow-sm mb-3 context-panel">
+          <div class="card-header d-flex justify-content-between align-items-center gap-3">
             <div>
               <h6 class="mb-0">Arbeitskontext</h6>
-              <small class="text-muted">Medien, Entwurfsstatus und letzte Dokumente</small>
+              <small class="text-muted">Fallstatus, Medien und nächste Aktion</small>
             </div>
-            <small class="text-muted">
-              Medienstatus: <strong>{{ mediaPreloadLabel }}</strong>
-            </small>
+            <span class="context-status-pill" :class="`is-${flow.mediaPreloadStatus}`">
+              {{ mediaPreloadLabel }}
+            </span>
           </div>
           <div class="card-body">
-            <div class="row g-3 mb-3">
-              <div class="col-md-4">
-                <div class="border rounded p-3 h-100">
-                  <div class="fw-semibold mb-1">Entwurf</div>
-                  <div class="small text-muted">
-                    {{ draftSummaryLongLabel }}
-                  </div>
-                  <div class="small text-muted mt-1">
-                    Patientenuntersuchung: {{ selectedPatientExaminationLabel }}
-                  </div>
-                  <div class="small text-muted mt-1">
-                    Berichtsvorlage: {{ selectedTemplateLabel }}
-                  </div>
-                  <div v-if="draftBootstrapError" class="alert alert-warning py-2 mt-2 mb-0">
-                    {{ draftBootstrapError }}
-                  </div>
+            <div class="context-quick-grid mb-3">
+              <div class="context-tile">
+                <span>Entwurf</span>
+                <strong>{{ draftSummaryLabel }}</strong>
+                <small>{{ selectedPatientExaminationLabel }}</small>
+                <small>{{ selectedTemplateLabel }}</small>
+                <div v-if="draftBootstrapError" class="alert alert-warning py-2 mt-2 mb-0">
+                  {{ draftBootstrapError }}
                 </div>
               </div>
-              <div class="col-md-4">
-                <div class="border rounded p-3 h-100">
-                  <div class="fw-semibold mb-1">Medien-Preload</div>
-                  <div class="small text-muted">
-                    Status: <strong>{{ mediaPreloadLabel }}</strong>
-                  </div>
-                  <div v-if="flow.mediaPreloadError" class="alert alert-warning py-2 mt-2 mb-0">
-                    {{ flow.mediaPreloadError }}
-                  </div>
-                  <div v-else class="small text-muted mt-2">
-                    Letzte Medien und Dokumente helfen beim Arbeiten im Befund- und Berichtsschritt.
-                  </div>
+              <div class="context-tile">
+                <span>Medien</span>
+                <strong>{{ mediaPreloadLabel }}</strong>
+                <div v-if="flow.mediaPreloadError" class="alert alert-warning py-2 mt-2 mb-0">
+                  {{ flow.mediaPreloadError }}
                 </div>
+                <small v-else>{{
+                  flow.mediaPreload ? 'Bericht, Video und Frames geladen' : 'Noch leer'
+                }}</small>
               </div>
-              <div class="col-md-4">
-                <div class="border rounded p-3 h-100">
-                  <div class="fw-semibold mb-1">Nächster Schritt</div>
-                  <div class="small text-muted">
-                    {{ nextStepHint }}
-                  </div>
-                </div>
+              <div class="context-tile">
+                <span>Nächster Schritt</span>
+                <strong>{{ nextStepHint }}</strong>
               </div>
             </div>
             <div v-if="flow.mediaPreload" class="row g-3">
               <div class="col-md-4">
-                <div class="border rounded p-3 h-100">
-                  <div class="fw-semibold mb-1">Report</div>
+                <div class="media-context-card">
+                  <div class="fw-semibold mb-1">Bericht</div>
                   <div v-if="flow.mediaPreload.latestReport" class="small">
                     <div>ID: {{ flow.mediaPreload.latestReport.id }}</div>
                     <div>Typ: {{ flow.mediaPreload.latestReport.documentType || 'n/a' }}</div>
@@ -228,22 +203,22 @@
                         :disabled="!preferredReportStream"
                         @click="openUrl(preferredReportStream)"
                       >
-                        Report streamen
+                        Bericht öffnen
                       </button>
                       <button
                         class="btn btn-outline-secondary btn-sm"
                         :disabled="!preferredReportDownload"
                         @click="openUrl(preferredReportDownload)"
                       >
-                        Report herunterladen
+                        Bericht herunterladen
                       </button>
                     </div>
                   </div>
-                  <div v-else class="small text-muted">Kein Report verfügbar.</div>
+                  <div v-else class="small text-muted">Kein Bericht verfügbar.</div>
                 </div>
               </div>
               <div class="col-md-4">
-                <div class="border rounded p-3 h-100">
+                <div class="media-context-card">
                   <div class="fw-semibold mb-1">Video</div>
                   <div v-if="flow.mediaPreload.latestVideo" class="small">
                     <div>ID: {{ flow.mediaPreload.latestVideo.id }}</div>
@@ -277,7 +252,7 @@
                 </div>
               </div>
               <div class="col-md-4">
-                <div class="border rounded p-3 h-100">
+                <div class="media-context-card">
                   <div class="fw-semibold mb-1">Frames</div>
                   <div v-if="flow.mediaPreload.latestFrames.length" class="small d-grid gap-2">
                     <button
@@ -409,13 +384,6 @@ const draftSummaryLabel = computed(() => {
   return draft.hydratedFrom === 'session_storage' || draft.hydratedFrom === 'draft_api'
     ? 'wiederhergestellt'
     : 'initialisiert'
-})
-
-const draftSummaryLongLabel = computed(() => {
-  if (!flow.currentRuntimeDraft) return 'Noch kein Entwurf geladen'
-  return draftSummaryLabel.value === 'wiederhergestellt'
-    ? 'Entwurf wurde aus einem vorhandenen Stand wiederhergestellt'
-    : 'Entwurf wurde für den aktuellen Fall vorbereitet'
 })
 
 const selectedPatientExaminationLabel = computed(() => {
@@ -728,6 +696,14 @@ function isRuntimePayload(value: unknown): value is ReportTemplateRuntimePayload
   )
 }
 
+function stringField(record: Record<string, unknown>, ...keys: string[]): string | null {
+  for (const key of keys) {
+    const value = record[key]
+    if (typeof value === 'string' && value.trim()) return value.trim()
+  }
+  return null
+}
+
 function normalizePatientExaminationOption(raw: unknown) {
   if (!raw || typeof raw !== 'object') return null
   const row = raw as Record<string, any>
@@ -908,37 +884,28 @@ async function bootstrapRuntimeDraft(
 async function hydrateRuntimeDraftFromDraftApi(patientExaminationId: number): Promise<boolean> {
   const response = await fetchPatientExaminationDraft(patientExaminationId)
   const draft = response?.draft && typeof response.draft === 'object' ? response.draft : {}
+  const draftModuleName = stringField(draft, 'moduleName', 'module_name') || activeKbModule.value
+  const draftTemplateName = stringField(draft, 'templateName', 'template_name')
+  const updatedAt = response?.updatedAt ?? response?.updated_at ?? null
   if (!isRuntimePayload(draft.payload)) {
-    flow.markDraftPersistenceHydrated(response?.updated_at ?? null)
+    flow.markDraftPersistenceHydrated(updatedAt)
     return false
   }
 
   flow.setTemplateSelection({
-    moduleName:
-      typeof draft.module_name === 'string' && draft.module_name.trim()
-        ? draft.module_name
-        : activeKbModule.value,
-    templateName:
-      typeof draft.template_name === 'string' && draft.template_name.trim()
-        ? draft.template_name
-        : null
+    moduleName: draftModuleName,
+    templateName: draftTemplateName
   })
   flow.setRuntimeDraft({
     draftId: `draft_${patientExaminationId}`,
     patientExaminationId,
-    moduleName:
-      typeof draft.module_name === 'string' && draft.module_name.trim()
-        ? draft.module_name
-        : activeKbModule.value,
-    templateName:
-      typeof draft.template_name === 'string' && draft.template_name.trim()
-        ? draft.template_name
-        : null,
+    moduleName: draftModuleName,
+    templateName: draftTemplateName,
     payload: draft.payload,
     hydratedFrom: 'draft_api',
-    updatedAt: response?.updated_at || new Date().toISOString()
+    updatedAt: updatedAt || new Date().toISOString()
   })
-  flow.markDraftPersistenceHydrated(response?.updated_at ?? null)
+  flow.markDraftPersistenceHydrated(updatedAt)
   return true
 }
 
@@ -1061,7 +1028,7 @@ async function refreshMediaPreload() {
           ? 'Ungültige patient_examination_id (400). Bitte Routing-Kontext prüfen.'
           : status === 403
             ? 'Zugriff auf Timeline verweigert (403). Berechtigungen prüfen.'
-            : `Fehler beim Laden des Medien-Preloads: ${detail || 'unbekannt'}`
+            : `Fehler beim Laden der Medien: ${detail || 'unbekannt'}`
     flow.setMediaPreloadError(message)
   }
 }
@@ -1135,16 +1102,144 @@ onMounted(() => {
   min-width: 0;
 }
 
-.reporting-shell .card {
-  border: 1px solid #d6dce7;
-  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+.reporting-shell .card,
+.reporting-command-bar {
+  border: 1px solid #d9e0ea;
+  border-radius: 8px;
+  box-shadow: 0 8px 18px rgba(20, 31, 48, 0.06);
   overflow: hidden;
 }
 
+.reporting-command-bar {
+  display: grid;
+  grid-template-columns: minmax(22rem, 1.15fr) minmax(20rem, 1fr);
+  gap: 1rem;
+  padding: 1rem;
+  background: #fff;
+}
+
+.reporting-command-main {
+  min-width: 0;
+}
+
+.tracking-label {
+  letter-spacing: 0.08em;
+}
+
+.context-case-select {
+  width: 100%;
+}
+
+.context-case-select .form-select {
+  min-width: min(100%, 20rem);
+}
+
+.context-case-select .btn {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.context-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 0.625rem;
+  align-content: start;
+}
+
+.context-summary-item,
+.context-tile,
+.media-context-card {
+  min-width: 0;
+  padding: 0.75rem;
+  border: 1px solid #d9e0ea;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.context-summary-item.is-primary {
+  background: #172234;
+  color: #fff;
+  border-color: #172234;
+}
+
+.context-summary-label,
+.context-tile span {
+  display: block;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #66768c;
+  margin-bottom: 0.2rem;
+}
+
+.context-summary-item.is-primary .context-summary-label {
+  color: #c9d5e4;
+}
+
+.context-summary-item strong,
+.context-tile strong {
+  display: block;
+  color: inherit;
+  overflow-wrap: anywhere;
+  line-height: 1.3;
+}
+
+.context-tile {
+  display: flex;
+  min-height: 7rem;
+  flex-direction: column;
+  gap: 0.2rem;
+  background: #fff;
+}
+
+.context-tile small {
+  color: #5c6878;
+  overflow-wrap: anywhere;
+}
+
+.context-quick-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.context-status-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 1.75rem;
+  padding: 0.25rem 0.65rem;
+  border-radius: 999px;
+  color: #334155;
+  background: #eef2f7;
+  border: 1px solid #d7dee8;
+  font-size: 0.75rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.context-status-pill.is-ready {
+  color: #0f5132;
+  background: #d1e7dd;
+  border-color: #badbcc;
+}
+
+.context-status-pill.is-loading {
+  color: #084298;
+  background: #cfe2ff;
+  border-color: #b6d4fe;
+}
+
+.context-status-pill.is-error {
+  color: #842029;
+  background: #f8d7da;
+  border-color: #f5c2c7;
+}
+
 .reporting-shell .card-header {
-  background: linear-gradient(180deg, #f9fbff, #eef3fb);
+  background: #fff;
   color: #172234;
-  border-bottom: 1px solid #d6dce7;
+  border-bottom: 1px solid #d9e0ea;
 }
 
 .reporting-shell .card-body {
@@ -1152,85 +1247,67 @@ onMounted(() => {
   color: #1f2a37;
 }
 
-.reporting-context-card .card-body {
-  padding: 1.25rem;
-}
-
-.tracking-label {
-  letter-spacing: 0.08em;
-}
-
-.reporting-context-main {
-  max-width: 38rem;
-}
-
-.reporting-context-summary {
-  min-width: min(100%, 36rem);
-}
-
-.context-summary-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
-  gap: 0.75rem;
-}
-
-.context-summary-item {
-  padding: 0.8rem 0.9rem;
-  border: 1px solid #d6dce7;
-  border-radius: 0.75rem;
-  background: #f9fbff;
-}
-
-.context-summary-label {
-  display: block;
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: #617086;
-  margin-bottom: 0.25rem;
-}
-
-.context-case-select {
-  width: min(100%, 28rem);
-}
-
 .reporting-shell .text-muted {
   color: #4b5565 !important;
 }
 
+.workflow-panel {
+  position: sticky;
+  top: 1rem;
+}
+
 .reporting-shell .workflow-step-btn {
-  display: block;
+  display: flex;
   width: 100%;
+  align-items: center;
+  gap: 0.75rem;
   white-space: normal;
   text-decoration: none;
   font-weight: 600;
   line-height: 1.3;
   border-width: 1px;
   border-style: solid;
+}
+
+.workflow-step-index {
+  display: inline-flex;
+  flex: 0 0 1.75rem;
+  width: 1.75rem;
+  height: 1.75rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.8);
+  color: #172234;
+  font-weight: 800;
+}
+
+.workflow-step-copy {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 0.75rem;
+  min-width: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 0.15rem;
 }
 
 .reporting-shell .workflow-step-btn.is-inactive {
   color: #1f2a37 !important;
-  background-color: #f7f9fc;
-  border-color: #cbd5e1;
+  background-color: #fff;
+  border-color: #d4dbe7;
 }
 
 .reporting-shell .workflow-step-btn.is-inactive:hover,
 .reporting-shell .workflow-step-btn.is-inactive:focus-visible {
   color: #111827 !important;
-  background-color: #e8eef7;
-  border-color: #b6c4d8;
+  background-color: #eef4fb;
+  border-color: #b9c7da;
 }
 
 .reporting-shell .workflow-step-btn.is-active {
   color: #fff !important;
-  background-color: #243247 !important;
-  border-color: #243247 !important;
-  box-shadow: 0 6px 14px rgba(16, 24, 40, 0.24);
+  background-color: #172234 !important;
+  border-color: #172234 !important;
+  box-shadow: 0 6px 14px rgba(16, 24, 40, 0.2);
 }
 
 .reporting-shell .workflow-step-btn.is-disabled {
@@ -1240,9 +1317,12 @@ onMounted(() => {
   cursor: not-allowed;
 }
 
+.reporting-shell .workflow-step-btn.is-disabled .workflow-step-index {
+  color: #8792a2;
+}
+
 .workflow-step-meta {
-  flex-shrink: 0;
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -1250,13 +1330,38 @@ onMounted(() => {
 }
 
 .reporting-shell .workflow-step-btn:focus-visible {
-  outline: 2px solid #9dc2ff;
+  outline: 2px solid #8bb7f0;
   outline-offset: 1px;
+}
+
+.media-context-card {
+  height: 100%;
+  background: #fff;
+}
+
+@media (max-width: 1199.98px) {
+  .reporting-command-bar {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 991.98px) {
   .reporting-shell {
     padding-inline: 0.5rem;
+  }
+
+  .workflow-panel {
+    position: static;
+  }
+
+  .context-quick-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .context-case-select .btn {
+    width: 100%;
   }
 }
 </style>

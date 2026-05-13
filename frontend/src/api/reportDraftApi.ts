@@ -3,15 +3,19 @@ import { endpoints } from '@/types/api/endpoints'
 import type { ReportTemplateRuntimePayload } from '@/types/reportTemplate'
 
 export type ReportDraftBlob = {
+  moduleName?: string
   module_name?: string
+  templateName?: string
   template_name?: string
   payload?: unknown
 }
 
 export type ReportDraftResponse = {
-  patient_examination_id: number
+  patientExaminationId?: number
+  patient_examination_id?: number
   draft: ReportDraftBlob
-  updated_at: string | null
+  updatedAt?: string | null
+  updated_at?: string | null
 }
 
 export async function fetchPatientExaminationDraft(
@@ -32,8 +36,8 @@ export async function savePatientExaminationDraft(params: {
   const response = await axiosInstance.put(
     r(endpoints.examination.patientExaminationDraft(params.patientExaminationId)),
     {
-      module_name: params.moduleName,
-      template_name: params.templateName || '',
+      moduleName: params.moduleName,
+      templateName: params.templateName || '',
       payload: params.payload
     }
   )

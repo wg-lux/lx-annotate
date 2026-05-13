@@ -341,7 +341,7 @@ export const useReportingFlowStore = defineStore('reportingFlow', () => {
                     payload: draft.payload
                 });
                 draftPersistenceStatus.value = 'saved';
-                lastPersistedDraftAt.value = response.updated_at;
+                lastPersistedDraftAt.value = response.updatedAt ?? response.updated_at ?? null;
                 draftAutosaveSignature.value = signatureToPersist;
             }
             catch (error) {
