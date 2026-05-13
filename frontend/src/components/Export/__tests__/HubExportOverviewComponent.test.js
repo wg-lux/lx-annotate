@@ -152,6 +152,51 @@ describe('HubExportOverviewComponent', () => {
             resources: [{ id: 21, resourceKind: 'video' }]
         });
     });
+    it('shows a warning privacy badge and k-anonymity metrics', async () => {
+        hoisted.get.mockResolvedValue({
+            data: {
+                selectedTargetNodeKey: 'hub-node',
+                sourceNodeKey: 'site-node',
+                hubNodes: [{ nodeKey: 'hub-node', displayName: 'Hub', baseUrl: 'https://hub.example', owningCenterKey: 'center-a' }],
+                configReady: true,
+                configError: '',
+                privacySummary: {
+                    minK: 5,
+                    eligibleResourceCount: 3,
+                    eligibleCaseCount: 3,
+                    markedResourceCount: 0,
+                    smallestEquivalenceClassSize: 3,
+                    violatingEquivalenceClassCount: 1,
+                    passesKAnonymity: false,
+                    status: 'warning'
+                },
+                items: [
+                    {
+                        id: 31,
+                        resourceKind: 'report',
+                        filename: 'report-small.pdf',
+                        anonymizationStatus: 'validated',
+                        processedMediaPresent: true,
+                        sourceCenterKey: 'center-a',
+                        sourceCenterName: 'Center A',
+                        markedForUpload: false,
+                        outboundStatus: '',
+                        lastError: '',
+                        lastTransferTimestamp: null,
+                        targetNodeKey: 'hub-node',
+                        eligible: true,
+                        createdAt: '2026-04-08T12:00:00Z'
+                    }
+                ]
+            }
+        });
+        const wrapper = mount(HubExportOverviewComponent);
+        await flushPromises();
+        expect(wrapper.get('[data-test="hub-export-privacy-summary"]').text()).toContain('K-Anonymität k=5');
+        expect(wrapper.get('[data-test="hub-export-privacy-badge"]').text()).toBe('nicht ausreichend');
+        expect(wrapper.get('[data-test="hub-export-privacy-smallest-class"]').text()).toBe('3');
+        expect(wrapper.get('[data-test="hub-export-privacy-violating-classes"]').text()).toBe('1');
+    });
     it('shows ineligible videos when the backend provides a blocked reason', async () => {
         hoisted.get.mockResolvedValue({
             data: {

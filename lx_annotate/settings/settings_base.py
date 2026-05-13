@@ -240,6 +240,12 @@ LX_ANNOTATE_HUB_EXPORT_LOCAL_CLEANUP_POLICY = str(
     or "retain_processed_media"
 ).strip()
 CELERY_BROKER_URL = str(os.getenv("CELERY_BROKER_URL", "") or "").strip()
+CELERY_RESULT_BACKEND = None
+CELERY_TASK_IGNORE_RESULT = True
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1
+CELERY_TASK_TRACK_STARTED = True
+CELERY_TASK_TIME_LIMIT = 60 * 60 * 6
+CELERY_TASK_SOFT_TIME_LIMIT = 60 * 60 * 5
 
 
 def _is_non_dev_central_hub_profile() -> bool:

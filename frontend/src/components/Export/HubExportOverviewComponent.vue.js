@@ -6,6 +6,7 @@ const selectedTargetNodeKey = ref(null);
 const selectionKey = (item) => `${item.resourceKind}:${item.id}`;
 const itemNotice = (item) => item.lastError || item.blockedReason || '-';
 const filteredItems = computed(() => hubExportStore.items.filter((item) => item.eligible || item.markedForUpload || item.blockedReason));
+const privacySummary = computed(() => hubExportStore.privacySummary);
 const selectableItems = computed(() => filteredItems.value.filter((item) => item.eligible));
 const allSelectableChecked = computed(() => selectableItems.value.length > 0 &&
     selectableItems.value.every((item) => selectedKeys.value.has(selectionKey(item))));
@@ -70,6 +71,23 @@ const statusBadgeClass = (status) => {
     };
     return classes[status] || 'bg-secondary';
 };
+const privacyStatusLabel = (status) => {
+    const labels = {
+        pass: 'bestanden',
+        warning: 'nicht ausreichend',
+        unavailable: 'nicht berechenbar'
+    };
+    return labels[status];
+};
+const privacyBadgeClass = (status) => {
+    const classes = {
+        pass: 'bg-success',
+        warning: 'bg-warning text-dark',
+        unavailable: 'bg-secondary'
+    };
+    return classes[status];
+};
+const privacyMetricValue = (value) => value ?? 'n/a';
 watch(() => hubExportStore.selectedTargetNodeKey, (next) => {
     if (next)
         selectedTargetNodeKey.value = next;
@@ -171,6 +189,45 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElement
     disabled: (!__VLS_ctx.selectedMarkedItems.length || !__VLS_ctx.hubExportStore.configReady),
     'data-test': "hub-export-unmark-selected",
 });
+if (__VLS_ctx.privacySummary) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "privacy-summary d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3" },
+        'data-test': "hub-export-privacy-summary",
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "d-flex align-items-center gap-2 flex-wrap" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+        ...{ class: "text-sm fw-semibold" },
+    });
+    (__VLS_ctx.privacySummary.minK);
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+        ...{ class: "badge" },
+        ...{ class: (__VLS_ctx.privacyBadgeClass(__VLS_ctx.privacySummary.status)) },
+        'data-test': "hub-export-privacy-badge",
+    });
+    (__VLS_ctx.privacyStatusLabel(__VLS_ctx.privacySummary.status));
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "d-flex align-items-center gap-3 flex-wrap text-sm text-muted" },
+    });
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+        ...{ class: "fw-semibold text-dark" },
+    });
+    (__VLS_ctx.privacySummary.eligibleCaseCount);
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+        ...{ class: "fw-semibold text-dark" },
+        'data-test': "hub-export-privacy-smallest-class",
+    });
+    (__VLS_ctx.privacyMetricValue(__VLS_ctx.privacySummary.smallestEquivalenceClassSize));
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
+        ...{ class: "fw-semibold text-dark" },
+        'data-test': "hub-export-privacy-violating-classes",
+    });
+    (__VLS_ctx.privacySummary.violatingEquivalenceClassCount);
+}
 if (!__VLS_ctx.filteredItems.length && !__VLS_ctx.hubExportStore.loading) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "text-center py-5" },
@@ -316,6 +373,32 @@ else {
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-secondary']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['privacy-summary']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['justify-content-between']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['flex-wrap']} */ ;
+/** @type {__VLS_StyleScopedClasses['gap-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['gap-2']} */ ;
+/** @type {__VLS_StyleScopedClasses['flex-wrap']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['fw-semibold']} */ ;
+/** @type {__VLS_StyleScopedClasses['badge']} */ ;
+/** @type {__VLS_StyleScopedClasses['d-flex']} */ ;
+/** @type {__VLS_StyleScopedClasses['align-items-center']} */ ;
+/** @type {__VLS_StyleScopedClasses['gap-3']} */ ;
+/** @type {__VLS_StyleScopedClasses['flex-wrap']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
+/** @type {__VLS_StyleScopedClasses['fw-semibold']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-dark']} */ ;
+/** @type {__VLS_StyleScopedClasses['fw-semibold']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-dark']} */ ;
+/** @type {__VLS_StyleScopedClasses['fw-semibold']} */ ;
+/** @type {__VLS_StyleScopedClasses['text-dark']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-center']} */ ;
 /** @type {__VLS_StyleScopedClasses['py-5']} */ ;
 /** @type {__VLS_StyleScopedClasses['text-muted']} */ ;
@@ -342,6 +425,7 @@ const __VLS_self = (await import('vue')).defineComponent({
             selectionKey: selectionKey,
             itemNotice: itemNotice,
             filteredItems: filteredItems,
+            privacySummary: privacySummary,
             allSelectableChecked: allSelectableChecked,
             selectedEligibleItems: selectedEligibleItems,
             selectedMarkedItems: selectedMarkedItems,
@@ -352,6 +436,9 @@ const __VLS_self = (await import('vue')).defineComponent({
             unmarkSelected: unmarkSelected,
             statusLabel: statusLabel,
             statusBadgeClass: statusBadgeClass,
+            privacyStatusLabel: privacyStatusLabel,
+            privacyBadgeClass: privacyBadgeClass,
+            privacyMetricValue: privacyMetricValue,
         };
     },
 });

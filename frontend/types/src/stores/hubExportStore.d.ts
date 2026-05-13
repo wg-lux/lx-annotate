@@ -21,12 +21,24 @@ export interface HubExportItem {
     eligible: boolean;
     createdAt: string | null;
 }
+export type HubExportPrivacyStatus = 'pass' | 'warning' | 'unavailable';
+export interface HubExportPrivacySummary {
+    minK: number;
+    eligibleResourceCount: number;
+    eligibleCaseCount: number;
+    markedResourceCount: number;
+    smallestEquivalenceClassSize: number | null;
+    violatingEquivalenceClassCount: number;
+    passesKAnonymity: boolean;
+    status: HubExportPrivacyStatus;
+}
 export interface HubExportOverviewResponse {
     selectedTargetNodeKey: string | null;
     sourceNodeKey: string | null;
     hubNodes: HubNodeSummary[];
     configReady: boolean;
     configError: string;
+    privacySummary: HubExportPrivacySummary | null;
     items: HubExportItem[];
 }
 export declare const useHubExportStore: import("pinia").StoreDefinition<"hubExport", {
@@ -38,6 +50,7 @@ export declare const useHubExportStore: import("pinia").StoreDefinition<"hubExpo
     items: HubExportItem[];
     configReady: boolean;
     configError: string;
+    privacySummary: HubExportPrivacySummary | null;
 }, {
     eligibleItems: (state: {
         loading: boolean;
@@ -69,6 +82,16 @@ export declare const useHubExportStore: import("pinia").StoreDefinition<"hubExpo
         }[];
         configReady: boolean;
         configError: string;
+        privacySummary: {
+            minK: number;
+            eligibleResourceCount: number;
+            eligibleCaseCount: number;
+            markedResourceCount: number;
+            smallestEquivalenceClassSize: number | null;
+            violatingEquivalenceClassCount: number;
+            passesKAnonymity: boolean;
+            status: HubExportPrivacyStatus;
+        } | null;
     } & import("pinia").PiniaCustomStateProperties<{
         loading: boolean;
         error: string | null;
@@ -78,6 +101,7 @@ export declare const useHubExportStore: import("pinia").StoreDefinition<"hubExpo
         items: HubExportItem[];
         configReady: boolean;
         configError: string;
+        privacySummary: HubExportPrivacySummary | null;
     }>) => {
         id: number;
         resourceKind: 'video' | 'report';
@@ -125,6 +149,16 @@ export declare const useHubExportStore: import("pinia").StoreDefinition<"hubExpo
         }[];
         configReady: boolean;
         configError: string;
+        privacySummary: {
+            minK: number;
+            eligibleResourceCount: number;
+            eligibleCaseCount: number;
+            markedResourceCount: number;
+            smallestEquivalenceClassSize: number | null;
+            violatingEquivalenceClassCount: number;
+            passesKAnonymity: boolean;
+            status: HubExportPrivacyStatus;
+        } | null;
     } & import("pinia").PiniaCustomStateProperties<{
         loading: boolean;
         error: string | null;
@@ -134,6 +168,7 @@ export declare const useHubExportStore: import("pinia").StoreDefinition<"hubExpo
         items: HubExportItem[];
         configReady: boolean;
         configError: string;
+        privacySummary: HubExportPrivacySummary | null;
     }>) => {
         id: number;
         resourceKind: 'video' | 'report';

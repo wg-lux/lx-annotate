@@ -118,6 +118,67 @@ class HubExportWorkerTests(TestCase):
         self.assertEqual(post_mock.call_count, 2)
 
     @patch("lx_annotate.hub.hub_export_worker.requests.post")
+    def test_run_outbound_transfer_job_streams_processed_media_upload(
+        self,
+        post_mock: MagicMock,
+    ):
+        register_response = MagicMock()
+        register_response.json.return_value = {
+            "id": "remote-transfer-1",
+            "transfer_status": "awaiting_media",
+            "processing_decision": "wait_for_missing_media",
+            "status_detail": "",
+        }
+        register_response.raise_for_status.return_value = None
+
+        upload_response = MagicMock()
+        upload_response.json.return_value = {
+            "id": "remote-transfer-1",
+            "transfer_status": "applied",
+            "processing_decision": "skip_processing_preserved_state",
+            "status_detail": "",
+        }
+        upload_response.raise_for_status.return_value = None
+
+        responses = iter([register_response, upload_response])
+        captured_upload: dict[str, object] = {}
+
+        def _post_side_effect(*args, **kwargs):
+            headers = kwargs.get("headers", {})
+            content_type = str(headers.get("Content-Type", ""))
+            if content_type.startswith("multipart/form-data; boundary="):
+                body_chunks = list(kwargs["data"])
+                captured_upload["kwargs"] = kwargs
+                captured_upload["body"] = b"".join(body_chunks)
+            return next(responses)
+
+        post_mock.side_effect = _post_side_effect
+
+        result = run_outbound_transfer_job(
+            outbound_job_id=str(self.job.id),
+            source_node_key=self.site_node.node_key,
+            source_secret="super-secret",
+        )
+
+        self.assertEqual(
+            result.local_status, OutboundHubTransferJob.LocalStatus.COMPLETED
+        )
+        upload_kwargs = captured_upload["kwargs"]
+        body = captured_upload["body"]
+        headers = upload_kwargs["headers"]
+
+        self.assertNotIn("files", upload_kwargs)
+        self.assertNotIsInstance(upload_kwargs["data"], bytes)
+        self.assertTrue(
+            headers["Content-Type"].startswith("multipart/form-data; boundary=")
+        )
+        self.assertEqual(int(headers["Content-Length"]), len(body))
+        self.assertIn(b'name="media_role"', body)
+        self.assertIn(b"\r\nprocessed\r\n", body)
+        self.assertIn(b'name="file"; filename=', body)
+        self.assertIn(b"%PDF-1.4\nprocessed\n%%EOF\n", body)
+
+    @patch("lx_annotate.hub.hub_export_worker.requests.post")
     def test_run_outbound_transfer_job_is_noop_for_completed_job(
         self,
         post_mock: MagicMock,

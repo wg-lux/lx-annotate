@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import uuid
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Iterator, TypedDict, cast
@@ -17,6 +18,8 @@ from .hub_export_audit import emit_hub_export_audit_event
 from .hub_export_cleanup import apply_completed_export_cleanup_policy
 from .hub_export_payloads import build_transfer_payload, validate_transfer_payload
 from ..models import OutboundHubTransferJob
+
+_MULTIPART_UPLOAD_CHUNK_SIZE = 1024 * 1024
 
 
 class RemoteTransferStatusPayload(TypedDict, total=False):
@@ -75,6 +78,61 @@ def hub_transfer_media_url(target_node: NetworkNode, transfer_key: str) -> str:
 def hub_transfer_status_url(target_node: NetworkNode, transfer_key: str) -> str:
     base = hub_transfer_url(target_node)
     return urljoin(base, f"{transfer_key}/status/")
+
+
+def _multipart_header_value(value: str) -> str:
+    return (
+        str(value)
+        .replace("\\", "\\\\")
+        .replace('"', '\\"')
+        .replace("\r", "")
+        .replace("\n", "")
+    )
+
+
+class MultipartUploadStream:
+    def __init__(
+        self,
+        *,
+        media_path: Path,
+        media_role: str,
+        chunk_size: int = _MULTIPART_UPLOAD_CHUNK_SIZE,
+    ) -> None:
+        self.media_path = media_path
+        self.media_role = media_role
+        self.chunk_size = chunk_size
+        self.boundary = f"lx-annotate-{uuid.uuid4().hex}"
+        self.content_type = f"multipart/form-data; boundary={self.boundary}"
+        self._prefix = self._build_prefix()
+        self._suffix = f"\r\n--{self.boundary}--\r\n".encode("utf-8")
+        self.content_length = (
+            len(self._prefix) + media_path.stat().st_size + len(self._suffix)
+        )
+
+    def _build_prefix(self) -> bytes:
+        file_name = _multipart_header_value(self.media_path.name)
+        media_role = _multipart_header_value(self.media_role)
+        return (
+            f"--{self.boundary}\r\n"
+            'Content-Disposition: form-data; name="media_role"\r\n\r\n'
+            f"{media_role}\r\n"
+            f"--{self.boundary}\r\n"
+            f'Content-Disposition: form-data; name="file"; filename="{file_name}"\r\n'
+            "Content-Type: application/octet-stream\r\n\r\n"
+        ).encode("utf-8")
+
+    def __iter__(self) -> Iterator[bytes]:
+        yield self._prefix
+        with self.media_path.open("rb") as media_handle:
+            while True:
+                chunk = media_handle.read(self.chunk_size)
+                if not chunk:
+                    break
+                yield chunk
+        yield self._suffix
+
+    def __len__(self) -> int:
+        return self.content_length
 
 
 def _processed_media_field(
@@ -307,23 +365,29 @@ def run_outbound_transfer_job(
             outbound_job=outbound_job,
         )
 
-        with media_path.open("rb") as media_handle:
-            try:
-                media_response = requests.post(
-                    hub_transfer_media_url(
-                        outbound_job.target_node, outbound_job.transfer_key
-                    ),
-                    data={"media_role": media_role},
-                    files={"file": (media_path.name, media_handle)},
-                    headers=hub_headers(source_node=source_node, source_secret=secret),
-                    timeout=request_timeout_s,
-                )
-                media_response.raise_for_status()
-                media_payload = cast(RemoteTransferStatusPayload, media_response.json())
-                apply_remote_status(outbound_job, media_payload)
-            except requests.RequestException as exc:
-                return mark_outbound_job_failure(
-                    outbound_job,
-                    error_message=f"Hub transfer media upload failed: {exc}",
-                )
+        upload_stream = MultipartUploadStream(
+            media_path=media_path,
+            media_role=media_role,
+        )
+        headers = hub_headers(source_node=source_node, source_secret=secret)
+        headers["Content-Type"] = upload_stream.content_type
+        headers["Content-Length"] = str(upload_stream.content_length)
+        try:
+            media_response = requests.post(
+                hub_transfer_media_url(
+                    outbound_job.target_node,
+                    outbound_job.transfer_key,
+                ),
+                data=upload_stream,
+                headers=headers,
+                timeout=request_timeout_s,
+            )
+            media_response.raise_for_status()
+            media_payload = cast(RemoteTransferStatusPayload, media_response.json())
+            apply_remote_status(outbound_job, media_payload)
+        except requests.RequestException as exc:
+            return mark_outbound_job_failure(
+                outbound_job,
+                error_message=f"Hub transfer media upload failed: {exc}",
+            )
     return outbound_job
