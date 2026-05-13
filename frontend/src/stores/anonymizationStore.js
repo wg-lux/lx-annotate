@@ -328,7 +328,7 @@ export const useAnonymizationStore = defineStore('anonymization', {
                 console.log(`Starting polling for re-imported video ${fileId}`);
                 this.startPolling(fileId);
                 // Check if re-import was successful
-                if (response.data && response.data.sensitive_meta_created) {
+                if (response.data?.sensitiveMetaCreated ?? response.data?.sensitive_meta_created) {
                     console.log(`Video ${fileId} re-imported successfully with metadata`);
                 }
                 else {
@@ -376,7 +376,7 @@ export const useAnonymizationStore = defineStore('anonymization', {
                 console.log(`Starting polling for re-imported PDF ${fileId}`);
                 this.startPolling(fileId);
                 // Check if re-import was successful
-                if (response.data && response.data.sensitive_meta_created) {
+                if (response.data?.sensitiveMetaCreated ?? response.data?.sensitive_meta_created) {
                     console.log(`PDF ${fileId} re-imported successfully with metadata`);
                 }
                 else {

@@ -111,7 +111,7 @@
                 <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
                   <i class="ni ni-single-copy-04 opacity-10"></i>
                 </div>
-                <span class="nav-link-text ms-1">2b. Frame Annotation</span>
+                <span class="nav-link-text ms-1">2b. Frame-Annotation</span>
               </router-link>
             </li>
             <li class="nav-item">
@@ -119,7 +119,7 @@
                 <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
                   <i class="ni ni-chart-bar-32 opacity-10"></i>
                 </div>
-                <span class="nav-link-text ms-1">2c. Model Training</span>
+                <span class="nav-link-text ms-1">2c. Modelltraining</span>
               </router-link>
             </li>
             <li class="nav-item">
@@ -127,7 +127,7 @@
                 <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
                   <i class="ni ni-chart-pie-35 opacity-10"></i>
                 </div>
-                <span class="nav-link-text ms-1">2d. Dataset Buckets</span>
+                <span class="nav-link-text ms-1">2d. Datensatz-Buckets</span>
               </router-link>
             </li>
             <li class="nav-item">
@@ -135,7 +135,7 @@
                 <div class="icon icon-shape icon-sm shadow border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
                   <i class="ni ni-settings opacity-10"></i>
                 </div>
-                <span class="nav-link-text ms-1">2e. Dataset Settings</span>
+                <span class="nav-link-text ms-1">2e. Datensatz-Einstellungen</span>
               </router-link>
             </li>
 

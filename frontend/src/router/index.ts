@@ -87,7 +87,7 @@ const router = createRouter({
     },
     {
       path: '/model-training',
-      name: 'Model Training',
+      name: 'Modelltraining',
       component: () => import('@/views/ModelTrainingPage.vue'),
       meta: {
         description: 'Starten Sie Trainingsläufe für Image-Multilabel-Modelle.'
@@ -95,18 +95,18 @@ const router = createRouter({
     },
     {
       path: '/ai-dataset-buckets',
-      name: 'AI Dataset Buckets',
+      name: 'KI-Datensatz-Buckets',
       component: () => import('@/views/AiDatasetBucketsPage.vue'),
       meta: {
-        description: 'Aktuelle Frame-Bucket-Verteilung der AI-Datensätze prüfen.'
+        description: 'Aktuelle Frame-Bucket-Verteilung der KI-Datensätze prüfen.'
       }
     },
     {
       path: '/ai-dataset-settings',
-      name: 'AI Dataset Settings',
+      name: 'KI-Datensatz-Einstellungen',
       component: () => import('@/views/AiDatasetSettingsPage.vue'),
       meta: {
-        description: 'Training-Manifest-Konfiguration für AI-Datensätze verwalten.'
+        description: 'Training-Manifest-Konfiguration für KI-Datensätze verwalten.'
       }
     },
     {

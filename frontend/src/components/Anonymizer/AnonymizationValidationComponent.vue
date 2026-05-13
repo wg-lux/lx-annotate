@@ -563,6 +563,13 @@
                         <i v-else class="ni ni-check-bold me-1"></i>
                         Segment-Annotation prüfen
                       </button>
+                      <RouterLink
+                        class="btn btn-outline-danger btn-sm ms-2"
+                        :to="phiRegionFrameAnnotationRoute"
+                        data-test="phi-region-frame-annotation-link"
+                      >
+                        Patienteninformationen-Boxen annotieren
+                      </RouterLink>
                     </div>
                     
                     <!-- Outside Timeline Component for Segment Validation -->
@@ -801,6 +808,8 @@ import { endpoints } from '@/types/api/endpoints';
 const toast = useToastStore();
 const router = useRouter();
 const { isDebug } = useDebug();
+const ANONYMIZER_INFORMATION_SOURCE = 'lx_anonymizer_evaluation';
+const PHI_REGION_LABEL_NAME = 'sensitive_region';
 
 // Store references
 const anonymizationStore = useAnonymizationStore();
@@ -1354,6 +1363,33 @@ const caseResolutionRoute = computed(() => {
 
   return {
     path: '/reporting/case-resolution',
+    query
+  };
+});
+
+const phiRegionFrameAnnotationRoute = computed(() => {
+  const targetFileId = resolveFileIdFromContext();
+  const targetScope = sourceMediaScope.value;
+  const query: Record<string, string> = {
+    mode: 'phi_region',
+    taskMode: 'random',
+    targetLabel: PHI_REGION_LABEL_NAME,
+    informationSource: ANONYMIZER_INFORMATION_SOURCE,
+    returnTo: '/anonymisierung/validierung'
+  };
+
+  if (targetFileId !== null) {
+    query.fileId = String(targetFileId);
+  }
+  if (targetScope) {
+    query.mediaType = targetScope;
+  }
+  if (targetFileId !== null && targetScope) {
+    query.returnTo = `/anonymisierung/validierung?fileId=${targetFileId}&mediaType=${targetScope}`;
+  }
+
+  return {
+    path: '/frame-annotation',
     query
   };
 });
@@ -2087,7 +2123,7 @@ function extractPatientExaminationId(payload: unknown): number | null {
     return directMatch;
   }
 
-  const reportFile = obj.report_file;
+  const reportFile = obj.reportFile ?? obj.report_file;
   if (reportFile && typeof reportFile === 'object') {
     const nestedMatch = extractPatientExaminationId(reportFile);
     if (nestedMatch !== null) {
@@ -2095,7 +2131,7 @@ function extractPatientExaminationId(payload: unknown): number | null {
     }
   }
 
-  const patientExamination = obj.patient_examination;
+  const patientExamination = obj.patientExamination ?? obj.patient_examination;
   if (patientExamination && typeof patientExamination === 'object') {
     const nestedId = toPositiveInteger(
       (patientExamination as Record<string, unknown>).id
@@ -2105,7 +2141,7 @@ function extractPatientExaminationId(payload: unknown): number | null {
     }
   }
 
-  const caseResolution = obj.case_resolution;
+  const caseResolution = obj.caseResolution ?? obj.case_resolution;
   if (caseResolution && typeof caseResolution === 'object') {
     const nestedId = extractPatientExaminationId(caseResolution);
     if (nestedId !== null) {
@@ -2320,7 +2356,7 @@ const approveItem = async () => {
       r(endpoints.anonymization.validate(validationFileId)),
       validationPayload
     );
-    const reportFileId = response?.data?.report_file?.id;
+    const reportFileId = response?.data?.reportFile?.id ?? response?.data?.report_file?.id;
     if (typeof reportFileId === 'number') {
       sessionStorage.setItem('last:reportFileId', String(reportFileId));
     }
@@ -2332,7 +2368,9 @@ const approveItem = async () => {
 
   } catch (error: any) {
     console.error('Error approving item:', error);
-    const allowedTypes = normalizeDocumentTypeOptions(error?.response?.data?.allowed_document_types);
+    const allowedTypes = normalizeDocumentTypeOptions(
+      error?.response?.data?.allowedDocumentTypes ?? error?.response?.data?.allowed_document_types
+    );
     if (allowedTypes.length > 0) {
       documentTypeOptions.value = allowedTypes;
     }

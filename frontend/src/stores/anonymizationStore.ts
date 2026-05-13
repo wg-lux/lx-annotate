@@ -480,7 +480,7 @@ startPolling(id: number) {
         this.startPolling(fileId)
 
         // Check if re-import was successful
-        if (response.data && response.data.sensitive_meta_created) {
+        if (response.data?.sensitiveMetaCreated ?? response.data?.sensitive_meta_created) {
           console.log(`Video ${fileId} re-imported successfully with metadata`)
         } else {
           console.log(`Video ${fileId} re-imported but metadata may be incomplete`)
@@ -535,7 +535,7 @@ startPolling(id: number) {
         this.startPolling(fileId)
 
         // Check if re-import was successful
-        if (response.data && response.data.sensitive_meta_created) {
+        if (response.data?.sensitiveMetaCreated ?? response.data?.sensitive_meta_created) {
           console.log(`PDF ${fileId} re-imported successfully with metadata`)
         } else {
           console.log(`PDF ${fileId} re-imported but metadata may be incomplete`)

@@ -1242,7 +1242,7 @@ const uploadRedactedPdf = async () => {
       timestamp: new Date().toISOString(),
       operation: 'pdf_upload',
       status: 'success',
-      details: `Upload-ID: ${response.data.upload_id || 'n/a'}`,
+      details: `Upload-ID: ${response.data.uploadId ?? response.data.upload_id ?? 'n/a'}`,
     });
   } catch (err: any) {
     error.value = err.response?.data?.error || 'Fehler beim Upload der anonymisierten PDF';
@@ -1317,12 +1317,12 @@ const applyMasking = async () => {
       payload
     );
     
-    const taskId = response.data.task_id;
+    const taskId = response.data.taskId ?? response.data.task_id;
     if (taskId) {
       await pollTaskProgress(taskId, 'masking');
     } else {
       await finalizeCorrectionProcessing('masking', {
-        output_path: response.data.output_file,
+        output_path: response.data.outputFile ?? response.data.output_file,
         summary: response.data.message || 'Maskierung erfolgreich abgeschlossen'
       });
     }
@@ -1359,12 +1359,12 @@ const removeFrames = async () => {
       payload
     );
     
-    const taskId = response.data.task_id;
+    const taskId = response.data.taskId ?? response.data.task_id;
     if (taskId) {
       await pollTaskProgress(taskId, 'frame_removal');
     } else {
       await finalizeCorrectionProcessing('frame_removal', {
-        output_path: response.data.output_file,
+        output_path: response.data.outputFile ?? response.data.output_file,
         summary: response.data.message || 'Frame-Entfernung erfolgreich abgeschlossen'
       });
     }

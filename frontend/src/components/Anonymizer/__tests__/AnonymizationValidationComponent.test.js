@@ -77,12 +77,9 @@ function buildPdfItem(overrides = {}) {
         ...overrides
     };
 }
-function mountComponent() {
+function mountComponent(props = { fileId: 5, mediaType: 'pdf' }) {
     return mount(AnonymizationValidationComponent, {
-        props: {
-            fileId: 5,
-            mediaType: 'pdf'
-        },
+        props,
         global: {
             stubs: {
                 RouterLink: {
@@ -210,6 +207,26 @@ describe('AnonymizationValidationComponent', () => {
             query: {
                 preferredExamination: 'colonoscopy',
                 returnTo: '/anonymisierung/validierung?fileId=5&mediaType=pdf'
+            }
+        });
+    });
+    it('links video validation into the PHI frame-box annotation preset', async () => {
+        hoisted.mediaStoreRef.current.isPdf = false;
+        hoisted.mediaStoreRef.current.isVideo = true;
+        const wrapper = mountComponent({ fileId: 5, mediaType: 'video' });
+        await flushPromises();
+        const phiBoxLink = wrapper.find('[data-test="phi-region-frame-annotation-link"]');
+        expect(phiBoxLink.exists()).toBe(true);
+        expect(JSON.parse(phiBoxLink.attributes('data-to'))).toEqual({
+            path: '/frame-annotation',
+            query: {
+                mode: 'phi_region',
+                taskMode: 'random',
+                targetLabel: 'sensitive_region',
+                informationSource: 'lx_anonymizer_evaluation',
+                fileId: '5',
+                mediaType: 'video',
+                returnTo: '/anonymisierung/validierung?fileId=5&mediaType=video'
             }
         });
     });

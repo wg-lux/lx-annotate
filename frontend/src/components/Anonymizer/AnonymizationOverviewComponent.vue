@@ -51,7 +51,7 @@
                 <th>Anonymisierung</th>
                 <th>Annotation</th>
                 <th>Validierung</th>
-                <th>Unverarbeitete Daten vorhanden</th>
+                <th>Originaldatei gelöscht?</th>
                 <th>Erstellt</th>
                 <th>Aktionen</th>
               </tr>
@@ -59,12 +59,12 @@
             <tbody>
               <tr v-for="file in availableFiles" :key="`${file.mediaType}-${file.id}`">                <!-- Filename -->
                 <td class="sticky-filename-column">
-                  <div class="d-flex align-items-center">
+                  <div class="d-flex align-items-start filename-cell-content">
                     <i 
                       :class="getFileIcon(file.mediaType)" 
-                      class="me-2"
+                      class="me-2 flex-shrink-0"
                     ></i>
-                    <div>
+                    <div class="filename-details">
                       <span class="fw-medium filename-text">{{ file.filename }}</span>
                       <div class="small text-muted mt-1">
                         {{ getFileIdLabel(file) }}
@@ -92,13 +92,13 @@
                     >
                       {{ getUploadJobStatusText(file.uploadJob.status) }}
                     </span>
-                    <div v-if="getUploadJobOriginLabel(file.uploadJob)" class="small text-muted mt-1">
+                    <div v-if="getUploadJobOriginLabel(file.uploadJob)" class="small text-muted mt-1 upload-job-text">
                       {{ getUploadJobOriginLabel(file.uploadJob) }}
                     </div>
-                    <div v-if="getUploadJobCleanupLabel(file.uploadJob)" class="small text-muted">
+                    <div v-if="getUploadJobCleanupLabel(file.uploadJob)" class="small text-muted upload-job-text">
                       {{ getUploadJobCleanupLabel(file.uploadJob) }}
                     </div>
-                    <div v-if="file.uploadJob.errorDetail" class="small text-danger mt-1">
+                    <div v-if="file.uploadJob.errorDetail" class="small text-danger mt-1 upload-job-text">
                       {{ file.uploadJob.errorDetail }}
                     </div>
                   </div>
@@ -147,16 +147,15 @@
                   <span v-else class="text-muted">-</span>
                 </td>
 
-                <!-- Raw File Available -->
+                <!-- Original File Cleanup -->
                 <td>
-                  <span v-if="hasOriginalFile(file)" class="text-success">
-                    <i class="ni ni-check-bold me-1"></i>
-                    Ja
+                  <span :class="getOriginalFileDeletionClass(file)">
+                    <i :class="getOriginalFileDeletionIcon(file)" class="me-1"></i>
+                    {{ getOriginalFileDeletionText(file) }}
                   </span>
-                  <span v-else class="text-danger">
-                    <i class="ni ni-settings-gear-65 me-1"></i>
-                    Nein
-                  </span>
+                  <div v-if="getOriginalFileDeletionHint(file)" class="small text-muted raw-file-state-hint">
+                    {{ getOriginalFileDeletionHint(file) }}
+                  </div>
                 </td>
 
                 <!-- Created Date -->
@@ -332,7 +331,6 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAnonymizationStore, type FileItem, type UploadJobOverview } from '@/stores/anonymizationStore';
-import { useVideoStore } from '@/stores/videoStore';
 import { useMediaTypeStore } from '@/stores/mediaTypeStore';
 import { usePollingProtection } from '@/composables/usePollingProtection';
 import { useMediaManagement } from '@/api/mediaManagement';
@@ -341,7 +339,6 @@ import { type MediaType } from '../../stores/mediaTypeStore';
 // Composables
 const router = useRouter();
 const anonymizationStore = useAnonymizationStore();
-const videoStore = useVideoStore();
 const mediaStore = useMediaTypeStore();
 const pollingProtection = usePollingProtection();
 const mediaManagement = useMediaManagement();
@@ -682,6 +679,65 @@ const getUploadJobCleanupLabel = (uploadJob: UploadJobOverview) => {
   return [sourceLabel, cleanupLabel].filter(Boolean).join(' - ');
 };
 
+type OriginalFileDeletionState = 'deleted' | 'present' | 'unknown';
+
+const getOriginalFileDeletionState = (file: FileItem): OriginalFileDeletionState => {
+  if (typeof file.uploadJob?.sourceFilePersisted === 'boolean') {
+    return file.uploadJob.sourceFilePersisted ? 'present' : 'deleted';
+  }
+
+  const cleanupStatus = file.uploadJob?.cleanupStatus?.toLowerCase();
+  if (cleanupStatus === 'completed') {
+    return 'deleted';
+  }
+  if (cleanupStatus === 'pending' || cleanupStatus === 'eligible') {
+    return 'present';
+  }
+
+  if (file.rawFile && file.rawFile.trim() !== '') {
+    return 'present';
+  }
+
+  return 'unknown';
+};
+
+const getOriginalFileDeletionText = (file: FileItem): string => {
+  const texts: Record<OriginalFileDeletionState, string> = {
+    deleted: 'Ja, gelöscht',
+    present: 'Nein, vorhanden',
+    unknown: 'Unbekannt'
+  };
+  return texts[getOriginalFileDeletionState(file)];
+};
+
+const getOriginalFileDeletionClass = (file: FileItem): string => {
+  const classes: Record<OriginalFileDeletionState, string> = {
+    deleted: 'text-success',
+    present: 'text-warning',
+    unknown: 'text-muted'
+  };
+  return classes[getOriginalFileDeletionState(file)];
+};
+
+const getOriginalFileDeletionIcon = (file: FileItem): string => {
+  const icons: Record<OriginalFileDeletionState, string> = {
+    deleted: 'ni ni-check-bold',
+    present: 'ni ni-single-copy-04',
+    unknown: 'ni ni-settings-gear-65'
+  };
+  return icons[getOriginalFileDeletionState(file)];
+};
+
+const getOriginalFileDeletionHint = (file: FileItem): string => {
+  if (file.uploadJob?.cleanupStatus) {
+    return getUploadJobCleanupStatusText(file.uploadJob.cleanupStatus);
+  }
+  if (file.rawFile && file.rawFile.trim() !== '') {
+    return 'Rohdatei ist noch referenziert';
+  }
+  return '';
+};
+
 const formatDate = (dateString: string | null) => {
   if (!dateString) return '-';
   
@@ -709,28 +765,6 @@ const getTotalByStatus = (status: string) => {
   ).length;
 };
 
-
-const hasOriginalFile = (file: FileItem): boolean => {
-  if (typeof file.uploadJob?.sourceFilePersisted === 'boolean') {
-    return file.uploadJob.sourceFilePersisted;
-  }
-
-  if (file.rawFile && file.rawFile.trim() !== '') {
-    return true;
-  }
-
-  // Check if the file has the necessary properties to indicate original file exists
-  if (file.mediaType === 'video') {
-    // For videos, check if rawFile exists and has a valid path
-    return videoStore.hasRawVideoFile?.valueOf() ?? false;
-  } else if (file.mediaType === 'pdf') {
-    // For PDFs, check if original_file exists and has a valid path
-    return !!(file.rawFile && file.rawFile.trim() !== '');
-  }
-  
-  // If we can't determine the media type, assume it's available
-  return true;
-};
 
 // Lifecycle
 onMounted(async () => {
@@ -783,14 +817,15 @@ onUnmounted(() => {
 }
 
 .overview-files-table {
-  min-width: 1120px;
+  min-width: 1180px;
 }
 
 .overview-files-table .sticky-filename-column {
   position: sticky;
   left: 0;
-  min-width: 16rem;
-  max-width: 24rem;
+  width: 22rem;
+  min-width: 18rem;
+  max-width: 22rem;
   background: #fff;
   box-shadow: 0.25rem 0 0.75rem rgba(0, 0, 0, 0.04);
   z-index: 2;
@@ -805,18 +840,33 @@ onUnmounted(() => {
   background: var(--bs-table-hover-bg, #f8f9fa);
 }
 
+.filename-cell-content,
+.filename-details {
+  min-width: 0;
+  max-width: 100%;
+}
+
 .filename-text {
   display: block;
+  max-width: 100%;
   overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: normal;
 }
 
 .upload-job-summary {
-  min-width: 10rem;
-  max-width: 16rem;
+  width: 17rem;
+  min-width: 0;
+  max-width: 17rem;
 }
 
-.upload-job-summary .small {
+.upload-job-summary .small,
+.upload-job-text,
+.raw-file-state-hint {
+  max-width: 100%;
   overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: normal;
 }
 
 .btn-group-sm .btn {
@@ -848,8 +898,14 @@ onUnmounted(() => {
   }
 
   .overview-files-table .sticky-filename-column {
+    width: 15rem;
     min-width: 13rem;
-    max-width: 16rem;
+    max-width: 15rem;
+  }
+
+  .upload-job-summary {
+    width: 14rem;
+    max-width: 14rem;
   }
 }
 </style>

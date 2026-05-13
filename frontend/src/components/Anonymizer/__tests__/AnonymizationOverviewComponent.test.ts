@@ -136,6 +136,39 @@ describe('AnonymizationOverviewComponent', () => {
     expect(wrapper.text()).toContain('Fertig')
   })
 
+  it('reports whether the original source file has already been deleted', async () => {
+    hoisted.anonymizationStoreRef.current.overview = [
+      buildVideoFile({
+        id: 17,
+        uploadJob: {
+          id: 'deleted-source',
+          status: 'anonymized',
+          sourceFilePersisted: false,
+          cleanupStatus: 'completed'
+        }
+      }),
+      buildPdfFile({
+        id: 23,
+        uploadJob: {
+          id: 'present-source',
+          status: 'anonymized',
+          sourceFilePersisted: true,
+          cleanupStatus: 'pending'
+        }
+      })
+    ]
+
+    const wrapper = mount(AnonymizationOverviewComponent)
+    await flushPromises()
+
+    expect(wrapper.find('thead').text()).toContain('Originaldatei gelöscht?')
+    const rows = wrapper.findAll('tbody tr')
+    expect(rows[0].text()).toContain('Ja, gelöscht')
+    expect(rows[0].text()).toContain('Bereinigt')
+    expect(rows[1].text()).toContain('Nein, vorhanden')
+    expect(rows[1].text()).toContain('Bereinigung offen')
+  })
+
   it('keeps the filename column identifiable for sticky horizontal scrolling', async () => {
     const wrapper = mount(AnonymizationOverviewComponent)
     await flushPromises()

@@ -16,6 +16,8 @@ import { endpoints } from '@/types/api/endpoints';
 const toast = useToastStore();
 const router = useRouter();
 const { isDebug } = useDebug();
+const ANONYMIZER_INFORMATION_SOURCE = 'lx_anonymizer_evaluation';
+const PHI_REGION_LABEL_NAME = 'sensitive_region';
 // Store references
 const anonymizationStore = useAnonymizationStore();
 const videoStore = useVideoStore();
@@ -438,6 +440,30 @@ const caseResolutionRoute = computed(() => {
     }
     return {
         path: '/reporting/case-resolution',
+        query
+    };
+});
+const phiRegionFrameAnnotationRoute = computed(() => {
+    const targetFileId = resolveFileIdFromContext();
+    const targetScope = sourceMediaScope.value;
+    const query = {
+        mode: 'phi_region',
+        taskMode: 'random',
+        targetLabel: PHI_REGION_LABEL_NAME,
+        informationSource: ANONYMIZER_INFORMATION_SOURCE,
+        returnTo: '/anonymisierung/validierung'
+    };
+    if (targetFileId !== null) {
+        query.fileId = String(targetFileId);
+    }
+    if (targetScope) {
+        query.mediaType = targetScope;
+    }
+    if (targetFileId !== null && targetScope) {
+        query.returnTo = `/anonymisierung/validierung?fileId=${targetFileId}&mediaType=${targetScope}`;
+    }
+    return {
+        path: '/frame-annotation',
         query
     };
 });
@@ -1063,21 +1089,21 @@ function extractPatientExaminationId(payload) {
     if (directMatch !== null) {
         return directMatch;
     }
-    const reportFile = obj.report_file;
+    const reportFile = obj.reportFile ?? obj.report_file;
     if (reportFile && typeof reportFile === 'object') {
         const nestedMatch = extractPatientExaminationId(reportFile);
         if (nestedMatch !== null) {
             return nestedMatch;
         }
     }
-    const patientExamination = obj.patient_examination;
+    const patientExamination = obj.patientExamination ?? obj.patient_examination;
     if (patientExamination && typeof patientExamination === 'object') {
         const nestedId = toPositiveInteger(patientExamination.id);
         if (nestedId !== null) {
             return nestedId;
         }
     }
-    const caseResolution = obj.case_resolution;
+    const caseResolution = obj.caseResolution ?? obj.case_resolution;
     if (caseResolution && typeof caseResolution === 'object') {
         const nestedId = extractPatientExaminationId(caseResolution);
         if (nestedId !== null) {
@@ -1238,7 +1264,7 @@ const approveItem = async () => {
     try {
         console.log(`Validating anonymization for file ${validationFileId}...`);
         const response = await axiosInstance.post(r(endpoints.anonymization.validate(validationFileId)), validationPayload);
-        const reportFileId = response?.data?.report_file?.id;
+        const reportFileId = response?.data?.reportFile?.id ?? response?.data?.report_file?.id;
         if (typeof reportFileId === 'number') {
             sessionStorage.setItem('last:reportFileId', String(reportFileId));
         }
@@ -1248,7 +1274,7 @@ const approveItem = async () => {
     }
     catch (error) {
         console.error('Error approving item:', error);
-        const allowedTypes = normalizeDocumentTypeOptions(error?.response?.data?.allowed_document_types);
+        const allowedTypes = normalizeDocumentTypeOptions(error?.response?.data?.allowedDocumentTypes ?? error?.response?.data?.allowed_document_types);
         if (allowedTypes.length > 0) {
             documentTypeOptions.value = allowedTypes;
         }
@@ -2191,6 +2217,21 @@ if (__VLS_ctx.currentItem) {
                 ...{ class: "ni ni-check-bold me-1" },
             });
         }
+        const __VLS_4 = {}.RouterLink;
+        /** @type {[typeof __VLS_components.RouterLink, typeof __VLS_components.RouterLink, ]} */ ;
+        // @ts-ignore
+        const __VLS_5 = __VLS_asFunctionalComponent(__VLS_4, new __VLS_4({
+            ...{ class: "btn btn-outline-danger btn-sm ms-2" },
+            to: (__VLS_ctx.phiRegionFrameAnnotationRoute),
+            dataTest: "phi-region-frame-annotation-link",
+        }));
+        const __VLS_6 = __VLS_5({
+            ...{ class: "btn btn-outline-danger btn-sm ms-2" },
+            to: (__VLS_ctx.phiRegionFrameAnnotationRoute),
+            dataTest: "phi-region-frame-annotation-link",
+        }, ...__VLS_functionalComponentArgsRest(__VLS_5));
+        __VLS_7.slots.default;
+        var __VLS_7;
         if (__VLS_ctx.shouldShowOutsideTimeline && __VLS_ctx.currentItem) {
             __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
                 ...{ class: "outside-timeline-container mt-4" },
@@ -2244,26 +2285,26 @@ if (__VLS_ctx.currentItem) {
             });
             /** @type {[typeof OutsideTimelineComponent, ]} */ ;
             // @ts-ignore
-            const __VLS_4 = __VLS_asFunctionalComponent(OutsideTimelineComponent, new OutsideTimelineComponent({
+            const __VLS_8 = __VLS_asFunctionalComponent(OutsideTimelineComponent, new OutsideTimelineComponent({
                 ...{ 'onSegmentValidated': {} },
                 ...{ 'onValidationComplete': {} },
                 videoId: (__VLS_ctx.currentItem.id),
             }));
-            const __VLS_5 = __VLS_4({
+            const __VLS_9 = __VLS_8({
                 ...{ 'onSegmentValidated': {} },
                 ...{ 'onValidationComplete': {} },
                 videoId: (__VLS_ctx.currentItem.id),
-            }, ...__VLS_functionalComponentArgsRest(__VLS_4));
-            let __VLS_7;
-            let __VLS_8;
-            let __VLS_9;
-            const __VLS_10 = {
+            }, ...__VLS_functionalComponentArgsRest(__VLS_8));
+            let __VLS_11;
+            let __VLS_12;
+            let __VLS_13;
+            const __VLS_14 = {
                 onSegmentValidated: (__VLS_ctx.onSegmentValidated)
             };
-            const __VLS_11 = {
+            const __VLS_15 = {
                 onValidationComplete: (__VLS_ctx.onOutsideValidationComplete)
             };
-            var __VLS_6;
+            var __VLS_10;
         }
         if (__VLS_ctx.videoValidationStatus) {
             __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -2490,19 +2531,19 @@ if (__VLS_ctx.currentItem) {
         __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
             ...{ class: "mt-2 d-flex flex-wrap gap-2" },
         });
-        const __VLS_12 = {}.RouterLink;
+        const __VLS_16 = {}.RouterLink;
         /** @type {[typeof __VLS_components.RouterLink, typeof __VLS_components.RouterLink, ]} */ ;
         // @ts-ignore
-        const __VLS_13 = __VLS_asFunctionalComponent(__VLS_12, new __VLS_12({
+        const __VLS_17 = __VLS_asFunctionalComponent(__VLS_16, new __VLS_16({
             ...{ class: "btn btn-outline-secondary btn-sm" },
             to: (__VLS_ctx.caseResolutionRoute),
         }));
-        const __VLS_14 = __VLS_13({
+        const __VLS_18 = __VLS_17({
             ...{ class: "btn btn-outline-secondary btn-sm" },
             to: (__VLS_ctx.caseResolutionRoute),
-        }, ...__VLS_functionalComponentArgsRest(__VLS_13));
-        __VLS_15.slots.default;
-        var __VLS_15;
+        }, ...__VLS_functionalComponentArgsRest(__VLS_17));
+        __VLS_19.slots.default;
+        var __VLS_19;
     }
 }
 /** @type {__VLS_StyleScopedClasses['container-fluid']} */ ;
@@ -2818,6 +2859,10 @@ if (__VLS_ctx.currentItem) {
 /** @type {__VLS_StyleScopedClasses['ni']} */ ;
 /** @type {__VLS_StyleScopedClasses['ni-check-bold']} */ ;
 /** @type {__VLS_StyleScopedClasses['me-1']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-danger']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
+/** @type {__VLS_StyleScopedClasses['ms-2']} */ ;
 /** @type {__VLS_StyleScopedClasses['outside-timeline-container']} */ ;
 /** @type {__VLS_StyleScopedClasses['mt-4']} */ ;
 /** @type {__VLS_StyleScopedClasses['card']} */ ;
@@ -3008,6 +3053,7 @@ const __VLS_self = (await import('vue')).defineComponent({
             pseudoPatientDisplay: pseudoPatientDisplay,
             patientExaminationDisplay: patientExaminationDisplay,
             caseResolutionRoute: caseResolutionRoute,
+            phiRegionFrameAnnotationRoute: phiRegionFrameAnnotationRoute,
             rawVideoSrc: rawVideoSrc,
             anonymizedVideoSrc: anonymizedVideoSrc,
             rawPdfSrc: rawPdfSrc,
