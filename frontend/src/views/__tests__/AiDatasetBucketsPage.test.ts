@@ -96,7 +96,7 @@ describe('AiDatasetBucketsPage', () => {
       predictionSegmentsOnly: true
     })
     expect(wrapper.get('[data-test="summary-merged-frames"]').text()).toContain('8')
-    expect(wrapper.get('[data-test="target-buckets"]').text()).toContain('Positive')
+    expect(wrapper.get('[data-test="target-buckets"]').text()).toContain('Positiv')
     expect(wrapper.get('[data-test="label-bucket-table"]').text()).toContain('polyp')
   })
 

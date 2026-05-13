@@ -6,12 +6,14 @@ import AiDatasetSettingsPage from '../AiDatasetSettingsPage.vue'
 const hoisted = vi.hoisted(() => ({
   fetchAiDatasetOptions: vi.fn(),
   fetchAiDatasetLabelSets: vi.fn(),
+  createAiDataset: vi.fn(),
   buildAiDatasetTrainingManifest: vi.fn()
 }))
 
 vi.mock('@/api/aiDatasetApi', () => ({
   fetchAiDatasetOptions: hoisted.fetchAiDatasetOptions,
   fetchAiDatasetLabelSets: hoisted.fetchAiDatasetLabelSets,
+  createAiDataset: hoisted.createAiDataset,
   buildAiDatasetTrainingManifest: hoisted.buildAiDatasetTrainingManifest
 }))
 
@@ -29,6 +31,15 @@ describe('AiDatasetSettingsPage', () => {
         nameCount: 1
       }
     ])
+    hoisted.createAiDataset.mockResolvedValue({
+      id: 9,
+      value: 'Neuer Datensatz',
+      label: 'Neuer Datensatz',
+      datasetType: 'image',
+      aiModelType: 'image_multilabel_classification',
+      isActive: true,
+      nameCount: 1
+    })
     hoisted.fetchAiDatasetLabelSets.mockResolvedValue([
       {
         id: 3,
@@ -110,5 +121,47 @@ describe('AiDatasetSettingsPage', () => {
     expect(wrapper.get('[data-test="manifest-summary"]').text()).toContain('5')
     expect(wrapper.get('[data-test="frame-format-summary"]').text()).toContain('JPEG')
     expect(wrapper.get('[data-test="lx-ai-core-manifest-json"]').text()).toContain('blood')
+  })
+
+  it('creates a named dataset and selects it', async () => {
+    hoisted.fetchAiDatasetOptions
+      .mockResolvedValueOnce([
+        {
+          id: 7,
+          value: 'Dataset A',
+          label: 'Dataset A',
+          datasetType: 'image',
+          aiModelType: 'image_multilabel_classification',
+          isActive: true,
+          nameCount: 1
+        }
+      ])
+      .mockResolvedValueOnce([
+        {
+          id: 9,
+          value: 'Neuer Datensatz',
+          label: 'Neuer Datensatz',
+          datasetType: 'image',
+          aiModelType: 'image_multilabel_classification',
+          isActive: true,
+          nameCount: 1
+        }
+      ])
+
+    const wrapper = mount(AiDatasetSettingsPage)
+    await flushPromises()
+
+    await wrapper.get('[data-test="new-dataset-name-input"]').setValue('Neuer Datensatz')
+    await wrapper.get('[data-test="create-dataset-form"]').trigger('submit')
+    await flushPromises()
+
+    expect(hoisted.createAiDataset).toHaveBeenCalledWith({
+      name: 'Neuer Datensatz',
+      datasetType: 'image',
+      aiModelType: 'image_multilabel_classification',
+      isActive: true
+    })
+    expect((wrapper.get('[data-test="dataset-select"]').element as HTMLSelectElement).value).toBe('9')
+    expect(wrapper.text()).toContain('wurde erstellt und ausgewählt')
   })
 })

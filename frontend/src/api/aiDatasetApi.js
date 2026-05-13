@@ -7,6 +7,10 @@ export async function fetchAiDatasetOptions() {
     const { data } = await axiosInstance.get(r(AI_DATASETS_DROPDOWN_PATH));
     return data;
 }
+export async function createAiDataset(payload) {
+    const { data } = await axiosInstance.post(r(AI_DATASETS_DROPDOWN_PATH), payload);
+    return data;
+}
 export async function fetchAiDatasetLabelSets() {
     const { data } = await axiosInstance.get(r(endpoints.media.videoLabelSetsList));
     return data;

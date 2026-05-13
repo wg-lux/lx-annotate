@@ -2,54 +2,106 @@
   <div class="dataset-settings-page container-fluid py-4 px-3 px-lg-4">
     <section class="page-heading">
       <div>
-        <p class="section-kicker">AI Dataset</p>
-        <h1>Training Manifest Settings</h1>
+        <p class="section-kicker">KI-Datensatz</p>
+        <h1>Training-Manifest</h1>
+        <p class="heading-copy">
+          Verwalten Sie Datensätze und prüfen Sie die Manifest-Konfiguration für das Modelltraining.
+        </p>
       </div>
       <button
         type="button"
         class="btn btn-outline-secondary btn-sm"
-        :disabled="loadingOptions || buildingManifest"
+        :disabled="loadingOptions || buildingManifest || creatingDataset"
         data-test="reload-options"
         @click="loadOptions"
       >
-        Reload
+        Neu laden
       </button>
     </section>
 
     <div class="settings-layout">
       <section class="settings-panel">
         <div class="panel-heading">
-          <h2>Dataset</h2>
-          <span class="status-chip" :class="{ 'status-chip-busy': loadingOptions || buildingManifest }">
+          <h2>Datensatz</h2>
+          <span
+            class="status-chip"
+            :class="{ 'status-chip-busy': loadingOptions || buildingManifest || creatingDataset }"
+          >
             {{ statusLabel }}
           </span>
         </div>
 
+        <form class="create-dataset-panel" data-test="create-dataset-form" @submit.prevent="createDataset">
+          <div>
+            <h3>Neuen Datensatz erstellen</h3>
+            <p>Erstellt einen leeren Datensatz und wählt ihn direkt für die Manifest-Vorschau aus.</p>
+          </div>
+          <div class="create-dataset-grid">
+            <label class="field-group">
+              <span>Name</span>
+              <input
+                v-model="createDatasetForm.name"
+                class="form-control"
+                data-test="new-dataset-name-input"
+                :disabled="loadingOptions || buildingManifest || creatingDataset"
+                placeholder="z. B. Koloskopie Training Mai 2026"
+                maxlength="255"
+              />
+            </label>
+
+            <label class="field-group">
+              <span>Datensatztyp</span>
+              <select
+                v-model="createDatasetForm.datasetType"
+                class="form-select"
+                data-test="new-dataset-type-select"
+                :disabled="loadingOptions || buildingManifest || creatingDataset"
+              >
+                <option value="image">Bilddatensatz</option>
+                <option value="video">Video-Segmentdatensatz</option>
+              </select>
+            </label>
+
+            <button
+              type="submit"
+              class="btn btn-outline-primary create-dataset-button"
+              data-test="create-dataset-button"
+              :disabled="!canCreateDataset"
+            >
+              {{ creatingDataset ? 'Datensatz wird erstellt...' : 'Datensatz erstellen' }}
+            </button>
+          </div>
+        </form>
+
+        <div v-if="createdDatasetMessage" class="alert alert-success mb-0 mt-3" role="status">
+          {{ createdDatasetMessage }}
+        </div>
+
         <div class="settings-grid">
           <label class="field-group">
-            <span>AI Dataset</span>
+            <span>KI-Datensatz</span>
             <select
               v-model="selectedDatasetId"
               class="form-select"
               data-test="dataset-select"
-              :disabled="loadingOptions || buildingManifest"
+              :disabled="loadingOptions || buildingManifest || creatingDataset"
             >
-              <option value="">Select dataset</option>
+              <option value="">Datensatz auswählen</option>
               <option v-for="dataset in datasetOptions" :key="dataset.id" :value="String(dataset.id)">
-                {{ dataset.label }} - {{ dataset.datasetType }} - ID {{ dataset.id }}
+                {{ dataset.label }} - {{ datasetTypeLabel(dataset.datasetType) }} - ID {{ dataset.id }}
               </option>
             </select>
           </label>
 
           <label class="field-group">
-            <span>Label Set</span>
+            <span>Label-Set</span>
             <select
               v-model="form.labelSetId"
               class="form-select"
               data-test="label-set-select"
-              :disabled="loadingOptions || buildingManifest"
+              :disabled="loadingOptions || buildingManifest || creatingDataset"
             >
-              <option value="">Auto-detect</option>
+              <option value="">Automatisch erkennen</option>
               <option v-for="group in labelSetOptions" :key="group.id" :value="String(group.id)">
                 {{ group.name }} v{{ group.version }} - {{ group.labelCount }} Labels
               </option>
@@ -57,38 +109,38 @@
           </label>
 
           <label class="field-group">
-            <span>Current Preprocessing</span>
+            <span>Aktuelle Vorverarbeitung</span>
             <select
               v-model="form.preprocessingStrategy"
               class="form-select"
               data-test="preprocessing-strategy-select"
-              :disabled="buildingManifest"
+              :disabled="buildingManifest || creatingDataset"
             >
-              <option value="preserve_dimensions_black_mask">Preserve dimensions with black mask</option>
-              <option value="crop_to_endoscope_roi">Crop endoscope ROI</option>
+              <option value="preserve_dimensions_black_mask">Dimensionen mit schwarzer Maske beibehalten</option>
+              <option value="crop_to_endoscope_roi">Endoskop-ROI zuschneiden</option>
             </select>
           </label>
 
           <label class="field-group">
-            <span>Model Input</span>
+            <span>Modelleingabe</span>
             <select
               v-model="form.recommendedModelInputStrategy"
               class="form-select"
               data-test="model-input-strategy-select"
-              :disabled="buildingManifest"
+              :disabled="buildingManifest || creatingDataset"
             >
-              <option value="crop_to_endoscope_roi">Crop endoscope ROI</option>
-              <option value="preserve_dimensions_black_mask">Preserve dimensions with black mask</option>
+              <option value="crop_to_endoscope_roi">Endoskop-ROI zuschneiden</option>
+              <option value="preserve_dimensions_black_mask">Dimensionen mit schwarzer Maske beibehalten</option>
             </select>
           </label>
 
           <label class="field-group">
-            <span>Information Sources</span>
+            <span>Informationsquellen</span>
             <input
               v-model="informationSourceInput"
               class="form-control"
               data-test="information-source-input"
-              :disabled="buildingManifest"
+              :disabled="buildingManifest || creatingDataset"
               placeholder="manual_annotation, prediction"
             />
           </label>
@@ -100,9 +152,9 @@
                 class="form-check-input"
                 type="checkbox"
                 data-test="unknowns-negative-checkbox"
-                :disabled="buildingManifest"
+                :disabled="buildingManifest || creatingDataset"
               />
-              <span>Train unknowns as negative</span>
+              <span>Unbekannte als negativ trainieren</span>
             </label>
             <label class="check-row">
               <input
@@ -110,9 +162,9 @@
                 class="form-check-input"
                 type="checkbox"
                 data-test="check-frame-format-checkbox"
-                :disabled="buildingManifest"
+                :disabled="buildingManifest || creatingDataset"
               />
-              <span>Check frame format</span>
+              <span>Frame-Format prüfen</span>
             </label>
             <label class="check-row">
               <input
@@ -120,9 +172,9 @@
                 class="form-check-input"
                 type="checkbox"
                 data-test="include-file-paths-checkbox"
-                :disabled="buildingManifest"
+                :disabled="buildingManifest || creatingDataset"
               />
-              <span>Include local file paths</span>
+              <span>Lokale Dateipfade einschließen</span>
             </label>
           </div>
         </div>
@@ -136,32 +188,32 @@
             type="button"
             class="btn btn-primary"
             data-test="build-training-manifest"
-            :disabled="buildingManifest || !selectedDatasetId"
+            :disabled="buildingManifest || creatingDataset || !selectedDatasetId"
             @click="buildManifest"
           >
-            {{ buildingManifest ? 'Building manifest...' : 'Preview manifest' }}
+            {{ buildingManifest ? 'Manifest wird erstellt...' : 'Manifest-Vorschau erstellen' }}
           </button>
           <button
             type="button"
             class="btn btn-outline-secondary"
-            :disabled="buildingManifest"
+            :disabled="buildingManifest || creatingDataset"
             @click="resetManifest"
           >
-            Reset result
+            Ergebnis zurücksetzen
           </button>
         </div>
       </section>
 
       <section class="settings-panel summary-panel">
         <div class="panel-heading">
-          <h2>Manifest Summary</h2>
+          <h2>Manifest-Zusammenfassung</h2>
           <span v-if="manifestPreview" class="status-chip status-chip-ready" data-test="manifest-ready">
-            {{ manifestPreview.summary.sampleCount }} Samples
+            {{ manifestPreview.summary.sampleCount }} Beispiele
           </span>
         </div>
 
         <div v-if="!manifestPreview" class="empty-state">
-          No manifest preview yet.
+          Noch keine Manifest-Vorschau vorhanden.
         </div>
 
         <template v-else>
@@ -171,15 +223,15 @@
               <strong>{{ manifestPreview.summary.labelCount }}</strong>
             </div>
             <div class="metric-tile">
-              <span>Samples</span>
+              <span>Beispiele</span>
               <strong>{{ manifestPreview.summary.sampleCount }}</strong>
             </div>
             <div class="metric-tile">
-              <span>Frame Check</span>
+              <span>Frame-Prüfung</span>
               <strong>{{ frameFormatLabel }}</strong>
             </div>
             <div class="metric-tile">
-              <span>Crop Templates</span>
+              <span>Crop-Vorlagen</span>
               <strong>{{ cropTemplateCount }}</strong>
             </div>
           </div>
@@ -190,17 +242,17 @@
               <dd>{{ frameFormatDetail }}</dd>
             </div>
             <div>
-              <dt>Preprocessing</dt>
+              <dt>Vorverarbeitung</dt>
               <dd>{{ strategyLabel(manifestPreview.summary.frameFormat.preprocessingStrategy) }}</dd>
             </div>
             <div>
-              <dt>Model Input</dt>
+              <dt>Modelleingabe</dt>
               <dd>{{ strategyLabel(manifestPreview.summary.frameFormat.recommendedModelInputStrategy) }}</dd>
             </div>
           </dl>
 
           <details class="manifest-json">
-            <summary>lx-ai-core payload</summary>
+            <summary>lx-ai-core-Payload</summary>
             <pre data-test="lx-ai-core-manifest-json">{{ lxAiCoreManifestJson }}</pre>
           </details>
         </template>
@@ -212,8 +264,11 @@
 <script setup lang="ts">
 import {
   buildAiDatasetTrainingManifest,
+  createAiDataset,
   fetchAiDatasetLabelSets,
   fetchAiDatasetOptions,
+  type AiDatasetModelType,
+  type AiDatasetType,
   type AiDatasetFrameFormatStrategy,
   type AiDatasetLabelSetOption,
   type AiDatasetOption,
@@ -227,9 +282,19 @@ const labelSetOptions = ref<AiDatasetLabelSetOption[]>([])
 const selectedDatasetId = ref('')
 const loadingOptions = ref(true)
 const buildingManifest = ref(false)
+const creatingDataset = ref(false)
 const errorMessage = ref('')
+const createdDatasetMessage = ref('')
 const manifestPreview = ref<AiDatasetTrainingManifestPreview | null>(null)
 const informationSourceInput = ref('')
+
+const createDatasetForm = reactive<{
+  name: string
+  datasetType: AiDatasetType
+}>({
+  name: '',
+  datasetType: 'image'
+})
 
 const form = reactive<AiDatasetTrainingManifestConfig>({
   labelSetId: '',
@@ -241,28 +306,38 @@ const form = reactive<AiDatasetTrainingManifestConfig>({
   informationSourceNames: null
 })
 
+const canCreateDataset = computed(() => {
+  return (
+    createDatasetForm.name.trim().length > 0 &&
+    !loadingOptions.value &&
+    !buildingManifest.value &&
+    !creatingDataset.value
+  )
+})
+
 const statusLabel = computed(() => {
-  if (loadingOptions.value) return 'Loading options'
-  if (buildingManifest.value) return 'Building preview'
-  return 'Ready'
+  if (loadingOptions.value) return 'Optionen werden geladen'
+  if (creatingDataset.value) return 'Datensatz wird erstellt'
+  if (buildingManifest.value) return 'Vorschau wird erstellt'
+  return 'Bereit'
 })
 
 const frameFormatLabel = computed(() => {
   const status = manifestPreview.value?.summary.frameFormat.status
-  if (status === 'passed') return 'Passed'
-  if (status === 'failed') return 'Failed'
-  return 'Not checked'
+  if (status === 'passed') return 'Bestanden'
+  if (status === 'failed') return 'Fehlgeschlagen'
+  return 'Nicht geprüft'
 })
 
 const frameFormatDetail = computed(() => {
   const frameFormat = manifestPreview.value?.summary.frameFormat
-  if (!frameFormat || frameFormat.status === 'not_checked') return 'Not checked'
+  if (!frameFormat || frameFormat.status === 'not_checked') return 'Nicht geprüft'
   const dimensions =
     frameFormat.expectedWidth && frameFormat.expectedHeight
       ? `${frameFormat.expectedWidth} x ${frameFormat.expectedHeight}`
-      : 'Unknown dimensions'
-  return `${frameFormat.expectedImageFormat || 'Unknown format'} - ${dimensions} - ${
-    frameFormat.expectedMode || 'Unknown mode'
+      : 'Unbekannte Dimensionen'
+  return `${frameFormat.expectedImageFormat || 'Unbekanntes Format'} - ${dimensions} - ${
+    frameFormat.expectedMode || 'Unbekannter Modus'
   }`
 })
 
@@ -277,8 +352,19 @@ const lxAiCoreManifestJson = computed(() => {
 })
 
 function strategyLabel(strategy: AiDatasetFrameFormatStrategy): string {
-  if (strategy === 'crop_to_endoscope_roi') return 'Crop endoscope ROI'
-  return 'Preserve dimensions with black mask'
+  if (strategy === 'crop_to_endoscope_roi') return 'Endoskop-ROI zuschneiden'
+  return 'Dimensionen mit schwarzer Maske beibehalten'
+}
+
+function datasetTypeLabel(datasetType: AiDatasetType | string): string {
+  if (datasetType === 'image') return 'Bild'
+  if (datasetType === 'video') return 'Video'
+  return datasetType
+}
+
+function aiModelTypeForDatasetType(datasetType: AiDatasetType): AiDatasetModelType {
+  if (datasetType === 'video') return 'video_segment_classification'
+  return 'image_multilabel_classification'
 }
 
 function normalizedInformationSourceNames(): string[] | null {
@@ -308,9 +394,44 @@ async function loadOptions(): Promise<void> {
     }
   } catch (error) {
     console.error('Failed to load AI dataset manifest options:', error)
-    errorMessage.value = 'Dataset options could not be loaded.'
+    errorMessage.value = 'Datensatz-Optionen konnten nicht geladen werden.'
   } finally {
     loadingOptions.value = false
+  }
+}
+
+async function createDataset(): Promise<void> {
+  if (!canCreateDataset.value) return
+
+  creatingDataset.value = true
+  errorMessage.value = ''
+  createdDatasetMessage.value = ''
+  try {
+    const createdDataset = await createAiDataset({
+      name: createDatasetForm.name.trim(),
+      datasetType: createDatasetForm.datasetType,
+      aiModelType: aiModelTypeForDatasetType(createDatasetForm.datasetType),
+      isActive: true
+    })
+    datasetOptions.value = await fetchAiDatasetOptions()
+    selectedDatasetId.value = String(createdDataset.id)
+    createDatasetForm.name = ''
+    createdDatasetMessage.value = `Datensatz "${createdDataset.label}" wurde erstellt und ausgewählt.`
+    resetManifest()
+  } catch (error: any) {
+    console.error('Failed to create AI dataset:', error)
+    const errors = error?.response?.data?.errors
+    if (errors?.name) {
+      errorMessage.value = 'Bitte geben Sie einen gültigen Namen für den Datensatz ein.'
+    } else if (errors?.datasetType) {
+      errorMessage.value = 'Bitte wählen Sie einen gültigen Datensatztyp aus.'
+    } else if (errors?.aiModelType) {
+      errorMessage.value = 'Der Modelltyp passt nicht zum ausgewählten Datensatztyp.'
+    } else {
+      errorMessage.value = 'Der Datensatz konnte nicht erstellt werden.'
+    }
+  } finally {
+    creatingDataset.value = false
   }
 }
 
@@ -319,6 +440,7 @@ async function buildManifest(): Promise<void> {
 
   buildingManifest.value = true
   errorMessage.value = ''
+  createdDatasetMessage.value = ''
   manifestPreview.value = null
   try {
     manifestPreview.value = await buildAiDatasetTrainingManifest(selectedDatasetId.value, {
@@ -334,7 +456,7 @@ async function buildManifest(): Promise<void> {
       errors?.labelSetId ||
       errors?.preprocessingStrategy ||
       errors?.recommendedModelInputStrategy ||
-      'The manifest could not be created with this configuration.'
+      'Das Manifest konnte mit dieser Konfiguration nicht erstellt werden.'
   } finally {
     buildingManifest.value = false
   }
@@ -386,6 +508,11 @@ onMounted(() => {
   font-weight: 700;
 }
 
+.heading-copy {
+  margin: 0.5rem 0 0;
+  color: #5d7085;
+}
+
 .panel-heading h2 {
   font-size: 1.1rem;
   font-weight: 700;
@@ -404,6 +531,39 @@ onMounted(() => {
   border-radius: 8px;
   background: #ffffff;
   padding: 1rem;
+}
+
+.create-dataset-panel {
+  display: grid;
+  gap: 0.85rem;
+  margin-top: 1rem;
+  padding: 1rem;
+  border: 1px solid #d9e2ec;
+  border-radius: 8px;
+  background: #f8fbfc;
+}
+
+.create-dataset-panel h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.create-dataset-panel p {
+  margin: 0.3rem 0 0;
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+.create-dataset-grid {
+  display: grid;
+  grid-template-columns: minmax(12rem, 1fr) minmax(11rem, 0.7fr) auto;
+  gap: 0.75rem;
+  align-items: end;
+}
+
+.create-dataset-button {
+  min-height: 2.35rem;
 }
 
 .settings-grid {
@@ -525,6 +685,10 @@ onMounted(() => {
 
 @media (max-width: 991.98px) {
   .settings-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .create-dataset-grid {
     grid-template-columns: 1fr;
   }
 }

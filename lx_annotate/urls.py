@@ -4,6 +4,7 @@ from django.contrib import admin
 from django.urls import include, path, re_path
 from django.views.generic import RedirectView, TemplateView
 from lx_dtypes.django.api.main import api as lx_dtypes_api
+from lx_annotate.views.ai_dataset_settings import ai_datasets_dropdown
 from lx_annotate.views.hub_export import (
     hub_export_mark,
     hub_export_overview,
@@ -15,6 +16,11 @@ urlpatterns = [
     path("api/hub-export/overview/", hub_export_overview, name="hub-export-overview"),
     path("api/hub-export/mark/", hub_export_mark, name="hub-export-mark"),
     path("api/hub-export/unmark/", hub_export_unmark, name="hub-export-unmark"),
+    path(
+        "api/settings/application/dropdowns/ai_datasets/",
+        ai_datasets_dropdown,
+        name="ai-datasets-dropdown",
+    ),
     path("api/", include(("endoreg_db.urls", "endoreg_db"), namespace="api")),
     path("oidc/", include("mozilla_django_oidc.urls")),
     path(

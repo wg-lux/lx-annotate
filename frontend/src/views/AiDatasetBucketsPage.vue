@@ -2,10 +2,10 @@
   <div class="dataset-buckets-page container-fluid py-4 px-3 px-lg-4">
     <section class="page-heading">
       <div>
-        <p class="section-kicker">AI Dataset</p>
-        <h1>Frame Bucket Distribution</h1>
+        <p class="section-kicker">KI-Datensatz</p>
+        <h1>Frame-Bucket-Verteilung</h1>
         <p class="heading-copy">
-          Review the current frame counts used by dataset-aware annotation and training queues.
+          Prüfen Sie die aktuellen Frame-Zahlen für datensatzbasierte Annotation und Trainingswarteschlangen.
         </p>
       </div>
       <button
@@ -22,7 +22,7 @@
     <section class="controls-panel">
       <div class="controls-grid">
         <label class="field-group">
-          <span>AI Dataset</span>
+          <span>KI-Datensatz</span>
           <select
             v-model="selectedDatasetId"
             class="form-select"
@@ -31,7 +31,7 @@
           >
             <option value="">Datensatz auswählen</option>
             <option v-for="dataset in datasetOptions" :key="dataset.id" :value="String(dataset.id)">
-              {{ dataset.label }} ({{ dataset.datasetType }})
+              {{ dataset.label }} ({{ datasetTypeLabel(dataset.datasetType) }})
             </option>
           </select>
         </label>
@@ -52,7 +52,7 @@
         </label>
 
         <label class="field-group">
-          <span>Target Label</span>
+          <span>Ziel-Label</span>
           <select
             v-model="selectedTargetLabelId"
             class="form-select"
@@ -89,17 +89,17 @@
     </section>
 
     <template v-else-if="distribution">
-      <section class="summary-grid" aria-label="Dataset frame bucket summary">
+      <section class="summary-grid" aria-label="Zusammenfassung der Datensatz-Frame-Buckets">
         <div class="metric-tile" data-test="summary-merged-frames">
-          <span>Bucket Frames</span>
+          <span>Bucket-Frames</span>
           <strong>{{ formatNumber(distribution.summary.mergedFrameCount) }}</strong>
         </div>
         <div class="metric-tile">
-          <span>Annotation Frames</span>
+          <span>Annotations-Frames</span>
           <strong>{{ formatNumber(distribution.summary.annotationFrameCount) }}</strong>
         </div>
         <div class="metric-tile">
-          <span>Segment Frames</span>
+          <span>Segment-Frames</span>
           <strong>{{ formatNumber(distribution.summary.segmentFrameCount) }}</strong>
         </div>
         <div class="metric-tile">
@@ -112,7 +112,7 @@
         <section class="distribution-panel">
           <div class="panel-heading">
             <div>
-              <h2>Target Buckets</h2>
+              <h2>Ziel-Buckets</h2>
               <p>{{ targetBucketSubtitle }}</p>
             </div>
           </div>
@@ -134,26 +134,26 @@
         <section class="distribution-panel">
           <div class="panel-heading">
             <div>
-              <h2>Dataset Scope</h2>
+              <h2>Datensatzumfang</h2>
               <p>{{ selectedDatasetLabel }}</p>
             </div>
           </div>
 
           <dl class="scope-list">
             <div>
-              <dt>Type</dt>
-              <dd>{{ distribution.datasetType }}</dd>
+              <dt>Typ</dt>
+              <dd>{{ datasetTypeLabel(distribution.datasetType) }}</dd>
             </div>
             <div>
-              <dt>Model</dt>
-              <dd>{{ distribution.aiModelType }}</dd>
+              <dt>Modell</dt>
+              <dd>{{ aiModelTypeLabel(distribution.aiModelType) }}</dd>
             </div>
             <div>
               <dt>Videos</dt>
               <dd>{{ formatNumber(distribution.summary.videoCount) }}</dd>
             </div>
             <div>
-              <dt>Updated</dt>
+              <dt>Aktualisiert</dt>
               <dd>{{ formatDate(distribution.updatedAt) }}</dd>
             </div>
           </dl>
@@ -163,8 +163,8 @@
       <section class="distribution-panel table-panel">
         <div class="panel-heading">
           <div>
-            <h2>Per-Label Frame Buckets</h2>
-            <p>Unique frame counts from positive annotations, segment ranges, and their union.</p>
+            <h2>Frame-Buckets pro Label</h2>
+            <p>Eindeutige Frame-Zahlen aus positiven Annotationen, Segmentbereichen und deren Vereinigung.</p>
           </div>
         </div>
 
@@ -176,12 +176,12 @@
             <thead>
               <tr>
                 <th>Label</th>
-                <th>Combined Frames</th>
-                <th>Annotation Frames</th>
-                <th>Segment Frames</th>
-                <th>Positive Rows</th>
-                <th>Negative Rows</th>
-                <th>Segments</th>
+                <th>Kombinierte Frames</th>
+                <th>Annotations-Frames</th>
+                <th>Segment-Frames</th>
+                <th>Positive Einträge</th>
+                <th>Negative Einträge</th>
+                <th>Segmente</th>
               </tr>
             </thead>
             <tbody>
@@ -208,7 +208,7 @@
     </template>
 
     <section v-else class="empty-state">
-      Wählen Sie einen AI-Datensatz aus, um die aktuelle Bucket-Verteilung zu laden.
+      Wählen Sie einen KI-Datensatz aus, um die aktuelle Bucket-Verteilung zu laden.
     </section>
   </div>
 </template>
@@ -292,9 +292,9 @@ const targetBucketMax = computed(() =>
 
 const targetBucketSubtitle = computed(() => {
   if (!distribution.value?.targetLabelName) {
-    return 'Wählen Sie ein Target Label, um positive, negative und unknown Frames zu sehen.'
+    return 'Wählen Sie ein Ziel-Label, um positive, negative und unbekannte Frames zu sehen.'
   }
-  return `Target Label: ${distribution.value.targetLabelName}`
+  return `Ziel-Label: ${distribution.value.targetLabelName}`
 })
 
 function bucketMap(
@@ -394,9 +394,21 @@ async function loadDistribution(): Promise<void> {
 }
 
 function bucketLabel(bucket: BucketName): string {
-  if (bucket === 'positive') return 'Positive'
-  if (bucket === 'negative') return 'Negative'
-  return 'Unknown'
+  if (bucket === 'positive') return 'Positiv'
+  if (bucket === 'negative') return 'Negativ'
+  return 'Unbekannt'
+}
+
+function datasetTypeLabel(datasetType: string): string {
+  if (datasetType === 'image') return 'Bild'
+  if (datasetType === 'video') return 'Video'
+  return datasetType
+}
+
+function aiModelTypeLabel(aiModelType: string): string {
+  if (aiModelType === 'image_multilabel_classification') return 'Bild-Multilabel-Klassifikation'
+  if (aiModelType === 'video_segment_classification') return 'Video-Segmentklassifikation'
+  return aiModelType
 }
 
 function bucketWidth(value: number, maxValue: number): string {

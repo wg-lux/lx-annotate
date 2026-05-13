@@ -500,6 +500,18 @@ wheels = [
 ]
 
 [[package]]
+name = "colorlog"
+version = "6.10.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "colorama", marker = "sys_platform == 'win32'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/a2/61/f083b5ac52e505dfc1c624eafbf8c7589a0d7f32daa398d2e7590efa5fda/colorlog-6.10.1.tar.gz", hash = "sha256:eb4ae5cb65fe7fec7773c2306061a8e63e02efc2c72eba9d27b0fa23c94f1321", size = 17162, upload-time = "2025-10-16T16:14:11.978Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/6d/c1/e419ef3723a074172b68aaa89c9f3de486ed4c2399e2dbd8113a4fdcaf9e/colorlog-6.10.1-py3-none-any.whl", hash = "sha256:2d7e8348291948af66122cff006c9f8da6255d224e7cf8e37d8de2df3bad8c9c", size = 11743, upload-time = "2025-10-16T16:14:10.512Z" },
+]
+
+[[package]]
 name = "confection"
 version = "0.1.5"
 source = { registry = "https://pypi.org/simple" }
@@ -974,7 +986,7 @@ sdist = { url = "https://files.pythonhosted.org/packages/62/59/e47bbd0542d0e6f4c
 
 [[package]]
 name = "endoreg-db"
-version = "0.9.8.5"
+version = "0.9.9.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "celery" },
@@ -996,14 +1008,13 @@ dependencies = [
     { name = "kombu" },
     { name = "librosa" },
     { name = "llvmlite" },
-    { name = "lx-ai-core", extra = ["torch"] },
     { name = "lx-anonymizer", extra = ["llm", "ocr"] },
     { name = "lx-dtypes" },
     { name = "moviepy" },
     { name = "mozilla-django-oidc" },
     { name = "numba" },
     { name = "numpy" },
-    { name = "opencv-python" },
+    { name = "opencv-python-headless" },
     { name = "openpyxl" },
     { name = "optimum" },
     { name = "pandas" },
@@ -1037,9 +1048,9 @@ dependencies = [
     { name = "whitenoise" },
     { name = "ziglang" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/2c/62/1a53ef3b55591a5b95af4840f151ed53ec153c4f4bb1a1e6105b857eed30/endoreg_db-0.9.8.5.tar.gz", hash = "sha256:abe2e0346f5380c9fbc0bc4d23a0f9df8ed707de6f5e3d7858acbc10e888459b", size = 801536, upload-time = "2026-05-11T07:39:42.832Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/e1/e5/802e300679a4f05e9d7eb30ba8d352bfca4eda530d2a5987d90095a094ba/endoreg_db-0.9.9.2.tar.gz", hash = "sha256:8bcfe5d597b27253417362dc58e8d671a4fddb1e564caf0fda1d57096af9a6c6", size = 813392, upload-time = "2026-05-13T08:11:09.716Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/e4/7a/f30c4a798fbcc5ee1dd9b636d8a40bf4ec437652b956092fff2e93679631/endoreg_db-0.9.8.5-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:5365f6181e8d8c4a3998fc61d0a42b748f778c73fd4007742de0fd00939c9406", size = 1403615, upload-time = "2026-05-11T07:39:39.182Z" },
+    { url = "https://files.pythonhosted.org/packages/d1/e1/0a7e64f2f87338876537124f5ac2858d23db6594062d604602544edd051f/endoreg_db-0.9.9.2-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:265dad6c5ec1d50915fb02d63feee4481f5897f813abb8e460d1ada404c38ee9", size = 1418620, upload-time = "2026-05-13T08:11:07.344Z" },
 ]
 
 [[package]]
@@ -1694,28 +1705,8 @@ wheels = [
 ]
 
 [[package]]
-name = "lx-ai-core"
-version = "0.0.1"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "pydantic" },
-    { name = "pyyaml" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/19/37/e74b0ee15ae40b1b1a2265f88d942f186d1f0edecea4768e0ac4dfc89c66/lx_ai_core-0.0.1.tar.gz", hash = "sha256:d55e24d76f601118b4d2c40b289e3aabc7d9fa8e0e8c9aba608becc576ef4769", size = 26303, upload-time = "2026-05-08T13:24:41.661Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/6e/16/ead4ff421e5396cd37b24d91457eabec5139bc5e4ca9569693e49e7b828e/lx_ai_core-0.0.1-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:e0567e91fa63eb2ebe90acca4fe46b3816c3a48fa56d97af493e6b2f2af5102b", size = 250561, upload-time = "2026-05-08T13:09:40.566Z" },
-]
-
-[package.optional-dependencies]
-torch = [
-    { name = "numpy" },
-    { name = "pillow" },
-    { name = "torch" },
-]
-
-[[package]]
 name = "lx-annotate"
-version = "0.5.1"
+version = "0.5.3"
 source = { editable = "." }
 dependencies = [
     { name = "black" },
@@ -1814,14 +1805,14 @@ requires-dist = [
     { name = "django-webpack-loader", specifier = ">=0.7.0" },
     { name = "djangorestframework", specifier = ">=3.12.4" },
     { name = "drf-spectacular", specifier = ">=0.28.0" },
-    { name = "endoreg-db", specifier = "==0.9.8.5" },
+    { name = "endoreg-db", specifier = "==0.9.9.2" },
     { name = "flake8", marker = "extra == 'dev'", specifier = ">=7.3.0" },
     { name = "furo", marker = "extra == 'dev'", specifier = ">=2025.9.25" },
     { name = "furo", marker = "extra == 'docs'", specifier = ">=2025.9.25" },
     { name = "gunicorn", specifier = ">=23.0.0" },
     { name = "linkify-it-py", marker = "extra == 'dev'", specifier = ">=2.0.3" },
     { name = "linkify-it-py", marker = "extra == 'docs'", specifier = ">=2.0.3" },
-    { name = "lx-dtypes", specifier = "==0.1.5" },
+    { name = "lx-dtypes", specifier = "==0.1.6" },
     { name = "mozilla-django-oidc", specifier = ">=4.0.1" },
     { name = "mypy", specifier = ">=1.18.2" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.16.0" },
@@ -1867,7 +1858,7 @@ provides-extras = ["dev", "docs"]
 
 [[package]]
 name = "lx-anonymizer"
-version = "0.9.1.3"
+version = "0.9.1.5"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "certifi" },
@@ -1887,6 +1878,7 @@ dependencies = [
     { name = "pyspellchecker" },
     { name = "pytesseract" },
     { name = "rapidfuzz" },
+    { name = "rapidocr" },
     { name = "requests" },
     { name = "spacy" },
     { name = "tenacity" },
@@ -1895,9 +1887,9 @@ dependencies = [
     { name = "ultralytics" },
     { name = "ziglang" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/45/08/11c517c32fb0d345e3f5c3243161d38bd9e3c835fe2d240652bba449d86b/lx_anonymizer-0.9.1.3.tar.gz", hash = "sha256:4ce9913d7c6757b558e368d9af34553a3dccc18a2be1dd639a57821eddca1cb7", size = 1723953, upload-time = "2026-05-08T12:03:57.286Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/11/f2/b3ba76588d89de25c0417af715e1940155e6436a235c5080378efea3bfbb/lx_anonymizer-0.9.1.5.tar.gz", hash = "sha256:1725ed2a50a900784d75d10cf0be7a1900677f920adee9e093581202f4581394", size = 1538935, upload-time = "2026-05-12T09:31:42.359Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/50/25/2b515482a13c4404a045be65b352e15eccb35f1d1c474c8e31e363dc771e/lx_anonymizer-0.9.1.3-cp312-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:3164fd9f3aac600a7c9d2e3b044ee24c8bb7ecfedeeb67fe50da033c29a5d6eb", size = 1638502, upload-time = "2026-05-08T12:03:54.638Z" },
+    { url = "https://files.pythonhosted.org/packages/13/01/78f755f64f243d64a3dea619ed720e48e6d1276e771823fe0b3248b84649/lx_anonymizer-0.9.1.5-cp312-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:8acb915b5d2d4242e6028b7a0357b4290d92b912d4fc6e8d60cfc4b882b363b4", size = 1409374, upload-time = "2026-05-12T09:31:39.851Z" },
 ]
 
 [package.optional-dependencies]
@@ -1916,7 +1908,7 @@ ocr = [
 
 [[package]]
 name = "lx-dtypes"
-version = "0.1.5"
+version = "0.1.6"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "bibtexparser" },
@@ -1926,7 +1918,6 @@ dependencies = [
     { name = "django-stubs-ext" },
     { name = "icecream" },
     { name = "numpy" },
-    { name = "opencv-python" },
     { name = "openpyxl" },
     { name = "pandas" },
     { name = "pandas-stubs" },
@@ -1940,9 +1931,9 @@ dependencies = [
     { name = "scipy" },
     { name = "types-pyyaml" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/25/f7/eec7ce806e8c02238998064e89d639436157563ed8df2dde5d87519887c9/lx_dtypes-0.1.5.tar.gz", hash = "sha256:404b25091469cbc2ce573ef69a290b03381a6bea6f8db89f6a372401a0ca0d9f", size = 2124384, upload-time = "2026-04-24T12:35:26.723Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/c0/31/cd20a54b9e14bb25791bff452c989d54a5a1749067216c1eed0c27889fe1/lx_dtypes-0.1.6.tar.gz", hash = "sha256:0a8e78fecfa07804301a7f477709442c5ea42f5cd83ce48c1d7a8f8e500460ca", size = 2175765, upload-time = "2026-05-11T13:59:29.381Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/9e/cb/db16f76785c1606a9530dc0064c1ace7c11ae1686621e7e04758d1e9ec6c/lx_dtypes-0.1.5-py3-none-any.whl", hash = "sha256:c7048286a2fe16edeb7f8a42db2805c4429b799f6a9af2724ea59e7efd4cbb95", size = 514814, upload-time = "2026-04-24T12:35:19.813Z" },
+    { url = "https://files.pythonhosted.org/packages/a3/87/f998dcb5d85efb7f4ed64302efce22d2a1700c85b4609a90eb11036755db/lx_dtypes-0.1.6-py3-none-any.whl", hash = "sha256:37649a11fb104e3df7b8594a87460184d62a21e025c7be1d1bff671cac493a6a", size = 522159, upload-time = "2026-05-11T13:59:27.538Z" },
 ]
 
 [[package]]
@@ -2895,6 +2886,20 @@ wheels = [
 ]
 
 [[package]]
+name = "pyclipper"
+version = "1.4.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/f6/21/3c06205bb407e1f79b73b7b4dfb3950bd9537c4f625a68ab5cc41177f5bc/pyclipper-1.4.0.tar.gz", hash = "sha256:9882bd889f27da78add4dd6f881d25697efc740bf840274e749988d25496c8e1", size = 54489, upload-time = "2025-12-01T13:15:35.015Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/90/1b/7a07b68e0842324d46c03e512d8eefa9cb92ba2a792b3b4ebf939dafcac3/pyclipper-1.4.0-cp312-cp312-macosx_10_13_universal2.whl", hash = "sha256:222ac96c8b8281b53d695b9c4fedc674f56d6d4320ad23f1bdbd168f4e316140", size = 265676, upload-time = "2025-12-01T13:15:04.15Z" },
+    { url = "https://files.pythonhosted.org/packages/6b/dd/8bd622521c05d04963420ae6664093f154343ed044c53ea260a310c8bb4d/pyclipper-1.4.0-cp312-cp312-macosx_10_13_x86_64.whl", hash = "sha256:f3672dbafbb458f1b96e1ee3e610d174acb5ace5bd2ed5d1252603bb797f2fc6", size = 140458, upload-time = "2025-12-01T13:15:05.76Z" },
+    { url = "https://files.pythonhosted.org/packages/7a/06/6e3e241882bf7d6ab23d9c69ba4e85f1ec47397cbbeee948a16cf75e21ed/pyclipper-1.4.0-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:d1f807e2b4760a8e5c6d6b4e8c1d71ef52b7fe1946ff088f4fa41e16a881a5ca", size = 978235, upload-time = "2025-12-01T13:15:06.993Z" },
+    { url = "https://files.pythonhosted.org/packages/cf/f4/3418c1cd5eea640a9fa2501d4bc0b3655fa8d40145d1a4f484b987990a75/pyclipper-1.4.0-cp312-cp312-manylinux_2_24_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:ce1f83c9a4e10ea3de1959f0ae79e9a5bd41346dff648fee6228ba9eaf8b3872", size = 961388, upload-time = "2025-12-01T13:15:08.467Z" },
+    { url = "https://files.pythonhosted.org/packages/ac/94/c85401d24be634af529c962dd5d781f3cb62a67cd769534df2cb3feee97a/pyclipper-1.4.0-cp312-cp312-win32.whl", hash = "sha256:3ef44b64666ebf1cb521a08a60c3e639d21b8c50bfbe846ba7c52a0415e936f4", size = 95169, upload-time = "2025-12-01T13:15:10.098Z" },
+    { url = "https://files.pythonhosted.org/packages/97/77/dfea08e3b230b82ee22543c30c35d33d42f846a77f96caf7c504dd54fab1/pyclipper-1.4.0-cp312-cp312-win_amd64.whl", hash = "sha256:d1e5498d883b706a4ce636247f0d830c6eb34a25b843a1b78e2c969754ca9037", size = 104619, upload-time = "2025-12-01T13:15:11.592Z" },
+]
+
+[[package]]
 name = "pycodestyle"
 version = "2.14.0"
 source = { registry = "https://pypi.org/simple" }
@@ -3364,6 +3369,27 @@ wheels = [
 ]
 
 [[package]]
+name = "rapidocr"
+version = "3.8.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "colorlog" },
+    { name = "numpy" },
+    { name = "omegaconf" },
+    { name = "opencv-python" },
+    { name = "pillow" },
+    { name = "pyclipper" },
+    { name = "pyyaml" },
+    { name = "requests" },
+    { name = "shapely" },
+    { name = "six" },
+    { name = "tqdm" },
+]
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ea/4a/fa521d947f0fc7bb304bf11bec4cb66266bd81494588b4cb48dc01001719/rapidocr-3.8.1-py3-none-any.whl", hash = "sha256:650044b1fbce9e6bae5cae462dcf8be754cde11e2f23fc51f65dcc08deae2c46", size = 15080319, upload-time = "2026-04-11T07:13:22.56Z" },
+]
+
+[[package]]
 name = "readme-renderer"
 version = "44.0"
 source = { registry = "https://pypi.org/simple" }
@@ -3685,6 +3711,25 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/4f/db/cfac1baf10650ab4d1c111714410d2fbb77ac5a616db26775db562c8fab2/setuptools-82.0.1.tar.gz", hash = "sha256:7d872682c5d01cfde07da7bccc7b65469d3dca203318515ada1de5eda35efbf9", size = 1152316, upload-time = "2026-03-09T12:47:17.221Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/9d/76/f789f7a86709c6b087c5a2f52f911838cad707cc613162401badc665acfe/setuptools-82.0.1-py3-none-any.whl", hash = "sha256:a59e362652f08dcd477c78bb6e7bd9d80a7995bc73ce773050228a348ce2e5bb", size = 1006223, upload-time = "2026-03-09T12:47:15.026Z" },
+]
+
+[[package]]
+name = "shapely"
+version = "2.1.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "numpy" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/4d/bc/0989043118a27cccb4e906a46b7565ce36ca7b57f5a18b78f4f1b0f72d9d/shapely-2.1.2.tar.gz", hash = "sha256:2ed4ecb28320a433db18a5bf029986aa8afcfd740745e78847e330d5d94922a9", size = 315489, upload-time = "2025-09-24T13:51:41.432Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/24/c0/f3b6453cf2dfa99adc0ba6675f9aaff9e526d2224cbd7ff9c1a879238693/shapely-2.1.2-cp312-cp312-macosx_10_13_x86_64.whl", hash = "sha256:fe2533caae6a91a543dec62e8360fe86ffcdc42a7c55f9dfd0128a977a896b94", size = 1833550, upload-time = "2025-09-24T13:50:30.019Z" },
+    { url = "https://files.pythonhosted.org/packages/86/07/59dee0bc4b913b7ab59ab1086225baca5b8f19865e6101db9ebb7243e132/shapely-2.1.2-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:ba4d1333cc0bc94381d6d4308d2e4e008e0bd128bdcff5573199742ee3634359", size = 1643556, upload-time = "2025-09-24T13:50:32.291Z" },
+    { url = "https://files.pythonhosted.org/packages/26/29/a5397e75b435b9895cd53e165083faed5d12fd9626eadec15a83a2411f0f/shapely-2.1.2-cp312-cp312-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:0bd308103340030feef6c111d3eb98d50dc13feea33affc8a6f9fa549e9458a3", size = 2988308, upload-time = "2025-09-24T13:50:33.862Z" },
+    { url = "https://files.pythonhosted.org/packages/b9/37/e781683abac55dde9771e086b790e554811a71ed0b2b8a1e789b7430dd44/shapely-2.1.2-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:1e7d4d7ad262a48bb44277ca12c7c78cb1b0f56b32c10734ec9a1d30c0b0c54b", size = 3099844, upload-time = "2025-09-24T13:50:35.459Z" },
+    { url = "https://files.pythonhosted.org/packages/d8/f3/9876b64d4a5a321b9dc482c92bb6f061f2fa42131cba643c699f39317cb9/shapely-2.1.2-cp312-cp312-musllinux_1_2_aarch64.whl", hash = "sha256:e9eddfe513096a71896441a7c37db72da0687b34752c4e193577a145c71736fc", size = 3988842, upload-time = "2025-09-24T13:50:37.478Z" },
+    { url = "https://files.pythonhosted.org/packages/d1/a0/704c7292f7014c7e74ec84eddb7b109e1fbae74a16deae9c1504b1d15565/shapely-2.1.2-cp312-cp312-musllinux_1_2_x86_64.whl", hash = "sha256:980c777c612514c0cf99bc8a9de6d286f5e186dcaf9091252fcd444e5638193d", size = 4152714, upload-time = "2025-09-24T13:50:39.9Z" },
+    { url = "https://files.pythonhosted.org/packages/53/46/319c9dc788884ad0785242543cdffac0e6530e4d0deb6c4862bc4143dcf3/shapely-2.1.2-cp312-cp312-win32.whl", hash = "sha256:9111274b88e4d7b54a95218e243282709b330ef52b7b86bc6aaf4f805306f454", size = 1542745, upload-time = "2025-09-24T13:50:41.414Z" },
+    { url = "https://files.pythonhosted.org/packages/ec/bf/cb6c1c505cb31e818e900b9312d514f381fbfa5c4363edfce0fcc4f8c1a4/shapely-2.1.2-cp312-cp312-win_amd64.whl", hash = "sha256:743044b4cfb34f9a67205cee9279feaf60ba7d02e69febc2afc609047cb49179", size = 1722861, upload-time = "2025-09-24T13:50:43.35Z" },
 ]
 
 [[package]]

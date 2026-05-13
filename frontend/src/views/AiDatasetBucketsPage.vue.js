@@ -39,9 +39,9 @@ const normalizedTargetBuckets = computed(() => {
 const targetBucketMax = computed(() => Math.max(1, ...normalizedTargetBuckets.value.map((bucket) => bucket.frameCount)));
 const targetBucketSubtitle = computed(() => {
     if (!distribution.value?.targetLabelName) {
-        return 'Wählen Sie ein Target Label, um positive, negative und unknown Frames zu sehen.';
+        return 'Wählen Sie ein Ziel-Label, um positive, negative und unbekannte Frames zu sehen.';
     }
-    return `Target Label: ${distribution.value.targetLabelName}`;
+    return `Ziel-Label: ${distribution.value.targetLabelName}`;
 });
 function bucketMap(items) {
     return new Map(items.map((item) => [item.labelId, item]));
@@ -131,10 +131,24 @@ async function loadDistribution() {
 }
 function bucketLabel(bucket) {
     if (bucket === 'positive')
-        return 'Positive';
+        return 'Positiv';
     if (bucket === 'negative')
-        return 'Negative';
-    return 'Unknown';
+        return 'Negativ';
+    return 'Unbekannt';
+}
+function datasetTypeLabel(datasetType) {
+    if (datasetType === 'image')
+        return 'Bild';
+    if (datasetType === 'video')
+        return 'Video';
+    return datasetType;
+}
+function aiModelTypeLabel(aiModelType) {
+    if (aiModelType === 'image_multilabel_classification')
+        return 'Bild-Multilabel-Klassifikation';
+    if (aiModelType === 'video_segment_classification')
+        return 'Video-Segmentklassifikation';
+    return aiModelType;
 }
 function bucketWidth(value, maxValue) {
     const ratio = maxValue > 0 ? value / maxValue : 0;
@@ -238,7 +252,7 @@ for (const [dataset] of __VLS_getVForSourceType((__VLS_ctx.datasetOptions))) {
         value: (String(dataset.id)),
     });
     (dataset.label);
-    (dataset.datasetType);
+    (__VLS_ctx.datasetTypeLabel(dataset.datasetType));
 }
 __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
     ...{ class: "field-group" },
@@ -315,7 +329,7 @@ if (__VLS_ctx.loadingDistribution) {
 else if (__VLS_ctx.distribution) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.section, __VLS_intrinsicElements.section)({
         ...{ class: "summary-grid" },
-        'aria-label': "Dataset frame bucket summary",
+        'aria-label': "Zusammenfassung der Datensatz-Frame-Buckets",
     });
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
         ...{ class: "metric-tile" },
@@ -399,11 +413,11 @@ else if (__VLS_ctx.distribution) {
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
     __VLS_asFunctionalElement(__VLS_intrinsicElements.dt, __VLS_intrinsicElements.dt)({});
     __VLS_asFunctionalElement(__VLS_intrinsicElements.dd, __VLS_intrinsicElements.dd)({});
-    (__VLS_ctx.distribution.datasetType);
+    (__VLS_ctx.datasetTypeLabel(__VLS_ctx.distribution.datasetType));
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
     __VLS_asFunctionalElement(__VLS_intrinsicElements.dt, __VLS_intrinsicElements.dt)({});
     __VLS_asFunctionalElement(__VLS_intrinsicElements.dd, __VLS_intrinsicElements.dd)({});
-    (__VLS_ctx.distribution.aiModelType);
+    (__VLS_ctx.aiModelTypeLabel(__VLS_ctx.distribution.aiModelType));
     __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
     __VLS_asFunctionalElement(__VLS_intrinsicElements.dt, __VLS_intrinsicElements.dt)({});
     __VLS_asFunctionalElement(__VLS_intrinsicElements.dd, __VLS_intrinsicElements.dd)({});
@@ -557,6 +571,8 @@ const __VLS_self = (await import('vue')).defineComponent({
             mergedFrameMax: mergedFrameMax,
             loadDistribution: loadDistribution,
             bucketLabel: bucketLabel,
+            datasetTypeLabel: datasetTypeLabel,
+            aiModelTypeLabel: aiModelTypeLabel,
             bucketWidth: bucketWidth,
             formatNumber: formatNumber,
             formatDate: formatDate,

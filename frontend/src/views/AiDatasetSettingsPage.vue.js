@@ -1,13 +1,19 @@
-import { buildAiDatasetTrainingManifest, fetchAiDatasetLabelSets, fetchAiDatasetOptions } from '@/api/aiDatasetApi';
+import { buildAiDatasetTrainingManifest, createAiDataset, fetchAiDatasetLabelSets, fetchAiDatasetOptions } from '@/api/aiDatasetApi';
 import { computed, onMounted, reactive, ref } from 'vue';
 const datasetOptions = ref([]);
 const labelSetOptions = ref([]);
 const selectedDatasetId = ref('');
 const loadingOptions = ref(true);
 const buildingManifest = ref(false);
+const creatingDataset = ref(false);
 const errorMessage = ref('');
+const createdDatasetMessage = ref('');
 const manifestPreview = ref(null);
 const informationSourceInput = ref('');
+const createDatasetForm = reactive({
+    name: '',
+    datasetType: 'image'
+});
 const form = reactive({
     labelSetId: '',
     treatUnlabeledAsNegative: false,
@@ -17,29 +23,37 @@ const form = reactive({
     recommendedModelInputStrategy: 'crop_to_endoscope_roi',
     informationSourceNames: null
 });
+const canCreateDataset = computed(() => {
+    return (createDatasetForm.name.trim().length > 0 &&
+        !loadingOptions.value &&
+        !buildingManifest.value &&
+        !creatingDataset.value);
+});
 const statusLabel = computed(() => {
     if (loadingOptions.value)
-        return 'Loading options';
+        return 'Optionen werden geladen';
+    if (creatingDataset.value)
+        return 'Datensatz wird erstellt';
     if (buildingManifest.value)
-        return 'Building preview';
-    return 'Ready';
+        return 'Vorschau wird erstellt';
+    return 'Bereit';
 });
 const frameFormatLabel = computed(() => {
     const status = manifestPreview.value?.summary.frameFormat.status;
     if (status === 'passed')
-        return 'Passed';
+        return 'Bestanden';
     if (status === 'failed')
-        return 'Failed';
-    return 'Not checked';
+        return 'Fehlgeschlagen';
+    return 'Nicht geprüft';
 });
 const frameFormatDetail = computed(() => {
     const frameFormat = manifestPreview.value?.summary.frameFormat;
     if (!frameFormat || frameFormat.status === 'not_checked')
-        return 'Not checked';
+        return 'Nicht geprüft';
     const dimensions = frameFormat.expectedWidth && frameFormat.expectedHeight
         ? `${frameFormat.expectedWidth} x ${frameFormat.expectedHeight}`
-        : 'Unknown dimensions';
-    return `${frameFormat.expectedImageFormat || 'Unknown format'} - ${dimensions} - ${frameFormat.expectedMode || 'Unknown mode'}`;
+        : 'Unbekannte Dimensionen';
+    return `${frameFormat.expectedImageFormat || 'Unbekanntes Format'} - ${dimensions} - ${frameFormat.expectedMode || 'Unbekannter Modus'}`;
 });
 const cropTemplateCount = computed(() => {
     const templates = manifestPreview.value?.summary.frameFormat.cropTemplatesByVideoUuid ?? {};
@@ -52,8 +66,20 @@ const lxAiCoreManifestJson = computed(() => {
 });
 function strategyLabel(strategy) {
     if (strategy === 'crop_to_endoscope_roi')
-        return 'Crop endoscope ROI';
-    return 'Preserve dimensions with black mask';
+        return 'Endoskop-ROI zuschneiden';
+    return 'Dimensionen mit schwarzer Maske beibehalten';
+}
+function datasetTypeLabel(datasetType) {
+    if (datasetType === 'image')
+        return 'Bild';
+    if (datasetType === 'video')
+        return 'Video';
+    return datasetType;
+}
+function aiModelTypeForDatasetType(datasetType) {
+    if (datasetType === 'video')
+        return 'video_segment_classification';
+    return 'image_multilabel_classification';
 }
 function normalizedInformationSourceNames() {
     const names = informationSourceInput.value
@@ -81,10 +107,49 @@ async function loadOptions() {
     }
     catch (error) {
         console.error('Failed to load AI dataset manifest options:', error);
-        errorMessage.value = 'Dataset options could not be loaded.';
+        errorMessage.value = 'Datensatz-Optionen konnten nicht geladen werden.';
     }
     finally {
         loadingOptions.value = false;
+    }
+}
+async function createDataset() {
+    if (!canCreateDataset.value)
+        return;
+    creatingDataset.value = true;
+    errorMessage.value = '';
+    createdDatasetMessage.value = '';
+    try {
+        const createdDataset = await createAiDataset({
+            name: createDatasetForm.name.trim(),
+            datasetType: createDatasetForm.datasetType,
+            aiModelType: aiModelTypeForDatasetType(createDatasetForm.datasetType),
+            isActive: true
+        });
+        datasetOptions.value = await fetchAiDatasetOptions();
+        selectedDatasetId.value = String(createdDataset.id);
+        createDatasetForm.name = '';
+        createdDatasetMessage.value = `Datensatz "${createdDataset.label}" wurde erstellt und ausgewählt.`;
+        resetManifest();
+    }
+    catch (error) {
+        console.error('Failed to create AI dataset:', error);
+        const errors = error?.response?.data?.errors;
+        if (errors?.name) {
+            errorMessage.value = 'Bitte geben Sie einen gültigen Namen für den Datensatz ein.';
+        }
+        else if (errors?.datasetType) {
+            errorMessage.value = 'Bitte wählen Sie einen gültigen Datensatztyp aus.';
+        }
+        else if (errors?.aiModelType) {
+            errorMessage.value = 'Der Modelltyp passt nicht zum ausgewählten Datensatztyp.';
+        }
+        else {
+            errorMessage.value = 'Der Datensatz konnte nicht erstellt werden.';
+        }
+    }
+    finally {
+        creatingDataset.value = false;
     }
 }
 async function buildManifest() {
@@ -92,6 +157,7 @@ async function buildManifest() {
         return;
     buildingManifest.value = true;
     errorMessage.value = '';
+    createdDatasetMessage.value = '';
     manifestPreview.value = null;
     try {
         manifestPreview.value = await buildAiDatasetTrainingManifest(selectedDatasetId.value, {
@@ -108,7 +174,7 @@ async function buildManifest() {
                 errors?.labelSetId ||
                 errors?.preprocessingStrategy ||
                 errors?.recommendedModelInputStrategy ||
-                'The manifest could not be created with this configuration.';
+                'Das Manifest konnte mit dieser Konfiguration nicht erstellt werden.';
     }
     finally {
         buildingManifest.value = false;
@@ -130,6 +196,8 @@ let __VLS_directives;
 /** @type {__VLS_StyleScopedClasses['panel-heading']} */ ;
 /** @type {__VLS_StyleScopedClasses['page-heading']} */ ;
 /** @type {__VLS_StyleScopedClasses['panel-heading']} */ ;
+/** @type {__VLS_StyleScopedClasses['create-dataset-panel']} */ ;
+/** @type {__VLS_StyleScopedClasses['create-dataset-panel']} */ ;
 /** @type {__VLS_StyleScopedClasses['metric-tile']} */ ;
 /** @type {__VLS_StyleScopedClasses['metric-tile']} */ ;
 /** @type {__VLS_StyleScopedClasses['format-list']} */ ;
@@ -137,6 +205,7 @@ let __VLS_directives;
 /** @type {__VLS_StyleScopedClasses['format-list']} */ ;
 /** @type {__VLS_StyleScopedClasses['manifest-json']} */ ;
 /** @type {__VLS_StyleScopedClasses['settings-layout']} */ ;
+/** @type {__VLS_StyleScopedClasses['create-dataset-grid']} */ ;
 // CSS variable injection 
 // CSS variable injection end 
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -150,11 +219,14 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)(
     ...{ class: "section-kicker" },
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.h1, __VLS_intrinsicElements.h1)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({
+    ...{ class: "heading-copy" },
+});
 __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
     ...{ onClick: (__VLS_ctx.loadOptions) },
     type: "button",
     ...{ class: "btn btn-outline-secondary btn-sm" },
-    disabled: (__VLS_ctx.loadingOptions || __VLS_ctx.buildingManifest),
+    disabled: (__VLS_ctx.loadingOptions || __VLS_ctx.buildingManifest || __VLS_ctx.creatingDataset),
     'data-test': "reload-options",
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
@@ -169,9 +241,62 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.d
 __VLS_asFunctionalElement(__VLS_intrinsicElements.h2, __VLS_intrinsicElements.h2)({});
 __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({
     ...{ class: "status-chip" },
-    ...{ class: ({ 'status-chip-busy': __VLS_ctx.loadingOptions || __VLS_ctx.buildingManifest }) },
+    ...{ class: ({ 'status-chip-busy': __VLS_ctx.loadingOptions || __VLS_ctx.buildingManifest || __VLS_ctx.creatingDataset }) },
 });
 (__VLS_ctx.statusLabel);
+__VLS_asFunctionalElement(__VLS_intrinsicElements.form, __VLS_intrinsicElements.form)({
+    ...{ onSubmit: (__VLS_ctx.createDataset) },
+    ...{ class: "create-dataset-panel" },
+    'data-test': "create-dataset-form",
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.h3, __VLS_intrinsicElements.h3)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.p, __VLS_intrinsicElements.p)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+    ...{ class: "create-dataset-grid" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+    ...{ class: "field-group" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
+    ...{ class: "form-control" },
+    'data-test': "new-dataset-name-input",
+    disabled: (__VLS_ctx.loadingOptions || __VLS_ctx.buildingManifest || __VLS_ctx.creatingDataset),
+    placeholder: "z. B. Koloskopie Training Mai 2026",
+    maxlength: "255",
+});
+(__VLS_ctx.createDatasetForm.name);
+__VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
+    ...{ class: "field-group" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElements.select)({
+    value: (__VLS_ctx.createDatasetForm.datasetType),
+    ...{ class: "form-select" },
+    'data-test': "new-dataset-type-select",
+    disabled: (__VLS_ctx.loadingOptions || __VLS_ctx.buildingManifest || __VLS_ctx.creatingDataset),
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+    value: "image",
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
+    value: "video",
+});
+__VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
+    type: "submit",
+    ...{ class: "btn btn-outline-primary create-dataset-button" },
+    'data-test': "create-dataset-button",
+    disabled: (!__VLS_ctx.canCreateDataset),
+});
+(__VLS_ctx.creatingDataset ? 'Datensatz wird erstellt...' : 'Datensatz erstellen');
+if (__VLS_ctx.createdDatasetMessage) {
+    __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
+        ...{ class: "alert alert-success mb-0 mt-3" },
+        role: "status",
+    });
+    (__VLS_ctx.createdDatasetMessage);
+}
 __VLS_asFunctionalElement(__VLS_intrinsicElements.div, __VLS_intrinsicElements.div)({
     ...{ class: "settings-grid" },
 });
@@ -183,7 +308,7 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElement
     value: (__VLS_ctx.selectedDatasetId),
     ...{ class: "form-select" },
     'data-test': "dataset-select",
-    disabled: (__VLS_ctx.loadingOptions || __VLS_ctx.buildingManifest),
+    disabled: (__VLS_ctx.loadingOptions || __VLS_ctx.buildingManifest || __VLS_ctx.creatingDataset),
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
     value: "",
@@ -194,7 +319,7 @@ for (const [dataset] of __VLS_getVForSourceType((__VLS_ctx.datasetOptions))) {
         value: (String(dataset.id)),
     });
     (dataset.label);
-    (dataset.datasetType);
+    (__VLS_ctx.datasetTypeLabel(dataset.datasetType));
     (dataset.id);
 }
 __VLS_asFunctionalElement(__VLS_intrinsicElements.label, __VLS_intrinsicElements.label)({
@@ -205,7 +330,7 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElement
     value: (__VLS_ctx.form.labelSetId),
     ...{ class: "form-select" },
     'data-test': "label-set-select",
-    disabled: (__VLS_ctx.loadingOptions || __VLS_ctx.buildingManifest),
+    disabled: (__VLS_ctx.loadingOptions || __VLS_ctx.buildingManifest || __VLS_ctx.creatingDataset),
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
     value: "",
@@ -227,7 +352,7 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElement
     value: (__VLS_ctx.form.preprocessingStrategy),
     ...{ class: "form-select" },
     'data-test': "preprocessing-strategy-select",
-    disabled: (__VLS_ctx.buildingManifest),
+    disabled: (__VLS_ctx.buildingManifest || __VLS_ctx.creatingDataset),
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
     value: "preserve_dimensions_black_mask",
@@ -243,7 +368,7 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.select, __VLS_intrinsicElement
     value: (__VLS_ctx.form.recommendedModelInputStrategy),
     ...{ class: "form-select" },
     'data-test': "model-input-strategy-select",
-    disabled: (__VLS_ctx.buildingManifest),
+    disabled: (__VLS_ctx.buildingManifest || __VLS_ctx.creatingDataset),
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.option, __VLS_intrinsicElements.option)({
     value: "crop_to_endoscope_roi",
@@ -258,7 +383,7 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.
 __VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
     ...{ class: "form-control" },
     'data-test': "information-source-input",
-    disabled: (__VLS_ctx.buildingManifest),
+    disabled: (__VLS_ctx.buildingManifest || __VLS_ctx.creatingDataset),
     placeholder: "manual_annotation, prediction",
 });
 (__VLS_ctx.informationSourceInput);
@@ -272,7 +397,7 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
     ...{ class: "form-check-input" },
     type: "checkbox",
     'data-test': "unknowns-negative-checkbox",
-    disabled: (__VLS_ctx.buildingManifest),
+    disabled: (__VLS_ctx.buildingManifest || __VLS_ctx.creatingDataset),
 });
 (__VLS_ctx.form.treatUnlabeledAsNegative);
 __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
@@ -283,7 +408,7 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
     ...{ class: "form-check-input" },
     type: "checkbox",
     'data-test': "check-frame-format-checkbox",
-    disabled: (__VLS_ctx.buildingManifest),
+    disabled: (__VLS_ctx.buildingManifest || __VLS_ctx.creatingDataset),
 });
 (__VLS_ctx.form.checkFrameFormat);
 __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
@@ -294,7 +419,7 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.input)({
     ...{ class: "form-check-input" },
     type: "checkbox",
     'data-test': "include-file-paths-checkbox",
-    disabled: (__VLS_ctx.buildingManifest),
+    disabled: (__VLS_ctx.buildingManifest || __VLS_ctx.creatingDataset),
 });
 (__VLS_ctx.form.includeFilePaths);
 __VLS_asFunctionalElement(__VLS_intrinsicElements.span, __VLS_intrinsicElements.span)({});
@@ -313,14 +438,14 @@ __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElement
     type: "button",
     ...{ class: "btn btn-primary" },
     'data-test': "build-training-manifest",
-    disabled: (__VLS_ctx.buildingManifest || !__VLS_ctx.selectedDatasetId),
+    disabled: (__VLS_ctx.buildingManifest || __VLS_ctx.creatingDataset || !__VLS_ctx.selectedDatasetId),
 });
-(__VLS_ctx.buildingManifest ? 'Building manifest...' : 'Preview manifest');
+(__VLS_ctx.buildingManifest ? 'Manifest wird erstellt...' : 'Manifest-Vorschau erstellen');
 __VLS_asFunctionalElement(__VLS_intrinsicElements.button, __VLS_intrinsicElements.button)({
     ...{ onClick: (__VLS_ctx.resetManifest) },
     type: "button",
     ...{ class: "btn btn-outline-secondary" },
-    disabled: (__VLS_ctx.buildingManifest),
+    disabled: (__VLS_ctx.buildingManifest || __VLS_ctx.creatingDataset),
 });
 __VLS_asFunctionalElement(__VLS_intrinsicElements.section, __VLS_intrinsicElements.section)({
     ...{ class: "settings-panel summary-panel" },
@@ -402,6 +527,7 @@ else {
 /** @type {__VLS_StyleScopedClasses['px-lg-4']} */ ;
 /** @type {__VLS_StyleScopedClasses['page-heading']} */ ;
 /** @type {__VLS_StyleScopedClasses['section-kicker']} */ ;
+/** @type {__VLS_StyleScopedClasses['heading-copy']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-outline-secondary']} */ ;
 /** @type {__VLS_StyleScopedClasses['btn-sm']} */ ;
@@ -410,6 +536,19 @@ else {
 /** @type {__VLS_StyleScopedClasses['panel-heading']} */ ;
 /** @type {__VLS_StyleScopedClasses['status-chip']} */ ;
 /** @type {__VLS_StyleScopedClasses['status-chip-busy']} */ ;
+/** @type {__VLS_StyleScopedClasses['create-dataset-panel']} */ ;
+/** @type {__VLS_StyleScopedClasses['create-dataset-grid']} */ ;
+/** @type {__VLS_StyleScopedClasses['field-group']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-control']} */ ;
+/** @type {__VLS_StyleScopedClasses['field-group']} */ ;
+/** @type {__VLS_StyleScopedClasses['form-select']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn']} */ ;
+/** @type {__VLS_StyleScopedClasses['btn-outline-primary']} */ ;
+/** @type {__VLS_StyleScopedClasses['create-dataset-button']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert']} */ ;
+/** @type {__VLS_StyleScopedClasses['alert-success']} */ ;
+/** @type {__VLS_StyleScopedClasses['mb-0']} */ ;
+/** @type {__VLS_StyleScopedClasses['mt-3']} */ ;
 /** @type {__VLS_StyleScopedClasses['settings-grid']} */ ;
 /** @type {__VLS_StyleScopedClasses['field-group']} */ ;
 /** @type {__VLS_StyleScopedClasses['form-select']} */ ;
@@ -459,17 +598,23 @@ const __VLS_self = (await import('vue')).defineComponent({
             selectedDatasetId: selectedDatasetId,
             loadingOptions: loadingOptions,
             buildingManifest: buildingManifest,
+            creatingDataset: creatingDataset,
             errorMessage: errorMessage,
+            createdDatasetMessage: createdDatasetMessage,
             manifestPreview: manifestPreview,
             informationSourceInput: informationSourceInput,
+            createDatasetForm: createDatasetForm,
             form: form,
+            canCreateDataset: canCreateDataset,
             statusLabel: statusLabel,
             frameFormatLabel: frameFormatLabel,
             frameFormatDetail: frameFormatDetail,
             cropTemplateCount: cropTemplateCount,
             lxAiCoreManifestJson: lxAiCoreManifestJson,
             strategyLabel: strategyLabel,
+            datasetTypeLabel: datasetTypeLabel,
             loadOptions: loadOptions,
+            createDataset: createDataset,
             buildManifest: buildManifest,
             resetManifest: resetManifest,
         };

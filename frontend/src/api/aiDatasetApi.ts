@@ -5,10 +5,24 @@ export interface AiDatasetOption {
   id: number
   value: string
   label: string
-  datasetType: string
-  aiModelType: string
+  datasetType: AiDatasetType
+  aiModelType: AiDatasetModelType | string
   isActive: boolean
   nameCount: number
+}
+
+export type AiDatasetType = 'image' | 'video'
+
+export type AiDatasetModelType =
+  | 'image_multilabel_classification'
+  | 'video_segment_classification'
+
+export interface CreateAiDatasetPayload {
+  name: string
+  datasetType: AiDatasetType
+  aiModelType?: AiDatasetModelType
+  description?: string | null
+  isActive?: boolean
 }
 
 export interface AiDatasetLabelOption {
@@ -133,6 +147,16 @@ const trainingManifestPath = (datasetId: number | string) =>
 
 export async function fetchAiDatasetOptions(): Promise<AiDatasetOption[]> {
   const { data } = await axiosInstance.get<AiDatasetOption[]>(r(AI_DATASETS_DROPDOWN_PATH))
+  return data
+}
+
+export async function createAiDataset(
+  payload: CreateAiDatasetPayload
+): Promise<AiDatasetOption> {
+  const { data } = await axiosInstance.post<AiDatasetOption>(
+    r(AI_DATASETS_DROPDOWN_PATH),
+    payload
+  )
   return data
 }
 
